@@ -80,7 +80,10 @@ Build the body from the ticket and diff. Keep only applicable sections and write
   7. Merge confidence — PASS: <evidence>
   ```
 
-  Never carry this evidence forward after the head changes.
+  Never carry this evidence forward after the head changes. Where the Safeword
+  PR review workflow runs, the `safeword/pr-readiness` commit status reports
+  this block as current, stale, missing, or blocked for each head; it observes
+  the block and never judges the gates behind it.
 
 Never manufacture verification or describe cumulative stack changes as this
 slice's work. Prefer a concise reviewer narrative over an implementation manifest.

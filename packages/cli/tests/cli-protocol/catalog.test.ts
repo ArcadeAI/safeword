@@ -132,6 +132,7 @@ describe('CLI command catalog', () => {
       'review routes reset',
       'review-pr inspect',
       'review-pr invalidate',
+      'review-pr readiness',
       'review-pr publish',
       'retro run',
       'retro signals',

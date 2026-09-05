@@ -9,6 +9,23 @@ on:
 permissions: {}
 
 jobs:
+  readiness:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      # Deterministic, no model, no checkout: reports whether the readiness
+      # evidence in the body still names this head. Deliberately outside the
+      # advisory worker so it still runs when a review route is unavailable.
+      - name: Report readiness evidence freshness
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: npx --yes safeword@__SAFEWORD_VERSION__ --no-input --json review-pr readiness
+
   event-review:
     if: github.event_name == 'pull_request_target'
     permissions:
