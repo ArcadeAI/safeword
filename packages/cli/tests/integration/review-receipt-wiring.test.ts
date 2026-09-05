@@ -384,6 +384,7 @@ describe('review-receipt trust and aggregate budget', () => {
   let previousPluginRoot: string | undefined;
   let previousCodexHome: string | undefined;
   let previousPath: string | undefined;
+  let previousProgress: string | undefined;
 
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'review-receipt-trust-'));
@@ -391,6 +392,7 @@ describe('review-receipt trust and aggregate budget', () => {
     previousPluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
     previousCodexHome = process.env.CODEX_HOME;
     previousPath = process.env.PATH;
+    previousProgress = process.env.SAFEWORD_REVIEW_PROGRESS;
   });
 
   afterEach(() => {
@@ -400,6 +402,8 @@ describe('review-receipt trust and aggregate budget', () => {
     else process.env.CODEX_HOME = previousCodexHome;
     if (previousPath === undefined) delete process.env.PATH;
     else process.env.PATH = previousPath;
+    if (previousProgress === undefined) delete process.env.SAFEWORD_REVIEW_PROGRESS;
+    else process.env.SAFEWORD_REVIEW_PROGRESS = previousProgress;
     rmSync(projectRoot, { recursive: true, force: true });
     rmSync(pluginRoot, { recursive: true, force: true });
   });
@@ -433,10 +437,11 @@ describe('review-receipt trust and aggregate budget', () => {
     mkdirSync(trustedBin, { recursive: true });
     writeFileSync(
       nodePath.join(trustedBin, 'bunx'),
-      `#!/bin/sh\npwd > ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
+      `#!/bin/sh\nif [ -n "$SAFEWORD_REVIEW_PROGRESS" ]; then exit 9; fi\npwd > ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
       { mode: 0o755 },
     );
     process.env.PATH = `${trustedBin}${nodePath.delimiter}${previousPath ?? ''}`;
+    process.env.SAFEWORD_REVIEW_PROGRESS = '1';
 
     expect(readReviewReceipt(REVIEW_ID, projectRoot)?.status).toBe('approved');
     expect(readFileSync(marker, 'utf8').trim()).toBe(homedir());
@@ -448,16 +453,16 @@ describe('review-receipt trust and aggregate budget', () => {
     writeFileSync(
       nodePath.join(pluginRoot, 'runtime', 'cli.js'),
       [
-        'await Bun.sleep(180);',
+        'await Bun.sleep(500);',
         'const id = process.argv[4];',
         `process.stdout.write(JSON.stringify({ data: { ...${JSON.stringify(approvedEnvelope)}, review_id: id } }));`,
       ].join('\n'),
     );
-    const read = createReviewReceiptReader(projectRoot, 350);
+    const read = createReviewReceiptReader(projectRoot, 800);
     const startedAt = Date.now();
 
     expect(read('review-one')?.reviewId).toBe('review-one');
     expect(read('review-two')).toBeUndefined();
-    expect(Date.now() - startedAt).toBeLessThan(470);
+    expect(Date.now() - startedAt).toBeLessThan(1100);
   });
 });

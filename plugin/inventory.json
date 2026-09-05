@@ -335,7 +335,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "5795a71bfd4f78c5ec33950f0b208199113080b812b3d1feb23fdfe05ccafb98"
+      "sha256": "6a72638e664174b49e1c8a5459a686fdb2ded16dc4859da1e4c8f69c8264579e"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",

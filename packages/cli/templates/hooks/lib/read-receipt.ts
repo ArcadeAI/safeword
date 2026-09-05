@@ -18,7 +18,7 @@
 import { spawnSync } from 'node:child_process';
 
 import type { ReviewReceipt } from './review-receipt.js';
-import { receiptReviewCandidates } from '../run-review.js';
+import { receiptReviewCandidates, reviewChildEnvironment } from '../run-review.js';
 
 /**
  * Per-route and total budgets. This runs inside blocking hooks (PreToolUse,
@@ -47,6 +47,7 @@ export function readReviewReceipt(
       {
         cwd: workingDirectory,
         encoding: 'utf8',
+        env: reviewChildEnvironment(process.env, ['review', 'status', id, '--json']),
         timeout: Math.min(ROUTE_TIMEOUT_MS, remaining),
       },
     );
