@@ -118,28 +118,30 @@ describe('Claude delivery schema', () => {
     expect(Object.keys(schema.managedFiles).some(path => path.startsWith('.claude/'))).toBe(false);
   });
 
-  it('never delivers a path the cleanup advisory said it preserved', () => {
-    // Cleanup reports unrecognized project content as preserved and leaves it
-    // alone; install then rewrote the same file with safeword's version, with no
-    // prompt and no diff (#3790). One path cannot be both preserved and owned.
-    // The path is outside `.claude/` on purpose: inside it, plugin mode already
-    // strips everything and the assertion would hold for the wrong reason.
+  it('never lets a marker remove an unrelated Safeword-owned file from delivery', () => {
+    // A marker's `unresolved_paths` is not a general opt-out from delivery.
+    // Subtracting it from the schema let a stale or hand-edited marker naming a
+    // Safeword-owned path make install silently stop repairing that file — the
+    // same silent class as #3790 itself, inverted. Cleanup only ever records
+    // `.claude/` content, which plugin mode already strips, so the subtraction
+    // could never protect a real preserved path and only ever removed the wrong
+    // ones. Found by the advisory PR review.
     const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-preserved-schema-'));
     roots.push(root);
-    const preserved = Object.keys(SAFEWORD_SCHEMA.ownedFiles).find(
-      path => !path.startsWith('.claude/'),
+    const unrelated = Object.keys(SAFEWORD_SCHEMA.ownedFiles).find(path =>
+      path.startsWith('.safeword/hooks/'),
     );
-    if (preserved === undefined) throw new Error('No non-.claude owned file to preserve.');
+    if (unrelated === undefined) throw new Error('No safeword-owned hook to protect.');
     writeClaudePluginMode(root, {
       schema_version: 2,
       state: 'unresolved',
       plugin_version: '0.73.0',
       hook_manifest_sha256: digest,
       catalogue_sha256: digest,
-      unresolved_paths: [preserved],
+      unresolved_paths: [unrelated],
     });
 
-    expect(schemaForClaudeDelivery(root).ownedFiles[preserved]).toBeUndefined();
+    expect(schemaForClaudeDelivery(root).ownedFiles[unrelated]).toBeDefined();
   });
 
   it('keeps the checked-in inspiration gate collaborators byte-identical to generated assets', () => {
