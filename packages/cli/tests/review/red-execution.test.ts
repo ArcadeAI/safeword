@@ -45,6 +45,7 @@ describe('trusted executable RED observation', () => {
         cwd: '.',
         evidence_class: 'pure-contract',
         expected_failure: { literal: 'expected actor assertion', matched: true },
+        timeout_ms: 1000,
         termination: { exit_code: 1, timed_out: false },
         stderr: { excerpt: 'expected actor assertion\n', truncated: false },
       },
@@ -63,5 +64,40 @@ describe('trusted executable RED observation', () => {
     expect(attestation.environment.sha256).toMatch(/^[a-f\d]{64}$/u);
     expect(attestation.source_fingerprint).toMatch(/^[a-f\d]{64}$/u);
     expect(attestation.stderr.sha256).toMatch(/^[a-f\d]{64}$/u);
+  });
+
+  it('force-terminates proof processes that ignore the graceful timeout signal', async () => {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-red-timeout-'));
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), '{"crossAgentReview":"off"}\n');
+    writeFileSync(nodePath.join(cwd, 'proof.md'), 'proof hangs after expected failure\n');
+    const keyRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-red-key-'));
+    vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', keyRoot);
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+
+    const result = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['proof.md'],
+      execution: {
+        argv: [
+          process.execPath,
+          '-e',
+          "process.on('SIGTERM', () => {}); console.error('expected timeout'); setInterval(() => {}, 1000)",
+        ],
+        cwd: '.',
+        evidenceClass: 'pure-contract',
+        expectedFailure: 'expected timeout',
+        timeoutMs: 25,
+      },
+    });
+
+    expect(result.data).toMatchObject({
+      execution_attestation: {
+        timeout_ms: 25,
+        expected_failure: { matched: true },
+        termination: { signal: 'SIGKILL', timed_out: true },
+      },
+    });
   });
 });

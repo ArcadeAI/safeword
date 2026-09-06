@@ -10,6 +10,7 @@ import type {
 } from './contract.js';
 
 const MAX_EXCERPT_BYTES = 64 * 1024;
+const FORCE_KILL_GRACE_MS = 250;
 
 function containedWorkingDirectory(root: string, requested: string): string {
   const canonicalRoot = realpathSync.native(root);
@@ -93,6 +94,7 @@ export async function executeRedProof(input: {
     timedOut: boolean;
   }>((resolve, reject) => {
     let timedOut = false;
+    let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
     const child = spawn(input.request.argv[0], input.request.argv.slice(1), {
       cwd,
       env: process.env,
@@ -106,13 +108,23 @@ export async function executeRedProof(input: {
     child.stderr.on('data', (chunk: Buffer) => {
       stderr.add(chunk);
     });
-    child.once('error', reject);
+    const clearTimers = (): void => {
+      clearTimeout(timer);
+      if (forceKillTimer !== undefined) clearTimeout(forceKillTimer);
+    };
+    child.once('error', error => {
+      clearTimers();
+      reject(error);
+    });
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGTERM');
+      forceKillTimer = setTimeout(() => {
+        child.kill('SIGKILL');
+      }, FORCE_KILL_GRACE_MS);
     }, input.request.timeoutMs);
     child.once('close', (exitCode, signal) => {
-      clearTimeout(timer);
+      clearTimers();
       resolve({ exitCode, signal, timedOut });
     });
   });
@@ -128,6 +140,7 @@ export async function executeRedProof(input: {
       literal: input.request.expectedFailure,
       matched: stdout.matched || stderr.matched,
     },
+    timeout_ms: input.request.timeoutMs,
     source_fingerprint: input.sourceFingerprint,
     environment: environmentIdentity(),
     started_at: new Date(started).toISOString(),
