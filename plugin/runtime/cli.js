@@ -14240,7 +14240,7 @@ function codexMigrationExitCode(result) {
     return 1;
   return result.ok ? 0 : 2;
 }
-var CODEX_RESTART_ACTION = "Fully restart Codex, then resume this task", CODEX_REVIEW_THEN_RESTART_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task", CODEX_RESTART_INSTRUCTION, CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", CODEX_HOOK_ACTIVATION_FAILED_CONTEXT = "Codex restarted, but Safeword received no current lifecycle hook proof.", CODEX_HOOK_ACTIVATION_FAILED_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection.", CODEX_PARTIAL_ACTIVATION_CONTEXT = "Codex restarted and Safeword has partial current lifecycle hook proof.", CODEX_PARTIAL_ACTIVATION_ACTION = "Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.", MIGRATION_STATE_RULES, NEXT_COMMANDS, CODEX_MIGRATION_CONTEXT;
+var CODEX_RESTART_ACTION = "Fully restart Codex, then resume this task", CODEX_REVIEW_THEN_RESTART_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task", CODEX_RESTART_INSTRUCTION, CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue. Independent reviews are unaffected: they run a fresh Codex with hooks disabled.", CODEX_HOOK_ACTIVATION_FAILED_CONTEXT = "Codex restarted, but Safeword received no current lifecycle hook proof.", CODEX_HOOK_ACTIVATION_FAILED_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection.", CODEX_PARTIAL_ACTIVATION_CONTEXT = "Codex restarted and Safeword has partial current lifecycle hook proof.", CODEX_PARTIAL_ACTIVATION_ACTION = "Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.", MIGRATION_STATE_RULES, NEXT_COMMANDS, CODEX_MIGRATION_CONTEXT;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
@@ -67699,35 +67699,56 @@ async function reviewRoutesSetHandler(invocation) {
     }
   });
 }
+var REVIEW_ROUTE_AUTHORS = ["claude", "codex", "opencode"];
+var REVIEW_ROUTE_CONFIG_KEY = "crossAgentReviewRoutes";
 async function reviewRoutesListHandler(invocation) {
-  const author = reviewRouteAuthor(invocation.options.author);
-  if (author === undefined)
+  const requested = reviewRouteAuthor(invocation.options.author);
+  if (requested === undefined && invocation.options.author !== undefined)
     return invalidOperand("review routes list", "Provide --author as claude, codex, or opencode.");
-  const [{ effectiveConfiguredRoutes: effectiveConfiguredRoutes2 }, { builtInReviewRoutes: builtInReviewRoutes2 }] = await Promise.all([
-    Promise.resolve().then(() => (init_preferences(), exports_preferences)),
-    Promise.resolve().then(() => (init_policy2(), exports_policy))
-  ]);
-  let configured;
-  try {
-    configured = effectiveConfiguredRoutes2(invocation.cwd, author);
-  } catch (error2) {
-    return reviewRoutesFailure("review routes list", error2);
+  const authors = requested === undefined ? REVIEW_ROUTE_AUTHORS : [requested];
+  const [{ effectiveConfiguredRoutes: effectiveConfiguredRoutes2, scopedConfigPath: scopedConfigPath2 }, { builtInReviewRoutes: builtInReviewRoutes2 }] = await Promise.all([Promise.resolve().then(() => (init_preferences(), exports_preferences)), Promise.resolve().then(() => (init_policy2(), exports_policy))]);
+  const listed = [];
+  for (const author of authors) {
+    let configured;
+    try {
+      configured = effectiveConfiguredRoutes2(invocation.cwd, author);
+    } catch (error2) {
+      return reviewRoutesFailure("review routes list", error2);
+    }
+    listed.push({
+      author,
+      ...configured ?? {
+        source: "built-in",
+        routes: builtInReviewRoutes2(invocation.cwd, author)
+      }
+    });
   }
-  const data = configured ?? {
-    source: "built-in",
-    routes: builtInReviewRoutes2(invocation.cwd, author)
-  };
+  const projectConfig = nodePath110.relative(invocation.cwd, scopedConfigPath2(invocation.cwd, "project"));
+  const body = [
+    ...listed.flatMap((entry2) => [
+      `${entry2.author} review routes (${entry2.source}):`,
+      ...entry2.routes.map((route, index) => `${index + 1}. ${route.reviewer} (${route.model ?? "runtime default"}) [${route.independence}]`),
+      ""
+    ]),
+    `Change these with \`safeword review routes set --author <agent> --scope project --route <reviewer>\`,`,
+    `or edit the \`${REVIEW_ROUTE_CONFIG_KEY}\` key in ${projectConfig}.`
+  ].join(`
+`);
+  const single = requested === undefined ? undefined : listed[0];
   return createResult({
     state: "healthy",
-    presentation: {
-      kind: "raw",
-      body: [
-        `${author} review routes (${data.source}):`,
-        ...data.routes.map((route, index) => `${index + 1}. ${route.reviewer} (${route.model ?? "runtime default"}) [${route.independence}]`)
-      ].join(`
-`)
-    },
-    data: { command: "review routes list", author, ...data }
+    presentation: { kind: "raw", body },
+    data: {
+      command: "review routes list",
+      config_key: REVIEW_ROUTE_CONFIG_KEY,
+      config_path: projectConfig,
+      authors: listed,
+      ...single !== undefined && {
+        author: single.author,
+        source: single.source,
+        routes: single.routes
+      }
+    }
   });
 }
 async function reviewRoutesResetHandler(invocation) {
