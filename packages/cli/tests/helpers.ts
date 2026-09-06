@@ -1301,6 +1301,32 @@ export interface HookResult {
   stderr: string;
 }
 
+/**
+ * Write `.safeword/config.json` into a hook-integration fixture root, for the
+ * gate flags rather than language packs (see `writeSafewordConfig` for those).
+ *
+ * The Stop-time quality review is off by default (ticket KHL52X), so a fixture
+ * that asserts it fires has to switch it back on with
+ * `{ stopQualityReview: true }`.
+ *
+ * MERGES rather than replaces: a fixture that ran `safeword setup` first already
+ * has a config.json carrying installedPacks, and clobbering it would break
+ * language detection for every other case in the file.
+ */
+export function writeGateConfig(projectRoot: string, config: Record<string, unknown>): void {
+  const configPath = nodePath.join(projectRoot, '.safeword', 'config.json');
+  let existing: Record<string, unknown> = {};
+  if (existsSync(configPath)) {
+    try {
+      existing = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    } catch {
+      existing = {};
+    }
+  }
+  mkdirSync(nodePath.dirname(configPath), { recursive: true });
+  writeFileSync(configPath, `${JSON.stringify({ ...existing, ...config }, undefined, 2)}\n`);
+}
+
 /** Assert a PreToolUse hook allowed the action (exit 0, no deny in stdout). */
 export function expectHookAllow(result: HookResult): void {
   expect(result.status).toBe(0);
@@ -1390,7 +1416,9 @@ export function appendRetroAck(
 
 /** Write `.safeword/config.json` with a `selfReport` block (stop-hook fixtures). */
 export function writeSelfReportConfig(dir: string, selfReport: Record<string, boolean>): void {
-  writeTestFile(dir, '.safeword/config.json', JSON.stringify({ selfReport }));
+  // Merges (see writeGateConfig): a fixture may already have set gate flags in
+  // the same config.json, and replacing the file would silently drop them.
+  writeGateConfig(dir, { selfReport });
 }
 
 /** Absolute path of the ticket folder whose slug suffix matches, in a temp project. */

@@ -15,6 +15,7 @@ import {
   createTemporaryDirectory,
   initGitRepo,
   removeTemporaryDirectory,
+  writeGateConfig,
   writeTestFile,
 } from '../helpers';
 
@@ -41,6 +42,7 @@ function transcriptLine(): string {
 
 function buildProject({ phase, testDefinitions, state }: BuildOptions): string {
   const cwd = createTemporaryDirectory();
+  writeGateConfig(cwd, { stopQualityReview: true });
   initGitRepo(cwd);
   writeTestFile(cwd, '.gitignore', 'quality-state-*.json\n');
   writeTestFile(cwd, '.safeword/.gitkeep', ''); // "is this a safeword project?" guard

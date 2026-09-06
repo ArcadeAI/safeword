@@ -22,6 +22,7 @@ import {
   AUTHOR_MODEL_ENV,
   hashArtifact,
   isArchitectureReviewGateEnabled,
+  isStopQualityReviewEnabled,
   isCrossModelReviewRequired,
   modelsMatch,
   parseReviewStamps,
@@ -876,6 +877,23 @@ if (typecheckAdvice.advice !== null) {
   softBlock(
     `TypeScript errors reported by the configs covering your changes — advisory, not a block (fix now, or stop and address later). Some may sit in files you did not touch. The done gate still requires a clean typecheck.\n\n${typecheckAdvice.advice}`,
   );
+}
+
+// Stop-time quality review (KHL52X): OFF unless `stopQualityReview: true`.
+// Everything ABOVE this line still runs — the done gate, the impl-plan,
+// architecture and cumulative-artifact gates, hierarchy navigation, and the
+// typecheck advisory. Those check evidence, and a Stop is a fine moment to
+// demand evidence. What stops here is the judgment-based review prompt and the
+// decision-brief ending contract: measured across 13 concurrent sessions
+// (~220 turn-ends) they produced one intervention, a reply reformat, and never
+// a code change.
+const stopReviewConfigPath = `${projectDir}/.safeword/config.json`;
+if (
+  !isStopQualityReviewEnabled(
+    existsSync(stopReviewConfigPath) ? readFileSync(stopReviewConfigPath, 'utf8') : undefined,
+  )
+) {
+  process.exit(0);
 }
 
 // Boundary backstop: phase reviews are no longer LOC-throttled. Implement-step

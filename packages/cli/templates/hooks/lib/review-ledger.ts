@@ -154,6 +154,27 @@ export function isReviewGateEnabled(rawConfig?: string): boolean {
   return configFlagIsTrue(rawConfig, 'reviewGate');
 }
 
+/**
+ * Whether the Stop-time quality review still runs. OFF unless
+ * `.safeword/config.json` sets `stopQualityReview: true`.
+ *
+ * Measured over 13 concurrent sessions (~220 turn-ends), the Stop review
+ * produced one intervention — a reply-format correction — and never a code
+ * change. A Stop event has no relationship to the work: five filters stand
+ * between the event and the check, and what survives them inspects the shape of
+ * the reply rather than the change. Ticket KHL52X carries the measurement.
+ *
+ * Turning it back on restores the phase-review prompt AND the decision-brief
+ * ending contract; both are advisory guidance from SessionStart and PostToolUse
+ * while this is off. The Stop hook's evidence gates (done, impl-plan,
+ * architecture, cumulative artifacts, typecheck advisory) are unaffected either
+ * way — a Stop is a fine moment to demand evidence, and a poor one to ask for
+ * judgment.
+ */
+export function isStopQualityReviewEnabled(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'stopQualityReview');
+}
+
 const PHASE_FIELD = /^phase:\s*(\S+)/m;
 
 /**
