@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "1c197ba9f98a00f166ef3372d1a5fc70212d0461d49fc1f73803d9e816777e71"
+      "sha256": "0dc16853a1bf59d1f0688f5d84edb45bc4dbad0115d4e16f5a9b74cb63dde73a"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "e715c8152249749f1c0db7d5197c3b0c233d636064a68ed72c26e7011d63096d"
+      "sha256": "9fc3feca018a8b1dd77591ffbe25131144e6b8787029702df1f7ed31f3b5ab55"
     },
     {
       "path": "runtime/event-groups.json",
@@ -535,7 +535,7 @@
     },
     {
       "path": "runtime/hooks/session-bun-check.sh",
-      "sha256": "86dd3fcc2ff19cacd12bbb3cceab9ffb128489d32530eb4a94d50bfc204acb7f"
+      "sha256": "47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29"
     },
     {
       "path": "runtime/hooks/session-cleanup-quality.ts",

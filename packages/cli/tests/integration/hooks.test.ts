@@ -401,6 +401,32 @@ describe('E2E: SessionStart Hooks', () => {
         }
       });
 
+      // A login bash reads only the first of .bash_profile, .bash_login and
+      // .profile. Naming one the host does not have yet creates a
+      // higher-priority file that shadows the one it reads today, so following
+      // safeword's advice would silently drop that file's environment and break
+      // tools this hook never touched.
+      it.each([
+        ['.profile', ['.profile']],
+        ['.bash_login', ['.bash_login']],
+        ['.bash_profile', ['.bash_profile', '.profile']],
+      ])('appends to %s, the file a login bash already reads', (expected, existing) => {
+        const home = createTemporaryDirectory();
+        try {
+          const shims = nodePath.join(home, '.local/share/mise/shims');
+          mkdirSync(shims, { recursive: true });
+          writeTestFile(shims, 'bun', '#!/bin/sh\nexit 0\n');
+          chmodSync(nodePath.join(shims, 'bun'), 0o755);
+          for (const file of existing) writeTestFile(home, file, '# host configuration\n');
+
+          const result = runWithoutBun(home, { SHELL: '/bin/bash' });
+
+          expect(result.stderr).toContain(`>> ~/${expected}`);
+        } finally {
+          removeTemporaryDirectory(home);
+        }
+      });
+
       // Login shells read different files, so a bash host told to edit
       // ~/.zprofile restarts into the same broken session. Run the emitted
       // command rather than matching its text: advice that doesn't survive

@@ -51,7 +51,20 @@ print_path_repair() {
         profile="~/.zprofile"
       fi
       ;;
-    bash) profile="~/.bash_profile" ;;
+    # A login bash reads only the FIRST of .bash_profile, .bash_login, and
+    # .profile, so naming one the host does not have yet would shadow the one it
+    # reads today and silently drop that file's environment.
+    bash)
+      if [ -f "$HOME/.bash_profile" ]; then
+        profile="~/.bash_profile"
+      elif [ -f "$HOME/.bash_login" ]; then
+        profile="~/.bash_login"
+      elif [ -f "$HOME/.profile" ]; then
+        profile="~/.profile"
+      else
+        profile="~/.bash_profile"
+      fi
+      ;;
     *) profile="" ;;
   esac
   # Neither path may hold shell metacharacters: a quote breaks the paste, and $
