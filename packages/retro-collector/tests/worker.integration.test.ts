@@ -31,7 +31,17 @@ it('keeps the worker process alive while the collector queue is empty', async ()
     resolveSecondClaim = resolve;
   });
   let claims = 0;
-  const collector = createServer((_request, response) => {
+  const requests: {
+    authorization: string | undefined;
+    method: string | undefined;
+    url: string | undefined;
+  }[] = [];
+  const collector = createServer((request, response) => {
+    requests.push({
+      authorization: request.headers.authorization,
+      method: request.method,
+      url: request.url,
+    });
     response.statusCode = 204;
     response.end();
     claims += 1;
@@ -69,6 +79,18 @@ it('keeps the worker process alive while the collector queue is empty', async ()
     }
 
     expect(child.exitCode, stderr).toBeNull();
+    expect(requests).toEqual([
+      {
+        authorization: 'Bearer collector-secret',
+        method: 'POST',
+        url: '/v1/private/retro-claims',
+      },
+      {
+        authorization: 'Bearer collector-secret',
+        method: 'POST',
+        url: '/v1/private/retro-claims',
+      },
+    ]);
   } finally {
     if (child.exitCode === null) child.kill('SIGTERM');
     await exited;
