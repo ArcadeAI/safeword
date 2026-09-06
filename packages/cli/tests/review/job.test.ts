@@ -407,6 +407,77 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
+  it('reuses an approved executable RED receipt only for identical proof identity', async () => {
+    const cwd = project();
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      'execution_attestation: { source_fingerprint: record.source_fingerprint }, reviewer_output: {',
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution = {
+      argv: [process.execPath, '-e', 'process.exit(1)'] as const,
+      cwd: '.',
+      evidenceClass: 'pure-contract' as const,
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    const first = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+    const reused = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+    const distinct = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution: { ...execution, expectedFailure: 'different actor assertion' },
+    });
+
+    expect((reused.data as { review_id: string }).review_id).toBe(
+      (first.data as { review_id: string }).review_id,
+    );
+    expect((distinct.data as { review_id: string }).review_id).not.toBe(
+      (first.data as { review_id: string }).review_id,
+    );
+  });
+
+  it('does not reuse an executable RED approval without bound execution evidence', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    const execution = {
+      argv: [process.execPath, '-e', 'process.exit(1)'] as const,
+      cwd: '.',
+      evidenceClass: 'pure-contract' as const,
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    const first = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+    const second = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+
+    expect((second.data as { review_id: string }).review_id).not.toBe(
+      (first.data as { review_id: string }).review_id,
+    );
+  });
+
   it('recognizes a long-running worker even when its command line is long', async () => {
     const cwd = project();
     const longDirectory = nodePath.join(cwd, `worker-${'x'.repeat(180)}`);
