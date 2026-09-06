@@ -88,6 +88,45 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     expect(receiptGateVerdict(claim, approved).ok).toBe(false);
   });
 
+  it('witnesses the five non-specialist exits with a quality-review', () => {
+    // These phases have no specialist reviewer, and `review run` only accepts
+    // three kinds — so requiring kind === phase made them unsatisfiable by any
+    // real review (ticket KHL52X).
+    for (const phase of ['intake', 'define-behavior', 'implement', 'verify', 'done']) {
+      const claim = claimFor({ phase });
+
+      expect(
+        receiptGateVerdict(claim, {
+          ...approved,
+          kind: 'quality-review',
+          targets: [`.project/tickets/${TICKET}/ticket.md`],
+        }),
+      ).toEqual({ ok: true });
+
+      const wrongKind = receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'scenario-gate',
+        targets: [`.project/tickets/${TICKET}/ticket.md`],
+      });
+      expect(wrongKind.ok).toBe(false);
+      expect(!wrongKind.ok && wrongKind.reason).toContain('quality-review');
+    }
+  });
+
+  it('still demands the specialist kind where one exists', () => {
+    for (const phase of ['scenario-gate', 'plan-implementation']) {
+      const claim = claimFor({ phase });
+      const generic = receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'quality-review',
+        targets: [`.project/tickets/${TICKET}/ticket.md`],
+      });
+
+      expect(generic.ok).toBe(false);
+      expect(!generic.ok && generic.reason).toContain(phase);
+    }
+  });
+
   it('holds a degraded stamp to the same receipt requirement', () => {
     expect(
       receiptGateVerdict(claimFor({ independence: 'degraded', artifact: 'impl-plan' })).ok,
