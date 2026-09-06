@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5de22f7e3e1b3391b412049263da8913507575667893b2045323d6e5da5ddc9c"
+      "sha256": "1c197ba9f98a00f166ef3372d1a5fc70212d0461d49fc1f73803d9e816777e71"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "81cef38fcda0638de383505f4eb11fe1ee27818045f619a72f66075e06147c7b"
+      "sha256": "e715c8152249749f1c0db7d5197c3b0c233d636064a68ed72c26e7011d63096d"
     },
     {
       "path": "runtime/event-groups.json",
@@ -279,7 +279,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
-      "sha256": "2ae7f5f94c145572509b431972188f1be348542fb5026d9b68c215e632e7d1e6"
+      "sha256": "503fe8c21e7e2671c1e6fde886c0b34206ec8d44e86610f4eced4f2a75d328b3"
     },
     {
       "path": "runtime/hooks/lib/markdown-structure.ts",
@@ -535,7 +535,7 @@
     },
     {
       "path": "runtime/hooks/session-bun-check.sh",
-      "sha256": "7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef"
+      "sha256": "86dd3fcc2ff19cacd12bbb3cceab9ffb128489d32530eb4a94d50bfc204acb7f"
     },
     {
       "path": "runtime/hooks/session-cleanup-quality.ts",

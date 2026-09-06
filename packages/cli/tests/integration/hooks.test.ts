@@ -11,7 +11,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -335,10 +335,166 @@ describe('E2E: SessionStart Hooks', () => {
 
       expect(result.status).toBe(2);
       // UJSZXB: plain-language, safety-framed wording for the NTB (no "PATH" /
-      // "quality hooks" jargon) — still names bun and the install step.
+      // "quality hooks" jargon) — still names bun. Which remedy it recommends
+      // depends on the host's toolchain; those cases are covered below.
       expect(result.stderr).toContain('bun');
       expect(result.stderr).toContain('safety checks');
-      expect(result.stderr).toContain('Install bun');
+    });
+
+    describe('when the host manages its toolchain with mise', () => {
+      // Hooks run non-interactively, so a customer whose shell rc does
+      // `mise activate` reaches this hook with no shims on PATH even though
+      // `bun` works in their terminal. Recommending a curl install there would
+      // plant a second, unmanaged bun that shadows their pinned one.
+      const runWithoutBun = (home: string, extraEnvironment: Record<string, string> = {}) =>
+        spawnSync('bash', ['.safeword/hooks/session-bun-check.sh'], {
+          cwd: shared.projectDirectory,
+          env: {
+            ...process.env,
+            CLAUDE_PROJECT_DIR: shared.projectDirectory,
+            HOME: home,
+            PATH: '/usr/bin:/bin',
+            MISE_DATA_DIR: '',
+            XDG_DATA_HOME: '',
+            ZDOTDIR: '',
+            ...extraEnvironment,
+          },
+          encoding: 'utf8',
+        });
+
+      it('points at the existing mise-managed bun instead of a competing install', () => {
+        const home = createTemporaryDirectory();
+        try {
+          const shims = nodePath.join(home, '.local/share/mise/shims');
+          mkdirSync(shims, { recursive: true });
+          writeTestFile(shims, 'bun', '#!/bin/sh\nexit 0\n');
+          chmodSync(nodePath.join(shims, 'bun'), 0o755);
+
+          const result = runWithoutBun(home);
+
+          expect(result.status).toBe(2);
+          expect(result.stderr).toContain('mise');
+          expect(result.stderr).toContain(shims);
+          expect(result.stderr).not.toContain('bun.sh/install');
+        } finally {
+          removeTemporaryDirectory(home);
+        }
+      });
+
+      it('recommends installing bun through mise when mise governs the project', () => {
+        const home = createTemporaryDirectory();
+        const miseConfig = nodePath.join(shared.projectDirectory, 'mise.toml');
+        try {
+          writeTestFile(shared.projectDirectory, 'mise.toml', '[tools]\nnode = "24"\n');
+
+          const result = runWithoutBun(home);
+
+          expect(result.status).toBe(2);
+          expect(result.stderr).toContain('mise use -g bun@latest');
+          expect(result.stderr).not.toContain('bun.sh/install');
+          // Installing through mise drops bun into the shims directory, so
+          // install guidance alone leaves the next session just as blind.
+          expect(result.stderr).toContain(nodePath.join(home, '.local/share/mise/shims'));
+        } finally {
+          rmSync(miseConfig, { force: true });
+          removeTemporaryDirectory(home);
+        }
+      });
+
+      // Login shells read different files, so a bash host told to edit
+      // ~/.zprofile restarts into the same broken session. Run the emitted
+      // command rather than matching its text: advice that doesn't survive
+      // being pasted — into a home directory containing a space, say — leaves
+      // the host exactly as unguarded as before.
+      it.each([
+        ['/bin/zsh', '.zprofile'],
+        ['/bin/bash', '.bash_profile'],
+      ])('emits a login-PATH command %s can actually run', (shell, profile) => {
+        const enclosing = createTemporaryDirectory();
+        const home = nodePath.join(enclosing, 'home dir');
+        try {
+          const shims = nodePath.join(home, '.local/share/mise/shims');
+          mkdirSync(shims, { recursive: true });
+          writeTestFile(shims, 'bun', '#!/bin/sh\nexit 0\n');
+          chmodSync(nodePath.join(shims, 'bun'), 0o755);
+
+          const result = runWithoutBun(home, { SHELL: shell });
+          const command = result.stderr
+            .split('\n')
+            .map(line => line.trim())
+            .find(line => line.startsWith('echo '));
+          expect(command).toContain(shims);
+
+          const applied = spawnSync('bash', ['-c', command ?? ''], {
+            env: { ...process.env, HOME: home },
+            encoding: 'utf8',
+          });
+          expect(applied.status).toBe(0);
+
+          // The point isn't the file's contents — it's that loading the profile
+          // actually puts bun back within reach.
+          const resolved = spawnSync('bash', ['-c', `. "$HOME/${profile}"; command -v bun`], {
+            env: { ...process.env, HOME: home },
+            encoding: 'utf8',
+          });
+
+          expect(resolved.stdout.trim()).toBe(nodePath.join(shims, 'bun'));
+        } finally {
+          removeTemporaryDirectory(enclosing);
+        }
+      });
+
+      it('targets the zsh startup directory the host actually reads', () => {
+        const home = createTemporaryDirectory();
+        try {
+          const shims = nodePath.join(home, '.local/share/mise/shims');
+          mkdirSync(shims, { recursive: true });
+          writeTestFile(shims, 'bun', '#!/bin/sh\nexit 0\n');
+          chmodSync(nodePath.join(shims, 'bun'), 0o755);
+          const zdotdir = nodePath.join(home, 'dotfiles');
+          mkdirSync(zdotdir, { recursive: true });
+
+          const result = runWithoutBun(home, { SHELL: '/bin/zsh', ZDOTDIR: zdotdir });
+
+          expect(result.stderr).toContain(nodePath.join(zdotdir, '.zprofile'));
+        } finally {
+          removeTemporaryDirectory(home);
+        }
+      });
+
+      // A path holding a quote or a `$` cannot be embedded in a pasteable
+      // command safely, so describe the step instead of emitting one that
+      // breaks on paste or mis-expands when the profile loads.
+      it('describes the step instead of emitting an unpasteable command', () => {
+        const enclosing = createTemporaryDirectory();
+        const home = nodePath.join(enclosing, "O'Neil");
+        try {
+          const shims = nodePath.join(home, '.local/share/mise/shims');
+          mkdirSync(shims, { recursive: true });
+          writeTestFile(shims, 'bun', '#!/bin/sh\nexit 0\n');
+          chmodSync(nodePath.join(shims, 'bun'), 0o755);
+
+          const result = runWithoutBun(home, { SHELL: '/bin/zsh' });
+
+          expect(result.stderr).toContain(shims);
+          expect(result.stderr).not.toContain('.zprofile');
+        } finally {
+          removeTemporaryDirectory(enclosing);
+        }
+      });
+
+      it('falls back to the standalone installer when nothing indicates mise', () => {
+        const home = createTemporaryDirectory();
+        try {
+          const result = runWithoutBun(home);
+
+          expect(result.status).toBe(2);
+          expect(result.stderr).toContain('bun.sh/install');
+          expect(result.stderr).not.toContain('mise');
+        } finally {
+          removeTemporaryDirectory(home);
+        }
+      });
     });
   });
 
