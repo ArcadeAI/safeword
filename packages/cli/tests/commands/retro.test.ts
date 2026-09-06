@@ -292,6 +292,43 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('routes only the build-selected local canary harness through the server', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-canary-route-'));
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'codex',
+          canaryHarness: 'codex',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+          sessionId: 'session-fixture',
+        }),
+      ).toMatchObject({
+        route: 'server-v3',
+        source: { harness: 'codex', hostClass: 'local' },
+      });
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'claude',
+          canaryHarness: 'codex',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+          sessionId: 'session-fixture',
+        }),
+      ).not.toHaveProperty('route');
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
   it('fails closed when Codex locality cannot be proven', () => {
     expect(localRetroHostClass('codex', {})).toBe('unknown');
     expect(

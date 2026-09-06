@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, rmSync } from 'node:fs';
+import process from 'node:process';
 
 import { defineConfig } from 'tsup';
 
@@ -13,6 +14,14 @@ const CLI_PACKAGE_VERSION = (
     version: string;
   }
 ).version;
+const LOCAL_RETRO_CANARY_HARNESS = process.env.SAFEWORD_LOCAL_RETRO_CANARY_HARNESS?.trim();
+
+if (
+  LOCAL_RETRO_CANARY_HARNESS !== undefined &&
+  !['claude-code', 'codex', 'cursor'].includes(LOCAL_RETRO_CANARY_HARNESS)
+) {
+  throw new Error('SAFEWORD_LOCAL_RETRO_CANARY_HARNESS must name a supported harness');
+}
 
 const manifestBytes = readFileSync(
   new URL('src/retro/relay-readiness-manifest.json', import.meta.url),
@@ -156,6 +165,10 @@ export default defineConfig({
   skipNodeModulesBundle: true,
   define: {
     __SAFEWORD_BUILD_COMMIT__: JSON.stringify(buildCommit),
+    __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__:
+      LOCAL_RETRO_CANARY_HARNESS === undefined
+        ? 'undefined'
+        : JSON.stringify(LOCAL_RETRO_CANARY_HARNESS),
     __SAFEWORD_RELAY_BUILD_ATTESTATION__: JSON.stringify(relayBuildAttestation),
     __SAFEWORD_PUBLIC_RETRO_ORIGIN__: JSON.stringify(PUBLIC_RETRO_ORIGIN),
   },
