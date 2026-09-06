@@ -1,6 +1,7 @@
 export type ReviewAgent = 'claude' | 'codex' | 'opencode';
 export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
-export type ReviewKind = 'quality-review' | 'scenario-gate' | 'plan-implementation';
+export type ReviewKind =
+  'quality-review' | 'scenario-gate' | 'plan-implementation' | 'executable-red';
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type ReviewFailure =
   | 'not_installed'
@@ -57,6 +58,7 @@ const REVIEW_KINDS = new Set<ReviewKind>([
   'quality-review',
   'scenario-gate',
   'plan-implementation',
+  'executable-red',
 ]);
 
 export function isReviewKind(value: unknown): value is ReviewKind {
