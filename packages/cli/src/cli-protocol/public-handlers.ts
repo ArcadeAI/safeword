@@ -10,6 +10,7 @@ import { CODEX_REVIEW_THEN_RESTART_ACTION } from '../codex-plugin/migration.js';
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../codex-plugin/operations.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
+import { retryCommand } from '../review/command.js';
 import type {
   RedEvidenceClass,
   RedExecutionAttestation,
@@ -1025,10 +1026,30 @@ async function collectWorkerRedAttestation(input: {
 function withExecutionAttestation(
   result: CliResult,
   attestation: RedExecutionAttestation | undefined,
+  input?: {
+    readonly request: RedExecutionRequest;
+    readonly targets: readonly string[];
+    readonly context: readonly string[];
+  },
 ): CliResult {
   if (attestation === undefined) return result;
+  const exactRetry =
+    input === undefined
+      ? undefined
+      : retryCommand('executable-red', input.targets, input.context, input.request);
+  const preserveExecution = (command: string): string =>
+    exactRetry !== undefined && command.startsWith('safeword review run executable-red')
+      ? exactRetry
+      : command;
   return {
     ...result,
+    recovery: result.recovery.map(action => ({
+      ...action,
+      command: preserveExecution(action.command),
+    })),
+    nextActions: result.nextActions.map(action =>
+      'command' in action ? { ...action, command: preserveExecution(action.command) } : action,
+    ),
     data: {
       ...(typeof result.data === 'object' && result.data !== null && result.data),
       execution_attestation: attestation,
@@ -1104,7 +1125,17 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
       executionAttestation: attestation,
       progress: invocation.progress,
     });
-    result = withExecutionAttestation(reviewed, attestation);
+    result = withExecutionAttestation(
+      reviewed,
+      attestation,
+      persistedInput.execution === undefined
+        ? undefined
+        : {
+            request: persistedInput.execution,
+            targets: persistedInput.targets,
+            context: persistedInput.context,
+          },
+    );
   } catch (error) {
     const packetError = error instanceof ReviewPacketError;
     result = reviewExecutionFailure(error, packetError);

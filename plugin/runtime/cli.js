@@ -14326,6 +14326,29 @@ var init_migration_error = __esm(() => {
   };
 });
 
+// src/review/command.ts
+function shellQuote(value) {
+  if (/^[\w./-]+$/u.test(value))
+    return value;
+  const escaped = value.replaceAll("'", `'"'"'`);
+  return `'${escaped}'`;
+}
+function contextArgument(target) {
+  return `--context ${shellQuote(target)}`;
+}
+function retryCommand(kind, targets, context = [], execution) {
+  const quoted = targets.map((target) => shellQuote(target)).join(" ");
+  const contextOption = context.length === 0 ? "" : ` ${context.map((target) => contextArgument(target)).join(" ")}`;
+  const executionOptions = execution === undefined ? "" : [
+    ` --proof-cwd ${shellQuote(execution.cwd)}`,
+    ` --evidence-class ${execution.evidenceClass}`,
+    ` --expected-failure ${shellQuote(execution.expectedFailure)}`,
+    ` --execution-timeout ${execution.timeoutMs}`,
+    ` --execute ${shellQuote(JSON.stringify(execution.argv))}`
+  ].join("");
+  return `safeword review run ${kind}${contextOption}${executionOptions} -- ${quoted}`;
+}
+
 // src/utils/toml.ts
 function readTomlTableArray(content, table, key) {
   const found = tableArrayBody(content.split(/\r?\n/), table, key);
@@ -34357,22 +34380,6 @@ var init_policy = __esm(() => {
   };
 });
 
-// src/review/command.ts
-function shellQuote(value) {
-  if (/^[\w./-]+$/u.test(value))
-    return value;
-  const escaped = value.replaceAll("'", `'"'"'`);
-  return `'${escaped}'`;
-}
-function contextArgument(target) {
-  return `--context ${shellQuote(target)}`;
-}
-function retryCommand(kind, targets, context = []) {
-  const quoted = targets.map((target) => shellQuote(target)).join(" ");
-  const contextOption = context.length === 0 ? "" : ` ${context.map((target) => contextArgument(target)).join(" ")}`;
-  return `safeword review run ${kind}${contextOption} -- ${quoted}`;
-}
-
 // src/review/contract.ts
 var exports_contract = {};
 __export(exports_contract, {
@@ -36194,7 +36201,7 @@ function staleResult(record) {
     ],
     nextActions: [
       {
-        command: retryCommand(record.kind, record.targets, record.context),
+        command: retryCommand(record.kind, record.targets, record.context, record.execution),
         mutates: true,
         requiresHuman: false
       }
@@ -50714,6 +50721,7 @@ async function executeRedProof(input) {
   const stderr = new StreamEvidence(input.request.expectedFailure);
   const termination = await new Promise((resolve, reject) => {
     let timedOut = false;
+    let forceKillTimer;
     const child = spawn4(input.request.argv[0], input.request.argv.slice(1), {
       cwd,
       env: process.env,
@@ -50727,13 +50735,24 @@ async function executeRedProof(input) {
     child.stderr.on("data", (chunk) => {
       stderr.add(chunk);
     });
-    child.once("error", reject);
+    const clearTimers = () => {
+      clearTimeout(timer);
+      if (forceKillTimer !== undefined)
+        clearTimeout(forceKillTimer);
+    };
+    child.once("error", (error2) => {
+      clearTimers();
+      reject(error2);
+    });
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");
+      forceKillTimer = setTimeout(() => {
+        child.kill("SIGKILL");
+      }, FORCE_KILL_GRACE_MS);
     }, input.request.timeoutMs);
     child.once("close", (exitCode, signal) => {
-      clearTimeout(timer);
+      clearTimers();
       resolve({ exitCode, signal, timedOut });
     });
   });
@@ -50749,6 +50768,7 @@ async function executeRedProof(input) {
       literal: input.request.expectedFailure,
       matched: stdout.matched || stderr.matched
     },
+    timeout_ms: input.request.timeoutMs,
     source_fingerprint: input.sourceFingerprint,
     environment: environmentIdentity(),
     started_at: new Date(started).toISOString(),
@@ -50763,7 +50783,7 @@ async function executeRedProof(input) {
     stderr: stderrEvidence
   };
 }
-var MAX_EXCERPT_BYTES;
+var MAX_EXCERPT_BYTES, FORCE_KILL_GRACE_MS = 250;
 var init_red_execution = __esm(() => {
   MAX_EXCERPT_BYTES = 64 * 1024;
 });
@@ -68047,11 +68067,18 @@ async function collectWorkerRedAttestation(input) {
     sourceFingerprint: input.sourceFingerprint
   });
 }
-function withExecutionAttestation(result, attestation) {
+function withExecutionAttestation(result, attestation, input) {
   if (attestation === undefined)
     return result;
+  const exactRetry = input === undefined ? undefined : retryCommand("executable-red", input.targets, input.context, input.request);
+  const preserveExecution = (command) => exactRetry !== undefined && command.startsWith("safeword review run executable-red") ? exactRetry : command;
   return {
     ...result,
+    recovery: result.recovery.map((action) => ({
+      ...action,
+      command: preserveExecution(action.command)
+    })),
+    nextActions: result.nextActions.map((action) => ("command" in action) ? { ...action, command: preserveExecution(action.command) } : action),
     data: {
       ...typeof result.data === "object" && result.data !== null && result.data,
       execution_attestation: attestation
@@ -68122,7 +68149,11 @@ async function runReviewWorker(invocation) {
       executionAttestation: attestation,
       progress: invocation.progress
     });
-    result = withExecutionAttestation(reviewed, attestation);
+    result = withExecutionAttestation(reviewed, attestation, persistedInput.execution === undefined ? undefined : {
+      request: persistedInput.execution,
+      targets: persistedInput.targets,
+      context: persistedInput.context
+    });
   } catch (error2) {
     const packetError = error2 instanceof ReviewPacketError2;
     result = reviewExecutionFailure(error2, packetError);

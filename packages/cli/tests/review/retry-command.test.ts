@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { retryCommand } from '../../src/review/command.js';
 import { runReview } from '../../src/review/coordinator.js';
 import { runCli } from '../helpers.js';
 
@@ -48,6 +49,21 @@ async function recoveryCommandFor(name: string): Promise<string> {
 }
 
 describe('the recovery command Safeword suggests', () => {
+  it('preserves executable RED inputs in a stale-proof retry', () => {
+    const command = retryCommand('executable-red', ['proof.test.ts'], ['scenario.feature'], {
+      argv: ['bun', 'run', 'test', 'proof.test.ts'],
+      cwd: '.',
+      evidenceClass: 'pure-contract',
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    });
+
+    expect(command).toContain("--expected-failure 'actor assertion'");
+    expect(command).toContain(`--execute '["bun","run","test","proof.test.ts"]'`);
+    expect(command).not.toContain('-- scenario.feature');
+    expect(command).toContain('-- proof.test.ts');
+  });
+
   it.each([
     ['a name that looks like a flag', '--help'],
     ['a name that looks like an option with a value', '--cwd'],

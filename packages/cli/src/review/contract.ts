@@ -20,6 +20,7 @@ export interface RedExecutionAttestation {
   readonly cwd: string;
   readonly evidence_class: RedEvidenceClass;
   readonly expected_failure: { readonly literal: string; readonly matched: boolean };
+  readonly timeout_ms: number;
   readonly source_fingerprint: string;
   readonly environment: {
     readonly sha256: string;

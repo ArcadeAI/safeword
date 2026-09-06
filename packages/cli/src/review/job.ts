@@ -425,7 +425,7 @@ function staleResult(record: ReviewJobRecord): CliResult {
     ],
     nextActions: [
       {
-        command: retryCommand(record.kind, record.targets, record.context),
+        command: retryCommand(record.kind, record.targets, record.context, record.execution),
         mutates: true,
         requiresHuman: false,
       },
