@@ -3981,7 +3981,7 @@ function isClaudeLeaseMarker(path, name) {
   try {
     return isLeaseRecord(JSON.parse(content), Number(pid));
   } catch {
-    return false;
+    return name.includes(LEASE_TEMP_INFIX);
   }
 }
 function isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry) {
