@@ -1,7 +1,7 @@
 # Impl Plan: Route local retros through the durable server
 
 **Status:** planned
-**Implementation state:** Transport, durable ownership, worker, and deployment paths are built. The authoritative readiness evaluator, its discriminating rejection tests, and production fault evidence remain unimplemented, so global cutover stays disabled.
+**Implementation state:** Transport, durable ownership, worker, and deployment paths are built. Readiness exists only as an unconditional fail-closed stub; its enabling evaluator, discriminating rejection tests, and production fault evidence remain unimplemented, so global cutover stays disabled.
 **Planned on:** 2026-08-29
 
 ## Approach

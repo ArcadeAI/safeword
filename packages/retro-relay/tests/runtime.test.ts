@@ -402,7 +402,7 @@ describe('production runtime configuration', () => {
     await runtime.close();
   });
 
-  it('[ORR-020] denies operator filing and harness reconciliation before GitHub access', async () => {
+  it('[ORR-020] denies principals outside their assigned relay roles before GitHub access', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-role-denials-'));
     runtimeDirectories.push(directory);
     const environment = productionEnvironment(directory);
@@ -426,6 +426,12 @@ describe('production runtime configuration', () => {
       method: 'POST',
     });
     expect(operatorFile.status).toBe(403);
+    const collectorWorkerFile = await fetch(`${runtime.url}/v1/retro-filings`, {
+      body,
+      headers: { authorization: `Bearer ${runtime.authorizations['collector-worker']}` },
+      method: 'POST',
+    });
+    expect(collectorWorkerFile.status).toBe(403);
     const harnessReconcile = await fetch(`${runtime.url}/v1/retro-filings/missing/reconcile`, {
       headers: { authorization: `Bearer ${runtime.authorizations.claude}` },
       method: 'POST',

@@ -292,11 +292,23 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ## Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance
 
+### Scenario: Canary selection preserves an indeterminate runtime classification and refuses the server route
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ### Scenario: Cursor local readiness requires positive host-bound Desktop lifecycle evidence
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+### Scenario: Enabling one harness canary leaves every other harness on its existing route
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.SWM1.R3 — Production fault evidence proves recoverable ownership
 
