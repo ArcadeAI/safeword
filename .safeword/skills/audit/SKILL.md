@@ -596,7 +596,7 @@ If all files conform, skip this section.
 
 Review changed test files for quality issues, plus a changed source file's
 co-located test when present. Check them against the iron laws and anti-patterns
-in `.claude/skills/testing/SKILL.md`. A repository audit may use the former
+in the `$safeword:testing` skill. A repository audit may use the former
 project-wide sample.
 
 **Find test files:**
@@ -649,7 +649,7 @@ Test Quality:
 **ARCHITECTURE.md (the architecture narrative):**
 
 - Resolve the narrative location first: the `paths.architecture` target in `.safeword/config.json` when set — a file is the narrative itself; a directory holds decision records, read them all — else the root `ARCHITECTURE.md`. A configured location wins outright: do not fall back to a root file the host deliberately moved away from. Every check below applies to the resolved narrative.
-- If missing → create from `.safeword/templates/architecture-template.md` (at the configured location when `paths.architecture` is set, else root `ARCHITECTURE.md`)
+- If missing → create the configured architecture document from the required sections below (at the configured location when `paths.architecture` is set, else root `ARCHITECTURE.md`)
 - If exists → check for drift and gaps along TWO axes — dependency drift (what tech) and structural drift (what modules/layers):
   - **Dependency drift:**
     - **Drift (error):** Documented tech contradicts the code's actual dependencies (e.g., doc says "Redux" but `package.json` has "zustand"; doc says "Flask" but `pyproject.toml` has "fastapi")
@@ -700,7 +700,15 @@ contract testable without turning semantic review into shell heuristics.
 ```bash
 # principle-trace-check — E010 objective trace integrity only.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"
+TICKET_PATH="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR")"
+ticket_status=$?
+if [ "$ticket_status" -ne 0 ]; then
+  exit "$ticket_status"
+fi
+if [ -n "$TICKET_PATH" ]; then
+  PLAN_PATH="$(dirname "$TICKET_PATH")/impl-plan.md"
+  [ ! -f "$PLAN_PATH" ] || bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR" "$PLAN_PATH"
+fi
 ```
 
 ### 7. Namespace Domain Docs

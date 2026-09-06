@@ -9,10 +9,10 @@ Feature: One predictable Safeword CLI
       When the user runs Safeword with no command
       Then the result reports action required without changes
 
-    Scenario: Bare Safeword recommends planning drift
+    Scenario: Bare Safeword prioritizes native profile repair over planning drift
       Given a configured project with managed drift
       When the user runs Safeword with no command
-      Then the result requires action and recommends "safeword plan"
+      Then the result requires action and recommends "safeword codex migrate"
 
   @predictable-safeword-cli.TBU1.R2
   Rule: predictable-safeword-cli.TBU1.R2 — Read-only commands remain read-only on first run, drift, and failure

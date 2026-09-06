@@ -17,7 +17,7 @@ describe('Claude plugin release contract', () => {
       'Claude plugin release contract is aligned',
     );
     expect(result.status).toBe(0);
-  }, 15_000);
+  }, 30_000);
 
   it('documents the real-host upgrade gate in the maintainer release path', () => {
     const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');

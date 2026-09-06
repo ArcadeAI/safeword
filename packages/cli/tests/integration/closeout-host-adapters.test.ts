@@ -1530,7 +1530,8 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
 
         expect(cursorCommand).toContain('.safeword/skills/closeout/SKILL.md');
         expect(cursorSharedSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
-        expect(codexSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
+        expect(codexSkill).toContain('project runtime closeout-cleanup');
+        expect(codexSkill).not.toContain('.safeword/scripts/closeout-cleanup.ts');
         expect(readFileSync(installedGuard, 'utf8')).toContain('executeCleanupOperation');
         const nominatedCodexHome = nodePath.join(directory, 'caller-codex-home');
         const nominatedTranscript = nodePath.join(

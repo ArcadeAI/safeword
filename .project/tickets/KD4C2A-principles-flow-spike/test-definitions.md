@@ -66,6 +66,12 @@ required `Scenario:` heading grammar.
 - [x] GREEN e8a440a8e
 - [x] REFACTOR skip: semantic judgment is explicitly owned by quality review
 
+### Scenario: A heading number is not part of a principle's identity
+
+- [x] RED skip: the authoritative audit reproduced the false missing-principle finding against configured `PRINCIPLES.md`
+- [x] GREEN 4c93d3a86
+- [x] REFACTOR skip: one normalization function is shared by source headings and plan traces
+
 ## Rule: project-knowledge.SWM1.R1 — Principles, personas, and surfaces share a safe configured-path lifecycle
 
 ### Scenario: Setup scaffolds absent knowledge and preserves authored knowledge

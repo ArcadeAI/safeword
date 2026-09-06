@@ -7,7 +7,8 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
   "include": ["packages/*/src/**/*", "vitest.default-projects.ts"],
   "exclude": ["node_modules", "dist", "packages/website"]

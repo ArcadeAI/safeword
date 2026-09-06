@@ -17,6 +17,7 @@ import { type CliResult, createResult } from '../../src/cli-protocol/result.js';
 import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/commands.js';
 import { projectLifecycleSchema } from '../../src/lifecycle/schema.js';
 import { observeLifecycleStatus } from '../../src/lifecycle/status.js';
+import type * as OpenCodeProfile from '../../src/opencode/profile.js';
 import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
@@ -90,6 +91,13 @@ vi.mock(import('../../src/utils/install.js'), async importOriginal => {
     uninstallDependencies: (cwd: string, packages: string[]) => applyPackages(cwd, packages, true),
   };
 });
+
+vi.mock('../../src/opencode/profile.js', async importOriginal => ({
+  ...(await importOriginal<typeof OpenCodeProfile>()),
+  observeOpenCodeProfile: () => createResult({ state: 'healthy', data: { installed: false } }),
+}));
+
+vi.mock('../../src/opencode/conformance.js', () => ({ observeOpenCodeVersion: () => {} }));
 
 vi.mock('../../src/claude-plugin/profile.js', () => ({
   observeClaudeProfile: () =>

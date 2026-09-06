@@ -416,8 +416,10 @@ export function assertTestCliFresh(): void {
 }
 
 function projectFixtureArguments(args: string[]): string[] {
-  // Most suites use setup/upgrade only to prepare project files. Keep those fixtures
-  // independent of installed hosts; unified-install scenarios invoke the CLI directly.
+  // Most suites use lifecycle commands to exercise the project runtime. Cursor is
+  // the project-authoritative host; native Claude/Codex/OpenCode tests invoke the
+  // literal CLI boundary instead. An unselected fixture would install no runtime
+  // and make downstream assertions fail for the wrong reason.
   const hasAgentSelection = args.some(
     argument => argument === '--agents' || argument.startsWith('--agents='),
   );
@@ -431,7 +433,7 @@ function projectFixtureArguments(args: string[]): string[] {
     'plan',
   ];
   return projectLifecycleCommands.includes(args[0] ?? '') && !hasAgentSelection
-    ? [...args, '--agents', 'none']
+    ? [...args, '--agents', 'cursor']
     : args;
 }
 
@@ -521,7 +523,7 @@ export async function runCliWithoutInstall(
   );
   const fixtureArguments =
     ['setup', 'upgrade', 'install'].includes(args[0] ?? '') && !hasAgentSelection
-      ? [...args, '--agents', 'none']
+      ? [...args, '--agents', 'cursor']
       : args;
   return runner(fixtureArguments, {
     ...options,
@@ -766,7 +768,7 @@ export async function runFixtureUpgradeWithoutInstall(
   cwd: string,
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  const result = await runner(['upgrade', '--agents', 'none'], { cwd, env: SKIP_INSTALL_ENV });
+  const result = await runner(['upgrade', '--agents', 'cursor'], { cwd, env: SKIP_INSTALL_ENV });
   if (result.exitCode !== 0) {
     throw new Error(
       `Fixture upgrade failed (exit ${result.exitCode}) in ${cwd}.\n` +
@@ -791,8 +793,8 @@ export async function runFixtureUpgradeWithoutInstall(
  * isolation and on uncontended CI. A non-zero *exit* is a genuine failure and fails
  * fast/loud with no retry, so a real setup regression is never masked.
  * @param projectDirectory
- * Project fixtures explicitly select no agent hosts so their setup result is not
- * activation-pending. Host installation tests invoke the unified default directly.
+ * Project-runtime fixtures explicitly select Cursor, the project-authoritative
+ * host. Native-host and unified-install tests invoke the literal CLI directly.
  * @param setupArgs CLI args including the command (default: ['setup', '--yes'])
  */
 export async function setupOrThrow(
@@ -806,7 +808,7 @@ export async function setupOrThrow(
 ): Promise<CliResult> {
   const fixtureArguments = setupArguments.includes('--agents')
     ? setupArguments
-    : [...setupArguments, '--agents', 'none'];
+    : [...setupArguments, '--agents', 'cursor'];
   const label = `safeword ${fixtureArguments.join(' ')}`;
   // One retry (2 attempts). A transient contention spike usually clears by the
   // second attempt; a persistent timeout across both attempts is a real hang and

@@ -30,6 +30,7 @@ const fixture: { projectDirectory: string } = { projectDirectory: '' };
 beforeEach(() => {
   fixture.projectDirectory = createTemporaryDirectory();
   initGitRepo(fixture.projectDirectory);
+  writeTestFile(fixture.projectDirectory, '.safeword/SAFEWORD.md', '# Safeword\n');
   writeTestFile(fixture.projectDirectory, 'seed.txt', 'seed\n');
   execSync('git add seed.txt && git commit -m initial', {
     cwd: fixture.projectDirectory,

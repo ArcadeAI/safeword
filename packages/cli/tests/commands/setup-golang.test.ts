@@ -64,7 +64,7 @@ describe('Test Suite: Conditional Setup for Go Projects', () => {
         createGoProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory });
+        await runCli(['setup', '--agents', 'cursor'], { cwd: projectDirectory });
 
         // BDD is core (Option A): the lane's step files are TypeScript, so the
         // TS toolchain comes along even in non-JS repos.
@@ -82,7 +82,10 @@ describe('Test Suite: Conditional Setup for Go Projects', () => {
         createGoProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+        await runCli(['setup', '--agents', 'cursor'], {
+          cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
 
         // Created to host the BDD acceptance lane (ticket 102b).
         expect(fileExists(projectDirectory, 'package.json')).toBe(true);
@@ -102,7 +105,10 @@ describe('Test Suite: Conditional Setup for Go Projects', () => {
         createGoProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+        await runCli(['setup', '--agents', 'cursor'], {
+          cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
 
         // .golangci.yml should be created
         expect(fileExists(projectDirectory, '.golangci.yml')).toBe(true);
@@ -122,7 +128,7 @@ describe('Test Suite: Conditional Setup for Go Projects', () => {
         createGoProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        const result = await runCli(['setup'], {
+        const result = await runCli(['setup', '--agents', 'cursor'], {
           cwd: projectDirectory,
           env: SKIP_INSTALL_ENV,
         });
@@ -141,7 +147,10 @@ describe('Test Suite: Conditional Setup for Go Projects', () => {
         createGoProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+        await runCli(['setup', '--agents', 'cursor'], {
+          cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
 
         // .safeword directory should exist
         expect(fileExists(projectDirectory, '.safeword')).toBe(true);
@@ -159,7 +168,10 @@ describe('Test Suite: Conditional Setup for Go Projects', () => {
         createGoProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+        await runCli(['setup', '--agents', 'cursor'], {
+          cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
 
         // Hooks should exist
         expect(fileExists(projectDirectory, '.safeword/hooks')).toBe(true);
@@ -176,7 +188,10 @@ describe('Test Suite: Conditional Setup for Go Projects', () => {
         createJsGoProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+        await runCli(['setup', '--agents', 'cursor'], {
+          cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
 
         // Should have ESLint configured (JS tooling)
         expect(fileExists(projectDirectory, 'eslint.config.mjs')).toBe(true);
@@ -204,7 +219,10 @@ linters:
 `;
         writeTestFile(projectDirectory, '.golangci.yml', customConfig);
 
-        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+        await runCli(['setup', '--agents', 'cursor'], {
+          cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
 
         // Should preserve custom config
         const config = readTestFile(projectDirectory, '.golangci.yml');
