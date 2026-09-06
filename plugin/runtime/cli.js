@@ -63205,20 +63205,30 @@ function publicHarness(agent) {
 }
 function localRetroHostClass(agent, environment, socketStatus = statSync12) {
   if (agent !== "cursor")
-    return nonCursorHostClass(agent, environment);
+    return nonCursorHostClass(agent, environment, socketStatus);
+  const cursorSocketConfigured = environment.CURSOR_AGENT_SOCKET !== undefined;
   const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
   const socketPath = configuredSocket || "/run/cursor/api.sock";
   try {
-    socketStatus(socketPath);
+    if (!socketStatus(socketPath).isSocket())
+      return "unknown";
     return "unknown";
   } catch (error_) {
     const error2 = error_;
-    return error2.code === "ENOENT" && configuredSocket === undefined ? "local" : "unknown";
+    return error2.code === "ENOENT" && !cursorSocketConfigured ? "local" : "unknown";
   }
 }
-function nonCursorHostClass(agent, environment) {
-  if (agent === "codex")
-    return "unknown";
+function nonCursorHostClass(agent, environment, socketStatus) {
+  if (agent === "codex") {
+    const toolsPipe = environment.CODEX_APP_TOOLS_PIPE_PATH?.trim();
+    if (!toolsPipe)
+      return "unknown";
+    try {
+      return socketStatus(toolsPipe).isSocket() ? "local" : "unknown";
+    } catch {
+      return "unknown";
+    }
+  }
   return environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined ? "local" : "unknown";
 }
 function localServerRouteEnabled(source, readiness) {
@@ -63247,7 +63257,7 @@ function resolvePublicRetroRoute(input) {
   const isCanary = selectedLocalRetroCanary(input.canaryHarness) === harness;
   const localSource = {
     ...builtSource,
-    hostClass: isCanary ? "local" : localRetroHostClass(input.agent, input.environment)
+    hostClass: localRetroHostClass(input.agent, input.environment, input.socketStatus)
   };
   const serverReady = input.serverReady ?? validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
     ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,

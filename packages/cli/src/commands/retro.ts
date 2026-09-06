@@ -1293,25 +1293,35 @@ function publicHarness(agent: RetroAgent): 'claude-code' | 'codex' | 'cursor' | 
 export function localRetroHostClass(
   agent: RetroAgent,
   environment: NodeJS.ProcessEnv,
-  socketStatus: (path: string) => unknown = statSync,
+  socketStatus: (path: string) => { isSocket(): boolean } = statSync,
 ): PublicRetroSource['hostClass'] {
-  if (agent !== 'cursor') return nonCursorHostClass(agent, environment);
+  if (agent !== 'cursor') return nonCursorHostClass(agent, environment, socketStatus);
+  const cursorSocketConfigured = environment.CURSOR_AGENT_SOCKET !== undefined;
   const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
   const socketPath = configuredSocket || '/run/cursor/api.sock';
   try {
-    socketStatus(socketPath);
+    if (!socketStatus(socketPath).isSocket()) return 'unknown';
     return 'unknown';
   } catch (error_) {
     const error = error_ as NodeJS.ErrnoException;
-    return error.code === 'ENOENT' && configuredSocket === undefined ? 'local' : 'unknown';
+    return error.code === 'ENOENT' && !cursorSocketConfigured ? 'local' : 'unknown';
   }
 }
 
 function nonCursorHostClass(
   agent: RetroAgent,
   environment: NodeJS.ProcessEnv,
+  socketStatus: (path: string) => { isSocket(): boolean },
 ): PublicRetroSource['hostClass'] {
-  if (agent === 'codex') return 'unknown';
+  if (agent === 'codex') {
+    const toolsPipe = environment.CODEX_APP_TOOLS_PIPE_PATH?.trim();
+    if (!toolsPipe) return 'unknown';
+    try {
+      return socketStatus(toolsPipe).isSocket() ? 'local' : 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  }
   return environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined ? 'local' : 'unknown';
 }
 
@@ -1340,6 +1350,7 @@ export function resolvePublicRetroRoute(input: {
   projectDirectory: string;
   serverReady?: boolean;
   sessionId?: string;
+  socketStatus?: (path: string) => { isSocket(): boolean };
   transcript?: string;
 }): NonNullable<RetroDependencies['publicRetro']> | undefined {
   if (!publicRetroEligible(input)) return undefined;
@@ -1354,7 +1365,7 @@ export function resolvePublicRetroRoute(input: {
   const isCanary = selectedLocalRetroCanary(input.canaryHarness) === harness;
   const localSource = {
     ...builtSource,
-    hostClass: isCanary ? ('local' as const) : localRetroHostClass(input.agent, input.environment),
+    hostClass: localRetroHostClass(input.agent, input.environment, input.socketStatus),
   };
   const serverReady =
     input.serverReady ??

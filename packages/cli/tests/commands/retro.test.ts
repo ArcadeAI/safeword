@@ -306,7 +306,8 @@ describe('retro command configuration, extraction, egress, and relay execution',
           agent: 'codex',
           canaryHarness: 'codex',
           enabled: true,
-          environment: {},
+          environment: { CODEX_APP_TOOLS_PIPE_PATH: '/tmp/codex-app-tools.sock' },
+          socketStatus: () => ({ isSocket: () => true }),
           projectDirectory: project,
           sessionId: 'session-fixture',
         }),
@@ -314,6 +315,16 @@ describe('retro command configuration, extraction, egress, and relay execution',
         route: 'server-v3',
         source: { harness: 'codex', hostClass: 'local' },
       });
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'codex',
+          canaryHarness: 'codex',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+          sessionId: 'session-fixture',
+        }),
+      ).not.toHaveProperty('route');
       expect(
         resolvePublicRetroRoute({
           agent: 'claude',
@@ -332,6 +343,18 @@ describe('retro command configuration, extraction, egress, and relay execution',
   it('fails closed when Codex locality cannot be proven', () => {
     expect(localRetroHostClass('codex', {})).toBe('unknown');
     expect(
+      localRetroHostClass(
+        'codex',
+        { CODEX_APP_TOOLS_PIPE_PATH: '/tmp/codex-app-tools.sock' },
+        () => ({ isSocket: () => true }),
+      ),
+    ).toBe('local');
+    expect(
+      localRetroHostClass('codex', { CODEX_APP_TOOLS_PIPE_PATH: '/tmp/not-a-socket' }, () => ({
+        isSocket: () => false,
+      })),
+    ).toBe('unknown');
+    expect(
       localRetroHostClass('codex', {
         CODEX_MODEL: 'gpt-fixture',
         CODEX_SESSION_ID: 'managed-session-fixture',
@@ -347,7 +370,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     };
 
     expect(localRetroHostClass('cursor', {}, missing)).toBe('local');
-    expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '' }, missing)).toBe('local');
+    expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '' }, missing)).toBe('unknown');
     expect(localRetroHostClass('cursor', {}, () => ({ isSocket: () => true }))).toBe('unknown');
     expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '/custom.sock' }, missing)).toBe(
       'unknown',

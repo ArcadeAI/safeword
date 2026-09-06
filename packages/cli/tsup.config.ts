@@ -64,6 +64,13 @@ try {
   // Source archives build fail-closed with no relay attestation.
 }
 
+if (
+  LOCAL_RETRO_CANARY_HARNESS !== undefined &&
+  (!COMMIT_PATTERN.test(buildCommit) || gitText(['status', '--porcelain']).length > 0)
+) {
+  throw new Error('local retro canary builds require a clean committed source tree');
+}
+
 type RelayBuildAttestation = {
   ancestorPairs: { ancestor: string; descendant: string }[];
   artifacts: Record<string, { contentBase64: string; sha256: string }>;
