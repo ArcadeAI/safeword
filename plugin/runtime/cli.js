@@ -34386,7 +34386,8 @@ var init_contract = __esm(() => {
   REVIEW_KINDS = new Set([
     "quality-review",
     "scenario-gate",
-    "plan-implementation"
+    "plan-implementation",
+    "executable-red"
   ]);
 });
 
@@ -34428,6 +34429,19 @@ function requirePlanWorkArtifact(kind, logicalFiles) {
   if (logicalFiles.length !== 1 || plan === undefined || nodePath50.basename(plan.path) !== "impl-plan.md" || plan.content.trim() === "") {
     throw new ReviewPacketError("Plan-implementation review requires one non-blank impl-plan.md work file; pass supporting evidence with --context");
   }
+}
+function requireExecutableRedAttestation(kind, attestation) {
+  if (kind === "executable-red" && attestation === undefined) {
+    throw new ReviewPacketError("Executable-red review requires a trusted execution attestation");
+  }
+  if (kind !== "executable-red" && attestation !== undefined) {
+    throw new ReviewPacketError("Trusted execution attestations are accepted only for executable-red review");
+  }
+}
+function checkedExecutionAttestation(kind, execution) {
+  if (execution.allowMissing !== true)
+    requireExecutableRedAttestation(kind, execution.attestation);
+  return execution.attestation;
 }
 function digest2(content) {
   return createHash10("sha256").update(content).digest("hex");
@@ -34499,10 +34513,11 @@ function snapshotEntries(root, directory = root) {
     return [`other:${relative}`];
   });
 }
-function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
+function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}) {
   if (targets.length + context.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
+  const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync5(cwd);
   const workspace = mkdtempSync2(nodePath50.join(tmpdir(), "safeword-review-"));
   const tracked = [];
@@ -34567,7 +34582,8 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
     dispatch_id: randomUUID3(),
     kind,
     logical_files: logicalFiles,
-    ...contextFiles.length > 0 && { context_files: contextFiles }
+    ...contextFiles.length > 0 && { context_files: contextFiles },
+    ...executionAttestation !== undefined && { execution_attestation: executionAttestation }
   };
   if (Buffer.byteLength(JSON.stringify(packet), "utf8") > MAX_PACKET_BYTES) {
     rmSync4(workspace, { recursive: true, force: true });
@@ -34593,9 +34609,9 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
     }
   };
 }
-function prepareReviewPacket(cwd, kind, targets, context = []) {
+function prepareReviewPacket(cwd, kind, targets, context = [], execution = {}) {
   try {
-    return prepareReviewPacketUnsafe(cwd, kind, targets, context);
+    return prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
   } catch (error2) {
     if (error2 instanceof ReviewPacketError)
       throw error2;
@@ -34824,6 +34840,23 @@ Apply these regression boundaries:
 - **Warning:** an actor inside an explicitly trusted boundary could defeat a
   diagnostic that is not claimed as protection from that actor.`;
 
+// src/review/red-rubric.generated.ts
+var EXECUTABLE_RED_REVIEW_RUBRIC = `For an \`executable-red\` independent review, treat \`execution_attestation\` as the only execution
+evidence. Refuse author-pasted output, a missing attestation, or an attestation whose source
+fingerprint does not bind the supplied scenario, proof-plan row, primary proof target, and declared
+support files. Approval requires all of the following:
+
+- the exact attested command failed without timing out;
+- the expected-failure literal matched the attested full stdout or stderr stream;
+- the named proof exercises the scenario's actor-facing \`When\` and observes its actor-visible
+  \`Then\`;
+- the observed failure is the intended missing behavior at that boundary.
+
+Request changes when the failure is caused by syntax, imports, fixtures, configuration,
+infrastructure, an unrelated actor-boundary assertion, a passing command, timeout, or signal. Do
+not infer execution from cached suite status or the author's account. Explain the mismatch and name
+the exact proof or environment correction to make before retrying.`;
+
 // src/review/scenario-rubric.generated.ts
 var SCENARIO_REVIEW_RUBRIC = `## Shared scenario-quality rubric
 
@@ -34997,6 +35030,8 @@ function reviewRubric(kind) {
     return scenarioReviewRubric();
   if (kind === "plan-implementation")
     return planReviewRubric();
+  if (kind === "executable-red")
+    return composeReviewRubric(EXECUTABLE_RED_REVIEW_RUBRIC);
   return qualityReviewRubric();
 }
 function composeReviewRubric(specialistRubric) {
@@ -35921,11 +35956,13 @@ function withRecordIntegrity(cwd, record) {
   const unsigned = { ...record, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
-function fingerprint(cwd, kind, targets, context = []) {
-  const prepared = prepareReviewPacket(cwd, kind, targets, context);
+function fingerprint(cwd, kind, targets, context = [], execution) {
+  const prepared = prepareReviewPacket(cwd, kind, targets, context, { allowMissing: true });
   try {
     const hash = createHash12("sha256");
     hash.update(`kind\x00${kind}\x00`);
+    if (execution !== undefined)
+      hash.update(`execution\x00${JSON.stringify(execution)}\x00`);
     for (const [section, files] of [
       ["targets", prepared.packet.logical_files],
       ["context", prepared.packet.context_files ?? []]
@@ -36243,7 +36280,7 @@ function terminalResult(cwd, record) {
     });
   }
   try {
-    if (fingerprint(cwd, record.kind, record.targets, record.context) !== record.source_fingerprint)
+    if (fingerprint(cwd, record.kind, record.targets, record.context, record.execution) !== record.source_fingerprint)
       return staleResult(record);
   } catch {
     return staleResult(record);
@@ -36379,10 +36416,10 @@ function announceBackgroundProgress(progress, managedProgress) {
 }
 async function startReviewJob(input) {
   const context = input.context ?? [];
-  const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
+  const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context, input.execution);
   mkdirSync10(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
   const reserved = withFileLock(nodePath52.join(jobsDirectory(input.cwd), "start.lock"), () => {
-    const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
+    const existing = runningJob(input.cwd, input.kind, sourceFingerprint) ?? (input.kind === "executable-red" ? reusableApprovedExecutableRedJob(input.cwd, sourceFingerprint) : undefined);
     if (existing !== undefined)
       return { existing: true, record: existing };
     const now = new Date().toISOString();
@@ -36393,6 +36430,7 @@ async function startReviewJob(input) {
       kind: input.kind,
       targets: input.targets,
       context,
+      execution: input.execution,
       source_fingerprint: sourceFingerprint,
       started_at: now,
       updated_at: now,
@@ -36403,7 +36441,7 @@ async function startReviewJob(input) {
     return { existing: false, record: record2 };
   });
   if (reserved.existing)
-    return pendingResult(reserved.record);
+    return currentResult(input.cwd, reserved.record);
   const record = reserved.record;
   const id = record.id;
   const entrypoint = cliEntrypoint();
@@ -36545,7 +36583,13 @@ function reviewJobWorkerInput(cwd, id) {
     writeJob(cwd, claimed);
     return claimed;
   });
-  return { kind: record.kind, targets: record.targets, context: record.context ?? [] };
+  return {
+    kind: record.kind,
+    targets: record.targets,
+    context: record.context ?? [],
+    execution: record.execution,
+    sourceFingerprint: record.source_fingerprint
+  };
 }
 function latestJobId(cwd) {
   const directory = jobsDirectory(cwd);
@@ -36633,6 +36677,22 @@ function runningJob(cwd, kind, sourceFingerprint) {
       if (isActiveReviewJob(record) && record.kind === kind && record.source_fingerprint === sourceFingerprint) {
         return record;
       }
+    } catch {}
+  }
+  return;
+}
+function reusableApprovedExecutableRedJob(cwd, sourceFingerprint) {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync28(directory))
+    return;
+  for (const name of readdirSync23(directory)) {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name))
+      continue;
+    try {
+      const record = readJob(cwd, name.slice(0, -5));
+      const data = record.result?.data;
+      if (record.state === "completed" && record.kind === "executable-red" && record.source_fingerprint === sourceFingerprint && data?.status === "approved")
+        return record;
     } catch {}
   }
   return;
@@ -50580,6 +50640,134 @@ var init_lint_gherkin = __esm(() => {
   };
 });
 
+// src/review/red-execution.ts
+var exports_red_execution = {};
+__export(exports_red_execution, {
+  executeRedProof: () => executeRedProof
+});
+import { spawn as spawn4 } from "child_process";
+import { createHash as createHash29 } from "crypto";
+import { realpathSync as realpathSync15 } from "fs";
+import nodePath103 from "path";
+function containedWorkingDirectory(root, requested) {
+  const canonicalRoot = realpathSync15.native(root);
+  const canonicalCwd = realpathSync15.native(nodePath103.resolve(canonicalRoot, requested));
+  const relative = nodePath103.relative(canonicalRoot, canonicalCwd);
+  if (relative === ".." || relative.startsWith(`..${nodePath103.sep}`) || nodePath103.isAbsolute(relative))
+    throw new Error("RED proof working directory must stay inside the reviewed project");
+  return canonicalCwd;
+}
+function environmentIdentity() {
+  const entries = Object.entries(process.env).toSorted(([left], [right]) => left.localeCompare(right));
+  const sha2567 = createHash29("sha256").update(JSON.stringify(entries)).digest("hex");
+  return {
+    sha256: sha2567,
+    variable_count: entries.length,
+    platform: process.platform,
+    arch: process.arch,
+    node: process.version,
+    ...process.versions.bun !== undefined && { bun: process.versions.bun }
+  };
+}
+
+class StreamEvidence {
+  expected;
+  #hash = createHash29("sha256");
+  #chunks = [];
+  #retained = 0;
+  #bytes = 0;
+  #tail = "";
+  #matched = false;
+  constructor(expected) {
+    this.expected = expected;
+  }
+  add(chunk) {
+    this.#hash.update(chunk);
+    this.#bytes += chunk.length;
+    if (this.#retained < MAX_EXCERPT_BYTES) {
+      const retained = chunk.subarray(0, MAX_EXCERPT_BYTES - this.#retained);
+      this.#chunks.push(retained);
+      this.#retained += retained.length;
+    }
+    if (!this.#matched) {
+      const text = this.#tail + chunk.toString("utf8");
+      this.#matched = text.includes(this.expected);
+      this.#tail = text.slice(-Math.max(0, this.expected.length - 1));
+    }
+  }
+  get matched() {
+    return this.#matched;
+  }
+  finish() {
+    return {
+      excerpt: Buffer.concat(this.#chunks).toString("utf8"),
+      bytes: this.#bytes,
+      sha256: this.#hash.digest("hex"),
+      truncated: this.#bytes > this.#retained
+    };
+  }
+}
+async function executeRedProof(input) {
+  const cwd = containedWorkingDirectory(input.projectRoot, input.request.cwd);
+  const started = Date.now();
+  const stdout = new StreamEvidence(input.request.expectedFailure);
+  const stderr = new StreamEvidence(input.request.expectedFailure);
+  const termination = await new Promise((resolve, reject) => {
+    let timedOut = false;
+    const child = spawn4(input.request.argv[0], input.request.argv.slice(1), {
+      cwd,
+      env: process.env,
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true
+    });
+    child.stdout.on("data", (chunk) => {
+      stdout.add(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr.add(chunk);
+    });
+    child.once("error", reject);
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+    }, input.request.timeoutMs);
+    child.once("close", (exitCode, signal) => {
+      clearTimeout(timer);
+      resolve({ exitCode, signal, timedOut });
+    });
+  });
+  const finished = Date.now();
+  const stdoutEvidence = stdout.finish();
+  const stderrEvidence = stderr.finish();
+  return {
+    schema_version: 1,
+    argv: [...input.request.argv],
+    cwd: input.request.cwd,
+    evidence_class: input.request.evidenceClass,
+    expected_failure: {
+      literal: input.request.expectedFailure,
+      matched: stdout.matched || stderr.matched
+    },
+    source_fingerprint: input.sourceFingerprint,
+    environment: environmentIdentity(),
+    started_at: new Date(started).toISOString(),
+    finished_at: new Date(finished).toISOString(),
+    duration_ms: finished - started,
+    termination: {
+      exit_code: termination.exitCode,
+      signal: termination.signal,
+      timed_out: termination.timedOut
+    },
+    stdout: stdoutEvidence,
+    stderr: stderrEvidence
+  };
+}
+var MAX_EXCERPT_BYTES;
+var init_red_execution = __esm(() => {
+  MAX_EXCERPT_BYTES = 64 * 1024;
+});
+
 // src/review/coordinator.ts
 var exports_coordinator = {};
 __export(exports_coordinator, {
@@ -50961,7 +51149,7 @@ async function executeRankedRoute(input) {
   const independentLabel = input.route.independence === "cross-agent" ? "an independent " : "";
   const modelLabel = input.route.model === undefined ? "" : ` with ${input.route.model}`;
   input.run.progress?.start(`Requesting ${independentLabel}${agentName(input.route.reviewer)} review${modelLabel}\u2026`);
-  const prepared = prepareReviewPacket(input.run.cwd, input.run.kind, input.run.targets, input.run.context);
+  const prepared = prepareReviewPacket(input.run.cwd, input.run.kind, input.run.targets, input.run.context, { attestation: input.run.executionAttestation });
   input.run.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.route.reviewer)}\u2026`);
   const execution = await executeReview(input.route.reviewer, prepared, input.route.model, input.runDeadline);
   const changed2 = changedReviewResult({
@@ -51180,7 +51368,9 @@ function degradedNetworkEffects(input) {
 }
 function preparePrimaryReview(input, reviewer) {
   const name = agentName(reviewer);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation
+  });
   input.progress?.start(`Requesting an independent ${name} review\u2026`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}\u2026`);
   return prepared;
@@ -51216,7 +51406,9 @@ async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) 
 function prepareFallbackReview(input, assignedReviewer, author) {
   const fallbackName = agentName(author);
   input.progress?.start(`${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback\u2026`);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation
+  });
   input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback\u2026`);
   return prepared;
 }
@@ -51388,7 +51580,9 @@ async function runAlternateModelRoute(input) {
     return { kind: "skipped" };
   }
   input.progress?.start(`Trying ${agentName(input.reviewer)} again with the configured alternate model\u2026`);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation
+  });
   input.progress?.heartbeat?.(`Still waiting for ${agentName(input.reviewer)} on the alternate model\u2026`);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.reviewer, prepared, model, input.runDeadline);
   const changedResult = changedReviewResult({
@@ -51427,7 +51621,9 @@ async function runIndependentFallback(input) {
   if (!canFundRoute(input.runDeadline))
     return { kind: "skipped" };
   input.progress?.start(`${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review\u2026`);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation
+  });
   input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}\u2026`);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.reviewer, prepared, undefined, input.runDeadline);
   const changedResult = changedReviewResult({
@@ -52064,7 +52260,7 @@ __export(exports_review_pr, {
   inspectPullRequestCommand: () => inspectPullRequestCommand
 });
 import { readFileSync as readFileSync65, writeFileSync as writeFileSync23 } from "fs";
-import nodePath103 from "path";
+import nodePath104 from "path";
 import process12 from "process";
 function isRecord7(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -52081,7 +52277,7 @@ function hasValidInputEnvelope(raw) {
   return raw.schemaVersion === 1 && validHead && validState && Array.isArray(raw.artifacts) && Array.isArray(raw.checks) && Array.isArray(raw.statuses) && typeof raw.markerReceiptExists === "boolean";
 }
 function parseConfig(cwd) {
-  const raw = JSON.parse(readFileSync65(nodePath103.join(cwd, ".safeword", "config.json"), "utf8"));
+  const raw = JSON.parse(readFileSync65(nodePath104.join(cwd, ".safeword", "config.json"), "utf8"));
   if (!isRecord7(raw) || !isRecord7(raw.prReview)) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
@@ -52778,11 +52974,11 @@ var init_review_pr_publication = __esm(() => {
 
 // src/codex-plugin/project-directory.ts
 import { execFileSync as execFileSync9 } from "child_process";
-import nodePath104 from "path";
+import nodePath105 from "path";
 function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process.env) {
   const configuredProject = environment.CLAUDE_PROJECT_DIR?.trim();
   if (configuredProject)
-    return nodePath104.resolve(configuredProject);
+    return nodePath105.resolve(configuredProject);
   try {
     const root = execFileSync9("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
@@ -52792,7 +52988,7 @@ function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process
     if (root.length > 0)
       return root;
   } catch {}
-  return nodePath104.resolve(cwd);
+  return nodePath105.resolve(cwd);
 }
 var init_project_directory = () => {};
 
@@ -53015,12 +53211,12 @@ var init_cursor_state = __esm(() => {
 
 // templates/hooks/lib/dogfood.ts
 import { existsSync as existsSync50, readFileSync as readFileSync67 } from "fs";
-import nodePath105 from "path";
+import nodePath106 from "path";
 function isDogfoodRepo(projectDirectory) {
-  if (existsSync50(nodePath105.join(projectDirectory, "packages", "cli", "templates")))
+  if (existsSync50(nodePath106.join(projectDirectory, "packages", "cli", "templates")))
     return true;
   try {
-    const pkg2 = JSON.parse(readFileSync67(nodePath105.join(projectDirectory, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync67(nodePath106.join(projectDirectory, "package.json"), "utf8"));
     return pkg2.name === "safeword";
   } catch {
     return false;
@@ -53030,7 +53226,7 @@ var init_dogfood = () => {};
 
 // templates/hooks/lib/retro-debug.ts
 import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync18 } from "fs";
-import nodePath106 from "path";
+import nodePath107 from "path";
 import process14 from "process";
 function sanitizeDebugValue(key, value) {
   if (value === undefined)
@@ -53065,7 +53261,7 @@ function recordRetroDebugEvent(event, env = process14.env) {
   if (!logPath)
     return;
   try {
-    mkdirSync18(nodePath106.dirname(logPath), { recursive: true });
+    mkdirSync18(nodePath107.dirname(logPath), { recursive: true });
     appendFileSync2(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
 `);
   } catch {}
@@ -53103,7 +53299,7 @@ __export(exports_retro_extract, {
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
 });
 import { readFileSync as readFileSync68, writeFileSync as writeFileSync24 } from "fs";
-import nodePath107 from "path";
+import nodePath108 from "path";
 function defaultRetroModel(agent) {
   if (agent === "codex")
     return DEFAULT_CODEX_RETRO_MODEL;
@@ -53113,7 +53309,7 @@ function defaultRetroModel(agent) {
 }
 function resolveRetroModel(projectDirectory, agent = "claude") {
   try {
-    const raw = readFileSync68(nodePath107.join(projectDirectory, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync68(nodePath108.join(projectDirectory, ".safeword", "config.json"), "utf8");
     const parsed2 = JSON.parse(raw);
     const model = parsed2.retro?.model;
     return typeof model === "string" && model.length > 0 ? model : defaultRetroModel(agent);
@@ -53274,8 +53470,8 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
     const digest3 = buildDigest(transcript);
     if (digest3.trim() === "")
       return { ok: false, failureReason: "empty_digest", findings: [] };
-    const schemaPath = dependencies.schemaPath ?? nodePath107.join(dependencies.cwd, "schema.json");
-    const outputPath = dependencies.outputPath ?? nodePath107.join(dependencies.cwd, "output.json");
+    const schemaPath = dependencies.schemaPath ?? nodePath108.join(dependencies.cwd, "schema.json");
+    const outputPath = dependencies.outputPath ?? nodePath108.join(dependencies.cwd, "output.json");
     const writeFile2 = dependencies.writeFile ?? writeFileSync24;
     const readFile2 = dependencies.readFile ?? ((path4) => readFileSync68(path4, "utf8"));
     writeFile2(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
@@ -59308,9 +59504,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash29 } from "crypto";
+import { createHash as createHash30 } from "crypto";
 function shortHash(material) {
-  return createHash29("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash30("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -59410,7 +59606,7 @@ var init_pipeline = __esm(() => {
 });
 
 // src/retro/public-delivery.ts
-import { createHash as createHash30 } from "crypto";
+import { createHash as createHash31 } from "crypto";
 import {
   closeSync as closeSync13,
   fsyncSync as fsyncSync4,
@@ -59445,7 +59641,7 @@ function isValidEnvelopeInput(input, projectUUID, version2) {
   return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && (version2 === "v3" ? source.hostClass === "local" : validSourceRoute(source));
 }
 function deriveSessionScope(harness, projectUUID, sessionId, windowStart) {
-  const hash = createHash30("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
+  const hash = createHash31("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
   if (windowStart > 0)
     hash.update("\x00window\x00").update(String(windowStart));
   return hash.digest("hex");
@@ -59554,7 +59750,7 @@ function claimServerPublicRetroRequest(built, dependencies) {
   let markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   let existing = readServerAttempt(markerPath2, built);
   if (existing.kind === "conflict") {
-    const digest4 = createHash30("sha256").update(built.bytes).digest("hex");
+    const digest4 = createHash31("sha256").update(built.bytes).digest("hex");
     markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.${digest4}.json`);
     existing = readServerAttempt(markerPath2, built);
   }
@@ -59772,8 +59968,8 @@ var init_public_delivery = __esm(() => {
 });
 
 // src/retro/public-source.ts
-import { lstatSync as lstatSync24, readFileSync as readFileSync70, realpathSync as realpathSync15 } from "fs";
-import nodePath108 from "path";
+import { lstatSync as lstatSync24, readFileSync as readFileSync70, realpathSync as realpathSync16 } from "fs";
+import nodePath109 from "path";
 function repoIdentity(hostname, rawPath) {
   const path6 = normalizedRepoPath(rawPath);
   if (hostname === "" || path6 === "" || /[%\s]/u.test(path6))
@@ -59846,30 +60042,30 @@ function buildPublicRetroSource(cwd, options) {
   };
 }
 function repoGitConfigPath(cwd) {
-  const projectDirectory = nodePath108.resolve(cwd);
-  const dotGit = nodePath108.join(projectDirectory, ".git");
+  const projectDirectory = nodePath109.resolve(cwd);
+  const dotGit = nodePath109.join(projectDirectory, ".git");
   const dotGitEntry = lstatSync24(dotGit);
   if (dotGitEntry.isSymbolicLink())
     throw new Error("Untrusted Git directory pointer");
   if (dotGitEntry.isDirectory())
-    return trustedConfigFile(nodePath108.join(dotGit, "config"));
+    return trustedConfigFile(nodePath109.join(dotGit, "config"));
   const pointer = readFileSync70(dotGit, "utf8").trim();
   if (!pointer.toLowerCase().startsWith("gitdir:"))
     throw new Error("Invalid Git directory pointer");
-  const gitDirectory = nodePath108.resolve(projectDirectory, pointer.slice("gitdir:".length).trim());
+  const gitDirectory = nodePath109.resolve(projectDirectory, pointer.slice("gitdir:".length).trim());
   let commonDirectory;
   let backlink;
   try {
-    const common = readFileSync70(nodePath108.join(gitDirectory, "commondir"), "utf8").trim();
-    commonDirectory = nodePath108.resolve(gitDirectory, common);
-    backlink = readFileSync70(nodePath108.join(gitDirectory, "gitdir"), "utf8").trim();
+    const common = readFileSync70(nodePath109.join(gitDirectory, "commondir"), "utf8").trim();
+    commonDirectory = nodePath109.resolve(gitDirectory, common);
+    backlink = readFileSync70(nodePath109.join(gitDirectory, "gitdir"), "utf8").trim();
   } catch {
     throw new Error("Untrusted Git directory pointer");
   }
-  if (realpathSync15(nodePath108.resolve(gitDirectory, backlink)) !== realpathSync15(dotGit) || realpathSync15(nodePath108.dirname(gitDirectory)) !== realpathSync15(nodePath108.join(commonDirectory, "worktrees"))) {
+  if (realpathSync16(nodePath109.resolve(gitDirectory, backlink)) !== realpathSync16(dotGit) || realpathSync16(nodePath109.dirname(gitDirectory)) !== realpathSync16(nodePath109.join(commonDirectory, "worktrees"))) {
     throw new Error("Untrusted Git directory pointer");
   }
-  return trustedConfigFile(nodePath108.join(commonDirectory, "config"));
+  return trustedConfigFile(nodePath109.join(commonDirectory, "config"));
 }
 function trustedConfigFile(path6) {
   if (lstatSync24(path6).isSymbolicLink())
@@ -60204,7 +60400,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash31, randomUUID as randomUUID12 } from "crypto";
+import { createHash as createHash32, randomUUID as randomUUID12 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path7 from "path";
 function normalizeRelayOrigin(value) {
@@ -60241,10 +60437,10 @@ function relaySourcePayloadDigest(request) {
     repository: request.repository,
     title: request.title
   };
-  return createHash31("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash32("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 function relayRequestDigest(request) {
-  return createHash31("sha256").update(JSON.stringify(request)).digest("hex");
+  return createHash32("sha256").update(JSON.stringify(request)).digest("hex");
 }
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
@@ -60256,7 +60452,7 @@ function createRelayRequest(input, dependencies) {
   };
 }
 function relaySourceKey(sessionIdentity, windowStart, payload) {
-  return createHash31("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
+  return createHash32("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
 }
 function relayDirectory(projectDirectory) {
   return path7.join(projectDirectory, ".safeword", "retro-drafts", "relay");
@@ -60296,7 +60492,7 @@ function discardIntentTokenPath(projectDirectory, requestId, token) {
   return path7.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 function sourcePath(projectDirectory, sourceKey, suffix) {
-  const key = createHash31("sha256").update(sourceKey).digest("hex");
+  const key = createHash32("sha256").update(sourceKey).digest("hex");
   return path7.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
 }
 function sourceReservationPath(projectDirectory, sourceKey) {
@@ -61971,7 +62167,7 @@ var init_relay_readiness_manifest = __esm(() => {
 });
 
 // src/retro/relay-readiness.ts
-import { createHash as createHash32 } from "crypto";
+import { createHash as createHash33 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) || date.toISOString() !== value ? undefined : date;
@@ -62103,7 +62299,7 @@ function matchesAttestedManifest(manifest, attestation) {
   try {
     const bytes = Buffer.from(attestation.manifestBase64, "base64");
     const parsed2 = JSON.parse(bytes.toString("utf8"));
-    return createHash32("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
+    return createHash33("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
   } catch {
     return false;
   }
@@ -62123,7 +62319,7 @@ function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
         return Promise.resolve(undefined);
       }
       const bytes = Buffer.from(artifact.contentBase64, "base64");
-      const sha2567 = createHash32("sha256").update(bytes).digest("hex");
+      const sha2567 = createHash33("sha256").update(bytes).digest("hex");
       return Promise.resolve(sha2567 === artifact.sha256 ? { content: bytes.toString("utf8"), sha256: sha2567 } : undefined);
     }
   });
@@ -62461,12 +62657,12 @@ import {
   mkdirSync as mkdirSync20,
   mkdtempSync as mkdtempSync8,
   readFileSync as readFileSync71,
-  realpathSync as realpathSync16,
+  realpathSync as realpathSync17,
   statSync as statSync12,
   writeFileSync as writeFileSync26
 } from "fs";
 import { platform, tmpdir as tmpdir6 } from "os";
-import nodePath109 from "path";
+import nodePath110 from "path";
 import process17 from "process";
 function selectedLocalRetroCanary(override) {
   return override ?? SAFEWORD_LOCAL_RETRO_CANARY_HARNESS;
@@ -62620,7 +62816,7 @@ async function runRetro(options, dependencies) {
       sessionId,
       draftsPassed: drafts.length,
       skippedAppend: drafts.length === 0,
-      spoolFile: nodePath109.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
+      spoolFile: nodePath110.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
     });
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
@@ -62742,13 +62938,13 @@ function prepareCursorExtractionDirectory(directory) {
   const gitInit = spawnSync12("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
-  const cursorDirectory = nodePath109.join(directory, ".cursor");
+  const cursorDirectory = nodePath110.join(directory, ".cursor");
   mkdirSync20(cursorDirectory, { recursive: true });
-  writeFileSync26(nodePath109.join(cursorDirectory, "cli.json"), JSON.stringify({
+  writeFileSync26(nodePath110.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
   }));
-  writeFileSync26(nodePath109.join(cursorDirectory, "sandbox.json"), JSON.stringify({
+  writeFileSync26(nodePath110.join(cursorDirectory, "sandbox.json"), JSON.stringify({
     type: "workspace_readwrite",
     disableTmpWrite: true,
     networkPolicy: { default: "deny", allow: [] }
@@ -62766,7 +62962,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
   const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
   const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
   const spawnCursor = dependencies.spawn ?? spawnCursorExtractor;
-  const workDirectory = mkdtempSync8(nodePath109.join(tmpdir6(), "safeword-retro-"));
+  const workDirectory = mkdtempSync8(nodePath110.join(tmpdir6(), "safeword-retro-"));
   if (agent === "codex") {
     return async (transcript) => {
       const result = await runCodexHeadlessExtractionChecked2(transcript, {
@@ -62778,8 +62974,8 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
         env: headlessEnvironment(process17.env, "codex"),
         cwd: workDirectory,
         model,
-        schemaPath: nodePath109.join(workDirectory, "schema.json"),
-        outputPath: nodePath109.join(workDirectory, "output.json")
+        schemaPath: nodePath110.join(workDirectory, "schema.json"),
+        outputPath: nodePath110.join(workDirectory, "output.json")
       });
       recordRetroDebugEvent({
         event: "retro_cli_extraction",
@@ -62818,7 +63014,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
     const result = await runHeadlessExtractionChecked2(transcript, {
       spawn: spawnClaude,
       writeDigest: (digest4) => {
-        const path8 = nodePath109.join(workDirectory, "digest.txt");
+        const path8 = nodePath110.join(workDirectory, "digest.txt");
         writeFileSync26(path8, digest4);
         return path8;
       },
@@ -62869,10 +63065,10 @@ function unavailableTransport() {
 }
 function physicalProjectPath(projectDirectory) {
   try {
-    return realpathSync16(projectDirectory);
+    return realpathSync17(projectDirectory);
   } catch {
     try {
-      return nodePath109.join(realpathSync16(nodePath109.dirname(projectDirectory)), nodePath109.basename(projectDirectory));
+      return nodePath110.join(realpathSync17(nodePath110.dirname(projectDirectory)), nodePath110.basename(projectDirectory));
     } catch {
       return;
     }
@@ -62880,23 +63076,23 @@ function physicalProjectPath(projectDirectory) {
 }
 function physicalOutboxPath(outboxDirectory) {
   try {
-    const physicalOutbox = realpathSync16(outboxDirectory);
+    const physicalOutbox = realpathSync17(outboxDirectory);
     return statSync12(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
   }
 }
 function isOutsideProject(projectDirectory, outboxDirectory) {
-  const relative = nodePath109.relative(projectDirectory, outboxDirectory);
-  return relative === ".." || relative.startsWith(`..${nodePath109.sep}`);
+  const relative = nodePath110.relative(projectDirectory, outboxDirectory);
+  return relative === ".." || relative.startsWith(`..${nodePath110.sep}`);
 }
 function resolveRelayOutboxDirectory(projectDirectory, configuredDirectory) {
   const configured = configuredDirectory?.trim();
-  if (configured === undefined || configured.length === 0 || !nodePath109.isAbsolute(configured)) {
+  if (configured === undefined || configured.length === 0 || !nodePath110.isAbsolute(configured)) {
     return;
   }
-  const resolved = nodePath109.resolve(configured);
-  if (resolved === nodePath109.parse(resolved).root)
+  const resolved = nodePath110.resolve(configured);
+  if (resolved === nodePath110.parse(resolved).root)
     return;
   const physicalProject = physicalProjectPath(projectDirectory);
   if (physicalProject === undefined)
@@ -63266,7 +63462,7 @@ function resolvePublicRetroRoute(input) {
   });
   const useServerRoute = localServerRouteEnabled(localSource, serverReady || isCanary);
   return {
-    attemptsDirectory: nodePath109.join(input.projectDirectory, ".safeword", "retro-attempts"),
+    attemptsDirectory: nodePath110.join(input.projectDirectory, ".safeword", "retro-attempts"),
     now: () => performance.now(),
     randomUUID: randomUUID13,
     ...useServerRoute && { route: "server-v3" },
@@ -63281,7 +63477,7 @@ function cursorPublicBindingMatches(input) {
     return false;
   const state = { conversation_id: sessionId };
   try {
-    return readFileSync71(cursorConversationStashPath(state), "utf8") === sessionId && readFileSync71(cursorTranscriptStashPath(state), "utf8") === transcript && realpathSync16(readFileSync71(cursorProjectStashPath(state), "utf8")) === realpathSync16(input.projectDirectory);
+    return readFileSync71(cursorConversationStashPath(state), "utf8") === sessionId && readFileSync71(cursorTranscriptStashPath(state), "utf8") === transcript && realpathSync17(readFileSync71(cursorProjectStashPath(state), "utf8")) === realpathSync17(input.projectDirectory);
   } catch {
     return false;
   }
@@ -63944,7 +64140,7 @@ __export(exports_boundary, {
 });
 import { execFileSync as execFileSync11 } from "child_process";
 import { appendFileSync as appendFileSync3, existsSync as existsSync52, mkdirSync as mkdirSync21 } from "fs";
-import nodePath112 from "path";
+import nodePath113 from "path";
 import process20 from "process";
 function tryGit(cwd, args) {
   try {
@@ -64023,10 +64219,10 @@ function collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures) 
     byTicket.set(ticketPath, change);
   }
   for (const change of byTicket.values()) {
-    const folder = nodePath112.join(cwd, change.anchorScope.ticketPath);
+    const folder = nodePath113.join(cwd, change.anchorScope.ticketPath);
     const staged = change.artifacts.find((a) => a.artifact === "ticket.md")?.proposed;
-    change.ticketCurrent = staged ?? readFileSafe(nodePath112.join(folder, "ticket.md"));
-    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync52(nodePath112.join(folder, "test-definitions.md"));
+    change.ticketCurrent = staged ?? readFileSafe(nodePath113.join(folder, "ticket.md"));
+    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync52(nodePath113.join(folder, "test-definitions.md"));
     if (at === "push" && change.artifacts.some((a) => a.artifact === "ticket.md")) {
       const path8 = `${change.anchorScope.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path8, range.priorRef);
@@ -64044,8 +64240,8 @@ function legalityStepsFor(cwd, path8, priorReference) {
   }));
 }
 function appendAudit(cwd, entry2) {
-  const auditPath = nodePath112.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync21(nodePath112.dirname(auditPath), { recursive: true });
+  const auditPath = nodePath113.join(cwd, AUDIT_RELATIVE_PATH);
+  mkdirSync21(nodePath113.dirname(auditPath), { recursive: true });
   appendFileSync3(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -64089,7 +64285,7 @@ function boundary(options) {
   try {
     const at = options.at === "push" ? "push" : "commit";
     const cwd = process20.cwd();
-    if (existsSync52(nodePath112.join(cwd, ".safeword"))) {
+    if (existsSync52(nodePath113.join(cwd, ".safeword"))) {
       reconcileBoundary(cwd, at);
     }
   } catch (error2) {
@@ -64104,7 +64300,7 @@ var init_boundary = __esm(() => {
   init_configured_paths();
   init_feature_source();
   init_fs();
-  AUDIT_RELATIVE_PATH = nodePath112.join(".safeword", "boundary-audit.jsonl");
+  AUDIT_RELATIVE_PATH = nodePath113.join(".safeword", "boundary-audit.jsonl");
 });
 
 // src/commands/codex-hook.ts
@@ -64127,7 +64323,7 @@ import {
   writeFileSync as writeFileSync27
 } from "fs";
 import { tmpdir as tmpdir7 } from "os";
-import nodePath113 from "path";
+import nodePath114 from "path";
 import process21 from "process";
 async function readStdin() {
   stdinCache.body ??= (async () => {
@@ -64224,8 +64420,8 @@ function writeCodexIdentityCache(input) {
   if (!sessionId || !skillName2)
     return;
   try {
-    const cachePath = nodePath113.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync22(nodePath113.dirname(cachePath), { recursive: true });
+    const cachePath = nodePath114.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
+    mkdirSync22(nodePath114.dirname(cachePath), { recursive: true });
     writeFileSync27(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
@@ -64288,9 +64484,9 @@ function missingIntakeFields(ticketContent) {
   return REQUIRED_INTAKE_FIELDS.filter((field) => !frontmatterHasField(body, field));
 }
 function testDefinitionsTicketFolder(projectDirectory, targetPath) {
-  const ticketsDirectory = nodePath113.join(resolveNamespaceRoot(projectDirectory), "tickets");
-  const absoluteTarget = nodePath113.resolve(projectDirectory, targetPath);
-  const normalized = nodePath113.relative(ticketsDirectory, absoluteTarget).replaceAll("\\", "/");
+  const ticketsDirectory = nodePath114.join(resolveNamespaceRoot(projectDirectory), "tickets");
+  const absoluteTarget = nodePath114.resolve(projectDirectory, targetPath);
+  const normalized = nodePath114.relative(ticketsDirectory, absoluteTarget).replaceAll("\\", "/");
   const match = /^([^/]+)\/test-definitions\.md$/u.exec(normalized);
   return match?.[1];
 }
@@ -64334,11 +64530,11 @@ function readPackagedSafewordInstructions() {
 `);
 }
 function findPackagedTemplate(relativePath) {
-  const directories = process21.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? [nodePath113.join(resolveCodexProjectDirectory(), ".safeword"), ...TEMPLATE_DIRECTORIES] : TEMPLATE_DIRECTORIES;
-  return directories.map((directory) => nodePath113.join(directory, relativePath)).find((candidate) => existsSync53(candidate));
+  const directories = process21.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? [nodePath114.join(resolveCodexProjectDirectory(), ".safeword"), ...TEMPLATE_DIRECTORIES] : TEMPLATE_DIRECTORIES;
+  return directories.map((directory) => nodePath114.join(directory, relativePath)).find((candidate) => existsSync53(candidate));
 }
 function resolvePackagedHook(relativePath) {
-  return findPackagedTemplate(nodePath113.join("hooks", relativePath));
+  return findPackagedTemplate(nodePath114.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
   const runtime = process21.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process21.execPath : "bun";
@@ -64366,7 +64562,7 @@ function normalizeNamespaceRootLabel(label) {
   return normalizedLabel === "." || normalizedLabel.startsWith("..") || [".project", ".safeword-project"].includes(normalizedLabel) ? undefined : normalizedLabel;
 }
 function packagedNamespaceRootLabel(projectDirectory) {
-  return normalizeNamespaceRootLabel(nodePath113.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
+  return normalizeNamespaceRootLabel(nodePath114.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
 }
 function runPackagedHook(relativePath, rawInput, projectDirectory) {
   const hookPath = resolvePackagedHook(relativePath);
@@ -64381,10 +64577,10 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   let temporaryHookDirectory;
   try {
     if (relativePath === "session-codex-start.ts") {
-      temporaryHookDirectory = mkdtempSync9(nodePath113.join(tmpdir7(), "safeword-codex-hook-"));
-      cpSync3(nodePath113.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync27(nodePath113.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
-      executableHookPath = nodePath113.join(temporaryHookDirectory, nodePath113.basename(hookPath));
+      temporaryHookDirectory = mkdtempSync9(nodePath114.join(tmpdir7(), "safeword-codex-hook-"));
+      cpSync3(nodePath114.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      writeFileSync27(nodePath114.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      executableHookPath = nodePath114.join(temporaryHookDirectory, nodePath114.basename(hookPath));
     }
     const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
@@ -64396,7 +64592,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
 function rewriteSnapshotImportsForNode(directory) {
   const entries = readdirSync35(directory, { withFileTypes: true });
   for (const entry2 of entries) {
-    const path8 = nodePath113.join(directory, entry2.name);
+    const path8 = nodePath114.join(directory, entry2.name);
     if (entry2.isDirectory()) {
       rewriteSnapshotImportsForNode(path8);
       continue;
@@ -64416,16 +64612,16 @@ function snapshotPackagedHook(relativePath) {
   if (!packagedHooksDirectory) {
     return { error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   }
-  const directory = mkdtempSync9(nodePath113.join(tmpdir7(), `safeword-codex-hook-snapshot-${process21.pid}-`));
-  const stagingHooksDirectory = nodePath113.join(directory, "hooks-copying");
-  const snapshotHooksDirectory = nodePath113.join(directory, "hooks");
+  const directory = mkdtempSync9(nodePath114.join(tmpdir7(), `safeword-codex-hook-snapshot-${process21.pid}-`));
+  const stagingHooksDirectory = nodePath114.join(directory, "hooks-copying");
+  const snapshotHooksDirectory = nodePath114.join(directory, "hooks");
   try {
     cpSync3(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
     if (process21.env.SAFEWORD_AGENT_RUNTIME === "opencode") {
       rewriteSnapshotImportsForNode(stagingHooksDirectory);
     }
     renameSync13(stagingHooksDirectory, snapshotHooksDirectory);
-    const hookPath = nodePath113.join(snapshotHooksDirectory, relativePath);
+    const hookPath = nodePath114.join(snapshotHooksDirectory, relativePath);
     return existsSync53(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
     return {
@@ -64462,7 +64658,7 @@ function emitPackagedPreToolResult(result) {
   return true;
 }
 function readProjectTextFile(projectDirectory, relativePath) {
-  const filePath = nodePath113.join(projectDirectory, relativePath);
+  const filePath = nodePath114.join(projectDirectory, relativePath);
   return existsSync53(filePath) ? readFileSync73(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
@@ -64510,7 +64706,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder)
     return false;
-  const ticketPath = nodePath113.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
+  const ticketPath = nodePath114.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
   const ticketContent = existsSync53(ticketPath) ? readFileSync73(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
@@ -64574,7 +64770,7 @@ function postToolLintInputs(input, rawInput, projectDirectory) {
   if (input?.tool_name !== "apply_patch")
     return [rawInput];
   return extractTargetPaths(input).map((filePath) => JSON.stringify({
-    tool_input: { file_path: nodePath113.resolve(projectDirectory, filePath) }
+    tool_input: { file_path: nodePath114.resolve(projectDirectory, filePath) }
   }));
 }
 function collectPostToolLintContexts(lintInputs, projectDirectory) {
@@ -64695,8 +64891,8 @@ var init_codex_hook = __esm(() => {
   REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
-    nodePath113.resolve(MODULE_DIRECTORY, "../templates"),
-    nodePath113.resolve(MODULE_DIRECTORY, "../../templates")
+    nodePath114.resolve(MODULE_DIRECTORY, "../templates"),
+    nodePath114.resolve(MODULE_DIRECTORY, "../../templates")
   ];
   SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
   SHELL_WHITESPACE = [" ", `
@@ -66815,7 +67011,7 @@ init_architecture_document();
 init_agent_selection();
 init_online_required();
 import { existsSync as existsSync51, lstatSync as lstatSync25, readFileSync as readFileSync72, readlinkSync as readlinkSync4 } from "fs";
-import nodePath110 from "path";
+import nodePath111 from "path";
 
 // src/cli-protocol/option-values.ts
 function stringOption(options, name) {
@@ -67230,14 +67426,14 @@ async function uninstallHandler(invocation) {
   return finding === undefined ? result : { ...result, findings: [...result.findings, finding] };
 }
 async function syncConfigHandler(invocation) {
-  const safewordDirectory = nodePath110.join(invocation.cwd, ".safeword");
+  const safewordDirectory = nodePath111.join(invocation.cwd, ".safeword");
   if (!existsSync51(safewordDirectory))
     return notConfigured("project sync-config");
   const { buildArchitecture: buildArchitecture2, inspectConfig: inspectConfig2, syncConfigCore: syncConfigCore2 } = await Promise.resolve().then(() => (init_sync_config(), exports_sync_config));
   const architecture2 = buildArchitecture2(invocation.cwd);
   const before = inspectConfig2(invocation.cwd, architecture2);
-  const mainConfigExists = existsSync51(nodePath110.join(invocation.cwd, ".dependency-cruiser.cjs"));
-  const generatedConfigExists = existsSync51(nodePath110.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
+  const mainConfigExists = existsSync51(nodePath111.join(invocation.cwd, ".dependency-cruiser.cjs"));
+  const generatedConfigExists = existsSync51(nodePath111.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
   if (invocation.options.check === true) {
     return configCheckResult(completeConfigInspection(before, mainConfigExists));
   }
@@ -67317,7 +67513,7 @@ function architectureModeResult(input) {
       files: [
         ...changed2.map((result) => ({
           kind: result.action === "created" ? "create" : "update",
-          target: nodePath110.relative(input.cwd, result.path)
+          target: nodePath111.relative(input.cwd, result.path)
         })),
         ...input.stagedPaths.map((target) => ({ kind: "stage", target, operation: "stage" }))
       ]
@@ -67459,7 +67655,7 @@ function healedDocumentFindings(cwd, changed2) {
       }
     ];
   }
-  const healed = changed2.map((result) => nodePath110.relative(cwd, result.path)).join(", ");
+  const healed = changed2.map((result) => nodePath111.relative(cwd, result.path)).join(", ");
   return [
     {
       code: "ARCHITECTURE_REFRESHED",
@@ -67476,7 +67672,7 @@ function architectureHealResult(input) {
     effects: {
       files: input.changed.map((result) => ({
         kind: result.action === "created" ? "create" : "update",
-        target: nodePath110.relative(input.cwd, result.path)
+        target: nodePath111.relative(input.cwd, result.path)
       }))
     },
     findings: [...healedDocumentFindings(input.cwd, input.changed), ...input.advisories],
@@ -67495,7 +67691,7 @@ async function syncLearningsHandler(invocation) {
       files: result.wrote ? [
         {
           kind: "write",
-          target: nodePath110.relative(invocation.cwd, result.indexPath)
+          target: nodePath111.relative(invocation.cwd, result.indexPath)
         }
       ] : []
     },
@@ -67515,7 +67711,7 @@ async function syncTicketsHandler(invocation) {
     effects: {
       files: result.wrote ? [result.indexPath, result.completedIndexPath].map((target) => ({
         kind: "write",
-        target: nodePath110.relative(invocation.cwd, target)
+        target: nodePath111.relative(invocation.cwd, target)
       })) : []
     },
     findings: result.skipped.map((skip) => ({
@@ -67632,7 +67828,7 @@ async function reviewRunHandler(invocation) {
       errors: [
         {
           code: "REVIEW_KIND_INVALID",
-          message: "Review kind must be quality-review, scenario-gate, or plan-implementation.",
+          message: "Review kind must be quality-review, scenario-gate, plan-implementation, or executable-red.",
           retryable: false
         }
       ]
@@ -67642,7 +67838,10 @@ async function reviewRunHandler(invocation) {
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")
     return runReviewWorker(invocation);
-  return startReviewInBackground(invocation, rawKind, targets, context);
+  const execution = redExecutionRequest(rawKind, invocation.options);
+  if (execution instanceof Error)
+    return invalidOperand("review run", execution.message);
+  return startReviewInBackground(invocation, rawKind, targets, context, execution);
 }
 function reviewRouteAuthor(value) {
   return typeof value === "string" && ["claude", "codex", "opencode"].includes(value) ? value : undefined;
@@ -67697,7 +67896,7 @@ async function reviewRoutesSetHandler(invocation) {
       files: [
         {
           kind: existed ? "update" : "create",
-          target: scope === "project" ? nodePath110.relative(invocation.cwd, target) : target
+          target: scope === "project" ? nodePath111.relative(invocation.cwd, target) : target
         }
       ]
     },
@@ -67737,7 +67936,7 @@ async function reviewRoutesListHandler(invocation) {
       }
     });
   }
-  const projectConfig = nodePath110.relative(invocation.cwd, scopedConfigPath2(invocation.cwd, "project"));
+  const projectConfig = nodePath111.relative(invocation.cwd, scopedConfigPath2(invocation.cwd, "project"));
   const body = [
     ...listed.flatMap((entry2) => [
       `${entry2.author} review routes (${entry2.source}):`,
@@ -67787,7 +67986,7 @@ async function reviewRoutesResetHandler(invocation) {
         files: [
           {
             kind: "update",
-            target: scope === "project" ? nodePath110.relative(invocation.cwd, target) : target
+            target: scope === "project" ? nodePath111.relative(invocation.cwd, target) : target
           }
         ]
       }
@@ -67799,6 +67998,65 @@ function reviewContext(rawContext) {
   if (Array.isArray(rawContext))
     return rawContext.filter((target) => typeof target === "string");
   return typeof rawContext === "string" ? [rawContext] : [];
+}
+var RED_EVIDENCE_CLASSES = new Set([
+  "pure-contract",
+  "simulated-host",
+  "local-live-host",
+  "external-live-host"
+]);
+function redExecutionRequest(kind, options) {
+  if (kind !== "executable-red")
+    return;
+  const rawArgv = options.execute;
+  let argv;
+  try {
+    argv = typeof rawArgv === "string" ? JSON.parse(rawArgv) : undefined;
+  } catch {
+    argv = undefined;
+  }
+  if (!Array.isArray(argv) || argv.length === 0 || argv.some((value) => typeof value !== "string"))
+    return new Error("Executable-red review requires --execute with exact argv.");
+  const cwd = options.proofCwd;
+  if (typeof cwd !== "string" || cwd.trim() === "")
+    return new Error("Executable-red review requires a project-contained --proof-cwd.");
+  const evidenceClass = options.evidenceClass;
+  if (typeof evidenceClass !== "string" || !RED_EVIDENCE_CLASSES.has(evidenceClass))
+    return new Error("Executable-red review requires a valid --evidence-class.");
+  const expectedFailure = options.expectedFailure;
+  if (typeof expectedFailure !== "string" || expectedFailure === "")
+    return new Error("Executable-red review requires a non-empty --expected-failure literal.");
+  const timeoutMs = Number(options.executionTimeout);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600000)
+    return new Error("--execution-timeout must be an integer from 1 to 600000 milliseconds.");
+  return {
+    argv,
+    cwd,
+    evidenceClass,
+    expectedFailure,
+    timeoutMs
+  };
+}
+async function collectWorkerRedAttestation(input) {
+  if (input.execution === undefined)
+    return;
+  const { executeRedProof: executeRedProof2 } = await Promise.resolve().then(() => (init_red_execution(), exports_red_execution));
+  return executeRedProof2({
+    projectRoot: input.cwd,
+    request: input.execution,
+    sourceFingerprint: input.sourceFingerprint
+  });
+}
+function withExecutionAttestation(result, attestation) {
+  if (attestation === undefined)
+    return result;
+  return {
+    ...result,
+    data: {
+      ...typeof result.data === "object" && result.data !== null && result.data,
+      execution_attestation: attestation
+    }
+  };
 }
 async function runReviewWorker(invocation) {
   const id = process.env.SAFEWORD_REVIEW_JOB_ID;
@@ -67851,11 +68109,20 @@ async function runReviewWorker(invocation) {
   }
   let result;
   try {
-    result = await runReview2({
+    const attestation = await collectWorkerRedAttestation({
       cwd: invocation.cwd,
-      ...persistedInput,
+      execution: persistedInput.execution,
+      sourceFingerprint: persistedInput.sourceFingerprint
+    });
+    const reviewed = await runReview2({
+      cwd: invocation.cwd,
+      kind: persistedInput.kind,
+      targets: persistedInput.targets,
+      context: persistedInput.context,
+      executionAttestation: attestation,
       progress: invocation.progress
     });
+    result = withExecutionAttestation(reviewed, attestation);
   } catch (error2) {
     const packetError = error2 instanceof ReviewPacketError2;
     result = reviewExecutionFailure(error2, packetError);
@@ -67890,7 +68157,7 @@ function reviewExecutionFailure(error2, packetError) {
     data: { command: "review run", status: "failed" }
   });
 }
-async function startReviewInBackground(invocation, kind, targets, context) {
+async function startReviewInBackground(invocation, kind, targets, context, execution) {
   const [{ startReviewJob: startReviewJob2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
     Promise.resolve().then(() => (init_job(), exports_job)),
     Promise.resolve().then(() => (init_packet(), exports_packet))
@@ -67901,6 +68168,7 @@ async function startReviewInBackground(invocation, kind, targets, context) {
       kind,
       targets,
       context,
+      execution,
       progress: invocation.progress
     });
   } catch (error2) {
@@ -68243,8 +68511,8 @@ async function runCodexRecovery(invocation, migration) {
   if (suppliedPlan !== undefined && suppliedPlan !== plan.id)
     return staleCodexPlan(plan);
   const before = recovery.effects.map((effect) => ({
-    path: nodePath110.join(invocation.cwd, effect.path),
-    content: observeFile2(nodePath110.join(invocation.cwd, effect.path))
+    path: nodePath111.join(invocation.cwd, effect.path),
+    content: observeFile2(nodePath111.join(invocation.cwd, effect.path))
   }));
   let changed2;
   try {
@@ -68278,7 +68546,7 @@ async function runCodexFinalization(invocation, migration, accepted) {
   if (suppliedPlan !== undefined && suppliedPlan !== accepted.plan.id) {
     return staleCodexPlan(accepted.plan);
   }
-  const paths = accepted.plan.effects.files.map((effect) => nodePath110.join(invocation.cwd, effect.target));
+  const paths = accepted.plan.effects.files.map((effect) => nodePath111.join(invocation.cwd, effect.target));
   const before = paths.map((path8) => ({ path: path8, snapshot: observeFile2(path8) }));
   let changed2;
   try {
@@ -68818,8 +69086,8 @@ function isRelayRequestId(value) {
 function retroOptions(invocation, transcript) {
   const findings = stringOption(invocation.options, "findings");
   return {
-    transcript: nodePath110.resolve(invocation.cwd, transcript),
-    findings: findings === undefined ? undefined : nodePath110.resolve(invocation.cwd, findings),
+    transcript: nodePath111.resolve(invocation.cwd, transcript),
+    findings: findings === undefined ? undefined : nodePath111.resolve(invocation.cwd, findings),
     autoExtract: invocation.options.autoExtract === true,
     publicRetro: invocation.options.publicRetro === true,
     windowStart: numericOption(invocation.options, "windowStart"),
@@ -68911,7 +69179,7 @@ function observedFileEffect(cwd, path8, before) {
   const after = observeFile2(path8);
   if (JSON.stringify(before) === JSON.stringify(after))
     return [];
-  const target = nodePath110.relative(cwd, path8).split(nodePath110.sep).join("/");
+  const target = nodePath111.relative(cwd, path8).split(nodePath111.sep).join("/");
   if (before === undefined)
     return [{ kind: "create", target }];
   if (after === undefined)
@@ -69425,6 +69693,28 @@ var CANONICAL_COMMANDS = [
         flags: "--worker-job-id <id>",
         description: "Internal detached-worker identity",
         hidden: true
+      },
+      {
+        flags: "--proof-cwd <path>",
+        description: "Project-contained working directory for the RED proof",
+        defaultValue: "."
+      },
+      {
+        flags: "--evidence-class <class>",
+        description: "pure-contract, simulated-host, local-live-host, or external-live-host"
+      },
+      {
+        flags: "--expected-failure <literal>",
+        description: "Literal output that identifies the intended RED failure"
+      },
+      {
+        flags: "--execution-timeout <milliseconds>",
+        description: "Bounded RED proof execution time",
+        defaultValue: "120000"
+      },
+      {
+        flags: "--execute <json-argv>",
+        description: "Exact JSON argv array; runs directly without a shell"
       }
     ],
     exitPolicy: { actionRequiredAsSuccessOption: "agentHandoff" },
@@ -69846,7 +70136,7 @@ function createCapabilitiesResult() {
 }
 
 // src/cli-protocol/execute.ts
-import nodePath111 from "path";
+import nodePath112 from "path";
 import process18 from "process";
 init_policy();
 init_result();
@@ -69872,7 +70162,7 @@ function readGlobalOptions(command2) {
   return {
     json: options.json === true,
     noInput: options.input === false,
-    cwd: nodePath111.resolve(process18.cwd(), options.cwd ?? "."),
+    cwd: nodePath112.resolve(process18.cwd(), options.cwd ?? "."),
     quiet: options.quiet === true,
     offline: options.offline === true,
     verbose: options.verbose === true
