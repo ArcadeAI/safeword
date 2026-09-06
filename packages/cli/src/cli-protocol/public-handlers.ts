@@ -746,7 +746,8 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
       errors: [
         {
           code: 'REVIEW_KIND_INVALID',
-          message: 'Review kind must be quality-review, scenario-gate, or plan-implementation.',
+          message:
+            'Review kind must be quality-review, scenario-gate, plan-implementation, or executable-red.',
           retryable: false,
         },
       ],
