@@ -11,15 +11,60 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { BIOME_CONFIG_FILES } from '../../templates/hooks/lib/host-toolchain.js';
 import {
   detectAlternativeFormatter,
   detectEslintConfig,
+  detectHostLintToolchain,
   detectPrettierConfig,
   hostFormatsSqlWithPrettier,
   projectOwnsAlternativeFormatter,
+  shouldWarnMissingEslint,
   shouldWarnMissingPrettier,
   sqlFixOptedIn,
 } from '../../templates/hooks/lib/lint-config.js';
+
+describe('shouldWarnMissingEslint', () => {
+  it('recognises exactly the configs host-toolchain resolves a lint owner from', () => {
+    // Same list, not a copy of it: this asserts the wiring, so adding a Biome
+    // config filename in host-toolchain.ts cannot leave the ESLint gate behind.
+    for (const file of BIOME_CONFIG_FILES) {
+      expect(detectHostLintToolchain([file])).toBe(true);
+      expect(shouldWarnMissingEslint([file])).toBe(false);
+    }
+  });
+
+  // A Biome/ultracite repo is linted by safeword through the host toolchain, so
+  // telling it to install ESLint at every session start states something false
+  // about a repo that is already working (#3792).
+  it('stays quiet when Biome owns linting and no ESLint config exists', () => {
+    for (const file of ['biome.json', 'biome.jsonc', '.biome.json', '.biome.jsonc']) {
+      expect(detectHostLintToolchain([file])).toBe(true);
+      expect(shouldWarnMissingEslint([file, 'package.json'])).toBe(false);
+    }
+  });
+
+  it('still warns for formatters that do not lint', () => {
+    // dprint, oxfmt and deno format but are not host lint owners, so ESLint is
+    // still the linter safeword falls back to and the warning remains true.
+    for (const file of ['dprint.json', '.oxfmtrc.json', 'deno.json', 'rome.json']) {
+      expect(detectHostLintToolchain([file])).toBe(false);
+      expect(shouldWarnMissingEslint([file])).toBe(true);
+    }
+  });
+
+  it('warns when nothing owns linting and no ESLint config exists', () => {
+    expect(shouldWarnMissingEslint(['package.json'])).toBe(true);
+  });
+
+  it('stays quiet when the repo has its own ESLint config', () => {
+    expect(shouldWarnMissingEslint(['eslint.config.ts'])).toBe(false);
+  });
+
+  it('does not treat a disabled Biome config as a lint owner', () => {
+    expect(detectHostLintToolchain(['biome.json.bak'])).toBe(false);
+  });
+});
 
 describe('detectEslintConfig', () => {
   it('detects every flat-config extension', () => {

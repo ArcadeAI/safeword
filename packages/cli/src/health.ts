@@ -24,7 +24,12 @@ import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
-import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, type SafewordSchema } from './schema.js';
+import {
+  BDD_LANE_FILE_PATHS,
+  BDD_LANE_SCRIPT,
+  SAFEWORD_TRANSIENT_ROOT_ENTRIES,
+  type SafewordSchema,
+} from './schema.js';
 import { inspectTicketIndexConflicts, readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
@@ -802,9 +807,20 @@ function findRelationAdvisories(cwd: string): string[] {
 }
 
 /**
- * Check for missing text patch markers
- * @param cwd
- * @param actions
+ * Check managed text-patch targets: the block is present, and its contents are
+ * still the ones this version renders.
+ *
+ * Marker presence used to be the whole check, so a block written at install time
+ * was reported healthy forever (#3789). That is not cosmetic: the `.gitignore`
+ * block carries `SAFEWORD_TRANSIENT_PATHS`, which exists to keep safeword's own
+ * runtime state out of customer repositories, so every path added to that list
+ * after a customer's install date silently stopped protecting them — and
+ * `doctor` said the repository was clean. `install` already heals these blocks;
+ * what was missing was any signal that it needed to be run.
+ *
+ * `updated` is the reconcile dry run's own verdict, which compares rendered
+ * content against what is on disk. Reusing it keeps this check honest by
+ * construction: the diagnostic can never disagree with the fix.
  */
 function findMissingPatches(
   cwd: string,
@@ -825,6 +841,37 @@ function findMissingPatches(
     }
   }
   return issues;
+}
+
+/**
+ * Managed blocks whose contents have fallen behind what this version renders.
+ *
+ * Reported as advisories rather than issues on purpose. The gap being closed is
+ * a reporting one — `install` already re-renders these blocks, so the repository
+ * is one command from correct — and a stale block is not a broken install. Made
+ * an issue instead, it would flip `check`'s exit code for every project whose
+ * block predates a schema change, including states safeword itself produces
+ * mid-migration.
+ *
+ * `updated` is the reconcile dry run's own verdict, comparing rendered content
+ * against disk, so the diagnostic can never disagree with the fix that follows.
+ */
+function findStalePatchAdvisories(
+  cwd: string,
+  actions: { type: string; path: string; definition?: { marker: string } }[],
+  updated: ReadonlySet<string>,
+): string[] {
+  const stale: string[] = [];
+  for (const action of actions) {
+    if (action.type !== 'text-patch' || !updated.has(action.path)) continue;
+    const content = readFileSafe(nodePath.join(cwd, action.path));
+    if (content === undefined) continue;
+    if (action.definition && !content.includes(action.definition.marker)) continue;
+    stale.push(
+      `${action.path}: the managed Safeword block is out of date; run \`safeword install\` to refresh it.`,
+    );
+  }
+  return stale;
 }
 
 export interface HealthStatus {
@@ -879,6 +926,24 @@ function findMissingPythonToolDeclarations(
   ];
 }
 
+/**
+ * True only when `.safeword/` holds output a project install produced.
+ *
+ * Hooks and the native Claude plugin create `.safeword/` on their own, so its
+ * bare existence proves nothing (issue #3786). Anything outside the transient
+ * set is install output — chiefly `version`, the marker install writes and
+ * every version check reads.
+ */
+function hasProjectInstallOutput(safewordDirectory: string): boolean {
+  try {
+    return readdirSync(safewordDirectory).some(
+      entry => !SAFEWORD_TRANSIENT_ROOT_ENTRIES.includes(entry),
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function checkHealth(
   cwd: string,
   options: CheckHealthOptions = {},
@@ -886,7 +951,7 @@ export async function checkHealth(
   const safewordDirectory = nodePath.join(cwd, '.safeword');
 
   // Check if configured
-  if (!exists(safewordDirectory)) {
+  if (!hasProjectInstallOutput(safewordDirectory)) {
     return {
       configured: false,
       projectVersion: undefined,
@@ -952,6 +1017,7 @@ export async function checkHealth(
       ...(ticketIndexConflicts.length === 0
         ? []
         : [buildIndexConflictListMessage(ticketIndexConflicts)]),
+      ...findStalePatchAdvisories(cwd, actionsWithPath, new Set(result.updated)),
       ...findNamespaceAdvisories(cwd),
       ...CONFIGURED_KNOWLEDGE_KEYS.flatMap(key => findConfiguredKnowledgeAdvisories(cwd, key)),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),

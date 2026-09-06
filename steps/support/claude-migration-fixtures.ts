@@ -152,6 +152,7 @@ export function createLegacyProject(options: LegacyProjectOptions = {}): LegacyP
   // invisible to `safeword claude status`.
   const data = nodePath.join(config, 'plugins/data/safeword-safeword');
   for (const directory of [root, data, config]) mkdirSync(directory, { recursive: true });
+  adoptFixtureEnvironment(config);
   cpSync(PLUGIN_ROOT, plugin, { recursive: true });
 
   const installed: string[] = [];
@@ -432,7 +433,43 @@ export function resealPlugin(root: string): void {
   writeFileSync(identityPath, `${JSON.stringify(identity, undefined, 2)}\n`);
 }
 
+/**
+ * Plugin state lives under `${CLAUDE_PLUGIN_DATA}` rather than in the project
+ * (#3787), so steps that drive the migration module in-process — rather than
+ * through the hook's process boundary, where the fixture already sets these —
+ * would otherwise read and write the developer's real `~/.claude`.
+ *
+ * Only `CLAUDE_CONFIG_DIR` is set: letting the module derive the data directory
+ * from it is what proves the CLI reconstructs the same path the hook is handed
+ * in `CLAUDE_PLUGIN_DATA`.
+ */
+const CLAUDE_FIXTURE_VARIABLES = [
+  'CLAUDE_CONFIG_DIR',
+  'CLAUDE_PLUGIN_DATA',
+  'CLAUDE_PROJECT_DIR',
+] as const;
+let hostEnvironment: Record<string, string | undefined> | undefined;
+
+function adoptFixtureEnvironment(config: string): void {
+  hostEnvironment ??= Object.fromEntries(
+    CLAUDE_FIXTURE_VARIABLES.map(name => [name, process.env[name]]),
+  );
+  for (const name of CLAUDE_FIXTURE_VARIABLES) delete process.env[name];
+  process.env.CLAUDE_CONFIG_DIR = config;
+}
+
+function restoreFixtureEnvironment(): void {
+  if (hostEnvironment === undefined) return;
+  for (const name of CLAUDE_FIXTURE_VARIABLES) {
+    const value = hostEnvironment[name];
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+  hostEnvironment = undefined;
+}
+
 export function removeCreatedProjects(): void {
   for (const root of created) rmSync(root, { recursive: true, force: true });
   created.length = 0;
+  restoreFixtureEnvironment();
 }

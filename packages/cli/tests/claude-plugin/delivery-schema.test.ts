@@ -12,6 +12,8 @@ import {
 } from '../../src/claude-plugin/catalogue.js';
 import { schemaForClaudeDelivery } from '../../src/claude-plugin/delivery-schema.js';
 import { writeClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { useIsolatedClaudePluginState } from '../helpers/claude-plugin-state.js';
 
 const roots: string[] = [];
 const digest = 'a'.repeat(64);
@@ -75,6 +77,8 @@ afterEach(() => {
   roots.length = 0;
 });
 
+useIsolatedClaudePluginState();
+
 describe('Claude delivery schema', () => {
   it('generates and seals one canonical native plugin inventory', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-native-catalogue-'));
@@ -112,6 +116,32 @@ describe('Claude delivery schema', () => {
     const schema = schemaForClaudeDelivery(root);
     expect(Object.keys(schema.ownedFiles).some(path => path.startsWith('.claude/'))).toBe(false);
     expect(Object.keys(schema.managedFiles).some(path => path.startsWith('.claude/'))).toBe(false);
+  });
+
+  it('never lets a marker remove an unrelated Safeword-owned file from delivery', () => {
+    // A marker's `unresolved_paths` is not a general opt-out from delivery.
+    // Subtracting it from the schema let a stale or hand-edited marker naming a
+    // Safeword-owned path make install silently stop repairing that file — the
+    // same silent class as #3790 itself, inverted. Cleanup only ever records
+    // `.claude/` content, which plugin mode already strips, so the subtraction
+    // could never protect a real preserved path and only ever removed the wrong
+    // ones. Found by the advisory PR review.
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-preserved-schema-'));
+    roots.push(root);
+    const unrelated = Object.keys(SAFEWORD_SCHEMA.ownedFiles).find(path =>
+      path.startsWith('.safeword/hooks/'),
+    );
+    if (unrelated === undefined) throw new Error('No safeword-owned hook to protect.');
+    writeClaudePluginMode(root, {
+      schema_version: 2,
+      state: 'unresolved',
+      plugin_version: '0.73.0',
+      hook_manifest_sha256: digest,
+      catalogue_sha256: digest,
+      unresolved_paths: [unrelated],
+    });
+
+    expect(schemaForClaudeDelivery(root).ownedFiles[unrelated]).toBeDefined();
   });
 
   it('keeps the checked-in inspiration gate collaborators byte-identical to generated assets', () => {

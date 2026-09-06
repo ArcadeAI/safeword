@@ -1,17 +1,16 @@
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { VERSION } from '../version.js';
 import { currentClaudePluginHookManifestSha256 } from './hook-manifest.js';
-import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
 import {
   type ClaudeLegacyObservation,
   legacyObservationIsEmpty,
   observeClaudeLegacy,
 } from './legacy-classifier.js';
-import { claudeConfigDirectory } from './migration-state.js';
+import { claudeProjectStatePath } from './migration-state.js';
+import { claudeProjectDigest, claudeProofDirectory } from './plugin-data.js';
 import {
   type ClaudeApplicablePluginsObservation,
   type ClaudePluginScope,
@@ -82,13 +81,8 @@ function proofIsCurrent(plugin: JsonObject, cwd: string): boolean {
   } catch {
     return false;
   }
-  const projectDigest = createHash('sha256').update(canonicalProjectRoot).digest('hex');
   const proof = jsonObject(
-    nodePath.join(
-      claudeConfigDirectory(),
-      CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory,
-      `${projectDigest}.json`,
-    ),
+    nodePath.join(claudeProofDirectory(), `${claudeProjectDigest(canonicalProjectRoot)}.json`),
   );
   if (identity === undefined || proof === undefined) return false;
   return proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalRoot);
@@ -277,7 +271,7 @@ export function observeClaudeStatus(cwd: string): CliResult {
       nextAction: 'repair the reported Claude project path',
     });
   }
-  if (existsSync(nodePath.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))) {
+  if (existsSync(claudeProjectStatePath(projectRoot, 'transaction'))) {
     return statusResult('recovery-required');
   }
   const profile = observeApplicableClaudePlugins(projectRoot);

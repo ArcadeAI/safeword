@@ -22,6 +22,8 @@ import {
   historicalCatalogueDigest,
   historicalHookEntry,
 } from '../../src/claude-plugin/historical-ownership.js';
+import { claudeProjectStatePath } from '../../src/claude-plugin/migration-state.js';
+import { useIsolatedClaudePluginState } from '../helpers/claude-plugin-state.js';
 
 const fixtures: string[] = [];
 const recognizedLegacy = readFileSync(
@@ -37,7 +39,7 @@ function fixture(): { root: string; target: string; transaction: string } {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-recovery-'));
   fixtures.push(root);
   const target = nodePath.join(root, '.claude/skills/debug/SKILL.md');
-  const transaction = nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json');
+  const transaction = claudeProjectStatePath(root, 'transaction');
   mkdirSync(nodePath.dirname(target), { recursive: true });
   mkdirSync(nodePath.dirname(transaction), { recursive: true });
   return { root, target, transaction };
@@ -84,6 +86,8 @@ afterEach(() => {
   for (const root of completed) rmSync(root, { recursive: true, force: true });
 });
 
+useIsolatedClaudePluginState();
+
 describe('Claude cleanup recovery', () => {
   it('completes the recorded forward image only from the recorded before fingerprint', () => {
     const { root, target, transaction } = fixture();
@@ -112,9 +116,7 @@ describe('Claude cleanup recovery', () => {
     expect(recoverClaudeCleanup(root).state).toBe('changed');
     expect(existsSync(target)).toBe(false);
     expect(existsSync(transaction)).toBe(false);
-    expect(existsSync(nodePath.join(root, '.safeword/claude-plugin/plugin-mode-v2.json'))).toBe(
-      true,
-    );
+    expect(existsSync(claudeProjectStatePath(root, 'pluginMarkerV2'))).toBe(true);
   });
 
   it('preserves unknown concurrent bytes and retains recovery evidence', () => {

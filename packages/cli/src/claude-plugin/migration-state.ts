@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { writeDurableFile, writeDurableFileExclusive } from '../codex-plugin/durable-write.js';
-import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
+import { CLAUDE_ADOPTED_LEGACY_STATE, CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
+import { claudeConfigDirectory, claudeProjectStateDirectory } from './plugin-data.js';
 
 export interface ClaudePluginModeV2 {
   readonly schema_version: 2;
@@ -60,8 +60,185 @@ function digest(value: Buffer | string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+/**
+ * Project roots whose legacy working-tree state has already been considered in
+ * this process. Adoption is idempotent on disk; the set only keeps a hook from
+ * re-walking four paths on every accessor call.
+ */
+const adopted = new Set<string>();
+
+/**
+ * Move legacy state, falling back to a copy across a filesystem boundary.
+ *
+ * The copy lands on a staging sibling and is published with a rename, so the
+ * destination only ever appears complete. Copying straight into place looked
+ * equivalent and was not: a copy that failed partway (a full disk, an
+ * interrupted process) left a partial destination behind, and because adoption
+ * treats an existing destination as the newer authoritative state, the next run
+ * would delete the intact working-tree copy in its favour — destroying the
+ * durable cleanup transaction that is the only record a half-finished migration
+ * can be recovered from. Found by an independent review of the original fix.
+ *
+ * `rename` and `copy` are injectable so both failure modes can be exercised
+ * without a second filesystem or a permissions trick: a copy that dies partway,
+ * and a copy that completes but cannot be published. A crash between the two
+ * orphans one `*.partial` entry, which no reader resolves and the next attempt
+ * replaces.
+ *
+ * Removing the source is the caller's job, not this function's. Doing it here
+ * put a fallible step after publication and inside the same throw path, so a
+ * source that could not be deleted took the adoption receipt down with it —
+ * leaving two copies and nothing recording that the move had happened. Returns
+ * whether the source outlived the move: false when rename relocated it
+ * atomically, true when a staged copy left it in place.
+ */
+export function relocateLegacyState(
+  from: string,
+  to: string,
+  rename: (source: string, destination: string) => void = renameSync,
+  copy: (source: string, destination: string) => void = (source, destination) => {
+    cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
+  },
+): boolean {
+  try {
+    rename(from, to);
+    return false;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error;
+  }
+  const staging = `${to}.${randomUUID()}.partial`;
+  try {
+    copy(from, staging);
+    rename(staging, to);
+  } catch (error) {
+    rmSync(staging, { recursive: true, force: true });
+    throw error;
+  }
+  return true;
+}
+
+/**
+ * Adopts the state releases up to 0.83.1 wrote into the working tree (#3787).
+ *
+ * The durable cleanup transaction lives here, so skipping a repository that
+ * still holds one would strand a half-finished cleanup with no record to
+ * recover from. Anything already present in the plugin data directory wins —
+ * that is the newer writer — and the stale working-tree copy is discarded.
+ */
+function adoptLegacyProjectState(cwd: string, directory: string): void {
+  if (adopted.has(directory)) return;
+  adopted.add(directory);
+  for (const key of CLAUDE_ADOPTED_LEGACY_STATE) {
+    const legacy = nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+    if (!existsSync(legacy)) continue;
+    const destination = nodePath.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+    try {
+      // A receipt means this key was adopted already, so the surviving source is
+      // inert — re-adopting it would overwrite newer state with a stale copy, or
+      // resurrect a transaction whose cleanup has since completed.
+      if (existsSync(adoptionReceipt(directory, key)) || existsSync(destination)) {
+        recordAdoption(directory, key);
+        rmSync(legacy, { recursive: true, force: true });
+        continue;
+      }
+      mkdirSync(directory, { recursive: true, mode: 0o700 });
+      const sourceRemains = relocateLegacyState(legacy, destination);
+      // Ordering is the guarantee: once the destination is published, the
+      // receipt is written before anything that can still fail.
+      recordAdoption(directory, key);
+      if (sourceRemains) rmSync(legacy, { recursive: true, force: true });
+    } catch {
+      // A repository we cannot write to must not fail the session. The legacy
+      // copy stays put and the next run tries again.
+    }
+  }
+}
+
+/**
+ * Marks one key as adopted, so a legacy copy that survived removal is inert.
+ * Written in the data directory, which is necessarily writable at this point —
+ * the publish that precedes it just succeeded there.
+ */
+function adoptionReceipt(
+  directory: string,
+  key: keyof typeof CLAUDE_MIGRATION_SCHEMA.state,
+): string {
+  return nodePath.join(directory, `.adopted-${CLAUDE_MIGRATION_SCHEMA.state[key]}`);
+}
+
+function recordAdoption(directory: string, key: keyof typeof CLAUDE_MIGRATION_SCHEMA.state): void {
+  try {
+    writeDurableFile(adoptionReceipt(directory, key), '', { mode: 0o600 });
+  } catch {
+    // A missing receipt only costs a redundant reconciliation next run.
+  }
+}
+
+/** Resolved per-project state directory, with legacy working-tree state adopted. */
+function stateDirectory(cwd: string): string {
+  const directory = claudeProjectStateDirectory(cwd);
+  adoptLegacyProjectState(cwd, directory);
+  return directory;
+}
+
+/**
+ * Where one per-project state entry actually lives.
+ *
+ * Normally the plugin data directory, because adoption has already moved
+ * anything the working tree held. When adoption could not complete — an
+ * unwritable data directory, a full disk — it deliberately leaves the legacy
+ * bytes intact, and this resolves to them rather than to the empty new path.
+ * Retaining the source is worthless if no reader can find it: a stranded
+ * cleanup transaction would read as "no migration in progress", and a stranded
+ * marker would hide the preserved paths `delivery-schema.ts` reads from it.
+ *
+ * One resolver serves reads, writes and deletes, which is what makes the
+ * fallback safe: an exclusive create still collides with a stranded
+ * transaction instead of opening a second one beside it.
+ */
+export function claudeProjectStatePath(
+  cwd: string,
+  key: keyof typeof CLAUDE_MIGRATION_SCHEMA.state,
+): string {
+  const directory = stateDirectory(cwd);
+  const adoptedPath = nodePath.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+  if (existsSync(adoptedPath)) return adoptedPath;
+  // Adoption may publish the copy and still fail to remove the source, leaving
+  // both. Falling back on the source's mere presence would then resurrect it:
+  // deleting a completed transaction would make its stale twin read as pending
+  // again, and recovery would loop. The receipt records that this key was
+  // adopted, so a source that outlived its adoption never resolves again.
+  if (existsSync(adoptionReceipt(directory, key))) return adoptedPath;
+  const legacy = nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+  return existsSync(legacy) ? legacy : adoptedPath;
+}
+
+/**
+ * Removes one per-project state entry from every location it can occupy.
+ *
+ * Resolution prefers the adopted path and falls back to a working-tree copy
+ * that adoption could not remove. Deleting only the resolved path would let the
+ * survivor take its place: a cleanup transaction retired after a completed
+ * migration would read as pending again on the next run, and recovery would
+ * loop. Removing both makes that impossible without depending on the adoption
+ * receipt being durable — the receipt narrows the window, this closes it.
+ */
+export function removeClaudeProjectState(
+  cwd: string,
+  key: keyof typeof CLAUDE_MIGRATION_SCHEMA.state,
+): void {
+  rmSync(nodePath.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]), {
+    recursive: true,
+    force: true,
+  });
+  rmSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]), {
+    recursive: true,
+    force: true,
+  });
+}
+
 function attemptsPath(cwd: string): string {
-  return nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attemptsDirectory);
+  return claudeProjectStatePath(cwd, 'attemptsDirectory');
 }
 
 function exclusiveRecord(path: string, value: unknown): boolean {
@@ -141,18 +318,6 @@ export function advisoryStateDigest(advisory: string): string {
   return digest(advisory);
 }
 
-/**
- * Resolves the Claude user-scope configuration directory. An empty or
- * whitespace-only `CLAUDE_CONFIG_DIR` falls back to the default, so every
- * caller watches and reads the same user settings file.
- */
-export function claudeConfigDirectory(
-  environment: Readonly<Record<string, string | undefined>> = process.env,
-): string {
-  const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
-  return configured === '' ? nodePath.join(homedir(), '.claude') : configured;
-}
-
 export function claudeWatchedSettingsDigest(cwd: string): string {
   const configDirectory = claudeConfigDirectory();
   const paths = [
@@ -170,7 +335,7 @@ export function claudeWatchedSettingsDigest(cwd: string): string {
 }
 
 function markerPath(cwd: string): string {
-  return nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2);
+  return claudeProjectStatePath(cwd, 'pluginMarkerV2');
 }
 
 function validDigest(value: unknown): value is string {
@@ -195,9 +360,8 @@ function validPluginMode(value: Partial<ClaudePluginModeV2>): value is ClaudePlu
 }
 
 export function readClaudePluginMode(cwd: string): ClaudePluginModeV2 | undefined {
-  const path = markerPath(cwd);
-  if (!existsSync(path)) return undefined;
   try {
+    const path = markerPath(cwd);
     const value = JSON.parse(readFileSync(path, 'utf8')) as Partial<ClaudePluginModeV2>;
     return validPluginMode(value) ? value : undefined;
   } catch {
@@ -239,16 +403,16 @@ export function writeClaudeMigrationAttention(
   attention: ClaudeMigrationAttentionV1,
 ): void {
   writeDurableFile(
-    nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attention),
+    claudeProjectStatePath(cwd, 'attention'),
     `${JSON.stringify(attention, undefined, 2)}\n`,
     { mode: 0o600 },
   );
 }
 
 export function hasLegacyClaudePluginMode(cwd: string): boolean {
-  return existsSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker));
+  return existsSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy.pluginMarker));
 }
 
 export function removeLegacyClaudePluginMode(cwd: string): void {
-  rmSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker), { force: true });
+  rmSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy.pluginMarker), { force: true });
 }

@@ -1,13 +1,13 @@
 // claude-plugin/runtime/dispatch.ts
 import { spawnSync as spawnSync2 } from 'node:child_process';
-import { createHash as createHash4 } from 'node:crypto';
+import { createHash as createHash5 } from 'node:crypto';
 import {
   existsSync as existsSync7,
   lstatSync as lstatSync5,
   readFileSync as readFileSync6,
   realpathSync as realpathSync3,
 } from 'node:fs';
-import nodePath9 from 'node:path';
+import nodePath10 from 'node:path';
 
 // ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
@@ -1643,7 +1643,7 @@ function durableRename(source, destination) {
 }
 
 // claude-plugin/cleanup.ts
-import { createHash as createHash3, randomUUID as randomUUID3 } from 'node:crypto';
+import { createHash as createHash4, randomUUID as randomUUID3 } from 'node:crypto';
 import {
   closeSync as closeSync3,
   constants as fsConstants2,
@@ -1657,12 +1657,11 @@ import {
   openSync as openSync3,
   readFileSync as readFileSync5,
   readSync as readSync2,
-  renameSync as renameSync2,
+  renameSync as renameSync3,
   rmdirSync as rmdirSync2,
-  rmSync as rmSync4,
   writeSync,
 } from 'node:fs';
-import nodePath8 from 'node:path';
+import nodePath9 from 'node:path';
 
 // cli-protocol/result.ts
 var EMPTY_EFFECTS = {
@@ -1874,7 +1873,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-dependency-readiness.ts':
         '295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff',
       '.safeword/hooks/session-lint-check.ts':
-        '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '506440979a19ec4d49bcf4347d4adf8377dcbbced86ed83b386fb0065d087d3f',
       '.safeword/hooks/session-reply-format.ts':
         '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
       '.safeword/hooks/session-safeword-context.ts':
@@ -3853,22 +3852,127 @@ function cataloguedClaudeLegacyPaths() {
   );
 }
 
+// claude-plugin/legacy-classifier.ts
+import {
+  existsSync as existsSync3,
+  lstatSync as lstatSync2,
+  readFileSync as readFileSync2,
+} from 'node:fs';
+import nodePath4 from 'node:path';
+function referencesLegacyHook(value) {
+  if (typeof value === 'string') return value.includes('.safeword/hooks/');
+  if (Array.isArray(value)) return value.some(child => referencesLegacyHook(child));
+  if (typeof value !== 'object' || value === null) return false;
+  return Object.values(value).some(child => referencesLegacyHook(child));
+}
+function observeFiles(cwd) {
+  const recognizedFiles = [];
+  const conflictingFiles = [];
+  for (const relativePath of cataloguedClaudeLegacyPaths()) {
+    const path = nodePath4.join(cwd, relativePath);
+    if (!existsSync3(path)) continue;
+    try {
+      const safePath = assertSafeClaudeCleanupTarget(cwd, relativePath);
+      const regular = lstatSync2(safePath).isFile();
+      if (regular && isAcceptedHistoricalFile(relativePath, readFileSync2(safePath))) {
+        recognizedFiles.push(relativePath);
+      } else {
+        conflictingFiles.push(relativePath);
+      }
+    } catch {
+      if (existsSync3(path)) conflictingFiles.push(relativePath);
+    }
+  }
+  return { recognizedFiles, conflictingFiles };
+}
+function observeSettings(cwd) {
+  const settingsPath = nodePath4.join(cwd, '.claude/settings.json');
+  if (!existsSync3(settingsPath)) return { recognizedHooks: [], conflictingHooks: [] };
+  if (!lstatSync2(settingsPath).isFile()) {
+    return {
+      recognizedHooks: [],
+      conflictingHooks: [],
+      settingsError: '.claude/settings.json is not a regular file.',
+    };
+  }
+  const errors = [];
+  const settings = parse2(readFileSync2(settingsPath, 'utf8'), errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  });
+  if (errors.length > 0 || typeof settings !== 'object' || settings === null) {
+    return {
+      recognizedHooks: [],
+      conflictingHooks: [],
+      settingsError: '.claude/settings.json could not be parsed safely.',
+    };
+  }
+  return classifySettingsHooks(settings.hooks ?? {});
+}
+function classifySettingsHooks(hooks) {
+  const recognizedHooks = [];
+  const conflictingHooks = [];
+  const events = Object.entries(hooks);
+  for (const [event, value] of events) {
+    if (!Array.isArray(value)) continue;
+    const entries = value.entries();
+    for (const [index, entry] of entries) {
+      if (isAcceptedHistoricalHook(event, entry)) {
+        recognizedHooks.push({ event, index, entry });
+      } else if (referencesLegacyHook(entry)) {
+        conflictingHooks.push({ event, index, entry });
+      }
+    }
+  }
+  return { recognizedHooks, conflictingHooks };
+}
+function observeClaudeLegacy(cwd) {
+  return { ...observeFiles(cwd), ...observeSettings(cwd) };
+}
+
+// claude-plugin/migration-state.ts
+import { createHash as createHash3, randomUUID as randomUUID2 } from 'node:crypto';
+import {
+  cpSync,
+  existsSync as existsSync5,
+  mkdirSync as mkdirSync3,
+  readFileSync as readFileSync4,
+  renameSync as renameSync2,
+  rmSync as rmSync3,
+} from 'node:fs';
+import nodePath8 from 'node:path';
+
 // claude-plugin/inventory.ts
 import {
   closeSync as closeSync2,
   constants as fsConstants,
   fstatSync,
-  lstatSync as lstatSync2,
+  lstatSync as lstatSync3,
   openSync as openSync2,
   readdirSync,
   readSync,
   realpathSync,
 } from 'node:fs';
-import nodePath4 from 'node:path';
+import nodePath5 from 'node:path';
+var CLAUDE_PLUGIN_ID = 'safeword@safeword';
 var CLAUDE_MIGRATION_SCHEMA = {
-  paths: {
-    proof: 'plugins/data/safeword-safeword/execution-proof-v1.json',
-    proofDirectory: 'plugins/data/safeword-safeword/execution-proofs-v2',
+  data: {
+    pluginsRoot: 'plugins/data',
+    proofs: 'execution-proofs-v2',
+    projectState: 'project-state-v1',
+  },
+  state: {
+    pluginMarkerV2: 'plugin-mode-v2.json',
+    attention: 'attention-v1.json',
+    attemptsDirectory: 'attempts-v1',
+    transaction: 'cleanup-transaction-v1.json',
+  },
+  legacy: {
+    /**
+     * The v1 plugin-mode marker is never written by current code — its presence
+     * in the working tree is the signal that a pre-v2 plugin ran here, so it
+     * stays a repository path by definition.
+     */
     pluginMarker: '.safeword/claude-plugin/plugin-mode-v1.json',
     pluginMarkerV2: '.safeword/claude-plugin/plugin-mode-v2.json',
     attention: '.safeword/claude-plugin/attention-v1.json',
@@ -3876,6 +3980,12 @@ var CLAUDE_MIGRATION_SCHEMA = {
     transaction: '.safeword/claude-plugin/cleanup-transaction-v1.json',
   },
 };
+var CLAUDE_ADOPTED_LEGACY_STATE = [
+  'pluginMarkerV2',
+  'attention',
+  'attemptsDirectory',
+  'transaction',
+];
 var CLAUDE_NATIVE_REQUIRED_ASSETS = [
   '.claude-plugin/plugin.json',
   'hooks/hooks.json',
@@ -3919,14 +4029,14 @@ function readSmallDescriptor(descriptor) {
 function readSmallMetadataFile(path) {
   let descriptor;
   try {
-    const linkedBefore = lstatSync2(path);
+    const linkedBefore = lstatSync3(path);
     if (!isSmallRegularMetadata(linkedBefore)) return void 0;
     descriptor = openSync2(
       path,
       fsConstants.O_RDONLY | fsConstants.O_NONBLOCK | (fsConstants.O_NOFOLLOW ?? 0),
     );
     const opened = fstatSync(descriptor);
-    const linkedAfter = lstatSync2(path);
+    const linkedAfter = lstatSync3(path);
     if (!isSameSmallMetadata(linkedBefore, opened, linkedAfter)) return void 0;
     const content = readSmallDescriptor(descriptor);
     const final = fstatSync(descriptor);
@@ -3967,7 +4077,7 @@ function leaseMarkerPid(name) {
 }
 function vanishedDuringScan(path) {
   try {
-    lstatSync2(path);
+    lstatSync3(path);
     return false;
   } catch (error) {
     return error.code === 'ENOENT';
@@ -3991,10 +4101,10 @@ function isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry) {
   return /^\d{13}\n?$/u.test(readSmallMetadataFile(physicalPath) ?? '');
 }
 function directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot) {
-  const metadata = lstatSync2(physicalDirectory);
+  const metadata = lstatSync3(physicalDirectory);
   const canonical = realpathSync(physicalDirectory);
   const insideRoot =
-    canonical === canonicalRoot || canonical.startsWith(`${canonicalRoot}${nodePath4.sep}`);
+    canonical === canonicalRoot || canonical.startsWith(`${canonicalRoot}${nodePath5.sep}`);
   if (!metadata.isDirectory() || !insideRoot) {
     throw new Error(`Claude plugin cache traversal escaped its root: ${logicalDirectory || '.'}`);
   }
@@ -4015,9 +4125,9 @@ function claudeNativePayloadFiles(root) {
       throw new Error(`Claude plugin cache changed during traversal: ${logicalDirectory || '.'}`);
     }
     for (const entry of entries) {
-      const physicalPath = nodePath4.join(physicalDirectory, entry.name);
+      const physicalPath = nodePath5.join(physicalDirectory, entry.name);
       const logicalPath =
-        logicalDirectory === '' ? entry.name : nodePath4.posix.join(logicalDirectory, entry.name);
+        logicalDirectory === '' ? entry.name : nodePath5.posix.join(logicalDirectory, entry.name);
       if (isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry)) continue;
       if (entry.isDirectory()) visit3(physicalPath, logicalPath);
       else files.push(logicalPath);
@@ -4027,94 +4137,96 @@ function claudeNativePayloadFiles(root) {
   return files;
 }
 
-// claude-plugin/legacy-classifier.ts
+// claude-plugin/plugin-data.ts
+import { createHash as createHash2 } from 'node:crypto';
+import { homedir } from 'node:os';
+import nodePath7 from 'node:path';
+
+// claude-plugin/project-root.ts
+import { spawnSync } from 'node:child_process';
+
+// utils/fs.ts
 import {
-  existsSync as existsSync3,
-  lstatSync as lstatSync3,
-  readFileSync as readFileSync2,
+  chmodSync,
+  existsSync as existsSync4,
+  mkdirSync as mkdirSync2,
+  readdirSync as readdirSync2,
+  readFileSync as readFileSync3,
+  realpathSync as realpathSync2,
+  rmdirSync,
+  rmSync as rmSync2,
+  statSync,
+  writeFileSync as writeFileSync2,
 } from 'node:fs';
-import nodePath5 from 'node:path';
-function referencesLegacyHook(value) {
-  if (typeof value === 'string') return value.includes('.safeword/hooks/');
-  if (Array.isArray(value)) return value.some(child => referencesLegacyHook(child));
-  if (typeof value !== 'object' || value === null) return false;
-  return Object.values(value).some(child => referencesLegacyHook(child));
-}
-function observeFiles(cwd) {
-  const recognizedFiles = [];
-  const conflictingFiles = [];
-  for (const relativePath of cataloguedClaudeLegacyPaths()) {
-    const path = nodePath5.join(cwd, relativePath);
-    if (!existsSync3(path)) continue;
-    try {
-      const safePath = assertSafeClaudeCleanupTarget(cwd, relativePath);
-      const regular = lstatSync3(safePath).isFile();
-      if (regular && isAcceptedHistoricalFile(relativePath, readFileSync2(safePath))) {
-        recognizedFiles.push(relativePath);
-      } else {
-        conflictingFiles.push(relativePath);
-      }
-    } catch {
-      if (existsSync3(path)) conflictingFiles.push(relativePath);
-    }
+import nodePath6 from 'node:path';
+var __dirname = import.meta.dirname;
+function canonicalDirectory(path) {
+  if (typeof path !== 'string' || path.trim() === '') return void 0;
+  try {
+    if (!statSync(path).isDirectory()) return void 0;
+    return nodePath6.normalize(realpathSync2(path));
+  } catch {
+    return void 0;
   }
-  return { recognizedFiles, conflictingFiles };
 }
-function observeSettings(cwd) {
-  const settingsPath = nodePath5.join(cwd, '.claude/settings.json');
-  if (!existsSync3(settingsPath)) return { recognizedHooks: [], conflictingHooks: [] };
-  if (!lstatSync3(settingsPath).isFile()) {
-    return {
-      recognizedHooks: [],
-      conflictingHooks: [],
-      settingsError: '.claude/settings.json is not a regular file.',
-    };
+
+// claude-plugin/project-root.ts
+function canonicalClaudeProjectRoot(cwd) {
+  const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
+  const environmentRoot = configuredRoot === void 0 ? void 0 : configuredRoot.trim();
+  let candidate = environmentRoot === '' ? void 0 : environmentRoot;
+  if (candidate === void 0) {
+    const result = spawnSync('git', ['-C', cwd, 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+    });
+    const gitRoot = result.status === 0 ? result.stdout?.trim() : void 0;
+    candidate = gitRoot === '' || gitRoot === void 0 ? cwd : gitRoot;
   }
-  const errors = [];
-  const settings = parse2(readFileSync2(settingsPath, 'utf8'), errors, {
-    allowTrailingComma: true,
-    disallowComments: false,
-  });
-  if (errors.length > 0 || typeof settings !== 'object' || settings === null) {
-    return {
-      recognizedHooks: [],
-      conflictingHooks: [],
-      settingsError: '.claude/settings.json could not be parsed safely.',
-    };
+  const canonical = canonicalDirectory(candidate);
+  if (canonical === void 0) {
+    throw new Error(
+      `Claude project root is missing, not a directory, or cannot be resolved: ${candidate}`,
+    );
   }
-  return classifySettingsHooks(settings.hooks ?? {});
+  return canonical;
 }
-function classifySettingsHooks(hooks) {
-  const recognizedHooks = [];
-  const conflictingHooks = [];
-  const events = Object.entries(hooks);
-  for (const [event, value] of events) {
-    if (!Array.isArray(value)) continue;
-    const entries = value.entries();
-    for (const [index, entry] of entries) {
-      if (isAcceptedHistoricalHook(event, entry)) {
-        recognizedHooks.push({ event, index, entry });
-      } else if (referencesLegacyHook(entry)) {
-        conflictingHooks.push({ event, index, entry });
-      }
-    }
-  }
-  return { recognizedHooks, conflictingHooks };
+
+// claude-plugin/plugin-data.ts
+function claudeConfigDirectory(environment = process.env) {
+  const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
+  return configured === '' ? nodePath7.join(homedir(), '.claude') : configured;
 }
-function observeClaudeLegacy(cwd) {
-  return { ...observeFiles(cwd), ...observeSettings(cwd) };
+function claudePluginDataId(pluginId = CLAUDE_PLUGIN_ID) {
+  return pluginId.replaceAll(/[^\w-]/gu, '-');
+}
+function claudePluginDataDirectory(environment = process.env) {
+  const exported = (environment.CLAUDE_PLUGIN_DATA ?? '').trim();
+  if (exported !== '') return exported;
+  return nodePath7.join(
+    claudeConfigDirectory(environment),
+    CLAUDE_MIGRATION_SCHEMA.data.pluginsRoot,
+    claudePluginDataId(),
+  );
+}
+function claudeProjectDigest(canonicalProjectRoot) {
+  return createHash2('sha256').update(canonicalProjectRoot).digest('hex');
+}
+function claudeProofDirectory(environment = process.env) {
+  return nodePath7.join(
+    claudePluginDataDirectory(environment),
+    CLAUDE_MIGRATION_SCHEMA.data.proofs,
+  );
+}
+function claudeProjectStateDirectory(cwd) {
+  const canonical = canonicalClaudeProjectRoot(cwd);
+  return nodePath7.join(
+    claudePluginDataDirectory(),
+    CLAUDE_MIGRATION_SCHEMA.data.projectState,
+    claudeProjectDigest(canonical),
+  );
 }
 
 // claude-plugin/migration-state.ts
-import { createHash as createHash2, randomUUID as randomUUID2 } from 'node:crypto';
-import {
-  existsSync as existsSync4,
-  mkdirSync as mkdirSync2,
-  readFileSync as readFileSync3,
-  rmSync as rmSync2,
-} from 'node:fs';
-import { homedir } from 'node:os';
-import nodePath6 from 'node:path';
 function createClaudePluginMode(marker) {
   return {
     ...marker,
@@ -4127,10 +4239,86 @@ function migrationSessionDigest(sessionId, fallbackSessionId) {
   return digest(sessionId?.trim() || fallbackSessionId);
 }
 function digest(value) {
-  return createHash2('sha256').update(value).digest('hex');
+  return createHash3('sha256').update(value).digest('hex');
+}
+var adopted = /* @__PURE__ */ new Set();
+function relocateLegacyState(
+  from,
+  to,
+  rename = renameSync2,
+  copy = (source, destination) => {
+    cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
+  },
+) {
+  try {
+    rename(from, to);
+    return false;
+  } catch (error) {
+    if (error.code !== 'EXDEV') throw error;
+  }
+  const staging = `${to}.${randomUUID2()}.partial`;
+  try {
+    copy(from, staging);
+    rename(staging, to);
+  } catch (error) {
+    rmSync3(staging, { recursive: true, force: true });
+    throw error;
+  }
+  return true;
+}
+function adoptLegacyProjectState(cwd, directory) {
+  if (adopted.has(directory)) return;
+  adopted.add(directory);
+  for (const key of CLAUDE_ADOPTED_LEGACY_STATE) {
+    const legacy = nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+    if (!existsSync5(legacy)) continue;
+    const destination = nodePath8.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+    try {
+      if (existsSync5(adoptionReceipt(directory, key)) || existsSync5(destination)) {
+        recordAdoption(directory, key);
+        rmSync3(legacy, { recursive: true, force: true });
+        continue;
+      }
+      mkdirSync3(directory, { recursive: true, mode: 448 });
+      const sourceRemains = relocateLegacyState(legacy, destination);
+      recordAdoption(directory, key);
+      if (sourceRemains) rmSync3(legacy, { recursive: true, force: true });
+    } catch {}
+  }
+}
+function adoptionReceipt(directory, key) {
+  return nodePath8.join(directory, `.adopted-${CLAUDE_MIGRATION_SCHEMA.state[key]}`);
+}
+function recordAdoption(directory, key) {
+  try {
+    writeDurableFile(adoptionReceipt(directory, key), '', { mode: 384 });
+  } catch {}
+}
+function stateDirectory(cwd) {
+  const directory = claudeProjectStateDirectory(cwd);
+  adoptLegacyProjectState(cwd, directory);
+  return directory;
+}
+function claudeProjectStatePath(cwd, key) {
+  const directory = stateDirectory(cwd);
+  const adoptedPath = nodePath8.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+  if (existsSync5(adoptedPath)) return adoptedPath;
+  if (existsSync5(adoptionReceipt(directory, key))) return adoptedPath;
+  const legacy = nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+  return existsSync5(legacy) ? legacy : adoptedPath;
+}
+function removeClaudeProjectState(cwd, key) {
+  rmSync3(nodePath8.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]), {
+    recursive: true,
+    force: true,
+  });
+  rmSync3(nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]), {
+    recursive: true,
+    force: true,
+  });
 }
 function attemptsPath(cwd) {
-  return nodePath6.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attemptsDirectory);
+  return claudeProjectStatePath(cwd, 'attemptsDirectory');
 }
 function exclusiveRecord(path, value) {
   try {
@@ -4148,11 +4336,11 @@ function exclusiveRecord(path, value) {
 }
 function initialSessionDigest(cwd, sessionDigest) {
   const directory = attemptsPath(cwd);
-  mkdirSync2(directory, { recursive: true, mode: 448 });
-  const path = nodePath6.join(directory, 'initial-session-v1.json');
+  mkdirSync3(directory, { recursive: true, mode: 448 });
+  const path = nodePath8.join(directory, 'initial-session-v1.json');
   exclusiveRecord(path, { schema_version: 1, session_digest: sessionDigest });
   try {
-    const value = JSON.parse(readFileSync3(path, 'utf8'));
+    const value = JSON.parse(readFileSync4(path, 'utf8'));
     return value.schema_version === 1 && validDigest(value.session_digest)
       ? value.session_digest
       : '';
@@ -4169,14 +4357,14 @@ function claimClaudeMigrationAttempt(
   const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   const initialSession = initialSessionDigest(cwd, sessionDigest) === sessionDigest;
   const limit = initialSession ? 3 : 1;
-  const directory = nodePath6.join(
+  const directory = nodePath8.join(
     attemptsPath(cwd),
     kind === 'recovery' && !initialSession ? 'recoveries' : 'launches',
   );
-  mkdirSync2(directory, { recursive: true, mode: 448 });
+  mkdirSync3(directory, { recursive: true, mode: 448 });
   for (let slot = 1; slot <= limit; slot += 1) {
     if (
-      exclusiveRecord(nodePath6.join(directory, `${sessionDigest}-${String(slot)}.json`), {
+      exclusiveRecord(nodePath8.join(directory, `${sessionDigest}-${String(slot)}.json`), {
         schema_version: 1,
         session_digest: sessionDigest,
         slot,
@@ -4195,10 +4383,10 @@ function claimClaudeMigrationAdvisory(
 ) {
   if (!validDigest(stateDigest))
     throw new TypeError('Claude migration advisory digest is invalid.');
-  const directory = nodePath6.join(attemptsPath(cwd), 'advisories');
-  mkdirSync2(directory, { recursive: true, mode: 448 });
+  const directory = nodePath8.join(attemptsPath(cwd), 'advisories');
+  mkdirSync3(directory, { recursive: true, mode: 448 });
   const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
-  return exclusiveRecord(nodePath6.join(directory, `${sessionDigest}-${stateDigest}.json`), {
+  return exclusiveRecord(nodePath8.join(directory, `${sessionDigest}-${stateDigest}.json`), {
     schema_version: 1,
     session_digest: sessionDigest,
     state_digest: stateDigest,
@@ -4207,27 +4395,23 @@ function claimClaudeMigrationAdvisory(
 function advisoryStateDigest(advisory) {
   return digest(advisory);
 }
-function claudeConfigDirectory(environment = process.env) {
-  const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
-  return configured === '' ? nodePath6.join(homedir(), '.claude') : configured;
-}
 function claudeWatchedSettingsDigest(cwd) {
   const configDirectory = claudeConfigDirectory();
   const paths = [
-    nodePath6.join(cwd, '.claude/settings.json'),
-    nodePath6.join(configDirectory, 'settings.json'),
+    nodePath8.join(cwd, '.claude/settings.json'),
+    nodePath8.join(configDirectory, 'settings.json'),
   ];
-  const hash = createHash2('sha256');
+  const hash = createHash3('sha256');
   for (const path of paths) {
     hash.update(path);
     hash.update('\0');
-    hash.update(existsSync4(path) ? readFileSync3(path) : '<absent>');
+    hash.update(existsSync5(path) ? readFileSync4(path) : '<absent>');
     hash.update('\0');
   }
   return hash.digest('hex');
 }
 function markerPath(cwd) {
-  return nodePath6.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2);
+  return claudeProjectStatePath(cwd, 'pluginMarkerV2');
 }
 function validDigest(value) {
   return typeof value === 'string' && /^[\da-f]{64}$/u.test(value);
@@ -4249,10 +4433,9 @@ function validPluginMode(value) {
   ].every(Boolean);
 }
 function readClaudePluginMode(cwd) {
-  const path = markerPath(cwd);
-  if (!existsSync4(path)) return void 0;
   try {
-    const value = JSON.parse(readFileSync3(path, 'utf8'));
+    const path = markerPath(cwd);
+    const value = JSON.parse(readFileSync4(path, 'utf8'));
     return validPluginMode(value) ? value : void 0;
   } catch {
     return void 0;
@@ -4285,68 +4468,19 @@ function writeClaudePluginMode(cwd, marker) {
 }
 function writeClaudeMigrationAttention(cwd, attention) {
   writeDurableFile(
-    nodePath6.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attention),
+    claudeProjectStatePath(cwd, 'attention'),
     `${JSON.stringify(attention, void 0, 2)}
 `,
     { mode: 384 },
   );
 }
 function removeLegacyClaudePluginMode(cwd) {
-  rmSync2(nodePath6.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker), { force: true });
-}
-
-// claude-plugin/project-root.ts
-import { spawnSync } from 'node:child_process';
-
-// utils/fs.ts
-import {
-  chmodSync,
-  existsSync as existsSync5,
-  mkdirSync as mkdirSync3,
-  readdirSync as readdirSync2,
-  readFileSync as readFileSync4,
-  realpathSync as realpathSync2,
-  rmdirSync,
-  rmSync as rmSync3,
-  statSync,
-  writeFileSync as writeFileSync2,
-} from 'node:fs';
-import nodePath7 from 'node:path';
-var __dirname = import.meta.dirname;
-function canonicalDirectory(path) {
-  if (typeof path !== 'string' || path.trim() === '') return void 0;
-  try {
-    if (!statSync(path).isDirectory()) return void 0;
-    return nodePath7.normalize(realpathSync2(path));
-  } catch {
-    return void 0;
-  }
-}
-
-// claude-plugin/project-root.ts
-function canonicalClaudeProjectRoot(cwd) {
-  const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
-  const environmentRoot = configuredRoot === void 0 ? void 0 : configuredRoot.trim();
-  let candidate = environmentRoot === '' ? void 0 : environmentRoot;
-  if (candidate === void 0) {
-    const result = spawnSync('git', ['-C', cwd, 'rev-parse', '--show-toplevel'], {
-      encoding: 'utf8',
-    });
-    const gitRoot = result.status === 0 ? result.stdout?.trim() : void 0;
-    candidate = gitRoot === '' || gitRoot === void 0 ? cwd : gitRoot;
-  }
-  const canonical = canonicalDirectory(candidate);
-  if (canonical === void 0) {
-    throw new Error(
-      `Claude project root is missing, not a directory, or cannot be resolved: ${candidate}`,
-    );
-  }
-  return canonical;
+  rmSync3(nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy.pluginMarker), { force: true });
 }
 
 // claude-plugin/cleanup.ts
 function sha2562(content) {
-  return createHash3('sha256').update(content).digest('hex');
+  return createHash4('sha256').update(content).digest('hex');
 }
 function containsJsonComments(content) {
   let found = false;
@@ -4355,7 +4489,7 @@ function containsJsonComments(content) {
 }
 function settingsMutation(cwd, legacy) {
   const relative = '.claude/settings.json';
-  const path = nodePath8.join(cwd, relative);
+  const path = nodePath9.join(cwd, relative);
   if (!existsSync6(path) || legacy.recognizedHooks.length === 0) return void 0;
   const original = readFileSync5(path, 'utf8');
   return { path: relative, content: contractHistoricalClaudeSettings(original) };
@@ -4423,11 +4557,11 @@ function claudeLegacyMutations(cwd) {
   return files;
 }
 function transactionPath(cwd) {
-  return containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction);
+  return claudeProjectStatePath(cwd, 'transaction');
 }
 function writeTransaction(cwd, transaction) {
   const path = transactionPath(cwd);
-  mkdirSync4(nodePath8.dirname(path), { recursive: true, mode: 448 });
+  mkdirSync4(nodePath9.dirname(path), { recursive: true, mode: 448 });
   const content = `${JSON.stringify(transaction, void 0, 2)}
 `;
   if (
@@ -4477,7 +4611,7 @@ function isValidOpenCleanupTarget(snapshot) {
 }
 function openCleanupTarget(root, relative, flags) {
   const path = assertSafeClaudeCleanupTarget(root, relative);
-  const parentPath = nodePath8.dirname(path);
+  const parentPath = nodePath9.dirname(path);
   const targetBefore = lstatSync4(path);
   const parentBefore = lstatSync4(parentPath);
   const parentDescriptor = openSync3(
@@ -4515,10 +4649,10 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
     throw new Error('Atomic Claude cleanup quarantine is unavailable on this platform.');
   }
   const safeQuarantinePath = containedClaudeCleanupPath(root, quarantinePath);
-  const quarantineDirectory = nodePath8.dirname(safeQuarantinePath);
+  const quarantineDirectory = nodePath9.dirname(safeQuarantinePath);
   mkdirSync4(quarantineDirectory, { recursive: true, mode: 448 });
   beforeQuarantine?.();
-  renameSync2(opened.path, safeQuarantinePath);
+  renameSync3(opened.path, safeQuarantinePath);
   const quarantined = lstatSync4(safeQuarantinePath);
   const descriptor = fstatSync2(opened.descriptor);
   if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
@@ -4531,7 +4665,7 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
 function revalidateOpenTarget(root, relative, opened) {
   const path = assertSafeClaudeCleanupTarget(root, relative);
   const target = lstatSync4(path);
-  const parent = lstatSync4(nodePath8.dirname(path));
+  const parent = lstatSync4(nodePath9.dirname(path));
   const descriptor = fstatSync2(opened.descriptor);
   if (
     path !== opened.path ||
@@ -4602,10 +4736,10 @@ function pruneEmptyLegacyDirectories(cwd, entries) {
   const candidates = /* @__PURE__ */ new Set();
   for (const entry of entries) {
     if (entry.after_sha256 !== null) continue;
-    let directory = nodePath8.dirname(entry.path);
+    let directory = nodePath9.dirname(entry.path);
     while (directory === '.claude' || directory.startsWith('.claude/')) {
       candidates.add(directory);
-      directory = nodePath8.dirname(directory);
+      directory = nodePath9.dirname(directory);
     }
   }
   const deepestFirst = [...candidates].toSorted(
@@ -4642,7 +4776,7 @@ function recordAutomaticAttention(cwd, options, classification, advisory) {
   });
 }
 function waitForPluginMode(cwd, deadline, now) {
-  const marker = containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2);
+  const marker = claudeProjectStatePath(cwd, 'pluginMarkerV2');
   const pause = new Int32Array(new SharedArrayBuffer(4));
   const maximumChecks = 25;
   for (let checks = 0; checks < maximumChecks && now() < deadline; checks += 1) {
@@ -4850,7 +4984,7 @@ function performAutomaticMigration(projectRoot, options, now) {
     };
   }
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync4(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, 'transaction');
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
@@ -4973,7 +5107,7 @@ function hasValidQuarantinePath(entry, deleting) {
   return (
     entry.quarantine_path.startsWith('.safeword/claude-plugin/quarantine/') &&
     entry.quarantine_path.endsWith('.retired') &&
-    !nodePath8.isAbsolute(entry.quarantine_path) &&
+    !nodePath9.isAbsolute(entry.quarantine_path) &&
     !entry.quarantine_path.split('/').includes('..')
   );
 }
@@ -5160,7 +5294,7 @@ function applyRecoveryEntries(projectRoot, pending) {
 }
 function completedRecoveryResult(projectRoot, transaction) {
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync4(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, 'transaction');
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return createResult({
     state: 'changed',
@@ -5224,9 +5358,9 @@ function acceptedLegacyHookReference(value, projectRoot) {
   const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
   if (reference === void 0) return false;
   try {
-    const hooksRoot = nodePath9.resolve(projectRoot, '.safeword/hooks');
-    const target = nodePath9.resolve(projectRoot, reference);
-    if (!target.startsWith(`${hooksRoot}${nodePath9.sep}`)) return false;
+    const hooksRoot = nodePath10.resolve(projectRoot, '.safeword/hooks');
+    const target = nodePath10.resolve(projectRoot, reference);
+    if (!target.startsWith(`${hooksRoot}${nodePath10.sep}`)) return false;
     if (realpathSync3(hooksRoot) !== hooksRoot || realpathSync3(target) !== target) return false;
     return (
       lstatSync5(target).isFile() && isAcceptedHistoricalHookFile(reference, readFileSync6(target))
@@ -5244,7 +5378,7 @@ function acceptedLegacyHookFile(value, projectRoot) {
   return Object.values(value).some(child => acceptedLegacyHookFile(child, projectRoot));
 }
 function viableLegacyAuthority(event, projectRoot) {
-  const settings = parseSettings(nodePath9.join(projectRoot, '.claude/settings.json'));
+  const settings = parseSettings(nodePath10.join(projectRoot, '.claude/settings.json'));
   const hooks = settings?.hooks;
   if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
   const entries = hooks[event];
@@ -5261,7 +5395,7 @@ function requiredEnvironment(name) {
   return value;
 }
 function readIdentity(pluginRoot) {
-  const value = JSON.parse(readFileSync6(nodePath9.join(pluginRoot, 'identity.json'), 'utf8'));
+  const value = JSON.parse(readFileSync6(nodePath10.join(pluginRoot, 'identity.json'), 'utf8'));
   if (
     value.schema_version !== 1 ||
     typeof value.plugin_version !== 'string' ||
@@ -5276,7 +5410,7 @@ function assertSafeInventoryAsset(asset) {
   const pathSegments = typeof asset.path === 'string' ? asset.path.split(/[\\/]/u) : [];
   if (
     typeof asset.path !== 'string' ||
-    nodePath9.isAbsolute(asset.path) ||
+    nodePath10.isAbsolute(asset.path) ||
     pathSegments.includes('..') ||
     !/^[\da-f]{64}$/u.test(asset.sha256 ?? '')
   ) {
@@ -5285,12 +5419,12 @@ function assertSafeInventoryAsset(asset) {
 }
 function verifyInventoryAsset(pluginRoot, asset) {
   assertSafeInventoryAsset(asset);
-  const assetPath = nodePath9.join(pluginRoot, asset.path);
+  const assetPath = nodePath10.join(pluginRoot, asset.path);
   if (!lstatSync5(assetPath).isFile()) {
     throw new Error(`Safeword Claude plugin asset is not a regular file: ${asset.path}`);
   }
   const content = readFileSync6(assetPath);
-  const actualDigest = createHash4('sha256').update(content).digest('hex');
+  const actualDigest = createHash5('sha256').update(content).digest('hex');
   if (actualDigest !== asset.sha256) {
     throw new Error(
       `Safeword Claude plugin asset failed integrity validation: ${asset.path} (${actualDigest})`,
@@ -5299,8 +5433,8 @@ function verifyInventoryAsset(pluginRoot, asset) {
   return content;
 }
 function verifyInventory(pluginRoot, identity) {
-  const inventoryContent = readFileSync6(nodePath9.join(pluginRoot, 'inventory.json'), 'utf8');
-  const inventoryDigest = createHash4('sha256').update(inventoryContent).digest('hex');
+  const inventoryContent = readFileSync6(nodePath10.join(pluginRoot, 'inventory.json'), 'utf8');
+  const inventoryDigest = createHash5('sha256').update(inventoryContent).digest('hex');
   if (inventoryDigest !== identity.inventory_sha256) {
     throw new Error('Safeword Claude plugin inventory does not match its bundled identity.');
   }
@@ -5334,15 +5468,15 @@ function verifyInventory(pluginRoot, identity) {
   return verifiedAssets;
 }
 function verifyManifest(pluginRoot, identity) {
-  const manifest = readFileSync6(nodePath9.join(pluginRoot, 'hooks', 'hooks.json'));
-  const digest2 = createHash4('sha256').update(manifest).digest('hex');
+  const manifest = readFileSync6(nodePath10.join(pluginRoot, 'hooks', 'hooks.json'));
+  const digest2 = createHash5('sha256').update(manifest).digest('hex');
   if (digest2 !== identity.hook_manifest_sha256) {
     throw new Error('Safeword Claude plugin hook manifest does not match its bundled identity.');
   }
 }
 function writeDurableRecord(pluginData, filename, record2) {
   writeDurableFile(
-    nodePath9.join(pluginData, filename),
+    nodePath10.join(pluginData, filename),
     `${JSON.stringify(record2, void 0, 2)}
 `,
     {
@@ -5352,7 +5486,7 @@ function writeDurableRecord(pluginData, filename, record2) {
 }
 function setupRanForSession(pluginData, sessionId, pluginRoot, projectRoot, identity) {
   if (sessionId === void 0) return false;
-  const path = nodePath9.join(pluginData, 'cache-smoke-v1.json');
+  const path = nodePath10.join(pluginData, 'cache-smoke-v1.json');
   if (!existsSync7(path)) return false;
   try {
     const smoke = JSON.parse(readFileSync6(path, 'utf8'));
@@ -5381,8 +5515,7 @@ function recordExecutionProof(event, pluginRoot, identity, input) {
   ) {
     return;
   }
-  const projectDigest = createHash4('sha256').update(projectRoot).digest('hex');
-  writeDurableRecord(nodePath9.join(pluginData, 'execution-proofs-v2'), `${projectDigest}.json`, {
+  writeDurableRecord(claudeProofDirectory(), `${claudeProjectDigest(projectRoot)}.json`, {
     schema_version: 2,
     project_root: projectRoot,
     plugin_version: identity.plugin_version,
@@ -5592,8 +5725,8 @@ function scopeDeclaration(path) {
   };
 }
 function incompatibleScopeOverlap(projectRoot) {
-  const project = scopeDeclaration(nodePath9.join(projectRoot, '.claude/settings.json'));
-  const user = scopeDeclaration(nodePath9.join(claudeConfigDirectory(), 'settings.json'));
+  const project = scopeDeclaration(nodePath10.join(projectRoot, '.claude/settings.json'));
+  const user = scopeDeclaration(nodePath10.join(claudeConfigDirectory(), 'settings.json'));
   return (
     project.enabled &&
     user.enabled &&
@@ -5625,9 +5758,7 @@ function scopeOverlapExecution(context, identity, catalogueSha256) {
   return advisoryExecution(context, advisory, stateDigest);
 }
 function automaticMigrationAttemptKind(projectRoot) {
-  return existsSync7(nodePath9.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))
-    ? 'recovery'
-    : 'migration';
+  return existsSync7(claudeProjectStatePath(projectRoot, 'transaction')) ? 'recovery' : 'migration';
 }
 function automaticMigrationProjectRoot(event, hookCwd) {
   if (event !== 'UserPromptSubmit') return void 0;
@@ -5779,7 +5910,7 @@ function executeConfiguredHooks(input) {
   }
 }
 function exposePackagedSafewordContext(pluginRoot) {
-  const packagedSafewordPath = nodePath9.join(pluginRoot, 'resources', 'SAFEWORD.md');
+  const packagedSafewordPath = nodePath10.join(pluginRoot, 'resources', 'SAFEWORD.md');
   if (existsSync7(packagedSafewordPath)) {
     process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
   }
@@ -5792,7 +5923,7 @@ function mainUnsafe(event, mode, command) {
     throw new Error('A direct hook command is required.');
   }
   const pluginRoot = realpathSync3(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
-  process.env.SAFEWORD_PLUGIN_CLI = nodePath9.join(pluginRoot, 'runtime', 'cli.js');
+  process.env.SAFEWORD_PLUGIN_CLI = nodePath10.join(pluginRoot, 'runtime', 'cli.js');
   exposePackagedSafewordContext(pluginRoot);
   const standardInput = readFileSync6(0);
   const hookInput = parseHookInput(standardInput);
