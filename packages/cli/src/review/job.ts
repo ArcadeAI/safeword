@@ -134,7 +134,7 @@ function fingerprint(
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
 ): string {
-  const prepared = prepareReviewPacket(cwd, kind, targets, context);
+  const prepared = prepareReviewPacket(cwd, kind, targets, context, { allowMissing: true });
   try {
     const hash = createHash('sha256');
     hash.update(`kind\0${kind}\0`);
