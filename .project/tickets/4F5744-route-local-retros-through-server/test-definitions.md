@@ -112,7 +112,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ## Rule: local-retro-cutover.TBU1.R3 — Raw GitHub bodies are duplicate authority
 
-### Scenario: Exact authority markers suppress a duplicate create
+### Scenario: Exact authority markers found by an all-state raw-body scan suppress a duplicate create
 
 - [x] RED
 - [x] GREEN
@@ -124,15 +124,21 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: A relay-owned marker on a closed issue suppresses a duplicate create
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: local-retro-cutover.TBU1.R4 — Accepted intake is safe and relay-compatible
 
-### Scenario: The largest relay-compatible normalized batch is accepted
+### Scenario: The largest normalized batch within the 60 KB rendered-body limit is accepted
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: The largest accepted batch remains relay-compatible
+### Scenario: The largest accepted batch remains within the 256 KiB envelope limit and preserves every finding
 
 - [x] RED
 - [x] GREEN
@@ -161,6 +167,12 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
+
+### Scenario: The collector-worker principal has only ingest authority and leaves existing principal roles unchanged
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R5 — Server ownership survives interrupted filing
 
@@ -245,7 +257,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 ### Scenario: A real Claude Code session proves terminal production filing
 
 - [x] CAPTURED
-- [x] VERIFIED
+- [ ] VERIFIED — terminal filing is verified; session-scope correlation remains to be recorded
 - [ ] LINKED IN READINESS MANIFEST
 
 ### Scenario: A real Codex session proves terminal production filing
@@ -257,7 +269,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 ### Scenario: A real Cursor session proves terminal production filing
 
 - [x] CAPTURED
-- [x] VERIFIED
+- [ ] VERIFIED — terminal filing is verified; session-scope correlation remains to be recorded
 - [ ] LINKED IN READINESS MANIFEST
 
 ## Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance
