@@ -88,6 +88,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 807a05dab
 - [x] REFACTOR da02deebf
 
+### Scenario: A supported agent omits a declared proof input
+
+- [x] RED skip: regression proof added during verification after source-install scenario validation exposed the missing rejection example
+- [x] GREEN 25230ad98
+- [x] REFACTOR skip: the existing fingerprint contract already binds declared context content
+
 ## Rule: executable-red.SWM1.R2 — Receipt reuse follows distinct proof identity
 
 ### Scenario Outline: Proof identity determines receipt reuse

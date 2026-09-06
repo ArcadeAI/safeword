@@ -109,9 +109,16 @@ Feature: Trust executable RED before production implementation
       When its BDD workflow requests executable-RED review
       Then the packet binds the scenario, proof-plan row, declared proof targets, evidence class, and Safeword execution attestation
 
+    @rejection
+    Scenario: A supported agent omits a declared proof input
+      Given a supported agent has an approved executable-RED receipt bound to complete proof inputs
+      When its next packet omits a declared support file
+      Then Safeword refuses to reuse the approved receipt
+
   @executable-red.SWM1.R2
   Rule: executable-red.SWM1.R2 — Receipt reuse follows distinct proof identity
 
+    @rejection
     Scenario Outline: Proof identity determines receipt reuse
       Given a reviewed proof and a candidate with <identity relationship>
       When Safeword resolves whether the receipt covers the candidate
@@ -125,6 +132,7 @@ Feature: Trust executable RED before production implementation
   @executable-red.SWM1.R3
   Rule: executable-red.SWM1.R3 — Advisory status never overstates independent evidence
 
+    @rejection
     Scenario Outline: The advisory describes the current evidence honestly
       Given executable RED has <review state>
       When Safeword reports its implementation-readiness advisory

@@ -478,6 +478,153 @@ describe('durable review jobs', () => {
     );
   });
 
+  it.each([
+    ['identical canonical proof inputs', 'reused'],
+    ['different canonical proof inputs', 'not reused'],
+  ] as const)('resolves %s as %s', async (relationship, verdict) => {
+    const cwd = project();
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      'execution_attestation: { source_fingerprint: record.source_fingerprint }, reviewer_output: {',
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution = {
+      argv: [process.execPath, '-e', 'process.exit(1)'] as const,
+      cwd: '.',
+      evidenceClass: 'pure-contract' as const,
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+    const first = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+    const candidate = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution:
+        relationship === 'identical canonical proof inputs'
+          ? execution
+          : { ...execution, expectedFailure: 'different actor assertion' },
+    });
+    const sameReview =
+      (candidate.data as { review_id: string }).review_id ===
+      (first.data as { review_id: string }).review_id;
+
+    expect(sameReview).toBe(verdict === 'reused');
+  });
+
+  it('refuses executable RED receipt reuse when a declared support file is omitted', async () => {
+    const cwd = project();
+    writeFileSync(nodePath.join(cwd, 'support.md'), 'bound support\n');
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      'execution_attestation: { source_fingerprint: record.source_fingerprint }, reviewer_output: {',
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution = {
+      argv: [process.execPath, '-e', 'process.exit(1)'] as const,
+      cwd: '.',
+      evidenceClass: 'pure-contract' as const,
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+    const first = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      context: ['support.md'],
+      execution,
+    });
+    const omitted = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+
+    expect((omitted.data as { review_id: string }).review_id).not.toBe(
+      (first.data as { review_id: string }).review_id,
+    );
+  });
+
+  it.each([
+    'scenario',
+    'proof-plan row',
+    'canonical command',
+    'evidence class',
+    'primary proof target',
+    'declared support file',
+  ])('invalidates executable RED approval when the %s changes', async changedInput => {
+    const cwd = project();
+    for (const path of ['scenario.feature', 'proof-plan.md', 'support.md', 'alternate.md']) {
+      writeFileSync(nodePath.join(cwd, path), `${path} before\n`);
+    }
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const execution = {
+      argv: [process.execPath, '-e', 'process.exit(1)'] as readonly string[],
+      cwd: '.',
+      evidenceClass: 'pure-contract' as const,
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+    const context = ['scenario.feature', 'proof-plan.md', 'support.md'];
+    const first = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      context,
+      execution,
+    });
+    const changed = {
+      context,
+      execution,
+      targets: ['input.md'] as readonly string[],
+    };
+
+    switch (changedInput) {
+      case 'scenario': {
+        writeFileSync(nodePath.join(cwd, 'scenario.feature'), 'scenario after\n');
+
+        break;
+      }
+      case 'proof-plan row': {
+        writeFileSync(nodePath.join(cwd, 'proof-plan.md'), 'proof plan after\n');
+
+        break;
+      }
+      case 'canonical command': {
+        changed.execution = { ...execution, argv: [process.execPath, '-e', 'process.exit(2)'] };
+
+        break;
+      }
+      case 'evidence class': {
+        changed.execution = { ...execution, evidenceClass: 'integration-bound' };
+
+        break;
+      }
+      case 'primary proof target': {
+        changed.targets = ['alternate.md'];
+
+        break;
+      }
+      default: {
+        writeFileSync(nodePath.join(cwd, 'support.md'), 'support after\n');
+      }
+    }
+
+    const second = await startReviewJob({ cwd, kind: 'executable-red', ...changed });
+    const firstId = (first.data as { review_id: string }).review_id;
+    const secondId = (second.data as { review_id: string }).review_id;
+    expect(secondId).not.toBe(firstId);
+    cancelReviewJob(cwd, firstId);
+    cancelReviewJob(cwd, secondId);
+  });
+
   it('recognizes a long-running worker even when its command line is long', async () => {
     const cwd = project();
     const longDirectory = nodePath.join(cwd, `worker-${'x'.repeat(180)}`);

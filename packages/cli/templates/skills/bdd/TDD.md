@@ -94,7 +94,7 @@ Before production implementation begins for a new or changed primary proof, self
 plan, then ask Safeword to execute and independently review each distinct proof implementation:
 
 ```bash
-safeword review run executable-red \
+bun .safeword/hooks/run-review.ts review run executable-red \
   --context path/to/scenario.feature \
   --context path/to/impl-plan.md \
   --proof-cwd . \
@@ -108,8 +108,9 @@ Pass JSON argv, never shell text. Include the scenario, proof-plan row, primary 
 every support file whose change would invalidate the evidence. One fresh approved receipt may cover
 Scenario Outline rows only when their canonical command and declared proof targets are identical.
 This is advisory until FY1NHB measures route reliability, false positives, and latency: say
-“independently confirmed” only for a fresh approved receipt; otherwise say “not independently
-confirmed” and follow the exact retry or fallback action.
+“independently confirmed” only for a fresh approved receipt. With no fresh approved receipt, an
+author self-review only, or cached passing suite status, say “not independently confirmed” and
+follow the exact retry or fallback action.
 
 ### Checkbox Format Contract
 
