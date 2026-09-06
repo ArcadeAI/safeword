@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "3c6308f77bbbf439151551cad3eb5e3d03500751c8793fca432ba55a25045a51"
+      "sha256": "6d5255bd9ecb262df06900a329e423f74c8a37158c973cdd395b012218bb089b"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "49276859164d468b9e8c17821290ab6130feedb8e765c632403c03733a5bdff9"
+      "sha256": "8e3b8f5761a819547ab372c8696f5bb5a2a7688e634bc4d7d80a41c9014e4225"
     },
     {
       "path": "runtime/event-groups.json",
@@ -303,11 +303,11 @@
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "1faba40cc03419da77122ab91209c7a00feb5b741e20d9f2d7605dc5f0ba48cf"
+      "sha256": "e33a81f3cbf144076fb3dfc3960b5e3660780317a82e74ac815f54165db00ff3"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
-      "sha256": "08244a3285824e3acbc9f538ea6b2d8cabd806f853b0fc30606f0a5abbda512f"
+      "sha256": "1eddc92d9bbc66ce762986dc0e9009cc115684e9dc0714fa266f2950037cec42"
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "1b7d431f529afdadf4610dcf82995763d75203119ac72e7b816537ce5c24ef12"
+      "sha256": "41430537f69752b634abe395ab00ed6e6ab75e868e658602040ce972664056a2"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",

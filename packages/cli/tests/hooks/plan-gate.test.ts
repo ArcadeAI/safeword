@@ -8,7 +8,10 @@ import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } fro
 
 const VALID_INSPIRATION = validImplementationInspiration('2026-08-09', 'parser');
 
-function plan(inspiration: string): string {
+function plan(
+  inspiration: string,
+  designAlignment = 'Exact structure proves the boundary.',
+): string {
   return [
     '# Impl Plan: Test',
     '',
@@ -31,7 +34,7 @@ function plan(inspiration: string): string {
     '',
     '## Design alignment',
     '',
-    'Exact structure proves the boundary.',
+    designAlignment,
     '',
     '## Known deviations',
     '',
@@ -72,15 +75,104 @@ describe('implementation entry inspiration wiring', () => {
 
       const blocked = evaluateImplementEntry(ticketDirectory, {
         evaluationDate: '2026-08-09',
+        projectDirectory,
       });
       expect(blocked.ok).toBe(false);
       if (!blocked.ok) expect(blocked.reason).toContain('Implementation Inspiration');
 
       writeTestFile(projectDirectory, 'ticket/impl-plan.md', plan(VALID_INSPIRATION));
 
-      expect(evaluateImplementEntry(ticketDirectory, { evaluationDate: '2026-08-09' })).toEqual({
+      expect(
+        evaluateImplementEntry(ticketDirectory, {
+          evaluationDate: '2026-08-09',
+          projectDirectory,
+        }),
+      ).toEqual({
         ok: true,
       });
+    } finally {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+});
+
+describe('implementation entry principle trace wiring', () => {
+  function traceTable(principle: string): string {
+    return [
+      '| Principle | Consequence | Proof | Conflict |',
+      '| --- | --- | --- | --- |',
+      `| ${principle} | Recovery stays in context | evidence.md | |`,
+    ].join('\n');
+  }
+
+  function scaffold(projectDirectory: string): void {
+    writeTestFile(
+      projectDirectory,
+      'ticket/ticket.md',
+      [
+        '---',
+        'inspiration_contract: v1',
+        'inspiration_contract_scaffold: v1',
+        'created: 2026-08-09T00:00:00.000Z',
+        '---',
+      ].join('\n'),
+    );
+    writeTestFile(
+      projectDirectory,
+      'ticket/spec.md',
+      '# Spec\n<!-- safeword:inspiration-contract:v1 -->\n',
+    );
+    writeTestFile(
+      projectDirectory,
+      '.project/principles.md',
+      '# Principles\n\n## Keep customer PII out of logs\n\nRedaction happens before any log write.\n',
+    );
+    writeTestFile(projectDirectory, 'evidence.md', '# Evidence\n');
+  }
+
+  it('refuses entry while the trace cites a principle the source does not define', () => {
+    const projectDirectory = createTemporaryDirectory();
+    const ticketDirectory = nodePath.join(projectDirectory, 'ticket');
+    try {
+      scaffold(projectDirectory);
+      writeTestFile(
+        projectDirectory,
+        'ticket/impl-plan.md',
+        plan(VALID_INSPIRATION, traceTable('Invented principle')),
+      );
+
+      const verdict = evaluateImplementEntry(ticketDirectory, {
+        evaluationDate: '2026-08-09',
+        projectDirectory,
+      });
+
+      expect(verdict.ok).toBe(false);
+      if (!verdict.ok) {
+        expect(verdict.reason).toContain('missing source principle: Invented principle');
+        expect(verdict.remediation).toContain('Design alignment');
+      }
+    } finally {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+
+  it('admits a trace whose principle resolves against the authored source', () => {
+    const projectDirectory = createTemporaryDirectory();
+    const ticketDirectory = nodePath.join(projectDirectory, 'ticket');
+    try {
+      scaffold(projectDirectory);
+      writeTestFile(
+        projectDirectory,
+        'ticket/impl-plan.md',
+        plan(VALID_INSPIRATION, traceTable('Keep customer PII out of logs')),
+      );
+
+      expect(
+        evaluateImplementEntry(ticketDirectory, {
+          evaluationDate: '2026-08-09',
+          projectDirectory,
+        }),
+      ).toEqual({ ok: true });
     } finally {
       removeTemporaryDirectory(projectDirectory);
     }

@@ -33,39 +33,87 @@ describe('checkPrincipleTrace', () => {
     expect(checkPrincipleTrace(project(), PLAN)).toEqual([]);
   });
 
-  it('accepts a proof fragment only when the Markdown heading exists', () => {
-    const plan = PLAN.replace('verify.md', 'verify.md#evidence');
+  it('resolves a proof reference on its file, leaving the #fragment unjudged', () => {
+    const directory = project();
+    const plan = PLAN.replace('verify.md', 'verify.md#no-such-anchor');
+
+    expect(checkPrincipleTrace(directory, plan)).toEqual([]);
+  });
+
+  it('still reports a fragment reference whose file is missing', () => {
+    const directory = project();
+    const plan = PLAN.replace('verify.md', 'missing.md#evidence');
+
+    expect(checkPrincipleTrace(directory, plan)).toContain(
+      '[E010] Broken principle trace: dead evidence reference: Delight the user',
+    );
+  });
+
+  it('judges a second trace table in the same section', () => {
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      () =>
+        [
+          '| Delight the user | Recovery stays in context | verify.md | |',
+          '',
+          '| Principle | Consequence | Proof | Conflict |',
+          '| --- | --- | --- | --- |',
+          '| Invented principle | Something | missing.md | |',
+        ].join('\n'),
+    );
+
+    expect(checkPrincipleTrace(project(), plan)).toEqual([
+      '[E010] Broken principle trace: missing source principle: Invented principle',
+      '[E010] Broken principle trace: dead evidence reference: Invented principle',
+    ]);
+  });
+
+  it('reads a table whose optional outer pipes are omitted', () => {
+    const plan = PLAN.replace(
+      '| Principle | Consequence | Proof | Conflict |\n| --- | --- | --- | --- |\n| Delight the user | Recovery stays in context | verify.md | |',
+      'Principle | Consequence | Proof | Conflict\n--- | --- | --- | ---\nInvented principle | Recovery stays in context | missing.md |',
+    );
+
+    expect(checkPrincipleTrace(project(), plan)).toEqual([
+      '[E010] Broken principle trace: missing source principle: Invented principle',
+      '[E010] Broken principle trace: dead evidence reference: Invented principle',
+    ]);
+  });
+
+  it('reports a row that carries claims but no principle name', () => {
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      '|  | Recovery stays in context | missing.md | explicit-conflict |',
+    );
+
+    expect(checkPrincipleTrace(project(), plan)).toContain(
+      '[E010] Broken principle trace: row has no principle name',
+    );
+  });
+
+  it('ignores a wholly blank row as table noise', () => {
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      '| Delight the user | Recovery stays in context | verify.md | |\n|  |  |  |  |',
+    );
 
     expect(checkPrincipleTrace(project(), plan)).toEqual([]);
   });
 
-  it.each([
-    ['Unknown principle', 'Recovery stays in context', 'verify.md', '', 'missing source principle'],
-    ['Delight the user', '', 'verify.md', '', 'incomplete principle mapping'],
-    ['Delight the user', 'Recovery stays in context', 'missing.md', '', 'dead evidence reference'],
-    [
-      'Delight the user',
-      'Recovery stays in context',
-      'verify.md',
-      'explicit-conflict',
-      'unrecorded conflict',
-    ],
-  ])('reports %s trace defects as E010', (principle, consequence, proof, conflict, detail) => {
+  it('judges the row of a principle whose name matches the header label', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      '# Principles\n\n## Principle\n\nA project can name one exactly this.\n',
+    );
     const plan = PLAN.replace(
       '| Delight the user | Recovery stays in context | verify.md | |',
-      () => `| ${principle} | ${consequence} | ${proof} | ${conflict} |`,
+      '| Principle | Recovery stays in context | missing.md | |',
     );
 
-    expect(checkPrincipleTrace(project(), plan)).toContain(
-      `[E010] Broken principle trace: ${detail}: ${principle}`,
-    );
-  });
-
-  it('rejects a proof fragment whose Markdown heading does not exist', () => {
-    const plan = PLAN.replace('verify.md', 'verify.md#missing-heading');
-
-    expect(checkPrincipleTrace(project(), plan)).toContain(
-      '[E010] Broken principle trace: dead evidence reference: Delight the user',
+    // The row must be judged, not dropped as though it were the header.
+    expect(checkPrincipleTrace(directory, plan)).toContain(
+      '[E010] Broken principle trace: dead evidence reference: Principle',
     );
   });
 
@@ -146,17 +194,89 @@ describe('checkPrincipleTrace', () => {
     );
   });
 
-  it('does not treat an arbitrary level-two support heading as a principle', () => {
+  it('does not let an ordinary word containing the principle name record its conflict', () => {
     const directory = project();
     writeFileSync(
       nodePath.join(directory, '.project', 'principles.md'),
-      `## How to use this file\n\nIntroductory guidance.\n\n${PRINCIPLE}`,
+      '# Principles\n\n## Test\n\nA short name a project may reasonably choose.\n',
     );
-    const plan = PLAN.replace('Delight the user', 'How to use this file');
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      '| Test | Recovery stays in context | verify.md | explicit-conflict |',
+    ).replace('None.', 'Latest release defers documentation.');
 
     expect(checkPrincipleTrace(directory, plan)).toContain(
-      '[E010] Broken principle trace: missing source principle: How to use this file',
+      '[E010] Broken principle trace: unrecorded conflict: Test',
     );
+  });
+
+  it('accepts a deviation that names the principle at a word boundary', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      '# Principles\n\n## Test\n\nA short name a project may reasonably choose.\n',
+    );
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      '| Test | Recovery stays in context | verify.md | explicit-conflict |',
+    ).replace('None.', 'Test is traded away here for the reasons below.');
+
+    expect(checkPrincipleTrace(directory, plan)).toEqual([]);
+  });
+
+  it('does not let a longer principle name satisfy a shorter one’s recorded conflict', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      '# Principles\n\n## Ship reversible changes\n\nOne command rolls it back.\n\n## Ship reversible changes safely\n\nAnd never without a down path.\n',
+    );
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      '| Ship reversible changes | Flag guards the path | verify.md | explicit-conflict |',
+    ).replace('None.', 'Ship reversible changes safely is traded away here.');
+
+    expect(checkPrincipleTrace(directory, plan)).toContain(
+      '[E010] Broken principle trace: unrecorded conflict: Ship reversible changes',
+    );
+  });
+
+  it('recognizes a principle written as a heading and prose, with no structured fields', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      '# Principles\n\n## Keep customer PII out of logs\n\nRedaction happens before anything reaches a log.\n',
+    );
+    const plan = PLAN.replace('Delight the user', 'Keep customer PII out of logs');
+
+    expect(checkPrincipleTrace(directory, plan)).toEqual([]);
+  });
+
+  it('carries a pipe in a principle name through the escaped table cell', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      '# Principles\n\n## Correct and safe | then clear\n\nGates before preferences.\n',
+    );
+    const plan = PLAN.replace('Delight the user', String.raw`Correct and safe \| then clear`);
+
+    expect(checkPrincipleTrace(directory, plan)).toEqual([]);
+  });
+
+  it('leaves attribution unjudged when the configured principles file is absent', () => {
+    const directory = project();
+    rmSync(nodePath.join(directory, '.project', 'principles.md'));
+
+    expect(checkPrincipleTrace(directory, PLAN)).toEqual([]);
+  });
+
+  it('still checks proof references when the principles file is absent', () => {
+    const directory = project();
+    rmSync(nodePath.join(directory, '.project', 'principles.md'));
+    const plan = PLAN.replace('verify.md', 'missing.md');
+
+    expect(checkPrincipleTrace(directory, plan)).toEqual([
+      '[E010] Broken principle trace: dead evidence reference: Delight the user',
+    ]);
   });
 
   it('reports active-ticket findings through the installed audit entry point', () => {
