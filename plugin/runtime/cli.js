@@ -603,7 +603,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "d01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d",
-        ".claude/skills/review-spec/SKILL.md": "2a207556955728bc8045204ac16d663047ba02aff05a9aaf3625142d23a0aaa4",
+        ".claude/skills/review-spec/SKILL.md": "3d8a42582a1777cca76b16e4af31e51201ea8dc1db798e2ac00e04787fd67eb4",
         ".claude/skills/self-review/SKILL.md": "e2c56e6ac5427cd64386234129a5dffa4030c2baabd0cb4fb8e159e6750998db",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
@@ -34873,7 +34873,7 @@ Common vacuous patterns, each with its fix (apply only when you can state the do
 | **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
 | **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
 
-**Atomic** \u2014 a single \`When\`\u2192\`Then\` is atomic even if the \`Then\` asserts several properties of ONE outcome ("returns 200 with body X"). Flag non-atomic only when two genuinely independent behaviors could pass/fail separately (two \`When\` steps or two \`Then\`s asserting different system-level effects) \u2014 never for a merely compound \`Then\`.
+**Atomic** \u2014 for a compound \`Then\`, apply one test: **could these assertions fail independently of each other?** If they could, they are two behaviors sharing setup: flag it and split them, because a failing step aborts the scenario and every later step is reported skipped, so the first failure hides whether the second also broke. If they could not, the \`Then\` is atomic even with several \`And\` steps ("returns 200 with body X") and splitting only duplicates the \`Given\` \u2014 never flag a merely compound \`Then\`. Two \`When\` steps are non-atomic regardless. Prefer this test over "is it one outcome?", which is unfalsifiable and drifts toward always-yes; failure independence is a question about the system, so two reviewers reach the same answer. The cost of getting it wrong is measured: across 207 project versions 19.1% of failing tests terminated early at an assertion, skipping 15-60% of remaining test code, and removing that improved fault localization by 15.1% (Ochiai MFR) and branch coverage by 7.8% ([arXiv:2504.04557](https://arxiv.org/html/2504.04557)).
 
 **Rule ownership** \u2014 review a coherent outcome under the Rule whose invariant it proves. An outcome owned by a different Rule is a lineage defect, not an atomicity defect; move or split it and report that single root cause.
 
