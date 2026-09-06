@@ -3,27 +3,28 @@
   "scenarios": {
     "Explicit reviewer and model routes run in configured order": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "executes an opted-in reviewer/model list in its declared order"
+      "executes $first before $second in declared route order"
     ],
     "Reversed reviewer and model routes run in configured order": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "places Codex model and schema flags before the trailing stdin marker"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "executes $first before $second in declared route order"
     ],
     "Cached observations do not change route order": [
-      "packages/cli/tests/review/job.test.ts",
-      "reuses the running review for the same source"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "does not let prior route evidence reorder a configured review"
     ],
     "Runtime default keeps its configured position": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "keeps a runtime-default route eligible after model selection is unsupported"
+      "runs the first successful runtime-default route without trying later models"
     ],
     "First successful independent route completes the review": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "collects review status offline because durable job state is local"
+      "runs the first successful runtime-default route without trying later models"
     ],
     "Invalid model identifiers reject route configuration": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "rejects null and invalid route maps with the config path"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "rejects $name safely without launching a reviewer",
+      "option-shaped model"
     ],
     "Empty route lists reject configuration": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
