@@ -15,6 +15,7 @@ import {
   isStopQualityReviewEnabled,
   parseReviewStamps,
   readCrossAgentReviewPolicy,
+  reviewGateAppliesToPhase,
   reviewGateForNextAsset,
   reviewScope,
   type ReviewStamp,
@@ -327,6 +328,55 @@ describe('isReviewGateEnabled (default-off rollout guard)', () => {
 
   it('is off on malformed config (fail-safe)', () => {
     expect(isReviewGateEnabled('not json {')).toBe(false);
+  });
+});
+
+describe('reviewGateAppliesToPhase (selective per-phase enforcement)', () => {
+  it('applies to every phase when reviewGate is true', () => {
+    expect(reviewGateAppliesToPhase('{"reviewGate": true}', 'implement')).toBe(true);
+    expect(reviewGateAppliesToPhase('{"reviewGate": true}', 'scenario-gate')).toBe(true);
+  });
+
+  it('applies only to the listed phases when reviewGate is a list', () => {
+    const config = '{"reviewGate": ["define-behavior", "scenario-gate"]}';
+    expect(reviewGateAppliesToPhase(config, 'define-behavior')).toBe(true);
+    expect(reviewGateAppliesToPhase(config, 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase(config, 'implement')).toBe(false);
+    expect(reviewGateAppliesToPhase(config, 'done')).toBe(false);
+  });
+
+  it('ignores non-string entries rather than failing open on the whole list', () => {
+    const config = '{"reviewGate": [7, "scenario-gate", null]}';
+    expect(reviewGateAppliesToPhase(config, 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase(config, '7')).toBe(false);
+  });
+
+  it('is off for an empty list and an explicit false', () => {
+    expect(reviewGateAppliesToPhase('{"reviewGate": []}', 'scenario-gate')).toBe(false);
+    expect(reviewGateAppliesToPhase('{"reviewGate": false}', 'scenario-gate')).toBe(false);
+    expect(reviewGateAppliesToPhase('{"reviewGate": false}', 'done')).toBe(false);
+  });
+
+  it('applies to every phase when the key is absent — on by default', () => {
+    for (const phase of ['intake', 'define-behavior', 'scenario-gate', 'implement', 'done']) {
+      expect(reviewGateAppliesToPhase('{}', phase)).toBe(true);
+      expect(reviewGateAppliesToPhase('{"installedPacks":["typescript"]}', phase)).toBe(true);
+    }
+  });
+
+  it('applies when there is no config file at all', () => {
+    expect(reviewGateAppliesToPhase(undefined, 'scenario-gate')).toBe(true);
+  });
+
+  it('falls back to the default rather than silently disabling on malformed config', () => {
+    expect(reviewGateAppliesToPhase('not json {', 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase('[]', 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase('"nope"', 'scenario-gate')).toBe(true);
+  });
+
+  it('ignores an unusable reviewGate value rather than treating it as off', () => {
+    expect(reviewGateAppliesToPhase('{"reviewGate": "scenario-gate"}', 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase('{"reviewGate": 1}', 'scenario-gate')).toBe(true);
   });
 });
 

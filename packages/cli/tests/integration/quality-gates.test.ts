@@ -24,6 +24,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   TIMEOUT_QUICK,
+  writeGateConfig,
   writeTestFile,
 } from '../helpers';
 
@@ -104,6 +105,7 @@ function readState(cwd: string, sessionId = 'test-session'): Record<string, unkn
 /** Create a test project with git repo and initial commit */
 function createTestProject(): string {
   const dir = createTemporaryDirectory();
+  writeGateConfig(dir, { reviewGate: false });
   initGitRepo(dir);
   writeTestFile(dir, '.safeword-project/.gitkeep', '');
   writeTestFile(dir, 'init.txt', 'init');

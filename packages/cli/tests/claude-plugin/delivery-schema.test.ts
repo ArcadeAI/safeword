@@ -215,6 +215,11 @@ describe('Claude delivery schema', () => {
   it('runs plugin implementation acceptance and durable activation through real collaborators', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-plan-provenance-'));
     roots.push(root);
+    // This case asserts the PLAN gate accepts silently. The phase-exit review
+    // gate is on by default (KHL52X) and would deny the same transition for an
+    // unrelated reason — a missing review stamp — masking what is under test.
+    mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(root, '.safeword/config.json'), '{"reviewGate": false}\n');
     const ticketDirectory = nodePath.join(root, '.project/tickets/PLUG02-gate');
     mkdirSync(ticketDirectory, { recursive: true });
     const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');

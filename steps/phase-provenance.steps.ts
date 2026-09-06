@@ -94,6 +94,14 @@ const UNPARSEABLE_TICKET = '---\n{ not yaml [\n%%%\n---\n\n# Fixture\n';
 function createProject(this: ProvenanceWorld): string {
   const project = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-provenance-'));
   mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+  // Isolate from the phase-exit review gate, which is on at every exit by
+  // default (KHL52X). These scenarios prove phase PROVENANCE — that a phase is
+  // earned one canonical step at a time — not that a review stamp exists, and a
+  // missing-stamp denial would mask the provenance verdict under test.
+  writeFileSync(
+    nodePath.join(project, '.safeword', 'config.json'),
+    `${JSON.stringify({ reviewGate: false }, undefined, 2)}\n`,
+  );
   const namespace = nodePath.join(project, '.project');
   mkdirSync(nodePath.join(namespace, 'tickets'), { recursive: true });
   writeFileSync(nodePath.join(namespace, 'personas.md'), PERSONAS);
