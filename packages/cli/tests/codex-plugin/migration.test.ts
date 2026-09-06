@@ -246,7 +246,7 @@ describe('Codex migration result', () => {
       state: 'plugin_installed_app_restart_required',
       protection: 'protected',
       output:
-        'Codex migration: plugin_installed_app_restart_required\nProtection: protected\nThis Codex app may keep its loaded Safeword catalogue.\nNext: Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task.\n',
+        'Codex migration: plugin_installed_app_restart_required\nProtection: protected\nThis Codex app may keep its loaded Safeword catalogue. Independent reviews are unaffected: they run a fresh Codex with hooks disabled.\nNext: Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task.\n',
     },
     {
       name: 'enabled plugin without hook proof',
@@ -254,7 +254,7 @@ describe('Codex migration result', () => {
       state: 'plugin_enabled_hook_unproven',
       protection: 'unprotected',
       output:
-        'Codex migration: plugin_enabled_hook_unproven\nProtection: unprotected\nThis Codex app may keep its loaded Safeword catalogue.\nNext: Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task.\n',
+        'Codex migration: plugin_enabled_hook_unproven\nProtection: unprotected\nThis Codex app may keep its loaded Safeword catalogue. Independent reviews are unaffected: they run a fresh Codex with hooks disabled.\nNext: Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task.\n',
     },
     {
       name: 'compatibility',

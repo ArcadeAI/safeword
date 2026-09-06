@@ -103,10 +103,40 @@ function supportsReview(
   return result.status === 0 && result.error === undefined && result.signal === null;
 }
 
+// The hook is launched from whatever directory the caller happened to be in.
+// Anchoring discovery on that directory hides a working CLI one level up and
+// reports it as missing, so resolve the project root before looking.
+function looksLikeProjectRoot(directory: string): boolean {
+  return (
+    existsSync(nodePath.join(directory, '.safeword')) ||
+    existsSync(nodePath.join(directory, 'packages', 'cli', 'src', 'cli.ts'))
+  );
+}
+
+function reviewProjectRoot(start: string, environment: NodeJS.ProcessEnv): string {
+  // Claude sets CLAUDE_PROJECT_DIR for hooks. Only trust it when it really
+  // points at a project; a stale or wrong value falls through to the walk.
+  const declared = environment.CLAUDE_PROJECT_DIR;
+  if (declared !== undefined && declared !== '' && looksLikeProjectRoot(declared))
+    return nodePath.resolve(declared);
+  const from = nodePath.resolve(start);
+  let directory = from;
+  for (;;) {
+    if (looksLikeProjectRoot(directory)) return directory;
+    const parent = nodePath.dirname(directory);
+    // No marker anywhere up to the filesystem root: keep the caller's own
+    // directory, so the trust checks below stay the only thing that admits
+    // a candidate rather than this walk widening what counts as a project.
+    if (parent === directory) return from;
+    directory = parent;
+  }
+}
+
 export function reviewCandidates(
-  projectDirectory = process.cwd(),
+  startDirectory = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): Candidate[] {
+  const projectDirectory = reviewProjectRoot(startDirectory, environment);
   const candidates: Candidate[] = [];
   const pluginRoot = environment.CLAUDE_PLUGIN_ROOT;
   if (pluginRoot) {

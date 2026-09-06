@@ -346,6 +346,22 @@ describe('reviewer arguments', () => {
     ]);
   });
 
+  // Tripwire. `safeword codex status` tells users a stale Codex Desktop
+  // catalogue leaves reviews unaffected. That promise is only true while the
+  // Codex reviewer runs ephemeral with its hooks and user config disabled.
+  // If these flags ever move, the status message becomes a lie — fix both.
+  it('keeps the Codex reviewer insulated from the Codex app catalogue', () => {
+    const args = reviewerArguments('codex', undefined, undefined);
+
+    expect(args).toContain('--ephemeral');
+    expect(args).toContain('--ignore-user-config');
+    expect(args).toContain('--ignore-rules');
+    expect(args.slice(args.indexOf('--disable'), args.indexOf('--disable') + 2)).toEqual([
+      '--disable',
+      'hooks',
+    ]);
+  });
+
   it('appends Claude model flags without adding a positional marker', () => {
     const args = reviewerArguments('claude', 'claude-test', undefined);
 
