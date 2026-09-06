@@ -62468,6 +62468,9 @@ import {
 import { platform, tmpdir as tmpdir6 } from "os";
 import nodePath109 from "path";
 import process17 from "process";
+function selectedLocalRetroCanary(override) {
+  return override ?? SAFEWORD_LOCAL_RETRO_CANARY_HARNESS;
+}
 function buildProvenanceResolver(options) {
   return () => {
     const at = options.now().toISOString();
@@ -62586,7 +62589,7 @@ function relayPersistenceErrorMessage(persistence, spoolFailed) {
   return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
 function serverRecoveryNeeded(findingCount, outcome) {
-  return findingCount > 0 && (outcome === undefined || outcome === "abandoned");
+  return findingCount > 0 && outcome !== "preserved" && outcome !== "already-owned";
 }
 async function runRetro(options, dependencies) {
   if (!options.transcript) {
@@ -63202,7 +63205,8 @@ function publicHarness(agent) {
 }
 function localRetroHostClass(agent, environment, socketStatus = statSync12) {
   if (agent !== "cursor")
-    return nonCursorHostClass(agent, environment);
+    return nonCursorHostClass(agent, environment, socketStatus);
+  const cursorSocketConfigured = environment.CURSOR_AGENT_SOCKET !== undefined;
   const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
   const socketPath = configuredSocket || "/run/cursor/api.sock";
   try {
@@ -63210,12 +63214,20 @@ function localRetroHostClass(agent, environment, socketStatus = statSync12) {
     return "unknown";
   } catch (error_) {
     const error2 = error_;
-    return error2.code === "ENOENT" && configuredSocket === undefined ? "local" : "unknown";
+    return error2.code === "ENOENT" && !cursorSocketConfigured ? "local" : "unknown";
   }
 }
-function nonCursorHostClass(agent, environment) {
-  if (agent === "codex")
-    return "unknown";
+function nonCursorHostClass(agent, environment, socketStatus) {
+  if (agent === "codex") {
+    const toolsPipe = environment.CODEX_APP_TOOLS_PIPE_PATH?.trim();
+    if (!toolsPipe)
+      return "unknown";
+    try {
+      return socketStatus(toolsPipe).isSocket() ? "local" : "unknown";
+    } catch {
+      return "unknown";
+    }
+  }
   return environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined ? "local" : "unknown";
 }
 function localServerRouteEnabled(source, readiness) {
@@ -63241,9 +63253,10 @@ function resolvePublicRetroRoute(input) {
   });
   if (builtSource === undefined)
     return;
+  const isCanary = selectedLocalRetroCanary(input.canaryHarness) === harness;
   const localSource = {
     ...builtSource,
-    hostClass: localRetroHostClass(input.agent, input.environment)
+    hostClass: localRetroHostClass(input.agent, input.environment, input.socketStatus)
   };
   const serverReady = input.serverReady ?? validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
     ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
@@ -63251,7 +63264,7 @@ function resolvePublicRetroRoute(input) {
     now: new Date,
     relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled
   });
-  const useServerRoute = localServerRouteEnabled(localSource, serverReady);
+  const useServerRoute = localServerRouteEnabled(localSource, serverReady || isCanary);
   return {
     attemptsDirectory: nodePath109.join(input.projectDirectory, ".safeword", "retro-attempts"),
     now: () => performance.now(),
@@ -63363,7 +63376,7 @@ async function retroReconcileCommand(dependencies = {}) {
   info2(`reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.deferred.length} deferred to a later run, ${result.failed.length} failed`);
   success2("reconcile complete");
 }
-var SHARED_HEADLESS_ENVIRONMENT_KEYS, CLAUDE_HEADLESS_ENVIRONMENT_KEYS, CODEX_HEADLESS_ENVIRONMENT_KEYS, CURSOR_RETRO_DENY_RULES, INVALID_RELAY_OUTBOX_ERROR = "retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project";
+var SAFEWORD_LOCAL_RETRO_CANARY_HARNESS, SHARED_HEADLESS_ENVIRONMENT_KEYS, CLAUDE_HEADLESS_ENVIRONMENT_KEYS, CODEX_HEADLESS_ENVIRONMENT_KEYS, CURSOR_RETRO_DENY_RULES, INVALID_RELAY_OUTBOX_ERROR = "retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project";
 var init_retro = __esm(() => {
   init_cursor_state();
   init_dogfood();
@@ -63382,6 +63395,7 @@ var init_retro = __esm(() => {
   init_relay_readiness();
   init_triage();
   init_version();
+  SAFEWORD_LOCAL_RETRO_CANARY_HARNESS = typeof __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__ === "string" ? __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__ : undefined;
   SHARED_HEADLESS_ENVIRONMENT_KEYS = [
     "ALL_PROXY",
     "APPDATA",
