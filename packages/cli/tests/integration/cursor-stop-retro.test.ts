@@ -25,6 +25,7 @@ import {
   removeTemporaryDirectory,
   retroDraft,
   TIMEOUT_QUICK,
+  writeGateConfig,
   writeSelfReportConfig as writeConfig,
 } from '../helpers';
 
@@ -88,6 +89,7 @@ describe('cursor/stop.ts retro path (KHYXY4)', () => {
 
   beforeEach(() => {
     dir = createTemporaryDirectory();
+    writeGateConfig(dir, { stopQualityReview: true });
   });
   afterEach(() => {
     removeTemporaryDirectory(dir);

@@ -17,6 +17,7 @@ import {
   createTemporaryDirectory,
   initGitRepo,
   removeTemporaryDirectory,
+  writeGateConfig,
   writeTestFile,
 } from '../helpers';
 
@@ -53,6 +54,7 @@ function moveArchitectureFingerprint(cwd: string): void {
 
 function buildProject(phase: string, options: { architectureDrift?: boolean } = {}): string {
   const cwd = createTemporaryDirectory();
+  writeGateConfig(cwd, { stopQualityReview: true });
   initGitRepo(cwd);
   writeTestFile(cwd, '.safeword/.gitkeep', '');
   writeTestFile(cwd, 'ARCHITECTURE.md', '# Architecture\n\nHuman narrative.\n');

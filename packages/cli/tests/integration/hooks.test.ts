@@ -35,6 +35,7 @@ import {
   removeTemporaryDirectory,
   setupOrThrow,
   TIMEOUT_SETUP_HOOK,
+  writeGateConfig,
   writeTestFile,
 } from '../helpers';
 
@@ -57,6 +58,9 @@ beforeAll(async () => {
   await setupOrThrow(shared.projectDirectory, ['setup', '--yes', '--agents', 'cursor'], {
     env: INSTALL_DEPENDENCIES_ENV,
   });
+  // After setup: setup owns config.json creation, and a pre-seeded one fails the
+  // run. These cases assert the Stop-time review fires, which is opt-in now.
+  writeGateConfig(shared.projectDirectory, { stopQualityReview: true });
 });
 
 afterAll(() => {
