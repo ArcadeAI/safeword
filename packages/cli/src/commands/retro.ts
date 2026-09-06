@@ -87,6 +87,19 @@ import {
 import { type Encounter, type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 import { VERSION } from '../version.js';
 
+declare const __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__: PublicRetroSource['harness'] | undefined;
+
+const SAFEWORD_LOCAL_RETRO_CANARY_HARNESS =
+  typeof __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__ === 'string'
+    ? __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__
+    : undefined;
+
+function selectedLocalRetroCanary(
+  override: PublicRetroSource['harness'] | undefined,
+): PublicRetroSource['harness'] | undefined {
+  return override ?? SAFEWORD_LOCAL_RETRO_CANARY_HARNESS;
+}
+
 /** Reads a transcript and returns raw, un-sanitized findings (the LLM boundary). */
 type FindingExtractor = (transcript: string) => Promise<unknown[]>;
 
@@ -314,7 +327,7 @@ function serverRecoveryNeeded(
   findingCount: number,
   outcome: PublicRetroDeliveryOutcome | undefined,
 ): boolean {
-  return findingCount > 0 && (outcome === undefined || outcome === 'abandoned');
+  return findingCount > 0 && outcome !== 'preserved' && outcome !== 'already-owned';
 }
 
 /**
@@ -1280,25 +1293,36 @@ function publicHarness(agent: RetroAgent): 'claude-code' | 'codex' | 'cursor' | 
 export function localRetroHostClass(
   agent: RetroAgent,
   environment: NodeJS.ProcessEnv,
-  socketStatus: (path: string) => unknown = statSync,
+  socketStatus: (path: string) => { isSocket(): boolean } = statSync,
 ): PublicRetroSource['hostClass'] {
-  if (agent !== 'cursor') return nonCursorHostClass(agent, environment);
+  if (agent !== 'cursor') return nonCursorHostClass(agent, environment, socketStatus);
+  const cursorSocketConfigured = environment.CURSOR_AGENT_SOCKET !== undefined;
   const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
   const socketPath = configuredSocket || '/run/cursor/api.sock';
   try {
+    // Any reachable node at Cursor's managed-runtime path makes locality indeterminate.
     socketStatus(socketPath);
     return 'unknown';
   } catch (error_) {
     const error = error_ as NodeJS.ErrnoException;
-    return error.code === 'ENOENT' && configuredSocket === undefined ? 'local' : 'unknown';
+    return error.code === 'ENOENT' && !cursorSocketConfigured ? 'local' : 'unknown';
   }
 }
 
 function nonCursorHostClass(
   agent: RetroAgent,
   environment: NodeJS.ProcessEnv,
+  socketStatus: (path: string) => { isSocket(): boolean },
 ): PublicRetroSource['hostClass'] {
-  if (agent === 'codex') return 'unknown';
+  if (agent === 'codex') {
+    const toolsPipe = environment.CODEX_APP_TOOLS_PIPE_PATH?.trim();
+    if (!toolsPipe) return 'unknown';
+    try {
+      return socketStatus(toolsPipe).isSocket() ? 'local' : 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  }
   return environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined ? 'local' : 'unknown';
 }
 
@@ -1321,11 +1345,13 @@ function publicRetroEligible(input: {
 
 export function resolvePublicRetroRoute(input: {
   agent: RetroAgent;
+  canaryHarness?: PublicRetroSource['harness'];
   enabled: boolean;
   environment: NodeJS.ProcessEnv;
   projectDirectory: string;
   serverReady?: boolean;
   sessionId?: string;
+  socketStatus?: (path: string) => { isSocket(): boolean };
   transcript?: string;
 }): NonNullable<RetroDependencies['publicRetro']> | undefined {
   if (!publicRetroEligible(input)) return undefined;
@@ -1337,9 +1363,10 @@ export function resolvePublicRetroRoute(input: {
     osFamily: platform(),
   });
   if (builtSource === undefined) return undefined;
+  const isCanary = selectedLocalRetroCanary(input.canaryHarness) === harness;
   const localSource = {
     ...builtSource,
-    hostClass: localRetroHostClass(input.agent, input.environment),
+    hostClass: localRetroHostClass(input.agent, input.environment, input.socketStatus),
   };
   const serverReady =
     input.serverReady ??
@@ -1349,7 +1376,7 @@ export function resolvePublicRetroRoute(input: {
       now: new Date(),
       relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,
     });
-  const useServerRoute = localServerRouteEnabled(localSource, serverReady);
+  const useServerRoute = localServerRouteEnabled(localSource, serverReady || isCanary);
   return {
     attemptsDirectory: nodePath.join(input.projectDirectory, '.safeword', 'retro-attempts'),
     now: () => performance.now(),

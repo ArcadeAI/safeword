@@ -292,8 +292,91 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('keeps a stock build on the direct route while checked-in readiness is disabled', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-default-route-'));
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'claude',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+          sessionId: 'session-fixture',
+        }),
+      ).not.toHaveProperty('route');
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it('routes only the build-selected local canary harness through the server', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-canary-route-'));
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'codex',
+          canaryHarness: 'codex',
+          enabled: true,
+          environment: { CODEX_APP_TOOLS_PIPE_PATH: '/tmp/codex-app-tools.sock' },
+          socketStatus: () => ({ isSocket: () => true }),
+          projectDirectory: project,
+          sessionId: 'session-fixture',
+        }),
+      ).toMatchObject({
+        route: 'server-v3',
+        source: { harness: 'codex', hostClass: 'local' },
+      });
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'codex',
+          canaryHarness: 'codex',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+          sessionId: 'session-fixture',
+        }),
+      ).not.toHaveProperty('route');
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'claude',
+          canaryHarness: 'codex',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+          sessionId: 'session-fixture',
+        }),
+      ).not.toHaveProperty('route');
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
   it('fails closed when Codex locality cannot be proven', () => {
     expect(localRetroHostClass('codex', {})).toBe('unknown');
+    expect(
+      localRetroHostClass(
+        'codex',
+        { CODEX_APP_TOOLS_PIPE_PATH: '/tmp/codex-app-tools.sock' },
+        () => ({ isSocket: () => true }),
+      ),
+    ).toBe('local');
+    expect(
+      localRetroHostClass('codex', { CODEX_APP_TOOLS_PIPE_PATH: '/tmp/not-a-socket' }, () => ({
+        isSocket: () => false,
+      })),
+    ).toBe('unknown');
     expect(
       localRetroHostClass('codex', {
         CODEX_MODEL: 'gpt-fixture',
@@ -310,7 +393,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     };
 
     expect(localRetroHostClass('cursor', {}, missing)).toBe('local');
-    expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '' }, missing)).toBe('local');
+    expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '' }, missing)).toBe('unknown');
     expect(localRetroHostClass('cursor', {}, () => ({ isSocket: () => true }))).toBe('unknown');
     expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '/custom.sock' }, missing)).toBe(
       'unknown',
@@ -1454,6 +1537,53 @@ describe('retro command configuration, extraction, egress, and relay execution',
       expect(second.agentFilingNeeded).toBe(false);
       expect(publicTransport).toHaveBeenCalledOnce();
       expect(privateTransport.issues).toHaveLength(0);
+      expect(readServerSpooledDrafts(projectDirectory, sessionId)).toEqual([]);
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('retries a retained server-v3 request on the next matching retro run', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-server-retry-'));
+    const sessionId = 'server-retry-session';
+    const requests: { body: Uint8Array; requestId: string }[] = [];
+    const publicTransport = vi.fn(request => {
+      requests.push({
+        body: request.body,
+        requestId: request.headers['x-safeword-request-id'],
+      });
+      if (requests.length === 1) return Promise.reject(new Error('collector unavailable'));
+      const firstRequest = requests[0];
+      if (firstRequest === undefined) throw new Error('missing first collector request');
+      return Promise.resolve({ receipt: 'server-receipt', requestId: firstRequest.requestId });
+    });
+    const sharedDependencies = dependencies({
+      projectDirectory,
+      publicRetro: {
+        attemptsDirectory: nodePath.join(projectDirectory, '.safeword/public-retro-attempts'),
+        now: () => 0,
+        randomUUID: () => '11111111-2222-4333-8444-555555555555',
+        route: 'server-v3',
+        source: {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          safewordCliVersion: '0.82.1',
+        },
+        transport: publicTransport,
+      },
+      sessionId,
+      transport: new FakeGitHub(),
+    });
+
+    try {
+      const failed = await runRetro({ transcript: '/tmp/t.jsonl' }, sharedDependencies);
+      const recovered = await runRetro({ transcript: '/tmp/t.jsonl' }, sharedDependencies);
+
+      expect(failed.agentFilingNeeded).toBe(true);
+      expect(recovered.agentFilingNeeded).toBe(false);
+      expect(publicTransport).toHaveBeenCalledTimes(2);
+      expect(requests[1]).toEqual(requests[0]);
       expect(readServerSpooledDrafts(projectDirectory, sessionId)).toEqual([]);
     } finally {
       rmSync(projectDirectory, { force: true, recursive: true });
