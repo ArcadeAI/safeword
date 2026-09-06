@@ -18,3 +18,13 @@
 Unit and Cucumber tests use isolated fake Claude executables. The installer was additionally verified with real Claude Code in a disposable Tart VM; see tart-verification.md. Authenticated BDD activation and intake passed in the VM; a second project loaded the global skill successfully, both projects produced valid hook proof and healthy status, and an incomplete phase transition was blocked. The complete feature-development lifecycle was attempted but remains unverified: the VM reviewer cannot run with its enterprise MCP configuration. Scenario authoring and implementation planning were reached; TDD and closeout were not completed. The host Claude profile was untouched. No release was published; full suite was not run.
 
 - Authenticated follow-up: final intake session and second-project session exited successfully; real cached skill reads, populated intake artifacts, per-project hook proof, and healthy user-scope status verified from saved evidence.
+
+## Current-main verification — 2026-09-06
+
+- ✓ 55/55 targeted CLI/profile tests pass after rebase.
+- **Gherkin:** 102/102 scenarios and 4,787/4,787 steps pass.
+- **Documentation:** 11/11 documentation contract tests pass.
+- **Website build:** Astro production build succeeds (9 pages).
+- **Claude plugin:** Release contract passes and both generated runtimes were regenerated from current source.
+- **PR Scope:** ✅ Diff matches ticket scope; all public Claude-scope guidance now describes user scope as the default and project scope as explicit.
+- **Evidence limit:** Full Tart lifecycle remains blocked by guest reviewer authentication/policy and disk capacity; existing installation and authenticated activation evidence remains valid for the older v0.83.1 payload.

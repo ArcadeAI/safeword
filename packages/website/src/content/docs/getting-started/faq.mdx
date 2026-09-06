@@ -92,7 +92,7 @@ Yes. Run `bunx safeword uninstall --agents=none --full` to preview the removal, 
 
 ### What if I only want some of the features?
 
-Claude Code uses the project-scoped Safeword plugin by default with `safeword install --agents=claude`; choose `--scope user` to activate it across projects. Cursor hooks remain in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. After the exact current plugin proves it handled a prompt, Safeword automatically retires only recognized legacy Claude entries. Existing custom, modified, malformed, or third-party settings remain yours and are reported without blocking the prompt. See [Configuration](/reference/configuration) for details.
+Claude Code uses the user-scoped Safeword plugin by default with `safeword install --agents=claude`; choose `--scope project` to limit activation to the current project. Cursor hooks remain in `.cursor/hooks.json`; Codex uses its profile-scoped plugin. After the exact current plugin proves it handled a prompt, Safeword automatically retires only recognized legacy Claude entries. Existing custom, modified, malformed, or third-party settings remain yours and are reported without blocking the prompt. See [Configuration](/reference/configuration) for details.
 
 <footer class="docs-footer">
 

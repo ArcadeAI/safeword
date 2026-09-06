@@ -178,7 +178,7 @@ may miss issues, and is not merge-safety evidence.
 
 Install auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
 
-Claude Code delivery is separate from project reconciliation. `safeword install --agents=claude` defaults to project scope and records Claude's marketplace and plugin activation in `.claude/settings.json`; `--scope user` activates the same cached plugin across projects. Eligible stable declarations use the verified `stable` channel and opt into Claude's native marketplace updater. An explicit `autoUpdate: false` remains authoritative. Fresh install does not create legacy Safeword-owned Claude hooks or skills.
+Claude Code delivery is separate from project reconciliation. `safeword install --agents=claude` defaults to user scope and activates the cached plugin across projects; `--scope project` records Claude's marketplace and plugin activation in `.claude/settings.json`. Eligible stable declarations use the verified `stable` channel and opt into Claude's native marketplace updater. An explicit `autoUpdate: false` remains authoritative. Fresh install does not create legacy Safeword-owned Claude hooks or skills.
 
 OpenCode is explicit and non-persisted: `safeword install --agents=opencode`
 installs a managed profile plugin plus declarative project commands and agents,
@@ -193,8 +193,8 @@ OpenCode Desktop remains advisory until it dispatches the same hooks reliably.
 
 ```bash
 safeword install --agents=claude
-# Or intentionally activate it across projects:
-safeword install --agents=claude --scope user
+# Or limit activation to this project:
+safeword install --agents=claude --scope project
 # In the current Claude Code task:
 /reload-plugins
 safeword claude status
@@ -204,7 +204,7 @@ safeword claude cleanup
 safeword claude recover # only when status reports recovery-required
 ```
 
-The deprecated `claude install` route selects and verifies only the official stable plugin at project scope by default; it does not reconcile project configuration. Use `safeword install --agents=claude` for the canonical project-plus-Claude flow. Pass `--scope user` to the legacy route for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next successful prompt records proof bound to the installed version and bundled hook manifest, then automatically retires exact catalogued legacy Safeword files and settings entries. Modified, malformed, unknown, and third-party content is preserved with a non-blocking advisory. `claude status` is read-only; `claude cleanup` remains an explicit diagnostic/repair path. Neither path installs, updates, enables, reloads, or trusts a plugin.
+The deprecated `claude install` route selects and verifies only the official stable plugin at user scope by default; it does not reconcile project configuration. Use `safeword install --agents=claude` for the canonical project-plus-Claude flow. Pass `--scope project` to the legacy route for project-local activation recorded in `.claude/settings.json`. After install or update, `/reload-plugins` activates it in the current task; the next successful prompt records proof bound to the installed version and bundled hook manifest, then automatically retires exact catalogued legacy Safeword files and settings entries. Modified, malformed, unknown, and third-party content is preserved with a non-blocking advisory. `claude status` is read-only; `claude cleanup` remains an explicit diagnostic/repair path. Neither path installs, updates, enables, reloads, or trusts a plugin.
 
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 

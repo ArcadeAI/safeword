@@ -7,7 +7,7 @@ Change Safeword's Claude default activation from project scope to user scope whi
 ## Repository state
 
 Branch: `codex/claude-user-scope-default`
-Base: `f15c55f7a` (`v0.83.1`)
+Current base: `f3a25692f` (`origin/main` as of 2026-09-06)
 Ticket: `.project/tickets/U7K9CM-enable-claude-across-projects/`
 
 The implementation and deterministic verification are complete. The ticket stays in progress only because the requested full authenticated VM lifecycle has not reached independent review, TDD, verification, and closeout.
@@ -23,14 +23,14 @@ Changed behavior:
 
 ## Verified evidence
 
-- 65/65 targeted Vitest tests passed; the final Claude profile file passed 22/22.
+- 55/55 current-main targeted Vitest tests passed after rebase; the earlier pre-rebase run passed 65/65.
 - 102/102 affected Cucumber scenarios and 4,787/4,787 steps passed.
 - All 28 selected release assertions passed. One catalogue check exceeded its default 15-second timeout and passed 8/8 unchanged with a 60-second timeout.
 - ESLint and `git diff --check` passed.
 - Real Tart installation passed for default command, unified install, explicit project scope, idempotence, cross-project visibility/isolation, plugin discovery, and generated consumer BDD starters.
 - Authenticated Claude loaded `safeword:bdd` from user scope in two projects, created intake artifacts, emitted valid hook proofs, and was blocked on an invalid early phase transition.
 
-See `verify.md` and `tart-verification.md` for exact details.
+Documentation contract tests pass 11/11 and the website production build succeeds. See `verify.md` and `tart-verification.md` for exact details.
 
 ## Remaining VM lifecycle
 
@@ -40,7 +40,7 @@ The original VM's independent Claude reviewer cannot run because root-owned ente
 
 A native Codex 0.152.1 reviewer was copied into an owner-only path and all required flags were verified, but its isolated profile was not logged in. On this host the retained VM is `safeword-scope-U7K9CM`; the profile is `/Users/admin/safeword-scope-test/codex-reviewer-profile`, the tools directory is `/Users/admin/safeword-review-tools`, and the Claude session ID is `c89df7fe-4892-4ea3-ae3c-37bcbc7b072b`. Those machine-local details are optional evidence, not dependencies for continuing elsewhere.
 
-On another computer, prefer a fresh Tart VM without `/Library/Application Support/ClaudeCode/managed-mcp.json`. Install Node, Bun, Claude Code, and the branch's packed Safeword CLI; authenticate only inside the VM. If the image has managed MCP configuration, use an authenticated compatible Codex CLI as the independent reviewer. Never copy host credentials into the guest.
+The retained VM now also lacks enough disk space to replace the test package (`ENOSPC`), its isolated Codex profile remains unauthenticated, and OpenCode is absent. On another computer, use a fresh Tart VM without `/Library/Application Support/ClaudeCode/managed-mcp.json`. Install Node, Bun, Claude Code, and the branch's packed Safeword CLI; authenticate only inside the VM. If the image has managed MCP configuration, use an authenticated compatible Codex CLI as the independent reviewer. Never copy host credentials into the guest.
 
 Then recreate or continue a tiny no-dependency Node greeting CLI through the installed `safeword:bdd` workflow. Require the real coordinator's independent scenario and plan review evidence, complete RED/GREEN/REFACTOR, run behavioral verification, create `verify.md`, and close the disposable guest ticket. Archive logs and record any limits in this task ticket. This VM exercise validates the installed released plugin payload 0.83.1 plus the changed local installer; it is not a published candidate-release upgrade test.
 

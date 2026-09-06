@@ -53,3 +53,7 @@ Raw CLI JSON, real Claude observations, the VM script, BDD logs, the initial una
 ## Full lifecycle follow-up
 
 Attempted the greeting feature through real BDD. Authored scenarios and implementation plan; supplemental reviews improved whitespace and error-output coverage. Independent review could not run: after correcting executable placement, Claude exits because `--strict-mcp-config` conflicts with the guest enterprise MCP configuration. No independent stamp was produced. TDD and closeout remain unverified. See reviewer-investigation.md for the reproduced error and options. Test session interrupted and VM stopped with artifacts retained.
+
+## Current-main retry — 2026-09-06
+
+Rebased the implementation onto `origin/main` at `f3a25692f` and packed the current 0.83.1 working tree. The retained VM still has valid Claude authentication, but cannot provide current independent review: its isolated Codex profile is not logged in, OpenCode is not installed, and the Claude route still conflicts with the root-managed enterprise MCP configuration. Installing the rebased package into the guest failed with `ENOSPC` (roughly 416 MiB was available). This attempt produced no new review receipt and does not extend the earlier lifecycle evidence. Use a fresh or adequately provisioned VM for the remaining lifecycle.

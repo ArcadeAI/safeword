@@ -46,6 +46,27 @@ function surfaceFiles(path: string, pattern: string): string[] {
 }
 
 describe('public CLI documentation', () => {
+  it('documents user-scoped Claude activation as the default', () => {
+    const scopeGuides = [
+      'README.md',
+      'plugin/README.md',
+      'packages/website/src/content/docs/getting-started/faq.mdx',
+      'packages/website/src/content/docs/getting-started/quick-start.mdx',
+      'packages/website/src/content/docs/reference/cli.mdx',
+      'packages/website/src/content/docs/reference/configuration.mdx',
+      'packages/website/src/content/docs/reference/hooks-and-skills.mdx',
+    ];
+
+    for (const file of scopeGuides) {
+      const content = readFileSync(nodePath.join(REPO_ROOT, file), 'utf8');
+      expect(content, file).toMatch(/user[- ]scope|user profile|profile-wide/iu);
+      expect(content, file).toContain('--scope project');
+      expect(content, file).not.toMatch(
+        /project[- ]scoped? (?:[ia]s )?the default|defaults? to project scope/iu,
+      );
+    }
+  });
+
   it('teaches canonical v0.70 command names instead of retained aliases', () => {
     const generatedIndexHeaders = [
       '.project/learnings/INDEX.md',

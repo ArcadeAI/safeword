@@ -18,16 +18,16 @@ Safeword configures AI coding agents with proven development workflows:
 
 ```bash
 safeword claude install
-# Or, to enable Safeword across every project in this Claude profile:
-safeword claude install --scope user
+# Or, to limit activation to this project:
+safeword claude install --scope project
 # In Claude Code:
 /reload-plugins
 safeword claude status
 ```
 
-The installer pins the official release at project scope by default and records
-the declaration in `.claude/settings.json`. Explicit `--scope user` activation
-instead writes the Claude profile and leaves the repository unchanged. Status
+The installer pins the official release in the Claude user profile by default,
+activating Safeword across projects without changing `.claude/settings.json`.
+Explicit `--scope project` records activation in that project instead. Status
 reports one effective project installation when project and user declarations
 resolve to the exact same verified payload. Different versions or cache payloads
 remain a visible `scope-overlap`; neither declaration is removed automatically.
