@@ -1,10 +1,11 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { startReviewJob } from '../../src/review/job.js';
+import { executeRedProof } from '../../src/review/red-execution.js';
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -100,4 +101,42 @@ describe('trusted executable RED observation', () => {
       },
     });
   });
+
+  it.skipIf(process.platform === 'win32')(
+    'terminates descendants spawned by a timed-out proof',
+    async () => {
+      const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-red-descendant-'));
+      const pidPath = nodePath.join(cwd, 'descendant.pid');
+      let descendantPid: number | undefined;
+
+      try {
+        await executeRedProof({
+          projectRoot: cwd,
+          sourceFingerprint: 'f'.repeat(64),
+          request: {
+            argv: [
+              process.execPath,
+              '-e',
+              `const { spawn } = require('node:child_process'); const { writeFileSync } = require('node:fs'); const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' }); writeFileSync(${JSON.stringify(pidPath)}, String(child.pid)); console.error('expected descendant timeout'); setInterval(() => {}, 1000);`,
+            ],
+            cwd: '.',
+            evidenceClass: 'pure-contract',
+            expectedFailure: 'expected descendant timeout',
+            timeoutMs: 50,
+          },
+        });
+        descendantPid = Number(readFileSync(pidPath, 'utf8'));
+
+        expect(() => process.kill(descendantPid, 0)).toThrow();
+      } finally {
+        if (descendantPid !== undefined) {
+          try {
+            process.kill(descendantPid, 'SIGKILL');
+          } catch {
+            // The expected path already terminated the descendant.
+          }
+        }
+      }
+    },
+  );
 });
