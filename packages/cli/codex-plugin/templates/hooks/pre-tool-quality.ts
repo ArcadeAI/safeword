@@ -728,7 +728,7 @@ if (isCanonicalTicketEdit) {
   const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
 
   if (proposedType === 'feature' && proposedPhase === 'implement' && priorPhase !== proposedPhase) {
-    const verdict = evaluateImplementEntry(nodePath.dirname(editedFile));
+    const verdict = evaluateImplementEntry(nodePath.dirname(editedFile), { projectDirectory });
     if (!verdict.ok) {
       deny(verdict.reason, verdict.remediation);
     }
