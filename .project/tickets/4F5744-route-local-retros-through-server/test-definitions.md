@@ -92,6 +92,12 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: Legacy collector rows are never leased to the worker
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ### Scenario: A typed intake rejection preserves local diagnosis
 
 - [x] RED
@@ -171,6 +177,18 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] REFACTOR
 
 ### Scenario: Incomplete ambiguity scan retains the request for reconciliation
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Relay acceptance anchors one retry deadline that remains stable
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Retry deadline exhaustion produces a durable alert
 
 - [x] RED
 - [x] GREEN
