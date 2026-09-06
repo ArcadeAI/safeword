@@ -28,6 +28,7 @@ Make the first executable acceptance proof a trustworthy checkpoint: before prod
 
 Affected:
 
+- Safeword CLI
 - Claude Code
 - Claude Code Cloud
 - OpenAI Codex
@@ -35,15 +36,12 @@ Affected:
 - Cursor
 - Cursor Cloud Agents
 
-Unaffected:
-
-- Safeword CLI — the review is an agent workflow contract unless later evidence justifies CLI enforcement.
-
 ## Vocabulary
 
 - **Primary proof:** The executable acceptance evidence designated to prove one behavior, even when multiple scenarios share a Scenario Outline or adapter.
 - **Proof plan:** A compact mapping from a behavior to actor entrypoint, observable result, evidence class, plausible defect, proof files, and whether the proof is new, reused, or changed.
-- **RED receipt:** Structured evidence from an independent reviewer that a primary proof was executed before production implementation and failed for the intended missing behavior.
+- **RED execution attestation:** Integrity-protected evidence produced by Safeword's trusted executor for the exact command and sealed proof inputs it ran before production implementation.
+- **RED review receipt:** Structured independent judgment that binds one execution attestation to the exact scenario, proof plan, and proof targets and confirms the observed failure came from the intended missing behavior.
 - **Evidence class:** The environment actually exercised, such as pure contract, simulated host, local live host, or external live host.
 
 ## Jobs To Be Done
@@ -54,7 +52,7 @@ Unaffected:
 
 > When my coding agent is about to implement a behavior, I want a separate reviewer to run and challenge its acceptance proof while the behavior is still missing, so I can trust that a later green result means something.
 
-#### executable-red.TBU1.R1 — Every distinct new or changed primary proof is independently executed before production implementation
+#### executable-red.TBU1.R1 — Every distinct new or changed primary proof is executed by Safeword against a sealed pre-implementation snapshot
 
 #### executable-red.TBU1.R2 — RED is accepted only when the intended missing behavior fails through the stated actor boundary
 
@@ -76,11 +74,11 @@ Unaffected:
 
 > When I evolve the BDD workflow, I want one host-neutral RED-review contract with explicit evidence, freshness, and reuse rules, so each coding agent gets equivalent protection without duplicated policy.
 
-#### executable-red.SWM1.R1 — One review packet contains the scenario or Rule, proof-plan row, primary proof and glue, related state/helpers, exact command, full output, and evidence class
+#### executable-red.SWM1.R1 — One review packet contains the scenario or Rule, proof-plan row, declared proof targets, evidence class, and Safeword-produced execution attestation
 
 #### executable-red.SWM1.R2 — One receipt may cover shared Scenario Outline rows or reused glue only when they use the same distinct proof implementation
 
-#### executable-red.SWM1.R3 — Production GREEN credit requires a fresh independent receipt; self-review or cached suite status is insufficient
+#### executable-red.SWM1.R3 — The advisory reports whether a fresh independent receipt exists; self-review or cached suite status is never presented as equivalent evidence
 
 ## Rave Moment
 
@@ -93,6 +91,7 @@ skip: child feature under a program; trustworthy RED should feel invisible and t
 - Review failures name whether the gap is actor boundary, scenario observable, wrong failure reason, stale evidence, umbrella delegation, or cached/shared state.
 - The normal path adds one bounded independent review, not a second end-to-end implementation cycle.
 - Review artifacts can feed the cross-agent quality evaluation without relying on agent self-report.
+- Route exhaustion remains advisory and names the exact retry or fallback action; no GREEN or done hard gate ships before FY1NHB measures route reliability and false positives.
 
 ## Open Questions
 
