@@ -12,7 +12,7 @@
     ],
     "A terminal preferred-reviewer failure skips retries": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "skips later models after a runtime-wide ranked-route failure"
+      "skips retries after a terminal preferred-reviewer failure and uses OpenCode"
     ],
     "OpenCode independently reviews Claude-authored work after Codex cannot complete": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -32,11 +32,17 @@
     ],
     "OpenCode is not started when the shared deadline cannot fund another route": [
       "packages/cli/tests/cli-protocol/review-run-bound.test.ts",
-      "stops starting routes once the bound cannot fund another one under $policy policy"
+      "leaves OpenCode unattempted when the remaining bound is unfunded under $policy policy"
     ],
     "OpenCode failure preserves the existing degraded policy outcome": [
-      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "records an OpenCode $routeFailure failure under $policy policy before returning degraded same-author feedback"
+      [
+        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+        "returns degraded same-author feedback after OpenCode fails under prefer policy"
+      ],
+      [
+        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+        "blocks after OpenCode fails under require policy"
+      ]
     ],
     "Claude is the preferred reviewer for OpenCode-authored work": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -90,13 +96,11 @@
     ],
     "A timed-out OpenCode route records no evidence": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "records an OpenCode $routeFailure failure under $policy policy before returning degraded same-author feedback",
-      "[\"timeout\",\"prefer\"]"
+      "records a timed-out OpenCode route without independent evidence"
     ],
     "A failed OpenCode process records no evidence": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "records an OpenCode $routeFailure failure under $policy policy before returning degraded same-author feedback",
-      "[\"process\",\"prefer\"]"
+      "records a failed OpenCode process without independent evidence"
     ],
     "Unsupported authors do not gain an OpenCode route": [
       [

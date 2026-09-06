@@ -155,4 +155,24 @@ describe('the run bound across routes', () => {
       ]);
     },
   );
+
+  it.each(['prefer', 'require'] as const)(
+    'leaves OpenCode unattempted when the remaining bound is unfunded under $policy policy',
+    async policy => {
+      const { routes, payload } = await runWithBounds(
+        { attemptMs: '2100', runBoundMs: '2500' },
+        policy,
+      );
+
+      expect(routes).toEqual(['codex default']);
+      expect(payload.data.review_routes).toContainEqual({
+        reviewer: 'opencode',
+        independence: 'cross-agent',
+        status: 'unattempted',
+      });
+      expect(payload.effects.network).toEqual([
+        { kind: 'review', target: 'codex', operation: 'request' },
+      ]);
+    },
+  );
 });
