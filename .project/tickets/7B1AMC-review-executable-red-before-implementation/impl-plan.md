@@ -75,7 +75,7 @@ execution attestation while retaining the existing coordinator and receipt store
 | --- | --- | --- | --- |
 | Optimize for the NTB without constraining the TBU | Default output says confirmed/not confirmed and gives one action; verbose JSON retains exact technical evidence | `packages/cli/tests/cli-protocol/executable-red-wiring.test.ts` | |
 | 1. Structure enforces; instructions suggest | Safeword, not the author, executes and integrity-seals the observable RED evidence | `packages/cli/tests/review/red-execution.test.ts` | |
-| 2. Fire at boundaries, not every turn | The workflow runs once for each new or changed distinct proof, immediately before GREEN implementation | generated workflow and rubric freshness checks | |
+| 2. Fire at boundaries, not every turn | The workflow runs once for each new or changed distinct proof, immediately before GREEN implementation | `packages/cli/tests/review/surface-parity.test.ts` | |
 | 5. Correct and safe; then clear; then simple | One review job lifecycle owns execution, review, freshness, and receipt integrity; no second store or dependency | `packages/cli/tests/review/job.test.ts` | |
 
 Architecture decisions honored: `ARCHITECTURE.md` section “Host-owned cross-agent adversarial
