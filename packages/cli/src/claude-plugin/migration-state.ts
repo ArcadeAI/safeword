@@ -84,6 +84,13 @@ const adopted = new Set<string>();
  * and a copy that completes but cannot be published. A crash between the two
  * orphans one `*.partial` entry, which no reader resolves and the next attempt
  * replaces.
+ *
+ * Removing the source is the caller's job, not this function's. Doing it here
+ * put a fallible step after publication and inside the same throw path, so a
+ * source that could not be deleted took the adoption receipt down with it —
+ * leaving two copies and nothing recording that the move had happened. Returns
+ * whether the source outlived the move: false when rename relocated it
+ * atomically, true when a staged copy left it in place.
  */
 export function relocateLegacyState(
   from: string,
@@ -92,10 +99,10 @@ export function relocateLegacyState(
   copy: (source: string, destination: string) => void = (source, destination) => {
     cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
   },
-): void {
+): boolean {
   try {
     rename(from, to);
-    return;
+    return false;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error;
   }
@@ -107,7 +114,7 @@ export function relocateLegacyState(
     rmSync(staging, { recursive: true, force: true });
     throw error;
   }
-  rmSync(from, { recursive: true, force: true });
+  return true;
 }
 
 /**
@@ -126,12 +133,20 @@ function adoptLegacyProjectState(cwd: string, directory: string): void {
     if (!existsSync(legacy)) continue;
     const destination = nodePath.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
     try {
-      if (existsSync(destination)) rmSync(legacy, { recursive: true, force: true });
-      else {
-        mkdirSync(directory, { recursive: true, mode: 0o700 });
-        relocateLegacyState(legacy, destination);
+      // A receipt means this key was adopted already, so the surviving source is
+      // inert — re-adopting it would overwrite newer state with a stale copy, or
+      // resurrect a transaction whose cleanup has since completed.
+      if (existsSync(adoptionReceipt(directory, key)) || existsSync(destination)) {
+        recordAdoption(directory, key);
+        rmSync(legacy, { recursive: true, force: true });
+        continue;
       }
+      mkdirSync(directory, { recursive: true, mode: 0o700 });
+      const sourceRemains = relocateLegacyState(legacy, destination);
+      // Ordering is the guarantee: once the destination is published, the
+      // receipt is written before anything that can still fail.
       recordAdoption(directory, key);
+      if (sourceRemains) rmSync(legacy, { recursive: true, force: true });
     } catch {
       // A repository we cannot write to must not fail the session. The legacy
       // copy stays put and the next run tries again.
@@ -196,6 +211,30 @@ export function claudeProjectStatePath(
   if (existsSync(adoptionReceipt(directory, key))) return adoptedPath;
   const legacy = nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
   return existsSync(legacy) ? legacy : adoptedPath;
+}
+
+/**
+ * Removes one per-project state entry from every location it can occupy.
+ *
+ * Resolution prefers the adopted path and falls back to a working-tree copy
+ * that adoption could not remove. Deleting only the resolved path would let the
+ * survivor take its place: a cleanup transaction retired after a completed
+ * migration would read as pending again on the next run, and recovery would
+ * loop. Removing both makes that impossible without depending on the adoption
+ * receipt being durable — the receipt narrows the window, this closes it.
+ */
+export function removeClaudeProjectState(
+  cwd: string,
+  key: keyof typeof CLAUDE_MIGRATION_SCHEMA.state,
+): void {
+  rmSync(nodePath.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]), {
+    recursive: true,
+    force: true,
+  });
+  rmSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]), {
+    recursive: true,
+    force: true,
+  });
 }
 
 function attemptsPath(cwd: string): string {

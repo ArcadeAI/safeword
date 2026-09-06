@@ -17,7 +17,6 @@ import {
   readSync,
   renameSync,
   rmdirSync,
-  rmSync,
   writeSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -39,6 +38,7 @@ import {
   claudeWatchedSettingsDigest,
   createClaudePluginMode,
   readClaudePluginMode,
+  removeClaudeProjectState,
   writeClaudeMigrationAttention,
   writeClaudePluginMode,
 } from './migration-state.js';
@@ -736,7 +736,7 @@ function performAutomaticMigration(
     };
   }
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, 'transaction');
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
@@ -1083,7 +1083,7 @@ function applyRecoveryEntries(projectRoot: string, pending: readonly PendingReco
 
 function completedRecoveryResult(projectRoot: string, transaction: CleanupTransaction): CliResult {
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, 'transaction');
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return createResult({
     state: 'changed',

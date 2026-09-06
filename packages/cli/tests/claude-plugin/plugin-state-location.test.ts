@@ -165,6 +165,31 @@ describe('cross-filesystem adoption (#3787 review follow-up)', () => {
     expect(readdirSync(root).filter(entry => entry.endsWith('.partial'))).toEqual([]);
   });
 
+  it('leaves the source for the caller to remove after a staged publish', () => {
+    // Removal used to happen inside the move, after publication and inside the
+    // same throw path — so a source that could not be deleted took the adoption
+    // receipt down with it, leaving two copies and no record of the move. The
+    // caller now owns that ordering, and this is the contract it depends on:
+    // publication reports whether the source outlived it.
+    const root = temporary('safeword-relocate-ordering-');
+    const from = nodePath.join(root, 'legacy');
+    const to = nodePath.join(root, 'adopted');
+    mkdirSync(from, { recursive: true });
+    writeFileSync(nodePath.join(from, 'cleanup-transaction-v1.json'), '{"transaction_id":"t"}\n');
+    let renames = 0;
+    const crossDeviceOnce = (source: string, destination: string): void => {
+      renames += 1;
+      if (renames === 1) crossDevice();
+      renameSync(source, destination);
+    };
+
+    const sourceRemains = relocateLegacyState(from, to, crossDeviceOnce);
+
+    expect(sourceRemains).toBe(true);
+    expect(existsSync(nodePath.join(from, 'cleanup-transaction-v1.json'))).toBe(true);
+    expect(readFileSync(nodePath.join(to, 'cleanup-transaction-v1.json'), 'utf8')).toContain('"t"');
+  });
+
   it('publishes the whole payload when the copy succeeds', () => {
     const root = temporary('safeword-relocate-ok-');
     const from = nodePath.join(root, 'legacy');
@@ -182,10 +207,12 @@ describe('cross-filesystem adoption (#3787 review follow-up)', () => {
       renameSync(source, destination);
     };
 
-    relocateLegacyState(from, to, crossDeviceOnce);
+    const sourceRemains = relocateLegacyState(from, to, crossDeviceOnce);
 
     expect(readFileSync(nodePath.join(to, 'cleanup-transaction-v1.json'), 'utf8')).toContain('"t"');
-    expect(existsSync(from)).toBe(false);
+    // The staged path leaves the source for the caller, which removes it only
+    // after the adoption receipt is durable.
+    expect(sourceRemains).toBe(true);
     expect(readdirSync(root).filter(entry => entry.endsWith('.partial'))).toEqual([]);
   });
 });
