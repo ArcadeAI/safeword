@@ -67,7 +67,7 @@ describe('trusted executable RED observation', () => {
     expect(attestation.stderr.sha256).toMatch(/^[a-f\d]{64}$/u);
   });
 
-  it('force-terminates proof processes that ignore the graceful timeout signal', async () => {
+  it('force-terminates proof processes at the configured timeout', async () => {
     const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-red-timeout-'));
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), '{"crossAgentReview":"off"}\n');
@@ -125,9 +125,10 @@ describe('trusted executable RED observation', () => {
             timeoutMs: 50,
           },
         });
-        descendantPid = Number(readFileSync(pidPath, 'utf8'));
+        const observedPid = Number(readFileSync(pidPath, 'utf8'));
+        descendantPid = observedPid;
 
-        expect(() => process.kill(descendantPid, 0)).toThrow();
+        expect(() => process.kill(observedPid, 0)).toThrow();
       } finally {
         if (descendantPid !== undefined) {
           try {
