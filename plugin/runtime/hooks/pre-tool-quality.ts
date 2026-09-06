@@ -30,6 +30,7 @@ import {
   hashArtifact,
   isCrossModelReviewRequired,
   isReviewGateEnabled,
+  reviewGateAppliesToPhase,
   modelsMatch,
   parseReviewStamps,
   readCrossAgentReviewPolicy,
@@ -45,6 +46,7 @@ import {
   recordFailure,
 } from './lib/quality-state.ts';
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
 import { evaluateImplementEntry } from './lib/plan-gate.ts';
@@ -167,11 +169,23 @@ function isMissingFrontmatterField(value: string | string[] | undefined): boolea
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
-// Both review gates (NMSD94, Tier 1 + Tier 2) are off unless `.safeword/config.json`
-// sets `reviewGate: true`. Shared so the two call sites can't drift on the path.
+// Tier 1 (per-asset) is off unless `.safeword/config.json` sets `reviewGate: true`
+// — it is per-asset, so it has no phase to select on and stays all-or-nothing.
+// Tier 2 asks reviewGateAppliesTo() instead, which also honors a phase list.
 function isReviewGateOn(): boolean {
   const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
   return isReviewGateEnabled(existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined);
+}
+
+// Whether the Tier 2 phase-exit gate enforces at THIS exit. `reviewGate: true`
+// (or an absent key) enforces everywhere; a phase list enforces only where it is
+// named (2VCSZY's selective posture).
+function reviewGateAppliesTo(phase: string): boolean {
+  const configFile = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  return reviewGateAppliesToPhase(
+    existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
+    phase,
+  );
 }
 
 // Whether phase-exit reviews must run on a different model than the author
@@ -735,48 +749,45 @@ if (isCanonicalTicketEdit) {
   }
 }
 
-// Review gate (NMSD94, Tier 2) — DEFAULT-OFF, same flag as Tier 1. On a
-// ticket.md edit that changes `phase:`, block leaving the phase until an
-// independent phase-exit review stamp exists for it. The stamp is produced from
-// the shared coordinator's validated result and logged via
-// `write-review-stamp.ts --phase`. Inert until reviewGate is enabled.
+// Review gate (NMSD94, Tier 2). On a ticket.md edit that changes `phase:`, block
+// leaving the phase until an independent phase-exit review stamp exists for it.
+// The stamp is produced from the shared coordinator's validated result and logged
+// via `write-review-stamp.ts --phase`. Enforced unless `reviewGate` excludes this
+// exit: absent or `true` covers every phase, a list covers only what it names.
 if (isCanonicalTicketEdit) {
-  if (isReviewGateOn()) {
-    const context = canonicalTicketEditContext();
-    const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
-    if (exitedPhase !== undefined) {
-      const ticketDirectory = nodePath.dirname(editedFile);
-      const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
-      const stamps = readReviewStamps(phaseScope);
-      if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
+  const context = canonicalTicketEditContext();
+  const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
+  // Phase first, then the flag: selective enforcement needs to know WHICH exit this
+  // is before it can decide whether the gate applies to it.
+  if (exitedPhase !== undefined && reviewGateAppliesTo(exitedPhase)) {
+    const ticketDirectory = nodePath.dirname(editedFile);
+    const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
+    const stamps = readReviewStamps(phaseScope);
+    if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
+      deny(
+        `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
+        `Run \`safeword review run ${reviewKindForPhase(exitedPhase)} <the work this phase produced>\`, then record its author_agent, actual_reviewer, independence and review id with \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`; add a model only when independently verified. To stop gating this exit, narrow \`reviewGate\` in .safeword/config.json to the phases you want (or set it to false).`,
+      );
+    }
+    // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
+    // model different from the author. Evaluate over ALL real-review stamps at this
+    // scope (the log is append-only, so a corrected re-review can follow a same-model
+    // attempt) — pass if any is cross-model. A logged skip records no real-review
+    // stamp, so it deliberately bypasses this, matching the arch-gate's escape valve.
+    else if (isCrossModelOn()) {
+      const realReviews = stamps.filter(s => s.scope === phaseScope && s.skipReason === undefined);
+      const hasCrossModelReview = realReviews.some(
+        s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
+      );
+      if (realReviews.length > 0 && !hasCrossModelReview) {
         deny(
-          `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
-          `Run the phase's \`safeword review run\` command, then record its author_agent, actual_reviewer, and independence with \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`; add a model only when independently verified.`,
+          `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
+          `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and actual_model via \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
         );
-      }
-      // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
-      // model different from the author. Evaluate over ALL real-review stamps at this
-      // scope (the log is append-only, so a corrected re-review can follow a same-model
-      // attempt) — pass if any is cross-model. A logged skip records no real-review
-      // stamp, so it deliberately bypasses this, matching the arch-gate's escape valve.
-      else if (isCrossModelOn()) {
-        const realReviews = stamps.filter(
-          s => s.scope === phaseScope && s.skipReason === undefined,
-        );
-        const hasCrossModelReview = realReviews.some(
-          s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
-        );
-        if (realReviews.length > 0 && !hasCrossModelReview) {
-          deny(
-            `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
-            `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and actual_model via \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
-          );
-        }
       }
     }
   }
 }
-
 // ---------------------------------------------------------------------------
 // blocked_on hard gate (ticket MBGQ89) — ALWAYS-ON. On a ticket.md edit that
 // advances phase out of intake, deny while any same-repo blocked_on target is

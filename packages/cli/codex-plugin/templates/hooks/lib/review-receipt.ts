@@ -54,6 +54,26 @@ export interface ReviewReceipt {
   readonly actualReviewer?: string;
 }
 
+/**
+ * The review kind that witnesses a given phase exit.
+ *
+ * Two exits have a specialist reviewer whose rubric is generated from the same
+ * skill that authors the artifact, so the kind and the phase name coincide.
+ * Every other exit is witnessed by the general `quality-review`.
+ *
+ * Before this mapping existed the check was `receipt.kind === claim.phase`,
+ * which quietly made five of the seven exits unsatisfiable: `review run` accepts
+ * only these three kinds, so a stamp for `intake`, `define-behavior`,
+ * `implement`, `verify` or `done` could never cite a matching review. The gate
+ * still blocked, but only an uncited stamp or a logged skip could clear it —
+ * which is not the independent review the gate exists to require (ticket KHL52X).
+ *
+ * Adding a specialist kind later narrows this fallback rather than widening it.
+ */
+export function reviewKindForPhase(phase: string): string {
+  return phase === 'scenario-gate' || phase === 'plan-implementation' ? phase : 'quality-review';
+}
+
 /** Levels that assert a coordinator ran and returned a verdict. */
 const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
 
@@ -170,10 +190,11 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
   const targets = receipt.targets ?? [];
 
   if (claim.phase !== undefined) {
-    if (receipt.kind !== claim.phase)
+    const requiredKind = reviewKindForPhase(claim.phase);
+    if (receipt.kind !== requiredKind)
       return {
         ok: false,
-        reason: `review ${receipt.reviewId} is a "${receipt.kind ?? 'unknown'}" review, not the "${claim.phase}" exit being stamped`,
+        reason: `review ${receipt.reviewId} is a "${receipt.kind ?? 'unknown'}" review, but the "${claim.phase}" exit needs a "${requiredKind}" review`,
       };
     if (!targets.some(target => relativeTicketTarget(target, claim) !== undefined))
       return {
