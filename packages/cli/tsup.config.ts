@@ -40,6 +40,17 @@ function gitText(arguments_: string[]): string {
   }).trim();
 }
 
+function trackedTreeIsClean(): boolean {
+  try {
+    execFileSync('git', ['diff-index', '--quiet', 'HEAD', '--'], {
+      maxBuffer: GIT_MAX_BUFFER_BYTES,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const COMMIT_PATTERN = /^[\da-f]{40}$/u;
 const SAFE_ARTIFACT_PATH = /^(?!-)(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\r\n]+$/u;
 
@@ -66,7 +77,7 @@ try {
 
 if (
   LOCAL_RETRO_CANARY_HARNESS !== undefined &&
-  (!COMMIT_PATTERN.test(buildCommit) || gitText(['status', '--porcelain']).length > 0)
+  (!COMMIT_PATTERN.test(buildCommit) || !trackedTreeIsClean())
 ) {
   throw new Error('local retro canary builds require a clean committed source tree');
 }
