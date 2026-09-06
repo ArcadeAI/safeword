@@ -1768,7 +1768,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        'be7df9e38c4c95392b3e054c3cb9898eef7478bd7ee6b8e80d3325dc1bdc4eb3',
+        '4c30770536486aacb382abe97de68c6604035572eb3923c5728d91928883c556',
       '.claude/skills/bdd/SCENARIOS.md':
         'a12f8574734678367dc91b0c84e5bc390e51ad6ceee00fcf890a5b4ac7572bc5',
       '.claude/skills/bdd/SKILL.md':
@@ -1776,7 +1776,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        'b92749565e2e89c4e9e5859605dcee905853a826771fa912cfb6aa986409b2f7',
+        '57985db169dd5dec836abe6de9fc80a6a680b679234652d91cd51922c7332e79',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -1812,7 +1812,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         'd01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d',
       '.claude/skills/review-spec/SKILL.md':
-        'c0bfb8fdc08c13764c93daf91b3807d04eb59984313cab3e424a5243eb1d8429',
+        '2a207556955728bc8045204ac16d663047ba02aff05a9aaf3625142d23a0aaa4',
       '.claude/skills/self-review/SKILL.md':
         'e2c56e6ac5427cd64386234129a5dffa4030c2baabd0cb4fb8e159e6750998db',
       '.claude/skills/spike/SKILL.md':
@@ -1850,7 +1850,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        'cf0af5ea412b487aa4cd3ed514123d6bd689056a57cd41bca511d01dfcf6831e',
+        '79198be1d29ebddc47bfa2854e2bfc7911f3586482203bdbc21bf5d22abfee5a',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
@@ -1866,7 +1866,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-auto-upgrade.ts':
         '51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0',
       '.safeword/hooks/session-bun-check.sh':
-        '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29',
       '.safeword/hooks/session-cleanup-quality.ts':
         'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
       '.safeword/hooks/session-compact-context.ts':
@@ -1884,7 +1884,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
       '.safeword/hooks/stop-quality.ts':
-        'bf6faa1401fd655fe9ac64cde87cd47fa0accac96f300487a2528c9491a06d13',
+        'a05663d018bbdfaace593942da04c8b9d52e7ab743c9820d6249fcec93df603b',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':

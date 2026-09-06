@@ -122,37 +122,75 @@ export async function reviewRoutesSetHandler(invocation: CommandInvocation): Pro
   });
 }
 
+const REVIEW_ROUTE_AUTHORS = ['claude', 'codex', 'opencode'] as const;
+const REVIEW_ROUTE_CONFIG_KEY = 'crossAgentReviewRoutes';
+
 export async function reviewRoutesListHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const author = reviewRouteAuthor(invocation.options.author);
-  if (author === undefined)
+  const requested = reviewRouteAuthor(invocation.options.author);
+  if (requested === undefined && invocation.options.author !== undefined)
     return invalidOperand('review routes list', 'Provide --author as claude, codex, or opencode.');
-  const [{ effectiveConfiguredRoutes }, { builtInReviewRoutes }] = await Promise.all([
-    import('../review/preferences.js'),
-    import('../review/policy.js'),
-  ]);
-  let configured: ReturnType<typeof effectiveConfiguredRoutes>;
-  try {
-    configured = effectiveConfiguredRoutes(invocation.cwd, author);
-  } catch (error) {
-    return reviewRoutesFailure('review routes list', error);
+  // Without --author, list every author. Reviewer routing is the thing users
+  // come here to discover, so the read-only command should answer without
+  // first requiring the vocabulary it exists to teach.
+  const authors = requested === undefined ? REVIEW_ROUTE_AUTHORS : [requested];
+  const [{ effectiveConfiguredRoutes, scopedConfigPath }, { builtInReviewRoutes }] =
+    await Promise.all([import('../review/preferences.js'), import('../review/policy.js')]);
+
+  const listed: {
+    author: (typeof REVIEW_ROUTE_AUTHORS)[number];
+    source: string;
+    routes: readonly { reviewer: string; model?: string; independence: string }[];
+  }[] = [];
+  for (const author of authors) {
+    let configured: ReturnType<typeof effectiveConfiguredRoutes>;
+    try {
+      configured = effectiveConfiguredRoutes(invocation.cwd, author);
+    } catch (error) {
+      return reviewRoutesFailure('review routes list', error);
+    }
+    listed.push({
+      author,
+      ...(configured ?? {
+        source: 'built-in',
+        routes: builtInReviewRoutes(invocation.cwd, author),
+      }),
+    });
   }
-  const data = configured ?? {
-    source: 'built-in',
-    routes: builtInReviewRoutes(invocation.cwd, author),
-  };
+
+  // Project-scoped paths travel relative to the project, matching `routes set`
+  // and keeping the JSON envelope identical on every machine.
+  const projectConfig = nodePath.relative(
+    invocation.cwd,
+    scopedConfigPath(invocation.cwd, 'project'),
+  );
+  const body = [
+    ...listed.flatMap(entry => [
+      `${entry.author} review routes (${entry.source}):`,
+      ...entry.routes.map(
+        (route, index) =>
+          `${index + 1}. ${route.reviewer} (${route.model ?? 'runtime default'}) [${route.independence}]`,
+      ),
+      '',
+    ]),
+    `Change these with \`safeword review routes set --author <agent> --scope project --route <reviewer>\`,`,
+    `or edit the \`${REVIEW_ROUTE_CONFIG_KEY}\` key in ${projectConfig}.`,
+  ].join('\n');
+
+  const single = requested === undefined ? undefined : listed[0];
   return createResult({
     state: 'healthy',
-    presentation: {
-      kind: 'raw',
-      body: [
-        `${author} review routes (${data.source}):`,
-        ...data.routes.map(
-          (route, index) =>
-            `${index + 1}. ${route.reviewer} (${route.model ?? 'runtime default'}) [${route.independence}]`,
-        ),
-      ].join('\n'),
+    presentation: { kind: 'raw', body },
+    data: {
+      command: 'review routes list',
+      config_key: REVIEW_ROUTE_CONFIG_KEY,
+      config_path: projectConfig,
+      authors: listed,
+      ...(single !== undefined && {
+        author: single.author,
+        source: single.source,
+        routes: single.routes,
+      }),
     },
-    data: { command: 'review routes list', author, ...data },
   });
 }
 

@@ -9,7 +9,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -28,10 +29,47 @@ import {
   writeTestFile,
 } from '../helpers.js';
 
-const shared: { projectDirectory: string } = { projectDirectory: '' };
+const REVIEW_ID = 'b3f1c2d4-0000-4000-8000-000000000019';
+const shared: { pluginDirectory: string; projectDirectory: string } = {
+  pluginDirectory: '',
+  projectDirectory: '',
+};
+
+function installReviewCli(): void {
+  mkdirSync(nodePath.join(shared.pluginDirectory, 'runtime'), { recursive: true });
+  writeFileSync(
+    nodePath.join(shared.pluginDirectory, 'runtime', 'cli.js'),
+    [
+      "import { readFileSync } from 'node:fs';",
+      "import nodePath from 'node:path';",
+      'const argv = process.argv.slice(2);',
+      "if (argv[0] !== 'review' || argv[1] !== 'status') process.exit(1);",
+      "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', 'response.json'), 'utf8'));",
+    ].join('\n'),
+  );
+}
+
+function writeReviewResponse(id: string, status: string): void {
+  writeFileSync(
+    nodePath.join(shared.pluginDirectory, 'response.json'),
+    JSON.stringify({
+      data: {
+        review_id: REVIEW_ID,
+        status,
+        review_kind: 'plan-implementation',
+        review_targets: [`.project/tickets/${id}/impl-plan.md`],
+        independence: 'cross-agent',
+        author_agent: 'codex',
+        actual_reviewer: 'claude',
+      },
+    }),
+  );
+}
 
 beforeAll(async () => {
   shared.projectDirectory = createTemporaryDirectory();
+  shared.pluginDirectory = mkdtempSync(nodePath.join(tmpdir(), 'architecture-review-cli-'));
+  installReviewCli();
   createTypeScriptPackageJson(shared.projectDirectory);
   initGitRepo(shared.projectDirectory);
   await setupOrThrow(shared.projectDirectory);
@@ -39,6 +77,7 @@ beforeAll(async () => {
 
 afterAll(() => {
   if (shared.projectDirectory) removeTemporaryDirectory(shared.projectDirectory);
+  if (shared.pluginDirectory) rmSync(shared.pluginDirectory, { recursive: true, force: true });
 });
 
 function plan(decisions: string, status = 'implemented'): string {
@@ -109,14 +148,28 @@ function writeTicket(id: string, type: 'feature' | 'task', implPlan?: string, sp
 function writeStamp(
   id: string,
   planContent: string,
-  options: { model?: string; skip?: string; scopeId?: string; hashOf?: string } = {},
+  options: {
+    model?: string;
+    skip?: string;
+    scopeId?: string;
+    hashOf?: string;
+    witnessed?: boolean;
+  } = {},
 ): void {
   const scope = reviewScope(
     options.scopeId ?? id,
     'impl-plan',
     hashArtifact(options.hashOf ?? planContent),
   );
-  const line = `2026-06-12T00:00:00Z sess ${formatReviewStamp(scope, options.skip, options.model)}`;
+  const line = `2026-06-12T00:00:00Z sess ${formatReviewStamp(
+    scope,
+    options.skip,
+    options.model,
+    options.witnessed ? 'codex' : undefined,
+    options.witnessed ? 'claude' : undefined,
+    options.witnessed ? 'cross-agent' : undefined,
+    options.witnessed ? REVIEW_ID : undefined,
+  )}`;
   appendFileSync(
     nodePath.join(shared.projectDirectory, '.project', 'skill-invocations.log'),
     `${line}\n`,
@@ -151,6 +204,7 @@ function runStopHook(
   const childEnvironment: Record<string, string | undefined> = {
     ...process.env,
     CLAUDE_PROJECT_DIR: shared.projectDirectory,
+    CLAUDE_PLUGIN_ROOT: shared.pluginDirectory,
     ...env,
   };
   if (!('SAFEWORD_AUTHOR_MODEL' in env)) delete childEnvironment.SAFEWORD_AUTHOR_MODEL;
@@ -322,5 +376,23 @@ describe('architecture review gate (MR5M3A)', () => {
     const reason = runStopHook('ARG018', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' });
     expect(reason).not.toContain(CROSS_MODEL_MSG);
     expect(reason).not.toContain(REVIEW_MSG);
+  });
+
+  it('allows a hand-written coordinator claim that the receipt witnesses', () => {
+    setConfig({ architectureReviewGate: true });
+    writeTicket('ARG019', 'feature', CITED);
+    writeReviewResponse('ARG019', 'approved');
+    writeStamp('ARG019', CITED, { witnessed: true });
+
+    expect(runStopHook('ARG019')).not.toContain(REVIEW_MSG);
+  });
+
+  it('rejects a hand-written coordinator claim when the receipt did not approve', () => {
+    setConfig({ architectureReviewGate: true });
+    writeTicket('ARG020', 'feature', CITED);
+    writeReviewResponse('ARG020', 'changes_requested');
+    writeStamp('ARG020', CITED, { witnessed: true });
+
+    expect(runStopHook('ARG020')).toContain(REVIEW_MSG);
   });
 });

@@ -72,7 +72,8 @@ const CODEX_RESTART_INSTRUCTION = `${CODEX_REVIEW_THEN_RESTART_ACTION}.`;
  * typed human next action, so renderers must not repeat it here — a message and
  * a `Next:` line carrying the same sentence reads as a stutter, not as emphasis.
  */
-export const CODEX_RESTART_CONTEXT = 'This Codex app may keep its loaded Safeword catalogue.';
+export const CODEX_RESTART_CONTEXT =
+  'This Codex app may keep its loaded Safeword catalogue. Independent reviews are unaffected: they run a fresh Codex with hooks disabled.';
 export const CODEX_HOOK_ACTIVATION_FAILED_CONTEXT =
   'Codex restarted, but Safeword received no current lifecycle hook proof.';
 const CODEX_HOOK_ACTIVATION_FAILED_ACTION =
