@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -10,7 +10,26 @@ import type {
 } from './contract.js';
 
 const MAX_EXCERPT_BYTES = 64 * 1024;
-const FORCE_KILL_GRACE_MS = 250;
+
+function terminateProofTree(child: ChildProcess): void {
+  if (process.platform === 'win32' && child.pid !== undefined) {
+    const terminated = spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
+      stdio: 'ignore',
+      timeout: 1000,
+      windowsHide: true,
+    });
+    if (terminated.status === 0) return;
+  }
+  if (process.platform !== 'win32' && child.pid !== undefined) {
+    try {
+      process.kill(-child.pid, 'SIGKILL');
+      return;
+    } catch {
+      // Fall back to the direct child when process-group signaling is unavailable.
+    }
+  }
+  child.kill('SIGKILL');
+}
 
 function containedWorkingDirectory(root: string, requested: string): string {
   const canonicalRoot = realpathSync.native(root);
@@ -94,9 +113,9 @@ export async function executeRedProof(input: {
     timedOut: boolean;
   }>((resolve, reject) => {
     let timedOut = false;
-    let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
     const child = spawn(input.request.argv[0], input.request.argv.slice(1), {
       cwd,
+      detached: process.platform !== 'win32',
       env: process.env,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -110,7 +129,6 @@ export async function executeRedProof(input: {
     });
     const clearTimers = (): void => {
       clearTimeout(timer);
-      if (forceKillTimer !== undefined) clearTimeout(forceKillTimer);
     };
     child.once('error', error => {
       clearTimers();
@@ -118,10 +136,7 @@ export async function executeRedProof(input: {
     });
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGTERM');
-      forceKillTimer = setTimeout(() => {
-        child.kill('SIGKILL');
-      }, FORCE_KILL_GRACE_MS);
+      terminateProofTree(child);
     }, input.request.timeoutMs);
     child.once('close', (exitCode, signal) => {
       clearTimers();

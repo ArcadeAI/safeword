@@ -50652,10 +50652,28 @@ var exports_red_execution = {};
 __export(exports_red_execution, {
   executeRedProof: () => executeRedProof
 });
-import { spawn as spawn4 } from "child_process";
+import { spawn as spawn4, spawnSync as spawnSync12 } from "child_process";
 import { createHash as createHash29 } from "crypto";
 import { realpathSync as realpathSync15 } from "fs";
 import nodePath103 from "path";
+function terminateProofTree(child) {
+  if (process.platform === "win32" && child.pid !== undefined) {
+    const terminated = spawnSync12("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
+      stdio: "ignore",
+      timeout: 1000,
+      windowsHide: true
+    });
+    if (terminated.status === 0)
+      return;
+  }
+  if (process.platform !== "win32" && child.pid !== undefined) {
+    try {
+      process.kill(-child.pid, "SIGKILL");
+      return;
+    } catch {}
+  }
+  child.kill("SIGKILL");
+}
 function containedWorkingDirectory(root, requested) {
   const canonicalRoot = realpathSync15.native(root);
   const canonicalCwd = realpathSync15.native(nodePath103.resolve(canonicalRoot, requested));
@@ -50721,9 +50739,9 @@ async function executeRedProof(input) {
   const stderr = new StreamEvidence(input.request.expectedFailure);
   const termination = await new Promise((resolve, reject) => {
     let timedOut = false;
-    let forceKillTimer;
     const child = spawn4(input.request.argv[0], input.request.argv.slice(1), {
       cwd,
+      detached: process.platform !== "win32",
       env: process.env,
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
@@ -50737,8 +50755,6 @@ async function executeRedProof(input) {
     });
     const clearTimers = () => {
       clearTimeout(timer);
-      if (forceKillTimer !== undefined)
-        clearTimeout(forceKillTimer);
     };
     child.once("error", (error2) => {
       clearTimers();
@@ -50746,10 +50762,7 @@ async function executeRedProof(input) {
     });
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGTERM");
-      forceKillTimer = setTimeout(() => {
-        child.kill("SIGKILL");
-      }, FORCE_KILL_GRACE_MS);
+      terminateProofTree(child);
     }, input.request.timeoutMs);
     child.once("close", (exitCode, signal) => {
       clearTimers();
@@ -50783,7 +50796,7 @@ async function executeRedProof(input) {
     stderr: stderrEvidence
   };
 }
-var MAX_EXCERPT_BYTES, FORCE_KILL_GRACE_MS = 250;
+var MAX_EXCERPT_BYTES;
 var init_red_execution = __esm(() => {
   MAX_EXCERPT_BYTES = 64 * 1024;
 });
@@ -62671,7 +62684,7 @@ __export(exports_retro, {
   buildProvenanceResolver: () => buildProvenanceResolver,
   buildAutoExtractor: () => buildAutoExtractor
 });
-import { spawnSync as spawnSync12 } from "child_process";
+import { spawnSync as spawnSync13 } from "child_process";
 import { randomUUID as randomUUID13 } from "crypto";
 import {
   mkdirSync as mkdirSync20,
@@ -62926,7 +62939,7 @@ function headlessEnvironment(environment, agent) {
   }));
 }
 function spawnClaudeExtractor(argv, spawnOptions) {
-  const result = spawnSync12("claude", argv, {
+  const result = spawnSync13("claude", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -62936,7 +62949,7 @@ function spawnClaudeExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function spawnCodexExtractor(argv, spawnOptions) {
-  const result = spawnSync12("codex", argv, {
+  const result = spawnSync13("codex", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     stdio: spawnOptions.stdio,
@@ -62945,7 +62958,7 @@ function spawnCodexExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: "" });
 }
 function spawnCursorExtractor(argv, spawnOptions) {
-  const result = spawnSync12("cursor-agent", argv, {
+  const result = spawnSync13("cursor-agent", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -62955,7 +62968,7 @@ function spawnCursorExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function prepareCursorExtractionDirectory(directory) {
-  const gitInit = spawnSync12("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
+  const gitInit = spawnSync13("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
   const cursorDirectory = nodePath110.join(directory, ".cursor");
@@ -63538,7 +63551,7 @@ async function executeRetroCliCommand(options, cwd) {
     sessionId: options.sessionId ?? process17.env.CLAUDE_SESSION_ID ?? options.transcript ?? "unknown",
     resolveProvenance: buildProvenanceResolver({
       projectDirectory,
-      runGit: () => spawnSync12("git", ["rev-parse", "--short", "HEAD"], {
+      runGit: () => spawnSync13("git", ["rev-parse", "--short", "HEAD"], {
         cwd: projectDirectory,
         encoding: "utf8",
         timeout: 1e4
@@ -64330,7 +64343,7 @@ __export(exports_codex_hook, {
   normalizeNamespaceRootLabel: () => normalizeNamespaceRootLabel,
   codexHook: () => codexHook
 });
-import { spawnSync as spawnSync13 } from "child_process";
+import { spawnSync as spawnSync14 } from "child_process";
 import {
   cpSync as cpSync3,
   existsSync as existsSync53,
@@ -64558,7 +64571,7 @@ function resolvePackagedHook(relativePath) {
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
   const runtime = process21.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process21.execPath : "bun";
-  const result = spawnSync13(runtime, [hookPath], {
+  const result = spawnSync14(runtime, [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: "utf8",
