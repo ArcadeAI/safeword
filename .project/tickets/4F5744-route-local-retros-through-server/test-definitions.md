@@ -110,6 +110,12 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: Reusing one request identity with different bytes returns a typed conflict and preserves the accepted bytes
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ## Rule: local-retro-cutover.TBU1.R3 — Raw GitHub bodies are duplicate authority
 
 ### Scenario: Exact authority markers found by an all-state raw-body scan suppress a duplicate create
@@ -143,6 +149,12 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
+
+### Scenario: Collector-envelope and relay filing-payload digests cannot substitute for one another
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: An oversized envelope is rejected before storage
 
@@ -268,8 +280,8 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: A real Cursor session proves terminal production filing
 
-- [x] CAPTURED
-- [ ] VERIFIED — terminal filing is verified; session-scope correlation remains to be recorded
+- [ ] CAPTURED — recapture through a host-bound Cursor Desktop lifecycle and record its session scope
+- [ ] VERIFIED
 - [ ] LINKED IN READINESS MANIFEST
 
 ## Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance
