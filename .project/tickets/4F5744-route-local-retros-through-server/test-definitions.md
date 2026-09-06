@@ -226,8 +226,8 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: A real Claude Code session proves terminal production filing
 
-- [ ] CAPTURED
-- [ ] VERIFIED
+- [x] CAPTURED
+- [x] VERIFIED
 - [ ] LINKED IN READINESS MANIFEST
 
 ### Scenario: A real Codex session proves terminal production filing
@@ -238,8 +238,8 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: A real Cursor session proves terminal production filing
 
-- [ ] CAPTURED
-- [ ] VERIFIED
+- [x] CAPTURED
+- [x] VERIFIED
 - [ ] LINKED IN READINESS MANIFEST
 
 ## Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance
