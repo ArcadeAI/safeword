@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, rmSync } from 'node:fs';
+import process from 'node:process';
 
 import { defineConfig } from 'tsup';
 
@@ -8,6 +9,19 @@ const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
 const PUBLIC_RETRO_ORIGIN =
   process.env.SAFEWORD_PUBLIC_RETRO_BUILD_ORIGIN ??
   'https://retro-collector-production.up.railway.app';
+const CLI_PACKAGE_VERSION = (
+  JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8')) as {
+    version: string;
+  }
+).version;
+const LOCAL_RETRO_CANARY_HARNESS = process.env.SAFEWORD_LOCAL_RETRO_CANARY_HARNESS?.trim();
+
+if (
+  LOCAL_RETRO_CANARY_HARNESS !== undefined &&
+  !['claude-code', 'codex', 'cursor'].includes(LOCAL_RETRO_CANARY_HARNESS)
+) {
+  throw new Error('SAFEWORD_LOCAL_RETRO_CANARY_HARNESS must name a supported harness');
+}
 
 const manifestBytes = readFileSync(
   new URL('src/retro/relay-readiness-manifest.json', import.meta.url),
@@ -24,6 +38,17 @@ function gitText(arguments_: string[]): string {
     encoding: 'utf8',
     maxBuffer: GIT_MAX_BUFFER_BYTES,
   }).trim();
+}
+
+function trackedTreeIsClean(): boolean {
+  try {
+    execFileSync('git', ['diff-index', '--quiet', 'HEAD', '--'], {
+      maxBuffer: GIT_MAX_BUFFER_BYTES,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const COMMIT_PATTERN = /^[\da-f]{40}$/u;
@@ -48,6 +73,13 @@ try {
   buildCommit = gitText(['rev-parse', 'HEAD']);
 } catch {
   // Source archives build fail-closed with no relay attestation.
+}
+
+if (
+  LOCAL_RETRO_CANARY_HARNESS !== undefined &&
+  (!COMMIT_PATTERN.test(buildCommit) || !trackedTreeIsClean())
+) {
+  throw new Error('local retro canary builds require no tracked source changes');
 }
 
 type RelayBuildAttestation = {
@@ -151,6 +183,10 @@ export default defineConfig({
   skipNodeModulesBundle: true,
   define: {
     __SAFEWORD_BUILD_COMMIT__: JSON.stringify(buildCommit),
+    __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__:
+      LOCAL_RETRO_CANARY_HARNESS === undefined
+        ? 'undefined'
+        : JSON.stringify(LOCAL_RETRO_CANARY_HARNESS),
     __SAFEWORD_RELAY_BUILD_ATTESTATION__: JSON.stringify(relayBuildAttestation),
     __SAFEWORD_PUBLIC_RETRO_ORIGIN__: JSON.stringify(PUBLIC_RETRO_ORIGIN),
   },

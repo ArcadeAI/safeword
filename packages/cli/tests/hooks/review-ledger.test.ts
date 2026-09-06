@@ -12,6 +12,7 @@ import {
   gatePhaseAdvance,
   hashArtifact,
   isReviewGateEnabled,
+  isStopQualityReviewEnabled,
   parseReviewStamps,
   readCrossAgentReviewPolicy,
   reviewGateForNextAsset,
@@ -326,6 +327,25 @@ describe('isReviewGateEnabled (default-off rollout guard)', () => {
 
   it('is off on malformed config (fail-safe)', () => {
     expect(isReviewGateEnabled('not json {')).toBe(false);
+  });
+});
+
+describe('isStopQualityReviewEnabled (Stop-time review, off by default)', () => {
+  it('is off when the key is absent, on no config, and on malformed config', () => {
+    expect(isStopQualityReviewEnabled('{}')).toBe(false);
+    expect(isStopQualityReviewEnabled()).toBe(false);
+    expect(isStopQualityReviewEnabled('not json {')).toBe(false);
+  });
+
+  it('is on only when stopQualityReview is explicitly true', () => {
+    expect(isStopQualityReviewEnabled('{"stopQualityReview": true}')).toBe(true);
+    expect(isStopQualityReviewEnabled('{"stopQualityReview": false}')).toBe(false);
+    expect(isStopQualityReviewEnabled('{"stopQualityReview": "yes"}')).toBe(false);
+  });
+
+  it('is independent of the review gate flag', () => {
+    expect(isStopQualityReviewEnabled('{"reviewGate": true}')).toBe(false);
+    expect(isReviewGateEnabled('{"stopQualityReview": true}')).toBe(false);
   });
 });
 
