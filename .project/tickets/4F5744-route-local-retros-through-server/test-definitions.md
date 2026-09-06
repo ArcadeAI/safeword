@@ -326,7 +326,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 - [x] RED
 - [x] GREEN
-- [ ] REFACTOR — rerun after replacing the unconditional fail-closed stub
+- [ ] REFACTOR
 
 ### Scenario: Managed Cursor evidence cannot satisfy local readiness
 
@@ -363,3 +363,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
