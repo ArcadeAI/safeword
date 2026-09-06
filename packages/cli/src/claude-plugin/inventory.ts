@@ -170,7 +170,13 @@ function isClaudeLeaseMarker(path: string, name: string): boolean {
   try {
     return isLeaseRecord(JSON.parse(content) as unknown, Number(pid));
   } catch {
-    return false;
+    // Unparseable content under a `<pid>.tmp.<hex>` name is the ordinary sight of
+    // a concurrent session mid-write: a temp's bytes are undefined until Claude
+    // renames it into place, so Safeword must not adjudicate them. Only this
+    // parse failure is excused — a temp that parses to something other than a
+    // lease record still fails, and a malformed final `<pid>` is never mid-write
+    // and stays rejected (NTVABC).
+    return name.includes(LEASE_TEMP_INFIX);
   }
 }
 
