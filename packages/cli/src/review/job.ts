@@ -1044,11 +1044,13 @@ function reusableApprovedExecutableRedJob(
     try {
       const record = readJob(cwd, name.slice(0, -5));
       const data = record.result?.data as Record<string, unknown> | undefined;
+      const attestation = data?.execution_attestation as Record<string, unknown> | undefined;
       if (
         record.state === 'completed' &&
         record.kind === 'executable-red' &&
         record.source_fingerprint === sourceFingerprint &&
-        data?.status === 'approved'
+        data?.status === 'approved' &&
+        attestation?.source_fingerprint === sourceFingerprint
       )
         return record;
     } catch {

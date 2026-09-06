@@ -88,6 +88,30 @@ If no E2E infrastructure exists, build skeleton first: thinnest slice proving ar
 
 Pick first unchecked scenario from test-definitions. Cycle through RED (failing test, commit) → GREEN (minimal code to pass, commit) → REFACTOR (if needed, commit).
 
+### Trusted executable RED review
+
+Before production implementation begins for a new or changed primary proof, self-check the proof
+plan, then ask Safeword to execute and independently review each distinct proof implementation:
+
+```bash
+bun .safeword/hooks/run-review.ts review run executable-red \
+  --context path/to/scenario.feature \
+  --context path/to/impl-plan.md \
+  --proof-cwd . \
+  --evidence-class pure-contract \
+  --expected-failure 'the intended actor-boundary failure' \
+  --execute '["bun","run","test","path/to/proof.test.ts"]' \
+  -- path/to/proof.test.ts path/to/declared-support.ts
+```
+
+Pass JSON argv, never shell text. Include the scenario, proof-plan row, primary proof target, and
+every support file whose change would invalidate the evidence. One fresh approved receipt may cover
+Scenario Outline rows only when their canonical command and declared proof targets are identical.
+This is advisory until FY1NHB measures route reliability, false positives, and latency: say
+“independently confirmed” only for a fresh approved receipt. With no fresh approved receipt, an
+author self-review only, or cached passing suite status, say “not independently confirmed” and
+follow the exact retry or fallback action.
+
 ### Checkbox Format Contract
 
 Mark **ONE checkbox per edit, commit after each step.** The prompt hook and quality gates parse these checkboxes; batching hides which step should be internally reviewed and makes the ledger less auditable.
