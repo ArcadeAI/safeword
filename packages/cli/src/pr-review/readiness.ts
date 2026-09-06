@@ -39,6 +39,9 @@ const DESCRIPTIONS: Record<ReadinessVerdict, string> = {
   stale: 'Readiness evidence is for an earlier revision.',
 };
 
+/** The closed set a published status description may come from. */
+export const READINESS_DESCRIPTIONS: readonly string[] = Object.values(DESCRIPTIONS);
+
 const FAILING: ReadonlySet<ReadinessVerdict> = new Set<ReadinessVerdict>([
   'blocked',
   'missing',

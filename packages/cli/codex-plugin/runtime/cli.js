@@ -52419,7 +52419,7 @@ function evaluateReadinessEvidence(input) {
     return report("blocked", evidenceSha);
   return report("current", evidenceSha);
 }
-var DESCRIPTIONS, FAILING, EVIDENCE_HEAD, BLOCKED_GATE;
+var DESCRIPTIONS, READINESS_DESCRIPTIONS, FAILING, EVIDENCE_HEAD, BLOCKED_GATE;
 var init_readiness = __esm(() => {
   DESCRIPTIONS = {
     blocked: "Readiness evidence records a blocked gate.",
@@ -52428,6 +52428,7 @@ var init_readiness = __esm(() => {
     missing: "No readiness evidence block in the pull request body.",
     stale: "Readiness evidence is for an earlier revision."
   };
+  READINESS_DESCRIPTIONS = Object.values(DESCRIPTIONS);
   FAILING = new Set([
     "blocked",
     "missing",

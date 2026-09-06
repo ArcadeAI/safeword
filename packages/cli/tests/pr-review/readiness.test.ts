@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { reportReadinessCommand } from '../../src/commands/review-pr-readiness.js';
-import { evaluateReadinessEvidence } from '../../src/pr-review/readiness.js';
+import {
+  evaluateReadinessEvidence,
+  READINESS_DESCRIPTIONS,
+} from '../../src/pr-review/readiness.js';
 
 const HEAD = '9fa59c2221ab4d5e6f70819293a4b5c6d7e8f901';
 
@@ -110,9 +113,10 @@ describe('readiness evidence freshness', () => {
       evaluateReadinessEvidence({ body: evidence(HEAD), draft: false, headSha: HEAD }),
     ].map(report => report.description);
 
+    // Membership in the closed set, not a shape that injected prose could also
+    // satisfy — the constant set is the actual split-privilege invariant.
     for (const description of descriptions) {
-      expect(description).not.toContain('Ignore previous instructions');
-      expect(description).toMatch(/^[A-Z][\w ,—-]+\.$/u);
+      expect(READINESS_DESCRIPTIONS).toContain(description);
     }
   });
 });
@@ -141,5 +145,21 @@ describe('readiness status publication', () => {
         state: 'failure',
       },
     ]);
+  });
+
+  // Without this, guarding the publish on `state === 'failure'` would keep every
+  // other test green while a required check hung pending forever on good work.
+  it('still posts a passing status when the evidence is current', async () => {
+    const published: string[] = [];
+    const outcome = await reportReadinessCommand({
+      publishStatus: (_headSha, report) => {
+        published.push(report.state);
+        return Promise.resolve();
+      },
+      readPullRequest: () => Promise.resolve({ body: evidence(HEAD), draft: false, headSha: HEAD }),
+    });
+
+    expect(outcome.verdict).toBe('current');
+    expect(published).toEqual(['success']);
   });
 });
