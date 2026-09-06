@@ -35,14 +35,8 @@
       "stops starting routes once the bound cannot fund another one under $policy policy"
     ],
     "OpenCode failure preserves the existing degraded policy outcome": [
-      [
-        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-        "reports an OpenCode process failure before returning degraded same-author feedback"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-        "records a permitted host-native fallback as degraded"
-      ]
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "records an OpenCode $routeFailure failure under $policy policy before returning degraded same-author feedback"
     ],
     "Claude is the preferred reviewer for OpenCode-authored work": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -76,7 +70,7 @@
     ],
     "Invalid OpenCode provenance is rejected": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "rejects $identity reviewer provenance and continues through the bounded fallback routes"
+      "rejects $identity OpenCode provenance without recording independent evidence"
     ],
     "A mismatched OpenCode dispatch blocks the required command": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -95,16 +89,24 @@
       "confines reviewer writes to a disposable snapshot under $policy policy"
     ],
     "A timed-out OpenCode route records no evidence": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "honors the explicit timeout override"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "records an OpenCode $routeFailure failure under $policy policy before returning degraded same-author feedback",
+      "[\"timeout\",\"prefer\"]"
     ],
     "A failed OpenCode process records no evidence": [
-      "packages/cli/tests/cli-protocol/result.test.ts",
-      "keeps failed reviews on the generic failure presentation"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "records an OpenCode $routeFailure failure under $policy policy before returning degraded same-author feedback",
+      "[\"process\",\"prefer\"]"
     ],
     "Unsupported authors do not gain an OpenCode route": [
-      "packages/cli/tests/review/policy.test.ts",
-      "keeps unsupported author %s outside review routing"
+      [
+        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+        "returns typed exhaustion for a Cursor author under $policy policy without invoking OpenCode"
+      ],
+      [
+        "packages/cli/tests/review/policy.test.ts",
+        "keeps unsupported author %s outside review routing"
+      ]
     ]
   }
 }

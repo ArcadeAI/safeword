@@ -8,3 +8,4 @@
 - [08:23] Found the structural provenance gate passes while multiple mappings point to tests for different behavior.
 - [08:25] Found the worker deployment test claims every CI gate but checks only `worker-inputs`.
 - [08:27] Decision: preserve authored scenarios; remap to exact existing behavioral tests where possible and add or strengthen only the missing proofs.
+- [08:50] Implemented public-command route, deadline, status, provenance, mutation, and failure evidence for the repaired mappings.

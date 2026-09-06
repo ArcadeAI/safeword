@@ -42,7 +42,7 @@ function trustedReviewerRoot(directory: string): string {
   return created;
 }
 
-function installFakeReviewer(directory: string, agent: ReviewAgent): string {
+function installFakeReviewer(directory: string, agent: ReviewAgent, modelCatalogue = ''): string {
   const bin = nodePath.join(trustedReviewerRoot(directory), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
@@ -63,7 +63,7 @@ if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then
   exit 0
 fi
 if [ "${agent}" = "opencode" ] && [ "$#" -gt 0 ] && [ "$1" = "models" ]; then
-  printf '%s\n' "$(printenv SAFEWORD_REVIEW_FAKE_MODELS || true)"
+  printf '%s\n' ${JSON.stringify(modelCatalogue)}
   exit 0
 fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
@@ -134,9 +134,11 @@ if [ -n "$env_log" ]; then
   if printenv SAFEWORD_REVIEW_PROGRESS >/dev/null 2>&1; then printf 'progress=present\n' >> "$env_log"; else printf 'progress=absent\n' >> "$env_log"; fi
 fi
 if [ "$identity" = "missing" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
+  result=$(printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"%s","findings":[]}' "$dispatch_id" "$verdict" "$summary")
+  if [ "${agent}" = "opencode" ]; then printf '{"type":"text","part":{"type":"text","time":{"end":1},"text":"%s"}}\n' "$(printf '%s' "$result" | sed 's/"/\\"/g')"; else printf '%s\n' "$result"; fi
 elif [ "$identity" = "contradictory" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
+  result=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"%s","summary":"%s","findings":[]}' "$dispatch_id" "$verdict" "$summary")
+  if [ "${agent}" = "opencode" ]; then printf '{"type":"text","part":{"type":"text","time":{"end":1},"text":"%s"}}\n' "$(printf '%s' "$result" | sed 's/"/\\"/g')"; else printf '%s\n' "$result"; fi
 elif [ "$identity" = "dispatch" ]; then
   result=$(printf '{"schema_version":1,"dispatch_id":"different-dispatch","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[]}' "$verdict" "$summary")
   if [ "${agent}" = "opencode" ]; then
@@ -829,15 +831,17 @@ describe('cross-agent review public-command wiring', () => {
   );
 
   it.each(['prefer', 'require'] as const)(
-    'returns typed exhaustion for a Cursor author under %s so the host fallback can continue',
+    'returns typed exhaustion for a Cursor author under $policy policy without invoking OpenCode',
     async policy => {
       const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
       mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
       writeFileSync(
         nodePath.join(directory, '.safeword', 'config.json'),
         JSON.stringify({ crossAgentReview: policy }),
       );
       writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, 'opencode');
 
       const result = await runCli(
         [
@@ -853,8 +857,9 @@ describe('cross-agent review public-command wiring', () => {
         {
           cwd: directory,
           env: {
-            PATH: '/usr/bin:/bin',
+            PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: 'cursor',
+            SAFEWORD_REVIEW_LOG: log,
             SAFEWORD_NO_UPDATE_CHECK: '1',
           },
         },
@@ -882,6 +887,7 @@ describe('cross-agent review public-command wiring', () => {
           independence: 'none',
         },
       });
+      expect(existsSync(log)).toBe(false);
     },
   );
 
@@ -994,6 +1000,57 @@ describe('cross-agent review public-command wiring', () => {
         data: {
           preferred_failure: failure,
           review_policy: 'prefer',
+          independence: 'none',
+        },
+      });
+      expect(payload.data).not.toHaveProperty('reviewer_output');
+    },
+  );
+
+  it.each([
+    { identity: 'missing', failure: 'REVIEWER_PROVENANCE_MISSING' },
+    { identity: 'contradictory', failure: 'REVIEWER_PROVENANCE_CONTRADICTORY' },
+  ])(
+    'rejects $identity OpenCode provenance without recording independent evidence',
+    async ({ identity, failure }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, 'codex');
+      installFakeReviewer(directory, 'opencode');
+      installFakeReviewer(directory, 'claude');
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
+            SAFEWORD_REVIEW_FAKE_IDENTITY: identity,
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(2);
+      expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+      const payload = JSON.parse(result.stdout);
+      expect(payload).toMatchObject({
+        state: 'action_required',
+        data: {
+          independent_fallback_failure: failure,
           independence: 'none',
         },
       });
@@ -1753,11 +1810,19 @@ describe('cross-agent review public-command wiring', () => {
   });
 
   it.each([
-    { author: 'claude' as const, preferred: 'codex' as const },
-    { author: 'codex' as const, preferred: 'claude' as const },
+    {
+      author: 'claude' as const,
+      preferred: 'codex' as const,
+      attempts: ['codex', 'opencode'],
+    },
+    {
+      author: 'codex' as const,
+      preferred: 'claude' as const,
+      attempts: ['claude', 'claude', 'opencode'],
+    },
   ])(
     'uses OpenCode after the $preferred route fails for $author-authored work',
-    async ({ author, preferred }) => {
+    async ({ author, preferred, attempts }) => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
       mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -1798,10 +1863,7 @@ describe('cross-agent review public-command wiring', () => {
       expect(JSON.parse(result.stdout)).toMatchObject({
         state: 'healthy',
         effects: {
-          network: [
-            { kind: 'review', target: preferred, operation: 'request' },
-            { kind: 'review', target: 'opencode', operation: 'request' },
-          ],
+          network: attempts.map(target => ({ kind: 'review', target, operation: 'request' })),
         },
         data: {
           status: 'approved',
@@ -1812,7 +1874,7 @@ describe('cross-agent review public-command wiring', () => {
           independence: 'cross-agent',
         },
       });
-      expect(readFileSync(log, 'utf8')).toBe(`${preferred}\nopencode\n`);
+      expect(readFileSync(log, 'utf8')).toBe(`${attempts.join('\n')}\n`);
     },
   );
 
@@ -1841,8 +1903,8 @@ describe('cross-agent review public-command wiring', () => {
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'timeout',
-          SAFEWORD_REVIEW_TIMEOUT_MS: '100',
-          SAFEWORD_REVIEW_RUN_BOUND_MS: '1000',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '500',
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '2000',
           SAFEWORD_REVIEW_LOG: log,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
@@ -1861,11 +1923,15 @@ describe('cross-agent review public-command wiring', () => {
   });
 
   it.each([
-    { claudeFails: false, expected: 'claude' as const },
-    { claudeFails: true, expected: 'codex' as const },
+    { claudeFails: false, expected: 'claude' as const, attempts: ['claude'] },
+    {
+      claudeFails: true,
+      expected: 'codex' as const,
+      attempts: ['claude', 'claude', 'codex'],
+    },
   ])(
     'routes OpenCode-authored work to $expected after Claude failure=$claudeFails',
-    async ({ claudeFails, expected }) => {
+    async ({ claudeFails, expected, attempts }) => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
       writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -1907,7 +1973,7 @@ describe('cross-agent review public-command wiring', () => {
           independence: 'cross-agent',
         },
       });
-      expect(readFileSync(log, 'utf8')).toBe(claudeFails ? 'claude\ncodex\n' : 'claude\n');
+      expect(readFileSync(log, 'utf8')).toBe(`${attempts.join('\n')}\n`);
       expect(readFileSync(log, 'utf8')).not.toContain('opencode');
     },
   );
@@ -1966,58 +2032,89 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
   });
 
-  it('reports an OpenCode process failure before returning degraded same-author feedback', async () => {
-    const directory = createTemporaryDirectory();
-    const log = nodePath.join(directory, 'review.log');
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex');
-    installFakeReviewer(directory, 'opencode');
-    installFakeReviewer(directory, 'claude');
-
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
-          SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE: 'process',
-          SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-      },
-    );
-
-    expect(result.exitCode, result.stdout).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({
+  it.each([
+    {
+      routeFailure: 'process',
+      recordedFailure: 'process_failed',
+      policy: 'prefer',
+      exitCode: 0,
       state: 'healthy',
-      effects: {
-        network: [
-          { kind: 'review', target: 'codex', operation: 'request' },
-          { kind: 'review', target: 'opencode', operation: 'request' },
-          { kind: 'review', target: 'claude', operation: 'request' },
+    },
+    {
+      routeFailure: 'process',
+      recordedFailure: 'process_failed',
+      policy: 'require',
+      exitCode: 2,
+      state: 'action_required',
+    },
+    {
+      routeFailure: 'timeout',
+      recordedFailure: 'timed_out',
+      policy: 'prefer',
+      exitCode: 0,
+      state: 'healthy',
+    },
+  ])(
+    'records an OpenCode $routeFailure failure under $policy policy before returning degraded same-author feedback',
+    async ({ routeFailure, recordedFailure, policy, exitCode, state }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(directory, '.safeword', 'config.json'),
+        JSON.stringify({ crossAgentReview: policy }),
+      );
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, 'codex');
+      installFakeReviewer(directory, 'opencode');
+      installFakeReviewer(directory, 'claude');
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
         ],
-      },
-      data: {
-        status: 'approved',
-        actual_reviewer: 'claude',
-        preferred_failure: 'process_failed',
-        independent_fallback_failure: 'process_failed',
-        independence: 'degraded',
-      },
-    });
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
-  });
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
+            SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE: routeFailure,
+            ...(routeFailure === 'timeout' && { SAFEWORD_REVIEW_TIMEOUT_MS: '500' }),
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(exitCode);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state,
+        effects: {
+          network: [
+            { kind: 'review', target: 'codex', operation: 'request' },
+            { kind: 'review', target: 'opencode', operation: 'request' },
+            { kind: 'review', target: 'claude', operation: 'request' },
+          ],
+        },
+        data: {
+          status: policy === 'require' ? 'blocked' : 'approved',
+          actual_reviewer: 'claude',
+          preferred_failure: 'process_failed',
+          independent_fallback_failure: recordedFailure,
+          independence: 'degraded',
+        },
+      });
+      expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+    },
+  );
 
   it('preserves the configured-model rejection when the default-model retry needs authentication', async () => {
     const directory = createTemporaryDirectory();
@@ -3020,10 +3117,7 @@ describe('cross-agent review public-command wiring', () => {
     expect(data).toMatchObject({
       actual_reviewer: 'codex',
       independence: 'cross-agent',
-      review_routes: [
-        { reviewer: 'codex', status: 'attempted' },
-        { reviewer: 'opencode', model: 'vendor/model-b', status: 'unattempted' },
-      ],
+      review_routes: [{ reviewer: 'codex', status: 'attempted' }],
     });
     expect(data).not.toHaveProperty('reviewer_model');
   });
@@ -3085,7 +3179,8 @@ describe('cross-agent review public-command wiring', () => {
       name: 'catalogued models are not reported as proven',
       reviewer: 'opencode' as const,
       model: 'vendor/model-a',
-      environment: { SAFEWORD_REVIEW_FAKE_MODELS: 'vendor/model-a' },
+      modelCatalogue: 'vendor/model-a',
+      environment: {},
       expected: {
         installed: true,
         compatibility: 'compatible',
@@ -3097,7 +3192,8 @@ describe('cross-agent review public-command wiring', () => {
       name: 'unlisted models are not reported as catalogued',
       reviewer: 'opencode' as const,
       model: 'vendor/model-a',
-      environment: { SAFEWORD_REVIEW_FAKE_MODELS: 'vendor/model-b' },
+      modelCatalogue: 'vendor/model-b',
+      environment: {},
       expected: {
         installed: true,
         compatibility: 'compatible',
@@ -3109,6 +3205,7 @@ describe('cross-agent review public-command wiring', () => {
       name: 'installed runtimes without model selection are not compatible',
       reviewer: 'opencode' as const,
       model: 'vendor/model-a',
+      modelCatalogue: '',
       environment: { SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY: 'missing' },
       expected: {
         installed: true,
@@ -3121,6 +3218,7 @@ describe('cross-agent review public-command wiring', () => {
       name: 'missing runtimes are reported as not installed',
       reviewer: 'codex' as const,
       model: 'model-a',
+      modelCatalogue: '',
       environment: {},
       expected: {
         installed: false,
@@ -3132,7 +3230,7 @@ describe('cross-agent review public-command wiring', () => {
   ])('reports $name through the public status command', async testCase => {
     const directory = createTemporaryDirectory();
     await createConfiguredProject(directory);
-    const bin = installFakeReviewer(directory, 'opencode');
+    const bin = installFakeReviewer(directory, 'opencode', testCase.modelCatalogue);
     const configPath = nodePath.join(directory, '.safeword', 'config.json');
     const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
     writeFileSync(

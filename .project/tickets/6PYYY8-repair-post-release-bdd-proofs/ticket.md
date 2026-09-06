@@ -2,10 +2,20 @@
 id: 6PYYY8
 slug: repair-post-release-bdd-proofs
 type: task
-phase: intake
+phase: implement
 status: in_progress
 created: 2026-09-06T15:25:52.475Z
-last_modified: 2026-09-06T15:25:52.475Z
+last_modified: 2026-09-06T15:50:00.000Z
+scope:
+  - Repair semantically false BDD proof mappings introduced after v0.83.1
+  - Strengthen their Vitest assertions at public command and process boundaries
+out_of_scope:
+  - Implement the proposed trusted-executor enforcement from GitHub issue 2336
+  - Rewrite pre-v0.83.1 feature suites or production review behavior
+done_when:
+  - Changed proof mappings name tests that exercise each scenario's observable behavior
+  - Worker deployment asserts the complete required CI dependency set
+  - Targeted review, deployment, and BDD provenance tests pass
 ---
 
 # Make post-release BDD proofs catch their claimed regressions
@@ -24,3 +34,4 @@ last_modified: 2026-09-06T15:25:52.475Z
 
 - 2026-09-06T15:25:52.475Z Started: Created ticket 6PYYY8
 - 2026-09-06T15:27:00Z Found: Structural provenance passes despite unrelated semantic mappings in the three post-release review-route manifests.
+- 2026-09-06T15:50:00Z Implemented: Replaced helper-only and unrelated mappings with public-command route, deadline, status, provenance, mutation, and failure evidence.
