@@ -62589,7 +62589,7 @@ function relayPersistenceErrorMessage(persistence, spoolFailed) {
   return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
 function serverRecoveryNeeded(findingCount, outcome) {
-  return findingCount > 0 && (outcome === undefined || outcome === "abandoned");
+  return findingCount > 0 && outcome !== "preserved" && outcome !== "already-owned";
 }
 async function runRetro(options, dependencies) {
   if (!options.transcript) {

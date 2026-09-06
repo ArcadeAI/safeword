@@ -327,7 +327,7 @@ function serverRecoveryNeeded(
   findingCount: number,
   outcome: PublicRetroDeliveryOutcome | undefined,
 ): boolean {
-  return findingCount > 0 && (outcome === undefined || outcome === 'abandoned');
+  return findingCount > 0 && outcome !== 'preserved' && outcome !== 'already-owned';
 }
 
 /**

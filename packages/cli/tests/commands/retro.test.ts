@@ -1543,6 +1543,53 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('retries a retained server-v3 request on the next matching retro run', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-server-retry-'));
+    const sessionId = 'server-retry-session';
+    const requests: { body: Uint8Array; requestId: string }[] = [];
+    const publicTransport = vi.fn(request => {
+      requests.push({
+        body: request.body,
+        requestId: request.headers['x-safeword-request-id'],
+      });
+      if (requests.length === 1) return Promise.reject(new Error('collector unavailable'));
+      const firstRequest = requests[0];
+      if (firstRequest === undefined) throw new Error('missing first collector request');
+      return Promise.resolve({ receipt: 'server-receipt', requestId: firstRequest.requestId });
+    });
+    const sharedDependencies = dependencies({
+      projectDirectory,
+      publicRetro: {
+        attemptsDirectory: nodePath.join(projectDirectory, '.safeword/public-retro-attempts'),
+        now: () => 0,
+        randomUUID: () => '11111111-2222-4333-8444-555555555555',
+        route: 'server-v3',
+        source: {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          safewordCliVersion: '0.82.1',
+        },
+        transport: publicTransport,
+      },
+      sessionId,
+      transport: new FakeGitHub(),
+    });
+
+    try {
+      const failed = await runRetro({ transcript: '/tmp/t.jsonl' }, sharedDependencies);
+      const recovered = await runRetro({ transcript: '/tmp/t.jsonl' }, sharedDependencies);
+
+      expect(failed.agentFilingNeeded).toBe(true);
+      expect(recovered.agentFilingNeeded).toBe(false);
+      expect(publicTransport).toHaveBeenCalledTimes(2);
+      expect(requests[1]).toEqual(requests[0]);
+      expect(readServerSpooledDrafts(projectDirectory, sessionId)).toEqual([]);
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('excludes extraction but includes finding preparation in the shared delivery budget', async () => {
     const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     let nowCalls = 0;
