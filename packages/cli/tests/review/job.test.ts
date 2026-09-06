@@ -18,6 +18,7 @@ import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createResult } from '../../src/cli-protocol/result.js';
+import type { RedExecutionRequest } from '../../src/review/contract.js';
 import {
   cancelReviewJob,
   completeReviewJob,
@@ -565,10 +566,10 @@ describe('durable review jobs', () => {
     }
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
     vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
-    const execution = {
-      argv: [process.execPath, '-e', 'process.exit(1)'] as readonly string[],
+    const execution: RedExecutionRequest = {
+      argv: [process.execPath, '-e', 'process.exit(1)'],
       cwd: '.',
-      evidenceClass: 'pure-contract' as const,
+      evidenceClass: 'pure-contract',
       expectedFailure: 'actor assertion',
       timeoutMs: 1000,
     };
@@ -580,10 +581,14 @@ describe('durable review jobs', () => {
       context,
       execution,
     });
-    const changed = {
+    const changed: {
+      context: readonly string[];
+      execution: RedExecutionRequest;
+      targets: readonly string[];
+    } = {
       context,
       execution,
-      targets: ['input.md'] as readonly string[],
+      targets: ['input.md'],
     };
 
     switch (changedInput) {
@@ -603,7 +608,7 @@ describe('durable review jobs', () => {
         break;
       }
       case 'evidence class': {
-        changed.execution = { ...execution, evidenceClass: 'integration-bound' };
+        changed.execution = { ...execution, evidenceClass: 'simulated-host' };
 
         break;
       }
