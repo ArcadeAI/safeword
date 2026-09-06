@@ -59,6 +59,44 @@ describe('Check Command - Reconcile Integration', () => {
     writeFileSync(nodePath.join(temporaryDirectory, 'AGENTS.md'), '# Agents');
   }
 
+  describe('managed text-patch block drift (#3789)', () => {
+    it('reports a managed block whose contents no longer match', async () => {
+      const { checkHealth } = await import('../../src/health.js');
+      const { SAFEWORD_TRANSIENT_PATHS } = await import('../../src/schema.js');
+      createConfiguredProject();
+      // The block a customer installed before a transient path was added. The
+      // marker is present, so a marker-only check calls this clean — and the
+      // paths added since then silently stop being ignored, which is exactly
+      // what SAFEWORD_TRANSIENT_PATHS exists to prevent.
+      const stale = SAFEWORD_TRANSIENT_PATHS.slice(0, 2).join('\n');
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.gitignore'),
+        `node_modules/\n\n# Safeword - Local cache and transient state\n${stale}\n`,
+      );
+
+      const health = await checkHealth(temporaryDirectory);
+
+      // An advisory, not an issue: `install` re-renders the block, so a stale
+      // one is behind rather than broken and must not flip `check`'s exit code.
+      expect(health.advisories.some(entry => entry.startsWith('.gitignore'))).toBe(true);
+      expect(health.issues.some(issue => issue.startsWith('.gitignore'))).toBe(false);
+    });
+
+    it('stays quiet when the managed block is current', async () => {
+      const { checkHealth } = await import('../../src/health.js');
+      const { SAFEWORD_TRANSIENT_PATHS } = await import('../../src/schema.js');
+      createConfiguredProject();
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.gitignore'),
+        `node_modules/\n\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
+      );
+
+      const health = await checkHealth(temporaryDirectory);
+
+      expect(health.advisories.filter(entry => entry.startsWith('.gitignore'))).toEqual([]);
+    });
+  });
+
   describe('checkHealth using reconcile dryRun', () => {
     it('should detect missing files via reconcile dryRun', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
