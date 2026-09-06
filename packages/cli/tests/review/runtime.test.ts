@@ -299,6 +299,16 @@ describe('headless reviewer output adapters', () => {
     expect(parseReviewerOutput('opencode', stdout)).toEqual(opencodeOutput);
   });
 
+  it.each([
+    ['malformed JSON events', 'not-json'],
+    [
+      'no complete assistant result',
+      JSON.stringify({ type: 'step_start', part: { type: 'step-start' } }),
+    ],
+  ])('rejects ambiguous OpenCode output: %s', (_case, stdout) => {
+    expect(() => parseReviewerOutput('opencode', stdout)).toThrow('invalid reviewer output');
+  });
+
   it('retains the direct JSON test adapter contract', () => {
     expect(parseReviewerOutput('claude', JSON.stringify(output))).toEqual(output);
   });

@@ -2,22 +2,17 @@
   "feature": "packages/cli/features/opencode-independent-review-fallback.feature",
   "scenarios": {
     "Existing author pairings remain preferred": [
-      [
-        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-        "uses a managed Claude credential for a Codex-authored cloud review"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-        "does not launch a same-agent candidate when the opposite reviewer is available"
-      ]
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "uses $preferred before OpenCode for $author-authored work"
     ],
     "A retryable preferred-reviewer failure stays on the preferred route": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "retries a configured primary route on the reviewer default model when model selection is unavailable"
+      "retries a preferred reviewer candidate after %s without invoking OpenCode",
+      "process"
     ],
     "A terminal preferred-reviewer failure skips retries": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "skips an alternate-model route when the reviewer does not advertise model selection"
+      "skips later models after a runtime-wide ranked-route failure"
     ],
     "OpenCode independently reviews Claude-authored work after Codex cannot complete": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -31,16 +26,13 @@
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
       "uses OpenCode after the $preferred route fails for $author-authored work"
     ],
-    "OpenCode starts when the shared deadline leaves exactly one route budget": [
-      "packages/cli/tests/review/attempt-deadline.test.ts",
-      "derives the run and minimum-route budgets from one environment snapshot"
+    "OpenCode starts when the shared deadline can fund another route": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "starts OpenCode when the shared deadline can fund another route"
     ],
     "OpenCode is not started when the shared deadline cannot fund another route": [
-      ["packages/cli/tests/review/attempt-deadline.test.ts", "honours a shorter configured bound"],
-      [
-        "packages/cli/tests/review/attempt-deadline.test.ts",
-        "never exceeds the ceiling, however it is configured"
-      ]
+      "packages/cli/tests/cli-protocol/review-run-bound.test.ts",
+      "stops starting routes once the bound cannot fund another one under $policy policy"
     ],
     "OpenCode failure preserves the existing degraded policy outcome": [
       [
@@ -76,11 +68,11 @@
     ],
     "Ambiguous OpenCode output is rejected": [
       "packages/cli/tests/review/runtime.test.ts",
-      "rejects structurally invalid output: %s"
+      "rejects ambiguous OpenCode output: %s"
     ],
     "An oversized OpenCode event stream is rejected": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "bounds reviewer-authored prose projected into terminal findings"
+      "rejects an oversized OpenCode event stream without recording independent evidence"
     ],
     "Invalid OpenCode provenance is rejected": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",

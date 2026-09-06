@@ -32,16 +32,17 @@
       "empty author routes"
     ],
     "Unfunded routes are reported without launch": [
-      "packages/cli/tests/review/attempt-deadline.test.ts",
-      "honours an explicitly configured deadline"
+      "packages/cli/tests/cli-protocol/review-run-bound.test.ts",
+      "stops starting routes once the bound cannot fund another one under $policy policy",
+      "prefer"
     ],
     "Exhausted configured routes remain blocked": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
       "blocks with one recovery action after exhausting safe review routes"
     ],
     "A valid funded route launches normally": [
-      "packages/cli/tests/review/attempt-deadline.test.ts",
-      "reserves enough default time to fund a route after one full attempt"
+      "packages/cli/tests/cli-protocol/review-run-bound.test.ts",
+      "tries every route in order when the bound allows it"
     ],
     "Same-author success cannot satisfy independent review": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -60,32 +61,36 @@
       "records an attempted alternate-model failure before a degraded fallback"
     ],
     "Catalogued models are not reported as proven": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "distinguishes OpenCode catalogue presence from runtime-default routes"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports $name through the public status command",
+      "catalogued models are not reported as proven"
     ],
     "Successful review records proven evidence": [
       "packages/cli/tests/review/job.test.ts",
-      "preserves completed history beyond 128 reviews with one host key"
+      "records a successful route as proven evidence"
     ],
     "Unlisted models are not reported as catalogued": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "treats empty OpenCode catalogue output as unavailable rather than absent"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports $name through the public status command",
+      "unlisted models are not reported as catalogued"
     ],
     "Installed runtimes without model selection are not compatible": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "reports an installed runtime without model selection as incompatible"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports $name through the public status command",
+      "installed runtimes without model selection are not compatible"
     ],
     "Missing runtimes are reported as not installed": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "skips a reviewer candidate that fails with %s and runs the next compatible installation"
+      "reports $name through the public status command",
+      "missing runtimes are reported as not installed"
     ],
     "Most recent failure replaces stale proven evidence": [
       "packages/cli/tests/review/job.test.ts",
-      "shell-quotes the proven CLI entrypoint in the status action"
+      "lets the most recent route failure replace older proven evidence"
     ],
     "Ordered routes replace legacy route settings when both exist": [
       "packages/cli/tests/review/policy.test.ts",
-      "rejects malformed project configuration instead of silently falling back"
+      "uses an ordered reviewer and model list as the complete route authority"
     ],
     "Legacy settings preserve the existing route plan": [
       [

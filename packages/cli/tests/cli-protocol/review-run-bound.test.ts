@@ -19,7 +19,7 @@ afterAll(cleanupTrustedReviewerDirectories);
 function installSilentReviewers(): string {
   const bin = nodePath.join(createTrustedReviewerDirectory('safeword-runbound-'), 'bin');
   mkdirSync(bin, { recursive: true });
-  for (const agent of ['claude', 'codex'] as const) {
+  for (const agent of ['claude', 'codex', 'opencode'] as const) {
     const executable = nodePath.join(bin, agent);
     writeFileSync(
       executable,
@@ -47,10 +47,13 @@ while true; do /bin/sleep 5; done
   return bin;
 }
 
-async function runWithBounds(bounds: {
-  readonly attemptMs: string;
-  readonly runBoundMs: string;
-}): Promise<{
+async function runWithBounds(
+  bounds: {
+    readonly attemptMs: string;
+    readonly runBoundMs: string;
+  },
+  policy: 'prefer' | 'require' = 'prefer',
+): Promise<{
   routes: string[];
   payload: { data: Record<string, unknown>; effects: { network: unknown[] } };
 }> {
@@ -60,7 +63,12 @@ async function runWithBounds(bounds: {
   mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
   writeFileSync(
     nodePath.join(directory, '.safeword', 'config.json'),
-    JSON.stringify({ crossAgentReviewAlternateModel: { codex: 'alternate-model' } }),
+    JSON.stringify({
+      crossAgentReviewRoutes: {
+        claude: [{ reviewer: 'codex' }, { reviewer: 'opencode' }, { reviewer: 'claude' }],
+      },
+      crossAgentReview: policy,
+    }),
   );
   const bin = installSilentReviewers();
 
@@ -106,19 +114,45 @@ describe('the run bound across routes', () => {
 
     expect(routes).toEqual([
       'codex default', // the assigned reviewer on its usual model
-      'codex alternate-model', // the same reviewer, alternate model
+      'opencode default', // the second independent reviewer
       'claude default', // last resort: the author's own runtime
     ]);
     expect(payload.data.independence).toBe('none');
     expect(payload.effects.network).toHaveLength(3);
+    expect(payload.data.review_routes).toEqual([
+      { reviewer: 'codex', independence: 'cross-agent', status: 'attempted', failure: 'timed_out' },
+      {
+        reviewer: 'opencode',
+        independence: 'cross-agent',
+        status: 'attempted',
+        failure: 'timed_out',
+      },
+      { reviewer: 'claude', independence: 'degraded', status: 'attempted', failure: 'timed_out' },
+    ]);
   });
 
-  it('stops starting routes once the bound cannot fund another one', async () => {
-    // One attempt consumes the bound, leaving too little for a real second try.
-    const { routes, payload } = await runWithBounds({ attemptMs: '2100', runBoundMs: '2500' });
+  it.each(['prefer', 'require'] as const)(
+    'stops starting routes once the bound cannot fund another one under $policy policy',
+    async policy => {
+      // One attempt consumes the bound, leaving too little for a real second try.
+      const { routes, payload } = await runWithBounds(
+        { attemptMs: '2100', runBoundMs: '2500' },
+        policy,
+      );
 
-    expect(routes).toEqual(['codex default']);
-    expect(payload.data.independence).toBe('none');
-    expect(payload.effects.network).toHaveLength(1);
-  });
+      expect(routes).toEqual(['codex default']);
+      expect(payload.data.independence).toBe('none');
+      expect(payload.effects.network).toHaveLength(1);
+      expect(payload.data.review_routes).toEqual([
+        {
+          reviewer: 'codex',
+          independence: 'cross-agent',
+          status: 'attempted',
+          failure: 'timed_out',
+        },
+        { reviewer: 'opencode', independence: 'cross-agent', status: 'unattempted' },
+        { reviewer: 'claude', independence: 'degraded', status: 'unattempted' },
+      ]);
+    },
+  );
 });
