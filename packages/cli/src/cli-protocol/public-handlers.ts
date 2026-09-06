@@ -877,7 +877,12 @@ async function reviewRoutesListHandler(invocation: CommandInvocation): Promise<C
     });
   }
 
-  const projectConfig = scopedConfigPath(invocation.cwd, 'project');
+  // Project-scoped paths travel relative to the project, matching `routes set`
+  // and keeping the JSON envelope identical on every machine.
+  const projectConfig = nodePath.relative(
+    invocation.cwd,
+    scopedConfigPath(invocation.cwd, 'project'),
+  );
   const body = [
     ...listed.flatMap(entry => [
       `${entry.author} review routes (${entry.source}):`,
