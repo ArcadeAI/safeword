@@ -16,6 +16,7 @@ import {
 import { removeProject } from '../commands/remove.js';
 import type { SafewordSchema } from '../schema.js';
 import { coordinateSelectedIntegrations, PRODUCTION_INTEGRATIONS } from './integrations.js';
+import { findEnclosingProject, nestedProjectRefused } from './nested-install.js';
 import { convergeSetup, createSetupPlan, type SetupPlanOptions } from './project-install.js';
 import { projectLifecycleSchema } from './schema.js';
 
@@ -220,6 +221,10 @@ export async function installLifecycle(
   const { agents } = parsed.selection;
   const scope = lifecycleScope(invocation.options.scope, 'install', agents);
   if (!scope.ok) return scope.result;
+  if (scope.value === 'project') {
+    const enclosing = findEnclosingProject(invocation.cwd);
+    if (enclosing !== undefined) return nestedProjectRefused(invocation.cwd, enclosing);
+  }
   const requiresProfileNetwork = agents.some(agent => agent === 'claude' || agent === 'codex');
   if (invocation.offline && requiresProfileNetwork) return onlineRequired('install');
 

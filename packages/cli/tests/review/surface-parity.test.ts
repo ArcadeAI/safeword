@@ -349,6 +349,92 @@ exit ${status}`,
     expect(content, relativePath).toMatch(/do not.*finish-review/iu);
   });
 
+  // A stamp claiming independence is a claim about a review the agent itself
+  // ran; write-review-stamp.ts now requires the coordinator's review id as the
+  // witness, so a skill that stamps without citing one cannot advance its gate.
+  it.each([
+    'skills/review-spec/SKILL.md',
+    'skills/bdd/PLAN_IMPLEMENTATION.md',
+    'skills/bdd/TDD.md',
+  ])('%s cites the review id when it stamps a coordinator verdict', relativePath => {
+    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+
+    const stampCommands = content.match(/write-review-stamp\.ts[^`\n]*/gu) ?? [];
+    for (const stamp of stampCommands) {
+      expect(stamp, relativePath).toContain('--review-id');
+    }
+    expect(content, relativePath).toMatch(/--review-id/u);
+  });
+
+  // A Codex session skipped the coordinator entirely, reasoning that sending
+  // local spec files to a Claude reviewer needed an external-disclosure
+  // approval it did not have — then reported its own local pass as the review.
+  // Nothing in the dispatch protocol said who authorized the route, and every
+  // independence-disclosure rule keys off a returned typed result, so a review
+  // that was never dispatched produced no result and therefore no disclosure.
+  it.each([
+    'skills/quality-review/SKILL.md',
+    'skills/review-spec/SKILL.md',
+    'skills/bdd/PLAN_IMPLEMENTATION.md',
+    'skills/bdd/TDD.md',
+  ])('%s authorizes the dispatch and forbids an undisclosed skip', relativePath => {
+    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+
+    expect(content, relativePath).toContain(
+      '**The dispatch is authorized; skipping it is not your call.**',
+    );
+    expect(content, relativePath).toMatch(
+      /local subprocess of a CLI the user installed and signed in to/u,
+    );
+    expect(content, relativePath).toContain('`crossAgentReview: off`');
+    expect(content, relativePath).toMatch(/do not invent a disclosure-approval requirement/u);
+    expect(content, relativePath).toMatch(
+      /request the approval it needs, or report that block as the blocker/u,
+    );
+    expect(content, relativePath).toContain(
+      '**A review you never dispatched is not coverage** — say so unprompted, before any finding',
+    );
+  });
+
+  it('ships the dispatch-authorization contract on every generated review surface', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const generated = [
+      {
+        root: nodePath.join(repoRoot, 'plugin/skills'),
+        files: [
+          'quality-review/SKILL.md',
+          'review-spec/SKILL.md',
+          'bdd/PLAN_IMPLEMENTATION.md',
+          'bdd/TDD.md',
+        ],
+      },
+      {
+        root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+        files: [
+          'quality-review/SKILL.md',
+          'review-spec/SKILL.md',
+          'bdd/references/PLAN_IMPLEMENTATION.md',
+          'bdd/references/TDD.md',
+        ],
+      },
+    ];
+
+    for (const { root, files } of generated) {
+      for (const relativePath of files) {
+        const content = readFileSync(nodePath.join(root, relativePath), 'utf8').replaceAll(
+          /\s+/gu,
+          ' ',
+        );
+        expect(content, `${root}/${relativePath}`).toContain(
+          '**The dispatch is authorized; skipping it is not your call.**',
+        );
+        expect(content, `${root}/${relativePath}`).toContain(
+          '**A review you never dispatched is not coverage**',
+        );
+      }
+    }
+  });
+
   it('keeps scenario-gate coordinator ownership in review-spec', () => {
     const bdd = readTemplate('skills/bdd/SKILL.md');
     expect(bdd).toContain('`review-spec` in Review mode');

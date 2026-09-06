@@ -145,20 +145,21 @@ legacy content is preserved and reported instead.
 **Use in CI if you want** — Safeword adds `lint`, `format`, and `test:bdd` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
 
 **Privacy-bounded public retros** — Each project gets a random UUID generated
-locally during setup; it requires no account or registration. When an eligible
-retro uses the public collector, Safeword may attach the harness, an honest
-`unknown` host class, CLI version, public GitHub/GitLab repository identity,
-and OS family. Missing optional facts are omitted. Current producers do not
-collect Git email, user identity, agent version, model, plugin version,
-hostname, IP or machine identifiers, credentials, arbitrary environment
-values, transcript content, source code, or command arguments as runtime
-context because no trustworthy cross-harness runtime carrier exists for those
-values. The finding itself still passes through the existing public
-egress sanitizer. The collector continues accepting older Claude/Codex rows
-whose host class is `local` and whose source may contain legacy
-`userIdentity`; new rows use `unknown` and never emit that field.
-The collector retains the released agent, model, and plugin fields for
-compatibility with older envelopes and future documented carriers.
+locally during setup; it requires no account or registration. An eligible local
+Claude Code, Codex, or Cursor retro may send its sanitized findings, project
+UUID, repository identity, session scope, harness, host class, operating-system
+family, and available agent, model, SafeWord CLI, and plugin versions. Missing
+optional facts are omitted. It never sends transcript or prompt text, tool
+output, file contents, secrets, credentials, arbitrary environment values,
+hostname, IP address, machine identifiers, or user identity.
+
+The collector durably accepts one immutable request before local recovery is
+removed. A private least-privilege worker then transfers the same bytes and
+request ID to SafeWord's filing relay; customer machines never receive GitHub
+filing credentials. Network failures are silent and leave local or server-owned
+recovery intact. The server route becomes the default only after build-bound
+production canaries prove Claude Code, Codex, and Cursor local delivery through
+terminal filing; older captures keep their original direct route.
 
 Disable public retrospective collection for any project before running a retro
 from Claude Code, Codex, or Cursor:

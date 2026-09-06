@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -19,6 +20,8 @@ import {
   buildProvenanceResolver,
   discardRelaySpoolCommand,
   executeRetroCommand,
+  localRetroHostClass,
+  localServerRouteEnabled,
   reportRetroCommandOutcome,
   resolvePublicRetroRoute,
   resolveRelayConfig,
@@ -54,6 +57,7 @@ import {
   ackFilePath,
   draftSpoolPath,
   readAcks,
+  readServerSpooledDrafts,
   readSpooledDrafts,
   verifyDraftBody,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
@@ -231,6 +235,86 @@ describe('retro command configuration, extraction, egress, and relay execution',
 
   it('suppresses the Claude public route when Claude Remote evidence is present', () => {
     expect(publicRouteFor('claude')).toBeUndefined();
+  });
+
+  it('never selects the local server route for indeterminate host provenance', () => {
+    expect(
+      localServerRouteEnabled(
+        {
+          harness: 'codex',
+          hostClass: 'unknown',
+          projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          safewordCliVersion: '0.82.1',
+        },
+        true,
+      ),
+    ).toBe(false);
+  });
+
+  it('selects the local server route only for proven local provenance', () => {
+    expect(
+      localServerRouteEnabled(
+        {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          safewordCliVersion: '0.82.1',
+        },
+        true,
+      ),
+    ).toBe(true);
+  });
+
+  it('resolves the server-owned route when local readiness is proven', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'claude',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+          serverReady: true,
+          sessionId: 'session-fixture',
+        }),
+      ).toMatchObject({
+        route: 'server-v3',
+        source: { harness: 'claude-code', hostClass: 'local' },
+      });
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it('fails closed when Codex locality cannot be proven', () => {
+    expect(localRetroHostClass('codex', {})).toBe('unknown');
+    expect(
+      localRetroHostClass('codex', {
+        CODEX_MODEL: 'gpt-fixture',
+        CODEX_SESSION_ID: 'managed-session-fixture',
+      }),
+    ).toBe('unknown');
+  });
+
+  it('classifies Cursor managed, local, and indeterminate runtime evidence conservatively', () => {
+    const missing = () => {
+      const error = new Error('missing') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      throw error;
+    };
+
+    expect(localRetroHostClass('cursor', {}, missing)).toBe('local');
+    expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '' }, missing)).toBe('local');
+    expect(localRetroHostClass('cursor', {}, () => ({ isSocket: () => true }))).toBe('unknown');
+    expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '/custom.sock' }, missing)).toBe(
+      'unknown',
+    );
   });
 
   it.each(['codex', 'cursor'] as const)(
@@ -1268,7 +1352,115 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
-  it('starts the public preparation budget after finding preparation', async () => {
+  it.each([
+    ['accepted', true, false],
+    ['typed rejection', false, true],
+    ['unreachable', false, true],
+  ] as const)(
+    'routes a server-v3 finding only through the collector when it is %s',
+    async (_outcome, accepted, recoveryRetained) => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-server-route-'));
+      const attemptsDirectory = nodePath.join(projectDirectory, '.safeword/public-retro-attempts');
+      const privateTransport = new FakeGitHub();
+      const publicTransport = vi.fn(request =>
+        accepted
+          ? Promise.resolve({
+              receipt: 'server-receipt',
+              requestId: request.headers['x-safeword-request-id'],
+            })
+          : Promise.reject(new Error(_outcome)),
+      );
+      try {
+        const outcome = await runRetro(
+          { transcript: '/tmp/t.jsonl' },
+          dependencies({
+            projectDirectory,
+            publicRetro: {
+              attemptsDirectory,
+              now: () => 0,
+              randomUUID: () => '11111111-2222-4333-8444-555555555555',
+              route: 'server-v3',
+              source: {
+                harness: 'codex',
+                hostClass: 'local',
+                projectUUID: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                safewordCliVersion: '0.82.1',
+              },
+              transport: publicTransport,
+            },
+            sessionId: 'server-route-session',
+            transport: privateTransport,
+          }),
+        );
+
+        expect(outcome.ok).toBe(true);
+        expect(privateTransport.issues).toHaveLength(0);
+        expect(publicTransport).toHaveBeenCalledOnce();
+        expect(readSpooledDrafts(projectDirectory, 'server-route-session')).toEqual([]);
+        expect(readServerSpooledDrafts(projectDirectory, 'server-route-session')).toHaveLength(
+          recoveryRetained ? 1 : 0,
+        );
+        expect(outcome.agentFilingNeeded).toBe(recoveryRetained);
+        if (recoveryRetained) {
+          expect(existsSync(draftSpoolPath(projectDirectory, 'server-route-session'))).toBe(true);
+        }
+        expect(readdirSync(attemptsDirectory)).toHaveLength(1);
+      } finally {
+        rmSync(projectDirectory, { force: true, recursive: true });
+      }
+    },
+  );
+
+  it('keeps an accepted server-v3 window collector-owned when the same window runs again', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-server-route-'));
+    const sessionId = 'server-repeat-session';
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        receipt: 'server-receipt',
+        requestId: request.headers['x-safeword-request-id'],
+      }),
+    );
+    const privateTransport = new FakeGitHub();
+    const repeatedDependencies = {
+      projectDirectory,
+      publicRetro: {
+        attemptsDirectory: nodePath.join(projectDirectory, '.safeword/public-retro-attempts'),
+        now: () => 0,
+        randomUUID: () => '11111111-2222-4333-8444-555555555555',
+        route: 'server-v3' as const,
+        source: {
+          harness: 'codex' as const,
+          hostClass: 'local' as const,
+          projectUUID: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          safewordCliVersion: '0.82.1',
+        },
+        transport: publicTransport,
+      },
+      sessionId,
+      transport: privateTransport,
+    };
+
+    try {
+      const first = await runRetro(
+        { transcript: '/tmp/t.jsonl', windowStart: 42 },
+        dependencies(repeatedDependencies),
+      );
+      const second = await runRetro(
+        { transcript: '/tmp/t.jsonl', windowStart: 42 },
+        dependencies(repeatedDependencies),
+      );
+
+      expect(first.agentFilingNeeded).toBe(false);
+      expect(second.agentFilingNeeded).toBe(false);
+      expect(publicTransport).toHaveBeenCalledOnce();
+      expect(privateTransport.issues).toHaveLength(0);
+      expect(readServerSpooledDrafts(projectDirectory, sessionId)).toEqual([]);
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('excludes extraction but includes finding preparation in the shared delivery budget', async () => {
     const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     let nowCalls = 0;
     const publicTransport = vi.fn(request =>
@@ -1396,7 +1588,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
-  it('persists relay recovery before starting the public handoff', async () => {
+  it('uses only relay recovery when the configured relay owns the window', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-spool-first-'));
     const publicTransport = vi.fn(async request => {
       expect(await listRelayRequests(projectDirectory)).toHaveLength(1);
@@ -1448,7 +1640,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
       );
 
       expect(outcome.ok).toBe(true);
-      expect(publicTransport).toHaveBeenCalledOnce();
+      expect(publicTransport).not.toHaveBeenCalled();
     } finally {
       rmSync(projectDirectory, { force: true, recursive: true });
     }
@@ -2089,6 +2281,7 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
         'bodyDigest',
         'canonicalSignature',
         'labels',
+        'route',
         'signature',
         'title',
       ]);

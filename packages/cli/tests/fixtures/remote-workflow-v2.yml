@@ -1,0 +1,119 @@
+name: Safeword remote tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Full commit SHA to test
+        required: true
+        type: string
+      lane:
+        description: Safeword test lane
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate request
+        id: validate
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+          LANE: ${{ inputs.lane }}
+        run: |
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$LANE" == "done" || "$LANE" == "full" ]] || exit 1
+
+      - name: Check out requested revision
+        id: checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.target_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify checked-out revision
+        id: verify
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+        run: |
+          observed_sha="$(git rev-parse HEAD)"
+          echo "observed_sha=$observed_sha" >> "$GITHUB_OUTPUT"
+          [[ "$observed_sha" == "$TARGET_SHA" ]]
+
+      - name: Set up Safeword runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Run requested test lane
+        id: tests
+        env:
+          LANE: ${{ inputs.lane }}
+        run: npx --yes safeword@0.78.6 project test --lane "$LANE" --execution local --prepare-remote
+
+      - name: Write remote test result
+        id: report
+        if: always()
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+          LANE: ${{ inputs.lane }}
+          VALIDATION_OUTCOME: ${{ steps.validate.outcome }}
+          CHECKOUT_OUTCOME: ${{ steps.checkout.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          OBSERVED_SHA: ${{ steps.verify.outputs.observed_sha }}
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          node <<'NODE'
+          const { env } = process;
+          const validSha = /^[0-9a-f]{40}$/.test(env.TARGET_SHA ?? '');
+          const validLane = env.LANE === 'done' || env.LANE === 'full';
+          let status;
+          let rejectedReason = null;
+          if (!validSha || !validLane) {
+            status = 'rejected';
+            rejectedReason = validSha ? 'invalid_lane' : 'invalid_target_sha';
+          } else if (env.VALIDATION_OUTCOME !== 'success') {
+            status = 'incomplete';
+          } else if (env.CHECKOUT_OUTCOME === 'failure') {
+            status = 'rejected';
+            rejectedReason = 'checkout_unavailable';
+          } else if (env.CHECKOUT_OUTCOME !== 'success') {
+            status = 'incomplete';
+          } else if (env.VERIFY_OUTCOME === 'failure') {
+            status = 'rejected';
+            rejectedReason = 'head_mismatch';
+          } else if (env.VERIFY_OUTCOME !== 'success') {
+            status = 'incomplete';
+          } else if (env.TEST_OUTCOME === 'success') {
+            status = 'passed';
+          } else if (env.TEST_OUTCOME === 'failure') {
+            status = 'failed';
+          } else {
+            status = 'incomplete';
+          }
+          const result = {
+            schema_version: 1,
+            status,
+            lane: validLane ? env.LANE : null,
+            requested_sha: validSha ? env.TARGET_SHA : null,
+            observed_sha: env.OBSERVED_SHA || null,
+            rejected_reason: rejectedReason,
+          };
+          require('node:fs').writeFileSync(
+            'safeword-remote-test-result.json',
+            `${JSON.stringify(result)}\n`,
+          );
+          NODE
+
+      - name: Upload remote test result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: safeword-remote-test-result
+          path: safeword-remote-test-result.json
+          if-no-files-found: error

@@ -30,6 +30,10 @@ export const REMOTE_WORKFLOW_RELEASE_MANIFEST = [
     version: 2,
     normalizedSha256: 'f5898559f4d57c39a7887e7061d50ebaa2cbaf86159d7c93555a6c32c6d909d9',
   },
+  {
+    version: 3,
+    normalizedSha256: '20846fed2fa9d655c2bba660cd5f7f2fd712c34ac92523d6c40846e9a8477baf',
+  },
 ] as const;
 
 const HISTORICAL_MANAGED_DIGESTS = new Set<string>(
@@ -191,10 +195,11 @@ export function classifyRemoteWorkflow(
   const destination = nodePath.join(root, REMOTE_WORKFLOW_PATH);
   const observed = readRegularFile(destination, filesystem);
   if ('failure' in observed) return observed.failure;
-  if (workflowDigest(observed.content) === workflowDigest(bundled)) {
+  const observedDigest = workflowDigest(observed.content);
+  if (observedDigest === workflowDigest(bundled)) {
     return { state: 'current', affectedPath: NO_ACTION, nextAction: NO_ACTION };
   }
-  if (HISTORICAL_MANAGED_DIGESTS.has(workflowDigest(observed.content))) {
+  if (HISTORICAL_MANAGED_DIGESTS.has(observedDigest)) {
     return {
       state: 'managed_outdated',
       affectedPath: REMOTE_WORKFLOW_PATH,

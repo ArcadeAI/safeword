@@ -2,10 +2,12 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, expect, it } from 'vitest';
 
 import { startPublicRetroCollector } from '../src/index.js';
+import { PublicRetroStore } from '../src/store.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -56,6 +58,23 @@ function fixtureBatchRequest(): { body: Uint8Array; requestId: string } {
   };
 }
 
+function fixtureServerOwnedRequest(): { body: Uint8Array; requestId: string } {
+  return {
+    body: encoded({
+      version: 'v3',
+      findings: ['server-owned sanitized finding'],
+      source: {
+        harness: 'cursor',
+        hostClass: 'local',
+        projectUUID: '018f0f2e-abcd-4def-8abc-def012345678',
+        safewordCliVersion: '0.82.1',
+      },
+      sessionScope: '9'.repeat(64),
+    }),
+    requestId: '11111111-2222-4333-8444-555555555555',
+  };
+}
+
 function sessionScope(harness: string, projectUUID: string, sessionId: string): string {
   return createHash('sha256')
     .update('safeword-retro-session-scope:v1\0')
@@ -100,6 +119,355 @@ it('exposes anonymous liveness without collection metadata', async () => {
 
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ status: 'ok' });
+});
+
+it('persists the public intake quota across collector restarts', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const firstRuntime = await startPublicRetroCollector({
+    databasePath,
+    intakeLimitPerMinute: 1,
+  });
+  const first = await submit(firstRuntime.url, fixtureServerOwnedRequest());
+  await firstRuntime.close();
+
+  const secondRuntime = await startPublicRetroCollector({
+    databasePath,
+    intakeLimitPerMinute: 1,
+  });
+  const secondRequest = fixtureServerOwnedRequest();
+  secondRequest.requestId = '22222222-2222-4222-8222-222222222222';
+  secondRequest.body = encoded({
+    ...JSON.parse(new TextDecoder().decode(secondRequest.body)),
+    sessionScope: 'a'.repeat(64),
+  });
+  const rejected = await submit(secondRuntime.url, secondRequest);
+  const duplicate = await submit(secondRuntime.url, fixtureServerOwnedRequest());
+  await secondRuntime.close();
+
+  expect(first.status).toBe(201);
+  expect(rejected.status).toBe(429);
+  expect(await rejected.json()).toEqual({ error: 'intake_quota_exhausted' });
+  expect(duplicate.status).toBe(200);
+});
+
+it('applies the public intake quota across legacy and server-owned envelopes', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    intakeLimitPerMinute: 1,
+  });
+
+  const accepted = await submit(runtime.url, fixtureRequest());
+  const rejected = await submit(runtime.url, fixtureBatchRequest());
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(rejected.status).toBe(429);
+  expect(await rejected.json()).toEqual({ error: 'intake_quota_exhausted' });
+});
+
+it('keeps legacy intake identities isolated from server-owned identities', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    intakeLimitPerMinute: 2,
+  });
+  const legacy = fixtureRequest();
+  legacy.requestId = '41111111-2222-4333-8444-555555555555';
+  const serverOwned = fixtureServerOwnedRequest();
+  serverOwned.requestId = legacy.requestId;
+
+  const legacyResponse = await submit(runtime.url, legacy);
+  const serverResponse = await submit(runtime.url, serverOwned);
+  await runtime.close();
+
+  expect(legacyResponse.status).toBe(201);
+  expect(serverResponse.status).toBe(201);
+});
+
+it('persists global and per-project filing reservations across restarts', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const options = {
+    collectorWorkerCredential: 'worker-secret',
+    databasePath,
+    filingLimitPerHour: 2,
+    projectFilingLimitPerHour: 1,
+  };
+  const requestFor = (requestId: string, projectUUID: string, scope: string) => {
+    const fixture = fixtureServerOwnedRequest();
+    const envelope = JSON.parse(new TextDecoder().decode(fixture.body)) as Record<string, unknown>;
+    envelope.source = { ...(envelope.source as object), projectUUID };
+    envelope.sessionScope = scope.repeat(64);
+    return { body: encoded(envelope), requestId };
+  };
+  const firstRuntime = await startPublicRetroCollector(options);
+  await submit(
+    firstRuntime.url,
+    requestFor('11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '1'),
+  );
+  await submit(
+    firstRuntime.url,
+    requestFor('22222222-2222-4222-8222-222222222222', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '2'),
+  );
+  await submit(
+    firstRuntime.url,
+    requestFor('33333333-3333-4333-8333-333333333333', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '3'),
+  );
+  const workerHeaders = { authorization: 'Bearer worker-secret' };
+  const firstClaim = await fetch(`${firstRuntime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const firstLease = (await firstClaim.json()) as { leaseToken: string; requestId: string };
+  await fetch(`${firstRuntime.url}/v1/private/retro-claims/${firstLease.requestId}`, {
+    method: 'PUT',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': firstLease.leaseToken },
+  });
+  const secondClaim = await fetch(`${firstRuntime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const secondLease = (await secondClaim.json()) as { leaseToken: string; requestId: string };
+  await fetch(`${firstRuntime.url}/v1/private/retro-claims/${secondLease.requestId}`, {
+    method: 'PUT',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': secondLease.leaseToken },
+  });
+  await firstRuntime.close();
+
+  const restarted = await startPublicRetroCollector(options);
+  const exhausted = await fetch(`${restarted.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  await restarted.close();
+
+  expect(firstLease.requestId).toBe('11111111-1111-4111-8111-111111111111');
+  expect(secondLease.requestId).toBe('33333333-3333-4333-8333-333333333333');
+  expect(exhausted.status).toBe(204);
+});
+
+it('keeps lifecycle inspection payload-free and audits separate payload principals', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const runtime = await startPublicRetroCollector({
+    breakGlassCredential: 'break-glass-secret',
+    collectorWorkerCredential: 'worker-secret',
+    databasePath,
+    operatorCredential: 'operator-secret',
+  });
+  const request = fixtureServerOwnedRequest();
+  await submit(runtime.url, request);
+
+  const lifecycle = await fetch(`${runtime.url}/v1/private/retros`, {
+    headers: { authorization: 'Bearer operator-secret' },
+  });
+  const lifecycleText = await lifecycle.text();
+  const operatorPayload = await fetch(
+    `${runtime.url}/v1/private/retros/${request.requestId}/payload`,
+    { headers: { authorization: 'Bearer operator-secret' } },
+  );
+  const operatorLegacyRead = await fetch(`${runtime.url}/v1/public-retros/${request.requestId}`, {
+    headers: { authorization: 'Bearer operator-secret' },
+  });
+  const breakGlassPayload = await fetch(
+    `${runtime.url}/v1/private/retros/${request.requestId}/payload`,
+    { headers: { authorization: 'Bearer break-glass-secret' } },
+  );
+  const workerClaim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-secret' },
+  });
+  await runtime.close();
+  const database = new DatabaseSync(databasePath);
+  const audit = database
+    .prepare('SELECT principal FROM payload_access_audit ORDER BY id')
+    .all() as unknown as { principal: string }[];
+  database.close();
+
+  expect(lifecycle.status).toBe(200);
+  expect(lifecycleText).not.toContain('server-owned sanitized finding');
+  expect(operatorPayload.status).toBe(404);
+  expect(operatorLegacyRead.status).toBe(404);
+  expect(new Uint8Array(await breakGlassPayload.arrayBuffer())).toEqual(request.body);
+  expect(workerClaim.status).toBe(200);
+  expect(audit).toEqual([{ principal: 'break-glass' }, { principal: 'collector-worker' }]);
+});
+
+it('dead-letters and alerts work only after filing quota blocks it for 24 hours', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  let now = 0;
+  const store = new PublicRetroStore(databasePath, {
+    filingLimitPerHour: 0,
+    now: () => now,
+  });
+  const request = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(request.body)) as {
+    sessionScope: string;
+    source: { projectUUID: string };
+  };
+  store.accept(
+    request.requestId,
+    envelope.sessionScope,
+    request.body,
+    'v3',
+    envelope.source.projectUUID,
+  );
+
+  expect(store.claim()).toBeUndefined();
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'queued' }),
+  ]);
+  now = 86_400_001;
+  expect(store.claim()).toBeUndefined();
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'dead-lettered' }),
+  ]);
+  store.close();
+  const database = new DatabaseSync(databasePath);
+  const alerts = database.prepare('SELECT request_id, code FROM operator_alerts').all();
+  database.close();
+
+  expect(alerts).toEqual([{ request_id: request.requestId, code: 'quota_exhausted' }]);
+});
+
+it('does not treat outage age as quota-block age when capacity fills after recovery', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let now = 0;
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    filingLimitPerHour: 1,
+    now: () => now,
+    projectFilingLimitPerHour: 1,
+  });
+  const first = fixtureServerOwnedRequest();
+  const secondId = '22222222-3333-4444-8555-666666666666';
+  const secondBody = encoded({
+    ...(JSON.parse(new TextDecoder().decode(first.body)) as Record<string, unknown>),
+    findings: ['second outage finding'],
+    requestId: secondId,
+    sessionScope: 'a'.repeat(64),
+  });
+  store.accept(first.requestId, '9'.repeat(64), first.body, 'v3', 'project-a');
+  store.accept(secondId, 'a'.repeat(64), secondBody, 'v3', 'project-b');
+
+  now = 86_400_001;
+  expect(store.claim()?.requestId).toBe(first.requestId);
+  expect(store.claim()).toBeUndefined();
+  expect(store.listLifecycle()).toEqual(
+    expect.arrayContaining([expect.objectContaining({ requestId: secondId, state: 'queued' })]),
+  );
+  store.close();
+});
+
+it('keeps pre-relay work claimable after 24 hours and a failed attempt', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let now = 0;
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    now: () => now,
+  });
+  const request = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(request.body)) as {
+    sessionScope: string;
+    source: { projectUUID: string };
+  };
+  store.accept(
+    request.requestId,
+    envelope.sessionScope,
+    request.body,
+    'v3',
+    envelope.source.projectUUID,
+  );
+  const firstClaim = store.claim();
+  expect(firstClaim).toBeDefined();
+  expect(store.release(request.requestId, firstClaim?.leaseToken ?? '')).toBe(true);
+
+  now = 86_400_001;
+  const recovered = store.claim();
+
+  expect(recovered?.requestId).toBe(request.requestId);
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'leased' }),
+  ]);
+  store.close();
+});
+
+it('reports an expired collector lease as queued before it is reclaimed', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let now = 0;
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    now: () => now,
+  });
+  const request = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(request.body)) as {
+    sessionScope: string;
+    source: { projectUUID: string };
+  };
+  store.accept(
+    request.requestId,
+    envelope.sessionScope,
+    request.body,
+    'v3',
+    envelope.source.projectUUID,
+  );
+  const claim = store.claim(now, 1000);
+  expect(claim).toBeDefined();
+
+  now = 1001;
+
+  expect(store.release(request.requestId, claim?.leaseToken ?? '')).toBe(false);
+  expect(store.reject(request.requestId, claim?.leaseToken ?? '')).toBe(false);
+  expect(store.complete(request.requestId, claim?.leaseToken ?? '')).toBe(false);
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'queued' }),
+  ]);
+  store.close();
+});
+
+it('prevents a stale lease token from mutating a reclaimed live lease', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let now = 0;
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    now: () => now,
+  });
+  const request = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(request.body)) as {
+    sessionScope: string;
+    source: { projectUUID: string };
+  };
+  store.accept(
+    request.requestId,
+    envelope.sessionScope,
+    request.body,
+    'v3',
+    envelope.source.projectUUID,
+  );
+  const stale = store.claim(now, 1000);
+  if (stale === undefined) throw new Error('expected initial lease');
+
+  now = 1001;
+  const current = store.claim(now, 1000);
+  if (current === undefined) throw new Error('expected reclaimed lease');
+
+  expect(store.release(request.requestId, stale.leaseToken)).toBe(false);
+  expect(store.reject(request.requestId, stale.leaseToken)).toBe(false);
+  expect(store.complete(request.requestId, stale.leaseToken)).toBe(false);
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'leased' }),
+  ]);
+  expect(store.complete(request.requestId, current.leaseToken)).toBe(true);
+  store.close();
 });
 
 it.each([
@@ -357,6 +725,57 @@ it('does not expose record or collection metadata to anonymous callers', async (
   expect(bodies).toEqual(Array.from({ length: 4 }, () => ({ error: 'not_found' })));
 });
 
+it('denies anonymous access to private lifecycle, payload, and claim routes', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    breakGlassCredential: 'break-glass-secret',
+    collectorWorkerCredential: 'worker-secret',
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-secret',
+  });
+  const request = fixtureServerOwnedRequest();
+  await submit(runtime.url, request);
+
+  const responses = await Promise.all([
+    fetch(`${runtime.url}/v1/private/retros`),
+    fetch(`${runtime.url}/v1/private/retros/${request.requestId}/payload`),
+    fetch(`${runtime.url}/v1/private/retro-claims`, { method: 'POST' }),
+  ]);
+  await runtime.close();
+
+  expect(responses.map(response => response.status)).toEqual([404, 404, 404]);
+  await expect(Promise.all(responses.map(response => response.json()))).resolves.toEqual([
+    { error: 'not_found' },
+    { error: 'not_found' },
+    { error: 'not_found' },
+  ]);
+});
+
+it.each([
+  ['v1', fixtureRequest],
+  ['v2', fixtureBatchRequest],
+] as const)(
+  'keeps accepted %s quarantine records out of worker leases',
+  async (_version, build) => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+    temporaryDirectories.push(directory);
+    const runtime = await startPublicRetroCollector({
+      collectorWorkerCredential: 'worker-secret',
+      databasePath: path.join(directory, 'collector.sqlite'),
+    });
+    const accepted = await submit(runtime.url, build());
+    const claim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer worker-secret' },
+    });
+    await runtime.close();
+
+    expect(accepted.status).toBe(201);
+    expect(claim.status).toBe(204);
+  },
+);
+
 it('does not acknowledge a submission when the quarantine store fails', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
@@ -520,6 +939,197 @@ it('returns the original durable receipt for an exact retry after restart', asyn
     receipt: expect.any(String),
     requestId: request.requestId,
   });
+});
+
+it('leases exact server-owned bytes after collector restart', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const request = fixtureServerOwnedRequest();
+
+  const firstRuntime = await startPublicRetroCollector({
+    databasePath,
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const accepted = await submit(firstRuntime.url, request);
+  await firstRuntime.close();
+
+  const restartedRuntime = await startPublicRetroCollector({
+    databasePath,
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const claimed = await fetch(`${restartedRuntime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-fixture-credential' },
+  });
+  const claim = (await claimed.json()) as {
+    acceptedAt: string;
+    bodyBase64: string;
+    digest: string;
+    leaseToken: string;
+    requestId: string;
+  };
+  await restartedRuntime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(claimed.status).toBe(200);
+  expect(claim.requestId).toBe(request.requestId);
+  expect(new Uint8Array(Buffer.from(claim.bodyBase64, 'base64'))).toEqual(request.body);
+  expect(claim.digest).toBe(createHash('sha256').update(request.body).digest('hex'));
+  expect(claim.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/u);
+  expect(claim.leaseToken).toMatch(/^[0-9a-f-]{36}$/u);
+});
+
+it('uses only the v3 request UUID for duplicate decisions', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const first = fixtureServerOwnedRequest();
+  const second = {
+    requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+    body: encoded({
+      ...(JSON.parse(new TextDecoder().decode(first.body)) as Record<string, unknown>),
+      findings: ['a later transcript offset'],
+    }),
+  };
+
+  const firstResponse = await submit(runtime.url, first);
+  const secondResponse = await submit(runtime.url, second);
+  await runtime.close();
+
+  expect(firstResponse.status).toBe(201);
+  expect(secondResponse.status).toBe(201);
+});
+
+it.each([
+  ['more than 50 findings', Array.from({ length: 51 }, (_, index) => `finding ${index}`)],
+  ['a finding above 4 KiB serialized', ['x'.repeat(4096)]],
+  ['a blank first title line', ['\nbody without a title']],
+  ['a combined filing body above 60 KB', Array.from({ length: 16 }, () => 'x'.repeat(4000))],
+  ['relay signature authority syntax', ['<!-- safeword-retro-signature: retro:abc -->']],
+  ['relay canonical authority syntax', ['<!-- safeword-retro-canonical: canonical:abc -->']],
+  ['relay request authority syntax', ['<!-- safeword-retro-request-v1: abc -->']],
+] as const)('rejects v3 with %s before durable storage', async (_, findings) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const fixture = fixtureServerOwnedRequest();
+  const request = {
+    ...fixture,
+    body: encoded({
+      ...(JSON.parse(new TextDecoder().decode(fixture.body)) as Record<string, unknown>),
+      findings,
+    }),
+  };
+
+  const rejected = await submit(runtime.url, request);
+  const claim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-fixture-credential' },
+  });
+  await runtime.close();
+
+  expect(rejected.status).toBe(400);
+  expect(claim.status).toBe(204);
+});
+
+it('releases a lease without immediately hot-looping the same request', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const request = fixtureServerOwnedRequest();
+  await submit(runtime.url, request);
+  const workerHeaders = { authorization: 'Bearer worker-fixture-credential' };
+  const firstResponse = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const first = (await firstResponse.json()) as { leaseToken: string; requestId: string };
+
+  const released = await fetch(`${runtime.url}/v1/private/retro-claims/${first.requestId}`, {
+    method: 'DELETE',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': first.leaseToken },
+  });
+  const secondResponse = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  await runtime.close();
+
+  expect(released.status).toBe(204);
+  expect(secondResponse.status).toBe(204);
+});
+
+it('lets newer accepted work pass a retained request during backoff', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), { now: () => 0 });
+  const first = fixtureServerOwnedRequest();
+  const secondBody = encoded({
+    ...(JSON.parse(new TextDecoder().decode(first.body)) as Record<string, unknown>),
+    findings: ['second server-owned finding'],
+    sessionScope: 'a'.repeat(64),
+  });
+  store.accept(first.requestId, '9'.repeat(64), first.body, 'v3', 'project-a');
+  store.accept(
+    '22222222-3333-4444-8555-666666666666',
+    'a'.repeat(64),
+    secondBody,
+    'v3',
+    'project-b',
+  );
+
+  const retained = store.claim();
+  if (retained === undefined) throw new Error('expected first claim');
+  store.release(retained.requestId, retained.leaseToken);
+  const next = store.claim();
+  store.close();
+
+  expect(retained.requestId).toBe(first.requestId);
+  expect(next?.requestId).toBe('22222222-3333-4444-8555-666666666666');
+});
+
+it('dead-letters and alerts a relay-rejected lease', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const runtime = await startPublicRetroCollector({
+    databasePath,
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  await submit(runtime.url, fixtureServerOwnedRequest());
+  const workerHeaders = { authorization: 'Bearer worker-fixture-credential' };
+  const claimResponse = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const claim = (await claimResponse.json()) as { leaseToken: string; requestId: string };
+
+  const rejected = await fetch(`${runtime.url}/v1/private/retro-claims/${claim.requestId}`, {
+    method: 'PATCH',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': claim.leaseToken },
+  });
+  await runtime.close();
+  const database = new DatabaseSync(databasePath);
+  const lifecycle = database
+    .prepare('SELECT dead_lettered_at, terminal_reason FROM server_retros WHERE request_id = ?')
+    .get(claim.requestId);
+  const alert = database
+    .prepare('SELECT code FROM operator_alerts WHERE request_id = ?')
+    .get(claim.requestId);
+  database.close();
+
+  expect(rejected.status).toBe(204);
+  expect(lifecycle).toMatchObject({ terminal_reason: 'relay_rejected' });
+  expect(alert).toEqual({ code: 'relay_rejected' });
 });
 
 it('returns the original durable receipt for an exact v2 retry after restart', async () => {
@@ -810,21 +1420,22 @@ async function expectSizedEnvelopeStatus(
 }
 
 it.each([
-  ['v1', 'ascii', 65_536],
-  ['v1', 'multibyte', 65_536],
-  ['v2', 'ascii', 65_536],
-  ['v2', 'multibyte', 65_536],
-] as const)('accepts a %s %s envelope at the 65536-byte limit', (version, content, byteLength) =>
+  ['v1', 'ascii', 262_144],
+  ['v1', 'multibyte', 262_144],
+  ['v2', 'ascii', 262_144],
+  ['v2', 'multibyte', 262_144],
+] as const)('accepts a %s %s envelope at the 262144-byte limit', (version, content, byteLength) =>
   expectSizedEnvelopeStatus(content, byteLength, 201, version),
 );
 
 it.each([
-  ['v1', 'ascii', 65_537],
-  ['v1', 'multibyte', 65_537],
-  ['v2', 'ascii', 65_537],
-  ['v2', 'multibyte', 65_537],
-] as const)('rejects a %s %s envelope above the 65536-byte limit', (version, content, byteLength) =>
-  expectSizedEnvelopeStatus(content, byteLength, 413, version),
+  ['v1', 'ascii', 262_145],
+  ['v1', 'multibyte', 262_145],
+  ['v2', 'ascii', 262_145],
+  ['v2', 'multibyte', 262_145],
+] as const)(
+  'rejects a %s %s envelope above the 262144-byte limit',
+  (version, content, byteLength) => expectSizedEnvelopeStatus(content, byteLength, 413, version),
 );
 
 type InvalidEnvelope = readonly [string, Uint8Array, (string | false)?];
@@ -879,7 +1490,7 @@ async function expectEnvelopeRejected(
 
 it.each([
   ['missing version', encoded({ ...fixtureEnvelope(), version: undefined })],
-  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v3' })],
+  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v4' })],
 ] as const)('rejects the %s without consuming its request identity', (_, body) =>
   expectEnvelopeRejected(body),
 );
@@ -937,9 +1548,21 @@ it.each([
   ['hostname source host class', encoded(withSource({ hostClass: 'hostname' }))],
 ] as const)('rejects unsupported %s', (_, body) => expectEnvelopeRejected(body));
 
-it.each([
-  ['incompatible cursor/local source', encoded(withSource({ harness: 'cursor' }))],
-] as const)('rejects the %s compatibility row', (_, body) => expectEnvelopeRejected(body));
+it('accepts a local Cursor source while the legacy compatibility route remains active', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const requestId = '018f0f2e-abcd-4def-8abc-def01234567d';
+  const response = await submit(runtime.url, {
+    body: encoded(withSource({ harness: 'cursor' })),
+    requestId,
+  });
+  await runtime.close();
+
+  expect(response.status).toBe(201);
+});
 
 it.each(invalidEnvelopes)('rejects malformed envelope form: %s', (_, body, type) =>
   expectEnvelopeRejected(body as Uint8Array, type as string | false | undefined),

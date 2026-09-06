@@ -62,6 +62,10 @@ I…, I want…, so I can…`), not a restated feature.
   configured surface silently renamed in `spec.md`.
 - **Nothing leaks implementation** (file names, function names, libraries) into
   spec-level prose.
+- **A Product Plan owner's Killer Demo earns its payoff**, using the
+  [intake standard](../bdd/DISCOVERY.md#killer-demo): check the value and its
+  visible proof, not just filled fields. A child contribution does not need a
+  second demo.
 
 If the review surfaces a fix, **edit `spec.md` and re-invoke `$safeword:self-review`** — the
 content-bound stamp goes stale on any edit, so the gate correctly re-blocks

@@ -13,7 +13,7 @@
 
 ### <slug>.<persona-code>1 — <job title>
 
-**Persona:** <canonical persona>
+**Persona:** <canonical persona> (`<persona-code>`)
 
 > When I <situation>, I want <motivation>, so I can <outcome>.
 
@@ -28,9 +28,17 @@
 
 ## Killer Demo
 
-- **Audience:** <canonical persona>
-- **Starting state:** <recognizable before-state>
-- **Action:** <shortest credible action>
-- **Payoff:** <persona-facing result>
-- **Proof:** <what makes the payoff observable>
-- **Boundary:** <what the demo deliberately does not prove>
+> For <audience> starting with <real pain>, <decisive action> produces <unmistakably better outcome>, visibly proven by <evidence>, within <boundary>.
+
+## Surfaces
+
+<!-- Contexts this must keep working in (see paths.surfaces). Each Affected entry
+needs a scenario tagged @surface.<slug> or an inline skip; Unaffected is
+informational. These comment lines declare nothing until you fill them in.
+
+Affected:
+- Claude Code
+- OpenAI Codex — skip: <why no scenario of its own>
+
+Unaffected:
+- Cursor — <why this work cannot reach it> -->

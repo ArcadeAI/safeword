@@ -485,6 +485,12 @@ function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
     generator: (ctx: ProjectContext): string | undefined =>
       prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
     normalizeForUnmodifiedComparison: normalizePrReviewWorkflowVersionPins,
+    // The pin names the safeword these workflows fetch from npm. They carry write
+    // scopes under `pull_request_target` and check nothing out, so the version
+    // cannot come from the repo and has to be written into the file — which meant
+    // it froze at whichever release first installed it. Refresh it on upgrade,
+    // while the workflow is still safeword's own.
+    refreshWhileUnmodified: true,
     removeIfUnmodified: workflowContent,
     removeWhenGeneratorOmitted: true,
   };
@@ -823,6 +829,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
     '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
     '.safeword/hooks/lib/review-ledger.ts': { template: 'hooks/lib/review-ledger.ts' },
+    '.safeword/hooks/lib/review-receipt.ts': { template: 'hooks/lib/review-receipt.ts' },
+    '.safeword/hooks/lib/read-receipt.ts': { template: 'hooks/lib/read-receipt.ts' },
+    '.safeword/hooks/lib/verify-stamp-claims.ts': { template: 'hooks/lib/verify-stamp-claims.ts' },
     '.safeword/hooks/lib/lint-config.ts': { template: 'hooks/lib/lint-config.ts' },
     '.safeword/hooks/lib/typecheck-gate.ts': { template: 'hooks/lib/typecheck-gate.ts' },
     '.safeword/hooks/lib/checkbox-transitions.ts': {

@@ -1,4 +1,8 @@
-import type { PublicRetroReceipt, PublicRetroTransport } from './public-delivery.js';
+import {
+  type PublicRetroReceipt,
+  PublicRetroRejection,
+  type PublicRetroTransport,
+} from './public-delivery.js';
 
 declare const __SAFEWORD_PUBLIC_RETRO_ORIGIN__: string;
 
@@ -51,8 +55,18 @@ export function createPublicRetroTransport(options?: {
       redirect: 'error',
       signal,
     });
-    if (!response.ok)
-      throw new Error(`Public retrospective submission failed (${response.status})`);
+    if (!response.ok) {
+      let code = 'unknown';
+      try {
+        const rejection = (await response.json()) as { error?: unknown };
+        if (typeof rejection.error === 'string' && /^[a-z_]{1,64}$/u.test(rejection.error)) {
+          code = rejection.error;
+        }
+      } catch {
+        // Preserve the status even when an intermediary returns a non-JSON body.
+      }
+      throw new PublicRetroRejection(response.status, code);
+    }
     let result: unknown;
     try {
       result = await response.json();

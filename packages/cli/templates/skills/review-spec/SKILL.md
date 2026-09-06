@@ -36,7 +36,7 @@ Read the active ticket's `.feature` source first. At review time, run
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
 context. The resolver honors `paths.principles`, `paths.personas`, and
-`paths.surfaces`. Also read `spec.md`. Use `test-definitions.md` only as the R/G/R ledger
+`paths.surfaces`. Also read `spec.md` and the ticket's `ticket.md` — `spec.md` carries the Product Bet's project non-goals and each milestone's Non-goals, while `out_of_scope` lives only in `ticket.md` frontmatter, and the Scope boundary lens needs both. Use `test-definitions.md` only as the R/G/R ledger
 and as a legacy scenario fallback when no feature source exists.
 test-definitions.md is the R/G/R ledger. Run every check below against the
 scenarios, and present findings in the **Findings format** at the end. **Review
@@ -47,16 +47,42 @@ gate.)
 
 Run the adversarial judgment through the shared coordinator. Pass the feature
 (and any legacy scenario source) as bounded work. Pass the required `spec.md`
-first, followed by the dimension table and every existing project-knowledge file,
-as supporting context. Omit optional paths that do not exist; preserve the path
+first, followed by `ticket.md` (without it the reviewer cannot see `out_of_scope`
+and the Scope boundary lens silently degrades to the spec's non-goals alone). When
+the ticket names a parent in `Parent References`, resolve that parent's `spec.md`
+and pass it next: a child inherits its Killer Demo by reference, so a reviewer
+without the parent file cannot tell whether `@demo` is missing, stale, or proving
+the wrong Payoff. Then pass the dimension table and every existing
+project-knowledge file, as supporting context.
+Unlike the bracketed paths, `ticket.md` is not optional in practice — every BDD
+ticket has one and dispatch should always pass it. `packet.ts` enforces only
+`spec.md`, so the lens's not-supplied clause covers a hand-run dispatch that
+skipped `ticket.md`, never a normal one. That clause degrades the lens, it does
+not satisfy it: without `ticket.md` the Scope boundary result is a reported
+limitation naming what went unchecked, and a gate that never read `out_of_scope`
+has not cleared scope. Omit optional paths that do not exist; preserve the path
 and content of optional files that do exist, even when their content is blank.
 Refuse dispatch when `spec.md` is absent, blank, or not the first context file.
 Resolve a review-capable Safeword CLI first; source checkouts do not guarantee
 a bare `safeword` on `PATH`:
 
 ```bash
-bun .safeword/hooks/run-review.ts review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
+bun .safeword/hooks/run-review.ts review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec ticket-file [parent-spec] [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
 ```
+
+**The dispatch is authorized; skipping it is not your call.** The coordinator
+spawns the reviewer as a local subprocess of a CLI the user installed and signed
+in to (`claude`, `codex`, or `opencode`), under their own credentials, on this
+machine; the packet is bounded to the targets and `--context` you pass. That
+route exists only because the user configured it, and a cross-vendor second
+opinion is the point of the gate — a user who does not want it sets
+`crossAgentReview: off` in `.safeword/config.json`. So treat the command as
+ordinary tool use: do not invent a disclosure-approval requirement, and do not
+withhold the dispatch on your own judgment. If your runtime blocks it (sandbox,
+network, or approval policy), request the approval it needs, or report that
+block as the blocker. **A review you never dispatched is not coverage** — say so
+unprompted, before any finding, name what ran in its place, and never let your
+own pass stand in for the review.
 
 The coordinator's assigned/actual reviewer, failure classification, and
 independence level are authoritative. If the typed result is
@@ -75,7 +101,14 @@ Fail closed: missing or unreadable required feature/spec inputs, dispatch
 failure, timeout, a pending/malformed result, `request_changes`, changed review
 inputs, or stamp-write failure all leave the ticket in `scenario-gate`. After an
 approval, record the returned author, actual reviewer, verified model when
-present, and independence with `write-review-stamp.ts --phase scenario-gate`.
+present, and independence with
+`write-review-stamp.ts --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.
+Every value comes from the result you are stamping; drop `--model` when the
+result reports no verified model. The `--review-id` is that result's
+`review_id`: it is what proves the review ran, so a stamp claiming independence
+without one is refused. The other flags are checked against the same review, so
+reporting an independence, author, or reviewer the coordinator did not record is
+refused too — copy them, do not restate them from memory.
 Do not advance until that stamp succeeds.
 
 The headless reviewer receives the package-generated copy of the marked block
@@ -190,7 +223,7 @@ For each `Scenario Outline`, confirm its rows vary one behavioral dimension and 
 
 ## Cross-cutting checks
 
-Eight lenses across the whole scenario set (not per scenario) — each asks "what's missing?":
+Ten lenses across the whole scenario set (not per scenario). Nine ask "what's missing?"; the last asks "what's extra?":
 
 - **Conflict** — do two scenarios contradict (one allows X, another rejects it) with no distinguishing precondition?
 - **Boundary** — zero / one / max / empty / null covered where they apply?
@@ -198,13 +231,16 @@ Eight lenses across the whole scenario set (not per scenario) — each asks "wha
 - **Security** — authn/authz failures and abuse vectors covered?
 - **Persona consistency** — does each scenario's triggering persona resolve in the configured personas file, and would another defined persona experience it differently?
 - **Surface coverage** — does each affected surface resolve in the configured surfaces file (or stay explicitly spec-local), have a matching `@surface.<slug>` scenario tag or an explicit `skip:` reason, and are any `@surface.*` tags stale?
+- **Killer Demo proof** — when `spec.md` declares a `## Killer Demo` (a child inherits its parent's by reference), does one scenario carry `@demo` and actually demonstrate the Payoff? Check the scenario against the Payoff text, not against the tag: a tag on a scenario that exercises a neighbouring behavior is the same false coverage as a surface tag on the wrong context. A declared Killer Demo with no `@demo` tag and no `skip: <reason>` is a **should-strengthen**, not a must-fix — the demo is a value claim rather than a correctness invariant, so a missing one weakens the release story without letting a defect ship. Raise it as a must-fix only when the Payoff restates a Rule that no scenario proves, because then the gap is coverage wearing a demo's clothes. When the ticket inherits a demo and the parent `spec.md` was not supplied, report that the lens could not run rather than passing it — an unreadable Payoff is not a satisfied one.
 - **Invariant binding** — for each normative clause in the supplied ticket-spec context (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** — cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its `Given` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario.
 - **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a short circuit has no wiring coverage.
+- **Scope boundary** — does any scenario assert behavior the ticket excluded? The exclusions live in two supplied files: `out_of_scope` in `ticket.md` frontmatter, and the project non-goals plus each milestone's Non-goals in `spec.md` — a child feature's `spec.md` carries neither by design, so there `out_of_scope` is the whole edge. If `ticket.md` was not supplied — or arrives blank, unreadable, or carrying no `out_of_scope` — scope the lens to `spec.md` and report the unread boundary as a **must-fix**, naming `out_of_scope` as unchecked. A file that is present but says nothing about scope leaves the boundary exactly as unread as a missing one. Reduced scope is not a clean result: the gate cannot clear a boundary it never read, so approving here would be the false clearance this lens exists to prevent. The fix is to re-dispatch with `ticket.md`, not to accept the narrower pass. Proving a real Rule does not settle this: a Rule states its invariant generally, while `out_of_scope` is where this ticket stops, so a legitimate Rule can be illustrated by an example past the line. A crossing is a **must-fix** — it is cheapest to delete now, before TDD builds it and `/verify` finds it in the diff. Report it as a crossing and name the excluded item; deciding the behavior belongs in scope is the author's call to make by amending `out_of_scope`, never the reviewer's to make by approving.
 
-Finish by reconciling the set instead of adding speculative cases: every
-material partition in the supplied dimensions context, affected surface, and public
-command or user-visible outcome declared in ticket scope needs a scenario or an
-explicit `skip: <reason>`. For each load-bearing scenario ask: _could the
+Finish by reconciling the set in both directions instead of adding speculative
+cases: every material partition in the supplied dimensions context, affected
+surface, declared Killer Demo Payoff, and public command or user-visible outcome
+declared in ticket scope needs a scenario or an explicit `skip: <reason>` — and
+no scenario asserts an outcome the ticket excluded. For each load-bearing scenario ask: _could the
 proposed test pass while the user-facing claim is still broken?_ Same-process
 proof cannot establish caller-exit survival; an injected fake cannot establish
 real CLI wiring; a unit test cannot establish a runtime or protocol boundary.

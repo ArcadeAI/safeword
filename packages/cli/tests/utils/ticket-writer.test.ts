@@ -13,7 +13,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getTemplatesDirectory } from '../../src/utils/fs.js';
 import type { IdMinter } from '../../src/utils/id-minter.js';
 import { createTicket } from '../../src/utils/ticket-writer.js';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+import {
+  createTemporaryDirectory,
+  PRODUCT_PLAN_SECTIONS,
+  removeTemporaryDirectory,
+} from '../helpers.js';
 
 function fixedMinter(id: string): IdMinter {
   return { mint: () => id };
@@ -47,7 +51,7 @@ describe('ticket-writer — spec.md scaffold by type (Rule 1)', () => {
     expect(ticket).toContain('product_plan_contract: v1');
     expect(ticket).not.toContain('inspiration_contract');
     expect(spec).toContain('<!-- safeword:product-plan-contract:v1 -->');
-    expect(specHeaders(spec)).toEqual(['Product Bet', 'Jobs To Be Done', 'Shape', 'Killer Demo']);
+    expect(specHeaders(spec)).toEqual([...PRODUCT_PLAN_SECTIONS]);
   });
 
   it('task does not scaffold spec.md', () => {
@@ -138,12 +142,7 @@ describe('spec-template.md is well-formed (Rule 3)', () => {
   const template = readFileSync(nodePath.join(getTemplatesDirectory(), 'spec-template.md'), 'utf8');
 
   it('has the section headers in canonical order', () => {
-    expect(specHeaders(template)).toEqual([
-      'Product Bet',
-      'Jobs To Be Done',
-      'Shape',
-      'Killer Demo',
-    ]);
+    expect(specHeaders(template)).toEqual([...PRODUCT_PLAN_SECTIONS]);
   });
 
   it('contains no comms or launch planning section', () => {
@@ -175,10 +174,17 @@ describe('spec-template.md is well-formed (Rule 3)', () => {
       const spec = readFileSync(nodePath.join(folderPath, 'spec.md'), 'utf8');
       expect(ticket).toContain('parent_job: epic.NTB1');
       expect(ticket).toContain('milestone: M1');
-      expect(specHeaders(spec)).toEqual(['Parent References', 'Contribution', 'Rules']);
+      expect(specHeaders(spec)).toEqual(['Parent References', 'Contribution', 'Rules', 'Surfaces']);
       expect(spec).toContain('#### epic.NTB1.CHILD1.R1');
+      // A child declares its own Surfaces — its implementation reaches contexts the
+      // parent never did — so Surfaces is absent from this exclusion list.
       expect(spec).not.toMatch(/^## (Product Bet|Jobs To Be Done|Shape|Killer Demo)$/m);
-      expect(spec).not.toContain('skip:');
+      // A scaffold must declare no skip. Commented examples are not declarations:
+      // the Surfaces and Killer Demo guidance both document the skip form inside
+      // HTML comments, which every parser here strips, so strip them before
+      // asserting rather than banning the substring the guidance has to show.
+      const declared = spec.replaceAll(/<!--[\s\S]*?-->/gu, '');
+      expect(declared).not.toContain('skip:');
     } finally {
       removeTemporaryDirectory(temporaryDirectory);
     }

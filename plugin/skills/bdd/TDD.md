@@ -199,18 +199,20 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
    bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/run-review.ts review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
    ```
 
+   **The dispatch is authorized; skipping it is not your call.** The coordinator spawns the reviewer as a local subprocess of a CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; the packet is bounded to the targets and `--context` you pass. That route exists only because the user configured it, and a cross-vendor second opinion is the point of the gate — a user who does not want it sets `crossAgentReview: off` in `.safeword/config.json`. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement, and do not withhold the dispatch on your own judgment. If your runtime blocks it (sandbox, network, or approval policy), request the approval it needs, or report that block as the blocker. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
+
    The shared coordinator prefers the opposite headless agent. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `/finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
 
    ```bash
-   bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" impl-plan
+   bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" impl-plan
    ```
 
-   The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp.
+   The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp. `--review-id` is the coordinator's `review_id` from the result you are stamping: it is what proves the review ran, so a stamp claiming independence without one is refused.
 
 **Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. Record a model only when the executed reviewer reports a verifiable identifier; the cross-agent coordinator does not guess a default model:
 
 ```bash
-bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" impl-plan
+bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" --review-id "review_id" impl-plan
 ```
 
 The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. When `crossAgentReview` is `require`, degraded evidence and skips also fail closed; restore the opposite reviewer and rerun the coordinator. (This gate is stricter than quality-review's advisory loop, which may accept a labeled same-agent result under the default `prefer` policy.)

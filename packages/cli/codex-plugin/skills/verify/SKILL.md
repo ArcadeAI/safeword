@@ -65,6 +65,10 @@ If a ticket is found, read it to get:
 
 - `parent:` field (if any)
 - Ticket ID/slug for test-definitions lookup
+- `## Killer Demo` from this ticket's own `spec.md`, when it declares one — the
+  Experience Peak below walks that Payoff, so a ticket that declares its own
+  demo must never reach `N/A` for want of reading it. A child inherits instead:
+  step 4 resolves the demo from the parent.
 
 If no ticket is found, skip scenario validation (step 3) and parent check (step 4).
 
@@ -237,7 +241,7 @@ Regression fixtures covered by `safeword project test-plan` and its tests:
 ### 3. Validate Test Definitions (skip if no ticket)
 
 1. Find matching file: `$NS_ROOT/tickets/{ID}-{slug}/test-definitions.md`
-2. Count scenarios: total `- [` lines
+2. Count scenarios: lines matching `- [ ]` or `- [x]` — a bare `- [` prefix also matches link list items and inflates the total
 3. Count completed: `- [x]` lines
 4. Report: "Scenarios: X/Y complete"
 
@@ -251,6 +255,13 @@ If ticket has `parent:` field:
 2. Get `children:` array
 3. Check each child's `status:`
 4. Report: "Siblings: X/Y done"
+5. Read the parent `spec.md` and extract `## Killer Demo`. The Experience
+   Peak below walks the inherited Payoff, so it needs the parent's Audience,
+   Starting state, Action, Payoff, and Proof. Separate the two ways this can
+   come up empty: a parent spec you could not read is unresolved, and that is
+   a finding, because `N/A` would claim no demo exists rather than that you
+   could not look. A parent you read that simply declares none is `N/A`, the
+   same as a ticket with no demo of its own.
 
 ### 5. Check Dependency Drift
 
@@ -308,6 +319,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Gherkin:** ✅ Acceptance lane passes (or ❌ Failed, or ⚠️ Local environment limitation: <reason>, or ⏭️ Skipped — no acceptance lane detected)
 **Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
+**Typecheck:** ✅ Clean (or ❌ N errors, or ⏭️ Skipped — no typed source changed)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
 **Refactor:** ✅ Completed — <sha/summary> (or ✅ No change warranted — <reason>, or ⏭️ Skipped — <reason>)
 **PR Scope:** ✅ Diff matches ticket scope (or ❌ Piggybacked changes: <paths/behaviors>, or ⏭️ Skipped — no ticket/diff)
@@ -328,7 +340,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Experience** is soft — it never blocks the done gate (no done-gate evidence pattern; a ⚠️ never hard-blocks `done`). Run it for persona-facing work; use `N/A` for internal/plumbing. You are grading your own work here, so the walk-artifact below is mandatory — a bare `✅` or "feels clean" is exactly the self-rating it exists to defeat. Two lenses:
 
 - **Friction (every persona-facing feature):** did this add a step, a wait, a re-entry, or a dead-end the persona didn't have before? Walk the changed flow as the persona, inspect its _ending_ specifically, and **record the walk as evidence, not a verdict:** `Walked <persona> through <flow>; worst step = <the one most likely to make them bounce>; new steps vs before = <n>`. Name the _worst_ step, not a tidy summary.
-- **Peak (only when the ticket or its parent declared a `## Rave Moment` in `spec.md`):** walk that moment as the persona — does it still land, and did this work advance or endanger it? A peak that quietly degraded is a finding even when every test is green.
+- **Peak (only when the ticket or its parent declared a `## Killer Demo` in `spec.md`):** walk the Payoff as the Audience persona, from the Starting state through the Action — does it still land, and did this work advance or endanger it? Record the walk, not a verdict: `Walked <Audience> from <Starting state> through <Action>; Payoff = <landed / degraded / not reachable yet>; Proof = <the observable named in the demo, and whether it held>`. Cite the `@demo` scenario when one exists; a passing `@demo` is evidence the mechanics work, never evidence the Payoff lands — that judgment is this walk. A peak that quietly degraded is a finding even when every test is green. For a child, resolve the demo from the parent `spec.md` named in `Parent References`; use `N/A` when neither declares one.
 
 A ⚠️ Experience finding routes to **Agent's next actions** if you'll fix it now, or to **Decisions needed** if it's a scope/value call for the user. It is never a reason to hold `done` on its own.
 

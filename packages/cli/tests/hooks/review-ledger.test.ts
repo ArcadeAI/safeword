@@ -19,6 +19,9 @@ import {
   type ReviewStamp,
 } from '../../templates/hooks/lib/review-ledger.js';
 
+/** A coordinator review id, as write-review-stamp.ts records it. */
+const REVIEW_ID = 'b3f1c2d4-0000-4000-8000-000000000001';
+
 describe('reviewGateForNextAsset (TB1.AC1 — per-asset stamp gates the next asset)', () => {
   it('unstamped_prior_blocks_next: denies, naming the unreviewed prior asset', () => {
     const verdict = reviewGateForNextAsset('jtbd', []);
@@ -89,6 +92,7 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
         author: 'claude',
         reviewer: 'codex',
         independence: 'cross-agent',
+        reviewId: REVIEW_ID,
       },
     ];
 
@@ -102,6 +106,7 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
         author: 'claude',
         reviewer: 'opencode',
         independence: 'cross-agent',
+        reviewId: REVIEW_ID,
       },
     ];
 
@@ -146,6 +151,62 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
       ).toBe(false);
     },
   );
+});
+
+/**
+ * The ledger is a plain text file, so the write-time receipt check can be
+ * bypassed by appending a line directly. A claim of coordinator independence
+ * must therefore cite a review on the reading side too — otherwise the gate
+ * reports coverage for exactly the unproven review this ticket exists to fail
+ * closed on (ticket PB1GMZ).
+ */
+describe('an independence claim must cite a review to satisfy a gate', () => {
+  const uncited: ReviewStamp = {
+    scope: 'scenario-gate',
+    author: 'claude',
+    reviewer: 'codex',
+    independence: 'cross-agent',
+  };
+
+  it('rejects a hand-written cross-agent stamp with no review id', () => {
+    expect(gatePhaseAdvance('scenario-gate', [uncited], 'require').ok).toBe(false);
+    expect(gatePhaseAdvance('scenario-gate', [uncited], 'prefer').ok).toBe(false);
+  });
+
+  it('rejects an uncited degraded claim', () => {
+    expect(
+      gatePhaseAdvance('scenario-gate', [{ ...uncited, independence: 'degraded' }], 'prefer').ok,
+    ).toBe(false);
+  });
+
+  it('accepts the same stamp once it cites one', () => {
+    expect(
+      gatePhaseAdvance('scenario-gate', [{ ...uncited, reviewId: REVIEW_ID }], 'require'),
+    ).toEqual({ ok: true });
+  });
+
+  it('gates the per-asset path on the same rule', () => {
+    const scope = reviewScope('PB1GMZ', 'spec', hashArtifact('spec body'));
+
+    expect(reviewGateForNextAsset(scope, [{ ...uncited, scope }]).ok).toBe(false);
+    expect(reviewGateForNextAsset(scope, [{ ...uncited, scope, reviewId: REVIEW_ID }])).toEqual({
+      ok: true,
+    });
+  });
+
+  it('leaves claim-free stamps and deliberate skips alone', () => {
+    expect(gatePhaseAdvance('scenario-gate', [{ scope: 'scenario-gate' }])).toEqual({ ok: true });
+    expect(
+      gatePhaseAdvance('scenario-gate', [
+        { scope: 'scenario-gate', independence: 'none', reviewer: 'claude' },
+      ]),
+    ).toEqual({ ok: true });
+    expect(
+      gatePhaseAdvance('scenario-gate', [
+        { scope: 'scenario-gate', skipReason: 'docs-only phase' },
+      ]),
+    ).toEqual({ ok: true });
+  });
 });
 
 describe('parseReviewStamps (read stamps from the skill-invocation-log)', () => {

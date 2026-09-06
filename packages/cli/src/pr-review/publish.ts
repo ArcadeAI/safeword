@@ -94,6 +94,20 @@ function renderCoverage(entry: ReceiptCoverageView): string {
   return `${entry.path}: skipped (${reason})`;
 }
 
+/**
+ * Say so on the findings line itself when the run did not finish.
+ *
+ * A crashed run and a clean run both count zero findings, so the counts alone read
+ * as a pass; the `Run state:` line above carries the truth but a reader has to
+ * correlate the two, and readers do not. The counts stay either way — an incomplete
+ * run still reports whatever it managed to collect, so suppressing them would hide
+ * real findings.
+ */
+function incompleteFindingsCaveat(runState: ReceiptView['runState']): string {
+  if (runState === 'complete' || runState === 'stale') return '';
+  return ` (${runState} — the review did not finish, so no findings is not a clean result)`;
+}
+
 export function renderReceipt(receipt: ReceiptView): string {
   const checks = receipt.checks.map(check => `${check.name}: ${check.status ?? 'unknown'}`);
   const inputTokens = receipt.tokenUsage.input ?? 'unknown';
@@ -115,7 +129,7 @@ export function renderReceipt(receipt: ReceiptView): string {
     `Reviewable text artifacts: ${receipt.reviewableTextArtifacts ?? 'unknown'}`,
     `Unknowns: ${listOrNone(receipt.unknowns)}`,
     `Token usage: ${inputTokens} input, ${outputTokens} output`,
-    `Findings: ${receipt.findingCounts.consequential} consequential, ${receipt.findingCounts.nonConsequential} non-consequential`,
+    `Findings: ${receipt.findingCounts.consequential} consequential, ${receipt.findingCounts.nonConsequential} non-consequential${incompleteFindingsCaveat(receipt.runState)}`,
   ];
   const findings = (receipt.findings ?? []).flatMap(finding => renderFinding(finding));
 

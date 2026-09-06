@@ -197,6 +197,22 @@ export interface ManagedFileDefinition extends FileDefinition {
    * never authorize a blind delete.
    */
   removeWhenGeneratorOmitted?: boolean;
+
+  /**
+   * Rewrite an unmodified managed file during upgrade so it tracks the template.
+   *
+   * Managed files are otherwise create-only, which is right for a config the
+   * customer edits and wrong for one carrying a value that must follow the CLI.
+   * The advisory PR review workflows pin `npx safeword@<version>`: without this
+   * they stay on whichever release first wrote them, so a customer who installed
+   * at 0.79.0 keeps reviewing with 0.79.0 forever, however often they upgrade.
+   *
+   * Only an untouched scaffold is rewritten — the same `removeIfUnmodified`
+   * comparison that authorizes removal, so a customized file is left alone.
+   * Requires `removeIfUnmodified` for that reason: without a definition of
+   * "unmodified" this could overwrite the customer's own edits.
+   */
+  refreshWhileUnmodified?: boolean;
 }
 
 export interface JsonMergeDefinition {
