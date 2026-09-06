@@ -2,13 +2,14 @@
 id: 7B1AMC
 slug: review-executable-red-before-implementation
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/7B1AMC-review-executable-red-before-implementation/spec.md'
   - 'scenario-gate: packages/cli/features/review-executable-red-before-implementation.feature'
   - 'plan-implementation: .project/tickets/7B1AMC-review-executable-red-before-implementation/impl-plan.md'
   - 'implement: .project/tickets/7B1AMC-review-executable-red-before-implementation/impl-plan.md'
+  - 'verify: .project/tickets/7B1AMC-review-executable-red-before-implementation/test-definitions.md'
 scope: 'Proof-plan self-check plus trusted execution attestation and independent review of each distinct new or changed primary executable RED proof, shipped as advisory guidance'
 out_of_scope: 'Blocking GREEN or done before FY1NHB evidence, reviewing every reused step, requiring one test per Gherkin row, mandating a framework, universal mutation testing, or replacing scenario coverage, TDD review, and final verification'
 done_when: 'A trusted executor records a bounded attestation for the exact primary proof against a sealed pre-implementation snapshot; independent review rejects fabricated, stale, unrelated, and wrong-reason RED evidence, accepts intended behavior RED, preserves genuine shared-proof reuse, and reports route exhaustion with an actionable next step'
@@ -17,7 +18,7 @@ depends_on: [BX1T7H]
 relates_to: [NMSD94, QZAFT2, 1698, BFCWDB, ZA0JQR, Y9P3ZC]
 external_issue: https://github.com/ArcadeAI/safeword/issues/2336
 created: 2026-08-10T07:58:17.735Z
-last_modified: 2026-09-06T17:00:00Z
+last_modified: 2026-09-06T17:24:57Z
 ---
 
 # Stop hollow acceptance proofs before implementation
@@ -33,6 +34,7 @@ last_modified: 2026-09-06T17:00:00Z
 - 2026-09-06T15:30:00Z Resumed: Adopted the issue's design correction: authenticate exact RED execution with a trusted attestation, then review failure attribution independently; keep rollout advisory pending FY1NHB evidence.
 - 2026-09-06T15:30:00Z Intake complete: Existing product intent remains accepted; added the Safeword CLI execution boundary and advanced to behavior definition.
 - 2026-09-06T15:45:00Z Defined behavior: Derived seven dimensions and authored fourteen representative scenarios covering eight Rules, all supported agent surfaces, intended and wrong-reason RED, freshness, reuse, bounded evidence, and advisory failure handling.
+- 2026-09-06T17:24:57Z Verified: Full Vitest and Cucumber suites, lint, typecheck, package builds, generated contracts, documentation diagnostics, and diff-scoped audit passed. Added one rejection scenario surfaced by source-install validation. Independent external review remains unavailable under the host approval policy, so the ticket remains in verify pending user confirmation.
 - 2026-09-06T16:00:00Z Scenario review requested changes: Added distinct-proof execution, tampered-attestation rejection, and unrelated actor-boundary failure coverage. Corrected the packet summary's Rule count from nine to eight; the spec itself was consistent.
 - 2026-09-06T16:15:00Z Scenario gate complete: Configured reviewer routes were exhausted; under `prefer`, a clean bounded supplemental review found no remaining issues in fourteen scenarios. No independent stamp is claimed.
 - 2026-09-06T16:30:00Z Planned implementation: Four slices reuse the durable review coordinator, add one trusted execution attestation, bind freshness and reuse to canonical proof inputs, and roll out through host-parity workflow guidance without a hard gate.

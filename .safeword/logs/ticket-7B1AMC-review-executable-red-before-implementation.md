@@ -40,3 +40,10 @@
   parent can leave worker descendants alive. A dedicated RED proved the leak; the executor now
   creates a POSIX process group and kills the group, or uses Windows `taskkill /t`, before recording
   timeout completion.
+- Verification repaired receipt reuse so an approval is reusable only when its trusted attestation
+  carries the same source fingerprint, added complete scenario-proof provenance without raising the
+  shared-proof fan-in ceiling, and added the missing supported-agent rejection example.
+- Final evidence: 9,205 Vitest tests and 592 Cucumber scenarios pass; lint, typecheck, package builds,
+  generated contracts, Astro diagnostics, and diff-scoped dependency architecture checks are clean.
+  The external independent-review dispatch was blocked by host approval policy, so no independent
+  quality-review coverage is claimed.
