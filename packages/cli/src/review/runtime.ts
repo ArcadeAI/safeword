@@ -30,6 +30,7 @@ import type {
 import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { QUALITY_REVIEW_RUBRIC } from './quality-rubric.generated.js';
+import { EXECUTABLE_RED_REVIEW_RUBRIC } from './red-rubric.generated.js';
 import { SCENARIO_REVIEW_RUBRIC } from './scenario-rubric.generated.js';
 
 /**
@@ -223,6 +224,7 @@ export function planReviewRubric(): string {
 function reviewRubric(kind: ReviewPacket['kind']): string {
   if (kind === 'scenario-gate') return scenarioReviewRubric();
   if (kind === 'plan-implementation') return planReviewRubric();
+  if (kind === 'executable-red') return composeReviewRubric(EXECUTABLE_RED_REVIEW_RUBRIC);
   return qualityReviewRubric();
 }
 

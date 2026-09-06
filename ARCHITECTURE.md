@@ -855,6 +855,16 @@ failures leave them eligible. Exact runtime/model (or explicit runtime-default)
 identity binds durable proof. Reassess this design when a fourth concrete
 review runtime is requested or OpenCode changes this stable-1.x contract.
 
+**Executable RED attestation extension (2026-09-06).** The `executable-red` kind extends the same
+durable job and review routes. Its integrity-sealed request contains exact JSON argv, a
+project-contained cwd, evidence class, literal failure matcher, timeout, and declared proof inputs.
+The trusted worker executes once without a shell, hashes complete stdout/stderr while retaining
+bounded excerpts, and gives every reviewer route the same attestation. Reviewers may approve only
+an intended missing-behavior failure at the actor boundary; syntax, import, fixture, configuration,
+infrastructure, unrelated assertions, timeouts, signals, pasted output, and stale inputs remain
+unapproved. Identical fresh approved proof identities can reuse one receipt. This stays advisory
+until ticket FY1NHB establishes acceptable false-positive, route-availability, and latency evidence.
+
 ### Profile-Scoped Generated Codex Plugin and Staged Hook Migration
 
 **Status:** Accepted
