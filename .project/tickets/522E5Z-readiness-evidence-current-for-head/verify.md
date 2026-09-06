@@ -7,7 +7,7 @@
 **Typecheck:** ✅ Clean — tsc across 3 packages, astro check 0 errors
 **Scenarios:** ⏭️ Skipped — no test-definitions.md; this task shipped without BDD scenarios
 **Refactor:** ✅ Completed — 0e478354f extracted githubRequest/requiredEnvironment/requiredPullNumber into pr-review/github-request.ts so publication and readiness share one GitHub boundary
-**PR Scope:** ❌ Piggybacked changes: packages/cli/tests/claude-plugin/inventory.test.ts (F56PR9 investigation, +22 lines); pr-readiness SKILL.md coverage-wording fix (predates this ticket); experiments Go binary (removed in 5832adc2d)
+**PR Scope:** ✅ Diff matches ticket scope — the F56PR9 lease tests were reverted off this branch (recoverable from 7461ca380, pointer recorded in F56PR9) and the stray experiments Go binary was untracked in 5832adc2d. One deliberate inclusion, accepted in the ticket: the pr-readiness coverage-wording fix, which the user requested in the same turn and edits the same shipped file.
 **Dep Drift:** ✅ Clean — no dependency added
 **Parent Epic:** N/A
 **Reconcile:** ⚠️ 1 deviation — the readiness commit status adds a merge-affecting publication surface to a workflow whose ADR records having none; no superseding record filed
@@ -18,7 +18,7 @@
 Audit passed with warnings — Errors: 1 (E004 ARCHITECTURE conflict, below) | Warnings: 2 | scope: origin/main merge-base b17d66dc.
 
 - [E004] ARCHITECTURE.md "Automatic pull request review" ADR (2026-08-04) states the pipeline must publish "without ... acquiring an approval/check/merge capability", records "no merge-affecting publication surface" as a consequence, and rejected draft PR #1917 partly because it "used a check-run receipt". The readiness job adds `statuses: write` to that same workflow and is designed to become a required status check. No superseding record filed.
-- [W-scope] Piggybacked inventory.test.ts (F56PR9) — split or accept as scope change.
+- [W-scope] Resolved: inventory.test.ts reverted to origin/main on this branch.
 - [W-preexisting] 9 E010 broken principle traces in other tickets (CKWE2D, 3F5Z6P); none in 522E5Z, which declares no impl-plan.
 
 Checks run clean: config drift (W007) none; depcruise 364 modules / 568 deps, no violations; learnings W006 none changed; domain docs W008/E008/E009 not triggered (no domain doc, spec, or .feature changed); dep audit clean.

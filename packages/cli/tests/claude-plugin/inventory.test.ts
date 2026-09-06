@@ -81,27 +81,6 @@ describe('Claude cache metadata inventory', () => {
     expect(claudeNativePayloadFiles(root)).toEqual(['identity.json']);
   });
 
-  // #3690 accepted a temp lease that was unreadable, but Claude creates the
-  // temp file before it writes the bytes. A walk that lands in that window reads
-  // empty or half-written content, which is not the same as an unreadable file.
-  it('excludes a half-written lease temp file renamed away while the cache is walked', () => {
-    const root = cacheFixture();
-    const temporaryLease = nodePath.join(root, '.in_use/31268.tmp.b3cdbfa3');
-    writeFileSync(temporaryLease, '{"pid":31268,"procSta');
-    vanishAfterListing.path = temporaryLease;
-
-    expect(claudeNativePayloadFiles(root)).toEqual(['identity.json']);
-  });
-
-  it('excludes an empty lease temp file renamed away while the cache is walked', () => {
-    const root = cacheFixture();
-    const temporaryLease = nodePath.join(root, '.in_use/31268.tmp.b3cdbfa3');
-    writeFileSync(temporaryLease, '');
-    vanishAfterListing.path = temporaryLease;
-
-    expect(claudeNativePayloadFiles(root)).toEqual(['identity.json']);
-  });
-
   it('reports a vanished entry that never carried a lease temp name', () => {
     const root = cacheFixture();
     const doomed = nodePath.join(root, '.in_use/unexpected-runtime.js');

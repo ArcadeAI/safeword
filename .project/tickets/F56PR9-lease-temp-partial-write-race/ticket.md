@@ -41,3 +41,9 @@ done_when: |
 ## Work Log
 
 - 2026-09-06T00:08:01.639Z Started: Created ticket F56PR9
+- 2026-09-06T05:40:00Z Two tests covering the vanished-temp path were written
+  while investigating this, then reverted off the 522E5Z branch as out of scope.
+  They pass today, so they document existing coverage rather than the gap. Cherry-pick
+  the `packages/cli/tests/claude-plugin/inventory.test.ts` hunk from commit 7461ca380
+  when picking this up — and note that passing is exactly why they did not prove the
+  bug, which is what the reproduce-first condition above is guarding against.

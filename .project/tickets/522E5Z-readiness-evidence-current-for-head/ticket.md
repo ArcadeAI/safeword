@@ -95,3 +95,16 @@ done_when: |
   second schema entry, and a second config key — new surface for a feature with
   no demand evidence. Ship coupled, dogfood it, and split only if a customer
   actually asks.
+- 2026-09-06T05:40:00Z Accepted scope inclusion: the pr-readiness coverage-wording
+  fix (9fa59c222) ships in this branch. It predates the ticket and is strictly a
+  different concern, but the user asked for it in the same turn and it edits the
+  same shipped skill file. Recorded here rather than silently carried.
+- 2026-09-06T05:40:00Z /audit finding, unresolved and reported not fixed: the
+  readiness commit status adds a merge-affecting publication surface to the
+  workflow whose ADR (ARCHITECTURE.md, "Automatic pull request review",
+  2026-08-04) states the pipeline publishes "without ... acquiring an
+  approval/check/merge capability", records "no merge-affecting publication
+  surface" among its consequences, and rejected draft PR #1917 partly because it
+  "used a check-run receipt". Deterministic, model-free publication is arguably
+  outside that rationale, but the recorded consequence is now false and no
+  superseding record exists. This needs a human architecture decision.
