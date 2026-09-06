@@ -25,7 +25,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { DECISION_BRIEF_CONTRACT } from '../../templates/hooks/lib/quality.js';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
+import { createTemporaryDirectory, removeTemporaryDirectory, writeGateConfig } from '../helpers';
 import {
   createEditTranscript,
   createStopHookTicket,
@@ -79,6 +79,7 @@ const state: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeEach(() => {
   state.projectDirectory = createTemporaryDirectory();
+  writeGateConfig(state.projectDirectory, { stopQualityReview: true });
   // Hook only requires .safeword/ to exist (checked with existsSync)
   mkdirSync(nodePath.join(state.projectDirectory, '.safeword'), { recursive: true });
 });
