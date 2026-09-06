@@ -631,7 +631,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-architecture-heal.ts": "76f1b55c3173d3ebc2a819a41e06a814a57d78b94faf30108afed439dc7ce747",
         ".safeword/hooks/session-author-model.ts": "9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291",
         ".safeword/hooks/session-auto-upgrade.ts": "51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0",
-        ".safeword/hooks/session-bun-check.sh": "7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef",
+        ".safeword/hooks/session-bun-check.sh": "86dd3fcc2ff19cacd12bbb3cceab9ffb128489d32530eb4a94d50bfc204acb7f",
         ".safeword/hooks/session-cleanup-quality.ts": "b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2",
         ".safeword/hooks/session-compact-context.ts": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773",
         ".safeword/hooks/session-dependency-readiness.ts": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff",
