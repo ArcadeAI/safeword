@@ -375,7 +375,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "21bb54aa861375c97592946e4335551b057a839428cb10e2cfd266a2312ea4a7"
+      "sha256": "408506a2840e9a65e6641d091fb76ce90e6e543493d69952c03ac8e35f1ebcae"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "1b7d431f529afdadf4610dcf82995763d75203119ac72e7b816537ce5c24ef12"
+      "sha256": "e8e6a14fdf833739ebe5661c2463f510df1898ca10118003ae4e38cce297b9e2"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
