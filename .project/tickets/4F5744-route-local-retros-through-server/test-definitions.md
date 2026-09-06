@@ -224,7 +224,19 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ## Rule: local-retro-cutover.SWM1.R1 — Real harness canaries precede global cutover
 
-### Scenario: A real harness canary proves terminal production filing
+### Scenario: A real Claude Code session proves terminal production filing
+
+- [ ] CAPTURED
+- [ ] VERIFIED
+- [ ] LINKED IN READINESS MANIFEST
+
+### Scenario: A real Codex session proves terminal production filing
+
+- [ ] CAPTURED
+- [ ] VERIFIED
+- [ ] LINKED IN READINESS MANIFEST
+
+### Scenario: A real Cursor session proves terminal production filing
 
 - [ ] CAPTURED
 - [ ] VERIFIED
@@ -293,6 +305,12 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [ ] REFACTOR
 
 ### Scenario: Missing harness evidence keeps the global cutover disabled
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Socket presence without a real harness session cannot satisfy readiness
 
 - [ ] RED
 - [ ] GREEN

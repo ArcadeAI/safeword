@@ -80,6 +80,7 @@ The relay's current client-supplied retry-deadline contract changes for collecto
 - More than one collector or worker replica, or any need to mount SQLite across hosts: migrate the store/rate-limit boundary to PostgreSQL before scaling.
 - Sustained intake or queue depth makes one SQLite writer, FIFO scans, or the configured filing quotas miss operational objectives.
 - A new harness or cloud carrier becomes supported: add truthful runtime classification and a real build-attested canary before it can satisfy readiness; Cursor Cloud remains deferred to #3476.
+- A harness invocation mode does not emit its lifecycle hook: exclude that mode from canary evidence rather than substituting process presence; Claude print mode currently emits no Stop hook.
 - GitHub adds a trustworthy create idempotency key or changes raw issue-body visibility: reassess marker-based ambiguity recovery.
 - Marker collisions or hostile marker content appear in production evidence: tighten the relay-owned marker encoding/parser without broadening similarity authority.
 - Reusing client credential helpers makes #1495 a readiness gate; otherwise it remains unrelated.
