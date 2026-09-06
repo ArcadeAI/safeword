@@ -96,6 +96,8 @@ export interface ReviewPacket {
     readonly path: string;
     readonly content: string;
   }[];
+  /** Trusted process evidence, present only for executable RED review. */
+  readonly execution_attestation?: RedExecutionAttestation;
 }
 
 const REVIEW_KINDS = new Set<ReviewKind>([

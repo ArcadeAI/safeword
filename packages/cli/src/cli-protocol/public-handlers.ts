@@ -1085,6 +1085,7 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
       kind: persistedInput.kind,
       targets: persistedInput.targets,
       context: persistedInput.context,
+      executionAttestation: attestation,
       progress: invocation.progress,
     });
     result = withExecutionAttestation(reviewed, attestation);
