@@ -555,6 +555,28 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         description: 'Internal detached-worker identity',
         hidden: true,
       },
+      {
+        flags: '--proof-cwd <path>',
+        description: 'Project-contained working directory for the RED proof',
+        defaultValue: '.',
+      },
+      {
+        flags: '--evidence-class <class>',
+        description: 'pure-contract, simulated-host, local-live-host, or external-live-host',
+      },
+      {
+        flags: '--expected-failure <literal>',
+        description: 'Literal output that identifies the intended RED failure',
+      },
+      {
+        flags: '--execution-timeout <milliseconds>',
+        description: 'Bounded RED proof execution time',
+        defaultValue: '120000',
+      },
+      {
+        flags: '--execute <json-argv>',
+        description: 'Exact JSON argv array; runs directly without a shell',
+      },
     ],
     exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
     fixture: {

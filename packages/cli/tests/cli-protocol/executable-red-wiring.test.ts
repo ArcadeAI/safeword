@@ -31,9 +31,11 @@ describe('executable RED public CLI wiring', () => {
         '--execution-timeout',
         '1000',
         '--execute',
-        process.execPath,
-        '-e',
-        "console.error('expected actor assertion'); process.exit(1)",
+        JSON.stringify([
+          process.execPath,
+          '-e',
+          "console.error('expected actor assertion'); process.exit(1)",
+        ]),
       ],
       { cwd },
     );

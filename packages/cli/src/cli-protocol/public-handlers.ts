@@ -11,6 +11,7 @@ import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../codex-plugin/operations.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
 import type {
+  RedEvidenceClass,
   RedExecutionAttestation,
   RedExecutionRequest,
   ReviewKind,
@@ -795,7 +796,9 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
     : [];
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
-  return startReviewInBackground(invocation, rawKind, targets, context);
+  const execution = redExecutionRequest(rawKind, invocation.options);
+  if (execution instanceof Error) return invalidOperand('review run', execution.message);
+  return startReviewInBackground(invocation, rawKind, targets, context, execution);
 }
 
 function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
@@ -992,6 +995,52 @@ function reviewContext(rawContext: unknown): string[] {
   return typeof rawContext === 'string' ? [rawContext] : [];
 }
 
+const RED_EVIDENCE_CLASSES = new Set<RedEvidenceClass>([
+  'pure-contract',
+  'simulated-host',
+  'local-live-host',
+  'external-live-host',
+]);
+
+// eslint-disable-next-line complexity -- Every user-controlled execution field fails closed here.
+function redExecutionRequest(
+  kind: ReviewKind,
+  options: Readonly<Record<string, unknown>>,
+): RedExecutionRequest | undefined | Error {
+  if (kind !== 'executable-red') return undefined;
+  const rawArgv = options.execute;
+  let argv: unknown;
+  try {
+    argv = typeof rawArgv === 'string' ? JSON.parse(rawArgv) : undefined;
+  } catch {
+    argv = undefined;
+  }
+  if (!Array.isArray(argv) || argv.length === 0 || argv.some(value => typeof value !== 'string'))
+    return new Error('Executable-red review requires --execute with exact argv.');
+  const cwd = options.proofCwd;
+  if (typeof cwd !== 'string' || cwd.trim() === '')
+    return new Error('Executable-red review requires a project-contained --proof-cwd.');
+  const evidenceClass = options.evidenceClass;
+  if (
+    typeof evidenceClass !== 'string' ||
+    !RED_EVIDENCE_CLASSES.has(evidenceClass as RedEvidenceClass)
+  )
+    return new Error('Executable-red review requires a valid --evidence-class.');
+  const expectedFailure = options.expectedFailure;
+  if (typeof expectedFailure !== 'string' || expectedFailure === '')
+    return new Error('Executable-red review requires a non-empty --expected-failure literal.');
+  const timeoutMs = Number(options.executionTimeout);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600_000)
+    return new Error('--execution-timeout must be an integer from 1 to 600000 milliseconds.');
+  return {
+    argv: argv as [string, ...string[]],
+    cwd,
+    evidenceClass: evidenceClass as RedEvidenceClass,
+    expectedFailure,
+    timeoutMs,
+  };
+}
+
 async function collectWorkerRedAttestation(input: {
   readonly cwd: string;
   readonly execution?: RedExecutionRequest;
@@ -1133,6 +1182,7 @@ async function startReviewInBackground(
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[],
+  execution?: RedExecutionRequest,
 ): Promise<CliResult> {
   const [{ startReviewJob }, { ReviewPacketError }] = await Promise.all([
     import('../review/job.js'),
@@ -1144,6 +1194,7 @@ async function startReviewInBackground(
       kind,
       targets,
       context,
+      execution,
       progress: invocation.progress,
     });
   } catch (error) {
