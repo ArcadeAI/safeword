@@ -635,7 +635,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-cleanup-quality.ts": "b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2",
         ".safeword/hooks/session-compact-context.ts": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773",
         ".safeword/hooks/session-dependency-readiness.ts": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff",
-        ".safeword/hooks/session-lint-check.ts": "54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2",
+        ".safeword/hooks/session-lint-check.ts": "506440979a19ec4d49bcf4347d4adf8377dcbbced86ed83b386fb0065d087d3f",
         ".safeword/hooks/session-reply-format.ts": "41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532",
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
@@ -21603,16 +21603,25 @@ function createClaudePluginMode(marker) {
 function digest(value) {
   return createHash9("sha256").update(value).digest("hex");
 }
-function relocate(from, to) {
+function relocateLegacyState(from, to, rename = renameSync6, copy = (source, destination) => {
+  cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
+}) {
   try {
-    renameSync6(from, to);
-    return;
+    rename(from, to);
+    return false;
   } catch (error2) {
     if (error2.code !== "EXDEV")
       throw error2;
   }
-  cpSync(from, to, { recursive: true, errorOnExist: true, force: false });
-  rmSync3(from, { recursive: true, force: true });
+  const staging = `${to}.${randomUUID2()}.partial`;
+  try {
+    copy(from, staging);
+    rename(staging, to);
+  } catch (error2) {
+    rmSync3(staging, { recursive: true, force: true });
+    throw error2;
+  }
+  return true;
 }
 function adoptLegacyProjectState(cwd, directory) {
   if (adopted.has(directory))
@@ -21624,14 +21633,26 @@ function adoptLegacyProjectState(cwd, directory) {
       continue;
     const destination = nodePath37.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
     try {
-      if (existsSync22(destination))
+      if (existsSync22(adoptionReceipt(directory, key)) || existsSync22(destination)) {
+        recordAdoption(directory, key);
         rmSync3(legacy, { recursive: true, force: true });
-      else {
-        mkdirSync7(directory, { recursive: true, mode: 448 });
-        relocate(legacy, destination);
+        continue;
       }
+      mkdirSync7(directory, { recursive: true, mode: 448 });
+      const sourceRemains = relocateLegacyState(legacy, destination);
+      recordAdoption(directory, key);
+      if (sourceRemains)
+        rmSync3(legacy, { recursive: true, force: true });
     } catch {}
   }
+}
+function adoptionReceipt(directory, key) {
+  return nodePath37.join(directory, `.adopted-${CLAUDE_MIGRATION_SCHEMA.state[key]}`);
+}
+function recordAdoption(directory, key) {
+  try {
+    writeDurableFile(adoptionReceipt(directory, key), "", { mode: 384 });
+  } catch {}
 }
 function stateDirectory(cwd) {
   const directory = claudeProjectStateDirectory(cwd);
@@ -21639,7 +21660,24 @@ function stateDirectory(cwd) {
   return directory;
 }
 function claudeProjectStatePath(cwd, key) {
-  return nodePath37.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]);
+  const directory = stateDirectory(cwd);
+  const adoptedPath = nodePath37.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+  if (existsSync22(adoptedPath))
+    return adoptedPath;
+  if (existsSync22(adoptionReceipt(directory, key)))
+    return adoptedPath;
+  const legacy = nodePath37.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+  return existsSync22(legacy) ? legacy : adoptedPath;
+}
+function removeClaudeProjectState(cwd, key) {
+  rmSync3(nodePath37.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]), {
+    recursive: true,
+    force: true
+  });
+  rmSync3(nodePath37.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]), {
+    recursive: true,
+    force: true
+  });
 }
 function advisoryStateDigest(advisory) {
   return digest(advisory);
@@ -21722,11 +21760,25 @@ var init_migration_state = __esm(() => {
 function withoutLegacyClaude(values) {
   return Object.fromEntries(Object.entries(values).filter(([path3]) => !path3.startsWith(".claude/")));
 }
+function without(values, paths) {
+  if (paths.size === 0)
+    return values;
+  return Object.fromEntries(Object.entries(values).filter(([path3]) => !paths.has(path3)));
+}
+function preservedPaths(cwd) {
+  return new Set(readClaudePluginMode(cwd)?.unresolved_paths);
+}
 function schemaForClaudeDelivery(cwd) {
   const legacyPluginMode = hasLegacyClaudePluginMode(cwd);
   const nativePluginMode = readClaudePluginMode(cwd) !== undefined;
+  const preserved = preservedPaths(cwd);
   if (!legacyPluginMode && !nativePluginMode && !legacyObservationIsEmpty(observeClaudeLegacy(cwd))) {
-    return SAFEWORD_SCHEMA;
+    return {
+      ...SAFEWORD_SCHEMA,
+      ownedFiles: without(SAFEWORD_SCHEMA.ownedFiles, preserved),
+      managedFiles: without(SAFEWORD_SCHEMA.managedFiles, preserved),
+      jsonMerges: without(SAFEWORD_SCHEMA.jsonMerges, preserved)
+    };
   }
   return {
     ...SAFEWORD_SCHEMA,
@@ -21734,9 +21786,9 @@ function schemaForClaudeDelivery(cwd) {
     sharedDirs: SAFEWORD_SCHEMA.sharedDirs.filter((path3) => !path3.startsWith(".claude")),
     deprecatedFiles: SAFEWORD_SCHEMA.deprecatedFiles.filter((path3) => !path3.startsWith(".claude/")),
     deprecatedDirs: SAFEWORD_SCHEMA.deprecatedDirs.filter((path3) => !path3.startsWith(".claude")),
-    ownedFiles: withoutLegacyClaude(SAFEWORD_SCHEMA.ownedFiles),
-    managedFiles: withoutLegacyClaude(SAFEWORD_SCHEMA.managedFiles),
-    jsonMerges: withoutLegacyClaude(SAFEWORD_SCHEMA.jsonMerges)
+    ownedFiles: without(withoutLegacyClaude(SAFEWORD_SCHEMA.ownedFiles), preserved),
+    managedFiles: without(withoutLegacyClaude(SAFEWORD_SCHEMA.managedFiles), preserved),
+    jsonMerges: without(withoutLegacyClaude(SAFEWORD_SCHEMA.jsonMerges), preserved)
   };
 }
 var init_delivery_schema = __esm(() => {
@@ -34245,6 +34297,20 @@ function findMissingPatches(cwd, actions) {
   }
   return issues;
 }
+function findStalePatchAdvisories(cwd, actions, updated) {
+  const stale = [];
+  for (const action of actions) {
+    if (action.type !== "text-patch" || !updated.has(action.path))
+      continue;
+    const content = readFileSafe(nodePath50.join(cwd, action.path));
+    if (content === undefined)
+      continue;
+    if (action.definition && !content.includes(action.definition.marker))
+      continue;
+    stale.push(`${action.path}: the managed Safeword block is out of date; run \`safeword install\` to refresh it.`);
+  }
+  return stale;
+}
 function findMissingPythonToolDeclarations(cwd, context) {
   if (!context.languages?.python)
     return [];
@@ -34306,6 +34372,7 @@ async function checkHealth(cwd, options = {}) {
     issues,
     advisories: [
       ...ticketIndexConflicts.length === 0 ? [] : [buildIndexConflictListMessage(ticketIndexConflicts)],
+      ...findStalePatchAdvisories(cwd, actionsWithPath, new Set(result.updated)),
       ...findNamespaceAdvisories(cwd),
       ...CONFIGURED_KNOWLEDGE_KEYS.flatMap((key) => findConfiguredKnowledgeAdvisories(cwd, key)),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
@@ -46425,7 +46492,6 @@ import {
   readSync as readSync5,
   renameSync as renameSync10,
   rmdirSync as rmdirSync7,
-  rmSync as rmSync13,
   writeSync as writeSync2
 } from "fs";
 import nodePath86 from "path";
@@ -46886,7 +46952,7 @@ function performAutomaticMigration(projectRoot, options, now) {
     };
   }
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync13(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, "transaction");
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return { state: "complete", advisory, unresolvedPaths: unresolved };
 }
@@ -47120,7 +47186,7 @@ function applyRecoveryEntries(projectRoot, pending) {
 }
 function completedRecoveryResult(projectRoot, transaction) {
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync13(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, "transaction");
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return createResult({
     state: "changed",
@@ -49091,7 +49157,7 @@ import {
   readFileSync as readFileSync59,
   realpathSync as realpathSync13,
   renameSync as renameSync12,
-  rmSync as rmSync14,
+  rmSync as rmSync13,
   writeFileSync as writeFileSync20
 } from "fs";
 import { tmpdir as tmpdir5 } from "os";
@@ -49211,7 +49277,7 @@ function persistWorktreeRecoveryCopy(destination, content) {
     writeFileSync20(path4, content, { mode: 384 });
     return { directory, path: path4 };
   } catch (error_) {
-    rmSync14(directory, { recursive: true, force: true });
+    rmSync13(directory, { recursive: true, force: true });
     throw error_;
   }
 }
@@ -49222,7 +49288,7 @@ function restoreWorktreeAfterStaging(cwd, result, recoveryCopy, staged, reporter
   try {
     replaceArchitectureDocumentContent(result.restoreWorktreeContent, result.path, cwd);
     if (recoveryCopy !== undefined) {
-      rmSync14(recoveryCopy.directory, { recursive: true, force: true });
+      rmSync13(recoveryCopy.directory, { recursive: true, force: true });
     }
     reporter.warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
   } catch (error_) {
@@ -49312,7 +49378,7 @@ function withGitIndexSnapshot(cwd, gitContext, useSnapshot) {
     prepareSnapshotProjectRoot(cwd, snapshotProjectDirectory);
     return useSnapshot(snapshotProjectDirectory);
   } finally {
-    rmSync14(snapshotDirectory, { recursive: true, force: true });
+    rmSync13(snapshotDirectory, { recursive: true, force: true });
   }
 }
 function assertNoGitlinks(gitContext, sourceIndexEnvironment) {
@@ -49421,7 +49487,7 @@ function replaceArchitectureDocumentWith(destination, allowedRoot, writeTemporar
   mkdirSync17(destinationDirectory, { recursive: true });
   let temporaryDirectory = mkdtempSync7(nodePath93.join(tmpdir5(), "safeword-architecture-replacement-"));
   if (lstatSync22(temporaryDirectory).dev !== lstatSync22(destinationDirectory).dev) {
-    rmSync14(temporaryDirectory, { recursive: true, force: true });
+    rmSync13(temporaryDirectory, { recursive: true, force: true });
     temporaryDirectory = mkdtempSync7(nodePath93.join(destinationDirectory, ".safeword-architecture-"));
   }
   try {
@@ -49429,7 +49495,7 @@ function replaceArchitectureDocumentWith(destination, allowedRoot, writeTemporar
     writeTemporaryFile(temporaryPath);
     renameSync12(temporaryPath, destination);
   } finally {
-    rmSync14(temporaryDirectory, { recursive: true, force: true });
+    rmSync13(temporaryDirectory, { recursive: true, force: true });
   }
 }
 function replaceArchitectureDocument(source, destination, allowedRoot) {
@@ -49548,7 +49614,7 @@ function restoreMaterializationPlans(cwd, plans) {
         replaceArchitectureDocumentContent(priorState.content, plan.destination, cwd);
       } else {
         assertPhysicalContainment(cwd, plan.destination);
-        rmSync14(plan.destination, { force: true });
+        rmSync13(plan.destination, { force: true });
       }
     } catch (error_) {
       errors.push(error_);
@@ -64196,7 +64262,7 @@ import {
   readdirSync as readdirSync35,
   readFileSync as readFileSync73,
   renameSync as renameSync14,
-  rmSync as rmSync15,
+  rmSync as rmSync14,
   writeFileSync as writeFileSync27
 } from "fs";
 import { tmpdir as tmpdir7 } from "os";
@@ -64463,7 +64529,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
   } finally {
     if (temporaryHookDirectory)
-      rmSync15(temporaryHookDirectory, { recursive: true, force: true });
+      rmSync14(temporaryHookDirectory, { recursive: true, force: true });
   }
 }
 function rewriteSnapshotImportsForNode(directory) {
@@ -64620,7 +64686,7 @@ async function runPreToolUse(projectDirectory) {
   const rawInput = await readStdin();
   const qualityResult = snapshot.hookPath ? runHookFile(snapshot.hookPath, rawInput, projectDirectory) : { error: snapshot.error, stderr: "", stdout: "" };
   if (snapshot.directory)
-    rmSync15(snapshot.directory, { recursive: true, force: true });
+    rmSync14(snapshot.directory, { recursive: true, force: true });
   runEnrolledPreToolUse(rawInput, projectDirectory, qualityResult);
 }
 async function runSessionStart(projectDirectory) {
@@ -67810,7 +67876,7 @@ async function reviewRoutesListHandler(invocation) {
       }
     });
   }
-  const projectConfig = nodePath110.relative(invocation.cwd, scopedConfigPath2(invocation.cwd, "project"));
+  const projectConfig = nodePath111.relative(invocation.cwd, scopedConfigPath2(invocation.cwd, "project"));
   const body = [
     ...listed.flatMap((entry2) => [
       `${entry2.author} review routes (${entry2.source}):`,

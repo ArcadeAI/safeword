@@ -1659,7 +1659,6 @@ import {
   readSync as readSync2,
   renameSync as renameSync3,
   rmdirSync as rmdirSync2,
-  rmSync as rmSync4,
   writeSync,
 } from 'node:fs';
 import nodePath9 from 'node:path';
@@ -1874,7 +1873,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-dependency-readiness.ts':
         '295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff',
       '.safeword/hooks/session-lint-check.ts':
-        '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '506440979a19ec4d49bcf4347d4adf8377dcbbced86ed83b386fb0065d087d3f',
       '.safeword/hooks/session-reply-format.ts':
         '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
       '.safeword/hooks/session-safeword-context.ts':
@@ -4243,15 +4242,29 @@ function digest(value) {
   return createHash3('sha256').update(value).digest('hex');
 }
 var adopted = /* @__PURE__ */ new Set();
-function relocate(from, to) {
+function relocateLegacyState(
+  from,
+  to,
+  rename = renameSync2,
+  copy = (source, destination) => {
+    cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
+  },
+) {
   try {
-    renameSync2(from, to);
-    return;
+    rename(from, to);
+    return false;
   } catch (error) {
     if (error.code !== 'EXDEV') throw error;
   }
-  cpSync(from, to, { recursive: true, errorOnExist: true, force: false });
-  rmSync3(from, { recursive: true, force: true });
+  const staging = `${to}.${randomUUID2()}.partial`;
+  try {
+    copy(from, staging);
+    rename(staging, to);
+  } catch (error) {
+    rmSync3(staging, { recursive: true, force: true });
+    throw error;
+  }
+  return true;
 }
 function adoptLegacyProjectState(cwd, directory) {
   if (adopted.has(directory)) return;
@@ -4261,13 +4274,25 @@ function adoptLegacyProjectState(cwd, directory) {
     if (!existsSync5(legacy)) continue;
     const destination = nodePath8.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
     try {
-      if (existsSync5(destination)) rmSync3(legacy, { recursive: true, force: true });
-      else {
-        mkdirSync3(directory, { recursive: true, mode: 448 });
-        relocate(legacy, destination);
+      if (existsSync5(adoptionReceipt(directory, key)) || existsSync5(destination)) {
+        recordAdoption(directory, key);
+        rmSync3(legacy, { recursive: true, force: true });
+        continue;
       }
+      mkdirSync3(directory, { recursive: true, mode: 448 });
+      const sourceRemains = relocateLegacyState(legacy, destination);
+      recordAdoption(directory, key);
+      if (sourceRemains) rmSync3(legacy, { recursive: true, force: true });
     } catch {}
   }
+}
+function adoptionReceipt(directory, key) {
+  return nodePath8.join(directory, `.adopted-${CLAUDE_MIGRATION_SCHEMA.state[key]}`);
+}
+function recordAdoption(directory, key) {
+  try {
+    writeDurableFile(adoptionReceipt(directory, key), '', { mode: 384 });
+  } catch {}
 }
 function stateDirectory(cwd) {
   const directory = claudeProjectStateDirectory(cwd);
@@ -4275,7 +4300,22 @@ function stateDirectory(cwd) {
   return directory;
 }
 function claudeProjectStatePath(cwd, key) {
-  return nodePath8.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]);
+  const directory = stateDirectory(cwd);
+  const adoptedPath = nodePath8.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+  if (existsSync5(adoptedPath)) return adoptedPath;
+  if (existsSync5(adoptionReceipt(directory, key))) return adoptedPath;
+  const legacy = nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+  return existsSync5(legacy) ? legacy : adoptedPath;
+}
+function removeClaudeProjectState(cwd, key) {
+  rmSync3(nodePath8.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]), {
+    recursive: true,
+    force: true,
+  });
+  rmSync3(nodePath8.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]), {
+    recursive: true,
+    force: true,
+  });
 }
 function attemptsPath(cwd) {
   return claudeProjectStatePath(cwd, 'attemptsDirectory');
@@ -4944,7 +4984,7 @@ function performAutomaticMigration(projectRoot, options, now) {
     };
   }
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync4(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, 'transaction');
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
@@ -5254,7 +5294,7 @@ function applyRecoveryEntries(projectRoot, pending) {
 }
 function completedRecoveryResult(projectRoot, transaction) {
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync4(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, 'transaction');
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return createResult({
     state: 'changed',
