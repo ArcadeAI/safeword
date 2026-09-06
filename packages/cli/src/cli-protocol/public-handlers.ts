@@ -10,7 +10,11 @@ import { CODEX_REVIEW_THEN_RESTART_ACTION } from '../codex-plugin/migration.js';
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../codex-plugin/operations.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
-import type { ReviewKind } from '../review/contract.js';
+import type {
+  RedExecutionAttestation,
+  RedExecutionRequest,
+  ReviewKind,
+} from '../review/contract.js';
 import { isWouldChangeAction, type SelfHealAction } from '../utils/architecture-document.js';
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
@@ -955,6 +959,34 @@ function reviewContext(rawContext: unknown): string[] {
   return typeof rawContext === 'string' ? [rawContext] : [];
 }
 
+async function collectWorkerRedAttestation(input: {
+  readonly cwd: string;
+  readonly execution?: RedExecutionRequest;
+  readonly sourceFingerprint: string;
+}): Promise<RedExecutionAttestation | undefined> {
+  if (input.execution === undefined) return undefined;
+  const { executeRedProof } = await import('../review/red-execution.js');
+  return executeRedProof({
+    projectRoot: input.cwd,
+    request: input.execution,
+    sourceFingerprint: input.sourceFingerprint,
+  });
+}
+
+function withExecutionAttestation(
+  result: CliResult,
+  attestation: RedExecutionAttestation | undefined,
+): CliResult {
+  if (attestation === undefined) return result;
+  return {
+    ...result,
+    data: {
+      ...(typeof result.data === 'object' && result.data !== null && result.data),
+      execution_attestation: attestation,
+    },
+  };
+}
+
 async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult> {
   const id = process.env.SAFEWORD_REVIEW_JOB_ID;
   if (id === undefined) {
@@ -1010,11 +1042,19 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
   }
   let result: CliResult;
   try {
-    result = await runReview({
+    const attestation = await collectWorkerRedAttestation({
       cwd: invocation.cwd,
-      ...persistedInput,
+      execution: persistedInput.execution,
+      sourceFingerprint: persistedInput.sourceFingerprint,
+    });
+    const reviewed = await runReview({
+      cwd: invocation.cwd,
+      kind: persistedInput.kind,
+      targets: persistedInput.targets,
+      context: persistedInput.context,
       progress: invocation.progress,
     });
+    result = withExecutionAttestation(reviewed, attestation);
   } catch (error) {
     const packetError = error instanceof ReviewPacketError;
     result = reviewExecutionFailure(error, packetError);

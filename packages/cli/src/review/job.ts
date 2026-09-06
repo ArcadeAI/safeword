@@ -22,7 +22,7 @@ import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { createBestEffortByteSink } from '../cli-protocol/policy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { retryCommand } from './command.js';
-import { isReviewKind, type ReviewKind } from './contract.js';
+import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
 import { reviewWorkerRunBoundMs } from './runtime.js';
 
@@ -36,6 +36,7 @@ interface ReviewJobRecord {
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
+  readonly execution?: RedExecutionRequest;
   readonly source_fingerprint: string;
   readonly started_at: string;
   readonly updated_at: string;
@@ -131,11 +132,13 @@ function fingerprint(
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[] = [],
+  execution?: RedExecutionRequest,
 ): string {
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
   try {
     const hash = createHash('sha256');
     hash.update(`kind\0${kind}\0`);
+    if (execution !== undefined) hash.update(`execution\0${JSON.stringify(execution)}\0`);
     for (const [section, files] of [
       ['targets', prepared.packet.logical_files],
       ['context', prepared.packet.context_files ?? []],
@@ -513,7 +516,10 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
     });
   }
   try {
-    if (fingerprint(cwd, record.kind, record.targets, record.context) !== record.source_fingerprint)
+    if (
+      fingerprint(cwd, record.kind, record.targets, record.context, record.execution) !==
+      record.source_fingerprint
+    )
       return staleResult(record);
   } catch {
     return staleResult(record);
@@ -691,10 +697,17 @@ export async function startReviewJob(input: {
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
+  readonly execution?: RedExecutionRequest;
   readonly progress?: Pick<ProgressReporter, 'heartbeat' | 'managed' | 'start'>;
 }): Promise<CliResult> {
   const context = input.context ?? [];
-  const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
+  const sourceFingerprint = fingerprint(
+    input.cwd,
+    input.kind,
+    input.targets,
+    context,
+    input.execution,
+  );
   mkdirSync(jobsDirectory(input.cwd), { recursive: true, mode: 0o700 });
   const reserved = withFileLock(nodePath.join(jobsDirectory(input.cwd), 'start.lock'), () => {
     const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
@@ -707,6 +720,7 @@ export async function startReviewJob(input: {
       kind: input.kind,
       targets: input.targets,
       context,
+      execution: input.execution,
       source_fingerprint: sourceFingerprint,
       started_at: now,
       updated_at: now,
@@ -864,6 +878,8 @@ export function reviewJobWorkerInput(
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context: readonly string[];
+  readonly execution?: RedExecutionRequest;
+  readonly sourceFingerprint: string;
 } {
   const record = withJobLock(cwd, id, () => {
     const current = readJob(cwd, id);
@@ -878,7 +894,13 @@ export function reviewJobWorkerInput(
     writeJob(cwd, claimed);
     return claimed;
   });
-  return { kind: record.kind, targets: record.targets, context: record.context ?? [] };
+  return {
+    kind: record.kind,
+    targets: record.targets,
+    context: record.context ?? [],
+    execution: record.execution,
+    sourceFingerprint: record.source_fingerprint,
+  };
 }
 
 function latestJobId(cwd: string): string | undefined {
