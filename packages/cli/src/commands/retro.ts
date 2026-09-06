@@ -1300,7 +1300,8 @@ export function localRetroHostClass(
   const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
   const socketPath = configuredSocket || '/run/cursor/api.sock';
   try {
-    if (!socketStatus(socketPath).isSocket()) return 'unknown';
+    // Any reachable node at Cursor's managed-runtime path makes locality indeterminate.
+    socketStatus(socketPath);
     return 'unknown';
   } catch (error_) {
     const error = error_ as NodeJS.ErrnoException;

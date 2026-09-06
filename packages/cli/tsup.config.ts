@@ -79,7 +79,7 @@ if (
   LOCAL_RETRO_CANARY_HARNESS !== undefined &&
   (!COMMIT_PATTERN.test(buildCommit) || !trackedTreeIsClean())
 ) {
-  throw new Error('local retro canary builds require a clean committed source tree');
+  throw new Error('local retro canary builds require no tracked source changes');
 }
 
 type RelayBuildAttestation = {

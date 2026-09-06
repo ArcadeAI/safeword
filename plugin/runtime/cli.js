@@ -63210,8 +63210,7 @@ function localRetroHostClass(agent, environment, socketStatus = statSync12) {
   const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
   const socketPath = configuredSocket || "/run/cursor/api.sock";
   try {
-    if (!socketStatus(socketPath).isSocket())
-      return "unknown";
+    socketStatus(socketPath);
     return "unknown";
   } catch (error_) {
     const error2 = error_;
