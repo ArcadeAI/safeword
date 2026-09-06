@@ -3,11 +3,11 @@
   "scenarios": {
     "Explicit reviewer and model routes run in configured order": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "executes $first before $second in declared route order"
+      "runs Codex model A before OpenCode model B in declared route order"
     ],
     "Reversed reviewer and model routes run in configured order": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "executes $first before $second in declared route order"
+      "runs OpenCode model B before Codex model A in reversed route order"
     ],
     "Cached observations do not change route order": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -62,8 +62,7 @@
     ],
     "Catalogued models are not reported as proven": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "reports $name through the public status command",
-      "catalogued models are not reported as proven"
+      "reports a catalogued model as compatible but not proven through public status"
     ],
     "Successful review records proven evidence": [
       "packages/cli/tests/review/job.test.ts",
@@ -71,18 +70,15 @@
     ],
     "Unlisted models are not reported as catalogued": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "reports $name through the public status command",
-      "unlisted models are not reported as catalogued"
+      "reports an unlisted model as compatible but not catalogued through public status"
     ],
     "Installed runtimes without model selection are not compatible": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "reports $name through the public status command",
-      "installed runtimes without model selection are not compatible"
+      "reports an installed runtime without model selection as incompatible through public status"
     ],
     "Missing runtimes are reported as not installed": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "reports $name through the public status command",
-      "missing runtimes are reported as not installed"
+      "reports a missing runtime as not installed through public status"
     ],
     "Most recent failure replaces stale proven evidence": [
       "packages/cli/tests/review/job.test.ts",
