@@ -96,7 +96,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        'cdf5ec146f6c7bdca467f6952ef4ee995148269ee32ee2213035f7a6453b4d2c',
+        '534a7566f028e7a36525cec7db7bbe543fc75634e7f6ce5e982fbc2fe85849fc',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
@@ -130,7 +130,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
       '.safeword/hooks/stop-quality.ts':
-        'a05663d018bbdfaace593942da04c8b9d52e7ab743c9820d6249fcec93df603b',
+        '270afdf775a374aaebf239227d4f17937edeb17eeb81ccbac5360a303a1df5bd',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':

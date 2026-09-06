@@ -12,6 +12,7 @@ import {
   gatePhaseAdvance,
   hashArtifact,
   isReviewGateEnabled,
+  isStopQualityReviewEnabled,
   parseReviewStamps,
   readCrossAgentReviewPolicy,
   reviewGateAppliesToPhase,
@@ -354,12 +355,46 @@ describe('reviewGateAppliesToPhase (selective per-phase enforcement)', () => {
     expect(reviewGateAppliesToPhase(config, '7')).toBe(false);
   });
 
-  it('is off for an empty list, false, absent, and malformed config', () => {
+  it('is off for an empty list and an explicit false', () => {
     expect(reviewGateAppliesToPhase('{"reviewGate": []}', 'scenario-gate')).toBe(false);
     expect(reviewGateAppliesToPhase('{"reviewGate": false}', 'scenario-gate')).toBe(false);
-    expect(reviewGateAppliesToPhase('{}', 'scenario-gate')).toBe(false);
-    expect(reviewGateAppliesToPhase(undefined, 'scenario-gate')).toBe(false);
-    expect(reviewGateAppliesToPhase('not json {', 'scenario-gate')).toBe(false);
+    expect(reviewGateAppliesToPhase('{"reviewGate": false}', 'done')).toBe(false);
+  });
+
+  it('applies to every phase when the key is absent — on by default', () => {
+    for (const phase of ['intake', 'define-behavior', 'scenario-gate', 'implement', 'done']) {
+      expect(reviewGateAppliesToPhase('{}', phase)).toBe(true);
+      expect(reviewGateAppliesToPhase('{"installedPacks":["typescript"]}', phase)).toBe(true);
+    }
+  });
+
+  it('applies when there is no config file at all', () => {
+    expect(reviewGateAppliesToPhase(undefined, 'scenario-gate')).toBe(true);
+  });
+
+  it('falls back to the default rather than silently disabling on malformed config', () => {
+    expect(reviewGateAppliesToPhase('not json {', 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase('[]', 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase('"nope"', 'scenario-gate')).toBe(true);
+  });
+
+  it('ignores an unusable reviewGate value rather than treating it as off', () => {
+    expect(reviewGateAppliesToPhase('{"reviewGate": "scenario-gate"}', 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase('{"reviewGate": 1}', 'scenario-gate')).toBe(true);
+  });
+});
+
+describe('isStopQualityReviewEnabled (Stop-time review, off by default)', () => {
+  it('is off when the key is absent, on no config, and on malformed config', () => {
+    expect(isStopQualityReviewEnabled('{}')).toBe(false);
+    expect(isStopQualityReviewEnabled()).toBe(false);
+    expect(isStopQualityReviewEnabled('not json {')).toBe(false);
+  });
+
+  it('is on only when stopQualityReview is explicitly true', () => {
+    expect(isStopQualityReviewEnabled('{"stopQualityReview": true}')).toBe(true);
+    expect(isStopQualityReviewEnabled('{"stopQualityReview": false}')).toBe(false);
+    expect(isStopQualityReviewEnabled('{"stopQualityReview": "yes"}')).toBe(false);
   });
 });
 

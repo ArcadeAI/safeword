@@ -145,10 +145,17 @@ const REVIEW_LINE =
   /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
 
 /**
- * Rollout guard: the review gate is OFF unless `.safeword/config.json` sets
- * `reviewGate: true`. Default-off so this self-applying blocking gate can ship
- * inert (no bricking the dogfood or customers) and be enabled deliberately once
- * the stamp-earning step is in place. Fail-safe to off on missing/malformed config.
+ * Tier 1 (the per-asset inline stamp) is OFF unless `.safeword/config.json` sets
+ * `reviewGate: true`. It is per-asset, so it has no phase to select on and stays
+ * all-or-nothing; a phase list turns on Tier 2 only. Fail-safe to off on
+ * missing/malformed config — Tier 1 is a cheap, gameable floor, so the cost of a
+ * missed stamp is far lower than the cost of blocking every asset by accident.
+ *
+ * Tier 2's default moved the other way (see {@link reviewGateAppliesToPhase}):
+ * the original rollout guard shipped it inert so a self-applying blocking gate
+ * could not brick the dogfood or customers, "enabled deliberately once the
+ * stamp-earning step is in place". That step landed in #3769 — a stamp now cites
+ * the review that produced it — so the guard has served its purpose.
  */
 export function isReviewGateEnabled(rawConfig?: string): boolean {
   return configFlagIsTrue(rawConfig, 'reviewGate');
@@ -157,30 +164,61 @@ export function isReviewGateEnabled(rawConfig?: string): boolean {
 /**
  * Whether the Tier 2 phase-exit review gate applies to the phase being left.
  *
- * `reviewGate: true` enforces at every exit (the original all-or-nothing flag).
- * `reviewGate: ["define-behavior", "scenario-gate"]` enforces only at the listed
- * exits — the selective posture ticket 2VCSZY sketched as "option c", so a
- * project can buy independent review where judgment is load-bearing without
- * paying a fork review at exits that machine evidence already gates
- * (implement -> verify has tests; verify -> done has the done gate).
+ * ON at every exit by default — including when `.safeword/config.json` has no
+ * `reviewGate` key at all, which is what a fresh install looks like. A project
+ * narrows or disables it deliberately:
  *
- * A list leaves Tier 1 (the per-asset inline stamp) off: that gate is per-asset,
- * not per-phase, so it has no phase to select on and stays all-or-nothing under
- * {@link isReviewGateEnabled}. Fail-safe to off on missing/malformed config, and
- * non-string entries are ignored rather than voiding the whole list.
+ * - absent or `true` — every phase exit needs an independent review stamp.
+ *   `true` additionally turns on Tier 1 ({@link isReviewGateEnabled}).
+ * - `["define-behavior", "scenario-gate"]` — only the listed exits. The
+ *   selective posture ticket 2VCSZY sketched as "option c", for buying review
+ *   where judgment is load-bearing while skipping exits that machine evidence
+ *   already gates (implement -> verify has tests; verify -> done has the done gate).
+ * - `false` — off entirely.
+ *
+ * Unusable values (a bare string, a number, malformed JSON) keep the default
+ * rather than reading as "off": a typo should not quietly remove a gate. An
+ * empty list is a considered choice and does disable it. Non-string list entries
+ * are ignored rather than voiding the whole list.
  */
 export function reviewGateAppliesToPhase(rawConfig: string | undefined, phase: string): boolean {
-  if (isReviewGateEnabled(rawConfig)) return true;
-  if (rawConfig === undefined) return false;
+  if (rawConfig === undefined) return true;
   try {
     const config: unknown = JSON.parse(rawConfig);
-    if (typeof config !== 'object' || config === null) return false;
+    if (typeof config !== 'object' || config === null) return true;
     const value = (config as Record<string, unknown>).reviewGate;
+    if (value === true || value === undefined) return true;
+    if (value === false) return false;
     // Strict `includes` is the non-string filter: a numeric 7 never equals "7".
-    return Array.isArray(value) && value.includes(phase);
+    if (Array.isArray(value)) return value.includes(phase);
+    // Any other shape is a typo, not a considered "off" — keep the default.
+    return true;
   } catch {
-    return false;
+    // Malformed config is pre-tool-config-guard's concern. A quality gate that
+    // silently disabled itself on a stray comma would be worse than a noisy one.
+    return true;
   }
+}
+
+/**
+ * Whether the Stop-time quality review still runs. OFF unless
+ * `.safeword/config.json` sets `stopQualityReview: true`.
+ *
+ * Measured over 13 concurrent sessions (~220 turn-ends), the Stop review
+ * produced one intervention — a reply-format correction — and never a code
+ * change, because a Stop event has no relationship to the work: five filters
+ * stand between the event and the check, and what survives them inspects the
+ * shape of the reply. The phase-boundary gates in pre-tool-quality.ts fire at
+ * the moment the work actually moves, so the Stop path is redundant rather than
+ * merely quiet. Ticket KHL52X carries the measurement.
+ *
+ * Turning it back on restores the phase-review prompt AND the decision-brief
+ * ending contract; both are advisory guidance from SessionStart and PostToolUse
+ * while this is off. The Stop hook's evidence gates (done, impl-plan,
+ * architecture, cumulative artifacts) are unaffected either way.
+ */
+export function isStopQualityReviewEnabled(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'stopQualityReview');
 }
 
 const PHASE_FIELD = /^phase:\s*(\S+)/m;
