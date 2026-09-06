@@ -45,7 +45,7 @@ done_when:
 inspiration_contract: v1
 inspiration_contract_scaffold: v1
 created: 2026-08-30T00:19:30.350Z
-last_modified: 2026-09-06T22:23:00.000Z
+last_modified: 2026-09-06T22:27:00.000Z
 ---
 
 # Route local retros through the durable server without customer setup
@@ -102,3 +102,4 @@ Confirmed by tracing `publicRetroEligible` through `cursorPublicBindingMatches`,
 - 2026-09-06T22:11:00.000Z Review correction: Removed the current Cursor run from the qualifying capture ledger because it lacks the newly required host-bound Desktop lifecycle artifact. Assigned positive Cursor evidence production and validation to the cutover slice, pinned byte-different UUID replay to typed HTTP 409 with original bytes retained, added the pending two-digest non-substitution scenario, and corrected design-alignment proof targets. Capacity planning remains outside the initial launch gate by explicit scope.
 - 2026-09-06T22:17:00.000Z Review correction: Added the missing per-harness readiness rejection for mismatched request identity or session scope across local, collector, and relay evidence. Also pinned closed-canary retrieval by exact raw REST GET and named the existing direct-client caller-deadline compatibility proof. Storage retention and source-fairness remain deliberately outside this initial low-volume launch gate.
 - 2026-09-06T22:23:00.000Z Review correction: Named the existing build-path regression proof that canary selection preserves an indeterminate host classification and refuses the server route, plus the existing per-source canary isolation proof. Strengthened the relay runtime test so the deployed `collector-worker` credential is denied on the direct filing route, and clarified that the readiness implementation is currently only a non-discriminating fail-closed stub.
+- 2026-09-06T22:27:00.000Z Quality follow-up: Extended runtime authorization proof across every non-ingest relay role, retained the fifth principal across credential rotation, and removed a fixture secret collision that could hide incorrect credential resolution. Focused runtime tests passed.
