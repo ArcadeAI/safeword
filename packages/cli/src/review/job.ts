@@ -518,7 +518,7 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
   } catch {
     return staleResult(record);
   }
-  if (record.result !== undefined) return record.result;
+  if (record.result !== undefined) return withReviewProvenance(record, record.result);
   return createResult({
     state: 'failed',
     errors: [
@@ -526,6 +526,30 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
     ],
     data: { command: 'review status', status: 'failed', review_id: record.id },
   });
+}
+
+/**
+ * Name the review behind a terminal verdict (ticket PB1GMZ). The agent that
+ * stamps a phase or artifact has to cite the review that approved it, and until
+ * this the happy path was the one result that never carried its own id — only
+ * the pending and failed paths did. `kind` and `targets` come from the same
+ * integrity-checked record, so a stamp can be bound to what was actually
+ * reviewed rather than to the agent's account of it.
+ */
+function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliResult {
+  const data =
+    typeof result.data === 'object' && result.data !== null && !Array.isArray(result.data)
+      ? (result.data as Record<string, unknown>)
+      : {};
+  return {
+    ...result,
+    data: {
+      ...data,
+      review_id: record.id,
+      review_kind: record.kind,
+      review_targets: record.targets,
+    },
+  };
 }
 
 function invalidJobResult(id: string): CliResult {

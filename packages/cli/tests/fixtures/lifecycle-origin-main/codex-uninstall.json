@@ -1,6 +1,6 @@
 {
   "integration": "codex",
   "operation": "uninstall",
-  "result_sha256": "52ddcae80a42db9940f17aaaf1cd1086798819a3335803d812ff4e0878810880",
-  "tree_sha256": "661b74edea764935afb551b0d33a43b50572ff27232b3479622020e65934a742"
+  "result_sha256": "6cb090cf618421c66a21d3d088158ec6bbb3693ae08c31f02a1915ae2c80014a",
+  "tree_sha256": "a9162ac0543f979b06c75cc504a2bfecad7fab6018f694765a6387d39f44647e"
 }
