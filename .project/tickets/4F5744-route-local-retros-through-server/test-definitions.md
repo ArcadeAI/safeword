@@ -126,9 +126,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: A relay-owned marker on a closed issue suppresses a duplicate create
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R4 — Accepted intake is safe and relay-compatible
 
@@ -170,9 +170,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: The collector-worker principal has only ingest authority and leaves existing principal roles unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R5 — Server ownership survives interrupted filing
 
@@ -274,11 +274,11 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ## Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance
 
-### Scenario: Cursor host detection records truthful provenance
+### Scenario: Cursor local readiness requires positive host-bound Desktop lifecycle evidence
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: local-retro-cutover.SWM1.R3 — Production fault evidence proves recoverable ownership
 
@@ -326,7 +326,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 - [x] RED
 - [x] GREEN
-- [x] REFACTOR
+- [ ] REFACTOR — rerun after replacing the unconditional fail-closed stub
 
 ### Scenario: Managed Cursor evidence cannot satisfy local readiness
 
