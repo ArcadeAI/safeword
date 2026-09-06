@@ -212,6 +212,12 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: Existing direct relay clients retain their caller-supplied retry deadline
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ### Scenario: Retry deadline exhaustion produces a durable alert
 
 - [x] RED
@@ -365,6 +371,18 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [ ] REFACTOR
 
 ### Scenario: Mismatched build ancestry cannot satisfy readiness
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Every harness rejects collector and relay receipts whose request identity or session scope does not correlate end to end
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Readiness retrieves a closed canary by exact issue GET and validates its raw body
 
 - [ ] RED
 - [ ] GREEN

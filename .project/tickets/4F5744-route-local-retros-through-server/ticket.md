@@ -45,7 +45,7 @@ done_when:
 inspiration_contract: v1
 inspiration_contract_scaffold: v1
 created: 2026-08-30T00:19:30.350Z
-last_modified: 2026-09-06T22:11:00.000Z
+last_modified: 2026-09-06T22:17:00.000Z
 ---
 
 # Route local retros through the durable server without customer setup
@@ -100,3 +100,4 @@ Confirmed by tracing `publicRetroEligible` through `cursorPublicBindingMatches`,
 - 2026-09-06T21:58:29.000Z Review correction: Kept the plan in `planned` state because the authoritative readiness evaluator and its discriminating rejection tests are not implemented. Added explicit pending proofs for the relay worker's ingest-only authority, closed-issue raw-body duplicate recovery, and the missing Claude Code and Cursor session-scope correlations. Clarified that 256 KiB is the outer envelope limit while the 60 KB rendered-body limit is the binding acceptance ceiling; oversized requests remain locally recoverable without splitting or replacement identity.
 - 2026-09-06T22:04:00.000Z Review correction: Removed the unsafe inference that absence of Cursor's managed-runtime socket proves a local host. Cursor readiness now requires positive host-bound Desktop lifecycle evidence; the existing canary remains captured but unverified until recaptured at that boundary. Existing relay integration coverage proves the `state=all` raw-body scan, and runtime configuration coverage proves the exact five-principal role matrix including ingest-only `collector-worker`.
 - 2026-09-06T22:11:00.000Z Review correction: Removed the current Cursor run from the qualifying capture ledger because it lacks the newly required host-bound Desktop lifecycle artifact. Assigned positive Cursor evidence production and validation to the cutover slice, pinned byte-different UUID replay to typed HTTP 409 with original bytes retained, added the pending two-digest non-substitution scenario, and corrected design-alignment proof targets. Capacity planning remains outside the initial launch gate by explicit scope.
+- 2026-09-06T22:17:00.000Z Review correction: Added the missing per-harness readiness rejection for mismatched request identity or session scope across local, collector, and relay evidence. Also pinned closed-canary retrieval by exact raw REST GET and named the existing direct-client caller-deadline compatibility proof. Storage retention and source-fairness remain deliberately outside this initial low-volume launch gate.
