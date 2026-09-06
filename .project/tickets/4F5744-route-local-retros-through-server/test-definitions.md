@@ -232,8 +232,8 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: A real Codex session proves terminal production filing
 
-- [ ] CAPTURED
-- [ ] VERIFIED
+- [x] CAPTURED
+- [x] VERIFIED
 - [ ] LINKED IN READINESS MANIFEST
 
 ### Scenario: A real Cursor session proves terminal production filing
