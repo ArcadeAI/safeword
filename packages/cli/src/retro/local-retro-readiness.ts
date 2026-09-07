@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import checkedInProductionAttestation from './local-retro-production-attestation.json' with { type: 'json' };
 import checkedInManifest from './local-retro-readiness-manifest.json' with { type: 'json' };
 
 export interface LocalRetroReadinessManifest {
@@ -46,6 +47,10 @@ export interface LocalRetroProductionAttestation {
   verifiedAt: string;
   version: 1;
 }
+
+type DisabledProductionAttestation = { enabled: false; version: 1 };
+export const CHECKED_IN_LOCAL_RETRO_PRODUCTION_ATTESTATION = checkedInProductionAttestation as
+  DisabledProductionAttestation | LocalRetroProductionAttestation;
 
 const COMMIT_PATTERN = /^[\da-f]{40}$/u;
 const HASH_PATTERN = /^[\da-f]{64}$/u;
@@ -129,12 +134,11 @@ function hasCompleteEvidence(
 
 function validProductionAttestation(
   manifest: LocalRetroReadinessManifest,
-  attestation: LocalRetroProductionAttestation | undefined,
+  attestation: DisabledProductionAttestation | LocalRetroProductionAttestation | undefined,
   now: Date,
 ): boolean {
-  if (attestation === undefined) return false;
+  if (!attestation?.enabled) return false;
   return (
-    attestation.enabled &&
     attestation.version === 1 &&
     attestation.authority === 'retro-relay-production-v1' &&
     hasRequiredLifecycle(attestation) &&
@@ -156,7 +160,7 @@ export function validateLocalRetroReadiness(
     ancestorPairs: readonly { ancestor: string; descendant: string }[];
     buildCommit: string;
     now: Date;
-    productionAttestation?: LocalRetroProductionAttestation;
+    productionAttestation?: DisabledProductionAttestation | LocalRetroProductionAttestation;
     relayReady: boolean;
   },
 ): boolean {
