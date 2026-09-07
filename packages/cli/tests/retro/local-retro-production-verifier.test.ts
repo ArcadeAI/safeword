@@ -93,67 +93,75 @@ function inputUrl(input: string | URL | Request): string {
   return input instanceof URL ? input.href : input.url;
 }
 
-function productionFetch(): typeof fetch {
+type ProductionFault = 'missing-raw-marker' | 'relay-request-mismatch' | 'session-mismatch';
+
+function harnessResponses(fault?: ProductionFault): Map<string, Response> {
+  const responses = new Map<string, Response>();
+  for (const harness of harnesses) {
+    const evidence = manifest.harnesses[harness];
+    const findings = [`${harness} production canary`];
+    const sessionScope =
+      fault === 'session-mismatch' && harness === 'cursor' ? 'f'.repeat(64) : evidence.sessionScope;
+    responses.set(
+      `/v1/public-retros/${evidence.collectorReceipt}`,
+      Response.json({
+        findings,
+        sessionScope,
+        source: { harness, hostClass: 'local' },
+        version: 'v3',
+      }),
+    );
+    const relayRequestId =
+      fault === 'relay-request-mismatch' && harness === 'codex' ? requestId(0) : evidence.requestId;
+    const issueNumber = 4000 + harnesses.indexOf(harness);
+    responses.set(
+      `/v1/retro-filings/${evidence.relayReceipt}`,
+      Response.json({
+        issueNumber,
+        receiptId: evidence.relayReceipt,
+        requestId: relayRequestId,
+        state: 'filed',
+      }),
+    );
+    const identity = filingIdentity(evidence.requestId, findings);
+    const markers = [
+      `<!-- safeword-retro-signature: retro:${identity} -->`,
+      `<!-- safeword-retro-canonical: canonical:${identity} -->`,
+      requestMarker(evidence.requestId),
+    ];
+    if (fault === 'missing-raw-marker' && harness === 'claude-code') markers.pop();
+    responses.set(
+      `/repos/ArcadeAI/safeword/issues/${issueNumber}`,
+      Response.json({ body: [...findings, ...markers].join('\n') }),
+    );
+  }
+  return responses;
+}
+
+function productionFetch(fault?: ProductionFault): typeof fetch {
+  const responses = harnessResponses(fault);
+  responses.set(
+    '/v1/private/retros',
+    Response.json({
+      retros: harnesses.map(harness => ({
+        receipt: manifest.harnesses[harness].collectorReceipt,
+        requestId: manifest.harnesses[harness].requestId,
+        state: 'completed',
+      })),
+    }),
+  );
   return vi.fn<typeof fetch>(input => {
-    const url = inputUrl(input);
-    if (url.endsWith('/v1/private/retros')) {
-      return Promise.resolve(
-        Response.json({
-          retros: harnesses.map(harness => ({
-            receipt: manifest.harnesses[harness].collectorReceipt,
-            requestId: manifest.harnesses[harness].requestId,
-            state: 'completed',
-          })),
-        }),
-      );
-    }
-    for (const harness of harnesses) {
-      const evidence = manifest.harnesses[harness];
-      const findings = [`${harness} production canary`];
-      if (url.endsWith(`/v1/public-retros/${evidence.collectorReceipt}`)) {
-        return Promise.resolve(
-          Response.json({
-            findings,
-            sessionScope: evidence.sessionScope,
-            source: { harness, hostClass: 'local' },
-            version: 'v3',
-          }),
-        );
-      }
-      if (url.endsWith(`/v1/retro-filings/${evidence.relayReceipt}`)) {
-        return Promise.resolve(
-          Response.json({
-            issueNumber: 4000 + harnesses.indexOf(harness),
-            receiptId: evidence.relayReceipt,
-            requestId: evidence.requestId,
-            state: 'filed',
-          }),
-        );
-      }
-      if (url.endsWith(`/issues/${4000 + harnesses.indexOf(harness)}`)) {
-        const identity = filingIdentity(evidence.requestId, findings);
-        return Promise.resolve(
-          Response.json({
-            body: [
-              ...findings,
-              `<!-- safeword-retro-signature: retro:${identity} -->`,
-              `<!-- safeword-retro-canonical: canonical:${identity} -->`,
-              requestMarker(evidence.requestId),
-            ].join('\n'),
-          }),
-        );
-      }
-    }
-    return Promise.resolve(Response.json({ error: 'not_found' }, { status: 404 }));
+    const response = responses.get(new URL(inputUrl(input)).pathname);
+    return Promise.resolve(response ?? Response.json({ error: 'not_found' }, { status: 404 }));
   });
 }
 
 describe('local retro production verifier', () => {
-  it('correlates each harness through collector, relay, and exact raw GitHub evidence', async () => {
-    const result = await verifyLocalRetroProductionReadiness(manifest, attestation, {
+  function verify(fetchImplementation: typeof fetch): Promise<boolean> {
+    return verifyLocalRetroProductionReadiness(manifest, attestation, {
       collectorCredential: 'collector-secret',
       collectorOrigin: 'https://collector.example',
-      fetch: productionFetch(),
+      fetch: fetchImplementation,
       githubToken: 'github-token',
       installationId,
       relayCredential: 'relay-secret',
@@ -161,7 +169,16 @@ describe('local retro production verifier', () => {
       repository: repo,
       tenantId,
     });
+  }
 
-    expect(result).toBe(true);
+  it('correlates each harness through collector, relay, and exact raw GitHub evidence', async () => {
+    await expect(verify(productionFetch())).resolves.toBe(true);
   });
+
+  it.each(['missing-raw-marker', 'relay-request-mismatch', 'session-mismatch'] as const)(
+    'fails closed for %s evidence',
+    async fault => {
+      await expect(verify(productionFetch(fault))).resolves.toBe(false);
+    },
+  );
 });
