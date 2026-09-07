@@ -22,6 +22,7 @@ import type { RedExecutionRequest } from '../../src/review/contract.js';
 import {
   cancelReviewJob,
   completeReviewJob,
+  executableRedGate,
   relayManagedWorkerStderr,
   reviewJobStatus,
   startReviewJob,
@@ -416,6 +417,7 @@ describe('durable review jobs', () => {
     );
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution = {
+      scenario: 'Scenario: exact actor boundary',
       argv: [process.execPath, '-e', 'process.exit(1)'] as const,
       cwd: '.',
       evidenceClass: 'pure-contract' as const,
@@ -454,6 +456,7 @@ describe('durable review jobs', () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
     const execution = {
+      scenario: 'Scenario: exact actor boundary',
       argv: [process.execPath, '-e', 'process.exit(1)'] as const,
       cwd: '.',
       evidenceClass: 'pure-contract' as const,
@@ -490,6 +493,7 @@ describe('durable review jobs', () => {
     );
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution = {
+      scenario: 'Scenario: exact actor boundary',
       argv: [process.execPath, '-e', 'process.exit(1)'] as const,
       cwd: '.',
       evidenceClass: 'pure-contract' as const,
@@ -527,6 +531,7 @@ describe('durable review jobs', () => {
     );
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution = {
+      scenario: 'Scenario: exact actor boundary',
       argv: [process.execPath, '-e', 'process.exit(1)'] as const,
       cwd: '.',
       evidenceClass: 'pure-contract' as const,
@@ -567,6 +572,7 @@ describe('durable review jobs', () => {
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
     vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
     const execution: RedExecutionRequest = {
+      scenario: 'Scenario: exact actor boundary',
       argv: [process.execPath, '-e', 'process.exit(1)'],
       cwd: '.',
       evidenceClass: 'pure-contract',
@@ -628,6 +634,44 @@ describe('durable review jobs', () => {
     expect(secondId).not.toBe(firstId);
     cancelReviewJob(cwd, firstId);
     cancelReviewJob(cwd, secondId);
+  });
+
+  it('blocks GREEN when no fresh approved executable RED receipt matches the scenario', () => {
+    const cwd = project();
+
+    expect(executableRedGate(cwd, 'Scenario: exact actor boundary')).toMatchObject({
+      state: 'action_required',
+      data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+  });
+
+  it('permits GREEN only while the approved cross-agent receipt still matches current inputs', async () => {
+    const cwd = project();
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      'execution_attestation: { source_fingerprint: record.source_fingerprint }, reviewer_output: {',
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution: RedExecutionRequest = {
+      scenario: 'Scenario: exact actor boundary',
+      argv: [process.execPath, '-e', 'process.exit(1)'],
+      cwd: '.',
+      evidenceClass: 'pure-contract',
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
+    expect(executableRedGate(cwd, execution.scenario)).toMatchObject({
+      state: 'healthy',
+      data: { command: 'review gate executable-red', status: 'approved' },
+    });
+
+    writeFileSync(nodePath.join(cwd, 'input.md'), 'changed after approval\n');
+    expect(executableRedGate(cwd, execution.scenario)).toMatchObject({
+      state: 'action_required',
+      data: { command: 'review gate executable-red', status: 'blocked' },
+    });
   });
 
   it('recognizes a long-running worker even when its command line is long', async () => {

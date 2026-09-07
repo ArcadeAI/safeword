@@ -36,6 +36,7 @@ function runEditHook(
   filePath: string,
   oldString: string,
   newString: string,
+  environment: NodeJS.ProcessEnv = {},
 ): HookResult {
   const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
     input: JSON.stringify({
@@ -45,7 +46,7 @@ function runEditHook(
       tool_input: { file_path: filePath, old_string: oldString, new_string: newString },
     }),
     cwd,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+    env: { ...process.env, ...environment, CLAUDE_PROJECT_DIR: cwd },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -189,6 +190,48 @@ describe('write-time annotation gate', () => {
         setup.testDefinitionsPath,
         '### Scenario: legacy',
         '### Scenario: legacy (renamed)',
+      );
+      expectHookAllow(result);
+    });
+  });
+
+  describe('Executable RED GREEN admission', () => {
+    function gateStub(cwd: string, state: 'healthy' | 'action_required'): string {
+      const path = nodePath.join(cwd, 'gate-stub.mjs');
+      writeTestFile(
+        cwd,
+        'gate-stub.mjs',
+        `console.log(JSON.stringify({ schemaVersion: 1, ok: ${state === 'healthy'}, changed: false, state: '${state}', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: '${state === 'healthy' ? 'approved' : 'blocked'}' } }));\n`,
+      );
+      return path;
+    }
+
+    it('blocks an annotated GREEN transition when the receipt gate does not approve it', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('allows an annotated GREEN transition when the exact receipt gate approves it', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy') },
       );
       expectHookAllow(result);
     });

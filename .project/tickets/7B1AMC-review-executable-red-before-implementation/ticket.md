@@ -3,8 +3,8 @@ id: 7B1AMC
 slug: review-executable-red-before-implementation
 type: feature
 subtype: bug-investigated
-phase: done
-status: done
+phase: implement
+status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/7B1AMC-review-executable-red-before-implementation/spec.md'
   - 'scenario-gate: packages/cli/features/review-executable-red-before-implementation.feature'
@@ -12,15 +12,15 @@ phase_anchors:
   - 'implement: .project/tickets/7B1AMC-review-executable-red-before-implementation/impl-plan.md'
   - 'verify: .project/tickets/7B1AMC-review-executable-red-before-implementation/test-definitions.md'
   - 'done: .project/tickets/7B1AMC-review-executable-red-before-implementation/verify.md'
-scope: 'Proof-plan self-check plus trusted execution attestation and independent review of each distinct new or changed primary executable RED proof, shipped as advisory guidance'
-out_of_scope: 'Blocking GREEN or done before FY1NHB evidence, reviewing every reused step, requiring one test per Gherkin row, mandating a framework, universal mutation testing, or replacing scenario coverage, TDD review, and final verification'
-done_when: 'A trusted executor records a bounded attestation for the exact primary proof against a sealed pre-implementation snapshot; independent review rejects fabricated, stale, unrelated, and wrong-reason RED evidence, accepts intended behavior RED, preserves genuine shared-proof reuse, and reports route exhaustion with an actionable next step'
+scope: 'Trusted execution plus independent review of each distinct new or changed primary executable RED proof, with a hard freshness gate before GREEN credit'
+out_of_scope: 'Reviewing every reused step, requiring one test per Gherkin row, mandating a framework, universal mutation testing, replacing scenario coverage, TDD review, or final verification, or duplicating existing host installation and reconciliation contracts'
+done_when: 'A trusted execution attestation and fresh independent review prove the intended missing behavior fails for the right reason at the actor boundary, and every supported agent host blocks GREEN credit when that evidence is missing, stale, fabricated, incomplete, or bound to another proof'
 parent: AK0QJR
 depends_on: [BX1T7H]
 relates_to: [NMSD94, QZAFT2, 1698, BFCWDB, ZA0JQR, Y9P3ZC]
 external_issue: https://github.com/ArcadeAI/safeword/issues/2336
 created: 2026-08-10T07:58:17.735Z
-last_modified: 2026-09-07T15:04:49Z
+last_modified: 2026-09-07T23:15:21Z
 ---
 
 # Stop hollow acceptance proofs before implementation
@@ -46,6 +46,9 @@ last_modified: 2026-09-07T15:04:49Z
 - 2026-09-06T17:10:00Z Quality review correction: Current Node documentation confirmed that terminating a parent does not necessarily terminate descendants. Added a failing regression and contained timed-out proof trees with POSIX process groups and Windows `taskkill /t`.
 - 2026-09-07T05:07:09Z Completed: User confirmed the delivery after rebase onto current `origin/main`. Regenerated host artifacts and origin-main fixtures, then passed 9,211 Vitest tests, 592 Cucumber scenarios, lint, typecheck, package builds, and deterministic generated-artifact checks. PR readiness remains Draft because configured independent AI review is unavailable under the host approval policy.
 - 2026-09-07T15:04:49Z CI repair: Confirmed the 25-millisecond timeout test coupled process termination to child startup and stderr scheduling. Removed only the unrelated expected-output assertion; the test still proves the configured timeout and `SIGKILL`, while the adjacent real-process test independently proves output capture and matching.
+- 2026-09-07T23:04:35Z Scope correction: The issue's final decision requires a blocking pre-GREEN gate rather than advisory reporting. Returned the PR to Draft and reopened the ticket at scenario-gate; retained the existing trusted executor and receipt lifecycle, and limited the delta to exact-request admission plus OpenCode parity.
+- 2026-09-07T23:04:35Z Scenario gate complete: 17 scenario definitions retain the existing trusted-execution contract and add only the accepted passing-proof rejection, fail-closed GREEN admission, plain recovery, and OpenCode parity boundaries. Configured independent routes were exhausted; a bounded exact-file fallback found and resolved two false-pass gaps, and Gherkin lint passes.
+- 2026-09-07T23:15:21Z Plan correction complete: A fresh-context fallback review found that skill-only repetition could be skipped. Replaced it with one public receipt-check command enforced by the existing cross-host edit hook at the actual GREEN ledger transition. Kept undeclared dependency-closure inference out of scope and advanced the parse-valid plan to implementation.
 
 ## Root Cause
 

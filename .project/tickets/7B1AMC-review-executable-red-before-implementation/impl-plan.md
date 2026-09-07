@@ -1,18 +1,21 @@
 # Impl Plan: Stop hollow acceptance proofs before implementation
 
-**Status:** implemented
+**Status:** planned
 **Planned on:** 2026-09-06
 **Implemented on:** 2026-09-06
+**Replanned on:** 2026-09-07
 
 ## Approach
 
-The riskiest assumption is that Safeword can execute an arbitrary project test command once,
-capture enough trustworthy evidence to review why it failed, and preserve the existing review
-coordinator's freshness guarantees without adding a second subsystem. The cheapest proof is
-`A real missing-behavior failure produces trusted execution evidence`, wired through the built CLI
-with a fixture executable that emits a known assertion failure.
+The riskiest remaining assumption is that the existing cross-host edit gate can deny GREEN credit
+without adding a second receipt store or a noisy per-edit check. The cheapest proof is the paired
+`Invalid executable-RED evidence blocks the shared GREEN transition` and `Fresh exact
+executable-RED evidence permits the shared GREEN transition` scenarios against an actual
+`[ ] GREEN` to `[x] GREEN` edit through the built hook. The same tests exercise the public receipt
+gate used by direct CLI callers, while existing job integrity and fingerprint tests prove freshness.
 
-Build in four slices:
+The trusted execution and durable receipt slices are already implemented. Complete the corrected
+blocking contract with one additional slice after retaining those four foundations:
 
 1. **Trusted observation.** Add an `executable-red` review request with structured argv, a contained
    working directory, a literal expected-failure matcher, an evidence class, and a bounded timeout.
@@ -28,13 +31,23 @@ Build in four slices:
 3. **Independent failure attribution.** Add one generated executable-RED rubric sourced from the
    canonical `tdd-review` skill. It requires intended actor-boundary failure, rejects syntax/import/
    fixture/configuration/infrastructure/unrelated failures, refuses missing or tampered execution
-   evidence, and treats route exhaustion as advisory. Primary proof:
+   evidence, and treats route exhaustion as unable to authorize GREEN. Primary proof:
    `tests/review/red-rubric-generation.test.ts` plus the built-CLI BDD feature.
 4. **Workflow and parity.** Update the canonical BDD/TDD and TDD-review skill sources so every
    supported agent invokes the same CLI command once per distinct proof implementation. Regenerate
-   Claude/Codex/Cursor deliveries, update the CLI reference and the existing review-coordinator
+   Claude/Codex/OpenCode/Cursor deliveries, update the CLI reference and the existing review-coordinator
    architecture decision, then run dogfood parity. Primary proof:
    generated-delivery checks, schema/parity checks, and the feature scenarios.
+5. **Blocking GREEN admission.** Add scenario identity to the executable-RED request and one
+   read-only `review gate executable-red --scenario <name>` command. It scans only integrity-valid
+   durable jobs, recomputes each candidate's fingerprint from current declared inputs, and permits
+   only a current approved cross-agent receipt for that scenario. Invoke that command from the
+   existing shared pre-tool hook whenever the R/G/R ledger changes `[ ] GREEN` to `[x] GREEN`; deny
+   the edit on missing, fabricated, incomplete, mismatched, stale, passing, wrong-reason, or
+   non-independent evidence. Claude Code, Codex, OpenCode, and Cursor already route edit operations
+   through this shared gate, while direct CLI callers use the command itself. Primary proof: built
+   CLI gate tests and actual hook denial/allowance integration tests. No second receipt store or
+   host-specific gate is added.
 
 Scenario proof map:
 
@@ -43,9 +56,9 @@ Scenario proof map:
 | Real failure; distinct proofs; author output; modified attestation; timeout | Integration through the real attestation collector with controlled executables | Proves process execution, byte capture, termination, and integrity behavior at the OS boundary |
 | Intended failure; wrong-reason outline; complete packet | Built CLI plus scripted independent reviewer | Proves the reviewer receives authenticated execution evidence and the fixed attribution rubric |
 | Material-input freshness outline; proof identity outline | Durable job integration tests | Proves exact input/config fingerprints, HMAC record integrity, stale status, and reuse decisions |
-| Route exhaustion; advisory truth outline | CLI protocol integration tests | Proves plain typed outcomes and no blocking gate at the public command boundary |
+| Passing proof; route exhaustion; invalid/fresh GREEN transition | Public gate and shared pre-tool hook integration tests | Proves an actual GREEN-credit edit is denied unless a fresh approved cross-agent receipt matches the current scenario and declared proof identity |
 | Shared outline; distinct implementations | Job reuse tests plus skill contract tests | Proves one receipt per canonical proof identity without per-row ceremony |
-| Supported-agent parity | Generated Codex and Claude freshness checks plus canonical workflow tests | Proves every affected agent surface carries the same host-neutral command contract |
+| Supported-agent parity | Generated Claude/Codex/OpenCode/Cursor freshness checks plus canonical workflow tests | Proves every affected agent surface carries the same host-neutral blocking contract |
 
 ## Decisions
 
@@ -67,15 +80,15 @@ execution attestation while retaining the existing coordinator and receipt store
 | Extend the durable review job with one executable-RED kind | Reuse the existing packet, worker, source-fingerprint, HMAC record, route, and receipt lifecycle | New RED-review subsystem; source-only review | A second subsystem duplicates trust and lifecycle code; source-only review cannot authenticate execution |
 | Execute structured argv directly | Add explicit execution options to `review run executable-red`; never invoke a shell | Shell command string; checked-in JSON manifest | Shell text adds injection/canonicalization ambiguity; a new manifest is unnecessary state for the first advisory release |
 | Bind declared proof inputs and execution configuration | Fingerprint scenario, proof plan, proof/support targets, argv, cwd, evidence class, matcher, and timeout; status fails stale after material changes | Whole-repository content snapshot; caller-declared hash | Whole-tree snapshots are noisy and expensive; caller hashes preserve the trust gap |
-| Roll out at the RED boundary as advisory | Skills invoke the review and report evidence honestly; no GREEN/done hard gate | Immediate blocking gate; final-only review | FY1NHB owns route-reliability and false-positive evidence; final-only review cannot prove test-first causality |
+| Gate GREEN at its durable credit boundary | Add one read-only receipt-check command and call it from the existing shared hook on a newly checked GREEN ledger row | Skill-only repetition; commit-only gate; second receipt store; advisory-only reporting | Skill text is bypassable, commit parsing is host-specific and can miss ledger-only work, another store duplicates trusted state, and advisory reporting allows hollow proof to earn GREEN credit |
 
 ## Design alignment
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
 | Optimize for the NTB without constraining the TBU | Default output says confirmed/not confirmed and gives one action; verbose JSON retains exact technical evidence | `packages/cli/tests/cli-protocol/executable-red-wiring.test.ts` | |
-| 1. Structure enforces; instructions suggest | Safeword, not the author, executes and integrity-seals the observable RED evidence | `packages/cli/tests/review/red-execution.test.ts` | |
-| 2. Fire at boundaries, not every turn | The workflow runs once for each new or changed distinct proof, immediately before GREEN implementation | `packages/cli/tests/review/surface-parity.test.ts` | |
+| 1. Structure enforces; instructions suggest | Safeword executes and integrity-seals RED evidence, then the shared hook denies the actual GREEN ledger transition without a qualifying receipt | `packages/cli/tests/integration/write-time-annotation-gate.test.ts` | |
+| 2. Fire at boundaries, not every turn | Validation runs only when GREEN credit is claimed, not on ordinary edits or turns | `packages/cli/tests/integration/write-time-annotation-gate.test.ts` | |
 | 5. Correct and safe; then clear; then simple | One review job lifecycle owns execution, review, freshness, and receipt integrity; no second store or dependency | `packages/cli/tests/review/job.test.ts` | |
 
 Architecture decisions honored: `ARCHITECTURE.md` section “Host-owned cross-agent adversarial
@@ -84,11 +97,11 @@ and “CLI Protocol and Output Contract” (typed observation/mutation effects a
 
 ## Known deviations
 
-The trusted executor runs in the project working directory while binding a sealed snapshot of every
-declared proof input; it does not clone the entire repository into an isolated filesystem. This is
-acceptable for the advisory release because whole-tree copying would break host harnesses and add
-large latency. Any undeclared helper is a proof-plan defect; FY1NHB evidence determines whether a
-stronger sandbox is warranted before hard enforcement.
+The trusted executor runs in the project working directory while binding every declared proof input;
+it does not clone the entire repository into an isolated filesystem or infer undeclared transitive
+helpers. Whole-tree copying would break host harnesses and add large latency. The gate therefore
+recomputes the exact declared request before GREEN and relies on the proof plan to enumerate support
+files; expanding this ticket into dependency-closure inference would exceed the accepted contract.
 
 ## Doc impact
 
@@ -100,7 +113,7 @@ stronger sandbox is warranted before hard enforcement.
 
 ## Assessment triggers
 
-- FY1NHB shows unacceptable false-positive rate, route availability, or latency.
+- Shipped blocking-gate telemetry shows unacceptable false-positive rate, route availability, or latency.
 - Real projects routinely need undeclared transitive proof helpers, making declared-input freshness
   unreliable.
 - A supported host exposes a stronger hermetic execution or signed-attestation primitive.
