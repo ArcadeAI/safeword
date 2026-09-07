@@ -32,12 +32,10 @@ Affected:
 - Claude Code Cloud
 - OpenAI Codex
 - OpenAI Codex Cloud
+- OpenCode
 - Cursor
 - Cursor Cloud Agents
-
-Unaffected:
-
-- Safeword CLI — the review is an agent workflow contract unless later evidence justifies CLI enforcement.
+- Safeword CLI
 
 ## Vocabulary
 
@@ -78,9 +76,7 @@ Unaffected:
 
 #### executable-red.SWM1.R1 — One review packet contains the scenario or Rule, proof-plan row, primary proof and glue, related state/helpers, exact command, full output, and evidence class
 
-#### executable-red.SWM1.R2 — One receipt may cover shared Scenario Outline rows or reused glue only when they use the same distinct proof implementation
-
-#### executable-red.SWM1.R3 — Production GREEN credit requires a fresh independent receipt; self-review or cached suite status is insufficient
+#### executable-red.SWM1.R2 — Every supported agent host requires the same fresh, independently witnessed execution receipt before GREEN credit
 
 ## Rave Moment
 
@@ -91,9 +87,9 @@ skip: child feature under a program; trustworthy RED should feel invisible and t
 - The historical umbrella-verdict proof is rejected before production implementation.
 - Valid Scenario Outlines, shared steps, contract tests, and actor adapters require only one review per distinct proof implementation.
 - Review failures name whether the gap is actor boundary, scenario observable, wrong failure reason, stale evidence, umbrella delegation, or cached/shared state.
-- The normal path adds one bounded independent review, not a second end-to-end implementation cycle.
+- The normal path adds one trusted RED execution and one bounded independent review, not a second end-to-end implementation cycle.
 - Review artifacts can feed the cross-agent quality evaluation without relying on agent self-report.
 
 ## Open Questions
 
-None at intake. Promotion from guidance to harder enforcement must be based on the evaluation and false-positive evidence in FY1NHB.
+None at intake. The user explicitly selected blocking enforcement on 2026-09-06; FY1NHB measures and tunes the shipped gate rather than deciding whether it blocks.
