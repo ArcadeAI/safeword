@@ -95,6 +95,9 @@ describe('local retro readiness', () => {
     expect(validateLocalRetroReadiness(completeManifest, productionEvidence('socket-absent'))).toBe(
       false,
     );
+    expect(
+      validateLocalRetroReadiness(completeManifest, productionEvidence('cursor-managed-cloud')),
+    ).toBe(false);
   });
 
   it('requires the evidence commit to be an ancestor of the running build', () => {

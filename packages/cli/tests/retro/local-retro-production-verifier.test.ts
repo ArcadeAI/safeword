@@ -95,7 +95,8 @@ function inputUrl(input: string | URL | Request): string {
   return input instanceof URL ? input.href : input.url;
 }
 
-type ProductionFault = 'missing-raw-marker' | 'relay-request-mismatch' | 'session-mismatch';
+type ProductionFault =
+  'missing-lifecycle' | 'missing-raw-marker' | 'relay-request-mismatch' | 'session-mismatch';
 
 function harnessResponses(fault?: ProductionFault): Map<string, Response> {
   const responses = new Map<string, Response>();
@@ -145,11 +146,13 @@ function productionFetch(fault?: ProductionFault): typeof fetch {
   responses.set(
     '/v1/private/retros',
     Response.json({
-      retros: harnesses.map(harness => ({
-        receipt: manifest.harnesses[harness].collectorReceipt,
-        requestId: manifest.harnesses[harness].requestId,
-        state: 'completed',
-      })),
+      retros: harnesses
+        .filter(harness => fault !== 'missing-lifecycle' || harness !== 'claude-code')
+        .map(harness => ({
+          receipt: manifest.harnesses[harness].collectorReceipt,
+          requestId: manifest.harnesses[harness].requestId,
+          state: 'completed',
+        })),
     }),
   );
   return vi.fn<typeof fetch>(input => {
@@ -179,12 +182,14 @@ describe('local retro production verifier', () => {
     await expect(verify(productionFetch())).resolves.toBe(true);
   });
 
-  it.each(['missing-raw-marker', 'relay-request-mismatch', 'session-mismatch'] as const)(
-    'fails closed for %s evidence',
-    async fault => {
-      await expect(verify(productionFetch(fault))).resolves.toBe(false);
-    },
-  );
+  it.each([
+    'missing-lifecycle',
+    'missing-raw-marker',
+    'relay-request-mismatch',
+    'session-mismatch',
+  ] as const)('fails closed for %s evidence', async fault => {
+    await expect(verify(productionFetch(fault))).resolves.toBe(false);
+  });
 
   it('rejects fault digests that are not independently held by production', async () => {
     const faultDigests = { ...completeFaultDigests, workerOutage: 'f'.repeat(64) };

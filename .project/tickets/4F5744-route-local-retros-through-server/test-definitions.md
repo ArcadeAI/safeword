@@ -366,9 +366,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Managed Cursor evidence cannot satisfy local readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
 
 ### Scenario: Missing harness evidence keeps the global cutover disabled
 
@@ -378,15 +378,15 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Socket presence without a real harness session cannot satisfy readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5f2388f38
+- [x] GREEN 5b43f4142
+- [x] REFACTOR skip: the lifecycle correlation predicate is already shared by all harnesses
 
 ### Scenario: Indeterminate Cursor provenance cannot satisfy local readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
 
 ### Scenario: Mismatched build ancestry cannot satisfy readiness
 
@@ -396,21 +396,27 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Every harness rejects collector and relay receipts whose request identity or session scope does not correlate end to end
 
-- [x] RED — the three-harness real-collaborator fixture reached the deliberately closed verifier and returned false
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5f2388f38
+- [x] GREEN 5b43f4142
+- [x] REFACTOR skip: one verifier path correlates the same identity and session fields for all three harnesses
 
 ### Scenario: Readiness retrieves a closed canary by exact issue GET and validates its raw body
 
-- [x] RED — the production fixture exposed only exact issue GET bodies but the deliberately closed verifier returned false
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5f2388f38
+- [x] GREEN 5b43f4142
+- [x] REFACTOR skip: exact raw marker validation is one focused helper
 
 ### Scenario: A fault artifact without recovery evidence cannot enable cutover
 
 - [x] RED 538ddb0b0
 - [x] GREEN cb98cb7d3
 - [x] REFACTOR skip: fault completeness is a single exact-key-and-hash predicate
+
+### Scenario: Checked-in fault digests cannot authorize cutover without protected production agreement
+
+- [x] RED 980a1a677
+- [x] GREEN 30fc8f3d8
+- [x] REFACTOR skip: exact comparison against the protected value is already minimal
 
 ## Feature-level cross-scenario refactor
 
