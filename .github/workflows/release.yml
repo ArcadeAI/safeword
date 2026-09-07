@@ -125,6 +125,8 @@ jobs:
           bun-version-file: package.json
 
       - name: Verify collector, relay, and raw GitHub evidence
+        # Deliberately no install: this protected job executes only checked-in,
+        # dependency-free TypeScript plus Bun and Node built-ins.
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL: ${{ secrets.SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL }}
