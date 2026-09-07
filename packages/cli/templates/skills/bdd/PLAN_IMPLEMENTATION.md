@@ -48,7 +48,7 @@ valid `skip:`; vague “complies with principles” prose is not.
 
 ## Environment fluency
 
-- **Map installed language skills and component skills to the scenarios** — for the languages the feature touches, check the installed skill packs (`.claude/skills/<lang>-*`) and note per-scenario which apply. Scope to the feature's touched code and surfaces: in a polyglot monorepo, surface only what's relevant, never the full inventory.
+- **Map available language skills and component skills to the scenarios** — for the languages the feature touches, check the host's available skill inventory and note per-scenario which apply. Scope to the feature's touched code and surfaces: in a polyglot monorepo, surface only what's relevant, never the full inventory.
 - **Read the installed version's documentation** for each component or library the plan selects, before recording the decision. Designs authored from training memory of another version are silently wrong; `/quality-review` at implement is the backstop, not the first line.
 
 ## Deep design routes through existing lanes

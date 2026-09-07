@@ -75,7 +75,7 @@ describe('OpenCode profile catalogue', () => {
     const verify = assets.find(asset => asset.relativePath === 'skills/safeword-verify/SKILL.md');
 
     expect(audit?.content).toContain(
-      `source <(bunx --bun safeword@${VERSION} project audit-scope)`,
+      `source /dev/stdin <<< "$(bunx --bun safeword@${VERSION} project audit-scope)"`,
     );
     expect(verify?.content).toContain(
       `bunx --bun safeword@${VERSION} project record-skill-invocation --cwd "$PROJECT_DIR" verify`,

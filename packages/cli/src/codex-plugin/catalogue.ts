@@ -23,6 +23,11 @@ interface CanonicalSkillAsset {
   filename: string;
 }
 
+const PACKAGED_SKILL_REFERENCES = [
+  { skill: 'bdd', filename: 'adr-template.md' },
+  { skill: 'bdd', filename: 'impl-plan-template.md' },
+] as const;
+
 const FRONTMATTER = /^---\r?\n(?<metadata>[\s\S]*?)\r?\n---\r?\n/u;
 const SUPPORTED_SOURCE_METADATA = new Set([
   'name',
@@ -215,7 +220,7 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
   },
   {
     invocation: 'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
-    replacement: 'source <({cli} project audit-scope)',
+    replacement: 'source /dev/stdin <<< "$({cli} project audit-scope)"',
   },
   {
     invocation: 'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ',
@@ -413,6 +418,17 @@ function adaptInstalledReferencePaths(
   return adapted;
 }
 
+function adaptPackagedTemplatePaths(markdown: string, referenceNames: string[]): string {
+  let adapted = markdown;
+  for (const referenceName of referenceNames) {
+    adapted = adapted.replaceAll(
+      `.safeword/templates/${referenceName}`,
+      () => `references/${referenceName}`,
+    );
+  }
+  return adapted;
+}
+
 function adaptSkillBody(
   body: string,
   skill: string,
@@ -424,6 +440,7 @@ function adaptSkillBody(
   // frontmatter supplies that separator, so avoid duplicating it here.
   let adapted = body.replace(/^\r?\n/u, '');
   adapted = adaptInstalledReferencePaths(adapted, skill, referenceNames);
+  adapted = adaptPackagedTemplatePaths(adapted, referenceNames);
   adapted = adaptReferenceLinks(adapted, referenceNames);
 
   return adaptWorkflowMarkdown(adapted, knownSkillNames, version);
@@ -513,6 +530,7 @@ export function generateCodexPluginAssets(
   );
   const knownSkillNames = new Set(canonicalAssets.map(asset => asset.skill));
   const referenceNamesBySkill = new Map<string, string[]>();
+  const documentTemplatesDirectory = nodePath.resolve(canonicalSkillsDirectory, '../doc-templates');
 
   for (const asset of canonicalAssets) {
     if (asset.filename === 'SKILL.md') continue;
@@ -521,12 +539,26 @@ export function generateCodexPluginAssets(
     referenceNamesBySkill.set(asset.skill, referenceNames);
   }
 
-  return canonicalAssets.map(({ relativePath, skill, filename }) => {
+  const packagedReferences = PACKAGED_SKILL_REFERENCES.flatMap(reference => {
+    const source = nodePath.join(documentTemplatesDirectory, reference.filename);
+    if (!knownSkillNames.has(reference.skill) || !existsSync(source)) return [];
+    const referenceNames = referenceNamesBySkill.get(reference.skill) ?? [];
+    if (!referenceNames.includes(reference.filename)) referenceNames.push(reference.filename);
+    referenceNamesBySkill.set(reference.skill, referenceNames);
+    return [{ ...reference, source }];
+  });
+
+  const skillAssets = canonicalAssets.map(({ relativePath, skill, filename }) => {
     const content = readFileSync(nodePath.join(canonicalSkillsDirectory, relativePath), 'utf8');
     if (filename !== 'SKILL.md') {
+      const referenceNames = referenceNamesBySkill.get(skill) ?? [];
+      const adaptedContent = adaptPackagedTemplatePaths(
+        adaptInstalledReferencePaths(content, skill, referenceNames),
+        referenceNames,
+      );
       return {
         relativePath: nodePath.join('skills', skill, 'references', filename),
-        content: adaptWorkflowMarkdown(content, knownSkillNames, version),
+        content: adaptWorkflowMarkdown(adaptedContent, knownSkillNames, version),
       };
     }
 
@@ -541,6 +573,13 @@ export function generateCodexPluginAssets(
       }).trimEnd()}\n---\n\n${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version)}`,
     };
   });
+  const referenceAssets = packagedReferences.map(({ skill, filename, source }) => ({
+    relativePath: nodePath.join('skills', skill, 'references', filename),
+    content: adaptWorkflowMarkdown(readFileSync(source, 'utf8'), knownSkillNames, version),
+  }));
+  return [...skillAssets, ...referenceAssets].toSorted((left, right) =>
+    left.relativePath.localeCompare(right.relativePath),
+  );
 }
 
 function skillMetadataLength(asset: GeneratedPluginAsset): number {

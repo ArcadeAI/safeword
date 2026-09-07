@@ -3,8 +3,8 @@ id: 2C1E82
 slug: self-contained-agent-plugins
 type: epic
 subtype: bug-investigated
-phase: done
-status: done
+phase: implement
+status: in_progress
 children: ['V2AH4B', 'KDED4X', 'SF0RS0', 'GJB22B', 'JNZ2H5', '1DZ9W8']
 phase_anchors:
   - 'define-behavior: .project/tickets/2C1E82-self-contained-agent-plugins/spec.md'
@@ -26,7 +26,7 @@ done_when:
   - Single-agent and mixed-agent plans contain only declared selected-host requirements.
   - Release coverage rejects undeclared project-local executable references from native plugins.
 created: 2026-08-18T16:58:37.428Z
-last_modified: 2026-09-03T02:32:02.000Z
+last_modified: 2026-09-06T21:42:00.000Z
 ---
 
 # Make each agent's plugin fully self-contained
@@ -56,6 +56,24 @@ was removed, ruling out Node-version behavior and accumulated suite load. The
 scenario now supplies an explicit current Claude profile fixture, preserving the
 bare command's default multi-agent behavior while making Codex repair the first
 native action by construction.
+
+Post-completion verification exposed two additional runtime-authority defects.
+First, generated native audit skills used `source <(bun … project audit-scope)`.
+Bash starts process substitutions asynchronously, so the caller could finish
+sourcing before Bun wrote the helper, producing `audit_scope_initialize: command
+not found` followed by `EPIPE`. The direct CLI emitted byte-exact shell and the
+same helper worked from a normal file, ruling out helper content and package-root
+resolution. Native skills now wait for command substitution to finish and source
+the resulting bytes through `/dev/stdin`.
+
+Second, the Codex runtime bundle had not been regenerated after its public helper
+commands were added, and non-entry BDD references still named project-local
+templates and a Claude-specific skill directory. Direct source CLI calls exposed
+the commands while the copied versioned bundle returned `unknown command`, ruling
+out command registration and argument parsing. Fresh generation fixed command
+routing. Generation now also packages the two planning templates beside the BDD
+skill and rewrites those references; host-neutral language-skill discovery removes
+the final cross-host path without weakening the workflow.
 
 ## Process Gaps Found
 

@@ -82,7 +82,7 @@ function sourcePackagedScope(project: string, baseReference: string) {
     [
       '-c',
       [
-        `source <(bun "${cli}" project audit-scope)`,
+        `source /dev/stdin <<< "$(bun "${cli}" project audit-scope)"`,
         'audit_scope_initialize "$PROJECT_DIR"',
         'status=$?',
         String.raw`printf "status=%s\nmode=%s\nsha=%s\nfiles=%s\n" "$status" "$AUDIT_SCOPE_MODE" "$AUDIT_BASE_SHA" "$AUDIT_CHANGED_FILES"`,

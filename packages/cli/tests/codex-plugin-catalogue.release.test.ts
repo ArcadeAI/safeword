@@ -276,7 +276,7 @@ describe('generated Codex plugin catalogue', () => {
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
       expect(content).toContain(
-        'source <(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project audit-scope)',
+        'source /dev/stdin <<< "$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project audit-scope)"',
       );
       expect(content).not.toContain('.safeword/hooks/lib/audit-scope.sh');
     } finally {
