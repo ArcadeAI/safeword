@@ -111,9 +111,21 @@ function inputUrl(input: string | URL | Request): string {
 type ProductionFault =
   | 'missing-lifecycle'
   | 'missing-raw-marker'
+  | 'marker-outside-relay-tail'
   | 'relay-request-mismatch'
   | 'repository-mismatch'
   | 'session-mismatch';
+
+function canaryIssueLines(
+  fault: ProductionFault | undefined,
+  harness: (typeof harnesses)[number],
+  findings: string[],
+  markers: string[],
+): string[] {
+  return fault === 'marker-outside-relay-tail' && harness === 'claude-code'
+    ? [markers[0], ...findings, ...markers.slice(1)]
+    : [...findings, ...markers];
+}
 
 function harnessResponses(fault?: ProductionFault): Map<string, Response> {
   const responses = new Map<string, Response>();
@@ -157,7 +169,7 @@ function harnessResponses(fault?: ProductionFault): Map<string, Response> {
     if (fault === 'missing-raw-marker' && harness === 'claude-code') markers.pop();
     responses.set(
       `/repos/ArcadeAI/safeword/issues/${issueNumber}`,
-      Response.json({ body: [...findings, ...markers].join('\n') }),
+      Response.json({ body: canaryIssueLines(fault, harness, findings, markers).join('\n') }),
     );
   }
   return responses;
@@ -237,6 +249,7 @@ describe('local retro production verifier', () => {
   it.each([
     'missing-lifecycle',
     'missing-raw-marker',
+    'marker-outside-relay-tail',
     'relay-request-mismatch',
     'repository-mismatch',
     'session-mismatch',

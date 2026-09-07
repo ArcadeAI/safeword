@@ -158,6 +158,12 @@ function githubIssueUrl(repo: string, issueNumber: number): URL {
   return new URL(path, 'https://api.github.com');
 }
 
+function hasRelayAuthorityTail(body: string, markers: string[]): boolean {
+  const lines = body.split(/\r?\n/u);
+  const tail = lines.slice(-markers.length);
+  return tail.length === markers.length && markers.every((marker, index) => tail[index] === marker);
+}
+
 async function verifyHarness(
   harness: keyof LocalRetroReadinessManifest['harnesses'],
   manifest: LocalRetroReadinessManifest,
@@ -181,9 +187,9 @@ async function verifyHarness(
   const issueUrl = githubIssueUrl(options.repository, relayReceipt.issueNumber);
   const issue = record(await readJson(issueUrl, options.githubToken, options.fetch));
   if (typeof issue?.body !== 'string') return false;
-  const rawLines = new Set(issue.body.split(/\r?\n/u));
-  return expectedMarkers(evidence.requestId, envelope.findings, options).every(marker =>
-    rawLines.has(marker),
+  return hasRelayAuthorityTail(
+    issue.body,
+    expectedMarkers(evidence.requestId, envelope.findings, options),
   );
 }
 
