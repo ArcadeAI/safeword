@@ -1,6 +1,7 @@
 ---
 name: tdd-review
-description: Use when completing a TDD step and wanting a quality check. Reviews test quality after RED, implementation correctness after GREEN, and scenario completeness after REFACTOR.
+description: Quality check for a completed TDD step. Runs when safeword's TDD
+  flow finishes RED, GREEN, or REFACTOR; not a user-facing entry point.
 allowed-tools: '*'
 ---
 

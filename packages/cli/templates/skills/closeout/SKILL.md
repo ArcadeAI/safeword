@@ -6,6 +6,7 @@ description: Close a completed local delivery safely. Use when wrapping up a
   worktree. Do NOT use for cloud-agent tasks, unmerged work, or cleanup without a
   pull request.
 allowed-tools: Bash, Read, Glob, Grep
+disable-model-invocation: true
 ---
 
 # Closeout

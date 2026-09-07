@@ -881,3 +881,69 @@ describe('Validation Logic Tests', () => {
     });
   });
 });
+
+/**
+ * `disable-model-invocation: true` does two things at once: it keeps the skill's
+ * description out of the model's skill listing (saving listing budget), and it
+ * blocks the Skill tool entirely — not just auto-triggering. That second effect
+ * is what makes the flag load-bearing: setting it on a skill another skill
+ * composes silently breaks the handoff at runtime, with nothing failing at
+ * build time.
+ *
+ * Safeword has three categories, not two:
+ *   human-only  → carries the flag (nothing composes it)
+ *   skill-only  → no flag; a short description, since it never auto-triggers
+ *   both        → no flag; a full description, so humans can trigger it
+ *
+ * `CURSOR_ACTION_SKILLS` marks manual-only on Cursor, which is a *different*
+ * question from whether a skill is human-only on Claude. Conflating the two is
+ * how eight skills ended up declared as flagged while carrying no flag.
+ *
+ * Membership is asserted against a hand-maintained list rather than inferred
+ * from cross-references, because "skill A invokes skill B" is not statically
+ * decidable from prose. Every heuristic tried here produced false positives:
+ * bare names read as ordinary English ("during closeout", "do not delegate or
+ * self-review"), and even the slash form is ambiguous — bdd *offers* the user
+ * `/spike` rather than invoking it. A check that cries wolf gets deleted, so
+ * adding a skill here stays a deliberate decision with a human behind it.
+ */
+describe('Skill invocation contract', () => {
+  const HUMAN_ONLY_SKILLS = ['cleanup-zombies', 'closeout', 'explain', 'spike'];
+
+  const skillNames = getSkillDirectories();
+
+  const isFlagged = (skill: string): boolean =>
+    readAndParseFrontmatter(nodePath.join(SKILLS_DIR, skill, 'SKILL.md')).parsed?.frontmatter[
+      'disable-model-invocation'
+    ] === true;
+
+  it('flags exactly the skills declared human-only', () => {
+    expect(skillNames.filter(skill => isFlagged(skill)).toSorted()).toEqual(
+      HUMAN_ONLY_SKILLS.filter(skill => skillNames.includes(skill)).toSorted(),
+    );
+  });
+
+  it('keeps human-only skills manual on Cursor too', () => {
+    // Parity holds in one direction only: human-only on Claude implies
+    // manual-only on Cursor. The reverse does NOT hold — most Cursor action
+    // skills stay model-invocable on Claude precisely because skills compose
+    // them, which is the asymmetry this suite exists to record.
+    const cursorActionSkills = new Set(
+      SKILL_CURSOR_PAIRS.filter(pair => pair.cursorRules === undefined).map(pair => pair.skill),
+    );
+    for (const skill of HUMAN_ONLY_SKILLS) {
+      if (!skillNames.includes(skill)) continue;
+      expect(
+        cursorActionSkills.has(skill),
+        `${skill} is human-only on Claude but still model-invocable on Cursor`,
+      ).toBe(true);
+    }
+  });
+
+  it('keeps every human-only skill out of the model-invocable listing', () => {
+    for (const skill of HUMAN_ONLY_SKILLS) {
+      if (!skillNames.includes(skill)) continue;
+      expect(isFlagged(skill), `${skill} is declared human-only but is model-invocable`).toBe(true);
+    }
+  });
+});
