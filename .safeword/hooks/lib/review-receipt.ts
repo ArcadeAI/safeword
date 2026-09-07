@@ -41,6 +41,12 @@ export interface StampClaim {
   readonly authorAgent?: string;
   /** Actual reviewer runtime the stamp reports, when it reports one. */
   readonly reviewerAgent?: string;
+  /**
+   * The reviewing model the stamp reports. pre-tool-quality's crossModelReview
+   * gate decides from this field, so an unchecked value lets a fabricated tag
+   * report coverage by a model that never ran.
+   */
+  readonly reviewerModel?: string;
 }
 
 /** The fields `review status <id> --json` reports about a review. */
@@ -52,6 +58,7 @@ export interface ReviewReceipt {
   readonly independence?: string;
   readonly authorAgent?: string;
   readonly actualReviewer?: string;
+  readonly reviewerModel?: string;
 }
 
 /** Levels that assert a coordinator ran and returned a verdict. */
@@ -158,6 +165,7 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
   const provenance = [
     ['author', claim.authorAgent, receipt.authorAgent],
     ['reviewer', claim.reviewerAgent, receipt.actualReviewer],
+    ['model', claim.reviewerModel, receipt.reviewerModel],
   ] as const;
   for (const [field, claimed, recorded] of provenance) {
     if (claimed !== undefined && recorded !== claimed)

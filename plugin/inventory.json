@@ -335,7 +335,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "6a72638e664174b49e1c8a5459a686fdb2ded16dc4859da1e4c8f69c8264579e"
+      "sha256": "8a86ecab48f65fce00bde3624eb8e17e4434b4fe1b0fc71acf483d1adbb04393"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -379,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "e205c293de97c576a5d83f89ca51d6d9a9ef082e6f8bd7449a6f20c375e3f418"
+      "sha256": "98d1c197dacc7a6c8a366070155f84280230889b54dad918f790b01c4c095c7d"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -427,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "7cab1fa2deb53a57d4cb8da28d26534e0e87ed0eb5278994f04ae2ebb2f40d59"
+      "sha256": "e7819689a7cfa55a6d36c104f51a0edfdcc233abe8761ae15e8ded722082d94b"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "00f78aab0f760e250336a7b30b7bfe508f6cd443f2c1d7c7117b9d58bf14e5d9"
+      "sha256": "e84995a3610be18211a2b4cc251f363559391c7f8a652c3b34f5425f57c38058"
     },
     {
       "path": "skills/audit/SKILL.md",

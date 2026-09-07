@@ -27,6 +27,7 @@ const approved = {
   independence: 'cross-agent',
   authorAgent: 'codex',
   actualReviewer: 'claude',
+  reviewerModel: 'claude-opus-x',
 };
 
 const claimFor = (extra: Record<string, unknown>) => ({
@@ -200,6 +201,40 @@ describe('receiptGateVerdict — provenance the stamp claims', () => {
     expect(
       receiptGateVerdict(claimFor({ artifact: 'impl-plan', authorAgent: 'claude' }), approved).ok,
     ).toBe(false);
+  });
+
+  it('rejects a fabricated model tag the cited review never reported', () => {
+    // pre-tool-quality's crossModelReview gate decides from `model:` on the
+    // stamp, so an unchecked tag reports coverage by a model that never ran.
+    const verdict = receiptGateVerdict(
+      claimFor({ artifact: 'impl-plan', reviewerModel: 'some-other-model' }),
+      approved,
+    );
+
+    expect(verdict.ok).toBe(false);
+    expect(!verdict.ok && verdict.reason).toMatch(/model/u);
+  });
+
+  it('rejects a model tag when the cited review recorded none', () => {
+    expect(
+      receiptGateVerdict(claimFor({ artifact: 'impl-plan', reviewerModel: 'claude-opus-x' }), {
+        ...approved,
+        reviewerModel: undefined,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('accepts a model tag the cited review reported', () => {
+    expect(
+      receiptGateVerdict(
+        claimFor({ artifact: 'impl-plan', reviewerModel: 'claude-opus-x' }),
+        approved,
+      ),
+    ).toEqual({ ok: true });
+  });
+
+  it('leaves a stamp that claims no model alone', () => {
+    expect(receiptGateVerdict(claimFor({ artifact: 'impl-plan' }), approved)).toEqual({ ok: true });
   });
 
   it('accepts provenance flags that match the receipt', () => {

@@ -281,6 +281,7 @@ function resolveScope(ticketFolder: string): {
     ticketDirectory: nodePath.join(ticketsDirectory, ticketFolder),
     authorAgent,
     reviewerAgent,
+    reviewerModel,
   };
   if (isPhase) {
     const value = positional[1];

@@ -50,6 +50,7 @@ export function verifiedStamps(
         independence: stamp.independence,
         authorAgent: stamp.author,
         reviewerAgent: stamp.reviewer,
+        reviewerModel: stamp.model,
       });
       if (claim === undefined) return false;
 
