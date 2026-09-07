@@ -96,7 +96,11 @@ function inputUrl(input: string | URL | Request): string {
 }
 
 type ProductionFault =
-  'missing-lifecycle' | 'missing-raw-marker' | 'relay-request-mismatch' | 'session-mismatch';
+  | 'missing-lifecycle'
+  | 'missing-raw-marker'
+  | 'relay-request-mismatch'
+  | 'repository-mismatch'
+  | 'session-mismatch';
 
 function harnessResponses(fault?: ProductionFault): Map<string, Response> {
   const responses = new Map<string, Response>();
@@ -110,7 +114,12 @@ function harnessResponses(fault?: ProductionFault): Map<string, Response> {
       Response.json({
         findings,
         sessionScope,
-        source: { harness, hostClass: 'local' },
+        source: {
+          harness,
+          hostClass: 'local',
+          repository:
+            fault === 'repository-mismatch' && harness === 'claude-code' ? 'someone/else' : repo,
+        },
         version: 'v3',
       }),
     );
@@ -186,6 +195,7 @@ describe('local retro production verifier', () => {
     'missing-lifecycle',
     'missing-raw-marker',
     'relay-request-mismatch',
+    'repository-mismatch',
     'session-mismatch',
   ] as const)('fails closed for %s evidence', async fault => {
     await expect(verify(productionFetch(fault))).resolves.toBe(false);
