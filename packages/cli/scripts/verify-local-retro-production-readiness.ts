@@ -22,6 +22,14 @@ function productionFaultDigests(
   ) as LocalRetroReadinessManifest['recoveredFaults'];
 }
 
+function productionHarnessEvidence(
+  environment: NodeJS.ProcessEnv,
+): Parameters<typeof verifyLocalRetroProductionReadiness>[2]['harnessEvidence'] {
+  return JSON.parse(required(environment, 'SAFEWORD_RETRO_HARNESS_EVIDENCE_JSON')) as Parameters<
+    typeof verifyLocalRetroProductionReadiness
+  >[2]['harnessEvidence'];
+}
+
 export async function verifyCheckedInLocalRetroProductionReadiness(
   environment: NodeJS.ProcessEnv,
   transport: typeof fetch = fetch,
@@ -36,6 +44,7 @@ export async function verifyCheckedInLocalRetroProductionReadiness(
       faultDigests: productionFaultDigests(environment),
       fetch: transport,
       githubToken: environment.GITHUB_TOKEN,
+      harnessEvidence: productionHarnessEvidence(environment),
       installationId: Number(required(environment, 'SAFEWORD_RETRO_RELAY_INSTALLATION_ID')),
       relayCredential: required(environment, 'SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL'),
       relayOrigin: required(environment, 'SAFEWORD_RETRO_RELAY_ORIGIN'),

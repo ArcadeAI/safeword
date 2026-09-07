@@ -203,6 +203,25 @@ function faultAuthorityMatches(
   );
 }
 
+function harnessAuthorityMatches(
+  manifest: LocalRetroReadinessManifest,
+  attestation: LocalRetroProductionAttestation,
+  productionEvidence: LocalRetroProductionVerificationOptions['harnessEvidence'],
+): boolean {
+  const harnesses = ['claude-code', 'codex', 'cursor'] as const;
+  return (
+    Object.keys(productionEvidence).length === harnesses.length &&
+    harnesses.every(harness => {
+      const evidence = productionEvidence[harness];
+      return (
+        evidence.artifactDigest === manifest.harnesses[harness].artifactDigest &&
+        evidence.buildCommit === manifest.harnesses[harness].buildCommit &&
+        evidence.lifecycle === attestation.lifecycle[harness]
+      );
+    })
+  );
+}
+
 export async function verifyLocalRetroProductionReadiness(
   manifest: LocalRetroReadinessManifest,
   attestation: LocalRetroProductionAttestation,
@@ -210,6 +229,7 @@ export async function verifyLocalRetroProductionReadiness(
 ): Promise<boolean> {
   try {
     if (!faultAuthorityMatches(manifest, options.faultDigests)) return false;
+    if (!harnessAuthorityMatches(manifest, attestation, options.harnessEvidence)) return false;
     if (
       !validateLocalRetroReadiness(manifest, {
         ancestorPairs: manifestAncestry(manifest),
