@@ -26,7 +26,7 @@ done_when:
   - Single-agent and mixed-agent plans contain only declared selected-host requirements.
   - Release coverage rejects undeclared project-local executable references from native plugins.
 created: 2026-08-18T16:58:37.428Z
-last_modified: 2026-09-07T06:58:45.000Z
+last_modified: 2026-09-07T15:42:04.000Z
 ---
 
 # Make each agent's plugin fully self-contained
@@ -74,6 +74,17 @@ out command registration and argument parsing. Fresh generation fixed command
 routing. Generation now also packages the two planning templates beside the BDD
 skill and rewrites those references; host-neutral language-skill discovery removes
 the final cross-host path without weakening the workflow.
+
+Post-push CI exposed a proof-provenance bookkeeping defect. Commit `5fa92abfe`
+renamed the Codex test `rejects an unpinned Codex helper invocation` to `rejects
+generated catalogue drift when a pinned runtime path changes` while preserving
+its test body, but the epic's BDD proof manifest retained the old title. The
+provenance gate therefore found zero declarations for the saved name on both
+Node 22 and Node 24. The identical cross-version failure rules out a Node-specific
+parser defect, and direct comparison across the rename rules out deleted behavior:
+the current test still mutates the generated helper from the pinned version to
+`latest` and asserts that catalogue validation rejects it. The manifest must name
+that current executable declaration.
 
 ## Process Gaps Found
 
@@ -145,3 +156,5 @@ the final cross-host path without weakening the workflow.
 - 2026-09-02T21:05:41.000Z Terminal scenario review found one catalogue-enumeration mismatch and four precision gaps. Corrected the OpenCode plugin/command/agent/skill/reference set, made unavailable-package fallback marker-observable with a real entry-point proof note, declared the four-host generated-workflow boundary, completed CLI surface tags, fixed mixed-selection enrollment state, and documented why Claude does not duplicate the representative legacy-payload matrix.
 - 2026-09-06T23:00:00.000Z Post-completion repair verified on current main: native audit helpers now source synchronized CLI output, bundled runtimes expose the public project commands, and BDD planning references are packaged and host-neutral. Full tests, acceptance, lint, typecheck, builds, dependency checks, vulnerability audits, and the 57/57 release-contract lane passed, with the verifier's isolated-linker website failure separately reproduced as green after a trackless hoisted reinstall. Diff audit found no current errors; refactor review found no warranted structural change. Independent quality review remains blocked because the external coordinator requires explicit authorization to receive eight named private repository files, so the epic stays in progress.
 - 2026-09-07T06:58:45.000Z Done: four independent Claude Opus quality passes approved the repair with no errors. Review feedback closed catalogue validation, fail-before-write, unexpected-asset, and Markdown-preservation gaps; regenerated native bundles passed 60/60 release checks, lint, TypeScript, and the zero-error dependency gate. Remaining warnings were checked against the canonical corpus and broader installed-runtime proofs and retained as bounded future hardening rather than scope expansion.
+- 2026-09-07T15:02:12.000Z Reopened at implementation after both PR CI Node jobs rejected one stale BDD proof title. Reproduced the exact failure locally, traced it to the test rename in `5fa92abfe`, and ruled out Node-version behavior and deleted executable coverage before correcting the manifest reference.
+- 2026-09-07T15:42:04.000Z Done after the corrected proof mapping passed its focused RED/GREEN check, the 49-test adjacent lane, both complete test aggregates, both acceptance entry points, 42/42 proof manifests, all builds, the 60/60 release lane, CLI typecheck, vulnerability audits, and a fresh diff audit. The full cross-package typecheck also exposed two unrelated retro-relay test mocks from current main that do not implement Bun's new `fetch.preconnect` type; the epic changes no relay source, and that debt remains outside this PR.

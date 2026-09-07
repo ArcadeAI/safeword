@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ Full pre-merge verification: 9260/9260 tests pass (14 intentional skips; both root/package plans completed). Combined-tree focused lane: 535 passed / 2 skipped, with its one probe-timeout failure passing unchanged on recheck; release checks: 55/55.
-**Gherkin:** ⚠️ Local environment limitation: intermittent full-suite reviewer startup timeout; full root retry and package baseline pass, final reviewer feature passes 37/37, both proof entry points pass 39/39
+**Test Suite:** ✓ 9618/9618 tests pass (17 intentional skips; both root/package plans completed); release checks: 60/60
+**Gherkin:** ✅ Acceptance lane passes — root 1493/1493 plus 3 intentional skips; package 592/592; proof manifests 42/42
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 38 scenarios marked complete
@@ -14,9 +14,45 @@
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction — the packaged first-use state walkthrough required no installer and preserved authored content
 **Surface Evidence:** ✅ 5/5 affected surfaces have recorded proof; interactive host UI activation is not claimed
-**Evidence limits:** ⚠️ Desktop hook protection remains unverified for this task. Local Python import-linter and pip-audit coverage is unavailable. Full local acceptance retries had intermittent reviewer-startup timeout failures; the affected feature passes in isolation, documented below. Pre-merge CI is historical evidence; the PR readiness record tracks CI for the final merge commit separately.
+**Evidence limits:** ⚠️ Desktop hook protection remains unverified for this task. Local Python import-linter, deadcode, and pip-audit coverage is unavailable. The full cross-package typecheck reports two unrelated current-main retro-relay test mocks missing Bun's new `fetch.preconnect` member; CLI typecheck passes and this epic changes no relay source. Pre-merge CI is historical evidence; the PR readiness record tracks CI for the final merge commit separately.
 
 Audit passed with documented limitations. The final combined-tree dependency audit found no violations across 475 modules and 886 dependencies. Epic principle trace and configuration sync passed; the earlier learnings/domain checks remain applicable. Python dead-code findings for `ReviewSpecAdapter.evaluate` and `make_reflective_dataset` are callbacks used by GEPA, not unused production paths.
+
+## 2026-09-07 post-push provenance correction
+
+PR CI on `81ce10bd9` failed identically under Node 22 and Node 24 because the
+scenario `An unpinned Codex helper blocks release` still named a test title that
+commit `5fa92abfe` had renamed. Direct comparison across that commit confirmed
+the body was preserved: it still changes the generated helper from the pinned
+version to `latest` and requires catalogue validation to reject the drift. The
+manifest now names the current executable declaration.
+
+The unchanged provenance test reproduced RED locally, then passed GREEN after
+the one-line manifest correction. The adjacent Codex catalogue and complete
+proof-manifest lane passed 49/49. The unrestricted authoritative verifier passed
+9,277 CLI tests, 194 relay tests, and 147 collector tests, with 17 intentional
+skips; its duplicate aggregate passed the same counts. Root acceptance passed
+1,493 scenarios with three intentional skips and 68,596 steps with four skips.
+Package acceptance passed 592/592 scenarios and 11,046/11,046 steps. Both proof
+entry points passed 42/42, all package and website builds passed, CLI typecheck
+passed, all Bun and Go vulnerability audits passed, and the pinned-Bun release
+lane passed 60/60.
+
+The first local relay run was denied localhost/process-lock behavior by the
+restricted sandbox and hung after teardown failures; the identical relay suite
+passed 194/194 outside that restriction. The full cross-package typecheck then
+reported two pre-existing relay test mocks missing the `preconnect` member added
+to Bun's `fetch` type. That failure is retained as real unrelated current-main
+debt, not relabeled green and not pulled into this epic's PR. The changed files
+are JSON proof registration and ticket evidence only; formatting and `git diff
+--check` pass.
+
+The fresh diff audit found no dependency violations across 423 modules and 702
+dependencies, no changed learning or domain-doc defect, and no new test-quality
+issue because no executable test changed. Seven dead principle references in two
+unrelated tickets remain the previously documented baseline. Python import-cycle
+and dead-code tooling remains unavailable. Audit passed with documented
+limitations.
 
 ## Current-head evidence
 

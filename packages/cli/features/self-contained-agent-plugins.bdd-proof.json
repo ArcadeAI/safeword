@@ -151,7 +151,7 @@
     ],
     "An unpinned Codex helper blocks release": [
       "packages/cli/tests/codex-plugin/catalogue.test.ts",
-      "rejects an unpinned Codex helper invocation"
+      "rejects generated catalogue drift when a pinned runtime path changes"
     ],
     "OpenCode profile identity records the complete owned catalogue": [
       "packages/cli/tests/opencode/profile.test.ts",
