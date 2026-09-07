@@ -9,6 +9,7 @@ import { validateLocalRetroReadiness } from '../../src/retro/local-retro-readine
 export interface LocalRetroProductionVerificationOptions {
   collectorCredential: string;
   collectorOrigin: string;
+  faultDigests: LocalRetroReadinessManifest['recoveredFaults'];
   fetch: typeof fetch;
   githubToken?: string;
   installationId: number;
@@ -16,6 +17,7 @@ export interface LocalRetroProductionVerificationOptions {
   relayOrigin: string;
   repository: string;
   tenantId: string;
+  now?: Date;
 }
 
 type JsonRecord = Record<string, unknown>;
@@ -180,7 +182,7 @@ export async function verifyLocalRetroProductionReadiness(
       !validateLocalRetroReadiness(manifest, {
         ancestorPairs: manifestAncestry(manifest),
         buildCommit: manifest.evidenceCommit,
-        now: new Date(),
+        now: options.now ?? new Date(),
         productionAttestation: attestation,
         relayReady: true,
       })

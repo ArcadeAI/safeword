@@ -46,6 +46,14 @@ function requestId(index: number): string {
   return `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`;
 }
 
+const completeFaultDigests: LocalRetroReadinessManifest['recoveredFaults'] = {
+  ambiguousCreateMatch: 'a'.repeat(64),
+  ambiguousCreateNoMatch: 'b'.repeat(64),
+  claimCrash: 'c'.repeat(64),
+  retryExhaustion: 'd'.repeat(64),
+  workerOutage: 'e'.repeat(64),
+};
+
 const manifest: LocalRetroReadinessManifest = {
   enabled: true,
   evidenceCommit: 'a'.repeat(40),
@@ -64,13 +72,7 @@ const manifest: LocalRetroReadinessManifest = {
       },
     ]),
   ) as unknown as LocalRetroReadinessManifest['harnesses'],
-  recoveredFaults: {
-    ambiguousCreateMatch: 'a'.repeat(64),
-    ambiguousCreateNoMatch: 'b'.repeat(64),
-    claimCrash: 'c'.repeat(64),
-    retryExhaustion: 'd'.repeat(64),
-    workerOutage: 'e'.repeat(64),
-  },
+  recoveredFaults: completeFaultDigests,
   reviewedAt: '2026-09-07T18:00:00.000Z',
   version: 1,
 };
@@ -161,9 +163,11 @@ describe('local retro production verifier', () => {
     return verifyLocalRetroProductionReadiness(manifest, attestation, {
       collectorCredential: 'collector-secret',
       collectorOrigin: 'https://collector.example',
+      faultDigests: completeFaultDigests,
       fetch: fetchImplementation,
       githubToken: 'github-token',
       installationId,
+      now: new Date('2026-09-07T19:00:00.000Z'),
       relayCredential: 'relay-secret',
       relayOrigin: 'https://relay.example',
       repository: repo,
@@ -181,4 +185,24 @@ describe('local retro production verifier', () => {
       await expect(verify(productionFetch(fault))).resolves.toBe(false);
     },
   );
+
+  it('rejects fault digests that are not independently held by production', async () => {
+    const faultDigests = { ...completeFaultDigests, workerOutage: 'f'.repeat(64) };
+
+    await expect(
+      verifyLocalRetroProductionReadiness(manifest, attestation, {
+        collectorCredential: 'collector-secret',
+        collectorOrigin: 'https://collector.example',
+        faultDigests,
+        fetch: productionFetch(),
+        githubToken: 'github-token',
+        installationId,
+        now: new Date('2026-09-07T19:00:00.000Z'),
+        relayCredential: 'relay-secret',
+        relayOrigin: 'https://relay.example',
+        repository: repo,
+        tenantId,
+      }),
+    ).resolves.toBe(false);
+  });
 });
