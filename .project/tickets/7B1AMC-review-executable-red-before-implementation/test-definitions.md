@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 71b98fe8a
 - [x] GREEN 6cfd94e48
-- [x] REFACTOR 4c97efeb2
+- [x] REFACTOR 77ebbc9b1
 
 ### Scenario: Distinct primary proofs are executed separately
 
@@ -33,7 +33,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An interrupted proof is recorded but cannot earn approval
 
 - [x] RED e4c622b52
-- [x] GREEN 88961b741
+- [x] GREEN 1d867be90
 - [x] REFACTOR skip: platform-native process-tree termination is the smallest complete timeout boundary
 
 ## Rule: executable-red.TBU1.R2 — RED is accepted only for the intended missing behavior at the actor boundary
@@ -41,13 +41,13 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: The intended actor-boundary assertion failure is accepted
 
 - [x] RED skip: covered by the missing executable-RED rubric and packet contract
-- [x] GREEN da02deebf
+- [x] GREEN dd24f7558
 - [x] REFACTOR skip: one generated fixed rubric owns failure-attribution policy
 
 ### Scenario Outline: A wrong-reason failure is rejected
 
 - [x] RED skip: covered by the missing executable-RED rubric and packet contract
-- [x] GREEN da02deebf
+- [x] GREEN dd24f7558
 - [x] REFACTOR skip: rejection reasons remain a declarative rubric list rather than branching runtime code
 
 ## Rule: executable-red.TBU1.R3 — Material proof-input changes invalidate prior review
@@ -56,22 +56,22 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 71b98fe8a
 - [x] GREEN 6cfd94e48
-- [x] REFACTOR 4c97efeb2
+- [x] REFACTOR 77ebbc9b1
 
 ## Rule: executable-red.NTB1.R1 — Failed review explains the gap and the next action plainly
 
 ### Scenario: Independent review routes are exhausted during advisory rollout
 
 - [x] RED skip: exercised by existing exhausted-route coordinator tests against the new review kind
-- [x] GREEN da02deebf
-- [x] REFACTOR 4c97efeb2
+- [x] GREEN dd24f7558
+- [x] REFACTOR 77ebbc9b1
 
 ## Rule: executable-red.NTB1.R2 — Genuine shared proofs avoid repeated review ceremony
 
 ### Scenario: Scenario Outline rows share one proof implementation
 
 - [x] RED skip: receipt reuse was absent until canonical proof identity was added
-- [x] GREEN da02deebf
+- [x] GREEN dd24f7558
 - [x] REFACTOR skip: reuse is one HMAC-valid approved-job lookup keyed by the canonical fingerprint
 
 ### Scenario: Similar scenarios use materially different proof implementations
@@ -86,7 +86,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 250aee28a
 - [x] GREEN 807a05dab
-- [x] REFACTOR da02deebf
+- [x] REFACTOR dd24f7558
 
 ### Scenario: A supported agent omits a declared proof input
 
@@ -100,16 +100,16 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 71b98fe8a
 - [x] GREEN 6cfd94e48
-- [x] REFACTOR 4c97efeb2
+- [x] REFACTOR 77ebbc9b1
 
 ## Rule: executable-red.SWM1.R3 — Advisory status never overstates independent evidence
 
 ### Scenario Outline: The advisory describes the current evidence honestly
 
 - [x] RED skip: advisory wording and evidence truthfulness were introduced with the canonical workflow contract
-- [x] GREEN da02deebf
+- [x] GREEN dd24f7558
 - [x] REFACTOR skip: one host-neutral workflow paragraph is generated to every supported surface
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario 88961b741
+- [x] cross-scenario 1d867be90
