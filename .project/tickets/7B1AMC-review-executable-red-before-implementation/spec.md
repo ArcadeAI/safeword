@@ -56,7 +56,7 @@ Affected:
 
 #### executable-red.TBU1.R2 — RED is accepted only when the intended missing behavior fails through the stated actor boundary
 
-#### executable-red.TBU1.R3 — Material changes to the scenario, glue, World, helpers, command, or evidence class invalidate the prior receipt
+#### executable-red.TBU1.R3 — Material changes to the scenario, proof plan, test, glue, World, shared state, helpers, command, or evidence class invalidate the prior receipt
 
 ### executable-red.NTB1 — Get protection without learning test internals
 
@@ -74,9 +74,11 @@ Affected:
 
 > When I evolve the BDD workflow, I want one host-neutral RED-review contract with explicit evidence, freshness, and reuse rules, so each coding agent gets equivalent protection without duplicated policy.
 
-#### executable-red.SWM1.R1 — One review packet contains the scenario or Rule, proof-plan row, primary proof and glue, related state/helpers, exact command, full output, and evidence class
+#### executable-red.SWM1.R1 — One review packet contains the scoped scenario or Rule body, proof-plan row, primary proof, glue, World definition, shared-state sources, helpers, exact command, full output, captured state, and evidence class
 
-#### executable-red.SWM1.R2 — Every supported agent host requires the same fresh, independently witnessed execution receipt before GREEN credit
+#### executable-red.SWM1.R2 — Trusted execution records and independent-review receipts carry authentic coordinator provenance
+
+#### executable-red.SWM1.R3 — Every supported agent host requires the same fresh, independently witnessed execution receipt before GREEN credit
 
 ## Rave Moment
 
@@ -98,6 +100,12 @@ skip: child feature under a program; trustworthy RED should feel invisible and t
 - Both the trusted execution record and the independent-review receipt must have authentic coordinator provenance; project-authored substitutes are rejected.
 - When every independent review route is unavailable, this gate remains blocked and returns the exact recovery command. The best-available degraded review ladder may provide feedback, but it cannot authorize GREEN credit for this invariant.
 - Both rejection and admission use the same host-neutral receipt contract on every supported host.
+- Recovery messages describe a concrete next action and display the exact existing proof or reviewer-recovery command when one is available; this feature does not introduce a second recovery-command API.
+- Host installation, reconciliation, and tamper resistance remain owned by the existing schema and parity contracts. This feature adds one shared receipt decision at the host transition boundary instead of duplicating those mechanisms.
+- skip: Per-host invocation wiring remains owned by the existing agent-parity and schema contracts; these scenarios prove the shared transition decision once and tag every affected surface rather than faking eight host integrations with labels.
+- Reviewer strength and model ranking remain owned by QZAFT2; this feature consumes its independent-review verdict without duplicating route policy.
+- TBU rejection scenarios assert structured verdict reasons. NTB1.R1 alone owns the plain-language text shown to non-technical builders.
+- TBU1.R1 owns trusted pre-implementation admission; TBU1.R2 owns the independent right-reason approval, avoiding duplicate approval scenarios.
 
 ## Open Questions
 

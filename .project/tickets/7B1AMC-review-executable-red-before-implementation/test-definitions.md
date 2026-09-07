@@ -4,7 +4,7 @@ Feature source: `packages/cli/features/review-executable-red-before-implementati
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: executable-red.TBU1.R1 — Every new or changed primary proof is independently executed before implementation
+## Rule: executable-red.TBU1.R1 — Every distinct new or changed primary proof is independently executed before production implementation
 
 ### Scenario: A new primary proof is run from its captured pre-implementation state
 
@@ -30,6 +30,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Execution with no selected primary test cannot earn RED approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: A non-independent verdict cannot earn a RED receipt
 
 - [ ] RED
@@ -42,7 +48,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: executable-red.TBU1.R2 — RED is accepted only for the intended missing behavior at the actor boundary
+## Rule: executable-red.TBU1.R2 — RED is accepted only when the intended missing behavior fails through the stated actor boundary
 
 ### Scenario: An assertion failure caused by the missing actor-visible behavior is accepted
 
@@ -62,7 +68,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An interrupted proof run is not accepted as behavioral RED
+### Scenario Outline: An interrupted proof run is not accepted as behavioral RED
 
 - [ ] RED
 - [ ] GREEN
@@ -74,7 +80,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: executable-red.TBU1.R3 — Material proof changes invalidate prior RED approval
+### Scenario: A proof of the wrong observable is not accepted for a scenario
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A result caused by leaked shared state is not accepted as behavioral RED
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: executable-red.TBU1.R3 — Material changes to the scenario, proof plan, test, glue, World, shared state, helpers, command, or evidence class invalidate the prior receipt
 
 ### Scenario Outline: A material proof input change makes the receipt stale
 
@@ -88,15 +106,15 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: executable-red.NTB1.R1 — A failed gate explains the problem and next action plainly
+## Rule: executable-red.NTB1.R1 — A failed review explains the missing evidence and concrete next action in plain language
 
-### Scenario Outline: A blocked proof distinguishes the cause and recovery command
+### Scenario Outline: A blocked proof distinguishes the cause and next action
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: executable-red.NTB1.R2 — Legitimate proof reuse does not repeat review ceremony
+## Rule: executable-red.NTB1.R2 — Legitimate reuse does not create repetitive review ceremony
 
 ### Scenario: Scenario Outline rows sharing one proof implementation use one review
 
@@ -110,9 +128,23 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: executable-red.SWM1.R1 — The review packet carries complete execution evidence
+## Rule: executable-red.SWM1.R1 — One review packet contains the scoped scenario or Rule body, proof-plan row, primary proof, glue, World definition, shared-state sources, helpers, exact command, full output, captured state, and evidence class
 
-### Scenario: The reviewer receives the proof contract and trusted execution together
+### Scenario Outline: The reviewer receives the complete proof contract and trusted execution together
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: An incomplete review packet is not dispatched
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: executable-red.SWM1.R2 — Trusted execution records and independent-review receipts carry authentic coordinator provenance
+
+### Scenario: Authentic coordinator provenance is accepted
 
 - [ ] RED
 - [ ] GREEN
@@ -130,15 +162,21 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: executable-red.SWM1.R2 — Every supported host enforces the same receipt before GREEN
-
-### Scenario Outline: A host blocks GREEN when the RED receipt is absent or stale
+### Scenario: An authentic receipt cannot be replayed onto another proof
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: A fresh receipt permits GREEN through every supported host
+## Rule: executable-red.SWM1.R3 — Every supported agent host requires the same fresh, independently witnessed execution receipt before GREEN credit
+
+### Scenario: The shared transition boundary blocks GREEN without a fresh RED receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The shared transition boundary permits GREEN with a fresh receipt
 
 - [ ] RED
 - [ ] GREEN
