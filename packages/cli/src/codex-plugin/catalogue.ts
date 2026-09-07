@@ -577,9 +577,7 @@ export function generateCodexPluginAssets(
     relativePath: nodePath.join('skills', skill, 'references', filename),
     content: adaptWorkflowMarkdown(readFileSync(source, 'utf8'), knownSkillNames, version),
   }));
-  return [...skillAssets, ...referenceAssets].toSorted((left, right) =>
-    left.relativePath.localeCompare(right.relativePath),
-  );
+  return [...skillAssets, ...referenceAssets];
 }
 
 function skillMetadataLength(asset: GeneratedPluginAsset): number {

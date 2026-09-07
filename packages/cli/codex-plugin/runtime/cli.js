@@ -581,7 +581,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880",
         ".claude/skills/bdd/DISCOVERY.md": "c88ae677ac877afca87745f13403f06e7c2dab86efc7934979d430e03837bf76",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "263f0dd1a67e5f8580b2e85408af7e417c3f25babfa11f2868665cf9ac651ba4",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "c48f6f72619a751645a17db9100aa623b0fc7f8970f75dbc9d6601467cc7a7fd",
         ".claude/skills/bdd/SCENARIOS.md": "a12f8574734678367dc91b0c84e5bc390e51ad6ceee00fcf890a5b4ac7572bc5",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
@@ -41074,7 +41074,7 @@ ${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version2)}`
     relativePath: nodePath67.join("skills", skill, "references", filename),
     content: adaptWorkflowMarkdown(readFileSync42(source, "utf8"), knownSkillNames, version2)
   }));
-  return [...skillAssets, ...referenceAssets].toSorted((left, right) => left.relativePath.localeCompare(right.relativePath));
+  return [...skillAssets, ...referenceAssets];
 }
 var import_yaml3, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
 var init_catalogue = __esm(() => {
