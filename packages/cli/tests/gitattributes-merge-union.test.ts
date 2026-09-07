@@ -39,12 +39,12 @@ describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', (
     return readFileSync(nodePath.join(cwd, '.gitattributes'), 'utf8');
   }
 
-  it('install writes the managed block marking the generated artifacts merge=union', async () => {
+  it('install writes the managed block marking ticket indexes merge=union', async () => {
     await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(cwd));
 
     const content = gitattributes();
     expect(content).toContain(HEADER);
-    expect(content).toContain('**/architecture.generated.md merge=union linguist-generated=true');
+    expect(content).not.toContain('architecture.generated.md');
     expect(content).toContain('.project/tickets/INDEX.md merge=union linguist-generated=true');
     expect(content).toContain(
       '.project/tickets/INDEX-completed.md merge=union linguist-generated=true',
@@ -58,7 +58,7 @@ describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', (
     const unionLines = gitattributes()
       .split('\n')
       .filter(line => line.includes('merge=union'));
-    expect(unionLines).toHaveLength(3);
+    expect(unionLines).toHaveLength(2);
   });
 
   it('replaces obsolete ticket-index paths when paths.projectRoot changes', async () => {
@@ -78,8 +78,7 @@ describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', (
     expect(content).not.toContain(
       '.project/tickets/INDEX-completed.md merge=union linguist-generated=true',
     );
-    // The architecture-doc glob is root-agnostic, so it stays the same.
-    expect(content).toContain('**/architecture.generated.md merge=union linguist-generated=true');
+    expect(content).not.toContain('architecture.generated.md');
 
     await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(cwd));
     const uninstalled = gitattributes();

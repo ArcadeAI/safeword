@@ -324,6 +324,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  * static repo-root block cannot name an arbitrary root (issue #272).
  */
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
+  '**/architecture.generated.md',
   '.safeword/.update-cache.json',
   '.safeword/config.local.json',
   '.safeword/retro-attempts/',
@@ -387,21 +388,19 @@ const PRETTIER_EXCLUSIONS_HEADER = '# Safeword - managed prettier exclusions (ow
 const GITATTRIBUTES_HEADER = '# Safeword - managed merge strategy for generated artifacts';
 
 /**
- * The managed `.gitattributes` block (issue #566): safeword's committed but
- * deterministically-regenerated artifacts — the architecture docs and the ticket index —
- * get `merge=union` so a local `git merge`/`rebase`/`pull` of the default branch
+ * The managed `.gitattributes` block (issue #566): safeword's committed,
+ * deterministically-regenerated ticket indexes get `merge=union` so a local
+ * `git merge`/`rebase`/`pull` of the default branch
  * auto-resolves them instead of conflicting on the `fingerprint:` line + reconcile/stale
  * markers. `union` is a BUILT-IN driver (attribute-only, no `git config`), so it works on
- * any clone/CI from the committed file; the heal + `architecture --check` pipeline then
- * reconciles the union result to the correct content. `linguist-generated=true` collapses
- * their diffs and marks them generated on GitHub. Resolved per-ctx so a custom
- * `paths.projectRoot` ticket index is covered; the architecture-doc glob is root-agnostic.
+ * any clone/CI from the committed file. `linguist-generated=true` collapses their diffs
+ * and marks them generated on GitHub. Resolved per-ctx so a custom
+ * `paths.projectRoot` ticket index is covered.
  */
 function managedGitattributes(ctx: ProjectContext): string {
   const root = resolvedNamespaceRootLabel(ctx);
   return [
     GITATTRIBUTES_HEADER,
-    '**/architecture.generated.md merge=union linguist-generated=true',
     `${root}/tickets/INDEX.md merge=union linguist-generated=true`,
     `${root}/tickets/INDEX-completed.md merge=union linguist-generated=true`,
   ].join('\n');

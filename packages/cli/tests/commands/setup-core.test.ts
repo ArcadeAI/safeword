@@ -174,6 +174,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
 
       const config = readSafewordConfig(temporaryDirectory);
       expect(config.installedPacks).toContain('python');
+      expect(config.architectureDocEnforcement).toBe(false);
     });
   });
 });

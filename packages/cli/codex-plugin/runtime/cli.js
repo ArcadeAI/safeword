@@ -13080,7 +13080,6 @@ function managedGitattributes(ctx) {
   const root = resolvedNamespaceRootLabel(ctx);
   return [
     GITATTRIBUTES_HEADER,
-    "**/architecture.generated.md merge=union linguist-generated=true",
     `${root}/tickets/INDEX.md merge=union linguist-generated=true`,
     `${root}/tickets/INDEX-completed.md merge=union linguist-generated=true`
   ].join(`
@@ -13305,6 +13304,7 @@ var init_schema = __esm(() => {
     "dependency-readiness.json"
   ];
   SAFEWORD_TRANSIENT_PATHS = [
+    "**/architecture.generated.md",
     ".safeword/.update-cache.json",
     ".safeword/config.local.json",
     ".safeword/retro-attempts/",
@@ -21660,7 +21660,10 @@ function isPackInstalled(cwd, packId) {
   return getInstalledPacks(cwd).includes(packId);
 }
 function addInstalledPack(cwd, packId) {
-  const config = readConfig(cwd) ?? { installedPacks: [] };
+  const config = readConfig(cwd) ?? {
+    installedPacks: [],
+    architectureDocEnforcement: false
+  };
   if (!config.installedPacks.includes(packId)) {
     config.installedPacks.push(packId);
     writeConfig(cwd, config);

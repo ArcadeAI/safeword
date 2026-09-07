@@ -13,6 +13,7 @@ const CONFIG_PATH = '.safeword/config.json';
 
 interface SafewordConfig {
   installedPacks: string[];
+  architectureDocEnforcement?: boolean;
   autoUpgrade?: boolean;
   /** SQL pack options — `fix: true` opts in to edit-time `sqlfluff fix` (#638). */
   sql?: { fix?: boolean };
@@ -69,7 +70,10 @@ export function isPackInstalled(cwd: string, packId: string): boolean {
  * Creates config.json if it doesn't exist.
  */
 export function addInstalledPack(cwd: string, packId: string): void {
-  const config = readConfig(cwd) ?? { installedPacks: [] };
+  const config = readConfig(cwd) ?? {
+    installedPacks: [],
+    architectureDocEnforcement: false,
+  };
 
   if (!config.installedPacks.includes(packId)) {
     config.installedPacks.push(packId);
