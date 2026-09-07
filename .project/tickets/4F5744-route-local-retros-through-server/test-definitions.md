@@ -360,9 +360,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: A released cutover does not expire against the customer's wall clock
 
-- [x] RED — advancing the runtime clock beyond 30 days disabled the server route
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4f1b148b5
+- [x] GREEN ccc30eb85
+- [x] REFACTOR skip: freshness now has one owner at the release boundary
 
 ### Scenario: Unavailable production authority keeps global cutover disabled
 
@@ -408,9 +408,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Release verification consults real Git ancestry instead of trusting manifest pairs
 
-- [x] RED — a rejecting Git ancestry collaborator was ignored and verification returned true
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4f1b148b5
+- [x] GREEN ccc30eb85
+- [x] REFACTOR c7813cdd2
 
 ### Scenario: Every harness rejects collector and relay receipts whose request identity or session scope does not correlate end to end
 
