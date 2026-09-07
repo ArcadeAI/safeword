@@ -862,8 +862,12 @@ The trusted worker executes once without a shell, hashes complete stdout/stderr 
 bounded excerpts, and gives every reviewer route the same attestation. Reviewers may approve only
 an intended missing-behavior failure at the actor boundary; syntax, import, fixture, configuration,
 infrastructure, unrelated assertions, timeouts, signals, pasted output, and stale inputs remain
-unapproved. Identical fresh approved proof identities can reuse one receipt. This stays advisory
-until ticket FY1NHB establishes acceptable false-positive, route-availability, and latency evidence.
+unapproved. Scenario identity is part of the request. Identical fresh approved proof identities can
+reuse one receipt. The public receipt gate recomputes the current declared-input fingerprint and
+accepts only an integrity-valid cross-agent approval; the shared pre-tool hook invokes it at the
+actual `[ ] GREEN` to `[x] GREEN` ledger transition for Claude Code, Codex, OpenCode, and Cursor.
+Direct CLI integrations call the same gate. Missing, stale, incomplete, mismatched, fabricated, or
+non-independent evidence therefore cannot earn GREEN credit.
 
 ### Profile-Scoped Generated Codex Plugin and Staged Hook Migration
 

@@ -46,7 +46,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A passing proof cannot earn RED approval
 
-- [ ] RED
+- [x] RED d2a4dbb44
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -68,7 +68,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Unavailable independent review blocks GREEN approval
 
-- [ ] RED
+- [x] RED d2a4dbb44
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -112,13 +112,13 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Invalid executable-RED evidence blocks the shared GREEN transition
 
-- [ ] RED
+- [x] RED d2a4dbb44
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Fresh exact executable-RED evidence permits the shared GREEN transition
 
-- [ ] RED
+- [x] RED d2a4dbb44
 - [ ] GREEN
 - [ ] REFACTOR
 

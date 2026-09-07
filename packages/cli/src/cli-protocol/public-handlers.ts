@@ -802,6 +802,17 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
   return startReviewInBackground(invocation, rawKind, targets, context, execution);
 }
 
+async function executableRedGateHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const scenario = invocation.options.scenario;
+  if (typeof scenario !== 'string' || scenario.trim() === '')
+    return invalidOperand(
+      'review gate executable-red',
+      'Executable RED gate requires a non-empty --scenario.',
+    );
+  const { executableRedGate } = await import('../review/job.js');
+  return executableRedGate(invocation.cwd, scenario);
+}
+
 function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
   return typeof value === 'string' && ['claude', 'codex', 'opencode'].includes(value)
     ? (value as 'claude' | 'codex' | 'opencode')
@@ -1009,6 +1020,9 @@ function redExecutionRequest(
   options: Readonly<Record<string, unknown>>,
 ): RedExecutionRequest | undefined | Error {
   if (kind !== 'executable-red') return undefined;
+  const scenario = options.scenario;
+  if (typeof scenario !== 'string' || scenario.trim() === '')
+    return new Error('Executable-red review requires a non-empty --scenario.');
   const rawArgv = options.execute;
   let argv: unknown;
   try {
@@ -1034,6 +1048,7 @@ function redExecutionRequest(
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600_000)
     return new Error('--execution-timeout must be an integer from 1 to 600000 milliseconds.');
   return {
+    scenario,
     argv: argv as [string, ...string[]],
     cwd,
     evidenceClass: evidenceClass as RedEvidenceClass,
@@ -2570,6 +2585,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket new': ticketNewHandler,
   'ticket reconcile-parent': ticketReconcileParentHandler,
   'review run': reviewRunHandler,
+  'review gate executable-red': executableRedGateHandler,
   'review status': reviewStatusHandler,
   'review routes set': reviewRoutesSetHandler,
   'review routes list': reviewRoutesListHandler,

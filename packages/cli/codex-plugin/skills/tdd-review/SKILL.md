@@ -49,6 +49,11 @@ the exact proof or environment correction to make before retrying.
 
 <!-- SAFEWORD:EXECUTABLE_RED_RUBRIC_END -->
 
+GREEN credit is fail-closed: the shared edit hook calls `review gate executable-red` for the active
+scenario and permits the checkbox only for a fresh approved cross-agent receipt. An unavailable
+reviewer or author-only fallback is not approval; leave GREEN unchecked and report the named
+recovery action.
+
 Focused review (~1 minute). Check the test that was just written:
 
 - **Atomic?** Tests ONE behavior. Red flag: multiple When/Then pairs.

@@ -7,6 +7,7 @@ export type RedEvidenceClass =
   'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
 
 export interface RedExecutionRequest {
+  readonly scenario: string;
   readonly argv: readonly [string, ...string[]];
   readonly cwd: string;
   readonly evidenceClass: RedEvidenceClass;

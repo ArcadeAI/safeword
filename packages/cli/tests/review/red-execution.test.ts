@@ -24,6 +24,7 @@ describe('trusted executable RED observation', () => {
       kind: 'executable-red',
       targets: ['proof.md'],
       execution: {
+        scenario: 'Scenario: actor boundary',
         argv: [
           process.execPath,
           '-e',
@@ -81,6 +82,7 @@ describe('trusted executable RED observation', () => {
       kind: 'executable-red',
       targets: ['proof.md'],
       execution: {
+        scenario: 'Scenario: actor boundary',
         argv: [
           process.execPath,
           '-e',
@@ -113,6 +115,7 @@ describe('trusted executable RED observation', () => {
           projectRoot: cwd,
           sourceFingerprint: 'f'.repeat(64),
           request: {
+            scenario: 'Scenario: actor boundary',
             argv: [
               process.execPath,
               '-e',
