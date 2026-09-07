@@ -194,6 +194,7 @@ describe('local retro production verifier', () => {
       githubToken: 'github-token',
       harnessEvidence,
       installationId,
+      isAncestor: () => Promise.resolve(true),
       now: new Date('2026-09-07T19:00:00.000Z'),
       relayCredential: 'relay-secret',
       relayOrigin: 'https://relay.example',
@@ -228,6 +229,7 @@ describe('local retro production verifier', () => {
         githubToken: 'github-token',
         harnessEvidence: protectedHarnessEvidence,
         installationId,
+        isAncestor: () => Promise.resolve(true),
         now: new Date('2026-09-07T19:00:00.000Z'),
         relayCredential: 'relay-secret',
         relayOrigin: 'https://relay.example',
@@ -244,5 +246,25 @@ describe('local retro production verifier', () => {
     };
 
     await expect(verify(productionFetch(), harnessEvidence)).resolves.toBe(false);
+  });
+
+  it('rejects evidence outside the release commit ancestry', async () => {
+    await expect(
+      verifyLocalRetroProductionReadiness(manifest, attestation, {
+        collectorCredential: 'collector-secret',
+        collectorOrigin: 'https://collector.example',
+        faultDigests: completeFaultDigests,
+        fetch: productionFetch(),
+        githubToken: 'github-token',
+        harnessEvidence: protectedHarnessEvidence,
+        installationId,
+        isAncestor: () => Promise.resolve(false),
+        now: new Date('2026-09-07T19:00:00.000Z'),
+        relayCredential: 'relay-secret',
+        relayOrigin: 'https://relay.example',
+        repository: repo,
+        tenantId,
+      }),
+    ).resolves.toBe(false);
   });
 });

@@ -21,6 +21,7 @@ export interface LocalRetroProductionVerificationOptions {
     }
   >;
   installationId: number;
+  isAncestor?: (ancestor: string, descendant: string) => Promise<boolean>;
   relayCredential: string;
   relayOrigin: string;
   repository: string;

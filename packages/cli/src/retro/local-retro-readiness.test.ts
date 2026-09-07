@@ -109,12 +109,12 @@ describe('local retro readiness', () => {
     ).toBe(false);
   });
 
-  it('requires fresh production verification', () => {
+  it('does not expire a released cutover based on the customer clock', () => {
     const staleEvidence = productionEvidence('cursor-desktop', {
       now: new Date('2026-10-01T00:00:00.000Z'),
     });
 
-    expect(validateLocalRetroReadiness(completeManifest, staleEvidence)).toBe(false);
+    expect(validateLocalRetroReadiness(completeManifest, staleEvidence)).toBe(true);
   });
 
   it('requires evidence for every supported harness', () => {
