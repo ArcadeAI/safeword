@@ -372,9 +372,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Checked-in harness evidence cannot authorize cutover without protected production agreement
 
-- [x] RED — replacing protected Cursor lifecycle evidence with socket absence still returned true
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c4ed22394
+- [x] GREEN 3fc71c7ea
+- [x] REFACTOR skip: one exact comparison covers build, artifact, and lifecycle authority
 
 ### Scenario: Missing harness evidence keeps the global cutover disabled
 
