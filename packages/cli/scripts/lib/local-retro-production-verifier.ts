@@ -26,6 +26,7 @@ export interface LocalRetroProductionVerificationOptions {
   >;
   installationId: number;
   isAncestor: (ancestor: string, descendant: string) => Promise<boolean>;
+  relayReady: boolean;
   relayCredential: string;
   relayOrigin: string;
   repository: string;
@@ -250,6 +251,7 @@ function protectedAuthorityMatches(
   options: LocalRetroProductionVerificationOptions,
 ): boolean {
   return (
+    options.relayReady &&
     faultAuthorityMatches(manifest, options.faultDigests) &&
     harnessAuthorityMatches(manifest, attestation, options.harnessEvidence) &&
     isLocalRetroProductionAttestationFresh(attestation, options.now ?? new Date())

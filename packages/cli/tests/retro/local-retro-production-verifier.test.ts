@@ -122,8 +122,10 @@ function canaryIssueLines(
   findings: string[],
   markers: string[],
 ): string[] {
+  const [firstMarker, ...remainingMarkers] = markers;
+  if (firstMarker === undefined) return [...findings];
   return fault === 'marker-outside-relay-tail' && harness === 'claude-code'
-    ? [markers[0], ...findings, ...markers.slice(1)]
+    ? [firstMarker, ...findings, ...remainingMarkers]
     : [...findings, ...markers];
 }
 
@@ -199,6 +201,7 @@ describe('local retro production verifier', () => {
   function verify(
     fetchImplementation: typeof fetch,
     harnessEvidence = protectedHarnessEvidence,
+    relayReady = true,
   ): Promise<boolean> {
     return verifyLocalRetroProductionReadiness(manifest, attestation, {
       buildCommit: manifest.evidenceCommit,
@@ -211,6 +214,7 @@ describe('local retro production verifier', () => {
       installationId,
       isAncestor: () => Promise.resolve(true),
       now: new Date('2026-09-07T19:00:00.000Z'),
+      relayReady,
       relayCredential: 'relay-secret',
       relayOrigin: 'https://relay.example',
       repository: repo,
@@ -219,6 +223,15 @@ describe('local retro production verifier', () => {
   }
 
   it('correlates each harness through collector, relay, and exact raw GitHub evidence', async () => {
+    const validateRelay = vi.fn(() => Promise.resolve({ enabled: true }));
+    const relayAttestation = {
+      ancestorPairs: [],
+      artifacts: {},
+      buildCommit: manifest.evidenceCommit,
+      enabled: false,
+      manifestBase64: '',
+      manifestSha256: '',
+    };
     await expect(
       verifyCheckedInLocalRetroProductionReadiness(
         {
@@ -241,9 +254,17 @@ describe('local retro production verifier', () => {
             isAncestor: () => Promise.resolve(true),
           },
           manifest,
+          relayAttestation,
+          relayManifest: { enabled: false, version: 1 },
         },
+        validateRelay,
       ),
     ).resolves.toBe(true);
+    expect(validateRelay).toHaveBeenCalledWith(
+      { enabled: false, version: 1 },
+      relayAttestation,
+      expect.any(Date),
+    );
   });
 
   it.each([
@@ -272,6 +293,7 @@ describe('local retro production verifier', () => {
         installationId,
         isAncestor: () => Promise.resolve(true),
         now: new Date('2026-09-07T19:00:00.000Z'),
+        relayReady: true,
         relayCredential: 'relay-secret',
         relayOrigin: 'https://relay.example',
         repository: repo,
@@ -302,11 +324,16 @@ describe('local retro production verifier', () => {
         installationId,
         isAncestor: () => Promise.resolve(false),
         now: new Date('2026-09-07T19:00:00.000Z'),
+        relayReady: true,
         relayCredential: 'relay-secret',
         relayOrigin: 'https://relay.example',
         repository: repo,
         tenantId,
       }),
     ).resolves.toBe(false);
+  });
+
+  it('rejects local cutover while build-attested relay readiness is false', async () => {
+    await expect(verify(productionFetch(), protectedHarnessEvidence, false)).resolves.toBe(false);
   });
 });

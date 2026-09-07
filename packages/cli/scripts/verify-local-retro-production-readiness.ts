@@ -8,6 +8,13 @@ import {
 } from '../src/retro/local-retro-readiness.js';
 import checkedInManifest from '../src/retro/local-retro-readiness-manifest.json' with { type: 'json' };
 import {
+  CHECKED_IN_RELAY_READINESS,
+  type RelayBuildAttestation,
+  type RelayReadinessManifest,
+  SAFEWORD_RELAY_BUILD_ATTESTATION,
+  validateBuildAttestedRelayReadiness,
+} from '../src/retro/relay-readiness.js';
+import {
   type LocalRetroProductionVerificationOptions,
   verifyLocalRetroProductionReadiness,
 } from './lib/local-retro-production-verifier.js';
@@ -21,7 +28,12 @@ interface VerificationSources {
   attestation: LocalRetroProductionAttestation | { enabled: false; version: 1 };
   git: GitProof;
   manifest: LocalRetroReadinessManifest | { enabled: false; version: 1 };
+  relayAttestation: RelayBuildAttestation;
+  relayManifest: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS;
 }
+
+type RelayReadinessValidator = typeof validateBuildAttestedRelayReadiness;
+type VerificationOptions = Omit<LocalRetroProductionVerificationOptions, 'relayReady'>;
 
 function required(environment: NodeJS.ProcessEnv, name: string): string {
   const value = environment[name]?.trim();
@@ -63,13 +75,15 @@ const checkedInSources: VerificationSources = {
   attestation: checkedInAttestation as VerificationSources['attestation'],
   git: systemGit,
   manifest: checkedInManifest as VerificationSources['manifest'],
+  relayAttestation: SAFEWORD_RELAY_BUILD_ATTESTATION,
+  relayManifest: CHECKED_IN_RELAY_READINESS,
 };
 
 export function localRetroProductionVerificationOptions(
   environment: NodeJS.ProcessEnv,
   transport: typeof fetch,
   git: GitProof = systemGit,
-): LocalRetroProductionVerificationOptions {
+): VerificationOptions {
   return {
     buildCommit: git.buildCommit(),
     collectorCredential: required(environment, 'SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL'),
@@ -91,13 +105,19 @@ export async function verifyCheckedInLocalRetroProductionReadiness(
   environment: NodeJS.ProcessEnv,
   transport: typeof fetch = fetch,
   sources: VerificationSources = checkedInSources,
+  validateRelay: RelayReadinessValidator = validateBuildAttestedRelayReadiness,
 ): Promise<boolean> {
   if (!sources.manifest.enabled || !sources.attestation.enabled) return false;
-  return verifyLocalRetroProductionReadiness(
-    sources.manifest,
-    sources.attestation,
-    localRetroProductionVerificationOptions(environment, transport, sources.git),
+  const options = localRetroProductionVerificationOptions(environment, transport, sources.git);
+  const relayReadiness = await validateRelay(
+    sources.relayManifest,
+    sources.relayAttestation,
+    options.now ?? new Date(),
   );
+  return verifyLocalRetroProductionReadiness(sources.manifest, sources.attestation, {
+    ...options,
+    relayReady: relayReadiness.enabled,
+  });
 }
 
 if (import.meta.main) {
