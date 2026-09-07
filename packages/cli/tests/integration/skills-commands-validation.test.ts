@@ -918,8 +918,12 @@ describe('Skill invocation contract', () => {
     ] === true;
 
   it('flags exactly the skills declared human-only', () => {
-    expect(skillNames.filter(skill => isFlagged(skill)).toSorted()).toEqual(
-      HUMAN_ONLY_SKILLS.filter(skill => skillNames.includes(skill)).toSorted(),
+    expect(
+      skillNames.filter(skill => isFlagged(skill)).toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(
+      HUMAN_ONLY_SKILLS.filter(skill => skillNames.includes(skill)).toSorted((a, b) =>
+        a.localeCompare(b),
+      ),
     );
   });
 
