@@ -300,7 +300,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Cursor local readiness requires positive host-bound Desktop lifecycle evidence
 
-- [ ] RED
+- [x] RED — the positive production-attested Cursor Desktop case returned false while the verifier remained fail-closed
 - [ ] GREEN
 - [ ] REFACTOR
 
