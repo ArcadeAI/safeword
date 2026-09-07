@@ -96,7 +96,7 @@ describe('Claude plugin release contract', () => {
       'publish:\n    name: Publish to npm\n    needs: [build, verify-local-retro-production]',
     );
     expect(workflow).toContain(
-      "needs.build.outputs.local-retro-cutover-enabled != 'true' &&\n        needs.verify-local-retro-production.result == 'skipped'",
+      "needs.build.outputs.local-retro-cutover-enabled != 'true' &&\n      needs.verify-local-retro-production.result == 'skipped'",
     );
     expect(workflow).not.toContain('advisory-pr-review-smoke:');
     expect(workflow).not.toContain('pr-review-smoke');

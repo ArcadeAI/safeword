@@ -84,21 +84,29 @@ function expectedMarkers(
   ];
 }
 
+function validSource(
+  value: unknown,
+  harness: keyof LocalRetroReadinessManifest['harnesses'],
+  repo: string,
+): boolean {
+  const source = record(value);
+  return source?.harness === harness && source.hostClass === 'local' && source.repository === repo;
+}
+
 function validEnvelope(
   value: unknown,
   harness: keyof LocalRetroReadinessManifest['harnesses'],
+  repo: string,
   sessionScope: string,
 ): value is JsonRecord & { findings: string[] } {
   const envelope = record(value);
-  const source = record(envelope?.source);
   return (
     envelope?.version === 'v3' &&
     envelope.sessionScope === sessionScope &&
     Array.isArray(envelope.findings) &&
     envelope.findings.length > 0 &&
     envelope.findings.every(finding => typeof finding === 'string') &&
-    source?.harness === harness &&
-    source.hostClass === 'local'
+    validSource(envelope.source, harness, repo)
   );
 }
 
@@ -127,7 +135,7 @@ async function verifyHarness(
     options.collectorCredential,
     options.fetch,
   );
-  if (!validEnvelope(envelope, harness, evidence.sessionScope)) return false;
+  if (!validEnvelope(envelope, harness, options.repository, evidence.sessionScope)) return false;
   const relayReceipt = record(
     await readJson(
       new URL(`/v1/retro-filings/${evidence.relayReceipt}`, options.relayOrigin),

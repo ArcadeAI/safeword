@@ -148,8 +148,10 @@ jobs:
     needs: [build, verify-local-retro-production]
     if: >-
       ${{ always() && needs.build.result == 'success' &&
-      (needs.verify-local-retro-production.result == 'success' ||
-      needs.verify-local-retro-production.result == 'skipped') }}
+      ((needs.build.outputs.local-retro-cutover-enabled == 'true' &&
+      needs.verify-local-retro-production.result == 'success') ||
+      (needs.build.outputs.local-retro-cutover-enabled != 'true' &&
+      needs.verify-local-retro-production.result == 'skipped')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
