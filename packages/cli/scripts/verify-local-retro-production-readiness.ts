@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import process from 'node:process';
 
 import checkedInAttestation from '../src/retro/local-retro-production-attestation.json' with { type: 'json' };
@@ -9,10 +10,8 @@ import {
 import checkedInManifest from '../src/retro/local-retro-readiness-manifest.json' with { type: 'json' };
 import {
   CHECKED_IN_RELAY_READINESS,
-  type RelayBuildAttestation,
   type RelayReadinessManifest,
-  SAFEWORD_RELAY_BUILD_ATTESTATION,
-  validateBuildAttestedRelayReadiness,
+  validateRelayReadiness,
 } from '../src/retro/relay-readiness.js';
 import {
   type LocalRetroProductionVerificationOptions,
@@ -24,15 +23,21 @@ interface GitProof {
   isAncestor: (ancestor: string, descendant: string) => Promise<boolean>;
 }
 
+interface ReleaseGitProof extends GitProof {
+  readArtifactAtCommit: (
+    commit: string,
+    path: string,
+  ) => Promise<{ content: string; sha256: string } | undefined>;
+}
+
 interface VerificationSources {
   attestation: LocalRetroProductionAttestation | { enabled: false; version: 1 };
-  git: GitProof;
+  git: ReleaseGitProof;
   manifest: LocalRetroReadinessManifest | { enabled: false; version: 1 };
-  relayAttestation: RelayBuildAttestation;
   relayManifest: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS;
 }
 
-type RelayReadinessValidator = typeof validateBuildAttestedRelayReadiness;
+type RelayReadinessValidator = typeof validateRelayReadiness;
 type VerificationOptions = Omit<LocalRetroProductionVerificationOptions, 'relayReady'>;
 
 function required(environment: NodeJS.ProcessEnv, name: string): string {
@@ -70,12 +75,30 @@ function isGitAncestor(ancestor: string, descendant: string): Promise<boolean> {
   }
 }
 
-const systemGit: GitProof = { buildCommit: gitCommit, isAncestor: isGitAncestor };
+function gitArtifactAtCommit(
+  commit: string,
+  path: string,
+): Promise<{ content: string; sha256: string } | undefined> {
+  try {
+    const bytes = execFileSync('git', ['show', `${commit}:${path}`]);
+    return Promise.resolve({
+      content: bytes.toString('utf8'),
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    });
+  } catch {
+    return Promise.resolve(undefined);
+  }
+}
+
+const systemGit: ReleaseGitProof = {
+  buildCommit: gitCommit,
+  isAncestor: isGitAncestor,
+  readArtifactAtCommit: gitArtifactAtCommit,
+};
 const checkedInSources: VerificationSources = {
   attestation: checkedInAttestation as VerificationSources['attestation'],
   git: systemGit,
   manifest: checkedInManifest as VerificationSources['manifest'],
-  relayAttestation: SAFEWORD_RELAY_BUILD_ATTESTATION,
   relayManifest: CHECKED_IN_RELAY_READINESS,
 };
 
@@ -105,15 +128,16 @@ export async function verifyCheckedInLocalRetroProductionReadiness(
   environment: NodeJS.ProcessEnv,
   transport: typeof fetch = fetch,
   sources: VerificationSources = checkedInSources,
-  validateRelay: RelayReadinessValidator = validateBuildAttestedRelayReadiness,
+  validateRelay: RelayReadinessValidator = validateRelayReadiness,
 ): Promise<boolean> {
   if (!sources.manifest.enabled || !sources.attestation.enabled) return false;
   const options = localRetroProductionVerificationOptions(environment, transport, sources.git);
-  const relayReadiness = await validateRelay(
-    sources.relayManifest,
-    sources.relayAttestation,
-    options.now ?? new Date(),
-  );
+  const relayReadiness = await validateRelay(sources.relayManifest, {
+    buildCommit: options.buildCommit,
+    isAncestor: sources.git.isAncestor,
+    now: options.now ?? new Date(),
+    readArtifactAtCommit: sources.git.readArtifactAtCommit,
+  });
   return verifyLocalRetroProductionReadiness(sources.manifest, sources.attestation, {
     ...options,
     relayReady: relayReadiness.enabled,

@@ -101,7 +101,8 @@ describe('Claude plugin release contract', () => {
     expect(workflow).toContain(
       "needs.build.outputs.local-retro-cutover-enabled != 'true' &&\n      needs.verify-local-retro-production.result == 'skipped'",
     );
-    expect(workflow).toContain("${{ always() && needs.build.result == 'success' &&");
+    expect(workflow).toContain("${{ !cancelled() && needs.build.result == 'success' &&");
+    expect(publishJob).not.toContain('always()');
     expect(publishJob).not.toContain('|| true');
     expect(workflow).not.toContain('advisory-pr-review-smoke:');
     expect(workflow).not.toContain('pr-review-smoke');

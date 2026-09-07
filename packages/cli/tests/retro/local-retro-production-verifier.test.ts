@@ -8,7 +8,11 @@ import type {
   LocalRetroProductionAttestation,
   LocalRetroReadinessManifest,
 } from '../../src/retro/local-retro-readiness.js';
-import { digestLocalRetroReadinessManifest } from '../../src/retro/local-retro-readiness.js';
+import {
+  digestLocalRetroReadinessManifest,
+  validateLocalRetroReadiness,
+} from '../../src/retro/local-retro-readiness.js';
+import { relayReadinessArtifact, validRelayReadinessManifest } from '../helpers/relay-readiness.js';
 
 const repo = 'ArcadeAI/safeword';
 const tenantId = 'production';
@@ -223,15 +227,11 @@ describe('local retro production verifier', () => {
   }
 
   it('correlates each harness through collector, relay, and exact raw GitHub evidence', async () => {
-    const validateRelay = vi.fn(() => Promise.resolve({ enabled: true }));
-    const relayAttestation = {
-      ancestorPairs: [],
-      artifacts: {},
-      buildCommit: manifest.evidenceCommit,
-      enabled: false,
-      manifestBase64: '',
-      manifestSha256: '',
-    };
+    const relayManifest = validRelayReadinessManifest();
+    relayManifest.reviewedAt = '2026-09-07T18:00:00.000Z';
+    for (const artifact of Object.values(relayManifest.measurements)) {
+      artifact.measuredAt = '2026-09-07T17:00:00.000Z';
+    }
     await expect(
       verifyCheckedInLocalRetroProductionReadiness(
         {
@@ -252,19 +252,14 @@ describe('local retro production verifier', () => {
           git: {
             buildCommit: () => manifest.evidenceCommit,
             isAncestor: () => Promise.resolve(true),
+            readArtifactAtCommit: (_commit, artifactPath) =>
+              Promise.resolve(relayReadinessArtifact(relayManifest, artifactPath)),
           },
           manifest,
-          relayAttestation,
-          relayManifest: { enabled: false, version: 1 },
+          relayManifest,
         },
-        validateRelay,
       ),
     ).resolves.toBe(true);
-    expect(validateRelay).toHaveBeenCalledWith(
-      { enabled: false, version: 1 },
-      relayAttestation,
-      expect.any(Date),
-    );
   });
 
   it.each([
@@ -332,6 +327,32 @@ describe('local retro production verifier', () => {
       }),
     ).resolves.toBe(false);
   });
+
+  it.each(['requestId', 'collectorReceipt', 'relayReceipt', 'sessionScope'] as const)(
+    'rejects harness evidence that reuses one %s',
+    field => {
+      const duplicatedManifest = structuredClone(manifest);
+      duplicatedManifest.harnesses.cursor[field] = duplicatedManifest.harnesses.codex[field];
+      const duplicatedAttestation = {
+        ...attestation,
+        manifestSha256: digestLocalRetroReadinessManifest(duplicatedManifest),
+      };
+
+      expect(
+        validateLocalRetroReadiness(duplicatedManifest, {
+          ancestorPairs: [
+            {
+              ancestor: duplicatedManifest.evidenceCommit,
+              descendant: duplicatedManifest.evidenceCommit,
+            },
+          ],
+          buildCommit: duplicatedManifest.evidenceCommit,
+          productionAttestation: duplicatedAttestation,
+          relayReady: true,
+        }),
+      ).toBe(false);
+    },
+  );
 
   it('rejects local cutover while build-attested relay readiness is false', async () => {
     await expect(verify(productionFetch(), protectedHarnessEvidence, false)).resolves.toBe(false);

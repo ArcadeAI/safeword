@@ -130,10 +130,14 @@ function hasCompleteEvidence(
   manifest: LocalRetroReadinessManifest,
   ancestorPairs: readonly { ancestor: string; descendant: string }[],
 ): boolean {
+  const harnessEvidence = REQUIRED_HARNESSES.map(harness => manifest.harnesses[harness]);
+  const distinctFields = ['collectorReceipt', 'relayReceipt', 'requestId', 'sessionScope'] as const;
   return (
     hasExactKeys(manifest.harnesses, REQUIRED_HARNESSES) &&
-    REQUIRED_HARNESSES.every(harness =>
-      validHarnessEvidence(manifest.harnesses[harness], manifest, ancestorPairs),
+    harnessEvidence.every(evidence => validHarnessEvidence(evidence, manifest, ancestorPairs)) &&
+    distinctFields.every(
+      field =>
+        new Set(harnessEvidence.map(evidence => evidence[field])).size === harnessEvidence.length,
     ) &&
     hasExactKeys(manifest.recoveredFaults, REQUIRED_FAULTS) &&
     REQUIRED_FAULTS.every(fault => HASH_PATTERN.test(manifest.recoveredFaults[fault]))

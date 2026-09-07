@@ -152,7 +152,7 @@ jobs:
     name: Publish to npm
     needs: [build, verify-local-retro-production]
     if: >-
-      ${{ always() && needs.build.result == 'success' &&
+      ${{ !cancelled() && needs.build.result == 'success' &&
       ((needs.build.outputs.local-retro-cutover-enabled == 'true' &&
       needs.verify-local-retro-production.result == 'success') ||
       (needs.build.outputs.local-retro-cutover-enabled != 'true' &&

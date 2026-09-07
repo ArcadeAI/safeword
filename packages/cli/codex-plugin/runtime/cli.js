@@ -55097,7 +55097,14 @@ function validHarnessEvidence(evidence, manifest, ancestorPairs) {
   return HASH_PATTERN.test(evidence.artifactDigest) && COMMIT_PATTERN.test(evidence.buildCommit) && hasAncestry(ancestorPairs, evidence.buildCommit, manifest.evidenceCommit) && REQUEST_ID_PATTERN.test(evidence.collectorReceipt) && evidence.hostClass === "local" && /^[\w-]+$/u.test(evidence.relayReceipt) && REQUEST_ID_PATTERN.test(evidence.requestId) && HASH_PATTERN.test(evidence.sessionScope) && evidence.terminal === "filed";
 }
 function hasCompleteEvidence(manifest, ancestorPairs) {
-  return hasExactKeys4(manifest.harnesses, REQUIRED_HARNESSES) && REQUIRED_HARNESSES.every((harness) => validHarnessEvidence(manifest.harnesses[harness], manifest, ancestorPairs)) && hasExactKeys4(manifest.recoveredFaults, REQUIRED_FAULTS) && REQUIRED_FAULTS.every((fault) => HASH_PATTERN.test(manifest.recoveredFaults[fault]));
+  const harnessEvidence = REQUIRED_HARNESSES.map((harness) => manifest.harnesses[harness]);
+  const distinctFields = [
+    "collectorReceipt",
+    "relayReceipt",
+    "requestId",
+    "sessionScope"
+  ];
+  return hasExactKeys4(manifest.harnesses, REQUIRED_HARNESSES) && harnessEvidence.every((evidence) => validHarnessEvidence(evidence, manifest, ancestorPairs)) && distinctFields.every((field) => new Set(harnessEvidence.map((evidence) => evidence[field])).size === harnessEvidence.length) && hasExactKeys4(manifest.recoveredFaults, REQUIRED_FAULTS) && REQUIRED_FAULTS.every((fault) => HASH_PATTERN.test(manifest.recoveredFaults[fault]));
 }
 function validProductionAttestation(manifest, attestation) {
   if (!attestation?.enabled)
