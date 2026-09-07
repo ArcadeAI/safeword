@@ -15,6 +15,29 @@ Feature: Stop hollow acceptance proofs before implementation
       When the builder requests RED approval
       Then Safeword refuses approval because no trusted execution witnessed the result
 
+    @rejection
+    Scenario: Execution of an unrelated test cannot earn RED approval
+      Given trusted execution ran a test other than the primary proof bound to the scenario
+      When the builder requests RED approval
+      Then Safeword refuses approval because the executed test does not match the selected proof
+
+    @rejection
+    Scenario Outline: A non-independent verdict cannot earn a RED receipt
+      Given the RED verdict comes from <verdict source>
+      When the builder requests RED approval
+      Then Safeword refuses the receipt because the approval was not independently produced for this proof
+
+      Examples:
+        | verdict source                         |
+        | the same agent that authored the proof |
+        | a cached suite status                  |
+
+    @rejection
+    Scenario: An unavailable independent reviewer blocks RED approval
+      Given trusted execution produced a valid failure but no independent review route is available
+      When the builder requests RED approval
+      Then Safeword refuses the receipt and returns the exact reviewer recovery command
+
   @executable-red.TBU1.R2
   Rule: executable-red.TBU1.R2 — RED is accepted only for the intended missing behavior at the actor boundary
 
@@ -24,10 +47,22 @@ Feature: Stop hollow acceptance proofs before implementation
       Then the independent reviewer approves the RED proof
 
     @rejection
+    Scenario: A passing pre-implementation proof is not accepted as RED
+      Given the selected test passes while the scenario's behavior is still missing
+      When trusted execution reports the passing result
+      Then the independent reviewer rejects the proof because the intended behavior did not fail
+
+    @rejection
     Scenario: A setup failure is not accepted as behavioral RED
       Given the selected test cannot reach its assertion because collection or setup fails
       When the independent reviewer examines the trusted execution
       Then the reviewer rejects the proof as the wrong failure reason
+
+    @rejection
+    Scenario: An interrupted proof run is not accepted as behavioral RED
+      Given the selected test is killed or times out before producing its assertion result
+      When the independent reviewer examines the trusted execution
+      Then the reviewer rejects the proof because the intended failure was not observed
 
     @rejection
     Scenario: A narrower internal test is not accepted for an actor-boundary claim
@@ -45,13 +80,15 @@ Feature: Stop hollow acceptance proofs before implementation
       Then Safeword refuses GREEN credit until the changed proof is executed and reviewed again
 
       Examples:
-        | proof input    |
-        | scenario       |
-        | proof-plan row |
-        | test or glue   |
-        | helper         |
-        | command        |
-        | evidence class |
+        | proof input          |
+        | scenario             |
+        | proof-plan row       |
+        | test                 |
+        | glue                 |
+        | World or shared state |
+        | helper               |
+        | command              |
+        | evidence class       |
 
     Scenario: An implementation-only change preserves the RED receipt
       Given an approved RED receipt whose bound proof inputs are unchanged
@@ -62,17 +99,18 @@ Feature: Stop hollow acceptance proofs before implementation
   Rule: executable-red.NTB1.R1 — A failed gate explains the problem and next action plainly
 
     @rejection
-    Scenario Outline: A blocked proof names the missing evidence and recovery command
+    Scenario Outline: A blocked proof distinguishes the cause and recovery command
       Given GREEN credit is blocked by <evidence problem>
       When Safeword explains the block to the builder
-      Then the message names the unproved behavior and the exact command that can produce current evidence
+      Then the message says <named cause> in plain language without Safeword workflow jargon
+      And gives <next action> as the exact recovery command
 
       Examples:
-        | evidence problem          |
-        | missing trusted execution |
-        | wrong failure reason      |
-        | stale receipt             |
-        | unavailable review route  |
+        | evidence problem          | named cause                                      | next action                         |
+        | missing trusted execution | the selected proof has not been run               | the selected primary-proof command  |
+        | wrong failure reason      | the intended behavior was not reached             | the corrected primary-proof command |
+        | stale receipt             | the proof changed after its approval               | the fresh RED-review command         |
+        | unavailable review route  | no independent reviewer can currently approve it  | the reviewer recovery command        |
 
   @executable-red.NTB1.R2
   Rule: executable-red.NTB1.R2 — Legitimate proof reuse does not repeat review ceremony
@@ -80,7 +118,7 @@ Feature: Stop hollow acceptance proofs before implementation
     Scenario: Scenario Outline rows sharing one proof implementation use one review
       Given several Scenario Outline rows execute the same distinct proof implementation
       When that implementation earns a fresh RED receipt
-      Then each covered row can use that one receipt without another review
+      Then Safeword accepts that receipt as current evidence for every covered row and requests no additional review
 
     @rejection
     Scenario: Distinct scenario proofs cannot share an umbrella receipt
@@ -124,7 +162,18 @@ Feature: Stop hollow acceptance proofs before implementation
         | Cursor Cloud Agents |
         | Safeword CLI        |
 
-    Scenario: A fresh receipt permits GREEN through the shared gate
-      Given trusted execution and independent review approved the current primary proof
-      When the agent records GREEN credit through a supported host
+    Scenario Outline: A fresh receipt permits GREEN through every supported host
+      Given trusted execution and independent review approved the current primary proof through <host>
+      When the agent records GREEN credit through <host>
       Then Safeword permits the transition with the same receipt contract
+
+      Examples:
+        | host                |
+        | Claude Code         |
+        | Claude Code Cloud   |
+        | OpenAI Codex        |
+        | OpenAI Codex Cloud  |
+        | OpenCode            |
+        | Cursor              |
+        | Cursor Cloud Agents |
+        | Safeword CLI        |

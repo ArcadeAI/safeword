@@ -13,4 +13,4 @@
 | Host surface        | Claude Code local/cloud, Codex local/cloud, OpenCode, Cursor local/cloud, direct Safeword CLI        |
 | Recovery experience | missing, stale, wrong-reason, or unavailable evidence with one concrete next action                  |
 
-Exhaustive malformed receipt fields and runner-specific failure encodings belong in table-driven lower-level tests. The feature scenarios retain representative user-visible boundaries.
+Every partition above is now bound to a feature scenario or Scenario Outline row. Exhaustive malformed receipt fields and runner-specific failure encodings belong in table-driven lower-level tests; the feature scenarios retain representative user-visible boundaries.

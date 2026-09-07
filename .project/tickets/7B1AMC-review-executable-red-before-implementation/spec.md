@@ -90,6 +90,13 @@ skip: child feature under a program; trustworthy RED should feel invisible and t
 - The normal path adds one trusted RED execution and one bounded independent review, not a second end-to-end implementation cycle.
 - Review artifacts can feed the cross-agent quality evaluation without relying on agent self-report.
 
+## Decisions
+
+- A passing pre-implementation proof is not RED evidence, even when its execution is authentic.
+- The proof author, a cached suite status, or any other non-independent verdict cannot issue the RED receipt.
+- When every independent review route is unavailable, this gate remains blocked and returns the exact recovery command. The best-available degraded review ladder may provide feedback, but it cannot authorize GREEN credit for this invariant.
+- Both rejection and admission use the same host-neutral receipt contract on every supported host.
+
 ## Open Questions
 
 None at intake. The user explicitly selected blocking enforcement on 2026-09-06; FY1NHB measures and tunes the shipped gate rather than deciding whether it blocks.

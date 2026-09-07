@@ -29,3 +29,5 @@ last_modified: 2026-08-10T08:00:27Z
 - 2026-09-06T20:45:24Z Decided: User explicitly chose blocking enforcement; trusted execution and independent semantic review must gate GREEN credit across supported hosts.
 - 2026-09-06T20:54:00Z Drafted: Derived 10 behavioral dimensions and 14 scenarios across seven Rules, including happy, rejection, freshness, tampering, recovery, reuse, and host-parity boundaries.
 - 2026-09-07T04:32:36Z Confirmed: User accepted the 14-scenario blocking contract and directed publication of the issue and work-so-far pull request.
+- 2026-09-07T05:00:00Z Scenario review: Independent Claude review requested changes for an uncovered unexpected-pass result, unproved review independence, and non-discriminating blocker messages; it also identified identity, interruption, host-admission, shared-state, fallback, and plain-language gaps.
+- 2026-09-07T05:06:00Z Revised: Expanded the blocking contract to 19 scenarios, made both host directions symmetric, split every material freshness input, and fixed independent-review unavailability as fail-closed for GREEN credit.

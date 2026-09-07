@@ -18,6 +18,24 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Execution of an unrelated test cannot earn RED approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A non-independent verdict cannot earn a RED receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unavailable independent reviewer blocks RED approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: executable-red.TBU1.R2 — RED is accepted only for the intended missing behavior at the actor boundary
 
 ### Scenario: An assertion failure caused by the missing actor-visible behavior is accepted
@@ -26,7 +44,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A passing pre-implementation proof is not accepted as RED
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A setup failure is not accepted as behavioral RED
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An interrupted proof run is not accepted as behavioral RED
 
 - [ ] RED
 - [ ] GREEN
@@ -54,7 +84,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: executable-red.NTB1.R1 — A failed gate explains the problem and next action plainly
 
-### Scenario Outline: A blocked proof names the missing evidence and recovery command
+### Scenario Outline: A blocked proof distinguishes the cause and recovery command
 
 - [ ] RED
 - [ ] GREEN
@@ -96,7 +126,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A fresh receipt permits GREEN through the shared gate
+### Scenario Outline: A fresh receipt permits GREEN through every supported host
 
 - [ ] RED
 - [ ] GREEN
