@@ -132,10 +132,12 @@ request's outcome is ambiguous, the relay quarantines it until a privileged
 reconciliation step finds exactly one reserved marker in a complete raw REST
 issue-body scan — sanitized MCP reads are never duplicate authority. The
 client supplies one absolute creation-plus-24-hour retry deadline, which the
-server persists and may shorten but never extend, followed by one-hour
-dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
-timed maintenance worker persists its retry schedule and terminal alert
-outbox in the same database. With #1474 and #1481 complete, canonical/legacy
+server persists and may shorten but never extend. Collector-owned `v3` is the
+exception: relay acceptance starts its fresh server-owned deadline, as recorded
+under [Collector-to-relay ownership transfer](#collector-to-relay-ownership-transfer).
+Both paths then have one-hour dispatch grace, 30-day filed-payload retention,
+and indefinite tombstones; the timed maintenance worker persists its retry
+schedule and terminal alert outbox in the same database. With #1474 and #1481 complete, canonical/legacy
 semantic adoption and cross-request aliasing remain unbuilt until the
 post-fix collision rates are remeasured and bound into the readiness
 evidence.

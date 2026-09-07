@@ -124,6 +124,12 @@ describe('Claude plugin release contract', () => {
     );
 
     expect(verifierJob).toContain('fetch-depth: 0');
+    expect(verifierJob).toContain(
+      'RESULT=$(bun packages/cli/scripts/verify-local-retro-production-readiness.ts)',
+    );
+    expect(verifierJob).toContain(
+      '[ "$RESULT" != \'Local retro production readiness verified.\' ]',
+    );
   });
 
   it('validates enabled local evidence even while relay readiness is disabled', () => {

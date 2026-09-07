@@ -129,17 +129,19 @@ export async function verifyCheckedInLocalRetroProductionReadiness(
   transport: typeof fetch = fetch,
   sources: VerificationSources = checkedInSources,
   validateRelay: RelayReadinessValidator = validateRelayReadiness,
+  now: Date = new Date(),
 ): Promise<boolean> {
   if (!sources.manifest.enabled || !sources.attestation.enabled) return false;
   const options = localRetroProductionVerificationOptions(environment, transport, sources.git);
   const relayReadiness = await validateRelay(sources.relayManifest, {
     buildCommit: options.buildCommit,
     isAncestor: sources.git.isAncestor,
-    now: options.now ?? new Date(),
+    now,
     readArtifactAtCommit: sources.git.readArtifactAtCommit,
   });
   return verifyLocalRetroProductionReadiness(sources.manifest, sources.attestation, {
     ...options,
+    now,
     relayReady: relayReadiness.enabled,
   });
 }

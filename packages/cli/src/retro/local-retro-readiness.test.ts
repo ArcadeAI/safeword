@@ -164,6 +164,21 @@ describe('local retro readiness', () => {
     ).toBe(false);
   });
 
+  it.each(['requestId', 'collectorReceipt', 'relayReceipt', 'sessionScope'] as const)(
+    'requires a distinct %s for every harness',
+    field => {
+      const duplicatedManifest = structuredClone(completeManifest);
+      duplicatedManifest.harnesses.cursor[field] = duplicatedManifest.harnesses.codex[field];
+
+      expect(
+        validateLocalRetroReadiness(
+          duplicatedManifest,
+          productionEvidence('cursor-desktop', {}, duplicatedManifest),
+        ),
+      ).toBe(false);
+    },
+  );
+
   it('requires every production fault recovery artifact', () => {
     const incompleteManifest = {
       ...completeManifest,
