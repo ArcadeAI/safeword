@@ -8,11 +8,9 @@ function compareKeys([left]: [string, unknown], [right]: [string, unknown]): num
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(item => canonicalize(item));
   if (typeof value !== 'object' || value === null) return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .toSorted(compareKeys)
-      .map(([key, item]) => [key, canonicalize(item)]),
-  );
+  // eslint-disable-next-line unicorn/no-array-sort -- The shipped CLI still targets Node 18.
+  const entries = Object.entries(value).sort(compareKeys);
+  return Object.fromEntries(entries.map(([key, item]) => [key, canonicalize(item)]));
 }
 
 export function digestLocalRetroReadinessManifest(manifest: unknown): string {
