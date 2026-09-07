@@ -191,7 +191,9 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 
 **Entry:** Agent enters `scenario-gate` phase.
 
-Load the **`/review-spec`** skill in **Review mode** — it is the independent gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Its final reconciliation maps material dimensions, affected surfaces, and declared public outcomes to scenarios or explicit deferrals, then challenges whether the planned proof exercises the boundary each load-bearing scenario claims. Apply its findings, then complete the plain-language completeness check and exit below.
+Load the **`/review-spec`** skill in **Review mode** — it is the independent gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Its final reconciliation maps material dimensions, affected surfaces, and declared public outcomes to scenarios or explicit deferrals, then challenges whether the planned proof exercises the boundary each load-bearing scenario claims.
+
+Triage the result before editing. Apply only **Must Fix** findings that name a concrete false pass against an accepted Rule or dimension partition. **Should Strengthen** findings are non-blocking and do not change scenarios by default. If a finding would add a behavior, public API, threat boundary, lifecycle contract, or test matrix absent from the accepted Rules and dimensions, return it to the user as a scope decision; never incorporate it silently. Re-run independent review only after a blocking finding changes the scenarios or the user accepts a scope change. Then complete the plain-language completeness check and exit below.
 
 ### Are the reviewed scenarios complete?
 
