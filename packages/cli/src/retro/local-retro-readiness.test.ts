@@ -100,6 +100,14 @@ describe('local retro readiness', () => {
     );
   });
 
+  it('rejects a modified manifest under an earlier production attestation', () => {
+    const attestedEvidence = productionEvidence('cursor-desktop');
+    const modifiedManifest = structuredClone(completeManifest);
+    modifiedManifest.recoveredFaults.workerOutage = 'f'.repeat(64);
+
+    expect(validateLocalRetroReadiness(modifiedManifest, attestedEvidence)).toBe(false);
+  });
+
   it('rejects a locally fabricated enabled manifest while production authority is unavailable', () => {
     expect(validateLocalRetroReadiness(fabricatedManifest, fabricatedEvidence)).toBe(false);
   });

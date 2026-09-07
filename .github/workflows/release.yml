@@ -140,7 +140,7 @@ jobs:
           SAFEWORD_RETRO_RELAY_REPOSITORY: ${{ vars.SAFEWORD_RETRO_RELAY_REPOSITORY }}
           SAFEWORD_RETRO_RELAY_TENANT_ID: ${{ vars.SAFEWORD_RETRO_RELAY_TENANT_ID }}
         run: |
-          RESULT=$(bun packages/cli/scripts/verify-local-retro-production-readiness.ts)
+          RESULT=$(bun --no-install packages/cli/scripts/verify-local-retro-production-readiness.ts)
           if [ "$RESULT" != 'Local retro production readiness verified.' ]; then
             echo '::error::Local retro production verifier did not return its success receipt'
             exit 1
