@@ -154,7 +154,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 - [x] RED skip: implementation predates scenario; removing the envelope-digest comparison made this test receive 201 instead of 409
 - [x] GREEN 71ad212b9
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing production guard is already minimal and the focused boundary test adds no reusable abstraction
 
 ### Scenario: An oversized envelope is rejected before storage
 
