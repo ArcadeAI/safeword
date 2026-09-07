@@ -424,6 +424,35 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
+  it('preserves a valid pipe table when its trailing pipes are omitted', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-open-tables-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'tables'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'tables/SKILL.md'),
+        [
+          '---',
+          'name: tables',
+          'description: Valid open pipe tables',
+          '---',
+          '',
+          '| Left | Right',
+          '| --- | ----',
+          '| alpha | omega',
+          '',
+        ].join('\n'),
+      );
+
+      const content =
+        generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
+
+      expect(content).toContain('| Left | Right\n| --- | ----\n| alpha | omega');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('rewrites resolve-project-knowledge.ts invocations to the bundled review-knowledge subcommand', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-knowledge-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');

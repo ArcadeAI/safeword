@@ -68,7 +68,56 @@ describe('Codex plugin catalogue runtime authority', () => {
     }).not.toThrow();
   });
 
-  it('rejects an unpinned Codex helper invocation', () => {
+  it('rejects a generated catalogue that retains any project-runtime path', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-residual-runtime-'));
+    const canonical = nodePath.join(root, 'canonical');
+    const plugin = nodePath.join(root, 'plugin');
+    try {
+      mkdirSync(nodePath.join(canonical, 'audit'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonical, 'audit/SKILL.md'),
+        [
+          '---',
+          'name: audit',
+          'description: Audit changes',
+          '---',
+          '',
+          'Read `.safeword/templates/unmapped.md`.',
+          '',
+        ].join('\n'),
+      );
+      writeCodexPluginCatalogue(canonical, plugin, '1.2.3');
+
+      expect(() => {
+        assertCodexPluginCatalogue(canonical, plugin, '1.2.3');
+      }).toThrow('Native plugin assets reference project-local executable runtime');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an unexpected non-Markdown skill asset', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unexpected-asset-'));
+    const canonical = nodePath.join(root, 'canonical');
+    const plugin = nodePath.join(root, 'plugin');
+    try {
+      mkdirSync(nodePath.join(canonical, 'audit'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonical, 'audit/SKILL.md'),
+        ['---', 'name: audit', 'description: Audit changes', '---', '', 'Audit.', ''].join('\n'),
+      );
+      writeCodexPluginCatalogue(canonical, plugin, '1.2.3');
+      writeFileSync(nodePath.join(plugin, 'skills/audit/runtime.js'), 'export {};\n');
+
+      expect(() => {
+        assertCodexPluginCatalogue(canonical, plugin, '1.2.3');
+      }).toThrow('Codex plugin has unexpected asset: skills/audit/runtime.js');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects generated catalogue drift when a pinned runtime path changes', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unpinned-'));
     const canonical = nodePath.join(root, 'canonical');
     const plugin = nodePath.join(root, 'plugin');

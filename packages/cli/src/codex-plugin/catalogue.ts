@@ -3,6 +3,8 @@ import nodePath from 'node:path';
 
 import { parse, stringify } from 'yaml';
 
+import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
+
 export interface GeneratedPluginAsset {
   relativePath: string;
   content: string;
@@ -39,15 +41,19 @@ const SUPPORTED_SOURCE_METADATA = new Set([
   'user-invocable',
 ]);
 
-function markdownFiles(directory: string, prefix = ''): string[] {
+function files(directory: string, prefix = ''): string[] {
   return readdirSync(directory, { withFileTypes: true })
     .flatMap(entry => {
       const relativePath = nodePath.join(prefix, entry.name);
       const absolutePath = nodePath.join(directory, entry.name);
-      if (entry.isDirectory()) return markdownFiles(absolutePath, relativePath);
-      return entry.isFile() && entry.name.endsWith('.md') ? [relativePath] : [];
+      if (entry.isDirectory()) return files(absolutePath, relativePath);
+      return entry.isFile() ? [relativePath] : [];
     })
     .toSorted((left, right) => left.localeCompare(right));
+}
+
+function markdownFiles(directory: string): string[] {
+  return files(directory).filter(relativePath => relativePath.endsWith('.md'));
 }
 
 function canonicalSkillPath(relativePath: string): { skill: string; filename: string } {
@@ -487,21 +493,36 @@ function formatMarkdownTable(rows: string[][]): string[] {
   });
 }
 
-/** Keep transformed Markdown tables stable under the repository's Prettier config. */
+function isClosedPipeTableStart(
+  header: string | undefined,
+  delimiter: string | undefined,
+): { header: string; delimiter: string } | undefined {
+  if (
+    header?.startsWith('|') !== true ||
+    !header.endsWith('|') ||
+    delimiter?.endsWith('|') !== true
+  )
+    return undefined;
+  return { header, delimiter };
+}
+
+/** Normalize closed-pipe Markdown tables while preserving delimiter alignment. */
 function formatMarkdownTables(markdown: string): string {
   const lines = markdown.split('\n');
 
   for (let start = 0; start < lines.length; start += 1) {
-    const header = lines[start];
-    const delimiter = lines[start + 1];
-    if (header === undefined || delimiter === undefined || !header.startsWith('|')) continue;
+    const tableStart = isClosedPipeTableStart(lines[start], lines[start + 1]);
+    if (tableStart === undefined) continue;
+    const { header, delimiter } = tableStart;
 
     const headerCells = tableCells(header);
     if (!isTableDelimiter(tableCells(delimiter), headerCells.length)) continue;
 
     let end = start + 2;
     while (lines[end]?.startsWith('|') === true) end += 1;
-    const rows = lines.slice(start, end).map(line => tableCells(line));
+    const tableLines = lines.slice(start, end);
+    if (tableLines.some(line => !line.endsWith('|'))) continue;
+    const rows = tableLines.map(line => tableCells(line));
     if (rows.some(cells => cells.length !== headerCells.length)) continue;
 
     lines.splice(start, end - start, ...formatMarkdownTable(rows));
@@ -621,7 +642,7 @@ function expectedAssetPaths(assets: GeneratedPluginAsset[]): Set<string> {
 function pluginAssetPaths(pluginDirectory: string): string[] {
   const skillsDirectory = nodePath.join(pluginDirectory, 'skills');
   if (!existsSync(skillsDirectory)) return [];
-  return markdownFiles(skillsDirectory).map(relativePath => nodePath.join('skills', relativePath));
+  return files(skillsDirectory).map(relativePath => nodePath.join('skills', relativePath));
 }
 
 // All three failures below mean the checked-in catalogue no longer matches its
@@ -634,13 +655,6 @@ function pluginAssetPaths(pluginDirectory: string): string[] {
 // where `bun run test:release` surfaces these errors.
 const REGENERATE_REMEDY =
   'Regenerate the catalogue: `bun run generate:codex-plugin` from packages/cli.';
-const UNBUNDLED_RUNTIME_HELPERS = [
-  '.safeword/hooks/run-review.ts',
-  '.safeword/hooks/resolve-project-knowledge.ts',
-  '.safeword/hooks/resolve-namespace-root.ts',
-  '.safeword/hooks/lib/drain-retro-spool.ts',
-] as const;
-
 /** Ensure the checked-in plugin is the exact allowed transformation of canonical skills. */
 export function assertCodexPluginCatalogue(
   canonicalSkillsDirectory: string,
@@ -649,14 +663,7 @@ export function assertCodexPluginCatalogue(
 ): void {
   const expectedAssets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
   assertCodexSkillMetadataBudget(expectedAssets);
-  for (const asset of expectedAssets) {
-    const residualHelper = UNBUNDLED_RUNTIME_HELPERS.find(helper => asset.content.includes(helper));
-    if (residualHelper !== undefined) {
-      throw new Error(
-        `Codex plugin asset retains unbundled runtime helper ${residualHelper}: ${asset.relativePath}\n${REGENERATE_REMEDY}`,
-      );
-    }
-  }
+  assertNativePluginRuntimeAuthority(expectedAssets);
 
   const expectedPaths = expectedAssetPaths(expectedAssets);
   const actualPaths = pluginAssetPaths(pluginDirectory);

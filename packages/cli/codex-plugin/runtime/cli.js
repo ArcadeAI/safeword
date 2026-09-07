@@ -40764,17 +40764,23 @@ var init_operations = __esm(() => {
   };
 });
 
+// src/plugin-runtime-authority.ts
+var init_plugin_runtime_authority = () => {};
+
 // src/codex-plugin/catalogue.ts
 import { existsSync as existsSync37, mkdirSync as mkdirSync13, readdirSync as readdirSync26, readFileSync as readFileSync42, rmSync as rmSync10, writeFileSync as writeFileSync17 } from "fs";
 import nodePath67 from "path";
-function markdownFiles(directory, prefix = "") {
+function files(directory, prefix = "") {
   return readdirSync26(directory, { withFileTypes: true }).flatMap((entry) => {
     const relativePath = nodePath67.join(prefix, entry.name);
     const absolutePath = nodePath67.join(directory, entry.name);
     if (entry.isDirectory())
-      return markdownFiles(absolutePath, relativePath);
-    return entry.isFile() && entry.name.endsWith(".md") ? [relativePath] : [];
+      return files(absolutePath, relativePath);
+    return entry.isFile() ? [relativePath] : [];
   }).toSorted((left, right) => left.localeCompare(right));
+}
+function markdownFiles(directory) {
+  return files(directory).filter((relativePath) => relativePath.endsWith(".md"));
 }
 function canonicalSkillPath(relativePath) {
   const [skill, filename, ...rest] = relativePath.split(nodePath67.sep);
@@ -41001,21 +41007,29 @@ function formatMarkdownTable(rows) {
     return `| ${formattedCells.join(" | ")} |`;
   });
 }
+function isClosedPipeTableStart(header2, delimiter) {
+  if (header2?.startsWith("|") !== true || !header2.endsWith("|") || delimiter?.endsWith("|") !== true)
+    return;
+  return { header: header2, delimiter };
+}
 function formatMarkdownTables(markdown) {
   const lines = markdown.split(`
 `);
   for (let start = 0;start < lines.length; start += 1) {
-    const header2 = lines[start];
-    const delimiter = lines[start + 1];
-    if (header2 === undefined || delimiter === undefined || !header2.startsWith("|"))
+    const tableStart = isClosedPipeTableStart(lines[start], lines[start + 1]);
+    if (tableStart === undefined)
       continue;
+    const { header: header2, delimiter } = tableStart;
     const headerCells = tableCells(header2);
     if (!isTableDelimiter(tableCells(delimiter), headerCells.length))
       continue;
     let end = start + 2;
     while (lines[end]?.startsWith("|") === true)
       end += 1;
-    const rows = lines.slice(start, end).map((line) => tableCells(line));
+    const tableLines = lines.slice(start, end);
+    if (tableLines.some((line) => !line.endsWith("|")))
+      continue;
+    const rows = tableLines.map((line) => tableCells(line));
     if (rows.some((cells) => cells.length !== headerCells.length))
       continue;
     lines.splice(start, end - start, ...formatMarkdownTable(rows));
@@ -41078,6 +41092,7 @@ ${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version2)}`
 }
 var import_yaml3, CODEX_MARKETPLACE_NAME = "safeword", CODEX_PLUGIN_NAME = "safeword", PACKAGED_SKILL_REFERENCES, FRONTMATTER, SUPPORTED_SOURCE_METADATA, SCRIPT_REWRITES, NAMESPACE_ROOT_INVOCATION_PREFIX = 'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"', NAMESPACE_ROOT_KEY, NAMESPACE_ROOT_BASENAME, TRAILING_OPERAND;
 var init_catalogue = __esm(() => {
+  init_plugin_runtime_authority();
   import_yaml3 = __toESM(require_dist(), 1);
   PACKAGED_SKILL_REFERENCES = [
     { skill: "bdd", filename: "adr-template.md" },
@@ -43076,15 +43091,15 @@ async function observeOpenCode(context) {
   });
 }
 function openCodeProfileEffects(kind) {
-  const files = [
+  const files2 = [
     "OpenCode profile plugin",
     "OpenCode Safeword identity",
     "OpenCode Safeword dispatcher"
   ].map((target) => ({ kind, target }));
   return {
     ...EMPTY_EFFECTS3,
-    files,
-    destructive: kind === "remove" ? files.map(({ target }) => ({ kind: "remove", target, operation: "profile" })) : []
+    files: files2,
+    destructive: kind === "remove" ? files2.map(({ target }) => ({ kind: "remove", target, operation: "profile" })) : []
   };
 }
 function openCodeEffects(context) {
@@ -43872,13 +43887,13 @@ function stalePlan(plan) {
 }
 function packageUninstallFailure(applied, packageRemoval, mode, packageFileEffects) {
   const completed = effectsForReconciliation(applied, mode);
-  const files = combinedFileEffects(completed.files, packageFileEffects);
+  const files2 = combinedFileEffects(completed.files, packageFileEffects);
   return createResult({
     state: "failed",
-    changed: completed.destructive.length > 0 || files.length > 0,
+    changed: completed.destructive.length > 0 || files2.length > 0,
     effects: {
       ...completed,
-      files,
+      files: files2,
       network: packageRemoval.attempted ? [
         {
           kind: "package-registry",
@@ -43913,12 +43928,12 @@ async function applyRemoval(cwd, mode, schema) {
   }
   const completed = effectsForReconciliation(applied, mode);
   const packageEffects = packageRemoval.installed ? applied.packagesToRemove.map((target) => ({ kind: "remove", target })) : [];
-  const files = combinedFileEffects(completed.files, packageFileEffects);
+  const files2 = combinedFileEffects(completed.files, packageFileEffects);
   return createResult({
-    state: completed.destructive.length === 0 && packageEffects.length === 0 && files.length === 0 ? "healthy" : "changed",
+    state: completed.destructive.length === 0 && packageEffects.length === 0 && files2.length === 0 ? "healthy" : "changed",
     effects: {
       ...completed,
-      files,
+      files: files2,
       packages: packageEffects,
       network: packageRemoval.installed ? packageEffects.map((effect) => ({
         kind: "package-registry",
@@ -46020,14 +46035,14 @@ function setupResult(input) {
     completedEffects,
     claudeProjectPluginEnrolled
   } = input;
-  const files = uniqueEffects([
+  const files2 = uniqueEffects([
     ...packageJsonCreated ? [{ kind: "create", target: "package.json" }] : [],
     ...namespaceMigration.effects,
     ...completedEffects.files
   ]);
   const packages = uniqueEffects(completedEffects.packages);
   const network = uniqueEffects(completedEffects.network);
-  const changed2 = files.length > 0 || packages.length > 0;
+  const changed2 = files2.length > 0 || packages.length > 0;
   const findings = [
     ...packageFindings(installation),
     ...gitFindings(gitInitialized),
@@ -46068,7 +46083,7 @@ function setupResult(input) {
   return createResult({
     state,
     changed: changed2,
-    effects: { files, packages, network },
+    effects: { files: files2, packages, network },
     findings: resultFindings,
     nextActions: [nextAction2],
     data: { configured: true, dependency_install: installation }
@@ -46997,14 +47012,14 @@ function settingsMutationFromContent(original, recognizedHooks) {
 }
 function claudeLegacyMutations(cwd) {
   const legacy = observeClaudeLegacy(cwd);
-  const files = legacy.recognizedFiles.map((path4) => ({
+  const files2 = legacy.recognizedFiles.map((path4) => ({
     path: path4,
     content: null
   }));
   const settings = settingsMutation(cwd, legacy);
   if (settings !== undefined)
-    files.push(settings);
-  return files;
+    files2.push(settings);
+  return files2;
 }
 function claudeCleanupPreconditionDigest(cwd, mutations) {
   return sha2566(JSON.stringify(mutations.map((mutation) => {
@@ -51482,13 +51497,13 @@ __export(exports_lint_gherkin, {
 });
 import { existsSync as existsSync55, readFileSync as readFileSync68, statSync as statSync11 } from "fs";
 import nodePath111 from "path";
-function observeGherkinLint(cwd, files) {
-  const featureFiles = files.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files);
+function observeGherkinLint(cwd, files2) {
+  const featureFiles = files2.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files2);
   const issues = featureFiles.flatMap((file) => lintFile(cwd, file));
   if (issues.length === 0) {
     return createResult({
       state: "healthy",
-      data: { command: "project lint-gherkin", files: featureFiles.length, arguments: files }
+      data: { command: "project lint-gherkin", files: featureFiles.length, arguments: files2 }
     });
   }
   return createResult({
@@ -51498,11 +51513,11 @@ function observeGherkinLint(cwd, files) {
       message: issue2.message,
       retryable: false
     })),
-    data: { command: "project lint-gherkin", files: featureFiles.length, arguments: files }
+    data: { command: "project lint-gherkin", files: featureFiles.length, arguments: files2 }
   });
 }
-function resolveInputFiles(cwd, files) {
-  return files.map((file) => nodePath111.resolve(cwd, file));
+function resolveInputFiles(cwd, files2) {
+  return files2.map((file) => nodePath111.resolve(cwd, file));
 }
 function discoverFeatureFiles(cwd) {
   return collectExecutableFeatureFiles(cwd);
@@ -68140,14 +68155,14 @@ function configCheckResult(inspection) {
 function completeConfigInspection(generated, mainConfigExists) {
   return generated.matches && !mainConfigExists ? { matches: false, reason: "missing" } : generated;
 }
-function syncedConfigResult(inspection, files) {
-  let state = files.length === 0 ? "healthy" : "changed";
+function syncedConfigResult(inspection, files2) {
+  let state = files2.length === 0 ? "healthy" : "changed";
   if (!inspection.matches)
     state = "action_required";
   return createResult({
     state,
-    changed: files.length > 0,
-    effects: { files },
+    changed: files2.length > 0,
+    effects: { files: files2 },
     findings: inspection.matches ? [] : configCheckResult(inspection).findings,
     data: { command: "project sync-config", in_sync: inspection.matches }
   });
@@ -68273,7 +68288,7 @@ async function syncConfigHandler(invocation) {
     });
   }
   const synced = syncConfigCore2(invocation.cwd, architecture2);
-  const files = [
+  const files2 = [
     ...synced.generatedConfig ? [
       {
         kind: generatedConfigExists ? "update" : "create",
@@ -68283,7 +68298,7 @@ async function syncConfigHandler(invocation) {
     ...synced.createdMainConfig ? [{ kind: "create", target: ".dependency-cruiser.cjs" }] : []
   ];
   const after = completeConfigInspection(inspectConfig2(invocation.cwd, architecture2), mainConfigExists || synced.createdMainConfig);
-  return syncedConfigResult(after, files);
+  return syncedConfigResult(after, files2);
 }
 function architectureAdvisories(unreadableWorkspaces) {
   return unreadableWorkspaces.map((workspace) => ({
