@@ -402,7 +402,7 @@ describe('production runtime configuration', () => {
     await runtime.close();
   });
 
-  it('[ORR-020] denies principals outside their assigned relay roles', async () => {
+  it('[ORR-020] denies operator filing and harness reconciliation before GitHub access', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-role-denials-'));
     runtimeDirectories.push(directory);
     const environment = productionEnvironment(directory);
