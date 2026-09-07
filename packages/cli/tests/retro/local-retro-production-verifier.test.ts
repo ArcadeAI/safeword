@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 
 import { verifyLocalRetroProductionReadiness } from '../../scripts/lib/local-retro-production-verifier.js';
+import { verifyCheckedInLocalRetroProductionReadiness } from '../../scripts/verify-local-retro-production-readiness.js';
 import type {
   LocalRetroProductionAttestation,
   LocalRetroReadinessManifest,
@@ -206,7 +207,31 @@ describe('local retro production verifier', () => {
   }
 
   it('correlates each harness through collector, relay, and exact raw GitHub evidence', async () => {
-    await expect(verify(productionFetch())).resolves.toBe(true);
+    await expect(
+      verifyCheckedInLocalRetroProductionReadiness(
+        {
+          GITHUB_TOKEN: 'github-token',
+          SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL: 'collector-secret',
+          SAFEWORD_RETRO_COLLECTOR_ORIGIN: 'https://collector.example',
+          SAFEWORD_RETRO_FAULT_DIGESTS_JSON: JSON.stringify(completeFaultDigests),
+          SAFEWORD_RETRO_HARNESS_EVIDENCE_JSON: JSON.stringify(protectedHarnessEvidence),
+          SAFEWORD_RETRO_RELAY_INSTALLATION_ID: String(installationId),
+          SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL: 'relay-secret',
+          SAFEWORD_RETRO_RELAY_ORIGIN: 'https://relay.example',
+          SAFEWORD_RETRO_RELAY_REPOSITORY: repo,
+          SAFEWORD_RETRO_RELAY_TENANT_ID: tenantId,
+        },
+        productionFetch(),
+        {
+          attestation,
+          git: {
+            buildCommit: () => manifest.evidenceCommit,
+            isAncestor: () => Promise.resolve(true),
+          },
+          manifest,
+        },
+      ),
+    ).resolves.toBe(true);
   });
 
   it.each([

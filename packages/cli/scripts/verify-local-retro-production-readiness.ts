@@ -17,6 +17,12 @@ interface GitProof {
   isAncestor: (ancestor: string, descendant: string) => Promise<boolean>;
 }
 
+interface VerificationSources {
+  attestation: LocalRetroProductionAttestation | { enabled: false; version: 1 };
+  git: GitProof;
+  manifest: LocalRetroReadinessManifest | { enabled: false; version: 1 };
+}
+
 function required(environment: NodeJS.ProcessEnv, name: string): string {
   const value = environment[name]?.trim();
   if (value === undefined || value === '') throw new Error(`missing ${name}`);
@@ -53,6 +59,11 @@ function isGitAncestor(ancestor: string, descendant: string): Promise<boolean> {
 }
 
 const systemGit: GitProof = { buildCommit: gitCommit, isAncestor: isGitAncestor };
+const checkedInSources: VerificationSources = {
+  attestation: checkedInAttestation as VerificationSources['attestation'],
+  git: systemGit,
+  manifest: checkedInManifest as VerificationSources['manifest'],
+};
 
 export function localRetroProductionVerificationOptions(
   environment: NodeJS.ProcessEnv,
@@ -79,12 +90,13 @@ export function localRetroProductionVerificationOptions(
 export async function verifyCheckedInLocalRetroProductionReadiness(
   environment: NodeJS.ProcessEnv,
   transport: typeof fetch = fetch,
+  sources: VerificationSources = checkedInSources,
 ): Promise<boolean> {
-  if (!checkedInManifest.enabled || !checkedInAttestation.enabled) return false;
+  if (!sources.manifest.enabled || !sources.attestation.enabled) return false;
   return verifyLocalRetroProductionReadiness(
-    checkedInManifest as LocalRetroReadinessManifest,
-    checkedInAttestation as LocalRetroProductionAttestation,
-    localRetroProductionVerificationOptions(environment, transport),
+    sources.manifest,
+    sources.attestation,
+    localRetroProductionVerificationOptions(environment, transport, sources.git),
   );
 }
 
