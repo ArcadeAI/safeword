@@ -33,6 +33,7 @@ Affected:
 - Claude Code Cloud
 - OpenAI Codex
 - OpenAI Codex Cloud
+- OpenCode
 - Cursor
 - Cursor Cloud Agents
 
@@ -78,7 +79,7 @@ Affected:
 
 #### executable-red.SWM1.R2 — One receipt may cover shared Scenario Outline rows or reused glue only when they use the same distinct proof implementation
 
-#### executable-red.SWM1.R3 — The advisory reports whether a fresh independent receipt exists; self-review or cached suite status is never presented as equivalent evidence
+#### executable-red.SWM1.R3 — Every supported agent host requires the same fresh, independently witnessed execution receipt before GREEN credit
 
 ## Rave Moment
 
@@ -91,8 +92,15 @@ skip: child feature under a program; trustworthy RED should feel invisible and t
 - Review failures name whether the gap is actor boundary, scenario observable, wrong failure reason, stale evidence, umbrella delegation, or cached/shared state.
 - The normal path adds one bounded independent review, not a second end-to-end implementation cycle.
 - Review artifacts can feed the cross-agent quality evaluation without relying on agent self-report.
-- Route exhaustion remains advisory and names the exact retry or fallback action; no GREEN or done hard gate ships before FY1NHB measures route reliability and false positives.
+- Missing, fabricated, mismatched, incomplete, stale, or non-independent evidence blocks GREEN credit and names the exact recovery action.
+
+## Decisions
+
+- A passing pre-implementation proof is not RED evidence, even when its execution is authentic.
+- Immediately before GREEN, every host repeats the exact executable-RED review request. Safeword reuses an approved receipt only when all bound inputs are unchanged; every other result blocks.
+- An unavailable independent reviewer blocks GREEN and returns the coordinator's recovery action; degraded or self-review evidence cannot authorize the transition.
+- The shared CLI decision is the host-neutral contract. Existing schema and parity checks own per-host installation and invocation wiring.
 
 ## Open Questions
 
-None at intake. Promotion from guidance to harder enforcement must be based on the evaluation and false-positive evidence in FY1NHB.
+None. Blocking enforcement was confirmed in GitHub issue #2336 on 2026-09-07.

@@ -22,6 +22,8 @@ describe('executable RED public CLI wiring', () => {
         'run',
         'executable-red',
         'proof.md',
+        '--scenario',
+        'Scenario: actor boundary',
         '--proof-cwd',
         '.',
         '--evidence-class',

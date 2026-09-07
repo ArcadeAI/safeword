@@ -43,6 +43,12 @@ Feature: Trust executable RED before production implementation
       Then the reviewer approves the failure as evidence of the intended missing behavior
 
     @rejection
+    Scenario: A passing proof cannot earn RED approval
+      Given trusted execution evidence for a primary proof that passes before the behavior is implemented
+      When an independent reviewer compares it with the scenario and proof plan
+      Then the reviewer rejects the proof because no missing behavior failed
+
+    @rejection
     Scenario Outline: A wrong-reason failure is rejected
       Given trusted execution evidence for a <failure reason> failure
       When an independent reviewer compares it with the scenario and proof plan
@@ -79,10 +85,11 @@ Feature: Trust executable RED before production implementation
   Rule: executable-red.NTB1.R1 — Failed review explains the gap and the next action plainly
 
     @rejection
-    Scenario: Independent review routes are exhausted during advisory rollout
+    Scenario: Unavailable independent review blocks GREEN approval
       Given trusted RED execution evidence and no available independent review route
       When the builder requests executable-RED review
-      Then the result says the proof is not independently confirmed and names the exact retry or fallback action
+      Then Safeword blocks GREEN and names the exact reviewer recovery action
+      And explains that the selected check still needs independent approval without using the terms RED, GREEN, receipt, or gate
 
   @executable-red.NTB1.R2
   Rule: executable-red.NTB1.R2 — Genuine shared proofs avoid repeated review ceremony
@@ -101,6 +108,7 @@ Feature: Trust executable RED before production implementation
   @executable-red.SWM1.R1
   @surface.claude-code @surface.claude-code-cloud
   @surface.openai-codex @surface.openai-codex-cloud
+  @surface.opencode
   @surface.cursor @surface.cursor-cloud-agents
   Rule: executable-red.SWM1.R1 — Every agent sends one complete host-neutral RED review packet
 
@@ -130,17 +138,32 @@ Feature: Trust executable RED before production implementation
         | different canonical proof inputs    | not reused    |
 
   @executable-red.SWM1.R3
-  Rule: executable-red.SWM1.R3 — Advisory status never overstates independent evidence
+  Rule: executable-red.SWM1.R3 — Every supported host requires the same fresh receipt before GREEN
 
+    @surface.claude-code @surface.claude-code-cloud
+    @surface.openai-codex @surface.openai-codex-cloud
+    @surface.opencode
+    @surface.cursor @surface.cursor-cloud-agents @surface.safeword-cli
     @rejection
-    Scenario Outline: The advisory describes the current evidence honestly
-      Given executable RED has <review state>
-      When Safeword reports its implementation-readiness advisory
-      Then the advisory says <message>
+    Scenario Outline: Invalid executable-RED evidence blocks the shared GREEN transition
+      Given the current primary proof has <evidence problem>
+      When a supported host repeats the exact executable-RED review request before GREEN
+      Then Safeword blocks GREEN and names the unproved behavior
 
       Examples:
-        | review state                | message                              |
-        | a fresh approved receipt    | independently confirmed              |
-        | no fresh approved receipt   | not independently confirmed          |
-        | an author self-review only  | not independently confirmed          |
-        | cached passing suite status | not independently confirmed          |
+        | evidence problem                         |
+        | no approved receipt                      |
+        | a fabricated receipt                     |
+        | a receipt for another proof              |
+        | an incomplete proof packet               |
+        | a stale receipt after proof inputs change |
+        | a non-independent verdict                |
+
+    @surface.claude-code @surface.claude-code-cloud
+    @surface.openai-codex @surface.openai-codex-cloud
+    @surface.opencode
+    @surface.cursor @surface.cursor-cloud-agents @surface.safeword-cli
+    Scenario: Fresh exact executable-RED evidence permits the shared GREEN transition
+      Given the current primary proof has a fresh independently approved receipt for its exact request
+      When a supported host repeats the exact executable-RED review request before GREEN
+      Then Safeword permits GREEN without executing or reviewing the unchanged proof again

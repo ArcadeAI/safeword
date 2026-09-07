@@ -44,6 +44,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN dd24f7558
 - [x] REFACTOR skip: one generated fixed rubric owns failure-attribution policy
 
+### Scenario: A passing proof cannot earn RED approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: A wrong-reason failure is rejected
 
 - [x] RED skip: covered by the missing executable-RED rubric and packet contract
@@ -60,11 +66,11 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: executable-red.NTB1.R1 — Failed review explains the gap and the next action plainly
 
-### Scenario: Independent review routes are exhausted during advisory rollout
+### Scenario: Unavailable independent review blocks GREEN approval
 
-- [x] RED skip: exercised by existing exhausted-route coordinator tests against the new review kind
-- [x] GREEN dd24f7558
-- [x] REFACTOR 77ebbc9b1
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: executable-red.NTB1.R2 — Genuine shared proofs avoid repeated review ceremony
 
@@ -102,14 +108,20 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 6cfd94e48
 - [x] REFACTOR 77ebbc9b1
 
-## Rule: executable-red.SWM1.R3 — Advisory status never overstates independent evidence
+## Rule: executable-red.SWM1.R3 — Every supported host requires the same fresh receipt before GREEN
 
-### Scenario Outline: The advisory describes the current evidence honestly
+### Scenario Outline: Invalid executable-RED evidence blocks the shared GREEN transition
 
-- [x] RED skip: advisory wording and evidence truthfulness were introduced with the canonical workflow contract
-- [x] GREEN dd24f7558
-- [x] REFACTOR skip: one host-neutral workflow paragraph is generated to every supported surface
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Fresh exact executable-RED evidence permits the shared GREEN transition
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario 1d867be90
+- [ ] cross-scenario
