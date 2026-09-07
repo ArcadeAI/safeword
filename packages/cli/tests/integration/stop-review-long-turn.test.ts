@@ -17,13 +17,14 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
+import { createTemporaryDirectory, removeTemporaryDirectory, writeGateConfig } from '../helpers';
 import { createStopHookTicket, runStopHook } from '../helpers/stop-hook';
 
 const state: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeEach(() => {
   state.projectDirectory = createTemporaryDirectory();
+  writeGateConfig(state.projectDirectory, { stopQualityReview: true });
   mkdirSync(nodePath.join(state.projectDirectory, '.safeword'), { recursive: true });
   createStopHookTicket(state.projectDirectory, {
     id: '099',
