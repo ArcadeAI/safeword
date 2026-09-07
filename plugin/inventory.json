@@ -379,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "98d1c197dacc7a6c8a366070155f84280230889b54dad918f790b01c4c095c7d"
+      "sha256": "46f97f2ab26fd89bcab0c5573d82ef93475c2559c5b6547617b2a62e0a781d37"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -427,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "e7819689a7cfa55a6d36c104f51a0edfdcc233abe8761ae15e8ded722082d94b"
+      "sha256": "7cab1fa2deb53a57d4cb8da28d26534e0e87ed0eb5278994f04ae2ebb2f40d59"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "e84995a3610be18211a2b4cc251f363559391c7f8a652c3b34f5425f57c38058"
+      "sha256": "00f78aab0f760e250336a7b30b7bfe508f6cd443f2c1d7c7117b9d58bf14e5d9"
     },
     {
       "path": "skills/audit/SKILL.md",
