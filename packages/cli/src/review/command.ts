@@ -25,6 +25,7 @@ export function retryCommand(
     execution === undefined
       ? ''
       : [
+          ` --scenario ${shellQuote(execution.scenario)}`,
           ` --proof-cwd ${shellQuote(execution.cwd)}`,
           ` --evidence-class ${execution.evidenceClass}`,
           ` --expected-failure ${shellQuote(execution.expectedFailure)}`,

@@ -1060,6 +1060,83 @@ function reusableApprovedExecutableRedJob(
   return undefined;
 }
 
+function approvedCrossAgentReceipt(record: ReviewJobRecord): boolean {
+  const data = record.result?.data as Record<string, unknown> | undefined;
+  const attestation = data?.execution_attestation as Record<string, unknown> | undefined;
+  return [
+    record.state === 'completed',
+    data?.status === 'approved',
+    data?.independence === 'cross-agent',
+    typeof data?.author_agent === 'string',
+    typeof data?.actual_reviewer === 'string',
+    data?.author_agent !== data?.actual_reviewer,
+    attestation?.source_fingerprint === record.source_fingerprint,
+  ].every(Boolean);
+}
+
+function executableRedJobsForScenario(cwd: string, scenario: string): ReviewJobRecord[] {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory).flatMap(name => {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
+    try {
+      const record = readJob(cwd, name.slice(0, -5));
+      return record.kind === 'executable-red' && record.execution?.scenario === scenario
+        ? [record]
+        : [];
+    } catch {
+      return []; // Invalid or fabricated records cannot authorize GREEN.
+    }
+  });
+}
+
+function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
+  return (
+    fingerprint(cwd, record.kind, record.targets, record.context, record.execution) ===
+    record.source_fingerprint
+  );
+}
+
+function approvedExecutableRedGateResult(record: ReviewJobRecord, scenario: string): CliResult {
+  return createResult({
+    state: 'healthy',
+    findings: [
+      {
+        code: 'EXECUTABLE_RED_GATE_APPROVED',
+        message: `GREEN is authorized for ${scenario} by a fresh independent executable RED review.`,
+        severity: 'info',
+      },
+    ],
+    data: {
+      command: 'review gate executable-red',
+      status: 'approved',
+      review_id: record.id,
+      scenario,
+    },
+  });
+}
+
+export function executableRedGate(cwd: string, scenario: string): CliResult {
+  const matching = executableRedJobsForScenario(cwd, scenario);
+  const current = matching.filter(record => hasCurrentFingerprint(cwd, record));
+  const approved = current.find(record => approvedCrossAgentReceipt(record));
+  if (approved !== undefined) return approvedExecutableRedGateResult(approved, scenario);
+
+  let reason =
+    matching.length > 0
+      ? `The current executable RED review for ${scenario} is not an approved independent receipt.`
+      : `No trusted executable RED receipt matches ${scenario}.`;
+  reason =
+    matching.length > current.length
+      ? `The executable RED approval for ${scenario} is stale because its declared proof inputs changed.`
+      : reason;
+  return createResult({
+    state: 'action_required',
+    findings: [{ code: 'EXECUTABLE_RED_GATE_BLOCKED', message: reason, severity: 'warning' }],
+    data: { command: 'review gate executable-red', status: 'blocked', scenario },
+  });
+}
+
 function isActiveReviewJob(record: ReviewJobRecord): boolean {
   if (record.pid === undefined) return false;
   // Active records are integrity-protected before reaching this point. A

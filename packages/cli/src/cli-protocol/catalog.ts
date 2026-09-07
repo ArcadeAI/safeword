@@ -541,6 +541,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         hidden: true,
       },
       {
+        flags: '--scenario <name>',
+        description: 'Exact scenario identity covered by this RED proof',
+      },
+      {
         flags: '--proof-cwd <path>',
         description: 'Project-contained working directory for the RED proof',
         defaultValue: '.',
@@ -573,6 +577,19 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     syntax: 'status [review-id]',
     fixture: {
       argv: ['review', 'status'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review gate executable-red', 'Check whether a scenario may claim GREEN', 'observe', {
+    syntax: 'executable-red',
+    commandOptions: [
+      {
+        flags: '--scenario <name>',
+        description: 'Exact scenario identity whose current RED receipt is required',
+      },
+    ],
+    fixture: {
+      argv: ['review', 'gate', 'executable-red', '--scenario', 'Scenario: fixture'],
       environment: MACHINE_ENVIRONMENT,
     },
   }),

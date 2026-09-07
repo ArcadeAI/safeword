@@ -95,6 +95,7 @@ plan, then ask Safeword to execute and independently review each distinct proof 
 
 ```bash
 bun .safeword/hooks/run-review.ts review run executable-red \
+  --scenario 'Scenario: exact ledger heading' \
   --context path/to/scenario.feature \
   --context path/to/impl-plan.md \
   --proof-cwd . \
@@ -105,12 +106,13 @@ bun .safeword/hooks/run-review.ts review run executable-red \
 ```
 
 Pass JSON argv, never shell text. Include the scenario, proof-plan row, primary proof target, and
-every support file whose change would invalidate the evidence. One fresh approved receipt may cover
+every support file whose change would invalidate the evidence. Use the exact active ledger heading
+as `--scenario`. One fresh approved receipt may cover
 Scenario Outline rows only when their canonical command and declared proof targets are identical.
-This is advisory until FY1NHB measures route reliability, false positives, and latency: say
-“independently confirmed” only for a fresh approved receipt. With no fresh approved receipt, an
-author self-review only, or cached passing suite status, say “not independently confirmed” and
-follow the exact retry or fallback action.
+The shared edit gate blocks the GREEN checkbox until `review gate executable-red` finds a fresh
+approved cross-agent receipt for that scenario. Missing, stale, fabricated, incomplete, mismatched,
+passing, wrong-reason, or same-agent evidence cannot authorize GREEN. Follow the exact recovery
+action and leave GREEN unchecked when independent review is unavailable.
 
 ### Checkbox Format Contract
 

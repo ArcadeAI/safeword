@@ -14340,6 +14340,7 @@ function retryCommand(kind, targets, context = [], execution) {
   const quoted = targets.map((target) => shellQuote(target)).join(" ");
   const contextOption = context.length === 0 ? "" : ` ${context.map((target) => contextArgument(target)).join(" ")}`;
   const executionOptions = execution === undefined ? "" : [
+    ` --scenario ${shellQuote(execution.scenario)}`,
     ` --proof-cwd ${shellQuote(execution.cwd)}`,
     ` --evidence-class ${execution.evidenceClass}`,
     ` --expected-failure ${shellQuote(execution.expectedFailure)}`,
@@ -35877,6 +35878,7 @@ __export(exports_job, {
   reviewJobStatus: () => reviewJobStatus,
   relayManagedWorkerStderr: () => relayManagedWorkerStderr,
   readReviewRouteProofs: () => readReviewRouteProofs,
+  executableRedGate: () => executableRedGate,
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob
 });
@@ -36704,6 +36706,69 @@ function reusableApprovedExecutableRedJob(cwd, sourceFingerprint) {
     } catch {}
   }
   return;
+}
+function approvedCrossAgentReceipt(record) {
+  const data = record.result?.data;
+  const attestation = data?.execution_attestation;
+  return [
+    record.state === "completed",
+    data?.status === "approved",
+    data?.independence === "cross-agent",
+    typeof data?.author_agent === "string",
+    typeof data?.actual_reviewer === "string",
+    data?.author_agent !== data?.actual_reviewer,
+    attestation?.source_fingerprint === record.source_fingerprint
+  ].every(Boolean);
+}
+function executableRedJobsForScenario(cwd, scenario) {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync28(directory))
+    return [];
+  return readdirSync23(directory).flatMap((name) => {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name))
+      return [];
+    try {
+      const record = readJob(cwd, name.slice(0, -5));
+      return record.kind === "executable-red" && record.execution?.scenario === scenario ? [record] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+function hasCurrentFingerprint(cwd, record) {
+  return fingerprint(cwd, record.kind, record.targets, record.context, record.execution) === record.source_fingerprint;
+}
+function approvedExecutableRedGateResult(record, scenario) {
+  return createResult({
+    state: "healthy",
+    findings: [
+      {
+        code: "EXECUTABLE_RED_GATE_APPROVED",
+        message: `GREEN is authorized for ${scenario} by a fresh independent executable RED review.`,
+        severity: "info"
+      }
+    ],
+    data: {
+      command: "review gate executable-red",
+      status: "approved",
+      review_id: record.id,
+      scenario
+    }
+  });
+}
+function executableRedGate(cwd, scenario) {
+  const matching = executableRedJobsForScenario(cwd, scenario);
+  const current = matching.filter((record) => hasCurrentFingerprint(cwd, record));
+  const approved = current.find((record) => approvedCrossAgentReceipt(record));
+  if (approved !== undefined)
+    return approvedExecutableRedGateResult(approved, scenario);
+  let reason = matching.length > 0 ? `The current executable RED review for ${scenario} is not an approved independent receipt.` : `No trusted executable RED receipt matches ${scenario}.`;
+  reason = matching.length > current.length ? `The executable RED approval for ${scenario} is stale because its declared proof inputs changed.` : reason;
+  return createResult({
+    state: "action_required",
+    findings: [{ code: "EXECUTABLE_RED_GATE_BLOCKED", message: reason, severity: "warning" }],
+    data: { command: "review gate executable-red", status: "blocked", scenario }
+  });
 }
 function isActiveReviewJob(record) {
   if (record.pid === undefined)
@@ -67877,6 +67942,13 @@ async function reviewRunHandler(invocation) {
     return invalidOperand("review run", execution.message);
   return startReviewInBackground(invocation, rawKind, targets, context, execution);
 }
+async function executableRedGateHandler(invocation) {
+  const scenario = invocation.options.scenario;
+  if (typeof scenario !== "string" || scenario.trim() === "")
+    return invalidOperand("review gate executable-red", "Executable RED gate requires a non-empty --scenario.");
+  const { executableRedGate: executableRedGate2 } = await Promise.resolve().then(() => (init_job(), exports_job));
+  return executableRedGate2(invocation.cwd, scenario);
+}
 function reviewRouteAuthor(value) {
   return typeof value === "string" && ["claude", "codex", "opencode"].includes(value) ? value : undefined;
 }
@@ -68042,6 +68114,9 @@ var RED_EVIDENCE_CLASSES = new Set([
 function redExecutionRequest(kind, options) {
   if (kind !== "executable-red")
     return;
+  const scenario = options.scenario;
+  if (typeof scenario !== "string" || scenario.trim() === "")
+    return new Error("Executable-red review requires a non-empty --scenario.");
   const rawArgv = options.execute;
   let argv;
   try {
@@ -68064,6 +68139,7 @@ function redExecutionRequest(kind, options) {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600000)
     return new Error("--execution-timeout must be an integer from 1 to 600000 milliseconds.");
   return {
+    scenario,
     argv,
     cwd,
     evidenceClass,
@@ -69320,6 +69396,7 @@ var HANDLERS = {
   "ticket new": ticketNewHandler,
   "ticket reconcile-parent": ticketReconcileParentHandler,
   "review run": reviewRunHandler,
+  "review gate executable-red": executableRedGateHandler,
   "review status": reviewStatusHandler,
   "review routes set": reviewRoutesSetHandler,
   "review routes list": reviewRoutesListHandler,
@@ -69740,6 +69817,10 @@ var CANONICAL_COMMANDS = [
         hidden: true
       },
       {
+        flags: "--scenario <name>",
+        description: "Exact scenario identity covered by this RED proof"
+      },
+      {
         flags: "--proof-cwd <path>",
         description: "Project-contained working directory for the RED proof",
         defaultValue: "."
@@ -69772,6 +69853,19 @@ var CANONICAL_COMMANDS = [
     syntax: "status [review-id]",
     fixture: {
       argv: ["review", "status"],
+      environment: MACHINE_ENVIRONMENT
+    }
+  }),
+  command("review gate executable-red", "Check whether a scenario may claim GREEN", "observe", {
+    syntax: "executable-red",
+    commandOptions: [
+      {
+        flags: "--scenario <name>",
+        description: "Exact scenario identity whose current RED receipt is required"
+      }
+    ],
+    fixture: {
+      argv: ["review", "gate", "executable-red", "--scenario", "Scenario: fixture"],
       environment: MACHINE_ENVIRONMENT
     }
   }),
