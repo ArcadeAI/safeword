@@ -82,11 +82,32 @@ path-adaptation seam are the smallest coherent design, and the reported
 `plugin-runtime-authority.ts` orphan is deliberate release-contract
 infrastructure imported by the host authority suites.
 
-Independent quality review is not complete for this repair. The configured
-review coordinator was refused because its request would disclose eight named
-private repository files to an external reviewer without explicit user
-authorization. No fallback approval is claimed; the epic remains in progress
-until that authorization is granted and the review completes.
+After explicit authorization for the bounded eight-file packet, four independent
+Claude Opus reviews approved the repair with no error-level findings:
+`4a2498a4-5e2c-42a9-8f48-5fd8621bec43`,
+`5c9ea6e2-e0a8-4123-ae1a-6521b0e687ec`,
+`07442320-2264-48e4-b4a6-8f0ba2a95678`, and the current-head review
+`b4ac7a20-4494-4b2f-bc0a-6b05a97750f1`. Review feedback made catalogue
+validation compose the shared runtime-authority guard before writes, reject
+unexpected non-Markdown assets, and preserve valid Markdown table forms that
+the simple normalizer cannot parse safely. The regenerated Codex and Claude
+bundles then passed all 60 release checks; CLI lint and TypeScript passed.
+
+The final review's remaining warnings do not invalidate a saved scenario or the
+current canonical corpus. Real versioned-cache installation and execution are
+proved by the broader integration and release suites outside its bounded packet.
+The unavailable-package scenario exercises the generated review command, while
+the sourced audit-helper cases cover failures after its bundled CLI starts. The
+hypothetical interpreter-prefixed cleanup command and `./bdd` prose forms are
+absent from canonical inputs, whose generated output is release-validated.
+Codex metadata reduction is deliberate and directly tested. Those observations
+are retained as future adapter-hardening opportunities rather than expanding
+this repair into a general Markdown or shell parser.
+
+The current-head dependency gate completed with zero errors across 397 modules
+and 1,369 dependencies. Its four warnings are the known generated review-rubric
+and host-entrypoint files, not new dependency violations. `git diff --check`
+passed and the working tree was clean at production commit `6be66b42b`.
 
 ## Surface evidence
 
