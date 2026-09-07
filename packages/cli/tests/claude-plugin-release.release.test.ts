@@ -103,6 +103,19 @@ describe('Claude plugin release contract', () => {
     expect(workflow).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
   });
 
+  it('checks out full history before verifying local retro evidence ancestry', () => {
+    const workflow = readFileSync(
+      nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
+      'utf8',
+    );
+    const verifierJob = workflow.slice(
+      workflow.indexOf('  verify-local-retro-production:'),
+      workflow.indexOf('  publish:'),
+    );
+
+    expect(verifierJob).toContain('fetch-depth: 0');
+  });
+
   it('watches platform drift with a sandbox-only advisory canary', () => {
     const canary = readFileSync(
       nodePath.join(REPO_ROOT, '.github/workflows/advisory-pr-review-canary.yml'),
