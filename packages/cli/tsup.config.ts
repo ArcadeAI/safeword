@@ -5,6 +5,8 @@ import process from 'node:process';
 
 import { defineConfig } from 'tsup';
 
+import { digestLocalRetroReadinessManifest } from './src/retro/readiness-digest.js';
+
 const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
 const PUBLIC_RETRO_ORIGIN =
   process.env.SAFEWORD_PUBLIC_RETRO_BUILD_ORIGIN ??
@@ -134,7 +136,7 @@ function localRetroAncestorPairs(): { ancestor: string; descendant: string }[] {
   ) {
     throw new Error('enabled local retro readiness manifest contains an unsafe commit');
   }
-  const manifestSha256 = createHash('sha256').update(JSON.stringify(localManifest)).digest('hex');
+  const manifestSha256 = digestLocalRetroReadinessManifest(localManifest);
   if (
     !localProductionAttestation.enabled ||
     localProductionAttestation.manifestSha256 !== manifestSha256

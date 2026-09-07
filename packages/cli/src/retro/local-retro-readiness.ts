@@ -1,7 +1,8 @@
-import { createHash } from 'node:crypto';
-
 import checkedInProductionAttestation from './local-retro-production-attestation.json' with { type: 'json' };
 import checkedInManifest from './local-retro-readiness-manifest.json' with { type: 'json' };
+import { digestLocalRetroReadinessManifest } from './readiness-digest.js';
+
+export { digestLocalRetroReadinessManifest } from './readiness-digest.js';
 
 export interface LocalRetroReadinessManifest {
   enabled: true;
@@ -154,8 +155,7 @@ function validProductionAttestation(
     reviewedAt.toISOString() === manifest.reviewedAt &&
     !Number.isNaN(verifiedAt.getTime()) &&
     reviewedAt.getTime() <= verifiedAt.getTime() &&
-    attestation.manifestSha256 ===
-      createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
+    attestation.manifestSha256 === digestLocalRetroReadinessManifest(manifest)
   );
 }
 

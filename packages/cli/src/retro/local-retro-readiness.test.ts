@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import {
+  digestLocalRetroReadinessManifest,
   isLocalRetroProductionAttestationFresh,
   type LocalRetroReadinessManifest,
   validateLocalRetroReadiness,
@@ -78,6 +79,14 @@ function productionEvidence(
 }
 
 describe('local retro readiness', () => {
+  it('binds attestation to manifest content without depending on key order', () => {
+    const reordered = Object.fromEntries(Object.entries(completeManifest).toReversed());
+
+    expect(digestLocalRetroReadinessManifest(reordered)).toBe(
+      digestLocalRetroReadinessManifest(completeManifest),
+    );
+  });
+
   it('rejects a locally fabricated enabled manifest while production authority is unavailable', () => {
     expect(validateLocalRetroReadiness(fabricatedManifest, fabricatedEvidence)).toBe(false);
   });

@@ -7,6 +7,7 @@ import type {
   LocalRetroProductionAttestation,
   LocalRetroReadinessManifest,
 } from '../../src/retro/local-retro-readiness.js';
+import { digestLocalRetroReadinessManifest } from '../../src/retro/local-retro-readiness.js';
 
 const repo = 'ArcadeAI/safeword';
 const tenantId = 'production';
@@ -85,7 +86,7 @@ const attestation: LocalRetroProductionAttestation = {
     codex: 'codex-desktop',
     cursor: 'cursor-desktop',
   },
-  manifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
+  manifestSha256: digestLocalRetroReadinessManifest(manifest),
   verifiedAt: '2026-09-07T18:30:00.000Z',
   version: 1,
 };
