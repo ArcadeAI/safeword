@@ -70,10 +70,10 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ### Public retrospective collector boundary
 
-> **Cutover status:** The queue and worker implementation described below is
-> present, but local clients remain on direct filing. The production server route
-> is compiled fail-closed until an independent verifier and the required canary
-> and fault evidence exist.
+> **Cutover status:** The queue, worker, and independent release verifier described
+> below are present, but local clients remain on direct filing. The production
+> server route is compiled fail-closed until the required protected canary and
+> fault evidence exists.
 
 `packages/retro-collector` accepts released canonical `v1` single-finding bodies,
 canonical `v2` ordered finding batches, and server-owned `v3` local batches without
@@ -93,7 +93,7 @@ quota-blocked work stays queued and reaches an alerted dead letter after 24 hour
 
 ### Cutover-gated collector transfer worker boundary
 
-The planned single-replica Railway worker has no public route and no customer credential.
+The single-replica Railway worker has no public route and no customer credential.
 It leases FIFO `v3` rows over private networking, forwards the original bytes,
 collector digest and request UUID to the relay's dedicated
 `collector-worker` principal, and completes collector ownership only after relay

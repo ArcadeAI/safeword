@@ -1,7 +1,7 @@
 # Impl Plan: Route local retros through the durable server
 
-**Status:** planned
-**Implementation state:** Transport, durable ownership, worker, and deployment paths are built. Readiness exists only as an unconditional fail-closed stub; its enabling evaluator, discriminating rejection tests, and production fault evidence remain unimplemented, so global cutover stays disabled.
+**Status:** implemented
+**Implementation state:** Transport, durable ownership, worker, deployment, and the fail-closed production readiness evaluator are built. Global cutover stays disabled until protected production evidence for every local harness and required fault outcome is captured and validated at release.
 **Planned on:** 2026-08-29
 
 ## Approach
@@ -57,7 +57,7 @@ Figure It Out debate: moving intake into the relay is operationally compact but 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
 | Optimize for the NTB without constraining the TBU | Zero customer credentials or setup; opt-out remains project-owned; operators retain payload-free status and audited recovery | `packages/retro-collector/tests/public-retro.integration.test.ts` |  |
-| 1. Structure enforces; instructions suggest | Durable receipt gates local cleanup; private credentials gate filing; readiness artifacts will gate cutover | `packages/retro-collector/tests/worker.integration.test.ts`; cutover proof pending the authoritative readiness evaluator |  |
+| 1. Structure enforces; instructions suggest | Durable receipt gates local cleanup; private credentials gate filing; readiness artifacts gate cutover | `packages/cli/tests/retro/local-retro-production-verifier.test.ts` |  |
 | 2. Fire at boundaries, not every turn | Transport runs only at existing retrospective lifecycle boundaries and shares one stop budget | `packages/cli/tests/commands/retro.test.ts` |  |
 | 3. Add, never replace | Pre-cutover drafts keep their route and project opt-out remains authoritative | `packages/cli/tests/hooks/retro-draft-spool.test.ts` |  |
 | 5. Correct and safe; then clear; then simple | Reuse Node SQLite and relay lifecycle; no new broker, database, client secret, or duplicate mechanism | `packages/retro-relay/tests/relay.integration.test.ts` |  |
