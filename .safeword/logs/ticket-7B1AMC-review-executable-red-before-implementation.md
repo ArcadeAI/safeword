@@ -47,3 +47,8 @@
   generated contracts, Astro diagnostics, and diff-scoped dependency architecture checks are clean.
   The external independent-review dispatch was blocked by host approval policy, so no independent
   quality-review coverage is claimed.
+- Rebased onto current `origin/main`, regenerated Claude/Codex bundles and origin-main lifecycle
+  fixtures under pinned Bun 1.3.14, and reran the delivery lanes: 9,211 Vitest tests, 592 Cucumber
+  scenarios, lint, typecheck, builds, source-install reconciliation, and generated freshness checks
+  pass. User confirmed completion; the ticket moved to done. PR readiness remains Draft because the
+  configured independent AI review route is unavailable under host approval policy.
