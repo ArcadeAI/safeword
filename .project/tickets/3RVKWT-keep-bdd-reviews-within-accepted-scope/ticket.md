@@ -37,3 +37,4 @@ last_modified: 2026-09-07T14:45:22.472Z
 - 2026-09-07T14:48:00Z RED: The new contract failed on all five shipped BDD guidance surfaces.
 - 2026-09-07T14:49:00Z GREEN: Added one scenario-gate triage paragraph and regenerated existing mirrors; 22 focused tests, 22 adjacent release contracts, and all 263 parity pairs plus 8 contracts pass.
 - 2026-09-07T15:06:00Z VERIFY: Focused and release-contract tests, parity, lint, formatting, pinned generator checks, and configured typechecks pass. Full BDD/build verification is locally limited by loopback-binding restrictions, npm cache ownership, fixture dependency installation, and a missing native website dependency; keeping the pull request Draft.
+- 2026-09-07T22:43:00Z CI repair: Both Node lanes exposed the six expected Codex/Cursor lifecycle tree snapshots omitted after the BDD template changed. Regenerated only those hashes; the lifecycle and scope contracts pass 35/35.
