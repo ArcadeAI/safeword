@@ -28,9 +28,9 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/brainstorm/SKILL.md':
         'fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e',
       '.claude/skills/cleanup-zombies/SKILL.md':
-        'e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289',
+        '9bcba1068e8afe8420fa086dfa263991c367f6657f09fb76cb54557b2c32bb08',
       '.claude/skills/closeout/SKILL.md':
-        '1fcbf06b7acf0e549cad4b964fbde3e4dc31feb601e75516041ec211c1bcb66a',
+        '3d3c519ea7f6f4b221f8f4538c1260887c2be8fd201333df4136af12622be9d0',
       '.claude/skills/debug/SKILL.md':
         'ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0',
       '.claude/skills/demand-research/SKILL.md':
@@ -54,17 +54,17 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
-        'ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0',
+        'd094ee0c8a0f9aa8f1687ba8329f0d259560d6186bbc92379db12ffce26958da',
       '.claude/skills/retro/SKILL.md':
         'd01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d',
       '.claude/skills/review-spec/SKILL.md':
         'c0bfb8fdc08c13764c93daf91b3807d04eb59984313cab3e424a5243eb1d8429',
       '.claude/skills/self-review/SKILL.md':
-        'e2c56e6ac5427cd64386234129a5dffa4030c2baabd0cb4fb8e159e6750998db',
+        '949490a63e0e7c18684b8f7d3e36e2f7319e950147c3b44e7cfc9c5d1661b0dd',
       '.claude/skills/spike/SKILL.md':
         '905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37',
       '.claude/skills/tdd-review/SKILL.md':
-        '4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f',
+        '3c6847d17d3e71fb06bc75cc3e8a2c25a07908c9d80271c35717e073e4ed7f32',
       '.claude/skills/testing/SKILL.md':
         '697a4b090935989e0c8a53462d2b44087afafa50adc69e9a98da14bed23dbde9',
       '.claude/skills/ticket-system/SKILL.md':

@@ -68,7 +68,35 @@ readers must be able to tell intentional design from accident.
 | -------- | ------ | ----------------------- | ---------------- |
 
 Complex decisions may add a short paragraph under the table. If the feature
-has no architectural choices, write `skip: <reason>` instead. -->
+has no architectural choices, write `skip: <reason>` instead.
+
+When the Choice adds a dependency the project does not already have, the
+project's own health is part of the decision, not a footnote. Safeword already
+refuses a version number written from memory; a library chosen from memory
+deserves the same treatment. Cite what you actually checked, not a reputation:
+
+- **Still maintained?** A recent human change to real code. Automated version
+  bumps and workflow tweaks are not maintenance.
+- **Bus factor.** One person authoring every commit, release, and issue reply is
+  a dependency on that person's spare time. Depend on it only with a fork plan.
+- **Open advisories.** Reported vulnerabilities left unfixed for months, or no
+  disclosure path at all, is the clearest negligence signal there is.
+- **License fit** for our distribution.
+
+Two free sources answer most of this. `scorecard.dev` (OpenSSF) scores project
+health 0-10 and has already scanned the most-depended-on open source projects,
+so a mainstream package usually needs a lookup rather than a scan. `osv.dev`
+aggregates advisories across ecosystems behind a free batch API. No single
+advisory database is complete, so a clean result is evidence, never proof.
+
+Prefer no new dependency at all when the standard library, a native platform
+feature, or a package already in the manifest covers the need.
+
+A dependency row then reads:
+
+| Date formatting | date-fns | moment, dayjs | moment's own docs declare it legacy; Scorecard 7.2 vs date-fns 8.1, last non-bump commit 14 months ago |
+
+-->
 
 ## Design alignment
 
