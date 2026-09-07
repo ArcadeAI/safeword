@@ -2,9 +2,9 @@
 id: 7B1AMC
 slug: review-executable-red-before-implementation
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
-phase_anchors: ['define-behavior: .project/tickets/7B1AMC-review-executable-red-before-implementation/spec.md']
+phase_anchors: ['define-behavior: .project/tickets/7B1AMC-review-executable-red-before-implementation/spec.md', 'scenario-gate: packages/cli/features/review-executable-red-before-implementation.feature']
 scope: 'Trusted execution plus independent review of each distinct new or changed primary executable RED proof, with a hard freshness gate before GREEN credit'
 out_of_scope: 'Reviewing every reused step, requiring one test per Gherkin row, mandating a framework, or replacing TDD review and final verification'
 done_when: 'A trusted execution attestation and fresh independent review prove the intended missing behavior fails for the right reason at the actor boundary, and every supported agent host blocks GREEN credit when that evidence is missing, stale, fabricated, or for the wrong proof'
@@ -28,3 +28,4 @@ last_modified: 2026-08-10T08:00:27Z
 - 2026-08-10T08:00:27Z Planned: Scoped a lightweight independent RED receipt with explicit freshness and reuse rules.
 - 2026-09-06T20:45:24Z Decided: User explicitly chose blocking enforcement; trusted execution and independent semantic review must gate GREEN credit across supported hosts.
 - 2026-09-06T20:54:00Z Drafted: Derived 10 behavioral dimensions and 14 scenarios across seven Rules, including happy, rejection, freshness, tampering, recovery, reuse, and host-parity boundaries.
+- 2026-09-07T04:32:36Z Confirmed: User accepted the 14-scenario blocking contract and directed publication of the issue and work-so-far pull request.
