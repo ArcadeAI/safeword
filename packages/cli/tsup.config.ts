@@ -174,7 +174,10 @@ function attestArtifacts(
 
 function buildRelayAttestation(): RelayBuildAttestation {
   const disabled = disabledRelayAttestation();
-  if (!manifest.enabled) return disabled;
+  if (!manifest.enabled) {
+    localRetroAncestorPairs();
+    return disabled;
+  }
   if (
     !COMMIT_PATTERN.test(buildCommit) ||
     manifest.evidenceCommit === undefined ||

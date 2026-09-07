@@ -116,6 +116,14 @@ describe('Claude plugin release contract', () => {
     expect(verifierJob).toContain('fetch-depth: 0');
   });
 
+  it('validates enabled local evidence even while relay readiness is disabled', () => {
+    const buildConfig = readFileSync(nodePath.join(CLI_ROOT, 'tsup.config.ts'), 'utf8');
+
+    expect(buildConfig).toMatch(
+      /if \(!manifest\.enabled\) \{\s+localRetroAncestorPairs\(\);\s+return disabled;\s+\}/u,
+    );
+  });
+
   it('watches platform drift with a sandbox-only advisory canary', () => {
     const canary = readFileSync(
       nodePath.join(REPO_ROOT, '.github/workflows/advisory-pr-review-canary.yml'),
