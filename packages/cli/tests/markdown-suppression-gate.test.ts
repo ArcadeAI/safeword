@@ -20,12 +20,12 @@
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import lintStagedConfig from '../../../lint-staged.config.mjs';
-
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
+const CONFIG_URL = pathToFileURL(nodePath.join(REPO_ROOT, 'lint-staged.config.mjs')).href;
 
 /** An h4 directly under an h2 — MD001 — suppressed with the fragile form. */
 const INERT_SUPPRESSION = [
@@ -62,17 +62,39 @@ interface PipelineResult {
 }
 
 /**
+ * Asks the real lint-staged config what it would run for a staged markdown file.
+ *
+ * Loaded in a child Node process rather than imported: the config is untyped
+ * `.mjs` outside this package, so importing it would need a declaration file and
+ * a root `tsconfig.json` include — repo-wide type surface added for one test.
+ * The child speaks the config's own module format and needs neither.
+ */
+function stagedMarkdownCommands(relativePath: string): string[] {
+  const script = `
+    const { default: config } = await import(${JSON.stringify(CONFIG_URL)});
+    const rule = config['*.md'];
+    if (typeof rule !== 'function') {
+      throw new TypeError('lint-staged "*.md" rule must build its commands from the staged paths');
+    }
+    process.stdout.write(JSON.stringify(rule([${JSON.stringify(relativePath)}])));
+  `;
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    throw new Error(`could not read the lint-staged config: ${result.stderr}`);
+  }
+  return JSON.parse(result.stdout) as string[];
+}
+
+/**
  * Runs the configured `*.md` commands in order, stopping at the first failure —
  * exactly how lint-staged sequences them, and therefore how the hook decides
  * whether the commit proceeds.
  */
 function runStagedMarkdownPipeline(relativePath: string): PipelineResult {
-  const rule = lintStagedConfig['*.md'];
-  if (typeof rule !== 'function') {
-    throw new TypeError('lint-staged `*.md` rule must build its commands from the staged paths');
-  }
-
-  const commands = rule([relativePath]);
+  const commands = stagedMarkdownCommands(relativePath);
   expect(commands.length).toBeGreaterThan(0);
 
   let output = '';
