@@ -177,7 +177,15 @@ export function validateLocalRetroReadiness(
     relayReady: boolean;
   },
 ): boolean {
-  if (!manifest.enabled || !input.relayReady) return false;
+  if (
+    !manifest.enabled ||
+    manifest.version !== 1 ||
+    !manifest.harnesses ||
+    !manifest.recoveredFaults ||
+    !input.relayReady
+  ) {
+    return false;
+  }
   return (
     COMMIT_PATTERN.test(manifest.evidenceCommit) &&
     COMMIT_PATTERN.test(input.buildCommit) &&

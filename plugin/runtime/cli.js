@@ -55098,12 +55098,7 @@ function validHarnessEvidence(evidence, manifest, ancestorPairs) {
 }
 function hasCompleteEvidence(manifest, ancestorPairs) {
   const harnessEvidence = REQUIRED_HARNESSES.map((harness) => manifest.harnesses[harness]);
-  const distinctFields = [
-    "collectorReceipt",
-    "relayReceipt",
-    "requestId",
-    "sessionScope"
-  ];
+  const distinctFields = ["collectorReceipt", "relayReceipt", "requestId", "sessionScope"];
   return hasExactKeys4(manifest.harnesses, REQUIRED_HARNESSES) && harnessEvidence.every((evidence) => validHarnessEvidence(evidence, manifest, ancestorPairs)) && distinctFields.every((field) => new Set(harnessEvidence.map((evidence) => evidence[field])).size === harnessEvidence.length) && hasExactKeys4(manifest.recoveredFaults, REQUIRED_FAULTS) && REQUIRED_FAULTS.every((fault) => HASH_PATTERN.test(manifest.recoveredFaults[fault]));
 }
 function validProductionAttestation(manifest, attestation) {
@@ -55114,8 +55109,9 @@ function validProductionAttestation(manifest, attestation) {
   return attestation.version === 1 && attestation.authority === "retro-relay-production-v1" && hasRequiredLifecycle(attestation) && !Number.isNaN(reviewedAt.getTime()) && reviewedAt.toISOString() === manifest.reviewedAt && !Number.isNaN(verifiedAt.getTime()) && reviewedAt.getTime() <= verifiedAt.getTime() && attestation.manifestSha256 === digestLocalRetroReadinessManifest(manifest);
 }
 function validateLocalRetroReadiness(manifest, input) {
-  if (!manifest.enabled || !input.relayReady)
+  if (!manifest.enabled || manifest.version !== 1 || !manifest.harnesses || !manifest.recoveredFaults || !input.relayReady) {
     return false;
+  }
   return COMMIT_PATTERN.test(manifest.evidenceCommit) && COMMIT_PATTERN.test(input.buildCommit) && input.ancestorPairs.some((pair) => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit) && hasCompleteEvidence(manifest, input.ancestorPairs) && validProductionAttestation(manifest, input.productionAttestation);
 }
 var CHECKED_IN_LOCAL_RETRO_READINESS, CHECKED_IN_LOCAL_RETRO_PRODUCTION_ATTESTATION, COMMIT_PATTERN, HASH_PATTERN, REQUEST_ID_PATTERN, MAX_EVIDENCE_AGE_MS, REQUIRED_HARNESSES, REQUIRED_FAULTS;
