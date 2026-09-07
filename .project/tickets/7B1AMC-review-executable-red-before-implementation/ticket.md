@@ -2,6 +2,7 @@
 id: 7B1AMC
 slug: review-executable-red-before-implementation
 type: feature
+subtype: bug-investigated
 phase: done
 status: done
 phase_anchors:
@@ -19,7 +20,7 @@ depends_on: [BX1T7H]
 relates_to: [NMSD94, QZAFT2, 1698, BFCWDB, ZA0JQR, Y9P3ZC]
 external_issue: https://github.com/ArcadeAI/safeword/issues/2336
 created: 2026-08-10T07:58:17.735Z
-last_modified: 2026-09-07T05:07:09Z
+last_modified: 2026-09-07T15:04:49Z
 ---
 
 # Stop hollow acceptance proofs before implementation
@@ -44,3 +45,16 @@ last_modified: 2026-09-07T05:07:09Z
 - 2026-09-06T17:00:00Z Focused verification: 145 tests passed with 2 skipped across the executor, job, packet, runtime, rubric, retry, and public CLI suites; typecheck, targeted lint, and generated Claude/Codex freshness checks passed.
 - 2026-09-06T17:10:00Z Quality review correction: Current Node documentation confirmed that terminating a parent does not necessarily terminate descendants. Added a failing regression and contained timed-out proof trees with POSIX process groups and Windows `taskkill /t`.
 - 2026-09-07T05:07:09Z Completed: User confirmed the delivery after rebase onto current `origin/main`. Regenerated host artifacts and origin-main fixtures, then passed 9,211 Vitest tests, 592 Cucumber scenarios, lint, typecheck, package builds, and deterministic generated-artifact checks. PR readiness remains Draft because configured independent AI review is unavailable under the host approval policy.
+- 2026-09-07T15:04:49Z CI repair: Confirmed the 25-millisecond timeout test coupled process termination to child startup and stderr scheduling. Removed only the unrelated expected-output assertion; the test still proves the configured timeout and `SIGKILL`, while the adjacent real-process test independently proves output capture and matching.
+
+## Root Cause
+
+The timeout integration test required a spawned Node process to emit its expected-failure text within
+25 milliseconds even though the behavior under test was forced termination at the configured
+deadline. Process startup and scheduling can consume that entire interval under CI load, so the
+executor can correctly report `timed_out: true` and `SIGKILL` before the child emits any output.
+
+Confirmed by both Node CI lanes and an 80-run local reproduction that missed the expected text once
+while still timing out correctly. Ruled out a termination defect because both CI failures recorded
+the configured timeout and `SIGKILL`; ruled out stream-drain loss because Node's `close` event occurs
+after child stdio closes and the separate real-failure test consistently captures and matches stderr.
