@@ -44,6 +44,12 @@ export function ensureReplyFormatState(world: SafewordWorld): ReplyFormatState {
 export function buildReplyFormatProject(): string {
   const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-reply-format-'));
   mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+  // The decision-brief reply contract is enforced by the Stop-time review, which
+  // is opt-in since KHL52X. These scenarios ARE that contract, so switch it on.
+  writeFileSync(
+    nodePath.join(projectDirectory, '.safeword', 'config.json'),
+    `${JSON.stringify({ stopQualityReview: true }, undefined, 2)}\n`,
+  );
   mkdirSync(nodePath.join(projectDirectory, '.project/tickets/099-reply-format'), {
     recursive: true,
   });

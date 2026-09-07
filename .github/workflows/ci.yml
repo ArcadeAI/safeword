@@ -4,7 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # No `branches` filter on purpose: it matches the BASE branch, so pinning it to
+    # main meant a pull request stacked on another feature branch ran no CI at all --
+    # not lint, not tests, not parity. #3717 sat stacked for about five hours and
+    # collected four deterministic test failures nobody could see, which would have
+    # surfaced only once it retargeted to main and looked ready to land. Testing a
+    # stacked pull request against whatever base it actually has catches breakage at
+    # the commit that introduces it (#3741).
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
   schedule:

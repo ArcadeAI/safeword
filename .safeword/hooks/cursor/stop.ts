@@ -7,12 +7,14 @@
 
 import { existsSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
+import nodePath from 'node:path';
 
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { cursorEditedMarkerPath } from '../lib/cursor-state.ts';
 import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
 import { decideRetroFilingGate } from '../lib/retro-filing-gate.ts';
+import { isStopQualityReviewEnabled } from '../lib/review-ledger.ts';
 import { resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
@@ -132,6 +134,19 @@ if (await Bun.file(markerFile).exists()) {
     process.exit(0);
   }
 
+  // Parity with Claude's stop hook (KHL52X): the Stop-time quality review is off
+  // unless `stopQualityReview: true`. The architecture-drift advisory is evidence,
+  // not judgment, so it still takes the stop on its own when present.
+  const cursorStopReviewOn = isStopQualityReviewEnabled(
+    await Bun.file(nodePath.join(process.cwd(), '.safeword', 'config.json'))
+      .text()
+      .catch(() => undefined),
+  );
+  if (!cursorStopReviewOn && architectureNudge === null) {
+    emitRetroOrEmpty(input);
+    process.exit(0);
+  }
+
   // Quality review (with the architecture-drift advisory when present) takes this
   // stop; retro yields and its sentinel is untouched, so retro can still fire on a
   // later non-review stop. Accepted trade-off: a session that edits on EVERY stop
@@ -139,7 +154,9 @@ if (await Bun.file(markerFile).exists()) {
   // ledger still dedupes across sessions and the next session's first no-edit stop
   // fires it. One followup_message per stop is a hard Cursor constraint, so retro
   // can't ride alongside this one.
-  const followupMessage = [architectureNudge, QUALITY_REVIEW_MESSAGE].filter(Boolean).join('\n\n');
+  const followupMessage = [architectureNudge, cursorStopReviewOn ? QUALITY_REVIEW_MESSAGE : null]
+    .filter(Boolean)
+    .join('\n\n');
   const output: StopOutput = {
     followup_message: followupMessage,
   };
