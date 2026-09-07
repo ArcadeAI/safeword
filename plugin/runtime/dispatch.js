@@ -1776,7 +1776,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        'f679dfee63e752110d8d5e11458a17f220f84f5b275f4a87dde21d540f771469',
+        '3e82435b6b58731ffe09ae0b01cefe61de152b24ab2d66b1792472256f09db7c',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
