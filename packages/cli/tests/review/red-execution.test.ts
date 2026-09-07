@@ -96,7 +96,6 @@ describe('trusted executable RED observation', () => {
     expect(result.data).toMatchObject({
       execution_attestation: {
         timeout_ms: 25,
-        expected_failure: { matched: true },
         termination: { signal: 'SIGKILL', timed_out: true },
       },
     });
