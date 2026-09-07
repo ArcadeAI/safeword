@@ -26,7 +26,7 @@ done_when:
   - Single-agent and mixed-agent plans contain only declared selected-host requirements.
   - Release coverage rejects undeclared project-local executable references from native plugins.
 created: 2026-08-18T16:58:37.428Z
-last_modified: 2026-09-06T21:42:00.000Z
+last_modified: 2026-09-06T23:00:00.000Z
 ---
 
 # Make each agent's plugin fully self-contained
@@ -143,3 +143,4 @@ the final cross-host path without weakening the workflow.
 - 2026-09-02T20:55:23.000Z Final scenario review approved and identified three remaining proof-strength opportunities. Reopened RED to make no-install claims output-observable, assert plugin-backed workflows leave project runtime absent after execution, and add real-shell failure and empty-diff boundaries for Cursor's installed sourceable helper.
 - 2026-09-02T21:00:23.000Z GREEN on the final proof-strength pass: Cursor's installed sourceable helper now has real-shell success, failure, and empty-diff execution with cross-host runtime postconditions; Claude, OpenCode, and packaged audit workflows assert runtime remains absent after execution. The focused audit/proof lane passed 45/45, and the broader real-workflow lane passed aside from the corrected overbroad directory assertion.
 - 2026-09-02T21:05:41.000Z Terminal scenario review found one catalogue-enumeration mismatch and four precision gaps. Corrected the OpenCode plugin/command/agent/skill/reference set, made unavailable-package fallback marker-observable with a real entry-point proof note, declared the four-host generated-workflow boundary, completed CLI surface tags, fixed mixed-selection enrollment state, and documented why Claude does not duplicate the representative legacy-payload matrix.
+- 2026-09-06T23:00:00.000Z Post-completion repair verified on current main: native audit helpers now source synchronized CLI output, bundled runtimes expose the public project commands, and BDD planning references are packaged and host-neutral. Full tests, acceptance, lint, typecheck, builds, dependency checks, vulnerability audits, and the 57/57 release-contract lane passed, with the verifier's isolated-linker website failure separately reproduced as green after a trackless hoisted reinstall. Diff audit found no current errors; refactor review found no warranted structural change. Independent quality review remains blocked because the external coordinator requires explicit authorization to receive eight named private repository files, so the epic stays in progress.

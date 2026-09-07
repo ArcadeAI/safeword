@@ -52,6 +52,42 @@ The next full package retry passed 591 scenarios, with one failure: the strict t
 
 Fixture review `e1e1d681-ff31-4f80-83ae-8eb124b1caf0` also exposed prefix checks that could miss supporting evidence duplicated into the review-target array. The final fixture captures real reviewer input through the existing permitted prompt-log channel, then checks exact target/context membership for primary and alternate routes. A disposable counterexample injection failed both assertions specifically on the duplicated evidence file. With the counterexample removed, the complete final reviewer feature passed 37 scenarios / 699 steps, including the unchanged strict three-second test. Formatting, lint, and package TypeScript checks passed on this final file. Review `f1175b4f-a99d-4f10-bf25-cf064ce8297e` was correctly marked stale after the capture-channel correction and is not approval evidence. Final review `485a1b8c-1dff-4364-a252-986c809bd363` approved the current file with no errors (Claude Opus, cross-agent); optional findings are answered in the work log.
 
+## 2026-09-06 post-completion repair evidence
+
+The repair branch was updated to current `origin/main` and verified at
+`b1412b864fc315ef2d34dbcb35a1c7c05faf20b4`. The release-contract lane passed
+57/57 tests across 11 files after rebuilding the CLI. The full root test lane
+passed 9,235 CLI tests with 57 intentional skips, 194 relay tests with one skip,
+and 147 collector tests. Root acceptance passed 1,493 scenarios with three
+skips and 68,596 steps with four skips; package acceptance passed all 592
+scenarios and 11,046 steps. The focused runtime-authority lane passed 77/77.
+Lint, all package typechecks, dependency validation, the CLI build, release
+checks, and vulnerability audits passed.
+
+The verbatim verifier returned nonzero only because the website's Astro
+prerender could not resolve the platform package `@bruits/satteri-darwin-arm64`
+from Bun's isolated linker layout. Reinstalling the same locked dependencies
+with Bun's hoisted linker, without changing any tracked file, made the complete
+website build pass (nine pages, Pagefind index, and sitemap). This is recorded
+as a local install-layout limitation, not relabeled as an all-green aggregate
+and not worked around with a product dependency.
+
+The diff audit found no dependency violations across 423 modules and 701
+dependencies, no configuration drift, and no current-epic principle-trace
+errors. Seven dead principle references belong to two unrelated historical
+tickets and remain baseline debt. Python import-linter/dead-code tools and the
+Go/Rust lanes were unavailable or inapplicable. Refactor review found no safe
+simplification worth adding: the two-entry packaged-reference map and its one
+path-adaptation seam are the smallest coherent design, and the reported
+`plugin-runtime-authority.ts` orphan is deliberate release-contract
+infrastructure imported by the host authority suites.
+
+Independent quality review is not complete for this repair. The configured
+review coordinator was refused because its request would disclose eight named
+private repository files to an external reviewer without explicit user
+authorization. No fallback approval is claimed; the epic remains in progress
+until that authorization is granted and the review completes.
+
 ## Surface evidence
 
 | Affected surface | Proof boundary | Result |
