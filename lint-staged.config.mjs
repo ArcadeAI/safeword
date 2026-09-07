@@ -49,8 +49,12 @@ export default {
   // saw the adjacent (working) form and passed; the commit shipped the inert
   // one. Nothing re-checked it, because an unchanged file is never staged again
   // — so the violation stayed invisible to the hook forever (#3740).
-  // Safe to swap: over the whole markdown corpus this order is a fixed point —
-  // prettier changes nothing markdownlint then wants to fix, and vice versa.
+  // Swapping was measured, not assumed: at the time of the change neither tool
+  // altered what the other had produced across all 2132 lint-staged-eligible
+  // markdown files. That was a one-time observation, not an enforced invariant —
+  // the test below covers the suppression regression, not general order
+  // independence, so a future rule whose --fix output prettier reformats would
+  // need re-checking.
   '*.md': files => [
     ...commandsForFiles('prettier --write', files),
     ...commandsForFiles('markdownlint-cli2 --fix', files),
