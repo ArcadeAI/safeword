@@ -9,6 +9,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["packages/*/src/**/*", "vitest.default-projects.ts"],
+  "include": ["packages/*/src/**/*", "vitest.default-projects.ts", "lint-staged.config.d.mts"],
   "exclude": ["node_modules", "dist", "packages/website"]
 }

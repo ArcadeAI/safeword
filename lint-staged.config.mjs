@@ -41,9 +41,19 @@ export default {
   '*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}': eslintAndPrettier,
   '*.{vue,svelte,astro}': ['eslint --fix', 'prettier --write'],
   '*.{json,css,scss,html,yaml,yml,graphql}': files => commandsForFiles('prettier --write', files),
+  // prettier runs BEFORE markdownlint on purpose: markdownlint must judge the
+  // bytes that actually get committed. Linting first let prettier invalidate a
+  // just-passed verdict — `<!-- markdownlint-disable-next-line RULE -->` covers
+  // the next *physical* line, and prettier puts a blank line after an HTML
+  // comment block, so the directive ends up suppressing nothing. markdownlint
+  // saw the adjacent (working) form and passed; the commit shipped the inert
+  // one. Nothing re-checked it, because an unchanged file is never staged again
+  // — so the violation stayed invisible to the hook forever (#3740).
+  // Safe to swap: over the whole markdown corpus this order is a fixed point —
+  // prettier changes nothing markdownlint then wants to fix, and vice versa.
   '*.md': files => [
-    ...commandsForFiles('markdownlint-cli2 --fix', files),
     ...commandsForFiles('prettier --write', files),
+    ...commandsForFiles('markdownlint-cli2 --fix', files),
   ],
   // prettier only — markdownlint false-positives on MDX's JSX/imports. Mirrors
   // CI's `prettier --check .`, which does cover .mdx (the gap that let an
