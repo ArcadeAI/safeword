@@ -7,7 +7,14 @@ Feature: Stop hollow acceptance proofs before implementation
     Scenario: A new primary proof is run from its captured pre-implementation state
       Given a scenario has a new primary executable proof
       When the builder requests RED review for that proof
-      Then Safeword runs the exact selected test and records its terminal result from the captured pre-implementation state
+      Then Safeword runs the exact selected test and records its terminal result with the exact captured-state identity
+      And confirms that captured state predates the scenario's production implementation
+
+    @rejection
+    Scenario: Execution from a state containing the production implementation cannot earn RED approval
+      Given the captured execution state already contains the scenario's production implementation
+      When the builder requests RED approval
+      Then Safeword refuses the receipt because the proof was not executed from its pre-implementation state
 
     @rejection
     Scenario: A new proof with no trusted execution cannot earn RED approval
@@ -36,7 +43,7 @@ Feature: Stop hollow acceptance proofs before implementation
     Scenario: An unavailable independent reviewer blocks RED approval
       Given trusted execution produced a valid failure but no independent review route is available
       When the builder requests RED approval
-      Then Safeword refuses the receipt and returns the exact reviewer recovery command
+      Then Safeword refuses the receipt because no independent verdict exists
 
   @executable-red.TBU1.R2
   Rule: executable-red.TBU1.R2 — RED is accepted only for the intended missing behavior at the actor boundary
@@ -102,7 +109,8 @@ Feature: Stop hollow acceptance proofs before implementation
     Scenario Outline: A blocked proof distinguishes the cause and recovery command
       Given GREEN credit is blocked by <evidence problem>
       When Safeword explains the block to the builder
-      Then the message says <named cause> in plain language without Safeword workflow jargon
+      Then the message says <named cause>
+      And contains none of the workflow terms RED, GREEN, receipt, or gate
       And gives <next action> as the exact recovery command
 
       Examples:
@@ -140,40 +148,47 @@ Feature: Stop hollow acceptance proofs before implementation
       When Safeword verifies the record before review
       Then Safeword refuses it because the trusted executor did not authenticate it
 
+    @rejection
+    Scenario: A forged independent-review receipt cannot authorize GREEN
+      Given a project-authored receipt claims independent approval that the review coordinator never issued
+      When Safeword verifies the receipt before GREEN credit
+      Then Safeword refuses it because its independent-review provenance is not authentic
+
   @executable-red.SWM1.R2
   Rule: executable-red.SWM1.R2 — Every supported host enforces the same receipt before GREEN
 
     @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.opencode @surface.cursor @surface.cursor-cloud-agents @surface.safeword-cli
     @rejection
     Scenario Outline: A host blocks GREEN when the RED receipt is absent or stale
-      Given a feature is in implementation through <host>
+      Given a feature is in implementation through <host> at its <gate entrypoint>
       And its current primary proof has no fresh independent RED receipt
       When the agent tries to record GREEN credit
-      Then the host blocks the transition through Safeword's shared receipt gate
+      Then the <gate entrypoint> blocks the transition with <evidence class> evidence
 
       Examples:
-        | host                |
-        | Claude Code         |
-        | Claude Code Cloud   |
-        | OpenAI Codex        |
-        | OpenAI Codex Cloud  |
-        | OpenCode            |
-        | Cursor              |
-        | Cursor Cloud Agents |
-        | Safeword CLI        |
+        | host                | gate entrypoint                    | evidence class              |
+        | Claude Code         | configured Claude hook             | local host integration      |
+        | Claude Code Cloud   | configured cloud Claude hook       | managed cloud integration   |
+        | OpenAI Codex        | packaged Codex plugin workflow     | local host integration      |
+        | OpenAI Codex Cloud  | cloud workflow invoking the CLI    | managed cloud integration   |
+        | OpenCode            | Safeword plugin event              | exact-version conformance   |
+        | Cursor              | configured Cursor hook             | local host integration      |
+        | Cursor Cloud Agents | configured project command hook    | managed cloud integration   |
+        | Safeword CLI        | direct GREEN-credit command        | public command integration  |
 
+    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.opencode @surface.cursor @surface.cursor-cloud-agents @surface.safeword-cli
     Scenario Outline: A fresh receipt permits GREEN through every supported host
-      Given trusted execution and independent review approved the current primary proof through <host>
-      When the agent records GREEN credit through <host>
-      Then Safeword permits the transition with the same receipt contract
+      Given trusted execution and independent review approved the current primary proof through <host> at its <gate entrypoint>
+      When the agent records GREEN credit through the <gate entrypoint>
+      Then Safeword permits the transition with <evidence class> evidence under the same receipt contract
 
       Examples:
-        | host                |
-        | Claude Code         |
-        | Claude Code Cloud   |
-        | OpenAI Codex        |
-        | OpenAI Codex Cloud  |
-        | OpenCode            |
-        | Cursor              |
-        | Cursor Cloud Agents |
-        | Safeword CLI        |
+        | host                | gate entrypoint                    | evidence class              |
+        | Claude Code         | configured Claude hook             | local host integration      |
+        | Claude Code Cloud   | configured cloud Claude hook       | managed cloud integration   |
+        | OpenAI Codex        | packaged Codex plugin workflow     | local host integration      |
+        | OpenAI Codex Cloud  | cloud workflow invoking the CLI    | managed cloud integration   |
+        | OpenCode            | Safeword plugin event              | exact-version conformance   |
+        | Cursor              | configured Cursor hook             | local host integration      |
+        | Cursor Cloud Agents | configured project command hook    | managed cloud integration   |
+        | Safeword CLI        | direct GREEN-credit command        | public command integration  |

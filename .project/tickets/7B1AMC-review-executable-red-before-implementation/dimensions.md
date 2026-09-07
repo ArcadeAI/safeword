@@ -2,11 +2,11 @@
 
 | Dimension           | Partitions and boundaries                                                                            |
 | ------------------- | ---------------------------------------------------------------------------------------------------- |
-| Proof lifecycle     | new, materially changed, unchanged reuse, implementation-only change                                 |
+| Proof lifecycle     | new, materially changed, unchanged reuse, implementation-only change, already-implemented capture    |
 | Execution identity  | exact selected test, unrelated selected test, no selected test                                       |
 | RED outcome         | intended assertion failure, unexpected pass, collection/setup failure, interrupted process           |
 | Contract boundary   | claimed actor entrypoint and observable, narrower internal substitute                                |
-| Evidence provenance | trusted execution, author-supplied output, missing execution                                         |
+| Evidence provenance | trusted execution, author-supplied output, missing execution, forged execution or review receipt     |
 | Receipt freshness   | unchanged proof inputs, changed scenario, proof plan, test, glue, helper, command, or evidence class |
 | Review provenance   | independent approval, self-review, cached suite status, unavailable reviewer route                   |
 | Proof reuse         | one implementation shared by outline rows, one umbrella verdict shared by distinct implementations   |

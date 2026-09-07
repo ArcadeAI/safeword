@@ -12,6 +12,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Execution from a state containing the production implementation cannot earn RED approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A new proof with no trusted execution cannot earn RED approval
 
 - [ ] RED
@@ -113,6 +119,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: A fabricated execution record cannot become an approved receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A forged independent-review receipt cannot authorize GREEN
 
 - [ ] RED
 - [ ] GREEN

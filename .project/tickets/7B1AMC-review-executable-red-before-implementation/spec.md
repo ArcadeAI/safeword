@@ -93,7 +93,9 @@ skip: child feature under a program; trustworthy RED should feel invisible and t
 ## Decisions
 
 - A passing pre-implementation proof is not RED evidence, even when its execution is authentic.
+- The receipt binds an exact captured-state identity that must precede the scenario's production implementation; execution against an already-implemented tree cannot qualify retroactively.
 - The proof author, a cached suite status, or any other non-independent verdict cannot issue the RED receipt.
+- Both the trusted execution record and the independent-review receipt must have authentic coordinator provenance; project-authored substitutes are rejected.
 - When every independent review route is unavailable, this gate remains blocked and returns the exact recovery command. The best-available degraded review ladder may provide feedback, but it cannot authorize GREEN credit for this invariant.
 - Both rejection and admission use the same host-neutral receipt contract on every supported host.
 
