@@ -92,7 +92,9 @@ describe('Claude plugin release contract', () => {
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
       'utf8',
     );
-    expect(workflow).toContain('publish:\n    name: Publish to npm\n    needs: build');
+    expect(workflow).toContain(
+      'publish:\n    name: Publish to npm\n    needs: [build, verify-local-retro-production]',
+    );
     expect(workflow).not.toContain('advisory-pr-review-smoke:');
     expect(workflow).not.toContain('pr-review-smoke');
     expect(workflow).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
