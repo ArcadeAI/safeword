@@ -352,6 +352,12 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Stale production verification cannot enable global cutover
+
+- [x] RED — advancing the evaluation clock beyond the freshness window still returned true
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Unavailable production authority keeps global cutover disabled
 
 - [x] RED
@@ -384,7 +390,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Mismatched build ancestry cannot satisfy readiness
 
-- [ ] RED
+- [x] RED — removing the evidence-to-build ancestry pair still returned true
 - [ ] GREEN
 - [ ] REFACTOR
 

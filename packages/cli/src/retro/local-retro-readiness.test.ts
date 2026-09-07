@@ -56,9 +56,11 @@ const completeManifest: LocalRetroReadinessManifest = {
 
 function productionEvidence(
   cursorLifecycle: string,
+  overrides: Partial<typeof fabricatedEvidence> = {},
 ): Parameters<typeof validateLocalRetroReadiness>[1] {
   return {
     ...fabricatedEvidence,
+    ...overrides,
     productionAttestation: {
       authority: 'retro-relay-production-v1',
       enabled: true,
@@ -92,5 +94,22 @@ describe('local retro readiness', () => {
     expect(validateLocalRetroReadiness(completeManifest, productionEvidence('socket-absent'))).toBe(
       false,
     );
+  });
+
+  it('requires the evidence commit to be an ancestor of the running build', () => {
+    expect(
+      validateLocalRetroReadiness(
+        completeManifest,
+        productionEvidence('cursor-desktop', { ancestorPairs: [] }),
+      ),
+    ).toBe(false);
+  });
+
+  it('requires fresh production verification', () => {
+    const staleEvidence = productionEvidence('cursor-desktop', {
+      now: new Date('2026-10-01T00:00:00.000Z'),
+    });
+
+    expect(validateLocalRetroReadiness(completeManifest, staleEvidence)).toBe(false);
   });
 });
