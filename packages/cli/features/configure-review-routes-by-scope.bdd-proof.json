@@ -129,6 +129,18 @@
     "First project-scope set creates the project config": [
       "packages/cli/tests/review/preferences.test.ts",
       "first project write creates no user file"
+    ],
+    "Listing without an author explains every author": [
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "lists every author when no author is given"
+    ],
+    "The listing names the setting that changes it": [
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "names the configuration key and file that change the routes"
+    ],
+    "An author that is not a review agent is refused": [
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "rejects an author that is not a review agent"
     ]
   }
 }

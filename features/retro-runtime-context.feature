@@ -104,11 +104,10 @@ Feature: Attach useful runtime context to retros without signup
         | "claude-code" |
         | "codex"       |
 
-    @rejection
-    Scenario: Cursor cannot claim the released-client local classification
+    Scenario: Cursor local classification remains accepted during cutover
       Given canonical v1 envelope bytes contain harness "cursor" and host class "local"
       When it is submitted to the real collector
-      Then the retrospective is rejected without persistence
+      Then the real collector accepts it
 
     @rejection
     Scenario: Cursor cannot claim released legacy user identity

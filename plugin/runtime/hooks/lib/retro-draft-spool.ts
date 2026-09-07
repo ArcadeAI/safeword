@@ -46,6 +46,7 @@ export interface SpooledDraft {
    * seam refuses it.
    */
   bodyDigest?: string;
+  route?: 'direct-v2' | 'server-v3';
 }
 
 /** Per-session spool cap — bounds a crash-looping or runaway session's disk use. */
@@ -94,7 +95,7 @@ export function spoolSiblingPath(
 function toDraft(value: unknown): SpooledDraft | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
   const record = value as Record<string, unknown>;
-  const { signature, canonicalSignature, title, body, labels, bodyDigest } = record;
+  const { signature, canonicalSignature, title, body, labels, bodyDigest, route } = record;
   if (
     typeof signature !== 'string' ||
     typeof title !== 'string' ||
@@ -107,6 +108,7 @@ function toDraft(value: unknown): SpooledDraft | undefined {
   // The seal is optional (legacy lines predate it) but must be a string when present.
   if (bodyDigest !== undefined && typeof bodyDigest !== 'string') return undefined;
   if (canonicalSignature !== undefined && typeof canonicalSignature !== 'string') return undefined;
+  if (route !== undefined && route !== 'direct-v2' && route !== 'server-v3') return undefined;
   return {
     signature,
     ...(canonicalSignature === undefined ? {} : { canonicalSignature }),
@@ -114,7 +116,12 @@ function toDraft(value: unknown): SpooledDraft | undefined {
     body,
     labels,
     ...(bodyDigest === undefined ? {} : { bodyDigest }),
+    ...(route === undefined ? {} : { route }),
   };
+}
+
+function readAllSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
+  return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
 }
 
 /**
@@ -123,7 +130,19 @@ function toDraft(value: unknown): SpooledDraft | undefined {
  * skipped, never thrown, so the filing path never crashes on a bad spool.
  */
 export function readSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
-  return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter(
+    draft => draft.route !== 'server-v3',
+  );
+}
+
+/** Read server-routed drafts retained until collector acceptance. */
+export function readServerSpooledDrafts(
+  projectDirectory: string,
+  sessionId: string,
+): SpooledDraft[] {
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter(
+    draft => draft.route === 'server-v3',
+  );
 }
 
 /** Serialize one draft to its canonical spool line (only the code-assembled fields). */
@@ -136,6 +155,7 @@ function draftLine(draft: SpooledDraft): string {
     labels: draft.labels,
     // JSON.stringify drops an undefined seal, so legacy drafts stay four-field.
     bodyDigest: draft.bodyDigest,
+    route: draft.route,
   });
 }
 
@@ -176,15 +196,16 @@ export function verifyDraftBody(draft: SpooledDraft): boolean {
  * throws; on any error the spool is left as-is (a filed draft may re-nudge, which
  * the signature dedupe still catches — the safe direction).
  */
-export function markDraftsFiled(
+function removeDrafts(
   projectDirectory: string,
   sessionId: string,
-  filedSignatures: readonly string[],
+  removedSignatures: readonly string[],
+  routeMatches: (draft: SpooledDraft) => boolean,
 ): void {
   try {
-    const filed = new Set(filedSignatures);
-    const remaining = readSpooledDrafts(projectDirectory, sessionId).filter(
-      draft => !filed.has(draft.signature),
+    const removed = new Set(removedSignatures);
+    const remaining = readAllSpooledDrafts(projectDirectory, sessionId).filter(
+      draft => !removed.has(draft.signature) || !routeMatches(draft),
     );
     const body =
       remaining.length > 0 ? `${remaining.map(draft => draftLine(draft)).join('\n')}\n` : '';
@@ -192,6 +213,28 @@ export function markDraftsFiled(
   } catch {
     // Self-observation must never break the host. Swallow.
   }
+}
+
+export function markDraftsFiled(
+  projectDirectory: string,
+  sessionId: string,
+  filedSignatures: readonly string[],
+): void {
+  removeDrafts(projectDirectory, sessionId, filedSignatures, draft => draft.route !== 'server-v3');
+}
+
+/** Remove server-routed diagnostic recovery after durable collector acceptance. */
+export function markDraftsAcceptedByServer(
+  projectDirectory: string,
+  sessionId: string,
+  acceptedSignatures: readonly string[],
+): void {
+  removeDrafts(
+    projectDirectory,
+    sessionId,
+    acceptedSignatures,
+    draft => draft.route === 'server-v3',
+  );
 }
 
 /** One filed-draft ack: the signature and the tracker issue it landed on (GH644A). */

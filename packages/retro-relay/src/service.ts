@@ -22,7 +22,7 @@ const RETRY_DEADLINE_MAX_LENGTH = 30;
 const REPOSITORY_MAX_LENGTH = 200;
 const DEDUPE_KEY_MAX_LENGTH = 256;
 const TITLE_MAX_LENGTH = 256;
-const BODY_MAX_LENGTH = 128 * 1024;
+const BODY_MAX_LENGTH = 256 * 1024;
 const LABEL_COUNT_MAX = 20;
 const LABEL_MAX_LENGTH = 50;
 
@@ -337,6 +337,18 @@ export class RelayService {
     return filingReceipt(record);
   }
 
+  collectorRetryDeadline(principal: RelayPrincipal, requestId: string): string | undefined {
+    if (!principal.roles.includes('ingest')) {
+      throw new RelayError(403, 'ingest role is required');
+    }
+    return this.#store.load({
+      installationId: principal.installationId,
+      repository: principal.repository,
+      requestId,
+      tenantId: principal.tenantId,
+    })?.retryDeadlineAt;
+  }
+
   async maintain(now = new Date()): Promise<{
     alerts: ReturnType<RelayStore['maintain']>['alerts'];
     attempted: number;
@@ -353,7 +365,11 @@ export class RelayService {
     return { attempted: due.length, ...this.#store.maintain(now) };
   }
 
-  async submit(principal: RelayPrincipal, request: FileRetroDraftRequest): Promise<FilingReceipt> {
+  async submit(
+    principal: RelayPrincipal,
+    request: FileRetroDraftRequest,
+    acceptedAt?: string,
+  ): Promise<FilingReceipt> {
     const now = this.#now();
     validateRequest(request);
     const scope = authorize(principal, request, 'file');
@@ -368,6 +384,7 @@ export class RelayService {
     }
     const marker = requestMarker(scope);
     const accepted = this.#store.accept({
+      ...(acceptedAt !== undefined && { acceptedAt }),
       scope,
       payloadHash: hash,
       envelope: encryptPayload(request, scope, hash, this.#payloadKeyring),

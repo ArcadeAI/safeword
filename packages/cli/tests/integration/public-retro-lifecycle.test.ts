@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -131,6 +132,11 @@ async function primeCursorBinding(
     }),
   );
   expect(result.status).toBe(0);
+  const state = { conversation_id: sessionId };
+  const stashedProject = readFileSync(cursorProjectStashPath(state), 'utf8');
+  expect(readFileSync(cursorConversationStashPath(state), 'utf8')).toBe(sessionId);
+  expect(readFileSync(cursorTranscriptStashPath(state), 'utf8')).toBe(transcript);
+  expect(realpathSync(stashedProject)).toBe(realpathSync(project));
 }
 
 async function primeCursorBindingIfNeeded(input: {
@@ -167,6 +173,17 @@ it('ships manual retro with a project-toolchain-independent CLI carrier', () => 
 
   expect(skill).toContain('bunx --bun safeword@latest');
   expect(skill).not.toContain('bun run safeword');
+});
+
+it('ships the public retro metadata, exclusion, and opt-out disclosure', () => {
+  const guide = readFileSync(path.join(CLI_PACKAGE, 'templates/guides/retro.md'), 'utf8');
+  const prose = guide.replaceAll(/\s+/gu, ' ');
+
+  expect(prose).toContain('project UUID, repository identity, session scope, harness, host class');
+  expect(prose).toContain('available agent, model, SafeWord CLI, and plugin versions');
+  expect(prose).toContain('transcript or prompt text, tool output, file contents, secrets');
+  expect(prose).toContain('hostname, IP address, machine identifiers, or user identity');
+  expect(guide).toContain('safeword project public-retros off');
 });
 
 it('round-trips a current CLI envelope through the real collector unchanged', async () => {
@@ -365,7 +382,9 @@ process.exit(result.status ?? 1);
         throw new Error(readFileSync(debugLog, 'utf8'));
       }
       const [markerName] = readdirSync(attemptsDirectory);
-      if (markerName === undefined) throw new Error('expected a public attempt marker');
+      if (markerName === undefined) {
+        throw new Error(`expected a public attempt marker\n${readFileSync(debugLog, 'utf8')}`);
+      }
       const marker = JSON.parse(readFileSync(path.join(attemptsDirectory, markerName), 'utf8')) as {
         receipt?: string;
       };

@@ -68,6 +68,7 @@ function productionCredentials(): CredentialInput[] {
     credential('codex-prod', 'codex', 'b'.repeat(64), ['file']),
     credential('cursor-prod', 'cursor', 'c'.repeat(64), ['file']),
     credential('operator-prod', 'operator', 'd'.repeat(64), ['reconcile', 'operate']),
+    credential('collector-worker-prod', 'collector-worker', 'e'.repeat(64), ['ingest']),
   ];
 }
 

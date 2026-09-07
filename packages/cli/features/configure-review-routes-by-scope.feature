@@ -93,6 +93,23 @@ Feature: Configure review routes by scope
       Then the listing reports the project config as the source
       And it reports only the project routes in project order
 
+    @scoped-review-routes.TBU1.R4
+    Scenario: Listing without an author explains every author
+      Given no scope has routes for any author
+      When effective routes are listed through the real CLI without naming an author
+      Then the listing reports claude, codex, and opencode in that order
+
+    @scoped-review-routes.TBU1.R4
+    Scenario: The listing names the setting that changes it
+      Given no scope has routes for the current author
+      When effective routes are listed through the real CLI
+      Then the listing names the crossAgentReviewRoutes key and the project config path
+
+    @scoped-review-routes.TBU1.R4
+    Scenario: An author that is not a review agent is refused
+      When routes are listed through the real CLI for an author that is not a review agent
+      Then the command fails and names claude, codex, and opencode as the accepted authors
+
   Rule: Malformed persisted configuration fails visibly without silent fallback
 
     @scoped-review-routes.TBU1.R5

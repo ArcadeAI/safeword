@@ -11,12 +11,13 @@
     "format": "prettier --write .",
     "build": "tsup",
     "start": "node dist/main.js",
+    "start:worker": "node dist/worker-main.js",
     "test": "bun run build && vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {},
   "devDependencies": {
-    "@types/node": "^26.3.0",
+    "@types/node": "^26.4.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"

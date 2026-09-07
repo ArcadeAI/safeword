@@ -9,7 +9,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
+import { createTemporaryDirectory, removeTemporaryDirectory, writeGateConfig } from '../helpers';
 import {
   createEditTranscript,
   createStopHookTicket,
@@ -24,6 +24,7 @@ describe('Stop Hook: Idle Review Suppression (1492)', () => {
 
   beforeEach(() => {
     projectDirectory = createTemporaryDirectory();
+    writeGateConfig(projectDirectory, { stopQualityReview: true });
     mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
   });
 

@@ -581,11 +581,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3",
         ".claude/skills/bdd/DISCOVERY.md": "c88ae677ac877afca87745f13403f06e7c2dab86efc7934979d430e03837bf76",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "be7df9e38c4c95392b3e054c3cb9898eef7478bd7ee6b8e80d3325dc1bdc4eb3",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "4c30770536486aacb382abe97de68c6604035572eb3923c5728d91928883c556",
         ".claude/skills/bdd/SCENARIOS.md": "a12f8574734678367dc91b0c84e5bc390e51ad6ceee00fcf890a5b4ac7572bc5",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "b92749565e2e89c4e9e5859605dcee905853a826771fa912cfb6aa986409b2f7",
+        ".claude/skills/bdd/TDD.md": "57985db169dd5dec836abe6de9fc80a6a680b679234652d91cd51922c7332e79",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -603,7 +603,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "d01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d",
-        ".claude/skills/review-spec/SKILL.md": "c0bfb8fdc08c13764c93daf91b3807d04eb59984313cab3e424a5243eb1d8429",
+        ".claude/skills/review-spec/SKILL.md": "2a207556955728bc8045204ac16d663047ba02aff05a9aaf3625142d23a0aaa4",
         ".claude/skills/self-review/SKILL.md": "e2c56e6ac5427cd64386234129a5dffa4030c2baabd0cb4fb8e159e6750998db",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
@@ -623,7 +623,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "cf0af5ea412b487aa4cd3ed514123d6bd689056a57cd41bca511d01dfcf6831e",
+        ".safeword/hooks/pre-tool-quality.ts": "79198be1d29ebddc47bfa2854e2bfc7911f3586482203bdbc21bf5d22abfee5a",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -631,7 +631,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-architecture-heal.ts": "76f1b55c3173d3ebc2a819a41e06a814a57d78b94faf30108afed439dc7ce747",
         ".safeword/hooks/session-author-model.ts": "9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291",
         ".safeword/hooks/session-auto-upgrade.ts": "51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0",
-        ".safeword/hooks/session-bun-check.sh": "7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef",
+        ".safeword/hooks/session-bun-check.sh": "47e97a2f787228347213521d8391ab6b001e19270aed8e2795f13d6ea0603c29",
         ".safeword/hooks/session-cleanup-quality.ts": "b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2",
         ".safeword/hooks/session-compact-context.ts": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773",
         ".safeword/hooks/session-dependency-readiness.ts": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff",
@@ -640,7 +640,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "bf6faa1401fd655fe9ac64cde87cd47fa0accac96f300487a2528c9491a06d13",
+        ".safeword/hooks/stop-quality.ts": "154eabcac8f8b406bc8e7ec4150b433a2aeaa35df9be5c36bb0491d9c2c19d66",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "5b0767121376bac1ad9f2b57765f0e705b1c34bff72724133014d31e39c0b916",
@@ -13553,6 +13553,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/lib/replan-relevance.ts": { template: "hooks/lib/replan-relevance.ts" },
       ".safeword/hooks/lib/replan.ts": { template: "hooks/lib/replan.ts" },
       ".safeword/hooks/lib/review-ledger.ts": { template: "hooks/lib/review-ledger.ts" },
+      ".safeword/hooks/lib/review-receipt.ts": { template: "hooks/lib/review-receipt.ts" },
+      ".safeword/hooks/lib/read-receipt.ts": { template: "hooks/lib/read-receipt.ts" },
+      ".safeword/hooks/lib/verify-stamp-claims.ts": { template: "hooks/lib/verify-stamp-claims.ts" },
       ".safeword/hooks/lib/lint-config.ts": { template: "hooks/lib/lint-config.ts" },
       ".safeword/hooks/lib/typecheck-gate.ts": { template: "hooks/lib/typecheck-gate.ts" },
       ".safeword/hooks/lib/checkbox-transitions.ts": {
@@ -14237,7 +14240,7 @@ function codexMigrationExitCode(result) {
     return 1;
   return result.ok ? 0 : 2;
 }
-var CODEX_RESTART_ACTION = "Fully restart Codex, then resume this task", CODEX_REVIEW_THEN_RESTART_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task", CODEX_RESTART_INSTRUCTION, CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", CODEX_HOOK_ACTIVATION_FAILED_CONTEXT = "Codex restarted, but Safeword received no current lifecycle hook proof.", CODEX_HOOK_ACTIVATION_FAILED_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection.", CODEX_PARTIAL_ACTIVATION_CONTEXT = "Codex restarted and Safeword has partial current lifecycle hook proof.", CODEX_PARTIAL_ACTIVATION_ACTION = "Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.", MIGRATION_STATE_RULES, NEXT_COMMANDS, CODEX_MIGRATION_CONTEXT;
+var CODEX_RESTART_ACTION = "Fully restart Codex, then resume this task", CODEX_REVIEW_THEN_RESTART_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task", CODEX_RESTART_INSTRUCTION, CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue. Independent reviews are unaffected: they run a fresh Codex with hooks disabled.", CODEX_HOOK_ACTIVATION_FAILED_CONTEXT = "Codex restarted, but Safeword received no current lifecycle hook proof.", CODEX_HOOK_ACTIVATION_FAILED_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection.", CODEX_PARTIAL_ACTIVATION_CONTEXT = "Codex restarted and Safeword has partial current lifecycle hook proof.", CODEX_PARTIAL_ACTIVATION_ACTION = "Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.", MIGRATION_STATE_RULES, NEXT_COMMANDS, CODEX_MIGRATION_CONTEXT;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
@@ -21421,13 +21424,21 @@ function leaseMarkerPid(name) {
     return;
   return pid;
 }
+function vanishedDuringScan(path3) {
+  try {
+    lstatSync3(path3);
+    return false;
+  } catch (error2) {
+    return error2.code === "ENOENT";
+  }
+}
 function isClaudeLeaseMarker(path3, name) {
   const pid = leaseMarkerPid(name);
   if (pid === undefined)
     return false;
   const content = readSmallMetadataFile(path3);
   if (content === undefined)
-    return false;
+    return name.includes(LEASE_TEMP_INFIX) && vanishedDuringScan(path3);
   try {
     return isLeaseRecord(JSON.parse(content), Number(pid));
   } catch {
@@ -36238,7 +36249,7 @@ function terminalResult(cwd, record) {
     return staleResult(record);
   }
   if (record.result !== undefined)
-    return record.result;
+    return withReviewProvenance(record, record.result);
   return createResult({
     state: "failed",
     errors: [
@@ -36246,6 +36257,18 @@ function terminalResult(cwd, record) {
     ],
     data: { command: "review status", status: "failed", review_id: record.id }
   });
+}
+function withReviewProvenance(record, result) {
+  const data = typeof result.data === "object" && result.data !== null && !Array.isArray(result.data) ? result.data : {};
+  return {
+    ...result,
+    data: {
+      ...data,
+      review_id: record.id,
+      review_kind: record.kind,
+      review_targets: record.targets
+    }
+  };
 }
 function invalidJobResult(id) {
   return createResult({
@@ -36742,8 +36765,10 @@ function readCrossAgentReviewPolicy(rawConfig) {
     return "prefer";
   }
 }
+var COORDINATOR_CLAIMS;
 var init_review_ledger = __esm(() => {
   init_parse_annotation();
+  COORDINATOR_CLAIMS = new Set(["cross-agent", "degraded"]);
 });
 
 // src/review/route-config.ts
@@ -47478,7 +47503,7 @@ function commandViolations(steps) {
     ...stepById(steps, "validate")?.run === VALIDATE_COMMAND ? [] : ["fixed_validation"],
     ...stepById(steps, "verify")?.run === VERIFY_COMMAND ? [] : ["fixed_revision_verification"]
   ];
-  return testRun === 'npx --yes safeword@0.78.6 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
+  return testRun === 'npx --yes safeword@0.83.1 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
 }
 function executionViolations(steps) {
   return [
@@ -47862,10 +47887,11 @@ function classifyRemoteWorkflow(root, bundled, filesystem = nodeRemoteWorkflowFs
   const observed = readRegularFile(destination, filesystem);
   if ("failure" in observed)
     return observed.failure;
-  if (workflowDigest(observed.content) === workflowDigest(bundled)) {
+  const observedDigest = workflowDigest(observed.content);
+  if (observedDigest === workflowDigest(bundled)) {
     return { state: "current", affectedPath: NO_ACTION, nextAction: NO_ACTION };
   }
-  if (HISTORICAL_MANAGED_DIGESTS.has(workflowDigest(observed.content))) {
+  if (HISTORICAL_MANAGED_DIGESTS.has(observedDigest)) {
     return {
       state: "managed_outdated",
       affectedPath: REMOTE_WORKFLOW_PATH,
@@ -47889,6 +47915,10 @@ var init_remote_workflow_state = __esm(() => {
     {
       version: 2,
       normalizedSha256: "f5898559f4d57c39a7887e7061d50ebaa2cbaf86159d7c93555a6c32c6d909d9"
+    },
+    {
+      version: 3,
+      normalizedSha256: "20846fed2fa9d655c2bba660cd5f7f2fd712c34ac92523d6c40846e9a8477baf"
     }
   ];
   HISTORICAL_MANAGED_DIGESTS = new Set(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1).map((release) => release.normalizedSha256));
@@ -50183,8 +50213,10 @@ __export(exports_retro_draft_spool, {
   spoolDrafts: () => spoolDrafts,
   recordFiledAck: () => recordFiledAck,
   readSpooledDrafts: () => readSpooledDrafts,
+  readServerSpooledDrafts: () => readServerSpooledDrafts,
   readAcks: () => readAcks,
   markDraftsFiled: () => markDraftsFiled,
+  markDraftsAcceptedByServer: () => markDraftsAcceptedByServer,
   fileSpooledDrafts: () => fileSpooledDrafts,
   drainAcknowledgedDrafts: () => drainAcknowledgedDrafts,
   draftSpoolPath: () => draftSpoolPath,
@@ -50208,7 +50240,7 @@ function toDraft(value) {
   if (typeof value !== "object" || value === null)
     return;
   const record2 = value;
-  const { signature, canonicalSignature, title, body, labels, bodyDigest } = record2;
+  const { signature, canonicalSignature, title, body, labels, bodyDigest, route } = record2;
   if (typeof signature !== "string" || typeof title !== "string" || typeof body !== "string" || !Array.isArray(labels) || !labels.every((label) => typeof label === "string")) {
     return;
   }
@@ -50216,17 +50248,26 @@ function toDraft(value) {
     return;
   if (canonicalSignature !== undefined && typeof canonicalSignature !== "string")
     return;
+  if (route !== undefined && route !== "direct-v2" && route !== "server-v3")
+    return;
   return {
     signature,
     ...canonicalSignature === undefined ? {} : { canonicalSignature },
     title,
     body,
     labels,
-    ...bodyDigest === undefined ? {} : { bodyDigest }
+    ...bodyDigest === undefined ? {} : { bodyDigest },
+    ...route === undefined ? {} : { route }
   };
 }
-function readSpooledDrafts(projectDirectory, sessionId) {
+function readAllSpooledDrafts(projectDirectory, sessionId) {
   return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
+}
+function readSpooledDrafts(projectDirectory, sessionId) {
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => draft.route !== "server-v3");
+}
+function readServerSpooledDrafts(projectDirectory, sessionId) {
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => draft.route === "server-v3");
 }
 function draftLine(draft) {
   return JSON.stringify({
@@ -50235,7 +50276,8 @@ function draftLine(draft) {
     title: draft.title,
     body: draft.body,
     labels: draft.labels,
-    bodyDigest: draft.bodyDigest
+    bodyDigest: draft.bodyDigest,
+    route: draft.route
   });
 }
 function canonicalSignatureForDraft(draft) {
@@ -50256,15 +50298,21 @@ function verifyDraftBody(draft) {
     return true;
   return createHash28("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
 }
-function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
+function removeDrafts(projectDirectory, sessionId, removedSignatures, routeMatches) {
   try {
-    const filed = new Set(filedSignatures);
-    const remaining = readSpooledDrafts(projectDirectory, sessionId).filter((draft) => !filed.has(draft.signature));
+    const removed = new Set(removedSignatures);
+    const remaining = readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => !removed.has(draft.signature) || !routeMatches(draft));
     const body = remaining.length > 0 ? `${remaining.map((draft) => draftLine(draft)).join(`
 `)}
 ` : "";
     atomicWriteFile(draftSpoolPath(projectDirectory, sessionId), body);
   } catch {}
+}
+function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
+  removeDrafts(projectDirectory, sessionId, filedSignatures, (draft) => draft.route !== "server-v3");
+}
+function markDraftsAcceptedByServer(projectDirectory, sessionId, acceptedSignatures) {
+  removeDrafts(projectDirectory, sessionId, acceptedSignatures, (draft) => draft.route === "server-v3");
 }
 function ackFilePath(projectDirectory, sessionId) {
   return spoolSiblingPath(projectDirectory, sessionId, ".acks.jsonl");
@@ -53506,6 +53554,25 @@ var init_ledger = __esm(() => {
   PROVENANCE_AT_CHARS = /^[\d.:TZ-]{20,24}$/;
 });
 
+// src/retro/local-retro-readiness-manifest.json
+var local_retro_readiness_manifest_default;
+var init_local_retro_readiness_manifest = __esm(() => {
+  local_retro_readiness_manifest_default = {
+    enabled: false,
+    version: 1
+  };
+});
+
+// src/retro/local-retro-readiness.ts
+function validateLocalRetroReadiness(_manifest, _input) {
+  return false;
+}
+var CHECKED_IN_LOCAL_RETRO_READINESS;
+var init_local_retro_readiness = __esm(() => {
+  init_local_retro_readiness_manifest();
+  CHECKED_IN_LOCAL_RETRO_READINESS = local_retro_readiness_manifest_default;
+});
+
 // ../../node_modules/.bun/boundary@2.0.0/node_modules/boundary/lib/index.js
 var require_lib = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
@@ -53609,13 +53676,13 @@ var require_structured_source = __commonJS((exports) => {
   exports.StructuredSource = StructuredSource;
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/invariant.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/helper/invariant.js
 function invariant(condition, message) {
   if (!condition)
     throw new Error(message);
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
 class SecretLintSourceCodeImpl {
   hasBOM;
   content;
@@ -53672,7 +53739,7 @@ var init_SecretLintSourceCodeImpl = __esm(() => {
   import_structured_source = __toESM(require_structured_source(), 1);
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
 class EventEmitter2 {
   #listeners = new Map;
   on(type, listener) {
@@ -53732,7 +53799,7 @@ class PromiseEventEmitter {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
 var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   if (typeof props !== "object" || props === null) {
     return messageHandler();
@@ -53793,7 +53860,7 @@ var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RuleContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/RuleContext.js
 var createContextEvents = () => {
   const contextEvents = new EventEmitter2;
   const REPORT_SYMBOL = Symbol("report");
@@ -53878,7 +53945,7 @@ var createContextEvents = () => {
 };
 var init_RuleContext = () => {};
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
 class SecretLintRule {
   ruleReportHandle;
   ruleCreator;
@@ -53920,16 +53987,39 @@ class SecretLintRule {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+profiler@13.0.4/node_modules/@secretlint/profiler/module/index.js
+// ../../node_modules/.bun/@secretlint+profiler@13.0.5/node_modules/@secretlint/profiler/module/index.js
 class SecretLintProfiler {
   perf;
+  PerformanceObserver;
+  observer;
+  enabled;
   entries = [];
   measures = [];
+  startMarkNames = new Set;
   executionPromises = [];
   constructor(options) {
     this.perf = options.perf;
+    this.PerformanceObserver = options.PerformanceObserver;
+    this.enabled = options.enabled ?? true;
+  }
+  get isEnabled() {
+    return this.enabled;
+  }
+  setEnabled(enabled) {
+    if (this.enabled === enabled) {
+      return;
+    }
+    this.enabled = enabled;
+    if (!enabled) {
+      this.stopObserving();
+    }
+  }
+  startObserving() {
     const pattern = /(.*?)::end(\|\|.*)?/;
-    const observer = new options.PerformanceObserver((items) => {
+    const observer = new this.PerformanceObserver((items) => {
+      if (!this.enabled) {
+        return;
+      }
       const entries = items.getEntries();
       entries.forEach((entry2) => {
         if (entry2.entryType === "mark") {
@@ -53937,15 +54027,14 @@ class SecretLintProfiler {
           const endIdentifier = match ? match[1] : undefined;
           const suffix = match && match[2] ? match[2] : "";
           if (endIdentifier) {
-            const startIdentifier = `${endIdentifier}::start`;
-            this.entries.find((savedEntry) => {
-              return savedEntry.name === startIdentifier;
-            });
-            if (startIdentifier) {
+            const startMarkName = `${endIdentifier}::start${suffix}`;
+            if (this.startMarkNames.has(startMarkName)) {
               this.executionPromises.push(Promise.resolve().then(() => {
-                this.perf.measure(endIdentifier + suffix, `${endIdentifier}::start${suffix}`, `${endIdentifier}::end${suffix}`);
+                this.perf.measure(endIdentifier + suffix, startMarkName, entry2.name);
               }));
             }
+          } else {
+            this.startMarkNames.add(entry2.name);
           }
           this.entries.push(entry2);
         } else if (entry2.entryType === "measure") {
@@ -53954,8 +54043,23 @@ class SecretLintProfiler {
       });
     });
     observer.observe({ entryTypes: ["mark", "measure"] });
+    this.observer = observer;
+  }
+  stopObserving() {
+    this.observer?.disconnect();
+    this.observer = undefined;
+    this.entries.length = 0;
+    this.measures.length = 0;
+    this.executionPromises.length = 0;
+    this.startMarkNames.clear();
   }
   mark(marker) {
+    if (!this.enabled) {
+      return;
+    }
+    if (!this.observer) {
+      this.startObserving();
+    }
     if ("id" in marker) {
       this.perf.mark(`${marker.type}||${marker.id}`);
     } else {
@@ -53977,7 +54081,7 @@ class SecretLintProfiler {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+profiler@13.0.4/node_modules/@secretlint/profiler/module/node.js
+// ../../node_modules/.bun/@secretlint+profiler@13.0.5/node_modules/@secretlint/profiler/module/node.js
 import perf_hooks from "perf_hooks";
 
 class NullPerformanceObserver {
@@ -53992,7 +54096,7 @@ var init_node = __esm(() => {
   });
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RunningEvents.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/RunningEvents.js
 var createRunningEvents = () => {
   const contextEvents = new PromiseEventEmitter;
   const registerSet = new Set;
@@ -54049,7 +54153,7 @@ var init_RunningEvents = __esm(() => {
   init_node();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RulePresetContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/RulePresetContext.js
 var createRulePresetContext = ({ configRulePreset, sourceCode, runningEvents, contextEvents, sharedOptions, locale }) => {
   const presetRules = configRulePreset.rules || [];
   if (!Array.isArray(presetRules)) {
@@ -54097,7 +54201,7 @@ var init_RulePresetContext = __esm(() => {
   init_RuleContext();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
 function filterIgnoredMessages(options) {
   const reportedMessages = options.reportedMessages;
   const ignoreMessages = options.ignoredMessages;
@@ -54119,7 +54223,7 @@ var isContainedRange = (index, range) => {
   return start <= index && index <= end;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
 var createMessageProcessor = (processors) => {
   return {
     process(messages2) {
@@ -54134,7 +54238,7 @@ var createMessageProcessor = (processors) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
 function filterDuplicatedMessages(messages2 = []) {
   return messages2.filter((message, index) => {
     const restMessages = messages2.slice(index + 1);
@@ -54147,7 +54251,7 @@ var isEqualMessage = (aMessage, bMessage) => {
   return aMessage.range[0] === bMessage.range[0] && aMessage.range[1] === bMessage.range[1] && "severity" in aMessage && "severity" in bMessage && aMessage.severity === bMessage.severity && aMessage.message === bMessage.message;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/sort-messages-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/sort-messages-process.js
 function sortMessagesByLocation(messages2) {
   return messages2.sort(function(a, b) {
     const startIndexDiff = a.range[0] - b.range[0];
@@ -54159,7 +54263,7 @@ function sortMessagesByLocation(messages2) {
   });
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-message-id.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-message-id.js
 var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   const disabledSet = new Set(allowMessageIds.map((allowMessage) => {
     return `${allowMessage.ruleId}--${allowMessage.messageId}`;
@@ -54169,7 +54273,7 @@ var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
 var deepMask = (object, handler) => {
   for (const key of Object.keys(object)) {
     if (typeof object[key] === "object") {
@@ -54211,7 +54315,7 @@ var deepMask = (object, handler) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/index.js
 var cleanupMessages = (options) => {
   const reportedMessages = filterIgnoredMessages(options);
   const reportedMessagesWithoutAllowMessageIds = filterByAllowMessageIds(reportedMessages, options.allowMessageIds);
@@ -54999,7 +55103,7 @@ var require_src = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/index.js
 var import_debug, debug, lintSource = ({ source, options }) => {
   secretLintProfiler.mark({
     type: "@core>lint::start",
@@ -55126,7 +55230,7 @@ var init_module = __esm(() => {
   debug = import_debug.default("@secretlint/core");
 });
 
-// ../../node_modules/.bun/@secretlint+secretlint-rule-preset-recommend@13.0.4/node_modules/@secretlint/secretlint-rule-preset-recommend/module/index.js
+// ../../node_modules/.bun/@secretlint+secretlint-rule-preset-recommend@13.0.5/node_modules/@secretlint/secretlint-rule-preset-recommend/module/index.js
 import path4 from "path";
 function requireLodash_uniq() {
   if (hasRequiredLodash_uniq)
@@ -59307,7 +59411,16 @@ var init_pipeline = __esm(() => {
 
 // src/retro/public-delivery.ts
 import { createHash as createHash30 } from "crypto";
-import { mkdirSync as mkdirSync19, renameSync as renameSync12, unlinkSync as unlinkSync6, writeFileSync as writeFileSync25 } from "fs";
+import {
+  closeSync as closeSync13,
+  fsyncSync as fsyncSync4,
+  mkdirSync as mkdirSync19,
+  openSync as openSync13,
+  readFileSync as readFileSync69,
+  renameSync as renameSync12,
+  unlinkSync as unlinkSync6,
+  writeFileSync as writeFileSync25
+} from "fs";
 import path5 from "path";
 function containsControlCharacter(value) {
   for (const character of value) {
@@ -59325,11 +59438,11 @@ function normalizePublicRetroOptionalValue(value) {
   return normalized;
 }
 function validSourceRoute(source) {
-  return source.hostClass === "unknown" || source.harness !== "cursor";
+  return source.hostClass === "local" || source.hostClass === "unknown";
 }
-function isValidEnvelopeInput(input, projectUUID) {
+function isValidEnvelopeInput(input, projectUUID, version2) {
   const { source } = input;
-  return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && validSourceRoute(source);
+  return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && (version2 === "v3" ? source.hostClass === "local" : validSourceRoute(source));
 }
 function deriveSessionScope(harness, projectUUID, sessionId, windowStart) {
   const hash = createHash30("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
@@ -59337,10 +59450,10 @@ function deriveSessionScope(harness, projectUUID, sessionId, windowStart) {
     hash.update("\x00window\x00").update(String(windowStart));
   return hash.digest("hex");
 }
-function buildPublicRetroEnvelope(input) {
+function buildPublicRetroEnvelope(input, version2 = "v2") {
   const projectUUID = input.source.projectUUID.toLowerCase();
   const cliVersion = normalizePublicRetroOptionalValue(input.source.safewordCliVersion);
-  if (cliVersion === undefined || !isValidEnvelopeInput(input, projectUUID)) {
+  if (cliVersion === undefined || !isValidEnvelopeInput(input, projectUUID, version2)) {
     throw new Error("Invalid public retrospective input");
   }
   const normalizedOptional = {
@@ -59372,10 +59485,17 @@ function buildPublicRetroEnvelope(input) {
     }
   };
   const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId, input.windowStart ?? 0);
-  const bytes = new TextEncoder().encode(JSON.stringify({ version: "v2", findings: input.findings, source, sessionScope: scope }));
+  const bytes = new TextEncoder().encode(JSON.stringify({ version: version2, findings: input.findings, source, sessionScope: scope }));
   return { bytes, sessionScope: scope };
 }
 function claimPublicRetroRequest(built, dependencies) {
+  if (dependencies.route === "server-v3") {
+    return claimServerPublicRetroRequest(built, dependencies);
+  }
+  const prepared = claimDirectPublicRetroRequest(built, dependencies);
+  return prepared === undefined ? { kind: "unavailable" } : { kind: "prepared", prepared };
+}
+function claimDirectPublicRetroRequest(built, dependencies) {
   if (built.bytes.byteLength > MAX_ENVELOPE_BYTES)
     return;
   const requestId = dependencies.randomUUID().toLowerCase();
@@ -59399,6 +59519,96 @@ function claimPublicRetroRequest(built, dependencies) {
   }
   return { ...built, requestId };
 }
+function readServerAttempt(markerPath2, built) {
+  try {
+    const record2 = JSON.parse(readFileSync69(markerPath2, "utf8"));
+    if (record2.route !== "server-v3" || record2.sessionScope !== built.sessionScope) {
+      return { kind: "blocked" };
+    }
+    if (record2.state === "accepted")
+      return { kind: "accepted" };
+    if (record2.state !== "pending" || typeof record2.requestId !== "string" || typeof record2.bodyBase64 !== "string") {
+      return { kind: "blocked" };
+    }
+    const bytes = Buffer.from(record2.bodyBase64, "base64");
+    if (!bytes.equals(built.bytes))
+      return { kind: "conflict" };
+    return {
+      kind: "pending",
+      prepared: {
+        bytes: new Uint8Array(bytes),
+        markerPath: markerPath2,
+        requestId: record2.requestId,
+        sessionScope: built.sessionScope
+      }
+    };
+  } catch (error2) {
+    if (error2.code === "ENOENT")
+      return { kind: "absent" };
+    throw error2;
+  }
+}
+function claimServerPublicRetroRequest(built, dependencies) {
+  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES)
+    return { kind: "unavailable" };
+  let markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
+  let existing = readServerAttempt(markerPath2, built);
+  if (existing.kind === "conflict") {
+    const digest4 = createHash30("sha256").update(built.bytes).digest("hex");
+    markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.${digest4}.json`);
+    existing = readServerAttempt(markerPath2, built);
+  }
+  if (existing.kind !== "absent") {
+    return existingServerClaim(existing);
+  }
+  mkdirSync19(dependencies.attemptsDirectory, { recursive: true });
+  const requestId = dependencies.randomUUID().toLowerCase();
+  if (!UUID_V4.test(requestId))
+    throw new Error("Invalid public retrospective request identity");
+  try {
+    createServerAttempt(markerPath2, built, requestId, dependencies);
+    return { kind: "prepared", prepared: { ...built, markerPath: markerPath2, requestId } };
+  } catch (error2) {
+    if (error2.code === "EEXIST") {
+      const raced = readServerAttempt(markerPath2, built);
+      return existingServerClaim(raced);
+    }
+    throw error2;
+  }
+}
+function existingServerClaim(existing) {
+  if (existing.kind === "accepted")
+    return { kind: "already-owned" };
+  if (existing.kind === "pending")
+    return { kind: "prepared", prepared: existing.prepared };
+  return { kind: "unavailable" };
+}
+function createServerAttempt(markerPath2, built, requestId, dependencies) {
+  writeFileSync25(markerPath2, JSON.stringify({
+    bodyBase64: Buffer.from(built.bytes).toString("base64"),
+    requestId,
+    route: "server-v3",
+    sessionScope: built.sessionScope,
+    state: "pending"
+  }), { encoding: "utf8", flag: "wx", flush: true });
+  try {
+    (dependencies.syncDirectory ?? syncDirectoryEntry)(dependencies.attemptsDirectory);
+  } catch (error2) {
+    unlinkSync6(markerPath2);
+    throw error2;
+  }
+}
+function syncDirectoryEntry(directory) {
+  const descriptor = openSync13(directory, "r");
+  try {
+    fsyncSync4(descriptor);
+  } finally {
+    closeSync13(descriptor);
+  }
+}
+function resolveSyncDirectory(dependencies) {
+  return dependencies.syncDirectory ?? syncDirectoryEntry;
+}
 async function submitPublicRetroRequest(prepared, transport, signal) {
   const result = await transport({
     method: "POST",
@@ -59415,24 +59625,35 @@ async function submitPublicRetroRequest(prepared, transport, signal) {
   }
   return result;
 }
+function handoffTiming(dependencies, preparationDeadline) {
+  const now = dependencies.now();
+  if (now >= preparationDeadline)
+    return;
+  return { deadline: preparationDeadline, timeoutMs: preparationDeadline - now };
+}
+function preparedMarkerPath(prepared, attemptsDirectory) {
+  return prepared.markerPath ?? path5.join(attemptsDirectory, `${prepared.sessionScope}.json`);
+}
 async function deliverPreparedInput(input, dependencies, preparationDeadline) {
   let claimedMarkerPath;
   let accepted = false;
   try {
-    if (dependencies.now() >= preparationDeadline)
+    const serverRoute = dependencies.route === "server-v3";
+    if (!serverRoute && dependencies.now() >= preparationDeadline)
       return "abandoned";
-    const built = buildPublicRetroEnvelope(input);
-    const prepared = claimPublicRetroRequest(built, dependencies);
-    if (!prepared)
+    const built = buildPublicRetroEnvelope(input, serverRoute ? "v3" : "v2");
+    const claim = claimPublicRetroRequest(built, dependencies);
+    if (claim.kind !== "prepared")
+      return claimOutcome(claim);
+    const prepared = claim.prepared;
+    claimedMarkerPath = preparedMarkerPath(prepared, dependencies.attemptsDirectory);
+    const timing = handoffTiming(dependencies, preparationDeadline);
+    if (timing === undefined)
       return "abandoned";
-    claimedMarkerPath = path5.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
-    if (dependencies.now() >= preparationDeadline)
-      return "abandoned";
-    const handoffDeadline = dependencies.now() + 2000;
     const controller = new AbortController;
     const timeout = setTimeout(() => {
       controller.abort();
-    }, 2000);
+    }, timing.timeoutMs);
     timeout.unref();
     let result;
     try {
@@ -59441,28 +59662,77 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
     } finally {
       clearTimeout(timeout);
     }
-    if (dependencies.now() >= handoffDeadline)
+    if (dependencies.now() >= timing.deadline)
       return "abandoned";
-    const preserved = preservePublicRetroReceipt(prepared, result, claimedMarkerPath, dependencies.now, handoffDeadline);
+    const preserved = preservePublicRetroReceipt({
+      handoffDeadline: timing.deadline,
+      markerPath: claimedMarkerPath,
+      now: dependencies.now,
+      prepared,
+      result,
+      route: dependencies.route ?? "direct-v2",
+      syncDirectory: resolveSyncDirectory(dependencies)
+    });
     return preserved ? "preserved" : "abandoned";
-  } catch {
+  } catch (error2) {
+    preserveServerRejectionDiagnosis(dependencies.route, claimedMarkerPath, error2);
     return "abandoned";
   } finally {
-    if (claimedMarkerPath !== undefined && !accepted) {
+    releaseLegacyClaim(claimedMarkerPath, accepted, dependencies.route);
+  }
+}
+function claimOutcome(claim) {
+  return claim.kind === "already-owned" ? "already-owned" : "abandoned";
+}
+function preserveServerRejectionDiagnosis(route, markerPath2, error2) {
+  if (route === "server-v3" && markerPath2 !== undefined && error2 instanceof PublicRetroRejection) {
+    preserveServerRejection(markerPath2, error2);
+  }
+}
+function preserveServerRejection(markerPath2, rejection) {
+  const temporaryPath = `${markerPath2}.rejection.tmp`;
+  let renamed = false;
+  try {
+    const record2 = JSON.parse(readFileSync69(markerPath2, "utf8"));
+    if (record2.route !== "server-v3" || record2.state !== "pending")
+      return;
+    writeFileSync25(temporaryPath, JSON.stringify({
+      ...record2,
+      lastRejection: { code: rejection.code, status: rejection.status }
+    }), { encoding: "utf8", flag: "wx", flush: true });
+    renameSync12(temporaryPath, markerPath2);
+    renamed = true;
+  } catch {} finally {
+    if (!renamed) {
       try {
-        unlinkSync6(claimedMarkerPath);
+        unlinkSync6(temporaryPath);
       } catch {}
     }
   }
 }
-function preservePublicRetroReceipt(prepared, result, markerPath2, now, handoffDeadline) {
+function releaseLegacyClaim(markerPath2, accepted, route) {
+  if (markerPath2 === undefined || accepted || route === "server-v3")
+    return;
+  try {
+    unlinkSync6(markerPath2);
+  } catch {}
+}
+function preservePublicRetroReceipt(input) {
+  const { handoffDeadline, markerPath: markerPath2, now, prepared, result, route, syncDirectory } = input;
   const temporaryPath = `${markerPath2}.${prepared.requestId}.tmp`;
   let committed = false;
   try {
-    writeFileSync25(temporaryPath, JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }), { encoding: "utf8", flag: "wx", flush: true });
+    writeFileSync25(temporaryPath, JSON.stringify(route === "server-v3" ? {
+      receipt: result.receipt,
+      requestId: prepared.requestId,
+      route,
+      sessionScope: prepared.sessionScope,
+      state: "accepted"
+    } : { sessionScope: prepared.sessionScope, receipt: result.receipt }), { encoding: "utf8", flag: "wx", flush: true });
     if (now() >= handoffDeadline)
       return false;
     renameSync12(temporaryPath, markerPath2);
+    syncDirectory(path5.dirname(markerPath2));
     committed = true;
     return true;
   } finally {
@@ -59485,14 +59755,24 @@ function deliverSanitizedPublicRetroFindings(input, dependencies, preparationDea
     return Promise.resolve("abandoned");
   }
 }
-var UUID2, MAX_ENVELOPE_BYTES = 65536, MAX_OPTIONAL_VALUE_BYTES = 256;
+var PublicRetroRejection, UUID2, UUID_V4, MAX_ENVELOPE_BYTES = 262144, MAX_OPTIONAL_VALUE_BYTES = 256;
 var init_public_delivery = __esm(() => {
   init_finding();
+  PublicRetroRejection = class PublicRetroRejection extends Error {
+    status;
+    code;
+    constructor(status, code) {
+      super(`Public retrospective submission failed (${status})`);
+      this.status = status;
+      this.code = code;
+    }
+  };
   UUID2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 });
 
 // src/retro/public-source.ts
-import { lstatSync as lstatSync24, readFileSync as readFileSync69, realpathSync as realpathSync15 } from "fs";
+import { lstatSync as lstatSync24, readFileSync as readFileSync70, realpathSync as realpathSync15 } from "fs";
 import nodePath108 from "path";
 function repoIdentity(hostname, rawPath) {
   const path6 = normalizedRepoPath(rawPath);
@@ -59573,16 +59853,16 @@ function repoGitConfigPath(cwd) {
     throw new Error("Untrusted Git directory pointer");
   if (dotGitEntry.isDirectory())
     return trustedConfigFile(nodePath108.join(dotGit, "config"));
-  const pointer = readFileSync69(dotGit, "utf8").trim();
+  const pointer = readFileSync70(dotGit, "utf8").trim();
   if (!pointer.toLowerCase().startsWith("gitdir:"))
     throw new Error("Invalid Git directory pointer");
   const gitDirectory = nodePath108.resolve(projectDirectory, pointer.slice("gitdir:".length).trim());
   let commonDirectory;
   let backlink;
   try {
-    const common = readFileSync69(nodePath108.join(gitDirectory, "commondir"), "utf8").trim();
+    const common = readFileSync70(nodePath108.join(gitDirectory, "commondir"), "utf8").trim();
     commonDirectory = nodePath108.resolve(gitDirectory, common);
-    backlink = readFileSync69(nodePath108.join(gitDirectory, "gitdir"), "utf8").trim();
+    backlink = readFileSync70(nodePath108.join(gitDirectory, "gitdir"), "utf8").trim();
   } catch {
     throw new Error("Untrusted Git directory pointer");
   }
@@ -59675,7 +59955,7 @@ function stripGitComment(value) {
 }
 function collectPublicGitContext(cwd) {
   try {
-    const config = parseRepoGitConfig(readFileSync69(repoGitConfigPath(cwd), "utf8"));
+    const config = parseRepoGitConfig(readFileSync70(repoGitConfigPath(cwd), "utf8"));
     if (config.delegatesConfig)
       return {};
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
@@ -59717,8 +59997,16 @@ function createPublicRetroTransport(options) {
       redirect: "error",
       signal
     });
-    if (!response.ok)
-      throw new Error(`Public retrospective submission failed (${response.status})`);
+    if (!response.ok) {
+      let code = "unknown";
+      try {
+        const rejection = await response.json();
+        if (typeof rejection.error === "string" && /^[a-z_]{1,64}$/u.test(rejection.error)) {
+          code = rejection.error;
+        }
+      } catch {}
+      throw new PublicRetroRejection(response.status, code);
+    }
     let result;
     try {
       result = await response.json();
@@ -59733,6 +60021,7 @@ function createPublicRetroTransport(options) {
 }
 var PUBLIC_RETRO_ORIGIN, LOOPBACK_HOSTS;
 var init_public_transport = __esm(() => {
+  init_public_delivery();
   PUBLIC_RETRO_ORIGIN = typeof __SAFEWORD_PUBLIC_RETRO_ORIGIN__ === "string" ? __SAFEWORD_PUBLIC_RETRO_ORIGIN__ : "https://retro-collector-production.up.railway.app";
   LOOPBACK_HOSTS = new Set(["127.0.0.1", "[::1]", "localhost"]);
 });
@@ -62158,6 +62447,8 @@ __export(exports_retro, {
   resolveRelayConfig: () => resolveRelayConfig,
   resolvePublicRetroRoute: () => resolvePublicRetroRoute,
   reportRetroCommandOutcome: () => reportRetroCommandOutcome,
+  localServerRouteEnabled: () => localServerRouteEnabled,
+  localRetroHostClass: () => localRetroHostClass,
   executeRetroReconcile: () => executeRetroReconcile,
   executeRetroCommand: () => executeRetroCommand,
   discardRelaySpoolCommand: () => discardRelaySpoolCommand,
@@ -62169,7 +62460,7 @@ import { randomUUID as randomUUID13 } from "crypto";
 import {
   mkdirSync as mkdirSync20,
   mkdtempSync as mkdtempSync8,
-  readFileSync as readFileSync70,
+  readFileSync as readFileSync71,
   realpathSync as realpathSync16,
   statSync as statSync12,
   writeFileSync as writeFileSync26
@@ -62177,6 +62468,9 @@ import {
 import { platform, tmpdir as tmpdir6 } from "os";
 import nodePath109 from "path";
 import process17 from "process";
+function selectedLocalRetroCanary(override) {
+  return override ?? SAFEWORD_LOCAL_RETRO_CANARY_HARNESS;
+}
 function buildProvenanceResolver(options) {
   return () => {
     const at = options.now().toISOString();
@@ -62294,6 +62588,9 @@ function relayPersistenceErrorMessage(persistence, spoolFailed) {
     return fallback;
   return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
+function serverRecoveryNeeded(findingCount, outcome) {
+  return findingCount > 0 && outcome !== "preserved" && outcome !== "already-owned";
+}
 async function runRetro(options, dependencies) {
   if (!options.transcript) {
     return {
@@ -62301,7 +62598,7 @@ async function runRetro(options, dependencies) {
       errorMessage: "safeword retro requires --transcript <path>; it never guesses the session path."
     };
   }
-  const read = dependencies.readFile ?? ((path8) => readFileSync70(path8, "utf8"));
+  const read = dependencies.readFile ?? ((path8) => readFileSync71(path8, "utf8"));
   let transcript;
   try {
     transcript = read(options.transcript);
@@ -62310,12 +62607,14 @@ async function runRetro(options, dependencies) {
   }
   const window2 = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window2);
+  const publicRetroDeadline = dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 750;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
   const sourceSession = sessionId.trim().length === 0 || sessionId === "unknown" ? options.transcript : sessionId;
   if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
-    const drafts = encounters.map((encounter) => encounter.draft);
+    const route = publicRetro?.route ?? "direct-v2";
+    const drafts = encounters.map((encounter) => ({ ...encounter.draft, route }));
     recordRetroDebugEvent({
       event: "retro_cli_spool",
       sessionId,
@@ -62325,26 +62624,48 @@ async function runRetro(options, dependencies) {
     });
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
-  const deliverPublic = async () => {
-    if (publicRetro === undefined || findings.length === 0) {
-      return;
-    }
-    await deliverSanitizedPublicRetroFindings({
-      findings,
-      sessionId: sourceSession,
-      source: publicRetro.source,
-      windowStart: options.windowStart ?? 0
-    }, publicRetro, publicRetro.now() + 1000);
-  };
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
     return runRelayRetro(encounters, drops, {
-      afterPersistence: deliverPublic,
+      afterPersistence: () => Promise.resolve(),
       projectDirectory,
       relay,
       source: { session: sourceSession, windowStart: options.windowStart ?? 0 }
     });
   }
-  await deliverPublic();
+  if (relay?.readiness.enabled === true) {
+    return { ok: false, errorMessage: "relay delivery requires a project directory" };
+  }
+  const deliverPublic = async () => {
+    if (publicRetro === undefined || publicRetroDeadline === undefined || findings.length === 0) {
+      return;
+    }
+    return deliverSanitizedPublicRetroFindings({
+      findings,
+      sessionId: sourceSession,
+      source: publicRetro.source,
+      windowStart: options.windowStart ?? 0
+    }, publicRetro, publicRetroDeadline);
+  };
+  const publicOutcome = await deliverPublic();
+  if (publicRetro?.route === "server-v3") {
+    if ((publicOutcome === "preserved" || publicOutcome === "already-owned") && projectDirectory !== undefined) {
+      markDraftsAcceptedByServer(projectDirectory, sessionId, encounters.map((encounter) => encounter.draft.signature));
+    }
+    return {
+      ok: true,
+      result: {
+        created: [],
+        bumped: [],
+        commented: [],
+        deferred: [],
+        failed: [],
+        filedSignatures: [],
+        filedDestinations: []
+      },
+      agentFilingNeeded: serverRecoveryNeeded(findings.length, publicOutcome),
+      drops
+    };
+  }
   const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,
@@ -62453,7 +62774,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
         writeFile: (path8, content) => {
           writeFileSync26(path8, content);
         },
-        readFile: (path8) => readFileSync70(path8, "utf8"),
+        readFile: (path8) => readFileSync71(path8, "utf8"),
         env: headlessEnvironment(process17.env, "codex"),
         cwd: workDirectory,
         model,
@@ -62706,7 +63027,7 @@ async function executeRetroWithDependencies(options, dependencies) {
     extract: dependencies.extract,
     harness: dependencies.harness,
     projectDirectory: dependencies.projectDirectory,
-    readFile: (path8) => readFileSync70(path8, "utf8"),
+    readFile: (path8) => readFileSync71(path8, "utf8"),
     ...relay !== undefined && { relay },
     ...dependencies.publicRetro !== undefined && { publicRetro: dependencies.publicRetro },
     resolveProvenance: dependencies.resolveProvenance,
@@ -62735,8 +63056,8 @@ function renderDropReport(drops) {
 }
 function reportRetroCommandOutcome(outcome, options) {
   const { error: error2, info: info2, success: success2 } = options.output;
-  reportRelayOutcome(outcome, options.output, outcome.ok);
   if (!outcome.ok) {
+    reportRelayOutcome(outcome, options.output, false);
     error2(outcome.errorMessage ?? "safeword retro failed");
     process17.exitCode = 1;
     return;
@@ -62746,6 +63067,7 @@ function reportRetroCommandOutcome(outcome, options) {
     process17.exitCode = 1;
     return;
   }
+  reportRelayOutcome(outcome, options.output, true);
   if (outcome.relay !== undefined)
     return;
   const r = outcome.result;
@@ -62756,7 +63078,7 @@ function reportRetroCommandOutcome(outcome, options) {
   if (dropLine)
     info2(dropLine);
   if (outcome.agentFilingNeeded) {
-    info2(options.restTransportAvailable ? "retro: unfiled drafts were spooled for the agent filing path." : "retro: no GitHub access; unfiled drafts were spooled for the agent filing path.");
+    info2(options.restTransportAvailable ? "retro: unfiled drafts remain queued for recovery." : "retro: no GitHub access; unfiled drafts remain queued for recovery.");
   }
   success2("retro complete");
 }
@@ -62881,25 +63203,74 @@ function publicHarness(agent) {
     return "codex";
   return agent === "cursor" ? "cursor" : undefined;
 }
-function resolvePublicRetroRoute(input) {
-  if (!input.enabled || input.agent === "cursor" && !cursorPublicBindingMatches(input) || input.agent === "claude" && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined) {
-    return;
+function localRetroHostClass(agent, environment, socketStatus = statSync12) {
+  if (agent !== "cursor")
+    return nonCursorHostClass(agent, environment, socketStatus);
+  const cursorSocketConfigured = environment.CURSOR_AGENT_SOCKET !== undefined;
+  const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
+  const socketPath = configuredSocket || "/run/cursor/api.sock";
+  try {
+    socketStatus(socketPath);
+    return "unknown";
+  } catch (error_) {
+    const error2 = error_;
+    return error2.code === "ENOENT" && !cursorSocketConfigured ? "local" : "unknown";
   }
+}
+function nonCursorHostClass(agent, environment, socketStatus) {
+  if (agent === "codex") {
+    const toolsPipe = environment.CODEX_APP_TOOLS_PIPE_PATH?.trim();
+    if (!toolsPipe)
+      return "unknown";
+    try {
+      return socketStatus(toolsPipe).isSocket() ? "local" : "unknown";
+    } catch {
+      return "unknown";
+    }
+  }
+  return environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined ? "local" : "unknown";
+}
+function localServerRouteEnabled(source, readiness) {
+  return readiness && source.hostClass === "local";
+}
+function publicRetroEligible(input) {
+  if (!input.enabled)
+    return false;
+  if (input.agent === "cursor" && !cursorPublicBindingMatches(input))
+    return false;
+  return input.agent !== "claude" || input.environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined;
+}
+function resolvePublicRetroRoute(input) {
+  if (!publicRetroEligible(input))
+    return;
   const harness = publicHarness(input.agent);
   if (harness === undefined)
     return;
-  const source = buildPublicRetroSource(input.projectDirectory, {
+  const builtSource = buildPublicRetroSource(input.projectDirectory, {
     cliVersion: VERSION,
     harness,
     osFamily: platform()
   });
-  if (source === undefined)
+  if (builtSource === undefined)
     return;
+  const isCanary = selectedLocalRetroCanary(input.canaryHarness) === harness;
+  const localSource = {
+    ...builtSource,
+    hostClass: localRetroHostClass(input.agent, input.environment, input.socketStatus)
+  };
+  const serverReady = input.serverReady ?? validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
+    ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
+    buildCommit: SAFEWORD_BUILD_COMMIT,
+    now: new Date,
+    relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled
+  });
+  const useServerRoute = localServerRouteEnabled(localSource, serverReady || isCanary);
   return {
     attemptsDirectory: nodePath109.join(input.projectDirectory, ".safeword", "retro-attempts"),
     now: () => performance.now(),
     randomUUID: randomUUID13,
-    source,
+    ...useServerRoute && { route: "server-v3" },
+    source: useServerRoute ? localSource : builtSource,
     transport: createPublicRetroTransport()
   };
 }
@@ -62910,7 +63281,7 @@ function cursorPublicBindingMatches(input) {
     return false;
   const state = { conversation_id: sessionId };
   try {
-    return readFileSync70(cursorConversationStashPath(state), "utf8") === sessionId && readFileSync70(cursorTranscriptStashPath(state), "utf8") === transcript && realpathSync16(readFileSync70(cursorProjectStashPath(state), "utf8")) === realpathSync16(input.projectDirectory);
+    return readFileSync71(cursorConversationStashPath(state), "utf8") === sessionId && readFileSync71(cursorTranscriptStashPath(state), "utf8") === transcript && realpathSync16(readFileSync71(cursorProjectStashPath(state), "utf8")) === realpathSync16(input.projectDirectory);
   } catch {
     return false;
   }
@@ -62976,7 +63347,7 @@ async function retroCommand(options) {
 }
 function readFindings(path8) {
   try {
-    const parsed2 = JSON.parse(readFileSync70(path8, "utf8"));
+    const parsed2 = JSON.parse(readFileSync71(path8, "utf8"));
     return Array.isArray(parsed2) ? parsed2 : [];
   } catch {
     return [];
@@ -63005,7 +63376,7 @@ async function retroReconcileCommand(dependencies = {}) {
   info2(`reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.deferred.length} deferred to a later run, ${result.failed.length} failed`);
   success2("reconcile complete");
 }
-var SHARED_HEADLESS_ENVIRONMENT_KEYS, CLAUDE_HEADLESS_ENVIRONMENT_KEYS, CODEX_HEADLESS_ENVIRONMENT_KEYS, CURSOR_RETRO_DENY_RULES, INVALID_RELAY_OUTBOX_ERROR = "retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project";
+var SAFEWORD_LOCAL_RETRO_CANARY_HARNESS, SHARED_HEADLESS_ENVIRONMENT_KEYS, CLAUDE_HEADLESS_ENVIRONMENT_KEYS, CODEX_HEADLESS_ENVIRONMENT_KEYS, CURSOR_RETRO_DENY_RULES, INVALID_RELAY_OUTBOX_ERROR = "retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project";
 var init_retro = __esm(() => {
   init_cursor_state();
   init_dogfood();
@@ -63014,6 +63385,7 @@ var init_retro = __esm(() => {
   init_retro_extract();
   init_self_report();
   init_ledger();
+  init_local_retro_readiness();
   init_pipeline();
   init_public_delivery();
   init_public_source();
@@ -63023,6 +63395,7 @@ var init_retro = __esm(() => {
   init_relay_readiness();
   init_triage();
   init_version();
+  SAFEWORD_LOCAL_RETRO_CANARY_HARNESS = typeof __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__ === "string" ? __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__ : undefined;
   SHARED_HEADLESS_ENVIRONMENT_KEYS = [
     "ALL_PROXY",
     "APPDATA",
@@ -63748,7 +64121,7 @@ import {
   mkdirSync as mkdirSync22,
   mkdtempSync as mkdtempSync9,
   readdirSync as readdirSync35,
-  readFileSync as readFileSync72,
+  readFileSync as readFileSync73,
   renameSync as renameSync13,
   rmSync as rmSync15,
   writeFileSync as writeFileSync27
@@ -63947,7 +64320,7 @@ function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
-  if (!readFileSync72(instructionsPath, "utf8").trim())
+  if (!readFileSync73(instructionsPath, "utf8").trim())
     return;
   return [
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
@@ -64030,7 +64403,7 @@ function rewriteSnapshotImportsForNode(directory) {
     }
     if (!entry2.isFile() || !entry2.name.endsWith(".ts"))
       continue;
-    const source = readFileSync72(path8, "utf8");
+    const source = readFileSync73(path8, "utf8");
     const rewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3").replace("return JSON.parse(await Bun.stdin.text()) as CodexHookInput;", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
     return JSON.parse(raw) as CodexHookInput;`).replace("return spawnSync('bun', [claudeHookPath], {", "return spawnSync(process.execPath, [claudeHookPath], {").replace("SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',").replace("input = await Bun.stdin.json();", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
   input = JSON.parse(raw) as HookInput;`);
@@ -64090,7 +64463,7 @@ function emitPackagedPreToolResult(result) {
 }
 function readProjectTextFile(projectDirectory, relativePath) {
   const filePath = nodePath113.join(projectDirectory, relativePath);
-  return existsSync53(filePath) ? readFileSync72(filePath, "utf8") : undefined;
+  return existsSync53(filePath) ? readFileSync73(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process21.stdout.write(`${JSON.stringify(output)}
@@ -64138,7 +64511,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   if (!ticketFolder)
     return false;
   const ticketPath = nodePath113.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync53(ticketPath) ? readFileSync72(ticketPath, "utf8") : "";
+  const ticketContent = existsSync53(ticketPath) ? readFileSync73(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -66441,7 +66814,7 @@ init_migration_error();
 init_architecture_document();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync51, lstatSync as lstatSync25, readFileSync as readFileSync71, readlinkSync as readlinkSync4 } from "fs";
+import { existsSync as existsSync51, lstatSync as lstatSync25, readFileSync as readFileSync72, readlinkSync as readlinkSync4 } from "fs";
 import nodePath110 from "path";
 
 // src/cli-protocol/option-values.ts
@@ -67340,35 +67713,56 @@ async function reviewRoutesSetHandler(invocation) {
     }
   });
 }
+var REVIEW_ROUTE_AUTHORS = ["claude", "codex", "opencode"];
+var REVIEW_ROUTE_CONFIG_KEY = "crossAgentReviewRoutes";
 async function reviewRoutesListHandler(invocation) {
-  const author = reviewRouteAuthor(invocation.options.author);
-  if (author === undefined)
+  const requested = reviewRouteAuthor(invocation.options.author);
+  if (requested === undefined && invocation.options.author !== undefined)
     return invalidOperand("review routes list", "Provide --author as claude, codex, or opencode.");
-  const [{ effectiveConfiguredRoutes: effectiveConfiguredRoutes2 }, { builtInReviewRoutes: builtInReviewRoutes2 }] = await Promise.all([
-    Promise.resolve().then(() => (init_preferences(), exports_preferences)),
-    Promise.resolve().then(() => (init_policy2(), exports_policy))
-  ]);
-  let configured;
-  try {
-    configured = effectiveConfiguredRoutes2(invocation.cwd, author);
-  } catch (error2) {
-    return reviewRoutesFailure("review routes list", error2);
+  const authors = requested === undefined ? REVIEW_ROUTE_AUTHORS : [requested];
+  const [{ effectiveConfiguredRoutes: effectiveConfiguredRoutes2, scopedConfigPath: scopedConfigPath2 }, { builtInReviewRoutes: builtInReviewRoutes2 }] = await Promise.all([Promise.resolve().then(() => (init_preferences(), exports_preferences)), Promise.resolve().then(() => (init_policy2(), exports_policy))]);
+  const listed = [];
+  for (const author of authors) {
+    let configured;
+    try {
+      configured = effectiveConfiguredRoutes2(invocation.cwd, author);
+    } catch (error2) {
+      return reviewRoutesFailure("review routes list", error2);
+    }
+    listed.push({
+      author,
+      ...configured ?? {
+        source: "built-in",
+        routes: builtInReviewRoutes2(invocation.cwd, author)
+      }
+    });
   }
-  const data = configured ?? {
-    source: "built-in",
-    routes: builtInReviewRoutes2(invocation.cwd, author)
-  };
+  const projectConfig = nodePath110.relative(invocation.cwd, scopedConfigPath2(invocation.cwd, "project"));
+  const body = [
+    ...listed.flatMap((entry2) => [
+      `${entry2.author} review routes (${entry2.source}):`,
+      ...entry2.routes.map((route, index) => `${index + 1}. ${route.reviewer} (${route.model ?? "runtime default"}) [${route.independence}]`),
+      ""
+    ]),
+    `Change these with \`safeword review routes set --author <agent> --scope project --route <reviewer>\`,`,
+    `or edit the \`${REVIEW_ROUTE_CONFIG_KEY}\` key in ${projectConfig}.`
+  ].join(`
+`);
+  const single = requested === undefined ? undefined : listed[0];
   return createResult({
     state: "healthy",
-    presentation: {
-      kind: "raw",
-      body: [
-        `${author} review routes (${data.source}):`,
-        ...data.routes.map((route, index) => `${index + 1}. ${route.reviewer} (${route.model ?? "runtime default"}) [${route.independence}]`)
-      ].join(`
-`)
-    },
-    data: { command: "review routes list", author, ...data }
+    presentation: { kind: "raw", body },
+    data: {
+      command: "review routes list",
+      config_key: REVIEW_ROUTE_CONFIG_KEY,
+      config_path: projectConfig,
+      authors: listed,
+      ...single !== undefined && {
+        author: single.author,
+        source: single.source,
+        routes: single.routes
+      }
+    }
   });
 }
 async function reviewRoutesResetHandler(invocation) {
@@ -67947,7 +68341,7 @@ async function codexBootstrapHandler(invocation) {
   const { bootstrapCodexPlugin: bootstrapCodexPlugin2 } = await Promise.resolve().then(() => (init_codex_bootstrap(), exports_codex_bootstrap));
   let rawInput = "";
   try {
-    rawInput = readFileSync71(0, "utf8");
+    rawInput = readFileSync72(0, "utf8");
   } catch {}
   return bootstrapCodexPlugin2(invocation.cwd, rawInput, { offline: invocation.offline });
 }
@@ -68498,7 +68892,7 @@ function snapshotKind(stats) {
 }
 function snapshotBytes(path8, stats) {
   if (stats.isFile())
-    return readFileSync71(path8).toString("base64");
+    return readFileSync72(path8).toString("base64");
   if (stats.isSymbolicLink())
     return Buffer.from(readlinkSync4(path8)).toString("base64");
   return;

@@ -310,9 +310,9 @@ async function fixture(
   const githubFixture = await startGitHubFixture(options);
   const registry = new CredentialRegistry('deployment-pepper');
   const issueCredential = (
-    harness: 'claude' | 'codex' | 'cursor' | 'operator',
+    harness: 'claude' | 'codex' | 'cursor' | 'operator' | 'collector-worker',
     secretCharacter: string,
-    roles: ('file' | 'operate' | 'reconcile')[] = ['file'],
+    roles: ('file' | 'ingest' | 'operate' | 'reconcile')[] = ['file'],
   ) =>
     registry.issue({
       credentialId: `${harness}-integration`,
@@ -329,6 +329,7 @@ async function fixture(
     codex: issueCredential('codex', 'b'),
     cursor: issueCredential('cursor', 'c'),
     operator: issueCredential('operator', 'd', ['reconcile', 'operate']),
+    collectorWorker: issueCredential('collector-worker', 'e', ['ingest']),
   };
   const credential = credentials.claude;
   const store = RelayStore.open(path.join(directory, 'relay.sqlite'), {
@@ -364,6 +365,219 @@ async function fixture(
 }
 
 describe('retry-safe retro relay', () => {
+  it('accepts exact collector bytes only through the ingest principal', async () => {
+    let now = new Date('2026-08-29T20:00:00.000Z');
+    const setup = await fixture({ now: () => now });
+    const body = Buffer.from(
+      JSON.stringify({
+        version: 'v3',
+        findings: [
+          'Collector-owned finding\n\nThe worker preserved exact bytes.',
+          'Second finding\n\nThe whole batch remained intact.',
+        ],
+        source: {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          repository: 'github.com/customer/example',
+          safewordCliVersion: '0.82.1',
+        },
+        sessionScope: 'a'.repeat(64),
+      }),
+    );
+    const response = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-accepted-at': '2026-08-28T20:00:00Z',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
+      body,
+    });
+    now = new Date('2026-08-29T21:00:00.000Z');
+    const duplicate = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-accepted-at': '2026-08-28T20:00:00Z',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
+      body,
+    });
+    const laterSession = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+      },
+      body,
+    });
+
+    expect(response.status).toBe(201);
+    expect(duplicate.status).toBe(201);
+    expect(laterSession.status).toBe(201);
+    expect(setup.createBodies).toHaveLength(2);
+    expect(setup.createBodies[0]).toContain('The worker preserved exact bytes.');
+    expect(setup.createBodies[0]).toContain('The whole batch remained intact.');
+    expect(setup.relay.observability.logs).toEqual([
+      expect.objectContaining({
+        event: 'retro_filing',
+        requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      }),
+      expect.objectContaining({
+        event: 'retro_filing',
+        requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      }),
+      expect.objectContaining({
+        event: 'retro_filing',
+        requestId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+      }),
+    ]);
+    const stored = setup.store.load({
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      tenantId: 'tenant-1',
+    });
+    expect(stored?.acceptedAt).toBe('2026-08-29T20:00:00.000Z');
+    expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
+  });
+
+  it.each([
+    ['claude', ['file'], 'fa'],
+    ['codex', ['file'], 'fb'],
+    ['cursor', ['file'], 'fc'],
+    ['operator', ['reconcile', 'operate'], 'fd'],
+  ] as const)(
+    'denies the %s principal at collector ingest before GitHub access',
+    async (harness, roles, secretCharacter) => {
+      const setup = await fixture();
+      const credential = setup.registry.issue({
+        credentialId: `${harness}-without-ingest`,
+        harness,
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        roles: [...roles],
+        secret: secretCharacter.repeat(32),
+        subject: `${harness}-without-ingest`,
+        tenantId: 'tenant-1',
+      });
+      const body = Buffer.from(
+        JSON.stringify({
+          version: 'v3',
+          findings: ['Unauthorized collector ingest'],
+          source: {
+            harness: 'codex',
+            hostClass: 'local',
+            projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            safewordCliVersion: '0.82.1',
+          },
+          sessionScope: 'b'.repeat(64),
+        }),
+      );
+
+      const response = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${credential}`,
+          'content-type': 'application/json; charset=utf-8',
+          'x-safeword-accepted-at': '2026-08-28T20:00:00Z',
+          'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+          'x-safeword-request-id': 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+        },
+        body,
+      });
+
+      expect(response.status).toBe(403);
+      expect(setup.createBodies).toHaveLength(0);
+    },
+  );
+
+  it('denies the ingest-only collector worker at the harness filing route', async () => {
+    const setup = await fixture();
+
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(draft()),
+    });
+
+    expect(response.status).toBe(403);
+    expect(setup.createBodies).toHaveLength(0);
+  });
+
+  it('accepts the largest relay-compatible collector batch without truncating its body', async () => {
+    const setup = await fixture();
+    const findings = Array.from({ length: 50 }, (_, index) => {
+      const prefix = `${String(index).padStart(2, '0')}:${'t'.repeat(300)}\n`;
+      return prefix + String(index % 10).repeat(1000 - prefix.length);
+    });
+    const body = Buffer.from(
+      JSON.stringify({
+        version: 'v3',
+        findings,
+        source: {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          repository: 'github.com/customer/example',
+          safewordCliVersion: '0.82.1',
+        },
+        sessionScope: 'a'.repeat(64),
+      }),
+    );
+
+    const response = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-accepted-at': '2026-08-28T20:00:00.000Z',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+      },
+      body,
+    });
+
+    expect(response.status).toBe(201);
+    expect(setup.createBodies).toHaveLength(1);
+    expect(setup.createBodies[0]).toContain(findings[0]);
+    expect(setup.createBodies[0]).toContain(findings.at(-1));
+  });
+
+  it('rejects a collector batch whose rendered issue body exceeds 60 KB', async () => {
+    const setup = await fixture();
+    const body = Buffer.from(
+      JSON.stringify({
+        version: 'v3',
+        findings: Array.from({ length: 16 }, () => 'x'.repeat(4000)),
+      }),
+    );
+    const response = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-accepted-at': '2026-08-28T20:00:00.000Z',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'cccccccc-dddd-4eee-8fff-aaaaaaaaaaaa',
+      },
+      body,
+    });
+
+    expect(response.status).toBe(400);
+    expect(setup.createBodies).toHaveLength(0);
+  });
+
   it('coalesces concurrent installation-token minting for the same repository scope', async () => {
     const github = await startGitHubFixture({ tokenDelayMs: 25 });
     const provider = new GitHubAppTokenProvider({

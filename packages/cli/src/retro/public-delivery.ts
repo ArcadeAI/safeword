@@ -1,5 +1,14 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 import { assemblePublicFinding, type Finding } from './finding.js';
@@ -29,6 +38,7 @@ export interface BuiltPublicRetroEnvelope {
 }
 
 export interface PreparedPublicRetroRequest extends BuiltPublicRetroEnvelope {
+  markerPath?: string;
   requestId: string;
 }
 
@@ -53,9 +63,20 @@ export type PublicRetroTransport = (
   signal?: AbortSignal,
 ) => Promise<PublicRetroReceipt>;
 
+export class PublicRetroRejection extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(`Public retrospective submission failed (${status})`);
+  }
+}
+
 export interface PublicRetroPreparationDependencies {
   attemptsDirectory: string;
   randomUUID: () => string;
+  route?: 'direct-v2' | 'server-v3';
+  syncDirectory?: (directory: string) => void;
 }
 
 export interface PublicRetroDeliveryDependencies extends PublicRetroPreparationDependencies {
@@ -63,10 +84,15 @@ export interface PublicRetroDeliveryDependencies extends PublicRetroPreparationD
   transport: PublicRetroTransport;
 }
 
-export type PublicRetroDeliveryOutcome = 'preserved' | 'abandoned';
+export type PublicRetroDeliveryOutcome = 'preserved' | 'already-owned' | 'abandoned';
+
+type PublicRetroClaim =
+  | { kind: 'prepared'; prepared: PreparedPublicRetroRequest }
+  | { kind: 'already-owned' | 'unavailable' };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const MAX_ENVELOPE_BYTES = 65_536;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const MAX_ENVELOPE_BYTES = 262_144;
 const MAX_OPTIONAL_VALUE_BYTES = 256;
 
 function containsControlCharacter(value: string): boolean {
@@ -91,10 +117,14 @@ export function normalizePublicRetroOptionalValue(value: string | undefined): st
 }
 
 function validSourceRoute(source: PublicRetroSource): boolean {
-  return source.hostClass === 'unknown' || source.harness !== 'cursor';
+  return source.hostClass === 'local' || source.hostClass === 'unknown';
 }
 
-function isValidEnvelopeInput(input: PublicRetroEnvelopeInput, projectUUID: string): boolean {
+function isValidEnvelopeInput(
+  input: PublicRetroEnvelopeInput,
+  projectUUID: string,
+  version: 'v2' | 'v3',
+): boolean {
   const { source } = input;
   return (
     UUID.test(projectUUID) &&
@@ -103,7 +133,7 @@ function isValidEnvelopeInput(input: PublicRetroEnvelopeInput, projectUUID: stri
     input.sessionId.trim() !== '' &&
     (input.windowStart === undefined ||
       (Number.isSafeInteger(input.windowStart) && input.windowStart >= 0)) &&
-    validSourceRoute(source)
+    (version === 'v3' ? source.hostClass === 'local' : validSourceRoute(source))
   );
 }
 
@@ -126,10 +156,11 @@ function deriveSessionScope(
 
 export function buildPublicRetroEnvelope(
   input: PublicRetroEnvelopeInput,
+  version: 'v2' | 'v3' = 'v2',
 ): BuiltPublicRetroEnvelope {
   const projectUUID = input.source.projectUUID.toLowerCase();
   const cliVersion = normalizePublicRetroOptionalValue(input.source.safewordCliVersion);
-  if (cliVersion === undefined || !isValidEnvelopeInput(input, projectUUID)) {
+  if (cliVersion === undefined || !isValidEnvelopeInput(input, projectUUID, version)) {
     throw new Error('Invalid public retrospective input');
   }
 
@@ -168,7 +199,7 @@ export function buildPublicRetroEnvelope(
     input.windowStart ?? 0,
   );
   const bytes = new TextEncoder().encode(
-    JSON.stringify({ version: 'v2', findings: input.findings, source, sessionScope: scope }),
+    JSON.stringify({ version, findings: input.findings, source, sessionScope: scope }),
   );
 
   return { bytes, sessionScope: scope };
@@ -178,11 +209,23 @@ export function preparePublicRetroRequest(
   input: PublicRetroEnvelopeInput,
   dependencies: PublicRetroPreparationDependencies,
 ): PreparedPublicRetroRequest | undefined {
-  const built = buildPublicRetroEnvelope(input);
-  return claimPublicRetroRequest(built, dependencies);
+  const built = buildPublicRetroEnvelope(input, dependencies.route === 'server-v3' ? 'v3' : 'v2');
+  const claimed = claimPublicRetroRequest(built, dependencies);
+  return claimed.kind === 'prepared' ? claimed.prepared : undefined;
 }
 
 function claimPublicRetroRequest(
+  built: BuiltPublicRetroEnvelope,
+  dependencies: PublicRetroPreparationDependencies,
+): PublicRetroClaim {
+  if (dependencies.route === 'server-v3') {
+    return claimServerPublicRetroRequest(built, dependencies);
+  }
+  const prepared = claimDirectPublicRetroRequest(built, dependencies);
+  return prepared === undefined ? { kind: 'unavailable' } : { kind: 'prepared', prepared };
+}
+
+function claimDirectPublicRetroRequest(
   built: BuiltPublicRetroEnvelope,
   dependencies: PublicRetroPreparationDependencies,
 ): PreparedPublicRetroRequest | undefined {
@@ -211,6 +254,118 @@ function claimPublicRetroRequest(
   return { ...built, requestId };
 }
 
+function readServerAttempt(
+  markerPath: string,
+  built: BuiltPublicRetroEnvelope,
+):
+  | { kind: 'absent' | 'accepted' | 'blocked' | 'conflict' }
+  | { kind: 'pending'; prepared: PreparedPublicRetroRequest } {
+  try {
+    const record = JSON.parse(readFileSync(markerPath, 'utf8')) as Record<string, unknown>;
+    if (record.route !== 'server-v3' || record.sessionScope !== built.sessionScope) {
+      return { kind: 'blocked' };
+    }
+    if (record.state === 'accepted') return { kind: 'accepted' };
+    if (
+      record.state !== 'pending' ||
+      typeof record.requestId !== 'string' ||
+      typeof record.bodyBase64 !== 'string'
+    ) {
+      return { kind: 'blocked' };
+    }
+    const bytes = Buffer.from(record.bodyBase64, 'base64');
+    if (!bytes.equals(built.bytes)) return { kind: 'conflict' };
+    return {
+      kind: 'pending',
+      prepared: {
+        bytes: new Uint8Array(bytes),
+        markerPath,
+        requestId: record.requestId,
+        sessionScope: built.sessionScope,
+      },
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { kind: 'absent' };
+    throw error;
+  }
+}
+
+function claimServerPublicRetroRequest(
+  built: BuiltPublicRetroEnvelope,
+  dependencies: PublicRetroPreparationDependencies,
+): PublicRetroClaim {
+  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return { kind: 'unavailable' };
+  let markerPath = path.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
+  let existing = readServerAttempt(markerPath, built);
+  if (existing.kind === 'conflict') {
+    const digest = createHash('sha256').update(built.bytes).digest('hex');
+    markerPath = path.join(dependencies.attemptsDirectory, `${built.sessionScope}.${digest}.json`);
+    existing = readServerAttempt(markerPath, built);
+  }
+  if (existing.kind !== 'absent') {
+    return existingServerClaim(existing);
+  }
+  mkdirSync(dependencies.attemptsDirectory, { recursive: true });
+  const requestId = dependencies.randomUUID().toLowerCase();
+  if (!UUID_V4.test(requestId)) throw new Error('Invalid public retrospective request identity');
+  try {
+    createServerAttempt(markerPath, built, requestId, dependencies);
+    return { kind: 'prepared', prepared: { ...built, markerPath, requestId } };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      const raced = readServerAttempt(markerPath, built);
+      return existingServerClaim(raced);
+    }
+    throw error;
+  }
+}
+
+function existingServerClaim(existing: ReturnType<typeof readServerAttempt>): PublicRetroClaim {
+  if (existing.kind === 'accepted') return { kind: 'already-owned' };
+  if (existing.kind === 'pending') return { kind: 'prepared', prepared: existing.prepared };
+  return { kind: 'unavailable' };
+}
+
+function createServerAttempt(
+  markerPath: string,
+  built: BuiltPublicRetroEnvelope,
+  requestId: string,
+  dependencies: PublicRetroPreparationDependencies,
+): void {
+  writeFileSync(
+    markerPath,
+    JSON.stringify({
+      bodyBase64: Buffer.from(built.bytes).toString('base64'),
+      requestId,
+      route: 'server-v3',
+      sessionScope: built.sessionScope,
+      state: 'pending',
+    }),
+    { encoding: 'utf8', flag: 'wx', flush: true },
+  );
+  try {
+    (dependencies.syncDirectory ?? syncDirectoryEntry)(dependencies.attemptsDirectory);
+  } catch (error) {
+    unlinkSync(markerPath);
+    throw error;
+  }
+}
+
+function syncDirectoryEntry(directory: string): void {
+  const descriptor = openSync(directory, 'r');
+  try {
+    fsyncSync(descriptor);
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+function resolveSyncDirectory(
+  dependencies: PublicRetroPreparationDependencies,
+): (directory: string) => void {
+  return dependencies.syncDirectory ?? syncDirectoryEntry;
+}
+
 export async function submitPublicRetroRequest(
   prepared: PreparedPublicRetroRequest,
   transport: PublicRetroTransport,
@@ -235,6 +390,22 @@ export async function submitPublicRetroRequest(
   return result;
 }
 
+function handoffTiming(
+  dependencies: PublicRetroDeliveryDependencies,
+  preparationDeadline: number,
+): { deadline: number; timeoutMs: number } | undefined {
+  const now = dependencies.now();
+  if (now >= preparationDeadline) return undefined;
+  return { deadline: preparationDeadline, timeoutMs: preparationDeadline - now };
+}
+
+function preparedMarkerPath(
+  prepared: PreparedPublicRetroRequest,
+  attemptsDirectory: string,
+): string {
+  return prepared.markerPath ?? path.join(attemptsDirectory, `${prepared.sessionScope}.json`);
+}
+
 async function deliverPreparedInput(
   input: PublicRetroEnvelopeInput,
   dependencies: PublicRetroDeliveryDependencies,
@@ -243,18 +414,19 @@ async function deliverPreparedInput(
   let claimedMarkerPath: string | undefined;
   let accepted = false;
   try {
-    if (dependencies.now() >= preparationDeadline) return 'abandoned';
-    const built = buildPublicRetroEnvelope(input);
-    const prepared = claimPublicRetroRequest(built, dependencies);
-    if (!prepared) return 'abandoned';
-    claimedMarkerPath = path.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
-    if (dependencies.now() >= preparationDeadline) return 'abandoned';
-
-    const handoffDeadline = dependencies.now() + 2000;
+    const serverRoute = dependencies.route === 'server-v3';
+    if (!serverRoute && dependencies.now() >= preparationDeadline) return 'abandoned';
+    const built = buildPublicRetroEnvelope(input, serverRoute ? 'v3' : 'v2');
+    const claim = claimPublicRetroRequest(built, dependencies);
+    if (claim.kind !== 'prepared') return claimOutcome(claim);
+    const prepared = claim.prepared;
+    claimedMarkerPath = preparedMarkerPath(prepared, dependencies.attemptsDirectory);
+    const timing = handoffTiming(dependencies, preparationDeadline);
+    if (timing === undefined) return 'abandoned';
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       controller.abort();
-    }, 2000);
+    }, timing.timeoutMs);
     timeout.unref();
     let result: PublicRetroReceipt;
     try {
@@ -263,46 +435,115 @@ async function deliverPreparedInput(
     } finally {
       clearTimeout(timeout);
     }
-    if (dependencies.now() >= handoffDeadline) return 'abandoned';
+    if (dependencies.now() >= timing.deadline) return 'abandoned';
 
-    const preserved = preservePublicRetroReceipt(
+    const preserved = preservePublicRetroReceipt({
+      handoffDeadline: timing.deadline,
+      markerPath: claimedMarkerPath,
+      now: dependencies.now,
       prepared,
       result,
-      claimedMarkerPath,
-      dependencies.now,
-      handoffDeadline,
-    );
+      route: dependencies.route ?? 'direct-v2',
+      syncDirectory: resolveSyncDirectory(dependencies),
+    });
     return preserved ? 'preserved' : 'abandoned';
-  } catch {
+  } catch (error) {
+    preserveServerRejectionDiagnosis(dependencies.route, claimedMarkerPath, error);
     return 'abandoned';
   } finally {
-    if (claimedMarkerPath !== undefined && !accepted) {
+    releaseLegacyClaim(claimedMarkerPath, accepted, dependencies.route);
+  }
+}
+
+function claimOutcome(
+  claim: Exclude<PublicRetroClaim, { kind: 'prepared' }>,
+): PublicRetroDeliveryOutcome {
+  return claim.kind === 'already-owned' ? 'already-owned' : 'abandoned';
+}
+
+function preserveServerRejectionDiagnosis(
+  route: PublicRetroPreparationDependencies['route'],
+  markerPath: string | undefined,
+  error: unknown,
+): void {
+  if (route === 'server-v3' && markerPath !== undefined && error instanceof PublicRetroRejection) {
+    preserveServerRejection(markerPath, error);
+  }
+}
+
+function preserveServerRejection(markerPath: string, rejection: PublicRetroRejection): void {
+  const temporaryPath = `${markerPath}.rejection.tmp`;
+  let renamed = false;
+  try {
+    const record = JSON.parse(readFileSync(markerPath, 'utf8')) as Record<string, unknown>;
+    if (record.route !== 'server-v3' || record.state !== 'pending') return;
+    writeFileSync(
+      temporaryPath,
+      JSON.stringify({
+        ...record,
+        lastRejection: { code: rejection.code, status: rejection.status },
+      }),
+      { encoding: 'utf8', flag: 'wx', flush: true },
+    );
+    renameSync(temporaryPath, markerPath);
+    renamed = true;
+  } catch {
+    // Recovery remains valid without optional diagnosis persistence.
+  } finally {
+    if (!renamed) {
       try {
-        unlinkSync(claimedMarkerPath);
+        unlinkSync(temporaryPath);
       } catch {
-        // Another process may already have recovered the failed attempt.
+        // The temporary record was never created or has already been moved.
       }
     }
   }
 }
 
-function preservePublicRetroReceipt(
-  prepared: PreparedPublicRetroRequest,
-  result: PublicRetroReceipt,
-  markerPath: string,
-  now: () => number,
-  handoffDeadline: number,
-): boolean {
+function releaseLegacyClaim(
+  markerPath: string | undefined,
+  accepted: boolean,
+  route: PublicRetroPreparationDependencies['route'],
+): void {
+  if (markerPath === undefined || accepted || route === 'server-v3') return;
+  try {
+    unlinkSync(markerPath);
+  } catch {
+    // Another process may already have recovered the failed attempt.
+  }
+}
+
+function preservePublicRetroReceipt(input: {
+  handoffDeadline: number;
+  markerPath: string;
+  now: () => number;
+  prepared: PreparedPublicRetroRequest;
+  result: PublicRetroReceipt;
+  route: 'direct-v2' | 'server-v3';
+  syncDirectory: (directory: string) => void;
+}): boolean {
+  const { handoffDeadline, markerPath, now, prepared, result, route, syncDirectory } = input;
   const temporaryPath = `${markerPath}.${prepared.requestId}.tmp`;
   let committed = false;
   try {
     writeFileSync(
       temporaryPath,
-      JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }),
+      JSON.stringify(
+        route === 'server-v3'
+          ? {
+              receipt: result.receipt,
+              requestId: prepared.requestId,
+              route,
+              sessionScope: prepared.sessionScope,
+              state: 'accepted',
+            }
+          : { sessionScope: prepared.sessionScope, receipt: result.receipt },
+      ),
       { encoding: 'utf8', flag: 'wx', flush: true },
     );
     if (now() >= handoffDeadline) return false;
     renameSync(temporaryPath, markerPath);
+    syncDirectory(path.dirname(markerPath));
     committed = true;
     return true;
   } finally {

@@ -183,7 +183,8 @@ function validCredentialMaterial(credential: CredentialInput): boolean {
 }
 
 function expectedRoles(harness: RelayPrincipal['harness']): RelayPrincipal['roles'] {
-  return harness === 'operator' ? ['reconcile', 'operate'] : ['file'];
+  if (harness === 'operator') return ['reconcile', 'operate'];
+  return harness === 'collector-worker' ? ['ingest'] : ['file'];
 }
 
 function requireSharedTenant(credentials: CredentialInput[]): void {
@@ -210,7 +211,7 @@ function parseProductionCredentials(environment: NodeJS.ProcessEnv): CredentialI
     ...item,
     repository: item.repository.toLowerCase(),
   }));
-  const harnesses = ['claude', 'codex', 'cursor', 'operator'] as const;
+  const harnesses = ['claude', 'codex', 'cursor', 'operator', 'collector-worker'] as const;
   const ids = new Set<string>();
   for (const harness of harnesses) {
     const matching = credentials.filter(item => item.harness === harness);

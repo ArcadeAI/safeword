@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 
 import type { CredentialRegistry } from './auth.js';
@@ -43,6 +44,99 @@ async function readJson(request: IncomingMessage, maximumBytes: number): Promise
   } catch {
     throw new RelayError(400, 'relay request body is invalid JSON');
   }
+}
+
+async function readBytes(request: IncomingMessage, maximumBytes: number): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request as AsyncIterable<Buffer>) {
+    const bytes = Buffer.from(chunk);
+    size += bytes.length;
+    if (size > maximumBytes) throw new RelayError(413, 'relay request body is too large');
+    chunks.push(bytes);
+  }
+  return Buffer.concat(chunks);
+}
+
+function filingIdentity(requestId: string, findings: string[]): string {
+  return createHash('sha256')
+    .update(requestId)
+    .update('\0')
+    .update(findings.join('\0'))
+    .digest('hex');
+}
+
+function nonemptyStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string');
+}
+
+function collectorFindings(value: unknown): string[] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new RelayError(400, 'collector envelope is invalid');
+  }
+  const envelope = value as { findings?: unknown; version?: unknown };
+  if (envelope.version !== 'v3' || !nonemptyStringArray(envelope.findings)) {
+    throw new RelayError(400, 'collector envelope is invalid');
+  }
+  return envelope.findings;
+}
+
+function collectorDraft(
+  bytes: Buffer,
+  requestId: string,
+  principal: RelayPrincipal,
+  retryDeadlineAt: string,
+): FileRetroDraftRequest {
+  let envelope: unknown;
+  try {
+    envelope = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new RelayError(400, 'collector envelope is invalid');
+  }
+  const findings = collectorFindings(envelope);
+  const body = findings.join('\n\n---\n\n');
+  if (Buffer.byteLength(body, 'utf8') > 60_000) {
+    throw new RelayError(400, 'collector envelope is too large to file');
+  }
+  if (
+    findings.some(finding =>
+      /<!--\s*safeword-retro-(?:canonical|request-v1|signature):/u.test(finding),
+    )
+  ) {
+    throw new RelayError(400, 'collector envelope is invalid');
+  }
+  const repo = principal.repository;
+  const [firstLine = ''] = findings[0]?.split('\n') ?? [];
+  const title = firstLine.slice(0, 256);
+  if (title.trim() === '') throw new RelayError(400, 'collector envelope is invalid');
+  const identity = filingIdentity(requestId, findings);
+  return {
+    body,
+    canonicalKey: `canonical:${identity}`,
+    installationId: principal.installationId,
+    labels: ['self-report', 'retro'],
+    legacySignature: `retro:${identity}`,
+    repository: repo,
+    requestId,
+    retryDeadlineAt,
+    title,
+  };
+}
+
+function collectorHeaders(request: IncomingMessage): {
+  digest: string;
+  requestId: string;
+} {
+  const requestId = request.headers['x-safeword-request-id'];
+  const digest = request.headers['x-safeword-envelope-digest'];
+  if (
+    typeof requestId !== 'string' ||
+    typeof digest !== 'string' ||
+    !/^[\da-f]{64}$/u.test(digest)
+  ) {
+    throw new RelayError(400, 'collector envelope headers are invalid');
+  }
+  return { digest, requestId };
 }
 
 function sendJson(response: ServerResponse, status: number, value: unknown): void {
@@ -320,6 +414,39 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     sendJson(response, statusCode, receipt);
   };
 
+  const respondWithCollectorSubmission = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+    principal: RelayPrincipal,
+  ): Promise<void> => {
+    if (!principal.roles.includes('ingest')) throw new RelayError(403, 'ingest role is required');
+    const headers = collectorHeaders(request);
+    const bytes = await readBytes(request, maxBodyBytes);
+    const actualDigest = createHash('sha256').update(bytes).digest('hex');
+    if (actualDigest !== headers.digest)
+      throw new RelayError(409, 'collector envelope digest differs');
+    const filingPrincipal: RelayPrincipal = { ...principal, roles: ['file'] };
+    const retryDeadlineAt =
+      service.collectorRetryDeadline(principal, headers.requestId) ??
+      new Date((input.now?.() ?? new Date()).getTime() + 86_400_000).toISOString();
+    const receipt = await service.submit(
+      filingPrincipal,
+      collectorDraft(bytes, headers.requestId, principal, retryDeadlineAt),
+    );
+    observability.logs.push({
+      event: 'retro_filing',
+      harness: principal.harness,
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
+    observability.metrics.push({
+      metric: 'retro_filing_outcome',
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
+    sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);
+  };
+
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- A single composition-root router keeps the public contract visible.
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
@@ -354,6 +481,10 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       }
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
         await respondWithSubmission(request, response, principal);
+        return;
+      }
+      if (request.method === 'POST' && url.pathname === '/v1/collector-retros') {
+        await respondWithCollectorSubmission(request, response, principal);
         return;
       }
       const toReconcile = matchReceiptRoute(request.method, url.pathname, 'POST', RECONCILE_ROUTE);

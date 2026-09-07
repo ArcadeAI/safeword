@@ -36,6 +36,8 @@ import {
 } from './lib/cursor-run-identity.ts';
 import { readSessionState } from './lib/quality-state.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
+import { readReviewReceipt } from './lib/read-receipt.ts';
+import { receiptGateVerdict, type StampClaim } from './lib/review-receipt.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
 
@@ -103,6 +105,7 @@ interface ParsedArguments {
   authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
   reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
   independence: 'cross-agent' | 'degraded' | 'none' | undefined;
+  reviewId: string | undefined;
   skipReason: string | undefined;
 }
 
@@ -119,8 +122,12 @@ const VALUE_FLAGS = new Set([
   '--author-agent',
   '--reviewer-agent',
   '--independence',
+  '--review-id',
   '--skip',
 ]);
+
+/** A coordinator review id: the uuid its job record is filed under. */
+const REVIEW_ID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/iu;
 
 function parseArguments(argv: string[]): ParsedArguments {
   const positional: string[] = [];
@@ -129,6 +136,7 @@ function parseArguments(argv: string[]): ParsedArguments {
   let authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
   let reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
   let independence: 'cross-agent' | 'degraded' | 'none' | undefined;
+  let reviewId: string | undefined;
   let skipReason: string | undefined;
   const seen = new Set<string>();
 
@@ -165,6 +173,10 @@ function parseArguments(argv: string[]): ParsedArguments {
         fail('--independence must be cross-agent, degraded, or none');
       }
       independence = value as 'cross-agent' | 'degraded' | 'none';
+    } else if (flag === '--review-id') {
+      if (!REVIEW_ID.test(value))
+        fail('--review-id must be the review_id the coordinator returned');
+      reviewId = value;
     } else {
       if (value !== 'claude' && value !== 'codex' && value !== 'opencode') {
         fail(`${flag} must be claude, codex, or opencode`);
@@ -182,6 +194,7 @@ function parseArguments(argv: string[]): ParsedArguments {
     authorAgent,
     reviewerAgent,
     independence,
+    reviewId,
     skipReason,
   };
 }
@@ -193,6 +206,7 @@ const {
   authorAgent,
   reviewerAgent,
   independence,
+  reviewId,
   skipReason,
 } = parseArguments(process.argv);
 
@@ -254,12 +268,29 @@ if (trailing.length > 0) {
   );
 }
 
-function resolveScope(ticketFolder: string): { scope: string; label: string } {
+function resolveScope(ticketFolder: string): {
+  scope: string;
+  label: string;
+  claim: StampClaim;
+} {
+  const claimed = {
+    independence,
+    skip: skipReason !== undefined,
+    ticketFolder,
+    projectDirectory,
+    ticketDirectory: nodePath.join(ticketsDirectory, ticketFolder),
+    authorAgent,
+    reviewerAgent,
+  };
   if (isPhase) {
     const value = positional[1];
     if (value === undefined || value === '') fail('--phase requires a phase name');
     const phase = bareName(value, 'phase name');
-    return { scope: reviewScope(ticketFolder, 'phase', phase), label: `phase ${phase}` };
+    return {
+      scope: reviewScope(ticketFolder, 'phase', phase),
+      label: `phase ${phase}`,
+      claim: { ...claimed, phase },
+    };
   }
   const artifact = bareName(positional[0] ?? 'spec', 'artifact name');
   const artifactFile = nodePath.join(ticketsDirectory, ticketFolder, `${artifact}.md`);
@@ -267,17 +298,31 @@ function resolveScope(ticketFolder: string): { scope: string; label: string } {
   return {
     scope: reviewScope(ticketFolder, artifact, hashArtifact(readFileSync(artifactFile, 'utf8'))),
     label: `${artifact}.md`,
+    claim: { ...claimed, artifact },
   };
 }
 
-const { scope, label } = resolveScope(resolveTicketFolder());
+const { scope, label, claim } = resolveScope(resolveTicketFolder());
+
+if (reviewId !== undefined) {
+  const receipt = readReviewReceipt(reviewId, projectDirectory);
+  if (receipt === undefined)
+    fail(
+      `could not verify review ${reviewId} — no Safeword CLI could report its status, so the stamp's independence claim has no witness`,
+    );
+  const receiptVerdict = receiptGateVerdict(claim, receipt);
+  if (!receiptVerdict.ok) fail(receiptVerdict.reason);
+} else {
+  const receiptVerdict = receiptGateVerdict(claim);
+  if (!receiptVerdict.ok) fail(receiptVerdict.reason);
+}
 
 const logDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory));
 const logFile = nodePath.join(logDirectory, 'skill-invocations.log');
 mkdirSync(logDirectory, { recursive: true });
 appendFileSync(
   logFile,
-  `${new Date().toISOString()} ${sessionId} ${formatReviewStamp(scope, skipReason, reviewerModel, authorAgent, reviewerAgent, independence)}\n`,
+  `${new Date().toISOString()} ${sessionId} ${formatReviewStamp(scope, skipReason, reviewerModel, authorAgent, reviewerAgent, independence, reviewId)}\n`,
 );
 
 const kind = skipReason === undefined ? 'review' : `skip (${skipReason})`;

@@ -70,23 +70,35 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ### Public retrospective collector boundary
 
-`packages/retro-collector` accepts released canonical `v1` single-finding bodies and
-the CLI's canonical `v2` ordered finding batches without user registration or client
-credentials. Current producers identify
-Claude Code, Codex, or Cursor with `hostClass: "unknown"`; the collector also
-accepts released Claude Code and Codex clients that used `hostClass: "local"`.
-Cursor cannot claim that legacy local classification. The current v2 source does not
-accept the released v1-only `userIdentity` field.
+> **Cutover status:** The queue and worker implementation described below is
+> present, but local clients remain on direct filing. The production server route
+> is compiled fail-closed until an independent verifier and the required canary
+> and fault evidence exist.
+
+`packages/retro-collector` accepts released canonical `v1` single-finding bodies,
+canonical `v2` ordered finding batches, and server-owned `v3` local batches without
+user registration or client credentials. Legacy `v1`/`v2` rows remain inert
+quarantine. A `v3` row is keyed only by its transport-independent UUIDv4 request
+identity and retains the admitted bytes, digest, acceptance time, project identity,
+lease state, quota reservation, and terminal metadata in SQLite.
 
 The collector validates each version's closed envelope and source schema and stores
-the accepted raw body unchanged in SQLite. Duplicate identity is derived only from
-harness, project UUID, session identity, and (after the compatibility-preserving
-first window) transcript window; byte-identical retries in that scope reuse its
-receipt, while unequal raw bytes conflict. Operator reads require the
-server-side operator credential; project
-UUIDs, request IDs, receipts, and source fields grant no read or filing
-authority. This public intake is separate from the authenticated private relay
-below.
+the accepted raw body unchanged in SQLite. Legacy duplicate rules remain unchanged;
+`v3` retries reuse a receipt only when the request UUID and exact bytes agree.
+Routine inspection of the `v3` queue is payload-free. Its worker and break-glass
+payload reads use separate credentials and append audit records; the inert legacy
+quarantine retains its pre-existing operator-read compatibility route. Public
+fields grant no read or filing authority. Rolling intake and filing quota windows persist across restarts;
+quota-blocked work stays queued and reaches an alerted dead letter after 24 hours.
+
+### Cutover-gated collector transfer worker boundary
+
+The planned single-replica Railway worker has no public route and no customer credential.
+It leases FIFO `v3` rows over private networking, forwards the original bytes,
+collector digest and request UUID to the relay's dedicated
+`collector-worker` principal, and completes collector ownership only after relay
+acceptance. A failed handoff releases the lease; a crash is recovered by lease
+expiry. Collector SQLite remains mounted only by the collector service.
 
 ### Retro relay boundary
 
@@ -561,6 +573,20 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 ---
 
 ## Key Decisions
+
+### Collector-to-relay ownership transfer
+
+| Field         | Decision                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context       | Anonymous public intake must survive client exit without placing GitHub authority in the collector or consuming the relay retry window while work waits in the collector queue.                                                                                                                                                                                                                                  |
+| Decision      | The collector owns immutable accepted bytes until the private worker receives relay acceptance. Lease expiry returns work to the collector without a retry deadline. Relay acceptance starts a fresh relay-owned 24-hour retry window. Cutover remains disabled until per-harness canary records bind one request ID and session scope to distinct collector and relay receipts plus reviewed artifact evidence. |
+| Consequences  | Collector queue delay cannot expire filing recovery; collector and relay ownership never overlap after acknowledged handoff; production cutover requires correlated, build-attested evidence. The collector, worker, and relay remain separate deployable services and require an independently rotated `collector-worker` credential.                                                                           |
+| Alternatives  | Synchronous collector forwarding loses accepted work on handoff failure; a collector-owned filing deadline consumes recovery before relay acceptance; colocating intake and filing authority weakens the trust boundary; dual filing permits duplicates.                                                                                                                                                         |
+| Reassess when | The collector or worker needs more than one replica, Railway private networking changes, GitHub adds a trustworthy create-idempotency key, or the single-host SQLite queue misses its operational targets.                                                                                                                                                                                                       |
+
+**Status:** Accepted
+
+**Date:** 2026-09-05
 
 ### Settled Decisions (2025-12)
 

@@ -38,6 +38,7 @@ import { recordRetroDebugEvent } from '../../templates/hooks/lib/retro-debug.js'
 import {
   draftSpoolPath,
   drainAcknowledgedDrafts,
+  markDraftsAcceptedByServer,
   readSpooledDrafts,
   recordFiledAck,
   spoolDrafts,
@@ -45,10 +46,15 @@ import {
 import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
 import { captureRetroFilingFault } from '../../templates/hooks/lib/self-report.js';
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
+import {
+  CHECKED_IN_LOCAL_RETRO_READINESS,
+  validateLocalRetroReadiness,
+} from '../retro/local-retro-readiness.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import {
   deliverSanitizedPublicRetroFindings,
   type PublicRetroDeliveryDependencies,
+  type PublicRetroDeliveryOutcome,
   type PublicRetroSource,
 } from '../retro/public-delivery.js';
 import { buildPublicRetroSource } from '../retro/public-source.js';
@@ -80,6 +86,19 @@ import {
 } from '../retro/relay-readiness.js';
 import { type Encounter, type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 import { VERSION } from '../version.js';
+
+declare const __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__: PublicRetroSource['harness'] | undefined;
+
+const SAFEWORD_LOCAL_RETRO_CANARY_HARNESS =
+  typeof __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__ === 'string'
+    ? __SAFEWORD_LOCAL_RETRO_CANARY_HARNESS__
+    : undefined;
+
+function selectedLocalRetroCanary(
+  override: PublicRetroSource['harness'] | undefined,
+): PublicRetroSource['harness'] | undefined {
+  return override ?? SAFEWORD_LOCAL_RETRO_CANARY_HARNESS;
+}
 
 /** Reads a transcript and returns raw, un-sanitized findings (the LLM boundary). */
 type FindingExtractor = (transcript: string) => Promise<unknown[]>;
@@ -304,6 +323,13 @@ function relayPersistenceErrorMessage(
   return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
 
+function serverRecoveryNeeded(
+  findingCount: number,
+  outcome: PublicRetroDeliveryOutcome | undefined,
+): boolean {
+  return findingCount > 0 && outcome !== 'preserved' && outcome !== 'already-owned';
+}
+
 /**
  * Deterministic retro core. Never guesses the transcript path; fails loudly and
  * files nothing when it is missing or unreadable.
@@ -335,6 +361,11 @@ export async function runRetro(
   // behavior. The window flows through the UNCHANGED egress pipeline below.
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
+  // Extraction is analysis with its own host-runtime timeout, not transport.
+  // Start the stop-event delivery budget here so finding preparation and every
+  // public attempt share 750 ms without slow extraction suppressing delivery.
+  const publicRetroDeadline =
+    dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 750;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
@@ -344,7 +375,8 @@ export async function runRetro(
   // Preserve private recovery before the best-effort public handoff. A process
   // interruption during that network attempt must not lose the durable draft.
   if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
-    const drafts = encounters.map(encounter => encounter.draft);
+    const route = publicRetro?.route ?? 'direct-v2';
+    const drafts = encounters.map(encounter => ({ ...encounter.draft, route }));
     recordRetroDebugEvent({
       event: 'retro_cli_spool',
       sessionId,
@@ -355,11 +387,24 @@ export async function runRetro(
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
 
-  const deliverPublic = async (): Promise<void> => {
-    if (publicRetro === undefined || findings.length === 0) {
-      return;
+  // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
+  // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
+  if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
+    return runRelayRetro(encounters, drops, {
+      afterPersistence: () => Promise.resolve(),
+      projectDirectory,
+      relay,
+      source: { session: sourceSession, windowStart: options.windowStart ?? 0 },
+    });
+  }
+  if (relay?.readiness.enabled === true) {
+    return { ok: false, errorMessage: 'relay delivery requires a project directory' };
+  }
+  const deliverPublic = async (): Promise<PublicRetroDeliveryOutcome | undefined> => {
+    if (publicRetro === undefined || publicRetroDeadline === undefined || findings.length === 0) {
+      return undefined;
     }
-    await deliverSanitizedPublicRetroFindings(
+    return deliverSanitizedPublicRetroFindings(
       {
         findings,
         sessionId: sourceSession,
@@ -367,21 +412,36 @@ export async function runRetro(
         windowStart: options.windowStart ?? 0,
       },
       publicRetro,
-      publicRetro.now() + 1000,
+      publicRetroDeadline,
     );
   };
-
-  // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
-  // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
-  if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
-    return runRelayRetro(encounters, drops, {
-      afterPersistence: deliverPublic,
-      projectDirectory,
-      relay,
-      source: { session: sourceSession, windowStart: options.windowStart ?? 0 },
-    });
+  const publicOutcome = await deliverPublic();
+  if (publicRetro?.route === 'server-v3') {
+    if (
+      (publicOutcome === 'preserved' || publicOutcome === 'already-owned') &&
+      projectDirectory !== undefined
+    ) {
+      markDraftsAcceptedByServer(
+        projectDirectory,
+        sessionId,
+        encounters.map(encounter => encounter.draft.signature),
+      );
+    }
+    return {
+      ok: true,
+      result: {
+        created: [],
+        bumped: [],
+        commented: [],
+        deferred: [],
+        failed: [],
+        filedSignatures: [],
+        filedDestinations: [],
+      },
+      agentFilingNeeded: serverRecoveryNeeded(findings.length, publicOutcome),
+      drops,
+    };
   }
-  await deliverPublic();
   const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,
@@ -1020,8 +1080,8 @@ export function reportRetroCommandOutcome(
   },
 ): void {
   const { error, info, success } = options.output;
-  reportRelayOutcome(outcome, options.output, outcome.ok);
   if (!outcome.ok) {
+    reportRelayOutcome(outcome, options.output, false);
     error(outcome.errorMessage ?? 'safeword retro failed');
     process.exitCode = 1;
     return;
@@ -1031,6 +1091,8 @@ export function reportRetroCommandOutcome(
     process.exitCode = 1;
     return;
   }
+
+  reportRelayOutcome(outcome, options.output, true);
 
   if (outcome.relay !== undefined) return;
 
@@ -1044,8 +1106,8 @@ export function reportRetroCommandOutcome(
   if (outcome.agentFilingNeeded) {
     info(
       options.restTransportAvailable
-        ? 'retro: unfiled drafts were spooled for the agent filing path.'
-        : 'retro: no GitHub access; unfiled drafts were spooled for the agent filing path.',
+        ? 'retro: unfiled drafts remain queued for recovery.'
+        : 'retro: no GitHub access; unfiled drafts remain queued for recovery.',
     );
   }
   success('retro complete');
@@ -1228,34 +1290,99 @@ function publicHarness(agent: RetroAgent): 'claude-code' | 'codex' | 'cursor' | 
   return agent === 'cursor' ? 'cursor' : undefined;
 }
 
-export function resolvePublicRetroRoute(input: {
+export function localRetroHostClass(
+  agent: RetroAgent,
+  environment: NodeJS.ProcessEnv,
+  socketStatus: (path: string) => { isSocket(): boolean } = statSync,
+): PublicRetroSource['hostClass'] {
+  if (agent !== 'cursor') return nonCursorHostClass(agent, environment, socketStatus);
+  const cursorSocketConfigured = environment.CURSOR_AGENT_SOCKET !== undefined;
+  const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
+  const socketPath = configuredSocket || '/run/cursor/api.sock';
+  try {
+    // Any reachable node at Cursor's managed-runtime path makes locality indeterminate.
+    socketStatus(socketPath);
+    return 'unknown';
+  } catch (error_) {
+    const error = error_ as NodeJS.ErrnoException;
+    return error.code === 'ENOENT' && !cursorSocketConfigured ? 'local' : 'unknown';
+  }
+}
+
+function nonCursorHostClass(
+  agent: RetroAgent,
+  environment: NodeJS.ProcessEnv,
+  socketStatus: (path: string) => { isSocket(): boolean },
+): PublicRetroSource['hostClass'] {
+  if (agent === 'codex') {
+    const toolsPipe = environment.CODEX_APP_TOOLS_PIPE_PATH?.trim();
+    if (!toolsPipe) return 'unknown';
+    try {
+      return socketStatus(toolsPipe).isSocket() ? 'local' : 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  }
+  return environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined ? 'local' : 'unknown';
+}
+
+export function localServerRouteEnabled(source: PublicRetroSource, readiness: boolean): boolean {
+  return readiness && source.hostClass === 'local';
+}
+
+function publicRetroEligible(input: {
   agent: RetroAgent;
   enabled: boolean;
   environment: NodeJS.ProcessEnv;
   projectDirectory: string;
   sessionId?: string;
   transcript?: string;
+}): boolean {
+  if (!input.enabled) return false;
+  if (input.agent === 'cursor' && !cursorPublicBindingMatches(input)) return false;
+  return input.agent !== 'claude' || input.environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined;
+}
+
+export function resolvePublicRetroRoute(input: {
+  agent: RetroAgent;
+  canaryHarness?: PublicRetroSource['harness'];
+  enabled: boolean;
+  environment: NodeJS.ProcessEnv;
+  projectDirectory: string;
+  serverReady?: boolean;
+  sessionId?: string;
+  socketStatus?: (path: string) => { isSocket(): boolean };
+  transcript?: string;
 }): NonNullable<RetroDependencies['publicRetro']> | undefined {
-  if (
-    !input.enabled ||
-    (input.agent === 'cursor' && !cursorPublicBindingMatches(input)) ||
-    (input.agent === 'claude' && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined)
-  ) {
-    return undefined;
-  }
+  if (!publicRetroEligible(input)) return undefined;
   const harness = publicHarness(input.agent);
   if (harness === undefined) return undefined;
-  const source = buildPublicRetroSource(input.projectDirectory, {
+  const builtSource = buildPublicRetroSource(input.projectDirectory, {
     cliVersion: VERSION,
     harness,
     osFamily: platform(),
   });
-  if (source === undefined) return undefined;
+  if (builtSource === undefined) return undefined;
+  const isCanary = selectedLocalRetroCanary(input.canaryHarness) === harness;
+  const localSource = {
+    ...builtSource,
+    hostClass: localRetroHostClass(input.agent, input.environment, input.socketStatus),
+  };
+  const serverReady =
+    input.serverReady ??
+    validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
+      ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
+      buildCommit: SAFEWORD_BUILD_COMMIT,
+      now: new Date(),
+      relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,
+    });
+  const useServerRoute = localServerRouteEnabled(localSource, serverReady || isCanary);
   return {
     attemptsDirectory: nodePath.join(input.projectDirectory, '.safeword', 'retro-attempts'),
     now: () => performance.now(),
     randomUUID,
-    source,
+    ...(useServerRoute && { route: 'server-v3' as const }),
+    source: useServerRoute ? localSource : builtSource,
     transport: createPublicRetroTransport(),
   };
 }

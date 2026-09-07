@@ -52,8 +52,10 @@ fresh context** that hasn't lived the session:
      if it can't name a safeword surface at all, drop it — the command drops it
      anyway.
    - **Canonical titles.** Title by safeword's behavior ("Coverage gate message
-     omits file and number"), not the customer's situation. Stable titles keep
-     recurrences on one issue.
+     omits file and number"), not the customer's situation. Stable titles make
+     recurrences recognizable. The direct filing lane may consolidate them;
+     the initial server route suppresses retries of the same request but does
+     not yet consolidate genuinely later sessions.
    - **The agent filing lane is not evidence of friction by itself.** When drafts
      remain queued, spool + filer is safeword's designed recovery path. Don't file
      the handoff, its extra turn, or the subagent dispatch as a finding without
@@ -71,9 +73,20 @@ fresh context** that hasn't lived the session:
    ```
 
    The command normalizes → drops findings with an unresolvable surface →
-   sanitizes every field → assembles the body → files upstream, deduped, under
-   the caps. It prints a one-line summary (filed / recurrences / new
-   manifestations / deferred / failed).
+   sanitizes every field → assembles the body → hands it to the configured
+   recovery route. On the server route, the public collector envelope contains
+   only the sanitized findings plus project UUID, repository identity, session
+   scope, harness, host class, operating-system family, and available agent,
+   model, SafeWord CLI, and plugin versions. Missing optional facts are omitted.
+   It excludes transcript or prompt text, tool output, file contents, secrets,
+   credentials, arbitrary environment values, hostname, IP address, machine
+   identifiers, or user identity. As with any HTTP service, network infrastructure
+   may observe connection metadata such as a source IP. Collector acceptance
+   transfers recovery to SafeWord's private filing worker; failure stays silent
+   and retains the same local request for a later retry. For this route, the
+   dedup safeguard below means exact-request idempotency and ambiguity recovery;
+   cross-session recurrence consolidation is not part of the initial cutover.
+   `safeword project public-retros off` disables this collection.
 
 ## Rules
 
