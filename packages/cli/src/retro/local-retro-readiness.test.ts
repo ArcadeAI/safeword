@@ -78,9 +78,17 @@ function productionEvidence(
   } as unknown as Parameters<typeof validateLocalRetroReadiness>[1];
 }
 
+function reverseKeys(record: object): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(record).toReversed());
+}
+
 describe('local retro readiness', () => {
   it('binds attestation to manifest content without depending on key order', () => {
-    const reordered = Object.fromEntries(Object.entries(completeManifest).toReversed());
+    const reordered = reverseKeys({
+      ...completeManifest,
+      harnesses: reverseKeys(completeManifest.harnesses),
+      recoveredFaults: reverseKeys(completeManifest.recoveredFaults),
+    });
 
     expect(digestLocalRetroReadinessManifest(reordered)).toBe(
       digestLocalRetroReadinessManifest(completeManifest),
