@@ -396,13 +396,13 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Every harness rejects collector and relay receipts whose request identity or session scope does not correlate end to end
 
-- [ ] RED
+- [x] RED — the three-harness real-collaborator fixture reached the deliberately closed verifier and returned false
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Readiness retrieves a closed canary by exact issue GET and validates its raw body
 
-- [ ] RED
+- [x] RED — the production fixture exposed only exact issue GET bodies but the deliberately closed verifier returned false
 - [ ] GREEN
 - [ ] REFACTOR
 

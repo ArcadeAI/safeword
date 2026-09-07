@@ -1,0 +1,167 @@
+import { createHash } from 'node:crypto';
+
+import { describe, expect, it, vi } from 'vitest';
+
+import { verifyLocalRetroProductionReadiness } from '../../scripts/lib/local-retro-production-verifier.js';
+import type {
+  LocalRetroProductionAttestation,
+  LocalRetroReadinessManifest,
+} from '../../src/retro/local-retro-readiness.js';
+
+const repo = 'ArcadeAI/safeword';
+const tenantId = 'production';
+const installationId = 12_345;
+const harnesses = ['claude-code', 'codex', 'cursor'] as const;
+
+function encodeFields(fields: string[]): Buffer {
+  return Buffer.concat(
+    fields.flatMap(field => {
+      const bytes = Buffer.from(field);
+      const length = Buffer.alloc(4);
+      length.writeUInt32BE(bytes.length);
+      return [length, bytes];
+    }),
+  );
+}
+
+function filingIdentity(requestIdentity: string, findings: string[]): string {
+  return createHash('sha256')
+    .update(requestIdentity)
+    .update('\0')
+    .update(findings.join('\0'))
+    .digest('hex');
+}
+
+function requestMarker(requestIdentity: string): string {
+  const digest = createHash('sha256')
+    .update(
+      encodeFields(['1', tenantId, String(installationId), repo.toLowerCase(), requestIdentity]),
+    )
+    .digest('hex');
+  return `<!-- safeword-retro-request-v1: ${digest} -->`;
+}
+
+function requestId(index: number): string {
+  const digit = String(index + 1);
+  return `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`;
+}
+
+const manifest: LocalRetroReadinessManifest = {
+  enabled: true,
+  evidenceCommit: 'a'.repeat(40),
+  harnesses: Object.fromEntries(
+    harnesses.map((harness, index) => [
+      harness,
+      {
+        artifactDigest: createHash('sha256').update(`artifact:${harness}`).digest('hex'),
+        buildCommit: 'a'.repeat(40),
+        collectorReceipt: `collector-${harness}`,
+        hostClass: 'local',
+        relayReceipt: `relay-${harness}`,
+        requestId: requestId(index),
+        sessionScope: createHash('sha256').update(`session:${harness}`).digest('hex'),
+        terminal: 'filed',
+      },
+    ]),
+  ) as unknown as LocalRetroReadinessManifest['harnesses'],
+  recoveredFaults: {
+    ambiguousCreateMatch: 'a'.repeat(64),
+    ambiguousCreateNoMatch: 'b'.repeat(64),
+    claimCrash: 'c'.repeat(64),
+    retryExhaustion: 'd'.repeat(64),
+    workerOutage: 'e'.repeat(64),
+  },
+  reviewedAt: '2026-09-07T18:00:00.000Z',
+  version: 1,
+};
+
+const attestation: LocalRetroProductionAttestation = {
+  authority: 'retro-relay-production-v1',
+  enabled: true,
+  lifecycle: {
+    'claude-code': 'claude-code-interactive',
+    codex: 'codex-desktop',
+    cursor: 'cursor-desktop',
+  },
+  manifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
+  verifiedAt: '2026-09-07T18:30:00.000Z',
+  version: 1,
+};
+
+function inputUrl(input: string | URL | Request): string {
+  if (typeof input === 'string') return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
+function productionFetch(): typeof fetch {
+  return vi.fn<typeof fetch>(input => {
+    const url = inputUrl(input);
+    if (url.endsWith('/v1/private/retros')) {
+      return Promise.resolve(
+        Response.json({
+          retros: harnesses.map(harness => ({
+            receipt: manifest.harnesses[harness].collectorReceipt,
+            requestId: manifest.harnesses[harness].requestId,
+            state: 'completed',
+          })),
+        }),
+      );
+    }
+    for (const harness of harnesses) {
+      const evidence = manifest.harnesses[harness];
+      const findings = [`${harness} production canary`];
+      if (url.endsWith(`/v1/public-retros/${evidence.collectorReceipt}`)) {
+        return Promise.resolve(
+          Response.json({
+            findings,
+            sessionScope: evidence.sessionScope,
+            source: { harness, hostClass: 'local' },
+            version: 'v3',
+          }),
+        );
+      }
+      if (url.endsWith(`/v1/retro-filings/${evidence.relayReceipt}`)) {
+        return Promise.resolve(
+          Response.json({
+            issueNumber: 4000 + harnesses.indexOf(harness),
+            receiptId: evidence.relayReceipt,
+            requestId: evidence.requestId,
+            state: 'filed',
+          }),
+        );
+      }
+      if (url.endsWith(`/issues/${4000 + harnesses.indexOf(harness)}`)) {
+        const identity = filingIdentity(evidence.requestId, findings);
+        return Promise.resolve(
+          Response.json({
+            body: [
+              ...findings,
+              `<!-- safeword-retro-signature: retro:${identity} -->`,
+              `<!-- safeword-retro-canonical: canonical:${identity} -->`,
+              requestMarker(evidence.requestId),
+            ].join('\n'),
+          }),
+        );
+      }
+    }
+    return Promise.resolve(Response.json({ error: 'not_found' }, { status: 404 }));
+  });
+}
+
+describe('local retro production verifier', () => {
+  it('correlates each harness through collector, relay, and exact raw GitHub evidence', async () => {
+    const result = await verifyLocalRetroProductionReadiness(manifest, attestation, {
+      collectorCredential: 'collector-secret',
+      collectorOrigin: 'https://collector.example',
+      fetch: productionFetch(),
+      githubToken: 'github-token',
+      installationId,
+      relayCredential: 'relay-secret',
+      relayOrigin: 'https://relay.example',
+      repository: repo,
+      tenantId,
+    });
+
+    expect(result).toBe(true);
+  });
+});
