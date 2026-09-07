@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -26,25 +26,21 @@ function generatedSkill(source: string): string {
 }
 
 describe('Codex plugin catalogue runtime authority', () => {
-  it.each(['complete', 'partially missing'])(
-    'keeps the pinned plugin authoritative beside %s legacy project runtime',
-    legacyRuntime => {
-      const content = generatedSkill(
-        [
-          '```bash',
-          'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
-          'audit_scope_initialize "$PROJECT_DIR"',
-          '```',
-          `Legacy fixture: ${legacyRuntime}`,
-        ].join('\n'),
-      );
+  it('keeps the pinned plugin authoritative beside legacy project runtime', () => {
+    const content = generatedSkill(
+      [
+        '```bash',
+        'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
+        'audit_scope_initialize "$PROJECT_DIR"',
+        '```',
+      ].join('\n'),
+    );
 
-      expect(content).toContain(
-        'source /dev/stdin <<< "$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project audit-scope)"',
-      );
-      expect(content).not.toContain('.safeword/hooks/lib/audit-scope.sh');
-    },
-  );
+    expect(content).toContain(
+      'source /dev/stdin <<< "$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project audit-scope)"',
+    );
+    expect(content).not.toContain('.safeword/hooks/lib/audit-scope.sh');
+  });
 
   it('keeps an unavailable pinned package fail-closed without project-runtime fallback', () => {
     const content = generatedSkill(
@@ -86,11 +82,10 @@ describe('Codex plugin catalogue runtime authority', () => {
           '',
         ].join('\n'),
       );
-      writeCodexPluginCatalogue(canonical, plugin, '1.2.3');
-
       expect(() => {
-        assertCodexPluginCatalogue(canonical, plugin, '1.2.3');
+        writeCodexPluginCatalogue(canonical, plugin, '1.2.3');
       }).toThrow('Native plugin assets reference project-local executable runtime');
+      expect(existsSync(plugin)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

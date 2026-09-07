@@ -635,6 +635,11 @@ export function assertCodexSkillMetadataBudget(assets: GeneratedPluginAsset[]): 
   }
 }
 
+function assertGeneratedCodexPluginAssets(assets: GeneratedPluginAsset[]): void {
+  assertCodexSkillMetadataBudget(assets);
+  assertNativePluginRuntimeAuthority(assets);
+}
+
 function expectedAssetPaths(assets: GeneratedPluginAsset[]): Set<string> {
   return new Set(assets.map(asset => asset.relativePath));
 }
@@ -662,8 +667,7 @@ export function assertCodexPluginCatalogue(
   version: string,
 ): void {
   const expectedAssets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
-  assertCodexSkillMetadataBudget(expectedAssets);
-  assertNativePluginRuntimeAuthority(expectedAssets);
+  assertGeneratedCodexPluginAssets(expectedAssets);
 
   const expectedPaths = expectedAssetPaths(expectedAssets);
   const actualPaths = pluginAssetPaths(pluginDirectory);
@@ -694,6 +698,7 @@ export function writeCodexPluginCatalogue(
   version: string,
 ): GeneratedPluginAsset[] {
   const assets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
+  assertGeneratedCodexPluginAssets(assets);
   const skillsDirectory = nodePath.join(pluginDirectory, 'skills');
   rmSync(skillsDirectory, { recursive: true, force: true });
 
