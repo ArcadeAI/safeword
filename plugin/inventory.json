@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "3c6308f77bbbf439151551cad3eb5e3d03500751c8793fca432ba55a25045a51"
+      "sha256": "3cdec568569920baeb1522eb12d2fbe6bfc9256b4bebc3aada95c57407e676aa"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "49276859164d468b9e8c17821290ab6130feedb8e765c632403c03733a5bdff9"
+      "sha256": "2df4072d3b086e3d67676c5400788728bc88eb34f570716926441702d3907aa0"
     },
     {
       "path": "runtime/event-groups.json",
@@ -243,7 +243,7 @@
     },
     {
       "path": "runtime/hooks/lib/host-toolchain.ts",
-      "sha256": "b3e708a08076cd71cb67ad917af0d4bf25dc4ce083c7449c39844778141492be"
+      "sha256": "dc48da74e7d4605cdf77eb73567629de6c6da21318a11caa8ad550cd79111488"
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
@@ -275,7 +275,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint-config.ts",
-      "sha256": "b0e1dec2d53852ee767ecb91e3ac6bf3421ba07bba6454d56e72a65e11b3e9a6"
+      "sha256": "5744781d60b618b6eabbe59ebedf65eac846ea59bb12aeaa8d5cd6d6af864954"
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
@@ -559,7 +559,7 @@
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",
-      "sha256": "54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2"
+      "sha256": "506440979a19ec4d49bcf4347d4adf8377dcbbced86ed83b386fb0065d087d3f"
     },
     {
       "path": "runtime/hooks/session-reply-format.ts",

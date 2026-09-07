@@ -21760,25 +21760,11 @@ var init_migration_state = __esm(() => {
 function withoutLegacyClaude(values) {
   return Object.fromEntries(Object.entries(values).filter(([path3]) => !path3.startsWith(".claude/")));
 }
-function without(values, paths) {
-  if (paths.size === 0)
-    return values;
-  return Object.fromEntries(Object.entries(values).filter(([path3]) => !paths.has(path3)));
-}
-function preservedPaths(cwd) {
-  return new Set(readClaudePluginMode(cwd)?.unresolved_paths);
-}
 function schemaForClaudeDelivery(cwd) {
   const legacyPluginMode = hasLegacyClaudePluginMode(cwd);
   const nativePluginMode = readClaudePluginMode(cwd) !== undefined;
-  const preserved = preservedPaths(cwd);
   if (!legacyPluginMode && !nativePluginMode && !legacyObservationIsEmpty(observeClaudeLegacy(cwd))) {
-    return {
-      ...SAFEWORD_SCHEMA,
-      ownedFiles: without(SAFEWORD_SCHEMA.ownedFiles, preserved),
-      managedFiles: without(SAFEWORD_SCHEMA.managedFiles, preserved),
-      jsonMerges: without(SAFEWORD_SCHEMA.jsonMerges, preserved)
-    };
+    return SAFEWORD_SCHEMA;
   }
   return {
     ...SAFEWORD_SCHEMA,
@@ -21786,9 +21772,9 @@ function schemaForClaudeDelivery(cwd) {
     sharedDirs: SAFEWORD_SCHEMA.sharedDirs.filter((path3) => !path3.startsWith(".claude")),
     deprecatedFiles: SAFEWORD_SCHEMA.deprecatedFiles.filter((path3) => !path3.startsWith(".claude/")),
     deprecatedDirs: SAFEWORD_SCHEMA.deprecatedDirs.filter((path3) => !path3.startsWith(".claude")),
-    ownedFiles: without(withoutLegacyClaude(SAFEWORD_SCHEMA.ownedFiles), preserved),
-    managedFiles: without(withoutLegacyClaude(SAFEWORD_SCHEMA.managedFiles), preserved),
-    jsonMerges: without(withoutLegacyClaude(SAFEWORD_SCHEMA.jsonMerges), preserved)
+    ownedFiles: withoutLegacyClaude(SAFEWORD_SCHEMA.ownedFiles),
+    managedFiles: withoutLegacyClaude(SAFEWORD_SCHEMA.managedFiles),
+    jsonMerges: withoutLegacyClaude(SAFEWORD_SCHEMA.jsonMerges)
   };
 }
 var init_delivery_schema = __esm(() => {

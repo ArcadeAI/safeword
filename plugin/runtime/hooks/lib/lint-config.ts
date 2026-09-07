@@ -11,6 +11,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { BIOME_CONFIG_FILES } from './host-toolchain.ts';
+
 const ESLINT_FLAT_EXTENSIONS = ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts'];
 const ESLINT_RC_EXTENSIONS = ['js', 'cjs', 'yaml', 'yml', 'json'];
 const PRETTIER_RC_EXTENSIONS = [
@@ -90,6 +92,34 @@ export function projectOwnsAlternativeFormatter(projectDirectory: string): boole
   } catch {
     return false;
   }
+}
+
+/**
+ * Whether a host toolchain owns this project's LINTING, not just its formatting.
+ *
+ * Reads `host-toolchain.ts`'s own list rather than restating it. The nearby
+ * ALTERNATIVE_FORMATTER_FILES pair is hand-synced only because its twin lives in
+ * `src/`, which templates may not import; this twin is a sibling template, so
+ * copying it would create drift for no reason (#3792).
+ *
+ * Deliberately not the alternative-formatter set: dprint, oxfmt and deno format
+ * but do not lint through the host toolchain, so ESLint is still the linter
+ * safeword falls back to there and warning about its absence stays true.
+ */
+export function detectHostLintToolchain(entries: readonly string[]): boolean {
+  return entries.some(name => (BIOME_CONFIG_FILES as readonly string[]).includes(name));
+}
+
+/**
+ * Whether the session lint check should warn that ESLint is missing.
+ *
+ * The Prettier warning next to it has been gated on its owner since V7GGJZ; the
+ * ESLint one was not, so a Biome shop that safeword lints successfully through
+ * the host toolchain was told at every session start to install ESLint (#3792).
+ * ESLint is the fallback for repos with no host toolchain — not a requirement.
+ */
+export function shouldWarnMissingEslint(entries: readonly string[]): boolean {
+  return !detectHostLintToolchain(entries) && !detectEslintConfig(entries);
 }
 
 /**
