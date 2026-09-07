@@ -25,13 +25,18 @@ const fabricatedManifest = {
   version: 1,
 } as LocalRetroReadinessManifest;
 
-const harnessEvidence = (harness: 'claude-code' | 'codex' | 'cursor') => ({
+function testRequestId(index: number): string {
+  const digit = String(index);
+  return `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`;
+}
+
+const harnessEvidence = (harness: 'claude-code' | 'codex' | 'cursor', index: number) => ({
   artifactDigest: createHash('sha256').update(`artifact:${harness}`).digest('hex'),
   buildCommit: evidenceCommit,
-  collectorReceipt: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+  collectorReceipt: testRequestId(index + 3),
   hostClass: 'local' as const,
   relayReceipt: `${harness}-relay-receipt`,
-  requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+  requestId: testRequestId(index),
   sessionScope: createHash('sha256').update(`session:${harness}`).digest('hex'),
   terminal: 'filed' as const,
 });
@@ -40,9 +45,9 @@ const completeManifest: LocalRetroReadinessManifest = {
   enabled: true,
   evidenceCommit,
   harnesses: {
-    'claude-code': harnessEvidence('claude-code'),
-    codex: harnessEvidence('codex'),
-    cursor: harnessEvidence('cursor'),
+    'claude-code': harnessEvidence('claude-code', 1),
+    codex: harnessEvidence('codex', 2),
+    cursor: harnessEvidence('cursor', 3),
   },
   recoveredFaults: {
     ambiguousCreateMatch: 'a'.repeat(64),

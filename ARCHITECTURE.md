@@ -558,7 +558,7 @@ tsup → dist/
 
 Published files: `dist/` + `schemas/` + `templates/` (bundled for setup convergence) + `codex-plugin/` (bundled for Codex plugin install).
 
-**Publish path:** an annotated `v*` tag triggers `.github/workflows/release.yml`. Its unprivileged build job installs from the frozen lockfile, builds, runs the release-contract suite, and packs the tarball. A separate minimal OIDC job downloads that artifact and runs `npm publish --provenance --ignore-scripts`. The local `prepublishOnly` hook (tag check → release tests → build) remains defense in depth, not the canonical release path.
+**Publish path:** an annotated `v*` tag triggers `.github/workflows/release.yml`. Its unprivileged build job installs from the frozen lockfile, builds, runs the release-contract suite, and packs the tarball. When local retro cutover is enabled, a protected job validates fresh production evidence before publication; malformed cutover state or failed evidence blocks the release. A separate minimal OIDC job downloads the artifact and publishes stable versions to `latest` and prereleases to `next` with provenance and install scripts disabled. After a stable publish, a final job advances the non-forced `stable` branch only when it remains a fast-forward. The local `prepublishOnly` hook (tag check → release tests → build) remains defense in depth, not the canonical release path.
 
 ---
 

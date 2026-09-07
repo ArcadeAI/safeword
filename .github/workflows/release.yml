@@ -3,9 +3,10 @@ name: Release
 # OIDC trusted publishing to npm. Triggered when a v* annotated tag is
 # pushed (tag push is restricted to mergers via repo ruleset).
 #
-# Two-job split: build runs all project code with NO id-token permission;
+# Privilege split: build runs all project code with NO production secrets or
+# id-token permission; the protected readiness job reads production evidence;
 # publish has id-token: write but executes only `npm publish` against a
-# downloaded artifact. Defends against the TanStack May-2026 vector where
+# downloaded artifact. This defends against the TanStack May-2026 vector where
 # a malicious dep extracted the OIDC token from runner memory mid-test.
 # See: https://tanstack.com/blog/npm-supply-chain-compromise-postmortem
 #
@@ -81,7 +82,7 @@ jobs:
       - name: Detect local retro cutover
         id: local-retro-cutover
         run: |
-          ENABLED=$(node -e "console.log(require('./packages/cli/src/retro/local-retro-readiness-manifest.json').enabled)")
+          ENABLED=$(node -e "const { enabled } = require('./packages/cli/src/retro/local-retro-readiness-manifest.json'); if (typeof enabled !== 'boolean') throw new Error('local retro cutover must be boolean'); process.stdout.write(String(enabled))")
           echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
 
       - name: Build

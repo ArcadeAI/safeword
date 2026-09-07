@@ -206,6 +206,7 @@ describe('local retro production verifier', () => {
     fetchImplementation: typeof fetch,
     harnessEvidence = protectedHarnessEvidence,
     relayReady = true,
+    now = new Date('2026-09-07T19:00:00.000Z'),
   ): Promise<boolean> {
     return verifyLocalRetroProductionReadiness(manifest, attestation, {
       buildCommit: manifest.evidenceCommit,
@@ -217,7 +218,7 @@ describe('local retro production verifier', () => {
       harnessEvidence,
       installationId,
       isAncestor: () => Promise.resolve(true),
-      now: new Date('2026-09-07T19:00:00.000Z'),
+      now,
       relayReady,
       relayCredential: 'relay-secret',
       relayOrigin: 'https://relay.example',
@@ -304,6 +305,17 @@ describe('local retro production verifier', () => {
     };
 
     await expect(verify(productionFetch(), harnessEvidence)).resolves.toBe(false);
+  });
+
+  it('rejects stale production attestation at the release boundary', async () => {
+    await expect(
+      verify(
+        productionFetch(),
+        protectedHarnessEvidence,
+        true,
+        new Date('2026-10-08T18:30:00.001Z'),
+      ),
+    ).resolves.toBe(false);
   });
 
   it('rejects evidence outside the release commit ancestry', async () => {

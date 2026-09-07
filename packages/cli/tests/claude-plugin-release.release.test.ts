@@ -95,15 +95,19 @@ describe('Claude plugin release contract', () => {
       workflow.indexOf('  publish:'),
       workflow.indexOf('  promote-stable:'),
     );
+    const publishConditionMatch = /\n {4}if: >-\n(?<condition>[\s\S]*?)\n {4}runs-on:/u.exec(
+      publishJob,
+    );
+    const publishCondition = publishConditionMatch?.groups?.condition
+      ?.replaceAll(/\s+/gu, ' ')
+      .trim();
     expect(workflow).toContain(
       'publish:\n    name: Publish to npm\n    needs: [build, verify-local-retro-production]',
     );
-    expect(workflow).toContain(
-      "needs.build.outputs.local-retro-cutover-enabled != 'true' &&\n      needs.verify-local-retro-production.result == 'skipped'",
+    expect(publishCondition).toBe(
+      "${{ !cancelled() && needs.build.result == 'success' && ((needs.build.outputs.local-retro-cutover-enabled == 'true' && needs.verify-local-retro-production.result == 'success') || (needs.build.outputs.local-retro-cutover-enabled != 'true' && needs.verify-local-retro-production.result == 'skipped')) }}",
     );
-    expect(workflow).toContain("${{ !cancelled() && needs.build.result == 'success' &&");
-    expect(publishJob).not.toContain('always()');
-    expect(publishJob).not.toContain('|| true');
+    expect(workflow).toContain("typeof enabled !== 'boolean'");
     expect(workflow).not.toContain('advisory-pr-review-smoke:');
     expect(workflow).not.toContain('pr-review-smoke');
     expect(workflow).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
