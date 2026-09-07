@@ -843,37 +843,6 @@ function findMissingPatches(
   return issues;
 }
 
-/**
- * Managed blocks whose contents have fallen behind what this version renders.
- *
- * Reported as advisories rather than issues on purpose. The gap being closed is
- * a reporting one — `install` already re-renders these blocks, so the repository
- * is one command from correct — and a stale block is not a broken install. Made
- * an issue instead, it would flip `check`'s exit code for every project whose
- * block predates a schema change, including states safeword itself produces
- * mid-migration.
- *
- * `updated` is the reconcile dry run's own verdict, comparing rendered content
- * against disk, so the diagnostic can never disagree with the fix that follows.
- */
-function findStalePatchAdvisories(
-  cwd: string,
-  actions: { type: string; path: string; definition?: { marker: string } }[],
-  updated: ReadonlySet<string>,
-): string[] {
-  const stale: string[] = [];
-  for (const action of actions) {
-    if (action.type !== 'text-patch' || !updated.has(action.path)) continue;
-    const content = readFileSafe(nodePath.join(cwd, action.path));
-    if (content === undefined) continue;
-    if (action.definition && !content.includes(action.definition.marker)) continue;
-    stale.push(
-      `${action.path}: the managed Safeword block is out of date; run \`safeword install\` to refresh it.`,
-    );
-  }
-  return stale;
-}
-
 export interface HealthStatus {
   configured: boolean;
   projectVersion: string | undefined;
@@ -1017,7 +986,6 @@ export async function checkHealth(
       ...(ticketIndexConflicts.length === 0
         ? []
         : [buildIndexConflictListMessage(ticketIndexConflicts)]),
-      ...findStalePatchAdvisories(cwd, actionsWithPath, new Set(result.updated)),
       ...findNamespaceAdvisories(cwd),
       ...CONFIGURED_KNOWLEDGE_KEYS.flatMap(key => findConfiguredKnowledgeAdvisories(cwd, key)),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),

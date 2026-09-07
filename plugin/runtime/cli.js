@@ -34283,20 +34283,6 @@ function findMissingPatches(cwd, actions) {
   }
   return issues;
 }
-function findStalePatchAdvisories(cwd, actions, updated) {
-  const stale = [];
-  for (const action of actions) {
-    if (action.type !== "text-patch" || !updated.has(action.path))
-      continue;
-    const content = readFileSafe(nodePath50.join(cwd, action.path));
-    if (content === undefined)
-      continue;
-    if (action.definition && !content.includes(action.definition.marker))
-      continue;
-    stale.push(`${action.path}: the managed Safeword block is out of date; run \`safeword install\` to refresh it.`);
-  }
-  return stale;
-}
 function findMissingPythonToolDeclarations(cwd, context) {
   if (!context.languages?.python)
     return [];
@@ -34358,7 +34344,6 @@ async function checkHealth(cwd, options = {}) {
     issues,
     advisories: [
       ...ticketIndexConflicts.length === 0 ? [] : [buildIndexConflictListMessage(ticketIndexConflicts)],
-      ...findStalePatchAdvisories(cwd, actionsWithPath, new Set(result.updated)),
       ...findNamespaceAdvisories(cwd),
       ...CONFIGURED_KNOWLEDGE_KEYS.flatMap((key) => findConfiguredKnowledgeAdvisories(cwd, key)),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
