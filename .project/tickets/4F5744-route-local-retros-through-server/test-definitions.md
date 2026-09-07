@@ -153,7 +153,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 ### Scenario: Collector-envelope and relay filing-payload digests cannot substitute for one another
 
 - [x] RED skip: implementation predates scenario; removing the envelope-digest comparison made this test receive 201 instead of 409
-- [ ] GREEN
+- [x] GREEN 71ad212b9
 - [ ] REFACTOR
 
 ### Scenario: An oversized envelope is rejected before storage
