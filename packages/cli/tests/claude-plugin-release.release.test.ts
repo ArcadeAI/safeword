@@ -78,7 +78,6 @@ describe('Claude plugin release contract', () => {
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
       'utf8',
     );
-
     expect(workflow).toContain('group: safeword-stable-release');
     expect(workflow).toContain('needs: publish');
     expect(workflow).toContain("if: ${{ !contains(github.ref_name, '-') }}");
@@ -92,12 +91,18 @@ describe('Claude plugin release contract', () => {
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
       'utf8',
     );
+    const publishJob = workflow.slice(
+      workflow.indexOf('  publish:'),
+      workflow.indexOf('  promote-stable:'),
+    );
     expect(workflow).toContain(
       'publish:\n    name: Publish to npm\n    needs: [build, verify-local-retro-production]',
     );
     expect(workflow).toContain(
       "needs.build.outputs.local-retro-cutover-enabled != 'true' &&\n      needs.verify-local-retro-production.result == 'skipped'",
     );
+    expect(workflow).toContain("${{ always() && needs.build.result == 'success' &&");
+    expect(publishJob).not.toContain('|| true');
     expect(workflow).not.toContain('advisory-pr-review-smoke:');
     expect(workflow).not.toContain('pr-review-smoke');
     expect(workflow).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
