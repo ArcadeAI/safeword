@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import {
+  isLocalRetroProductionAttestationFresh,
   type LocalRetroReadinessManifest,
   validateLocalRetroReadiness,
 } from './local-retro-readiness.js';
@@ -11,7 +12,6 @@ const evidenceCommit = 'a'.repeat(40);
 const fabricatedEvidence = {
   ancestorPairs: [{ ancestor: evidenceCommit, descendant: 'b'.repeat(40) }],
   buildCommit: 'b'.repeat(40),
-  now: new Date('2026-08-29T01:00:00.000Z'),
   relayReady: true,
 };
 
@@ -27,7 +27,7 @@ const fabricatedManifest = {
 const harnessEvidence = (harness: 'claude-code' | 'codex' | 'cursor') => ({
   artifactDigest: createHash('sha256').update(`artifact:${harness}`).digest('hex'),
   buildCommit: evidenceCommit,
-  collectorReceipt: `${harness}-collector-receipt`,
+  collectorReceipt: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
   hostClass: 'local' as const,
   relayReceipt: `${harness}-relay-receipt`,
   requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
@@ -110,11 +110,18 @@ describe('local retro readiness', () => {
   });
 
   it('does not expire a released cutover based on the customer clock', () => {
-    const staleEvidence = productionEvidence('cursor-desktop', {
-      now: new Date('2026-10-01T00:00:00.000Z'),
-    });
+    expect(
+      validateLocalRetroReadiness(completeManifest, productionEvidence('cursor-desktop')),
+    ).toBe(true);
+  });
 
-    expect(validateLocalRetroReadiness(completeManifest, staleEvidence)).toBe(true);
+  it('rejects stale evidence at the production release boundary', () => {
+    const attestation = productionEvidence('cursor-desktop').productionAttestation;
+    if (attestation === undefined) throw new Error('missing test attestation');
+
+    expect(
+      isLocalRetroProductionAttestationFresh(attestation, new Date('2026-10-01T00:00:00.000Z')),
+    ).toBe(false);
   });
 
   it('requires evidence for every supported harness', () => {

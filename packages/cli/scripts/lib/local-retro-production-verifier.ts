@@ -4,11 +4,15 @@ import type {
   LocalRetroProductionAttestation,
   LocalRetroReadinessManifest,
 } from '../../src/retro/local-retro-readiness.js';
-import { validateLocalRetroReadiness } from '../../src/retro/local-retro-readiness.js';
+import {
+  isLocalRetroProductionAttestationFresh,
+  validateLocalRetroReadiness,
+} from '../../src/retro/local-retro-readiness.js';
 
 export interface LocalRetroProductionVerificationOptions {
   collectorCredential: string;
   collectorOrigin: string;
+  buildCommit: string;
   faultDigests: LocalRetroReadinessManifest['recoveredFaults'];
   fetch: typeof fetch;
   githubToken?: string;
@@ -21,7 +25,7 @@ export interface LocalRetroProductionVerificationOptions {
     }
   >;
   installationId: number;
-  isAncestor?: (ancestor: string, descendant: string) => Promise<boolean>;
+  isAncestor: (ancestor: string, descendant: string) => Promise<boolean>;
   relayCredential: string;
   relayOrigin: string;
   repository: string;
@@ -99,7 +103,12 @@ function validSource(
   repo: string,
 ): boolean {
   const source = record(value);
-  return source?.harness === harness && source.hostClass === 'local' && source.repository === repo;
+  return (
+    source?.harness === harness &&
+    source.hostClass === 'local' &&
+    typeof source.repository === 'string' &&
+    source.repository.toLowerCase() === repo.toLowerCase()
+  );
 }
 
 function validEnvelope(
@@ -131,6 +140,24 @@ function hasLifecycle(
   );
 }
 
+function validRelayReceipt(
+  receipt: JsonRecord | undefined,
+  evidence: LocalRetroReadinessManifest['harnesses'][keyof LocalRetroReadinessManifest['harnesses']],
+): receipt is JsonRecord & { issueNumber: number } {
+  return (
+    receipt?.receiptId === evidence.relayReceipt &&
+    receipt.requestId === evidence.requestId &&
+    receipt.state === 'filed' &&
+    Number.isSafeInteger(receipt.issueNumber)
+  );
+}
+
+function githubIssueUrl(repo: string, issueNumber: number): URL {
+  const [owner = '', name = ''] = repo.split('/', 2);
+  const path = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/issues/${String(issueNumber)}`;
+  return new URL(path, 'https://api.github.com');
+}
+
 async function verifyHarness(
   harness: keyof LocalRetroReadinessManifest['harnesses'],
   manifest: LocalRetroReadinessManifest,
@@ -139,36 +166,20 @@ async function verifyHarness(
 ): Promise<boolean> {
   const evidence = manifest.harnesses[harness];
   if (lifecycle.every(item => !hasLifecycle(item, evidence))) return false;
+  const collectorPath = `/v1/public-retros/${encodeURIComponent(evidence.collectorReceipt)}`;
   const envelope = await readJson(
-    new URL(`/v1/public-retros/${evidence.collectorReceipt}`, options.collectorOrigin),
+    new URL(collectorPath, options.collectorOrigin),
     options.collectorCredential,
     options.fetch,
   );
   if (!validEnvelope(envelope, harness, options.repository, evidence.sessionScope)) return false;
+  const relayPath = `/v1/retro-filings/${encodeURIComponent(evidence.relayReceipt)}`;
   const relayReceipt = record(
-    await readJson(
-      new URL(`/v1/retro-filings/${evidence.relayReceipt}`, options.relayOrigin),
-      options.relayCredential,
-      options.fetch,
-    ),
+    await readJson(new URL(relayPath, options.relayOrigin), options.relayCredential, options.fetch),
   );
-  if (
-    relayReceipt?.receiptId !== evidence.relayReceipt ||
-    relayReceipt.requestId !== evidence.requestId ||
-    relayReceipt.state !== 'filed' ||
-    !Number.isSafeInteger(relayReceipt.issueNumber)
-  ) {
-    return false;
-  }
-  const [owner, repo] = options.repository.split('/', 2);
-  const issueNumber = String(relayReceipt.issueNumber);
-  const issue = record(
-    await readJson(
-      new URL(`/repos/${owner}/${repo}/issues/${issueNumber}`, 'https://api.github.com'),
-      options.githubToken,
-      options.fetch,
-    ),
-  );
+  if (!validRelayReceipt(relayReceipt, evidence)) return false;
+  const issueUrl = githubIssueUrl(options.repository, relayReceipt.issueNumber);
+  const issue = record(await readJson(issueUrl, options.githubToken, options.fetch));
   if (typeof issue?.body !== 'string') return false;
   const rawLines = new Set(issue.body.split(/\r?\n/u));
   return expectedMarkers(evidence.requestId, envelope.findings, options).every(marker =>
@@ -176,17 +187,21 @@ async function verifyHarness(
   );
 }
 
-function manifestAncestry(manifest: LocalRetroReadinessManifest): {
-  ancestor: string;
-  descendant: string;
-}[] {
-  return [
-    { ancestor: manifest.evidenceCommit, descendant: manifest.evidenceCommit },
+async function verifiedAncestry(
+  manifest: LocalRetroReadinessManifest,
+  options: LocalRetroProductionVerificationOptions,
+): Promise<{ ancestor: string; descendant: string }[] | undefined> {
+  const pairs = [
+    { ancestor: manifest.evidenceCommit, descendant: options.buildCommit },
     ...Object.values(manifest.harnesses).map(evidence => ({
       ancestor: evidence.buildCommit,
       descendant: manifest.evidenceCommit,
     })),
   ];
+  for (const pair of pairs) {
+    if (!(await options.isAncestor(pair.ancestor, pair.descendant))) return undefined;
+  }
+  return pairs;
 }
 
 function faultAuthorityMatches(
@@ -223,38 +238,56 @@ function harnessAuthorityMatches(
   );
 }
 
+function protectedAuthorityMatches(
+  manifest: LocalRetroReadinessManifest,
+  attestation: LocalRetroProductionAttestation,
+  options: LocalRetroProductionVerificationOptions,
+): boolean {
+  return (
+    faultAuthorityMatches(manifest, options.faultDigests) &&
+    harnessAuthorityMatches(manifest, attestation, options.harnessEvidence) &&
+    isLocalRetroProductionAttestationFresh(attestation, options.now ?? new Date())
+  );
+}
+
+async function readLifecycle(options: LocalRetroProductionVerificationOptions): Promise<unknown[]> {
+  const response = record(
+    await readJson(
+      new URL('/v1/private/retros', options.collectorOrigin),
+      options.collectorCredential,
+      options.fetch,
+    ),
+  );
+  if (!Array.isArray(response?.retros)) throw new Error('collector lifecycle evidence is invalid');
+  return response.retros;
+}
+
 export async function verifyLocalRetroProductionReadiness(
   manifest: LocalRetroReadinessManifest,
   attestation: LocalRetroProductionAttestation,
   options: LocalRetroProductionVerificationOptions,
 ): Promise<boolean> {
   try {
-    if (!faultAuthorityMatches(manifest, options.faultDigests)) return false;
-    if (!harnessAuthorityMatches(manifest, attestation, options.harnessEvidence)) return false;
+    if (!protectedAuthorityMatches(manifest, attestation, options)) return false;
+    const ancestorPairs = await verifiedAncestry(manifest, options);
+    if (ancestorPairs === undefined) return false;
     if (
       !validateLocalRetroReadiness(manifest, {
-        ancestorPairs: manifestAncestry(manifest),
-        buildCommit: manifest.evidenceCommit,
-        now: options.now ?? new Date(),
+        ancestorPairs,
+        buildCommit: options.buildCommit,
         productionAttestation: attestation,
         relayReady: true,
       })
     ) {
       return false;
     }
-    const lifecycleResponse = record(
-      await readJson(
-        new URL('/v1/private/retros', options.collectorOrigin),
-        options.collectorCredential,
-        options.fetch,
+    const lifecycle = await readLifecycle(options);
+    const results = await Promise.all(
+      (['claude-code', 'codex', 'cursor'] as const).map(harness =>
+        verifyHarness(harness, manifest, lifecycle, options),
       ),
     );
-    if (!Array.isArray(lifecycleResponse?.retros)) return false;
-    for (const harness of ['claude-code', 'codex', 'cursor'] as const) {
-      if (!(await verifyHarness(harness, manifest, lifecycleResponse.retros, options)))
-        return false;
-    }
-    return true;
+    return results.every(Boolean);
   } catch {
     return false;
   }

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import process from 'node:process';
 
 import checkedInAttestation from '../src/retro/local-retro-production-attestation.json' with { type: 'json' };
@@ -6,7 +7,15 @@ import {
   type LocalRetroReadinessManifest,
 } from '../src/retro/local-retro-readiness.js';
 import checkedInManifest from '../src/retro/local-retro-readiness-manifest.json' with { type: 'json' };
-import { verifyLocalRetroProductionReadiness } from './lib/local-retro-production-verifier.js';
+import {
+  type LocalRetroProductionVerificationOptions,
+  verifyLocalRetroProductionReadiness,
+} from './lib/local-retro-production-verifier.js';
+
+interface GitProof {
+  buildCommit: () => string;
+  isAncestor: (ancestor: string, descendant: string) => Promise<boolean>;
+}
 
 function required(environment: NodeJS.ProcessEnv, name: string): string {
   const value = environment[name]?.trim();
@@ -30,6 +39,43 @@ function productionHarnessEvidence(
   >[2]['harnessEvidence'];
 }
 
+function gitCommit(): string {
+  return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+}
+
+function isGitAncestor(ancestor: string, descendant: string): Promise<boolean> {
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant]);
+    return Promise.resolve(true);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+const systemGit: GitProof = { buildCommit: gitCommit, isAncestor: isGitAncestor };
+
+export function localRetroProductionVerificationOptions(
+  environment: NodeJS.ProcessEnv,
+  transport: typeof fetch,
+  git: GitProof = systemGit,
+): LocalRetroProductionVerificationOptions {
+  return {
+    buildCommit: git.buildCommit(),
+    collectorCredential: required(environment, 'SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL'),
+    collectorOrigin: required(environment, 'SAFEWORD_RETRO_COLLECTOR_ORIGIN'),
+    faultDigests: productionFaultDigests(environment),
+    fetch: transport,
+    githubToken: environment.GITHUB_TOKEN,
+    harnessEvidence: productionHarnessEvidence(environment),
+    installationId: Number(required(environment, 'SAFEWORD_RETRO_RELAY_INSTALLATION_ID')),
+    isAncestor: git.isAncestor,
+    relayCredential: required(environment, 'SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL'),
+    relayOrigin: required(environment, 'SAFEWORD_RETRO_RELAY_ORIGIN'),
+    repository: required(environment, 'SAFEWORD_RETRO_RELAY_REPOSITORY'),
+    tenantId: required(environment, 'SAFEWORD_RETRO_RELAY_TENANT_ID'),
+  };
+}
+
 export async function verifyCheckedInLocalRetroProductionReadiness(
   environment: NodeJS.ProcessEnv,
   transport: typeof fetch = fetch,
@@ -38,19 +84,7 @@ export async function verifyCheckedInLocalRetroProductionReadiness(
   return verifyLocalRetroProductionReadiness(
     checkedInManifest as LocalRetroReadinessManifest,
     checkedInAttestation as LocalRetroProductionAttestation,
-    {
-      collectorCredential: required(environment, 'SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL'),
-      collectorOrigin: required(environment, 'SAFEWORD_RETRO_COLLECTOR_ORIGIN'),
-      faultDigests: productionFaultDigests(environment),
-      fetch: transport,
-      githubToken: environment.GITHUB_TOKEN,
-      harnessEvidence: productionHarnessEvidence(environment),
-      installationId: Number(required(environment, 'SAFEWORD_RETRO_RELAY_INSTALLATION_ID')),
-      relayCredential: required(environment, 'SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL'),
-      relayOrigin: required(environment, 'SAFEWORD_RETRO_RELAY_ORIGIN'),
-      repository: required(environment, 'SAFEWORD_RETRO_RELAY_REPOSITORY'),
-      tenantId: required(environment, 'SAFEWORD_RETRO_RELAY_TENANT_ID'),
-    },
+    localRetroProductionVerificationOptions(environment, transport),
   );
 }
 

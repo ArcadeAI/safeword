@@ -16,7 +16,7 @@ export interface LocalRetroReadinessManifest {
       relayReceipt: string;
       requestId: string;
       sessionScope: string;
-      terminal: 'duplicate' | 'filed';
+      terminal: 'filed';
     }
   >;
   recoveredFaults: Record<
@@ -76,6 +76,13 @@ function isFresh(verifiedAt: string, now: Date): boolean {
   );
 }
 
+export function isLocalRetroProductionAttestationFresh(
+  attestation: DisabledProductionAttestation | LocalRetroProductionAttestation,
+  now: Date,
+): boolean {
+  return attestation.enabled && isFresh(attestation.verifiedAt, now);
+}
+
 function hasRequiredLifecycle(attestation: LocalRetroProductionAttestation): boolean {
   return (
     attestation.lifecycle['claude-code'] === 'claude-code-interactive' &&
@@ -109,12 +116,12 @@ function validHarnessEvidence(
     HASH_PATTERN.test(evidence.artifactDigest) &&
     COMMIT_PATTERN.test(evidence.buildCommit) &&
     hasAncestry(ancestorPairs, evidence.buildCommit, manifest.evidenceCommit) &&
-    evidence.collectorReceipt.length > 0 &&
+    REQUEST_ID_PATTERN.test(evidence.collectorReceipt) &&
     evidence.hostClass === 'local' &&
-    evidence.relayReceipt.length > 0 &&
+    /^[\w-]+$/u.test(evidence.relayReceipt) &&
     REQUEST_ID_PATTERN.test(evidence.requestId) &&
     HASH_PATTERN.test(evidence.sessionScope) &&
-    (evidence.terminal === 'duplicate' || evidence.terminal === 'filed')
+    evidence.terminal === 'filed'
   );
 }
 
@@ -135,31 +142,33 @@ function hasCompleteEvidence(
 function validProductionAttestation(
   manifest: LocalRetroReadinessManifest,
   attestation: DisabledProductionAttestation | LocalRetroProductionAttestation | undefined,
-  now: Date,
 ): boolean {
   if (!attestation?.enabled) return false;
+  const reviewedAt = new Date(manifest.reviewedAt);
+  const verifiedAt = new Date(attestation.verifiedAt);
   return (
     attestation.version === 1 &&
     attestation.authority === 'retro-relay-production-v1' &&
     hasRequiredLifecycle(attestation) &&
-    isFresh(attestation.verifiedAt, now) &&
+    !Number.isNaN(reviewedAt.getTime()) &&
+    reviewedAt.toISOString() === manifest.reviewedAt &&
+    !Number.isNaN(verifiedAt.getTime()) &&
+    reviewedAt.getTime() <= verifiedAt.getTime() &&
     attestation.manifestSha256 ===
       createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
   );
 }
 
 /**
- * Production canary and recovery artifacts do not yet have independently
- * verifiable collector/relay provenance. Keep cutover unconditionally closed
- * until a production authority verifier exists; a checked-in manifest and
- * caller-supplied hashes cannot authorize the route.
+ * Validate the build-attested release state already approved by the separate
+ * production verifier. Freshness belongs to that release boundary so an
+ * installed client never falls back to direct filing as its wall clock ages.
  */
 export function validateLocalRetroReadiness(
   manifest: DisabledManifest | LocalRetroReadinessManifest,
   input: {
     ancestorPairs: readonly { ancestor: string; descendant: string }[];
     buildCommit: string;
-    now: Date;
     productionAttestation?: DisabledProductionAttestation | LocalRetroProductionAttestation;
     relayReady: boolean;
   },
@@ -172,6 +181,6 @@ export function validateLocalRetroReadiness(
       pair => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit,
     ) &&
     hasCompleteEvidence(manifest, input.ancestorPairs) &&
-    validProductionAttestation(manifest, input.productionAttestation, input.now)
+    validProductionAttestation(manifest, input.productionAttestation)
   );
 }

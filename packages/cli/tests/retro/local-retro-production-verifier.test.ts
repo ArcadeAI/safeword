@@ -63,7 +63,7 @@ const manifest: LocalRetroReadinessManifest = {
       {
         artifactDigest: createHash('sha256').update(`artifact:${harness}`).digest('hex'),
         buildCommit: 'a'.repeat(40),
-        collectorReceipt: `collector-${harness}`,
+        collectorReceipt: requestId(index + 3),
         hostClass: 'local',
         relayReceipt: `relay-${harness}`,
         requestId: requestId(index),
@@ -187,6 +187,7 @@ describe('local retro production verifier', () => {
     harnessEvidence = protectedHarnessEvidence,
   ): Promise<boolean> {
     return verifyLocalRetroProductionReadiness(manifest, attestation, {
+      buildCommit: manifest.evidenceCommit,
       collectorCredential: 'collector-secret',
       collectorOrigin: 'https://collector.example',
       faultDigests: completeFaultDigests,
@@ -222,6 +223,7 @@ describe('local retro production verifier', () => {
 
     await expect(
       verifyLocalRetroProductionReadiness(manifest, attestation, {
+        buildCommit: manifest.evidenceCommit,
         collectorCredential: 'collector-secret',
         collectorOrigin: 'https://collector.example',
         faultDigests,
@@ -251,6 +253,7 @@ describe('local retro production verifier', () => {
   it('rejects evidence outside the release commit ancestry', async () => {
     await expect(
       verifyLocalRetroProductionReadiness(manifest, attestation, {
+        buildCommit: manifest.evidenceCommit,
         collectorCredential: 'collector-secret',
         collectorOrigin: 'https://collector.example',
         faultDigests: completeFaultDigests,

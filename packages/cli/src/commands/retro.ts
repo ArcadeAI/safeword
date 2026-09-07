@@ -1374,7 +1374,6 @@ export function resolvePublicRetroRoute(input: {
     validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
       ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
       buildCommit: SAFEWORD_BUILD_COMMIT,
-      now: new Date(),
       productionAttestation: CHECKED_IN_LOCAL_RETRO_PRODUCTION_ATTESTATION,
       relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,
     });
