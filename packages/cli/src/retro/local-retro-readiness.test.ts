@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
+  CHECKED_IN_LOCAL_RETRO_READINESS,
   digestLocalRetroReadinessManifest,
   isLocalRetroProductionAttestationFresh,
   type LocalRetroReadinessManifest,
@@ -76,7 +77,7 @@ function productionEvidence(
         codex: 'codex-desktop',
         cursor: cursorLifecycle,
       },
-      manifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
+      manifestSha256: digestLocalRetroReadinessManifest(manifest),
       verifiedAt: '2026-08-29T00:30:00.000Z',
       version: 1,
     },
@@ -108,12 +109,19 @@ describe('local retro readiness', () => {
     expect(validateLocalRetroReadiness(modifiedManifest, attestedEvidence)).toBe(false);
   });
 
-  it('rejects a locally fabricated enabled manifest while production authority is unavailable', () => {
+  it('rejects an incomplete locally fabricated manifest', () => {
     expect(validateLocalRetroReadiness(fabricatedManifest, fabricatedEvidence)).toBe(false);
   });
 
+  it('rejects complete evidence while production authority is unavailable', () => {
+    const evidence = productionEvidence('cursor-desktop');
+    delete evidence.productionAttestation;
+
+    expect(validateLocalRetroReadiness(completeManifest, evidence)).toBe(false);
+  });
+
   it('rejects the checked-in disabled state', () => {
-    expect(validateLocalRetroReadiness({ enabled: false, version: 1 }, fabricatedEvidence)).toBe(
+    expect(validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, fabricatedEvidence)).toBe(
       false,
     );
   });
@@ -139,6 +147,40 @@ describe('local retro readiness', () => {
     ).toBe(false);
   });
 
+  it('requires every harness build to be in the evidence ancestry', () => {
+    const harnessBuildCommit = 'c'.repeat(40);
+    const manifest = structuredClone(completeManifest);
+    manifest.harnesses.cursor.buildCommit = harnessBuildCommit;
+
+    expect(
+      validateLocalRetroReadiness(manifest, productionEvidence('cursor-desktop', {}, manifest)),
+    ).toBe(false);
+    expect(
+      validateLocalRetroReadiness(
+        manifest,
+        productionEvidence(
+          'cursor-desktop',
+          {
+            ancestorPairs: [
+              ...fabricatedEvidence.ancestorPairs,
+              { ancestor: harnessBuildCommit, descendant: evidenceCommit },
+            ],
+          },
+          manifest,
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('requires relay readiness before local cutover', () => {
+    expect(
+      validateLocalRetroReadiness(
+        completeManifest,
+        productionEvidence('cursor-desktop', { relayReady: false }),
+      ),
+    ).toBe(false);
+  });
+
   it('does not expire a released cutover based on the customer clock', () => {
     expectTypeOf<Parameters<typeof validateLocalRetroReadiness>[1]>().not.toHaveProperty('now');
     expect(
@@ -151,7 +193,10 @@ describe('local retro readiness', () => {
     if (attestation === undefined) throw new Error('missing test attestation');
 
     expect(
-      isLocalRetroProductionAttestationFresh(attestation, new Date('2026-10-01T00:00:00.000Z')),
+      isLocalRetroProductionAttestationFresh(attestation, new Date('2026-09-28T00:30:00.000Z')),
+    ).toBe(true);
+    expect(
+      isLocalRetroProductionAttestationFresh(attestation, new Date('2026-09-28T00:30:00.001Z')),
     ).toBe(false);
   });
 
