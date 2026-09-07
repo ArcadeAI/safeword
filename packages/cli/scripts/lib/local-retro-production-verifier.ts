@@ -172,12 +172,28 @@ function manifestAncestry(manifest: LocalRetroReadinessManifest): {
   ];
 }
 
+function faultAuthorityMatches(
+  manifest: LocalRetroReadinessManifest,
+  productionDigests: LocalRetroReadinessManifest['recoveredFaults'],
+): boolean {
+  const faults = Object.keys(manifest.recoveredFaults);
+  return (
+    Object.keys(productionDigests).length === faults.length &&
+    faults.every(
+      fault =>
+        productionDigests[fault as keyof typeof productionDigests] ===
+        manifest.recoveredFaults[fault as keyof typeof manifest.recoveredFaults],
+    )
+  );
+}
+
 export async function verifyLocalRetroProductionReadiness(
   manifest: LocalRetroReadinessManifest,
   attestation: LocalRetroProductionAttestation,
   options: LocalRetroProductionVerificationOptions,
 ): Promise<boolean> {
   try {
+    if (!faultAuthorityMatches(manifest, options.faultDigests)) return false;
     if (
       !validateLocalRetroReadiness(manifest, {
         ancestorPairs: manifestAncestry(manifest),

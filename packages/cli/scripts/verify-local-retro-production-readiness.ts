@@ -14,6 +14,14 @@ function required(environment: NodeJS.ProcessEnv, name: string): string {
   return value;
 }
 
+function productionFaultDigests(
+  environment: NodeJS.ProcessEnv,
+): LocalRetroReadinessManifest['recoveredFaults'] {
+  return JSON.parse(
+    required(environment, 'SAFEWORD_RETRO_FAULT_DIGESTS_JSON'),
+  ) as LocalRetroReadinessManifest['recoveredFaults'];
+}
+
 export async function verifyCheckedInLocalRetroProductionReadiness(
   environment: NodeJS.ProcessEnv,
   transport: typeof fetch = fetch,
@@ -25,6 +33,7 @@ export async function verifyCheckedInLocalRetroProductionReadiness(
     {
       collectorCredential: required(environment, 'SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL'),
       collectorOrigin: required(environment, 'SAFEWORD_RETRO_COLLECTOR_ORIGIN'),
+      faultDigests: productionFaultDigests(environment),
       fetch: transport,
       githubToken: environment.GITHUB_TOKEN,
       installationId: Number(required(environment, 'SAFEWORD_RETRO_RELAY_INSTALLATION_ID')),
