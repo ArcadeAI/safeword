@@ -9,11 +9,6 @@ const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
 const PUBLIC_RETRO_ORIGIN =
   process.env.SAFEWORD_PUBLIC_RETRO_BUILD_ORIGIN ??
   'https://retro-collector-production.up.railway.app';
-const CLI_PACKAGE_VERSION = (
-  JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8')) as {
-    version: string;
-  }
-).version;
 const LOCAL_RETRO_CANARY_HARNESS = process.env.SAFEWORD_LOCAL_RETRO_CANARY_HARNESS?.trim();
 
 if (
