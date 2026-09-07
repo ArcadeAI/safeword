@@ -90,6 +90,17 @@ const attestation: LocalRetroProductionAttestation = {
   version: 1,
 };
 
+const protectedHarnessEvidence = Object.fromEntries(
+  harnesses.map(harness => [
+    harness,
+    {
+      artifactDigest: manifest.harnesses[harness].artifactDigest,
+      buildCommit: manifest.harnesses[harness].buildCommit,
+      lifecycle: attestation.lifecycle[harness],
+    },
+  ]),
+) as Parameters<typeof verifyLocalRetroProductionReadiness>[2]['harnessEvidence'];
+
 function inputUrl(input: string | URL | Request): string {
   if (typeof input === 'string') return input;
   return input instanceof URL ? input.href : input.url;
@@ -171,13 +182,17 @@ function productionFetch(fault?: ProductionFault): typeof fetch {
 }
 
 describe('local retro production verifier', () => {
-  function verify(fetchImplementation: typeof fetch): Promise<boolean> {
+  function verify(
+    fetchImplementation: typeof fetch,
+    harnessEvidence = protectedHarnessEvidence,
+  ): Promise<boolean> {
     return verifyLocalRetroProductionReadiness(manifest, attestation, {
       collectorCredential: 'collector-secret',
       collectorOrigin: 'https://collector.example',
       faultDigests: completeFaultDigests,
       fetch: fetchImplementation,
       githubToken: 'github-token',
+      harnessEvidence,
       installationId,
       now: new Date('2026-09-07T19:00:00.000Z'),
       relayCredential: 'relay-secret',
@@ -211,6 +226,7 @@ describe('local retro production verifier', () => {
         faultDigests,
         fetch: productionFetch(),
         githubToken: 'github-token',
+        harnessEvidence: protectedHarnessEvidence,
         installationId,
         now: new Date('2026-09-07T19:00:00.000Z'),
         relayCredential: 'relay-secret',
@@ -219,5 +235,14 @@ describe('local retro production verifier', () => {
         tenantId,
       }),
     ).resolves.toBe(false);
+  });
+
+  it('rejects harness evidence that is not independently held by production', async () => {
+    const harnessEvidence = {
+      ...protectedHarnessEvidence,
+      cursor: { ...protectedHarnessEvidence.cursor, lifecycle: 'socket-absent' },
+    };
+
+    await expect(verify(productionFetch(), harnessEvidence)).resolves.toBe(false);
   });
 });

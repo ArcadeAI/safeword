@@ -12,6 +12,14 @@ export interface LocalRetroProductionVerificationOptions {
   faultDigests: LocalRetroReadinessManifest['recoveredFaults'];
   fetch: typeof fetch;
   githubToken?: string;
+  harnessEvidence: Record<
+    keyof LocalRetroReadinessManifest['harnesses'],
+    {
+      artifactDigest: string;
+      buildCommit: string;
+      lifecycle: string;
+    }
+  >;
   installationId: number;
   relayCredential: string;
   relayOrigin: string;
