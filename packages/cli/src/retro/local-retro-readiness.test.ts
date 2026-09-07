@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
   digestLocalRetroReadinessManifest,
@@ -119,6 +119,7 @@ describe('local retro readiness', () => {
   });
 
   it('does not expire a released cutover based on the customer clock', () => {
+    expectTypeOf<Parameters<typeof validateLocalRetroReadiness>[1]>().not.toHaveProperty('now');
     expect(
       validateLocalRetroReadiness(completeManifest, productionEvidence('cursor-desktop')),
     ).toBe(true);
