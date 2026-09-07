@@ -426,6 +426,24 @@ describe('production runtime configuration', () => {
       method: 'POST',
     });
     expect(operatorFile.status).toBe(403);
+    const collectorWorkerFile = await fetch(`${runtime.url}/v1/retro-filings`, {
+      body,
+      headers: { authorization: `Bearer ${runtime.authorizations['collector-worker']}` },
+      method: 'POST',
+    });
+    expect(collectorWorkerFile.status).toBe(403);
+    const collectorWorkerReconcile = await fetch(
+      `${runtime.url}/v1/retro-filings/missing/reconcile`,
+      {
+        headers: { authorization: `Bearer ${runtime.authorizations['collector-worker']}` },
+        method: 'POST',
+      },
+    );
+    expect(collectorWorkerReconcile.status).toBe(403);
+    const collectorWorkerOperate = await fetch(`${runtime.url}/v1/operations/retro-filings`, {
+      headers: { authorization: `Bearer ${runtime.authorizations['collector-worker']}` },
+    });
+    expect(collectorWorkerOperate.status).toBe(403);
     const harnessReconcile = await fetch(`${runtime.url}/v1/retro-filings/missing/reconcile`, {
       headers: { authorization: `Bearer ${runtime.authorizations.claude}` },
       method: 'POST',
@@ -442,6 +460,7 @@ describe('production runtime configuration', () => {
     const first = await startRelayRuntime(parseRuntimeConfig(environment), () => {});
     const oldClaude = first.authorizations.claude;
     const retained = {
+      collectorWorker: first.authorizations['collector-worker'],
       codex: first.authorizations.codex,
       cursor: first.authorizations.cursor,
       operator: first.authorizations.operator,
@@ -454,7 +473,7 @@ describe('production runtime configuration', () => {
     const claude = credentials.find(item => item.harness === 'claude');
     if (claude === undefined) throw new Error('missing Claude credential');
     claude.credentialId = 'claude-rotated';
-    claude.secret = 'e'.repeat(64);
+    claude.secret = 'f'.repeat(64);
     environment.RELAY_CREDENTIALS_BASE64 = Buffer.from(JSON.stringify(credentials)).toString(
       'base64',
     );
@@ -470,6 +489,7 @@ describe('production runtime configuration', () => {
     await expect(statusFor(second.authorizations.claude)).resolves.toBe(403);
     await expect(statusFor(retained.codex)).resolves.toBe(403);
     await expect(statusFor(retained.cursor)).resolves.toBe(403);
+    await expect(statusFor(retained.collectorWorker)).resolves.toBe(403);
     await expect(statusFor(retained.operator)).resolves.toBe(200);
     await second.close();
   });
