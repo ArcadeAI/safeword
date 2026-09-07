@@ -9,12 +9,13 @@ Extend the durable review coordinator with one `executable-red` kind. The foregr
 structured execution options and stores them in the integrity-protected job. The trusted worker
 executes the command once, captures a bounded attestation, and supplies that same attestation to
 every independent reviewer route. Existing source fingerprints and HMAC-sealed job records bind the
-receipt to its proof inputs and make later changes stale.
+receipt to its proof inputs and make later changes stale. One read-only receipt gate recomputes that
+identity when a host claims GREEN.
 
 The attestation proves the observable fact that a command ran and how it terminated. The model
 review remains a separate judgment: whether that failure represents the intended missing behavior
-at the named actor boundary. Neither layer claims scenario completeness, and the first release is
-advisory.
+at the named actor boundary. Neither layer claims scenario completeness. The shared edit hook blocks
+the GREEN ledger transition unless the gate finds a fresh approved cross-agent receipt.
 
 ## Components
 
@@ -26,6 +27,7 @@ advisory.
 
 ```typescript
 interface RedExecutionRequest {
+  scenario: string;
   argv: readonly [string, ...string[]];
   cwd: string;
   evidenceClass: 'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
@@ -76,7 +78,7 @@ identical-proof reuse, distinct-proof separation.
 
 ### Component 4: Attribution rubric and workflow
 
-**What**: Give every reviewer and agent one generated standard for right-reason RED and advisory
+**What**: Give every reviewer and agent one generated standard for right-reason RED and fail-closed
 recovery.
 **Where**: canonical `tdd-review` and `bdd` templates, generated reviewer rubric, shipped host copies.
 **Dependencies**: Existing rubric generators and plugin generation scripts.
@@ -97,6 +99,8 @@ existing review kinds remain readable and unchanged.
 4. The coordinator sends one neutral packet containing that attestation through its existing routes.
 5. The job seals the result; `review status` rechecks source freshness and record integrity.
 6. A later identical proof may reuse the approved receipt; any material input change starts fresh.
+7. At the GREEN ledger transition, every host calls the same public gate; direct CLI integrations
+   call it themselves.
 
 ## User Flow
 
@@ -105,7 +109,7 @@ existing review kinds remain readable and unchanged.
 3. A separate reviewer sees the observed failure plus the scenario and proof plan.
 4. The builder sees “independently confirmed,” “changes requested,” or “not independently
    confirmed” with one exact next action.
-5. The agent begins GREEN only after acting on the advisory; no hard gate ships in this ticket.
+5. The shared hook permits GREEN only when the public gate finds the current approved receipt.
 
 ## Key Decisions
 

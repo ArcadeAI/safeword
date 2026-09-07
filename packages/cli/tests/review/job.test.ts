@@ -81,6 +81,9 @@ const REQUEST_CHANGES_WORKER = COMPLETE_WORKER.replace(
   .replace("verdict: 'approve'", "verdict: 'request_changes'")
   .replace('findings: []', "findings: [{ severity: 'error', message: 'Unsafe retry' }]");
 
+const APPROVED_RED_ATTESTATION =
+  'execution_attestation: { source_fingerprint: record.source_fingerprint, expected_failure: { matched: true }, termination: { exit_code: 1, timed_out: false } }, reviewer_output: {';
+
 function project(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-job-test-'));
   const keyPrefix = nodePath.join(tmpdir(), 'safeword-review-key-test-');
@@ -413,7 +416,7 @@ describe('durable review jobs', () => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
       'reviewer_output: {',
-      'execution_attestation: { source_fingerprint: record.source_fingerprint }, reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
     );
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution = {
@@ -649,7 +652,7 @@ describe('durable review jobs', () => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
       'reviewer_output: {',
-      'execution_attestation: { source_fingerprint: record.source_fingerprint }, reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
     );
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution: RedExecutionRequest = {
@@ -668,6 +671,58 @@ describe('durable review jobs', () => {
     });
 
     writeFileSync(nodePath.join(cwd, 'input.md'), 'changed after approval\n');
+    expect(executableRedGate(cwd, execution.scenario)).toMatchObject({
+      state: 'action_required',
+      data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+  });
+
+  it('blocks GREEN when an approved executable RED review is not independent', async () => {
+    const cwd = project();
+    const degradedWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    )
+      .replace(
+        "actual_reviewer: 'codex', independence: 'cross-agent'",
+        "actual_reviewer: 'claude', independence: 'degraded'",
+      )
+      .replace("reviewer_agent: 'codex'", "reviewer_agent: 'claude'");
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, degradedWorker));
+    const execution: RedExecutionRequest = {
+      scenario: 'Scenario: exact actor boundary',
+      argv: [process.execPath, '-e', 'process.exit(1)'],
+      cwd: '.',
+      evidenceClass: 'pure-contract',
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
+
+    expect(executableRedGate(cwd, execution.scenario)).toMatchObject({
+      state: 'action_required',
+      data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+  });
+
+  it('blocks GREEN when an approved review carries passing execution evidence', async () => {
+    const cwd = project();
+    const passingWorker = COMPLETE_WORKER.replace('reviewer_output: {', () =>
+      APPROVED_RED_ATTESTATION.replace('exit_code: 1', 'exit_code: 0'),
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, passingWorker));
+    const execution: RedExecutionRequest = {
+      scenario: 'Scenario: exact actor boundary',
+      argv: [process.execPath, '-e', 'process.exit(0)'],
+      cwd: '.',
+      evidenceClass: 'pure-contract',
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
+
     expect(executableRedGate(cwd, execution.scenario)).toMatchObject({
       state: 'action_required',
       data: { command: 'review gate executable-red', status: 'blocked' },

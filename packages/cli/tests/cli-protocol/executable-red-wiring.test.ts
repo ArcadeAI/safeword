@@ -6,6 +6,31 @@ import { describe, expect, it } from 'vitest';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 describe('executable RED public CLI wiring', () => {
+  it('exposes a read-only GREEN gate that fails closed without a receipt', async () => {
+    const cwd = createTemporaryDirectory();
+
+    const result = await runCli(
+      [
+        '--json',
+        '--no-input',
+        '--cwd',
+        cwd,
+        'review',
+        'gate',
+        'executable-red',
+        '--scenario',
+        'Scenario: actor boundary',
+      ],
+      { cwd },
+    );
+
+    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+  });
+
   it('executes structured argv and reports trusted evidence', async () => {
     const cwd = createTemporaryDirectory();
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
