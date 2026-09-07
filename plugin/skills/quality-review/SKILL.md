@@ -201,7 +201,11 @@ Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict must ci
 
 ## Loop: review → fix → re-review
 
-Run the review in passes until **Critical issues** come back None. A couple of passes is usually plenty — don't loop indefinitely.
+Run the review in passes. Two rules decide when to stop, because "until it comes back clean" is not a condition an adversarial reviewer reliably produces — expect it to keep finding something, and let severity rather than patience end the loop.
+
+**Continue while any finding is an `error`.** Judge that against the severity definition above — a named input producing a wrong or absent result — not against the label the reviewer attached. A finding that cannot state its failing input is a warning however it is tagged, and warnings never hold a pass open.
+
+**At the third finding in one defect class, fix the class, not the instance.** Three findings that differ only in which input reaches the same weak spot are telling you the shape of the code is wrong. Patching the third instance buys one pass; replacing the mechanism ends the class. If you cannot see the class, that itself is the finding worth reporting.
 
 Each pass:
 
@@ -278,8 +282,11 @@ Each pass:
 
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
-3. **Decide.** Stop when **Critical issues = None**; remaining suggestions are
-   optional. Re-review only if you changed the work-product this pass.
+3. **Decide.** Stop when no finding is an `error`; remaining warnings and
+   suggestions are optional. Re-review only if you changed the work-product this
+   pass. Stopping while errors remain is a choice to ship a known defect — say so
+   in your report and in the ticket's evidence, rather than letting a stopped loop
+   read as a clean one.
 
 A pass isn't done until the objective check passes — for code that's `/safeword:verify`
 (tests, lint, typecheck); for other work-products it's whatever measurable
