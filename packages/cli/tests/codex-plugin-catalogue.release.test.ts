@@ -424,8 +424,18 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
-  it('preserves a valid pipe table when its trailing pipes are omitted', () => {
-    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-open-tables-'));
+  it.each([
+    ['trailing pipes are omitted', ['| Left | Right', '| --- | ----', '| alpha | omega']],
+    [
+      'the delimiter omits its leading pipe',
+      ['| Left | Right |', ':---: | ---|', '| alpha | omega |'],
+    ],
+    [
+      'a cell contains an escaped pipe',
+      ['| A | B | C |', '| --- | --- | --- |', String.raw`| a \| b | c |`],
+    ],
+  ])('preserves a valid pipe table when %s', (_case, table) => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-table-shape-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
     try {
       mkdirSync(nodePath.join(canonicalSkillsDirectory, 'tables'), { recursive: true });
@@ -434,12 +444,10 @@ describe('generated Codex plugin catalogue', () => {
         [
           '---',
           'name: tables',
-          'description: Valid open pipe tables',
+          'description: Valid tables outside the normalizer subset',
           '---',
           '',
-          '| Left | Right',
-          '| --- | ----',
-          '| alpha | omega',
+          ...table,
           '',
         ].join('\n'),
       );
@@ -447,7 +455,7 @@ describe('generated Codex plugin catalogue', () => {
       const content =
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
-      expect(content).toContain('| Left | Right\n| --- | ----\n| alpha | omega');
+      expect(content).toContain(table.join('\n'));
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }

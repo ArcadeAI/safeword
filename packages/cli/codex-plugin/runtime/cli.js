@@ -41008,9 +41008,12 @@ function formatMarkdownTable(rows) {
   });
 }
 function isClosedPipeTableStart(header2, delimiter) {
-  if (header2?.startsWith("|") !== true || !header2.endsWith("|") || delimiter?.endsWith("|") !== true)
+  if (header2?.startsWith("|") !== true || !header2.endsWith("|") || delimiter?.startsWith("|") !== true || !delimiter?.endsWith("|"))
     return;
   return { header: header2, delimiter };
+}
+function isNormalizableTableLine(line) {
+  return line.endsWith("|") && !line.includes(String.raw`\|`);
 }
 function formatMarkdownTables(markdown) {
   const lines = markdown.split(`
@@ -41027,7 +41030,7 @@ function formatMarkdownTables(markdown) {
     while (lines[end]?.startsWith("|") === true)
       end += 1;
     const tableLines = lines.slice(start, end);
-    if (tableLines.some((line) => !line.endsWith("|")))
+    if (tableLines.some((line) => !isNormalizableTableLine(line)))
       continue;
     const rows = tableLines.map((line) => tableCells(line));
     if (rows.some((cells) => cells.length !== headerCells.length))

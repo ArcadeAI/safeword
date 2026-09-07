@@ -500,10 +500,15 @@ function isClosedPipeTableStart(
   if (
     header?.startsWith('|') !== true ||
     !header.endsWith('|') ||
-    delimiter?.endsWith('|') !== true
+    delimiter?.startsWith('|') !== true ||
+    !delimiter?.endsWith('|')
   )
     return undefined;
   return { header, delimiter };
+}
+
+function isNormalizableTableLine(line: string): boolean {
+  return line.endsWith('|') && !line.includes(String.raw`\|`);
 }
 
 /** Normalize closed-pipe Markdown tables while preserving delimiter alignment. */
@@ -521,7 +526,7 @@ function formatMarkdownTables(markdown: string): string {
     let end = start + 2;
     while (lines[end]?.startsWith('|') === true) end += 1;
     const tableLines = lines.slice(start, end);
-    if (tableLines.some(line => !line.endsWith('|'))) continue;
+    if (tableLines.some(line => !isNormalizableTableLine(line))) continue;
     const rows = tableLines.map(line => tableCells(line));
     if (rows.some(cells => cells.length !== headerCells.length)) continue;
 
