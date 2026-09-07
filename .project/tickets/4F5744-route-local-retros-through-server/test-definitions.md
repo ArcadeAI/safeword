@@ -300,9 +300,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Cursor local readiness requires positive host-bound Desktop lifecycle evidence
 
-- [x] RED — the positive production-attested Cursor Desktop case returned false while the verifier remained fail-closed
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR 03aca01b4
 
 ### Scenario: Enabling one harness canary leaves every other harness on its existing route
 
@@ -354,15 +354,15 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Stale production verification cannot enable global cutover
 
-- [x] RED — advancing the evaluation clock beyond the freshness window still returned true
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbcba1337
+- [x] GREEN 03aca01b4
+- [x] REFACTOR 03aca01b4
 
 ### Scenario: Unavailable production authority keeps global cutover disabled
 
 - [x] RED
 - [x] GREEN
-- [ ] REFACTOR
+- [x] REFACTOR 03aca01b4
 
 ### Scenario: Managed Cursor evidence cannot satisfy local readiness
 
@@ -372,7 +372,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Missing harness evidence keeps the global cutover disabled
 
-- [ ] RED
+- [x] RED — a correctly hashed manifest that omitted Cursor evidence still returned true
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -390,9 +390,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Mismatched build ancestry cannot satisfy readiness
 
-- [x] RED — removing the evidence-to-build ancestry pair still returned true
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbcba1337
+- [x] GREEN 03aca01b4
+- [x] REFACTOR 03aca01b4
 
 ### Scenario: Every harness rejects collector and relay receipts whose request identity or session scope does not correlate end to end
 
@@ -408,7 +408,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: A fault artifact without recovery evidence cannot enable cutover
 
-- [ ] RED
+- [x] RED — a correctly hashed manifest that omitted worker-outage recovery still returned true
 - [ ] GREEN
 - [ ] REFACTOR
 

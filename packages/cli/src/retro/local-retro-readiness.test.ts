@@ -57,6 +57,7 @@ const completeManifest: LocalRetroReadinessManifest = {
 function productionEvidence(
   cursorLifecycle: string,
   overrides: Partial<typeof fabricatedEvidence> = {},
+  manifest: LocalRetroReadinessManifest = completeManifest,
 ): Parameters<typeof validateLocalRetroReadiness>[1] {
   return {
     ...fabricatedEvidence,
@@ -69,7 +70,7 @@ function productionEvidence(
         codex: 'codex-desktop',
         cursor: cursorLifecycle,
       },
-      manifestSha256: createHash('sha256').update(JSON.stringify(completeManifest)).digest('hex'),
+      manifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
       verifiedAt: '2026-08-29T00:30:00.000Z',
       version: 1,
     },
@@ -111,5 +112,41 @@ describe('local retro readiness', () => {
     });
 
     expect(validateLocalRetroReadiness(completeManifest, staleEvidence)).toBe(false);
+  });
+
+  it('requires evidence for every supported harness', () => {
+    const incompleteManifest = {
+      ...completeManifest,
+      harnesses: {
+        'claude-code': completeManifest.harnesses['claude-code'],
+        codex: completeManifest.harnesses.codex,
+      },
+    } as unknown as LocalRetroReadinessManifest;
+
+    expect(
+      validateLocalRetroReadiness(
+        incompleteManifest,
+        productionEvidence('cursor-desktop', {}, incompleteManifest),
+      ),
+    ).toBe(false);
+  });
+
+  it('requires every production fault recovery artifact', () => {
+    const incompleteManifest = {
+      ...completeManifest,
+      recoveredFaults: {
+        ambiguousCreateMatch: completeManifest.recoveredFaults.ambiguousCreateMatch,
+        ambiguousCreateNoMatch: completeManifest.recoveredFaults.ambiguousCreateNoMatch,
+        claimCrash: completeManifest.recoveredFaults.claimCrash,
+        retryExhaustion: completeManifest.recoveredFaults.retryExhaustion,
+      },
+    } as unknown as LocalRetroReadinessManifest;
+
+    expect(
+      validateLocalRetroReadiness(
+        incompleteManifest,
+        productionEvidence('cursor-desktop', {}, incompleteManifest),
+      ),
+    ).toBe(false);
   });
 });
