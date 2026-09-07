@@ -147,7 +147,7 @@ Feature: Trust executable RED before production implementation
     @rejection
     Scenario Outline: Invalid executable-RED evidence blocks the shared GREEN transition
       Given the current primary proof has <evidence problem>
-      When a supported host repeats the exact executable-RED review request before GREEN
+      When a supported host claims GREEN for that scenario
       Then Safeword blocks GREEN and names the unproved behavior
 
       Examples:
@@ -165,5 +165,5 @@ Feature: Trust executable RED before production implementation
     @surface.cursor @surface.cursor-cloud-agents @surface.safeword-cli
     Scenario: Fresh exact executable-RED evidence permits the shared GREEN transition
       Given the current primary proof has a fresh independently approved receipt for its exact request
-      When a supported host repeats the exact executable-RED review request before GREEN
+      When a supported host claims GREEN for that scenario
       Then Safeword permits GREEN without executing or reviewing the unchanged proof again

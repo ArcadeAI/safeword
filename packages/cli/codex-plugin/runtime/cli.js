@@ -36707,18 +36707,30 @@ function reusableApprovedExecutableRedJob(cwd, sourceFingerprint) {
   }
   return;
 }
-function approvedCrossAgentReceipt(record) {
-  const data = record.result?.data;
-  const attestation = data?.execution_attestation;
+function hasIndependentApproval(data) {
   return [
-    record.state === "completed",
     data?.status === "approved",
     data?.independence === "cross-agent",
     typeof data?.author_agent === "string",
     typeof data?.actual_reviewer === "string",
-    data?.author_agent !== data?.actual_reviewer,
-    attestation?.source_fingerprint === record.source_fingerprint
+    data?.author_agent !== data?.actual_reviewer
   ].every(Boolean);
+}
+function hasFailingExecutionAttestation(attestation, sourceFingerprint) {
+  const expectedFailure = attestation?.expected_failure;
+  const termination = attestation?.termination;
+  return [
+    attestation?.source_fingerprint === sourceFingerprint,
+    expectedFailure?.matched === true,
+    typeof termination?.exit_code === "number",
+    termination?.exit_code !== 0,
+    termination?.timed_out === false
+  ].every(Boolean);
+}
+function approvedCrossAgentReceipt(record) {
+  const data = record.result?.data;
+  const attestation = data?.execution_attestation;
+  return record.state === "completed" && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record.source_fingerprint);
 }
 function executableRedJobsForScenario(cwd, scenario) {
   const directory = jobsDirectory(cwd);

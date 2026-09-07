@@ -1060,18 +1060,39 @@ function reusableApprovedExecutableRedJob(
   return undefined;
 }
 
-function approvedCrossAgentReceipt(record: ReviewJobRecord): boolean {
-  const data = record.result?.data as Record<string, unknown> | undefined;
-  const attestation = data?.execution_attestation as Record<string, unknown> | undefined;
+function hasIndependentApproval(data: Record<string, unknown> | undefined): boolean {
   return [
-    record.state === 'completed',
     data?.status === 'approved',
     data?.independence === 'cross-agent',
     typeof data?.author_agent === 'string',
     typeof data?.actual_reviewer === 'string',
     data?.author_agent !== data?.actual_reviewer,
-    attestation?.source_fingerprint === record.source_fingerprint,
   ].every(Boolean);
+}
+
+function hasFailingExecutionAttestation(
+  attestation: Record<string, unknown> | undefined,
+  sourceFingerprint: string,
+): boolean {
+  const expectedFailure = attestation?.expected_failure as Record<string, unknown> | undefined;
+  const termination = attestation?.termination as Record<string, unknown> | undefined;
+  return [
+    attestation?.source_fingerprint === sourceFingerprint,
+    expectedFailure?.matched === true,
+    typeof termination?.exit_code === 'number',
+    termination?.exit_code !== 0,
+    termination?.timed_out === false,
+  ].every(Boolean);
+}
+
+function approvedCrossAgentReceipt(record: ReviewJobRecord): boolean {
+  const data = record.result?.data as Record<string, unknown> | undefined;
+  const attestation = data?.execution_attestation as Record<string, unknown> | undefined;
+  return (
+    record.state === 'completed' &&
+    hasIndependentApproval(data) &&
+    hasFailingExecutionAttestation(attestation, record.source_fingerprint)
+  );
 }
 
 function executableRedJobsForScenario(cwd: string, scenario: string): ReviewJobRecord[] {
