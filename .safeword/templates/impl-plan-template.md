@@ -92,9 +92,9 @@ advisory database is complete, so a clean result is evidence, never proof.
 Prefer no new dependency at all when the standard library, a native platform
 feature, or a package already in the manifest covers the need.
 
-A dependency row then reads:
+A dependency row then reads (shape, not real figures — look yours up):
 
-| Date formatting | date-fns | moment, dayjs | moment's own docs declare it legacy; Scorecard 7.2 vs date-fns 8.1, last non-bump commit 14 months ago |
+| Date formatting | <chosen> | <alternatives> | <alternative>'s own docs declare it legacy; Scorecard <score> vs <score>, last non-bump commit <age> |
 
 -->
 

@@ -119,7 +119,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "b3c699c0681707fab9a1277dd8aab66ebc00ce6e04f32f708b9ba04210314fd7"
+      "sha256": "6f4f7123183aa3ebabd36216fb4f1309556547ee6647a0f7e4afa0125d49cc05"
     },
     {
       "path": "resources/templates/task-spec-template.md",
