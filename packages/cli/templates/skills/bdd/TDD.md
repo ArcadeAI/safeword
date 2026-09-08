@@ -96,6 +96,7 @@ plan, then ask Safeword to execute and independently review each distinct proof 
 ```bash
 bun .safeword/hooks/run-review.ts review run executable-red \
   --scenario 'Scenario: exact ledger heading' \
+  --ledger .project/tickets/TICKET/test-definitions.md \
   --context path/to/scenario.feature \
   --context path/to/impl-plan.md \
   --proof-cwd . \
@@ -107,7 +108,7 @@ bun .safeword/hooks/run-review.ts review run executable-red \
 
 Pass JSON argv, never shell text. Include the scenario, proof-plan row, primary proof target, and
 every support file whose change would invalidate the evidence. Use the exact active ledger heading
-as `--scenario`. One fresh approved receipt may cover
+as `--scenario` and its project-relative `test-definitions.md` path as `--ledger`. One fresh approved receipt may cover
 Scenario Outline rows only when their canonical command and declared proof targets are identical.
 The shared edit gate blocks the GREEN checkbox until `review gate executable-red` finds a fresh
 approved cross-agent receipt for that scenario. Missing, stale, fabricated, incomplete, mismatched,

@@ -421,6 +421,7 @@ describe('durable review jobs', () => {
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution = {
       scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
       argv: [process.execPath, '-e', 'process.exit(1)'] as const,
       cwd: '.',
       evidenceClass: 'pure-contract' as const,
@@ -460,6 +461,7 @@ describe('durable review jobs', () => {
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
     const execution = {
       scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
       argv: [process.execPath, '-e', 'process.exit(1)'] as const,
       cwd: '.',
       evidenceClass: 'pure-contract' as const,
@@ -497,6 +499,7 @@ describe('durable review jobs', () => {
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution = {
       scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
       argv: [process.execPath, '-e', 'process.exit(1)'] as const,
       cwd: '.',
       evidenceClass: 'pure-contract' as const,
@@ -535,6 +538,7 @@ describe('durable review jobs', () => {
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution = {
       scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
       argv: [process.execPath, '-e', 'process.exit(1)'] as const,
       cwd: '.',
       evidenceClass: 'pure-contract' as const,
@@ -576,6 +580,7 @@ describe('durable review jobs', () => {
     vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
     const execution: RedExecutionRequest = {
       scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
       argv: [process.execPath, '-e', 'process.exit(1)'],
       cwd: '.',
       evidenceClass: 'pure-contract',
@@ -642,7 +647,13 @@ describe('durable review jobs', () => {
   it('blocks GREEN when no fresh approved executable RED receipt matches the scenario', () => {
     const cwd = project();
 
-    expect(executableRedGate(cwd, 'Scenario: exact actor boundary')).toMatchObject({
+    expect(
+      executableRedGate(
+        cwd,
+        'Scenario: exact actor boundary',
+        '.project/tickets/TST/test-definitions.md',
+      ),
+    ).toMatchObject({
       state: 'action_required',
       data: { command: 'review gate executable-red', status: 'blocked' },
     });
@@ -657,6 +668,7 @@ describe('durable review jobs', () => {
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution: RedExecutionRequest = {
       scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
       argv: [process.execPath, '-e', 'process.exit(1)'],
       cwd: '.',
       evidenceClass: 'pure-contract',
@@ -665,13 +677,19 @@ describe('durable review jobs', () => {
     };
 
     await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
-    expect(executableRedGate(cwd, execution.scenario)).toMatchObject({
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
       state: 'healthy',
       data: { command: 'review gate executable-red', status: 'approved' },
     });
+    expect(
+      executableRedGate(cwd, execution.scenario, '.project/tickets/OTHER/test-definitions.md'),
+    ).toMatchObject({
+      state: 'action_required',
+      data: { command: 'review gate executable-red', status: 'blocked' },
+    });
 
     writeFileSync(nodePath.join(cwd, 'input.md'), 'changed after approval\n');
-    expect(executableRedGate(cwd, execution.scenario)).toMatchObject({
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
       state: 'action_required',
       data: { command: 'review gate executable-red', status: 'blocked' },
     });
@@ -691,6 +709,7 @@ describe('durable review jobs', () => {
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, degradedWorker));
     const execution: RedExecutionRequest = {
       scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
       argv: [process.execPath, '-e', 'process.exit(1)'],
       cwd: '.',
       evidenceClass: 'pure-contract',
@@ -700,7 +719,7 @@ describe('durable review jobs', () => {
 
     await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
 
-    expect(executableRedGate(cwd, execution.scenario)).toMatchObject({
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
       state: 'action_required',
       data: { command: 'review gate executable-red', status: 'blocked' },
     });
@@ -714,6 +733,7 @@ describe('durable review jobs', () => {
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, passingWorker));
     const execution: RedExecutionRequest = {
       scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
       argv: [process.execPath, '-e', 'process.exit(0)'],
       cwd: '.',
       evidenceClass: 'pure-contract',
@@ -723,7 +743,7 @@ describe('durable review jobs', () => {
 
     await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
 
-    expect(executableRedGate(cwd, execution.scenario)).toMatchObject({
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
       state: 'action_required',
       data: { command: 'review gate executable-red', status: 'blocked' },
     });
@@ -951,6 +971,10 @@ describe('durable review jobs', () => {
     const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
     const id = (pending.data as { review_id: string }).review_id;
     const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    await vi.waitFor(() => {
+      const active = JSON.parse(readFileSync(recordPath, 'utf8')) as { state: string };
+      expect(active.state).toBe('running');
+    });
     const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
     record.state = 'failed';
     record.result = createResult({
@@ -968,6 +992,31 @@ describe('durable review jobs', () => {
       createResult({ state: 'healthy', data: { command: 'review run', status: 'approved' } }),
     );
     expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
+  });
+
+  it('invalidates a completed record that appears before its worker publishes', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 1_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
+    record.state = 'completed';
+    record.result = createResult({
+      state: 'healthy',
+      data: { command: 'review run', status: 'approved' },
+    });
+    record.integrity = signRecord(cwd, record);
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+    completeReviewJob(
+      cwd,
+      id,
+      createResult({ state: 'healthy', data: { command: 'review run', status: 'approved' } }),
+    );
+
+    expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_PREEMPTED');
   });
 
   it('refuses a traversal-shaped review id even when a record exists outside the review store', () => {

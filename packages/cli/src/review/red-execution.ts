@@ -44,8 +44,16 @@ function containedWorkingDirectory(root: string, requested: string): string {
   return canonicalCwd;
 }
 
-function environmentIdentity(): RedExecutionAttestation['environment'] {
-  const entries = Object.entries(process.env).toSorted(([left], [right]) =>
+function proofEnvironment(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => !name.startsWith('SAFEWORD_REVIEW_')),
+  );
+}
+
+function environmentIdentity(
+  environment: NodeJS.ProcessEnv,
+): RedExecutionAttestation['environment'] {
+  const entries = Object.entries(environment).toSorted(([left], [right]) =>
     left.localeCompare(right),
   );
   const sha256 = createHash('sha256').update(JSON.stringify(entries)).digest('hex');
@@ -107,6 +115,7 @@ export async function executeRedProof(input: {
   const started = Date.now();
   const stdout = new StreamEvidence(input.request.expectedFailure);
   const stderr = new StreamEvidence(input.request.expectedFailure);
+  const environment = proofEnvironment();
   const termination = await new Promise<{
     exitCode: number | null;
     signal: NodeJS.Signals | null;
@@ -116,7 +125,7 @@ export async function executeRedProof(input: {
     const child = spawn(input.request.argv[0], input.request.argv.slice(1), {
       cwd,
       detached: process.platform !== 'win32',
-      env: process.env,
+      env: environment,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -140,6 +149,7 @@ export async function executeRedProof(input: {
     }, input.request.timeoutMs);
     child.once('close', (exitCode, signal) => {
       clearTimers();
+      if (!timedOut) terminateProofTree(child);
       resolve({ exitCode, signal, timedOut });
     });
   });
@@ -157,7 +167,7 @@ export async function executeRedProof(input: {
     },
     timeout_ms: input.request.timeoutMs,
     source_fingerprint: input.sourceFingerprint,
-    environment: environmentIdentity(),
+    environment: environmentIdentity(environment),
     started_at: new Date(started).toISOString(),
     finished_at: new Date(finished).toISOString(),
     duration_ms: finished - started,

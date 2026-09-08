@@ -809,8 +809,14 @@ async function executableRedGateHandler(invocation: CommandInvocation): Promise<
       'review gate executable-red',
       'Executable RED gate requires a non-empty --scenario.',
     );
+  const ledger = invocation.options.ledger;
+  if (typeof ledger !== 'string' || ledger.trim() === '')
+    return invalidOperand(
+      'review gate executable-red',
+      'Executable RED gate requires a non-empty --ledger.',
+    );
   const { executableRedGate } = await import('../review/job.js');
-  return executableRedGate(invocation.cwd, scenario);
+  return executableRedGate(invocation.cwd, scenario, ledger);
 }
 
 function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
@@ -1023,6 +1029,9 @@ function redExecutionRequest(
   const scenario = options.scenario;
   if (typeof scenario !== 'string' || scenario.trim() === '')
     return new Error('Executable-red review requires a non-empty --scenario.');
+  const ledger = options.ledger;
+  if (typeof ledger !== 'string' || ledger.trim() === '')
+    return new Error('Executable-red review requires a non-empty --ledger.');
   const rawArgv = options.execute;
   let argv: unknown;
   try {
@@ -1049,6 +1058,7 @@ function redExecutionRequest(
     return new Error('--execution-timeout must be an integer from 1 to 600000 milliseconds.');
   return {
     scenario,
+    ledger,
     argv: argv as [string, ...string[]],
     cwd,
     evidenceClass: evidenceClass as RedEvidenceClass,

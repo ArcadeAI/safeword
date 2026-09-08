@@ -864,6 +864,26 @@ function terminateReviewWorker(pid: number): void {
 export function completeReviewJob(cwd: string, id: string, result: CliResult): void {
   withJobLock(cwd, id, () => {
     const record = readJob(cwd, id);
+    if (record.state === 'completed') {
+      const invalidated = createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: 'REVIEW_JOB_PREEMPTED',
+            message: 'The review record completed before its worker published the result.',
+            retryable: true,
+          },
+        ],
+        data: { command: 'review run', status: 'failed', review_id: id },
+      });
+      writeJob(cwd, {
+        ...record,
+        state: 'failed',
+        result: invalidated,
+        updated_at: new Date().toISOString(),
+      });
+      return;
+    }
     if (record.state !== 'launching' && record.state !== 'running') return;
     const completed: ReviewJobRecord = {
       ...record,
@@ -1090,19 +1110,26 @@ function approvedCrossAgentReceipt(record: ReviewJobRecord): boolean {
   const attestation = data?.execution_attestation as Record<string, unknown> | undefined;
   return (
     record.state === 'completed' &&
+    (record.pid === undefined || !processExists(record.pid)) &&
     hasIndependentApproval(data) &&
     hasFailingExecutionAttestation(attestation, record.source_fingerprint)
   );
 }
 
-function executableRedJobsForScenario(cwd: string, scenario: string): ReviewJobRecord[] {
+function executableRedJobsForScenario(
+  cwd: string,
+  scenario: string,
+  ledger: string,
+): ReviewJobRecord[] {
   const directory = jobsDirectory(cwd);
   if (!existsSync(directory)) return [];
   return readdirSync(directory).flatMap(name => {
     if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
     try {
       const record = readJob(cwd, name.slice(0, -5));
-      return record.kind === 'executable-red' && record.execution?.scenario === scenario
+      return record.kind === 'executable-red' &&
+        record.execution?.scenario === scenario &&
+        nodePath.resolve(cwd, record.execution.ledger) === nodePath.resolve(cwd, ledger)
         ? [record]
         : [];
     } catch {
@@ -1118,7 +1145,11 @@ function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
   );
 }
 
-function approvedExecutableRedGateResult(record: ReviewJobRecord, scenario: string): CliResult {
+function approvedExecutableRedGateResult(
+  record: ReviewJobRecord,
+  scenario: string,
+  ledger: string,
+): CliResult {
   return createResult({
     state: 'healthy',
     findings: [
@@ -1133,15 +1164,16 @@ function approvedExecutableRedGateResult(record: ReviewJobRecord, scenario: stri
       status: 'approved',
       review_id: record.id,
       scenario,
+      ledger,
     },
   });
 }
 
-export function executableRedGate(cwd: string, scenario: string): CliResult {
-  const matching = executableRedJobsForScenario(cwd, scenario);
+export function executableRedGate(cwd: string, scenario: string, ledger: string): CliResult {
+  const matching = executableRedJobsForScenario(cwd, scenario, ledger);
   const current = matching.filter(record => hasCurrentFingerprint(cwd, record));
   const approved = current.find(record => approvedCrossAgentReceipt(record));
-  if (approved !== undefined) return approvedExecutableRedGateResult(approved, scenario);
+  if (approved !== undefined) return approvedExecutableRedGateResult(approved, scenario, ledger);
 
   let reason =
     matching.length > 0
@@ -1154,7 +1186,7 @@ export function executableRedGate(cwd: string, scenario: string): CliResult {
   return createResult({
     state: 'action_required',
     findings: [{ code: 'EXECUTABLE_RED_GATE_BLOCKED', message: reason, severity: 'warning' }],
-    data: { command: 'review gate executable-red', status: 'blocked', scenario },
+    data: { command: 'review gate executable-red', status: 'blocked', scenario, ledger },
   });
 }
 

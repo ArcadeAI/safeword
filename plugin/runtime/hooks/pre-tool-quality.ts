@@ -206,7 +206,7 @@ function safewordCliCommand(): [string, ...string[]] {
   return ['bunx', 'safeword'];
 }
 
-function executableRedGateDenial(scenario: string): string | undefined {
+function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
   const [executable, ...prefix] = safewordCliCommand();
   const checked = spawnSync(
     executable,
@@ -221,6 +221,8 @@ function executableRedGateDenial(scenario: string): string | undefined {
       'executable-red',
       '--scenario',
       scenario,
+      '--ledger',
+      ledger,
     ],
     { cwd: projectDirectory, encoding: 'utf8', timeout: 5000 },
   );
@@ -876,11 +878,12 @@ if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 't
           'Leave GREEN unchecked, restore a standard Scenario heading with RED/GREEN/REFACTOR rows, then retry.',
         );
       }
-      const gateDenial = executableRedGateDenial(scenario);
+      const ledger = nodePath.relative(projectDirectory, editedFile);
+      const gateDenial = executableRedGateDenial(scenario, ledger);
       if (gateDenial !== undefined) {
         deny(
           `Cannot mark GREEN without a fresh independent executable RED approval. ${gateDenial}`,
-          `Run the exact \`safeword review run executable-red --scenario ${JSON.stringify(scenario)} ...\` request for the current proof, wait for independent approval, then retry this GREEN edit.`,
+          `Run the exact \`safeword review run executable-red --scenario ${JSON.stringify(scenario)} --ledger ${JSON.stringify(ledger)} ...\` request for the current proof, wait for independent approval, then retry this GREEN edit.`,
         );
       }
     }

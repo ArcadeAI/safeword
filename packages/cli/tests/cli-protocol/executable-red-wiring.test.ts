@@ -20,6 +20,8 @@ describe('executable RED public CLI wiring', () => {
         'executable-red',
         '--scenario',
         'Scenario: actor boundary',
+        '--ledger',
+        '.project/tickets/TST/test-definitions.md',
       ],
       { cwd },
     );
@@ -49,6 +51,8 @@ describe('executable RED public CLI wiring', () => {
         'proof.md',
         '--scenario',
         'Scenario: actor boundary',
+        '--ledger',
+        '.project/tickets/TST/test-definitions.md',
         '--proof-cwd',
         '.',
         '--evidence-class',
