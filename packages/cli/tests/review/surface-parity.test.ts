@@ -571,7 +571,6 @@ exit ${status}`,
       // The CLI scopes `.safeword/config.json` and its review state to its own
       // cwd, so a child left in packages/cli would grow a second `.safeword/` there.
       expect(childDirectory).toBe(projectDirectory);
-      expect(childDirectory).not.toBe(nodePath.join(projectDirectory, 'packages/cli'));
       expect(calls.at(-1)).toContain('review run quality-review target');
     },
   );
