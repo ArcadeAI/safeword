@@ -389,8 +389,6 @@ export interface ArchitectureIndexCheckOutcome {
   readonly stale: readonly SelfHealAction[];
   readonly unreadableWorkspaces: readonly UnreadableWorkspace[];
   readonly warnings: readonly string[];
-  /** False when no Git worktree was found and the worktree was planned instead. */
-  readonly usedIndex: boolean;
   readonly failureMessage?: string;
 }
 
@@ -424,7 +422,6 @@ export function architectureIndexCheck(cwd: string): ArchitectureIndexCheckOutco
       stale: [],
       unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
       warnings,
-      usedIndex: false,
       failureMessage: errorMessage(error_),
     };
   }
@@ -434,7 +431,6 @@ export function architectureIndexCheck(cwd: string): ArchitectureIndexCheckOutco
       stale: planSelfHealProject(cwd).filter(action => isWouldChangeAction(action)),
       unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
       warnings: [...warnings, 'No Git worktree found; checked the worktree instead of the index.'],
-      usedIndex: false,
     };
   }
 
@@ -450,7 +446,6 @@ export function architectureIndexCheck(cwd: string): ArchitectureIndexCheckOutco
           .map(plan => plan.result.action),
         unreadableWorkspaces: discoverUnreadableWorkspaces(snapshotDirectory),
         warnings,
-        usedIndex: true,
       };
     });
   } catch (error_) {
@@ -458,7 +453,6 @@ export function architectureIndexCheck(cwd: string): ArchitectureIndexCheckOutco
       stale: [],
       unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
       warnings,
-      usedIndex: true,
       failureMessage: errorMessage(error_),
     };
   }
