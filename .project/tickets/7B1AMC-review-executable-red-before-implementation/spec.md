@@ -97,7 +97,7 @@ skip: child feature under a program; trustworthy RED should feel invisible and t
 ## Decisions
 
 - A passing pre-implementation proof is not RED evidence, even when its execution is authentic.
-- When GREEN credit is claimed, every host checks the current scenario through the shared executable-RED receipt gate. Safeword reuses an approved receipt only when all bound inputs are unchanged; every other result blocks.
+- When GREEN credit is claimed, every host checks the current scenario and ticket ledger through the shared executable-RED receipt gate. Safeword reuses an approved receipt only when all bound inputs are unchanged; every other result blocks.
 - An unavailable independent reviewer blocks GREEN and returns the coordinator's recovery action; degraded or self-review evidence cannot authorize the transition.
 - The shared CLI decision is the host-neutral contract. Existing schema and parity checks own per-host installation and invocation wiring.
 

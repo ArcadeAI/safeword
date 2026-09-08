@@ -1,6 +1,6 @@
 # Impl Plan: Stop hollow acceptance proofs before implementation
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-09-06
 **Implemented on:** 2026-09-06
 **Replanned on:** 2026-09-07
@@ -38,10 +38,11 @@ blocking contract with one additional slice after retaining those four foundatio
    Claude/Codex/OpenCode/Cursor deliveries, update the CLI reference and the existing review-coordinator
    architecture decision, then run dogfood parity. Primary proof:
    generated-delivery checks, schema/parity checks, and the feature scenarios.
-5. **Blocking GREEN admission.** Add scenario identity to the executable-RED request and one
-   read-only `review gate executable-red --scenario <name>` command. It scans only integrity-valid
-   durable jobs, recomputes each candidate's fingerprint from current declared inputs, and permits
-   only a current approved cross-agent receipt for that scenario. Invoke that command from the
+5. **Blocking GREEN admission.** Add scenario and ledger identity to the executable-RED request and
+   one read-only `review gate executable-red --scenario <name> --ledger <path>` command. It scans
+   only integrity-valid durable jobs, recomputes each candidate's fingerprint from current declared
+   inputs, and permits only a current approved cross-agent receipt for that scenario and ledger.
+   Invoke that command from the
    existing shared pre-tool hook whenever the R/G/R ledger changes `[ ] GREEN` to `[x] GREEN`; deny
    the edit on missing, fabricated, incomplete, mismatched, stale, passing, wrong-reason, or
    non-independent evidence. Claude Code, Codex, OpenCode, and Cursor already route edit operations
@@ -103,6 +104,12 @@ helpers. Whole-tree copying would break host harnesses and add large latency. Th
 recomputes the exact declared request before GREEN and relies on the proof plan to enumerate support
 files; expanding this ticket into dependency-closure inference would exceed the accepted contract.
 
+Proof commands are ordinary project processes with the invoking user's filesystem permissions, not
+an OS security sandbox. Safeword strips its internal review variables from the child environment,
+cleans up descendant processes, and invalidates a job completed before the trusted worker publishes
+its result. Protecting against deliberately malicious same-user project code would require a
+separate isolation design and is outside this issue's accepted missing-behavior trust boundary.
+
 ## Doc impact
 
 - Update `packages/website/src/content/docs/cli-reference.md` through the CLI reference generator.
@@ -117,4 +124,6 @@ files; expanding this ticket into dependency-closure inference would exceed the 
 - Real projects routinely need undeclared transitive proof helpers, making declared-input freshness
   unreliable.
 - A supported host exposes a stronger hermetic execution or signed-attestation primitive.
+- The product must treat deliberately malicious same-user proof code as an adversary rather than
+  trusted project code.
 - Executable RED packets regularly exceed current file/output bounds.

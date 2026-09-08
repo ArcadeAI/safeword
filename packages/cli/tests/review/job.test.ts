@@ -1001,11 +1001,15 @@ describe('durable review jobs', () => {
     const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
     const id = (pending.data as { review_id: string }).review_id;
     const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    await vi.waitFor(() => {
+      const active = JSON.parse(readFileSync(recordPath, 'utf8')) as { state: string };
+      expect(active.state).toBe('running');
+    });
     const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
     record.state = 'completed';
     record.result = createResult({
       state: 'healthy',
-      data: { command: 'review run', status: 'approved' },
+      data: { command: 'review run', status: 'existing_route' },
     });
     record.integrity = signRecord(cwd, record);
     writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
@@ -1013,7 +1017,7 @@ describe('durable review jobs', () => {
     completeReviewJob(
       cwd,
       id,
-      createResult({ state: 'healthy', data: { command: 'review run', status: 'approved' } }),
+      createResult({ state: 'healthy', data: { command: 'review run', status: 'existing_route' } }),
     );
 
     expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_PREEMPTED');
