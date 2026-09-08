@@ -18,6 +18,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An unreadable binding scope source fails closed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Installed review dispatch enforces the resolved boundary
 
 - [ ] RED
@@ -72,7 +78,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An agent-authored acceptance claim cannot expand scope
+### Scenario: Installed entry points honor human scope acceptance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Installed entry points reject agent-authored scope acceptance
 
 - [ ] RED
 - [ ] GREEN
@@ -112,6 +124,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An agent cannot preserve approval by declaring a changed approach unchanged
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Installed re-entry honors approval only while the approach is unchanged
 
 - [ ] RED
@@ -130,13 +148,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Revising a refused approach permits a new decision
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Only human authority can clear a pending approach approval
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Installed local hosts reject agent-written approval claims
+### Scenario: Installed local entry points reject agent-written approval claims
 
 - [ ] RED
 - [ ] GREEN
@@ -149,6 +173,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Pending cloud approval survives runner reclamation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A lost cloud approval record cannot silently clear the gate
 
 - [ ] RED
 - [ ] GREEN
@@ -204,7 +234,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Recovery messages render through each installed host boundary
+### Scenario: Pending-approval recovery renders through each installed host boundary
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Installed recovery selection changes with the actual condition
 
 - [ ] RED
 - [ ] GREEN

@@ -24,6 +24,12 @@ Feature: Make planning gates understandable and scope-safe
       When the accepted boundary is resolved
       Then the work is admitted by the resolved accepted boundary
 
+    @rejection
+    Scenario: An unreadable binding scope source fails closed
+      Given one binding scope source is absent or unreadable when the accepted boundary is resolved
+      When scope completeness is reviewed
+      Then approval is blocked and the unresolvable source is named as the one recovery action
+
     @surface.safeword-cli
     Scenario Outline: Installed review dispatch enforces the resolved boundary
       Given an Implementation Plan <boundary_state>
@@ -71,34 +77,50 @@ Feature: Make planning gates understandable and scope-safe
 
     @rejection
     Scenario: An in-scope false clearance blocks approval
-      Given a reviewer finds an in-scope false clearance
+      Given a review verdict records an in-scope false clearance
       When the verdict is produced
       Then correction is required before approval
 
     Scenario: An out-of-scope improvement remains optional
-      Given a reviewer finds an out-of-scope resilience improvement
+      Given a review verdict records an out-of-scope resilience improvement
       When the verdict is produced
-      Then the improvement is nonblocking
+      Then the improvement is nonblocking and the capability stays outside the accepted boundary and plan until the user expands it
 
   @plan-implementability.NTB1.K3EBHB.R4
   Rule: plan-implementability.NTB1.K3EBHB.R4 — Declined strengthening remains declined and reviewable
 
     @rejection
     Scenario: Declining optional scope does not waive review of the accepted boundary
-      Given a user declines a nonblocking strengthening proposal
+      Given a nonblocking strengthening proposal stands declined by the user
       When the unchanged plan is resubmitted
       Then the decline is recorded and the plan is reviewed again only against the resolved accepted boundary
 
     Scenario: Accepting optional scope records the authority that expanded it
-      Given a reviewer proposes a nonblocking strengthening outside the accepted boundary
+      Given a nonblocking strengthening stands proposed outside the accepted boundary
       When the user explicitly accepts it through the host's human channel
       Then the accepted boundary expands with that user authority recorded and the revised plan is reviewed against it
 
-    @rejection
-    Scenario: An agent-authored acceptance claim cannot expand scope
-      Given a nonblocking strengthening outside the accepted boundary and no response recorded through the host's human channel
-      When an acceptance claim written through the agent-writable path is presented with the revised plan
+    @surface.safeword-cli @surface.claude-code
+    Scenario Outline: Installed entry points honor human scope acceptance
+      Given a nonblocking strengthening outside the accepted boundary and an explicit acceptance recorded through <host>'s human channel
+      When <installed_entry> runs with real configuration and collaborators
+      Then the accepted boundary expands with that user authority recorded and the revised plan is reviewed against it
+
+      Examples:
+        | host | installed_entry |
+        | Safeword CLI | actual installed CLI dispatch |
+        | Claude Code | actual lifecycle dispatch from installed project hooks |
+
+    @rejection @surface.safeword-cli @surface.claude-code
+    Scenario Outline: Installed entry points reject agent-authored scope acceptance
+      Given a nonblocking strengthening outside the accepted boundary and no response recorded through <host>'s human channel
+      When an acceptance claim written through the agent-writable path is presented with the revised plan through <installed_entry>
       Then the accepted boundary does not expand and the capability stays outside the plan
+
+      Examples:
+        | host | installed_entry |
+        | Safeword CLI | actual installed CLI dispatch |
+        | Claude Code | actual lifecycle dispatch from installed project hooks |
 
   @plan-implementability.NTB1.K3EBHB.R5
   Rule: plan-implementability.NTB1.K3EBHB.R5 — Guides and research cannot expand accepted scope
@@ -133,13 +155,9 @@ Feature: Make planning gates understandable and scope-safe
         | host | installed_entry | setting | outcome |
         | Safeword CLI | actual installed CLI dispatch | disabled | Execution Planning begins without a prompt |
         | Safeword CLI | actual installed CLI dispatch | enabled | the approach is surfaced for approval and Execution Planning has not begun |
-        | Claude Code | actual lifecycle dispatch from installed project hooks | disabled | Execution Planning begins without a prompt |
         | Claude Code | actual lifecycle dispatch from installed project hooks | enabled | the approach is surfaced for approval and Execution Planning has not begun |
-        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | disabled | Execution Planning begins without a prompt |
         | OpenAI Codex | actual lifecycle dispatch from installed project hooks | enabled | the approach is surfaced for approval and Execution Planning has not begun |
-        | OpenCode CLI | actual lifecycle dispatch from the installed profile plugin | disabled | Execution Planning begins without a prompt |
         | OpenCode CLI | actual lifecycle dispatch from the installed profile plugin | enabled | the approach is surfaced for approval and Execution Planning has not begun |
-        | Cursor | actual lifecycle dispatch from installed project hooks | disabled | Execution Planning begins without a prompt |
         | Cursor | actual lifecycle dispatch from installed project hooks | enabled | the approach is surfaced for approval and Execution Planning has not begun |
 
     Scenario: Approach approval is not requested twice when the approach is unchanged
@@ -150,6 +168,12 @@ Feature: Make planning gates understandable and scope-safe
     Scenario: A changed approach requires new approval
       Given the approach was approved once and the Implementation Plan was revised by changing a behavior-shaping choice, tradeoff, or system boundary
       When the plan re-enters the human design-approval gate
+      Then a new approach approval is requested and the prior approval no longer clears the gate
+
+    @rejection @surface.claude-code
+    Scenario: An agent cannot preserve approval by declaring a changed approach unchanged
+      Given the approach was approved once, the Implementation Plan changed a behavior-shaping choice, tradeoff, or system boundary, and an "approach unchanged" claim was written through the agent-writable path
+      When actual lifecycle dispatch from installed Claude Code project hooks reaches the human design-approval gate with real configuration and collaborators
       Then a new approach approval is requested and the prior approval no longer clears the gate
 
     @surface.claude-code
@@ -183,21 +207,29 @@ Feature: Make planning gates understandable and scope-safe
       When the unchanged approach is resubmitted
       Then Execution Planning remains blocked and the refusal remains linked to that approach
 
+    Scenario: Revising a refused approach permits a new decision
+      Given the user refused the presented approach
+      When a revised approach changing a behavior-shaping choice, tradeoff, or system boundary is submitted
+      Then a new approach approval is requested for the revised approach
+
     @rejection
     Scenario: Only human authority can clear a pending approach approval
       Given a headless session recorded a pending approach approval and no response through the host's human channel
       When an approval claim written through the agent-writable path is presented without a matching host-channel response
       Then Execution Planning remains blocked with human approval named as the next action
 
-    @surface.claude-code @surface.cursor
-    Scenario Outline: Installed local hosts reject agent-written approval claims
+    @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.opencode @surface.cursor
+    Scenario Outline: Installed local entry points reject agent-written approval claims
       Given <installed_entry> surfaced a pending approach with real configuration and no response exists in <host>'s human channel
       When an approval claim written through the agent-writable path is presented through that installed entry point
       Then Execution Planning remains blocked with human approval named as the next action
 
       Examples:
         | host | installed_entry |
+        | Safeword CLI | actual installed CLI dispatch |
         | Claude Code | actual lifecycle dispatch from installed project hooks |
+        | OpenAI Codex | actual lifecycle dispatch from installed project hooks |
+        | OpenCode CLI | actual lifecycle dispatch from the installed profile plugin |
         | Cursor | actual lifecycle dispatch from installed project hooks |
 
     @surface.claude-code-cloud @surface.cursor-cloud-agents
@@ -214,8 +246,19 @@ Feature: Make planning gates understandable and scope-safe
     @surface.claude-code-cloud @surface.cursor-cloud-agents
     Scenario Outline: Pending cloud approval survives runner reclamation
       Given <cloud_host> exited with an approach awaiting approval and its ephemeral runner was reclaimed
-      When the user responds through the host's human channel in a new session
+      When the user approves the approach through the host's human channel in a new session
       Then the same pending approach resolves and Execution Planning begins with that approval recorded against the approach
+
+      Examples:
+        | cloud_host |
+        | Claude Code Cloud |
+        | Cursor Cloud Agents |
+
+    @rejection @surface.claude-code-cloud @surface.cursor-cloud-agents
+    Scenario Outline: A lost cloud approval record cannot silently clear the gate
+      Given <cloud_host> exited with an approach awaiting approval and the pending approval record is unreadable in a new session
+      When the user responds through the host's human channel
+      Then Execution Planning remains blocked and the message names re-surfacing the approach as the one next action
 
       Examples:
         | cloud_host |
@@ -283,7 +326,7 @@ Feature: Make planning gates understandable and scope-safe
   Rule: plan-implementability.NTB1.K3EBHB.R10 — Non-technical walkthroughs prove recovery messages at real boundaries
 
     Scenario Outline: A non-technical builder can recover from each new message category
-      Given a non-technical builder without source-code access faces a <message_category> condition
+      Given a <message_category> condition is recorded for a non-technical builder without source-code access
       When Safeword renders the primary message for that condition
       Then a single-imperative check finds exactly one next action, <recovery>, and a fixed lexicon finds no internal phase identifiers, file paths, or digests in the primary message while permitting the plain-language resume phase
 
@@ -294,23 +337,29 @@ Feature: Make planning gates understandable and scope-safe
         | stale review | rerun review for the named plan |
         | exhausted independent routes | continue with the permitted fallback whose actual route is named without calling completion degraded |
         | pending human approval | respond to the surfaced approach |
+        | refused approach | revise the refused approach |
         | task promotion | resume at the named feature phase with existing evidence preserved |
 
     @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.opencode @surface.cursor
-    Scenario Outline: Recovery messages render through each installed host boundary
-      # This is a pairwise host/category wiring sample; the preceding surface-agnostic outline owns every category's exact message contract.
-      Given a non-technical builder without source-code access faces a <message_category> condition on <host>
+    Scenario Outline: Pending-approval recovery renders through each installed host boundary
+      # The preceding surface-agnostic outline owns every category's exact message contract; this outline varies only host wiring.
+      Given a non-technical builder without source-code access faces a pending human approval condition on <host>
       When <installed_entry> handles the condition with real configuration and collaborators
-      Then the primary message names <recovery> as the one plain-language next action and leaves technical identifiers to optional details
+      Then the primary message names "respond to the surfaced approach" as the one plain-language next action and leaves technical identifiers to optional details
 
       Examples:
-        | host | installed_entry | message_category | recovery |
-        | Safeword CLI | actual installed CLI dispatch | mismatched contract | reconcile the installed planning files |
-        | Claude Code | actual lifecycle dispatch from installed project hooks | stale review | rerun review for the named plan |
-        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | task promotion | resume at the named feature phase with existing evidence preserved |
-        | OpenCode CLI | actual lifecycle dispatch from the installed profile plugin | exhausted independent routes | continue with the permitted fallback whose actual route is named without calling completion degraded |
-        | Cursor | actual lifecycle dispatch from installed project hooks | pending human approval | respond to the surfaced approach |
-        | Safeword CLI | actual installed CLI dispatch | missing input | regenerate the named missing planning input |
+        | host | installed_entry |
+        | Safeword CLI | actual installed CLI dispatch |
+        | Claude Code | actual lifecycle dispatch from installed project hooks |
+        | OpenAI Codex | actual lifecycle dispatch from installed project hooks |
+        | OpenCode CLI | actual lifecycle dispatch from the installed profile plugin |
+        | Cursor | actual lifecycle dispatch from installed project hooks |
+
+    @surface.claude-code
+    Scenario: Installed recovery selection changes with the actual condition
+      Given a stale review condition is recorded for a non-technical builder without source-code access on Claude Code
+      When actual lifecycle dispatch from installed project hooks handles the condition with real configuration and collaborators
+      Then the primary message names "rerun review for the named plan" as the one plain-language next action and does not name approval recovery
 
     @surface.claude-code-cloud @surface.cursor-cloud-agents
     Scenario Outline: Recovery messages remain plain at cloud host boundaries
