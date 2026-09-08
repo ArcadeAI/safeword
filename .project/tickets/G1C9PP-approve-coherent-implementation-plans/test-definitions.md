@@ -42,6 +42,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A divergent host-private copy never becomes authoritative
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: OpenCode Desktop guidance does not claim gate authority
 
 - [ ] RED
@@ -104,7 +110,13 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R11 — Behavior-shaping decisions cannot leak into execution planning
 
-### Scenario: Any unresolved behavior-shaping decision blocks the Implementation Plan
+### Scenario: Decision resolution controls its Implementation Plan obligation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A receipt reports every simultaneous planning blocker
 
 - [ ] RED
 - [ ] GREEN

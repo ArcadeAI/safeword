@@ -13,8 +13,9 @@ Feature: Approve coherent Implementation Plans
         | decision_state | phase_result |
         | an unresolved behavior-shaping design choice | it remains in Implementation Planning and names the choice that must be decided |
         | every behavior-shaping design choice resolved in a reviewed current plan | it enters Execution Planning |
+        | every behavior-shaping design choice resolved only in a superseded reviewed plan | it remains in Implementation Planning and names plan revalidation as the recovery |
 
-    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.cursor @surface.cursor-cloud-agents
+    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Gated hosts enforce and release the decision boundary through the installed workflow
       Given real project configuration and a ticket with <decision_state>
       When <gated_host> requests Execution Planning through <dispatch_boundary>
@@ -26,16 +27,16 @@ Feature: Approve coherent Implementation Plans
         | Safeword CLI | the installed CLI entry point | all behavior-shaping choices resolved in a reviewed current plan | the workflow enters Execution Planning |
         | Claude Code | installed lifecycle-hook dispatch | an unresolved behavior-shaping choice | the workflow keeps the ticket in Implementation Planning and reports the unresolved choice |
         | Claude Code | installed lifecycle-hook dispatch | all behavior-shaping choices resolved in a reviewed current plan | the workflow enters Execution Planning |
-        | Claude Code Cloud | real project-level hook dispatch in the cloud lifecycle | an unresolved behavior-shaping choice | the workflow keeps the ticket in Implementation Planning and reports the unresolved choice |
-        | Claude Code Cloud | real project-level hook dispatch in the cloud lifecycle | all behavior-shaping choices resolved in a reviewed current plan | the workflow enters Execution Planning |
+        | Claude Code Cloud | actual host lifecycle in a fresh VM using real installed project hooks and real config resolution | an unresolved behavior-shaping choice | the workflow keeps the ticket in Implementation Planning and reports the unresolved choice |
+        | Claude Code Cloud | actual host lifecycle in a fresh VM using real installed project hooks and real config resolution | all behavior-shaping choices resolved in a reviewed current plan | the workflow enters Execution Planning |
         | OpenAI Codex | the installed workflow entry point | an unresolved behavior-shaping choice | the workflow keeps the ticket in Implementation Planning and reports the unresolved choice |
         | OpenAI Codex | the installed workflow entry point | all behavior-shaping choices resolved in a reviewed current plan | the workflow enters Execution Planning |
         | OpenCode CLI/TUI | installed plugin-event dispatch | an unresolved behavior-shaping choice | the workflow keeps the ticket in Implementation Planning and reports the unresolved choice |
         | OpenCode CLI/TUI | installed plugin-event dispatch | all behavior-shaping choices resolved in a reviewed current plan | the workflow enters Execution Planning |
         | Cursor | installed project-hook dispatch | an unresolved behavior-shaping choice | the workflow keeps the ticket in Implementation Planning and reports the unresolved choice |
         | Cursor | installed project-hook dispatch | all behavior-shaping choices resolved in a reviewed current plan | the workflow enters Execution Planning |
-        | Cursor Cloud Agents | real project-level hook dispatch in the cloud lifecycle | an unresolved behavior-shaping choice | the workflow keeps the ticket in Implementation Planning and reports the unresolved choice |
-        | Cursor Cloud Agents | real project-level hook dispatch in the cloud lifecycle | all behavior-shaping choices resolved in a reviewed current plan | the workflow enters Execution Planning |
+        | Cursor Cloud Agents | actual host lifecycle in a fresh cloud runner using real project hooks and real config resolution with no user-level hooks | an unresolved behavior-shaping choice | the workflow keeps the ticket in Implementation Planning and reports the unresolved choice |
+        | Cursor Cloud Agents | actual host lifecycle in a fresh cloud runner using real project hooks and real config resolution with no user-level hooks | all behavior-shaping choices resolved in a reviewed current plan | the workflow enters Execution Planning |
 
   @plan-implementability.TBU1.G1C9PP.R2
   Rule: plan-implementability.TBU1.G1C9PP.R2 — Authors and reviewers use one decision-quality contract
@@ -69,26 +70,42 @@ Feature: Approve coherent Implementation Plans
 
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Each gated host accepts only the project-local Implementation Plan
-      Given the same feature ticket is opened through <gated_host> with <artifact_state>
+      Given a feature ticket with <artifact_state> reachable through <gated_host> via <dispatch_boundary>
       When Implementation Planning reaches review
       Then <artifact_result>
 
       Examples:
-        | gated_host | artifact_state | artifact_result |
-        | Safeword CLI | the ticket's project-local plan | the plan is eligible for review |
-        | Safeword CLI | a host-private plan copy | review is blocked in favor of the ticket's project-local plan |
-        | Claude Code | the ticket's project-local plan | the plan is eligible for review |
-        | Claude Code | a host-private plan copy | review is blocked in favor of the ticket's project-local plan |
-        | Claude Code Cloud | the ticket's project-local plan reached through real cloud hook dispatch | the plan is eligible for review |
-        | Claude Code Cloud | a host-private plan copy | review is blocked in favor of the ticket's project-local plan |
-        | OpenAI Codex | the ticket's project-local plan | the plan is eligible for review |
-        | OpenAI Codex | a host-private plan copy | review is blocked in favor of the ticket's project-local plan |
-        | OpenCode CLI/TUI | the ticket's project-local plan reached through plugin-event dispatch | the plan is eligible for review |
-        | OpenCode CLI/TUI | a host-private plan copy | review is blocked in favor of the ticket's project-local plan |
-        | Cursor | the ticket's project-local plan | the plan is eligible for review |
-        | Cursor | a host-private plan copy | review is blocked in favor of the ticket's project-local plan |
-        | Cursor Cloud Agents | the ticket's project-local plan reached through real cloud hook dispatch | the plan is eligible for review |
-        | Cursor Cloud Agents | a host-private plan copy | review is blocked in favor of the ticket's project-local plan |
+        | gated_host | dispatch_boundary | artifact_state | artifact_result |
+        | Safeword CLI | the installed CLI entry point | the ticket's project-local plan | the plan is eligible for review |
+        | Safeword CLI | the installed CLI entry point | only a host-private plan copy and no project-local plan | review is blocked until the ticket has a project-local plan |
+        | Claude Code | installed lifecycle-hook dispatch | the ticket's project-local plan | the plan is eligible for review |
+        | Claude Code | installed lifecycle-hook dispatch | only a host-private plan copy and no project-local plan | review is blocked until the ticket has a project-local plan |
+        | Claude Code Cloud | actual host lifecycle in a fresh VM using real installed project hooks and real config resolution | the ticket's project-local plan | the plan is eligible for review |
+        | Claude Code Cloud | actual host lifecycle in a fresh VM using real installed project hooks and real config resolution | only a host-private plan copy and no project-local plan | review is blocked until the ticket has a project-local plan |
+        | OpenAI Codex | the installed workflow entry point | the ticket's project-local plan | the plan is eligible for review |
+        | OpenAI Codex | the installed workflow entry point | only a host-private plan copy and no project-local plan | review is blocked until the ticket has a project-local plan |
+        | OpenCode CLI/TUI | installed plugin-event dispatch | the ticket's project-local plan | the plan is eligible for review |
+        | OpenCode CLI/TUI | installed plugin-event dispatch | only a host-private plan copy and no project-local plan | review is blocked until the ticket has a project-local plan |
+        | Cursor | installed project-hook dispatch | the ticket's project-local plan | the plan is eligible for review |
+        | Cursor | installed project-hook dispatch | only a host-private plan copy and no project-local plan | review is blocked until the ticket has a project-local plan |
+        | Cursor Cloud Agents | actual host lifecycle in a fresh cloud runner using real project hooks and real config resolution with no user-level hooks | the ticket's project-local plan | the plan is eligible for review |
+        | Cursor Cloud Agents | actual host lifecycle in a fresh cloud runner using real project hooks and real config resolution with no user-level hooks | only a host-private plan copy and no project-local plan | review is blocked until the ticket has a project-local plan |
+
+    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: A divergent host-private copy never becomes authoritative
+      Given both the ticket's project-local plan and a divergent host-private copy exist for <gated_host>
+      When Implementation Planning reaches review through <dispatch_boundary>
+      Then the project-local plan is reviewed and the divergent host-private copy is not accepted
+
+      Examples:
+        | gated_host | dispatch_boundary |
+        | Safeword CLI | the installed CLI entry point |
+        | Claude Code | installed lifecycle-hook dispatch |
+        | Claude Code Cloud | the actual host lifecycle in a fresh VM using real installed project hooks and config resolution |
+        | OpenAI Codex | the installed workflow entry point |
+        | OpenCode CLI/TUI | installed plugin-event dispatch |
+        | Cursor | installed project-hook dispatch |
+        | Cursor Cloud Agents | the actual host lifecycle in a fresh cloud runner using real project hooks and config resolution with no user-level hooks |
 
     @surface.opencode
     Scenario: OpenCode Desktop guidance does not claim gate authority
@@ -155,36 +172,46 @@ Feature: Approve coherent Implementation Plans
 
       Examples:
         | artifact_state | review_result |
-        | all decisions contained in the Implementation Plan | its component boundary and data ownership decisions are accepted in that plan |
+        | all decisions contained in the Implementation Plan | the receipt names it as the single design plan of record and requires no second design artifact |
+        | all required decisions in the Implementation Plan with linked supporting detail outside it | the receipt names the Implementation Plan as the single design plan of record and accepts the supporting link |
         | a second feature design document carrying required decisions | approval is blocked until those decisions return to the Implementation Plan |
 
   @plan-implementability.TBU1.G1C9PP.R10
   Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope without execution mechanics
 
     Scenario Outline: Proof scope excludes execution mechanics
-      Given a plan names the behavior, real system boundary, proof type, and confidence limitation with <mechanics_state>
+      Given an Implementation Plan has <proof_state>
       When proof completeness is reviewed
       Then <review_result>
 
       Examples:
-        | mechanics_state | review_result |
-        | no test file paths or commands | the proof strategy is accepted for Implementation Planning |
-        | test file paths or commands mixed into the proof decision | approval is blocked with the execution mechanic named for removal to Execution Planning |
+        | proof_state | review_result |
+        | behavior, real system boundary, proof type, and confidence limitation with no test paths or commands | the proof strategy is accepted for Implementation Planning |
+        | behavior, real system boundary, proof type, and confidence limitation with test paths or commands | approval is blocked with the execution mechanic named for removal to Execution Planning |
+        | behavior, proof type, and confidence limitation but no real system boundary | approval is blocked with the missing real system boundary named |
 
   @plan-implementability.TBU1.G1C9PP.R11
   Rule: plan-implementability.TBU1.G1C9PP.R11 — Behavior-shaping decisions cannot leak into execution planning
 
     @rejection
-    Scenario Outline: Any unresolved behavior-shaping decision blocks the Implementation Plan
-      Given an otherwise complete Implementation Plan with an unresolved <decision>
+    Scenario Outline: Decision resolution controls its Implementation Plan obligation
+      Given an otherwise complete Implementation Plan with <decision_state>
       When the plan is reviewed
-      Then approval is blocked with <decision> named as an Implementation Planning obligation
+      Then <review_result>
 
       Examples:
-        | decision |
-        | API contract |
-        | rollback |
-        | proof scope |
+        | decision_state | review_result |
+        | an unresolved API contract | approval is blocked with the API contract named as an Implementation Planning obligation |
+        | a resolved API contract | the API contract does not block approval |
+        | unresolved rollback behavior | approval is blocked with rollback named as an Implementation Planning obligation |
+        | resolved rollback behavior | rollback does not block approval |
+        | unresolved proof scope | approval is blocked with proof scope named as an Implementation Planning obligation |
+        | resolved proof scope | proof scope does not block approval |
+
+    Scenario: A receipt reports every simultaneous planning blocker
+      Given a plan has an unresolved API contract, unresolved rollback behavior, and a shared-contract choice with no durable architecture link
+      When the plan is reviewed
+      Then the receipt names the API contract, rollback behavior, and missing durable architecture link without requiring an order
 
   @plan-implementability.TBU1.G1C9PP.R12
   Rule: plan-implementability.TBU1.G1C9PP.R12 — Load-bearing choices carry alternatives and evidence
@@ -211,7 +238,8 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | decision_state | result |
         | no decision entries and no skip | blocked before approval |
-        | an explicit no-load-bearing-choice skip contradicted by the plan's own technology choice | blocked before approval |
+        | an explicit no-load-bearing-choice skip contradicted by the plan's own load-bearing technology choice | blocked before approval |
+        | a local non-load-bearing technology choice declared under a no-load-bearing-choice skip | eligible for semantic approval |
         | an explicit no-load-bearing-choice skip with a credible reason | eligible for semantic approval |
 
   @plan-implementability.TBU1.G1C9PP.R14
@@ -224,8 +252,9 @@ Feature: Approve coherent Implementation Plans
 
       Examples:
         | scope_decision | scope_result |
-        | no explicit user scope change | the capability remains outside the accepted plan |
-        | explicit user approval to expand scope | the capability enters the accepted plan and boundary |
+        | no user-supplied scope-change approval | the capability remains outside the accepted plan |
+        | a user-supplied scope-change approval in the session record | the capability enters the accepted plan and boundary |
+        | only an agent-authored assertion that the user approved expansion | the capability remains outside the accepted plan |
 
   @plan-implementability.TBU1.G1C9PP.R15
   Rule: plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability and concrete recovery
@@ -246,6 +275,6 @@ Feature: Approve coherent Implementation Plans
       Then it says the shared-contract choice needs an architecture record without internal phase or type jargon and tells them to add that link before resubmitting
 
     Scenario: A blocked receipt preserves evidence for a Technical Builder
-      Given the same failed review is addressed to a Technical Builder
+      Given a failed review addressed to a Technical Builder because a shared-contract choice has no durable architecture link
       When the review receipt is presented
       Then it preserves the failing check, Implementation Plan location, and durable-record obligation alongside the recovery

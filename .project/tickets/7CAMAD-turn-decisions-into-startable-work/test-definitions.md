@@ -6,7 +6,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R1 — Execution Planning requires a reviewed current approach
 
-### Scenario: A stale or unreviewed Implementation Plan cannot authorize Execution Planning
+### Scenario: Implementation Plan review state controls Execution Planning
 
 - [ ] RED
 - [ ] GREEN
@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R3 — Authors and reviewers use one implementability contract
 
-### Scenario: An edited Execution Plan contract cannot receive semantic approval
+### Scenario: Review-contract identity controls semantic approval
 
 - [ ] RED
 - [ ] GREEN
@@ -38,7 +38,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R5 — The Execution Plan is a project-local reviewed artifact
 
-### Scenario: Host-private execution notes cannot replace the reviewed artifact
+### Scenario: Project-local Execution Plan state controls coding authorization
 
 - [ ] RED
 - [ ] GREEN
@@ -46,7 +46,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
 
-### Scenario: Vague sequencing language cannot hide an architecture choice
+### Scenario: Vague execution language cannot hide a data ownership choice
 
 - [ ] RED
 - [ ] GREEN
@@ -54,7 +54,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R7 — Structural gates report facts rather than semantic quality
 
-### Scenario: Valid structure cannot claim an unimplementable plan is complete
+### Scenario: Structure reports facts while semantics controls implementability
 
 - [ ] RED
 - [ ] GREEN
@@ -62,7 +62,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R8 — Accepted proof strategies become exact test work
 
-### Scenario: A test step without a concrete boundary and assertion is not startable
+### Scenario: Concrete proof content controls test-step startability
 
 - [ ] RED
 - [ ] GREEN
@@ -70,7 +70,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R9 — Coding requires a reviewed current Execution Plan
 
-### Scenario: A changed Execution Plan invalidates coding authorization
+### Scenario: Execution Plan currency controls coding authorization
 
 - [ ] RED
 - [ ] GREEN
@@ -79,6 +79,12 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: plan-implementability.TBU2.7CAMAD.R10 — Every accepted obligation maps to startable work
 
 ### Scenario: Every accepted obligation must map to startable work
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Complete obligation mapping permits semantic approval
 
 - [ ] RED
 - [ ] GREEN
