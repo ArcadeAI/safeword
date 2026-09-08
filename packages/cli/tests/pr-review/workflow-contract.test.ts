@@ -115,12 +115,30 @@ describe('advisory PR review workflow contract', () => {
     expect(router).toMatchObject({
       on: {
         pull_request_target: {
-          types: ['opened', 'reopened', 'synchronize', 'ready_for_review', 'converted_to_draft'],
+          // `edited` serves the deterministic readiness status, which is about
+          // the body. The advisory reviewer excludes it below so a body edit
+          // never spends a model call.
+          types: [
+            'opened',
+            'reopened',
+            'synchronize',
+            'ready_for_review',
+            'converted_to_draft',
+            'edited',
+          ],
         },
         schedule: [{ cron: '*/5 * * * *' }],
       },
       jobs: {
+        readiness: {
+          concurrency: {
+            'cancel-in-progress': true,
+            group: 'pr-readiness-${{ github.event.pull_request.head.sha }}',
+          },
+          permissions: { contents: 'read', 'pull-requests': 'read', statuses: 'write' },
+        },
         'event-review': {
+          if: "github.event_name == 'pull_request_target' && github.event.action != 'edited'",
           permissions: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
           secrets: 'inherit',
           uses: './.github/workflows/safeword-pr-review-worker.yml',
