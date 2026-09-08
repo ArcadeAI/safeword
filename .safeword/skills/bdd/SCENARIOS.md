@@ -31,10 +31,10 @@ Ask the user both halves. Gaps: **Do these scenarios fully describe the intended
 
 > From intake I see 2 behavioral dimensions:
 >
-> | Dimension              | Partitions                                    |
-> | ---------------------- | --------------------------------------------- |
-> | Output correctness     | empty dir, existing config, conflicting files |
-> | Side-effect prevention | filesystem writes, git operations             |
+> | Dimension              | Partitions                        |
+> | ---------------------- | --------------------------------- |
+> | Output correctness     | empty dir, existing config        |
+> | Side-effect prevention | filesystem writes, git operations |
 >
 > Organized under 3 rules:
 >
@@ -42,7 +42,6 @@ Ask the user both halves. Gaps: **Do these scenarios fully describe the intended
 >
 > - [ ] Shows expected files in empty directory
 > - [ ] Shows warning when config already exists
-> - [ ] Shows conflict notice for incompatible existing files
 >
 > **Rule: Dry-run creates no files**
 >
@@ -52,11 +51,11 @@ Ask the user both halves. Gaps: **Do these scenarios fully describe the intended
 >
 > - [ ] No git init or git add executed
 >
-> 3 rules, 5 scenarios, 0 open questions. The "conflicting files" partition came from domain knowledge — init currently overwrites without warning, so dry-run should surface that. Anything missing, or ready for the quality gate?
+> 3 rules, 4 scenarios, 0 open questions. I considered a "conflicting files" partition from domain knowledge, but a new conflict warning goes past the agreed behavior, so I dropped it. Do these scenarios fully describe the intended behavior and important boundaries, or is anything missing? Does any scenario go past what we agreed not to build?
 
 **User:** "Looks good, proceed."
 
-**Result:** The user confirms the intended behavior and important boundaries are fully described → proceed to scenario-gate.
+**Result:** The user confirms nothing is missing and no scenario crosses the agreed scope edge → proceed to scenario-gate.
 
 ### Two formats: discovery vs saved
 
@@ -193,11 +192,11 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 
 Load the **`/review-spec`** skill in **Review mode** — it is the independent gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Its final reconciliation maps material dimensions, affected surfaces, and declared public outcomes to scenarios or explicit deferrals, then challenges whether the planned proof exercises the boundary each load-bearing scenario claims.
 
-Triage the result before editing. Apply only **Must Fix** findings that name a concrete false pass against an accepted Rule or dimension partition. A Must Fix that says an existing scenario crosses the accepted scope edge is also actionable: drop the scenario, or return it to the user as a scope decision if changing `out_of_scope` is desired. **Should Strengthen** findings are non-blocking and change scenarios only when the user asks. If a finding would add a behavior, public API, threat boundary, lifecycle contract, or test matrix absent from the accepted Rules and dimensions, return it to the user as a scope decision; never incorporate it silently. When the user declines that expansion, record that disposition and re-run independent review against the unchanged accepted scope so the reviewer can evaluate the resolved boundary. Otherwise, re-run independent review only after a blocking finding changes the scenarios or the user accepts a scope change. Then complete the plain-language completeness check and exit below.
+Triage the result before editing. If a Must Fix names missing review context, re-dispatch with that file before judging the scenarios. Apply only **Must Fix** findings that name a concrete false pass against an accepted Rule or dimension partition, including vacuous-pass and AODI failures. A Must Fix that says an existing scenario crosses the accepted scope edge is also actionable: drop the scenario, or return it to the user as a scope decision if changing `out_of_scope` is desired. **Should Strengthen** findings are non-blocking and change scenarios only when the user asks. If a finding would add a behavior, public API, threat boundary, lifecycle contract, or test matrix absent from the accepted Rules and dimensions, return it to the user as a scope decision; never incorporate it silently. Any scenario edit — including a user-requested Should Strengthen — invalidates the review stamp and requires a re-run. When the user declines an expansion without edits, record that disposition and re-run independent review against the unchanged accepted scope so the reviewer can evaluate the resolved boundary. Then complete the plain-language completeness check and exit below.
 
 ### Are the reviewed scenarios complete?
 
-Ask the user both halves again, because review edits scenarios. Gaps: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** Then the edge: **Does any of these go past what we agreed not to build?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior; if it flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, the quality gate is complete.
+Run this completeness check only if review edits scenarios or surfaces an unresolved scope or completeness decision. If review is clean and the scenarios are unchanged, keep the user's earlier confirmation; do not ask again. When the check is needed, ask both halves. Gaps: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** Then the edge: **Does any of these go past what we agreed not to build?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior; if it flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, the quality gate is complete.
 
 ### Scenario Gate Exit
 
