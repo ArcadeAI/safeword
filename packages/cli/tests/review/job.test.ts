@@ -301,6 +301,31 @@ describe('durable review jobs', () => {
 
     expect(result.state).toBe('healthy');
     expect(result.findings[0]?.message).toBe('Independent review complete.');
+    expect(result.data).toMatchObject({
+      review_kind: 'quality-review',
+      review_targets: ['input.md'],
+    });
+  });
+
+  it('uses integrity-checked review provenance instead of reviewer-supplied values', async () => {
+    const cwd = project();
+    const misleadingWorker = COMPLETE_WORKER.replace(
+      "command: 'review run', status: 'approved', author_agent: 'claude',",
+      "command: 'review run', status: 'approved', author_agent: 'claude', review_kind: 'wrong', review_targets: ['wrong.md'],",
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, misleadingWorker));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+
+    const result = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: ['input.md'],
+    });
+
+    expect(result.data).toMatchObject({
+      review_kind: 'quality-review',
+      review_targets: ['input.md'],
+    });
   });
 
   it('preserves a quick changes-requested reviewer result inline', async () => {

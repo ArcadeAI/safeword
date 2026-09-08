@@ -49,7 +49,11 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
   const unmatched: CheckboxState[] = [];
   const transitions: CheckboxTransition[] = [];
 
-  const consumeOld = (state: CheckboxState, checked: boolean, exactScenario: boolean): boolean => {
+  const consumeOld = (
+    state: CheckboxState,
+    checked: boolean,
+    exactScenario: boolean,
+  ): CheckboxState | undefined => {
     const index = oldStates.findIndex(
       (old, candidate) =>
         !usedOld.has(candidate) &&
@@ -57,53 +61,67 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
         old.step === state.step &&
         (!exactScenario || old.scenario === state.scenario),
     );
-    if (index < 0) return false;
+    if (index < 0) return undefined;
     usedOld.add(index);
-    return true;
+    return oldStates[index];
   };
 
   for (const state of checkboxStates(newText).filter(candidate => candidate.checked)) {
-    if (!consumeOld(state, true, true)) unmatched.push(state);
+    if (consumeOld(state, true, true) === undefined) unmatched.push(state);
   }
 
   const scenarioChanged: CheckboxState[] = [];
   for (const state of unmatched) {
-    if (consumeOld(state, false, true)) transitions.push(state);
+    if (consumeOld(state, false, true) !== undefined) transitions.push(state);
     else scenarioChanged.push(state);
   }
 
   for (const state of scenarioChanged) {
-    if (consumeOld(state, true, false)) continue;
+    if (consumeOld(state, true, false) !== undefined) continue;
     // A checked recognized row with no old counterpart is still new credit.
     // Treat insertions and rename dances as transitions so the gate fails closed.
-    consumeOld(state, false, false);
-    transitions.push(state);
+    const movedUnchecked = consumeOld(state, false, false);
+    // Moving an unchecked row under another scenario while checking it must not
+    // let the edit choose an already-approved scenario. Withhold the binding so
+    // the executable-RED gate denies the combined boundary change.
+    transitions.push(movedUnchecked === undefined ? state : { ...state, scenario: undefined });
   }
 
   return transitions.map(({ step, annotation, scenario }) => ({ step, annotation, scenario }));
 }
 
-function scenarioForUniqueEdit(filePath: string, oldText: string): string | undefined {
-  if (oldText === '' || !existsSync(filePath)) return undefined;
-  const current = readFileSync(filePath, 'utf8');
+function applyUniqueEdit(current: string, oldText: string, newText: string): string | undefined {
+  if (oldText === '') return undefined;
   const matchIndex = current.indexOf(oldText);
   if (matchIndex < 0 || current.indexOf(oldText, matchIndex + 1) >= 0) return undefined;
-
-  const headings = [...current.slice(0, matchIndex).matchAll(/^#{2,3}\s+(.+)$/gm)];
-  return headings.at(-1)?.[1]?.trim();
+  return current.slice(0, matchIndex) + newText + current.slice(matchIndex + oldText.length);
 }
 
-function transitionsForEdit(
-  filePath: string,
+function transitionsForAppliedEdit(
+  current: string,
   oldText: string,
   newText: string,
-): CheckboxTransition[] {
-  const inferredScenario = scenarioForUniqueEdit(filePath, oldText);
-  return findTransitions(oldText, newText).map(transition =>
-    transition.scenario === undefined && inferredScenario !== undefined
-      ? { ...transition, scenario: inferredScenario }
-      : transition,
-  );
+): { next: string; transitions: CheckboxTransition[] } {
+  const next = applyUniqueEdit(current, oldText, newText);
+  if (next !== undefined) return { next, transitions: findTransitions(current, next) };
+
+  // The edit tool will reject a missing or ambiguous replacement. Still surface
+  // any attempted checked credit. Patch adapters may provide non-contiguous
+  // hunk context, so retain a scenario only when both sides name it identically;
+  // never trust a heading supplied solely by the replacement fragment.
+  const oldStates = checkboxStates(oldText);
+  return {
+    next: current,
+    transitions: findTransitions(oldText, newText).map(transition => {
+      const prior = oldStates.find(
+        state =>
+          !state.checked &&
+          state.step === transition.step &&
+          state.scenario === transition.scenario,
+      );
+      return prior === undefined ? { ...transition, scenario: undefined } : transition;
+    }),
+  };
 }
 
 export function collectNewTransitions(
@@ -116,7 +134,8 @@ export function collectNewTransitions(
   if (toolName === 'Edit') {
     const oldString = toolInput.old_string ?? '';
     const newString = toolInput.new_string ?? '';
-    return transitionsForEdit(filePath, oldString, newString);
+    const current = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
+    return transitionsForAppliedEdit(current, oldString, newString).transitions;
   }
 
   if (toolName === 'Write') {
@@ -127,9 +146,18 @@ export function collectNewTransitions(
 
   if (toolName === 'MultiEdit') {
     const edits = toolInput.edits ?? [];
-    return edits.flatMap(edit =>
-      transitionsForEdit(filePath, edit.old_string ?? '', edit.new_string ?? ''),
-    );
+    let current = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
+    const transitions: CheckboxTransition[] = [];
+    for (const edit of edits) {
+      const applied = transitionsForAppliedEdit(
+        current,
+        edit.old_string ?? '',
+        edit.new_string ?? '',
+      );
+      current = applied.next;
+      transitions.push(...applied.transitions);
+    }
+    return transitions;
   }
 
   return [];
