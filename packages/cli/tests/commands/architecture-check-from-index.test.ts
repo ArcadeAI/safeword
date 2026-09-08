@@ -150,6 +150,53 @@ describe('project architecture --check --from-index', () => {
     });
   });
 
+  it('reports the failure instead of a clean bill when the index cannot be read', async () => {
+    const staged = addWorktreePackage(context.directory, 'billing');
+    git(context.directory, 'add', '--', staged);
+    const before = fingerprintEffects(context.directory);
+
+    // An unusable git makes the index unreadable. A read-only check must not
+    // silently report "current" when it never managed to look.
+    const result = await runCli(['project', 'architecture', '--check', '--from-index', '--json'], {
+      cwd: context.directory,
+      env: { PATH: '' },
+    });
+
+    expect(fingerprintEffects(context.directory)).toStrictEqual(before);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'ARCHITECTURE_INDEX_CHECK_FAILED' }],
+    });
+  });
+
+  it('falls back to a read-only worktree check outside a Git worktree', async () => {
+    const directory = createTemporaryDirectory();
+    try {
+      addWorktreePackage(directory, 'auth');
+      writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'fixture' }));
+
+      const result = await runCli(
+        ['project', 'architecture', '--check', '--from-index', '--json'],
+        {
+          cwd: directory,
+        },
+      );
+
+      // The staging path generates from the worktree here; the check must not.
+      expect(existsSync(nodePath.join(directory, DOC_RELATIVE))).toBe(false);
+      const envelope = JSON.parse(result.stdout) as {
+        state: string;
+        findings: { message: string }[];
+      };
+      expect(envelope.state).toBe('action_required');
+      expect(envelope.findings.map(finding => finding.message).join('\n')).toContain(
+        'No Git worktree found',
+      );
+    } finally {
+      removeTemporaryDirectory(directory);
+    }
+  });
+
   it('leaves a missing architecture document uncreated when the index is stale', async () => {
     git(context.directory, 'rm', '--quiet', '--', DOC_RELATIVE);
     commitAll(context.directory, 'drop the architecture document');
