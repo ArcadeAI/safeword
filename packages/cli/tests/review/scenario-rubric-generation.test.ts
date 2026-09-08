@@ -21,6 +21,12 @@ describe('scenario rubric generation', () => {
     expect(SCENARIO_REVIEW_RUBRIC).toBe(extractScenarioReviewRubric(canonicalSkill));
   });
 
+  it('keeps failure independence as the compound-Then atomicity test', () => {
+    expect(SCENARIO_REVIEW_RUBRIC).toContain(
+      'could these assertions fail independently of each other?',
+    );
+  });
+
   it.each([
     ['missing markers', 'rubric'],
     [
