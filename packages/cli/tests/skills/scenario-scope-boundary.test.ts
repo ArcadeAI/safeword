@@ -123,6 +123,14 @@ describe('scenario scope boundary', () => {
     expect(content).toContain('nothing is missing and no scenario crosses the agreed scope edge');
   });
 
+  it.each(authoringSurfaces)('%s does not reconfirm unchanged reviewed scenarios', relative => {
+    const content = read(relative);
+
+    expect(content).toContain(
+      "If review is clean and the scenarios are unchanged, keep the user's earlier confirmation; do not ask again",
+    );
+  });
+
   it('ships the scope-boundary lens to the headless reviewer', () => {
     // The generated rubric is what the independent reviewer actually receives;
     // an edit that never regenerates leaves the gate running the old lens set.
