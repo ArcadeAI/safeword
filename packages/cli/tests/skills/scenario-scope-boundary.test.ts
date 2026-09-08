@@ -127,6 +127,13 @@ describe('scenario scope boundary', () => {
     // The generated rubric is what the independent reviewer actually receives;
     // an edit that never regenerates leaves the gate running the old lens set.
     expect(SCENARIO_REVIEW_RUBRIC).toContain('**Scope boundary**');
+    expect(SCENARIO_REVIEW_RUBRIC).toContain(
+      'report the inherited project and milestone boundaries as unchecked',
+    );
+    expect(SCENARIO_REVIEW_RUBRIC).toContain('report `out_of_scope` as unchecked');
+    expect(SCENARIO_REVIEW_RUBRIC).toContain(
+      'A nonblank value such as `none` deliberately declares no ticket-specific exclusions and is readable',
+    );
   });
 
   it('records the scope check in the define-behavior evidence line', () => {
