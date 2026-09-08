@@ -1052,7 +1052,6 @@ function runningJob(
   return undefined;
 }
 
-// eslint-disable-next-line complexity -- Receipt reuse fails closed across every persisted field.
 function reusableApprovedExecutableRedJob(
   cwd: string,
   sourceFingerprint: string,
@@ -1063,14 +1062,10 @@ function reusableApprovedExecutableRedJob(
     if (!/^[a-f\d-]{36}\.json$/u.test(name)) continue;
     try {
       const record = readJob(cwd, name.slice(0, -5));
-      const data = record.result?.data as Record<string, unknown> | undefined;
-      const attestation = data?.execution_attestation as Record<string, unknown> | undefined;
       if (
-        record.state === 'completed' &&
         record.kind === 'executable-red' &&
         record.source_fingerprint === sourceFingerprint &&
-        data?.status === 'approved' &&
-        attestation?.source_fingerprint === sourceFingerprint
+        approvedCrossAgentReceipt(record)
       )
         return record;
     } catch {
@@ -1139,10 +1134,14 @@ function executableRedJobsForScenario(
 }
 
 function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
-  return (
-    fingerprint(cwd, record.kind, record.targets, record.context, record.execution) ===
-    record.source_fingerprint
-  );
+  try {
+    return (
+      fingerprint(cwd, record.kind, record.targets, record.context, record.execution) ===
+      record.source_fingerprint
+    );
+  } catch {
+    return false;
+  }
 }
 
 function approvedExecutableRedGateResult(

@@ -3,11 +3,8 @@
  *
  * Extracted from pre-tool-quality.ts (ticket SXSCJQ) so the PreToolUse
  * annotation gate can share one transition parser across edit tools.
- * Aligned by line index — works for Edit (old_string / new_string are local
- * replacement regions), Write (old = disk contents, new = full new content),
- * and MultiEdit (each edit treated as Edit). If lines don't align (e.g. a Write
- * that reorders sections), some transitions may be missed; the done-gate is the
- * final arbiter.
+ * Matches checkbox state by scenario and step rather than line index, so edits
+ * that insert or remove surrounding lines cannot hide a gated transition.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -30,23 +27,55 @@ export interface TransitionHookInput {
   };
 }
 
-function findTransitionsByLineIndex(oldText: string, newText: string): CheckboxTransition[] {
-  const transitions: CheckboxTransition[] = [];
-  const oldLines = oldText.split('\n');
-  const newLines = newText.split('\n');
-  const max = Math.max(oldLines.length, newLines.length);
+interface CheckboxState extends CheckboxTransition {
+  checked: boolean;
+}
+
+function checkboxStates(text: string): CheckboxState[] {
+  const states: CheckboxState[] = [];
   let scenario: string | undefined;
-  for (let i = 0; i < max; i++) {
-    const newLine = newLines[i];
-    if (newLine === undefined) continue;
-    if (/^#{2,3}\s/.test(newLine)) scenario = newLine.replace(/^#{2,3}\s+/, '').trim();
-    const newParsed = parseCheckboxAnnotation(newLine);
-    if (!newParsed || !newParsed.checked) continue;
-    const oldLine = oldLines[i];
-    if (oldLine === undefined) continue;
-    const oldParsed = parseCheckboxAnnotation(oldLine);
-    if (oldParsed && !oldParsed.checked && oldParsed.step === newParsed.step) {
-      transitions.push({ step: newParsed.step, annotation: newParsed.annotation, scenario });
+  for (const line of text.split('\n')) {
+    if (/^#{2,3}\s/.test(line)) scenario = line.replace(/^#{2,3}\s+/, '').trim();
+    const parsed = parseCheckboxAnnotation(line);
+    if (parsed === null) continue;
+    states.push({ ...parsed, scenario });
+  }
+  return states;
+}
+
+function transitionKey(state: Pick<CheckboxState, 'scenario' | 'step'>): string {
+  return `${state.scenario ?? ''}\0${state.step}`;
+}
+
+function increment(counts: Map<string, number>, key: string): void {
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+}
+
+function consume(counts: Map<string, number>, key: string): boolean {
+  const count = counts.get(key) ?? 0;
+  if (count === 0) return false;
+  counts.set(key, count - 1);
+  return true;
+}
+
+function findTransitions(oldText: string, newText: string): CheckboxTransition[] {
+  const oldChecked = new Map<string, number>();
+  const oldUnchecked = new Map<string, number>();
+  for (const state of checkboxStates(oldText)) {
+    increment(state.checked ? oldChecked : oldUnchecked, transitionKey(state));
+  }
+
+  const transitions: CheckboxTransition[] = [];
+  for (const state of checkboxStates(newText)) {
+    if (!state.checked) continue;
+    const key = transitionKey(state);
+    if (consume(oldChecked, key)) continue;
+    if (consume(oldUnchecked, key)) {
+      transitions.push({
+        step: state.step,
+        annotation: state.annotation,
+        scenario: state.scenario,
+      });
     }
   }
   return transitions;
@@ -68,7 +97,7 @@ function transitionsForEdit(
   newText: string,
 ): CheckboxTransition[] {
   const inferredScenario = scenarioForUniqueEdit(filePath, oldText);
-  return findTransitionsByLineIndex(oldText, newText).map(transition =>
+  return findTransitions(oldText, newText).map(transition =>
     transition.scenario === undefined && inferredScenario !== undefined
       ? { ...transition, scenario: inferredScenario }
       : transition,
@@ -91,7 +120,7 @@ export function collectNewTransitions(
   if (toolName === 'Write') {
     const oldText = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
     const newText = toolInput.content ?? '';
-    return findTransitionsByLineIndex(oldText, newText);
+    return findTransitions(oldText, newText);
   }
 
   if (toolName === 'MultiEdit') {

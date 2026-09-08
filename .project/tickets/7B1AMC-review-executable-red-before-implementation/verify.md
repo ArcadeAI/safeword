@@ -9,7 +9,7 @@ Verified: 2026-09-08T01:31:09Z
 **Build:** ✅ Retro relay, retro collector, and CLI packages build; website production build has the evidence limit below
 **Lint:** ✅ Clean (ESLint, Gherkin lint, TypeScript, Markdown formatting, and Astro diagnostics)
 **Scenarios:** ✅ All 17 scenarios have executable proof registrations; 52/52 ledger cells are complete, including the cross-scenario row
-**Refactor:** ✅ Completed — `c80f48994` closes cross-ticket receipt reuse and proof-environment credential inheritance without adding a second trust system
+**Refactor:** ✅ Completed — `c80f48994` closes cross-ticket receipt reuse and internal review-credential inheritance without adding a second trust system
 **PR Scope:** ✅ The 73-file branch diff matches issue #2336: trusted execution, independent failure attribution, exact receipt admission, the blocking shared GREEN gate, host parity, generated artifacts, docs, and ticket evidence
 **Dep Drift:** ✅ Clean (no dependency changes; dependency-cruiser reports 0 violations across 411 modules and 693 dependencies; package audits report no vulnerabilities)
 **Parent Epic:** ⚠️ AK0QJR remains in progress; prerequisite BX1T7H is done, while four later roadmap tickets remain open

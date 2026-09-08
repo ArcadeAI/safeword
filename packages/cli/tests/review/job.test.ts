@@ -494,7 +494,7 @@ describe('durable review jobs', () => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
       'reviewer_output: {',
-      'execution_attestation: { source_fingerprint: record.source_fingerprint }, reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
     );
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
     const execution = {
@@ -695,6 +695,35 @@ describe('durable review jobs', () => {
     });
   });
 
+  it('returns a typed stale denial when a reviewed proof target was deleted', async () => {
+    const cwd = project();
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution: RedExecutionRequest = {
+      scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
+      argv: [process.execPath, '-e', 'process.exit(1)'],
+      cwd: '.',
+      evidenceClass: 'pure-contract',
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
+    unlinkSync(nodePath.join(cwd, 'input.md'));
+
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
+      state: 'action_required',
+      findings: [
+        { code: 'EXECUTABLE_RED_GATE_BLOCKED', message: expect.stringContaining('stale') },
+      ],
+      data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+  });
+
   it('blocks GREEN when an approved executable RED review is not independent', async () => {
     const cwd = project();
     const degradedWorker = COMPLETE_WORKER.replace(
@@ -717,11 +746,38 @@ describe('durable review jobs', () => {
       timeoutMs: 1000,
     };
 
-    await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
+    const degraded = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
 
     expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
       state: 'action_required',
       data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(
+        cwd,
+        COMPLETE_WORKER.replace('reviewer_output: {', () => APPROVED_RED_ATTESTATION),
+      ),
+    );
+    const retried = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+
+    expect((retried.data as { review_id: string }).review_id).not.toBe(
+      (degraded.data as { review_id: string }).review_id,
+    );
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
+      state: 'healthy',
+      data: { command: 'review gate executable-red', status: 'approved' },
     });
   });
 
