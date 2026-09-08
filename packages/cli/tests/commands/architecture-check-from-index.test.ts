@@ -226,6 +226,49 @@ describe('project architecture --check --from-index', () => {
     });
   });
 
+  it('reports a stale indexed document even when the worktree copy is foreign', async () => {
+    // The false green this guards: the staging path skips a destination whose
+    // worktree file is not Safeword-owned, so a verdict derived from that plan
+    // would report `healthy` while the *indexed* document is stale. An
+    // uncommitted local file must not be able to silence the freshness gate.
+    const staged = addWorktreePackage(context.directory, 'billing');
+    git(context.directory, 'add', '--', staged);
+    const documentPath = nodePath.join(context.directory, DOC_RELATIVE);
+    const foreign = '# Hand-written architecture\n\nNo safeword generator marker.\n';
+    writeFileSync(documentPath, foreign);
+    const before = fingerprintEffects(context.directory);
+
+    const result = await runCli(['project', 'architecture', '--check', '--from-index', '--json'], {
+      cwd: context.directory,
+    });
+
+    expect(fingerprintEffects(context.directory)).toStrictEqual(before);
+    expect(readFileSync(documentPath, 'utf8')).toBe(foreign);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: expect.arrayContaining([expect.objectContaining({ code: 'ARCHITECTURE_DRIFT' })]),
+    });
+  });
+
+  it('treats a foreign document in the index as none of its business', async () => {
+    // Ownership is still honored — but decided from the indexed document, not
+    // the worktree one. A hand-written doc committed to the repo is not drift.
+    const documentPath = nodePath.join(context.directory, DOC_RELATIVE);
+    writeFileSync(documentPath, '# Hand-written architecture\n\nNo generator marker.\n');
+    commitAll(context.directory, 'hand-write the architecture document');
+    const staged = addWorktreePackage(context.directory, 'billing');
+    git(context.directory, 'add', '--', staged);
+    const before = fingerprintEffects(context.directory);
+
+    const result = await runCli(['project', 'architecture', '--check', '--from-index', '--json'], {
+      cwd: context.directory,
+    });
+
+    expect(fingerprintEffects(context.directory)).toStrictEqual(before);
+    expect(JSON.parse(result.stdout)).toMatchObject({ state: 'healthy' });
+    expect(result.exitCode).toBe(0);
+  });
+
   it('leaves a missing architecture document uncreated when the index is stale', async () => {
     git(context.directory, 'rm', '--quiet', '--', DOC_RELATIVE);
     commitAll(context.directory, 'drop the architecture document');

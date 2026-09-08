@@ -459,16 +459,11 @@ async function runArchitectureIndexCheck(invocation: CommandInvocation): Promise
   const { architectureIndexCheck } = await import('../commands/architecture.js');
   const outcome = architectureIndexCheck(invocation.cwd);
   const advisories = architectureAdvisories(outcome.unreadableWorkspaces);
-  const warnings = outcome.warnings.map(message => ({
-    code: 'ARCHITECTURE_WARNING',
-    message,
-    severity: 'warning' as const,
-  }));
 
   if (outcome.failureMessage !== undefined) {
     return createResult({
       state: 'failed',
-      findings: [...warnings, ...advisories],
+      findings: advisories,
       errors: [
         {
           code: 'ARCHITECTURE_INDEX_CHECK_FAILED',
@@ -480,8 +475,7 @@ async function runArchitectureIndexCheck(invocation: CommandInvocation): Promise
     });
   }
 
-  const result = architectureCheckResult(outcome.stale, advisories);
-  return { ...result, findings: [...result.findings, ...warnings] };
+  return architectureCheckResult(outcome.stale, advisories);
 }
 
 function withArchitectureOptionCompatibility(

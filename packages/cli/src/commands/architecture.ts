@@ -388,85 +388,67 @@ export interface ArchitectureIndexCheckOutcome {
   /** Would-change actions the index-sourced plan produced; empty means fresh. */
   readonly stale: readonly SelfHealAction[];
   readonly unreadableWorkspaces: readonly UnreadableWorkspace[];
-  readonly warnings: readonly string[];
   readonly failureMessage?: string;
 }
 
 /**
- * Read-only counterpart to {@link architectureStage}: answer "would generating
- * from the staged Git index change anything?" without writing a document or
- * touching the index.
+ * Read-only counterpart to {@link architectureStage}: answer "is the
+ * architecture document in the staged Git index fresh with respect to the
+ * staged tree?" without writing a document or touching the index.
  *
- * It runs the same plan and preflight the staging path runs — same policy,
- * same foreign-ownership skipping — and then stops before the write loop, so
- * `--check --from-index` predicts `--from-index --stage-output` instead of
- * performing it. Generation happens only inside the disposable index snapshot;
- * the worktree is read (for prose continuity) and never modified.
+ * It answers from the index and nothing else. That independence is the whole
+ * contract, and it is why this does NOT reuse the staging path's
+ * plan/preflight: those exist to plan writes into the worktree, so their
+ * verdict bends to worktree state — a foreign (non-Safeword) document sitting
+ * unstaged in the worktree makes preflight skip the destination, which would
+ * report a stale indexed document as `healthy`. A CI freshness gate must not be
+ * silenceable by an uncommitted local file. Ownership is still honored, but
+ * decided from the *indexed* document: `planSelfHealProject` reports a foreign
+ * indexed document as `skipped`, which is not a would-change action.
  *
  * Unlike the generation modes, this never falls back to the worktree when the
  * index is unavailable. The generation modes can degrade because they only have
  * to produce *a* document and say where it came from; a check has to answer a
- * specific question, and the worktree answers a different one. `resolveGitContext`
- * reports an existing-but-unreadable repository the same way as a plain
- * non-repository (`git rev-parse` fails identically for both), so a fallback here
- * would let a stale index report `healthy` with exit 0 whenever Git discovery
- * broke — dubious-ownership in a container being the common case. Failing loudly
- * is the only answer that cannot be mistaken for a fresh index.
+ * specific question, and the worktree answers a different one.
+ * `resolveGitContext` reports an existing-but-unreadable repository the same way
+ * as a plain non-repository (`git rev-parse` fails identically for both), so a
+ * fallback here would let a stale index report `healthy` with exit 0 whenever
+ * Git discovery broke — dubious-ownership in a container being the common case.
+ * Failing loudly is the only answer that cannot be mistaken for a fresh index.
  */
 export function architectureIndexCheck(cwd: string): ArchitectureIndexCheckOutcome {
-  const warnings: string[] = [];
-  const collect = (message: string): void => {
-    warnings.push(message);
-  };
-  const collector: ArchitectureReporter = {
-    success: collect,
-    warn: collect,
-    error: collect,
-  };
+  const failure = (message: string): ArchitectureIndexCheckOutcome => ({
+    stale: [],
+    unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
+    failureMessage: message,
+  });
 
   let gitContext: GitContext | undefined;
   try {
     gitContext = resolveGitContext(cwd);
   } catch (error_) {
-    return {
-      stale: [],
-      unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
-      warnings,
-      failureMessage: errorMessage(error_),
-    };
+    return failure(errorMessage(error_));
   }
 
   if (gitContext === undefined) {
-    return {
-      stale: [],
-      unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
-      warnings,
-      failureMessage:
-        'No readable Git index found. Use `safeword project architecture --check` to check the worktree instead.',
-    };
+    return failure(
+      'No readable Git index found. Use `safeword project architecture --check` to check the worktree instead.',
+    );
   }
 
   try {
     return withGitIndexSnapshot(cwd, gitContext, snapshotDirectory => {
+      // A configured project root that escapes the snapshot would make the plan
+      // read the live worktree document instead of the indexed one — a wrong
+      // answer rather than a missing one. Fail loudly instead.
       assertSnapshotHealTargetsContained(snapshotDirectory);
-      const policy = indexMaterializationPolicy('check-index');
-      const plans = planIndexMaterializations(cwd, snapshotDirectory, policy);
-      preflightIndexMaterializations(cwd, plans, policy, collector);
       return {
-        stale: plans
-          .filter(plan => plan.shouldWrite && isWouldChangeAction(plan.result.action))
-          .map(plan => plan.result.action),
+        stale: planSelfHealProject(snapshotDirectory).filter(action => isWouldChangeAction(action)),
         unreadableWorkspaces: discoverUnreadableWorkspaces(snapshotDirectory),
-        warnings,
       };
     });
   } catch (error_) {
-    return {
-      stale: [],
-      unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
-      warnings,
-      failureMessage: errorMessage(error_),
-    };
+    return failure(errorMessage(error_));
   }
 }
 
@@ -709,7 +691,7 @@ function replaceArchitectureDocumentContent(
   });
 }
 
-type IndexMaterializationMode = 'check-index' | 'mutations-only' | 'restore-staged-tree';
+type IndexMaterializationMode = 'mutations-only' | 'restore-staged-tree';
 
 interface IndexMaterializationPolicy {
   renderUnchanged: boolean;
@@ -855,17 +837,6 @@ function preflightIndexMaterializations(
 
 function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMaterializationPolicy {
   switch (mode) {
-    // Read-only freshness question: plan exactly what `--from-index --stage-output`
-    // would write, then answer without writing or capturing rollback content.
-    case 'check-index': {
-      return {
-        renderUnchanged: false,
-        preservePriorStructure: false,
-        writeUnchanged: false,
-        captureDivergentContent: false,
-        skipForeignDestinations: true,
-      };
-    }
     case 'mutations-only': {
       const keepMaterialized = process.env[ARCHITECTURE_KEEP_MATERIALIZED_ENV] === '1';
       return {
@@ -1040,7 +1011,6 @@ function errorMessage(error_: unknown): string {
 /** Legacy-surface adapter over {@link architectureIndexCheck}: report, never write. */
 function architectureCheckFromIndex(cwd: string): readonly SelfHealAction[] {
   const outcome = architectureIndexCheck(cwd);
-  for (const warning of outcome.warnings) warn(warning);
   if (outcome.failureMessage !== undefined) {
     error(
       `Could not check architecture freshness from the Git index; nothing was written. Cause: ${outcome.failureMessage}`,
