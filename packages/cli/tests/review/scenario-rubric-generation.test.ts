@@ -25,6 +25,9 @@ describe('scenario rubric generation', () => {
     expect(SCENARIO_REVIEW_RUBRIC).toContain(
       'could these assertions fail independently of each other?',
     );
+    expect(SCENARIO_REVIEW_RUBRIC).toContain(
+      '"returns 200 with body X" can fail independently and should be split',
+    );
   });
 
   it.each([

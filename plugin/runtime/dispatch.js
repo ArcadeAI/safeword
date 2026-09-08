@@ -1812,7 +1812,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         'da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb',
       '.claude/skills/review-spec/SKILL.md':
-        '3d8a42582a1777cca76b16e4af31e51201ea8dc1db798e2ac00e04787fd67eb4',
+        '746b2835c8f9ac54edad7ca37a8e05e3cbb64c8c612c01d001beabf03e799e31',
       '.claude/skills/self-review/SKILL.md':
         'e2c56e6ac5427cd64386234129a5dffa4030c2baabd0cb4fb8e159e6750998db',
       '.claude/skills/spike/SKILL.md':
