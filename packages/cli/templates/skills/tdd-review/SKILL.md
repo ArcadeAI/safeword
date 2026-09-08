@@ -3,6 +3,7 @@ name: tdd-review
 description: Quality check for a completed TDD step. Runs when safeword's TDD
   flow finishes RED, GREEN, or REFACTOR; not a user-facing entry point.
 allowed-tools: '*'
+user-invocable: false
 ---
 
 # TDD Review

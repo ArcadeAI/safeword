@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b4328d30d0206e7b28531f4fd01415c13ebe2ed29e64f104db357014fed4b476"
+      "sha256": "c34918211606e01a91cc02df69491b49e69e85812c653deaa9fdaee5d8d1a9e8"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "d713983b88110f69bdce79306d93af772b9f6f60f133800731d532c88381a113"
+      "sha256": "1d8af488e924787127aad73613f4a6e3692dc39032838d2e0b0c3fd735980be7"
     },
     {
       "path": "runtime/event-groups.json",
@@ -643,11 +643,11 @@
     },
     {
       "path": "skills/cleanup-zombies/SKILL.md",
-      "sha256": "493dae703fb4a57cc916c98f940af5cda59411125d520ed45e3c8ec537a894ff"
+      "sha256": "7a82764b6fd2c34167ef10291429296b5ba6ff2fe8d107ac0337f609bf865bb3"
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "b4041e9cf70a316c9601f43b36caaeb10db9a15ae22ceb246edc86118b98dac4"
+      "sha256": "10df991cbe6b5c1a72767a00295886881afd8e623d1614655953f428d8bf8f26"
     },
     {
       "path": "skills/debug/SKILL.md",
@@ -695,7 +695,7 @@
     },
     {
       "path": "skills/retro-filer/SKILL.md",
-      "sha256": "c4d9409332a54e0c0e02695f70b1bb6e56352233bc31fc51164d57ed48dc5ab0"
+      "sha256": "9979448f6c06bb78fa087523f90b8102f8de81326b980ca609e887ba32bb5e80"
     },
     {
       "path": "skills/retro/SKILL.md",
@@ -707,7 +707,7 @@
     },
     {
       "path": "skills/self-review/SKILL.md",
-      "sha256": "333e1903086ce3291c0d6526a237c39d4197b1697d51d81be0eeccdf03bf0c42"
+      "sha256": "cf69c12d85294d59760ee8ba1b8a9f9ad0b88cfb3a9546a0a5b9c05e0e97e28f"
     },
     {
       "path": "skills/spike/SKILL.md",
@@ -715,7 +715,7 @@
     },
     {
       "path": "skills/tdd-review/SKILL.md",
-      "sha256": "e7bcbcaaf876fd9c50ccdd4b4c4420f7b5be0563f38d3eee51e5e062f286239d"
+      "sha256": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43"
     },
     {
       "path": "skills/testing/SKILL.md",

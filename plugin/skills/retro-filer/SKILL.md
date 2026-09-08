@@ -2,6 +2,7 @@
 name: retro-filer
 description: Files Safeword's sanitized retro spool upstream. Only when a trusted
   Stop continuation or authenticated closeout guard names a spool path.
+user-invocable: false
 ---
 
 # Retro Filer

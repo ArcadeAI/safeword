@@ -53,6 +53,7 @@ interface ParsedFrontmatter {
   model?: string;
   'argument-hint'?: string;
   'disable-model-invocation'?: boolean;
+  'user-invocable'?: boolean;
   // Cursor-specific fields
   alwaysApply?: boolean;
 }
@@ -498,6 +499,13 @@ describe('Commands Validation (Claude Code Format)', () => {
         }
       });
 
+      it('should have valid user-invocable if present', () => {
+        const userInvocable = parsed?.frontmatter['user-invocable'];
+        if (userInvocable !== undefined) {
+          expect(typeof userInvocable, 'user-invocable should be boolean').toBe('boolean');
+        }
+      });
+
       // Validate argument pattern usage
       it('should use valid argument patterns ($1, $2, $ARGUMENTS)', () => {
         // Check if command uses any argument patterns
@@ -883,23 +891,20 @@ describe('Validation Logic Tests', () => {
 });
 
 /**
- * `disable-model-invocation: true` does two things at once: it keeps the skill's
- * description out of the model's skill listing (saving listing budget), and it
- * blocks the Skill tool entirely — not just auto-triggering. That second effect
- * is what makes the flag load-bearing: setting it on a skill another skill
- * composes silently breaks the handoff at runtime, with nothing failing at
- * build time.
+ * Claude exposes separate controls for each caller: `disable-model-invocation`
+ * makes a workflow user-only, while `user-invocable: false` hides an internal
+ * skill from the slash menu without blocking model or skill-to-skill use.
  *
  * Safeword has three categories, not two:
- *   human-only  → carries the flag (nothing composes it)
- *   skill-only  → no flag; a short description, since it never auto-triggers
+ *   human-only  → carries the model-invocation flag
+ *   skill-only  → carries the user-invocation flag and a short description
  *   both        → no flag; a full description, so humans can trigger it
  *
  * `CURSOR_ACTION_SKILLS` marks manual-only on Cursor, which is a *different*
  * question from whether a skill is human-only on Claude. Conflating the two is
  * how eight skills ended up declared as flagged while carrying no flag.
  *
- * Membership is asserted against a hand-maintained list rather than inferred
+ * Membership is asserted against hand-maintained lists rather than inferred
  * from cross-references, because "skill A invokes skill B" is not statically
  * decidable from prose. Every heuristic tried here produced false positives:
  * bare names read as ordinary English ("during closeout", "do not delegate or
@@ -908,7 +913,15 @@ describe('Validation Logic Tests', () => {
  * adding a skill here stays a deliberate decision with a human behind it.
  */
 describe('Skill invocation contract', () => {
-  const HUMAN_ONLY_SKILLS = ['cleanup-zombies', 'closeout', 'explain', 'spike'];
+  const HUMAN_ONLY_SKILLS = ['explain', 'spike'];
+  const SKILL_ONLY_SKILLS = [
+    'finish-review',
+    'retro-filer',
+    'self-review',
+    'tdd-review',
+    'testing',
+    'ticket-system',
+  ];
 
   const skillNames = getSkillDirectories();
 
@@ -916,6 +929,11 @@ describe('Skill invocation contract', () => {
     readAndParseFrontmatter(nodePath.join(SKILLS_DIR, skill, 'SKILL.md')).parsed?.frontmatter[
       'disable-model-invocation'
     ] === true;
+
+  const isUserInvocable = (skill: string): boolean =>
+    readAndParseFrontmatter(nodePath.join(SKILLS_DIR, skill, 'SKILL.md')).parsed?.frontmatter[
+      'user-invocable'
+    ] !== false;
 
   it('flags exactly the skills declared human-only', () => {
     expect(
@@ -944,10 +962,20 @@ describe('Skill invocation contract', () => {
     }
   });
 
-  it('keeps every human-only skill out of the model-invocable listing', () => {
-    for (const skill of HUMAN_ONLY_SKILLS) {
+  it('hides exactly the skills declared skill-only from the user menu', () => {
+    expect(
+      skillNames.filter(skill => !isUserInvocable(skill)).toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(
+      SKILL_ONLY_SKILLS.filter(skill => skillNames.includes(skill)).toSorted((a, b) =>
+        a.localeCompare(b),
+      ),
+    );
+  });
+
+  it('keeps skill-only workflows model-invocable for composition', () => {
+    for (const skill of SKILL_ONLY_SKILLS) {
       if (!skillNames.includes(skill)) continue;
-      expect(isFlagged(skill), `${skill} is declared human-only but is model-invocable`).toBe(true);
+      expect(isFlagged(skill), `${skill} is skill-only but blocked from composition`).toBe(false);
     }
   });
 });
