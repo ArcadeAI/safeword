@@ -57,6 +57,27 @@ function runEditHook(
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
+function runMultiEditHook(
+  cwd: string,
+  filePath: string,
+  edits: { old_string: string; new_string: string }[],
+  environment: NodeJS.ProcessEnv = {},
+): HookResult {
+  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'test-session',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'MultiEdit',
+      tool_input: { file_path: filePath, edits },
+    }),
+    cwd,
+    env: { ...process.env, ...environment, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
 function runCodexPatchHook(cwd: string, patch: string, gateCli: string): HookResult {
   const result = spawnSync('bun', [CODEX_PRE_TOOL_QUALITY], {
     input: JSON.stringify({
@@ -318,6 +339,48 @@ describe('write-time annotation gate', () => {
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
       );
       expectHookDeny(result, 'executable RED');
+    });
+
+    it('blocks a GREEN transition that tries to adopt an approved scenario heading', () => {
+      const setup = setupProject(
+        '### Scenario: original\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '### Scenario: approved elsewhere\n- [x] GREEN def5678',
+        {
+          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: approved elsewhere'),
+        },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('binds later MultiEdit transitions to content produced by earlier edits', () => {
+      const setup = setupProject(
+        '### Scenario: original\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runMultiEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        [
+          {
+            old_string: '### Scenario: original',
+            new_string: '### Scenario: renamed boundary',
+          },
+          {
+            old_string: '- [x] RED abc1234\n- [ ] GREEN',
+            new_string: '- [x] RED abc1234\n- [x] GREEN def5678',
+          },
+        ],
+        {
+          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: renamed boundary'),
+        },
+      );
+      expectHookAllow(result);
     });
 
     it('blocks checked GREEN credit restored after an unrecognized-step rename', () => {
