@@ -9,6 +9,7 @@
 // manual, so fallback linting reports the missing config once per session.
 
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { $ } from 'bun';
@@ -117,6 +118,45 @@ function getPythonInstallHint(filePath: string, tool: string): string {
   return `pip install ${tool}`;
 }
 
+// `homedir()` reads the passwd entry rather than $HOME, so consult the
+// environment first — a hook inherits whatever HOME its host session was given.
+const MISE_SHIMS = nodePath.join(
+  process.env.MISE_DATA_DIR ||
+    nodePath.join(
+      process.env.XDG_DATA_HOME || nodePath.join(process.env.HOME || homedir(), '.local/share'),
+      'mise',
+    ),
+  'shims',
+);
+
+const MISE_CONFIG_FILES = [
+  'mise.toml',
+  '.mise.toml',
+  'mise.local.toml',
+  '.config/mise/config.toml',
+];
+
+/**
+ * Remedy text for a tool this hook can't reach. Hooks run non-interactively, so
+ * a host whose shell rc runs `mise activate` gets no shims on PATH here even
+ * though the tool works in their terminal. Telling them to install it again
+ * plants a second copy that shadows their pinned version — and two versions of a
+ * formatter disagree, which shows up as churn in their diffs. mise's own answer
+ * for non-interactive callers is the shims directory, so hand that back instead.
+ */
+function installGuidance(tool: string, fallback: string): string {
+  const reachShims = `add ${MISE_SHIMS} to their login PATH, which reaches every mise-managed tool at once`;
+  if (existsSync(nodePath.join(MISE_SHIMS, tool))) {
+    return `The user already manages "${tool}" with mise; this hook's PATH just can't see it. Ask them to ${reachShims}.`;
+  }
+  if (!MISE_CONFIG_FILES.some(file => existsSync(nodePath.join(projectDir, file)))) return fallback;
+  // Installing through mise only helps once the shims directory is reachable.
+  const lead = "This project's toolchain is managed by mise. Ask the user if they'd like you to";
+  return (process.env.PATH ?? '').split(nodePath.delimiter).includes(MISE_SHIMS)
+    ? `${lead} install it by running: mise use ${tool}`
+    : `${lead} ${reachShims}, then install it by running: mise use ${tool}`;
+}
+
 /**
  * Check if a linter binary is available, warn once per session if not.
  * Returns true if available, false (with warning added) if missing.
@@ -132,8 +172,11 @@ async function checkToolAvailable(
   if (!available) {
     toolWarnings.add(tool);
     warnings.push(
-      `${language} linter "${tool}" is not installed — ${language} files are not being linted. ` +
-        `Ask the user if they'd like you to install it by running: ${installHint}`,
+      `${language} linter "${tool}" is not available — ${language} files are not being linted. ` +
+        installGuidance(
+          tool,
+          `Ask the user if they'd like you to install it by running: ${installHint}`,
+        ),
     );
   }
   return available;
@@ -396,8 +439,11 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     } else if (!toolWarnings.has('rustfmt')) {
       toolWarnings.add('rustfmt');
       warnings.push(
-        'Rust formatter "rustfmt" is not installed — Rust files are not being formatted. ' +
-          "Ask the user if they'd like you to install it by running: rustup component add rustfmt",
+        'Rust formatter "rustfmt" is not available — Rust files are not being formatted. ' +
+          installGuidance(
+            'rustfmt',
+            "Ask the user if they'd like you to install it by running: rustup component add rustfmt",
+          ),
       );
     }
     return { warnings };
@@ -482,8 +528,11 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     } else if (!toolWarnings.has('shellcheck')) {
       toolWarnings.add('shellcheck');
       warnings.push(
-        'ShellCheck is not installed — shell scripts are not being linted. ' +
-          'Install it with your system package manager, for example: brew install shellcheck',
+        'ShellCheck is not available — shell scripts are not being linted. ' +
+          installGuidance(
+            'shellcheck',
+            'Install it with your system package manager, for example: brew install shellcheck',
+          ),
       );
     }
     if (

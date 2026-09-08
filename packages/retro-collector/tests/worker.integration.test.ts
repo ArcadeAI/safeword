@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import { getEventListeners } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -21,6 +22,84 @@ const directories: string[] = [];
 afterEach(() => {
   for (const directory of directories) rmSync(directory, { force: true, recursive: true });
   directories.length = 0;
+});
+
+it('keeps the worker process alive while the collector queue is empty', async () => {
+  let resolveSecondClaim!: (value: undefined) => void;
+  // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+  const secondClaim = new Promise<undefined>(resolve => {
+    resolveSecondClaim = resolve;
+  });
+  let claims = 0;
+  const requests: {
+    authorization: string | undefined;
+    method: string | undefined;
+    url: string | undefined;
+  }[] = [];
+  const collector = createServer((request, response) => {
+    requests.push({
+      authorization: request.headers.authorization,
+      method: request.method,
+      url: request.url,
+    });
+    response.statusCode = 204;
+    response.end();
+    claims += 1;
+    if (claims === 2) resolveSecondClaim(undefined);
+  });
+  await new Promise<void>(resolve => collector.listen(0, '127.0.0.1', resolve));
+  const address = collector.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('Collector fixture did not bind');
+  }
+
+  const child = spawn(process.execPath, [path.resolve('dist/worker-main.js')], {
+    env: {
+      ...process.env,
+      SAFEWORD_COLLECTOR_URL: `http://127.0.0.1:${address.port}`,
+      SAFEWORD_COLLECTOR_WORKER_CREDENTIAL: 'collector-secret',
+      SAFEWORD_RELAY_COLLECTOR_WORKER_CREDENTIAL: 'relay-secret',
+      SAFEWORD_RELAY_URL: `http://127.0.0.1:${address.port}`,
+    },
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk: string) => {
+    stderr += chunk;
+  });
+  const exited = new Promise<number | null>(resolve => {
+    child.once('exit', resolve);
+  });
+
+  try {
+    const exitCode = await Promise.race([secondClaim, exited]);
+    if (exitCode !== undefined) {
+      throw new Error(`Worker exited before its second poll (code ${String(exitCode)}): ${stderr}`);
+    }
+
+    expect(child.exitCode, stderr).toBeNull();
+    expect(requests).toEqual([
+      {
+        authorization: 'Bearer collector-secret',
+        method: 'POST',
+        url: '/v1/private/retro-claims',
+      },
+      {
+        authorization: 'Bearer collector-secret',
+        method: 'POST',
+        url: '/v1/private/retro-claims',
+      },
+    ]);
+  } finally {
+    if (child.exitCode === null) child.kill('SIGTERM');
+    await exited;
+    await new Promise<void>(resolve =>
+      collector.close(() => {
+        resolve();
+      }),
+    );
+  }
 });
 
 it('releases the abort listener after every ordinary worker pause', async () => {

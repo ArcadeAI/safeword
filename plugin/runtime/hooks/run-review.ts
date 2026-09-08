@@ -2,9 +2,10 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
-type Candidate = readonly [command: string, prefix: readonly string[]];
+type Candidate = readonly [command: string, prefix: readonly string[], workingDirectory?: string];
 
 const SEMVER =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
@@ -88,12 +89,13 @@ export function reviewChildEnvironment(
 }
 
 function supportsReview(
-  [command, prefix]: Candidate,
+  [command, prefix, workingDirectory]: Candidate,
   timeout: number,
   environment: NodeJS.ProcessEnv,
 ): boolean {
   const arguments_ = ['review', 'run', '--help'];
   const result = spawnSync(command, [...prefix, ...arguments_], {
+    cwd: workingDirectory,
     env: reviewChildEnvironment(environment, arguments_),
     stdio: 'ignore',
     timeout,
@@ -101,10 +103,40 @@ function supportsReview(
   return result.status === 0 && result.error === undefined && result.signal === null;
 }
 
+// The hook is launched from whatever directory the caller happened to be in.
+// Anchoring discovery on that directory hides a working CLI one level up and
+// reports it as missing, so resolve the project root before looking.
+function looksLikeProjectRoot(directory: string): boolean {
+  return (
+    existsSync(nodePath.join(directory, '.safeword')) ||
+    existsSync(nodePath.join(directory, 'packages', 'cli', 'src', 'cli.ts'))
+  );
+}
+
+function reviewProjectRoot(start: string, environment: NodeJS.ProcessEnv): string {
+  // Claude sets CLAUDE_PROJECT_DIR for hooks. Only trust it when it really
+  // points at a project; a stale or wrong value falls through to the walk.
+  const declared = environment.CLAUDE_PROJECT_DIR;
+  if (declared !== undefined && declared !== '' && looksLikeProjectRoot(declared))
+    return nodePath.resolve(declared);
+  const from = nodePath.resolve(start);
+  let directory = from;
+  for (;;) {
+    if (looksLikeProjectRoot(directory)) return directory;
+    const parent = nodePath.dirname(directory);
+    // No marker anywhere up to the filesystem root: keep the caller's own
+    // directory, so the trust checks below stay the only thing that admits
+    // a candidate rather than this walk widening what counts as a project.
+    if (parent === directory) return from;
+    directory = parent;
+  }
+}
+
 export function reviewCandidates(
-  projectDirectory = process.cwd(),
+  startDirectory = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): Candidate[] {
+  const projectDirectory = reviewProjectRoot(startDirectory, environment);
   const candidates: Candidate[] = [];
   const pluginRoot = environment.CLAUDE_PLUGIN_ROOT;
   if (pluginRoot) {
@@ -134,6 +166,50 @@ export function reviewCandidates(
   return candidates;
 }
 
+/**
+ * Resolve only distribution-owned CLIs for receipt verification.
+ *
+ * The normal review launcher intentionally prefers project-local and source
+ * CLIs for development. A receipt is a trust-boundary check, though: accepting
+ * JSON from a CLI the reviewed project can rewrite would let that project mint
+ * its own approval. Keep those convenient routes out of the verifier.
+ */
+export function receiptReviewCandidates(
+  projectDirectory = process.cwd(),
+  environment: NodeJS.ProcessEnv = process.env,
+): Candidate[] {
+  const candidates: Candidate[] = [];
+  const pluginRoot = environment.CLAUDE_PLUGIN_ROOT;
+  if (pluginRoot) {
+    const bundledCli = nodePath.join(pluginRoot, 'runtime', 'cli.js');
+    if (existsSync(bundledCli)) candidates.push(['bun', [bundledCli]]);
+  }
+
+  const versionPath = nodePath.join(projectDirectory, '.safeword', 'version');
+  if (!existsSync(versionPath)) return candidates;
+  const version = readFileSync(versionPath, 'utf8').trim();
+  if (!SEMVER.test(version)) return candidates;
+
+  const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');
+  const codexPluginCli = nodePath.join(
+    codexHome,
+    'plugins',
+    'cache',
+    'safeword',
+    'safeword',
+    version,
+    'runtime',
+    'cli.js',
+  );
+  if (existsSync(codexPluginCli)) candidates.push(['bun', [codexPluginCli]]);
+
+  // `bunx` searches the caller's project-local node_modules first. Run the
+  // exact package from the user's home instead, so reviewed project contents
+  // cannot shadow the distribution route.
+  candidates.push(['bunx', [`safeword@${version}`], homedir()]);
+  return candidates;
+}
+
 export function runReview(arguments_: string[]): never {
   const timeout = probeTimeout(process.env);
   const candidate = reviewCandidates().find(candidate_ =>
@@ -144,6 +220,7 @@ export function runReview(arguments_: string[]): never {
     process.exit(1);
   }
   const result = spawnSync(candidate[0], [...candidate[1], ...arguments_], {
+    cwd: candidate[2],
     env: reviewChildEnvironment(process.env, arguments_),
     stdio: 'inherit',
   });

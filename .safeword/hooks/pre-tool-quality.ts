@@ -45,6 +45,7 @@ import {
   recordFailure,
 } from './lib/quality-state.ts';
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
 import { evaluateImplementEntry } from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
@@ -191,9 +192,13 @@ function crossAgentReviewPolicy() {
 
 // The review stamps both gates read from the shared skill-invocation-log
 // (write-review-stamp.ts appends to the same file).
-function readReviewStamps(): ReviewStamp[] {
+// Verified at the point of reading: the ledger is a plain text file, so a stamp
+// claiming a coordinator verdict is held to that claim here rather than trusted
+// because it is written down (ticket PB1GMZ).
+function readReviewStamps(scope: string): ReviewStamp[] {
   const logFile = nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log');
-  return existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
+  if (!existsSync(logFile)) return [];
+  return verifiedStamps(parseReviewStamps(readFileSync(logFile, 'utf8')), projectDirectory, scope);
 }
 
 /**
@@ -471,12 +476,12 @@ if (
     // cross-ticket review doesn't satisfy it). Inert until enabled, so it can't
     // brick a workflow before the stamp-earning step ships.
     if (isReviewGateOn()) {
-      const stamps = readReviewStamps();
       const priorScope = reviewScope(
         nodePath.basename(ticketDirectory),
         'spec',
         hashArtifact(specContent),
       );
+      const stamps = readReviewStamps(priorScope);
       if (!reviewGateForNextAsset(priorScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
@@ -741,8 +746,8 @@ if (isCanonicalTicketEdit) {
     const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
     if (exitedPhase !== undefined) {
       const ticketDirectory = nodePath.dirname(editedFile);
-      const stamps = readReviewStamps();
       const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
+      const stamps = readReviewStamps(phaseScope);
       if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,

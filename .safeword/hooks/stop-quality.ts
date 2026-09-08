@@ -22,6 +22,7 @@ import {
   AUTHOR_MODEL_ENV,
   hashArtifact,
   isArchitectureReviewGateEnabled,
+  isStopQualityReviewEnabled,
   isCrossModelReviewRequired,
   modelsMatch,
   parseReviewStamps,
@@ -50,6 +51,7 @@ import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invoca
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
@@ -318,8 +320,10 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
 
   // Selection half: a satisfying design-review stamp for this ticket's plan at its current content.
   const logPath = `${resolveNamespaceRoot(projectDir)}/skill-invocations.log`;
-  const stamps = existsSync(logPath) ? parseReviewStamps(readFileSync(logPath, 'utf8')) : [];
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
+  const stamps = existsSync(logPath)
+    ? verifiedStamps(parseReviewStamps(readFileSync(logPath, 'utf8')), projectDir, scope)
+    : [];
   if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
     hardBlockDone(
       'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun .safeword/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',
@@ -873,6 +877,23 @@ if (typecheckAdvice.advice !== null) {
   softBlock(
     `TypeScript errors reported by the configs covering your changes — advisory, not a block (fix now, or stop and address later). Some may sit in files you did not touch. The done gate still requires a clean typecheck.\n\n${typecheckAdvice.advice}`,
   );
+}
+
+// Stop-time quality review (KHL52X): OFF unless `stopQualityReview: true`.
+// Everything ABOVE this line still runs — the done gate, the impl-plan,
+// architecture and cumulative-artifact gates, hierarchy navigation, and the
+// typecheck advisory. Those check evidence, and a Stop is a fine moment to
+// demand evidence. What stops here is the judgment-based review prompt and the
+// decision-brief ending contract: measured across 13 concurrent sessions
+// (~220 turn-ends) they produced one intervention, a reply reformat, and never
+// a code change.
+const stopReviewConfigPath = `${projectDir}/.safeword/config.json`;
+if (
+  !isStopQualityReviewEnabled(
+    existsSync(stopReviewConfigPath) ? readFileSync(stopReviewConfigPath, 'utf8') : undefined,
+  )
+) {
+  process.exit(0);
 }
 
 // Boundary backstop: phase reviews are no longer LOC-throttled. Implement-step
