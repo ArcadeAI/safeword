@@ -442,7 +442,10 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
-  it('reuses an approved executable RED receipt only for identical proof identity', async () => {
+  it.each([
+    ['identical canonical proof inputs', 'reused'],
+    ['different canonical proof inputs', 'not reused'],
+  ] as const)('resolves %s as %s', async (relationship, verdict) => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
       'reviewer_output: {',
@@ -465,25 +468,20 @@ describe('durable review jobs', () => {
       targets: ['input.md'],
       execution,
     });
-    const reused = await startReviewJob({
+    const candidate = await startReviewJob({
       cwd,
       kind: 'executable-red',
       targets: ['input.md'],
-      execution,
+      execution:
+        relationship === 'identical canonical proof inputs'
+          ? execution
+          : { ...execution, expectedFailure: 'different actor assertion' },
     });
-    const distinct = await startReviewJob({
-      cwd,
-      kind: 'executable-red',
-      targets: ['input.md'],
-      execution: { ...execution, expectedFailure: 'different actor assertion' },
-    });
+    const sameReview =
+      (candidate.data as { review_id: string }).review_id ===
+      (first.data as { review_id: string }).review_id;
 
-    expect((reused.data as { review_id: string }).review_id).toBe(
-      (first.data as { review_id: string }).review_id,
-    );
-    expect((distinct.data as { review_id: string }).review_id).not.toBe(
-      (first.data as { review_id: string }).review_id,
-    );
+    expect(sameReview).toBe(verdict === 'reused');
   });
 
   it('does not reuse an executable RED approval without bound execution evidence', async () => {
