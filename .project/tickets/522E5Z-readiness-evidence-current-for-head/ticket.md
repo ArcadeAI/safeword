@@ -2,8 +2,8 @@
 id: 522E5Z
 slug: readiness-evidence-current-for-head
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-09-05T22:02:16.936Z
 last_modified: 2026-09-05T22:02:16.936Z
 scope: |
@@ -168,4 +168,19 @@ done_when: |
   the `pull_request_target` base-branch rule, two of the seven gates cannot be
   satisfied before promotion. Reported in the PR body; worth its own ticket if
   you want the skill to acknowledge the circularity.
+- 2026-09-08T06:55:00Z Flipped to Ready on explicit instruction. That activated
+  `ci.yml`'s one draft-gated step, "Ticket closure rides ready PR", which failed
+  correctly: the PR carried verify.md but left this ticket open. Every
+  `done_when` criterion is met, so the ticket is closed here and the closure
+  rides the PR as the check requires.
+- 2026-09-08T06:55:00Z Correction to my own earlier claim: I had reported gate 4
+  as unsatisfiable while Draft because `ci.yml` gates on `draft == false`. Wrong
+  — that guard governs a single step, not the workflow, and CI ran and passed on
+  the draft. I had grepped for the guard without checking what it governed. The
+  PR body carries the retraction. Gate 3 remains genuinely unsatisfiable before
+  merge; gate 4 never was.
+- 2026-09-08T06:55:00Z Merged main a second time (8 more commits); same
+  generated-artifact conflicts, same resolution, baseline re-pin again limited to
+  `tree_sha256` with no `result_sha256` movement. Final local suite after the
+  merge: 567 files, 9304 passed, 0 failed.
 
