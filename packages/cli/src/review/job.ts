@@ -137,13 +137,20 @@ function fingerprint(
   // A GREEN receipt is bound to the ledger state that the reviewer approved,
   // not just to the human-readable scenario label. Otherwise a later heading
   // rename could make an old receipt appear to cover a different scenario.
+  const canonicalRoot = realpathSync.native(cwd);
+  const ledgerPath =
+    execution === undefined ? undefined : nodePath.resolve(canonicalRoot, execution.ledger);
+  if (ledgerPath !== undefined && pathEscapes(canonicalRoot, ledgerPath)) {
+    throw new Error(`Executable RED ledger escapes the project: ${execution?.ledger}`);
+  }
+  const ledgerExists = ledgerPath !== undefined && existsSync(ledgerPath);
   const ledgerIsIncluded =
     execution !== undefined &&
-    [...targets, ...context].some(
-      target => nodePath.resolve(cwd, target) === nodePath.resolve(cwd, execution.ledger),
-    );
+    [...targets, ...context].some(target => nodePath.resolve(canonicalRoot, target) === ledgerPath);
   const fingerprintContext =
-    execution === undefined || ledgerIsIncluded ? context : [...context, execution.ledger];
+    execution === undefined || ledgerIsIncluded || !ledgerExists
+      ? context
+      : [...context, execution.ledger];
   const prepared = prepareReviewPacket(cwd, kind, targets, fingerprintContext, {
     allowMissing: true,
   });
@@ -151,6 +158,7 @@ function fingerprint(
     const hash = createHash('sha256');
     hash.update(`kind\0${kind}\0`);
     if (execution !== undefined) hash.update(`execution\0${JSON.stringify(execution)}\0`);
+    if (execution !== undefined && !ledgerExists) hash.update('ledger\0missing\0');
     for (const [section, files] of [
       ['targets', prepared.packet.logical_files],
       ['context', prepared.packet.context_files ?? []],
@@ -167,6 +175,13 @@ function fingerprint(
   } finally {
     prepared.cleanup();
   }
+}
+
+function pathEscapes(root: string, candidate: string): boolean {
+  const relative = nodePath.relative(root, candidate);
+  return (
+    relative === '..' || relative.startsWith(`..${nodePath.sep}`) || nodePath.isAbsolute(relative)
+  );
 }
 
 function writeJob(cwd: string, record: ReviewJobRecord): ReviewJobRecord {

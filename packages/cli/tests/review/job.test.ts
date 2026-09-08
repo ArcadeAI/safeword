@@ -646,6 +646,35 @@ describe('durable review jobs', () => {
     });
   });
 
+  it('invalidates a receipt created before its declared ledger exists', async () => {
+    const cwd = project();
+    const ledger = '.project/tickets/TST/not-yet-created.md';
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution: RedExecutionRequest = {
+      scenario: 'Scenario: exact actor boundary',
+      ledger,
+      argv: [process.execPath, '-e', 'process.exit(1)'],
+      cwd: '.',
+      evidenceClass: 'pure-contract',
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
+    writeFileSync(nodePath.join(cwd, ledger), '### Scenario: exact actor boundary\n');
+
+    expect(executableRedGate(cwd, execution.scenario, ledger)).toMatchObject({
+      state: 'action_required',
+      findings: [
+        { code: 'EXECUTABLE_RED_GATE_BLOCKED', message: expect.stringContaining('stale') },
+      ],
+    });
+  });
+
   it('permits GREEN only while the approved cross-agent receipt still matches current inputs', async () => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
