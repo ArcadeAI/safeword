@@ -2,3 +2,15 @@
 **/architecture.generated.md merge=union linguist-generated=true
 .project/tickets/INDEX.md merge=union linguist-generated=true
 .project/tickets/INDEX-completed.md merge=union linguist-generated=true
+
+# Generated delivery and dogfood mirrors remain tracked and parity-checked.
+.claude/skills/** linguist-generated=true
+.safeword/skills/** linguist-generated=true
+packages/cli/codex-plugin/** linguist-generated=true
+packages/cli/src/claude-plugin/historical-catalogue.generated.ts linguist-generated=true
+plugin/** linguist-generated=true
+
+# Authored plugin entry points stay visible in review.
+packages/cli/codex-plugin/.codex-plugin/plugin.json -linguist-generated
+packages/cli/codex-plugin/hooks.json -linguist-generated
+plugin/README.md -linguist-generated
