@@ -1,10 +1,10 @@
 Feature: Make planning gates understandable and scope-safe
   Safeword keeps review inside accepted scope and gives builders one plain recovery action.
+  Untagged scope-review scenarios are surface-agnostic contract checks; tagged scenarios prove installed entry points.
 
   @plan-implementability.NTB1.K3EBHB.R1
   Rule: plan-implementability.NTB1.K3EBHB.R1 — Accepted scope combines ticket, project, milestone, and inherited boundaries
 
-    @surface.safeword-cli
     @rejection
     Scenario Outline: A plan cannot ignore any binding scope source
       Given a plan conflicts with <scope_source>
@@ -18,6 +18,22 @@ Feature: Make planning gates understandable and scope-safe
         | a project non-goal |
         | a milestone non-goal |
         | an inherited parent boundary |
+
+    Scenario: Work consistent with every binding source enters the accepted boundary
+      Given a plan conflicts with no ticket scope, recorded non-goal, milestone non-goal, or inherited parent boundary
+      When the accepted boundary is resolved
+      Then the work is admitted by the resolved accepted boundary
+
+    @surface.safeword-cli
+    Scenario Outline: Installed review dispatch enforces the resolved boundary
+      Given an Implementation Plan <boundary_state>
+      When actual installed CLI review dispatch runs with real configuration and collaborators
+      Then <review_result>
+
+      Examples:
+        | boundary_state | review_result |
+        | conflicts with an inherited parent boundary | review rejects the conflict and cites the inherited boundary |
+        | is consistent with every binding boundary | boundary resolution admits the plan to completeness review |
 
   @plan-implementability.NTB1.K3EBHB.R2
   Rule: plan-implementability.NTB1.K3EBHB.R2 — Completeness checks both omissions and overreach
@@ -38,6 +54,17 @@ Feature: Make planning gates understandable and scope-safe
       Given a plan covers every accepted obligation, contains no contradiction, and proposes no unapproved capability
       When scope completeness is reviewed
       Then completeness raises no blocking mismatch
+
+    @surface.safeword-cli
+    Scenario Outline: Installed review dispatch enforces scope completeness
+      Given an Implementation Plan <completeness_state>
+      When actual installed CLI review dispatch runs with real configuration and collaborators
+      Then <review_result>
+
+      Examples:
+        | completeness_state | review_result |
+        | adds an unapproved capability | approval is blocked with that capability named against the accepted boundary |
+        | covers every accepted obligation without contradiction or overreach | completeness raises no blocking mismatch |
 
   @plan-implementability.NTB1.K3EBHB.R3
   Rule: plan-implementability.NTB1.K3EBHB.R3 — Reviewer corrections cannot silently expand scope
@@ -64,8 +91,14 @@ Feature: Make planning gates understandable and scope-safe
 
     Scenario: Accepting optional scope records the authority that expanded it
       Given a reviewer proposes a nonblocking strengthening outside the accepted boundary
-      When the user explicitly accepts it
+      When the user explicitly accepts it through the host's human channel
       Then the accepted boundary expands with that user authority recorded and the revised plan is reviewed against it
+
+    @rejection
+    Scenario: An agent-authored acceptance claim cannot expand scope
+      Given a nonblocking strengthening outside the accepted boundary and no response recorded through the host's human channel
+      When an acceptance claim written through the agent-writable path is presented with the revised plan
+      Then the accepted boundary does not expand and the capability stays outside the plan
 
   @plan-implementability.NTB1.K3EBHB.R5
   Rule: plan-implementability.NTB1.K3EBHB.R5 — Guides and research cannot expand accepted scope
@@ -81,30 +114,68 @@ Feature: Make planning gates understandable and scope-safe
         | applicable project guidance |
         | current external research |
 
+    Scenario: Accepted guidance can inform the plan after scope expands
+      Given project guidance suggests a capability and the user explicitly expanded the accepted boundary to include it
+      When the Implementation Plan is authored
+      Then the capability enters the plan with the user's scope authority recorded
+
   @plan-implementability.NTB1.K3EBHB.R6
   Rule: plan-implementability.NTB1.K3EBHB.R6 — Human design approval occurs once on the approach
 
     @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.opencode @surface.cursor
-    Scenario Outline: Approval-gate behavior differs only by user availability
-      Given the human design-approval gate is <setting> in a <session> session on an enforced local client, where OpenCode means CLI or TUI
-      When the reviewed Implementation Plan is ready to leave its phase
+    # Proof note: enabled rows wait for the surfaced approach prompt before asserting that Execution Planning has not begun.
+    Scenario Outline: Interactive approval behavior follows the gate setting
+      Given the human design-approval gate is <setting> in an interactive <host> session
+      When <installed_entry> reaches the reviewed Implementation Plan's phase transition with real configuration and collaborators
       Then <outcome>
 
       Examples:
-        | setting | session | outcome |
-        | disabled | interactive | Execution Planning begins without a prompt |
-        | enabled | interactive | Execution Planning waits for one human approach approval |
-        | enabled | headless | the session exits with pending approval recorded, the approach surfaced, and Execution Planning not begun |
+        | host | installed_entry | setting | outcome |
+        | Safeword CLI | actual installed CLI dispatch | disabled | Execution Planning begins without a prompt |
+        | Safeword CLI | actual installed CLI dispatch | enabled | the approach is surfaced for approval and Execution Planning has not begun |
+        | Claude Code | actual lifecycle dispatch from installed project hooks | disabled | Execution Planning begins without a prompt |
+        | Claude Code | actual lifecycle dispatch from installed project hooks | enabled | the approach is surfaced for approval and Execution Planning has not begun |
+        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | disabled | Execution Planning begins without a prompt |
+        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | enabled | the approach is surfaced for approval and Execution Planning has not begun |
+        | OpenCode CLI | actual lifecycle dispatch from the installed profile plugin | disabled | Execution Planning begins without a prompt |
+        | OpenCode CLI | actual lifecycle dispatch from the installed profile plugin | enabled | the approach is surfaced for approval and Execution Planning has not begun |
+        | Cursor | actual lifecycle dispatch from installed project hooks | disabled | Execution Planning begins without a prompt |
+        | Cursor | actual lifecycle dispatch from installed project hooks | enabled | the approach is surfaced for approval and Execution Planning has not begun |
 
     Scenario: Approach approval is not requested twice when the approach is unchanged
-      Given the approach was approved once and the Implementation Plan was revised without changing that approach
+      Given the approach was approved once and the Implementation Plan was revised without changing any behavior-shaping choice, tradeoff, or system boundary
       When the plan re-enters the human design-approval gate
       Then no second approach approval is requested and the prior approval remains linked
 
     Scenario: A changed approach requires new approval
-      Given the approach was approved once and the Implementation Plan was revised with a materially changed approach
+      Given the approach was approved once and the Implementation Plan was revised by changing a behavior-shaping choice, tradeoff, or system boundary
       When the plan re-enters the human design-approval gate
       Then a new approach approval is requested and the prior approval no longer clears the gate
+
+    @surface.claude-code
+    Scenario Outline: Installed re-entry honors approval only while the approach is unchanged
+      Given the gate is enabled, the approach was approved through Claude Code's human channel, and the Implementation Plan was revised <revision_kind>
+      When actual lifecycle dispatch from installed project hooks reaches the phase transition with real configuration and collaborators
+      Then <reentry_result>
+
+      Examples:
+        | revision_kind | reentry_result |
+        | without changing any behavior-shaping choice, tradeoff, or system boundary | Execution Planning begins with no second approval requested and the prior approval still linked |
+        | by changing a behavior-shaping choice, tradeoff, or system boundary | a new approval is requested and the prior approval no longer clears the gate |
+
+    @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.opencode @surface.cursor
+    Scenario Outline: Granted human approval clears the installed approach gate
+      Given the human design-approval gate is enabled and <installed_entry> surfaced the approach for a response through <host>'s human channel with real configuration and collaborators
+      When the user approves the approach through that host channel
+      Then Execution Planning begins with that approval recorded against the approach
+
+      Examples:
+        | host | installed_entry |
+        | Safeword CLI | actual installed CLI dispatch |
+        | Claude Code | actual lifecycle dispatch from installed project hooks |
+        | OpenAI Codex | actual lifecycle dispatch from installed project hooks |
+        | OpenCode CLI | actual lifecycle dispatch from the installed profile plugin |
+        | Cursor | actual lifecycle dispatch from installed project hooks |
 
     @rejection
     Scenario: Refusing an approach keeps the same approach blocked
@@ -114,49 +185,90 @@ Feature: Make planning gates understandable and scope-safe
 
     @rejection
     Scenario: Only human authority can clear a pending approach approval
-      Given a headless session recorded pending human approval for an approach
-      When an agent-authored approval claim is presented without matching human authority
+      Given a headless session recorded a pending approach approval and no response through the host's human channel
+      When an approval claim written through the agent-writable path is presented without a matching host-channel response
       Then Execution Planning remains blocked with human approval named as the next action
 
-    @surface.claude-code-cloud @surface.cursor-cloud-agents @surface.openai-codex
-    Scenario Outline: Headless approval exits cleanly through the real host lifecycle
-      Given the human design-approval gate is enabled in <headless_host>
-      When <host_entry> reaches the reviewed Implementation Plan's phase transition with real configuration and collaborators
-      Then a condition-based harness observes successful process exit, pending approval recorded, the approach surfaced, and Execution Planning not begun without using a fixed delay
+    @surface.claude-code @surface.cursor
+    Scenario Outline: Installed local hosts reject agent-written approval claims
+      Given <installed_entry> surfaced a pending approach with real configuration and no response exists in <host>'s human channel
+      When an approval claim written through the agent-writable path is presented through that installed entry point
+      Then Execution Planning remains blocked with human approval named as the next action
 
       Examples:
-        | headless_host | host_entry |
+        | host | installed_entry |
+        | Claude Code | actual lifecycle dispatch from installed project hooks |
+        | Cursor | actual lifecycle dispatch from installed project hooks |
+
+    @surface.claude-code-cloud @surface.cursor-cloud-agents
+    Scenario Outline: Cloud hosts reject agent-written approval claims
+      Given <installed_entry> surfaced a pending approach with real configuration and no response exists in <host>'s human channel
+      When an approval claim written through the agent-writable path is presented through that installed entry point
+      Then Execution Planning remains blocked with human approval named as the next action
+
+      Examples:
+        | host | installed_entry |
         | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM |
         | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner |
-        | OpenAI Codex headless | actual installed local lifecycle dispatch in headless mode |
+
+    @surface.claude-code-cloud @surface.cursor-cloud-agents
+    Scenario Outline: Pending cloud approval survives runner reclamation
+      Given <cloud_host> exited with an approach awaiting approval and its ephemeral runner was reclaimed
+      When the user responds through the host's human channel in a new session
+      Then the same pending approach resolves and Execution Planning begins with that approval recorded against the approach
+
+      Examples:
+        | cloud_host |
+        | Claude Code Cloud |
+        | Cursor Cloud Agents |
+
+    @surface.claude-code-cloud @surface.cursor-cloud-agents @surface.openai-codex
+    # Proof note: step definitions wait on the pending-approval artifact and process exit status, never on a fixed delay.
+    Scenario Outline: Headless approval exits cleanly through the real host lifecycle
+      Given the human design-approval gate is <setting> in <headless_host>
+      When <host_entry> reaches the reviewed Implementation Plan's phase transition with real configuration and collaborators
+      Then <headless_outcome>
+
+      Examples:
+        | headless_host | host_entry | setting | headless_outcome |
+        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | enabled | the host session exits successfully with the approach surfaced, approval pending, and Execution Planning not begun |
+        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | enabled | the host session exits successfully with the approach surfaced, approval pending, and Execution Planning not begun |
+        | OpenAI Codex headless | actual installed local lifecycle dispatch in headless mode | enabled | the host session exits successfully with the approach surfaced, approval pending, and Execution Planning not begun |
+        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | disabled | the host session exits successfully after completing the phase transition without recording pending approval |
+        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | disabled | the host session exits successfully after completing the phase transition without recording pending approval |
+        | OpenAI Codex headless | actual installed local lifecycle dispatch in headless mode | disabled | the host session exits successfully after completing the phase transition without recording pending approval |
 
   @plan-implementability.NTB1.K3EBHB.R7
   Rule: plan-implementability.NTB1.K3EBHB.R7 — Every planning block gives one plain recovery action
 
-    @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.opencode @surface.cursor
     Scenario: A contract mismatch message is useful without technical identifiers
       Given a non-technical builder encounters an edited planning contract
       When Safeword blocks the phase
       Then the primary message says what changed, why safe work stopped, and the one reconciliation action before showing optional digest details
 
+    @surface.safeword-cli
+    Scenario: Technical details remain available after the plain recovery action
+      Given a technical builder encounters a planning block through the installed CLI path
+      When the progressive-disclosure message is rendered
+      Then the plain next action appears first and the failing check, artifact path, and digest remain available in optional details
+
   @plan-implementability.NTB1.K3EBHB.R8
   Rule: plan-implementability.NTB1.K3EBHB.R8 — Stale review messages name the meaningful change and affected plan
 
-    @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.opencode @surface.cursor
     Scenario Outline: Review invalidation names only the plans affected by a changed decision
-      Given an accepted <decision_scope> decision changes after both plans were reviewed
-      When Safeword invalidates the receipts
+      Given both plans were reviewed and hold current receipts
+      When <change> is recorded
       Then <invalidation_result>
 
       Examples:
-        | decision_scope | invalidation_result |
-        | shared authorization | the message names the authorization decision and says both plans need review again |
-        | Execution Plan-only sequencing | the message names the sequencing decision, says the Execution Plan needs review again, and preserves the Implementation Plan receipt |
+        | change | invalidation_result |
+        | a shared authorization decision changes | the message names the authorization decision and says both plans need review again |
+        | an Execution Plan-only sequencing decision changes | the message names the sequencing decision, says the Execution Plan needs review again, and preserves the Implementation Plan receipt |
+        | only whitespace, comments, or formatting change without changing a decision's meaning | the message is not emitted and both plan receipts remain current |
 
   @plan-implementability.NTB1.K3EBHB.R9
   Rule: plan-implementability.NTB1.K3EBHB.R9 — Promotion messages preserve evidence and name the resume phase
 
-    @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.opencode @surface.cursor
     Scenario: Promotion reads as a continuation rather than lost work
       Given task TDD has a useful failing test and discovers an unresolved public-contract choice
       When Safeword promotes the work
@@ -165,24 +277,51 @@ Feature: Make planning gates understandable and scope-safe
     Scenario: Promotion preserves the existing failing test artifact
       Given task TDD has a useful failing test and discovers an unresolved public-contract choice
       When Safeword promotes the work
-      Then the same failing test artifact remains available to the resumed feature phase
+      Then the resumed feature phase can run the same test and it still fails for the originally recorded reason
 
   @plan-implementability.NTB1.K3EBHB.R10
   Rule: plan-implementability.NTB1.K3EBHB.R10 — Non-technical walkthroughs prove recovery messages at real boundaries
 
-    @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.opencode @surface.cursor
     Scenario Outline: A non-technical builder can recover from each new message category
       Given a non-technical builder without source-code access faces a <message_category> condition
-      When Safeword handles that condition through the installed host path and renders the primary message
-      Then a single-imperative check finds exactly one next action, <recovery>, and a fixed lexicon finds no phase names, file paths, or digests
+      When Safeword renders the primary message for that condition
+      Then a single-imperative check finds exactly one next action, <recovery>, and a fixed lexicon finds no internal phase identifiers, file paths, or digests in the primary message while permitting the plain-language resume phase
 
       Examples:
         | message_category | recovery |
-        | missing contract | regenerate the installed planning files |
+        | missing input | regenerate the named missing planning input |
         | mismatched contract | reconcile the installed planning files |
         | stale review | rerun review for the named plan |
-        | exhausted independent routes | continue with the honestly labeled permitted fallback |
+        | exhausted independent routes | continue with the permitted fallback whose actual route is named without calling completion degraded |
+        | pending human approval | respond to the surfaced approach |
         | task promotion | resume at the named feature phase with existing evidence preserved |
+
+    @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.opencode @surface.cursor
+    Scenario Outline: Recovery messages render through each installed host boundary
+      # This is a pairwise host/category wiring sample; the preceding surface-agnostic outline owns every category's exact message contract.
+      Given a non-technical builder without source-code access faces a <message_category> condition on <host>
+      When <installed_entry> handles the condition with real configuration and collaborators
+      Then the primary message names <recovery> as the one plain-language next action and leaves technical identifiers to optional details
+
+      Examples:
+        | host | installed_entry | message_category | recovery |
+        | Safeword CLI | actual installed CLI dispatch | mismatched contract | reconcile the installed planning files |
+        | Claude Code | actual lifecycle dispatch from installed project hooks | stale review | rerun review for the named plan |
+        | OpenAI Codex | actual lifecycle dispatch from installed project hooks | task promotion | resume at the named feature phase with existing evidence preserved |
+        | OpenCode CLI | actual lifecycle dispatch from the installed profile plugin | exhausted independent routes | continue with the permitted fallback whose actual route is named without calling completion degraded |
+        | Cursor | actual lifecycle dispatch from installed project hooks | pending human approval | respond to the surfaced approach |
+        | Safeword CLI | actual installed CLI dispatch | missing input | regenerate the named missing planning input |
+
+    @surface.claude-code-cloud @surface.cursor-cloud-agents
+    Scenario Outline: Recovery messages remain plain at cloud host boundaries
+      Given a non-technical builder without source-code access faces a pending human approval condition on <cloud_host>
+      When <installed_entry> handles the condition with real configuration and collaborators
+      Then the primary message names "respond to the surfaced approach" as the one plain-language next action and leaves technical identifiers to optional details
+
+      Examples:
+        | cloud_host | installed_entry |
+        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM |
+        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner |
 
     @rejection
     Scenario: Jargon-only recovery text fails the walkthrough
@@ -190,15 +329,16 @@ Feature: Make planning gates understandable and scope-safe
       When the recovery message is checked
       Then the fixed jargon lexicon makes the walkthrough fail
 
-    # skip: Codex Cloud is outside this ticket's affected surfaces and its advisory guidance is owned by 5F5ZZA R8.
+    @rejection
+    Scenario: Competing recovery actions fail the walkthrough
+      Given a non-technical builder receives a primary message offering two different next actions
+      When the recovery message is checked
+      Then the single-imperative check makes the walkthrough fail
+
     @surface.opencode
     Scenario: OpenCode Desktop names its limitation and authoritative route
       Given a non-technical builder reaches OpenCode Desktop
       When planning guidance is rendered
-      Then it says approval is not enforced there and names OpenCode CLI or TUI as the next action
+      Then it says approval is not enforced there and names the enforced OpenCode CLI and TUI route as the one next action
 
-    @surface.safeword-cli
-    Scenario: Technical details remain available after the plain recovery action
-      Given a technical builder encounters a planning block through the installed CLI path
-      When the progressive-disclosure message is rendered
-      Then the plain next action appears first and the failing check, artifact path, and digest remain available in optional details
+    # skip: Codex Cloud is outside this ticket's affected surfaces and its advisory guidance is owned by 5F5ZZA R8.
