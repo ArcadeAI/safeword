@@ -56,15 +56,15 @@
     ],
     "Attempt failure keeps the next model on that runtime eligible": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "records an attempted alternate-model failure before a degraded fallback"
+      "tries the next configured model after an attempt-scoped failure"
     ],
     "Catalogued models are not reported as proven": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
       "reports a catalogued model as compatible but not proven through public status"
     ],
     "Successful review records proven evidence": [
-      "packages/cli/tests/review/job.test.ts",
-      "records a successful route as proven evidence"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports a successful configured review as proven through public status"
     ],
     "Unlisted models are not reported as catalogued": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -79,8 +79,8 @@
       "reports a missing runtime as not installed through public status"
     ],
     "Most recent failure replaces stale proven evidence": [
-      "packages/cli/tests/review/job.test.ts",
-      "lets the most recent route failure replace older proven evidence"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports the newest configured route failure through public status"
     ],
     "Ordered routes replace legacy route settings when both exist": [
       "packages/cli/tests/review/policy.test.ts",
