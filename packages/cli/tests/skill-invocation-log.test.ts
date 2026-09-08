@@ -195,10 +195,11 @@ const qualityReviewForms: [string, string][] = [
 describe('skill-invocation log: /quality-review carries its invocation line (W610WW)', () => {
   it.each(qualityReviewForms)(
     '%s calls the reusable invocation helper with the quality-review token',
-    (_name, content) => {
-      expect(content).toContain(
-        'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review',
-      );
+    (name, content) => {
+      const invocation = name.includes('Codex')
+        ? 'project record-skill-invocation --cwd "$PROJECT_DIR" quality-review'
+        : 'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review';
+      expect(content).toContain(invocation);
     },
   );
 

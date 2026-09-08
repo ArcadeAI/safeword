@@ -169,10 +169,10 @@ Feature: One coherent Safeword command model
         | uninstall | cursor              |
         | uninstall | claude,codex,cursor |
 
-    Scenario: A user-scoped Claude plan observes only the user profile
+    Scenario: A user-scoped Claude uninstall leaves project-scoped delivery alone
       Given a default unified installation
       When the user previews user-scoped Claude uninstall
-      Then the plan preserves user scope and excludes project-scoped Claude removal
+      Then the plan reports no removable user-scoped Claude installation
       And no effect is applied
 
     @rejection

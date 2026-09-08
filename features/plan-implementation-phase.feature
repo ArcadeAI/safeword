@@ -107,11 +107,10 @@ Feature: plan-implementation phase before TDD
       Then it bounds the ADR offer to decisions affecting structure, key quality attributes, or ones difficult to reverse
       And it directs recording routine choices in the plan's decisions table alone
 
-    Scenario: Emitted ADRs scaffold from the shipped template into the configured record location
+    Scenario: Emitted ADRs use the configured record location
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
-      Then it directs scaffolding new ADRs from the safeword ADR template
-      And it directs writing them to the location resolved from paths.architecture, appending to a file or adding a date-prefixed file to a directory
+      Then it directs writing them to the location resolved from paths.architecture, appending to a file or adding a date-prefixed file to a directory
 
     @rejection
     Scenario: Generated architecture state docs never receive ADRs

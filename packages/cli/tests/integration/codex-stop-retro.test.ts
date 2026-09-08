@@ -261,6 +261,7 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
 
   beforeEach(() => {
     dir = createTemporaryDirectory();
+    writeTestFile(dir, '.safeword/SAFEWORD.md', '# enrolled\n');
     recordPath = nodePath.join(dir, 'child-record.json');
     debugLogPath = nodePath.join(dir, 'retro-debug.jsonl');
   });

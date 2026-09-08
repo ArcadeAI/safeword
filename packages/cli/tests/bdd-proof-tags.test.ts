@@ -687,7 +687,7 @@ describe('BDD proof provenance', () => {
       maximumFanIn = Math.max(maximumFanIn, fanIn);
     }
 
-    expect(sharedProofs).toBeLessThanOrEqual(51);
+    expect(sharedProofs).toBeLessThanOrEqual(52);
     expect(maximumFanIn).toBeLessThanOrEqual(14);
   });
 

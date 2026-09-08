@@ -30,6 +30,15 @@ afterEach(() => {
 });
 
 describe('review packet containment and change accounting', () => {
+  it('refuses executable RED review without Safeword execution evidence', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'proof.md'), 'missing behavior\n');
+
+    expect(() => prepareReviewPacket(root, 'executable-red', ['proof.md'])).toThrow(
+      'Executable-red review requires a trusted execution attestation',
+    );
+  });
+
   it('treats only impl-plan.md as plan-review work and preserves supporting context', () => {
     const root = temporaryDirectory();
     writeFileSync(nodePath.join(root, 'impl-plan.md'), '# Plan\n');
