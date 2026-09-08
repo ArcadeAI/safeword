@@ -78,7 +78,8 @@ export const DECISION_BRIEF_GRAMMAR: DecisionBriefGrammar = {
         },
         {
           label: 'Next',
-          placeholder: "<one concrete imperative — what you'll do or recommend>.",
+          placeholder:
+            '<standalone decision or action with only the concrete context needed to decide or act without scrolling>.',
         },
       ],
     },
@@ -116,6 +117,8 @@ export function renderDecisionBriefContract(grammar = DECISION_BRIEF_GRAMMAR): s
   return `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight. End with ${endings}.
 
 End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the verdict line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
+
+Next must stand alone. Write for a reader who sees only this paragraph. When a decision is required, name the choice, your recommendation, the reason that controls it, the material tradeoff, and exactly what the user should reply. Use specific nouns, verbs, paths, commands, amounts, and consequences. Include a detail only if it could change the decision or action. Stop once the reader can decide or act without scrolling. If no decision is required, state only the next action and any essential reason.
 
 Implementation choices are yours. BLOCKED is for spec/scope/value decisions that need human input. Multiple unknowns: resolve the small ones, BLOCK on the largest.
 
