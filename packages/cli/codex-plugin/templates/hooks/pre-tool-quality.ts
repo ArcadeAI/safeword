@@ -8,7 +8,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
-  deriveActiveScenario,
   evaluateFeatureTicketReadiness,
   formatFeatureTicketReadiness,
   getTicketInfo,
@@ -870,8 +869,7 @@ if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 't
       );
     }
     if (transition.step === 'GREEN') {
-      const ticketFolder = nodePath.basename(nodePath.dirname(editedFile));
-      const scenario = deriveActiveScenario(projectDirectory, ticketFolder);
+      const scenario = transition.scenario;
       if (scenario === undefined) {
         deny(
           'Cannot mark GREEN because Safeword could not identify the active scenario for executable RED review.',

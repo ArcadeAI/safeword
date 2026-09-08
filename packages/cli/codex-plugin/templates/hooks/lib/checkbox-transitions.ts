@@ -17,6 +17,7 @@ import { parseCheckboxAnnotation } from './parse-annotation.js';
 export interface CheckboxTransition {
   step: string;
   annotation: string;
+  scenario?: string;
 }
 
 export interface TransitionHookInput {
@@ -34,19 +35,44 @@ function findTransitionsByLineIndex(oldText: string, newText: string): CheckboxT
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
   const max = Math.max(oldLines.length, newLines.length);
+  let scenario: string | undefined;
   for (let i = 0; i < max; i++) {
     const newLine = newLines[i];
     if (newLine === undefined) continue;
+    if (/^#{2,3}\s/.test(newLine)) scenario = newLine.replace(/^#{2,3}\s+/, '').trim();
     const newParsed = parseCheckboxAnnotation(newLine);
     if (!newParsed || !newParsed.checked) continue;
     const oldLine = oldLines[i];
     if (oldLine === undefined) continue;
     const oldParsed = parseCheckboxAnnotation(oldLine);
     if (oldParsed && !oldParsed.checked && oldParsed.step === newParsed.step) {
-      transitions.push({ step: newParsed.step, annotation: newParsed.annotation });
+      transitions.push({ step: newParsed.step, annotation: newParsed.annotation, scenario });
     }
   }
   return transitions;
+}
+
+function scenarioForUniqueEdit(filePath: string, oldText: string): string | undefined {
+  if (oldText === '' || !existsSync(filePath)) return undefined;
+  const current = readFileSync(filePath, 'utf8');
+  const matchIndex = current.indexOf(oldText);
+  if (matchIndex < 0 || current.indexOf(oldText, matchIndex + 1) >= 0) return undefined;
+
+  const headings = [...current.slice(0, matchIndex).matchAll(/^#{2,3}\s+(.+)$/gm)];
+  return headings.at(-1)?.[1]?.trim();
+}
+
+function transitionsForEdit(
+  filePath: string,
+  oldText: string,
+  newText: string,
+): CheckboxTransition[] {
+  const inferredScenario = scenarioForUniqueEdit(filePath, oldText);
+  return findTransitionsByLineIndex(oldText, newText).map(transition =>
+    transition.scenario === undefined && inferredScenario !== undefined
+      ? { ...transition, scenario: inferredScenario }
+      : transition,
+  );
 }
 
 export function collectNewTransitions(
@@ -59,7 +85,7 @@ export function collectNewTransitions(
   if (toolName === 'Edit') {
     const oldString = toolInput.old_string ?? '';
     const newString = toolInput.new_string ?? '';
-    return findTransitionsByLineIndex(oldString, newString);
+    return transitionsForEdit(filePath, oldString, newString);
   }
 
   if (toolName === 'Write') {
@@ -71,7 +97,7 @@ export function collectNewTransitions(
   if (toolName === 'MultiEdit') {
     const edits = toolInput.edits ?? [];
     return edits.flatMap(edit =>
-      findTransitionsByLineIndex(edit.old_string ?? '', edit.new_string ?? ''),
+      transitionsForEdit(filePath, edit.old_string ?? '', edit.new_string ?? ''),
     );
   }
 

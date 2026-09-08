@@ -47,8 +47,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A passing proof cannot earn RED approval
 
 - [x] RED d2a4dbb44
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 8e05bf481
+- [x] REFACTOR skip: passing, timed-out, and unmatched evidence share one qualifying-attestation predicate
 
 ### Scenario Outline: A wrong-reason failure is rejected
 
@@ -69,8 +69,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Unavailable independent review blocks GREEN approval
 
 - [x] RED d2a4dbb44
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 8e05bf481
+- [x] REFACTOR skip: one public gate result owns the denial and recovery boundary
 
 ## Rule: executable-red.NTB1.R2 — Genuine shared proofs avoid repeated review ceremony
 
@@ -113,14 +113,14 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Invalid executable-RED evidence blocks the shared GREEN transition
 
 - [x] RED d2a4dbb44
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 8e05bf481
+- [x] REFACTOR skip: current fingerprint and sealed result validation already share one candidate path
 
 ### Scenario: Fresh exact executable-RED evidence permits the shared GREEN transition
 
 - [x] RED d2a4dbb44
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 8e05bf481
+- [x] REFACTOR skip: the approved path is one small result constructor with no duplication
 
 ## Feature-level cross-scenario refactor
 
