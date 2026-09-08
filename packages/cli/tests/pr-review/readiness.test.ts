@@ -127,6 +127,18 @@ describe('readiness evidence freshness', () => {
     expect(report).toMatchObject({ state: 'failure', verdict: 'missing' });
   });
 
+  it('reads a CRLF body the same as an LF one, because the web editor sends CRLF', () => {
+    const lf = evaluateReadinessEvidence({ body: evidence(HEAD), draft: false, headSha: HEAD });
+    const crlf = evaluateReadinessEvidence({
+      body: evidence(HEAD).replaceAll('\n', '\r\n'),
+      draft: false,
+      headSha: HEAD,
+    });
+
+    expect(crlf).toEqual(lf);
+    expect(crlf.verdict).toBe('current');
+  });
+
   it('does not ask a draft for evidence it has not written yet', () => {
     const report = evaluateReadinessEvidence({ body: undefined, draft: true, headSha: HEAD });
 

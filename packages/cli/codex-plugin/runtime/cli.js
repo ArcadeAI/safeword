@@ -52416,8 +52416,7 @@ function scanGates(rest) {
   return { blocked, gates };
 }
 function evidenceBlocks(body) {
-  const lines = body.split(`
-`);
+  const lines = body.split(/\r?\n/u);
   const blocks = [];
   for (const [index, line] of lines.entries()) {
     const sha = HEAD_LINE.exec(line)?.[1];

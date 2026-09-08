@@ -80,7 +80,9 @@ function scanGates(rest: readonly string[]): { blocked: boolean; gates: number }
  * elsewhere in the body from standing in for evidence that is actually stale.
  */
 function evidenceBlocks(body: string): EvidenceBlock[] {
-  const lines = body.split('\n');
+  // GitHub's web editor submits CRLF, and a trailing \r would keep HEAD_LINE
+  // from matching an otherwise valid block.
+  const lines = body.split(/\r?\n/u);
   const blocks: EvidenceBlock[] = [];
 
   for (const [index, line] of lines.entries()) {
