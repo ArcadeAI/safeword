@@ -202,11 +202,11 @@ Then(
 );
 
 Then(
-  'no Codex-owned workflow tree is written to .agents or .codex while shared Cursor skills remain available',
+  'no Codex or Cursor workflow tree is written into the project',
   function (this: WorkflowWorld) {
     assert.ok(this.projectDirectory !== undefined, 'project fixture was not initialized');
     assertNoProjectWorkflowTree(this.projectDirectory);
-    assert.equal(existsSync(nodePath.join(this.projectDirectory, '.safeword/skills')), true);
+    assert.equal(existsSync(nodePath.join(this.projectDirectory, '.safeword/skills')), false);
   },
 );
 

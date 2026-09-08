@@ -82,6 +82,21 @@ describe('scenario scope boundary', () => {
     expect(content).toContain('go past what we agreed not to build');
   });
 
+  it.each(authoringSurfaces)('%s does not turn review advice into new scope', relative => {
+    const content = read(relative);
+
+    expect(content).toContain(
+      'Apply only **Must Fix** findings that name a concrete false pass against an accepted Rule or dimension partition',
+    );
+    expect(content).toContain(
+      '**Should Strengthen** findings are non-blocking and do not change scenarios by default',
+    );
+    expect(content).toContain('return it to the user as a scope decision');
+    expect(content).toContain(
+      'Re-run independent review only after a blocking finding changes the scenarios or the user accepts a scope change',
+    );
+  });
+
   it('ships the scope-boundary lens to the headless reviewer', () => {
     // The generated rubric is what the independent reviewer actually receives;
     // an edit that never regenerates leaves the gate running the old lens set.

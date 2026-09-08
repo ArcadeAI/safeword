@@ -1,6 +1,6 @@
 {
   "integration": "cursor",
   "operation": "install",
-  "result_sha256": "266a07512c2a08c217266d742f00a949954820c2f337056644b91dcacffe6176",
-  "tree_sha256": "65ea1cbd23710d9f57dff9002ae4788477aa4b55bbb7378b89cc9772289ff6d2"
+  "result_sha256": "95808c060af8bbd2ecff0d172f409c148814e44a3035b9a0ce8495c99cf476ac",
+  "tree_sha256": "23dfa807e9a9f97341343240bde2adee94e82d1f10ec3719c69241c36180bcf6"
 }
