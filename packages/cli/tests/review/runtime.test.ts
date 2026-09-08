@@ -347,9 +347,17 @@ describe('reviewer arguments', () => {
   });
 
   // Tripwire. `safeword codex status` tells users a stale Codex Desktop
-  // catalogue leaves reviews unaffected. That promise is only true while the
-  // Codex reviewer runs ephemeral with its hooks and user config disabled.
-  // If these flags ever move, the status message becomes a lie — fix both.
+  // catalogue leaves reviews unaffected. Two independent mechanisms make that
+  // true: `--disable hooks` resolves to `features.hooks=false`, and
+  // `--ignore-user-config` skips the $CODEX_HOME/config.toml that `codex plugin
+  // add` writes the Safeword plugin into. If these flags ever move, the status
+  // message becomes a lie — fix both.
+  //
+  // Scope: this asserts the flags are PRESENT, not that they still WORK. A
+  // Codex release could keep the names and change the semantics, and this test
+  // would still pass. Their effect is covered end-to-end against a real Codex
+  // by tests/smoke/review.live.test.ts under SAFEWORD_RUN_CROSS_AGENT_LIVE=1;
+  // that lane is the reason presence alone is enough to guard here.
   it('keeps the Codex reviewer insulated from the Codex app catalogue', () => {
     const args = reviewerArguments('codex', undefined, undefined);
 
