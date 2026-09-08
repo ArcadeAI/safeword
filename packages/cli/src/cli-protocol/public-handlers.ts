@@ -445,6 +445,45 @@ function architectureOptionsConflict(options: Readonly<Record<string, unknown>>)
   return legacyCount > 1 || (legacyCount > 0 && canonicalSelected);
 }
 
+/**
+ * `--check` is read-only by contract (predictable-safeword-cli.TBU1.R2), so it
+ * cannot be combined with a flag whose entire purpose is writing to the Git
+ * index. `--check --from-index` is legal: it is answered read-only.
+ */
+function architectureCheckWriteConflict(options: Readonly<Record<string, unknown>>): boolean {
+  const stageOutputRequested = options.stageOutput === true || options.stage === true;
+  return options.check === true && stageOutputRequested;
+}
+
+async function runArchitectureIndexCheck(invocation: CommandInvocation): Promise<CliResult> {
+  const { architectureIndexCheck } = await import('../commands/architecture.js');
+  const outcome = architectureIndexCheck(invocation.cwd);
+  const advisories = architectureAdvisories(outcome.unreadableWorkspaces);
+  const warnings = outcome.warnings.map(message => ({
+    code: 'ARCHITECTURE_WARNING',
+    message,
+    severity: 'warning' as const,
+  }));
+
+  if (outcome.failureMessage !== undefined) {
+    return createResult({
+      state: 'failed',
+      findings: [...warnings, ...advisories],
+      errors: [
+        {
+          code: 'ARCHITECTURE_INDEX_CHECK_FAILED',
+          message: `Could not check architecture freshness from the Git index; nothing was written or staged. Cause: ${outcome.failureMessage}`,
+          retryable: true,
+        },
+      ],
+      data: { command: 'project architecture', enforcement: true },
+    });
+  }
+
+  const result = architectureCheckResult(outcome.stale, advisories);
+  return { ...result, findings: [...result.findings, ...warnings] };
+}
+
 function withArchitectureOptionCompatibility(
   result: CliResult,
   legacy: ArchitectureCliMode['legacy'],
@@ -487,6 +526,20 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
       data: { command: 'project architecture' },
     });
   }
+  if (architectureCheckWriteConflict(invocation.options)) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message:
+            '--check cannot be combined with --stage-output; --check never writes documents or stages them.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'project architecture' },
+    });
+  }
   const mode = architectureCliMode(invocation.options);
   if (mode.stageOutput && !mode.fromIndex) {
     return createResult({
@@ -509,10 +562,12 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
   }
 
   if (mode.fromIndex) {
-    const result = await runArchitectureStagedTreeMode(
-      invocation,
-      mode.stageOutput ? 'stage' : 'staged',
-    );
+    // `--check` wins over the generation modes: it must stay read-only even when
+    // the caller also names the deterministic index source.
+    const generationMode = mode.stageOutput ? 'stage' : 'staged';
+    const result = await (invocation.options.check === true
+      ? runArchitectureIndexCheck(invocation)
+      : runArchitectureStagedTreeMode(invocation, generationMode));
     return withArchitectureOptionCompatibility(result, mode.legacy);
   }
 
