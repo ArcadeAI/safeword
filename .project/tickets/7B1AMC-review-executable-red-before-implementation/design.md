@@ -28,6 +28,7 @@ the GREEN ledger transition unless the gate finds a fresh approved cross-agent r
 ```typescript
 interface RedExecutionRequest {
   scenario: string;
+  ledger: string;
   argv: readonly [string, ...string[]];
   cwd: string;
   evidenceClass: 'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
@@ -99,8 +100,8 @@ existing review kinds remain readable and unchanged.
 4. The coordinator sends one neutral packet containing that attestation through its existing routes.
 5. The job seals the result; `review status` rechecks source freshness and record integrity.
 6. A later identical proof may reuse the approved receipt; any material input change starts fresh.
-7. At the GREEN ledger transition, every host calls the same public gate; direct CLI integrations
-   call it themselves.
+7. At the GREEN ledger transition, every host calls the same public gate with the scenario and
+   project-relative ledger path; direct CLI integrations call it themselves.
 
 ## User Flow
 
@@ -136,6 +137,8 @@ while the job remains valid.
 - Project-relative cwd and proof paths must remain inside the project root.
 - Output excerpts and runtime are bounded; full stream hashes survive truncation.
 - Environment values never appear in the packet or human output.
+- Internal review variables are removed from the proof environment, but proof commands remain
+  trusted same-user project code rather than OS-sandboxed adversaries.
 
 **Error Handling**:
 
@@ -149,6 +152,8 @@ while the job remains valid.
 - Fingerprint execution configuration as well as files.
 - Never rerun the proof for each reviewer route.
 - Never treat nonzero exit alone as intended RED.
+- Bind admission to both scenario and ledger so a same-named scenario in another ticket cannot
+  reuse the receipt.
 - Keep self-review and cached green status visibly weaker than a fresh receipt.
 
 **Open Questions**:
