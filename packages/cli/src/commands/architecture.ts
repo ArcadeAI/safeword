@@ -402,6 +402,16 @@ export interface ArchitectureIndexCheckOutcome {
  * `--check --from-index` predicts `--from-index --stage-output` instead of
  * performing it. Generation happens only inside the disposable index snapshot;
  * the worktree is read (for prose continuity) and never modified.
+ *
+ * Unlike the generation modes, this never falls back to the worktree when the
+ * index is unavailable. The generation modes can degrade because they only have
+ * to produce *a* document and say where it came from; a check has to answer a
+ * specific question, and the worktree answers a different one. `resolveGitContext`
+ * reports an existing-but-unreadable repository the same way as a plain
+ * non-repository (`git rev-parse` fails identically for both), so a fallback here
+ * would let a stale index report `healthy` with exit 0 whenever Git discovery
+ * broke — dubious-ownership in a container being the common case. Failing loudly
+ * is the only answer that cannot be mistaken for a fresh index.
  */
 export function architectureIndexCheck(cwd: string): ArchitectureIndexCheckOutcome {
   const warnings: string[] = [];
@@ -428,9 +438,11 @@ export function architectureIndexCheck(cwd: string): ArchitectureIndexCheckOutco
 
   if (gitContext === undefined) {
     return {
-      stale: planSelfHealProject(cwd).filter(action => isWouldChangeAction(action)),
+      stale: [],
       unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
-      warnings: [...warnings, 'No Git worktree found; checked the worktree instead of the index.'],
+      warnings,
+      failureMessage:
+        'No readable Git index found. Use `safeword project architecture --check` to check the worktree instead.',
     };
   }
 

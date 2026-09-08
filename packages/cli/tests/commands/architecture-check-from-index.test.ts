@@ -13,7 +13,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -169,7 +169,7 @@ describe('project architecture --check --from-index', () => {
     });
   });
 
-  it('falls back to a read-only worktree check outside a Git worktree', async () => {
+  it('refuses to answer from the worktree when there is no Git index', async () => {
     const directory = createTemporaryDirectory();
     try {
       addWorktreePackage(directory, 'auth');
@@ -182,19 +182,48 @@ describe('project architecture --check --from-index', () => {
         },
       );
 
-      // The staging path generates from the worktree here; the check must not.
+      // The generation modes degrade to the worktree here. A check must not:
+      // the worktree answers a different question than the one that was asked.
       expect(existsSync(nodePath.join(directory, DOC_RELATIVE))).toBe(false);
-      const envelope = JSON.parse(result.stdout) as {
-        state: string;
-        findings: { message: string }[];
-      };
-      expect(envelope.state).toBe('action_required');
-      expect(envelope.findings.map(finding => finding.message).join('\n')).toContain(
-        'No Git worktree found',
-      );
+      expect(result.exitCode).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        errors: [{ code: 'ARCHITECTURE_INDEX_CHECK_FAILED' }],
+      });
     } finally {
       removeTemporaryDirectory(directory);
     }
+  });
+
+  it('fails instead of reporting the worktree when the repository is unreadable', async () => {
+    // The false green this guards: `git rev-parse` fails identically for an
+    // unreadable repository and a plain non-repository, so a worktree fallback
+    // would report `healthy` on a stale index whenever Git discovery broke.
+    const staged = addWorktreePackage(context.directory, 'billing');
+    git(context.directory, 'add', '--', staged);
+    // Refresh the worktree document so the worktree is fresh while the index is
+    // stale — the exact state where a worktree fallback answers "healthy".
+    selfHeal(context.directory);
+    const documentPath = nodePath.join(context.directory, DOC_RELATIVE);
+    const documentBefore = readFileSync(documentPath, 'utf8');
+    const gitDirectory = nodePath.join(context.directory, '.git');
+
+    chmodSync(gitDirectory, 0o000);
+    let result;
+    try {
+      result = await runCli(['project', 'architecture', '--check', '--from-index', '--json'], {
+        cwd: context.directory,
+      });
+    } finally {
+      chmodSync(gitDirectory, 0o755);
+    }
+
+    expect(readFileSync(documentPath, 'utf8')).toBe(documentBefore);
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'ARCHITECTURE_INDEX_CHECK_FAILED' }],
+    });
   });
 
   it('leaves a missing architecture document uncreated when the index is stale', async () => {
