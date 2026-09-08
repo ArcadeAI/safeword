@@ -1,5 +1,6 @@
 import {
   githubRequest,
+  isRecord,
   requiredEnvironment,
   requiredPullNumber,
 } from '../pr-review/github-request.js';
@@ -21,10 +22,6 @@ export interface ReviewPrReadinessBoundary {
 
 export interface ReadinessOutcome extends ReadinessEvidenceReport {
   headSha: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export async function reportReadinessCommand(

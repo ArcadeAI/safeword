@@ -52368,6 +52368,9 @@ var init_review_pr = __esm(() => {
 
 // src/pr-review/github-request.ts
 import process13 from "process";
+function isRecord8(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 function requiredEnvironment(name) {
   const value = process13.env[name];
   if (!value)
@@ -52445,9 +52448,6 @@ __export(exports_review_pr_readiness, {
   createGitHubReadinessBoundary: () => createGitHubReadinessBoundary,
   READINESS_STATUS_CONTEXT: () => READINESS_STATUS_CONTEXT
 });
-function isRecord8(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 async function reportReadinessCommand(github) {
   const pullRequest = await github.readPullRequest();
   const report2 = evaluateReadinessEvidence(pullRequest);

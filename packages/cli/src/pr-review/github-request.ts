@@ -1,5 +1,10 @@
 import process from 'node:process';
 
+/** Narrows an unvalidated GitHub JSON response before reading its fields. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 export function requiredEnvironment(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`review-pr: ${name} is required`);
