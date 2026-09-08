@@ -10,6 +10,35 @@ import { executeRedProof } from '../../src/review/red-execution.js';
 afterEach(() => vi.unstubAllEnvs());
 
 describe('trusted executable RED observation', () => {
+  it('does not expose review-worker secrets to the proof process', async () => {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-red-environment-'));
+    vi.stubEnv('SAFEWORD_REVIEW_JOB_ID', 'private-job-id');
+    vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', '/private/review-key-root');
+
+    const result = await executeRedProof({
+      projectRoot: cwd,
+      sourceFingerprint: 'f'.repeat(64),
+      request: {
+        scenario: 'Scenario: actor boundary',
+        ledger: '.project/tickets/TST/test-definitions.md',
+        argv: [
+          process.execPath,
+          '-e',
+          "if (process.env.SAFEWORD_REVIEW_JOB_ID || process.env.SAFEWORD_REVIEW_KEY_ROOT) process.exit(2); console.error('expected isolated failure'); process.exit(1)",
+        ],
+        cwd: '.',
+        evidenceClass: 'pure-contract',
+        expectedFailure: 'expected isolated failure',
+        timeoutMs: 1000,
+      },
+    });
+
+    expect(result).toMatchObject({
+      expected_failure: { matched: true },
+      termination: { exit_code: 1, timed_out: false },
+    });
+  });
+
   it('attests a real missing-behavior failure at the process boundary', async () => {
     const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-red-execution-'));
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
@@ -25,6 +54,7 @@ describe('trusted executable RED observation', () => {
       targets: ['proof.md'],
       execution: {
         scenario: 'Scenario: actor boundary',
+        ledger: '.project/tickets/TST/test-definitions.md',
         argv: [
           process.execPath,
           '-e',
@@ -83,6 +113,7 @@ describe('trusted executable RED observation', () => {
       targets: ['proof.md'],
       execution: {
         scenario: 'Scenario: actor boundary',
+        ledger: '.project/tickets/TST/test-definitions.md',
         argv: [
           process.execPath,
           '-e',
@@ -116,6 +147,7 @@ describe('trusted executable RED observation', () => {
           sourceFingerprint: 'f'.repeat(64),
           request: {
             scenario: 'Scenario: actor boundary',
+            ledger: '.project/tickets/TST/test-definitions.md',
             argv: [
               process.execPath,
               '-e',

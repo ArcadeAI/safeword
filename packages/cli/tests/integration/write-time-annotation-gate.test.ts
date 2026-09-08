@@ -223,16 +223,21 @@ describe('write-time annotation gate', () => {
       cwd: string,
       state: 'healthy' | 'action_required',
       expectedScenario?: string,
+      expectedLedger?: string,
     ): string {
       const path = nodePath.join(cwd, 'gate-stub.mjs');
       const expectedCheck =
         expectedScenario === undefined
           ? 'true'
-          : `process.argv.at(-1) === ${JSON.stringify(expectedScenario)}`;
+          : `process.argv.includes(${JSON.stringify(expectedScenario)})`;
+      const ledgerCheck =
+        expectedLedger === undefined
+          ? 'true'
+          : `process.argv.includes(${JSON.stringify(expectedLedger)})`;
       writeTestFile(
         cwd,
         'gate-stub.mjs',
-        `const approved = ${state === 'healthy'} && ${expectedCheck}; console.log(JSON.stringify({ schemaVersion: 1, ok: approved, changed: false, state: approved ? 'healthy' : 'action_required', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: approved ? 'approved' : 'blocked' } }));\n`,
+        `const approved = ${state === 'healthy'} && ${expectedCheck} && ${ledgerCheck}; console.log(JSON.stringify({ schemaVersion: 1, ok: approved, changed: false, state: approved ? 'healthy' : 'action_required', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: approved ? 'approved' : 'blocked' } }));\n`,
       );
       return path;
     }
@@ -289,7 +294,12 @@ describe('write-time annotation gate', () => {
         '- [x] RED 9876fed\n- [ ] GREEN',
         '- [x] RED 9876fed\n- [x] GREEN def5678',
         {
-          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: second boundary'),
+          SAFEWORD_PLUGIN_CLI: gateStub(
+            setup.cwd,
+            'healthy',
+            'Scenario: second boundary',
+            '.safeword-project/tickets/TST001/test-definitions.md',
+          ),
         },
       );
       expectHookAllow(result);

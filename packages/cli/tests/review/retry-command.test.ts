@@ -52,6 +52,7 @@ describe('the recovery command Safeword suggests', () => {
   it('preserves executable RED inputs in a stale-proof retry', () => {
     const command = retryCommand('executable-red', ['proof.test.ts'], ['scenario.feature'], {
       scenario: 'Scenario: actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
       argv: ['bun', 'run', 'test', 'proof.test.ts'],
       cwd: '.',
       evidenceClass: 'pure-contract',
@@ -60,6 +61,7 @@ describe('the recovery command Safeword suggests', () => {
     });
 
     expect(command).toContain("--scenario 'Scenario: actor boundary'");
+    expect(command).toContain("--ledger '.project/tickets/TST/test-definitions.md'");
     expect(command).toContain("--expected-failure 'actor assertion'");
     expect(command).toContain(`--execute '["bun","run","test","proof.test.ts"]'`);
     expect(command).not.toContain('-- scenario.feature');

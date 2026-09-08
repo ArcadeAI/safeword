@@ -8,6 +8,7 @@ export type RedEvidenceClass =
 
 export interface RedExecutionRequest {
   readonly scenario: string;
+  readonly ledger: string;
   readonly argv: readonly [string, ...string[]];
   readonly cwd: string;
   readonly evidenceClass: RedEvidenceClass;

@@ -545,6 +545,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         description: 'Exact scenario identity covered by this RED proof',
       },
       {
+        flags: '--ledger <path>',
+        description: 'Project-relative test-definitions ledger containing the scenario',
+      },
+      {
         flags: '--proof-cwd <path>',
         description: 'Project-contained working directory for the RED proof',
         defaultValue: '.',
@@ -587,9 +591,21 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         flags: '--scenario <name>',
         description: 'Exact scenario identity whose current RED receipt is required',
       },
+      {
+        flags: '--ledger <path>',
+        description: 'Project-relative test-definitions ledger claiming GREEN',
+      },
     ],
     fixture: {
-      argv: ['review', 'gate', 'executable-red', '--scenario', 'Scenario: fixture'],
+      argv: [
+        'review',
+        'gate',
+        'executable-red',
+        '--scenario',
+        'Scenario: fixture',
+        '--ledger',
+        '.project/tickets/FIXTURE/test-definitions.md',
+      ],
       environment: MACHINE_ENVIRONMENT,
     },
   }),

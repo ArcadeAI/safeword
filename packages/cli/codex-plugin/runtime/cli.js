@@ -14341,6 +14341,7 @@ function retryCommand(kind, targets, context = [], execution) {
   const contextOption = context.length === 0 ? "" : ` ${context.map((target) => contextArgument(target)).join(" ")}`;
   const executionOptions = execution === undefined ? "" : [
     ` --scenario ${shellQuote(execution.scenario)}`,
+    ` --ledger ${shellQuote(execution.ledger)}`,
     ` --proof-cwd ${shellQuote(execution.cwd)}`,
     ` --evidence-class ${execution.evidenceClass}`,
     ` --expected-failure ${shellQuote(execution.expectedFailure)}`,
@@ -36567,6 +36568,26 @@ function terminateReviewWorker(pid) {
 function completeReviewJob(cwd, id, result) {
   withJobLock(cwd, id, () => {
     const record = readJob(cwd, id);
+    if (record.state === "completed") {
+      const invalidated = createResult({
+        state: "failed",
+        errors: [
+          {
+            code: "REVIEW_JOB_PREEMPTED",
+            message: "The review record completed before its worker published the result.",
+            retryable: true
+          }
+        ],
+        data: { command: "review run", status: "failed", review_id: id }
+      });
+      writeJob(cwd, {
+        ...record,
+        state: "failed",
+        result: invalidated,
+        updated_at: new Date().toISOString()
+      });
+      return;
+    }
     if (record.state !== "launching" && record.state !== "running")
       return;
     const completed = {
@@ -36730,9 +36751,9 @@ function hasFailingExecutionAttestation(attestation, sourceFingerprint) {
 function approvedCrossAgentReceipt(record) {
   const data = record.result?.data;
   const attestation = data?.execution_attestation;
-  return record.state === "completed" && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record.source_fingerprint);
+  return record.state === "completed" && (record.pid === undefined || !processExists(record.pid)) && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record.source_fingerprint);
 }
-function executableRedJobsForScenario(cwd, scenario) {
+function executableRedJobsForScenario(cwd, scenario, ledger) {
   const directory = jobsDirectory(cwd);
   if (!existsSync28(directory))
     return [];
@@ -36741,7 +36762,7 @@ function executableRedJobsForScenario(cwd, scenario) {
       return [];
     try {
       const record = readJob(cwd, name.slice(0, -5));
-      return record.kind === "executable-red" && record.execution?.scenario === scenario ? [record] : [];
+      return record.kind === "executable-red" && record.execution?.scenario === scenario && nodePath52.resolve(cwd, record.execution.ledger) === nodePath52.resolve(cwd, ledger) ? [record] : [];
     } catch {
       return [];
     }
@@ -36750,7 +36771,7 @@ function executableRedJobsForScenario(cwd, scenario) {
 function hasCurrentFingerprint(cwd, record) {
   return fingerprint(cwd, record.kind, record.targets, record.context, record.execution) === record.source_fingerprint;
 }
-function approvedExecutableRedGateResult(record, scenario) {
+function approvedExecutableRedGateResult(record, scenario, ledger) {
   return createResult({
     state: "healthy",
     findings: [
@@ -36764,22 +36785,23 @@ function approvedExecutableRedGateResult(record, scenario) {
       command: "review gate executable-red",
       status: "approved",
       review_id: record.id,
-      scenario
+      scenario,
+      ledger
     }
   });
 }
-function executableRedGate(cwd, scenario) {
-  const matching = executableRedJobsForScenario(cwd, scenario);
+function executableRedGate(cwd, scenario, ledger) {
+  const matching = executableRedJobsForScenario(cwd, scenario, ledger);
   const current = matching.filter((record) => hasCurrentFingerprint(cwd, record));
   const approved = current.find((record) => approvedCrossAgentReceipt(record));
   if (approved !== undefined)
-    return approvedExecutableRedGateResult(approved, scenario);
+    return approvedExecutableRedGateResult(approved, scenario, ledger);
   let reason = matching.length > 0 ? `The current executable RED review for ${scenario} is not an approved independent receipt.` : `No trusted executable RED receipt matches ${scenario}.`;
   reason = matching.length > current.length ? `The executable RED approval for ${scenario} is stale because its declared proof inputs changed.` : reason;
   return createResult({
     state: "action_required",
     findings: [{ code: "EXECUTABLE_RED_GATE_BLOCKED", message: reason, severity: "warning" }],
-    data: { command: "review gate executable-red", status: "blocked", scenario }
+    data: { command: "review gate executable-red", status: "blocked", scenario, ledger }
   });
 }
 function isActiveReviewJob(record) {
@@ -50760,8 +50782,11 @@ function containedWorkingDirectory(root, requested) {
     throw new Error("RED proof working directory must stay inside the reviewed project");
   return canonicalCwd;
 }
-function environmentIdentity() {
-  const entries = Object.entries(process.env).toSorted(([left], [right]) => left.localeCompare(right));
+function proofEnvironment() {
+  return Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("SAFEWORD_REVIEW_")));
+}
+function environmentIdentity(environment) {
+  const entries = Object.entries(environment).toSorted(([left], [right]) => left.localeCompare(right));
   const sha2567 = createHash29("sha256").update(JSON.stringify(entries)).digest("hex");
   return {
     sha256: sha2567,
@@ -50815,12 +50840,13 @@ async function executeRedProof(input) {
   const started = Date.now();
   const stdout = new StreamEvidence(input.request.expectedFailure);
   const stderr = new StreamEvidence(input.request.expectedFailure);
+  const environment = proofEnvironment();
   const termination = await new Promise((resolve, reject) => {
     let timedOut = false;
     const child = spawn4(input.request.argv[0], input.request.argv.slice(1), {
       cwd,
       detached: process.platform !== "win32",
-      env: process.env,
+      env: environment,
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true
@@ -50844,6 +50870,8 @@ async function executeRedProof(input) {
     }, input.request.timeoutMs);
     child.once("close", (exitCode, signal) => {
       clearTimers();
+      if (!timedOut)
+        terminateProofTree(child);
       resolve({ exitCode, signal, timedOut });
     });
   });
@@ -50861,7 +50889,7 @@ async function executeRedProof(input) {
     },
     timeout_ms: input.request.timeoutMs,
     source_fingerprint: input.sourceFingerprint,
-    environment: environmentIdentity(),
+    environment: environmentIdentity(environment),
     started_at: new Date(started).toISOString(),
     finished_at: new Date(finished).toISOString(),
     duration_ms: finished - started,
@@ -67958,8 +67986,11 @@ async function executableRedGateHandler(invocation) {
   const scenario = invocation.options.scenario;
   if (typeof scenario !== "string" || scenario.trim() === "")
     return invalidOperand("review gate executable-red", "Executable RED gate requires a non-empty --scenario.");
+  const ledger = invocation.options.ledger;
+  if (typeof ledger !== "string" || ledger.trim() === "")
+    return invalidOperand("review gate executable-red", "Executable RED gate requires a non-empty --ledger.");
   const { executableRedGate: executableRedGate2 } = await Promise.resolve().then(() => (init_job(), exports_job));
-  return executableRedGate2(invocation.cwd, scenario);
+  return executableRedGate2(invocation.cwd, scenario, ledger);
 }
 function reviewRouteAuthor(value) {
   return typeof value === "string" && ["claude", "codex", "opencode"].includes(value) ? value : undefined;
@@ -68129,6 +68160,9 @@ function redExecutionRequest(kind, options) {
   const scenario = options.scenario;
   if (typeof scenario !== "string" || scenario.trim() === "")
     return new Error("Executable-red review requires a non-empty --scenario.");
+  const ledger = options.ledger;
+  if (typeof ledger !== "string" || ledger.trim() === "")
+    return new Error("Executable-red review requires a non-empty --ledger.");
   const rawArgv = options.execute;
   let argv;
   try {
@@ -68152,6 +68186,7 @@ function redExecutionRequest(kind, options) {
     return new Error("--execution-timeout must be an integer from 1 to 600000 milliseconds.");
   return {
     scenario,
+    ledger,
     argv,
     cwd,
     evidenceClass,
@@ -69833,6 +69868,10 @@ var CANONICAL_COMMANDS = [
         description: "Exact scenario identity covered by this RED proof"
       },
       {
+        flags: "--ledger <path>",
+        description: "Project-relative test-definitions ledger containing the scenario"
+      },
+      {
         flags: "--proof-cwd <path>",
         description: "Project-contained working directory for the RED proof",
         defaultValue: "."
@@ -69874,10 +69913,22 @@ var CANONICAL_COMMANDS = [
       {
         flags: "--scenario <name>",
         description: "Exact scenario identity whose current RED receipt is required"
+      },
+      {
+        flags: "--ledger <path>",
+        description: "Project-relative test-definitions ledger claiming GREEN"
       }
     ],
     fixture: {
-      argv: ["review", "gate", "executable-red", "--scenario", "Scenario: fixture"],
+      argv: [
+        "review",
+        "gate",
+        "executable-red",
+        "--scenario",
+        "Scenario: fixture",
+        "--ledger",
+        ".project/tickets/FIXTURE/test-definitions.md"
+      ],
       environment: MACHINE_ENVIRONMENT
     }
   }),
