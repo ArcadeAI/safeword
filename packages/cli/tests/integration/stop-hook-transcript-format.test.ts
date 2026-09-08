@@ -713,6 +713,9 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(parsed.decision).toBe('block');
     expect(parsed.reason).toContain('CONFIDENT has missing, extra, or out-of-order');
     expect(parsed.reason).toContain('Phase: define-behavior');
+    expect(parsed.reason).toContain('the scope edge excludes');
+    expect(parsed.reason).toContain('out_of_scope');
+    expect(parsed.reason).toContain('project and milestone non-goals');
     expect(parsed.reason).toContain('**CONFIDENT**');
     expect(parsed.reason).not.toContain('**BLOCKED**');
   });
