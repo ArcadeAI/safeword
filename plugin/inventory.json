@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "7d5aad30bc8376f2c6fa357e662c8cd724220ceee78b5f675999014cdd269454"
+      "sha256": "7ab0fc00b13d348c7bf3db6a1b5339c517bf45273e8d94d2bd16f5eab782683f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "2b783a9493034f51792663e56483e63be9340da026581f4b0f8296c30f62c190"
+      "sha256": "8fb957ffcb5021399d1affd7609ea2f9227b5cdfca9cb7d0107120597152ff3c"
     },
     {
       "path": "runtime/event-groups.json",
@@ -619,7 +619,7 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "bdafe73ca813e64e56d283663754dfce5f73651c125d6d007f7948ecb256bacf"
+      "sha256": "315da79f1e48ff58646413960a681b486a3fbbdea35e306128a799eeee9efd67"
     },
     {
       "path": "skills/bdd/SKILL.md",
