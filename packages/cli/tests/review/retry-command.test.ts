@@ -61,7 +61,7 @@ describe('the recovery command Safeword suggests', () => {
     });
 
     expect(command).toContain("--scenario 'Scenario: actor boundary'");
-    expect(command).toContain("--ledger '.project/tickets/TST/test-definitions.md'");
+    expect(command).toContain('--ledger .project/tickets/TST/test-definitions.md');
     expect(command).toContain("--expected-failure 'actor assertion'");
     expect(command).toContain(`--execute '["bun","run","test","proof.test.ts"]'`);
     expect(command).not.toContain('-- scenario.feature');

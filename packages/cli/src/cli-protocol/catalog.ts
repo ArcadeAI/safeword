@@ -923,6 +923,7 @@ export const commandFamilies = [
   { route: 'claude', description: 'Manage the Safeword Claude plugin', visibility: 'public' },
   { route: 'ticket', description: 'Manage project tickets', visibility: 'public' },
   { route: 'review', description: 'Run independent adversarial reviews', visibility: 'public' },
+  { route: 'review gate', description: 'Check review admission gates', visibility: 'public' },
   { route: 'review routes', description: 'Manage ranked review routes', visibility: 'public' },
   {
     route: 'review-pr',

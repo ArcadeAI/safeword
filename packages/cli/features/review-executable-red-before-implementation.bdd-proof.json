@@ -33,9 +33,9 @@
       "packages/cli/tests/review/job.test.ts",
       "invalidates executable RED approval when the %s changes"
     ],
-    "Independent review routes are exhausted during advisory rollout": [
-      "packages/cli/tests/review/retry-command.test.ts",
-      "preserves executable RED inputs in a stale-proof retry"
+    "A passing proof cannot earn RED approval": [
+      "packages/cli/tests/review/job.test.ts",
+      "blocks GREEN when an approved review carries passing execution evidence"
     ],
     "Scenario Outline rows share one proof implementation": [
       "packages/cli/tests/review/job.test.ts",
@@ -57,9 +57,39 @@
       "packages/cli/tests/review/job.test.ts",
       "resolves %s as %s"
     ],
-    "The advisory describes the current evidence honestly": [
-      "packages/cli/tests/review/red-rubric-generation.test.ts",
-      "describes %s as %s"
+    "Unavailable independent review blocks GREEN approval": [
+      "packages/cli/tests/review/job.test.ts",
+      "blocks GREEN when no fresh approved executable RED receipt matches the scenario"
+    ],
+    "Invalid executable-RED evidence blocks the shared GREEN transition": [
+      [
+        "packages/cli/tests/integration/write-time-annotation-gate.test.ts",
+        "blocks an annotated GREEN transition when the receipt gate does not approve it"
+      ],
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "invalidates a completed record that appears before its worker publishes"
+      ],
+      [
+        "packages/cli/tests/integration/write-time-annotation-gate.test.ts",
+        "binds a local Edit to its exact scenario when several GREEN rows remain open"
+      ],
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "rejects a running job record without its worker pid"
+      ],
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "permits GREEN only while the approved cross-agent receipt still matches current inputs"
+      ],
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "blocks GREEN when an approved executable RED review is not independent"
+      ]
+    ],
+    "Fresh exact executable-RED evidence permits the shared GREEN transition": [
+      "packages/cli/tests/integration/write-time-annotation-gate.test.ts",
+      "allows an annotated GREEN transition when the exact receipt gate approves it"
     ]
   }
 }
