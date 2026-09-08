@@ -1,16 +1,15 @@
-# Dimensions: Stop hollow acceptance proofs before implementation
+# Behavior Dimensions: Trusted executable RED review
 
-| Dimension           | Partitions and boundaries                                                                            |
-| ------------------- | ---------------------------------------------------------------------------------------------------- |
-| Proof lifecycle     | new, materially changed, unchanged reuse, implementation-only change, already-implemented capture    |
-| Execution identity  | exact selected test, unrelated selected test, no selected test                                       |
-| RED outcome         | intended assertion failure, unexpected pass, collection/setup failure, interrupted process           |
-| Contract boundary   | claimed actor entrypoint and observable, narrower internal substitute, wrong observable              |
-| Evidence provenance | trusted execution, author-supplied output, missing execution, forged execution or review receipt     |
-| Receipt freshness   | unchanged proof inputs, changed scenario, proof plan, test, glue, World, shared state, helper, command, or evidence class |
-| Review provenance   | independent approval, self-review, cached suite status, unavailable reviewer route                   |
-| Proof reuse         | one implementation shared by outline rows, one umbrella verdict shared by distinct implementations   |
-| Host surface        | block and permit through Claude Code local/cloud, Codex local/cloud, OpenCode, Cursor local/cloud, direct Safeword CLI |
-| Recovery experience | missing, stale, wrong-reason, or unavailable evidence with one concrete next action                  |
+| Dimension | In-scope partitions and boundaries | Excluded partitions |
+| --- | --- | --- |
+| Execution authenticity | Safeword-produced run; fabricated or author-only output; interrupted/timed-out run | Remote execution service and signed supply-chain provenance |
+| Failure attribution | Intended missing-behavior assertion; syntax/import/fixture/configuration/infrastructure failure; unrelated test failure | General scenario-completeness discovery |
+| Freshness | Exact sealed inputs unchanged; scenario, proof plan, command, evidence class, proof target, or declared support file changed | Undeclared whole-repository dependency inference |
+| Proof identity and reuse | One distinct proof; one Scenario Outline/shared proof implementation; materially different proof implementations | One review per Gherkin row or reused helper |
+| Evidence bounds | Canonical argv/cwd/environment identity; exit or signal; bounded stdout/stderr with full-stream digests; source fingerprint | Unbounded logs or secret-bearing environment capture |
+| Review availability | Approved; changes requested; routes exhausted with an actionable blocking recovery | Degraded or self-review evidence authorizing GREEN |
+| GREEN admission | Fresh exact receipt; missing, fabricated, mismatched, incomplete, stale, or non-independent evidence | A second receipt store or host-specific gate implementation |
+| Host parity | One blocking CLI contract invoked from Claude Code, Codex, OpenCode, and Cursor runtimes | Host-specific duplicate implementations |
 
-Every partition above is now bound to a feature scenario or Scenario Outline row. Exhaustive malformed receipt fields and runner-specific failure encodings belong in table-driven lower-level tests; the feature scenarios retain representative user-visible boundaries.
+Every material partition maps to an acceptance scenario. Exhaustive malformed-attestation fields,
+byte limits, path containment, and subprocess edge cases belong in table-driven lower-level tests.

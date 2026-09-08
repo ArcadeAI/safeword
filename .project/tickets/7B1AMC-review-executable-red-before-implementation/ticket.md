@@ -2,18 +2,25 @@
 id: 7B1AMC
 slug: review-executable-red-before-implementation
 type: feature
-phase: scenario-gate
-status: in_progress
-phase_anchors: ['define-behavior: .project/tickets/7B1AMC-review-executable-red-before-implementation/spec.md', 'scenario-gate: packages/cli/features/review-executable-red-before-implementation.feature']
+subtype: bug-investigated
+phase: done
+status: done
+phase_anchors:
+  - 'define-behavior: .project/tickets/7B1AMC-review-executable-red-before-implementation/spec.md'
+  - 'scenario-gate: packages/cli/features/review-executable-red-before-implementation.feature'
+  - 'plan-implementation: .project/tickets/7B1AMC-review-executable-red-before-implementation/impl-plan.md'
+  - 'implement: .project/tickets/7B1AMC-review-executable-red-before-implementation/impl-plan.md'
+  - 'verify: .project/tickets/7B1AMC-review-executable-red-before-implementation/test-definitions.md'
+  - 'done: .project/tickets/7B1AMC-review-executable-red-before-implementation/verify.md'
 scope: 'Trusted execution plus independent review of each distinct new or changed primary executable RED proof, with a hard freshness gate before GREEN credit'
-out_of_scope: 'Reviewing every reused step, requiring one test per Gherkin row, mandating a framework, replacing TDD review and final verification, adding a new recovery-command API, or duplicating existing host install/reconciliation/tamper contracts'
-done_when: 'A trusted execution attestation and fresh independent review prove the intended missing behavior fails for the right reason at the actor boundary, and every supported agent host blocks GREEN credit when that evidence is missing, stale, fabricated, or for the wrong proof'
+out_of_scope: 'Reviewing every reused step, requiring one test per Gherkin row, mandating a framework, universal mutation testing, replacing scenario coverage, TDD review, or final verification, or duplicating existing host installation and reconciliation contracts'
+done_when: 'A trusted execution attestation and fresh independent review prove the intended missing behavior fails for the right reason at the actor boundary, and every supported agent host blocks GREEN credit when that evidence is missing, stale, fabricated, incomplete, or bound to another proof'
 parent: AK0QJR
 depends_on: [BX1T7H]
 relates_to: [NMSD94, QZAFT2, 1698, BFCWDB, ZA0JQR, Y9P3ZC]
 external_issue: https://github.com/ArcadeAI/safeword/issues/2336
 created: 2026-08-10T07:58:17.735Z
-last_modified: 2026-08-10T08:00:27Z
+last_modified: 2026-09-08T01:31:09Z
 ---
 
 # Stop hollow acceptance proofs before implementation
@@ -26,20 +33,43 @@ last_modified: 2026-08-10T08:00:27Z
 
 - 2026-08-10T07:58:17.735Z Started: Created ticket 7B1AMC
 - 2026-08-10T08:00:27Z Planned: Scoped a lightweight independent RED receipt with explicit freshness and reuse rules.
-- 2026-09-06T20:45:24Z Decided: User explicitly chose blocking enforcement; trusted execution and independent semantic review must gate GREEN credit across supported hosts.
-- 2026-09-06T20:54:00Z Drafted: Derived 10 behavioral dimensions and 14 scenarios across seven Rules, including happy, rejection, freshness, tampering, recovery, reuse, and host-parity boundaries.
-- 2026-09-07T04:32:36Z Confirmed: User accepted the 14-scenario blocking contract and directed publication of the issue and work-so-far pull request.
-- 2026-09-07T05:00:00Z Scenario review: Independent Claude review requested changes for an uncovered unexpected-pass result, unproved review independence, and non-discriminating blocker messages; it also identified identity, interruption, host-admission, shared-state, fallback, and plain-language gaps.
-- 2026-09-07T05:06:00Z Revised: Expanded the blocking contract to 19 scenarios, made both host directions symmetric, split every material freshness input, and fixed independent-review unavailability as fail-closed for GREEN credit.
-- 2026-09-07T05:23:00Z Scenario re-review: Independent Claude review found the before-implementation ordering was still asserted but not falsifiable, plus host-wiring, deterministic-language, surface-tag, Rule-ownership, and forged-receipt gaps.
-- 2026-09-07T05:28:00Z Revised: Expanded to 21 scenarios with an exact captured-state temporal rejection and forged-receipt rejection; bound both host outcomes to named entrypoints and evidence classes; made plain-language and Rule ownership assertions deterministic.
-- 2026-09-07T05:38:00Z Scenario re-review: Independent Claude review found contradictory plain-language command placeholders, missing provenance Rule ownership, incomplete packet enumeration, and residual interruption, identity, observable, shared-state, progressive-disclosure, and installation-wiring partitions.
-- 2026-09-07T05:39:00Z Revised: Expanded to 26 scenarios across nine Rules; gave provenance its own Rule, enumerated every packet input, standardized evidence classes, bound installation plus enforcement per host, and made plain-language recovery commands literal and technically inspectable.
-- 2026-09-07T05:44:00Z Scenario re-review: Independent Claude review found ambiguous packet alternatives, one non-runnable recovery string, unproved public recovery commands, and install/reconcile, evidence-class, degraded-review, persona, distinct-proof, and missing-gate gaps.
-- 2026-09-07T05:45:00Z Revised: Expanded to 32 scenarios across ten Rules; made all recovery commands runnable and behaviorally covered, split install from reconciliation and fail-open detection, made evidence class observable, and bound packet contents by scenario/Rule scope without alternatives.
-- 2026-09-07T05:50:00Z Scenario re-review: Independent Claude review found declared evidence could echo without matching execution, reviewer recovery joined opposite outcomes, and absent/unrecognized gate defects were not independently forced; it also requested an incomplete-packet rejection and exact Rule lineage.
-- 2026-09-07T05:52:00Z Revised: Expanded to 35 scenarios across ten Rules; split recovery success/failure, forced absent and unrecognized host defects separately, rejected declared/observed environment mismatch and incomplete packets, and aligned numbered Rule text with the spec.
-- 2026-09-07T05:56:00Z Scope correction: User explicitly rejected bloat, over-hardening, and scope creep. Removed the speculative recovery-command API and duplicate host install/reconcile/tamper scenarios; retained the core trusted RED, independent right-reason review, freshness, provenance, packet, plain-language, reuse, and shared host-boundary contract.
-- 2026-09-07T06:02:00Z Scenario review after scope correction: Independent Claude review found the eight host rows could still be satisfied by labels without real wiring. Chose the reviewer's surgical option: prove the shared block/permit boundary once, tag all surfaces, and explicitly delegate per-host invocation to existing parity/schema contracts.
-- 2026-09-07T06:04:00Z Revised: 26 scenarios across eight Rules; added only the authentic-provenance positive, made incomplete packet classes discriminating, clarified structured TBU verdicts versus NTB copy, and aligned Rule lineage. Rejected re-expanding install/reconcile/recovery-command scope.
-- 2026-09-07T06:09:00Z Final review: Independent Claude review found one remaining false-green path: the NTB message could say “run the displayed command” without displaying one. Bound command presentation directly in the existing outline, made packet-member names discriminating, corrected the reuse trigger, and added one authentic cross-proof replay rejection.
+- 2026-09-06T15:30:00Z Resumed: Adopted the issue's design correction: authenticate exact RED execution with a trusted attestation, then review failure attribution independently; keep rollout advisory pending FY1NHB evidence.
+- 2026-09-06T15:30:00Z Intake complete: Existing product intent remains accepted; added the Safeword CLI execution boundary and advanced to behavior definition.
+- 2026-09-06T15:45:00Z Defined behavior: Derived seven dimensions and authored fourteen representative scenarios covering eight Rules, all supported agent surfaces, intended and wrong-reason RED, freshness, reuse, bounded evidence, and advisory failure handling.
+- 2026-09-06T17:24:57Z Verified: Full Vitest and Cucumber suites, lint, typecheck, package builds, generated contracts, documentation diagnostics, and diff-scoped audit passed. Added one rejection scenario surfaced by source-install validation. Independent external review remains unavailable under the host approval policy, so the ticket remains in verify pending user confirmation.
+- 2026-09-06T16:00:00Z Scenario review requested changes: Added distinct-proof execution, tampered-attestation rejection, and unrelated actor-boundary failure coverage. Corrected the packet summary's Rule count from nine to eight; the spec itself was consistent.
+- 2026-09-06T16:15:00Z Scenario gate complete: Configured reviewer routes were exhausted; under `prefer`, a clean bounded supplemental review found no remaining issues in fourteen scenarios. No independent stamp is claimed.
+- 2026-09-06T16:30:00Z Planned implementation: Four slices reuse the durable review coordinator, add one trusted execution attestation, bind freshness and reuse to canonical proof inputs, and roll out through host-parity workflow guidance without a hard gate.
+- 2026-09-06T16:45:00Z Plan review complete: Configured reviewer routes were exhausted; under `prefer`, a fresh-context supplemental review approved the parse-valid plan with no findings. Independence is degraded and no independent stamp is claimed.
+- 2026-09-06T16:55:00Z Implemented: Added the structured executable-RED CLI contract, trusted bounded process attestation, HMAC-sealed job binding and freshness, exact receipt reuse and retry reconstruction, fixed wrong-reason rubric, and generated Claude/Codex workflow parity.
+- 2026-09-06T17:00:00Z Focused verification: 145 tests passed with 2 skipped across the executor, job, packet, runtime, rubric, retry, and public CLI suites; typecheck, targeted lint, and generated Claude/Codex freshness checks passed.
+- 2026-09-06T17:10:00Z Quality review correction: Current Node documentation confirmed that terminating a parent does not necessarily terminate descendants. Added a failing regression and contained timed-out proof trees with POSIX process groups and Windows `taskkill /t`.
+- 2026-09-07T05:07:09Z Completed: User confirmed the delivery after rebase onto current `origin/main`. Regenerated host artifacts and origin-main fixtures, then passed 9,211 Vitest tests, 592 Cucumber scenarios, lint, typecheck, package builds, and deterministic generated-artifact checks. PR readiness remains Draft because configured independent AI review is unavailable under the host approval policy.
+- 2026-09-07T15:04:49Z CI repair: Confirmed the 25-millisecond timeout test coupled process termination to child startup and stderr scheduling. Removed only the unrelated expected-output assertion; the test still proves the configured timeout and `SIGKILL`, while the adjacent real-process test independently proves output capture and matching.
+- 2026-09-07T23:04:35Z Scope correction: The issue's final decision requires a blocking pre-GREEN gate rather than advisory reporting. Returned the PR to Draft and reopened the ticket at scenario-gate; retained the existing trusted executor and receipt lifecycle, and limited the delta to exact-request admission plus OpenCode parity.
+- 2026-09-07T23:04:35Z Scenario gate complete: 17 scenario definitions retain the existing trusted-execution contract and add only the accepted passing-proof rejection, fail-closed GREEN admission, plain recovery, and OpenCode parity boundaries. Configured independent routes were exhausted; a bounded exact-file fallback found and resolved two false-pass gaps, and Gherkin lint passes.
+- 2026-09-07T23:15:21Z Plan correction complete: A fresh-context fallback review found that skill-only repetition could be skipped. Replaced it with one public receipt-check command enforced by the existing cross-host edit hook at the actual GREEN ledger transition. Kept undeclared dependency-closure inference out of scope and advanced the parse-valid plan to implementation.
+- 2026-09-07T23:45:00Z Quality review correction: A fresh-context fallback found that proof commands inherited internal review credentials and that scenario-only admission could cross ticket boundaries. Removed all `SAFEWORD_REVIEW_*` variables from proof environments, invalidated preemptive job completion, bound receipts to the exact ledger, and documented the deliberate same-user process trust boundary instead of expanding this issue into OS sandboxing.
+- 2026-09-07T23:50:00Z Implementation complete: The blocking gate now covers Claude Code, Codex, OpenCode, and Cursor edit adapters; focused regression evidence passes 11 tests across executor isolation, receipt integrity, exact ledger admission, CLI wiring, and real hook denial/allowance. Advanced to verification.
+- 2026-09-08T01:31:09Z Verified: All 52 ledger cells are complete; 9,564 JavaScript tests and 1,490 Cucumber scenarios pass, lint/typecheck/package builds/generated contracts are clean, dependency audits report no vulnerabilities, and the diff-scoped audit has zero change-scoped errors. Closed the ticket with explicit limits for unavailable independent reviewer routes, generated-only cloud evidence, the unexercised Windows termination branch, the local website native binding, and the deliberate same-user process trust boundary.
+
+## Root Cause
+
+The timeout integration test required a spawned Node process to emit its expected-failure text within
+25 milliseconds even though the behavior under test was forced termination at the configured
+deadline. Process startup and scheduling can consume that entire interval under CI load, so the
+executor can correctly report `timed_out: true` and `SIGKILL` before the child emits any output.
+
+Confirmed by both Node CI lanes and an 80-run local reproduction that missed the expected text once
+while still timing out correctly. Ruled out a termination defect because both CI failures recorded
+the configured timeout and `SIGKILL`; ruled out stream-drain loss because Node's `close` event occurs
+after child stdio closes and the separate real-failure test consistently captures and matches stderr.
+
+The final acceptance run also exposed generated-artifact drift: the live legacy classifier used the
+new pre-tool hook fingerprint while the bundled Claude runtime still embedded the prior historical
+catalogue, so it executed the plugin effect instead of deferring to viable legacy authority. This
+happened because the hook and workflow generators ran before the historical catalogue was refreshed.
+Regenerating the catalogue and both runtimes made the exact failed coexistence scenario pass and the
+release checks agree. Ruled out nondeterministic hook behavior because the isolated scenario failed
+repeatedly before regeneration and passed immediately after it; ruled out a new authority-policy
+defect because no runtime source changed, only derived fingerprints and bundles.

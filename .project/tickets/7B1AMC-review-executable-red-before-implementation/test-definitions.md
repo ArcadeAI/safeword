@@ -1,187 +1,127 @@
-# Test Definitions: Stop hollow acceptance proofs before implementation
+# Test Definitions: Trust executable RED before production implementation
 
 Feature source: `packages/cli/features/review-executable-red-before-implementation.feature`
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: executable-red.TBU1.R1 — Every distinct new or changed primary proof is independently executed before production implementation
+## Rule: executable-red.TBU1.R1 — Safeword executes every distinct primary proof against sealed inputs
 
-### Scenario: A new primary proof is run from its captured pre-implementation state
+### Scenario: A real missing-behavior failure produces trusted execution evidence
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 77d6d6f00
+- [x] GREEN 96a3b5423
+- [x] REFACTOR ebf22d1c7
 
-### Scenario: Execution from a state containing the production implementation cannot earn RED approval
+### Scenario: Distinct primary proofs are executed separately
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f589a0a23
+- [x] GREEN 90eb98cea
+- [x] REFACTOR skip: canonical proof identity already separates materially different argv and targets
 
-### Scenario: A new proof with no trusted execution cannot earn RED approval
+### Scenario: Author-supplied output cannot stand in for execution
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b8989c17a
+- [x] GREEN b2ebd6d58
+- [x] REFACTOR skip: the packet boundary accepts only the worker-produced attestation
 
-### Scenario: Execution of an unrelated test cannot earn RED approval
+### Scenario: Modified execution evidence cannot stand in for the trusted attestation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b8989c17a
+- [x] GREEN b2ebd6d58
+- [x] REFACTOR skip: existing job-record HMAC validation is the shared tamper boundary
 
-### Scenario: Execution with no selected primary test cannot earn RED approval
+### Scenario: An interrupted proof is recorded but cannot earn approval
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 91e6aaee8
+- [x] GREEN f5f857299
+- [x] REFACTOR skip: platform-native process-tree termination is the smallest complete timeout boundary
 
-### Scenario Outline: A non-independent verdict cannot earn a RED receipt
+## Rule: executable-red.TBU1.R2 — RED is accepted only for the intended missing behavior at the actor boundary
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: The intended actor-boundary assertion failure is accepted
 
-### Scenario: An unavailable independent reviewer blocks RED approval
+- [x] RED skip: covered by the missing executable-RED rubric and packet contract
+- [x] GREEN 3db404e51
+- [x] REFACTOR skip: one generated fixed rubric owns failure-attribution policy
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: A passing proof cannot earn RED approval
 
-## Rule: executable-red.TBU1.R2 — RED is accepted only when the intended missing behavior fails through the stated actor boundary
+- [x] RED 3f4ba7822
+- [x] GREEN ee8d344f0
+- [x] REFACTOR skip: passing, timed-out, and unmatched evidence share one qualifying-attestation predicate
 
-### Scenario: An assertion failure caused by the missing actor-visible behavior is accepted
+### Scenario Outline: A wrong-reason failure is rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: covered by the missing executable-RED rubric and packet contract
+- [x] GREEN 3db404e51
+- [x] REFACTOR skip: rejection reasons remain a declarative rubric list rather than branching runtime code
 
-### Scenario: A passing pre-implementation proof is not accepted as RED
+## Rule: executable-red.TBU1.R3 — Material proof-input changes invalidate prior review
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario Outline: A material proof input changes after approval
 
-### Scenario: A setup failure is not accepted as behavioral RED
+- [x] RED 77d6d6f00
+- [x] GREEN 96a3b5423
+- [x] REFACTOR ebf22d1c7
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+## Rule: executable-red.NTB1.R1 — Failed review explains the gap and the next action plainly
 
-### Scenario Outline: An interrupted proof run is not accepted as behavioral RED
+### Scenario: Unavailable independent review blocks GREEN approval
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 3f4ba7822
+- [x] GREEN ee8d344f0
+- [x] REFACTOR skip: one public gate result owns the denial and recovery boundary
 
-### Scenario: A narrower internal test is not accepted for an actor-boundary claim
+## Rule: executable-red.NTB1.R2 — Genuine shared proofs avoid repeated review ceremony
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: Scenario Outline rows share one proof implementation
 
-### Scenario: A proof of the wrong observable is not accepted for a scenario
+- [x] RED skip: receipt reuse was absent until canonical proof identity was added
+- [x] GREEN 3db404e51
+- [x] REFACTOR skip: reuse is one HMAC-valid approved-job lookup keyed by the canonical fingerprint
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: Similar scenarios use materially different proof implementations
 
-### Scenario: A result caused by leaked shared state is not accepted as behavioral RED
+- [x] RED f589a0a23
+- [x] GREEN 90eb98cea
+- [x] REFACTOR skip: distinct proof implementations naturally produce distinct canonical fingerprints
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+## Rule: executable-red.SWM1.R1 — Every agent sends one complete host-neutral RED review packet
 
-## Rule: executable-red.TBU1.R3 — Material changes to the scenario, proof plan, test, glue, World, shared state, helpers, command, or evidence class invalidate the prior receipt
+### Scenario: Supported agents use the same trusted execution contract
 
-### Scenario Outline: A material proof input change makes the receipt stale
+- [x] RED f589a0a23
+- [x] GREEN 90eb98cea
+- [x] REFACTOR 3db404e51
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: A supported agent omits a declared proof input
 
-### Scenario: An implementation-only change preserves the RED receipt
+- [x] RED skip: regression proof added during verification after source-install scenario validation exposed the missing rejection example
+- [x] GREEN b2ebd6d58
+- [x] REFACTOR skip: the existing fingerprint contract already binds declared context content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+## Rule: executable-red.SWM1.R2 — Receipt reuse follows distinct proof identity
 
-## Rule: executable-red.NTB1.R1 — A failed review explains the missing evidence and concrete next action in plain language
+### Scenario Outline: Proof identity determines receipt reuse
 
-### Scenario Outline: A blocked proof distinguishes the cause and next action
+- [x] RED 77d6d6f00
+- [x] GREEN 96a3b5423
+- [x] REFACTOR ebf22d1c7
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+## Rule: executable-red.SWM1.R3 — Every supported host requires the same fresh receipt before GREEN
 
-## Rule: executable-red.NTB1.R2 — Legitimate reuse does not create repetitive review ceremony
+### Scenario Outline: Invalid executable-RED evidence blocks the shared GREEN transition
 
-### Scenario: Scenario Outline rows sharing one proof implementation use one review
+- [x] RED 3f4ba7822
+- [x] GREEN ee8d344f0
+- [x] REFACTOR skip: current fingerprint and sealed result validation already share one candidate path
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: Fresh exact executable-RED evidence permits the shared GREEN transition
 
-### Scenario: Distinct scenario proofs cannot share an umbrella receipt
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: executable-red.SWM1.R1 — One review packet contains the scoped scenario or Rule body, proof-plan row, primary proof, glue, World definition, shared-state sources, helpers, exact command, full output, captured state, and evidence class
-
-### Scenario Outline: The reviewer receives the complete proof contract and trusted execution together
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario Outline: An incomplete review packet is not dispatched
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: executable-red.SWM1.R2 — Trusted execution records and independent-review receipts carry authentic coordinator provenance
-
-### Scenario: Authentic coordinator provenance is accepted
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A fabricated execution record cannot become an approved receipt
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A forged independent-review receipt cannot authorize GREEN
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An authentic receipt cannot be replayed onto another proof
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: executable-red.SWM1.R3 — Every supported agent host requires the same fresh, independently witnessed execution receipt before GREEN credit
-
-### Scenario: The shared transition boundary blocks GREEN without a fresh RED receipt
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: The shared transition boundary permits GREEN with a fresh receipt
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 3f4ba7822
+- [x] GREEN ee8d344f0
+- [x] REFACTOR skip: the approved path is one small result constructor with no duplication
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario f9d96c38b
