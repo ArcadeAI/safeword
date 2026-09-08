@@ -38,7 +38,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R5 — Contract identity binds exact canonical bytes
 
-### Scenario: Same-version contract editing fails the digest gate
+### Scenario: Installed contract identity controls authoring and approval
 
 - [ ] RED
 - [ ] GREEN
@@ -52,9 +52,33 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Cloud phase gates enforce the real review result
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU4.5F5ZZA.R7 — Research and review context remain untrusted evidence
 
-### Scenario: Untrusted evidence cannot cross its authority boundary
+### Scenario: Retrieved instructions cannot change accepted scope
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Retrieved executable code remains untrusted evidence
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Private-context requests do not prevent public evidence use
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Reusable evidence records license and security limits
 
 - [ ] RED
 - [ ] GREEN

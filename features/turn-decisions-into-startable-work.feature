@@ -14,29 +14,48 @@ Feature: Turn accepted decisions into startable work
         | review_state | transition_result |
         | missing a semantic review receipt | the transition is blocked until the current plan has a valid review receipt |
         | changed after its recorded semantic review | the transition is blocked until the changed plan is reviewed again |
-        | current with a valid semantic review receipt but no achieved independence recorded | the transition is blocked until the achieved review provenance is recorded |
-        | current with a valid semantic review receipt and achieved independence recorded | the workflow enters Execution Planning |
+        | current with a valid semantic review receipt but no achieved review provenance recorded | the transition is blocked until the achieved review provenance is recorded |
+        | current with a valid approving semantic review receipt and achieved review provenance recorded | the workflow enters Execution Planning |
+        | current with a semantic review receipt recording rejection | the transition is blocked and the receipt's rejection is reported |
 
     @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
-    Scenario Outline: Each agent host blocks an unreviewed approach at its real entry point
-      Given an Implementation Plan missing a semantic review receipt
+    Scenario Outline: Each agent host applies review state at its real entry point
+      Given an Implementation Plan is <review_state>
       When <host> attempts Execution Planning through <host_entry>
-      Then the host keeps the ticket in Implementation Planning and reports the missing review
+      Then <transition_result>
 
       Examples:
-        | host | host_entry |
-        | Claude Code | installed lifecycle-hook dispatch |
-        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM |
-        | OpenAI Codex | installed project workflow dispatch |
-        | OpenCode CLI/TUI | installed plugin-event dispatch |
-        | Cursor | installed project-hook dispatch |
-        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner |
+        | host | host_entry | review_state | transition_result |
+        | Claude Code | installed lifecycle-hook dispatch | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
+        | Claude Code | installed lifecycle-hook dispatch | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
+        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
+        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
+        | OpenAI Codex | installed project workflow dispatch | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
+        | OpenAI Codex | installed project workflow dispatch | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
+        | OpenCode CLI/TUI | installed plugin-event dispatch | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
+        | OpenCode CLI/TUI | installed plugin-event dispatch | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
+        | Cursor | installed project-hook dispatch | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
+        | Cursor | installed project-hook dispatch | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
+        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
+        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
 
     @surface.safeword-cli
     Scenario: Exhausted review routes preserve their actual provenance
       Given a current Implementation Plan has a valid receipt from the permitted exhausted-route fallback
       When the installed Safeword CLI begins Execution Planning
       Then the workflow enters Execution Planning and records the actual fallback route rather than independent provenance
+
+    @surface.safeword-cli
+    Scenario: An unearned fallback receipt cannot authorize planning
+      Given a current Implementation Plan has a fallback receipt but no record that stronger review routes were attempted and unavailable
+      When the installed Safeword CLI attempts to begin Execution Planning
+      Then the transition is blocked and the strongest unexhausted route is named
+
+    @surface.safeword-cli
+    Scenario: A self-authored independence claim cannot authorize planning
+      Given the authoring agent added a receipt claiming independent review without a matching reviewer route result
+      When the installed Safeword CLI attempts to begin Execution Planning
+      Then the transition is blocked and the unsupported provenance claim is named
 
   @plan-implementability.TBU2.7CAMAD.R2
   Rule: plan-implementability.TBU2.7CAMAD.R2 — Every execution step is startable without inventing a contract
@@ -63,6 +82,12 @@ Feature: Turn accepted decisions into startable work
         | Cursor Cloud Agents project hooks in a fresh runner |
 
     @surface.safeword-cli
+    Scenario: A later unstartable step blocks an otherwise startable plan
+      Given an Execution Plan whose first step is startable and whose fourth step leaves the accepted authorization failure behavior undecided
+      When implementability is reviewed through the installed Safeword CLI
+      Then approval is blocked and the fourth step is named as requiring a behavior decision
+
+    @surface.safeword-cli
     Scenario Outline: Ordering state controls first-step startability
       Given an Execution Plan has <ordering_state>
       When the Execution Plan is reviewed for implementability through the installed Safeword CLI
@@ -71,6 +96,7 @@ Feature: Turn accepted decisions into startable work
       Examples:
         | ordering_state | ordering_result |
         | a first step whose prerequisite is incomplete | approval is blocked with the prerequisite named |
+        | no executable steps | approval is blocked because a fresh agent has nothing startable |
         | independent steps ordered so the highest-risk probe runs first | ordering does not block approval |
         | independent steps explicitly marked safe for parallel work after the risk-first probe | ordering does not block approval |
 
@@ -120,15 +146,26 @@ Feature: Turn accepted decisions into startable work
         | a current reviewed project-local Execution Plan with achieved review provenance exists | coding is authorized by that project-local plan |
         | a stale unreviewed project-local Execution Plan and host-local scratch notes recording semantic approval exist | coding is blocked because only the project-local plan supplies authorization |
 
-    Scenario Outline: A missing project-local plan is explained for the requesting persona
-      Given the only execution notes are host-local scratch notes for <persona>
-      When coding authorization is evaluated
-      Then <message_result>
+    @surface.safeword-cli
+    Scenario: A missing project-local plan receipt supports both builder personas
+      Given the only execution notes are host-local scratch notes
+      When coding authorization is evaluated through the installed Safeword CLI
+      Then one receipt names creating and reviewing the project-local Execution Plan as the next action and progressively discloses the failing check, expected plan location, and review command
+
+    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: Agent hosts cannot authorize coding from host-local notes
+      Given only host-local scratch notes record semantic approval and no project-local Execution Plan exists
+      When production code is edited through <host_entry>
+      Then the host blocks the edit and names the missing project-local Execution Plan
 
       Examples:
-        | persona | message_result |
-        | a Non-Technical Builder | a plain-language reason tells them to create and review the project-local Execution Plan |
-        | a Technical Builder | the receipt preserves the failing check, expected plan location, and review command |
+        | host_entry |
+        | Claude Code lifecycle-hook dispatch |
+        | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
+        | OpenAI Codex project workflow dispatch |
+        | OpenCode CLI/TUI plugin-event dispatch |
+        | Cursor project-hook dispatch |
+        | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
   @plan-implementability.TBU2.7CAMAD.R6
   Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
@@ -186,9 +223,26 @@ Feature: Turn accepted decisions into startable work
         | plan_state | coding_result |
         | edited after semantic approval | coding is blocked until the current plan passes semantic review |
         | current but the semantic reviewer returned no verdict | coding is blocked and the receipt records that no semantic verdict was obtained |
+        | current but the semantic reviewer returned a rejection verdict | coding is blocked and the receipt records the rejection |
         | current with a valid permitted-fallback verdict and its actual route recorded | coding is authorized without relabeling the fallback as independent |
+        | current with a fallback verdict but no record that stronger review routes were attempted and unavailable | coding is blocked and the strongest unexhausted route is named |
         | unedited after valid semantic approval with achieved independence recorded | coding is authorized |
         | approved before its source Implementation Plan changed | coding is blocked until the Execution Plan is reconciled to and reviewed against the current approach |
+
+    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: Agent hosts block edits authorized by a stale Execution Plan
+      Given the project-local Execution Plan was edited after semantic approval
+      When production code is edited through <host_entry>
+      Then the host blocks the edit until the current project-local plan is reviewed
+
+      Examples:
+        | host_entry |
+        | Claude Code lifecycle-hook dispatch |
+        | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
+        | OpenAI Codex project workflow dispatch |
+        | OpenCode CLI/TUI plugin-event dispatch |
+        | Cursor project-hook dispatch |
+        | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
   @plan-implementability.TBU2.7CAMAD.R10
   Rule: plan-implementability.TBU2.7CAMAD.R10 — Every accepted obligation maps to startable work
@@ -211,19 +265,45 @@ Feature: Turn accepted decisions into startable work
         | a documentation requirement |
 
     @surface.safeword-cli
+    Scenario Outline: Partial obligation mapping is not startable
+      Given a migration obligation is mapped to work with <mapping_gap>
+      When implementability is reviewed through the installed Safeword CLI
+      Then approval is blocked with <missing_element> named
+
+      Examples:
+        | mapping_gap | missing_element |
+        | no completion signal | the completion signal |
+        | no dependency order | the dependency order |
+
+    @surface.safeword-cli
     Scenario: Complete obligation mapping permits semantic approval
       Given every accepted scenario, decision, proof strategy, affected surface, migration, rollout, rollback, and documentation obligation has dependency-ordered work and a completion signal
       When implementability is reviewed through the installed Safeword CLI
       Then obligation mapping does not block approval
 
+    @surface.safeword-cli
+    Scenario: An explicitly obligation-free accepted approach does not manufacture execution work
+      Given the accepted approach explicitly records that it has no execution obligations
+      When implementability is reviewed through the installed Safeword CLI
+      Then obligation mapping reports nothing to map without creating placeholder steps
+
   @plan-implementability.TBU2.7CAMAD.R11
   Rule: plan-implementability.TBU2.7CAMAD.R11 — Execution Planning supplies rather than replaces TDD
 
-    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
-    Scenario: An execution step still proceeds through RED GREEN and REFACTOR
+    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: An execution step still proceeds through RED GREEN and REFACTOR
       Given an approved Execution Plan names the exact test and build order
-      When implementation completes that step through the installed Safeword workflow
+      When implementation completes that step through <host_entry>
       Then the ledger records RED from the named test before production code, GREEN with that test passing and no production edit outside the step's named scope, and REFACTOR under the same passing proof
+
+      Examples:
+        | host_entry |
+        | Claude Code lifecycle-hook dispatch |
+        | Claude Code Cloud project hooks in a fresh VM |
+        | OpenAI Codex project workflow dispatch |
+        | OpenCode CLI/TUI plugin-event dispatch |
+        | Cursor project-hook dispatch |
+        | Cursor Cloud Agents project hooks in a fresh runner |
 
     @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Production code cannot precede the named RED

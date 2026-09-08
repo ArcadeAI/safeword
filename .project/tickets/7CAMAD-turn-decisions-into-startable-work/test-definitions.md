@@ -12,13 +12,25 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Each agent host blocks an unreviewed approach at its real entry point
+### Scenario: Each agent host applies review state at its real entry point
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Exhausted review routes preserve their actual provenance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unearned fallback receipt cannot authorize planning
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A self-authored independence claim cannot authorize planning
 
 - [ ] RED
 - [ ] GREEN
@@ -33,6 +45,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: A forced behavior decision prevents a fresh-context start
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A later unstartable step blocks an otherwise startable plan
 
 - [ ] RED
 - [ ] GREEN
@@ -68,7 +86,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A missing project-local plan is explained for the requesting persona
+### Scenario: A missing project-local plan receipt supports both builder personas
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Agent hosts cannot authorize coding from host-local notes
 
 - [ ] RED
 - [ ] GREEN
@@ -106,6 +130,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Agent hosts block edits authorized by a stale Execution Plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU2.7CAMAD.R10 — Every accepted obligation maps to startable work
 
 ### Scenario: Every accepted obligation must map to startable work
@@ -114,7 +144,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Partial obligation mapping is not startable
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Complete obligation mapping permits semantic approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An explicitly obligation-free accepted approach does not manufacture execution work
 
 - [ ] RED
 - [ ] GREEN

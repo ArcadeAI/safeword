@@ -14,23 +14,23 @@ Feature: Keep plan reviews current and trustworthy
   @plan-implementability.TBU4.5F5ZZA.R2
   Rule: plan-implementability.TBU4.5F5ZZA.R2 — Each review receives its complete phase context
 
-    @rejection
     Scenario Outline: A review packet cannot omit required phase context
-      Given a plan review packet omits <required_context>
+      Given a plan review packet <packet_state>
       When review dispatch is prepared
-      Then dispatch is blocked until that current context is included
+      Then <dispatch_result>
 
       Examples:
-        | required_context |
-        | the nonblank ticket boundary |
-        | current spec Rules |
-        | accepted scenarios |
-        | the canonical phase contract |
-        | the plan under review |
-        | resolved principles, personas, or surfaces |
-        | current dimensions when required |
-        | applicable data guidance or configured architecture records |
-        | the accepted Implementation Plan for Execution Plan review |
+        | packet_state | dispatch_result |
+        | omits the nonblank ticket boundary | dispatch is blocked until that current context is included |
+        | omits current spec Rules | dispatch is blocked until that current context is included |
+        | omits accepted scenarios | dispatch is blocked until that current context is included |
+        | omits the canonical phase contract | dispatch is blocked until that current context is included |
+        | omits the plan under review | dispatch is blocked until that current context is included |
+        | omits resolved principles, personas, and surfaces | dispatch is blocked until that current context is included |
+        | omits required current dimensions | dispatch is blocked until that current context is included |
+        | omits applicable data guidance and configured architecture records | dispatch is blocked until that current context is included |
+        | omits the accepted Implementation Plan for Execution Plan review | dispatch is blocked until that current context is included |
+        | includes every required current phase input | dispatch proceeds to the semantic reviewer |
 
   @plan-implementability.TBU4.5F5ZZA.R3
   Rule: plan-implementability.TBU4.5F5ZZA.R3 — Required context resolves or fails closed
@@ -70,16 +70,20 @@ Feature: Keep plan reviews current and trustworthy
   @plan-implementability.TBU4.5F5ZZA.R5
   Rule: plan-implementability.TBU4.5F5ZZA.R5 — Contract identity binds exact canonical bytes
 
-    @rejection
-    Scenario: Same-version contract editing fails the digest gate
-      Given an installed authoring contract deletes one clause but retains the canonical version label
+    Scenario Outline: Installed contract identity controls authoring and approval
+      Given the installed authoring contract <contract_state>
       When its content identity is recomputed
-      Then authoring and approval are blocked until the exact canonical contract bytes are restored
+      Then <gate_result>
+
+      Examples:
+        | contract_state | gate_result |
+        | deletes one clause but retains the canonical version label | authoring and approval are blocked until the exact canonical contract bytes are restored |
+        | is absent | authoring and approval are blocked until the canonical contract is restored |
+        | matches the exact canonical bytes | contract identity does not block authoring or approval |
 
   @plan-implementability.TBU4.5F5ZZA.R6
   Rule: plan-implementability.TBU4.5F5ZZA.R6 — Review fallback is bounded and honestly labeled
 
-    @rejection
     Scenario Outline: The review gate follows the typed route result
       Given the review coordinator reports <route_result>
       When the phase gate evaluates the receipt
@@ -89,23 +93,66 @@ Feature: Keep plan reviews current and trustworthy
         | route_result | gate_result |
         | an independent reviewer approval | the review passes with cross-agent independence recorded |
         | every independent route exhausted and the permitted fallback approves | the review passes with reduced independence and actual reviewer recorded |
-        | authentication failure or a pending review | the phase remains blocked |
+        | authentication failure | the phase remains blocked |
+        | a pending review | the phase remains blocked |
+        | a fallback attempt while an independent reviewer route remains available | fallback is refused and the phase remains blocked pending independent review |
+        | every independent route exhausted and the permitted fallback declines | the phase remains blocked with no approval recorded |
+
+    @surface.claude-code-cloud @surface.cursor-cloud-agents
+    Scenario Outline: Cloud phase gates enforce the real review result
+      Given a planning phase on <cloud_host> has <review_state>
+      When <cloud_entry> evaluates the phase transition
+      Then <gate_result>
+
+      Examples:
+        | cloud_host | cloud_entry | review_state | gate_result |
+        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | a pending review | the phase remains blocked |
+        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | a current approving receipt | the phase transition proceeds |
+        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | a pending review | the phase remains blocked |
+        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | a current approving receipt | the phase transition proceeds |
 
   @plan-implementability.TBU4.5F5ZZA.R7
   Rule: plan-implementability.TBU4.5F5ZZA.R7 — Research and review context remain untrusted evidence
 
-    @rejection
-    Scenario Outline: Untrusted evidence cannot cross its authority boundary
-      Given a retrieved source contains <hazard>
-      When it is used during planning or review
-      Then <safe_outcome>
+    Scenario Outline: Retrieved instructions cannot change accepted scope
+      Given a retrieved source contains instructions to change the accepted scope and relevant evidentiary claims
+      When it is used during <consumption_point>
+      Then the accepted scope record is unchanged and the evidentiary claims appear in the resulting plan or review output
 
       Examples:
-        | hazard | safe_outcome |
-        | instructions to change the accepted scope | the instructions are ignored and only evidentiary claims are considered |
-        | executable code | the code is not executed |
-        | a request for private unpublished context | no private context is sent for retrieval or publication |
-        | a reusable source with license and security limits | those limits are recorded before reuse |
+        | consumption_point |
+        | planning |
+        | plan review |
+
+    Scenario Outline: Retrieved executable code remains untrusted evidence
+      Given a retrieved source contains executable code and relevant evidentiary claims
+      When it is used during <consumption_point>
+      Then the evidentiary claims are cited while the code is not executed
+
+      Examples:
+        | consumption_point |
+        | planning |
+        | plan review |
+
+    Scenario Outline: Private-context requests do not prevent public evidence use
+      Given a retrieved source requests private unpublished context and also exposes public evidence
+      When it is used during <consumption_point>
+      Then the public evidence is retrieved while no private context is sent for retrieval or publication
+
+      Examples:
+        | consumption_point |
+        | planning |
+        | plan review |
+
+    Scenario Outline: Reusable evidence records license and security limits
+      Given a retrieved source is reusable subject to license and security limits
+      When it is used during <consumption_point>
+      Then those limits are recorded before reuse
+
+      Examples:
+        | consumption_point |
+        | planning |
+        | plan review |
 
   @plan-implementability.TBU4.5F5ZZA.R8
   Rule: plan-implementability.TBU4.5F5ZZA.R8 — Ungated surfaces receive advisory guidance only
