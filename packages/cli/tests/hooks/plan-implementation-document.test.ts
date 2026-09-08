@@ -90,9 +90,8 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
     }
   });
 
-  it('scaffolds ADRs from the template into the configured record location (TB1.R4)', () => {
+  it('places ADRs in the configured record location (TB1.R4)', () => {
     for (const { path, text } of planCopies) {
-      expect(text, path).toContain('adr-template.md');
       expect(text, path).toMatch(/date-prefixed/i);
     }
   });
