@@ -3,6 +3,8 @@ import nodePath from 'node:path';
 
 import { parse, stringify } from 'yaml';
 
+import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
+
 export interface GeneratedPluginAsset {
   relativePath: string;
   content: string;
@@ -23,6 +25,11 @@ interface CanonicalSkillAsset {
   filename: string;
 }
 
+const PACKAGED_SKILL_REFERENCES = [
+  { skill: 'bdd', filename: 'adr-template.md' },
+  { skill: 'bdd', filename: 'impl-plan-template.md' },
+] as const;
+
 const FRONTMATTER = /^---\r?\n(?<metadata>[\s\S]*?)\r?\n---\r?\n/u;
 const SUPPORTED_SOURCE_METADATA = new Set([
   'name',
@@ -34,15 +41,19 @@ const SUPPORTED_SOURCE_METADATA = new Set([
   'user-invocable',
 ]);
 
-function markdownFiles(directory: string, prefix = ''): string[] {
+function files(directory: string, prefix = ''): string[] {
   return readdirSync(directory, { withFileTypes: true })
     .flatMap(entry => {
       const relativePath = nodePath.join(prefix, entry.name);
       const absolutePath = nodePath.join(directory, entry.name);
-      if (entry.isDirectory()) return markdownFiles(absolutePath, relativePath);
-      return entry.isFile() && entry.name.endsWith('.md') ? [relativePath] : [];
+      if (entry.isDirectory()) return files(absolutePath, relativePath);
+      return entry.isFile() ? [relativePath] : [];
     })
     .toSorted((left, right) => left.localeCompare(right));
+}
+
+function markdownFiles(directory: string): string[] {
+  return files(directory).filter(relativePath => relativePath.endsWith('.md'));
 }
 
 function canonicalSkillPath(relativePath: string): { skill: string; filename: string } {
@@ -185,7 +196,7 @@ export function adaptCodexWorkflowInvocations(
 // shell a skill's bash block runs in, so a vendored path would rest on the
 // model resolving a relative path — too soft for a gate.
 //
-// `{cli}` in a replacement is filled with the versioned bundled CLI command.
+// `{cli}` in a replacement is filled with the host's packaged CLI command.
 const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacement: string }[] = [
   // Prefix swap: `review run …` and its own arguments follow unchanged.
   //
@@ -213,19 +224,65 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
     invocation: 'bun .safeword/hooks/lib/drain-retro-spool.ts ',
     replacement: '{cli} project retro-drain ',
   },
+  {
+    invocation: 'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
+    replacement: 'source /dev/stdin <<< "$({cli} project audit-scope)"',
+  },
+  {
+    invocation: 'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ',
+    replacement: '{cli} project record-skill-invocation --cwd "$PROJECT_DIR" ',
+  },
+  {
+    invocation: 'bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"',
+    replacement: '{cli} project runtime audit-principle-trace --cwd "$PROJECT_DIR" --',
+  },
+  {
+    invocation: 'bun "$PROJECT_DIR/.safeword/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR"',
+    replacement: '{cli} project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --',
+  },
+  {
+    invocation: 'bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" ',
+    replacement: '{cli} project runtime write-review-stamp -- ',
+  },
+  {
+    invocation: 'bun .safeword/hooks/write-review-stamp.ts ',
+    replacement: '{cli} project runtime write-review-stamp -- ',
+  },
+  {
+    invocation: 'bun .safeword/scripts/closeout-cleanup.ts ',
+    replacement: '{cli} project runtime closeout-cleanup -- ',
+  },
+  {
+    invocation: './.safeword/scripts/cleanup-zombies.sh',
+    replacement: '{cli} project runtime cleanup-zombies --',
+  },
 ];
 
 function codexBundledCliCommand(version: string): string {
   return `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/${CODEX_MARKETPLACE_NAME}/${CODEX_PLUGIN_NAME}/${version}/runtime/cli.js"`;
 }
 
-function adaptScriptInvocations(markdown: string, version: string): string {
+function adaptRuntimeInvocations(markdown: string, cli: string): string {
   let adapted = markdown;
-  const cli = codexBundledCliCommand(version);
   for (const { invocation, replacement } of SCRIPT_REWRITES) {
     adapted = adapted.split(invocation).join(replacement.split('{cli}').join(cli));
   }
   return adapted;
+}
+
+export function adaptPackagedRuntimeInvocations(markdown: string, version: string): string {
+  return adaptRuntimeInvocations(markdown, `bunx --bun safeword@${version}`);
+}
+
+export function adaptNativeRuntimeInvocations(markdown: string, version: string): string {
+  const cli = `bunx --bun safeword@${version}`;
+  const withoutCodexCachePaths = markdown.split(codexBundledCliCommand(version)).join(cli);
+  return adaptNamespaceRootInvocations(adaptRuntimeInvocations(withoutCodexCachePaths, cli), cli);
+}
+
+function adaptCodexNativeRuntimeInvocations(markdown: string, version: string): string {
+  const cli = codexBundledCliCommand(version);
+  return adaptNamespaceRootInvocations(adaptRuntimeInvocations(markdown, cli), cli);
 }
 
 // resolve-namespace-root.ts needs its own pass: its positional modes map onto
@@ -282,8 +339,8 @@ function rewriteNamespaceRootTail(tail: string, replacement: string): string {
   return TRAILING_OPERAND.test(remainder) ? preserved : `${replacement} --key ${key}${remainder}`;
 }
 
-function adaptNamespaceRootInvocations(markdown: string, version: string): string {
-  const replacement = `${codexBundledCliCommand(version)} project namespace-root --cwd "$PROJECT_DIR"`;
+function adaptNamespaceRootInvocations(markdown: string, cli: string): string {
+  const replacement = `${cli} project namespace-root --cwd "$PROJECT_DIR"`;
   const [head, ...rest] = markdown.split(NAMESPACE_ROOT_INVOCATION_PREFIX);
   let adapted = head ?? '';
 
@@ -300,8 +357,7 @@ function adaptWorkflowMarkdown(
   version: string,
 ): string {
   let adapted = adaptCodexWorkflowInvocations(markdown, knownSkillNames);
-  adapted = adaptScriptInvocations(adapted, version);
-  adapted = adaptNamespaceRootInvocations(adapted, version);
+  adapted = adaptCodexNativeRuntimeInvocations(adapted, version);
 
   return formatMarkdownTables(adapted);
 }
@@ -368,6 +424,17 @@ function adaptInstalledReferencePaths(
   return adapted;
 }
 
+function adaptPackagedTemplatePaths(markdown: string, referenceNames: string[]): string {
+  let adapted = markdown;
+  for (const referenceName of referenceNames) {
+    adapted = adapted.replaceAll(
+      `.safeword/templates/${referenceName}`,
+      () => `references/${referenceName}`,
+    );
+  }
+  return adapted;
+}
+
 function adaptSkillBody(
   body: string,
   skill: string,
@@ -379,6 +446,7 @@ function adaptSkillBody(
   // frontmatter supplies that separator, so avoid duplicating it here.
   let adapted = body.replace(/^\r?\n/u, '');
   adapted = adaptInstalledReferencePaths(adapted, skill, referenceNames);
+  adapted = adaptPackagedTemplatePaths(adapted, referenceNames);
   adapted = adaptReferenceLinks(adapted, referenceNames);
 
   return adaptWorkflowMarkdown(adapted, knownSkillNames, version);
@@ -425,21 +493,41 @@ function formatMarkdownTable(rows: string[][]): string[] {
   });
 }
 
-/** Keep transformed Markdown tables stable under the repository's Prettier config. */
+function isClosedPipeTableStart(
+  header: string | undefined,
+  delimiter: string | undefined,
+): { header: string; delimiter: string } | undefined {
+  if (
+    header?.startsWith('|') !== true ||
+    !header.endsWith('|') ||
+    delimiter?.startsWith('|') !== true ||
+    !delimiter?.endsWith('|')
+  )
+    return undefined;
+  return { header, delimiter };
+}
+
+function isNormalizableTableLine(line: string): boolean {
+  return line.endsWith('|') && !line.includes(String.raw`\|`);
+}
+
+/** Normalize closed-pipe Markdown tables while preserving delimiter alignment. */
 function formatMarkdownTables(markdown: string): string {
   const lines = markdown.split('\n');
 
   for (let start = 0; start < lines.length; start += 1) {
-    const header = lines[start];
-    const delimiter = lines[start + 1];
-    if (header === undefined || delimiter === undefined || !header.startsWith('|')) continue;
+    const tableStart = isClosedPipeTableStart(lines[start], lines[start + 1]);
+    if (tableStart === undefined) continue;
+    const { header, delimiter } = tableStart;
 
     const headerCells = tableCells(header);
     if (!isTableDelimiter(tableCells(delimiter), headerCells.length)) continue;
 
     let end = start + 2;
     while (lines[end]?.startsWith('|') === true) end += 1;
-    const rows = lines.slice(start, end).map(line => tableCells(line));
+    const tableLines = lines.slice(start, end);
+    if (tableLines.some(line => !isNormalizableTableLine(line))) continue;
+    const rows = tableLines.map(line => tableCells(line));
     if (rows.some(cells => cells.length !== headerCells.length)) continue;
 
     lines.splice(start, end - start, ...formatMarkdownTable(rows));
@@ -468,6 +556,7 @@ export function generateCodexPluginAssets(
   );
   const knownSkillNames = new Set(canonicalAssets.map(asset => asset.skill));
   const referenceNamesBySkill = new Map<string, string[]>();
+  const documentTemplatesDirectory = nodePath.resolve(canonicalSkillsDirectory, '../doc-templates');
 
   for (const asset of canonicalAssets) {
     if (asset.filename === 'SKILL.md') continue;
@@ -476,12 +565,26 @@ export function generateCodexPluginAssets(
     referenceNamesBySkill.set(asset.skill, referenceNames);
   }
 
-  return canonicalAssets.map(({ relativePath, skill, filename }) => {
+  const packagedReferences = PACKAGED_SKILL_REFERENCES.flatMap(reference => {
+    const source = nodePath.join(documentTemplatesDirectory, reference.filename);
+    if (!knownSkillNames.has(reference.skill) || !existsSync(source)) return [];
+    const referenceNames = referenceNamesBySkill.get(reference.skill) ?? [];
+    if (!referenceNames.includes(reference.filename)) referenceNames.push(reference.filename);
+    referenceNamesBySkill.set(reference.skill, referenceNames);
+    return [{ ...reference, source }];
+  });
+
+  const skillAssets = canonicalAssets.map(({ relativePath, skill, filename }) => {
     const content = readFileSync(nodePath.join(canonicalSkillsDirectory, relativePath), 'utf8');
     if (filename !== 'SKILL.md') {
+      const referenceNames = referenceNamesBySkill.get(skill) ?? [];
+      const adaptedContent = adaptPackagedTemplatePaths(
+        adaptInstalledReferencePaths(content, skill, referenceNames),
+        referenceNames,
+      );
       return {
         relativePath: nodePath.join('skills', skill, 'references', filename),
-        content: adaptWorkflowMarkdown(content, knownSkillNames, version),
+        content: adaptWorkflowMarkdown(adaptedContent, knownSkillNames, version),
       };
     }
 
@@ -496,6 +599,11 @@ export function generateCodexPluginAssets(
       }).trimEnd()}\n---\n\n${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version)}`,
     };
   });
+  const referenceAssets = packagedReferences.map(({ skill, filename, source }) => ({
+    relativePath: nodePath.join('skills', skill, 'references', filename),
+    content: adaptWorkflowMarkdown(readFileSync(source, 'utf8'), knownSkillNames, version),
+  }));
+  return [...skillAssets, ...referenceAssets];
 }
 
 function skillMetadataLength(asset: GeneratedPluginAsset): number {
@@ -532,6 +640,11 @@ export function assertCodexSkillMetadataBudget(assets: GeneratedPluginAsset[]): 
   }
 }
 
+function assertGeneratedCodexPluginAssets(assets: GeneratedPluginAsset[]): void {
+  assertCodexSkillMetadataBudget(assets);
+  assertNativePluginRuntimeAuthority(assets);
+}
+
 function expectedAssetPaths(assets: GeneratedPluginAsset[]): Set<string> {
   return new Set(assets.map(asset => asset.relativePath));
 }
@@ -539,7 +652,7 @@ function expectedAssetPaths(assets: GeneratedPluginAsset[]): Set<string> {
 function pluginAssetPaths(pluginDirectory: string): string[] {
   const skillsDirectory = nodePath.join(pluginDirectory, 'skills');
   if (!existsSync(skillsDirectory)) return [];
-  return markdownFiles(skillsDirectory).map(relativePath => nodePath.join('skills', relativePath));
+  return files(skillsDirectory).map(relativePath => nodePath.join('skills', relativePath));
 }
 
 // All three failures below mean the checked-in catalogue no longer matches its
@@ -552,13 +665,6 @@ function pluginAssetPaths(pluginDirectory: string): string[] {
 // where `bun run test:release` surfaces these errors.
 const REGENERATE_REMEDY =
   'Regenerate the catalogue: `bun run generate:codex-plugin` from packages/cli.';
-const UNBUNDLED_RUNTIME_HELPERS = [
-  '.safeword/hooks/run-review.ts',
-  '.safeword/hooks/resolve-project-knowledge.ts',
-  '.safeword/hooks/resolve-namespace-root.ts',
-  '.safeword/hooks/lib/drain-retro-spool.ts',
-] as const;
-
 /** Ensure the checked-in plugin is the exact allowed transformation of canonical skills. */
 export function assertCodexPluginCatalogue(
   canonicalSkillsDirectory: string,
@@ -566,15 +672,7 @@ export function assertCodexPluginCatalogue(
   version: string,
 ): void {
   const expectedAssets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
-  assertCodexSkillMetadataBudget(expectedAssets);
-  for (const asset of expectedAssets) {
-    const residualHelper = UNBUNDLED_RUNTIME_HELPERS.find(helper => asset.content.includes(helper));
-    if (residualHelper !== undefined) {
-      throw new Error(
-        `Codex plugin asset retains unbundled runtime helper ${residualHelper}: ${asset.relativePath}\n${REGENERATE_REMEDY}`,
-      );
-    }
-  }
+  assertGeneratedCodexPluginAssets(expectedAssets);
 
   const expectedPaths = expectedAssetPaths(expectedAssets);
   const actualPaths = pluginAssetPaths(pluginDirectory);
@@ -605,6 +703,7 @@ export function writeCodexPluginCatalogue(
   version: string,
 ): GeneratedPluginAsset[] {
   const assets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
+  assertGeneratedCodexPluginAssets(assets);
   const skillsDirectory = nodePath.join(pluginDirectory, 'skills');
   rmSync(skillsDirectory, { recursive: true, force: true });
 

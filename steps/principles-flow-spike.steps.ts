@@ -284,6 +284,27 @@ Then('it reports no E010 for that disagreement', function (this: KnowledgeWorld)
   assert.deepEqual(this.traceFindings, []);
 });
 
+Given('a configured principle heading is numbered', function (this: KnowledgeWorld) {
+  const directory = project(this);
+  mkdirSync(nodePath.join(directory, '.project'), { recursive: true });
+  writeFileSync(
+    nodePath.join(directory, '.project/principles.md'),
+    '## 1. Delight the user\n\n**Intent:** Delight.\n\n**Prefer:** Recovery.\n\n**Avoid:** Dead ends.\n\n**Evidence:** Proof.\n',
+  );
+  writeFileSync(nodePath.join(directory, 'proof.md'), '# Evidence\n');
+});
+
+Given(
+  'the implementation plan names that principle without the number',
+  function (this: KnowledgeWorld) {
+    this.plan = '| Delight the user | concrete consequence | proof.md | |';
+  },
+);
+
+Then('the principle trace is accepted', function (this: KnowledgeWorld) {
+  assert.deepEqual(this.traceFindings, []);
+});
+
 Given(
   'the default {string} file is {string}',
   function (this: KnowledgeWorld, knowledge: KnowledgeKey, state: string) {

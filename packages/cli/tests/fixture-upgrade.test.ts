@@ -21,7 +21,7 @@ describe('runFixtureUpgradeWithoutInstall boundary', () => {
 
     expect(calls).toEqual([
       {
-        args: ['upgrade', '--agents', 'none'],
+        args: ['upgrade', '--agents', 'cursor'],
         options: {
           cwd: '/fake/project',
           env: { SAFEWORD_SKIP_INSTALL: '1' },
