@@ -257,6 +257,24 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
+    it('blocks an annotated GREEN transition when the receipt gate process fails', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const unavailableGate = nodePath.join(setup.cwd, 'unavailable-gate.mjs');
+      writeTestFile(setup.cwd, 'unavailable-gate.mjs', 'process.exit(1);\n');
+
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: unavailableGate },
+      );
+      expectHookDeny(result, 'could not produce a valid result');
+    });
+
     it('allows an annotated GREEN transition when the exact receipt gate approves it', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
@@ -282,6 +300,36 @@ describe('write-time annotation gate', () => {
         setup.testDefinitionsPath,
         '- [ ] GREEN',
         '\n- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('blocks a GREEN transition when the replacement also introduces its scenario heading', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '### Scenario: example\n- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('blocks checked GREEN credit restored after an unrecognized-step rename', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN2 def5678\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] GREEN2 def5678',
+        '- [x] GREEN def5678',
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
       );
       expectHookDeny(result, 'executable RED');
@@ -360,6 +408,30 @@ describe('write-time annotation gate', () => {
       const result = runCodexPatchHook(setup.cwd, patch, gateStub(setup.cwd, 'action_required'));
 
       expectHookDeny(result, 'executable RED');
+    });
+
+    it('allows apply_patch only when it forwards the exact scenario and ledger', () => {
+      const setup = setupProject(
+        '### Scenario: exact boundary\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const patch = [
+        '*** Begin Patch',
+        `*** Update File: ${setup.testDefinitionsPath}`,
+        '@@',
+        ' ### Scenario: exact boundary',
+        '-- [ ] GREEN',
+        '+- [x] GREEN def5678',
+        '*** End Patch',
+      ].join('\n');
+      const gate = gateStub(
+        setup.cwd,
+        'healthy',
+        'Scenario: exact boundary',
+        '.safeword-project/tickets/TST001/test-definitions.md',
+      );
+
+      expectHookAllow(runCodexPatchHook(setup.cwd, patch, gate));
     });
   });
 });

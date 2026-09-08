@@ -1105,7 +1105,7 @@ function approvedCrossAgentReceipt(record: ReviewJobRecord): boolean {
   const attestation = data?.execution_attestation as Record<string, unknown> | undefined;
   return (
     record.state === 'completed' &&
-    (record.pid === undefined || !processExists(record.pid)) &&
+    (record.pid === undefined || inspectReviewWorker(record.pid, record.id) !== 'match') &&
     hasIndependentApproval(data) &&
     hasFailingExecutionAttestation(attestation, record.source_fingerprint)
   );
@@ -1179,7 +1179,7 @@ export function executableRedGate(cwd: string, scenario: string, ledger: string)
       ? `The current executable RED review for ${scenario} is not an approved independent receipt.`
       : `No trusted executable RED receipt matches ${scenario}.`;
   reason =
-    matching.length > current.length
+    matching.length > 0 && current.length === 0
       ? `The executable RED approval for ${scenario} is stale because its declared proof inputs changed.`
       : reason;
   return createResult({

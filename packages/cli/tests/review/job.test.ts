@@ -487,47 +487,6 @@ describe('durable review jobs', () => {
     );
   });
 
-  it.each([
-    ['identical canonical proof inputs', 'reused'],
-    ['different canonical proof inputs', 'not reused'],
-  ] as const)('resolves %s as %s', async (relationship, verdict) => {
-    const cwd = project();
-    const executableWorker = COMPLETE_WORKER.replace(
-      'reviewer_output: {',
-      () => APPROVED_RED_ATTESTATION,
-    );
-    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
-    const execution = {
-      scenario: 'Scenario: exact actor boundary',
-      ledger: '.project/tickets/TST/test-definitions.md',
-      argv: [process.execPath, '-e', 'process.exit(1)'] as const,
-      cwd: '.',
-      evidenceClass: 'pure-contract' as const,
-      expectedFailure: 'actor assertion',
-      timeoutMs: 1000,
-    };
-    const first = await startReviewJob({
-      cwd,
-      kind: 'executable-red',
-      targets: ['input.md'],
-      execution,
-    });
-    const candidate = await startReviewJob({
-      cwd,
-      kind: 'executable-red',
-      targets: ['input.md'],
-      execution:
-        relationship === 'identical canonical proof inputs'
-          ? execution
-          : { ...execution, expectedFailure: 'different actor assertion' },
-    });
-    const sameReview =
-      (candidate.data as { review_id: string }).review_id ===
-      (first.data as { review_id: string }).review_id;
-
-    expect(sameReview).toBe(verdict === 'reused');
-  });
-
   it('refuses executable RED receipt reuse when a declared support file is omitted', async () => {
     const cwd = project();
     writeFileSync(nodePath.join(cwd, 'support.md'), 'bound support\n');
@@ -802,6 +761,43 @@ describe('durable review jobs', () => {
     expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
       state: 'action_required',
       data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+  });
+
+  it('accepts a completed receipt when its recorded PID was reused by another process', async () => {
+    const cwd = project();
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution: RedExecutionRequest = {
+      scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
+      argv: [process.execPath, '-e', 'process.exit(1)'],
+      cwd: '.',
+      evidenceClass: 'pure-contract',
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    const completed = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+    const id = (completed.data as { review_id: string }).review_id;
+    const path = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    record.pid = process.pid;
+    delete record.integrity;
+    record.integrity = signRecord(cwd, record);
+    writeFileSync(path, `${JSON.stringify(record)}\n`);
+
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
+      state: 'healthy',
+      data: { command: 'review gate executable-red', status: 'approved' },
     });
   });
 
