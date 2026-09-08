@@ -53,6 +53,23 @@ function containsReviewLaunch(content: string): boolean {
   return /(?:run-review\.ts|safeword(?:@\S+)?)\s+review\s+run\b/u.test(content);
 }
 
+// Every subprocess fixture below builds its own project on disk. Inheriting the
+// host session's environment would let CLAUDE_PROJECT_DIR - which reviewProjectRoot
+// trusts ahead of the walk - point the hook at the real checkout instead, so the
+// fixture's stub CLI never runs and the test silently measures someone else's tree.
+function isolatedReviewEnvironment(
+  overrides: Readonly<Record<string, string>> = {},
+): NodeJS.ProcessEnv {
+  const { PATH, HOME, TMPDIR, SystemRoot } = process.env;
+  return {
+    ...(PATH && { PATH }),
+    ...(HOME && { HOME }),
+    ...(TMPDIR && { TMPDIR }),
+    ...(SystemRoot && { SystemRoot }),
+    ...overrides,
+  };
+}
+
 interface ResolverRun {
   /** One `<route>:<forwarded arguments>` line per stub invocation, probes included. */
   readonly calls: string[];
@@ -84,14 +101,12 @@ printf 'bun:%s\n' "$*" >> "$CALL_LOG"`,
 printf 'bunx:%s\n' "$*" >> "$CALL_LOG"`,
     );
 
-    const env: NodeJS.ProcessEnv = {
-      ...process.env,
+    const env = isolatedReviewEnvironment({
       CALL_LOG: log,
       CWD_LOG: cwdLog,
       PATH: `${bin}:/usr/bin:/bin`,
       SAFEWORD_REVIEW_CLI_PROBE_TIMEOUT_MS: '2000',
-    };
-    delete env.CLAUDE_PLUGIN_ROOT;
+    });
     switch (route) {
       case 'plugin': {
         const pluginRoot = nodePath.join(fixture, 'plugin');
@@ -204,12 +219,11 @@ exit 2`,
         ],
         {
           cwd: fixture,
-          env: {
-            ...process.env,
+          env: isolatedReviewEnvironment({
             ACKNOWLEDGEMENT: acknowledgement,
             PROBE_ENVIRONMENT: probeEnvironment,
             SAFEWORD_REVIEW_PROGRESS: 'hostile-inherited-value',
-          },
+          }),
           signal: AbortSignal.timeout(5000),
           stdio: ['ignore', 'pipe', 'pipe'],
         },
@@ -273,7 +287,7 @@ exit ${status}`,
             '--agent-handoff',
             '--json',
           ],
-          { cwd: fixture, encoding: 'utf8' },
+          { cwd: fixture, encoding: 'utf8', env: isolatedReviewEnvironment() },
         );
         expect(result.status).toBe(status);
         expect(result.stdout).toBe(`${output}\n`);
@@ -704,23 +718,8 @@ exit ${status}`,
   });
 
   // These two prove a REAL CLI runs, so each must prove its OWN named CLI ran.
-  // The wrapper falls through to whatever else it can find, and the ambient
-  // session exports CLAUDE_PLUGIN_ROOT and CLAUDE_PROJECT_DIR — inheriting them
-  // lets an unrelated collaborator answer and a broken named one still pass.
-  // Build the environment explicitly instead of spreading process.env.
-  function isolatedReviewEnvironment(
-    overrides: Readonly<Record<string, string>> = {},
-  ): NodeJS.ProcessEnv {
-    const { PATH, HOME, TMPDIR, SystemRoot } = process.env;
-    return {
-      ...(PATH && { PATH }),
-      ...(HOME && { HOME }),
-      ...(TMPDIR && { TMPDIR }),
-      ...(SystemRoot && { SystemRoot }),
-      ...overrides,
-    };
-  }
-
+  // The wrapper falls through to whatever else it can find, so on top of the
+  // shared isolation each pins the one route it names.
   it('runs the real source checkout CLI', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     // A checkout of this repo also carries node_modules/.bin/safeword and
