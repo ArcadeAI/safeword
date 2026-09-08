@@ -13,7 +13,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -195,30 +195,28 @@ describe('project architecture --check --from-index', () => {
     }
   });
 
-  it('fails instead of reporting the worktree when the repository is unreadable', async () => {
-    // The false green this guards: `git rev-parse` fails identically for an
-    // unreadable repository and a plain non-repository, so a worktree fallback
-    // would report `healthy` on a stale index whenever Git discovery broke.
+  it('fails instead of reporting the worktree when Git discovery fails', async () => {
+    // The false green this guards: `git rev-parse` fails identically for a
+    // repository Git cannot open and a plain non-repository, so a worktree
+    // fallback would report `healthy` on a stale index whenever discovery broke
+    // — dubious ownership inside a container being the common trigger.
+    //
+    // A bogus GIT_DIR reproduces that failure deterministically for the child
+    // CLI only. `chmod 000` on `.git` would not: root ignores the mode bits, so
+    // the test would quietly stop testing anything in a root CI container.
     const staged = addWorktreePackage(context.directory, 'billing');
     git(context.directory, 'add', '--', staged);
     // Refresh the worktree document so the worktree is fresh while the index is
     // stale — the exact state where a worktree fallback answers "healthy".
     selfHeal(context.directory);
-    const documentPath = nodePath.join(context.directory, DOC_RELATIVE);
-    const documentBefore = readFileSync(documentPath, 'utf8');
-    const gitDirectory = nodePath.join(context.directory, '.git');
+    const before = fingerprintEffects(context.directory);
 
-    chmodSync(gitDirectory, 0o000);
-    let result;
-    try {
-      result = await runCli(['project', 'architecture', '--check', '--from-index', '--json'], {
-        cwd: context.directory,
-      });
-    } finally {
-      chmodSync(gitDirectory, 0o755);
-    }
+    const result = await runCli(['project', 'architecture', '--check', '--from-index', '--json'], {
+      cwd: context.directory,
+      env: { GIT_DIR: nodePath.join(context.directory, 'absent-git-directory') },
+    });
 
-    expect(readFileSync(documentPath, 'utf8')).toBe(documentBefore);
+    expect(fingerprintEffects(context.directory)).toStrictEqual(before);
     expect(result.exitCode).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'failed',
