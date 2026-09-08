@@ -22,6 +22,24 @@ import { createProjectContext } from '../src/utils/context.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from './helpers.js';
 
 const HEADER = '# Safeword - managed merge strategy for generated artifacts';
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+
+describe('repository generated-file presentation', () => {
+  it.each([
+    ['plugin/skills/bdd/SCENARIOS.md', 'true'],
+    ['packages/cli/codex-plugin/runtime/cli.js', 'true'],
+    ['plugin/README.md', 'unset'],
+    ['packages/cli/codex-plugin/.codex-plugin/plugin.json', 'unset'],
+    ['packages/cli/codex-plugin/hooks.json', 'unset'],
+  ])('marks %s as linguist-generated=%s', (relative, expected) => {
+    const result = execFileSync('git', ['check-attr', 'linguist-generated', '--', relative], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    }).trim();
+
+    expect(result).toBe(`${relative}: linguist-generated: ${expected}`);
+  });
+});
 
 describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', () => {
   let cwd: string;
