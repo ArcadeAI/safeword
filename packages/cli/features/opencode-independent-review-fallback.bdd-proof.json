@@ -67,8 +67,12 @@
       "extracts one completed text result from OpenCode JSON events"
     ],
     "Ambiguous OpenCode output is rejected": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "rejects ambiguous OpenCode output: %s"
+      ["packages/cli/tests/review/runtime.test.ts", "rejects ambiguous OpenCode output: %s"],
+      ["packages/cli/tests/review/runtime.test.ts", "rejects an unfinished OpenCode text result"],
+      [
+        "packages/cli/tests/review/runtime.test.ts",
+        "rejects multiple completed OpenCode text results"
+      ]
     ],
     "An oversized OpenCode event stream is rejected": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
