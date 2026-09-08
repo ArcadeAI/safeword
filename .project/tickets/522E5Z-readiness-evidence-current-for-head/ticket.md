@@ -108,3 +108,18 @@ done_when: |
   "used a check-run receipt". Deterministic, model-free publication is arguably
   outside that rationale, but the recorded consequence is now false and no
   superseding record exists. This needs a human architecture decision.
+- 2026-09-08T00:25:00Z Resolved with the user's go-ahead after /figure-it-out,
+  which overturned my own prior recommendation. I had proposed moving the job to
+  its own workflow; GitHub matches required checks by context-name string, not by
+  workflow file, so relocation leaves the merge capability identical and would
+  have been compliance in appearance only. Amended the ADR instead, following the
+  repo's existing partial-narrowing idiom (Status line names the narrowing, the
+  original record stays intact).
+- 2026-09-08T00:25:00Z Two findings the research settled: the
+  `pull_request_target` hazard is checking out fork code, which this job does not
+  do, so `statuses: write` is not a security regression; and *requiring* the
+  status is worse than publishing it — an unreported required check jams every
+  PR, and requiring a self-attestation converts it to a formality. Both are now
+  recorded in the ADR and the reference docs, not just in this log.
+- 2026-09-08T00:25:00Z Coupling limitation split out as MNS9J2 rather than fixed
+  here.
