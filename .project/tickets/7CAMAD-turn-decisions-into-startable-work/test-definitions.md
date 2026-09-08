@@ -12,9 +12,33 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Each agent host blocks an unreviewed approach at its real entry point
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Exhausted review routes preserve their actual provenance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU2.7CAMAD.R2 — Every execution step is startable without inventing a contract
 
 ### Scenario: A fresh-context agent can begin the first step from accepted artifacts alone
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A forced behavior decision prevents a fresh-context start
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Ordering state controls first-step startability
 
 - [ ] RED
 - [ ] GREEN
@@ -44,9 +68,15 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A missing project-local plan is explained for the requesting persona
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
 
-### Scenario: Vague execution language cannot hide a data ownership choice
+### Scenario: Data-decision specificity controls semantic approval
 
 - [ ] RED
 - [ ] GREEN
@@ -93,6 +123,12 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: plan-implementability.TBU2.7CAMAD.R11 — Execution Planning supplies rather than replaces TDD
 
 ### Scenario: An execution step still proceeds through RED GREEN and REFACTOR
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Production code cannot precede the named RED
 
 - [ ] RED
 - [ ] GREEN
