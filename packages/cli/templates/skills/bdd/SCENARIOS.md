@@ -196,7 +196,7 @@ Triage the result before editing. If a Must Fix names missing review context, re
 
 ### Are the reviewed scenarios complete?
 
-Ask the user both halves again, because review edits scenarios. Gaps: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** Then the edge: **Does any of these go past what we agreed not to build?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior; if it flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, the quality gate is complete.
+Run this completeness check only if review edits scenarios or surfaces an unresolved scope or completeness decision. If review is clean and the scenarios are unchanged, keep the user's earlier confirmation; do not ask again. When the check is needed, ask both halves. Gaps: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** Then the edge: **Does any of these go past what we agreed not to build?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior; if it flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, the quality gate is complete.
 
 ### Scenario Gate Exit
 

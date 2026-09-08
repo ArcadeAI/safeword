@@ -9,3 +9,8 @@
 packages/cli/codex-plugin/** linguist-generated=true
 packages/cli/src/claude-plugin/historical-catalogue.generated.ts linguist-generated=true
 plugin/** linguist-generated=true
+
+# Authored plugin entry points stay visible in review.
+packages/cli/codex-plugin/.codex-plugin/plugin.json -linguist-generated
+packages/cli/codex-plugin/hooks.json -linguist-generated
+plugin/README.md -linguist-generated
