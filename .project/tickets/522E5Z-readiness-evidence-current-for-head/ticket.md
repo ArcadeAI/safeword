@@ -154,4 +154,18 @@ done_when: |
 - 2026-09-08T01:10:00Z Consequence worth carrying forward: any change to a
   `pull_request_target` job is unverifiable on the pull request that introduces
   it. The first real execution is the next pull request after merge.
+- 2026-09-08T02:20:00Z Merged 14 commits of main into the branch; the PR had
+  gone CONFLICTING. Every conflict was a generated artifact — the lifecycle
+  baselines and the plugin identity/inventory — so I took main's copy and
+  regenerated from merged source rather than hand-resolving. The baseline
+  re-pin was again limited to twelve `tree_sha256` lines with no
+  `result_sha256` movement and no files added or removed, matching the blast
+  radius the user approved earlier. PR is MERGEABLE again.
+- 2026-09-08T02:20:00Z Second structural finding, and it belongs to the skill
+  rather than to this change: gate 4 is also unsatisfiable while Draft, because
+  `ci.yml` gates on `draft == false`. pr-readiness tells an author to stay Draft
+  until CI is green, but CI will not run until they leave Draft. Combined with
+  the `pull_request_target` base-branch rule, two of the seven gates cannot be
+  satisfied before promotion. Reported in the PR body; worth its own ticket if
+  you want the skill to acknowledge the circularity.
 
