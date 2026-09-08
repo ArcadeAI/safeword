@@ -2,10 +2,11 @@
 id: VVYBEH
 slug: make-next-decision-complete
 type: task
+subtype: bug-investigated
 phase: done
 status: done
 created: 2026-09-08T00:56:14.871Z
-last_modified: 2026-09-08T01:21:49.000Z
+last_modified: 2026-09-08T04:25:32.000Z
 scope: |
   Refine the canonical Talking to the user guidance and shared decision-brief
   prompt so a structured Next paragraph carries enough concrete context to be
@@ -36,6 +37,29 @@ done_when: |
 - 2026-09-08T00:57:00.000Z Implemented: Updated the canonical handbook and decision-brief grammar, added focused regression coverage, regenerated Claude/Codex bundles, and reconciled dogfood copies.
 - 2026-09-08T01:21:49.000Z Verified: Focused contract tests, release parity, formatting, lint, typecheck, generated-copy parity, and the diff-scoped audit passed. The full package suite was attempted but hit unrelated host-level process and timeout failures documented in verify.md.
 - 2026-09-08T01:21:49.000Z Completed: Marked ticket VVYBEH done under the user's explicit instruction to proceed through the whole ticket.
+- 2026-09-08T04:14:21.000Z Reopened: Quality review found that the exact Next placeholder contradicted the conditional no-decision instruction.
+- 2026-09-08T04:25:32.000Z Fixed: Replaced the decision-only exact placeholder with a neutral standalone decision-or-action shape and added a regression assertion for that exact contract.
+- 2026-09-08T04:25:32.000Z Reviewed: External routes were exhausted. Same-agent supplemental review raised two scanner findings; both were rejected for this ticket because runtime enforcement is explicitly out of scope and the scanner already has dedicated parser, correction, and linear-bound coverage in `reply-format-contract.test.ts`.
+- 2026-09-08T04:25:32.000Z Verified: 157/157 focused tests, 8/8 release-parity tests, build, lint, typecheck, formatting, diff checks, and 4/4 generated-copy parity passed. Marked the ticket done.
+
+## Root Cause
+
+The rendered contract tells agents to reproduce the output shape exactly, but
+the shape's `Next` placeholder unconditionally lists decision-only fields. That
+later concrete template can override the preceding rule that simple actions
+should contain only the action and essential reason.
+
+Confirmed by inspecting the rendered ordering and the existing test: the test
+only proves that the conditional sentence exists, so it stays green while the
+contradictory exact placeholder remains.
+
+Ruled out:
+
+- The handbook wording already makes the decision fields conditional.
+- The compliance scanner checks paragraph structure, not `Next` content, so it
+  does not force the extra fields.
+- Generated-copy drift did not cause the conflict; every distribution faithfully
+  contains the same contradictory source text.
 
 ## Tests
 

@@ -135,6 +135,12 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
       );
     });
 
+    it('keeps the exact Next shape neutral between decisions and actions', () => {
+      expect(QUALITY_REVIEW_MESSAGE).toContain(
+        '**Next:** <standalone decision or action with only the concrete context needed to decide or act without scrolling>.',
+      );
+    });
+
     it('template includes bolded Rejected label as omit-when-empty', () => {
       expect(QUALITY_REVIEW_MESSAGE).toContain('**Rejected:**');
       expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(/omit.*if no real alternatives/);

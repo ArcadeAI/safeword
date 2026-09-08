@@ -79,7 +79,7 @@ export const DECISION_BRIEF_GRAMMAR: DecisionBriefGrammar = {
         {
           label: 'Next',
           placeholder:
-            '<standalone decision or action — recommendation, controlling reason, material tradeoff, and exact response; use concrete names, paths, commands, amounts, and consequences>.',
+            '<standalone decision or action with only the concrete context needed to decide or act without scrolling>.',
         },
       ],
     },
