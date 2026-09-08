@@ -1109,12 +1109,15 @@ function reusableApprovedExecutableRedJob(
 }
 
 function hasIndependentApproval(data: Record<string, unknown> | undefined): boolean {
+  const reviewerOutput = data?.reviewer_output as Record<string, unknown> | undefined;
+  const actualReviewer = data?.actual_reviewer;
   return [
     data?.status === 'approved',
     data?.independence === 'cross-agent',
     typeof data?.author_agent === 'string',
-    typeof data?.actual_reviewer === 'string',
-    data?.author_agent !== data?.actual_reviewer,
+    ['claude', 'codex', 'opencode'].includes(actualReviewer as string),
+    data?.author_agent !== actualReviewer,
+    reviewerOutput?.reviewer_agent === actualReviewer,
   ].every(Boolean);
 }
 

@@ -36685,12 +36685,15 @@ function reusableApprovedExecutableRedJob(cwd, sourceFingerprint) {
   return;
 }
 function hasIndependentApproval(data) {
+  const reviewerOutput = data?.reviewer_output;
+  const actualReviewer = data?.actual_reviewer;
   return [
     data?.status === "approved",
     data?.independence === "cross-agent",
     typeof data?.author_agent === "string",
-    typeof data?.actual_reviewer === "string",
-    data?.author_agent !== data?.actual_reviewer
+    ["claude", "codex", "opencode"].includes(actualReviewer),
+    data?.author_agent !== actualReviewer,
+    reviewerOutput?.reviewer_agent === actualReviewer
   ].every(Boolean);
 }
 function hasFailingExecutionAttestation(attestation, sourceFingerprint) {
