@@ -1,5 +1,6 @@
 Feature: Keep plan reviews current and trustworthy
   Safeword binds each planning approval to its canonical contract, exact plan, complete context, and honest reviewer route.
+  # skip: Persona-specific wording for R3, R5, and R6 recovery messages is owned and acceptance-tested by K3EBHB R7 and R10.
 
   @plan-implementability.TBU4.5F5ZZA.R1
   Rule: plan-implementability.TBU4.5F5ZZA.R1 — Shared clauses are authored once and generated into both contracts
@@ -9,6 +10,11 @@ Feature: Keep plan reviews current and trustworthy
       Given both phase contracts were generated from one canonical scope clause
       When that canonical clause is changed and generation runs
       Then both generated contracts contain the same changed clause and neither retains the old text
+
+    Scenario: Phase-only clauses remain in their owning contract
+      Given one clause belongs only to the Execution Plan contract and a different clause belongs only to the Implementation Plan contract
+      When both phase contracts are generated
+      Then each clause appears only in its owning phase contract and neither appears in the other contract
 
   @plan-implementability.TBU4.5F5ZZA.R2
   Rule: plan-implementability.TBU4.5F5ZZA.R2 — Each review receives its complete phase context
@@ -27,6 +33,8 @@ Feature: Keep plan reviews current and trustworthy
         | Implementation Plan | omits resolved project knowledge, including applicable dimensions and guidance | dispatch is blocked until that current context is included |
         | Implementation Plan | includes every required current phase input | dispatch proceeds to the semantic reviewer |
         | Execution Plan | omits the accepted Implementation Plan | dispatch is blocked until that current context is included |
+        | Execution Plan | omits the canonical Execution Plan contract | dispatch is blocked until that current context is included |
+        | Execution Plan | omits accepted behavior artifacts | dispatch is blocked until that current context is included |
         | Execution Plan | includes every required current phase input, including the accepted Implementation Plan | dispatch proceeds to the semantic reviewer |
 
   @plan-implementability.TBU4.5F5ZZA.R3
@@ -62,7 +70,7 @@ Feature: Keep plan reviews current and trustworthy
   Rule: plan-implementability.TBU4.5F5ZZA.R4 — Review provenance changes only for semantic dependencies
 
     Scenario Outline: Context identity ignores cosmetic and unrelated edits
-      Given a plan has a current review bound to normalized context whose relevance is limited to the ticket's affected surfaces and referenced personas
+      Given a plan has a current review recorded against its accepted scope, Rules, scenarios, plan decisions, applicable principles, and the project's surfaces and personas inventories
       When <context_change> occurs
       Then <review_state>
 
@@ -115,9 +123,9 @@ Feature: Keep plan reviews current and trustworthy
         | route_result | gate_result |
         | an independent reviewer approval | the review passes with cross-agent independence recorded |
         | every configured independent route was attempted and returned a typed failure, then the permitted fallback approves | the review passes with reduced independence and actual reviewer recorded without calling the capability degraded |
-        | authentication failure | the phase remains blocked |
-        | reviewer timeout | the phase remains blocked |
-        | reviewer network partition | the phase remains blocked |
+        | authentication failure while another independent route remains unattempted | the phase remains blocked |
+        | reviewer timeout while another independent route remains unattempted | the phase remains blocked |
+        | reviewer network partition while another independent route remains unattempted | the phase remains blocked |
         | a pending review | the phase remains blocked |
         | an unrecognized or unparseable reviewer result | the phase remains blocked with no approval recorded |
         | an approval whose recorded origin is an ungated surface | the phase remains blocked with reviewer-route reconciliation named |
@@ -144,7 +152,7 @@ Feature: Keep plan reviews current and trustworthy
     Scenario Outline: Exhausted routes advance through the fallback ladder in order
       Given every route before <next_tier> was attempted and returned a typed failure
       When review recovery selects the next permitted route
-      Then <next_tier> is attempted before any later tier
+      Then review recovery selects and attempts <next_tier>, and no later tier is attempted first
 
       Examples:
         | next_tier |
@@ -167,39 +175,43 @@ Feature: Keep plan reviews current and trustworthy
         | OpenAI Codex | a current approving receipt | the phase transition proceeds |
         | Cursor | a pending review | the phase remains blocked |
         | Cursor | a current approving receipt | the phase transition proceeds |
-        | Claude Code | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
+        | Claude Code | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the same-agent headless reviewer recorded without calling the capability degraded |
         | OpenAI Codex | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
         | Cursor | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
 
     @surface.opencode
     Scenario Outline: OpenCode CLI and TUI gates enforce the real review result
-      Given an OpenCode CLI or TUI planning phase has <review_state>
+      Given an OpenCode <entry_point> planning phase has <review_state>
       When actual lifecycle dispatch through the installed profile-level plugins/safeword.js evaluates the phase transition with real configuration and collaborators, mocking only the reviewer process boundary
       Then <gate_result>
 
       Examples:
-        | review_state | gate_result |
-        | a pending review | the phase remains blocked |
-        | a current approving receipt | the phase transition proceeds |
-        | an approving receipt invalidated by a changed accepted scenario | the phase remains blocked with re-review named |
-        | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
+        | entry_point | review_state | gate_result |
+        | CLI | a pending review | the phase remains blocked |
+        | CLI | a current approving receipt | the phase transition proceeds |
+        | CLI | an approving receipt invalidated by a changed accepted scenario | the phase remains blocked with re-review named |
+        | CLI | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
+        | TUI | a pending review | the phase remains blocked |
+        | TUI | a current approving receipt | the phase transition proceeds |
+        | TUI | an approving receipt invalidated by a changed accepted scenario | the phase remains blocked with re-review named |
+        | TUI | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
 
     @surface.claude-code-cloud @surface.cursor-cloud-agents
     Scenario Outline: Cloud phase gates enforce the real review result
-      Given a planning phase on <cloud_host> has <review_state>
-      When <cloud_entry> evaluates the phase transition with real configuration and collaborators, mocking only the remote reviewer process boundary
+      Given a planning phase on <cloud_host> in its fresh cloud environment has <review_state>
+      When actual lifecycle dispatch from installed project hooks evaluates the phase transition with real configuration and collaborators, mocking only the remote reviewer process boundary
       Then <gate_result>
 
       Examples:
-        | cloud_host | cloud_entry | review_state | gate_result |
-        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | a pending review | the phase remains blocked |
-        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | a current approving receipt | the phase transition proceeds |
-        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | an approving receipt invalidated by a changed accepted scenario | the phase remains blocked with re-review named |
-        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
-        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | a pending review | the phase remains blocked |
-        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | a current approving receipt | the phase transition proceeds |
-        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | an approving receipt invalidated by a changed accepted scenario | the phase remains blocked with re-review named |
-        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
+        | cloud_host | review_state | gate_result |
+        | Claude Code Cloud | a pending review | the phase remains blocked |
+        | Claude Code Cloud | a current approving receipt | the phase transition proceeds |
+        | Claude Code Cloud | an approving receipt invalidated by a changed accepted scenario | the phase remains blocked with re-review named |
+        | Claude Code Cloud | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
+        | Cursor Cloud Agents | a pending review | the phase remains blocked |
+        | Cursor Cloud Agents | a current approving receipt | the phase transition proceeds |
+        | Cursor Cloud Agents | an approving receipt invalidated by a changed accepted scenario | the phase remains blocked with re-review named |
+        | Cursor Cloud Agents | a permitted fallback approval after every configured independent route was attempted and returned a typed failure | the phase transition proceeds with reduced independence and the actual reviewer recorded without calling the capability degraded |
 
   @plan-implementability.TBU4.5F5ZZA.R7
   Rule: plan-implementability.TBU4.5F5ZZA.R7 — Research and review context remain untrusted evidence
@@ -268,6 +280,17 @@ Feature: Keep plan reviews current and trustworthy
       Given the OpenCode profile plugin is read from Desktop where native lifecycle hooks are unavailable
       When its generated guidance describes the two planning phases
       Then it labels Desktop execution advisory, claims neither review nor approval there, and directs authoritative planning to OpenCode CLI or TUI
+
+    @surface.claude-code @surface.opencode
+    Scenario Outline: Generated guidance identifies gated surfaces as enforced
+      Given planning guidance is generated for <gated_surface>
+      When the guidance describes the two planning phases
+      Then it states that planning review and approval are enforced there and does not label that surface advisory
+
+      Examples:
+        | gated_surface |
+        | local Claude Code |
+        | OpenCode CLI |
 
   @plan-implementability.TBU4.5F5ZZA.R9
   Rule: plan-implementability.TBU4.5F5ZZA.R9 — Review invalidation follows dependency direction

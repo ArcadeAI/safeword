@@ -12,6 +12,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Phase-only clauses remain in their owning contract
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU4.5F5ZZA.R2 — Each review receives its complete phase context
 
 ### Scenario: A review packet cannot omit required phase context
@@ -141,6 +147,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: OpenCode Desktop guidance cannot claim a gated approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Generated guidance identifies gated surfaces as enforced
 
 - [ ] RED
 - [ ] GREEN
