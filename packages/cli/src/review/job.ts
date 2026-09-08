@@ -127,6 +127,35 @@ function withRecordIntegrity(cwd: string, record: ReviewJobRecord): ReviewJobRec
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
 
+interface LedgerFingerprintContext {
+  readonly context: readonly string[];
+  readonly missing: boolean;
+}
+
+function ledgerFingerprintContext(
+  cwd: string,
+  targets: readonly string[],
+  context: readonly string[],
+  execution?: RedExecutionRequest,
+): LedgerFingerprintContext {
+  if (execution === undefined) return { context, missing: false };
+
+  const canonicalRoot = realpathSync.native(cwd);
+  const ledgerPath = nodePath.resolve(canonicalRoot, execution.ledger);
+  if (pathEscapes(canonicalRoot, ledgerPath)) {
+    throw new Error(`Executable RED ledger escapes the project: ${execution.ledger}`);
+  }
+
+  const missing = !existsSync(ledgerPath);
+  const included = [...targets, ...context].some(
+    target => nodePath.resolve(canonicalRoot, target) === ledgerPath,
+  );
+  return {
+    context: included || missing ? context : [...context, execution.ledger],
+    missing,
+  };
+}
+
 function fingerprint(
   cwd: string,
   kind: ReviewKind,
@@ -137,28 +166,15 @@ function fingerprint(
   // A GREEN receipt is bound to the ledger state that the reviewer approved,
   // not just to the human-readable scenario label. Otherwise a later heading
   // rename could make an old receipt appear to cover a different scenario.
-  const canonicalRoot = realpathSync.native(cwd);
-  const ledgerPath =
-    execution === undefined ? undefined : nodePath.resolve(canonicalRoot, execution.ledger);
-  if (ledgerPath !== undefined && pathEscapes(canonicalRoot, ledgerPath)) {
-    throw new Error(`Executable RED ledger escapes the project: ${execution?.ledger}`);
-  }
-  const ledgerExists = ledgerPath !== undefined && existsSync(ledgerPath);
-  const ledgerIsIncluded =
-    execution !== undefined &&
-    [...targets, ...context].some(target => nodePath.resolve(canonicalRoot, target) === ledgerPath);
-  const fingerprintContext =
-    execution === undefined || ledgerIsIncluded || !ledgerExists
-      ? context
-      : [...context, execution.ledger];
-  const prepared = prepareReviewPacket(cwd, kind, targets, fingerprintContext, {
+  const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
+  const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
     allowMissing: true,
   });
   try {
     const hash = createHash('sha256');
     hash.update(`kind\0${kind}\0`);
     if (execution !== undefined) hash.update(`execution\0${JSON.stringify(execution)}\0`);
-    if (execution !== undefined && !ledgerExists) hash.update('ledger\0missing\0');
+    if (ledger.missing) hash.update('ledger\0missing\0');
     for (const [section, files] of [
       ['targets', prepared.packet.logical_files],
       ['context', prepared.packet.context_files ?? []],
