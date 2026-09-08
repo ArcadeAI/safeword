@@ -347,9 +347,18 @@ describe('reviewer arguments', () => {
   });
 
   // Tripwire. `safeword codex status` tells users a stale Codex Desktop
-  // catalogue leaves reviews unaffected. That promise is only true while the
-  // Codex reviewer runs ephemeral with its hooks and user config disabled.
-  // If these flags ever move, the status message becomes a lie — fix both.
+  // catalogue leaves reviews unaffected. Two independent mechanisms make that
+  // true: `--disable hooks` resolves to `features.hooks=false`, and
+  // `--ignore-user-config` skips the $CODEX_HOME/config.toml that `codex plugin
+  // add` writes the Safeword plugin into. If these flags ever move, the status
+  // message becomes a lie — fix both.
+  //
+  // Scope: this asserts the flags are PRESENT, not that they still WORK. A
+  // Codex release could keep the names and change the semantics, and this test
+  // would still pass. tests/smoke/review.live.test.ts exercises the flags
+  // against a real Codex under SAFEWORD_RUN_CROSS_AGENT_LIVE=1, but it does not
+  // seed hostile user config or hooks, so it does not independently prove the
+  // insulation claim either.
   it('keeps the Codex reviewer insulated from the Codex app catalogue', () => {
     const args = reviewerArguments('codex', undefined, undefined);
 
@@ -519,8 +528,13 @@ if [ "\${1:-}" = "--help" ]; then
   echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
   exit 0
 fi
-cat > /dev/null
-printf '%s' '${JSON.stringify({ structured_output: output })}'
+packet=$(/bin/cat)
+case "$packet" in
+  *'"dispatch_id":"dispatch-1"'*)
+    printf '%s' '${JSON.stringify({ structured_output: output })}'
+    ;;
+  *) exit 4 ;;
+esac
 `,
       );
       chmodSync(executable, 0o755);
@@ -660,7 +674,7 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
     'never stages a copy of a reviewer executable that is itself group-writable',
     async () => {
       const bin = trustedTemporaryDirectory();
-      const cacheDirectory = temporaryDirectory();
+      const cacheDirectory = trustedTemporaryDirectory();
       const project = temporaryDirectory();
       const untrustedRoot = temporaryDirectory();
       const executable = nodePath.join(bin, 'claude');
@@ -706,14 +720,34 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       writeFileSync(
         executable,
         `#!/bin/sh
-cat "$(dirname "$0")/capabilities.txt" || exit 3
+if [ "\${1:-}" = "--help" ]; then
+  /bin/cat "\${0%/*}/capabilities.txt" || exit 3
+  exit 0
+fi
+/bin/cat > /dev/null
+printf '%s' '${JSON.stringify({ structured_output: output })}'
 `,
         { mode: 0o755 },
       );
       chmodSync(executable, 0o755);
-      chmodSync(bin, 0o775);
       vi.stubEnv('PATH', bin);
       vi.stubEnv('SAFEWORD_REVIEWER_CACHE_DIR', cacheDirectory);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'quality-review',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).resolves.toMatchObject({ dispatch_id: 'dispatch-1', verdict: 'approve' });
+
+      chmodSync(bin, 0o775);
 
       await expect(
         runHeadlessReviewer(
