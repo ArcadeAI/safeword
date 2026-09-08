@@ -64,7 +64,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory });
+        await runCli(['setup', '--agents', 'cursor'], { cwd: projectDirectory });
 
         // BDD is core (Option A): the lane's step files are TypeScript, so the
         // TS toolchain comes along even in non-JS repos.
@@ -82,7 +82,10 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+        await runCli(['setup', '--agents', 'cursor'], {
+          cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
 
         // Created to host the BDD acceptance lane (ticket 102b).
         expect(fileExists(projectDirectory, 'package.json')).toBe(true);
@@ -102,7 +105,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        const result = await runCli(['setup'], {
+        const result = await runCli(['setup', '--agents', 'cursor'], {
           cwd: projectDirectory,
           env: SKIP_INSTALL_ENV,
         });
@@ -121,7 +124,10 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+        await runCli(['setup', '--agents', 'cursor'], {
+          cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
 
         // .safeword directory should exist
         expect(fileExists(projectDirectory, '.safeword')).toBe(true);
@@ -139,7 +145,10 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         createPythonProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+        await runCli(['setup', '--agents', 'cursor'], {
+          cwd: projectDirectory,
+          env: SKIP_INSTALL_ENV,
+        });
 
         // Hooks should exist
         expect(fileExists(projectDirectory, '.safeword/hooks')).toBe(true);
@@ -155,7 +164,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         createPolyglotProject(projectDirectory);
         initGitRepo(projectDirectory);
 
-        const result = await runCli(['setup'], {
+        const result = await runCli(['setup', '--agents', 'cursor'], {
           cwd: projectDirectory,
           env: SKIP_INSTALL_ENV,
         });

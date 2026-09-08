@@ -2,11 +2,11 @@
 id: KDED4X
 slug: codex-review-stamp-self-contained
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 parent: 2C1E82
 created: 2026-08-19T04:59:06.979Z
-last_modified: 2026-08-19T04:59:06.979Z
+last_modified: 2026-08-30T08:00:00.000Z
 ---
 
 # Let Codex's review-stamp and skill-invocation recording work without project files
@@ -18,3 +18,4 @@ last_modified: 2026-08-19T04:59:06.979Z
 ## Work Log
 
 - 2026-08-19T04:59:06.979Z Started: Created ticket KDED4X
+- 2026-08-30T08:00:00.000Z Completed by epic 2C1E82: review-stamp and skill-invocation recording use packaged commands while preserving runtime identity and lazy state hygiene.

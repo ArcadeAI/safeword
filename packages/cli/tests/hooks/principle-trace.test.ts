@@ -33,6 +33,16 @@ describe('checkPrincipleTrace', () => {
     expect(checkPrincipleTrace(project(), PLAN)).toEqual([]);
   });
 
+  it('matches a numbered source principle when the trace omits only its heading number', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      PRINCIPLE.replace('## Delight the user', '## 1. Delight the user'),
+    );
+
+    expect(checkPrincipleTrace(directory, PLAN)).toEqual([]);
+  });
+
   it('accepts a proof fragment only when the Markdown heading exists', () => {
     const plan = PLAN.replace('verify.md', 'verify.md#evidence');
 

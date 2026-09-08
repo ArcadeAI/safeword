@@ -21,13 +21,13 @@ Deep review with research to verify a work-product — code, docs, specs, plans,
 
 Required before marking done a ticket with **two or more RGR loops**. The line below logs a current-run entry to `skill-invocations.log` under the project namespace root so the done-gate hook can verify $safeword:quality-review actually ran; Claude Code expands the `!` line automatically. On Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id, so the fallback runs on all three runtimes without hand-picking one. Hand-writing review notes cannot produce this gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] quality-review ✓` line appears above, run this fallback before continuing:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ticket with 2+ RGR loops can't be marked done without this proof — don't substitute hand-written notes for it. Report the failure to the user (usual causes: inline shell execution was denied, the runtime exposed no usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking $safeword:quality-review.
@@ -202,15 +202,15 @@ For each new entry point or command in a code change, confirm a test built from 
 
 ### Provenance gate (required)
 
-Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict must cite a `verified` source fetched this session.** A claim tagged `(training data)` or `(uncertain)` caps at NOTE / a non-blocking suggestion — it can inform, never block. Tag every issue with its provenance inline, and **surface** an unverifiable concern as a NOTE with the gap named ("couldn't verify X"), never silently drop it. Abstention discipline: LLM judges over-state confidence by default, so an unverified blocker is false certainty.
+Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict based on an external factual claim must cite a `verified` source fetched this session.** An error demonstrated directly by the work-product or repository evidence may block when that evidence is cited; it does not need an unrelated external source. An external claim tagged `(training data)` or `(uncertain)` caps at NOTE / a non-blocking suggestion — it can inform, never block. Tag every issue with its provenance inline, and **surface** an unverifiable external concern as a NOTE with the gap named ("couldn't verify X"), never silently drop it. Abstention discipline: LLM judges over-state confidence by default, so an unverified external blocker is false certainty.
 
 ## Loop: review → fix → re-review
 
-Run the review in passes. Two rules decide when to stop, because "until it comes back clean" is not a condition an adversarial reviewer reliably produces — expect it to keep finding something, and let severity rather than patience end the loop.
+Run the review in passes. Two rules and an objective gate govern the loop, because "until it comes back clean" is not a condition an adversarial reviewer reliably produces — expect it to keep finding something, and let severity rather than patience end the loop.
 
-**Continue while any finding is an `error`.** Judge that against the severity definition above — a named input producing a wrong or absent result — not against the label the reviewer attached. A finding that cannot state its failing input is a warning however it is tagged, and warnings never hold a pass open.
+**Continue while any finding is an `error`.** Judge that against the shared severity foundation above, not against the label the reviewer attached. Require a concrete triggering condition and observable consequence; a named failing input is one sufficient form, not the only form. In the output below, rubric errors belong under **Critical issues** and require **REQUEST CHANGES**; rubric warnings and information belong under **Suggested improvements** and do not hold a pass open.
 
-**At the third finding in one defect class, fix the class, not the instance.** Three findings that differ only in which input reaches the same weak spot are telling you the shape of the code is wrong. Patching the third instance buys one pass; replacing the mechanism ends the class. If you cannot see the class, that itself is the finding worth reporting.
+**At the third error-level finding in one defect class across the review's passes, fix the class, not the instance.** A defect class shares one root mechanism such that one repair removes all its instances; different inputs or call sites do not make separate classes when they reach that same mechanism. Patching the third instance buys one pass; replacing the mechanism ends the class. If you cannot see the class, that itself is the finding worth reporting. If the class-level repair is outside the accepted scope, do not expand scope silently: keep it under **Critical issues**, use **REQUEST CHANGES**, and put the question about widening scope in **Next**. If the user chooses to stop instead, disclose the outstanding error.
 
 Each pass:
 
@@ -285,17 +285,15 @@ Each pass:
    Preserve a blocked or `require`-unsatisfied result, and never invent
    provenance, completed coverage, or a recovery command.
 
-2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
+2. **Triage.** Fix every rubric error under **Critical issues** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
-3. **Decide.** Stop when no finding is an `error`; remaining warnings and
-   suggestions are optional. Re-review only if you changed the work-product this
-   pass. Stopping while errors remain is a choice to ship a known defect — say so
-   in your report and in the ticket's evidence, rather than letting a stopped loop
-   read as a clean one.
-
-A pass isn't done until the objective check passes — for code that's `$safeword:verify`
-(tests, lint, typecheck); for other work-products it's whatever measurable
-acceptance you can run. That objective signal, not the reviewer running out of
-suggestions, is the real stop condition.
+3. **Decide.** Run the objective check — for code that's `$safeword:verify` (tests, lint,
+   typecheck); for other work-products it's the relevant measurable acceptance.
+   Stop only when it passes and no finding is an `error`; remaining warnings and
+   suggestions are optional. An error is either fixed and re-reviewed or explicitly
+   disclosed when stopping — it is never silently carried. Re-review only if you
+   changed the work-product this pass. Stopping while errors remain is a choice to
+   ship a known defect — say so in your report and in the ticket's evidence, rather
+   than letting a stopped loop read as a clean one.
 
 **Voice:** plainspoken and concise — write to be scanned. **Avoid bloat.**

@@ -226,7 +226,7 @@ Then(
 );
 
 Given('a project with the installed architecture guide', function (this: ArchitectureWorld) {
-  const result = spawnSync('bun', [CLI_PATH, 'setup', '--yes', '--agents', 'none'], {
+  const result = spawnSync('bun', [CLI_PATH, 'setup', '--yes', '--agents', 'cursor'], {
     cwd: dir(this),
     encoding: 'utf8',
     env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
