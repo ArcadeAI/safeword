@@ -48,7 +48,7 @@ import {
   syncConfigCore,
 } from '../commands/sync-config.js';
 import { checkHealth, type HealthStatus } from '../health.js';
-import { applyFreshInstallDefaults } from '../packs/config.js';
+import { applyFreshInstallDefaults, freshInstallDefaultsNeedUpdate } from '../packs/config.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
@@ -194,6 +194,7 @@ function plannedJavaScriptPackageFiles(cwd: string): Effect[] {
 }
 
 function configNeedsCompatibilityUpdate(cwd: string): boolean {
+  if (shouldApplyFreshInstallDefaults(cwd)) return true;
   if (publicRetroConfigNeedsUpdate(cwd)) return true;
   if (getMissingPacks(cwd).length > 0) return true;
   try {
@@ -204,6 +205,12 @@ function configNeedsCompatibilityUpdate(cwd: string): boolean {
   } catch {
     return false;
   }
+}
+
+function shouldApplyFreshInstallDefaults(cwd: string): boolean {
+  return (
+    !existsSync(nodePath.join(cwd, '.safeword/version')) && freshInstallDefaultsNeedUpdate(cwd)
+  );
 }
 
 function plannedCodexBootstrapEffect(cwd: string): Effect[] {
@@ -1262,9 +1269,9 @@ function projectClaudePluginEnrolled(cwd: string): boolean {
 function applyCompatibilityMigrations(
   cwd: string,
   completedEffects: CompletedSetupEffects,
-  freshInstall: boolean,
+  applyFreshDefaults: boolean,
 ): void {
-  if (freshInstall) {
+  if (applyFreshDefaults) {
     observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () => {
       applyFreshInstallDefaults(cwd);
     });
@@ -1374,7 +1381,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     packageJsonCreated,
     preliminaryFileEffects,
   } = input;
-  const freshInstall = !existsSync(nodePath.join(cwd, '.safeword/version'));
+  const applyFreshDefaults = shouldApplyFreshInstallDefaults(cwd);
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
   const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
@@ -1386,7 +1393,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   };
 
   try {
-    applyCompatibilityMigrations(cwd, completedEffects, freshInstall);
+    applyCompatibilityMigrations(cwd, completedEffects, applyFreshDefaults);
     observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
       installCodexProjectBootstrap(cwd),
     );

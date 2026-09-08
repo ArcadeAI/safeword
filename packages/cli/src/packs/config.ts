@@ -67,10 +67,14 @@ export function isPackInstalled(cwd: string, packId: string): boolean {
 
 /** Preserve legacy installs while making the first setup explicitly local-only. */
 export function applyFreshInstallDefaults(cwd: string): void {
+  if (!freshInstallDefaultsNeedUpdate(cwd)) return;
   const config = readConfig(cwd) ?? { installedPacks: [] };
-  if (config.architectureDocEnforcement !== undefined) return;
   config.architectureDocEnforcement = false;
   writeConfig(cwd, config);
+}
+
+export function freshInstallDefaultsNeedUpdate(cwd: string): boolean {
+  return readConfig(cwd)?.architectureDocEnforcement === undefined;
 }
 
 /**
