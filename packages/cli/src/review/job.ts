@@ -134,7 +134,19 @@ function fingerprint(
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
 ): string {
-  const prepared = prepareReviewPacket(cwd, kind, targets, context, { allowMissing: true });
+  // A GREEN receipt is bound to the ledger state that the reviewer approved,
+  // not just to the human-readable scenario label. Otherwise a later heading
+  // rename could make an old receipt appear to cover a different scenario.
+  const ledgerIsIncluded =
+    execution !== undefined &&
+    [...targets, ...context].some(
+      target => nodePath.resolve(cwd, target) === nodePath.resolve(cwd, execution.ledger),
+    );
+  const fingerprintContext =
+    execution === undefined || ledgerIsIncluded ? context : [...context, execution.ledger];
+  const prepared = prepareReviewPacket(cwd, kind, targets, fingerprintContext, {
+    allowMissing: true,
+  });
   try {
     const hash = createHash('sha256');
     hash.update(`kind\0${kind}\0`);
@@ -258,11 +270,32 @@ function hasReviewJobIdentity(candidate: Record<string, unknown>): boolean {
     hasStrings &&
     isStringArray(candidate.targets) &&
     isOptional(candidate.context, isStringArray) &&
+    (candidate.kind === 'executable-red'
+      ? isRedExecutionRequest(candidate.execution)
+      : candidate.execution === undefined) &&
     isOptional(
       candidate.deadline_at,
       value => typeof value === 'string' && Number.isFinite(Date.parse(value)),
     ) &&
     isReviewKind(candidate.kind)
+  );
+}
+
+function isRedExecutionRequest(value: unknown): value is RedExecutionRequest {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    ['scenario', 'ledger', 'cwd', 'expectedFailure'].every(
+      key => typeof candidate[key] === 'string' && candidate[key].length > 0,
+    ) &&
+    Array.isArray(candidate.argv) &&
+    candidate.argv.length > 0 &&
+    candidate.argv.every(argument => typeof argument === 'string') &&
+    ['pure-contract', 'simulated-host', 'local-live-host', 'external-live-host'].includes(
+      candidate.evidenceClass as string,
+    ) &&
+    Number.isSafeInteger(candidate.timeoutMs) &&
+    (candidate.timeoutMs as number) > 0
   );
 }
 

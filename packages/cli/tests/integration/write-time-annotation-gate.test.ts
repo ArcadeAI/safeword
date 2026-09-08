@@ -490,6 +490,58 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
+    it('rejects an approved scenario supplied only by ambiguous apply_patch context', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: approved elsewhere',
+          '',
+          '- [x] RED abc1234',
+          '- [ ] GREEN',
+          '',
+          '### Scenario: actual boundary',
+          '',
+          '- [x] RED 9876fed',
+          '- [ ] GREEN',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const patch = [
+        '*** Begin Patch',
+        `*** Update File: ${setup.testDefinitionsPath}`,
+        '@@',
+        ' ### Scenario: approved elsewhere',
+        '-- [ ] GREEN',
+        '+- [x] GREEN def5678',
+        '*** End Patch',
+      ].join('\n');
+
+      const result = runCodexPatchHook(
+        setup.cwd,
+        patch,
+        gateStub(setup.cwd, 'healthy', 'Scenario: approved elsewhere'),
+      );
+
+      expectHookDeny(result, 'could not identify the active scenario');
+    });
+
+    it('binds GREEN beneath a level-four scenario heading', () => {
+      const setup = setupProject(
+        '#### Scenario: nested boundary\n\n- [x] RED abc1234\n- [ ] GREEN\n',
+      );
+      projectDirectory = setup.cwd;
+
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: nested boundary') },
+      );
+
+      expectHookAllow(result);
+    });
+
     it('allows apply_patch only when it forwards the exact scenario and ledger', () => {
       const setup = setupProject(
         '### Scenario: exact boundary\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',

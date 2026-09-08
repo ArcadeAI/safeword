@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "11db028429ff191b4b98f3e4c6d9c24b3c67caee7f0f82c8e3696c2970ab540b"
+      "sha256": "6ac3358dd32aa859fdd8bbd480295bb5ef319e748c5d07bfafd75fb4df9c7bac"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "2b783a9493034f51792663e56483e63be9340da026581f4b0f8296c30f62c190"
+      "sha256": "0f4195f0e3066187978a700170a20e05f60ee761841f6b8f070c6e8e296bd171"
     },
     {
       "path": "runtime/event-groups.json",
@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "64bb99191057ee265d59e207af60addeb3e3d0c5013082b16505cfbd4e5ec188"
+      "sha256": "f5aea23bfc1797d0c197a5f92478a9a88e8ecf504512af4db75b7ab6841e8be8"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",

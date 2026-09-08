@@ -35,7 +35,7 @@ function checkboxStates(text: string): CheckboxState[] {
   const states: CheckboxState[] = [];
   let scenario: string | undefined;
   for (const line of text.split('\n')) {
-    if (/^#{2,3}\s/.test(line)) scenario = line.replace(/^#{2,3}\s+/, '').trim();
+    if (/^#{2,6}\s/.test(line)) scenario = line.replace(/^#{2,6}\s+/, '').trim();
     const parsed = parseCheckboxAnnotation(line);
     if (parsed === null) continue;
     states.push({ ...parsed, scenario });
@@ -116,16 +116,27 @@ function transitionsForAppliedEdit(
   // hunk context, so retain a scenario only when both sides name it identically;
   // never trust a heading supplied solely by the replacement fragment.
   const oldStates = checkboxStates(oldText);
+  const currentStates = checkboxStates(current);
   return {
     next: current,
     transitions: findTransitions(oldText, newText).map(transition => {
-      const prior = oldStates.find(
+      const fragmentPrior = oldStates.find(
         state =>
           !state.checked &&
           state.step === transition.step &&
           state.scenario === transition.scenario,
       );
-      return prior === undefined ? { ...transition, scenario: undefined } : transition;
+      if (fragmentPrior === undefined) return { ...transition, scenario: undefined };
+
+      // A failed literal reconstruction means the adapter's context is only a
+      // hint. Bind to the file on disk only when it identifies one unambiguous
+      // unchecked row; never let agent-supplied patch context choose a receipt.
+      const candidates = currentStates.filter(
+        state => !state.checked && state.step === transition.step,
+      );
+      return candidates.length === 1
+        ? { ...transition, scenario: candidates[0]?.scenario }
+        : { ...transition, scenario: undefined };
     }),
   };
 }

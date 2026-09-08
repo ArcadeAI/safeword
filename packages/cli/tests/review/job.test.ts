@@ -89,6 +89,11 @@ function project(): string {
   const keyPrefix = nodePath.join(tmpdir(), 'safeword-review-key-test-');
   vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', mkdtempSync(keyPrefix));
   writeFileSync(nodePath.join(directory, 'input.md'), 'review me\n');
+  mkdirSync(nodePath.join(directory, '.project/tickets/TST'), { recursive: true });
+  writeFileSync(
+    nodePath.join(directory, '.project/tickets/TST/test-definitions.md'),
+    '### Scenario: exact actor boundary\n\n- [x] RED abc1234\n- [ ] GREEN\n',
+  );
   return directory;
 }
 
@@ -659,6 +664,21 @@ describe('durable review jobs', () => {
       expectedFailure: 'actor assertion',
       timeoutMs: 1000,
     };
+    writeFileSync(
+      nodePath.join(cwd, execution.ledger),
+      [
+        '### Scenario: exact actor boundary',
+        '',
+        '- [x] RED abc1234',
+        '- [ ] GREEN',
+        '',
+        '### Scenario: beta boundary',
+        '',
+        '- [x] RED 9876fed',
+        '- [ ] GREEN',
+        '',
+      ].join('\n'),
+    );
 
     await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
     expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
@@ -669,6 +689,18 @@ describe('durable review jobs', () => {
       executableRedGate(cwd, execution.scenario, '.project/tickets/OTHER/test-definitions.md'),
     ).toMatchObject({
       state: 'action_required',
+      data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+
+    writeFileSync(
+      nodePath.join(cwd, execution.ledger),
+      '### Scenario: exact actor boundary\n\n- [x] RED 9876fed\n- [ ] GREEN\n',
+    );
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
+      state: 'action_required',
+      findings: [
+        { code: 'EXECUTABLE_RED_GATE_BLOCKED', message: expect.stringContaining('stale') },
+      ],
       data: { command: 'review gate executable-red', status: 'blocked' },
     });
 
@@ -1491,6 +1523,41 @@ ${COMPLETE_WORKER}`,
     const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
     const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
     record.targets = ['attacker-controlled.md'];
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+    const result = reviewJobStatus(cwd, id);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+  });
+
+  it('rejects a sealed executable RED record with malformed execution identity', async () => {
+    const cwd = project();
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const completed = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution: {
+        scenario: 'Scenario: exact actor boundary',
+        ledger: '.project/tickets/TST/test-definitions.md',
+        argv: [process.execPath, '-e', 'process.exit(1)'],
+        cwd: '.',
+        evidenceClass: 'pure-contract',
+        expectedFailure: 'actor assertion',
+        timeoutMs: 1000,
+      },
+    });
+    const id = (completed.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
+    record.execution = { scenario: 'Scenario: exact actor boundary' };
+    delete record.integrity;
+    record.integrity = signRecord(cwd, record);
     writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
 
     const result = reviewJobStatus(cwd, id);
