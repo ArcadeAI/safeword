@@ -35,6 +35,18 @@ async function loadConfigModule(relativePath: string): Promise<CucumberConfigMod
 }
 
 describe('Cucumber config targeted path handling', () => {
+  it('keeps the package-local BDD lane complete for Cucumber and Vitest-backed features', () => {
+    const cliPackageJson = JSON.parse(
+      readFileSync(nodePath.join(REPO_ROOT, 'packages/cli/package.json'), 'utf8'),
+    ) as { scripts?: Record<string, string> };
+
+    expect(cliPackageJson.scripts?.['test:bdd']).toBe(
+      'bun run test:bdd:acceptance && bun run test:bdd:proof',
+    );
+    expect(cliPackageJson.scripts?.['test:bdd:acceptance']).toContain('cucumber-js');
+    expect(cliPackageJson.scripts?.['test:bdd:proof']).toContain('tests/bdd-proof-tags.test.ts');
+  });
+
   it('loads TypeScript step definitions in both deterministic and live dogfood lanes', () => {
     const packageJson = JSON.parse(
       readFileSync(nodePath.join(REPO_ROOT, 'package.json'), 'utf8'),
@@ -56,7 +68,7 @@ describe('Cucumber config targeted path handling', () => {
     )) as { default: { tags: string } };
 
     expect(packageJson.scripts?.['test:bdd:acceptance']).toContain(AUTOMATED_TAGS);
-    expect(cliPackageJson.scripts?.['test:bdd']).toContain(AUTOMATED_TAGS);
+    expect(cliPackageJson.scripts?.['test:bdd:acceptance']).toContain(AUTOMATED_TAGS);
     expect(cliConfig.default.tags).toBe(AUTOMATED_TAGS);
     for (const [, relativePath] of CONFIG_SURFACES) {
       const configModule = await loadConfigModule(relativePath);

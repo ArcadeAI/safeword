@@ -2,11 +2,11 @@
 id: JNZ2H5
 slug: codex-audit-scope-self-contained
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 parent: 2C1E82
 created: 2026-08-19T04:59:33.847Z
-last_modified: 2026-08-19T04:59:33.847Z
+last_modified: 2026-08-30T08:00:00.000Z
 ---
 
 # Find a self-contained equivalent for Codex's sourced audit-scope helper
@@ -18,3 +18,4 @@ last_modified: 2026-08-19T04:59:33.847Z
 ## Work Log
 
 - 2026-08-19T04:59:33.847Z Started: Created ticket JNZ2H5
+- 2026-08-30T08:00:00.000Z Completed by epic 2C1E82: the packaged audit-scope command emits a sourceable shell contract, preserving caller-shell variables without a project helper.

@@ -17,9 +17,14 @@ import importlib.util
 import pathlib
 import sys
 import time
+from collections.abc import Awaitable, Callable
+from types import ModuleType
+
+Fetch = Callable[[str], Awaitable[str]]
+FetchAll = Callable[[list[str], Fetch], Awaitable[list[str]]]
 
 
-def load(path: str):
+def load(path: str) -> ModuleType:
     spec = importlib.util.spec_from_file_location("candidate", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -39,7 +44,7 @@ def detect_api(src: str) -> str:
     return "+".join(apis) if apis else "?"
 
 
-async def run_checks(fetch_all) -> tuple[bool, str]:
+async def run_checks(fetch_all: FetchAll) -> tuple[bool, str]:
     # --- success path: all succeed, results returned in input order ---
     async def ok_fetch(url: str) -> str:
         await asyncio.sleep(0.01)
@@ -73,9 +78,15 @@ async def run_checks(fetch_all) -> tuple[bool, str]:
     await asyncio.sleep(1.3)
 
     if raised is None:
-        return False, "no exception propagated when a fetch failed (e.g. gather(return_exceptions=True))"
+        return (
+            False,
+            "no exception propagated when a fetch failed (e.g. gather(return_exceptions=True))",
+        )
     if completed:
-        return False, "sibling NOT cancelled — it leaked to completion (bare-gather bug)"
+        return (
+            False,
+            "sibling NOT cancelled — it leaked to completion (bare-gather bug)",
+        )
     if elapsed > 0.5:
         return False, f"did not fail fast (elapsed {elapsed:.2f}s)"
     return True, "siblings cancelled + failed fast"

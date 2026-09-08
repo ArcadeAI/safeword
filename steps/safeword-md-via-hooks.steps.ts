@@ -27,6 +27,7 @@ interface SafewordMdWorld extends SafewordWorld {
   wiring?: {
     claudeSettings: string;
     cursorHooks: string;
+    pluginHooks: string;
   };
 }
 
@@ -65,6 +66,7 @@ function readInstalledWiring(projectDirectory: string): SafewordMdWorld['wiring'
   return {
     claudeSettings: readProjectFile(projectDirectory, '.claude/settings.json'),
     cursorHooks: readProjectFile(projectDirectory, '.cursor/hooks.json'),
+    pluginHooks: readProjectFile(PROJECT_ROOT, 'plugin/hooks/hooks.json'),
   };
 }
 
@@ -132,11 +134,14 @@ Given('each file also contains customer-authored instructions', function (this: 
   assert.match(readProjectFile(this.projectDirectory, 'CLAUDE.md'), /Customer/);
 });
 
-Given("safeword's generated Claude settings and Cursor hooks", function (this: SafewordMdWorld) {
-  this.projectDirectory = createProjectDirectory();
-  declareLegacyClaudeDelivery(this.projectDirectory);
-  runSafeword(this.projectDirectory, 'setup');
-});
+Given(
+  "safeword's generated Claude plugin hooks and Cursor hooks",
+  function (this: SafewordMdWorld) {
+    this.projectDirectory = createProjectDirectory();
+    declareLegacyClaudeDelivery(this.projectDirectory);
+    runSafeword(this.projectDirectory, 'setup');
+  },
+);
 
 Given(
   'an installed safeword project with .safeword\\/SAFEWORD.md',
@@ -147,7 +152,7 @@ Given(
   },
 );
 
-Given("safeword's generated Claude settings", function (this: SafewordMdWorld) {
+Given("safeword's generated Claude plugin hooks", function (this: SafewordMdWorld) {
   this.projectDirectory = createProjectDirectory();
   declareLegacyClaudeDelivery(this.projectDirectory);
   runSafeword(this.projectDirectory, 'setup');
@@ -256,8 +261,9 @@ Then('the customer-authored instructions remain', function (this: SafewordMdWorl
   assert.match(readProjectFile(this.projectDirectory, 'CLAUDE.md'), /Customer Claude instructions/);
 });
 
-Then('Claude SessionStart runs the SAFEWORD context hook', function (this: SafewordMdWorld) {
-  assert.match(this.wiring?.claudeSettings ?? '', /session-safeword-context\.ts/);
+Then('Claude plugin SessionStart runs the SAFEWORD context hook', function (this: SafewordMdWorld) {
+  assert.match(this.wiring?.pluginHooks ?? '', /session-safeword-context\.ts/);
+  assert.doesNotMatch(this.wiring?.claudeSettings ?? '', /session-safeword-context\.ts/);
 });
 
 Then('Cursor sessionStart runs the SAFEWORD context hook', function (this: SafewordMdWorld) {
@@ -294,9 +300,16 @@ Then(
   },
 );
 
-Then('it runs the SAFEWORD context hook', function (this: SafewordMdWorld) {
-  assert.match(this.wiring?.claudeSettings ?? '', /session-safeword-context\.ts/);
-});
+Then(
+  'the Claude plugin compact matcher runs the SAFEWORD compact context hook',
+  function (this: SafewordMdWorld) {
+    assert.match(
+      this.wiring?.pluginHooks ?? '',
+      /"matcher": "compact"[\s\S]*session-compact-context\.ts/u,
+    );
+    assert.doesNotMatch(this.wiring?.claudeSettings ?? '', /session-compact-context\.ts/);
+  },
+);
 
 Then(
   'the compact context hook still restores active ticket context',
