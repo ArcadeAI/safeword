@@ -3,6 +3,7 @@ import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
 import { retryCommand } from './command.js';
 import type {
+  RedExecutionAttestation,
   ReviewAgent,
   ReviewAuthor,
   ReviewerOutput,
@@ -31,6 +32,7 @@ type ReviewRunInput = {
   readonly targets: readonly string[];
   readonly context?: readonly string[];
   readonly progress?: ReviewProgress;
+  readonly executionAttestation?: RedExecutionAttestation;
 };
 
 /**
@@ -653,6 +655,7 @@ async function executeRankedRoute(input: {
     input.run.kind,
     input.run.targets,
     input.run.context,
+    { attestation: input.run.executionAttestation },
   );
   input.run.progress?.heartbeat?.(
     `Still waiting for a response from ${agentName(input.route.reviewer)}…`,
@@ -975,7 +978,9 @@ function preparePrimaryReview(
   reviewer: ReviewAgent,
 ): ReturnType<typeof prepareReviewPacket> {
   const name = agentName(reviewer);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation,
+  });
   input.progress?.start(`Requesting an independent ${name} review…`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}…`);
   return prepared;
@@ -1040,7 +1045,9 @@ function prepareFallbackReview(
   input.progress?.start(
     `${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation,
+  });
   input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback…`);
   return prepared;
 }
@@ -1285,7 +1292,9 @@ async function runAlternateModelRoute(
   input.progress?.start(
     `Trying ${agentName(input.reviewer)} again with the configured alternate model…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation,
+  });
   input.progress?.heartbeat?.(
     `Still waiting for ${agentName(input.reviewer)} on the alternate model…`,
   );
@@ -1351,7 +1360,9 @@ async function runIndependentFallback(
   input.progress?.start(
     `${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation,
+  });
   input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}…`);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
     input.reviewer,

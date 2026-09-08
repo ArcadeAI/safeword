@@ -47,6 +47,8 @@ interface PatchTarget {
   filePath: string;
   toolName: 'Edit' | 'Write';
   content?: string;
+  oldString?: string;
+  newString?: string;
 }
 
 const DIRECT_TOOLS = new Set(['Bash', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
@@ -74,6 +76,8 @@ export function translateCodexInputToClaudeInputs(input: CodexHookInput): Claude
     tool_input: {
       file_path: patchTarget.filePath,
       ...(patchTarget.content === undefined ? {} : { content: patchTarget.content }),
+      ...(patchTarget.oldString === undefined ? {} : { old_string: patchTarget.oldString }),
+      ...(patchTarget.newString === undefined ? {} : { new_string: patchTarget.newString }),
     },
   }));
 }
@@ -118,14 +122,35 @@ function extractPatchTargets(command: string): PatchTarget[] {
       continue;
     }
 
-    targets.push({
-      filePath,
-      toolName: 'Edit',
-      content: operation === 'Update' ? extractAddedFileContent(lines.slice(index + 1)) : undefined,
-    });
+    const edit = operation === 'Update' ? extractUpdateStrings(lines.slice(index + 1)) : undefined;
+    targets.push({ filePath, toolName: 'Edit', ...edit });
   }
 
   return targets;
+}
+
+function extractUpdateStrings(linesAfterHeader: string[]): {
+  oldString: string;
+  newString: string;
+} {
+  const oldLines: string[] = [];
+  const newLines: string[] = [];
+  for (const line of linesAfterHeader) {
+    if (line.startsWith('*** ')) break;
+    if (line.startsWith('@@')) continue;
+    if (line.startsWith('+')) {
+      newLines.push(line.slice(1));
+      continue;
+    }
+    if (line.startsWith('-')) {
+      oldLines.push(line.slice(1));
+      continue;
+    }
+    const context = line.startsWith(' ') ? line.slice(1) : line;
+    oldLines.push(context);
+    newLines.push(context);
+  }
+  return { oldString: oldLines.join('\n'), newString: newLines.join('\n') };
 }
 
 function extractAddedFileContent(linesAfterHeader: string[]): string {
