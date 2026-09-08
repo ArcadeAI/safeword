@@ -100,7 +100,11 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
       done: `.project/tickets/${TICKET}/ticket.md`,
     } as const;
     for (const [phase, target] of Object.entries(phaseTargets)) {
-      const claim = claimFor({ phase });
+      const claim = claimFor({
+        phase,
+        ...(phase === 'intake' && { intakeArtifact: 'spec.md' }),
+        ...(phase === 'implement' && { implementationFiles: [target] }),
+      });
 
       expect(
         receiptGateVerdict(claim, {
@@ -118,6 +122,48 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
       expect(wrongKind.ok).toBe(false);
       expect(!wrongKind.ok && wrongKind.reason).toContain('quality-review');
     }
+  });
+
+  it('lets a task intake review cover ticket.md when the ticket has no spec', () => {
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'intake', intakeArtifact: 'ticket.md' }), {
+        ...approved,
+        kind: 'quality-review',
+        targets: [`.project/tickets/${TICKET}/ticket.md`],
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('still requires spec.md when intake produced a spec', () => {
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'intake', intakeArtifact: 'spec.md' }), {
+        ...approved,
+        kind: 'quality-review',
+        targets: [`.project/tickets/${TICKET}/ticket.md`],
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('requires an implement review target to be part of the current change set', () => {
+    const claim = claimFor({
+      phase: 'implement',
+      implementationFiles: ['packages/cli/src/changed.ts'],
+    });
+
+    expect(
+      receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'quality-review',
+        targets: ['README.md'],
+      }).ok,
+    ).toBe(false);
+    expect(
+      receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'quality-review',
+        targets: ['packages/cli/src/changed.ts'],
+      }),
+    ).toEqual({ ok: true });
   });
 
   it.each(['implement', 'verify', 'done'])(

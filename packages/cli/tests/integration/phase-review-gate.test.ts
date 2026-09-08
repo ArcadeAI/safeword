@@ -191,6 +191,27 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     );
     writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: phase-review fixture\n');
     writeFileSync(nodePath.join(ticketDirectory, 'feature.feature'), 'Feature: fixture\n');
+    const implementationFile = nodePath.join(projectRoot, 'packages', 'cli', 'src', 'feature.ts');
+    mkdirSync(nodePath.dirname(implementationFile), { recursive: true });
+    writeFileSync(implementationFile, 'export const value = 1;\n');
+    expect(spawnSync('git', ['init', '-b', 'main', projectRoot]).status).toBe(0);
+    expect(spawnSync('git', ['-C', projectRoot, 'add', '.']).status).toBe(0);
+    expect(
+      spawnSync(
+        'git',
+        ['-C', projectRoot, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture baseline'],
+        {
+          env: {
+            ...process.env,
+            GIT_AUTHOR_NAME: 'Safeword Test',
+            GIT_AUTHOR_EMAIL: 'test@example.com',
+            GIT_COMMITTER_NAME: 'Safeword Test',
+            GIT_COMMITTER_EMAIL: 'test@example.com',
+          },
+        },
+      ).status,
+    ).toBe(0);
+    writeFileSync(implementationFile, 'export const value = 2;\n');
     writeConfig(true);
   });
 
@@ -276,6 +297,13 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     it('a logged skip bypasses the cross-model requirement', () => {
       writeConfig(true, true);
       stampPhase('define-behavior', 'docs-only phase');
+      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('a logged skip bypasses an earlier same-model review', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      stampPhase('define-behavior', 'review deliberately waived');
       expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
     });
 

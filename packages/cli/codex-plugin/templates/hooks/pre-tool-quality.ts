@@ -827,7 +827,15 @@ if (isCanonicalTicketEdit) {
     // scope (the log is append-only, so a corrected re-review can follow a same-model
     // attempt) — pass if any is cross-model. A logged skip records no real-review
     // stamp, so it deliberately bypasses this, matching the arch-gate's escape valve.
-    else if (isCrossModelOn()) {
+    else if (
+      isCrossModelOn() &&
+      !stamps.some(
+        stamp =>
+          stamp.scope === phaseScope &&
+          stamp.skipReason !== undefined &&
+          isValidSkipReason(stamp.skipReason),
+      )
+    ) {
       const realReviews = stamps.filter(s => s.scope === phaseScope && s.skipReason === undefined);
       const hasCrossModelReview = realReviews.some(
         s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),

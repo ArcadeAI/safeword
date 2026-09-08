@@ -37,6 +37,10 @@ export interface StampClaim {
   readonly projectDirectory: string;
   /** Exact configured ticket directory this stamp is about. */
   readonly ticketDirectory: string;
+  /** Intake's real output: features have a spec; lighter tickets use ticket.md. */
+  readonly intakeArtifact?: 'spec.md' | 'ticket.md';
+  /** Repo-relative files changed by the current branch/worktree. */
+  readonly implementationFiles?: readonly string[];
   /** Author runtime the stamp reports, when it reports one. */
   readonly authorAgent?: string;
   /** Actual reviewer runtime the stamp reports, when it reports one. */
@@ -144,24 +148,24 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
     .map(target => relativeTicketTarget(target, claim))
     .filter((target): target is string => target !== undefined);
 
-  if (phase === 'intake') return ticketTargets.includes('spec.md');
+  if (phase === 'intake')
+    return claim.intakeArtifact !== undefined && ticketTargets.includes(claim.intakeArtifact);
   if (phase === 'define-behavior' || phase === 'scenario-gate')
     return ticketTargets.some(target => target.endsWith('.feature'));
   if (phase === 'plan-implementation') return ticketTargets.includes('impl-plan.md');
   if (phase === 'verify') return ticketTargets.includes('verify.md');
   if (phase === 'done') return ticketTargets.includes('ticket.md');
   if (phase === 'implement') {
-    return targets.some(target => {
-      const resolved = resolveTarget(target, claim.projectDirectory);
-      const projectRelative = nodePath.relative(claim.projectDirectory, resolved);
-      return (
-        projectRelative !== '' &&
-        projectRelative !== '..' &&
-        !projectRelative.startsWith(`..${nodePath.sep}`) &&
-        !nodePath.isAbsolute(projectRelative) &&
-        relativeTicketTarget(target, claim) === undefined
-      );
-    });
+    const changed = new Set(
+      (claim.implementationFiles ?? []).map(target =>
+        resolveTarget(target, claim.projectDirectory),
+      ),
+    );
+    return targets.some(
+      target =>
+        changed.has(resolveTarget(target, claim.projectDirectory)) &&
+        relativeTicketTarget(target, claim) === undefined,
+    );
   }
   return false;
 }

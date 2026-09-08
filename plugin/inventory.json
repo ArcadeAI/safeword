@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "88670b23407dec3f7a4eaf2b20e434fe18b9159829a678b1df9c7842b89c411c"
+      "sha256": "317e07091f1a6c2ad3479e653b4fcfe23406e31813ea2b9fda416882f6e02079"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "7855e1e35b7e34a1868d8232f6dd1577e953207b6579c350f660392401c6e9b7"
+      "sha256": "4337f005d0e6c92b098497cb79ba211feeef54566e64cbe169f35807da0e56d3"
     },
     {
       "path": "runtime/event-groups.json",
@@ -379,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "112a5b3b7080a3d045c679efa25bc23b312096e5969707e645387c6785cc2077"
+      "sha256": "7257dcf762b2992da3583f1a9a6f70aaa81043332f77f030caa9e8562c75cb57"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -427,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "7cab1fa2deb53a57d4cb8da28d26534e0e87ed0eb5278994f04ae2ebb2f40d59"
+      "sha256": "bac34f285a3fc822dec5e62428f86088df943b9e1ef4a452b5caeaadd702b8c6"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "88a1d4c5ba5d1fe0fbf741a7facdf9ec9adc9e6cc43dc4e2d861ac9e0b19b940"
+      "sha256": "9ab30bb7945e664b069b43b2f5b2aaac9cd74feba9206a96bcc9164355726d64"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "00f78aab0f760e250336a7b30b7bfe508f6cd443f2c1d7c7117b9d58bf14e5d9"
+      "sha256": "0b04df8e2d51a603ee76f2c268c16b212a97c1e52c2a71eb2bb0dbeda6c86aba"
     },
     {
       "path": "skills/audit/SKILL.md",
