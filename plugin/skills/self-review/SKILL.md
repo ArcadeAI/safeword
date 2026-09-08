@@ -1,10 +1,10 @@
 ---
 name: self-review
-description: Use when finishing spec.md before writing test-definitions.md, or
-  when the review gate asks for a spec review — self-reviews the just-authored
-  spec inline and earns its Tier 1 review stamp. Your own inline pass; do not
-  spawn a sub-agent.
+description: Runs when safeword's review gate asks for a spec review — an inline
+  self-review of the just-authored spec.md that earns its Tier 1 review stamp.
+  Not a user-facing entry point, and never spawns a sub-agent.
 allowed-tools: '*'
+user-invocable: false
 ---
 
 # Self-Review

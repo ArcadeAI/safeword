@@ -3,13 +3,14 @@
 // Warns if ESLint or Prettier configs are missing or out of sync
 
 import { existsSync, readdirSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import {
   detectAlternativeFormatter,
-  detectHostLintToolchain,
   shouldWarnMissingEslint,
   shouldWarnMissingPrettier,
 } from './lib/lint-config.ts';
+import { BIOME_CONFIG_FILES, resolveHostToolchain } from './lib/host-toolchain.ts';
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const safewordDir = `${projectDir}/.safeword`;
@@ -35,7 +36,11 @@ const ownsAlternativeFormatter = detectAlternativeFormatter(entries);
 // Biome/ultracite lint through the host toolchain, so ESLint is the fallback
 // for repos without one — not a requirement (#3792). Formatting and linting
 // have separate owners: dprint/oxfmt/deno format only, and still want ESLint.
-const ownsHostLinting = detectHostLintToolchain(entries);
+const hostLintConfig = BIOME_CONFIG_FILES.find(name => entries.includes(name));
+const hostToolchain = hostLintConfig
+  ? resolveHostToolchain(nodePath.join(projectDir, hostLintConfig), projectDir)
+  : undefined;
+const ownsHostLinting = hostToolchain?.kind === 'biome' || hostToolchain?.kind === 'ultracite';
 
 if (shouldWarnMissingEslint(entries)) {
   warnings.push("ESLint config not found - run 'bun run lint' may fail");
@@ -52,7 +57,14 @@ const pkgJsonFile = Bun.file(`${projectDir}/package.json`);
 if (await pkgJsonFile.exists()) {
   try {
     const pkgJson = await pkgJsonFile.text();
-    if (!ownsHostLinting && !pkgJson.includes('"eslint"')) {
+    if (hostToolchain?.kind === 'unavailable') {
+      const owner = hostToolchain.owner === 'biome' ? 'Biome' : 'Ultracite';
+      warnings.push(
+        `${owner} config found, but no project-local executable is available - install project dependencies`,
+      );
+    } else if (hostToolchain?.kind === 'outside-root') {
+      warnings.push('Biome config resolves outside the project root, so safeword will not run it');
+    } else if (!ownsHostLinting && !pkgJson.includes('"eslint"')) {
       warnings.push("ESLint not in package.json - run 'bun add -D eslint'");
     }
     if (!ownsAlternativeFormatter && !pkgJson.includes('"prettier"')) {

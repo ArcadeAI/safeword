@@ -5,6 +5,7 @@
  * that caused this ticket: `eslint.config.ts` / `.prettierrc.yaml` were missed).
  */
 
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -63,6 +64,30 @@ describe('shouldWarnMissingEslint', () => {
 
   it('does not treat a disabled Biome config as a lint owner', () => {
     expect(detectHostLintToolchain(['biome.json.bak'])).toBe(false);
+  });
+
+  it('warns when a Biome config has no project-local executable', () => {
+    const projectDirectory = mkdtempSync(path.join(tmpdir(), 'lint-biome-missing-'));
+    try {
+      mkdirSync(path.join(projectDirectory, '.safeword'));
+      writeFileSync(path.join(projectDirectory, 'biome.json'), '{}\n');
+      writeFileSync(path.join(projectDirectory, 'package.json'), '{}\n');
+      const script = path.resolve(
+        import.meta.dirname,
+        '../../templates/hooks/session-lint-check.ts',
+      );
+
+      const output = execFileSync('bun', [script], {
+        cwd: projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        encoding: 'utf8',
+      });
+
+      expect(output).toContain('Biome config found, but no project-local executable is available');
+      expect(output).not.toContain('install ESLint');
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
   });
 });
 

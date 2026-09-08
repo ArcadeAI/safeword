@@ -249,42 +249,29 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
   );
 
   it(
-    'merges hooks with existing non-safeword hooks',
+    'preserves Claude hooks when only the Cursor project runtime is selected',
     async () => {
       projectDirectory = createTemporaryDirectory();
       createTypeScriptPackageJson(projectDirectory);
       initGitRepo(projectDirectory);
 
       // Create existing Claude settings with custom hooks
+      const existingSettings = {
+        hooks: {
+          SessionStart: [
+            {
+              hooks: [{ type: 'command', command: 'echo "My custom hook"' }],
+            },
+            {
+              hooks: [{ type: 'command', command: 'bun .safeword/hooks/session-version.ts' }],
+            },
+          ],
+        },
+      };
       writeTestFile(
         projectDirectory,
         '.claude/settings.json',
-        JSON.stringify(
-          {
-            hooks: {
-              SessionStart: [
-                {
-                  hooks: [
-                    {
-                      type: 'command',
-                      command: 'echo "My custom hook"',
-                    },
-                  ],
-                },
-                {
-                  hooks: [
-                    {
-                      type: 'command',
-                      command: 'bun .safeword/hooks/session-version.ts',
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-          undefined,
-          2,
-        ),
+        JSON.stringify(existingSettings, undefined, 2),
       );
 
       await runCliWithoutInstall(['setup', '--yes'], {
@@ -292,24 +279,8 @@ describe('E2E: Conditional Setup - Existing Config Preservation', () => {
         timeout: TIMEOUT_SETUP,
       });
 
-      // Both custom and safeword hooks should exist
       const settings = JSON.parse(readTestFile(projectDirectory, '.claude/settings.json'));
-      const sessionStartHooks = settings.hooks.SessionStart;
-
-      // Should have at least 4 hooks (1 custom + 3 safeword)
-      expect(sessionStartHooks.length).toBeGreaterThanOrEqual(4);
-
-      // Custom hook should be first (preserved)
-      expect(sessionStartHooks[0]?.hooks[0]?.command).toBe('echo "My custom hook"');
-
-      // Safeword hooks should be present
-      const commands = sessionStartHooks.map(
-        (h: { hooks: { command: string }[] }) => h.hooks[0]?.command,
-      );
-      expect(commands).toContain(
-        'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-safeword-context.ts --agent=claude',
-      );
-      expect(commands).toContain('bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/session-version.ts');
+      expect(settings).toEqual(existingSettings);
     },
     TIMEOUT_SETUP,
   );

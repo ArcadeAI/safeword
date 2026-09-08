@@ -806,22 +806,7 @@ function findRelationAdvisories(cwd: string): string[] {
   ];
 }
 
-/**
- * Check managed text-patch targets: the block is present, and its contents are
- * still the ones this version renders.
- *
- * Marker presence used to be the whole check, so a block written at install time
- * was reported healthy forever (#3789). That is not cosmetic: the `.gitignore`
- * block carries `SAFEWORD_TRANSIENT_PATHS`, which exists to keep safeword's own
- * runtime state out of customer repositories, so every path added to that list
- * after a customer's install date silently stopped protecting them — and
- * `doctor` said the repository was clean. `install` already heals these blocks;
- * what was missing was any signal that it needed to be run.
- *
- * `updated` is the reconcile dry run's own verdict, which compares rendered
- * content against what is on disk. Reusing it keeps this check honest by
- * construction: the diagnostic can never disagree with the fix.
- */
+/** Check for missing managed text-patch markers. */
 function findMissingPatches(
   cwd: string,
   actions: { type: string; path: string; definition?: { marker: string } }[],

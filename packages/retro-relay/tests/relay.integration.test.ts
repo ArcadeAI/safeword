@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { GitHubCreateError } from '../src/github.js';
 import type { RelayServerFaults } from '../src/http-server.js';
+import { payloadHash } from '../src/identity.js';
 import {
   CredentialRegistry,
   type FileRetroDraftRequest,
@@ -447,6 +448,69 @@ describe('retry-safe retro relay', () => {
     });
     expect(stored?.acceptedAt).toBe('2026-08-29T20:00:00.000Z');
     expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
+  });
+
+  it('rejects a filing-payload digest substituted for the collector-envelope digest', async () => {
+    const now = new Date('2026-08-29T20:00:00.000Z');
+    const setup = await fixture({ now: () => now });
+    const requestId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+    const findings = ['Digest domains stay separate'];
+    const body = Buffer.from(
+      JSON.stringify({
+        version: 'v3',
+        findings,
+        source: {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          safewordCliVersion: '0.82.1',
+        },
+        sessionScope: 'a'.repeat(64),
+      }),
+    );
+    const identity = createHash('sha256')
+      .update(requestId)
+      .update('\0')
+      .update(findings.join('\0'))
+      .digest('hex');
+    const filingDigest = payloadHash({
+      body: findings.join('\n\n---\n\n'),
+      canonicalKey: `canonical:${identity}`,
+      installationId: 42,
+      labels: ['self-report', 'retro'],
+      legacySignature: `retro:${identity}`,
+      repository: 'arcadeai/safeword',
+      requestId,
+      retryDeadlineAt: '2026-08-30T20:00:00.000Z',
+      title: findings[0],
+    });
+    const envelopeDigest = createHash('sha256').update(body).digest('hex');
+
+    expect(filingDigest).not.toBe(envelopeDigest);
+    const response = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-envelope-digest': filingDigest,
+        'x-safeword-request-id': requestId,
+      },
+      body,
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: 'collector envelope digest differs',
+    });
+    expect(setup.createBodies).toHaveLength(0);
+    expect(
+      setup.store.load({
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        requestId,
+        tenantId: 'tenant-1',
+      }),
+    ).toBeUndefined();
   });
 
   it.each([

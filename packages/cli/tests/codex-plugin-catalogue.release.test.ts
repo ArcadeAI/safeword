@@ -20,6 +20,7 @@ import {
   codexSkillMetadataCharacters,
   generateCodexPluginAssets,
 } from '../src/codex-plugin/catalogue.js';
+import { assertNativePluginRuntimeAuthority } from '../src/plugin-runtime-authority.js';
 import { VERSION as CLI_VERSION } from '../src/version.js';
 
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -38,19 +39,74 @@ function markdownFiles(directory: string, prefix = ''): string[] {
 }
 
 function expectedPluginAssets(): string[] {
-  return markdownFiles(CANONICAL_SKILLS)
-    .map(relativePath => {
-      const [skill, filename, ...rest] = relativePath.split(nodePath.sep);
-      if (skill === undefined || filename === undefined) {
-        throw new Error(`unexpected canonical skill path: ${relativePath}`);
-      }
-      if (filename === 'SKILL.md') return nodePath.join(skill, filename, ...rest);
-      return nodePath.join(skill, 'references', filename, ...rest);
-    })
-    .toSorted((left, right) => left.localeCompare(right));
+  const canonicalAssets = markdownFiles(CANONICAL_SKILLS).map(relativePath => {
+    const [skill, filename, ...rest] = relativePath.split(nodePath.sep);
+    if (skill === undefined || filename === undefined) {
+      throw new Error(`unexpected canonical skill path: ${relativePath}`);
+    }
+    if (filename === 'SKILL.md') return nodePath.join(skill, filename, ...rest);
+    return nodePath.join(skill, 'references', filename, ...rest);
+  });
+  return [
+    ...canonicalAssets,
+    'bdd/references/adr-template.md',
+    'bdd/references/impl-plan-template.md',
+  ].toSorted((left, right) => left.localeCompare(right));
 }
 
 describe('generated Codex plugin catalogue', () => {
+  it('rejects executable references to project-local runtime', () => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority([
+        {
+          relativePath: 'skills/broken/SKILL.md',
+          content: 'Run `bun .safeword/hooks/run-review.ts review run quality-review`.\n',
+        },
+      ]);
+    }).toThrow('skills/broken/SKILL.md');
+  });
+
+  it.each(['.safeword/guides/architecture-guide.md', '.safeword/skills/bdd/TDD.md'])(
+    'rejects references to native-host project asset %s that is no longer installed',
+    path => {
+      expect(() => {
+        assertNativePluginRuntimeAuthority([
+          {
+            relativePath: 'skills/broken/SKILL.md',
+            content: `Read \`${path}\`.`,
+          },
+        ]);
+      }).toThrow('skills/broken/SKILL.md');
+    },
+  );
+
+  it.each([
+    'Run `"$PROJECT_DIR/.safeword/scripts/cleanup-zombies.sh"`.',
+    'Run `node .safeword/hooks/run-review.ts`.',
+    'Run `exec "$PROJECT_DIR/.safeword/hooks/check.ts"`.',
+    'Run `bash \\\n+      "$PROJECT_DIR/.safeword/scripts/check.sh"`.',
+  ])('rejects project runtime invocation shape %s', content => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority([{ relativePath: 'skills/broken/SKILL.md', content }]);
+    }).toThrow('skills/broken/SKILL.md');
+  });
+
+  it('rejects unavailable native paths even in migration prose', () => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority([
+        {
+          relativePath: 'skills/clean/SKILL.md',
+          content: 'The bunx --bun package replaces old `.safeword/hooks/` references.',
+        },
+      ]);
+    }).toThrow('skills/clean/SKILL.md');
+  });
+
+  it('accepts the complete generated Codex catalogue', () => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority(generateCodexPluginAssets(CANONICAL_SKILLS, CLI_VERSION));
+    }).not.toThrow();
+  });
   it('ships every canonical workflow and its supporting phase material', () => {
     const expectedAssets = expectedPluginAssets();
     const actualAssets = markdownFiles(PLUGIN_SKILLS);
@@ -198,7 +254,81 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
-  it('rewrites resolve-namespace-root.ts invocations to the bundled namespace-root subcommand', () => {
+  it('sources audit scope from the pinned bundled runtime instead of a project runtime', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-audit-scope-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'audit'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'audit/SKILL.md'),
+        [
+          '---',
+          'name: audit',
+          'description: Audit changes',
+          '---',
+          '',
+          '```bash',
+          'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
+          'audit_scope_initialize "$PROJECT_DIR"',
+          '```',
+          '',
+        ].join('\n'),
+      );
+
+      const content =
+        generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
+
+      expect(content).toContain(
+        'source /dev/stdin <<< "$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project audit-scope)"',
+      );
+      expect(content).not.toContain('.safeword/hooks/lib/audit-scope.sh');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('records skill invocation through the pinned bundled runtime instead of a project helper', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-invocation-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'verify'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'verify/SKILL.md'),
+        [
+          '---',
+          'name: verify',
+          'description: Verify work',
+          '---',
+          '',
+          '```bash',
+          'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"',
+          '```',
+          '',
+        ].join('\n'),
+      );
+
+      const content =
+        generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
+
+      expect(content).toContain(
+        'bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"',
+      );
+      expect(content).not.toContain('.safeword/hooks/record-skill-invocation.ts');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('separates packaged helper flags from CLI options', () => {
+    const assets = generateCodexPluginAssets(CANONICAL_SKILLS, '1.2.3');
+    const cleanup = assets.find(asset => asset.relativePath === 'skills/cleanup-zombies/SKILL.md');
+    const closeout = assets.find(asset => asset.relativePath === 'skills/closeout/SKILL.md');
+
+    expect(cleanup?.content).toContain('project runtime cleanup-zombies -- --yes');
+    expect(closeout?.content).toContain('project runtime closeout-cleanup -- --pr PR_NUMBER');
+  });
+
+  it('rewrites resolve-namespace-root.ts invocations to the pinned namespace-root subcommand', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-ns-root-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
     try {
@@ -289,6 +419,43 @@ describe('generated Codex plugin catalogue', () => {
       expect(delimiter).toMatch(/\|\s:-+\s\|/u);
       expect(delimiter).toMatch(/\|\s-+:\s\|/u);
       expect(delimiter).toMatch(/\|\s:-+:\s\|/u);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['trailing pipes are omitted', ['| Left | Right', '| --- | ----', '| alpha | omega']],
+    [
+      'the delimiter omits its leading pipe',
+      ['| Left | Right |', ':---: | ---|', '| alpha | omega |'],
+    ],
+    [
+      'a cell contains an escaped pipe',
+      ['| A | B | C |', '| --- | --- | --- |', String.raw`| a \| b | c |`],
+    ],
+  ])('preserves a valid pipe table when %s', (_case, table) => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-table-shape-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'tables'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'tables/SKILL.md'),
+        [
+          '---',
+          'name: tables',
+          'description: Valid tables outside the normalizer subset',
+          '---',
+          '',
+          ...table,
+          '',
+        ].join('\n'),
+      );
+
+      const content =
+        generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
+
+      expect(content).toContain(table.join('\n'));
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
