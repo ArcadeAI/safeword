@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmodSync,
   existsSync,
@@ -10,6 +11,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -19,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { CLAUDE_MIGRATION_SCHEMA } from '../../src/claude-plugin/inventory.ts';
 import {
   commandCatalog,
   type CommandDefinition,
@@ -33,10 +36,12 @@ import {
   renderHumanResult,
 } from '../../src/cli-protocol/result.ts';
 import { convergeSetup } from '../../src/lifecycle/project-install.ts';
+import { VERSION } from '../../src/version.ts';
 import { publicFixtureEnvironment } from './public-fixture-environment.js';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = fileURLToPath(new URL('../../dist/cli.js', import.meta.url));
+const CLAUDE_PLUGIN_PATH = fileURLToPath(new URL('../../../../plugin/', import.meta.url));
 const EMPTY_EFFECTS = {
   files: [],
   packages: [],
@@ -372,19 +377,70 @@ globalThis.fetch = (() => {
   world.witnessLog = log;
 }
 
+function installActiveClaudeFixture(world: PredictableCliWorld): void {
+  const directory = join(hostProfileDirectory(world), 'bin');
+  const projectRoot = realpathSync(temporaryProject(world));
+  const pluginRoot = realpathSync(CLAUDE_PLUGIN_PATH);
+  const identity = JSON.parse(readFileSync(join(pluginRoot, 'identity.json'), 'utf8')) as {
+    hook_manifest_sha256: string;
+  };
+  const plugins = JSON.stringify([
+    {
+      id: 'safeword@safeword',
+      version: VERSION,
+      enabled: true,
+      scope: 'user',
+      installPath: pluginRoot,
+    },
+  ]);
+  mkdirSync(directory, { recursive: true });
+  const executable = join(directory, 'claude');
+  writeFileSync(
+    executable,
+    String.raw`#!/bin/sh
+case "$*" in
+  '--version') printf '2.1.170\n' ;;
+  'plugin list --json') printf '%s\n' '${plugins}' ;;
+  *) exit 2 ;;
+esac
+`,
+  );
+  chmodSync(executable, 0o755);
+  world.hostEnvironment = {
+    ...world.hostEnvironment,
+    PATH: `${directory}:${world.hostEnvironment?.PATH ?? process.env.PATH ?? ''}`,
+  };
+  const proofDirectory = join(
+    hostProfileDirectory(world),
+    'claude-profile',
+    CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory,
+  );
+  const projectDigest = createHash('sha256').update(projectRoot).digest('hex');
+  mkdirSync(proofDirectory, { recursive: true });
+  writeFileSync(
+    join(proofDirectory, `${projectDigest}.json`),
+    `${JSON.stringify({
+      schema_version: 2,
+      project_root: projectRoot,
+      plugin_version: VERSION,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      canonical_plugin_root: pluginRoot,
+      event: 'UserPromptSubmit',
+      session_id: 'predictable-cli-fixture',
+      recorded_at: new Date().toISOString(),
+    })}\n`,
+  );
+}
+
 Given('a configured project without native profile plugins', function (this: PredictableCliWorld) {
   setupProject(this);
   this.beforeTree = treeDigest(temporaryProject(this));
 });
 
 Given('a configured project with managed drift', function (this: PredictableCliWorld) {
-  mkdirSync(join(temporaryProject(this), '.claude'), { recursive: true });
-  writeFileSync(
-    join(temporaryProject(this), '.claude', 'settings.json'),
-    '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
-  );
   setupProject(this);
-  rmSync(join(temporaryProject(this), '.claude', 'settings.json'));
+  installActiveClaudeFixture(this);
+  writeFileSync(join(temporaryProject(this), '.safeword', 'version'), '0.0.0\n');
 });
 
 When('the user runs Safeword with no command', function (this: PredictableCliWorld) {
@@ -402,7 +458,7 @@ Then(
   'the result requires action and recommends {string}',
   function (this: PredictableCliWorld, command: string) {
     const result = wireResult(this);
-    assert.equal(result.state, 'action_required');
+    assert.equal(result.state, 'action_required', JSON.stringify(result));
     assert.equal((result.next_actions as { command: string }[])[0]?.command, command);
   },
 );

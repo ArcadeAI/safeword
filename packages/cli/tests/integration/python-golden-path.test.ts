@@ -43,7 +43,7 @@ describe('E2E: Python Golden Path', () => {
     createPythonProject(projectDirectory);
     writeTestFile(projectDirectory, 'requirements.txt', SAFEWORD_PYTHON_TOOLS);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -169,10 +169,10 @@ describe('E2E: Python Setup Idempotency', () => {
     writeTestFile(projectDirectory, 'requirements.txt', SAFEWORD_PYTHON_TOOLS);
     initGitRepo(projectDirectory);
     // Run setup TWICE
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
     // Second call intentionally allowed to fail with "Already configured" exit 1 —
     // we verify file state survives an accidental re-run, not that setup is idempotent.
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await runCli(['setup', '--yes', '--agents', 'cursor'], { cwd: projectDirectory });
   });
 
   afterAll(() => {
@@ -215,7 +215,7 @@ describe('E2E: Python Lint Hook Fallback', () => {
     createPythonProject(projectDirectory);
     writeTestFile(projectDirectory, 'requirements.txt', SAFEWORD_PYTHON_TOOLS);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
 
     // Delete BOTH configs to test fallback path
     // Python uses extend pattern (ruff.toml → .safeword/ruff.toml), so we must delete both

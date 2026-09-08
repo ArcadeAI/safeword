@@ -3,6 +3,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { generateOpenCodeCatalogueAssets } from '../../src/opencode/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -17,6 +18,7 @@ const workflowBody = (content: string): string => {
 };
 
 const canonicalPath = 'packages/cli/templates/skills/pr-readiness/SKILL.md';
+const templatesRoot = nodePath.join(repoRoot, 'packages/cli/templates');
 
 describe('reviewer-as-customer PR readiness (#3579)', () => {
   it('ships one canonical readiness workflow to every agent host', () => {
@@ -43,10 +45,11 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(readRepoFile('packages/cli/templates/cursor/rules/safeword-pr-readiness.mdc')).toContain(
       '@.safeword/skills/pr-readiness/SKILL.md',
     );
-    const openCodeCommand = SAFEWORD_SCHEMA.ownedFiles['.opencode/commands/pr-readiness.md'];
-    expect(typeof openCodeCommand?.content).toBe('function');
-    expect((openCodeCommand?.content as () => string)()).toContain(
-      'Load and follow the `pr-readiness` skill completely',
+    const openCodeCommand = generateOpenCodeCatalogueAssets(templatesRoot).find(
+      asset => asset.relativePath === 'commands/safeword-pr-readiness.md',
+    );
+    expect(openCodeCommand?.content).toContain(
+      'Load and follow the `safeword-pr-readiness` skill completely',
     );
     const codexSkill = readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md');
     expect(codexSkill).toContain('name: pr-readiness');
