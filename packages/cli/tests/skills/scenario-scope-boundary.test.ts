@@ -63,10 +63,15 @@ describe('scenario scope boundary', () => {
     // cannot see the field it names — it would pass the exact crossing the
     // lens was added to catch.
     expect(content).toContain('--context ticket-spec ticket-file');
+    expect(content).toContain('[parent-spec]');
     expect(content).toContain('cannot see `out_of_scope`');
     // A missing ticket.md must degrade loudly; a silent fallback to spec.md
     // reproduces the same false-clean verdict.
-    expect(content).toContain('If `ticket.md` was not supplied');
+    expect(content).toContain('when `ticket.md` was not supplied');
+    expect(content).toContain('report the inherited project and milestone boundaries as unchecked');
+    expect(content).toContain(
+      'report `out_of_scope` as unchecked and require re-dispatch with the missing context',
+    );
   });
 
   it.each(authoringSurfaces)('%s bounds dimension derivation by out_of_scope', relative => {
@@ -96,6 +101,23 @@ describe('scenario scope boundary', () => {
     expect(content).toContain(
       'record that disposition and re-run independent review against the unchanged accepted scope',
     );
+    expect(content).toContain('including vacuous-pass and AODI failures');
+    expect(content).toContain(
+      'If a Must Fix names missing review context, re-dispatch with that file before judging the scenarios',
+    );
+    expect(content).toContain(
+      'Any scenario edit — including a user-requested Should Strengthen — invalidates the review stamp and requires a re-run',
+    );
+  });
+
+  it.each(authoringSurfaces)('%s demonstrates both halves of the scope check', relative => {
+    const content = read(relative);
+
+    expect(content).toContain(
+      'a new conflict warning goes past the agreed behavior, so I dropped it',
+    );
+    expect(content).toContain('Does any scenario go past what we agreed not to build?');
+    expect(content).toContain('nothing is missing and no scenario crosses the agreed scope edge');
   });
 
   it('ships the scope-boundary lens to the headless reviewer', () => {
@@ -108,14 +130,17 @@ describe('scenario scope boundary', () => {
     // The stop hook's phase evidence is the third read: it makes the agent
     // state the boundary held before it can claim CONFIDENT at define-behavior.
     const content = read('packages/cli/templates/hooks/lib/quality.ts');
-    const evidence = /'Phase: define-behavior\.[^']*'/.exec(content)?.[0];
+    const evidence = content.match(/'Phase: define-behavior\.[^']*'/g) ?? [];
 
     // Name the whole edge, not just out_of_scope: review-spec's Scope boundary
     // lens judges against the project and milestone non-goals too, so evidence
     // citing only out_of_scope would let define-behavior claim CONFIDENT on a
     // narrower check than the gate applies.
-    expect(evidence).toContain('the scope edge excludes');
-    expect(evidence).toContain('out_of_scope');
-    expect(evidence).toContain('project and milestone non-goals');
+    expect(evidence.length).toBeGreaterThan(0);
+    for (const line of evidence) {
+      expect(line).toContain('the scope edge excludes');
+      expect(line).toContain('out_of_scope');
+      expect(line).toContain('project and milestone non-goals');
+    }
   });
 });

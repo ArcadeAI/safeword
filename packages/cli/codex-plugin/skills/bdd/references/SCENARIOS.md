@@ -11,7 +11,7 @@
 ### Pipeline (6 steps)
 
 1. **Load `review-spec` in Authoring mode** — it is the single scenario-quality standard. Apply it while drafting; do not launch its independent review coordinator in this phase.
-2. **Derive dimensions** from intake artifacts (resolved questions, `done_when`, `scope`) + domain-knowledge dimensions not surfaced during intake. Read `out_of_scope`, the Product Bet's project non-goals, and the applicable milestone's Non-goals in the same pass and hold all three as the outer edge — a child feature's `spec.md` carries no non-goals by design, so there `out_of_scope` is the whole edge: a dimension or partition that exists only past that line is dropped here, before partitioning — not carried forward and not "covered for completeness". Domain knowledge is the usual source of the overshoot, because it arrives unbounded by intake.
+2. **Derive dimensions** from intake artifacts (resolved questions, `done_when`, `scope`) + domain-knowledge dimensions not surfaced during intake. Read `out_of_scope`, the Product Bet's project non-goals, and the applicable milestone's Non-goals in the same pass and hold all three as the outer edge. A child feature's `spec.md` carries no non-goals by design, so read those inherited boundaries from its parent and use the child's `out_of_scope` for its ticket-specific edge. A dimension or partition that exists only past any of those lines is dropped here, before partitioning — not carried forward and not "covered for completeness". Domain knowledge is the usual source of the overshoot, because it arrives unbounded by intake.
 3. **Partition** each dimension into equivalence classes + boundary values
 4. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Rule** (or legacy Acceptance Criterion) from intake (`spec.md`); if a scenario doesn't map to any criterion, either it's testing implementation (drop it) or a criterion is missing (go back and add it). Mapping to a Rule does not by itself put a scenario in scope: a Rule states an invariant generally, so an example of a real Rule can still assert behavior `out_of_scope`, a project non-goal, or a milestone Non-goal excludes. That is a scope conflict, not coverage — name it and let the user decide (amend `out_of_scope`, or drop the scenario). Never settle it by keeping the scenario quietly.
 5. **Organize under Gherkin `Rule:` blocks** with card-ratio self-check. They group scenarios by the criterion they prove, so every criterion has ≥1 scenario and no scenario is an orphan. Ask: any Rule with no examples? Any open questions? And the one with teeth — **would dropping this scenario let a real defect ship?** Two scenarios that prove the same Rule over the same partition are one scenario with a better name. Judge that sameness by the obligation they prove, never by their sharing a failure cause today — which partitions break together is a fact about the current implementation, and merging on it drops a partition the moment that implementation changes. Cover each partition once; a second example of a partition already covered adds review cost and no proof. Representative beats exhaustive — exhaustive matrices belong in table-driven lower-level tests.
@@ -31,10 +31,10 @@ Ask the user both halves. Gaps: **Do these scenarios fully describe the intended
 
 > From intake I see 2 behavioral dimensions:
 >
-> | Dimension              | Partitions                                    |
-> | ---------------------- | --------------------------------------------- |
-> | Output correctness     | empty dir, existing config, conflicting files |
-> | Side-effect prevention | filesystem writes, git operations             |
+> | Dimension              | Partitions                        |
+> | ---------------------- | --------------------------------- |
+> | Output correctness     | empty dir, existing config        |
+> | Side-effect prevention | filesystem writes, git operations |
 >
 > Organized under 3 rules:
 >
@@ -42,7 +42,6 @@ Ask the user both halves. Gaps: **Do these scenarios fully describe the intended
 >
 > - [ ] Shows expected files in empty directory
 > - [ ] Shows warning when config already exists
-> - [ ] Shows conflict notice for incompatible existing files
 >
 > **Rule: Dry-run creates no files**
 >
@@ -52,11 +51,11 @@ Ask the user both halves. Gaps: **Do these scenarios fully describe the intended
 >
 > - [ ] No git init or git add executed
 >
-> 3 rules, 5 scenarios, 0 open questions. The "conflicting files" partition came from domain knowledge — init currently overwrites without warning, so dry-run should surface that. Anything missing, or ready for the quality gate?
+> 3 rules, 4 scenarios, 0 open questions. I considered a "conflicting files" partition from domain knowledge, but a new conflict warning goes past the agreed behavior, so I dropped it. Do these scenarios fully describe the intended behavior and important boundaries, or is anything missing? Does any scenario go past what we agreed not to build?
 
 **User:** "Looks good, proceed."
 
-**Result:** The user confirms the intended behavior and important boundaries are fully described → proceed to scenario-gate.
+**Result:** The user confirms nothing is missing and no scenario crosses the agreed scope edge → proceed to scenario-gate.
 
 ### Two formats: discovery vs saved
 
@@ -193,7 +192,7 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 
 Load the **`$safeword:review-spec`** skill in **Review mode** — it is the independent gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Its final reconciliation maps material dimensions, affected surfaces, and declared public outcomes to scenarios or explicit deferrals, then challenges whether the planned proof exercises the boundary each load-bearing scenario claims.
 
-Triage the result before editing. Apply only **Must Fix** findings that name a concrete false pass against an accepted Rule or dimension partition. A Must Fix that says an existing scenario crosses the accepted scope edge is also actionable: drop the scenario, or return it to the user as a scope decision if changing `out_of_scope` is desired. **Should Strengthen** findings are non-blocking and change scenarios only when the user asks. If a finding would add a behavior, public API, threat boundary, lifecycle contract, or test matrix absent from the accepted Rules and dimensions, return it to the user as a scope decision; never incorporate it silently. When the user declines that expansion, record that disposition and re-run independent review against the unchanged accepted scope so the reviewer can evaluate the resolved boundary. Otherwise, re-run independent review only after a blocking finding changes the scenarios or the user accepts a scope change. Then complete the plain-language completeness check and exit below.
+Triage the result before editing. If a Must Fix names missing review context, re-dispatch with that file before judging the scenarios. Apply only **Must Fix** findings that name a concrete false pass against an accepted Rule or dimension partition, including vacuous-pass and AODI failures. A Must Fix that says an existing scenario crosses the accepted scope edge is also actionable: drop the scenario, or return it to the user as a scope decision if changing `out_of_scope` is desired. **Should Strengthen** findings are non-blocking and change scenarios only when the user asks. If a finding would add a behavior, public API, threat boundary, lifecycle contract, or test matrix absent from the accepted Rules and dimensions, return it to the user as a scope decision; never incorporate it silently. Any scenario edit — including a user-requested Should Strengthen — invalidates the review stamp and requires a re-run. When the user declines an expansion without edits, record that disposition and re-run independent review against the unchanged accepted scope so the reviewer can evaluate the resolved boundary. Then complete the plain-language completeness check and exit below.
 
 ### Are the reviewed scenarios complete?
 
