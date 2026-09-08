@@ -238,6 +238,9 @@ head: `current` or `draft` pass; `stale`, `missing`, and a self-recorded
 are the author's own attestations, and a checker that passed them would only
 record false compliance.
 
+The status refreshes on every head change, draft-state change, and body edit,
+and is serialized per pull request so the newest event wins.
+
 Safeword never modifies branch protection, and recommends against requiring this
 context. A required check that stops being reported leaves every pull request
 stuck on `Expected — waiting for status to be reported`, and this job only runs

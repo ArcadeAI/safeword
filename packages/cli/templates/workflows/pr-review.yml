@@ -2,7 +2,7 @@ name: Safeword advisory PR review
 
 on:
   pull_request_target:
-    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited]
   schedule:
     - cron: '*/5 * * * *'
 
@@ -12,6 +12,12 @@ jobs:
   readiness:
     if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
+    # Serialize per pull request and let the newest event win. Without this a
+    # delayed run can publish its stale snapshot over a newer verdict — a
+    # draft run reporting success after a ready run already reported failure.
+    concurrency:
+      group: pr-readiness-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     permissions:
       contents: read
       pull-requests: read
@@ -27,7 +33,7 @@ jobs:
         run: npx --yes safeword@__SAFEWORD_VERSION__ --no-input --json review-pr readiness
 
   event-review:
-    if: github.event_name == 'pull_request_target'
+    if: github.event_name == 'pull_request_target' && github.event.action != 'edited'
     permissions:
       contents: read
       issues: write
