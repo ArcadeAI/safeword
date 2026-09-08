@@ -22,7 +22,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '3e82435b6b58731ffe09ae0b01cefe61de152b24ab2d66b1792472256f09db7c',
+        'fa1b4ccd58ffdb3755bfd8bdaa1de4d7438ee3e06cfec0bd3ba5df6ff438a95d',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -64,7 +64,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/spike/SKILL.md':
         '905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37',
       '.claude/skills/tdd-review/SKILL.md':
-        '354b9034337ba3c53da72499550dd07adbaee0a17d6d3db808205eae4cb44a71',
+        '56a04f7b72f0e64ddc0016a7ca81dc66dae51360acecd8689feb8c43bd5bfab0',
       '.claude/skills/testing/SKILL.md':
         'fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686',
       '.claude/skills/ticket-system/SKILL.md':
@@ -96,7 +96,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '79198be1d29ebddc47bfa2854e2bfc7911f3586482203bdbc21bf5d22abfee5a',
+        '3f05892599316142394a266ecd9ac9b56d43a2d2de7afea366ef6e24bde42f3a',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':

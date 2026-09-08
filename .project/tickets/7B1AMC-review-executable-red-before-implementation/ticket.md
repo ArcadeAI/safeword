@@ -3,8 +3,8 @@ id: 7B1AMC
 slug: review-executable-red-before-implementation
 type: feature
 subtype: bug-investigated
-phase: implement
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/7B1AMC-review-executable-red-before-implementation/spec.md'
   - 'scenario-gate: packages/cli/features/review-executable-red-before-implementation.feature'
@@ -20,7 +20,7 @@ depends_on: [BX1T7H]
 relates_to: [NMSD94, QZAFT2, 1698, BFCWDB, ZA0JQR, Y9P3ZC]
 external_issue: https://github.com/ArcadeAI/safeword/issues/2336
 created: 2026-08-10T07:58:17.735Z
-last_modified: 2026-09-07T23:15:21Z
+last_modified: 2026-09-08T01:31:09Z
 ---
 
 # Stop hollow acceptance proofs before implementation
@@ -50,6 +50,8 @@ last_modified: 2026-09-07T23:15:21Z
 - 2026-09-07T23:04:35Z Scenario gate complete: 17 scenario definitions retain the existing trusted-execution contract and add only the accepted passing-proof rejection, fail-closed GREEN admission, plain recovery, and OpenCode parity boundaries. Configured independent routes were exhausted; a bounded exact-file fallback found and resolved two false-pass gaps, and Gherkin lint passes.
 - 2026-09-07T23:15:21Z Plan correction complete: A fresh-context fallback review found that skill-only repetition could be skipped. Replaced it with one public receipt-check command enforced by the existing cross-host edit hook at the actual GREEN ledger transition. Kept undeclared dependency-closure inference out of scope and advanced the parse-valid plan to implementation.
 - 2026-09-07T23:45:00Z Quality review correction: A fresh-context fallback found that proof commands inherited internal review credentials and that scenario-only admission could cross ticket boundaries. Removed all `SAFEWORD_REVIEW_*` variables from proof environments, invalidated preemptive job completion, bound receipts to the exact ledger, and documented the deliberate same-user process trust boundary instead of expanding this issue into OS sandboxing.
+- 2026-09-07T23:50:00Z Implementation complete: The blocking gate now covers Claude Code, Codex, OpenCode, and Cursor edit adapters; focused regression evidence passes 11 tests across executor isolation, receipt integrity, exact ledger admission, CLI wiring, and real hook denial/allowance. Advanced to verification.
+- 2026-09-08T01:31:09Z Verified: All 52 ledger cells are complete; 9,564 JavaScript tests and 1,490 Cucumber scenarios pass, lint/typecheck/package builds/generated contracts are clean, dependency audits report no vulnerabilities, and the diff-scoped audit has zero change-scoped errors. Closed the ticket with explicit limits for unavailable independent reviewer routes, generated-only cloud evidence, the unexercised Windows termination branch, the local website native binding, and the deliberate same-user process trust boundary.
 
 ## Root Cause
 
@@ -62,3 +64,12 @@ Confirmed by both Node CI lanes and an 80-run local reproduction that missed the
 while still timing out correctly. Ruled out a termination defect because both CI failures recorded
 the configured timeout and `SIGKILL`; ruled out stream-drain loss because Node's `close` event occurs
 after child stdio closes and the separate real-failure test consistently captures and matches stderr.
+
+The final acceptance run also exposed generated-artifact drift: the live legacy classifier used the
+new pre-tool hook fingerprint while the bundled Claude runtime still embedded the prior historical
+catalogue, so it executed the plugin effect instead of deferring to viable legacy authority. This
+happened because the hook and workflow generators ran before the historical catalogue was refreshed.
+Regenerating the catalogue and both runtimes made the exact failed coexistence scenario pass and the
+release checks agree. Ruled out nondeterministic hook behavior because the isolated scenario failed
+repeatedly before regeneration and passed immediately after it; ruled out a new authority-policy
+defect because no runtime source changed, only derived fingerprints and bundles.

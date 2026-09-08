@@ -32,18 +32,17 @@ describe('executable RED rubric generation', () => {
   });
 
   it.each([
-    ['a fresh approved receipt', 'independently confirmed'],
-    ['no fresh approved receipt', 'not independently confirmed'],
-    ['an author self-review only', 'not independently confirmed'],
-    ['cached passing suite status', 'not independently confirmed'],
-  ])('describes %s as %s', (reviewState, message) => {
+    'One fresh approved receipt may cover Scenario Outline rows only when',
+    'fresh approved cross-agent receipt for that scenario',
+    'same-agent evidence cannot authorize GREEN',
+    'leave GREEN unchecked when independent review is unavailable',
+  ])('describes blocking admission with %s', expectedContract => {
     const workflow = readFileSync(
       nodePath.resolve(import.meta.dirname, '../../templates/skills/bdd/TDD.md'),
       'utf8',
     );
     const normalizedWorkflow = workflow.replaceAll(/\s+/g, ' ');
 
-    expect(normalizedWorkflow).toContain(reviewState);
-    expect(normalizedWorkflow).toContain(message);
+    expect(normalizedWorkflow).toContain(expectedContract);
   });
 });
