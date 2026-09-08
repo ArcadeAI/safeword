@@ -21,7 +21,12 @@ declare const Bun: {
  * — this is the one set that decides whether ESLint is a fallback or a
  * requirement, so silent drift would resurrect the false warning.
  */
-export const BIOME_CONFIG_FILES = ['biome.json', 'biome.jsonc', '.biome.json', '.biome.jsonc'];
+export const BIOME_CONFIG_FILES = [
+  'biome.json',
+  'biome.jsonc',
+  '.biome.json',
+  '.biome.jsonc',
+] as const satisfies readonly string[];
 type HostToolchainOwner = 'ultracite' | 'biome';
 
 export type HostToolchain =

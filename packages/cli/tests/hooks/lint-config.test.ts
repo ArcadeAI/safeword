@@ -6,7 +6,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -71,7 +71,6 @@ describe('shouldWarnMissingEslint', () => {
     try {
       mkdirSync(path.join(projectDirectory, '.safeword'));
       writeFileSync(path.join(projectDirectory, 'biome.json'), '{}\n');
-      writeFileSync(path.join(projectDirectory, 'package.json'), '{}\n');
       const script = path.resolve(
         import.meta.dirname,
         '../../templates/hooks/session-lint-check.ts',
@@ -84,7 +83,36 @@ describe('shouldWarnMissingEslint', () => {
       });
 
       expect(output).toContain('Biome config found, but no project-local executable is available');
-      expect(output).not.toContain('install ESLint');
+      expect(output).not.toContain('ESLint config not found');
+      expect(output).not.toContain('bun add -D eslint');
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('emits no ESLint warning when project-local Biome is available', () => {
+    const projectDirectory = mkdtempSync(path.join(tmpdir(), 'lint-biome-ready-'));
+    try {
+      const executable = path.join(projectDirectory, 'node_modules', '.bin', 'biome');
+      mkdirSync(path.join(projectDirectory, '.safeword'));
+      mkdirSync(path.dirname(executable), { recursive: true });
+      writeFileSync(path.join(projectDirectory, 'biome.json'), '{}\n');
+      writeFileSync(path.join(projectDirectory, 'package.json'), '{}\n');
+      writeFileSync(executable, '#!/bin/sh\nexit 0\n');
+      chmodSync(executable, 0o755);
+      const script = path.resolve(
+        import.meta.dirname,
+        '../../templates/hooks/session-lint-check.ts',
+      );
+
+      const output = execFileSync('bun', [script], {
+        cwd: projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        encoding: 'utf8',
+      });
+
+      expect(output).not.toContain('ESLint config not found');
+      expect(output).not.toContain('bun add -D eslint');
     } finally {
       rmSync(projectDirectory, { recursive: true, force: true });
     }
@@ -165,7 +193,7 @@ describe('detectAlternativeFormatter', () => {
   // must skip Prettier rather than fight it (ticket V7GGJZ). Exact-filename
   // match, mirroring ALTERNATIVE_FORMATTER_FILES in presets/typescript/detect.ts.
   it('detects Biome and legacy Rome configs', () => {
-    for (const file of ['biome.json', 'biome.jsonc', 'rome.json']) {
+    for (const file of ['biome.json', 'biome.jsonc', '.biome.json', '.biome.jsonc', 'rome.json']) {
       expect(detectAlternativeFormatter([file])).toBe(true);
     }
   });

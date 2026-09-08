@@ -59,8 +59,7 @@ export function detectPrettierConfig(entries: readonly string[]): boolean {
 const OXFMT_CONFIG_EXTENSIONS = ['js', 'cjs', 'mjs', 'ts', 'cts', 'mts'];
 const ALTERNATIVE_FORMATTER_FILES = new Set<string>([
   // Biome (and legacy Rome)
-  'biome.json',
-  'biome.jsonc',
+  ...BIOME_CONFIG_FILES,
   'rome.json',
   // dprint
   'dprint.json',
@@ -107,7 +106,7 @@ export function projectOwnsAlternativeFormatter(projectDirectory: string): boole
  * safeword falls back to there and warning about its absence stays true.
  */
 export function detectHostLintToolchain(entries: readonly string[]): boolean {
-  return entries.some(name => (BIOME_CONFIG_FILES as readonly string[]).includes(name));
+  return entries.some(name => BIOME_CONFIG_FILES.some(file => file === name));
 }
 
 /**

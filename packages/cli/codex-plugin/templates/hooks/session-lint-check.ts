@@ -40,7 +40,6 @@ const hostLintConfig = BIOME_CONFIG_FILES.find(name => entries.includes(name));
 const hostToolchain = hostLintConfig
   ? resolveHostToolchain(nodePath.join(projectDir, hostLintConfig), projectDir)
   : undefined;
-const ownsHostLinting = hostToolchain?.kind === 'biome' || hostToolchain?.kind === 'ultracite';
 
 if (shouldWarnMissingEslint(entries)) {
   warnings.push("ESLint config not found - run 'bun run lint' may fail");
@@ -52,19 +51,21 @@ if (shouldWarnMissingPrettier(entries)) {
   warnings.push('Prettier config not found - formatting may be inconsistent');
 }
 
+if (hostToolchain?.kind === 'unavailable') {
+  const owner = hostToolchain.owner === 'biome' ? 'Biome' : 'Ultracite';
+  warnings.push(
+    `${owner} config found, but no project-local executable is available - install project dependencies`,
+  );
+} else if (hostToolchain?.kind === 'outside-root') {
+  warnings.push('Biome config resolves outside the project root, so safeword will not run it');
+}
+
 // Check for required dependencies in package.json
 const pkgJsonFile = Bun.file(`${projectDir}/package.json`);
 if (await pkgJsonFile.exists()) {
   try {
     const pkgJson = await pkgJsonFile.text();
-    if (hostToolchain?.kind === 'unavailable') {
-      const owner = hostToolchain.owner === 'biome' ? 'Biome' : 'Ultracite';
-      warnings.push(
-        `${owner} config found, but no project-local executable is available - install project dependencies`,
-      );
-    } else if (hostToolchain?.kind === 'outside-root') {
-      warnings.push('Biome config resolves outside the project root, so safeword will not run it');
-    } else if (!ownsHostLinting && !pkgJson.includes('"eslint"')) {
+    if (hostLintConfig === undefined && !pkgJson.includes('"eslint"')) {
       warnings.push("ESLint not in package.json - run 'bun add -D eslint'");
     }
     if (!ownsAlternativeFormatter && !pkgJson.includes('"prettier"')) {
