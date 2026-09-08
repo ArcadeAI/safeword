@@ -228,8 +228,8 @@ Safeword executes structured JSON argv without a shell, captures bounded output 
 digests, and binds the command, working directory, evidence class, expected failure, timeout,
 scenario, proof-plan row, proof targets, and declared support files to the review receipt. A changed
 input cannot reuse an earlier approval, and author-pasted output is never execution evidence. This
-checkpoint is advisory: only a fresh approved receipt is “independently confirmed”; every other
-state is reported as “not independently confirmed” with a retry or fallback action.
+checkpoint blocks GREEN credit: only a fresh approved receipt permits the ledger transition; every
+other state denies it with the exact retry or recovery action.
 
 Safeword-managed review workflows also emit bounded lifecycle progress on stderr
 while a reviewer is active. The final machine result remains the only stdout
