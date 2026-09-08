@@ -186,11 +186,35 @@ describe('Retro transfer worker deployment workflow', () => {
 
   it('deploys worker changes only after every CI gate passes', () => {
     const source = readFileSync(ciWorkflowPath, 'utf8');
-    const workflow = parse(source) as { jobs: Record<string, { if?: string; needs?: string[] }> };
+    const workflow = parse(source) as {
+      jobs: Record<
+        string,
+        {
+          if?: string;
+          needs?: string[];
+          environment?: string;
+          concurrency?: { group: string; 'cancel-in-progress': boolean };
+        }
+      >;
+    };
     const deployment = workflow.jobs['deploy-retro-worker'];
 
-    expect(deployment?.needs).toContain('worker-inputs');
+    expect(deployment).toBeDefined();
+    expect(deployment?.needs).toEqual([
+      'dogfood-parity',
+      'dependency-audit',
+      'opencode-conformance',
+      'test',
+      'lint',
+      'worker-inputs',
+    ]);
     expect(deployment?.if).toContain("github.ref == 'refs/heads/main'");
+    expect(deployment?.if).toContain("needs.worker-inputs.outputs.deploy == 'true'");
+    expect(deployment?.environment).toBe('retro-relay-production');
+    expect(deployment?.concurrency).toEqual({
+      group: 'retro-worker-production',
+      'cancel-in-progress': true,
+    });
     expect(source).toContain('RAILWAY_RETRO_WORKER_SERVICE');
   });
 });
