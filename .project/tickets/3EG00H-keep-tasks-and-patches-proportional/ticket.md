@@ -41,3 +41,5 @@ parent_contract_digest: db3930e6a609f72ce0a6def3393fbedc137030153479e7a577b54bec
 - 2026-09-08T18:05:00.000Z Define behavior: Bounded this child to proportional small-work routing and 13 inherited obligations.
 
 - 2026-09-08T18:20:00.000Z Scenario gate: Partitioned 13 inherited Rules into child-owned scenarios and R/G/R ledger entries; independent scenario review remains pending.
+
+- 2026-09-08T18:37:46.090Z Scenario gate: Fresh-context degraded review requested changes. Defined the narrow patch contract in behavior and limited formal return paths to feature or already-promoted work; current approval remains pending.

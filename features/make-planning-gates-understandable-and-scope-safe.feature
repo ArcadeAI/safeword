@@ -6,28 +6,45 @@ Feature: Make planning gates understandable and scope-safe
 
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     @rejection
-    Scenario: A child plan cannot ignore an inherited milestone non-goal
-      Given a child feature's local scope permits work that its parent milestone explicitly excludes
+    Scenario Outline: A plan cannot ignore any binding scope source
+      Given a plan conflicts with <scope_source>
       When the accepted boundary is resolved
-      Then the inherited exclusion remains binding and the plan cannot include that work
+      Then that source remains binding and the conflicting work cannot enter the plan
+
+      Examples:
+        | scope_source |
+        | the ticket's scope or out-of-scope choices |
+        | a project non-goal |
+        | a milestone non-goal |
+        | an inherited parent boundary |
 
   @plan-implementability.NTB1.K3EBHB.R2
   Rule: plan-implementability.NTB1.K3EBHB.R2 — Completeness is checked for omission and overreach
 
     @rejection
-    Scenario: A complete plan that adds unapproved work still fails review
-      Given a plan covers every accepted obligation and also adds an unapproved capability
+    Scenario Outline: Missing and extra work both fail completeness
+      Given a plan <scope_defect>
       When scope completeness is reviewed
-      Then approval is blocked until the plan matches the user's accepted boundary
+      Then approval is blocked with that mismatch named against the accepted boundary
+
+      Examples:
+        | scope_defect |
+        | omits an accepted obligation |
+        | adds an unapproved capability |
 
   @plan-implementability.NTB1.K3EBHB.R3
   Rule: plan-implementability.NTB1.K3EBHB.R3 — Reviewers correct false clearance without expanding scope
 
     @rejection
-    Scenario: A reviewer cannot turn an optional strengthening into required scope
-      Given a reviewer finds no false clearance but proposes an out-of-scope resilience improvement
+    Scenario Outline: Reviewer correction follows the accepted boundary
+      Given a reviewer finds <review_finding>
       When the verdict is produced
-      Then the improvement is nonblocking and cannot be added without user authority
+      Then <review_outcome>
+
+      Examples:
+        | review_finding | review_outcome |
+        | an in-scope false clearance | correction is required before approval |
+        | an out-of-scope resilience improvement | the improvement is nonblocking and cannot be added without user authority |
 
   @plan-implementability.NTB1.K3EBHB.R4
   Rule: plan-implementability.NTB1.K3EBHB.R4 — User-declined strengthening is recorded and re-reviewed
@@ -42,10 +59,15 @@ Feature: Make planning gates understandable and scope-safe
   Rule: plan-implementability.NTB1.K3EBHB.R5 — Guidance cannot expand accepted scope
 
     @rejection
-    Scenario: A guide-discovered capability remains outside the plan
-      Given applicable data guidance suggests a capability outside the accepted boundary
+    Scenario Outline: An externally suggested capability remains outside the plan
+      Given <source> suggests a capability outside the accepted boundary
       When the Implementation Plan is authored
       Then the capability remains outside the plan unless the user explicitly expands scope
+
+      Examples:
+        | source |
+        | applicable project guidance |
+        | current external research |
 
   @plan-implementability.NTB1.K3EBHB.R6
   Rule: plan-implementability.NTB1.K3EBHB.R6 — Human design approval occurs once on the approach
@@ -100,7 +122,8 @@ Feature: Make planning gates understandable and scope-safe
 
       Examples:
         | message_category | recovery |
-        | missing or mismatched contract | reconcile the installed planning files |
+        | missing contract | regenerate the installed planning files |
+        | mismatched contract | reconcile the installed planning files |
         | stale review | rerun review for the named plan |
         | exhausted independent routes | continue with the honestly labeled permitted fallback |
         | task promotion | resume at the named feature phase with existing evidence preserved |

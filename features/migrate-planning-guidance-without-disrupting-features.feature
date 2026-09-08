@@ -13,9 +13,10 @@ Feature: Migrate planning guidance without disrupting features
 
       Examples:
         | legacy_state | migration_result |
-        | before implementation with an existing plan | that plan becomes a draft Implementation Plan and an Execution Plan is required |
-        | implementation with a previously accepted plan | work continues without retroactive blocking |
-        | implementation that returns to planning | the ticket enters the new planning flow |
+        | before implementation with an existing combined plan | that plan becomes a draft Implementation Plan and an Execution Plan is required |
+        | before implementation with a legacy design artifact | its accepted decisions are carried into the draft Implementation Plan and the source remains linked |
+        | implementation with a previously accepted plan or design artifact | work continues without retroactive blocking |
+        | implementation that returns to planning with a legacy design artifact | its accepted decisions are carried into the new Implementation Plan before the ticket enters the new flow |
 
   @plan-implementability.TBU1.YCFFNC.R2
   Rule: plan-implementability.TBU1.YCFFNC.R2 — Planning guidance names only the two feature plans

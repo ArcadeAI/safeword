@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R2 — Each review receives its complete phase context
 
-### Scenario: Execution Plan review includes the accepted approach in addition to feature context
+### Scenario: A review packet cannot omit required phase context
 
 - [ ] RED
 - [ ] GREEN

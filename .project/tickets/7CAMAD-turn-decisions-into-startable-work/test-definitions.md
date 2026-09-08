@@ -78,7 +78,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R10 — Every accepted obligation maps to startable work
 
-### Scenario: An unmapped rollout obligation blocks Execution Plan approval
+### Scenario: Every accepted obligation must map to startable work
 
 - [ ] RED
 - [ ] GREEN

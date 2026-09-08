@@ -41,3 +41,5 @@ parent_contract_digest: 7090ac023ba8bcfe32c15083ec499f8f0a143bdd6c20c20eec8ba484
 - 2026-09-08T18:05:00.000Z Define behavior: Bounded this child to legacy guidance and in-flight-ticket migration across five inherited obligations.
 
 - 2026-09-08T18:20:00.000Z Scenario gate: Partitioned 5 inherited Rules into child-owned scenarios and R/G/R ledger entries; independent scenario review remains pending.
+
+- 2026-09-08T18:37:46.090Z Scenario gate: Fresh-context degraded review requested changes. Added preservation and carry-forward behavior for accepted legacy design artifacts; current approval remains pending.

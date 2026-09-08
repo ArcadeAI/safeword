@@ -22,7 +22,7 @@ Feature: Keep tasks and patches proportional
 
       Examples:
         | conditions | work_type |
-        | the complete narrow patch contract | patch |
+        | a fully established outcome, no feature trigger or consequential choice, and sufficient existing or targeted proof | patch |
         | no patch contract and at least one feature trigger | feature |
         | neither patch nor feature contract | task |
 
@@ -124,7 +124,7 @@ Feature: Keep tasks and patches proportional
 
     @rejection
     Scenario Outline: Discovery routes by the kind and scope of the choice
-      Given work discovers <new_choice>
+      Given feature work, or a task promoted after exposing a feature trigger, discovers <new_choice>
       When its return path is selected
       Then <return_path>
 

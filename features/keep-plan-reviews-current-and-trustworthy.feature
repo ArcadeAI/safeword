@@ -15,10 +15,22 @@ Feature: Keep plan reviews current and trustworthy
   Rule: plan-implementability.TBU4.5F5ZZA.R2 — Each review receives its complete phase context
 
     @rejection
-    Scenario: Execution Plan review includes the accepted approach in addition to feature context
-      Given an Execution Plan and complete feature context exist but the accepted Implementation Plan is omitted from the review packet
+    Scenario Outline: A review packet cannot omit required phase context
+      Given a plan review packet omits <required_context>
       When review dispatch is prepared
-      Then dispatch is blocked until the accepted Implementation Plan is included
+      Then dispatch is blocked until that current context is included
+
+      Examples:
+        | required_context |
+        | the nonblank ticket boundary |
+        | current spec Rules |
+        | accepted scenarios |
+        | the canonical phase contract |
+        | the plan under review |
+        | resolved principles, personas, or surfaces |
+        | current dimensions when required |
+        | applicable data guidance or configured architecture records |
+        | the accepted Implementation Plan for Execution Plan review |
 
   @plan-implementability.TBU4.5F5ZZA.R3
   Rule: plan-implementability.TBU4.5F5ZZA.R3 — Required context resolves or fails closed
@@ -33,7 +45,9 @@ Feature: Keep plan reviews current and trustworthy
         | source_state | resolution |
         | not configured | the installed default is included |
         | configured and current | the project source is included |
-        | configured but blank, unreadable, or stale | dispatch is blocked with reconciliation named |
+        | configured but blank | dispatch is blocked with reconciliation named |
+        | configured but unreadable | dispatch is blocked with reconciliation named |
+        | configured but stale | dispatch is blocked with reconciliation named |
 
   @plan-implementability.TBU4.5F5ZZA.R4
   Rule: plan-implementability.TBU4.5F5ZZA.R4 — Review provenance changes only for semantic dependencies
@@ -48,6 +62,9 @@ Feature: Keep plan reviews current and trustworthy
         | context_change | review_state |
         | whitespace or comments change | the review remains current |
         | an unrelated surface entry is added | the review remains current |
+        | accepted ticket scope or a current Rule changes | the review becomes stale |
+        | an accepted scenario or referenced persona changes | the review becomes stale |
+        | an accepted plan decision changes | the review becomes stale |
         | an applicable principle or affected surface changes | the review becomes stale |
 
   @plan-implementability.TBU4.5F5ZZA.R5

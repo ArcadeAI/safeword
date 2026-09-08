@@ -6,7 +6,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.NTB1.K3EBHB.R1 — Accepted scope combines every binding boundary
 
-### Scenario: A child plan cannot ignore an inherited milestone non-goal
+### Scenario: A plan cannot ignore any binding scope source
 
 - [ ] RED
 - [ ] GREEN
@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.NTB1.K3EBHB.R2 — Completeness is checked for omission and overreach
 
-### Scenario: A complete plan that adds unapproved work still fails review
+### Scenario: Missing and extra work both fail completeness
 
 - [ ] RED
 - [ ] GREEN
@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.NTB1.K3EBHB.R3 — Reviewers correct false clearance without expanding scope
 
-### Scenario: A reviewer cannot turn an optional strengthening into required scope
+### Scenario: Reviewer correction follows the accepted boundary
 
 - [ ] RED
 - [ ] GREEN
@@ -38,7 +38,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.NTB1.K3EBHB.R5 — Guidance cannot expand accepted scope
 
-### Scenario: A guide-discovered capability remains outside the plan
+### Scenario: An externally suggested capability remains outside the plan
 
 - [ ] RED
 - [ ] GREEN

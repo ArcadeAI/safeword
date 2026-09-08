@@ -6,10 +6,15 @@ Feature: Turn accepted decisions into startable work
 
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     @rejection
-    Scenario: A stale or unreviewed Implementation Plan cannot authorize Execution Planning
-      Given an Implementation Plan changed after its recorded semantic review
+    Scenario Outline: A stale or unreviewed Implementation Plan cannot authorize Execution Planning
+      Given an Implementation Plan is <review_state>
       When the workflow attempts to begin Execution Planning
       Then the transition is blocked until the current plan has a valid review receipt with achieved independence recorded
+
+      Examples:
+        | review_state |
+        | missing a semantic review receipt |
+        | changed after its recorded semantic review |
 
   @plan-implementability.TBU2.7CAMAD.R2
   Rule: plan-implementability.TBU2.7CAMAD.R2 — Every execution step is startable without inventing a contract
@@ -19,7 +24,7 @@ Feature: Turn accepted decisions into startable work
     Scenario: A fresh-context agent can begin the first step from accepted artifacts alone
       Given an agent has only the accepted behavior, Implementation Plan, and Execution Plan
       When it begins the first execution step
-      Then it can name the exact test and build action without supplying any new behavior-shaping decision
+      Then it runs the exact first test action, observes its expected pre-implementation failure, and supplies no new behavior-shaping decision
 
   @plan-implementability.TBU2.7CAMAD.R3
   Rule: plan-implementability.TBU2.7CAMAD.R3 — Authors and reviewers use one implementability contract
@@ -93,10 +98,21 @@ Feature: Turn accepted decisions into startable work
   Rule: plan-implementability.TBU2.7CAMAD.R10 — Every accepted obligation maps to startable work
 
     @rejection
-    Scenario: An unmapped rollout obligation blocks Execution Plan approval
-      Given the accepted approach includes rollout and rollback obligations but the Execution Plan maps only scenarios and code changes
+    Scenario Outline: Every accepted obligation must map to startable work
+      Given the accepted approach includes <obligation> but the Execution Plan omits it
       When implementability is reviewed
-      Then approval is blocked until rollout and rollback have dependency-ordered work and completion signals
+      Then approval is blocked until that obligation has dependency-ordered work and a completion signal
+
+      Examples:
+        | obligation |
+        | an accepted scenario |
+        | an accepted design decision |
+        | an accepted proof strategy |
+        | an affected surface |
+        | a migration requirement |
+        | a rollout requirement |
+        | a rollback requirement |
+        | a documentation requirement |
 
   @plan-implementability.TBU2.7CAMAD.R11
   Rule: plan-implementability.TBU2.7CAMAD.R11 — Execution Planning supplies rather than replaces TDD
