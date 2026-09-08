@@ -48,7 +48,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
   });
 
   describe('Test 2.1: Creates .safeword directory structure', () => {
-    it('should create complete .safeword/ directory', async () => {
+    it('should create shared .safeword files without agent runtime', async () => {
       createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
@@ -64,9 +64,9 @@ describe('Test Suite 2: Setup - Core Files', () => {
       expect(fileExists(temporaryDirectory, '.safeword/version')).toBe(true);
 
       // Subdirectories
-      expect(fileExists(temporaryDirectory, '.safeword/guides')).toBe(true);
-      expect(fileExists(temporaryDirectory, '.safeword/templates')).toBe(true);
-      expect(fileExists(temporaryDirectory, '.safeword/hooks')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.safeword/guides')).toBe(false);
+      expect(fileExists(temporaryDirectory, '.safeword/templates')).toBe(false);
+      expect(fileExists(temporaryDirectory, '.safeword/hooks')).toBe(false);
       expect(fileExists(temporaryDirectory, '.agents/skills/safeword-plugin-setup/SKILL.md')).toBe(
         false,
       );

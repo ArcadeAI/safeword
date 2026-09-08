@@ -7,7 +7,11 @@ import { writeClaudePluginMode } from '../../src/claude-plugin/migration-state.j
 import { createResult } from '../../src/cli-protocol/result.js';
 import { projectLifecycleSchema } from '../../src/lifecycle/schema.js';
 import { observeLifecycleSurfaces, summarizeLifecycleStatus } from '../../src/lifecycle/status.js';
-import { isCursorProjectPath, isSharedAgentRuntimePath } from '../../src/schema.js';
+import {
+  isCursorProjectPath,
+  isSharedAgentRuntimePath,
+  type SafewordSchema,
+} from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
 
 vi.mock('../../src/claude-plugin/status.js', async () => {
@@ -32,13 +36,22 @@ vi.mock('../../src/codex-plugin/operations.js', async () => {
   };
 });
 
+function declaredSchemaPaths(schema: SafewordSchema): string[] {
+  return [
+    ...Object.keys(schema.ownedFiles),
+    ...Object.keys(schema.managedFiles),
+    ...Object.keys(schema.jsonMerges),
+    ...Object.keys(schema.textPatches),
+    ...schema.ownedDirs,
+    ...schema.sharedDirs,
+  ];
+}
+
 describe('lifecycle profile observation', () => {
-  it('installs the shared proof-identity bridge for a Codex-only project', () => {
+  it('keeps a Codex-only project free of project-delivered executable runtime', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), ['codex']);
 
-    expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toEqual({
-      template: 'hooks/lib/cursor-run-identity.ts',
-    });
+    expect(declaredSchemaPaths(schema).filter(path => isSharedAgentRuntimePath(path))).toEqual([]);
   });
 
   it('drops the shared .safeword hooks|skills|scripts|guides|templates runtime for a Claude-only project', () => {
@@ -54,11 +67,9 @@ describe('lifecycle profile observation', () => {
 
     const schema = projectLifecycleSchema(cwd, ['claude']);
 
-    const sharedRuntimePaths = [
-      ...Object.keys(schema.ownedFiles),
-      ...Object.keys(schema.managedFiles),
-      ...schema.ownedDirs,
-    ].filter(path => isSharedAgentRuntimePath(path));
+    const sharedRuntimePaths = declaredSchemaPaths(schema).filter(path =>
+      isSharedAgentRuntimePath(path),
+    );
 
     expect(sharedRuntimePaths).toEqual([]);
     // Non-runtime .safeword content Claude still reads stays installed.
@@ -78,25 +89,44 @@ describe('lifecycle profile observation', () => {
     expect(Object.keys(schema.jsonMerges).some(path => path.startsWith('.claude/'))).toBe(true);
   });
 
-  it('preserves legacy Claude skills when only OpenCode is uninstalled', () => {
+  it('keeps an OpenCode-only install free of Claude and shared project runtime', () => {
     const cwd = createTemporaryDirectory();
-    const settings = nodePath.join(cwd, '.claude/settings.json');
-    mkdirSync(nodePath.dirname(settings), { recursive: true });
-    writeFileSync(settings, '{ retained legacy configuration');
-
     const installSchema = projectLifecycleSchema(cwd, ['opencode'], 'install');
-    const uninstallSchema = projectLifecycleSchema(cwd, ['opencode'], 'uninstall');
 
-    expect(installSchema.ownedFiles['.claude/skills/bdd/SKILL.md']).toBeDefined();
-    expect(uninstallSchema.ownedFiles['.claude/skills/bdd/SKILL.md']).toBeUndefined();
-    expect(uninstallSchema.ownedFiles['.opencode/commands/bdd.md']).toBeDefined();
+    expect(
+      Object.keys(installSchema.ownedFiles).filter(path => path.startsWith('.claude/')),
+    ).toEqual([]);
+    expect(
+      declaredSchemaPaths(installSchema).filter(path => isSharedAgentRuntimePath(path)),
+    ).toEqual([]);
+    expect(
+      Object.keys(installSchema.ownedFiles).filter(path => path.startsWith('.opencode/')),
+    ).toEqual([]);
+    expect(
+      installSchema.sharedDirs.filter(path => path === '.claude' || path.startsWith('.claude/')),
+    ).toEqual([]);
   });
 
-  it('keeps the shared runtime when no agent is selected', () => {
+  it.each(['codex', 'cursor'] as const)(
+    'does not retain legacy Claude delivery when only %s is selected',
+    agent => {
+      const cwd = createTemporaryDirectory();
+      const settings = nodePath.join(cwd, '.claude/settings.json');
+      mkdirSync(nodePath.dirname(settings), { recursive: true });
+      writeFileSync(settings, '{ retained legacy configuration');
+
+      const schema = projectLifecycleSchema(cwd, [agent]);
+
+      expect(Object.keys(schema.ownedFiles).some(path => path.startsWith('.claude/'))).toBe(false);
+      expect(Object.keys(schema.jsonMerges).some(path => path.startsWith('.claude/'))).toBe(false);
+    },
+  );
+
+  it('keeps an agent-free project free of executable runtime', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), []);
 
-    expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toBeDefined();
-    expect(Object.keys(schema.ownedFiles).some(path => isCursorProjectPath(path))).toBe(false);
+    expect(declaredSchemaPaths(schema).filter(path => isSharedAgentRuntimePath(path))).toEqual([]);
+    expect(declaredSchemaPaths(schema).some(path => isCursorProjectPath(path))).toBe(false);
   });
 
   it('keeps the shared runtime for a Cursor-only project', () => {
@@ -105,6 +135,53 @@ describe('lifecycle profile observation', () => {
     expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toEqual({
       template: 'hooks/lib/cursor-run-identity.ts',
     });
+  });
+
+  it.each(['codex', 'claude', 'opencode'] as const)(
+    'keeps Cursor project authority without copying %s runtime into the project',
+    nativeAgent => {
+      const cwd = createTemporaryDirectory();
+      mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'), '# enrolled\n');
+      const schema = projectLifecycleSchema(cwd, ['cursor', nativeAgent]);
+      const ownedPaths = declaredSchemaPaths(schema);
+
+      expect(ownedPaths.some(path => isCursorProjectPath(path))).toBe(true);
+      expect(
+        ownedPaths.filter(path =>
+          ['.claude/', '.codex/', '.opencode/'].some(prefix => path.startsWith(prefix)),
+        ),
+      ).toEqual([]);
+    },
+  );
+
+  it('preserves shared runtime when uninstalling Cursor while legacy Claude remains', () => {
+    const cwd = createTemporaryDirectory();
+    const settings = nodePath.join(cwd, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(settings, '{ retained legacy configuration');
+
+    const schema = projectLifecycleSchema(cwd, ['cursor'], 'uninstall');
+
+    expect(Object.keys(schema.ownedFiles).filter(path => isSharedAgentRuntimePath(path))).toEqual(
+      [],
+    );
+  });
+
+  it('preserves shared runtime when uninstalling Claude while Cursor remains', () => {
+    const cwd = createTemporaryDirectory();
+    const cursorSchema = projectLifecycleSchema(cwd, ['cursor']);
+    const cursorFile = Object.keys(cursorSchema.ownedFiles).find(path => isCursorProjectPath(path));
+    expect(cursorFile).toBeDefined();
+    const absolute = nodePath.join(cwd, cursorFile ?? '');
+    mkdirSync(nodePath.dirname(absolute), { recursive: true });
+    writeFileSync(absolute, '# installed Cursor authority\n');
+
+    const schema = projectLifecycleSchema(cwd, ['claude'], 'uninstall');
+
+    expect(Object.keys(schema.ownedFiles).filter(path => isSharedAgentRuntimePath(path))).toEqual(
+      [],
+    );
   });
 
   it('observes selected independent profiles when project configuration is absent', async () => {

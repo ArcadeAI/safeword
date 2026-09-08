@@ -344,6 +344,21 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),
+  command('project audit-scope', 'Print the packaged audit scope shell contract', 'observe', {
+    syntax: 'audit-scope',
+  }),
+  command('project record-skill-invocation', 'Record current-run workflow proof', 'mutate', {
+    syntax: 'record-skill-invocation <skill> [session-id]',
+  }),
+  command(
+    'project runtime',
+    'Run an allowlisted packaged helper with the helper arguments after --',
+    'destructive',
+    {
+      syntax: 'runtime <helper> [args...]',
+      networkPolicy: 'declared',
+    },
+  ),
   command('project retro-drain', 'Drain acknowledged retro drafts from a spool', 'mutate', {
     syntax: 'retro-drain <spool>',
     commandOptions: [

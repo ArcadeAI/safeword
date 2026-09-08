@@ -2,11 +2,11 @@
 id: 1DZ9W8
 slug: codex-cleanup-zombies-scope
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 parent: 2C1E82
 created: 2026-08-19T04:59:39.360Z
-last_modified: 2026-08-19T04:59:39.360Z
+last_modified: 2026-08-30T08:00:00.000Z
 ---
 
 # Decide whether cleanup-zombies belongs in Codex's self-contained skill set
@@ -18,3 +18,4 @@ last_modified: 2026-08-19T04:59:39.360Z
 ## Work Log
 
 - 2026-08-19T04:59:39.360Z Started: Created ticket 1DZ9W8
+- 2026-08-30T08:00:00.000Z Completed by epic 2C1E82: cleanup-zombies remains an advertised workflow and runs through the allowlisted packaged runtime rather than a project script.

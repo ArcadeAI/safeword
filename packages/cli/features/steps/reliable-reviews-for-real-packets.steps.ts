@@ -20,7 +20,13 @@ import type { SafewordWorld } from './world.js';
 
 // Review scenarios use real subprocess timeouts. Scope their longer budget to
 // the steps that invoke the CLI so unrelated Cucumber scenarios still fail fast.
-const REVIEW_STEP_TIMEOUT_MS = 20_000;
+const REVIEW_STEP_TIMEOUT_MS = 40_000;
+const REVIEW_PROCESS_TIMEOUT_MS = 35_000;
+// Capability probing and the answer share an attempt deadline. Use the
+// runtime's normal probe ceiling so classification cases actually reach the
+// behavior they describe under suite load. Deadline-specific cases override it.
+const FIXTURE_ATTEMPT_TIMEOUT_MS = 5000;
+const FIXTURE_RUN_BOUND_MS = 30_000;
 
 const execFileAsync = promisify(execFile);
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -54,6 +60,7 @@ interface ReviewScenario {
   binaries: string[];
   environment: Record<string, string>;
   launchLog: string;
+  packetLog: string;
   elapsedMs?: number;
   targets: string[];
   context: string[];
@@ -91,13 +98,14 @@ function state(world: SafewordWorld): ReviewScenario {
     project,
     binaries: [],
     launchLog: nodePath.join(project, 'reviewer-launches.log'),
+    packetLog: nodePath.join(project, 'reviewer-packet.txt'),
     targets: ['review-input.md'],
     context: [],
     environment: {
       NODE_ENV: 'test',
       SAFEWORD_AGENT_RUNTIME: 'claude',
-      SAFEWORD_REVIEW_TIMEOUT_MS: '2000',
-      SAFEWORD_REVIEW_RUN_BOUND_MS: '12000',
+      SAFEWORD_REVIEW_TIMEOUT_MS: String(FIXTURE_ATTEMPT_TIMEOUT_MS),
+      SAFEWORD_REVIEW_RUN_BOUND_MS: String(FIXTURE_RUN_BOUND_MS),
       SAFEWORD_NO_UPDATE_CHECK: '1',
     },
   };
@@ -110,10 +118,8 @@ function behaviourScript(agent: Agent, behaviour: Behaviour): string {
   // invalid output, which quietly turns a "reviewer answered" fixture into a
   // "reviewer failed" one.
   const body = String.raw`payload=$(cat)
+printf '%s' "$payload" > "$SAFEWORD_REVIEW_PROMPT_LOG"
 summary=reviewed
-if printf '%s' "$payload" | /usr/bin/grep -q '"logical_files":\[{"path":"review-input.md"' && printf '%s' "$payload" | /usr/bin/grep -q '"context_files":\[{"path":"supporting-evidence.md"'; then
-  summary=roles-separated
-fi
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 answer=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"AGENT","verdict":"approve","summary":"%s","findings":[]}' "$dispatch_id" "$summary")`
     .split('AGENT')
@@ -138,7 +144,7 @@ printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text"
 exec /bin/sleep 3600`;
   }
   if (behaviour === 'emits a credential') {
-    return `printf 'trace token=${CREDENTIAL}\\n' >&2\nprintf 'not-a-review\\n'`;
+    return `printf 'trace token=${CREDENTIAL}\\n' >&2\nprintf 'not-a-review\\n'\nexit 7`;
   }
   if (behaviour === 'answers off contract') {
     return `${body}\nanswer=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[{"severity":"fatal","message":"invalid severity"}]}' "$dispatch_id")\n${emit}`;
@@ -187,6 +193,7 @@ async function runReview(world: SafewordWorld): Promise<void> {
   const environment: Record<string, string> = {
     ...current.environment,
     SAFEWORD_REVIEW_LAUNCH_LOG: current.launchLog,
+    SAFEWORD_REVIEW_PROMPT_LOG: current.packetLog,
     PATH: [...current.binaries, '/usr/bin', '/bin'].join(':'),
     HOME: process.env.HOME ?? '',
   };
@@ -205,7 +212,7 @@ async function runReview(world: SafewordWorld): Promise<void> {
         '--cwd',
         current.project,
       ],
-      { cwd: current.project, env: environment, timeout: 60_000 },
+      { cwd: current.project, env: environment, timeout: REVIEW_PROCESS_TIMEOUT_MS },
     );
     world.result = { stdout, stderr, exitCode: 0 };
   } catch (error) {
@@ -263,6 +270,25 @@ function assertApprovedCodexVerdict(world: SafewordWorld): void {
   const output = reviewerOutput(world);
   assert.equal(output.reviewer_agent, 'codex');
   assert.equal(output.verdict, 'approve');
+}
+
+function assertReviewRoles(world: SafewordWorld): void {
+  assertApprovedCodexVerdict(world);
+  // The prompt ends with the serialized packet. Inspect what the real CLI
+  // sent, including complete membership, instead of trusting a fixture verdict.
+  const prompt = readFileSync(state(world).packetLog, 'utf8');
+  const packet = JSON.parse(prompt.trimEnd().split('\n').at(-1) ?? '') as {
+    logical_files: { path: string }[];
+    context_files: { path: string }[];
+  };
+  assert.deepEqual(
+    packet.logical_files.map(file => file.path),
+    ['review-input.md'],
+  );
+  assert.deepEqual(
+    packet.context_files.map(file => file.path),
+    ['supporting-evidence.md'],
+  );
 }
 
 After(function (this: SafewordWorld) {
@@ -413,7 +439,7 @@ Given('a configured alternate model within the accepted grammar', function (this
 });
 
 Given('a configured alternate model outside the accepted grammar', function (this: SafewordWorld) {
-  writeConfig(state(this), { crossAgentReviewAlternateModel: { codex: '--help' } });
+  writeConfig(state(this), { crossAgentReviewAlternateModel: { codex: 'invalid model' } });
 });
 
 Given("the reviewer agent's default model never answers", function (this: SafewordWorld) {
@@ -451,7 +477,8 @@ Given(
 );
 
 Given("only the author's own runtime completed the review", async function (this: SafewordWorld) {
-  installReviewer(state(this), 'claude', 'answers');
+  const current = state(this);
+  installReviewer(current, 'claude', 'answers');
   await runReview(this);
 });
 
@@ -480,7 +507,8 @@ Given(
 );
 
 Given('the assigned reviewer timed out', function (this: SafewordWorld) {
-  installReviewer(state(this), 'codex', 'never answers');
+  const current = state(this);
+  installReviewer(current, 'codex', 'never answers');
 });
 
 Given(
@@ -681,20 +709,14 @@ Then(
 Then(
   'the reviewer receives the target as work and the evidence as context',
   function (this: SafewordWorld) {
-    assert.equal(
-      (payload(this).data.reviewer_output as { summary?: string } | undefined)?.summary,
-      'roles-separated',
-    );
+    assertReviewRoles(this);
   },
 );
 
 Then(
   'the alternate model receives the same target and context roles',
   function (this: SafewordWorld) {
-    assert.equal(
-      (payload(this).data.reviewer_output as { summary?: string } | undefined)?.summary,
-      'roles-separated',
-    );
+    assertReviewRoles(this);
   },
 );
 
@@ -843,6 +865,7 @@ Then(
 Then(
   'the explanation contains neither that output nor the credential',
   function (this: SafewordWorld) {
+    assert.equal(payload(this).data.fallback_failure, 'process_failed');
     for (const output of [this.result.stdout, this.result.stderr]) {
       assert.ok(!output.includes(CREDENTIAL));
       assert.ok(!output.includes('not-a-review'));
