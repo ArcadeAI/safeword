@@ -35,6 +35,13 @@ function parseTraceRows(implPlan: string): PrincipleTrace[] {
     .filter(trace => trace.principle !== '');
 }
 
+function normalizePrincipleName(name: string): string {
+  return name
+    .trim()
+    .replace(/^\d+\.\s+/u, '')
+    .toLowerCase();
+}
+
 function principleNames(source: string | null): Set<string> {
   const names = new Set<string>();
   let current: { body: string[]; name: string } | undefined;
@@ -44,7 +51,7 @@ function principleNames(source: string | null): Set<string> {
     const structured = ['**intent:**', '**prefer:**', '**avoid:**', '**evidence:**'].every(
       field => current?.body.some(line => line.trim().toLowerCase().startsWith(field)) === true,
     );
-    if (numbered || structured) names.add(current.name.toLowerCase());
+    if (numbered || structured) names.add(normalizePrincipleName(current.name));
   };
 
   for (const line of activeLines(source ?? '')) {
@@ -150,7 +157,7 @@ export function checkPrincipleTrace(projectDirectory: string, implPlan: string):
   const findings: string[] = [];
 
   for (const trace of traces) {
-    if (!names.has(trace.principle.toLowerCase())) {
+    if (!names.has(normalizePrincipleName(trace.principle))) {
       findings.push(finding('missing source principle', trace.principle));
     }
     if (trace.consequence === '' || trace.proof === '') {
