@@ -400,6 +400,7 @@ function managedGitattributes(ctx: ProjectContext): string {
   const root = resolvedNamespaceRootLabel(ctx);
   return [
     GITATTRIBUTES_HEADER,
+    '**/architecture.generated.md merge=union linguist-generated=true',
     `${root}/tickets/INDEX.md merge=union linguist-generated=true`,
     `${root}/tickets/INDEX-completed.md merge=union linguist-generated=true`,
   ].join('\n');

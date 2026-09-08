@@ -65,15 +65,20 @@ export function isPackInstalled(cwd: string, packId: string): boolean {
   return getInstalledPacks(cwd).includes(packId);
 }
 
+/** Preserve legacy installs while making the first setup explicitly local-only. */
+export function applyFreshInstallDefaults(cwd: string): void {
+  const config = readConfig(cwd) ?? { installedPacks: [] };
+  if (config.architectureDocEnforcement !== undefined) return;
+  config.architectureDocEnforcement = false;
+  writeConfig(cwd, config);
+}
+
 /**
  * Add a pack to the installed packs list.
  * Creates config.json if it doesn't exist.
  */
 export function addInstalledPack(cwd: string, packId: string): void {
-  const config = readConfig(cwd) ?? {
-    installedPacks: [],
-    architectureDocEnforcement: false,
-  };
+  const config = readConfig(cwd) ?? { installedPacks: [] };
 
   if (!config.installedPacks.includes(packId)) {
     config.installedPacks.push(packId);

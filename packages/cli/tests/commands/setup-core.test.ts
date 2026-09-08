@@ -176,5 +176,34 @@ describe('Test Suite 2: Setup - Core Files', () => {
       expect(config.installedPacks).toContain('python');
       expect(config.architectureDocEnforcement).toBe(false);
     });
+
+    it('defaults architecture-doc enforcement off in an existing config', async () => {
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ installedPacks: [] }),
+      );
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup', '--agents', 'none'], { cwd: temporaryDirectory });
+
+      expect(readSafewordConfig(temporaryDirectory).architectureDocEnforcement).toBe(false);
+    });
+
+    it('preserves the legacy default for an already-installed project', async () => {
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ installedPacks: [] }),
+      );
+      writeTestFile(temporaryDirectory, '.safeword/version', '0.82.0\n');
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup', '--agents', 'none'], { cwd: temporaryDirectory });
+
+      expect(readSafewordConfig(temporaryDirectory).architectureDocEnforcement).toBeUndefined();
+    });
   });
 });

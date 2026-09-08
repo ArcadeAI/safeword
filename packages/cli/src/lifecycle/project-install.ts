@@ -48,6 +48,7 @@ import {
   syncConfigCore,
 } from '../commands/sync-config.js';
 import { checkHealth, type HealthStatus } from '../health.js';
+import { applyFreshInstallDefaults } from '../packs/config.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
@@ -1258,7 +1259,16 @@ function projectClaudePluginEnrolled(cwd: string): boolean {
   }
 }
 
-function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
+function applyCompatibilityMigrations(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+  freshInstall: boolean,
+): void {
+  if (freshInstall) {
+    observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () => {
+      applyFreshInstallDefaults(cwd);
+    });
+  }
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
     const targets = [
@@ -1364,6 +1374,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     packageJsonCreated,
     preliminaryFileEffects,
   } = input;
+  const freshInstall = !existsSync(nodePath.join(cwd, '.safeword/version'));
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
   const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
@@ -1375,7 +1386,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   };
 
   try {
-    applyCompatibilityMigrations(cwd, completedEffects);
+    applyCompatibilityMigrations(cwd, completedEffects, freshInstall);
     observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
       installCodexProjectBootstrap(cwd),
     );

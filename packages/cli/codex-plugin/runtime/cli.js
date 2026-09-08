@@ -13032,6 +13032,7 @@ function managedGitattributes(ctx) {
   const root = resolvedNamespaceRootLabel(ctx);
   return [
     GITATTRIBUTES_HEADER,
+    "**/architecture.generated.md merge=union linguist-generated=true",
     `${root}/tickets/INDEX.md merge=union linguist-generated=true`,
     `${root}/tickets/INDEX-completed.md merge=union linguist-generated=true`
   ].join(`
@@ -21632,11 +21633,15 @@ function getInstalledPacks(cwd) {
 function isPackInstalled(cwd, packId) {
   return getInstalledPacks(cwd).includes(packId);
 }
+function applyFreshInstallDefaults(cwd) {
+  const config = readConfig(cwd) ?? { installedPacks: [] };
+  if (config.architectureDocEnforcement !== undefined)
+    return;
+  config.architectureDocEnforcement = false;
+  writeConfig(cwd, config);
+}
 function addInstalledPack(cwd, packId) {
-  const config = readConfig(cwd) ?? {
-    installedPacks: [],
-    architectureDocEnforcement: false
-  };
+  const config = readConfig(cwd) ?? { installedPacks: [] };
   if (!config.installedPacks.includes(packId)) {
     config.installedPacks.push(packId);
     writeConfig(cwd, config);
@@ -46318,7 +46323,10 @@ function projectClaudePluginEnrolled(cwd) {
     return false;
   }
 }
-function applyCompatibilityMigrations(cwd, completedEffects) {
+function applyCompatibilityMigrations(cwd, completedEffects, freshInstall) {
+  if (freshInstall) {
+    observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => applyFreshInstallDefaults(cwd));
+  }
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
     const targets = [
@@ -46394,6 +46402,7 @@ async function applySetup(cwd, input) {
     packageJsonCreated,
     preliminaryFileEffects
   } = input;
+  const freshInstall = !existsSync44(nodePath88.join(cwd, ".safeword/version"));
   const context = createProjectContext(cwd);
   const operation = configured ? "upgrade" : "install";
   const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
@@ -46404,7 +46413,7 @@ async function applySetup(cwd, input) {
     network: []
   };
   try {
-    applyCompatibilityMigrations(cwd, completedEffects);
+    applyCompatibilityMigrations(cwd, completedEffects, freshInstall);
     observeFileStage(cwd, [".codex/config.toml"], completedEffects, () => installCodexProjectBootstrap(cwd));
     const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects);
     const architectureEffects = observeFileStage(cwd, [".safeword/depcruise-config.cjs", ".dependency-cruiser.cjs"], completedEffects, () => adapters.configureArchitecture(cwd));
@@ -46595,6 +46604,7 @@ var init_project_install = __esm(() => {
   init_project_bootstrap();
   init_sync_config();
   init_health();
+  init_config3();
   init_install2();
   init_files2();
   init_setup();
