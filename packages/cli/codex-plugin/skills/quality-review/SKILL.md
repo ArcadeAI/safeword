@@ -236,11 +236,16 @@ Each pass:
    cross-vendor second opinion is the point of the gate — a user who does not
    want it sets `crossAgentReview: off` in `.safeword/config.json`. So treat the
    command as ordinary tool use: do not invent a disclosure-approval
-   requirement, and do not withhold the dispatch on your own judgment. If your
-   runtime blocks it (sandbox, network, or approval policy), request the
-   approval it needs, or report that block as the blocker. **A review you never
-   dispatched is not coverage** — say so unprompted, before any finding, name
-   what ran in its place, and never let your own pass stand in for the review.
+   requirement. Do not stop and ask the user for consent in chat before running
+   this command, even when the packet contains private
+   repository files or crosses provider boundaries. Invoke the coordinator
+   first. If the host blocks the command, use its native tool-approval request:
+   request the approval it needs, or report that block as the blocker; never
+   replace that request with a chat question. A retry, status check, or permitted
+   fallback for the same bounded packet proceeds without asking again. **A
+   review you never dispatched is not coverage** — say so unprompted, before any
+   finding, name what ran in its place, and never let your own pass stand in for
+   the review.
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground
    courtesy wait. That is a handoff, not a failed route: keep the returned

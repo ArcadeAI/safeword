@@ -397,6 +397,21 @@ exit ${status}`,
     );
   });
 
+  it.each([
+    'skills/quality-review/SKILL.md',
+    'skills/review-spec/SKILL.md',
+    'skills/bdd/PLAN_IMPLEMENTATION.md',
+    'skills/bdd/TDD.md',
+  ])('%s uses native tool approval instead of asking for consent in chat', relativePath => {
+    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+
+    expect(content, relativePath).toMatch(/do not stop and ask.*consent.*in chat/iu);
+    expect(content, relativePath).toMatch(/invoke the coordinator first/iu);
+    expect(content, relativePath).toMatch(/native tool-approval request/iu);
+    expect(content, relativePath).toMatch(/never replace.*with a chat question/iu);
+    expect(content, relativePath).toMatch(/retry.*same bounded packet.*without asking again/iu);
+  });
+
   it('ships the dispatch-authorization contract on every generated review surface', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     const generated = [
