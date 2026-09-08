@@ -4,7 +4,7 @@
 
 **Gherkin:** ⚠️ Local environment limitation: 1,463 of 1,493 scenarios pass, 3 skip, and 27 fail on loopback binding, fixture dependency installation, npm cache ownership, or unavailable review routing.
 
-**Build:** ❌ Failed
+**Build:** ✅ Package builds passed in both current-head CI lanes; the local website build remains unavailable because its native dependency is missing.
 
 **Lint:** ✅ Clean
 
@@ -26,4 +26,4 @@
 
 **Surface Evidence:** ✅ The contract passes on all five shipped BDD guidance surfaces
 
-**Evidence limits:** The website build cannot load `@bruits/satteri-darwin-arm64`; package builds pass. Full-suite failures are outside this prompt-only diff, so readiness remains Draft pending CI or a suitable local environment.
+**Evidence limits:** Local full-root verification remains constrained by loopback binding, fixture dependency installation, npm cache ownership, and the missing website native dependency. Exact-head CI passed 11 checks with no failures, including both Node suites, Node 24 Cucumber acceptance, lint, contracts, parity, and advisory review.
