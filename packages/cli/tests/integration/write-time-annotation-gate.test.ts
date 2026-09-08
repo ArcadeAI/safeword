@@ -29,6 +29,10 @@ import {
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
+const CODEX_PRE_TOOL_QUALITY = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/codex/pre-tool-quality.ts',
+);
 
 /** Invoke pre-tool-quality with an Edit payload simulating a checkbox transition. */
 function runEditHook(
@@ -47,6 +51,25 @@ function runEditHook(
     }),
     cwd,
     env: { ...process.env, ...environment, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+function runCodexPatchHook(cwd: string, patch: string, gateCli: string): HookResult {
+  const result = spawnSync('bun', [CODEX_PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'codex-test-session',
+      tool_name: 'apply_patch',
+      tool_input: { command: patch },
+    }),
+    cwd,
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: cwd,
+      SAFEWORD_PLUGIN_CLI: gateCli,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -196,12 +219,20 @@ describe('write-time annotation gate', () => {
   });
 
   describe('Executable RED GREEN admission', () => {
-    function gateStub(cwd: string, state: 'healthy' | 'action_required'): string {
+    function gateStub(
+      cwd: string,
+      state: 'healthy' | 'action_required',
+      expectedScenario?: string,
+    ): string {
       const path = nodePath.join(cwd, 'gate-stub.mjs');
+      const expectedCheck =
+        expectedScenario === undefined
+          ? 'true'
+          : `process.argv.at(-1) === ${JSON.stringify(expectedScenario)}`;
       writeTestFile(
         cwd,
         'gate-stub.mjs',
-        `console.log(JSON.stringify({ schemaVersion: 1, ok: ${state === 'healthy'}, changed: false, state: '${state}', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: '${state === 'healthy' ? 'approved' : 'blocked'}' } }));\n`,
+        `const approved = ${state === 'healthy'} && ${expectedCheck}; console.log(JSON.stringify({ schemaVersion: 1, ok: approved, changed: false, state: approved ? 'healthy' : 'action_required', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: approved ? 'approved' : 'blocked' } }));\n`,
       );
       return path;
     }
@@ -234,6 +265,55 @@ describe('write-time annotation gate', () => {
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy') },
       );
       expectHookAllow(result);
+    });
+
+    it('binds a local Edit to its exact scenario when several GREEN rows remain open', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: first boundary',
+          '',
+          '- [x] RED abc1234',
+          '- [ ] GREEN',
+          '',
+          '### Scenario: second boundary',
+          '',
+          '- [x] RED 9876fed',
+          '- [ ] GREEN',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED 9876fed\n- [ ] GREEN',
+        '- [x] RED 9876fed\n- [x] GREEN def5678',
+        {
+          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: second boundary'),
+        },
+      );
+      expectHookAllow(result);
+    });
+
+    it('blocks the same transition through the Codex/OpenCode apply_patch adapter', () => {
+      const setup = setupProject(
+        '### Scenario: exact boundary\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const patch = [
+        '*** Begin Patch',
+        `*** Update File: ${setup.testDefinitionsPath}`,
+        '@@',
+        '### Scenario: exact boundary',
+        '',
+        '-- [ ] GREEN',
+        '+- [x] GREEN def5678',
+        '*** End Patch',
+      ].join('\n');
+
+      const result = runCodexPatchHook(setup.cwd, patch, gateStub(setup.cwd, 'action_required'));
+
+      expectHookDeny(result, 'executable RED');
     });
   });
 });
