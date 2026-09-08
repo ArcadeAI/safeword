@@ -32,11 +32,10 @@ describe('repository generated-file presentation', () => {
     ['packages/cli/codex-plugin/.codex-plugin/plugin.json', 'unset'],
     ['packages/cli/codex-plugin/hooks.json', 'unset'],
   ])('marks %s as linguist-generated=%s', (relative, expected) => {
-    const result = execFileSync(
-      'git',
-      ['check-attr', 'linguist-generated', '--', relative],
-      { cwd: repoRoot, encoding: 'utf8' },
-    ).trim();
+    const result = execFileSync('git', ['check-attr', 'linguist-generated', '--', relative], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    }).trim();
 
     expect(result).toBe(`${relative}: linguist-generated: ${expected}`);
   });
