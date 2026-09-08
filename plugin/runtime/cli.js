@@ -36749,7 +36749,7 @@ function hasFailingExecutionAttestation(attestation, sourceFingerprint) {
 function approvedCrossAgentReceipt(record) {
   const data = record.result?.data;
   const attestation = data?.execution_attestation;
-  return record.state === "completed" && (record.pid === undefined || !processExists(record.pid)) && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record.source_fingerprint);
+  return record.state === "completed" && (record.pid === undefined || inspectReviewWorker(record.pid, record.id) !== "match") && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record.source_fingerprint);
 }
 function executableRedJobsForScenario(cwd, scenario, ledger) {
   const directory = jobsDirectory(cwd);
@@ -36799,7 +36799,7 @@ function executableRedGate(cwd, scenario, ledger) {
   if (approved !== undefined)
     return approvedExecutableRedGateResult(approved, scenario, ledger);
   let reason = matching.length > 0 ? `The current executable RED review for ${scenario} is not an approved independent receipt.` : `No trusted executable RED receipt matches ${scenario}.`;
-  reason = matching.length > current.length ? `The executable RED approval for ${scenario} is stale because its declared proof inputs changed.` : reason;
+  reason = matching.length > 0 && current.length === 0 ? `The executable RED approval for ${scenario} is stale because its declared proof inputs changed.` : reason;
   return createResult({
     state: "action_required",
     findings: [{ code: "EXECUTABLE_RED_GATE_BLOCKED", message: reason, severity: "warning" }],
