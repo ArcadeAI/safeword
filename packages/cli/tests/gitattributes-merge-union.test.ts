@@ -10,7 +10,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -161,7 +161,7 @@ describe('merge=union actually auto-resolves the #566 conflict (git-level)', () 
   afterEach(() => {
     const directories = [...created];
     created.length = 0;
-    for (const dir of directories) rmSync(dir, { recursive: true, force: true });
+    for (const dir of directories) removeTemporaryDirectory(dir);
   });
 
   it('an opted-in generated-doc divergence auto-merges with the installed attribute', async () => {
