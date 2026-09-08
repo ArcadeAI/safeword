@@ -4,9 +4,15 @@ Feature source: `features/approve-coherent-implementation-plans.feature`
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: plan-implementability.TBU1.G1C9PP.R1 — Implementation planning is a distinct approach-decision phase
+## Rule: plan-implementability.TBU1.G1C9PP.R1 — Implementation Planning is a distinct approach-decision phase
 
-### Scenario: Unresolved approach choices cannot be deferred into execution planning
+### Scenario: Approach decision state controls entry into Execution Planning
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Gated hosts enforce and release the decision boundary through the installed workflow
 
 - [ ] RED
 - [ ] GREEN
@@ -14,7 +20,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R2 — Authors and reviewers use one decision-quality contract
 
-### Scenario: An authoring contract that differs from the reviewer contract cannot approve a plan
+### Scenario: Contract identity controls review eligibility
 
 - [ ] RED
 - [ ] GREEN
@@ -22,7 +28,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R3 — Decisions remain reviewable without becoming an execution manual
 
-### Scenario: Execution detail that obscures the decision summary fails reviewability
+### Scenario: Decision presentation controls focused reviewability
 
 - [ ] RED
 - [ ] GREEN
@@ -30,7 +36,13 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
 
-### Scenario: Supported hosts use the same project-local Implementation Plan boundary
+### Scenario: Each gated host accepts only the project-local Implementation Plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: OpenCode Desktop guidance does not claim gate authority
 
 - [ ] RED
 - [ ] GREEN
@@ -38,7 +50,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R5 — Architecture applicability is explicit
 
-### Scenario: Omitting both architecture consequences and a justified skip blocks approval
+### Scenario: Architecture applicability accepts consequences or a justified skip
 
 - [ ] RED
 - [ ] GREEN
@@ -46,7 +58,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R6 — Data guidance applies to data-contract changes
 
-### Scenario: A simple schema change cannot use the retired small-schema exemption
+### Scenario: Data guidance follows data-contract applicability
 
 - [ ] RED
 - [ ] GREEN
@@ -54,7 +66,13 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
 
-### Scenario: Durable recording follows significance rather than applying to every choice
+### Scenario: Durable recording routes only significant decisions to the architecture record
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unrecorded significant decision blocks approval
 
 - [ ] RED
 - [ ] GREEN
@@ -70,7 +88,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R9 — One feature has one design plan of record
 
-### Scenario: Retained guidance cannot create a second feature design artifact
+### Scenario: One design plan remains the feature plan of record
 
 - [ ] RED
 - [ ] GREEN
@@ -78,7 +96,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope without execution mechanics
 
-### Scenario: A proof strategy is complete before fixture and command details exist
+### Scenario: Proof scope excludes execution mechanics
 
 - [ ] RED
 - [ ] GREEN
@@ -94,7 +112,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R12 — Load-bearing choices carry alternatives and evidence
 
-### Scenario: A preferred choice without rejected alternatives cannot pass semantic review
+### Scenario: Decision evidence controls semantic review
 
 - [ ] RED
 - [ ] GREEN
@@ -110,15 +128,27 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R14 — Decision discovery is complete and scope-bounded
 
-### Scenario: Discovery resolves in-scope dimensions and rejects silent scope expansion
+### Scenario: Discovery respects and updates scope only with user authority
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability
+## Rule: plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability and concrete recovery
 
 ### Scenario: The receipt records the focused-review judgment
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A blocked receipt gives a Non-Technical Builder a concrete recovery
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A blocked receipt preserves evidence for a Technical Builder
 
 - [ ] RED
 - [ ] GREEN

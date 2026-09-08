@@ -54,7 +54,7 @@ lineage parsing to satisfy a cosmetic heading rule. -->
 
 #### plan-implementability.TBU1.G1C9PP.R14 — Decision discovery is complete and scope-bounded
 
-#### plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability
+#### plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability and concrete recovery
 
 <!-- markdownlint-enable MD001 -->
 
