@@ -1,4 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 import {
   READINESS_STATUS_CONTEXT,
@@ -197,4 +202,52 @@ describe('readiness status publication', () => {
 // reports jams every pull request in the repository.
 it('keeps the published status context stable for anyone who required it', () => {
   expect(READINESS_STATUS_CONTEXT).toBe('safeword/pr-readiness');
+});
+
+// Wiring: real boundary, real command, only the process boundary (fetch)
+// stubbed. Every other publication test substitutes both collaborators, so a
+// wrong URL, context, state, or target SHA would ship with all of them green.
+describe('readiness status wiring against the GitHub boundary', () => {
+  it('reads the pull request and posts the status to its head SHA', async () => {
+    const requests: { body: unknown; method: string; url: string }[] = [];
+    vi.stubEnv('GITHUB_REPOSITORY', 'ArcadeAI/safeword');
+    vi.stubEnv('SAFEWORD_PR_NUMBER', '4242');
+    vi.stubEnv('GITHUB_TOKEN', 'test-token');
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      requests.push({
+        body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+        method: init?.method ?? 'GET',
+        url,
+      });
+      if (url.endsWith('/pulls/4242')) {
+        return Promise.resolve(
+          Response.json({ body: evidence(HEAD), draft: false, head: { sha: HEAD } }),
+        );
+      }
+      // GitHub's Statuses API answers 201 with the created status object.
+      return Promise.resolve(Response.json({ id: 1 }, { status: 201 }));
+    });
+
+    const { createGitHubReadinessBoundary, reportReadinessCommand: run } =
+      await import('../../src/commands/review-pr-readiness.js');
+    const outcome = await run(createGitHubReadinessBoundary());
+
+    expect(outcome).toMatchObject({ headSha: HEAD, state: 'success', verdict: 'current' });
+    expect(requests).toEqual([
+      {
+        body: undefined,
+        method: 'GET',
+        url: 'https://api.github.com/repos/ArcadeAI/safeword/pulls/4242',
+      },
+      {
+        body: {
+          context: 'safeword/pr-readiness',
+          description: 'Readiness evidence is current for this head.',
+          state: 'success',
+        },
+        method: 'POST',
+        url: `https://api.github.com/repos/ArcadeAI/safeword/statuses/${HEAD}`,
+      },
+    ]);
+  });
 });
