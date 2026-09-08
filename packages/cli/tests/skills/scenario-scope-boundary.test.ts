@@ -75,7 +75,10 @@ describe('scenario scope boundary', () => {
     // Derivation must read the exclusions in the same pass as `scope`; reading
     // them later means the out-of-scope partition is already a scenario.
     expect(content).toContain('out_of_scope');
+    expect(content).toContain("Product Bet's project non-goals");
     expect(content).toContain("milestone's Non-goals");
+    expect(content).toContain('inherited project and milestone non-goals remain part of the edge');
+    expect(content).not.toContain('`out_of_scope` is the whole edge');
     expect(content).toContain('before partitioning');
     // The user-facing completeness question asked only about gaps, so an
     // overshoot had no turn at which it could surface.
