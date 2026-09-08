@@ -7,7 +7,7 @@
     ],
     "Distinct primary proofs are executed separately": [
       "packages/cli/tests/review/job.test.ts",
-      "reuses an approved executable RED receipt only for identical proof identity"
+      "resolves %s as %s"
     ],
     "Author-supplied output cannot stand in for execution": [
       "packages/cli/tests/review/packet.test.ts",
