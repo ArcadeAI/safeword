@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { reportReadinessCommand } from '../../src/commands/review-pr-readiness.js';
+import {
+  READINESS_STATUS_CONTEXT,
+  reportReadinessCommand,
+} from '../../src/commands/review-pr-readiness.js';
 import {
   evaluateReadinessEvidence,
   READINESS_DESCRIPTIONS,
@@ -162,4 +165,12 @@ describe('readiness status publication', () => {
     expect(outcome.verdict).toBe('current');
     expect(published).toEqual(['success']);
   });
+});
+
+// Pinning a literal is usually tautological. Not here: repository owners type
+// this string into branch protection, so a rename would silently stop
+// satisfying every rule that named it — and a required check that never
+// reports jams every pull request in the repository.
+it('keeps the published status context stable for anyone who required it', () => {
+  expect(READINESS_STATUS_CONTEXT).toBe('safeword/pr-readiness');
 });
