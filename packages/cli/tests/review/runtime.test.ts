@@ -299,6 +299,50 @@ describe('headless reviewer output adapters', () => {
     expect(parseReviewerOutput('opencode', stdout)).toEqual(opencodeOutput);
   });
 
+  it.each([
+    ['malformed JSON events', 'not-json'],
+    [
+      'no complete assistant result',
+      JSON.stringify({ type: 'step_start', part: { type: 'step-start' } }),
+    ],
+  ])('rejects ambiguous OpenCode output: %s', (_case, stdout) => {
+    expect(() => parseReviewerOutput('opencode', stdout)).toThrow('invalid reviewer output');
+  });
+
+  it('rejects an unfinished OpenCode text result', () => {
+    const opencodeOutput = { ...output, reviewer_agent: 'opencode' as const };
+    const stdout = JSON.stringify({
+      type: 'text',
+      part: { type: 'text', text: JSON.stringify(opencodeOutput), time: { start: 1 } },
+    });
+
+    expect(() => parseReviewerOutput('opencode', stdout)).toThrow('invalid reviewer output');
+  });
+
+  it('rejects multiple completed OpenCode text results', () => {
+    const opencodeOutput = { ...output, reviewer_agent: 'opencode' as const };
+    const stdout = [
+      JSON.stringify({
+        type: 'text',
+        part: {
+          type: 'text',
+          text: JSON.stringify({ ...opencodeOutput, summary: 'first result' }),
+          time: { start: 1, end: 2 },
+        },
+      }),
+      JSON.stringify({
+        type: 'text',
+        part: {
+          type: 'text',
+          text: JSON.stringify({ ...opencodeOutput, summary: 'conflicting result' }),
+          time: { start: 3, end: 4 },
+        },
+      }),
+    ].join('\n');
+
+    expect(() => parseReviewerOutput('opencode', stdout)).toThrow('invalid reviewer output');
+  });
+
   it('retains the direct JSON test adapter contract', () => {
     expect(parseReviewerOutput('claude', JSON.stringify(output))).toEqual(output);
   });
