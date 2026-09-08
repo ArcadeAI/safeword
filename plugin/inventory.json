@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "452e342d49fe13c5e66da8684a17d8c8d8eafc58420a030a1168b4fea72da0e9"
+      "sha256": "b85367e654c0b067ec32f74026096405b6ab0967e93ae02b399bcf73c4c1628f"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f09198114307863370384ed28bb13c3868583d9b8debda7f3c3fde80968cdfdf"
+      "sha256": "9f9562f797ee222edd6a1f175ca9d544a7ff6da26c635fd96d118d0f28d52f96"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "60f59a8a7caa45a47ca7150fd9fb9f2598d1cbb4468b639856b911f997bc336f"
+      "sha256": "5310a0310f2ea8332f14b122b789fefba8e8781f01c66b725c518e98521b2668"
     },
     {
       "path": "runtime/event-groups.json",
@@ -327,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "630782acc22a007f01a80b966583aa3bc8266d7919658bfb63d4aa83e7c07631"
+      "sha256": "2fb8f5d7016878ed032fc6e70da0bc3128a81cb98bf341dc1692aaf714877925"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
