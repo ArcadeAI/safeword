@@ -528,8 +528,13 @@ if [ "\${1:-}" = "--help" ]; then
   echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
   exit 0
 fi
-cat > /dev/null
-printf '%s' '${JSON.stringify({ structured_output: output })}'
+packet=$(/bin/cat)
+case "$packet" in
+  *'"dispatch_id":"dispatch-1"'*)
+    printf '%s' '${JSON.stringify({ structured_output: output })}'
+    ;;
+  *) exit 4 ;;
+esac
 `,
       );
       chmodSync(executable, 0o755);
@@ -669,7 +674,7 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
     'never stages a copy of a reviewer executable that is itself group-writable',
     async () => {
       const bin = trustedTemporaryDirectory();
-      const cacheDirectory = temporaryDirectory();
+      const cacheDirectory = trustedTemporaryDirectory();
       const project = temporaryDirectory();
       const untrustedRoot = temporaryDirectory();
       const executable = nodePath.join(bin, 'claude');
@@ -715,14 +720,34 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       writeFileSync(
         executable,
         `#!/bin/sh
-cat "$(dirname "$0")/capabilities.txt" || exit 3
+if [ "\${1:-}" = "--help" ]; then
+  /bin/cat "\${0%/*}/capabilities.txt" || exit 3
+  exit 0
+fi
+/bin/cat > /dev/null
+printf '%s' '${JSON.stringify({ structured_output: output })}'
 `,
         { mode: 0o755 },
       );
       chmodSync(executable, 0o755);
-      chmodSync(bin, 0o775);
       vi.stubEnv('PATH', bin);
       vi.stubEnv('SAFEWORD_REVIEWER_CACHE_DIR', cacheDirectory);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'quality-review',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).resolves.toMatchObject({ dispatch_id: 'dispatch-1', verdict: 'approve' });
+
+      chmodSync(bin, 0o775);
 
       await expect(
         runHeadlessReviewer(
