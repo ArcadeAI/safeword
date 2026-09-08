@@ -355,9 +355,10 @@ describe('reviewer arguments', () => {
   //
   // Scope: this asserts the flags are PRESENT, not that they still WORK. A
   // Codex release could keep the names and change the semantics, and this test
-  // would still pass. Their effect is covered end-to-end against a real Codex
-  // by tests/smoke/review.live.test.ts under SAFEWORD_RUN_CROSS_AGENT_LIVE=1;
-  // that lane is the reason presence alone is enough to guard here.
+  // would still pass. tests/smoke/review.live.test.ts exercises the flags
+  // against a real Codex under SAFEWORD_RUN_CROSS_AGENT_LIVE=1, but it does not
+  // seed hostile user config or hooks, so it does not independently prove the
+  // insulation claim either.
   it('keeps the Codex reviewer insulated from the Codex app catalogue', () => {
     const args = reviewerArguments('codex', undefined, undefined);
 
