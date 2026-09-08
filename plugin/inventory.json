@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f1deb76c7f47a49c811342d9921e38f761a15ea970913361f16e4856cc64f84f"
+      "sha256": "efcd3f9e135a9769088f29c810a7b7904a9a6181294c7c5e5a025c776d5f4757"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "04b4a9d1a919cf94f4e6073e0c0fdaa8b87d5e931f7038fc99371714532ff950"
+      "sha256": "30e76e980c3d8038a4195840311c7c1e06ee4a17408691c2df7db2add650de8c"
     },
     {
       "path": "runtime/event-groups.json",
@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "94273583d0266873843317ed4d0b11f6724ad701d0be0486cd16efa447924912"
+      "sha256": "f5aea23bfc1797d0c197a5f92478a9a88e8ecf504512af4db75b7ab6841e8be8"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "1b7d431f529afdadf4610dcf82995763d75203119ac72e7b816537ce5c24ef12"
+      "sha256": "5796604af7664317170bfeacb6d27139417c5ee4d5058e8a05068eec99dce0cc"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -631,7 +631,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "7ebc4d5494c17b2c6536c5eaaf154a08053fe3f5c3c7fd210e1ebe2b01bb0b08"
+      "sha256": "dcabcd5bf31d33a74509970067638b7b0bd1f83f6c7317fbb9d1bf7c44b86f4b"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -715,7 +715,7 @@
     },
     {
       "path": "skills/tdd-review/SKILL.md",
-      "sha256": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f"
+      "sha256": "56a04f7b72f0e64ddc0016a7ca81dc66dae51360acecd8689feb8c43bd5bfab0"
     },
     {
       "path": "skills/testing/SKILL.md",

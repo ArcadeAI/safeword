@@ -29,6 +29,31 @@ Depth scales with the step: lightweight after RED, moderate after GREEN, full af
 
 ## After RED — adversarially review the test
 
+<!-- SAFEWORD:EXECUTABLE_RED_RUBRIC_START -->
+
+For an `executable-red` independent review, treat `execution_attestation` as the only execution
+evidence. Refuse author-pasted output, a missing attestation, or an attestation whose source
+fingerprint does not bind the supplied scenario, proof-plan row, primary proof target, and declared
+support files. Approval requires all of the following:
+
+- the exact attested command failed without timing out;
+- the expected-failure literal matched the attested full stdout or stderr stream;
+- the named proof exercises the scenario's actor-facing `When` and observes its actor-visible
+  `Then`;
+- the observed failure is the intended missing behavior at that boundary.
+
+Request changes when the failure is caused by syntax, imports, fixtures, configuration,
+infrastructure, an unrelated actor-boundary assertion, a passing command, timeout, or signal. Do
+not infer execution from cached suite status or the author's account. Explain the mismatch and name
+the exact proof or environment correction to make before retrying.
+
+<!-- SAFEWORD:EXECUTABLE_RED_RUBRIC_END -->
+
+GREEN credit is fail-closed: the shared edit hook calls `review gate executable-red` for the active
+scenario and permits the checkbox only for a fresh approved cross-agent receipt. An unavailable
+reviewer or author-only fallback is not approval; leave GREEN unchecked and report the named
+recovery action.
+
 Focused review (~1 minute). Check the test that was just written:
 
 - **Atomic?** Tests ONE behavior. Red flag: multiple When/Then pairs.
