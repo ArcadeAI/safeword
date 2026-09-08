@@ -22,8 +22,8 @@ if (!existsSync(safewordDir)) {
 
 const warnings: string[] = [];
 
-// List the project dir once; detect config presence by filename prefix so new
-// eslint/prettier config extensions are covered without enumerating each.
+// List the project directory once; the helpers below match each tool's exact
+// supported config filenames and deliberately reject backup/disabled variants.
 const entries = (() => {
   try {
     return readdirSync(projectDir);

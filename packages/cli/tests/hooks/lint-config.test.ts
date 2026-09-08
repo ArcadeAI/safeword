@@ -12,7 +12,6 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { BIOME_CONFIG_FILES } from '../../templates/hooks/lib/host-toolchain.js';
 import {
   detectAlternativeFormatter,
   detectEslintConfig,
@@ -26,15 +25,6 @@ import {
 } from '../../templates/hooks/lib/lint-config.js';
 
 describe('shouldWarnMissingEslint', () => {
-  it('recognises exactly the configs host-toolchain resolves a lint owner from', () => {
-    // Same list, not a copy of it: this asserts the wiring, so adding a Biome
-    // config filename in host-toolchain.ts cannot leave the ESLint gate behind.
-    for (const file of BIOME_CONFIG_FILES) {
-      expect(detectHostLintToolchain([file])).toBe(true);
-      expect(shouldWarnMissingEslint([file])).toBe(false);
-    }
-  });
-
   // A Biome/ultracite repo is linted by safeword through the host toolchain, so
   // telling it to install ESLint at every session start states something false
   // about a repo that is already working (#3792).

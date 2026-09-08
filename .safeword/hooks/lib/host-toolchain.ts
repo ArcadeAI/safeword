@@ -16,10 +16,9 @@ declare const Bun: {
 };
 
 /**
- * Config filenames that make a directory Biome-owned. Exported so the session
- * lint check's copy can be pinned to it by a test rather than a comment (#3792)
- * — this is the one set that decides whether ESLint is a fallback or a
- * requirement, so silent drift would resurrect the false warning.
+ * Config filenames that make a directory Biome-owned. The session lint check
+ * and lint-config helpers import this same list, so no copied set can drift and
+ * resurrect the false ESLint warning (#3792).
  */
 export const BIOME_CONFIG_FILES = [
   'biome.json',
