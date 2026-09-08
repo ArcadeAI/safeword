@@ -221,35 +221,30 @@ describe('Test Suite 11: Reset', () => {
 
   describe('Test 11.11: Removes safeword slash commands', () => {
     it('should remove safeword commands but preserve custom ones', async () => {
-      writeTestFile(
-        temporaryDirectory,
-        '.claude/settings.json',
-        '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
-      );
       await createConfiguredProject(temporaryDirectory);
 
-      // Verify commands directory exists after setup
-      expect(fileExists(temporaryDirectory, '.claude/commands')).toBe(true);
+      // Cursor is the project-authoritative command surface.
+      expect(fileExists(temporaryDirectory, '.cursor/commands')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.cursor/commands/verify.md')).toBe(true);
 
-      // Add a custom command that should be preserved
       writeTestFile(
         temporaryDirectory,
-        '.claude/commands/my-custom-command.md',
+        '.cursor/commands/my-custom-command.md',
         '# My Custom Command\n\nDo something custom.',
       );
 
       await runConfirmedRemoval(temporaryDirectory);
 
       // Custom command should be preserved
-      expect(fileExists(temporaryDirectory, '.claude/commands/my-custom-command.md')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.cursor/commands/my-custom-command.md')).toBe(true);
       const customContent = readTestFile(
         temporaryDirectory,
-        '.claude/commands/my-custom-command.md',
+        '.cursor/commands/my-custom-command.md',
       );
       expect(customContent).toContain('My Custom Command');
 
-      // Safeword commands should be removed (review, architecture, lint)
-      expect(fileExists(temporaryDirectory, '.claude/commands/review.md')).toBe(false);
+      // Safeword commands should be removed.
+      expect(fileExists(temporaryDirectory, '.cursor/commands/verify.md')).toBe(false);
     });
   });
 

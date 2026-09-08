@@ -1591,6 +1591,59 @@ Then(
   },
 );
 
+Given(
+  'the generated Claude plugin predates the current historical catalogue',
+  function (this: MigrationWorld) {
+    this.project = createLegacyProject();
+    const damaged = nodePath.join(project(this).root, 'stale-generated-plugin');
+    cpSync(PLUGIN_ROOT, damaged, { recursive: true });
+    const dispatcher = nodePath.join(damaged, 'runtime/dispatch.js');
+    const content = readFileSync(dispatcher, 'utf8');
+    const auditFingerprint = /(\.claude\/skills\/audit\/SKILL\.md['"]?:\s*['"])([\da-f]{64})/u;
+    assert.match(content, auditFingerprint, 'generated dispatcher has no audit fingerprint');
+    writeFileSync(dispatcher, content.replace(auditFingerprint, `$1${'0'.repeat(64)}`));
+    resealPlugin(damaged);
+    this.project = { ...project(this), plugin: damaged };
+  },
+);
+
+When(
+  'the Claude plugin release contract validates that generated bundle',
+  function (this: MigrationWorld) {
+    this.command = runReleaseContract('check:claude-plugin', {
+      SAFEWORD_CLAUDE_GENERATED_PLUGIN_ROOT: project(this).plugin,
+      SAFEWORD_CLAUDE_PLUGIN_ROOT: project(this).plugin,
+    });
+  },
+);
+
+Then(
+  'validation fails naming the stale generated runtime and regeneration action',
+  function (this: MigrationWorld) {
+    assert.notEqual(this.command?.status, 0, 'a stale generated plugin passed validation');
+    const output = this.command?.output ?? '';
+    assert.match(output, /Generated Claude plugin is stale/u, output);
+    assert.match(output, /runtime\/dispatch\.js/u, output);
+    assert.match(output, /generate:claude-plugin/u, output);
+  },
+);
+
+When(
+  'the Claude plugin release contract runs from a test environment',
+  function (this: MigrationWorld) {
+    this.command = runReleaseContract('check:claude-plugin', { NODE_ENV: 'test' });
+  },
+);
+
+Then(
+  'the generated plugin remains aligned with canonical sources',
+  function (this: MigrationWorld) {
+    assert.equal(this.command?.status, 0, this.command?.output);
+    assert.match(this.command?.output ?? '', /Generated Claude plugin is current/u);
+    assert.match(this.command?.output ?? '', /Claude plugin release contract is aligned/u);
+  },
+);
+
 // ---------------------------------------------------------------------------
 // SWM1.R3 — the safeword dev repo is exempt from automatic contraction
 // ---------------------------------------------------------------------------
