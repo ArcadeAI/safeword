@@ -46325,7 +46325,9 @@ function projectClaudePluginEnrolled(cwd) {
 }
 function applyCompatibilityMigrations(cwd, completedEffects, freshInstall) {
   if (freshInstall) {
-    observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => applyFreshInstallDefaults(cwd));
+    observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => {
+      applyFreshInstallDefaults(cwd);
+    });
   }
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
