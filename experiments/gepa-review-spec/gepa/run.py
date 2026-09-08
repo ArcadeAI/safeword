@@ -28,22 +28,27 @@ import subprocess
 import sys
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 import gepa
 
 HERE = Path(__file__).resolve().parent
 EXPERIMENT_DIR = HERE.parent
-SKILL_PATH = EXPERIMENT_DIR.parent.parent / ".claude" / "skills" / "review-spec" / "SKILL.md"
+SKILL_PATH = (
+    EXPERIMENT_DIR.parent.parent / ".claude" / "skills" / "review-spec" / "SKILL.md"
+)
 EVAL_SCRIPT = EXPERIMENT_DIR / "gepa-eval.ts"
 BUN = os.environ.get("BUN_BIN", "bun")
 TASK_MODEL = os.environ.get("SAFEWORD_EVAL_MODEL", "claude-sonnet-5")
 REFLECTION_MODEL = os.environ.get("SAFEWORD_REFLECTION_MODEL", "claude-sonnet-4-6")
 
 
-def anthropic_complete(prompt) -> str:
+def anthropic_complete(prompt: Any) -> str:
     """Reflection LM: a minimal Anthropic Messages call (stdlib only)."""
     key = os.environ["ANTHROPIC_API_KEY"]
-    messages = [{"role": "user", "content": prompt}] if isinstance(prompt, str) else prompt
+    messages = (
+        [{"role": "user", "content": prompt}] if isinstance(prompt, str) else prompt
+    )
     body = json.dumps(
         {"model": REFLECTION_MODEL, "max_tokens": 8192, "messages": messages}
     ).encode()
@@ -68,10 +73,16 @@ def anthropic_complete(prompt) -> str:
     return ""
 
 
-class ReviewSpecAdapter(gepa.GEPAAdapter):
+# The optional gepa dependency does not publish type information.
+class ReviewSpecAdapter(gepa.GEPAAdapter):  # type: ignore[misc]
     """Shell out to the TS metric for a batch of fixtures under one candidate prompt."""
 
-    def evaluate(self, batch, candidate, capture_traces=False):
+    def evaluate(
+        self,
+        batch: list[str],
+        candidate: dict[str, str],
+        capture_traces: bool = False,
+    ) -> Any:
         prompt_file = HERE / ".candidate.txt"
         prompt_file.write_text(candidate["system_prompt"], encoding="utf8")
         proc = subprocess.run(
@@ -94,9 +105,16 @@ class ReviewSpecAdapter(gepa.GEPAAdapter):
         results = [by_name[name] for name in batch]
         scores = [float(r["score"]) for r in results]
         trajectories = results if capture_traces else None
-        return gepa.EvaluationBatch(outputs=results, scores=scores, trajectories=trajectories)
+        return gepa.EvaluationBatch(
+            outputs=results, scores=scores, trajectories=trajectories
+        )
 
-    def make_reflective_dataset(self, candidate, eval_batch, components_to_update):
+    def make_reflective_dataset(
+        self,
+        candidate: dict[str, str],
+        eval_batch: Any,
+        components_to_update: list[str],
+    ) -> dict[str, list[dict[str, Any]]]:
         records = [
             {
                 "Feature reviewed": r["name"],

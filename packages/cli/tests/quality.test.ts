@@ -111,10 +111,33 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
       expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('none');
     });
 
-    it('template includes bolded Next label framed as "what you\'ll do or recommend"', () => {
+    it('template makes Next understandable without prior conversation', () => {
       expect(QUALITY_REVIEW_MESSAGE).toContain('**Next:**');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('sees only this paragraph');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(/decide or act without scrolling/);
+    });
+
+    it('template limits Next to details that can change the outcome', () => {
       expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(
-        /what you'll do or recommend|do or recommend/,
+        /include a detail only if it could change the decision or action/,
+      );
+    });
+
+    it('template defines concrete language with specific decision inputs', () => {
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(
+        /specific nouns, verbs, paths, commands, amounts, and consequences/,
+      );
+    });
+
+    it('template collapses Next to one action when no decision is required', () => {
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(
+        /if no decision is required, state only the next action/,
+      );
+    });
+
+    it('keeps the exact Next shape neutral between decisions and actions', () => {
+      expect(QUALITY_REVIEW_MESSAGE).toContain(
+        '**Next:** <standalone decision or action with only the concrete context needed to decide or act without scrolling>.',
       );
     });
 

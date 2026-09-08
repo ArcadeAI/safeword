@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -569,6 +570,83 @@ exit ${status}`,
     }
   });
 
+  it('finds the project CLI when the hook runs from a subdirectory', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-subdir-'));
+    try {
+      mkdirSync(nodePath.join(fixture, 'packages/cli/src'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, 'packages/cli/src/cli.ts'), '');
+      writeFileSync(nodePath.join(fixture, 'packages/cli/package.json'), '{"name":"safeword"}');
+      const nested = nodePath.join(fixture, 'packages/cli');
+
+      expect(reviewCandidates(nested, {})).toContainEqual([
+        'bun',
+        [nodePath.join(fixture, 'packages/cli/src/cli.ts')],
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('anchors discovery on the host project directory over an unrelated cwd', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-anchor-'));
+    const elsewhere = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-elsewhere-'));
+    try {
+      mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, '.safeword/version'), '1.2.3\n');
+
+      expect(reviewCandidates(elsewhere, { CLAUDE_PROJECT_DIR: fixture })).toContainEqual([
+        'bunx',
+        ['safeword@1.2.3'],
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it('ignores a project directory variable that does not point at a project', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-stale-'));
+    const bogus = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-bogus-'));
+    try {
+      mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, '.safeword/version'), '1.2.3\n');
+
+      // A stale CLAUDE_PROJECT_DIR must not win over the real project the
+      // caller is standing in, or the hook resolves someone else's checkout.
+      expect(reviewCandidates(fixture, { CLAUDE_PROJECT_DIR: bogus })).toContainEqual([
+        'bunx',
+        ['safeword@1.2.3'],
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+      rmSync(bogus, { recursive: true, force: true });
+    }
+  });
+
+  it('admits no candidate when no project marker exists up to the filesystem root', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-rootless-'));
+    try {
+      mkdirSync(nodePath.join(fixture, 'deep/nested'), { recursive: true });
+
+      expect(reviewCandidates(nodePath.join(fixture, 'deep/nested'), {})).toHaveLength(0);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('still rejects a lookalike checkout found by walking up from a subdirectory', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-walkfake-'));
+    try {
+      mkdirSync(nodePath.join(fixture, 'packages/cli/src'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, 'packages/cli/src/cli.ts'), '');
+      writeFileSync(nodePath.join(fixture, 'packages/cli/package.json'), '{"name":"other-cli"}');
+
+      expect(reviewCandidates(nodePath.join(fixture, 'packages/cli'), {})).toHaveLength(0);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('keeps every tracked wrapper copy byte-identical to the source template', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     const canonical = readFileSync(nodePath.join(templates, 'hooks/run-review.ts'), 'utf8');
@@ -581,29 +659,67 @@ exit ${status}`,
     ).toBe(canonical);
   });
 
+  // These two prove a REAL CLI runs, so each must prove its OWN named CLI ran.
+  // The wrapper falls through to whatever else it can find, and the ambient
+  // session exports CLAUDE_PLUGIN_ROOT and CLAUDE_PROJECT_DIR — inheriting them
+  // lets an unrelated collaborator answer and a broken named one still pass.
+  // Build the environment explicitly instead of spreading process.env.
+  function isolatedReviewEnvironment(
+    overrides: Readonly<Record<string, string>> = {},
+  ): NodeJS.ProcessEnv {
+    const { PATH, HOME, TMPDIR, SystemRoot } = process.env;
+    return {
+      ...(PATH && { PATH }),
+      ...(HOME && { HOME }),
+      ...(TMPDIR && { TMPDIR }),
+      ...(SystemRoot && { SystemRoot }),
+      ...overrides,
+    };
+  }
+
   it('runs the real source checkout CLI', () => {
-    const output = execFileSync(
-      process.execPath,
-      [nodePath.join(templates, 'hooks/run-review.ts'), 'review', 'run', '--help'],
-      { cwd: nodePath.resolve(import.meta.dirname, '../../../..'), encoding: 'utf8' },
-    );
-    expect(output).toContain('Run an independent adversarial review');
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    // A checkout of this repo also carries node_modules/.bin/safeword and
+    // .safeword/version, either of which would answer instead. Link only the
+    // source tree into an otherwise empty fixture so the source route is the
+    // sole candidate and a broken source CLI cannot pass on someone else's work.
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-source-only-'));
+    try {
+      symlinkSync(nodePath.join(repoRoot, 'packages'), nodePath.join(fixture, 'packages'));
+      const environment = isolatedReviewEnvironment();
+
+      expect(reviewCandidates(fixture, environment)).toEqual([
+        ['bun', [nodePath.join(fixture, 'packages/cli/src/cli.ts')]],
+      ]);
+
+      const output = execFileSync(
+        process.execPath,
+        [nodePath.join(templates, 'hooks/run-review.ts'), 'review', 'run', '--help'],
+        { cwd: fixture, encoding: 'utf8', env: environment },
+      );
+      expect(output).toContain('Run an independent adversarial review');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 
   it('runs the real bundled Claude plugin CLI', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-plugin-'));
     try {
+      const pluginRoot = nodePath.resolve(import.meta.dirname, '../../../../plugin');
+      const environment = isolatedReviewEnvironment({ CLAUDE_PLUGIN_ROOT: pluginRoot });
+
+      // An empty fixture with no project directory declared leaves the bundle as
+      // the only candidate, so a broken bundle fails here instead of silently
+      // falling through to a source checkout or an installed version.
+      expect(reviewCandidates(fixture, environment)).toEqual([
+        ['bun', [nodePath.join(pluginRoot, 'runtime', 'cli.js')]],
+      ]);
+
       const output = execFileSync(
         process.execPath,
         [nodePath.join(templates, 'hooks/run-review.ts'), 'review', 'run', '--help'],
-        {
-          cwd: fixture,
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            CLAUDE_PLUGIN_ROOT: nodePath.resolve(import.meta.dirname, '../../../../plugin'),
-          },
-        },
+        { cwd: fixture, encoding: 'utf8', env: environment },
       );
       expect(output).toContain('Run an independent adversarial review');
     } finally {

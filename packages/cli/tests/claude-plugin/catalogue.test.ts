@@ -7,6 +7,7 @@ import {
   assertClaudePluginAssetReferences,
   generateClaudePluginAssets,
 } from '../../src/claude-plugin/catalogue.js';
+import { assertNativePluginRuntimeAuthority } from '../../src/plugin-runtime-authority.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 
@@ -53,5 +54,21 @@ describe('Claude plugin catalogue generation', () => {
     expect(packagedHandbook).toBeDefined();
     expect(packagedHandbook?.content.length).toBeGreaterThan(0);
     expect(packagedHandbook?.content).not.toMatch(/\.safeword\/(?:guides|scripts)\//u);
+  });
+
+  it('passes the shared native runtime-authority release gate', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+
+    const workflowCatalogue = assets.filter(asset =>
+      /^(?:agents|commands|skills)\//u.test(asset.relativePath),
+    );
+    expect(() => {
+      assertNativePluginRuntimeAuthority(workflowCatalogue);
+    }).not.toThrow();
   });
 });

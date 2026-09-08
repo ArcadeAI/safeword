@@ -416,8 +416,10 @@ export function assertTestCliFresh(): void {
 }
 
 function projectFixtureArguments(args: string[]): string[] {
-  // Most suites use setup/upgrade only to prepare project files. Keep those fixtures
-  // independent of installed hosts; unified-install scenarios invoke the CLI directly.
+  // Most suites use lifecycle commands to exercise the project runtime. Cursor is
+  // the project-authoritative host; native Claude/Codex/OpenCode tests invoke the
+  // literal CLI boundary instead. An unselected fixture would install no runtime
+  // and make downstream assertions fail for the wrong reason.
   const hasAgentSelection = args.some(
     argument => argument === '--agents' || argument.startsWith('--agents='),
   );
@@ -431,7 +433,7 @@ function projectFixtureArguments(args: string[]): string[] {
     'plan',
   ];
   return projectLifecycleCommands.includes(args[0] ?? '') && !hasAgentSelection
-    ? [...args, '--agents', 'none']
+    ? [...args, '--agents', 'cursor']
     : args;
 }
 
@@ -521,7 +523,7 @@ export async function runCliWithoutInstall(
   );
   const fixtureArguments =
     ['setup', 'upgrade', 'install'].includes(args[0] ?? '') && !hasAgentSelection
-      ? [...args, '--agents', 'none']
+      ? [...args, '--agents', 'cursor']
       : args;
   return runner(fixtureArguments, {
     ...options,
@@ -766,7 +768,7 @@ export async function runFixtureUpgradeWithoutInstall(
   cwd: string,
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  const result = await runner(['upgrade', '--agents', 'none'], { cwd, env: SKIP_INSTALL_ENV });
+  const result = await runner(['upgrade', '--agents', 'cursor'], { cwd, env: SKIP_INSTALL_ENV });
   if (result.exitCode !== 0) {
     throw new Error(
       `Fixture upgrade failed (exit ${result.exitCode}) in ${cwd}.\n` +
@@ -791,8 +793,8 @@ export async function runFixtureUpgradeWithoutInstall(
  * isolation and on uncontended CI. A non-zero *exit* is a genuine failure and fails
  * fast/loud with no retry, so a real setup regression is never masked.
  * @param projectDirectory
- * Project fixtures explicitly select no agent hosts so their setup result is not
- * activation-pending. Host installation tests invoke the unified default directly.
+ * Project-runtime fixtures explicitly select Cursor, the project-authoritative
+ * host. Native-host and unified-install tests invoke the literal CLI directly.
  * @param setupArgs CLI args including the command (default: ['setup', '--yes'])
  */
 export async function setupOrThrow(
@@ -806,7 +808,7 @@ export async function setupOrThrow(
 ): Promise<CliResult> {
   const fixtureArguments = setupArguments.includes('--agents')
     ? setupArguments
-    : [...setupArguments, '--agents', 'none'];
+    : [...setupArguments, '--agents', 'cursor'];
   const label = `safeword ${fixtureArguments.join(' ')}`;
   // One retry (2 attempts). A transient contention spike usually clears by the
   // second attempt; a persistent timeout across both attempts is a real hang and
@@ -1301,6 +1303,32 @@ export interface HookResult {
   stderr: string;
 }
 
+/**
+ * Write `.safeword/config.json` into a hook-integration fixture root, for the
+ * gate flags rather than language packs (see `writeSafewordConfig` for those).
+ *
+ * The Stop-time quality review is off by default (ticket KHL52X), so a fixture
+ * that asserts it fires has to switch it back on with
+ * `{ stopQualityReview: true }`.
+ *
+ * MERGES rather than replaces: a fixture that ran `safeword setup` first already
+ * has a config.json carrying installedPacks, and clobbering it would break
+ * language detection for every other case in the file.
+ */
+export function writeGateConfig(projectRoot: string, config: Record<string, unknown>): void {
+  const configPath = nodePath.join(projectRoot, '.safeword', 'config.json');
+  let existing: Record<string, unknown> = {};
+  if (existsSync(configPath)) {
+    try {
+      existing = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    } catch {
+      existing = {};
+    }
+  }
+  mkdirSync(nodePath.dirname(configPath), { recursive: true });
+  writeFileSync(configPath, `${JSON.stringify({ ...existing, ...config }, undefined, 2)}\n`);
+}
+
 /** Assert a PreToolUse hook allowed the action (exit 0, no deny in stdout). */
 export function expectHookAllow(result: HookResult): void {
   expect(result.status).toBe(0);
@@ -1390,7 +1418,9 @@ export function appendRetroAck(
 
 /** Write `.safeword/config.json` with a `selfReport` block (stop-hook fixtures). */
 export function writeSelfReportConfig(dir: string, selfReport: Record<string, boolean>): void {
-  writeTestFile(dir, '.safeword/config.json', JSON.stringify({ selfReport }));
+  // Merges (see writeGateConfig): a fixture may already have set gate flags in
+  // the same config.json, and replacing the file would silently drop them.
+  writeGateConfig(dir, { selfReport });
 }
 
 /** Absolute path of the ticket folder whose slug suffix matches, in a temp project. */

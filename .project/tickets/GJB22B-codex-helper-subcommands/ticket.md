@@ -2,11 +2,11 @@
 id: GJB22B
 slug: codex-helper-subcommands
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 parent: 2C1E82
 created: 2026-08-19T04:59:19.066Z
-last_modified: 2026-08-19T04:59:19.066Z
+last_modified: 2026-08-30T08:00:00.000Z
 ---
 
 # Add public CLI subcommands for Codex's remaining resolver and audit-trace scripts
@@ -24,3 +24,4 @@ last_modified: 2026-08-19T04:59:19.066Z
 - 2026-08-19T05:45:00.000Z Second of five done: `safeword project review-knowledge` replaces `resolve-project-knowledge.ts` across 4 call sites (self-review, review-spec, quality-review, bdd/PLAN_IMPLEMENTATION). Same keys/flags/content as the hook; path is project-relative for machine-contract determinism.
 - 2026-08-19T05:45:00.000Z **CI caught a real miss on the first PR push.** Adding the `version` parameter to `assertCodexPluginCatalogue` left three call sites outside `packages/cli/{src,tests}` still calling it without a version, so they regenerated an un-rewritten catalogue and compared it against the rewritten checked-in one: `packages/retro-relay/tests/cli-wiring.integration.test.ts` (9 failing tests on both Node versions) and two in `packages/cli/features/steps/give-codex-users-full-workflow.steps.ts`. Root cause was scoping the original grep to `packages/cli` instead of the repo — exactly the failure mode `feedback_exhaustive_grep_on_token_removal` warns about. Local `test:release` did not catch it because retro-relay is a separate package with its own suite. Fixed all three; `bun run test` (the CI command, both packages) is now the verification bar for this ticket, not `test:release` alone.
 - Remaining in this ticket: resolve-verify-ticket.ts, audit-principle-trace.ts, drain-retro-spool.ts. Note `resolve-verify-ticket.ts` (271 lines, spawns git, reads session state, has its own `--ticket` flag) is materially larger than the other two and may warrant its own scoping pass.
+- 2026-08-30T08:00:00.000Z Completed by epic 2C1E82: the remaining resolver, audit-trace, and retro helpers are exposed through packaged project commands/runtime entry points.

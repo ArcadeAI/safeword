@@ -106,6 +106,7 @@ function createTestProject(): string {
   const dir = createTemporaryDirectory();
   initGitRepo(dir);
   writeTestFile(dir, '.safeword-project/.gitkeep', '');
+  writeTestFile(dir, '.safeword/SAFEWORD.md', '# enrolled\n');
   writeTestFile(dir, 'init.txt', 'init');
   execSync('git add . && git commit -m "init"', { cwd: dir, stdio: 'pipe' });
   return dir;

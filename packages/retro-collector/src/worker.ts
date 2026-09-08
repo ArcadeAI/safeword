@@ -95,7 +95,7 @@ export async function transferOneRetro(
 
 export async function waitForWorkerPoll(milliseconds: number, signal: AbortSignal): Promise<void> {
   try {
-    await delay(milliseconds, undefined, { ref: false, signal });
+    await delay(milliseconds, undefined, { signal });
   } catch (error) {
     if (!signal.aborted) throw error;
   }

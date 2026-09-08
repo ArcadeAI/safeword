@@ -18,6 +18,10 @@ execFileSync('bun', ['scripts/generate-claude-historical-catalogue.ts', '--check
   cwd: packageRoot,
   stdio: 'inherit',
 });
+execFileSync('bun', ['scripts/generate-claude-plugin.ts', '--check'], {
+  cwd: packageRoot,
+  stdio: 'inherit',
+});
 
 function readJson(path: string): JsonObject {
   return JSON.parse(readFileSync(path, 'utf8')) as JsonObject;
