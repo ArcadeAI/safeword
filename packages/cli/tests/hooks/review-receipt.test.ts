@@ -92,14 +92,21 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     // These phases have no specialist reviewer, and `review run` only accepts
     // three kinds — so requiring kind === phase made them unsatisfiable by any
     // real review (ticket KHL52X).
-    for (const phase of ['intake', 'define-behavior', 'implement', 'verify', 'done']) {
+    const phaseTargets = {
+      intake: `.project/tickets/${TICKET}/spec.md`,
+      'define-behavior': `.project/tickets/${TICKET}/feature.feature`,
+      implement: 'packages/cli/src/feature.ts',
+      verify: `.project/tickets/${TICKET}/verify.md`,
+      done: `.project/tickets/${TICKET}/ticket.md`,
+    } as const;
+    for (const [phase, target] of Object.entries(phaseTargets)) {
       const claim = claimFor({ phase });
 
       expect(
         receiptGateVerdict(claim, {
           ...approved,
           kind: 'quality-review',
-          targets: [`.project/tickets/${TICKET}/ticket.md`],
+          targets: [target],
         }),
       ).toEqual({ ok: true });
 
@@ -112,6 +119,19 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
       expect(!wrongKind.ok && wrongKind.reason).toContain('quality-review');
     }
   });
+
+  it.each(['implement', 'verify', 'done'])(
+    'does not let a spec review witness the %s phase',
+    phase => {
+      expect(
+        receiptGateVerdict(claimFor({ phase }), {
+          ...approved,
+          kind: 'quality-review',
+          targets: [`.project/tickets/${TICKET}/spec.md`],
+        }).ok,
+      ).toBe(false);
+    },
+  );
 
   it('still demands the specialist kind where one exists', () => {
     for (const phase of ['scenario-gate', 'plan-implementation']) {

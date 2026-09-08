@@ -95,6 +95,24 @@ function hasSatisfyingStamp(
   return stamps.some(stamp => stamp.scope === id && isSatisfyingStamp(stamp, policy));
 }
 
+/** Phase exits require a cited coordinator review; only an explicit skip may bypass it. */
+function hasSatisfyingPhaseStamp(
+  id: string,
+  stamps: readonly ReviewStamp[],
+  policy: CrossAgentReviewPolicy,
+): boolean {
+  return stamps.some(stamp => {
+    if (stamp.scope !== id) return false;
+    if (stamp.skipReason !== undefined) return isValidSkipReason(stamp.skipReason);
+    return (
+      stamp.reviewId !== undefined &&
+      stamp.independence !== undefined &&
+      COORDINATOR_CLAIMS.has(stamp.independence) &&
+      isSatisfyingStamp(stamp, policy)
+    );
+  });
+}
+
 /**
  * Per-asset gate (TB1.AC1): authoring the next asset is allowed only when the
  * prior asset carries a satisfying review stamp. The first asset (no prior) is
@@ -123,7 +141,7 @@ export function gatePhaseAdvance(
   stamps: readonly ReviewStamp[],
   policy: CrossAgentReviewPolicy = 'prefer',
 ): GateVerdict {
-  if (hasSatisfyingStamp(phase, stamps, policy)) return { ok: true };
+  if (hasSatisfyingPhaseStamp(phase, stamps, policy)) return { ok: true };
   return {
     ok: false,
     reason: `phase "${phase}" has no independent review stamp — run the phase-exit review (or log a skip with a reason) before advancing`,

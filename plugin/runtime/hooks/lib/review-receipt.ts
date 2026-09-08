@@ -138,6 +138,34 @@ function coversArtifact(targets: readonly string[], claim: StampClaim, artifact:
   return targets.some(target => relativeTicketTarget(target, claim) === `${artifact}.md`);
 }
 
+/** Whether the receipt covered the artifact produced by this workflow phase. */
+function coversPhase(targets: readonly string[], claim: StampClaim, phase: string): boolean {
+  const ticketTargets = targets
+    .map(target => relativeTicketTarget(target, claim))
+    .filter((target): target is string => target !== undefined);
+
+  if (phase === 'intake') return ticketTargets.includes('spec.md');
+  if (phase === 'define-behavior' || phase === 'scenario-gate')
+    return ticketTargets.some(target => target.endsWith('.feature'));
+  if (phase === 'plan-implementation') return ticketTargets.includes('impl-plan.md');
+  if (phase === 'verify') return ticketTargets.includes('verify.md');
+  if (phase === 'done') return ticketTargets.includes('ticket.md');
+  if (phase === 'implement') {
+    return targets.some(target => {
+      const resolved = resolveTarget(target, claim.projectDirectory);
+      const projectRelative = nodePath.relative(claim.projectDirectory, resolved);
+      return (
+        projectRelative !== '' &&
+        projectRelative !== '..' &&
+        !projectRelative.startsWith(`..${nodePath.sep}`) &&
+        !nodePath.isAbsolute(projectRelative) &&
+        relativeTicketTarget(target, claim) === undefined
+      );
+    });
+  }
+  return false;
+}
+
 /**
  * Whether a stamp may be written. Rejections name what to do next, because the
  * agent reading them is mid-workflow and the alternative to a clear instruction
@@ -196,10 +224,10 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
         ok: false,
         reason: `review ${receipt.reviewId} is a "${receipt.kind ?? 'unknown'}" review, but the "${claim.phase}" exit needs a "${requiredKind}" review`,
       };
-    if (!targets.some(target => relativeTicketTarget(target, claim) !== undefined))
+    if (!coversPhase(targets, claim, claim.phase))
       return {
         ok: false,
-        reason: `review ${receipt.reviewId} reviewed nothing in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}`,
+        reason: `review ${receipt.reviewId} did not cover the work produced by the "${claim.phase}" phase in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}`,
       };
   }
 

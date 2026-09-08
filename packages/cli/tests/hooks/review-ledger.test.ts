@@ -63,8 +63,16 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
     if (!verdict.ok) expect(verdict.reason).toContain('define-behavior');
   });
 
-  it('phase_stamp_allows_advance: a review stamp for the phase allows', () => {
-    const stamps: ReviewStamp[] = [{ scope: 'define-behavior' }];
+  it('phase_stamp_allows_advance: a cited coordinator review for the phase allows', () => {
+    const stamps: ReviewStamp[] = [
+      {
+        scope: 'define-behavior',
+        author: 'claude',
+        reviewer: 'codex',
+        independence: 'cross-agent',
+        reviewId: REVIEW_ID,
+      },
+    ];
     expect(gatePhaseAdvance('define-behavior', stamps)).toEqual({ ok: true });
   });
 
@@ -144,7 +152,6 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
   it.each([
     { author: 'claude', independence: 'cross-agent' as const },
     { author: 'claude', reviewer: 'codex', independence: 'none' as const },
-    { skipReason: 'review unavailable' },
   ] as const)(
     'hard cross-agent enforcement rejects incomplete or opted-out evidence: %j',
     stamp => {
@@ -153,6 +160,16 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
       ).toBe(false);
     },
   );
+
+  it('keeps the explicit logged skip available under hard enforcement', () => {
+    expect(
+      gatePhaseAdvance(
+        'scenario-gate',
+        [{ scope: 'scenario-gate', skipReason: 'review unavailable' }],
+        'require',
+      ),
+    ).toEqual({ ok: true });
+  });
 });
 
 /**
@@ -196,13 +213,13 @@ describe('an independence claim must cite a review to satisfy a gate', () => {
     });
   });
 
-  it('leaves claim-free stamps and deliberate skips alone', () => {
-    expect(gatePhaseAdvance('scenario-gate', [{ scope: 'scenario-gate' }])).toEqual({ ok: true });
+  it('rejects claim-free phase stamps but leaves deliberate skips alone', () => {
+    expect(gatePhaseAdvance('scenario-gate', [{ scope: 'scenario-gate' }]).ok).toBe(false);
     expect(
       gatePhaseAdvance('scenario-gate', [
         { scope: 'scenario-gate', independence: 'none', reviewer: 'claude' },
-      ]),
-    ).toEqual({ ok: true });
+      ]).ok,
+    ).toBe(false);
     expect(
       gatePhaseAdvance('scenario-gate', [
         { scope: 'scenario-gate', skipReason: 'docs-only phase' },
