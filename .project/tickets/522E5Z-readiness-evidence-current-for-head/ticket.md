@@ -144,4 +144,14 @@ done_when: |
   cross-PR verdict would cost an extra listing call and a second evaluation pass
   for a rare topology. Documented in the ADR as an accepted limitation and a
   further reason not to require the context, rather than fixed.
+- 2026-09-08T01:10:00Z Draft PR ArcadeAI/safeword#4171 opened. Live behaviour
+  disproved my own plan: I had said this PR would be the feature's first
+  end-to-end test. It cannot be. `pull_request_target` evaluates the workflow
+  from the *base* branch, and `main` has no readiness job — confirmed directly,
+  the run on this head contains no such job. So gate 3 is not merely
+  unsatisfied, it is unsatisfiable before merge, and the PR body now says that
+  instead of the claim I had written.
+- 2026-09-08T01:10:00Z Consequence worth carrying forward: any change to a
+  `pull_request_target` job is unverifiable on the pull request that introduces
+  it. The first real execution is the next pull request after merge.
 
