@@ -4,6 +4,9 @@ slug: keep-tasks-and-patches-proportional
 type: feature
 phase: scenario-gate
 status: in_progress
+phase_skips:
+  - "intake: inherited the independently approved 82T411 Product Plan when the user approved this split"
+  - "define-behavior: partitioned the accepted 82T411 Rule and scenario packet at Safeword's documented split restart point"
 phase_anchors:
   - scenario-gate: features/keep-tasks-and-patches-proportional.feature
 scope:
