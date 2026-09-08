@@ -123,3 +123,25 @@ done_when: |
   recorded in the ADR and the reference docs, not just in this log.
 - 2026-09-08T00:25:00Z Coupling limitation split out as MNS9J2 rather than fixed
   here.
+- 2026-09-08T01:10:00Z /quality-review ran five independent cross-agent passes
+  (Codex, independence intact on every one). It found four defects my own review
+  had missed, two of them false passes:
+    1. The evaluator took the first `Head:` line anywhere in the body, so an
+       unrelated current `Head:` above a stale block, or a bare `Head:` line with
+       no gates, reported `current`.
+    2. No test exercised the real GitHub boundary, so a wrong URL, context,
+       state, or target SHA would have shipped green.
+    3. My own fix for (1) regressed CRLF bodies — the original `/m` regex matched
+       before a carriage return; `split('\n')` does not. GitHub's web editor
+       sends CRLF, so valid evidence would have published a failure.
+    4. The job had no concurrency group, so a delayed draft run could publish
+       success over a newer ready run's failure; and `edited` was not a trigger,
+       so body edits left the previous status standing.
+- 2026-09-08T01:10:00Z Stopped the loop at pass five, deliberately. Its finding
+  is real but inherent: a commit status is commit-scoped while readiness is
+  pull-request-scoped, so two open PRs sharing one head commit contend for the
+  same context. Serializing on the head SHA removes the race; a conservative
+  cross-PR verdict would cost an extra listing call and a second evaluation pass
+  for a rare topology. Documented in the ADR as an accepted limitation and a
+  further reason not to require the context, rather than fixed.
+

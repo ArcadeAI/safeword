@@ -12,11 +12,12 @@ jobs:
   readiness:
     if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
-    # Serialize per pull request and let the newest event win. Without this a
-    # delayed run can publish its stale snapshot over a newer verdict — a
-    # draft run reporting success after a ready run already reported failure.
+    # Serialize on the head SHA, not the pull request: the status is published
+    # per commit, so two pull requests sharing a head write to the same place.
+    # Newest event wins. Without this a delayed run can publish its stale
+    # snapshot over a newer verdict.
     concurrency:
-      group: pr-readiness-${{ github.event.pull_request.number }}
+      group: pr-readiness-${{ github.event.pull_request.head.sha }}
       cancel-in-progress: true
     permissions:
       contents: read
