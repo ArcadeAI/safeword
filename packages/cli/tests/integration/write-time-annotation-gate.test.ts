@@ -272,6 +272,21 @@ describe('write-time annotation gate', () => {
       expectHookAllow(result);
     });
 
+    it('blocks a GREEN transition when the replacement inserts a line before the checkbox', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '\n- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
     it('binds a local Edit to its exact scenario when several GREEN rows remain open', () => {
       const setup = setupProject(
         [
@@ -316,6 +331,27 @@ describe('write-time annotation gate', () => {
         '@@',
         '### Scenario: exact boundary',
         '',
+        '-- [ ] GREEN',
+        '+- [x] GREEN def5678',
+        '*** End Patch',
+      ].join('\n');
+
+      const result = runCodexPatchHook(setup.cwd, patch, gateStub(setup.cwd, 'action_required'));
+
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('blocks a line-shifted GREEN transition through the apply_patch adapter', () => {
+      const setup = setupProject(
+        '### Scenario: exact boundary\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const patch = [
+        '*** Begin Patch',
+        `*** Update File: ${setup.testDefinitionsPath}`,
+        '@@',
+        ' ### Scenario: exact boundary',
+        '+proof note',
         '-- [ ] GREEN',
         '+- [x] GREEN def5678',
         '*** End Patch',
