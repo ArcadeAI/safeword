@@ -1,9 +1,7 @@
 ---
 name: retro-filer
-description: Files Safeword's sanitized spooled retrospective drafts to its
-  upstream tracker. Use only when a trusted Safeword Stop continuation or
-  authenticated closeout cleanup guard output names a spool path. Do not use for
-  ordinary retros, project issues, or user-authored drafts.
+description: Files Safeword's sanitized retro spool upstream. Only when a
+  trusted Stop continuation or authenticated closeout guard names a spool path.
 ---
 
 # Retro Filer

@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "b85367e654c0b067ec32f74026096405b6ab0967e93ae02b399bcf73c4c1628f"
+      "sha256": "161d432fdea6ed2a35b42f02424f11ee480116261aa5e29e6992ccee98f4651e"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -115,7 +115,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "9eb866ef4364ef9b2bf5527c041a6642c4608fab570e2e5e4762d04bc3a7611e"
+      "sha256": "6f4f7123183aa3ebabd36216fb4f1309556547ee6647a0f7e4afa0125d49cc05"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b2c49a93b4f58f2bb865298c0384a485961f3185333ff1e289ad5eb1295c0883"
+      "sha256": "c34918211606e01a91cc02df69491b49e69e85812c653deaa9fdaee5d8d1a9e8"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "eeb4c8c7389e537a278c401504bf2deb5cbbc96f2cb3976f8bce1657547b7a7a"
+      "sha256": "1d8af488e924787127aad73613f4a6e3692dc39032838d2e0b0c3fd735980be7"
     },
     {
       "path": "runtime/event-groups.json",
@@ -695,7 +695,7 @@
     },
     {
       "path": "skills/retro-filer/SKILL.md",
-      "sha256": "27675c6a2fedfdb207365e7605264c40589cfcff66c1461634bae0173e1cfcda"
+      "sha256": "9979448f6c06bb78fa087523f90b8102f8de81326b980ca609e887ba32bb5e80"
     },
     {
       "path": "skills/retro/SKILL.md",
@@ -707,7 +707,7 @@
     },
     {
       "path": "skills/self-review/SKILL.md",
-      "sha256": "f85fcfcfc7e10c833390f3166bc7447a67c7f0a216d297492d96fc54c6e628c5"
+      "sha256": "cf69c12d85294d59760ee8ba1b8a9f9ad0b88cfb3a9546a0a5b9c05e0e97e28f"
     },
     {
       "path": "skills/spike/SKILL.md",
@@ -715,7 +715,7 @@
     },
     {
       "path": "skills/tdd-review/SKILL.md",
-      "sha256": "56a04f7b72f0e64ddc0016a7ca81dc66dae51360acecd8689feb8c43bd5bfab0"
+      "sha256": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43"
     },
     {
       "path": "skills/testing/SKILL.md",

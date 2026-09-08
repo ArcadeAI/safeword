@@ -1156,7 +1156,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/ticket-system/SKILL.md': {
       template: 'skills/ticket-system/SKILL.md',
     },
-    // Claude skills — action commands with disable-model-invocation
+    // Claude skills — Cursor-side action commands (manual-only on Cursor).
+    // Claude invocation is configured independently: `disable-model-invocation`
+    // makes a skill slash-command-only, while `user-invocable: false` reserves an
+    // internal skill for model and skill-to-skill use. Keep natural-language
+    // Safeword workflows model-invocable even when they can have side effects;
+    // their own approval gates remain the safety boundary.
     // Skills auto-create /slash-commands, so separate commands are unnecessary
     '.claude/skills/lint/SKILL.md': { template: 'skills/lint/SKILL.md' },
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
