@@ -98,6 +98,30 @@ describe('readiness evidence freshness', () => {
     expect(report.verdict).toBe('current');
   });
 
+  // Codex's independent review caught both of these as false passes: the old
+  // evaluator took the first `Head:` line anywhere in the body.
+  it('is not fooled by an unrelated current Head line above a stale block', () => {
+    const earlier = 'b17d66dc7aa1122334455667788990aabbccddee';
+
+    const report = evaluateReadinessEvidence({
+      body: [`Head: ${HEAD}`, 'Rebased onto that commit.', '', evidence(earlier)].join('\n'),
+      draft: false,
+      headSha: HEAD,
+    });
+
+    expect(report).toMatchObject({ evidenceSha: earlier, state: 'failure', verdict: 'stale' });
+  });
+
+  it('treats a bare Head line with no gates as no evidence at all', () => {
+    const report = evaluateReadinessEvidence({
+      body: `Head: ${HEAD}\n\nLooks good to me.`,
+      draft: false,
+      headSha: HEAD,
+    });
+
+    expect(report).toMatchObject({ state: 'failure', verdict: 'missing' });
+  });
+
   it('does not ask a draft for evidence it has not written yet', () => {
     const report = evaluateReadinessEvidence({ body: undefined, draft: true, headSha: HEAD });
 

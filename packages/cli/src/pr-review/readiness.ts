@@ -48,10 +48,50 @@ const FAILING: ReadonlySet<ReadinessVerdict> = new Set<ReadinessVerdict>([
   'stale',
 ]);
 
-const EVIDENCE_HEAD = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/imu;
+const HEAD_LINE = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/iu;
+const GATE_LINE = /^[ \t]*\d+\.[ \t]*\S/u;
 // Dash-agnostic: a numbered gate line that says BLOCKED. Missing a real block
 // would be a false pass, which is the one direction this must not fail in.
-const BLOCKED_GATE = /^[ \t]*\d+\..*\bBLOCKED\b/mu;
+const BLOCKED_GATE_LINE = /^[ \t]*\d+\..*\bBLOCKED\b/u;
+
+interface EvidenceBlock {
+  blocked: boolean;
+  sha: string;
+}
+
+/** Reads the gate lines belonging to one block, stopping at the next block. */
+function scanGates(rest: readonly string[]): { blocked: boolean; gates: number } {
+  let blocked = false;
+  let gates = 0;
+
+  for (const line of rest) {
+    if (HEAD_LINE.test(line)) break;
+    if (!GATE_LINE.test(line)) continue;
+    gates += 1;
+    if (BLOCKED_GATE_LINE.test(line)) blocked = true;
+  }
+
+  return { blocked, gates };
+}
+
+/**
+ * A `Head:` line alone is not evidence — the numbered gates after it are what
+ * make it a block. Anchoring on the block keeps an unrelated `Head:` line
+ * elsewhere in the body from standing in for evidence that is actually stale.
+ */
+function evidenceBlocks(body: string): EvidenceBlock[] {
+  const lines = body.split('\n');
+  const blocks: EvidenceBlock[] = [];
+
+  for (const [index, line] of lines.entries()) {
+    const sha = HEAD_LINE.exec(line)?.[1];
+    if (sha === undefined) continue;
+    const { blocked, gates } = scanGates(lines.slice(index + 1));
+    if (gates > 0) blocks.push({ blocked, sha: sha.toLowerCase() });
+  }
+
+  return blocks;
+}
 
 function report(verdict: ReadinessVerdict, evidenceSha?: string): ReadinessEvidenceReport {
   return {
@@ -65,13 +105,19 @@ function report(verdict: ReadinessVerdict, evidenceSha?: string): ReadinessEvide
 export function evaluateReadinessEvidence(input: ReadinessEvidenceInput): ReadinessEvidenceReport {
   if (input.draft) return report('draft');
 
-  const body = input.body ?? '';
-  const evidenceSha = EVIDENCE_HEAD.exec(body)?.[1]?.toLowerCase();
-  if (evidenceSha === undefined) return report('missing');
+  const blocks = evidenceBlocks(input.body ?? '');
+  if (blocks.length === 0) return report('missing');
+
+  // Fail safe when a body carries more than one block: any stale or blocked one
+  // decides the verdict, so a fresher block cannot mask an older one.
+  const head = input.headSha.toLowerCase();
   // An abbreviated SHA in the body still identifies the head it was written
   // for; requiring the full form would fail authors for a formatting choice.
-  if (!input.headSha.toLowerCase().startsWith(evidenceSha)) return report('stale', evidenceSha);
-  if (BLOCKED_GATE.test(body)) return report('blocked', evidenceSha);
+  const stale = blocks.find(block => !head.startsWith(block.sha));
+  if (stale !== undefined) return report('stale', stale.sha);
 
-  return report('current', evidenceSha);
+  const blocked = blocks.find(block => block.blocked);
+  if (blocked !== undefined) return report('blocked', blocked.sha);
+
+  return report('current', blocks[0]?.sha);
 }

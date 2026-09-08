@@ -52401,6 +52401,34 @@ function requiredPullNumber() {
 var init_github_request = () => {};
 
 // src/pr-review/readiness.ts
+function scanGates(rest) {
+  let blocked = false;
+  let gates = 0;
+  for (const line of rest) {
+    if (HEAD_LINE.test(line))
+      break;
+    if (!GATE_LINE.test(line))
+      continue;
+    gates += 1;
+    if (BLOCKED_GATE_LINE.test(line))
+      blocked = true;
+  }
+  return { blocked, gates };
+}
+function evidenceBlocks(body) {
+  const lines = body.split(`
+`);
+  const blocks = [];
+  for (const [index, line] of lines.entries()) {
+    const sha = HEAD_LINE.exec(line)?.[1];
+    if (sha === undefined)
+      continue;
+    const { blocked, gates } = scanGates(lines.slice(index + 1));
+    if (gates > 0)
+      blocks.push({ blocked, sha: sha.toLowerCase() });
+  }
+  return blocks;
+}
 function report(verdict, evidenceSha) {
   return {
     description: DESCRIPTIONS[verdict],
@@ -52412,17 +52440,19 @@ function report(verdict, evidenceSha) {
 function evaluateReadinessEvidence(input) {
   if (input.draft)
     return report("draft");
-  const body = input.body ?? "";
-  const evidenceSha = EVIDENCE_HEAD.exec(body)?.[1]?.toLowerCase();
-  if (evidenceSha === undefined)
+  const blocks = evidenceBlocks(input.body ?? "");
+  if (blocks.length === 0)
     return report("missing");
-  if (!input.headSha.toLowerCase().startsWith(evidenceSha))
-    return report("stale", evidenceSha);
-  if (BLOCKED_GATE.test(body))
-    return report("blocked", evidenceSha);
-  return report("current", evidenceSha);
+  const head = input.headSha.toLowerCase();
+  const stale = blocks.find((block) => !head.startsWith(block.sha));
+  if (stale !== undefined)
+    return report("stale", stale.sha);
+  const blocked = blocks.find((block) => block.blocked);
+  if (blocked !== undefined)
+    return report("blocked", blocked.sha);
+  return report("current", blocks[0]?.sha);
 }
-var DESCRIPTIONS, READINESS_DESCRIPTIONS, FAILING, EVIDENCE_HEAD, BLOCKED_GATE;
+var DESCRIPTIONS, READINESS_DESCRIPTIONS, FAILING, HEAD_LINE, GATE_LINE, BLOCKED_GATE_LINE;
 var init_readiness = __esm(() => {
   DESCRIPTIONS = {
     blocked: "Readiness evidence records a blocked gate.",
@@ -52437,8 +52467,9 @@ var init_readiness = __esm(() => {
     "missing",
     "stale"
   ]);
-  EVIDENCE_HEAD = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/imu;
-  BLOCKED_GATE = /^[ \t]*\d+\..*\bBLOCKED\b/mu;
+  HEAD_LINE = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/iu;
+  GATE_LINE = /^[ \t]*\d+\.[ \t]*\S/u;
+  BLOCKED_GATE_LINE = /^[ \t]*\d+\..*\bBLOCKED\b/u;
 });
 
 // src/commands/review-pr-readiness.ts
