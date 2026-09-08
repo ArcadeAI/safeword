@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   githubRequest,
+  isRecord,
   requiredEnvironment,
   requiredPullNumber,
 } from '../pr-review/github-request.js';
@@ -28,10 +29,6 @@ export interface ReviewPrGitHubBoundary {
 export interface ReviewPrStageOutcome {
   changed: boolean;
   reason: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 const REVIEW_RUN_STATES = new Set<unknown>(['complete', 'failed', 'incomplete', 'stale']);

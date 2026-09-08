@@ -52582,9 +52582,6 @@ __export(exports_review_pr_publication, {
   createGitHubReviewBoundary: () => createGitHubReviewBoundary
 });
 import { readFileSync as readFileSync66 } from "fs";
-function isRecord9(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 function isReviewRunState(value) {
   return REVIEW_RUN_STATES.has(value);
 }
@@ -52593,23 +52590,23 @@ function hasExactKeys3(value, expected) {
   return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
 }
 function isSerializedFinding(value) {
-  return isRecord9(value) && typeof value.consequential === "boolean" && typeof value.consequence === "string" && typeof value.evidence === "string" && (value.line === undefined || typeof value.line === "number") && typeof value.nextAction === "string" && typeof value.path === "string";
+  return isRecord8(value) && typeof value.consequential === "boolean" && typeof value.consequence === "string" && typeof value.evidence === "string" && (value.line === undefined || typeof value.line === "number") && typeof value.nextAction === "string" && typeof value.path === "string";
 }
 function isSerializedCheck(value) {
-  return isRecord9(value) && hasExactKeys3(value, ["name", "status"]) && typeof value.name === "string" && RECEIPT_CHECK_STATUSES.has(String(value.status));
+  return isRecord8(value) && hasExactKeys3(value, ["name", "status"]) && typeof value.name === "string" && RECEIPT_CHECK_STATUSES.has(String(value.status));
 }
 function isSerializedCoverage(value) {
-  if (!isRecord9(value) || typeof value.path !== "string")
+  if (!isRecord8(value) || typeof value.path !== "string")
     return false;
   if (value.status === "integrity_reviewed")
     return hasExactKeys3(value, ["path", "status"]);
   return value.status === "skipped" && value.skipReason === "non_text" && hasExactKeys3(value, ["path", "skipReason", "status"]);
 }
 function isTokenUsage(value) {
-  if (isRecord9(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
+  if (isRecord8(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
     return false;
   }
-  if (!isRecord9(value)) {
+  if (!isRecord8(value)) {
     return false;
   }
   return Object.values(value).every((tokens) => Number.isSafeInteger(tokens) && Number(tokens) >= 0);
@@ -52665,12 +52662,12 @@ function hasConsistentRoute(receipt) {
   const findings = receipt.findings;
   const unknowns = receipt.unknowns;
   const missingEvidence = receipt.missingEvidence;
-  const mayLookReady = receipt.runState === "complete" && unknowns.length === 0 && missingEvidence.length === 0 && Number(receipt.reviewableTextArtifacts) > 0 && findings.every((finding) => isRecord9(finding) && finding.consequential === false);
+  const mayLookReady = receipt.runState === "complete" && unknowns.length === 0 && missingEvidence.length === 0 && Number(receipt.reviewableTextArtifacts) > 0 && findings.every((finding) => isRecord8(finding) && finding.consequential === false);
   return receipt.route === "looks_ready" === mayLookReady;
 }
 function parseHandoffEnvelope(path4) {
   const value = JSON.parse(readFileSync66(path4, "utf8"));
-  if (!isRecord9(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
+  if (!isRecord8(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
     throw new Error("review-pr: invalid advisory result artifact");
   }
   return value;
@@ -52683,7 +52680,7 @@ function parseReviewedReceipt(path4) {
     }
     return { inspectionAudit: value.inspectionAudit };
   }
-  if (!hasExactKeys3(value, ["inspectionAudit", "kind", "receipt", "schemaVersion"]) || !isRecord9(value.receipt)) {
+  if (!hasExactKeys3(value, ["inspectionAudit", "kind", "receipt", "schemaVersion"]) || !isRecord8(value.receipt)) {
     throw new Error("review-pr: invalid advisory result artifact");
   }
   const receipt = value.receipt;
@@ -52806,7 +52803,7 @@ function createGitHubReviewBoundary() {
         if (!Array.isArray(payload))
           throw new Error("review-pr: invalid GitHub comments response");
         return payload.map((comment) => {
-          if (!isRecord9(comment) || !isRecord9(comment.user)) {
+          if (!isRecord8(comment) || !isRecord8(comment.user)) {
             throw new Error("review-pr: invalid GitHub comment");
           }
           if (typeof comment.body !== "string" || typeof comment.created_at !== "string" || typeof comment.id !== "number") {
@@ -52829,7 +52826,7 @@ function createGitHubReviewBoundary() {
     },
     readPullRequest: async () => {
       const payload = await githubRequest(`${root}/pulls/${pull}`);
-      if (!isRecord9(payload) || !isRecord9(payload.head) || typeof payload.head.sha !== "string") {
+      if (!isRecord8(payload) || !isRecord8(payload.head) || typeof payload.head.sha !== "string") {
         throw new Error("review-pr: invalid GitHub pull response");
       }
       let state = "ready";
