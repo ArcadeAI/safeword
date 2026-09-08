@@ -9,6 +9,24 @@ import { executeRedProof } from '../../src/review/red-execution.js';
 
 afterEach(() => vi.unstubAllEnvs());
 
+function processCanStillRun(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+  } catch {
+    return false;
+  }
+
+  if (process.platform !== 'linux') return true;
+
+  try {
+    const status = readFileSync(`/proc/${pid}/status`, 'utf8');
+    const state = /^State:\s+([A-Z])/m.exec(status)?.[1];
+    return state !== 'Z' && state !== 'X';
+  } catch {
+    return false;
+  }
+}
+
 describe('trusted executable RED observation', () => {
   it('does not expose review-worker secrets to the proof process', async () => {
     const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-red-environment-'));
@@ -162,7 +180,9 @@ describe('trusted executable RED observation', () => {
         const observedPid = Number(readFileSync(pidPath, 'utf8'));
         descendantPid = observedPid;
 
-        expect(() => process.kill(observedPid, 0)).toThrow();
+        await vi.waitFor(() => {
+          expect(processCanStillRun(observedPid)).toBe(false);
+        });
       } finally {
         if (descendantPid !== undefined) {
           try {
