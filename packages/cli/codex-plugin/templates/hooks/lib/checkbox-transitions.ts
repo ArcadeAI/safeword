@@ -77,7 +77,13 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
   }
 
   for (const state of scenarioChanged) {
-    if (consumeOld(state, true, false) !== undefined) continue;
+    const movedChecked = consumeOld(state, true, false);
+    if (movedChecked !== undefined) {
+      // Existing GREEN credit cannot silently move to a different scenario;
+      // its receipt was approved for the original binding.
+      if (state.step === 'GREEN') transitions.push({ ...state, scenario: undefined });
+      continue;
+    }
     // A checked recognized row with no old counterpart is still new credit.
     // Treat insertions and rename dances as transitions so the gate fails closed.
     const movedUnchecked = consumeOld(state, false, false);

@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "bf49c27bcbda355395495e4f633c805a31243dd0df33b8a8aaeb41b7606bbdce"
+      "sha256": "64bb99191057ee265d59e207af60addeb3e3d0c5013082b16505cfbd4e5ec188"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",

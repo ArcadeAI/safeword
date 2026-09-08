@@ -398,6 +398,23 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
+    it('blocks existing GREEN credit moved beneath a different scenario heading', () => {
+      const setup = setupProject(
+        '### Scenario: original\n\n- [x] RED abc1234\n- [x] GREEN def5678\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '### Scenario: original',
+        '### Scenario: approved elsewhere',
+        {
+          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: approved elsewhere'),
+        },
+      );
+      expectHookDeny(result, 'could not identify the active scenario');
+    });
+
     it('binds a local Edit to its exact scenario when several GREEN rows remain open', () => {
       const setup = setupProject(
         [
