@@ -1,6 +1,7 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -49,8 +50,136 @@ function executable(path: string, body: string): void {
   chmodSync(path, 0o755);
 }
 
+interface ReviewLaunch {
+  readonly index: number;
+  readonly kind: string;
+}
+
+function reviewLaunchesIn(content: string): ReviewLaunch[] {
+  const searchable = content.replaceAll(/\\\n[^\S\n]*/gu, continuation =>
+    ' '.repeat(continuation.length),
+  );
+  return searchable
+    .matchAll(
+      /(?:run-review\.ts|safeword(?:@\S+)?|runtime\/cli\.js)["']?\s+review\s+run\s+([\w-]+)/gu,
+    )
+    .map(match => {
+      const index = content.slice(0, match.index).split('\n').length;
+      return { index, kind: match[1] ?? '' };
+    })
+    .toArray();
+}
+
 function containsReviewLaunch(content: string): boolean {
-  return /(?:run-review\.ts|safeword(?:@\S+)?)\s+review\s+run\b/u.test(content);
+  return reviewLaunchesIn(content).length > 0;
+}
+
+function reviewStampCommands(content: string): string[] {
+  const inlineCommands = content
+    .matchAll(/`([^`\n]*write-review-stamp[^`\n]*)`/gu)
+    .map(match => match[1] ?? '')
+    .toArray();
+  const fencedCommands = content
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('bun ') && line.includes('write-review-stamp'));
+
+  return [...new Set([...inlineCommands, ...fencedCommands])];
+}
+
+interface ReviewCallSection {
+  readonly kind: string;
+  readonly section: string;
+}
+
+function reviewCallWindowAt(
+  lines: readonly string[],
+  lineNumber: number,
+  callLineNumbers: readonly number[],
+): string {
+  const index = lineNumber - 1;
+  const nextCallLineNumber = callLineNumbers.find(candidate => candidate > lineNumber);
+  const nextCallIndex = nextCallLineNumber === undefined ? lines.length : nextCallLineNumber - 1;
+  const nextHeadingOffset = lines
+    .slice(index + 1, nextCallIndex)
+    .findIndex(line => /^#{1,6}\s/u.test(line));
+  const nextHeadingIndex = nextHeadingOffset === -1 ? lines.length : index + 1 + nextHeadingOffset;
+
+  return lines.slice(index, Math.min(nextCallIndex, nextHeadingIndex)).join('\n');
+}
+
+function reviewCallSections(relativePath: string): ReviewCallSection[] {
+  return reviewCallSectionsIn(readTemplate(relativePath));
+}
+
+function reviewCallSectionsIn(content: string): ReviewCallSection[] {
+  const lines = content.split('\n');
+  const launches = reviewLaunchesIn(content);
+  const indexes = launches.map(launch => launch.index);
+  return launches.map(({ kind, index }) => ({
+    kind,
+    section: reviewCallWindowAt(lines, index, indexes),
+  }));
+}
+
+function expectDispatchAuthorization(content: string, context: string): void {
+  const normalized = content.replaceAll(/\s+/gu, ' ');
+  expect(normalized, context).toContain(
+    '**The dispatch is authorized; skipping it is not your call.**',
+  );
+  expect(normalized, context).toMatch(/do not stop and ask[^.]{0,180}consent[^.]{0,120}in chat/iu);
+  expect(normalized, context).toMatch(/invoke the coordinator first/iu);
+  expect(normalized, context).toMatch(/native tool-approval request/iu);
+  expect(normalized, context).toMatch(/never replace[^.]{0,180}with a chat question/iu);
+  expect(normalized, context).toMatch(
+    /retry[^.]{0,180}same bounded packet[^.]{0,120}without asking again/iu,
+  );
+  expect(normalized, context).toContain(
+    'Never pass credentials, customer data, or secret-bearing files as targets or `--context`;',
+  );
+  expect(normalized, context).toContain(
+    'The coordinator enforces that setting before provider dispatch, so do not duplicate its policy check in chat.',
+  );
+  expect(normalized, context).toContain('**A review you never dispatched is not coverage**');
+}
+
+function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): void {
+  const { kind, section } = call;
+  const context = `${relativePath}:${kind}`;
+  const normalized = section.replaceAll(/\s+/gu, ' ');
+  expect(section, context).toContain('--agent-handoff --json');
+  expect(section, context).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
+  expect(normalized, context).toMatch(/execute its exact recovery command/iu);
+  expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
+  expect(section, context).toContain('REVIEW_PENDING');
+  expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
+  expect(normalized, context).toContain(
+    'Never substitute another surface-private reviewer or hand-written independent evidence.',
+  );
+
+  // Executable RED cannot use a same-agent fallback to authorize GREEN;
+  // its receipt gate owns the fail-closed recovery instead.
+  if (kind === 'executable-red') {
+    expect(section, context).toContain('`REVIEW_NOT_REQUESTED`');
+    expect(normalized, context).toMatch(/REVIEW_NOT_REQUESTED[^.]{0,200}leave GREEN unchecked/iu);
+    expect(normalized, context).toMatch(/do not invoke[^.]{0,120}finish-review/iu);
+    expect(normalized, context).toMatch(
+      /REVIEW_ROUTES_EXHAUSTED[^.]{0,160}report the blocker[^.]{0,120}leave GREEN unchecked/iu,
+    );
+    return;
+  }
+
+  if (kind !== 'quality-review') {
+    expect(normalized, context).toMatch(
+      /independence: degraded[^.]{0,240}do not stamp or advance/iu,
+    );
+  }
+
+  expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
+  expect(normalized, context).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
+  expect(normalized, context).toMatch(
+    /REVIEW_ROUTES_EXHAUSTED[^.]{0,200}invoke[^.]{0,80}finish-review/iu,
+  );
 }
 
 // Every subprocess fixture below builds its own project on disk. Inheriting the
@@ -92,7 +221,7 @@ function runResolver(
     const cwdLog = nodePath.join(fixture, 'cwd.log');
     executable(
       nodePath.join(bin, 'bun'),
-      String.raw`${hangPlugin ? 'case "$1" in */plugin/runtime/cli.js) sleep 5;; esac\n' : ''}${rejectPlugin ? 'case "$1" in */plugin/runtime/cli.js) exit 1;; esac\n' : ''}pwd -P > "$CWD_LOG"
+      String.raw`${hangPlugin ? 'case "$1" in */plugin/runtime/cli.js) exec sleep 30;; esac\n' : ''}${rejectPlugin ? 'case "$1" in */plugin/runtime/cli.js) exit 1;; esac\n' : ''}pwd -P > "$CWD_LOG"
 printf 'bun:%s\n' "$*" >> "$CALL_LOG"`,
     );
     executable(
@@ -368,27 +497,16 @@ exit ${status}`,
   it.each(['skills/bdd/PLAN_IMPLEMENTATION.md', 'skills/bdd/TDD.md'])(
     '%s reviews only impl-plan.md as plan work',
     relativePath => {
-      const command = readTemplate(relativePath)
+      const commands = readTemplate(relativePath)
         .split('\n')
-        .find(line => line.includes('run-review.ts review run plan-implementation'));
+        .filter(line => line.includes('run-review.ts review run plan-implementation'));
 
-      expect(command, relativePath).toMatch(/ --context .+ -- impl-plan\.md$/u);
+      expect(commands, relativePath).not.toHaveLength(0);
+      for (const command of commands) {
+        expect(command, relativePath).toMatch(/ --context .+ -- impl-plan\.md$/u);
+      }
     },
   );
-
-  it.each([
-    'skills/quality-review/SKILL.md',
-    'skills/review-spec/SKILL.md',
-    'skills/bdd/PLAN_IMPLEMENTATION.md',
-    'skills/bdd/TDD.md',
-  ])('%s processes a typed authentication handoff before review fallback', relativePath => {
-    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
-
-    expect(content, relativePath).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
-    expect(content, relativePath).toMatch(/execute its exact recovery command/iu);
-    expect(content, relativePath).toMatch(/rerun the same coordinator command once/iu);
-    expect(content, relativePath).toMatch(/do not.*finish-review/iu);
-  });
 
   // A stamp claiming independence is a claim about a review the agent itself
   // ran; write-review-stamp.ts now requires the coordinator's review id as the
@@ -398,13 +516,13 @@ exit ${status}`,
     'skills/bdd/PLAN_IMPLEMENTATION.md',
     'skills/bdd/TDD.md',
   ])('%s cites the review id when it stamps a coordinator verdict', relativePath => {
-    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+    const content = readTemplate(relativePath);
 
-    const stampCommands = content.match(/write-review-stamp\.ts[^`\n]*/gu) ?? [];
+    const stampCommands = reviewStampCommands(content);
+    expect(stampCommands, relativePath).not.toHaveLength(0);
     for (const stamp of stampCommands) {
       expect(stamp, relativePath).toContain('--review-id');
     }
-    expect(content, relativePath).toMatch(/--review-id/u);
   });
 
   // A Codex session skipped the coordinator entirely, reasoning that sending
@@ -413,66 +531,71 @@ exit ${status}`,
   // Nothing in the dispatch protocol said who authorized the route, and every
   // independence-disclosure rule keys off a returned typed result, so a review
   // that was never dispatched produced no result and therefore no disclosure.
-  it.each([
-    'skills/quality-review/SKILL.md',
-    'skills/review-spec/SKILL.md',
-    'skills/bdd/PLAN_IMPLEMENTATION.md',
-    'skills/bdd/TDD.md',
-  ])('%s authorizes the dispatch and forbids an undisclosed skip', relativePath => {
-    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+  it('authorizes every canonical coordinator call beside that call', () => {
+    const skills = nodePath.join(templates, 'skills');
+    const callers = markdownFiles(skills).filter(relativePath =>
+      containsReviewLaunch(readFileSync(nodePath.join(skills, relativePath), 'utf8')),
+    );
 
-    expect(content, relativePath).toContain(
-      '**The dispatch is authorized; skipping it is not your call.**',
+    const lexical = (left: string, right: string): number => left.localeCompare(right);
+    expect(callers.toSorted(lexical)).toEqual(
+      [
+        'bdd/PLAN_IMPLEMENTATION.md',
+        'bdd/TDD.md',
+        'quality-review/SKILL.md',
+        'review-spec/SKILL.md',
+      ].toSorted(lexical),
     );
-    expect(content, relativePath).toMatch(
-      /local subprocess of a CLI the user installed and signed in to/u,
-    );
-    expect(content, relativePath).toContain('`crossAgentReview: off`');
-    expect(content, relativePath).toMatch(/do not invent a disclosure-approval requirement/u);
-    expect(content, relativePath).toMatch(
-      /request the approval it needs, or report that block as the blocker/u,
-    );
-    expect(content, relativePath).toContain(
-      '**A review you never dispatched is not coverage** — say so unprompted, before any finding',
-    );
+    for (const relativePath of callers) {
+      const calls = reviewCallSections(nodePath.join('skills', relativePath));
+      expect(calls, relativePath).not.toHaveLength(0);
+      for (const { kind, section } of calls) {
+        expectDispatchAuthorization(section, `${relativePath}:${kind}`);
+      }
+    }
   });
 
   it('ships the dispatch-authorization contract on every generated review surface', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
-    const generated = [
-      {
-        root: nodePath.join(repoRoot, 'plugin/skills'),
-        files: [
-          'quality-review/SKILL.md',
-          'review-spec/SKILL.md',
-          'bdd/PLAN_IMPLEMENTATION.md',
-          'bdd/TDD.md',
-        ],
-      },
-      {
-        root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
-        files: [
-          'quality-review/SKILL.md',
-          'review-spec/SKILL.md',
-          'bdd/references/PLAN_IMPLEMENTATION.md',
-          'bdd/references/TDD.md',
-        ],
-      },
+    const generatedRoots = [
+      nodePath.join(repoRoot, 'plugin/skills'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
     ];
 
-    for (const { root, files } of generated) {
+    for (const root of generatedRoots) {
+      const files = markdownFiles(root).filter(relativePath =>
+        containsReviewLaunch(readFileSync(nodePath.join(root, relativePath), 'utf8')),
+      );
+      expect(files, root).not.toHaveLength(0);
       for (const relativePath of files) {
-        const content = readFileSync(nodePath.join(root, relativePath), 'utf8').replaceAll(
-          /\s+/gu,
-          ' ',
-        );
-        expect(content, `${root}/${relativePath}`).toContain(
-          '**The dispatch is authorized; skipping it is not your call.**',
-        );
-        expect(content, `${root}/${relativePath}`).toContain(
-          '**A review you never dispatched is not coverage**',
-        );
+        const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
+        const calls = reviewCallSectionsIn(content);
+        expect(calls, `${root}/${relativePath}`).not.toHaveLength(0);
+        for (const call of calls) {
+          const context = `${root}/${relativePath}:${call.kind}`;
+          expectDispatchAuthorization(call.section, context);
+          expectTypedExhaustion(`${root}/${relativePath}`, call);
+        }
       }
+    }
+  });
+
+  it('keeps coordinator launches out of command and agent templates', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const nonSkillRoots = [
+      nodePath.join(templates, 'commands'),
+      nodePath.join(templates, 'agents'),
+      nodePath.join(repoRoot, 'plugin/commands'),
+      nodePath.join(repoRoot, 'plugin/agents'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/commands'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/agents'),
+    ].filter(root => existsSync(root));
+
+    for (const root of nonSkillRoots) {
+      const callers = markdownFiles(root).filter(relativePath =>
+        containsReviewLaunch(readFileSync(nodePath.join(root, relativePath), 'utf8')),
+      );
+      expect(callers, root).toEqual([]);
     }
   });
 
@@ -516,6 +639,13 @@ exit ${status}`,
 
     for (const { root, reviewEntrypoint, requiredReviewFiles } of generatedSurfaces) {
       expect(requiredReviewFiles, root).not.toHaveLength(0);
+      const discoveredReviewFiles = markdownFiles(root).filter(relativePath =>
+        containsReviewLaunch(readFileSync(nodePath.join(root, relativePath), 'utf8')),
+      );
+      const lexical = (left: string, right: string): number => left.localeCompare(right);
+      expect(discoveredReviewFiles.toSorted(lexical), root).toEqual(
+        requiredReviewFiles.toSorted(lexical),
+      );
       for (const relativePath of requiredReviewFiles) {
         const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
         expect(content, relativePath).toContain(`${reviewEntrypoint}review run`);
@@ -556,9 +686,12 @@ exit ${status}`,
       'safeword@0.74.7 review run quality-review target --agent-handoff --json',
     ],
   ] as const)('executes the %s resolver route', (route, prefix, invocation) => {
-    const { calls } = runResolver(route);
+    const { calls, projectDirectory } = runResolver(route);
     expect(calls.at(-1)?.startsWith(prefix)).toBe(true);
     expect(calls.at(-1)).toContain(invocation);
+    if (route === 'source') {
+      expect(calls.at(-1)).toContain(nodePath.join(projectDirectory, 'packages/cli/src/cli.ts'));
+    }
   });
 
   it.each(['local', 'fallback'] as const)(
@@ -648,6 +781,8 @@ exit ${status}`,
     try {
       mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
       writeFileSync(nodePath.join(fixture, '.safeword/version'), '1.2.3\n');
+      mkdirSync(nodePath.join(elsewhere, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(elsewhere, '.safeword/version'), '9.9.9\n');
 
       expect(reviewCandidates(elsewhere, { CLAUDE_PROJECT_DIR: fixture })).toContainEqual([
         'bunx',
@@ -789,19 +924,16 @@ exit ${status}`,
   it('wires every canonical coordinator caller to the same typed-exhaustion continuation', () => {
     const skills = nodePath.join(templates, 'skills');
     const callers = markdownFiles(skills).filter(relativePath =>
-      readFileSync(nodePath.join(skills, relativePath), 'utf8').includes(
-        'run-review.ts review run',
-      ),
+      containsReviewLaunch(readFileSync(nodePath.join(skills, relativePath), 'utf8')),
     );
 
     expect(callers.length).toBeGreaterThan(0);
     for (const relativePath of callers) {
-      const content = readFileSync(nodePath.join(skills, relativePath), 'utf8');
-      const normalized = content.replaceAll(/\s+/gu, ' ');
-      expect(content, relativePath).toContain('--agent-handoff --json');
-      expect(content, relativePath).toContain('REVIEW_ROUTES_EXHAUSTED');
-      expect(content, relativePath).toContain('/finish-review');
-      expect(normalized, relativePath).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
+      const calls = reviewCallSections(nodePath.join('skills', relativePath));
+      expect(calls, relativePath).not.toHaveLength(0);
+      for (const call of calls) {
+        expectTypedExhaustion(relativePath, call);
+      }
     }
   });
 });

@@ -10,7 +10,7 @@ allowed-tools: '*'
 
 - From `define-behavior`, use **Authoring mode**.
 - From `scenario-gate`, or when the user explicitly asks to review existing scenarios, use **Review mode**.
-- If neither signal is present, stop and ask which mode applies. Never infer a review verdict or coordinator dispatch from an unclear invocation.
+- If neither signal is present, stop and ask which mode applies. That mode question selects the review scope; it is not a disclosure-consent prompt. Never infer a review verdict or coordinator dispatch from an unclear invocation.
 
 ## Authoring mode
 
@@ -72,18 +72,27 @@ bun .safeword/hooks/run-review.ts review run scenario-gate feature-file [legacy-
 ```
 
 **The dispatch is authorized; skipping it is not your call.** The coordinator
-spawns the reviewer as a local subprocess of a CLI the user installed and signed
-in to (`claude`, `codex`, or `opencode`), under their own credentials, on this
-machine; the packet is bounded to the targets and `--context` you pass. That
-route exists only because the user configured it, and a cross-vendor second
-opinion is the point of the gate — a user who does not want it sets
-`crossAgentReview: off` in `.safeword/config.json`. So treat the command as
-ordinary tool use: do not invent a disclosure-approval requirement, and do not
-withhold the dispatch on your own judgment. If your runtime blocks it (sandbox,
-network, or approval policy), request the approval it needs, or report that
-block as the blocker. **A review you never dispatched is not coverage** — say so
-unprompted, before any finding, name what ran in its place, and never let your
-own pass stand in for the review.
+runs through a local CLI the user installed and signed in to (`claude`, `codex`,
+or `opencode`), under their own credentials, on this machine; that local process
+may send the packet to a remote model provider, and the packet is bounded to the
+targets and `--context` you pass. This review route ships enabled by default; a
+user who does not want it sets `crossAgentReview: off` in
+`.safeword/config.json`. The coordinator enforces that setting before provider
+dispatch, so do not duplicate its policy check in chat. The enabled route
+authorizes ordinary dispatch, and a cross-vendor second opinion is the point of
+the gate. So treat the command as ordinary tool use: do not invent a
+disclosure-approval requirement. Do not stop and ask the user for consent in
+chat before running this command, even when the packet contains private
+repository files or crosses provider boundaries. Never pass credentials,
+customer data, or secret-bearing files as targets or `--context`; redact them or
+report the bounded packet as blocked. Invoke the coordinator first. If the host
+blocks the command, use its native tool-approval request: request the approval
+it needs, or report that block as the blocker; never replace that request with a
+chat question. A retry, status check, or permitted fallback for the same bounded
+packet proceeds without asking again.
+**A review you never dispatched is not coverage** — say so unprompted,
+before any finding, name what ran in its place, and never let your own pass stand
+in for the review.
 
 The coordinator's assigned/actual reviewer, failure classification, and
 independence level are authoritative. If the typed result is
@@ -98,9 +107,18 @@ unchanged. Never substitute another surface-private reviewer or hand-written
 independent evidence. Use the checks below as the scenario-gate rubric and to
 triage the returned findings.
 
+If the result carries `independence: degraded`, state before any finding that
+the actual reviewer was not independent; never describe it as independent or
+cross-agent coverage, and do not stamp or advance.
+
 Fail closed: missing or unreadable required feature/spec inputs, dispatch
-failure, timeout, a pending/malformed result, `request_changes`, changed review
-inputs, or stamp-write failure all leave the ticket in `scenario-gate`. After an
+failure, timeout, a malformed result, `request_changes`, degraded independence,
+changed review inputs, or stamp-write failure all leave the ticket in
+`scenario-gate`. A healthy
+`REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`,
+continue other useful work, and run its typed `nextActions` status command until
+the review is terminal. Never redispatch the same sources merely because that
+review is still pending. After an
 approval, record the returned author, actual reviewer, verified model when
 present, and independence with
 `write-review-stamp.ts --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.
@@ -198,7 +216,7 @@ Common vacuous patterns, each with its fix (apply only when you can state the do
 | **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
 | **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
 
-**Atomic** — a single `When`→`Then` is atomic even if the `Then` asserts several properties of ONE outcome ("returns 200 with body X"). Flag non-atomic only when two genuinely independent behaviors could pass/fail separately (two `When` steps or two `Then`s asserting different system-level effects) — never for a merely compound `Then`.
+**Atomic** — a scenario proves one externally observable behavior. Several `Then`/`And` assertions remain atomic when they jointly specify that behavior, even if a property could fail independently (for example, "returns 200 with body X"). Use failure independence as a diagnostic, not the definition: split when independently failing assertions describe distinct system effects, user outcomes, or remediation paths. If removing one assertion would leave the scenario's named behavior fully specified, that assertion likely belongs elsewhere. Two `When` steps are non-atomic regardless. Do not split merely to give every assertion its own scenario; duplicated setup obscures the example. Early assertion failure can hide later defects, so prefer focused executable checks underneath a coherent BDD example ([arXiv:2504.04557](https://arxiv.org/html/2504.04557)).
 
 **Rule ownership** — review a coherent outcome under the Rule whose invariant it proves. An outcome owned by a different Rule is a lineage defect, not an atomicity defect; move or split it and report that single root cause.
 

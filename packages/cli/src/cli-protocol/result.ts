@@ -127,6 +127,15 @@ export function createResult(input: ResultInput): CliResult {
   };
 }
 
+/** A rejected operand: the command ran but its argument was not usable. */
+export function invalidOperand(command: string, message: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ code: 'CLI_ARGUMENT_INVALID', message, retryable: false }],
+    data: { command },
+  });
+}
+
 export function withDeprecation(
   result: CliResult,
   legacy: string,

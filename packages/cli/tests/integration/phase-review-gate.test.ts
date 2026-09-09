@@ -7,13 +7,12 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { reviewScope } from '../../templates/hooks/lib/review-ledger.js';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
@@ -42,6 +41,7 @@ const ticketBody = (phase: string): string =>
 
 describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   let projectRoot: string;
+  let pluginRoot: string;
   let ticketDirectory: string;
   let ticketFile: string;
 
@@ -55,6 +55,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     const childEnvironment: NodeJS.ProcessEnv = {
       ...process.env,
       CLAUDE_PROJECT_DIR: projectRoot,
+      CLAUDE_PLUGIN_ROOT: pluginRoot,
       ...extraEnvironment,
     };
     if (!('SAFEWORD_AUTHOR_MODEL' in extraEnvironment))
@@ -78,6 +79,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     const childEnvironment: NodeJS.ProcessEnv = {
       ...process.env,
       CLAUDE_PROJECT_DIR: projectRoot,
+      CLAUDE_PLUGIN_ROOT: pluginRoot,
       ...extraEnvironment,
     };
     if (!('SAFEWORD_AUTHOR_MODEL' in extraEnvironment))
@@ -106,10 +108,62 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   }
 
   function stampPhaseModel(phase: string, model: string): void {
-    spawnSync('bun', [STAMP_PATH, '--model', model, '--phase', phase], {
-      encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot, CLAUDE_SESSION_ID: 'sess-1' },
-    });
+    stampVerifiedPhase(phase, model);
+  }
+
+  function stampVerifiedPhase(phase: string, model?: string): void {
+    const reviewId =
+      {
+        'claude-opus-4-8': 'b3f1c2d4-0000-4000-8000-000000000001',
+        'claude-sonnet-4-6': 'b3f1c2d4-0000-4000-8000-000000000002',
+      }[model ?? ''] ?? 'b3f1c2d4-0000-4000-8000-000000000003';
+    const target =
+      phase === 'implement'
+        ? 'packages/cli/src/feature.ts'
+        : `.safeword-project/tickets/${TICKET_ID}/feature.feature`;
+    writeFileSync(
+      nodePath.join(pluginRoot, `response-${reviewId}.json`),
+      JSON.stringify({
+        data: {
+          review_id: reviewId,
+          status: 'approved',
+          review_kind: 'quality-review',
+          review_targets: phase === 'implement' ? [target, '.safeword/config.json'] : [target],
+          independence: 'cross-agent',
+          author_agent: 'claude',
+          actual_reviewer: 'codex',
+          reviewer_model: model,
+        },
+      }),
+    );
+    const modelArguments = model === undefined ? [] : ['--model', model];
+    const result = spawnSync(
+      'bun',
+      [
+        STAMP_PATH,
+        '--author-agent',
+        'claude',
+        '--reviewer-agent',
+        'codex',
+        '--independence',
+        'cross-agent',
+        '--review-id',
+        reviewId,
+        ...modelArguments,
+        '--phase',
+        phase,
+      ],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: projectRoot,
+          CLAUDE_PLUGIN_ROOT: pluginRoot,
+          CLAUDE_SESSION_ID: 'sess-1',
+        },
+      },
+    );
+    expect(result.status).toBe(0);
   }
 
   function writeConfig(reviewGate: boolean, crossModelReview = false): void {
@@ -122,6 +176,17 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
 
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'phase-gate-'));
+    pluginRoot = mkdtempSync(nodePath.join(tmpdir(), 'phase-gate-cli-'));
+    mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
+    writeFileSync(
+      nodePath.join(pluginRoot, 'runtime', 'cli.js'),
+      [
+        "import { readFileSync } from 'node:fs';",
+        "import nodePath from 'node:path';",
+        'const id = process.argv[4];',
+        "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', `response-${id}.json`), 'utf8'));",
+      ].join('\n'),
+    );
     ticketDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', TICKET_ID);
     mkdirSync(ticketDirectory, { recursive: true });
     ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
@@ -131,11 +196,38 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       '# Spec\n\n## Jobs To Be Done\n\nskip: phase-review fixture\n',
     );
     writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: phase-review fixture\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'feature.feature'), 'Feature: fixture\n');
+    const implementationFile = nodePath.join(projectRoot, 'packages', 'cli', 'src', 'feature.ts');
+    mkdirSync(nodePath.dirname(implementationFile), { recursive: true });
+    writeFileSync(implementationFile, 'export const value = 1;\n');
+    writeFileSync(
+      nodePath.join(projectRoot, '.gitignore'),
+      '.safeword-project/quality-state*.json\n.safeword-project/skill-invocations.log\n',
+    );
+    expect(spawnSync('git', ['init', '-b', 'main', projectRoot]).status).toBe(0);
+    expect(spawnSync('git', ['-C', projectRoot, 'add', '.']).status).toBe(0);
+    expect(
+      spawnSync(
+        'git',
+        ['-C', projectRoot, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture baseline'],
+        {
+          env: {
+            ...process.env,
+            GIT_AUTHOR_NAME: 'Safeword Test',
+            GIT_AUTHOR_EMAIL: 'test@example.com',
+            GIT_COMMITTER_NAME: 'Safeword Test',
+            GIT_COMMITTER_EMAIL: 'test@example.com',
+          },
+        },
+      ).status,
+    ).toBe(0);
+    writeFileSync(implementationFile, 'export const value = 2;\n');
     writeConfig(true);
   });
 
   afterEach(() => {
     rmSync(projectRoot, { recursive: true, force: true });
+    rmSync(pluginRoot, { recursive: true, force: true });
   });
 
   it('blocks a Write that advances the phase with no stamp (TB2.AC1)', () => {
@@ -147,10 +239,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   });
 
   it('allows the advance once a phase-exit stamp exists', () => {
-    writeFileSync(
-      nodePath.join(projectRoot, '.safeword-project', 'skill-invocations.log'),
-      `2026-06-03T00:00:00Z sess review:${reviewScope(TICKET_ID, 'phase', 'define-behavior')}\n`,
-    );
+    stampVerifiedPhase('define-behavior');
     expectHookAllow(runGateWrite('scenario-gate'));
   });
 
@@ -160,14 +249,14 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       '# Spec\n\n## Product Bet\n\n**Problem / Why now:** Demand: ABSENT. Validate with a manual pilot.\n\n**Success threshold:** Three teams complete the pilot.\n\n## Jobs To Be Done\n\nskip: phase-review fixture\n',
     );
     expectHookDeny(runGateWrite('scenario-gate'), 'define-behavior');
-    stampPhase('define-behavior');
+    stampVerifiedPhase('define-behavior');
     expectHookAllow(runGateWrite('scenario-gate'));
   });
 
-  it('end to end: write-review-stamp --phase earns a stamp the gate accepts', () => {
+  it('does not accept a claim-free stamp from write-review-stamp --phase', () => {
     expectHookDeny(runGateWrite('scenario-gate'), 'define-behavior');
     stampPhase('define-behavior');
-    expectHookAllow(runGateWrite('scenario-gate'));
+    expectHookDeny(runGateWrite('scenario-gate'), 'no independent review stamp');
   });
 
   it('a skip stamp clears the phase gate', () => {
@@ -179,9 +268,14 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     expectHookAllow(runGateWrite('define-behavior'));
   });
 
-  it('is inert when reviewGate is off (default)', () => {
+  it('is inert when reviewGate is explicitly off', () => {
     writeConfig(false);
     expectHookAllow(runGateWrite('scenario-gate'));
+  });
+
+  it('blocks by default when reviewGate is absent', () => {
+    rmSync(nodePath.join(projectRoot, '.safeword', 'config.json'));
+    expectHookDeny(runGateWrite('scenario-gate'), 'no independent review stamp');
   });
 
   describe('cross-model (7A0B2K) — phase-exit review must be a different model', () => {
@@ -202,7 +296,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
 
     it('blocks when the phase stamp records no model (fails closed)', () => {
       writeConfig(true, true);
-      stampPhase('define-behavior');
+      stampVerifiedPhase('define-behavior');
       expectHookDeny(
         runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
         'cross-model',
@@ -221,6 +315,13 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
     });
 
+    it('a logged skip bypasses an earlier same-model review', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      stampPhase('define-behavior', 'review deliberately waived');
+      expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
     it('passes when a different-model re-review follows a same-model stamp', () => {
       writeConfig(true, true);
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
@@ -233,6 +334,20 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
       expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('ignores a forged model that disagrees with its coordinator receipt', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      appendFileSync(
+        nodePath.join(projectRoot, '.safeword-project', 'skill-invocations.log'),
+        '2026-06-03T00:00:00.000Z sess-1 review:ABC123:phase@define-behavior model:claude-sonnet-4-6 author:claude reviewer:codex independence:cross-agent review-id:b3f1c2d4-0000-4000-8000-000000000001\n',
+      );
+
+      expectHookDeny(
+        runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        'cross-model',
+      );
     });
 
     it('blocks via the Edit path too when the stamp model equals the author', () => {

@@ -174,6 +174,60 @@ describe('Test Suite 2: Setup - Core Files', () => {
 
       const config = readSafewordConfig(temporaryDirectory);
       expect(config.installedPacks).toContain('python');
+      expect(config.architectureDocEnforcement).toBe(false);
+    });
+
+    it('defaults architecture-doc enforcement off and records packs in a partial config', async () => {
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'pyproject.toml', `[project]\nname = "test"\n`);
+      writeTestFile(temporaryDirectory, '.safeword/config.json', JSON.stringify({}));
+      initGitRepo(temporaryDirectory);
+
+      await runCli(['setup', '--agents', 'none'], {
+        cwd: temporaryDirectory,
+        env: SKIP_INSTALL_ENV,
+      });
+
+      const config = readSafewordConfig(temporaryDirectory);
+      expect(config.architectureDocEnforcement).toBe(false);
+      expect(config.installedPacks).toContain('python');
+    });
+
+    it('preserves the legacy default for an already-installed project', async () => {
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ installedPacks: [] }),
+      );
+      writeTestFile(temporaryDirectory, '.safeword/version', '0.82.0\n');
+      initGitRepo(temporaryDirectory);
+
+      const result = await runCli(['setup', '--agents', 'none'], {
+        cwd: temporaryDirectory,
+        env: SKIP_INSTALL_ENV,
+      });
+
+      const config = readSafewordConfig(temporaryDirectory);
+      expect(result.exitCode).toBe(0);
+      expect(config.installedPacks).toContain('typescript');
+      expect(config.architectureDocEnforcement).toBeUndefined();
+    });
+
+    it('preserves the legacy default when an installed project has no config', async () => {
+      createTypeScriptProjectReadyForSetup(temporaryDirectory);
+      writeTestFile(temporaryDirectory, '.safeword/version', '0.82.0\n');
+      initGitRepo(temporaryDirectory);
+
+      const result = await runCli(['setup', '--agents', 'none'], {
+        cwd: temporaryDirectory,
+        env: SKIP_INSTALL_ENV,
+      });
+
+      const config = readSafewordConfig(temporaryDirectory);
+      expect(result.exitCode).toBe(0);
+      expect(config.installedPacks).toContain('typescript');
+      expect(config.architectureDocEnforcement).toBeUndefined();
     });
   });
 });
