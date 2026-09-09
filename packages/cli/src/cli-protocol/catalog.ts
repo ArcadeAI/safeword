@@ -717,6 +717,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
     fixture: { argv: ['review-pr', 'invalidate', '--offline'], environment: MACHINE_ENVIRONMENT },
   }),
+  command('review-pr readiness', 'Report whether readiness evidence matches the head', 'mutate', {
+    networkPolicy: 'declared',
+    fixture: { argv: ['review-pr', 'readiness', '--offline'], environment: MACHINE_ENVIRONMENT },
+  }),
   command('review-pr publish', 'Publish a validated advisory result', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'publish <result>',

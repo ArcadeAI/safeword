@@ -69,3 +69,6 @@ brand/
 .safeword-project/skill-invocations.log
 .safeword-project/re-entry.md
 .safeword-project/dependency-readiness.json
+
+# Go build artifacts from experiments (produced by test runs)
+experiments/**/checker

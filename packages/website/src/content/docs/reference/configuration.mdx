@@ -247,6 +247,26 @@ job from reading the secret. The inspection job is read-only and never checks
 out pull-request code; the separate publication jobs can only reconcile the
 ordinary issue comment and never receive the model secret.
 
+The same workflow publishes a `safeword/pr-readiness` commit status on every
+pull-request head. It runs without a model, a checkout, or a secret, and reports
+only whether the readiness evidence block in the description names the current
+head: `current` or `draft` pass; `stale`, `missing`, and a self-recorded
+`BLOCKED` gate fail. It never judges the gates themselves — four of the seven
+are the author's own attestations, and a checker that passed them would only
+record false compliance.
+
+The status refreshes on every head change, draft-state change, and body edit,
+and is serialized per pull request so the newest event wins.
+
+Safeword never modifies branch protection, and recommends against requiring this
+context. A required check that stops being reported leaves every pull request
+stuck on `Expected — waiting for status to be reported`, and this job only runs
+where `prReview.enabled` generates the workflow — so turning the reviewer off
+would jam merges repository-wide. Requiring a self-attestation also converts it
+into a formality: the check enforces freshness, never truth. Left unrequired it
+still catches what it was built for — real evidence that went stale on a later
+push.
+
 Each pull-request event samples prerequisites once. Pending or absent configured
 checks produce a visible non-run receipt and are reconsidered by the scheduled
 five-minute sweep; terminal prerequisite failure remains route-free. Every new
