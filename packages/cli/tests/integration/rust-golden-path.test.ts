@@ -44,7 +44,7 @@ describe('E2E: Rust Golden Path', () => {
     projectDirectory = createTemporaryDirectory();
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -188,7 +188,7 @@ cognitive-complexity-threshold = 25
 `,
     );
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -228,7 +228,7 @@ type-complexity-threshold = 300
 `,
     );
     initGitRepo(fullCoverageDirectory);
-    await setupOrThrow(fullCoverageDirectory);
+    await setupOrThrow(fullCoverageDirectory, ['setup', '--yes', '--agents', 'cursor']);
 
     const config = readTestFile(fullCoverageDirectory, '.safeword/clippy.toml');
     // All customer thresholds preserved
@@ -258,7 +258,7 @@ tab_spaces = 4
 `,
     );
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -303,7 +303,7 @@ unwrap_used = "allow"
 `,
     );
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -350,7 +350,7 @@ describe('E2E: TypeScript + Rust Mixed Project', () => {
     );
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -389,7 +389,7 @@ describe('E2E: Pure Rust Project', () => {
     createRustProject(projectDirectory);
     // Ensure NO package.json exists
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -422,7 +422,7 @@ describe('E2E: Rust Workspace Setup', () => {
     projectDirectory = createTemporaryDirectory();
     createRustWorkspace(projectDirectory, { members: ['core', 'cli'] });
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -465,7 +465,7 @@ describe('E2E: Rust Virtual Workspace', () => {
     // createRustWorkspace creates a virtual workspace by default (no [package])
     createRustWorkspace(projectDirectory, { members: ['lib-a', 'lib-b'] });
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -514,7 +514,7 @@ unwrap_used = "allow"
     );
 
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -547,7 +547,7 @@ describe('E2E: Rust Workspace Glob Pattern', () => {
     // Creates workspace with members = ["crates/*"] and crates/alpha, crates/beta
     createRustWorkspace(projectDirectory, { members: ['alpha', 'beta', 'gamma'], useGlob: true });
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -583,7 +583,7 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
     // Run setup to get the hook infrastructure
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
     // Delete BOTH rustfmt configs to test the fallback path. Deleting only the
     // .safeword copy is not enough: rustfmt searches the target file's directory and
     // its PARENTS for a rustfmt.toml, so the project-root config setup wrote is still
@@ -641,7 +641,7 @@ describe('E2E: Rust Lint Hook Graceful Handling', () => {
     projectDirectory = createTemporaryDirectory();
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -687,7 +687,7 @@ describe('E2E: Add Rust to Existing TypeScript Project', () => {
     );
     initGitRepo(projectDirectory);
     // Initial setup with TypeScript only
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {
@@ -751,10 +751,10 @@ describe('E2E: Rust Setup Idempotency', () => {
     createRustProject(projectDirectory);
     initGitRepo(projectDirectory);
     // Run setup TWICE
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
     // Second call intentionally allowed to fail with "Already configured" exit 1 —
     // we verify file state survives an accidental re-run, not that setup is idempotent.
-    await runCli(['setup', '--yes'], { cwd: projectDirectory });
+    await runCli(['setup', '--yes', '--agents', 'cursor'], { cwd: projectDirectory });
   });
 
   afterAll(() => {
@@ -794,7 +794,7 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
     projectDirectory = createTemporaryDirectory();
     createRustWorkspace(projectDirectory, { members: ['core', 'cli'] });
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes', '--agents', 'cursor']);
   });
 
   afterAll(() => {

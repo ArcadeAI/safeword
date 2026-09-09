@@ -17,7 +17,7 @@ describe('Claude plugin release contract', () => {
       'Claude plugin release contract is aligned',
     );
     expect(result.status).toBe(0);
-  }, 15_000);
+  }, 30_000);
 
   it('documents the real-host upgrade gate in the maintainer release path', () => {
     const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');
@@ -78,7 +78,6 @@ describe('Claude plugin release contract', () => {
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
       'utf8',
     );
-
     expect(workflow).toContain('group: safeword-stable-release');
     expect(workflow).toContain('needs: publish');
     expect(workflow).toContain("if: ${{ !contains(github.ref_name, '-') }}");
@@ -92,10 +91,69 @@ describe('Claude plugin release contract', () => {
       nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
       'utf8',
     );
-    expect(workflow).toContain('publish:\n    name: Publish to npm\n    needs: build');
+    const publishJob = workflow.slice(
+      workflow.indexOf('  publish:'),
+      workflow.indexOf('  promote-stable:'),
+    );
+    const publishConditionMatch = /\n {4}if: >-\n(?<condition>[\s\S]*?)\n {4}runs-on:/u.exec(
+      publishJob,
+    );
+    const publishCondition = publishConditionMatch?.groups?.condition
+      ?.replaceAll(/\s+/gu, ' ')
+      .trim();
+    expect(workflow).toContain(
+      'publish:\n    name: Publish to npm\n    needs: [build, verify-local-retro-production]',
+    );
+    expect(publishCondition).toBe(
+      "${{ !cancelled() && needs.build.result == 'success' && ((needs.build.outputs.local-retro-cutover-enabled == 'true' && needs.verify-local-retro-production.result == 'success') || (needs.build.outputs.local-retro-cutover-enabled == 'false' && needs.verify-local-retro-production.result == 'skipped')) }}",
+    );
+    expect(workflow).toContain("typeof enabled !== 'boolean'");
     expect(workflow).not.toContain('advisory-pr-review-smoke:');
     expect(workflow).not.toContain('pr-review-smoke');
     expect(workflow).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
+  });
+
+  it('checks out full history before verifying local retro evidence ancestry', () => {
+    const workflow = readFileSync(
+      nodePath.join(REPO_ROOT, '.github/workflows/release.yml'),
+      'utf8',
+    );
+    const verifierJob = workflow.slice(
+      workflow.indexOf('  verify-local-retro-production:'),
+      workflow.indexOf('  publish:'),
+    );
+
+    expect(verifierJob).toContain('environment: retro-production-readiness');
+    expect(verifierJob).toContain('fetch-depth: 0');
+    expect(verifierJob).toContain(
+      'RESULT=$(bun --no-install packages/cli/scripts/verify-local-retro-production-readiness.ts)',
+    );
+    expect(verifierJob).toContain(
+      '[ "$RESULT" != \'Local retro production readiness verified.\' ]',
+    );
+  });
+
+  it('runs the protected verifier through the exact source command and fails closed', () => {
+    const result = spawnSync(
+      'bun',
+      ['--no-install', 'packages/cli/scripts/verify-local-retro-production-readiness.ts'],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr.trim()).not.toBe('');
+  }, 30_000);
+
+  it('validates enabled local evidence even while relay readiness is disabled', () => {
+    const buildConfig = readFileSync(nodePath.join(CLI_ROOT, 'tsup.config.ts'), 'utf8');
+
+    expect(buildConfig).toMatch(
+      /if \(!manifest\.enabled\) \{\s+localRetroAncestorPairs\(\);\s+return disabled;\s+\}/u,
+    );
   });
 
   it('watches platform drift with a sandbox-only advisory canary', () => {

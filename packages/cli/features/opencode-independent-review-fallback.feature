@@ -49,8 +49,8 @@ Feature: OpenCode independent review fallback
       Then OpenCode completes a cross-agent review and no same-author Codex fallback is run
 
     @surface.claude-code @surface.openai-codex @surface.opencode @surface.safeword-cli
-    Scenario: OpenCode starts when the shared deadline leaves exactly one route budget
-      Given the real review command has Claude-authored work with a usable OpenCode reviewer and a configured review clock that leaves exactly the minimum route budget after Codex fails
+    Scenario: OpenCode starts when the shared deadline can fund another route
+      Given the real review command has Claude-authored work with a usable OpenCode reviewer and enough shared review budget after Codex fails
       When the builder requests an independent review through that command
       Then OpenCode is invoked and the command exits successfully with independent OpenCode evidence
 

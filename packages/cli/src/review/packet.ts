@@ -16,7 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import type { ReviewKind, ReviewPacket } from './contract.js';
+import type { RedExecutionAttestation, ReviewKind, ReviewPacket } from './contract.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -76,6 +76,33 @@ function requirePlanWorkArtifact(
       'Plan-implementation review requires one non-blank impl-plan.md work file; pass supporting evidence with --context',
     );
   }
+}
+
+function requireExecutableRedAttestation(
+  kind: ReviewKind,
+  attestation: RedExecutionAttestation | undefined,
+): void {
+  if (kind === 'executable-red' && attestation === undefined) {
+    throw new ReviewPacketError('Executable-red review requires a trusted execution attestation');
+  }
+  if (kind !== 'executable-red' && attestation !== undefined) {
+    throw new ReviewPacketError(
+      'Trusted execution attestations are accepted only for executable-red review',
+    );
+  }
+}
+
+interface ReviewPacketExecution {
+  readonly attestation?: RedExecutionAttestation;
+  readonly allowMissing?: boolean;
+}
+
+function checkedExecutionAttestation(
+  kind: ReviewKind,
+  execution: ReviewPacketExecution,
+): RedExecutionAttestation | undefined {
+  if (execution.allowMissing !== true) requireExecutableRedAttestation(kind, execution.attestation);
+  return execution.attestation;
 }
 
 function digest(content: string | Buffer): string {
@@ -173,10 +200,12 @@ function prepareReviewPacketUnsafe(
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[] = [],
+  execution: ReviewPacketExecution = {},
 ): PreparedReviewPacket {
   if (targets.length + context.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
+  const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync(cwd);
   const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
   const tracked: CapturedFile[] = [];
@@ -248,6 +277,7 @@ function prepareReviewPacketUnsafe(
     kind,
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
+    ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
   };
   if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {
     rmSync(workspace, { recursive: true, force: true });
@@ -281,9 +311,10 @@ export function prepareReviewPacket(
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[] = [],
+  execution: ReviewPacketExecution = {},
 ): PreparedReviewPacket {
   try {
-    return prepareReviewPacketUnsafe(cwd, kind, targets, context);
+    return prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
   } catch (error) {
     if (error instanceof ReviewPacketError) throw error;
     const message = error instanceof Error ? error.message : '';

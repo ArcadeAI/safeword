@@ -132,7 +132,7 @@ The done gate hard-blocks until `verify.md` exists in the ticket folder. Run `$s
 
 ## Code Philosophy
 
-Optimize for **Clarity → Simplicity → Correctness**, in that order. When in doubt, choose the simpler solution that works today.
+Correctness is the floor, not a tiebreaker. Among solutions that are correct, optimize for **Clarity → Simplicity**, in that order. When in doubt, choose the simpler one that works today — simpler means less code, never a flimsier algorithm.
 
 - **Elegant code:** readable at a glance; clear naming; minimal cognitive load.
 - **No bloat:** delete unused code; no premature abstractions; no "just in case"; reuse existing patterns/tools before adding new ones.
@@ -229,7 +229,7 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 > Do: "Fixed — `packages/cli/src/auth.ts:42` was swallowing the refresh error."
 > Don't: "Great question! Let me walk you through what I found..."
 
-**End with the call.** Close by naming what's next — a question, a choice, or a proposed step; don't bury it mid-reply. For structured replies (verdicts, reviews, recommendations, audits), make that closing line a literal `**Next:** <imperative>`: the stop hook captures it verbatim for the session's re-entry brief, so the token is load-bearing, not decoration. Short conversational replies can end with the question itself.
+**End with a self-contained call.** For structured replies (verdicts, reviews, recommendations, audits), close with a literal `**Next:**` paragraph; the stop hook captures it verbatim for the session's re-entry brief. Write for a reader who sees only that paragraph. When a decision is required, name the choice, your recommendation, the reason that controls it, the material tradeoff, and exactly what the user should reply. Use specific nouns, verbs, paths, commands, amounts, and consequences. Include a detail only if it could change the decision or action. Stop once the reader can act without scrolling. If no decision is required, state only the next action and any essential reason. Short conversational replies can end with the question itself.
 
 **Debate-then-pick.** When there's a real choice, surface 2-3 options weighed in one breath, then the pick — one line each on the candidates, one on the tradeoff, one on the call. Don't ping-pong one option at a time. Skip the debate when there's no real choice (rename, mechanical edit, single obvious path).
 
