@@ -10,7 +10,13 @@
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import type { ReviewKind } from '../review/contract.js';
+import { retryCommand } from '../review/command.js';
+import type {
+  RedEvidenceClass,
+  RedExecutionAttestation,
+  RedExecutionRequest,
+  ReviewKind,
+} from '../review/contract.js';
 import type { CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
 import { shellQuote } from './replay-command.js';
@@ -26,7 +32,8 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
       errors: [
         {
           code: 'REVIEW_KIND_INVALID',
-          message: 'Review kind must be quality-review, scenario-gate, or plan-implementation.',
+          message:
+            'Review kind must be quality-review, scenario-gate, plan-implementation, or executable-red.',
           retryable: false,
         },
       ],
@@ -37,7 +44,26 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
     : [];
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
-  return startReviewInBackground(invocation, rawKind, targets, context);
+  const execution = redExecutionRequest(rawKind, invocation.options);
+  if (execution instanceof Error) return invalidOperand('review run', execution.message);
+  return startReviewInBackground(invocation, rawKind, targets, context, execution);
+}
+
+export async function executableRedGateHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const scenario = invocation.options.scenario;
+  if (typeof scenario !== 'string' || scenario.trim() === '')
+    return invalidOperand(
+      'review gate executable-red',
+      'Executable RED gate requires a non-empty --scenario.',
+    );
+  const ledger = invocation.options.ledger;
+  if (typeof ledger !== 'string' || ledger.trim() === '')
+    return invalidOperand(
+      'review gate executable-red',
+      'Executable RED gate requires a non-empty --ledger.',
+    );
+  const { executableRedGate } = await import('../review/job.js');
+  return executableRedGate(invocation.cwd, scenario, ledger);
 }
 
 function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
@@ -234,6 +260,108 @@ function reviewContext(rawContext: unknown): string[] {
   return typeof rawContext === 'string' ? [rawContext] : [];
 }
 
+const RED_EVIDENCE_CLASSES = new Set<RedEvidenceClass>([
+  'pure-contract',
+  'simulated-host',
+  'local-live-host',
+  'external-live-host',
+]);
+
+// eslint-disable-next-line complexity -- Every user-controlled execution field fails closed here.
+function redExecutionRequest(
+  kind: ReviewKind,
+  options: Readonly<Record<string, unknown>>,
+): RedExecutionRequest | undefined | Error {
+  if (kind !== 'executable-red') return undefined;
+  const scenario = options.scenario;
+  if (typeof scenario !== 'string' || scenario.trim() === '')
+    return new Error('Executable-red review requires a non-empty --scenario.');
+  const ledger = options.ledger;
+  if (typeof ledger !== 'string' || ledger.trim() === '')
+    return new Error('Executable-red review requires a non-empty --ledger.');
+  const rawArgv = options.execute;
+  let argv: unknown;
+  try {
+    argv = typeof rawArgv === 'string' ? JSON.parse(rawArgv) : undefined;
+  } catch {
+    argv = undefined;
+  }
+  if (!Array.isArray(argv) || argv.length === 0 || argv.some(value => typeof value !== 'string'))
+    return new Error('Executable-red review requires --execute with exact argv.');
+  const cwd = options.proofCwd;
+  if (typeof cwd !== 'string' || cwd.trim() === '')
+    return new Error('Executable-red review requires a project-contained --proof-cwd.');
+  const evidenceClass = options.evidenceClass;
+  if (
+    typeof evidenceClass !== 'string' ||
+    !RED_EVIDENCE_CLASSES.has(evidenceClass as RedEvidenceClass)
+  )
+    return new Error('Executable-red review requires a valid --evidence-class.');
+  const expectedFailure = options.expectedFailure;
+  if (typeof expectedFailure !== 'string' || expectedFailure === '')
+    return new Error('Executable-red review requires a non-empty --expected-failure literal.');
+  const timeoutMs = Number(options.executionTimeout);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600_000)
+    return new Error('--execution-timeout must be an integer from 1 to 600000 milliseconds.');
+  return {
+    scenario,
+    ledger,
+    argv: argv as [string, ...string[]],
+    cwd,
+    evidenceClass: evidenceClass as RedEvidenceClass,
+    expectedFailure,
+    timeoutMs,
+  };
+}
+
+async function collectWorkerRedAttestation(input: {
+  readonly cwd: string;
+  readonly execution?: RedExecutionRequest;
+  readonly sourceFingerprint: string;
+}): Promise<RedExecutionAttestation | undefined> {
+  if (input.execution === undefined) return undefined;
+  const { executeRedProof } = await import('../review/red-execution.js');
+  return executeRedProof({
+    projectRoot: input.cwd,
+    request: input.execution,
+    sourceFingerprint: input.sourceFingerprint,
+  });
+}
+
+function withExecutionAttestation(
+  result: CliResult,
+  attestation: RedExecutionAttestation | undefined,
+  input?: {
+    readonly request: RedExecutionRequest;
+    readonly targets: readonly string[];
+    readonly context: readonly string[];
+  },
+): CliResult {
+  if (attestation === undefined) return result;
+  const exactRetry =
+    input === undefined
+      ? undefined
+      : retryCommand('executable-red', input.targets, input.context, input.request);
+  const preserveExecution = (command: string): string =>
+    exactRetry !== undefined && command.startsWith('safeword review run executable-red')
+      ? exactRetry
+      : command;
+  return {
+    ...result,
+    recovery: result.recovery.map(action => ({
+      ...action,
+      command: preserveExecution(action.command),
+    })),
+    nextActions: result.nextActions.map(action =>
+      'command' in action ? { ...action, command: preserveExecution(action.command) } : action,
+    ),
+    data: {
+      ...(typeof result.data === 'object' && result.data !== null && result.data),
+      execution_attestation: attestation,
+    },
+  };
+}
+
 async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult> {
   const id = process.env.SAFEWORD_REVIEW_JOB_ID;
   if (id === undefined) {
@@ -289,11 +417,30 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
   }
   let result: CliResult;
   try {
-    result = await runReview({
+    const attestation = await collectWorkerRedAttestation({
       cwd: invocation.cwd,
-      ...persistedInput,
+      execution: persistedInput.execution,
+      sourceFingerprint: persistedInput.sourceFingerprint,
+    });
+    const reviewed = await runReview({
+      cwd: invocation.cwd,
+      kind: persistedInput.kind,
+      targets: persistedInput.targets,
+      context: persistedInput.context,
+      executionAttestation: attestation,
       progress: invocation.progress,
     });
+    result = withExecutionAttestation(
+      reviewed,
+      attestation,
+      persistedInput.execution === undefined
+        ? undefined
+        : {
+            request: persistedInput.execution,
+            targets: persistedInput.targets,
+            context: persistedInput.context,
+          },
+    );
   } catch (error) {
     const packetError = error instanceof ReviewPacketError;
     result = reviewExecutionFailure(error, packetError);
@@ -338,6 +485,7 @@ async function startReviewInBackground(
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[],
+  execution?: RedExecutionRequest,
 ): Promise<CliResult> {
   const [{ startReviewJob }, { ReviewPacketError }] = await Promise.all([
     import('../review/job.js'),
@@ -349,6 +497,7 @@ async function startReviewInBackground(
       kind,
       targets,
       context,
+      execution,
       progress: invocation.progress,
     });
   } catch (error) {

@@ -113,6 +113,13 @@ Feature: Project knowledge throughout feature delivery
       When the objective audit runs
       Then it reports no E010 for that disagreement
 
+    @surface.safeword-cli
+    Scenario: A heading number is not part of a principle's identity
+      Given a configured principle heading is numbered
+      And the implementation plan names that principle without the number
+      When the objective audit runs
+      Then the principle trace is accepted
+
   @project-knowledge.SWM1.R1
   Rule: project-knowledge.SWM1.R1 — Principles, personas, and surfaces share a safe configured-path lifecycle
 

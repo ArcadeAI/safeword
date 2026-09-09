@@ -990,6 +990,51 @@ command = "npx --yes safeword hook codex pre-tool-use"
     expect(result.stderr).toContain('unsupported output in exit-code mode');
   });
 
+  it('keeps packaged OpenCode hooks authoritative when legacy project hooks exist', () => {
+    const { packageDirectory, projectDirectory } = createPackagedCliFixture();
+    symlinkSync(
+      nodePath.resolve(import.meta.dirname, '../../node_modules'),
+      nodePath.join(packageDirectory, 'node_modules'),
+      'dir',
+    );
+    cpSync(
+      nodePath.join(packageDirectory, 'templates/hooks'),
+      nodePath.join(projectDirectory, '.safeword/hooks'),
+      { recursive: true },
+    );
+    writeFileSync(
+      nodePath.join(projectDirectory, '.safeword/hooks/codex/pre-tool-quality.ts'),
+      `process.stdout.write('project hook executed');\n`,
+    );
+    writeFileSync(
+      nodePath.join(packageDirectory, 'templates/hooks/codex/pre-tool-quality.ts'),
+      `process.stdout.write(JSON.stringify({ hookSpecificOutput: { permissionDecision: 'deny' } }));\n`,
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [nodePath.join(packageDirectory, 'dist/cli.js'), 'hook', 'codex', 'pre-tool-use'],
+      {
+        cwd: projectDirectory,
+        env: {
+          ...process.env,
+          SAFEWORD_AGENT_RUNTIME: 'opencode',
+          SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+        },
+        input: JSON.stringify({
+          session_id: 'legacy-runtime-session',
+          tool_name: 'Bash',
+          tool_input: { command: 'echo safe' },
+        }),
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(2);
+    expect(result.stderr).toContain('unsupported output in exit-code mode');
+    expect(result.stdout).not.toContain('project hook executed');
+  });
+
   it('allows a safe command after bunx replaces the packaged PreToolUse hook tree', async () => {
     const allowed = await runHookWhilePackageIsReplaced("sed -n '1,20p' README.md");
     expect(allowed.status, allowed.stderr).toBe(0);

@@ -4,10 +4,11 @@
 // per-session quality state. Fires on Edit|Write|MultiEdit|NotebookEdit|Bash
 
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { isGitOperationInProgress } from './lib/git-operation.ts';
+import { ensureTransientStateIgnore } from './lib/project-state.ts';
 import { getQualityMessage } from './lib/quality.ts';
 import {
   getStateFilePath,
@@ -17,6 +18,7 @@ import {
 } from './lib/quality-state.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
 import {
+  hasSafewordProjectMarker,
   isNamespacePath,
   NAMESPACE_ROOT_DEFAULT,
   NAMESPACE_ROOT_LEGACY,
@@ -46,6 +48,12 @@ let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
+  process.exit(0);
+}
+
+// Profile plugins may run in any repository. Project state is only meaningful
+// after explicit Safeword enrollment; observing a tool must never enroll one.
+if (!hasSafewordProjectMarker(projectDirectory)) {
   process.exit(0);
 }
 
@@ -82,9 +90,12 @@ function loadState(): QualityState {
 }
 
 function saveState(state: QualityState): void {
-  const dir = nodePath.dirname(stateFile);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
+  if (!existsSync(stateFile)) {
+    ensureTransientStateIgnore(
+      projectDirectory,
+      nodePath.basename(stateFile),
+      '/quality-state-*.json',
+    );
   }
   writeFileSync(stateFile, JSON.stringify(state, null, 2));
 }

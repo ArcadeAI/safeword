@@ -1306,11 +1306,15 @@ describe('package test runner lock (379)', () => {
       // avoids the package build and serialization path (#1484).
       'test:smoke:live:github',
     ]);
+    const invokesVitest = (command: string): boolean =>
+      /(?:^|[;&|]\s*|\s)(?:bunx\s+)?vitest(?:\s|$)/u.test(command);
     const vitestScripts = Object.entries(scripts).filter(
       ([name, command]) =>
         name.startsWith('test') &&
         !name.startsWith('pretest') &&
-        (/\bvitest\b/.test(command) || vitestWrapperScripts.has(command)),
+        (invokesVitest(command) ||
+          command.includes('run-vitest-with-build-lock.mjs') ||
+          vitestWrapperScripts.has(command)),
     );
     // Guard against a vacuous pass: there must be vitest-running scripts to check.
     expect(vitestScripts.length).toBeGreaterThan(3);

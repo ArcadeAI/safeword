@@ -51,6 +51,7 @@ import {
 import { captureRetroFilingFault } from '../../templates/hooks/lib/self-report.js';
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import {
+  CHECKED_IN_LOCAL_RETRO_PRODUCTION_ATTESTATION,
   CHECKED_IN_LOCAL_RETRO_READINESS,
   validateLocalRetroReadiness,
 } from '../retro/local-retro-readiness.js';
@@ -1372,7 +1373,7 @@ export function resolvePublicRetroRoute(input: {
     validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
       ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
       buildCommit: SAFEWORD_BUILD_COMMIT,
-      now: new Date(),
+      productionAttestation: CHECKED_IN_LOCAL_RETRO_PRODUCTION_ATTESTATION,
       relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,
     });
   const useServerRoute = localServerRouteEnabled(localSource, serverReady || isCanary);

@@ -92,6 +92,12 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: Legacy collector rows are never leased to the worker
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ### Scenario: A typed intake rejection preserves local diagnosis
 
 - [x] RED
@@ -104,9 +110,15 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: Reusing one request identity with different bytes returns a typed conflict and preserves the accepted bytes
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ## Rule: local-retro-cutover.TBU1.R3 — Raw GitHub bodies are duplicate authority
 
-### Scenario: Exact authority markers suppress a duplicate create
+### Scenario: Exact authority markers found by an all-state raw-body scan suppress a duplicate create
 
 - [x] RED
 - [x] GREEN
@@ -118,19 +130,31 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: A relay-owned marker on a closed issue suppresses a duplicate create
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ## Rule: local-retro-cutover.TBU1.R4 — Accepted intake is safe and relay-compatible
 
-### Scenario: The largest relay-compatible normalized batch is accepted
+### Scenario: The largest normalized batch within the 60 KB rendered-body limit is accepted
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: The largest accepted batch remains relay-compatible
+### Scenario: The largest accepted batch remains within the 256 KiB envelope limit and preserves every finding
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
+
+### Scenario: Collector-envelope and relay filing-payload digests cannot substitute for one another
+
+- [x] RED skip: implementation predates scenario; removing the envelope-digest comparison made this test receive 201 instead of 409
+- [x] GREEN 71ad212b9
+- [x] REFACTOR skip: the existing production guard is already minimal and the focused boundary test adds no reusable abstraction
 
 ### Scenario: An oversized envelope is rejected before storage
 
@@ -156,6 +180,12 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: The collector-worker principal has only ingest authority and leaves existing principal roles unchanged
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ## Rule: local-retro-cutover.TBU1.R5 — Server ownership survives interrupted filing
 
 ### Scenario: A claim crash is reclaimed and filed once
@@ -171,6 +201,24 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] REFACTOR
 
 ### Scenario: Incomplete ambiguity scan retains the request for reconciliation
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Relay acceptance anchors one retry deadline that remains stable
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Existing direct relay clients retain their caller-supplied retry deadline
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Retry deadline exhaustion produces a durable alert
 
 - [x] RED
 - [x] GREEN
@@ -224,15 +272,39 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ## Rule: local-retro-cutover.SWM1.R1 — Real harness canaries precede global cutover
 
-### Scenario: A real harness canary proves terminal production filing
+### Scenario: A real Claude Code session proves terminal production filing
 
-- [ ] CAPTURED
+- [x] CAPTURED
+- [ ] VERIFIED — terminal filing is verified; session-scope correlation remains to be recorded
+- [ ] LINKED IN READINESS MANIFEST
+
+### Scenario: A real Codex session proves terminal production filing
+
+- [x] CAPTURED
+- [x] VERIFIED
+- [ ] LINKED IN READINESS MANIFEST
+
+### Scenario: A real Cursor session proves terminal production filing
+
+- [ ] CAPTURED — recapture through a host-bound Cursor Desktop lifecycle and record its session scope
 - [ ] VERIFIED
 - [ ] LINKED IN READINESS MANIFEST
 
 ## Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance
 
-### Scenario: Cursor host detection records truthful provenance
+### Scenario: Canary selection preserves an indeterminate runtime classification and refuses the server route
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Cursor local readiness requires positive host-bound Desktop lifecycle evidence
+
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
+
+### Scenario: Enabling one harness canary leaves every other harness on its existing route
 
 - [x] RED
 - [x] GREEN
@@ -276,42 +348,94 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Complete truthful evidence enables global cutover
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
+
+### Scenario: Stale production verification cannot enable global cutover
+
+- [x] RED dbcba1337
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
+
+### Scenario: A released cutover does not expire against the customer's wall clock
+
+- [x] RED 4f1b148b5
+- [x] GREEN ccc30eb85
+- [x] REFACTOR skip: freshness now has one owner at the release boundary
 
 ### Scenario: Unavailable production authority keeps global cutover disabled
 
 - [x] RED
 - [x] GREEN
-- [x] REFACTOR
+- [x] REFACTOR 03aca01b4
 
 ### Scenario: Managed Cursor evidence cannot satisfy local readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
+
+### Scenario: Checked-in harness evidence cannot authorize cutover without protected production agreement
+
+- [x] RED c4ed22394
+- [x] GREEN 3fc71c7ea
+- [x] REFACTOR skip: one exact comparison covers build, artifact, and lifecycle authority
 
 ### Scenario: Missing harness evidence keeps the global cutover disabled
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 538ddb0b0
+- [x] GREEN cb98cb7d3
+- [x] REFACTOR skip: exact-key validation shares the existing completeness helper
+
+### Scenario: Socket presence without a real harness session cannot satisfy readiness
+
+- [x] RED 5f2388f38
+- [x] GREEN 5b43f4142
+- [x] REFACTOR skip: the lifecycle correlation predicate is already shared by all harnesses
 
 ### Scenario: Indeterminate Cursor provenance cannot satisfy local readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
 
 ### Scenario: Mismatched build ancestry cannot satisfy readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbcba1337
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
+
+### Scenario: Release verification consults real Git ancestry instead of trusting manifest pairs
+
+- [x] RED 4f1b148b5
+- [x] GREEN ccc30eb85
+- [x] REFACTOR c7813cdd2
+
+### Scenario: Every harness rejects collector and relay receipts whose request identity or session scope does not correlate end to end
+
+- [x] RED 5f2388f38
+- [x] GREEN 5b43f4142
+- [x] REFACTOR skip: one verifier path correlates the same identity and session fields for all three harnesses
+
+### Scenario: Readiness retrieves a closed canary by exact issue GET and validates its raw body
+
+- [x] RED 5f2388f38
+- [x] GREEN 5b43f4142
+- [x] REFACTOR skip: exact raw marker validation is one focused helper
 
 ### Scenario: A fault artifact without recovery evidence cannot enable cutover
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 538ddb0b0
+- [x] GREEN cb98cb7d3
+- [x] REFACTOR skip: fault completeness is a single exact-key-and-hash predicate
+
+### Scenario: Checked-in fault digests cannot authorize cutover without protected production agreement
+
+- [x] RED 980a1a677
+- [x] GREEN 30fc8f3d8
+- [x] REFACTOR skip: exact comparison against the protected value is already minimal
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario

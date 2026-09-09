@@ -5,6 +5,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -12,7 +13,10 @@ import { describe, expect, it } from 'vitest';
 import { createTemporaryDirectory, initGitRepo, writeTestFile } from '../helpers.js';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const POST_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-quality.ts');
+const POST_TOOL_QUALITY = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/post-tool-quality.ts',
+);
 const TICKET_FOLDER = '.safeword-project/tickets/ABC123-demo';
 
 interface ToolInput {
@@ -26,6 +30,7 @@ function project(): string {
   const dir = createTemporaryDirectory();
   initGitRepo(dir);
   writeTestFile(dir, '.safeword-project/.gitkeep', '');
+  writeTestFile(dir, '.safeword/SAFEWORD.md', '# enrolled\n');
   writeTestFile(dir, 'init.txt', 'init');
   execSync('git add . && git commit -m init', { cwd: dir, stdio: 'pipe' });
   return dir;
@@ -46,7 +51,7 @@ function run(cwd: string, toolName: string, toolInput: ToolInput, sessionId = 's
   });
   const out = (result.stdout ?? '').trim();
   const context = out ? JSON.parse(out).hookSpecificOutput?.additionalContext : undefined;
-  return { out, context };
+  return { status: result.status, out, context };
 }
 
 function ticketPath(cwd: string): string {
@@ -66,6 +71,48 @@ function defsPath(cwd: string): string {
 }
 
 describe('PostToolUse implement-step review surface (JENFZX)', () => {
+  it.each(['Codex', 'Claude Code', 'OpenCode', 'Cursor'])(
+    'ignores a missing runtime state file before creating it for %s',
+    _host => {
+      const cwd = project();
+
+      const result = run(cwd, 'Edit', { file_path: 'init.txt' });
+
+      expect(result.status).toBe(0);
+      expect(readFileSync(nodePath.join(cwd, '.safeword-project/.gitignore'), 'utf8')).toBe(
+        '/quality-state-*.json\n',
+      );
+      expect(existsSync(nodePath.join(cwd, '.safeword-project/quality-state-s1.json'))).toBe(true);
+      expect(existsSync(nodePath.join(cwd, '.safeword/hooks'))).toBe(false);
+    },
+  );
+
+  it('uses one stable ignore rule across runtime sessions', () => {
+    const cwd = project();
+
+    expect(run(cwd, 'Edit', { file_path: 'first.txt' }, 's1').status).toBe(0);
+    expect(run(cwd, 'Edit', { file_path: 'second.txt' }, 's2').status).toBe(0);
+
+    expect(readFileSync(nodePath.join(cwd, '.safeword-project/.gitignore'), 'utf8')).toBe(
+      '/quality-state-*.json\n',
+    );
+    expect(existsSync(nodePath.join(cwd, '.safeword-project/quality-state-s2.json'))).toBe(true);
+  });
+
+  it('does not create knowledge, ignore policy, or state in an unenrolled repository', () => {
+    const cwd = createTemporaryDirectory();
+    initGitRepo(cwd);
+    writeTestFile(cwd, 'init.txt', 'init');
+    execSync('git add . && git commit -m init', { cwd, stdio: 'pipe' });
+
+    const result = run(cwd, 'Edit', { file_path: 'init.txt' });
+
+    expect(result.status).toBe(0);
+    expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
+  });
+
   it('surfaces no user-facing review on a RED flip during implement (JENFZX)', () => {
     const cwd = project();
     const { context } = run(cwd, 'Edit', {

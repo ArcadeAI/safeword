@@ -22,7 +22,7 @@ import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { createBestEffortByteSink } from '../cli-protocol/policy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { retryCommand } from './command.js';
-import { isReviewKind, type ReviewKind } from './contract.js';
+import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
 import { reviewWorkerRunBoundMs } from './runtime.js';
 
@@ -36,6 +36,7 @@ interface ReviewJobRecord {
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
+  readonly execution?: RedExecutionRequest;
   readonly source_fingerprint: string;
   readonly started_at: string;
   readonly updated_at: string;
@@ -126,16 +127,54 @@ function withRecordIntegrity(cwd: string, record: ReviewJobRecord): ReviewJobRec
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
 
+interface LedgerFingerprintContext {
+  readonly context: readonly string[];
+  readonly missing: boolean;
+}
+
+function ledgerFingerprintContext(
+  cwd: string,
+  targets: readonly string[],
+  context: readonly string[],
+  execution?: RedExecutionRequest,
+): LedgerFingerprintContext {
+  if (execution === undefined) return { context, missing: false };
+
+  const canonicalRoot = realpathSync.native(cwd);
+  const ledgerPath = nodePath.resolve(canonicalRoot, execution.ledger);
+  if (pathEscapes(canonicalRoot, ledgerPath)) {
+    throw new Error(`Executable RED ledger escapes the project: ${execution.ledger}`);
+  }
+
+  const missing = !existsSync(ledgerPath);
+  const included = [...targets, ...context].some(
+    target => nodePath.resolve(canonicalRoot, target) === ledgerPath,
+  );
+  return {
+    context: included || missing ? context : [...context, execution.ledger],
+    missing,
+  };
+}
+
 function fingerprint(
   cwd: string,
   kind: ReviewKind,
   targets: readonly string[],
   context: readonly string[] = [],
+  execution?: RedExecutionRequest,
 ): string {
-  const prepared = prepareReviewPacket(cwd, kind, targets, context);
+  // A GREEN receipt is bound to the ledger state that the reviewer approved,
+  // not just to the human-readable scenario label. Otherwise a later heading
+  // rename could make an old receipt appear to cover a different scenario.
+  const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
+  const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
+    allowMissing: true,
+  });
   try {
     const hash = createHash('sha256');
     hash.update(`kind\0${kind}\0`);
+    if (execution !== undefined) hash.update(`execution\0${JSON.stringify(execution)}\0`);
+    if (ledger.missing) hash.update('ledger\0missing\0');
     for (const [section, files] of [
       ['targets', prepared.packet.logical_files],
       ['context', prepared.packet.context_files ?? []],
@@ -152,6 +191,13 @@ function fingerprint(
   } finally {
     prepared.cleanup();
   }
+}
+
+function pathEscapes(root: string, candidate: string): boolean {
+  const relative = nodePath.relative(root, candidate);
+  return (
+    relative === '..' || relative.startsWith(`..${nodePath.sep}`) || nodePath.isAbsolute(relative)
+  );
 }
 
 function writeJob(cwd: string, record: ReviewJobRecord): ReviewJobRecord {
@@ -255,11 +301,32 @@ function hasReviewJobIdentity(candidate: Record<string, unknown>): boolean {
     hasStrings &&
     isStringArray(candidate.targets) &&
     isOptional(candidate.context, isStringArray) &&
+    (candidate.kind === 'executable-red'
+      ? isRedExecutionRequest(candidate.execution)
+      : candidate.execution === undefined) &&
     isOptional(
       candidate.deadline_at,
       value => typeof value === 'string' && Number.isFinite(Date.parse(value)),
     ) &&
     isReviewKind(candidate.kind)
+  );
+}
+
+function isRedExecutionRequest(value: unknown): value is RedExecutionRequest {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    ['scenario', 'ledger', 'cwd', 'expectedFailure'].every(
+      key => typeof candidate[key] === 'string' && candidate[key].length > 0,
+    ) &&
+    Array.isArray(candidate.argv) &&
+    candidate.argv.length > 0 &&
+    candidate.argv.every(argument => typeof argument === 'string') &&
+    ['pure-contract', 'simulated-host', 'local-live-host', 'external-live-host'].includes(
+      candidate.evidenceClass as string,
+    ) &&
+    Number.isSafeInteger(candidate.timeoutMs) &&
+    (candidate.timeoutMs as number) > 0
   );
 }
 
@@ -422,7 +489,7 @@ function staleResult(record: ReviewJobRecord): CliResult {
     ],
     nextActions: [
       {
-        command: retryCommand(record.kind, record.targets, record.context),
+        command: retryCommand(record.kind, record.targets, record.context, record.execution),
         mutates: true,
         requiresHuman: false,
       },
@@ -502,7 +569,10 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
     });
   }
   try {
-    if (fingerprint(cwd, record.kind, record.targets, record.context) !== record.source_fingerprint)
+    if (
+      fingerprint(cwd, record.kind, record.targets, record.context, record.execution) !==
+      record.source_fingerprint
+    )
       return staleResult(record);
   } catch {
     return staleResult(record);
@@ -680,13 +750,24 @@ export async function startReviewJob(input: {
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
+  readonly execution?: RedExecutionRequest;
   readonly progress?: Pick<ProgressReporter, 'heartbeat' | 'managed' | 'start'>;
 }): Promise<CliResult> {
   const context = input.context ?? [];
-  const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
+  const sourceFingerprint = fingerprint(
+    input.cwd,
+    input.kind,
+    input.targets,
+    context,
+    input.execution,
+  );
   mkdirSync(jobsDirectory(input.cwd), { recursive: true, mode: 0o700 });
   const reserved = withFileLock(nodePath.join(jobsDirectory(input.cwd), 'start.lock'), () => {
-    const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
+    const existing =
+      runningJob(input.cwd, input.kind, sourceFingerprint) ??
+      (input.kind === 'executable-red'
+        ? reusableApprovedExecutableRedJob(input.cwd, sourceFingerprint)
+        : undefined);
     if (existing !== undefined) return { existing: true as const, record: existing };
     const now = new Date().toISOString();
     const record: ReviewJobRecord = {
@@ -696,6 +777,7 @@ export async function startReviewJob(input: {
       kind: input.kind,
       targets: input.targets,
       context,
+      execution: input.execution,
       source_fingerprint: sourceFingerprint,
       started_at: now,
       updated_at: now,
@@ -705,7 +787,7 @@ export async function startReviewJob(input: {
     writeJob(input.cwd, record);
     return { existing: false as const, record };
   });
-  if (reserved.existing) return pendingResult(reserved.record);
+  if (reserved.existing) return currentResult(input.cwd, reserved.record);
   const record = reserved.record;
   const id = record.id;
   const entrypoint = cliEntrypoint();
@@ -835,6 +917,26 @@ function terminateReviewWorker(pid: number): void {
 export function completeReviewJob(cwd: string, id: string, result: CliResult): void {
   withJobLock(cwd, id, () => {
     const record = readJob(cwd, id);
+    if (record.state === 'completed') {
+      const invalidated = createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: 'REVIEW_JOB_PREEMPTED',
+            message: 'The review record completed before its worker published the result.',
+            retryable: true,
+          },
+        ],
+        data: { command: 'review run', status: 'failed', review_id: id },
+      });
+      writeJob(cwd, {
+        ...record,
+        state: 'failed',
+        result: invalidated,
+        updated_at: new Date().toISOString(),
+      });
+      return;
+    }
     if (record.state !== 'launching' && record.state !== 'running') return;
     const completed: ReviewJobRecord = {
       ...record,
@@ -853,6 +955,8 @@ export function reviewJobWorkerInput(
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context: readonly string[];
+  readonly execution?: RedExecutionRequest;
+  readonly sourceFingerprint: string;
 } {
   const record = withJobLock(cwd, id, () => {
     const current = readJob(cwd, id);
@@ -867,7 +971,13 @@ export function reviewJobWorkerInput(
     writeJob(cwd, claimed);
     return claimed;
   });
-  return { kind: record.kind, targets: record.targets, context: record.context ?? [] };
+  return {
+    kind: record.kind,
+    targets: record.targets,
+    context: record.context ?? [],
+    execution: record.execution,
+    sourceFingerprint: record.source_fingerprint,
+  };
 }
 
 function latestJobId(cwd: string): string | undefined {
@@ -993,6 +1103,146 @@ function runningJob(
     }
   }
   return undefined;
+}
+
+function reusableApprovedExecutableRedJob(
+  cwd: string,
+  sourceFingerprint: string,
+): ReviewJobRecord | undefined {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory)) return undefined;
+  for (const name of readdirSync(directory)) {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name)) continue;
+    try {
+      const record = readJob(cwd, name.slice(0, -5));
+      if (
+        record.kind === 'executable-red' &&
+        record.source_fingerprint === sourceFingerprint &&
+        approvedCrossAgentReceipt(record)
+      )
+        return record;
+    } catch {
+      // Invalid receipts cannot cover a new proof request.
+    }
+  }
+  return undefined;
+}
+
+function hasIndependentApproval(data: Record<string, unknown> | undefined): boolean {
+  const reviewerOutput = data?.reviewer_output as Record<string, unknown> | undefined;
+  const actualReviewer = data?.actual_reviewer;
+  return [
+    data?.status === 'approved',
+    data?.independence === 'cross-agent',
+    typeof data?.author_agent === 'string',
+    ['claude', 'codex', 'opencode'].includes(actualReviewer as string),
+    data?.author_agent !== actualReviewer,
+    reviewerOutput?.reviewer_agent === actualReviewer,
+  ].every(Boolean);
+}
+
+function hasFailingExecutionAttestation(
+  attestation: Record<string, unknown> | undefined,
+  sourceFingerprint: string,
+): boolean {
+  const expectedFailure = attestation?.expected_failure as Record<string, unknown> | undefined;
+  const termination = attestation?.termination as Record<string, unknown> | undefined;
+  return [
+    attestation?.source_fingerprint === sourceFingerprint,
+    expectedFailure?.matched === true,
+    typeof termination?.exit_code === 'number',
+    termination?.exit_code !== 0,
+    termination?.timed_out === false,
+  ].every(Boolean);
+}
+
+function approvedCrossAgentReceipt(record: ReviewJobRecord): boolean {
+  const data = record.result?.data as Record<string, unknown> | undefined;
+  const attestation = data?.execution_attestation as Record<string, unknown> | undefined;
+  return (
+    record.state === 'completed' &&
+    (record.pid === undefined || inspectReviewWorker(record.pid, record.id) !== 'match') &&
+    hasIndependentApproval(data) &&
+    hasFailingExecutionAttestation(attestation, record.source_fingerprint)
+  );
+}
+
+function executableRedJobsForScenario(
+  cwd: string,
+  scenario: string,
+  ledger: string,
+): ReviewJobRecord[] {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory).flatMap(name => {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
+    try {
+      const record = readJob(cwd, name.slice(0, -5));
+      return record.kind === 'executable-red' &&
+        record.execution?.scenario === scenario &&
+        nodePath.resolve(cwd, record.execution.ledger) === nodePath.resolve(cwd, ledger)
+        ? [record]
+        : [];
+    } catch {
+      return []; // Invalid or fabricated records cannot authorize GREEN.
+    }
+  });
+}
+
+function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
+  try {
+    return (
+      fingerprint(cwd, record.kind, record.targets, record.context, record.execution) ===
+      record.source_fingerprint
+    );
+  } catch {
+    return false;
+  }
+}
+
+function approvedExecutableRedGateResult(
+  record: ReviewJobRecord,
+  scenario: string,
+  ledger: string,
+): CliResult {
+  return createResult({
+    state: 'healthy',
+    findings: [
+      {
+        code: 'EXECUTABLE_RED_GATE_APPROVED',
+        message: `GREEN is authorized for ${scenario} by a fresh independent executable RED review.`,
+        severity: 'info',
+      },
+    ],
+    data: {
+      command: 'review gate executable-red',
+      status: 'approved',
+      review_id: record.id,
+      scenario,
+      ledger,
+    },
+  });
+}
+
+export function executableRedGate(cwd: string, scenario: string, ledger: string): CliResult {
+  const matching = executableRedJobsForScenario(cwd, scenario, ledger);
+  const current = matching.filter(record => hasCurrentFingerprint(cwd, record));
+  const approved = current.find(record => approvedCrossAgentReceipt(record));
+  if (approved !== undefined) return approvedExecutableRedGateResult(approved, scenario, ledger);
+
+  let reason =
+    matching.length > 0
+      ? `The current executable RED review for ${scenario} is not an approved independent receipt.`
+      : `No trusted executable RED receipt matches ${scenario}.`;
+  reason =
+    matching.length > 0 && current.length === 0
+      ? `The executable RED approval for ${scenario} is stale because its declared proof inputs changed.`
+      : reason;
+  return createResult({
+    state: 'action_required',
+    findings: [{ code: 'EXECUTABLE_RED_GATE_BLOCKED', message: reason, severity: 'warning' }],
+    data: { command: 'review gate executable-red', status: 'blocked', scenario, ledger },
+  });
 }
 
 function isActiveReviewJob(record: ReviewJobRecord): boolean {

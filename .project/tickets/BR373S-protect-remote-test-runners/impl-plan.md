@@ -126,7 +126,7 @@ and the managed workflow upgrade path.
 
 | Principle | Consequence | Proof |
 | --- | --- | --- |
-| 1. Structure enforces; instructions suggest | The schema catalogues but omits the candidate until explicit lifecycle code installs admitted bytes | [Focused contract evidence](.project/tickets/BR373S-protect-remote-test-runners/test-definitions.md#rule-remote-runnertbu1r3-repository-code-receives-only-the-admitted-read-only-authority-and-immutable-workflow-dependencies) |
+| 1. Structure enforces; instructions suggest | The schema catalogues but omits the candidate until explicit lifecycle code installs admitted bytes | [Focused contract evidence](.project/tickets/BR373S-protect-remote-test-runners/test-definitions.md#rule-remote-runnertbu1r3--repository-code-receives-only-the-admitted-read-only-authority-and-immutable-workflow-dependencies) |
 | 5. Correct and safe; then clear; then simple | One workflow, one small evaluator, and four result states | [Complete RED/GREEN/REFACTOR ledger](.project/tickets/BR373S-protect-remote-test-runners/test-definitions.md) |
 
 The always-omitted generator is an existing schema capability already used for

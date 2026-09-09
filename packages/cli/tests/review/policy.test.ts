@@ -62,6 +62,18 @@ describe('review route policy', () => {
     ]);
   });
 
+  it('excludes legacy model settings when an ordered route list is configured', () => {
+    const cwd = project({
+      crossAgentReviewRoutes: { claude: [{ reviewer: 'opencode', model: 'vendor/model-b' }] },
+      crossAgentReviewPrimaryModel: { codex: 'legacy-primary' },
+      crossAgentReviewAlternateModel: { codex: 'legacy-alternate' },
+    });
+
+    expect(readConfiguredReviewRoutes(cwd, 'claude')).toEqual([
+      { reviewer: 'opencode', model: 'vendor/model-b', independence: 'cross-agent' },
+    ]);
+  });
+
   it.each([
     { crossAgentReviewRoutes: { claude: [] } },
     { crossAgentReviewRoutes: { claude: [{ reviewer: 'codex', model: '--quiet' }] } },

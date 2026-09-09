@@ -14,7 +14,6 @@ import {
   isAcceptedHistoricalHookFile,
 } from '../historical-ownership.js';
 import {
-  CLAUDE_MIGRATION_SCHEMA,
   CLAUDE_NATIVE_METADATA_FILES,
   CLAUDE_NATIVE_REQUIRED_ASSETS,
   claudeNativePayloadFiles,
@@ -23,13 +22,18 @@ import {
   advisoryStateDigest,
   claimClaudeMigrationAdvisory,
   claimClaudeMigrationAttempt,
-  claudeConfigDirectory,
+  claudeProjectStatePath,
   claudeWatchedSettingsDigest,
   pluginModeIsTerminal,
   readClaudePluginMode,
   removeLegacyClaudePluginMode,
   writeClaudeMigrationAttention,
 } from '../migration-state.js';
+import {
+  claudeConfigDirectory,
+  claudeProjectDigest,
+  claudeProofDirectory,
+} from '../plugin-data.js';
 import { canonicalClaudeProjectRoot } from '../project-root.js';
 
 interface PluginIdentityV1 {
@@ -283,8 +287,7 @@ function recordExecutionProof(
   ) {
     return;
   }
-  const projectDigest = createHash('sha256').update(projectRoot).digest('hex');
-  writeDurableRecord(nodePath.join(pluginData, 'execution-proofs-v2'), `${projectDigest}.json`, {
+  writeDurableRecord(claudeProofDirectory(), `${claudeProjectDigest(projectRoot)}.json`, {
     schema_version: 2,
     project_root: projectRoot,
     plugin_version: identity.plugin_version,
@@ -590,9 +593,7 @@ function scopeOverlapExecution(
 }
 
 function automaticMigrationAttemptKind(projectRoot: string): 'migration' | 'recovery' {
-  return existsSync(nodePath.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))
-    ? 'recovery'
-    : 'migration';
+  return existsSync(claudeProjectStatePath(projectRoot, 'transaction')) ? 'recovery' : 'migration';
 }
 
 function automaticMigrationProjectRoot(

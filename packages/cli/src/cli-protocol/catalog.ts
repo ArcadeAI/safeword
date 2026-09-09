@@ -366,6 +366,21 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),
+  command('project audit-scope', 'Print the packaged audit scope shell contract', 'observe', {
+    syntax: 'audit-scope',
+  }),
+  command('project record-skill-invocation', 'Record current-run workflow proof', 'mutate', {
+    syntax: 'record-skill-invocation <skill> [session-id]',
+  }),
+  command(
+    'project runtime',
+    'Run an allowlisted packaged helper with the helper arguments after --',
+    'destructive',
+    {
+      syntax: 'runtime <helper> [args...]',
+      networkPolicy: 'declared',
+    },
+  ),
   command('project retro-drain', 'Drain acknowledged retro drafts from a spool', 'mutate', {
     syntax: 'retro-drain <spool>',
     commandOptions: [
@@ -554,6 +569,36 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         description: 'Internal detached-worker identity',
         hidden: true,
       },
+      {
+        flags: '--scenario <name>',
+        description: 'Exact scenario identity covered by this RED proof',
+      },
+      {
+        flags: '--ledger <path>',
+        description: 'Project-relative test-definitions ledger containing the scenario',
+      },
+      {
+        flags: '--proof-cwd <path>',
+        description: 'Project-contained working directory for the RED proof',
+        defaultValue: '.',
+      },
+      {
+        flags: '--evidence-class <class>',
+        description: 'pure-contract, simulated-host, local-live-host, or external-live-host',
+      },
+      {
+        flags: '--expected-failure <literal>',
+        description: 'Literal output that identifies the intended RED failure',
+      },
+      {
+        flags: '--execution-timeout <milliseconds>',
+        description: 'Bounded RED proof execution time',
+        defaultValue: '120000',
+      },
+      {
+        flags: '--execute <json-argv>',
+        description: 'Exact JSON argv array; runs directly without a shell',
+      },
     ],
     exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
     fixture: {
@@ -565,6 +610,31 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     syntax: 'status [review-id]',
     fixture: {
       argv: ['review', 'status'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review gate executable-red', 'Check whether a scenario may claim GREEN', 'observe', {
+    syntax: 'executable-red',
+    commandOptions: [
+      {
+        flags: '--scenario <name>',
+        description: 'Exact scenario identity whose current RED receipt is required',
+      },
+      {
+        flags: '--ledger <path>',
+        description: 'Project-relative test-definitions ledger claiming GREEN',
+      },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'gate',
+        'executable-red',
+        '--scenario',
+        'Scenario: fixture',
+        '--ledger',
+        '.project/tickets/FIXTURE/test-definitions.md',
+      ],
       environment: MACHINE_ENVIRONMENT,
     },
   }),
@@ -882,6 +952,7 @@ export const commandFamilies = [
   { route: 'claude', description: 'Manage the Safeword Claude plugin', visibility: 'public' },
   { route: 'ticket', description: 'Manage project tickets', visibility: 'public' },
   { route: 'review', description: 'Run independent adversarial reviews', visibility: 'public' },
+  { route: 'review gate', description: 'Check review admission gates', visibility: 'public' },
   { route: 'review routes', description: 'Manage ranked review routes', visibility: 'public' },
   {
     route: 'review-pr',

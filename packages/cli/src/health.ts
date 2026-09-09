@@ -24,7 +24,12 @@ import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
-import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, type SafewordSchema } from './schema.js';
+import {
+  BDD_LANE_FILE_PATHS,
+  BDD_LANE_SCRIPT,
+  SAFEWORD_TRANSIENT_ROOT_ENTRIES,
+  type SafewordSchema,
+} from './schema.js';
 import { inspectTicketIndexConflicts, readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
@@ -816,11 +821,7 @@ function findRelationAdvisories(cwd: string): string[] {
   ];
 }
 
-/**
- * Check for missing text patch markers
- * @param cwd
- * @param actions
- */
+/** Check for missing managed text-patch markers. */
 function findMissingPatches(
   cwd: string,
   actions: { type: string; path: string; definition?: { marker: string } }[],
@@ -894,6 +895,24 @@ function findMissingPythonToolDeclarations(
   ];
 }
 
+/**
+ * True only when `.safeword/` holds output a project install produced.
+ *
+ * Hooks and the native Claude plugin create `.safeword/` on their own, so its
+ * bare existence proves nothing (issue #3786). Anything outside the transient
+ * set is install output — chiefly `version`, the marker install writes and
+ * every version check reads.
+ */
+function hasProjectInstallOutput(safewordDirectory: string): boolean {
+  try {
+    return readdirSync(safewordDirectory).some(
+      entry => !SAFEWORD_TRANSIENT_ROOT_ENTRIES.includes(entry),
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function checkHealth(
   cwd: string,
   options: CheckHealthOptions = {},
@@ -901,7 +920,7 @@ export async function checkHealth(
   const safewordDirectory = nodePath.join(cwd, '.safeword');
 
   // Check if configured
-  if (!exists(safewordDirectory)) {
+  if (!hasProjectInstallOutput(safewordDirectory)) {
     return {
       configured: false,
       projectVersion: undefined,

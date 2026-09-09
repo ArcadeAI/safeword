@@ -1,10 +1,15 @@
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
-import { createTemporaryDirectory, runCli, runCliWithLiteralArguments } from '../helpers.js';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  runCli,
+  runCliWithLiteralArguments,
+} from '../helpers.js';
 import { installFakeCodexRuntime } from '../helpers/fake-codex-runtime.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -96,6 +101,28 @@ esac
 }
 
 describe('plan and remove wiring', () => {
+  let profileRoot: string;
+
+  beforeEach(() => {
+    // Removal also observes unselected consumers. These fixtures describe an
+    // empty profile unless a case explicitly supplies an installed host.
+    profileRoot = createTemporaryDirectory();
+    for (const [variable, host] of [
+      ['CODEX_HOME', 'codex'],
+      ['CLAUDE_CONFIG_DIR', 'claude'],
+      ['OPENCODE_CONFIG_DIR', 'opencode'],
+    ] as const) {
+      const directory = nodePath.join(profileRoot, host);
+      mkdirSync(directory);
+      vi.stubEnv(variable, directory);
+    }
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    removeTemporaryDirectory(profileRoot);
+  });
+
   it('previews reconciliation without changing the project', async () => {
     const directory = createTemporaryDirectory();
     configureMinimalProject(directory);
