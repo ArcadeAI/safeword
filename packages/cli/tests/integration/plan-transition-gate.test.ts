@@ -657,7 +657,12 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
       );
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), completed);
 
-    expect(evaluateImplementEntry(ticketDirectory, { evaluationDate: TODAY })).toEqual({
+    expect(
+      evaluateImplementEntry(ticketDirectory, {
+        evaluationDate: TODAY,
+        projectDirectory: projectRoot,
+      }),
+    ).toEqual({
       ok: true,
     });
   });
