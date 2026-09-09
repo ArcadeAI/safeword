@@ -25,7 +25,10 @@ done_when:
 phase_anchors:
   - define-behavior: .project/tickets/0HZBXF-keep-cachebusted-codex-plugins-operational/spec.md
   - scenario-gate: features/keep-cachebusted-codex-plugins-operational.feature
-  - implement: .project/tickets/0HZBXF-keep-cachebusted-codex-plugins-operational/impl-plan.md
+  - plan-implementation: .project/tickets/0HZBXF-keep-cachebusted-codex-plugins-operational/impl-plan.md
+  - implement: .project/tickets/0HZBXF-keep-cachebusted-codex-plugins-operational/test-definitions.md
+  - verify: .project/tickets/0HZBXF-keep-cachebusted-codex-plugins-operational/test-definitions.md
+  - done: .project/tickets/0HZBXF-keep-cachebusted-codex-plugins-operational/verify.md
 product_plan_contract: v1
 created: 2026-09-09T15:51:25.107Z
 last_modified: 2026-09-09T15:51:25.107Z
