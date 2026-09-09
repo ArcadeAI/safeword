@@ -7,7 +7,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -319,6 +319,20 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       stampPhaseModel('define-behavior', 'claude-sonnet-4-6');
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
       expectHookAllow(runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }));
+    });
+
+    it('ignores a different-model stamp that is not backed by a coordinator review', () => {
+      writeConfig(true, true);
+      stampPhaseModel('define-behavior', 'claude-opus-4-8');
+      appendFileSync(
+        nodePath.join(projectRoot, '.safeword-project', 'skill-invocations.log'),
+        '2026-06-03T00:00:00.000Z sess-1 review:ABC123:phase@define-behavior model:claude-sonnet-4-6 independence:none\n',
+      );
+
+      expectHookDeny(
+        runGateWrite('scenario-gate', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' }),
+        'cross-model',
+      );
     });
 
     it('blocks via the Edit path too when the stamp model equals the author', () => {

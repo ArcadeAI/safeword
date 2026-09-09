@@ -29,6 +29,7 @@ import {
   gatePhaseAdvance,
   hashArtifact,
   isCrossModelReviewRequired,
+  isSatisfyingPhaseReviewStamp,
   isReviewGateEnabled,
   reviewGateAppliesToPhase,
   modelsMatch,
@@ -836,7 +837,9 @@ if (isCanonicalTicketEdit) {
           isValidSkipReason(stamp.skipReason),
       )
     ) {
-      const realReviews = stamps.filter(s => s.scope === phaseScope && s.skipReason === undefined);
+      const realReviews = stamps.filter(stamp =>
+        isSatisfyingPhaseReviewStamp(phaseScope, stamp, crossAgentReviewPolicy()),
+      );
       const hasCrossModelReview = realReviews.some(
         s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
       );

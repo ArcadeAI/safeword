@@ -95,22 +95,35 @@ function hasSatisfyingStamp(
   return stamps.some(stamp => stamp.scope === id && isSatisfyingStamp(stamp, policy));
 }
 
+/** Whether a phase stamp records a cited coordinator review that satisfies the active policy. */
+export function isSatisfyingPhaseReviewStamp(
+  id: string,
+  stamp: ReviewStamp,
+  policy: CrossAgentReviewPolicy,
+): boolean {
+  return (
+    stamp.scope === id &&
+    stamp.skipReason === undefined &&
+    stamp.reviewId !== undefined &&
+    stamp.independence !== undefined &&
+    COORDINATOR_CLAIMS.has(stamp.independence) &&
+    isSatisfyingStamp(stamp, policy)
+  );
+}
+
 /** Phase exits require a cited coordinator review; only an explicit skip may bypass it. */
 function hasSatisfyingPhaseStamp(
   id: string,
   stamps: readonly ReviewStamp[],
   policy: CrossAgentReviewPolicy,
 ): boolean {
-  return stamps.some(stamp => {
-    if (stamp.scope !== id) return false;
-    if (stamp.skipReason !== undefined) return isValidSkipReason(stamp.skipReason);
-    return (
-      stamp.reviewId !== undefined &&
-      stamp.independence !== undefined &&
-      COORDINATOR_CLAIMS.has(stamp.independence) &&
-      isSatisfyingStamp(stamp, policy)
-    );
-  });
+  return stamps.some(
+    stamp =>
+      (stamp.scope === id &&
+        stamp.skipReason !== undefined &&
+        isValidSkipReason(stamp.skipReason)) ||
+      isSatisfyingPhaseReviewStamp(id, stamp, policy),
+  );
 }
 
 /**

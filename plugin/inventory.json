@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9ab3607e3db76b5cea4990b07ff4cc57c5d6b3523cf3c53c27762b22183f81ca"
+      "sha256": "cabdcdc4044d396ea5317b66850d0ce8cb8871a37c80477ed8c8f38ac444ce07"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "1c5f361a39de4aab7bd8d8c7231b41b93e4e45fbf9924322a5e221f1e03ef324"
+      "sha256": "5a47e22f10129dc80a3fb8a8fd24f292a008f60d9aefae5f01224f251a5f4763"
     },
     {
       "path": "runtime/event-groups.json",
@@ -375,7 +375,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "73c67df8d21ced6bf9bf334705673130553f27201274ffc7c24d00d5722eb8f5"
+      "sha256": "b1cd76871901401e49c377303041c4b86c8028986f89afdfa78a080143927f20"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "9ab30bb7945e664b069b43b2f5b2aaac9cd74feba9206a96bcc9164355726d64"
+      "sha256": "fcf765338531c46a9c1e032d645629c133613fc115d74baab85e1e1cb4deb5c3"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
