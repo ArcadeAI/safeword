@@ -23,7 +23,11 @@ function readConfig(cwd: string): SafewordConfig | undefined {
   const configPath = nodePath.join(cwd, CONFIG_PATH);
   const content = readFileSafe(configPath);
   if (!content) return undefined;
-  return JSON.parse(content) as SafewordConfig;
+  const config = JSON.parse(content) as SafewordConfig;
+  if (config.installedPacks !== undefined && !Array.isArray(config.installedPacks)) {
+    throw new TypeError('Safeword config installedPacks must be an array.');
+  }
+  return config;
 }
 
 function writeConfig(cwd: string, config: SafewordConfig): void {

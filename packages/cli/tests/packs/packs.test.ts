@@ -131,6 +131,16 @@ describe('Config Tracking', () => {
     expect(isPackInstalled(fixture.testDirectory, 'python')).toBe(true);
     expect(isPackInstalled(fixture.testDirectory, 'go')).toBe(false);
   });
+
+  it('rejects a non-array installedPacks value without rewriting config', () => {
+    const malformedConfig = '{"installedPacks":"python"}';
+    writeTestFile(fixture.testDirectory, '.safeword/config.json', malformedConfig);
+
+    expect(() => installPack('typescript', fixture.testDirectory)).toThrow(
+      'installedPacks must be an array',
+    );
+    expect(readTestFile(fixture.testDirectory, '.safeword/config.json')).toBe(malformedConfig);
+  });
 });
 
 // =============================================================================
