@@ -45,7 +45,7 @@ source share one ledger entry.
 
 ### Scenario: A Codex cachebuster does not alter other host catalogues
 
-- [ ] RED
+- [x] RED skip: Claude and Cursor isolation is an unchanged regression contract
 - [ ] GREEN
 - [ ] REFACTOR
 
