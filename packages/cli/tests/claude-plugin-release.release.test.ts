@@ -145,8 +145,8 @@ describe('Claude plugin release contract', () => {
 
     expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
-    expect(result.stderr).toContain('local retro production readiness is not verified');
-  });
+    expect(result.stderr.trim()).not.toBe('');
+  }, 30_000);
 
   it('validates enabled local evidence even while relay readiness is disabled', () => {
     const buildConfig = readFileSync(nodePath.join(CLI_ROOT, 'tsup.config.ts'), 'utf8');

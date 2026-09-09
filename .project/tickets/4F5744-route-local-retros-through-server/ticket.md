@@ -45,7 +45,7 @@ done_when:
 inspiration_contract: v1
 inspiration_contract_scaffold: v1
 created: 2026-08-30T00:19:30.350Z
-last_modified: 2026-09-06T22:27:00.000Z
+last_modified: 2026-09-09T02:04:00.000Z
 ---
 
 # Route local retros through the durable server without customer setup
@@ -126,3 +126,4 @@ Confirmed by tracing `publicRetroEligible` through `cursorPublicBindingMatches`,
 - 2026-09-08T18:08:00.000-07:00 Quality-review RED/GREEN: Revalidation found an open GitHub canary issue could satisfy the production gate and that the live host-class guard had no discriminating proof. Added release-boundary cases for open issues plus managed and unknown hosts; the verifier now requires a closed exact issue and still accepts harmless trailing newlines after the relay-owned marker tail. The focused verifier suite passes 18/18 and targeted lint passes.
 - 2026-09-08T18:26:00.000-07:00 Review follow-up: Pinned the protected `retro-production-readiness` environment in the release contract and aligned release-time Git artifact reads with the build's existing 10 MiB bound. Positive host-bound Claude and Cursor artifacts remain required before cutover; this disabled readiness slice does not substitute configured labels for that future evidence.
 - 2026-09-08T18:32:00.000-07:00 Release-wiring follow-up: Publication now accepts a skipped production verifier only after the build emits the exact boolean string `false`; a missing or renamed output blocks instead of silently taking the disabled branch. A release test executes the protected verifier with the workflow's exact source command and proves the checked-in disabled state fails closed before any production secret is needed.
+- 2026-09-08T19:04:00.000-07:00 Review follow-up: Decoupled the protected-verifier process test from the currently disabled manifest's exact error text, so enabling cutover will not break the release gate merely because the expected fail-closed reason changes to missing protected credentials. The test retains the real command, nonzero exit, empty success output, and adds the established 30-second cold-start allowance.
