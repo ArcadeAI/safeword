@@ -80,6 +80,7 @@ export function readReviewReceipt(
       independence: text('independence'),
       authorAgent: text('author_agent'),
       actualReviewer: text('actual_reviewer'),
+      reviewerModel: text('reviewer_model'),
     };
     // A legacy CLI may know the id but not expose the provenance fields this
     // gate requires. Let a later current, distribution-owned route answer.

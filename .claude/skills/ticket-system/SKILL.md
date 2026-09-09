@@ -163,13 +163,13 @@ single-action task.
 | Trigger                                                                | Template                                                              |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | Planning new feature scope OR creating feature spec                    | `spec-template.md` (auto-scaffolded at intake; JTBD + Numbered Rules) |
-| Writing a feature spec by hand in the older user-story format (legacy) | `./.safeword/templates/feature-spec-template.md`                      |
-| Bug, improvement, refactor, or internal task                           | `./.safeword/templates/task-spec-template.md`                         |
-| Need test definitions for a feature OR acceptance criteria             | `./.safeword/templates/test-definitions-feature.md`                   |
-| Feature spans 3+ components OR needs technical spec                    | `./.safeword/templates/design-doc-template.md`                        |
-| Making decision with long-term impact OR trade-offs                    | `./.safeword/templates/architecture-template.md`                      |
-| Recording a structural or hard-to-reverse decision as its own record   | `./.safeword/templates/adr-template.md`                               |
-| Planning a feature's implementation before TDD starts                  | `./.safeword/templates/impl-plan-template.md`                         |
-| Guarding a temporary upstream workaround so its removal isn't missed   | `./.safeword/templates/tripwire-template.md`                          |
-| Task needs context anchoring                                           | `./.safeword/templates/ticket-template.md`                            |
-| Starting execution of a plan, ticket, or spec                          | `./.safeword/templates/work-log-template.md`                          |
+| Writing a feature spec by hand in the older user-story format (legacy) | Use the legacy feature fields described below                         |
+| Bug, improvement, refactor, or internal task                           | Use the task fields described below                                   |
+| Need test definitions for a feature OR acceptance criteria             | Use the `$safeword:bdd` workflow                                      |
+| Feature spans 3+ components OR needs technical spec                    | Use the implementation-plan sections in `$safeword:bdd`               |
+| Making decision with long-term impact OR trade-offs                    | Use the configured architecture document                              |
+| Recording a structural or hard-to-reverse decision as its own record   | Use the configured architecture document's ADR format                 |
+| Planning a feature's implementation before TDD starts                  | Use the `$safeword:bdd` implementation-plan phase                     |
+| Guarding a temporary upstream workaround so its removal isn't missed   | Use the `$safeword:testing` tripwire procedure                        |
+| Task needs context anchoring                                           | Use the ticket fields described below                                 |
+| Starting execution of a plan, ticket, or spec                          | Append a timestamped entry to the ticket's work log                   |

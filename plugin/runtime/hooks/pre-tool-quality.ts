@@ -3,7 +3,7 @@
 // Two-purpose: LOC gate (blast radius control) + artifact prerequisite check
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -188,6 +188,59 @@ function crossAgentReviewPolicy() {
   return readCrossAgentReviewPolicy(
     existsSync(configFile) ? readFileSync(configFile, 'utf8') : undefined,
   );
+}
+
+function safewordCliCommand(): [string, ...string[]] {
+  const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
+  if (pluginCli !== undefined) return ['bun', pluginCli];
+  const installedCli = nodePath.join(
+    projectDirectory,
+    'node_modules',
+    'safeword',
+    'dist',
+    'cli.js',
+  );
+  if (existsSync(installedCli)) return ['bun', installedCli];
+  const sourceCli = nodePath.join(projectDirectory, 'packages', 'cli', 'src', 'cli.ts');
+  if (existsSync(sourceCli)) return ['bun', sourceCli];
+  return ['bunx', 'safeword'];
+}
+
+function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
+  const [executable, ...prefix] = safewordCliCommand();
+  const checked = spawnSync(
+    executable,
+    [
+      ...prefix,
+      '--json',
+      '--no-input',
+      '--cwd',
+      projectDirectory,
+      'review',
+      'gate',
+      'executable-red',
+      '--scenario',
+      scenario,
+      '--ledger',
+      ledger,
+    ],
+    { cwd: projectDirectory, encoding: 'utf8', timeout: 5000 },
+  );
+  try {
+    const parsed = JSON.parse(checked.stdout) as {
+      state?: unknown;
+      findings?: Array<{ message?: unknown }>;
+      data?: { status?: unknown };
+    };
+    if (checked.status === 0 && parsed.state === 'healthy' && parsed.data?.status === 'approved')
+      return undefined;
+    const message = parsed.findings?.find(finding => typeof finding.message === 'string')?.message;
+    return typeof message === 'string'
+      ? message
+      : 'The executable RED receipt check did not approve this scenario.';
+  } catch {
+    return 'The executable RED receipt check could not produce a valid result.';
+  }
 }
 
 // The review stamps both gates read from the shared skill-invocation-log
@@ -816,6 +869,23 @@ if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 't
         `Cannot mark "[x] ${transition.step}" with empty skip reason. Use "skip: <non-empty reason>".`,
         'The text after "skip:" must not be empty or whitespace-only. A real reason is the audit trail.',
       );
+    }
+    if (transition.step === 'GREEN') {
+      const scenario = transition.scenario;
+      if (scenario === undefined) {
+        deny(
+          'Cannot mark GREEN because Safeword could not identify the active scenario for executable RED review.',
+          'Leave GREEN unchecked, restore a standard Scenario heading with RED/GREEN/REFACTOR rows, then retry.',
+        );
+      }
+      const ledger = nodePath.relative(projectDirectory, editedFile);
+      const gateDenial = executableRedGateDenial(scenario, ledger);
+      if (gateDenial !== undefined) {
+        deny(
+          `Cannot mark GREEN without a fresh independent executable RED approval. ${gateDenial}`,
+          `Run the exact \`safeword review run executable-red --scenario ${JSON.stringify(scenario)} --ledger ${JSON.stringify(ledger)} ...\` request for the current proof, wait for independent approval, then retry this GREEN edit.`,
+        );
+      }
     }
   }
 }

@@ -1,7 +1,9 @@
 ---
 name: tdd-review
-description: Use when completing a TDD step and wanting a quality check. Reviews test quality after RED, implementation correctness after GREEN, and scenario completeness after REFACTOR.
+description: Quality check for a completed TDD step. Runs when safeword's TDD
+  flow finishes RED, GREEN, or REFACTOR; not a user-facing entry point.
 allowed-tools: '*'
+user-invocable: false
 ---
 
 # TDD Review
@@ -27,6 +29,31 @@ Key the review off the **last checked** box in the current scenario — that's t
 Depth scales with the step: lightweight after RED, moderate after GREEN, full after REFACTOR.
 
 ## After RED — adversarially review the test
+
+<!-- SAFEWORD:EXECUTABLE_RED_RUBRIC_START -->
+
+For an `executable-red` independent review, treat `execution_attestation` as the only execution
+evidence. Refuse author-pasted output, a missing attestation, or an attestation whose source
+fingerprint does not bind the supplied scenario, proof-plan row, primary proof target, and declared
+support files. Approval requires all of the following:
+
+- the exact attested command failed without timing out;
+- the expected-failure literal matched the attested full stdout or stderr stream;
+- the named proof exercises the scenario's actor-facing `When` and observes its actor-visible
+  `Then`;
+- the observed failure is the intended missing behavior at that boundary.
+
+Request changes when the failure is caused by syntax, imports, fixtures, configuration,
+infrastructure, an unrelated actor-boundary assertion, a passing command, timeout, or signal. Do
+not infer execution from cached suite status or the author's account. Explain the mismatch and name
+the exact proof or environment correction to make before retrying.
+
+<!-- SAFEWORD:EXECUTABLE_RED_RUBRIC_END -->
+
+GREEN credit is fail-closed: the shared edit hook calls `review gate executable-red` for the active
+scenario and permits the checkbox only for a fresh approved cross-agent receipt. An unavailable
+reviewer or author-only fallback is not approval; leave GREEN unchecked and report the named
+recovery action.
 
 Focused review (~1 minute). Check the test that was just written:
 
@@ -56,6 +83,7 @@ If issues found: fix before implementing. If clean: commit and proceed to implem
 Moderate review (~1-2 minutes). Check the implementation:
 
 - **Minimal?** Only code the test requires. No anticipatory design.
+- **Already exists?** Only when the step added shared surface — a helper, util, or type others would reach for. Grep for one before keeping yours; prefer the stdlib or an installed dependency over either. A duplicate gets fixed once and stays broken twice.
 - **Correct?** Does it actually satisfy the test's intent, not just make it pass by coincidence?
 - **No regressions?** Run the **targeted** suite for the module under test. The full-suite regression check belongs once per scenario, at scenario close (after REFACTOR) — not at every GREEN.
 - **Run /refactor** for structural cleanup.

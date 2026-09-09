@@ -88,6 +88,33 @@ If no E2E infrastructure exists, build skeleton first: thinnest slice proving ar
 
 Pick first unchecked scenario from test-definitions. Cycle through RED (failing test, commit) → GREEN (minimal code to pass, commit) → REFACTOR (if needed, commit).
 
+### Trusted executable RED review
+
+Before production implementation begins for a new or changed primary proof, self-check the proof
+plan, then ask Safeword to execute and independently review each distinct proof implementation:
+
+```bash
+SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run executable-red \
+  --scenario 'Scenario: exact ledger heading' \
+  --ledger .project/tickets/TICKET/test-definitions.md \
+  --context path/to/scenario.feature \
+  --context path/to/impl-plan.md \
+  --proof-cwd . \
+  --evidence-class pure-contract \
+  --expected-failure 'the intended actor-boundary failure' \
+  --execute '["bun","run","test","path/to/proof.test.ts"]' \
+  -- path/to/proof.test.ts path/to/declared-support.ts
+```
+
+Pass JSON argv, never shell text. Include the scenario, proof-plan row, primary proof target, and
+every support file whose change would invalidate the evidence. Use the exact active ledger heading
+as `--scenario` and its project-relative `test-definitions.md` path as `--ledger`. One fresh approved receipt may cover
+Scenario Outline rows only when their canonical command and declared proof targets are identical.
+The shared edit gate blocks the GREEN checkbox until `review gate executable-red` finds a fresh
+approved cross-agent receipt for that scenario. Missing, stale, fabricated, incomplete, mismatched,
+passing, wrong-reason, or same-agent evidence cannot authorize GREEN. Follow the exact recovery
+action and leave GREEN unchecked when independent review is unavailable.
+
 ### Checkbox Format Contract
 
 Mark **ONE checkbox per edit, commit after each step.** The prompt hook and quality gates parse these checkboxes; batching hides which step should be internally reviewed and makes the ledger less auditable.
@@ -204,7 +231,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
    The shared coordinator prefers the opposite headless agent. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
 
    ```bash
-   bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" impl-plan
+   bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" impl-plan
    ```
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp. `--review-id` is the coordinator's `review_id` from the result you are stamping: it is what proves the review ran, so a stamp claiming independence without one is refused.
@@ -212,7 +239,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 **Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. Record a model only when the executed reviewer reports a verifiable identifier; the cross-agent coordinator does not guess a default model:
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" --review-id "review_id" impl-plan
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" --review-id "review_id" impl-plan
 ```
 
 The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. When `crossAgentReview` is `require`, degraded evidence and skips also fail closed; restore the opposite reviewer and rerun the coordinator. (This gate is stricter than quality-review's advisory loop, which may accept a labeled same-agent result under the default `prefer` policy.)

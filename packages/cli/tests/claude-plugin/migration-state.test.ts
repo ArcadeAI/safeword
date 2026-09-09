@@ -7,11 +7,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   claimClaudeMigrationAdvisory,
   claimClaudeMigrationAttempt,
+  claudeProjectStatePath,
   createClaudePluginMode,
   pluginModeIsTerminal,
   readClaudePluginMode,
   writeClaudePluginMode,
 } from '../../src/claude-plugin/migration-state.js';
+import { useIsolatedClaudePluginState } from '../helpers/claude-plugin-state.js';
 
 const roots: string[] = [];
 const digest = 'a'.repeat(64);
@@ -20,6 +22,8 @@ afterEach(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
   roots.length = 0;
 });
+
+useIsolatedClaudePluginState();
 
 describe('Claude plugin mode v2', () => {
   it('re-arms clean mode when the verified plugin identity changes', () => {
@@ -151,7 +155,9 @@ describe('Claude plugin mode v2', () => {
     expect(() => claimClaudeMigrationAdvisory(root, 'session', '../escaped')).toThrow(
       'advisory digest is invalid',
     );
-    expect(existsSync(nodePath.join(root, '.safeword/claude-plugin/escaped.json'))).toBe(false);
+    const attempts = claudeProjectStatePath(root, 'attemptsDirectory');
+
+    expect(existsSync(nodePath.join(attempts, '../escaped.json'))).toBe(false);
   });
 
   it('normalizes inconsistent plugin-mode state when writing', () => {
@@ -171,7 +177,7 @@ describe('Claude plugin mode v2', () => {
   it('rejects inconsistent plugin-mode state persisted outside the writer', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-mode-corrupt-'));
     roots.push(root);
-    const markerPath = nodePath.join(root, '.safeword/claude-plugin/plugin-mode-v2.json');
+    const markerPath = claudeProjectStatePath(root, 'pluginMarkerV2');
     mkdirSync(nodePath.dirname(markerPath), { recursive: true });
     writeFileSync(
       markerPath,

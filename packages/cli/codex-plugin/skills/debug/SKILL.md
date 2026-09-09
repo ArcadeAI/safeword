@@ -198,8 +198,7 @@ not the bug: a test that reproduces the bug goes green when upstream fixes
 it, silently, leaving the dead workaround behind.
 
 Warranted when removal depends on someone else's release _and_ the failure
-mode is silent. Rules: `.safeword/guides/testing-guide.md` → "Upstream
-Workaround Tripwires". Scaffold: `.safeword/templates/tripwire-template.md`.
+mode is silent. Follow the `$safeword:testing` skill's upstream-workaround tripwire rules.
 
 #### 4. Verify
 

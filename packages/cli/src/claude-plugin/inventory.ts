@@ -12,10 +12,37 @@ import {
 import nodePath from 'node:path';
 export const CLAUDE_PLUGIN_ID = 'safeword@safeword';
 
+/**
+ * Where the native Claude plugin keeps its state.
+ *
+ * `data` and `state` are relative to `${CLAUDE_PLUGIN_DATA}` — the directory
+ * Claude Code documents for plugin state, which survives updates and is removed
+ * on uninstall. Resolve them through `plugin-data.ts`; never rebuild the
+ * sanitized install id as a path literal, because that is exactly how the proof
+ * reader drifted from the proof writer (issue #3788).
+ *
+ * `legacy` is the working-tree layout releases up to 0.83.1 wrote into every
+ * customer repository (issue #3787). It is read once, adopted into `state`, and
+ * deleted; nothing writes there any more.
+ */
 export const CLAUDE_MIGRATION_SCHEMA = {
-  paths: {
-    proof: 'plugins/data/safeword-safeword/execution-proof-v1.json',
-    proofDirectory: 'plugins/data/safeword-safeword/execution-proofs-v2',
+  data: {
+    pluginsRoot: 'plugins/data',
+    proofs: 'execution-proofs-v2',
+    projectState: 'project-state-v1',
+  },
+  state: {
+    pluginMarkerV2: 'plugin-mode-v2.json',
+    attention: 'attention-v1.json',
+    attemptsDirectory: 'attempts-v1',
+    transaction: 'cleanup-transaction-v1.json',
+  },
+  legacy: {
+    /**
+     * The v1 plugin-mode marker is never written by current code — its presence
+     * in the working tree is the signal that a pre-v2 plugin ran here, so it
+     * stays a repository path by definition.
+     */
     pluginMarker: '.safeword/claude-plugin/plugin-mode-v1.json',
     pluginMarkerV2: '.safeword/claude-plugin/plugin-mode-v2.json',
     attention: '.safeword/claude-plugin/attention-v1.json',
@@ -23,6 +50,14 @@ export const CLAUDE_MIGRATION_SCHEMA = {
     transaction: '.safeword/claude-plugin/cleanup-transaction-v1.json',
   },
 } as const;
+
+/** Legacy working-tree state adopted into `${CLAUDE_PLUGIN_DATA}` on first use. */
+export const CLAUDE_ADOPTED_LEGACY_STATE = [
+  'pluginMarkerV2',
+  'attention',
+  'attemptsDirectory',
+  'transaction',
+] as const satisfies readonly (keyof typeof CLAUDE_MIGRATION_SCHEMA.state)[];
 
 /** Files required to authenticate and execute the native Claude delivery surface. */
 export const CLAUDE_NATIVE_REQUIRED_ASSETS = [
