@@ -10,7 +10,7 @@ source share one ledger entry.
 ### Scenario: An accepted effective version is stamped throughout the bundle
 
 - [x] RED 9dfc12648
-- [ ] GREEN
+- [x] GREEN daa6b7764
 - [ ] REFACTOR
 
 ### Scenario: An invalid or incompatible effective version is rejected before output changes

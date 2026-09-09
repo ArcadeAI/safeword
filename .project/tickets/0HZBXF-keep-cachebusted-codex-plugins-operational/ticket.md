@@ -39,6 +39,10 @@ last_modified: 2026-09-09T15:51:25.107Z
 
 ## Work Log
 
+- 2026-09-09T17:53:00Z GREEN: Added validated effective-version generation,
+  adjacent staging with atomic publication, coherent manifest/package/catalogue
+  stamping, and build-time runtime identity injection. The focused real-process
+  test and default-generation drift check both pass in commit `daa6b7764`.
 - 2026-09-09T17:49:00Z RED: The real generator subprocess failed at the intended
   boundary because `--output` was not created. Independent executable-RED jobs
   `d9f0ed68-071c-4736-bfcc-d8899d4697e6` and
