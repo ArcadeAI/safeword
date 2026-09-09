@@ -1767,7 +1767,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '2922834509b9695e5aa7a43448100eb3b8e164bfd0abf48ca77268672e5c6915',
+        'e6429d8b5c6b4f02d6e9fdddd95e1e6c44c13d2947b9a6e52740a0899f2729a6',
       '.claude/skills/bdd/SCENARIOS.md':
         'd2d262f7b88d47df8d7d6da5cddbf78574252ce3eb1a25f4b978a41c42290cb8',
       '.claude/skills/bdd/SKILL.md':
@@ -1775,7 +1775,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        'c8ed43699b74733cc5f3812e4e05cce3b3b704f172b7da9d09fe921ff6c2e161',
+        '4f7aad9f813faa6b7535cfed3d1daed695c332334c9ddecc0f8ebd43dd65479e',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':

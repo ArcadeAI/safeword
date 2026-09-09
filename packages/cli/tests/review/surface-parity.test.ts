@@ -96,13 +96,15 @@ function reviewCallWindowAt(
   lineNumber: number,
   callLineNumbers: readonly number[],
 ): string {
-  // Commands may start two lines into a fence; sixty following lines cover the
-  // longest current protocol (review-spec) while preventing the next call from lending proof.
   const index = lineNumber - 1;
   const nextCallLineNumber = callLineNumbers.find(candidate => candidate > lineNumber);
   const nextCallIndex = nextCallLineNumber === undefined ? lines.length : nextCallLineNumber - 1;
-  const boundedEnd = Math.min(lines.length, index + 60);
-  return lines.slice(Math.max(0, index - 2), Math.min(nextCallIndex, boundedEnd)).join('\n');
+  const nextHeadingOffset = lines
+    .slice(index + 1, nextCallIndex)
+    .findIndex(line => /^#{1,6}\s/u.test(line));
+  const nextHeadingIndex = nextHeadingOffset === -1 ? lines.length : index + 1 + nextHeadingOffset;
+
+  return lines.slice(index, Math.min(nextCallIndex, nextHeadingIndex)).join('\n');
 }
 
 function reviewCallSections(relativePath: string): ReviewCallSection[] {

@@ -119,8 +119,9 @@ Do not stop and ask the user for consent in chat before running it, even when th
 private repository files or crosses provider boundaries. Never pass credentials, customer data, or
 secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked.
 Invoke the coordinator first. If the host
-blocks the command, use its native tool-approval request; never replace that request with a chat
-question. A retry, status check, or permitted fallback for the same bounded packet proceeds without
+blocks the command, use its native tool-approval request: request the approval it needs, or report
+that block as the blocker; never replace that request with a chat question. A retry, status check,
+or permitted fallback for the same bounded packet proceeds without
 asking again. **A review you never dispatched is not coverage** — say so unprompted, before any
 finding, name what ran in its place, and never let your own pass stand in for the review.
 
