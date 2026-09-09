@@ -392,6 +392,9 @@ function runCodexInstall(
   migration: typeof CodexMigration,
 ): CliResult {
   const before = migration.observeCodexMigrationResult(invocation.cwd);
+  if (before.state === 'recovery_required') {
+    return migration.observeCodexMigration(invocation.cwd);
+  }
   if (!migration.codexInstallRequiresMutation(before)) {
     return migration.observeCodexMigration(invocation.cwd);
   }
@@ -488,15 +491,13 @@ function codexFailureRecovery(
   partialMarketplace: boolean,
   fileEffects: CliResult['effects']['files'],
 ): CliResult['recovery'] {
-  if (
-    partialMarketplace &&
-    error instanceof CodexMigrationError &&
-    error.recoveryCommand !== undefined
-  ) {
+  if (error instanceof CodexMigrationError && error.recoveryCommand !== undefined) {
     return [
       {
         command: error.recoveryCommand,
-        description: 'Restore the Safeword marketplace removed by the failed replacement.',
+        description: partialMarketplace
+          ? 'Restore the Safeword marketplace removed by the failed replacement.'
+          : 'Retry the Safeword Codex plugin installation.',
         requiresHuman: true,
       },
     ];
@@ -511,6 +512,27 @@ function codexFailureRecovery(
     ];
   }
   return [];
+}
+
+function codexPluginInstallIsIncomplete(error: unknown, message: string): boolean {
+  if (
+    error instanceof CodexMigrationError &&
+    error.profileChanged &&
+    (error.code === 'PLUGIN_INSTALL_FAILED' || error.code === 'PLUGIN_ENABLEMENT_UNKNOWN')
+  ) {
+    return true;
+  }
+  return /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(
+    message,
+  );
+}
+
+function codexMarketplaceIsMissing(error: unknown): boolean {
+  return (
+    error instanceof CodexMigrationError &&
+    error.code === 'PLUGIN_MARKETPLACE_FAILED' &&
+    error.profileChanged
+  );
 }
 
 function codexFailure(
@@ -533,14 +555,12 @@ function codexFailure(
       ],
     });
   }
-  const partialInstall =
-    /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(
-      message,
-    );
-  const partialMarketplace = error instanceof CodexMigrationError && error.profileChanged;
+  const partialInstall = codexPluginInstallIsIncomplete(error, message);
+  const partialMarketplace = codexMarketplaceIsMissing(error);
   return createResult({
     state: 'failed',
-    changed: partialInstall || partialMarketplace || fileEffects.length > 0,
+    changed:
+      (error instanceof CodexMigrationError && error.profileChanged) || fileEffects.length > 0,
     effects: {
       files: fileEffects,
       configuration: codexFailureConfig(partialInstall, partialMarketplace),

@@ -19255,7 +19255,12 @@ function refreshOrAddCodexMarketplace(marketplaceSource, environment = process.e
 }
 function addCodexPluginToProfile(marketplaceSource, environment = process.env) {
   refreshOrAddCodexMarketplace(marketplaceSource, environment);
-  run("codex", ["plugin", "add", PLUGIN_ID, "--json"]);
+  const recoveryCommand = `codex plugin add ${PLUGIN_ID} --json`;
+  try {
+    run("codex", ["plugin", "add", PLUGIN_ID, "--json"]);
+  } catch (error2) {
+    throw new CodexMigrationError("PLUGIN_INSTALL_FAILED", `The Safeword marketplace was configured, but plugin installation failed: ${String(error2)}`, { cause: error2, profileChanged: true, recoveryCommand });
+  }
 }
 function verifyCodexPluginIsEnabled(options = {}) {
   let pluginList;
@@ -19265,7 +19270,12 @@ function verifyCodexPluginIsEnabled(options = {}) {
     const prefix = options.installationCompleted === true ? "Plugin installation succeeded, but enablement is unknown" : "Could not verify the Safeword Codex plugin";
     throw new CodexMigrationError(options.installationCompleted === true ? "PLUGIN_ENABLEMENT_UNKNOWN" : "PLUGIN_ENABLEMENT_FAILED", `${prefix}: ${String(error2)}`, { cause: error2, profileChanged: options.installationCompleted === true });
   }
-  const plugin = pluginObservationFromList(pluginList);
+  let plugin;
+  try {
+    plugin = pluginObservationFromList(pluginList);
+  } catch (error2) {
+    throw new CodexMigrationError(options.installationCompleted === true ? "PLUGIN_ENABLEMENT_UNKNOWN" : "PLUGIN_ENABLEMENT_FAILED", `Codex returned malformed plugin discovery JSON; Safeword could not verify enablement: ${String(error2)}`, { cause: error2, profileChanged: options.installationCompleted === true });
+  }
   if (plugin.enabled !== true) {
     throw new CodexMigrationError("PLUGIN_ENABLEMENT_FAILED", "Codex did not report the Safeword plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.", { profileChanged: options.installationCompleted === true });
   }
@@ -19449,7 +19459,7 @@ function installCodexPlugin(options = {}) {
   }
   if (options.json !== true) {
     success("Safeword Codex plugin is enabled for this profile.");
-    info(`This Codex app may keep its loaded Safeword catalogue. ${CODEX_REVIEW_THEN_RESTART_ACTION}. If this project uses Safeword legacy hooks, run \`safeword codex migrate --remove-legacy-hooks\` to remove only those hooks.`);
+    info(`This Codex app may keep its loaded Safeword catalogue. ${CODEX_REVIEW_THEN_RESTART_ACTION}. If this project uses Safeword legacy hooks, run \`safeword codex migrate --finalize\` to remove only those hooks.`);
   }
   if (options.reportMigrationState === true) {
     reportCodexMigration(cwd, {
@@ -19713,6 +19723,7 @@ async function migrateCodexPlugin(cwd = process.cwd(), options = {}) {
     return;
   }
   installCodexPlugin({
+    cwd,
     marketplaceSource: options.marketplaceSource,
     recordActivationPending: false
   });
@@ -59235,21 +59246,20 @@ function isNonRegistryPackageSpec(spec) {
 function isCurrentSafewordRegistrySpec(spec) {
   return [VERSION, SAFEWORD_REGISTRY_SPEC, `~${VERSION}`].includes(spec);
 }
-function syncPackageJsonSafewordVersion(cwd, options = {}) {
+function packageJsonSafewordVersionNeedsUpdate(cwd) {
   const packageJson = readPackageJson(cwd);
   if (!packageJson)
     return false;
-  for (const field of DEPENDENCY_FIELDS) {
-    const dependencies = packageJson[field];
-    const currentSpec = dependencies?.safeword;
-    if (!dependencies || currentSpec === undefined || isNonRegistryPackageSpec(currentSpec))
-      continue;
-    if (isCurrentSafewordRegistrySpec(currentSpec))
-      continue;
-    installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], "safeword package", options);
-    return packageJsonReferencesCurrentSafewordVersion(cwd);
-  }
-  return false;
+  return DEPENDENCY_FIELDS.some((field) => {
+    const spec = packageJson[field]?.safeword;
+    return spec !== undefined && !isNonRegistryPackageSpec(spec) && !isCurrentSafewordRegistrySpec(spec);
+  });
+}
+function syncPackageJsonSafewordVersion(cwd, options = {}) {
+  if (!packageJsonSafewordVersionNeedsUpdate(cwd))
+    return false;
+  installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], "safeword package", options);
+  return packageJsonReferencesCurrentSafewordVersion(cwd);
 }
 function readPackageJson(cwd) {
   return readJson(nodePath99.join(cwd, "package.json"));
@@ -59734,13 +59744,13 @@ function plannedJavaScriptPackageFiles(cwd) {
   ]);
 }
 function configNeedsCompatibilityUpdate(cwd) {
-  if (shouldApplyFreshInstallDefaults(cwd))
-    return true;
-  if (publicRetroConfigNeedsUpdate(cwd))
-    return true;
-  if (getMissingPacks(cwd).length > 0)
-    return true;
   try {
+    if (shouldApplyFreshInstallDefaults(cwd))
+      return true;
+    if (publicRetroConfigNeedsUpdate(cwd))
+      return true;
+    if (getMissingPacks(cwd).length > 0)
+      return true;
     const config = JSON.parse(readFileSync64(nodePath104.join(cwd, ".safeword/config.json"), "utf8"));
     return "version" in config;
   } catch {
@@ -59868,20 +59878,6 @@ function pythonObservationTargets(cwd) {
     return PYTHON_PACKAGE_FILES.map((file) => prefix === "" ? file : nodePath104.join(prefix, file));
   });
 }
-function staleSafewordRegistryDependency(cwd) {
-  try {
-    const manifest = JSON.parse(readFileSync64(nodePath104.join(cwd, "package.json"), "utf8"));
-    const spec = manifest.devDependencies?.safeword ?? manifest.dependencies?.safeword ?? manifest.optionalDependencies?.safeword;
-    if (spec === undefined)
-      return false;
-    if (/^(?:file:|link:|portal:|workspace:|git\+|github:|gitlab:|bitbucket:|https?:|\.{0,2}\/)/u.test(spec)) {
-      return false;
-    }
-    return ![VERSION, `^${VERSION}`, `~${VERSION}`].includes(spec);
-  } catch {
-    return false;
-  }
-}
 function shouldMigrateNamespace(plan, migrate) {
   return migrate !== false && (plan === "offer" || plan === "both-dirs");
 }
@@ -59897,11 +59893,14 @@ function plannedNamespaceEffects(cwd, migrate) {
     ...existsSync46(nodePath104.join(cwd, ".safeword/config.json")) ? [{ kind: "update", target: ".safeword/config.json" }] : []
   ];
 }
-function plannedPackageJsonEffects(cwd, configured) {
-  return !configured && !existsSync46(nodePath104.join(cwd, "package.json")) ? [
+function plannedPackageJsonEffects(cwd, configured, packageInstallPlanned) {
+  return !existsSync46(nodePath104.join(cwd, "package.json")) && (!configured || packageInstallPlanned) ? [
     { kind: "create", target: "package.json" },
     { kind: "update", target: "package.json" }
   ] : [];
+}
+function packageInstallIsPlanned(reconciliationPackages, staleSafeword) {
+  return reconciliationPackages || staleSafeword;
 }
 function retargetLegacyNamespace(effect) {
   return {
@@ -59982,13 +59981,14 @@ async function createSetupPlan(cwd, schema, options = {}) {
   ];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);
-  const staleSafeword = staleSafewordRegistryDependency(cwd);
+  const staleSafeword = packageJsonSafewordVersionNeedsUpdate(cwd);
+  const packageInstallPlanned = packageInstallIsPlanned(reconciliationPackages, staleSafeword);
   const compatibilityPackage = `safeword@${VERSION}`;
   const combined = combineEffects([
     reconciliationEffects,
     {
       files: uniqueEffects([
-        ...plannedPackageJsonEffects(cwd, configured),
+        ...plannedPackageJsonEffects(cwd, configured, packageInstallPlanned),
         ...plannedVersionMarkerEffects(cwd, options.repairVersionMarker),
         ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
@@ -60615,7 +60615,7 @@ function migrateLegacyCodexDuringSetup(cwd, completedEffects) {
     return [
       {
         code: "CODEX_PLUGIN_HANDOFF_PENDING_PROOF",
-        message: "Codex enabled the native profile plugin and retained legacy project protection. Restart Codex, review /hooks, then run `safeword codex migrate --remove-legacy-hooks` to finish the recoverable cleanup.",
+        message: "Codex enabled the native profile plugin and retained legacy project protection. Restart Codex, review /hooks, then run `safeword codex migrate --finalize` to finish the recoverable cleanup.",
         severity: "info"
       }
     ];
@@ -60647,7 +60647,7 @@ async function applySetup(cwd, input) {
   const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
   const result = await reconcile3(setupSchema, operation, context);
   const completedEffects = {
-    files: [...preliminaryFileEffects, ...effectsForReconciliation(result, "upgrade").files],
+    files: [...preliminaryFileEffects, ...effectsForReconciliation(result, operation).files],
     packages: [],
     configuration: [],
     network: []
@@ -69306,6 +69306,9 @@ async function runCodexFinalization(invocation, migration, accepted) {
 }
 function runCodexInstall(invocation, migration) {
   const before = migration.observeCodexMigrationResult(invocation.cwd);
+  if (before.state === "recovery_required") {
+    return migration.observeCodexMigration(invocation.cwd);
+  }
   if (!migration.codexInstallRequiresMutation(before)) {
     return migration.observeCodexMigration(invocation.cwd);
   }
@@ -69382,11 +69385,11 @@ function codexFailureConfig(partialInstall, partialMarketplace) {
   return [];
 }
 function codexFailureRecovery(error2, partialMarketplace, fileEffects) {
-  if (partialMarketplace && error2 instanceof CodexMigrationError && error2.recoveryCommand !== undefined) {
+  if (error2 instanceof CodexMigrationError && error2.recoveryCommand !== undefined) {
     return [
       {
         command: error2.recoveryCommand,
-        description: "Restore the Safeword marketplace removed by the failed replacement.",
+        description: partialMarketplace ? "Restore the Safeword marketplace removed by the failed replacement." : "Retry the Safeword Codex plugin installation.",
         requiresHuman: true
       }
     ];
@@ -69401,6 +69404,15 @@ function codexFailureRecovery(error2, partialMarketplace, fileEffects) {
     ];
   }
   return [];
+}
+function codexPluginInstallIsIncomplete(error2, message) {
+  if (error2 instanceof CodexMigrationError && error2.profileChanged && (error2.code === "PLUGIN_INSTALL_FAILED" || error2.code === "PLUGIN_ENABLEMENT_UNKNOWN")) {
+    return true;
+  }
+  return /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(message);
+}
+function codexMarketplaceIsMissing(error2) {
+  return error2 instanceof CodexMigrationError && error2.code === "PLUGIN_MARKETPLACE_FAILED" && error2.profileChanged;
 }
 function codexFailure(error2, name, isFinalization, fileEffects = []) {
   const message = error2 instanceof Error ? error2.message : String(error2);
@@ -69417,11 +69429,11 @@ function codexFailure(error2, name, isFinalization, fileEffects = []) {
       ]
     });
   }
-  const partialInstall = /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(message);
-  const partialMarketplace = error2 instanceof CodexMigrationError && error2.profileChanged;
+  const partialInstall = codexPluginInstallIsIncomplete(error2, message);
+  const partialMarketplace = codexMarketplaceIsMissing(error2);
   return createResult({
     state: "failed",
-    changed: partialInstall || partialMarketplace || fileEffects.length > 0,
+    changed: error2 instanceof CodexMigrationError && error2.profileChanged || fileEffects.length > 0,
     effects: {
       files: fileEffects,
       configuration: codexFailureConfig(partialInstall, partialMarketplace)

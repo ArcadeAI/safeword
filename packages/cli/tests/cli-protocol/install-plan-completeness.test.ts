@@ -272,9 +272,9 @@ describe('install plan completeness', () => {
     );
     expect(installed.exitCode, installed.stdout).toBe(0);
     const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;
-    const planned = new Set(planEnvelope.data.plan.effects.files.map(effectIdentity));
+    const planned = new Set((planEnvelope.data.plan.effects.files ?? []).map(effectIdentity));
     expect(
-      installEnvelope.effects.files.filter(effect => !planned.has(effectIdentity(effect))),
+      (installEnvelope.effects.files ?? []).filter(effect => !planned.has(effectIdentity(effect))),
     ).toEqual([]);
   });
 
@@ -318,13 +318,15 @@ describe('install plan completeness', () => {
     expect(installEnvelope.findings).toContainEqual(
       expect.objectContaining({
         code: 'CODEX_PLUGIN_HANDOFF_PENDING_PROOF',
-        message: expect.stringContaining('safeword codex migrate --remove-legacy-hooks'),
+        message: expect.stringContaining('safeword codex migrate --finalize'),
       }),
     );
     for (const category of ['configuration', 'network'] as const) {
-      const planned = new Set(planEnvelope.data.plan.effects[category].map(effectIdentity));
+      const planned = new Set((planEnvelope.data.plan.effects[category] ?? []).map(effectIdentity));
       expect(
-        installEnvelope.effects[category].filter(effect => !planned.has(effectIdentity(effect))),
+        (installEnvelope.effects[category] ?? []).filter(
+          effect => !planned.has(effectIdentity(effect)),
+        ),
       ).toEqual([]);
     }
 
@@ -341,6 +343,16 @@ describe('install plan completeness', () => {
     const repeatedLog = readFileSync(runtime.logPath, 'utf8').slice(firstLog.length);
     expect(repeatedLog).not.toContain('plugin marketplace');
     expect(repeatedLog).not.toContain('plugin add');
+  });
+
+  it('previews package.json creation when a configured JavaScript project needs packages', async () => {
+    const directory = temporaryDirectory();
+    configureProject(directory, ['typescript']);
+    writeFileSync(nodePath.join(directory, 'index.ts'), 'export const value = 1;\n');
+
+    const { envelope } = await planProject(directory);
+
+    expectEffectsInclude(envelope, 'files', [{ kind: 'create', target: 'package.json' }]);
   });
 
   it('journals a partially applied automatic Codex profile enrollment', async () => {
@@ -386,6 +398,51 @@ describe('install plan completeness', () => {
       expect.objectContaining({
         code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
         message: expect.stringContaining('Recover with'),
+      }),
+    );
+  });
+
+  it('journals marketplace enrollment when the Codex plugin add fails', async () => {
+    const directory = temporaryDirectory();
+    configureProject(directory);
+    const legacySkill = nodePath.join(directory, '.agents/skills/audit/SKILL.md');
+    mkdirSync(nodePath.dirname(legacySkill), { recursive: true });
+    writeFileSync(legacySkill, 'legacy audit skill\n');
+    const runtime = installFakeCodexRuntime(temporaryDirectory(), {
+      pluginEnabled: false,
+      pluginInitiallyInstalled: false,
+    });
+    const environment = {
+      CODEX_HOME: runtime.codexHome,
+      SAFEWORD_CODEX_LOG: runtime.logPath,
+      SAFEWORD_FAIL_CODEX_PLUGIN_ADD: '1',
+      SAFEWORD_SKIP_INSTALL: '1',
+      PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
+    };
+
+    const installed = await runCliWithoutInstall(
+      ['install', '--agents=none', '--no-input', '--no-modify', '--json', '--cwd', directory],
+      { cwd: directory, env: environment },
+    );
+    expect(installed.exitCode, installed.stdout).toBe(0);
+    const envelope = JSON.parse(installed.stdout) as LifecycleEnvelope & {
+      changed: boolean;
+      findings: { code: string; message: string }[];
+    };
+    expect(envelope.changed).toBe(true);
+    expect(envelope.effects.configuration).toContainEqual({
+      kind: 'enable',
+      target: 'Safeword Codex profile plugin',
+    });
+    expect(envelope.effects.network).toContainEqual({
+      kind: 'fetch',
+      target: 'Safeword stable Codex marketplace',
+      operation: 'install',
+    });
+    expect(envelope.findings).toContainEqual(
+      expect.objectContaining({
+        code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+        message: expect.stringContaining('codex plugin add safeword@safeword --json'),
       }),
     );
   });

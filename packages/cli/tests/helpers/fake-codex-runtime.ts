@@ -103,6 +103,10 @@ case "$*" in
     echo '{"marketplaceName":"safeword"}'
     ;;
   'plugin add safeword@safeword --json')
+    if [ "$(printenv SAFEWORD_FAIL_CODEX_PLUGIN_ADD 2>/dev/null || true)" = "1" ]; then
+      echo 'plugin installation failed' >&2
+      exit 10
+    fi
     printf 'enabled' > '${pluginState}'
     installed_version="$(printenv SAFEWORD_FAKE_INSTALLED_PLUGIN_VERSION 2>/dev/null || true)"
     if [ -z "$installed_version" ]; then installed_version='${SAFEWORD_SCHEMA.version}'; fi
@@ -113,6 +117,10 @@ case "$*" in
     if [ "$(printenv SAFEWORD_FAIL_PLUGIN_VERIFY 2>/dev/null || true)" = "1" ]; then
       echo 'profile observation failed' >&2
       exit 8
+    fi
+    if [ "$(printenv SAFEWORD_MALFORMED_PLUGIN_LIST 2>/dev/null || true)" = "1" ]; then
+      echo '{bad json'
+      exit 0
     fi
     mode="$(cat '${pluginState}')"
     if [ "$mode" = "absent" ]; then

@@ -88,6 +88,7 @@ import {
   plannedNamespaceMigrationFiles,
 } from '../utils/namespace-migration.js';
 import {
+  packageJsonSafewordVersionNeedsUpdate,
   stripDeadConfigVersion,
   syncPackageJsonSafewordVersion,
 } from '../utils/safeword-version-sync.js';
@@ -200,10 +201,10 @@ function plannedJavaScriptPackageFiles(cwd: string): Effect[] {
 }
 
 function configNeedsCompatibilityUpdate(cwd: string): boolean {
-  if (shouldApplyFreshInstallDefaults(cwd)) return true;
-  if (publicRetroConfigNeedsUpdate(cwd)) return true;
-  if (getMissingPacks(cwd).length > 0) return true;
   try {
+    if (shouldApplyFreshInstallDefaults(cwd)) return true;
+    if (publicRetroConfigNeedsUpdate(cwd)) return true;
+    if (getMissingPacks(cwd).length > 0) return true;
     const config = JSON.parse(
       readFileSync(nodePath.join(cwd, '.safeword/config.json'), 'utf8'),
     ) as Record<string, unknown>;
@@ -363,30 +364,6 @@ function pythonObservationTargets(cwd: string): string[] {
   });
 }
 
-function staleSafewordRegistryDependency(cwd: string): boolean {
-  try {
-    const manifest = JSON.parse(readFileSync(nodePath.join(cwd, 'package.json'), 'utf8')) as Record<
-      'dependencies' | 'devDependencies' | 'optionalDependencies',
-      Record<string, string> | undefined
-    >;
-    const spec =
-      manifest.devDependencies?.safeword ??
-      manifest.dependencies?.safeword ??
-      manifest.optionalDependencies?.safeword;
-    if (spec === undefined) return false;
-    if (
-      /^(?:file:|link:|portal:|workspace:|git\+|github:|gitlab:|bitbucket:|https?:|\.{0,2}\/)/u.test(
-        spec,
-      )
-    ) {
-      return false;
-    }
-    return ![VERSION, `^${VERSION}`, `~${VERSION}`].includes(spec);
-  } catch {
-    return false;
-  }
-}
-
 export interface SetupPlanOptions {
   readonly migrateNamespace?: boolean;
   readonly noModify?: boolean;
@@ -411,13 +388,21 @@ function plannedNamespaceEffects(cwd: string, migrate: boolean): Effect[] {
   ];
 }
 
-function plannedPackageJsonEffects(cwd: string, configured: boolean): Effect[] {
-  return !configured && !existsSync(nodePath.join(cwd, 'package.json'))
+function plannedPackageJsonEffects(
+  cwd: string,
+  configured: boolean,
+  packageInstallPlanned: boolean,
+): Effect[] {
+  return !existsSync(nodePath.join(cwd, 'package.json')) && (!configured || packageInstallPlanned)
     ? [
         { kind: 'create', target: 'package.json' },
         { kind: 'update', target: 'package.json' },
       ]
     : [];
+}
+
+function packageInstallIsPlanned(reconciliationPackages: boolean, staleSafeword: boolean): boolean {
+  return reconciliationPackages || staleSafeword;
 }
 
 function retargetLegacyNamespace(effect: Effect): Effect {
@@ -540,13 +525,14 @@ export async function createSetupPlan(
   ];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);
-  const staleSafeword = staleSafewordRegistryDependency(cwd);
+  const staleSafeword = packageJsonSafewordVersionNeedsUpdate(cwd);
+  const packageInstallPlanned = packageInstallIsPlanned(reconciliationPackages, staleSafeword);
   const compatibilityPackage = `safeword@${VERSION}`;
   const combined = combineEffects([
     reconciliationEffects,
     {
       files: uniqueEffects([
-        ...plannedPackageJsonEffects(cwd, configured),
+        ...plannedPackageJsonEffects(cwd, configured, packageInstallPlanned),
         ...plannedVersionMarkerEffects(cwd, options.repairVersionMarker),
         ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
@@ -1419,7 +1405,7 @@ function migrateLegacyCodexDuringSetup(
       {
         code: 'CODEX_PLUGIN_HANDOFF_PENDING_PROOF',
         message:
-          'Codex enabled the native profile plugin and retained legacy project protection. Restart Codex, review /hooks, then run `safeword codex migrate --remove-legacy-hooks` to finish the recoverable cleanup.',
+          'Codex enabled the native profile plugin and retained legacy project protection. Restart Codex, review /hooks, then run `safeword codex migrate --finalize` to finish the recoverable cleanup.',
         severity: 'info',
       },
     ];
@@ -1455,7 +1441,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
   const result = await reconcile(setupSchema, operation, context);
   const completedEffects: CompletedSetupEffects = {
-    files: [...preliminaryFileEffects, ...effectsForReconciliation(result, 'upgrade').files],
+    files: [...preliminaryFileEffects, ...effectsForReconciliation(result, operation).files],
     packages: [],
     configuration: [],
     network: [],

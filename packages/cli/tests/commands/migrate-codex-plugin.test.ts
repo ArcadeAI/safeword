@@ -1030,18 +1030,16 @@ command = 'echo "keep this user hook"'
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
   });
 
-  it('reports unknown enablement without changing the repository after partial installation', async () => {
+  it('reports a configured marketplace when the following plugin add fails', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
       pluginInitiallyInstalled: false,
     });
-    const beforeConfig = readFileSync(fixture.configPath, 'utf8');
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json'], {
-      SAFEWORD_FAIL_PLUGIN_VERIFY: '1',
+      SAFEWORD_FAIL_CODEX_PLUGIN_ADD: '1',
     });
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toBe('');
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'failed',
       changed: true,
@@ -1054,11 +1052,51 @@ command = 'echo "keep this user hook"'
           },
         ],
       },
-      errors: [{ code: 'PLUGIN_ENABLEMENT_UNKNOWN' }],
+      recovery: [
+        {
+          command: 'codex plugin add safeword@safeword --json',
+          description: 'Retry the Safeword Codex plugin installation.',
+        },
+      ],
+      errors: [{ code: 'PLUGIN_INSTALL_FAILED' }],
     });
-    expect(readFileSync(fixture.configPath, 'utf8')).toBe(beforeConfig);
-    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
   });
+
+  it.each([
+    ['the verification command fails', { SAFEWORD_FAIL_PLUGIN_VERIFY: '1' }],
+    ['the verification response is malformed', { SAFEWORD_MALFORMED_PLUGIN_LIST: '1' }],
+  ])(
+    'reports unknown enablement without changing the repository when %s',
+    async (_case, environment) => {
+      const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+        pluginInitiallyInstalled: false,
+      });
+      const beforeConfig = readFileSync(fixture.configPath, 'utf8');
+
+      const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json'], environment);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe('');
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        changed: true,
+        effects: {
+          configuration: [
+            {
+              kind: 'install',
+              target: 'Safeword Codex profile plugin',
+              operation: 'enablement-unverified',
+            },
+          ],
+        },
+        errors: [{ code: 'PLUGIN_ENABLEMENT_UNKNOWN' }],
+      });
+      expect(readFileSync(fixture.configPath, 'utf8')).toBe(beforeConfig);
+      expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(
+        false,
+      );
+    },
+  );
 
   it('reports an enabled plugin without current hook proof as unproven', async () => {
     const fixture = createMigrationFixture('');
@@ -2067,6 +2105,28 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       data: { migration_state: 'recovery_required' },
       errors: [],
       next_actions: [{ command: 'safeword codex recover' }],
+    });
+    expect(existsSync(fixture.logPath)).toBe(false);
+  });
+
+  it('returns one unchanged envelope when install is blocked by recovery evidence', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const backupDirectory = nodePath.join(fixture.directory, '.safeword/codex-migration-backup');
+    mkdirSync(backupDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(backupDirectory, 'manifest.json'),
+      JSON.stringify({ schema_version: 1, status: 'prepared', entries: [] }),
+    );
+
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json']);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      data: { migration_state: 'recovery_required' },
+      effects: { configuration: [] },
     });
     expect(existsSync(fixture.logPath)).toBe(false);
   });

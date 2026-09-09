@@ -324,7 +324,16 @@ function addCodexPluginToProfile(
   environment: NodeJS.ProcessEnv = process.env,
 ): void {
   refreshOrAddCodexMarketplace(marketplaceSource, environment);
-  run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
+  const recoveryCommand = `codex plugin add ${PLUGIN_ID} --json`;
+  try {
+    run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
+  } catch (error) {
+    throw new CodexMigrationError(
+      'PLUGIN_INSTALL_FAILED',
+      `The Safeword marketplace was configured, but plugin installation failed: ${String(error)}`,
+      { cause: error, profileChanged: true, recoveryCommand },
+    );
+  }
 }
 
 function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean } = {}): void {
@@ -344,7 +353,18 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
       { cause: error, profileChanged: options.installationCompleted === true },
     );
   }
-  const plugin = pluginObservationFromList(pluginList);
+  let plugin: CodexPluginObservation;
+  try {
+    plugin = pluginObservationFromList(pluginList);
+  } catch (error) {
+    throw new CodexMigrationError(
+      options.installationCompleted === true
+        ? 'PLUGIN_ENABLEMENT_UNKNOWN'
+        : 'PLUGIN_ENABLEMENT_FAILED',
+      `Codex returned malformed plugin discovery JSON; Safeword could not verify enablement: ${String(error)}`,
+      { cause: error, profileChanged: options.installationCompleted === true },
+    );
+  }
   if (plugin.enabled !== true) {
     throw new CodexMigrationError(
       'PLUGIN_ENABLEMENT_FAILED',
@@ -611,7 +631,7 @@ export function installCodexPlugin(
   if (options.json !== true) {
     success('Safeword Codex plugin is enabled for this profile.');
     info(
-      `This Codex app may keep its loaded Safeword catalogue. ${CODEX_REVIEW_THEN_RESTART_ACTION}. If this project uses Safeword legacy hooks, run \`safeword codex migrate --remove-legacy-hooks\` to remove only those hooks.`,
+      `This Codex app may keep its loaded Safeword catalogue. ${CODEX_REVIEW_THEN_RESTART_ACTION}. If this project uses Safeword legacy hooks, run \`safeword codex migrate --finalize\` to remove only those hooks.`,
     );
   }
   if (options.reportMigrationState === true) {
@@ -989,6 +1009,7 @@ export async function migrateCodexPlugin(
     return;
   }
   installCodexPlugin({
+    cwd,
     marketplaceSource: options.marketplaceSource,
     recordActivationPending: false,
   });
