@@ -30,6 +30,14 @@ function isDelimiterRow(line: string): boolean {
   return line.includes('|') && cells.length > 0 && cells.every(cell => SEPARATOR_CELL.test(cell));
 }
 
+function isTraceHeaderRow(line: string): boolean {
+  return (
+    rowCells(line)
+      .map(cell => cell.toLowerCase())
+      .join('|') === 'principle|consequence|proof|conflict'
+  );
+}
+
 /**
  * Collect the data lines of every trace table in the section.
  *
@@ -54,7 +62,7 @@ function tableDataLines(lines: string[]): string[] {
     for (let next = index + 1; next < lines.length; next += 1) {
       const candidate = lines[next] ?? '';
       if (!candidate.includes('|') || isDelimiterRow(candidate)) break;
-      if (isDelimiterRow(lines[next + 1] ?? '')) break;
+      if (isTraceHeaderRow(candidate) && isDelimiterRow(lines[next + 1] ?? '')) break;
       rows.push(candidate);
     }
   }

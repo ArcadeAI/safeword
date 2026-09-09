@@ -303,7 +303,7 @@
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
-      "sha256": "edc78dfd6aa9845ed75e553abd3126f01909904f5efe1444e1ac92d95d5b0cf8"
+      "sha256": "42571b398a76199227647e190fd9eab6090f801f68f7de45d3949d58264b7886"
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",

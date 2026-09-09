@@ -92,6 +92,19 @@ describe('checkPrincipleTrace', () => {
     ]);
   });
 
+  it('does not drop a trace row followed by a delimiter-shaped body row', () => {
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      '| Invented principle | Recovery stays in context | missing.md | bogus |\n| - | - | - | - |\n| Delight the user | Recovery stays in context | verify.md | |',
+    );
+
+    expect(checkPrincipleTrace(project(), plan)).toEqual([
+      '[E010] Broken principle trace: missing source principle: Invented principle',
+      '[E010] Broken principle trace: dead evidence reference: Invented principle',
+      '[E010] Broken principle trace: unsupported conflict marker: Invented principle',
+    ]);
+  });
+
   it('reports a row that carries claims but no principle name', () => {
     const plan = PLAN.replace(
       '| Delight the user | Recovery stays in context | verify.md | |',
