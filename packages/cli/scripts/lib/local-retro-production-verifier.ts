@@ -162,6 +162,7 @@ function githubIssueUrl(repo: string, issueNumber: number): URL {
 
 function hasRelayAuthorityTail(body: string, markers: string[]): boolean {
   const lines = body.split(/\r?\n/u);
+  while (lines.at(-1) === '') lines.pop();
   const tail = lines.slice(-markers.length);
   return tail.length === markers.length && markers.every((marker, index) => tail[index] === marker);
 }
@@ -188,7 +189,7 @@ async function verifyHarness(
   if (!validRelayReceipt(relayReceipt, evidence)) return false;
   const issueUrl = githubIssueUrl(options.repository, relayReceipt.issueNumber);
   const issue = record(await readJson(issueUrl, options.githubToken, options.fetch));
-  if (typeof issue?.body !== 'string') return false;
+  if (issue?.state !== 'closed' || typeof issue.body !== 'string') return false;
   return hasRelayAuthorityTail(
     issue.body,
     expectedMarkers(evidence.requestId, envelope.findings, options),

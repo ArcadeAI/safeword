@@ -110,12 +110,16 @@ function inputUrl(input: string | URL | Request): string {
 }
 
 type ProductionFault =
+  | 'managed-host'
   | 'missing-lifecycle'
   | 'missing-raw-marker'
   | 'marker-outside-relay-tail'
+  | 'open-issue'
   | 'relay-request-mismatch'
   | 'repository-mismatch'
-  | 'session-mismatch';
+  | 'session-mismatch'
+  | 'trailing-newline'
+  | 'unknown-host';
 
 function canaryIssueLines(
   fault: ProductionFault | undefined,
@@ -128,6 +132,32 @@ function canaryIssueLines(
   return fault === 'marker-outside-relay-tail' && harness === 'claude-code'
     ? [firstMarker, ...findings, ...remainingMarkers]
     : [...findings, ...markers];
+}
+
+function canaryIssueState(
+  fault: ProductionFault | undefined,
+  harness: (typeof harnesses)[number],
+): 'closed' | 'open' {
+  return fault === 'open-issue' && harness === 'cursor' ? 'open' : 'closed';
+}
+
+function canaryHostClass(
+  fault: ProductionFault | undefined,
+  harness: (typeof harnesses)[number],
+): string {
+  if (harness !== 'cursor') return 'local';
+  if (fault === 'managed-host') return 'managed-cloud';
+  return fault === 'unknown-host' ? 'unknown' : 'local';
+}
+
+function canaryIssueBody(
+  fault: ProductionFault | undefined,
+  harness: (typeof harnesses)[number],
+  findings: string[],
+  markers: string[],
+): string {
+  const body = canaryIssueLines(fault, harness, findings, markers).join('\n');
+  return fault === 'trailing-newline' && harness === 'cursor' ? `${body}\n` : body;
 }
 
 function harnessResponses(fault?: ProductionFault): Map<string, Response> {
@@ -144,7 +174,7 @@ function harnessResponses(fault?: ProductionFault): Map<string, Response> {
         sessionScope,
         source: {
           harness,
-          hostClass: 'local',
+          hostClass: canaryHostClass(fault, harness),
           repository:
             fault === 'repository-mismatch' && harness === 'claude-code' ? 'someone/else' : repo,
         },
@@ -172,7 +202,10 @@ function harnessResponses(fault?: ProductionFault): Map<string, Response> {
     if (fault === 'missing-raw-marker' && harness === 'claude-code') markers.pop();
     responses.set(
       `/repos/ArcadeAI/safeword/issues/${issueNumber}`,
-      Response.json({ body: canaryIssueLines(fault, harness, findings, markers).join('\n') }),
+      Response.json({
+        body: canaryIssueBody(fault, harness, findings, markers),
+        state: canaryIssueState(fault, harness),
+      }),
     );
   }
   return responses;
@@ -273,14 +306,21 @@ describe('local retro production verifier', () => {
   );
 
   it.each([
+    'managed-host',
     'missing-lifecycle',
     'missing-raw-marker',
     'marker-outside-relay-tail',
+    'open-issue',
     'relay-request-mismatch',
     'repository-mismatch',
     'session-mismatch',
+    'unknown-host',
   ] as const)('fails closed for %s evidence', async fault => {
     await expect(verify(productionFetch(fault))).resolves.toBe(false);
+  });
+
+  it('accepts complete production evidence with a trailing issue-body newline', async () => {
+    await expect(verify(productionFetch('trailing-newline'))).resolves.toBe(true);
   });
 
   it('reads server-owned payloads through the audited private route', async () => {
