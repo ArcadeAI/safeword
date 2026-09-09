@@ -53,6 +53,6 @@ source share one ledger entry.
 
 ### Scenario: The host proposal is explicit and independently adoptable
 
-- [ ] RED
+- [x] RED skip: the approved design record existed before its regression assertion
 - [ ] GREEN
 - [ ] REFACTOR
