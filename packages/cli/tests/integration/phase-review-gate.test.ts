@@ -128,7 +128,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
           review_id: reviewId,
           status: 'approved',
           review_kind: 'quality-review',
-          review_targets: [target],
+          review_targets: phase === 'implement' ? [target, '.safeword/config.json'] : [target],
           independence: 'cross-agent',
           author_agent: 'claude',
           actual_reviewer: 'codex',
@@ -200,6 +200,10 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     const implementationFile = nodePath.join(projectRoot, 'packages', 'cli', 'src', 'feature.ts');
     mkdirSync(nodePath.dirname(implementationFile), { recursive: true });
     writeFileSync(implementationFile, 'export const value = 1;\n');
+    writeFileSync(
+      nodePath.join(projectRoot, '.gitignore'),
+      '.safeword-project/quality-state*.json\n.safeword-project/skill-invocations.log\n',
+    );
     expect(spawnSync('git', ['init', '-b', 'main', projectRoot]).status).toBe(0);
     expect(spawnSync('git', ['-C', projectRoot, 'add', '.']).status).toBe(0);
     expect(

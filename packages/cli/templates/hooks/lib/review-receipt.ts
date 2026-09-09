@@ -144,6 +144,20 @@ function coversArtifact(targets: readonly string[], claim: StampClaim, artifact:
   return targets.some(target => relativeTicketTarget(target, claim) === `${artifact}.md`);
 }
 
+/** Whether an exact file or reviewed parent directory covers a changed file. */
+function targetCoversFile(target: string, file: string, projectDirectory: string): boolean {
+  const relative = nodePath.relative(
+    resolveTarget(target, projectDirectory),
+    resolveTarget(file, projectDirectory),
+  );
+  return (
+    relative === '' ||
+    (relative !== '..' &&
+      !relative.startsWith(`..${nodePath.sep}`) &&
+      !nodePath.isAbsolute(relative))
+  );
+}
+
 /** Whether the receipt covered the artifact produced by this workflow phase. */
 function coversPhase(targets: readonly string[], claim: StampClaim, phase: string): boolean {
   const ticketTargets = targets
@@ -162,13 +176,12 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
     // Without a current Git change set there is no independent evidence that
     // a reviewed file is the implementation this phase produced.
     if (claim.implementationFiles.length === 0) return false;
-    const changed = new Set(
-      claim.implementationFiles.map(target => resolveTarget(target, claim.projectDirectory)),
+    const changed = claim.implementationFiles.filter(
+      target => relativeTicketTarget(target, claim) === undefined,
     );
-    return targets.some(
-      target =>
-        changed.has(resolveTarget(target, claim.projectDirectory)) &&
-        relativeTicketTarget(target, claim) === undefined,
+    if (changed.length === 0) return false;
+    return changed.every(file =>
+      targets.some(target => targetCoversFile(target, file, claim.projectDirectory)),
     );
   }
   return false;

@@ -111,6 +111,13 @@ export function isSatisfyingCoordinatorReviewStamp(
   );
 }
 
+/** Whether this exact scope carries the deliberate, reasoned escape hatch. */
+export function isSatisfyingSkipStamp(id: string, stamp: ReviewStamp): boolean {
+  return (
+    stamp.scope === id && stamp.skipReason !== undefined && isValidSkipReason(stamp.skipReason)
+  );
+}
+
 /** Phase exits require a cited coordinator review; only an explicit skip may bypass it. */
 function hasSatisfyingPhaseStamp(
   id: string,
@@ -119,10 +126,7 @@ function hasSatisfyingPhaseStamp(
 ): boolean {
   return stamps.some(
     stamp =>
-      (stamp.scope === id &&
-        stamp.skipReason !== undefined &&
-        isValidSkipReason(stamp.skipReason)) ||
-      isSatisfyingCoordinatorReviewStamp(id, stamp, policy),
+      isSatisfyingSkipStamp(id, stamp) || isSatisfyingCoordinatorReviewStamp(id, stamp, policy),
   );
 }
 

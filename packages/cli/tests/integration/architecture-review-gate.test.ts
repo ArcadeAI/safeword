@@ -300,6 +300,16 @@ describe('architecture review gate (MR5M3A)', () => {
     expect(reason).not.toContain(REVIEW_MSG);
   });
 
+  it('lets a deliberate review skip bypass the cross-model ceiling', () => {
+    setConfig({ architectureReviewGate: true, crossModelReview: true });
+    writeTicket('ARG007B', 'feature', CITED);
+    writeStamp('ARG007B', CITED, { skip: 'independent reviewer unavailable this run' });
+
+    const reason = runStopHook('ARG007B', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' });
+    expect(reason).not.toContain(CROSS_MODEL_MSG);
+    expect(reason).not.toContain(REVIEW_MSG);
+  });
+
   it('blocks under cross-model when the stamp records no model (fails closed)', () => {
     setConfig({ architectureReviewGate: true, crossModelReview: true });
     writeTicket('ARG008', 'feature', CITED);
