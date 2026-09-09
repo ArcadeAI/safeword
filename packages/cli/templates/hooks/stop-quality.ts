@@ -24,6 +24,7 @@ import {
   isArchitectureReviewGateEnabled,
   isStopQualityReviewEnabled,
   isCrossModelReviewRequired,
+  isSatisfyingCoordinatorReviewStamp,
   modelsMatch,
   parseReviewStamps,
   readCrossAgentReviewPolicy,
@@ -336,13 +337,15 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   // skip records no real-review stamp, so it deliberately bypasses cross-model: that is the same
   // auditable escape valve every safeword gate carries, not an oversight.
   if (isCrossModelReviewRequired(rawConfig)) {
-    const realReviews = stamps.filter(s => s.scope === scope && s.skipReason === undefined);
+    const realReviews = stamps.filter(stamp =>
+      isSatisfyingCoordinatorReviewStamp(scope, stamp, readCrossAgentReviewPolicy(rawConfig)),
+    );
     const hasCrossModelReview = realReviews.some(
       s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
     );
-    if (realReviews.length > 0 && !hasCrossModelReview) {
+    if (!hasCrossModelReview) {
       hardBlockDone(
-        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run `safeword review run plan-implementation ...` with a different configured reviewer model, then record its returned provenance and actual_model via `write-review-stamp.ts impl-plan`.',
+        'Architecture review gate (cross-model): the design review must be performed by a different model than the author. Re-run `safeword review run plan-implementation ...` with a different configured reviewer model, then record its returned provenance and reviewer_model via `write-review-stamp.ts impl-plan`.',
       );
     }
   }

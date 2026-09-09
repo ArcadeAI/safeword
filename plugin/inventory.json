@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "efccc6a5483865e17e600161f939bc32040734a85dbc31b0e9fc000158fb2a9e"
+      "sha256": "b8de8f405fc87e2679a474ea90e0959e4454e120db0a21b81f0ffd1bf902a332"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "919c3fbec6995f050f488d6118632831cd0cbb4c8a3c5e2607ef06b1a9092365"
+      "sha256": "a8bbaabb91e3ccc24769417423b50b8ed0733c1284c41a71d4f39243f3db5f39"
     },
     {
       "path": "runtime/event-groups.json",
@@ -335,7 +335,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "6a72638e664174b49e1c8a5459a686fdb2ded16dc4859da1e4c8f69c8264579e"
+      "sha256": "8a86ecab48f65fce00bde3624eb8e17e4434b4fe1b0fc71acf483d1adbb04393"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -375,11 +375,11 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "b1cd76871901401e49c377303041c4b86c8028986f89afdfa78a080143927f20"
+      "sha256": "6498306c8e4308736bed0c05fecdad56434459c1acd084a2a72bd3589fe90724"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "429358da40ddf6bc0372c17579470876c3391b65a0077ca308a9778623cabd4d"
+      "sha256": "adaf28c899a92d8a187d53f749257b8c4fe9f4b2cc4d5620df5e9215eb0e0ed4"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -427,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "bac34f285a3fc822dec5e62428f86088df943b9e1ef4a452b5caeaadd702b8c6"
+      "sha256": "0e6c60faeb3d54929b91f4bcbab809747833226504096a8c54fe7540d96fb357"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "fcf765338531c46a9c1e032d645629c133613fc115d74baab85e1e1cb4deb5c3"
+      "sha256": "2887e3e3029498df85a1ea23bfeeaf39de14806f4fa5004fa15c553f99a772d8"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -579,7 +579,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "1827573bbe6aff31b70d804c5c5986a541c14a8f489880d918f149ae5e7187c7"
+      "sha256": "386947fbf078f2f7dcb68f9b4ab3a575056e686beb02a2e834b943ed5af6d669"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "0b04df8e2d51a603ee76f2c268c16b212a97c1e52c2a71eb2bb0dbeda6c86aba"
+      "sha256": "0cb1128c339b5c7eb609ff17b43453a4da1093a011f2529255ba866a57795a90"
     },
     {
       "path": "skills/audit/SKILL.md",

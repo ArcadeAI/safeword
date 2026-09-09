@@ -96,7 +96,7 @@ function hasSatisfyingStamp(
 }
 
 /** Whether a phase stamp records a cited coordinator review that satisfies the active policy. */
-export function isSatisfyingPhaseReviewStamp(
+export function isSatisfyingCoordinatorReviewStamp(
   id: string,
   stamp: ReviewStamp,
   policy: CrossAgentReviewPolicy,
@@ -122,7 +122,7 @@ function hasSatisfyingPhaseStamp(
       (stamp.scope === id &&
         stamp.skipReason !== undefined &&
         isValidSkipReason(stamp.skipReason)) ||
-      isSatisfyingPhaseReviewStamp(id, stamp, policy),
+      isSatisfyingCoordinatorReviewStamp(id, stamp, policy),
   );
 }
 

@@ -112,13 +112,17 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   }
 
   function stampVerifiedPhase(phase: string, model?: string): void {
-    const reviewId = 'b3f1c2d4-0000-4000-8000-000000000001';
+    const reviewId =
+      {
+        'claude-opus-4-8': 'b3f1c2d4-0000-4000-8000-000000000001',
+        'claude-sonnet-4-6': 'b3f1c2d4-0000-4000-8000-000000000002',
+      }[model ?? ''] ?? 'b3f1c2d4-0000-4000-8000-000000000003';
     const target =
       phase === 'implement'
         ? 'packages/cli/src/feature.ts'
         : `.safeword-project/tickets/${TICKET_ID}/feature.feature`;
     writeFileSync(
-      nodePath.join(pluginRoot, 'response.json'),
+      nodePath.join(pluginRoot, `response-${reviewId}.json`),
       JSON.stringify({
         data: {
           review_id: reviewId,
@@ -128,6 +132,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
           independence: 'cross-agent',
           author_agent: 'claude',
           actual_reviewer: 'codex',
+          reviewer_model: model,
         },
       }),
     );
@@ -178,7 +183,8 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       [
         "import { readFileSync } from 'node:fs';",
         "import nodePath from 'node:path';",
-        "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', 'response.json'), 'utf8'));",
+        'const id = process.argv[4];',
+        "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', `response-${id}.json`), 'utf8'));",
       ].join('\n'),
     );
     ticketDirectory = nodePath.join(projectRoot, '.safeword-project', 'tickets', TICKET_ID);
@@ -258,9 +264,14 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     expectHookAllow(runGateWrite('define-behavior'));
   });
 
-  it('is inert when reviewGate is off (default)', () => {
+  it('is inert when reviewGate is explicitly off', () => {
     writeConfig(false);
     expectHookAllow(runGateWrite('scenario-gate'));
+  });
+
+  it('blocks by default when reviewGate is absent', () => {
+    rmSync(nodePath.join(projectRoot, '.safeword', 'config.json'));
+    expectHookDeny(runGateWrite('scenario-gate'), 'no independent review stamp');
   });
 
   describe('cross-model (7A0B2K) — phase-exit review must be a different model', () => {

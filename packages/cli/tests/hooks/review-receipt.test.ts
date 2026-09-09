@@ -166,14 +166,14 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     ).toEqual({ ok: true });
   });
 
-  it('accepts a reviewed implementation file when Git cannot derive a change set', () => {
+  it('fails closed when Git cannot derive an implementation change set', () => {
     expect(
       receiptGateVerdict(claimFor({ phase: 'implement', implementationFiles: [] }), {
         ...approved,
         kind: 'quality-review',
-        targets: ['packages/cli/src/changed.ts'],
-      }),
-    ).toEqual({ ok: true });
+        targets: [`.project/tickets/${TICKET}/ticket.md`, 'packages/cli/src/changed.ts'],
+      }).ok,
+    ).toBe(false);
     expect(
       receiptGateVerdict(claimFor({ phase: 'implement' }), {
         ...approved,
@@ -331,6 +331,16 @@ describe('receiptGateVerdict — provenance the stamp claims', () => {
         approved,
       ),
     ).toEqual({ ok: true });
+  });
+
+  it('rejects a reviewer model the coordinator did not record', () => {
+    const verdict = receiptGateVerdict(
+      claimFor({ artifact: 'impl-plan', reviewerModel: 'different-model' }),
+      { ...approved, reviewerModel: 'actual-model' },
+    );
+
+    expect(verdict.ok).toBe(false);
+    expect(!verdict.ok && verdict.reason).toMatch(/model/u);
   });
 });
 

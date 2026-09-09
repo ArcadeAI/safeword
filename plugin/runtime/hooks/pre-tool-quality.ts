@@ -29,7 +29,7 @@ import {
   gatePhaseAdvance,
   hashArtifact,
   isCrossModelReviewRequired,
-  isSatisfyingPhaseReviewStamp,
+  isSatisfyingCoordinatorReviewStamp,
   isReviewGateEnabled,
   reviewGateAppliesToPhase,
   modelsMatch,
@@ -820,7 +820,7 @@ if (isCanonicalTicketEdit) {
     if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
       deny(
         `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,
-        `Run \`safeword review run ${reviewKindForPhase(exitedPhase)} <the work this phase produced>\`, then record its author_agent, actual_reviewer, independence and review id with \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`; add a model only when independently verified. To stop gating this exit, narrow \`reviewGate\` in .safeword/config.json to the phases you want (or set it to false).`,
+        `Run \`safeword review run ${reviewKindForPhase(exitedPhase)} <ticket.md and the work this phase produced>\`, then record its author_agent, actual_reviewer, independence, review id, and reviewer_model with \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`. To stop gating this exit, narrow \`reviewGate\` in .safeword/config.json to the phases you want (or set it to false).`,
       );
     }
     // Ceiling-raiser (7A0B2K): under cross-model, a real-review stamp must record a
@@ -838,15 +838,15 @@ if (isCanonicalTicketEdit) {
       )
     ) {
       const realReviews = stamps.filter(stamp =>
-        isSatisfyingPhaseReviewStamp(phaseScope, stamp, crossAgentReviewPolicy()),
+        isSatisfyingCoordinatorReviewStamp(phaseScope, stamp, crossAgentReviewPolicy()),
       );
       const hasCrossModelReview = realReviews.some(
         s => !modelsMatch(s.model, process.env[AUTHOR_MODEL_ENV]),
       );
-      if (realReviews.length > 0 && !hasCrossModelReview) {
+      if (!hasCrossModelReview) {
         deny(
           `Phase "${exitedPhase}" review (cross-model): the phase review must be performed by a different model than the author.`,
-          `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and actual_model via \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
+          `Re-run the phase's \`safeword review run\` command with a different configured reviewer model, then record the returned provenance and reviewer_model via \`bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --phase ${exitedPhase}\`.`,
         );
       }
     }

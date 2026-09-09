@@ -41,6 +41,8 @@ export interface StampClaim {
   readonly intakeArtifact?: 'spec.md' | 'ticket.md';
   /** Repo-relative files changed by the current branch/worktree. */
   readonly implementationFiles?: readonly string[];
+  /** Reviewer model recorded on the stamp. */
+  readonly reviewerModel?: string;
   /** Author runtime the stamp reports, when it reports one. */
   readonly authorAgent?: string;
   /** Actual reviewer runtime the stamp reports, when it reports one. */
@@ -56,6 +58,7 @@ export interface ReviewReceipt {
   readonly independence?: string;
   readonly authorAgent?: string;
   readonly actualReviewer?: string;
+  readonly reviewerModel?: string;
 }
 
 /**
@@ -157,10 +160,9 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
   if (phase === 'done') return ticketTargets.includes('ticket.md');
   if (phase === 'implement') {
     if (claim.implementationFiles === undefined) return false;
-    // In a non-git project (or work committed directly on its base branch),
-    // the approved receipt's explicit non-ticket target is the available proof.
-    if (claim.implementationFiles.length === 0)
-      return targets.some(target => relativeTicketTarget(target, claim) === undefined);
+    // Without a current Git change set there is no independent evidence that
+    // a reviewed file is the implementation this phase produced.
+    if (claim.implementationFiles.length === 0) return false;
     const changed = new Set(
       claim.implementationFiles.map(target => resolveTarget(target, claim.projectDirectory)),
     );
@@ -213,6 +215,7 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
   const provenance = [
     ['author', claim.authorAgent, receipt.authorAgent],
     ['reviewer', claim.reviewerAgent, receipt.actualReviewer],
+    ['model', claim.reviewerModel, receipt.reviewerModel],
   ] as const;
   for (const [field, claimed, recorded] of provenance) {
     if (claimed !== undefined && recorded !== claimed)
