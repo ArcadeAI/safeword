@@ -17,7 +17,7 @@ source share one ledger entry.
 
 - [x] RED skip: validation and atomic publication landed in the preceding coherent-generator slice
 - [x] GREEN 4ddd53898
-- [ ] REFACTOR
+- [x] REFACTOR skip: pure validation and publisher seams require no further structural change
 
 ## Rule: cachebusted-codex.TBU1.R2 — A cachebusted bundle executes and identifies itself from its exact installed directory
 
