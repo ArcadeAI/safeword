@@ -23,6 +23,7 @@ import {
   cancelReviewJob,
   completeReviewJob,
   executableRedGate,
+  readReviewRouteProofs,
   relayManagedWorkerStderr,
   reviewJobStatus,
   startReviewJob,
@@ -107,6 +108,16 @@ function worker(directory: string, source: string): string {
   const path = nodePath.join(directory, 'worker.mjs');
   writeFileSync(path, source);
   return path;
+}
+
+function workerWithRouteEvidence(route: Record<string, unknown>, updatedAt: string): string {
+  return COMPLETE_WORKER.replace(
+    'record.updated_at = new Date().toISOString();',
+    () => `record.updated_at = ${JSON.stringify(updatedAt)};`,
+  ).replace(
+    'reviewer_output: {',
+    () => `review_routes: ${JSON.stringify([route])}, reviewer_output: {`,
+  );
 }
 
 function signRecord(cwd: string, record: Record<string, unknown>): string {
@@ -1355,6 +1366,78 @@ describe('durable review jobs', () => {
     const keyRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
     if (keyRoot === undefined) throw new Error('test key root is unavailable');
     expect(readdirSync(nodePath.join(keyRoot, 'safeword'))).toEqual(['review-integrity.key']);
+  });
+
+  it('records a successful route as proven evidence', async () => {
+    const cwd = project();
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(
+        cwd,
+        workerWithRouteEvidence(
+          { reviewer: 'codex', model: 'model-a', status: 'attempted' },
+          '2026-09-06T15:00:00.000Z',
+        ),
+      ),
+    );
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+
+    await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+
+    expect(readReviewRouteProofs(cwd)).toEqual([
+      {
+        reviewer: 'codex',
+        model: 'model-a',
+        runtime_default: false,
+        proof: 'proven',
+        observed_at: '2026-09-06T15:00:00.000Z',
+      },
+    ]);
+  });
+
+  it('lets the most recent route failure replace older proven evidence', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(
+        cwd,
+        workerWithRouteEvidence(
+          { reviewer: 'codex', model: 'model-a', status: 'attempted' },
+          '2026-09-06T15:00:00.000Z',
+        ),
+      ),
+    );
+    await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    writeFileSync(nodePath.join(cwd, 'second.md'), 'second review\n');
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(
+        cwd,
+        workerWithRouteEvidence(
+          {
+            reviewer: 'codex',
+            model: 'model-a',
+            status: 'unavailable',
+            failure: 'process_failed',
+          },
+          '2026-09-06T15:01:00.000Z',
+        ),
+      ),
+    );
+
+    await startReviewJob({ cwd, kind: 'quality-review', targets: ['second.md'] });
+
+    expect(readReviewRouteProofs(cwd)).toEqual([
+      {
+        reviewer: 'codex',
+        model: 'model-a',
+        runtime_default: false,
+        proof: 'known_failure',
+        failure: 'process_failed',
+        observed_at: '2026-09-06T15:01:00.000Z',
+      },
+    ]);
   });
 
   it.runIf(process.platform !== 'win32')(
