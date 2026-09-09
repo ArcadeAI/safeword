@@ -213,6 +213,13 @@ function shouldApplyFreshInstallDefaults(cwd: string): boolean {
   );
 }
 
+function applyPendingFreshInstallDefaults(cwd: string): Effect[] {
+  const target = '.safeword/config.json';
+  const before = snapshotFiles(cwd, [target]);
+  if (shouldApplyFreshInstallDefaults(cwd)) applyFreshInstallDefaults(cwd);
+  return diffFileSnapshots(before, snapshotFiles(cwd, [target]));
+}
+
 function plannedCodexBootstrapEffect(cwd: string): Effect[] {
   const target = '.codex/config.toml';
   const path = nodePath.join(cwd, target);
@@ -647,6 +654,7 @@ async function convergeSetupValidated(
     ? [{ kind: 'update', target: '.safeword/version' }]
     : [];
   let namespaceMigration: NamespaceConvergence = { effects: [], findings: [] };
+  let freshDefaultEffects: Effect[] = [];
   let packageJsonCreated = false;
 
   try {
@@ -676,6 +684,7 @@ async function convergeSetupValidated(
         ...diffFileSnapshots(namespaceBefore, snapshotFiles(cwd, namespaceTargets)),
       ]),
     };
+    freshDefaultEffects = applyPendingFreshInstallDefaults(cwd);
     packageJsonCreated = configured ? false : ensurePackageJson(cwd);
     options.progress?.start(
       configured ? 'Reconciling the Safeword upgrade…' : 'Setting up Safeword…',
@@ -685,7 +694,7 @@ async function convergeSetupValidated(
       packageJsonCreated,
       noModify: options.noModify === true,
       namespaceMigration,
-      preliminaryFileEffects: versionMarkerEffects,
+      preliminaryFileEffects: [...versionMarkerEffects, ...freshDefaultEffects],
       adapters,
       schema: options.schema,
     });
@@ -693,6 +702,7 @@ async function convergeSetupValidated(
     return setupFailure(setupError, {
       files: [
         ...versionMarkerEffects,
+        ...freshDefaultEffects,
         ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
         ...namespaceMigration.effects,
       ],
@@ -1266,16 +1276,7 @@ function projectClaudePluginEnrolled(cwd: string): boolean {
   }
 }
 
-function applyCompatibilityMigrations(
-  cwd: string,
-  completedEffects: CompletedSetupEffects,
-  applyFreshDefaults: boolean,
-): void {
-  if (applyFreshDefaults) {
-    observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () => {
-      applyFreshInstallDefaults(cwd);
-    });
-  }
+function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
     const targets = [
@@ -1381,7 +1382,6 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     packageJsonCreated,
     preliminaryFileEffects,
   } = input;
-  const applyFreshDefaults = shouldApplyFreshInstallDefaults(cwd);
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
   const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
@@ -1393,7 +1393,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   };
 
   try {
-    applyCompatibilityMigrations(cwd, completedEffects, applyFreshDefaults);
+    applyCompatibilityMigrations(cwd, completedEffects);
     observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
       installCodexProjectBootstrap(cwd),
     );

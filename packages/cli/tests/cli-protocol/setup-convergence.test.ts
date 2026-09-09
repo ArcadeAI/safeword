@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { convergeSetup } from '../../src/lifecycle/project-install.js';
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, runCliWithoutInstall } from '../helpers.js';
 
@@ -46,6 +47,22 @@ async function expectOfflineSetupSuccess(directory: string): Promise<void> {
 }
 
 describe('convergent setup', () => {
+  it('persists fresh defaults before reconciliation can interrupt setup', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await convergeSetup(directory, {
+      noModify: true,
+      schema: {
+        ...SAFEWORD_SCHEMA,
+        ownedFiles: {
+          '.safeword/unreachable': { template: 'missing-interruption-fixture' },
+        },
+      },
+    });
+
+    expect(result.state).toBe('failed');
+    expect(readProjectConfig(directory).architectureDocEnforcement).toBe(false);
+  });
+
   it('creates a local public-retro project identity on first setup', async () => {
     const directories = [createTemporaryDirectory(), createTemporaryDirectory()];
     const identities: unknown[] = [];
