@@ -15,7 +15,17 @@ declare const Bun: {
   };
 };
 
-const BIOME_CONFIG_FILES = ['biome.json', 'biome.jsonc', '.biome.json', '.biome.jsonc'];
+/**
+ * Config filenames that make a directory Biome-owned. The session lint check
+ * and lint-config helpers import this same list, so no copied set can drift and
+ * resurrect the false ESLint warning (#3792).
+ */
+export const BIOME_CONFIG_FILES = [
+  'biome.json',
+  'biome.jsonc',
+  '.biome.json',
+  '.biome.jsonc',
+] as const satisfies readonly string[];
 type HostToolchainOwner = 'ultracite' | 'biome';
 
 export type HostToolchain =
