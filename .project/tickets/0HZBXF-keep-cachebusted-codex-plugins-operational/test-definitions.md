@@ -37,7 +37,7 @@ source share one ledger entry.
 
 ### Scenario: Generation without an override reproduces the checked-in release bundle
 
-- [ ] RED
+- [x] RED skip: deterministic default generation predates this change and is regression-only
 - [ ] GREEN
 - [ ] REFACTOR
 
