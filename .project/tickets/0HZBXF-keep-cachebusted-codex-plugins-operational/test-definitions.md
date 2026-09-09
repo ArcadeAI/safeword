@@ -29,7 +29,7 @@ source share one ledger entry.
 
 ### Scenario: Profile status accepts the cachebusted bundle identity
 
-- [ ] RED
+- [x] RED skip: cachebusted identity injection landed in the coherent-generator slice
 - [ ] GREEN
 - [ ] REFACTOR
 
