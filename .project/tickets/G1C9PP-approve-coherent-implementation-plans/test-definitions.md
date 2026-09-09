@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 7b85f37d4
 - [x] GREEN 537c8d93f
-- [ ] REFACTOR
+- [x] REFACTOR skip: first slice adds one focused parser contract and one transition guard; no shared structure is clearer after extraction
 
 ### Scenario: Gated hosts enforce and release the decision boundary through the installed workflow
 
