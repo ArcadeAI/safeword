@@ -9,7 +9,7 @@ source share one ledger entry.
 
 ### Scenario: An accepted effective version is stamped throughout the bundle
 
-- [ ] RED
+- [x] RED 9dfc12648
 - [ ] GREEN
 - [ ] REFACTOR
 

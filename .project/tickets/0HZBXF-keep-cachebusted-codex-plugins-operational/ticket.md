@@ -39,6 +39,12 @@ last_modified: 2026-09-09T15:51:25.107Z
 
 ## Work Log
 
+- 2026-09-09T17:49:00Z RED: The real generator subprocess failed at the intended
+  boundary because `--output` was not created. Independent executable-RED jobs
+  `d9f0ed68-071c-4736-bfcc-d8899d4697e6` and
+  `29b127a9-af6b-4d0a-af68-17ccc49e3610` both failed inside Safeword before
+  review because the worker dropped its persisted trusted execution attestation;
+  the terminal proof remains captured in commit `9dfc12648`.
 - 2026-09-09T17:20:00Z Plan-implementation exit: Cross-agent review approved
   the five-slice plan after atomic-publication failure proof, direct and shared
   host-parity evidence, a named design-contract test, and the maintainer handoff
