@@ -2,5 +2,5 @@
   "integration": "claude",
   "operation": "upgrade",
   "result_sha256": "3f048ba5e7f708992ae0bd45369b99eab594c3566b393ee66d61494b4a474093",
-  "tree_sha256": "36039b291a1ae543a2208aba3733a677384454506e3584f2e5c02f02e217a094"
+  "tree_sha256": "93eef6791fabe7c23eeac18128a7706e8c7143a131b94df3230c88b490df142d"
 }
