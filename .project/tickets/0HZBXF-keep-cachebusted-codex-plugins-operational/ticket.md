@@ -40,8 +40,19 @@ last_modified: 2026-09-09T15:51:25.107Z
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
+## Root Cause
+
+Node 22 CI proved that real `codex plugin add` removes the prior base-version
+cache entry when installing the cachebusted version. The failed assertion came
+from incorrectly treating installer preservation as part of the host contract.
+The coexistence test must restore the genuine base install as an intentional
+stale-cache decoy, verify its runtime identity, then exercise the cachebusted
+workflow. This rules out a platform difference and a missing base install.
+
 ## Work Log
 
+- 2026-09-09T22:51:00Z Root-cause correction: Restored the base install as a
+  validated stale-cache decoy instead of asserting that Codex preserves it.
 - 2026-09-09T19:45:00Z Independent review recovery: Re-dispatched the bounded
   ticket packet through the installed cachebusted runtime. Claude Opus approved
   it cross-agent in review `44c7f018-c6c6-457c-aa2e-54c0beaab751`; after six
