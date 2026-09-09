@@ -33,6 +33,16 @@ describe('checkPrincipleTrace', () => {
     expect(checkPrincipleTrace(project(), PLAN)).toEqual([]);
   });
 
+  it('treats a heading number as presentation rather than principle identity', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      PRINCIPLE.replace('## Delight the user', '## 1. Delight the user'),
+    );
+
+    expect(checkPrincipleTrace(directory, PLAN)).toEqual([]);
+  });
+
   it('resolves a proof reference on its file, leaving the #fragment unjudged', () => {
     const directory = project();
     const plan = PLAN.replace('verify.md', 'verify.md#no-such-anchor');

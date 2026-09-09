@@ -92,14 +92,19 @@ function parseTraceRows(implPlan: string): PrincipleTrace[] {
  * authored principle reports the plan's correct citation as a fabrication.
  * `## Further reading` terminates the list so supporting sections have a home.
  */
+function normalizePrincipleName(name: string): string {
+  return name.trim().replace(/^\d+\.\s+/u, '').toLowerCase();
+}
+
 function principleNames(source: string | null): Set<string> {
   const names = new Set<string>();
 
   for (const line of activeLines(source ?? '')) {
     const name = line.match(/^##\s+(.+?)\s*$/u)?.[1]?.trim();
     if (name === undefined) continue;
-    if (name.toLowerCase() === 'further reading') break;
-    names.add(name.toLowerCase());
+    const normalized = normalizePrincipleName(name);
+    if (normalized === 'further reading') break;
+    names.add(normalized);
   }
 
   return names;

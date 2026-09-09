@@ -2,6 +2,7 @@
 id: PJT893
 slug: principles-that-actually-gate
 type: task
+subtype: bug-investigated
 phase: intake
 status: done
 created: 2026-09-05T22:36:59.730Z
@@ -93,3 +94,16 @@ last_modified: 2026-09-05T22:36:59.730Z
   class — and check what upstream helpers actually return before building on
   them. A skipped row is worse than a wrong verdict; a false positive on a gate
   is worse than a missed edge case. Both directions need a test.
+
+## Root Cause
+
+The permissive heading-parser rewrite removed the existing normalization that
+stripped a leading number from a principle heading. The acceptance scenario and
+a focused unit reproduction both show `## 1. Delight the user` being stored as
+`1. delight the user`, so the valid trace name `Delight the user` is rejected.
+
+Ruled out: the trace-table parser still returns the intended trace row, proven by
+the finding naming `Delight the user`; configured-path resolution still finds the
+authored file, proven by the missing-name check running against a populated set.
+Git history identifies the removed `normalizePrincipleName` helper as the change
+that separated the working and failing implementations.
