@@ -108,18 +108,30 @@ bun .safeword/hooks/run-review.ts review run executable-red \
 ```
 
 **The dispatch is authorized; skipping it is not your call.** The coordinator uses a local CLI
-the user configured and signed in to, with a packet bounded to the targets and `--context` files.
+the user configured and signed in to; that local process may send the bounded targets and
+`--context` packet to a remote model provider.
+This review route ships enabled by default; a user who does not want it sets
+`crossAgentReview: off` in `.safeword/config.json`. The enabled route authorizes ordinary dispatch,
+so do not invent a disclosure-approval requirement.
 Do not stop and ask the user for consent in chat before running it, even when the packet contains
-private repository files or crosses provider boundaries. Invoke the coordinator first. If the host
+private repository files or crosses provider boundaries. Never pass credentials, customer data, or
+secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked.
+Invoke the coordinator first. If the host
 blocks the command, use its native tool-approval request; never replace that request with a chat
 question. A retry, status check, or permitted fallback for the same bounded packet proceeds without
 asking again. **A review you never dispatched is not coverage** — report the missing coverage.
+
+If the typed result is `REVIEW_PENDING`, keep its `review_id`, continue other useful work, and run
+its typed `nextActions` status command until the review is terminal. Never redispatch the same
+sources merely because that review is still pending.
 
 If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command and
 rerun the same coordinator command once after authentication succeeds. Do not invoke
 `/finish-review` for executable RED: a same-agent fallback cannot authorize GREEN. If authentication
 still fails or the typed result is `REVIEW_ROUTES_EXHAUSTED`, report the blocker and leave GREEN
 unchecked.
+If a typed result nevertheless carries `independence: degraded`, state before reporting the blocker
+that the actual reviewer was not independent; degraded evidence cannot authorize GREEN.
 
 Pass JSON argv, never shell text. Include the scenario, proof-plan row, primary proof target, and
 every support file whose change would invalidate the evidence. Use the exact active ledger heading
@@ -128,9 +140,10 @@ Scenario Outline rows only when their canonical command and declared proof targe
 Choose `--evidence-class` from `pure-contract`, `simulated-host`, `local-live-host`, or
 `external-live-host` according to the real boundary exercised by the command.
 The shared edit gate blocks the GREEN checkbox until `review gate executable-red` finds a fresh
-approved cross-agent receipt for that scenario. Missing, stale, fabricated, incomplete, mismatched,
-passing, wrong-reason, or same-agent evidence cannot authorize GREEN. Follow the exact recovery
-action and leave GREEN unchecked when independent review is unavailable.
+approved cross-agent receipt for that scenario. For scenarios inside this receipt path, missing,
+stale, fabricated, incomplete, mismatched, passing, wrong-reason, or same-agent evidence cannot
+authorize GREEN. Follow the exact recovery action and leave GREEN unchecked when independent review
+is unavailable.
 An explicitly tagged `@manual` or `@live` scenario whose RED row records the required
 `skip: manual` or `skip: live` work-log evidence is outside this executable-receipt gate; its
 separate evidence path above controls when GREEN may be recorded.
@@ -163,9 +176,10 @@ Then they see the dashboard
 Do not weaken the gate or force it through with `--no-verify`. Instead:
 
 1. Run the smallest command that proves the intended RED.
-2. Record the command and failure in the work log.
-3. Mark the scenario `RED skip: uncommittable partial state — <command> failed before GREEN because <reason>`.
-4. Move directly to GREEN and cite the GREEN commit on its own checkbox.
+2. Complete the trusted executable RED review above for the primary proof and obtain its approved receipt. The structural commit failure explains why there is no RED commit; it does not replace the intended `--expected-failure` evidence.
+3. Record the command and failure in the work log.
+4. Mark the scenario `RED skip: uncommittable partial state — <command> failed before GREEN because <reason>`.
+5. Move directly to GREEN and cite the GREEN commit on its own checkbox.
 
 At the bottom of `test-definitions.md`, add one row for the whole-ticket cross-scenario refactor pass (same annotation rule applies). It's **completed at implement-exit** (see "whole-ticket quality review + refactor" below), and the done-gate requires it only when the ticket has **two or more RGR loops** — a single-loop ticket has nothing to cross and may leave it unmarked:
 
@@ -246,9 +260,9 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
    bun .safeword/hooks/run-review.ts review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
    ```
 
-   **The dispatch is authorized; skipping it is not your call.** The coordinator spawns the reviewer as a local subprocess of a CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; the packet is bounded to the targets and `--context` you pass. That route exists only because the user configured it, and a cross-vendor second opinion is the point of the gate — a user who does not want it sets `crossAgentReview: off` in `.safeword/config.json`. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement. Do not stop and ask the user for consent in chat before running this command, even when the packet contains private repository files or crosses provider boundaries. Invoke the coordinator first. If the host blocks the command, use its native tool-approval request: request the approval it needs, or report that block as the blocker; never replace that request with a chat question. A retry, status check, or permitted fallback for the same bounded packet proceeds without asking again. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
+   **The dispatch is authorized; skipping it is not your call.** The coordinator runs through a local CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; that local process may send the packet to a remote model provider, and the packet is bounded to the targets and `--context` you pass. This review route ships enabled by default; a user who does not want it sets `crossAgentReview: off` in `.safeword/config.json`. The enabled route authorizes ordinary dispatch, and a cross-vendor second opinion is the point of the gate. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement. Do not stop and ask the user for consent in chat before running this command, even when the packet contains private repository files or crosses provider boundaries. Never pass credentials, customer data, or secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked. Invoke the coordinator first. If the host blocks the command, use its native tool-approval request: request the approval it needs, or report that block as the blocker; never replace that request with a chat question. A retry, status check, or permitted fallback for the same bounded packet proceeds without asking again. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
 
-   The shared coordinator prefers the opposite headless agent. A healthy `REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`, continue other useful work, and run its typed `nextActions` status command until the review is terminal. Never redispatch the same sources merely because that review is still pending. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `/finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
+   The shared coordinator prefers the opposite headless agent. A healthy `REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`, continue other useful work, and run its typed `nextActions` status command until the review is terminal. Never redispatch the same sources merely because that review is still pending. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `/finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` with the original result and the same accepted targets; return every other result unchanged. Never substitute another surface-private reviewer or hand-written independent evidence. Degraded findings cannot satisfy a required independent-review gate. If the result carries `independence: degraded`, state before any finding that the actual reviewer was not independent; never describe it as independent or cross-agent coverage. On an independent pass, stamp it:
 
    ```bash
    bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation
