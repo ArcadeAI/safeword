@@ -10,17 +10,17 @@ import {
 } from '../../scripts/lib/codex-plugin-generation.js';
 
 describe('Codex plugin generation boundary', () => {
-  it.each(['not-a-version', '0.84.0+codex.test'])(
-    'rejects incompatible effective version %s',
-    effectiveVersion => {
-      expect(() =>
-        parseCodexPluginGenerationOptions(
-          ['--version', effectiveVersion, '--output', 'bundle'],
-          '0.83.1',
-        ),
-      ).toThrow();
-    },
-  );
+  it.each([
+    ['not-a-version', 'Effective version is not valid SemVer'],
+    ['0.84.0+codex.test', 'Effective version must describe the same release as'],
+  ])('rejects incompatible effective version %s', (effectiveVersion, expectedError) => {
+    expect(() =>
+      parseCodexPluginGenerationOptions(
+        ['--version', effectiveVersion, '--output', 'bundle'],
+        '0.83.1',
+      ),
+    ).toThrow(expectedError);
+  });
 
   it('requires an explicit fresh output for a version override', () => {
     expect(() =>

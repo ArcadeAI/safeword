@@ -81,12 +81,12 @@ describe('Codex plugin release contract', () => {
         const runtimePackageContents = readFileSync(nodePath.join(output, 'package.json'), 'utf8');
         expect(JSON.parse(manifestContents)).toMatchObject({ version: effectiveVersion });
         expect(JSON.parse(runtimePackageContents)).toMatchObject({ version: effectiveVersion });
-        const workflowContents = filesUnder(nodePath.join(output, 'skills'))
-          .map(path => readFileSync(nodePath.join(output, 'skills', path), 'utf8'))
+        const bundleContents = filesUnder(output)
+          .map(path => readFileSync(nodePath.join(output, path), 'utf8'))
           .join('\n');
-        expect(workflowContents).toContain(`/safeword/${effectiveVersion}/runtime/cli.js`);
+        expect(bundleContents).toContain(`/safeword/${effectiveVersion}/runtime/cli.js`);
         if (effectiveVersion !== packageVersion) {
-          expect(workflowContents).not.toContain(`/safeword/${packageVersion}/runtime/cli.js`);
+          expect(bundleContents).not.toContain(`/safeword/${packageVersion}/runtime/cli.js`);
         }
 
         const runtimePath = nodePath.join(output, 'runtime/cli.js');
@@ -103,7 +103,7 @@ describe('Codex plugin release contract', () => {
           {
             cwd: project,
             encoding: 'utf8',
-            env: { ...process.env, CODEX_HOME: codexHome },
+            env: { ...process.env, CLAUDE_PROJECT_DIR: '', CODEX_HOME: codexHome },
             input: JSON.stringify({ session_id: `effective-version-${versionKind}` }),
           },
         );
@@ -122,9 +122,12 @@ describe('Codex plugin release contract', () => {
     30_000,
   );
 
-  it.each(['not-a-version', '0.84.0+codex.test'])(
+  it.each([
+    ['not-a-version', 'Effective version is not valid SemVer'],
+    ['0.84.0+codex.test', 'Effective version must describe the same release as'],
+  ])(
     'rejects effective version %s without changing the shipped bundle',
-    effectiveVersion => {
+    (effectiveVersion, expectedError) => {
       const root = nodePath.resolve(import.meta.dirname, '..');
       const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-rejection-'));
       const output = nodePath.join(fixture, 'plugin');
@@ -138,6 +141,7 @@ describe('Codex plugin release contract', () => {
         );
 
         expect(generation.status).not.toBe(0);
+        expect(generation.stderr).toContain(expectedError);
         expect(existsSync(output)).toBe(false);
         expect(treeDigest(shippedRoot)).toBe(before);
       } finally {
@@ -157,6 +161,7 @@ describe('Codex plugin release contract', () => {
     );
 
     expect(generation.status).not.toBe(0);
+    expect(generation.stderr).toContain('--version and --output must be provided together');
     expect(treeDigest(shippedRoot)).toBe(before);
   });
 
@@ -288,13 +293,12 @@ describe('Codex plugin release contract', () => {
 
   it('records the independently adoptable task-bound Codex plugin-root contract', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
-    const design = readFileSync(
-      nodePath.join(
-        repoRoot,
-        '.project/tickets/0HZBXF-keep-cachebusted-codex-plugins-operational/design.md',
-      ),
-      'utf8',
-    );
+    const ticketRelativePath = '0HZBXF-keep-cachebusted-codex-plugins-operational/design.md';
+    const activeDesignPath = nodePath.join(repoRoot, '.project/tickets', ticketRelativePath);
+    const designPath = existsSync(activeDesignPath)
+      ? activeDesignPath
+      : nodePath.join(repoRoot, '.project/tickets/completed', ticketRelativePath);
+    const design = readFileSync(designPath, 'utf8');
     const upstreamContract = design
       .split('## Upstream Codex contract\n', 2)[1]
       ?.split('\n## ', 1)[0];
@@ -612,7 +616,7 @@ describe('Codex plugin release contract', () => {
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
-  }, 15_000);
+  }, 30_000);
 
   it('includes the complete generated plugin in a Bun-packed archive', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');

@@ -15,7 +15,7 @@
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ⏭️ N/A — invisible packaging and runtime-resolution correctness, not a new persona-facing flow
 **Surface Evidence:** ✅ 4/4 affected surfaces have recorded proof
-**Evidence limits:** ⚠️ The configured independent quality-review routes were exhausted, so supplemental feedback came from the main agent in the same thread; the planner's redundant second CLI run also observed a local stale-build timestamp race, while the authoritative full run and focused rerun were green
+**Evidence limits:** ⚠️ The planner's redundant second CLI run observed a local stale-build timestamp race, while the authoritative full run and focused rerun were green. Independent review is now restored; one non-blocking suggestion about shared bundle whitespace normalization remains deferred because applying it makes the tracked generated runtime fail the repository's whitespace gate.
 
 Audit passed — diff-scoped architecture, configuration, documentation, and test-quality checks reported no errors or warnings.
 
@@ -30,11 +30,13 @@ Audit passed — diff-scoped architecture, configuration, documentation, and tes
 
 ## Review assurance
 
-- Coordinator: `REVIEW_ROUTES_EXHAUSTED` (`231682f1-c740-4b72-a1df-d3f20a1429e1`)
-- Assurance: Supplemental feedback came from the main agent in the same thread. It used live worktree content; source integrity was not revalidated.
-- Independence: none
+- Coordinator: approved independent review `44c7f018-c6c6-457c-aa2e-54c0beaab751`; approved independent re-review after fixes `19c6e046-8e8b-4103-855d-4889902d42fe`
+- Assurance: Claude Opus reviewed the bounded ticket work in a separate headless process. The re-review used the revised source fingerprint after the first-pass fixes.
+- Independence: cross-agent (`codex` author, `claude` reviewer)
 - Policy: prefer complete
-- Verdict: approve — no fixed-rubric findings remained after the output-symlink and BDD-proof corrections.
+- Verdict: approve — no error-level findings. Six first-pass durability and proof-quality warnings were corrected; remaining suggestions are non-blocking hardening or release-environment follow-ups.
+
+The post-review focused lane passed 67/67 tests, including the complete Codex plugin contract and BDD proof map. Gherkin lint and CLI typecheck also passed.
 
 ## Environment notes
 

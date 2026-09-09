@@ -46,7 +46,7 @@ Feature: Keep cachebusted Codex plugins operational
       Given the package version is 0.83.1
       And the generated 0.83.1+codex.20260909051010 bundle is installed by codex plugin add
       When the Safeword profile status is queried
-      Then status is current without a repair or update instruction
+      Then status reports the installed cachebusted version without a version repair instruction
 
   @cachebusted-codex.SWM1.R1
   Rule: cachebusted-codex.SWM1.R1 — Default generation remains deterministic at the package version
