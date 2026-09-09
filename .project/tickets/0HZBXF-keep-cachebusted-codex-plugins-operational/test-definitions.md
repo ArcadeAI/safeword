@@ -39,7 +39,7 @@ source share one ledger entry.
 
 - [x] RED skip: deterministic default generation predates this change and is regression-only
 - [x] GREEN c182340db
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing check mode is already the narrow deterministic contract
 
 ## Rule: cachebusted-codex.SWM1.R2 — Claude Code and Cursor artifacts remain independent of the Codex effective version
 
