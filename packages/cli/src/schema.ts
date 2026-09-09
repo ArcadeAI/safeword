@@ -408,13 +408,14 @@ const GITATTRIBUTES_HEADER = '# Safeword - managed merge strategy for generated 
 
 /**
  * The managed `.gitattributes` block (issue #566): safeword's committed,
- * deterministically-regenerated ticket indexes get `merge=union` so a local
+ * deterministically-regenerated ticket indexes, plus architecture snapshots for
+ * projects that opt into tracking them, get `merge=union` so a local
  * `git merge`/`rebase`/`pull` of the default branch
  * auto-resolves them instead of conflicting on the `fingerprint:` line + reconcile/stale
  * markers. `union` is a BUILT-IN driver (attribute-only, no `git config`), so it works on
  * any clone/CI from the committed file. `linguist-generated=true` collapses their diffs
  * and marks them generated on GitHub. Resolved per-ctx so a custom
- * `paths.projectRoot` ticket index is covered.
+ * `paths.projectRoot` ticket index is covered; the architecture-doc glob is root-agnostic.
  */
 function managedGitattributes(ctx: ProjectContext): string {
   const root = resolvedNamespaceRootLabel(ctx);
