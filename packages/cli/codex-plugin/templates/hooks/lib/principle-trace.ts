@@ -93,7 +93,10 @@ function parseTraceRows(implPlan: string): PrincipleTrace[] {
  * `## Further reading` terminates the list so supporting sections have a home.
  */
 function normalizePrincipleName(name: string): string {
-  return name.trim().replace(/^\d+\.\s+/u, '').toLowerCase();
+  return name
+    .trim()
+    .replace(/^\d+\.\s+/u, '')
+    .toLowerCase();
 }
 
 function principleNames(source: string | null): Set<string> {
