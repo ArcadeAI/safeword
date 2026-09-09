@@ -1,6 +1,6 @@
 # Impl Plan: Keep cachebusted Codex plugins operational
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-09-09
 
 ## Approach
@@ -44,7 +44,7 @@ Proof and build order:
    home/filesystem boundary.
 4. **Regression and design proof.** Run default `--check`, catalogue/release
    tests, Claude/Cursor parity checks, and the BDD lane. Add a named assertion in
-   `packages/cli/tests/codex-plugin-version.release.test.ts` that validates
+   `packages/cli/tests/codex-plugin-version.test.ts` that validates
    `design.md`'s exact `## Upstream Codex contract` heading, task-bound
    `PLUGIN_ROOT` requirement, and non-dependency statement. Default `--check`
    explicitly proves the optional runtime define leaves the checked-in default
@@ -90,7 +90,7 @@ generation input rather than a manifest-only rewrite.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| 1. Structure enforces; instructions suggest | One effective-version input physically drives every generated identity, and a fresh output is published only when complete | `packages/cli/tests/codex-plugin-version.release.test.ts` | |
+| 1. Structure enforces; instructions suggest | One effective-version input physically drives every generated identity, and a fresh output is published only when complete | `packages/cli/tests/codex-plugin-version.test.ts` | |
 | 3. Add, never replace | Codex-only generation changes no Claude Code or Cursor catalogue | `packages/cli/tests/codex-plugin-catalogue.release.test.ts` and parity checks | |
 | 5. Correct and safe; then clear; then simple | Reuse existing SemVer validation, catalogue generation, build define, and real install harness; add no dependency or runtime resolver | `packages/cli/scripts/generate-codex-plugin.ts` | |
 
