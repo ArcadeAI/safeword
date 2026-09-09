@@ -10,6 +10,7 @@ import nodePath from 'node:path';
 import { inspirationContractProvenance, specArtifactProvenance } from './feature-provenance.js';
 import { type ImplPlanResult, parseImplPlan } from './impl-plan.js';
 import { evaluateImplementationInspiration } from './inspiration.js';
+import { checkPrincipleTrace } from './principle-trace.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
 
@@ -61,10 +62,15 @@ function validateParsedPlan(parsed: ImplPlanResult, requireDocImpact: boolean): 
   return OK;
 }
 
-/** Gate the plan-implementation → implement transition on a valid, planned plan. */
+/**
+ * Gate the plan-implementation → implement transition on a valid, planned plan.
+ *
+ * `projectDirectory` is passed rather than derived: the namespace root is
+ * configurable, so walking up from the ticket path would only be a guess.
+ */
 export function evaluateImplementEntry(
   ticketDirectory: string,
-  options: { evaluationDate?: string } = {},
+  options: { evaluationDate?: string; projectDirectory: string },
 ): PlanGateVerdict {
   const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
   const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
@@ -89,6 +95,22 @@ export function evaluateImplementEntry(
   const parsed = parseImplPlan(planContent);
   const planVerdict = validateParsedPlan(parsed, activationProvenance === 'activated');
   if (!planVerdict.ok) return planVerdict;
+
+  // Principle trace (PJT893): entering implement is the boundary where a broken
+  // trace is still cheap to fix — the table is being authored, not relitigated
+  // against finished work. Objective defects only; applicability stays a review
+  // judgment, and a project with no principles file has nothing to report.
+  const traceFindings = checkPrincipleTrace(options.projectDirectory, planContent);
+  if (traceFindings.length > 0) {
+    return {
+      ok: false,
+      reason: `The plan's Design alignment trace does not hold up yet:\n${traceFindings
+        .map(item => `- ${item}`)
+        .join('\n')}`,
+      remediation:
+        'Fix each row in `## Design alignment` so the principle name matches the configured principles file verbatim, the consequence and proof cells are filled, the proof path resolves, and any `explicit-conflict` names that same principle in `## Known deviations`. Then retry the move to implement.',
+    };
+  }
 
   const inspirationVerdict = evaluateImplementationInspiration({
     ticketContent,

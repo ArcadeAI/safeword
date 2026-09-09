@@ -88,6 +88,19 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     expect(receiptGateVerdict(claim, approved).ok).toBe(false);
   });
 
+  it.each([
+    ['define-behavior', 'quality-review'],
+    ['scenario-gate', 'scenario-gate'],
+  ])('accepts test-definitions.md as the scenario artifact for %s', (phase, kind) => {
+    expect(
+      receiptGateVerdict(claimFor({ phase }), {
+        ...approved,
+        kind,
+        targets: [`.project/tickets/${TICKET}/test-definitions.md`],
+      }),
+    ).toEqual({ ok: true });
+  });
+
   it('witnesses the five non-specialist exits with a quality-review', () => {
     // These phases have no specialist reviewer, and `review run` only accepts
     // three kinds — so requiring kind === phase made them unsatisfiable by any

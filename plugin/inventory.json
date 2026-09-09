@@ -23,7 +23,7 @@
     },
     {
       "path": "resources/guides/architecture-guide.md",
-      "sha256": "2ebab4930a5b44104d4c61af9e63e413ac933c9113bb5c3f728338aa3947b55e"
+      "sha256": "cbe4ce94473b817406d767dea82c3032e4f8e4e3d76684f8c4620355238ffa7a"
     },
     {
       "path": "resources/guides/cold-start-check.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "09e919ffa3676e6f04a88e2b9ceff2dd9e8a2487e9f10fbf1f799e50137354e0"
+      "sha256": "557aed288075b6f156de978b880390efc133039cca40f0a56a5a5a8f1c1d59ab"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "5d0c505e468611de1f848f8b3cf161a03ebebbfec8de627b211f1a9317d13ce4"
+      "sha256": "3d2f45aceb923f3c75a46b0cae5c8eebb826bd07b21f83e65bf047845965274d"
     },
     {
       "path": "runtime/event-groups.json",
@@ -299,11 +299,11 @@
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "1faba40cc03419da77122ab91209c7a00feb5b741e20d9f2d7605dc5f0ba48cf"
+      "sha256": "e33a81f3cbf144076fb3dfc3960b5e3660780317a82e74ac815f54165db00ff3"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
-      "sha256": "4652601c6278055c926f9c710129d45f865b29e85570ba71b278ba0315b5248b"
+      "sha256": "773e4e38ea33d2c117c7edce6e74397348d54afcd34a2de00d8546a571f624ae"
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
@@ -379,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "2f1d324bd1faec6116fa2da7b0631978da4ce532aa197a08dbc5ca1522f2b308"
+      "sha256": "f6376b35bc5f4154f8e38653a54e745787e4231346119bf25b1e8f110a280c7a"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "778a0066465439cf04b1c3713021a46d1879de74405042035879ddfac25e0229"
+      "sha256": "51a199ae233bac9926728dbbfe88c73a0d080286f9d247618c7a81b65de27b9d"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -687,7 +687,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "76fb9fc24162045005a2b354e808dbda281dcdc15b300f216af9d379d2cd5fb1"
+      "sha256": "d055e14a4627089b0e886139faa0008f3e2ee38cf323be15b9a0c38388ed0f5d"
     },
     {
       "path": "skills/refactor/SKILL.md",

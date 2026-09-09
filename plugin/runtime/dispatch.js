@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import nodePath10 from 'node:path';
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
+// ../../../../safeword-pr4042.QpO9jy/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
   const len = text.length;
   let pos = 0,
@@ -439,7 +439,7 @@ var CharacterCodes;
   CharacterCodes2[(CharacterCodes2['tab'] = 9)] = 'tab';
 })(CharacterCodes || (CharacterCodes = {}));
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
+// ../../../../safeword-pr4042.QpO9jy/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
 var cachedSpaces = new Array(20).fill(0).map((_, index) => {
   return ' '.repeat(index);
 });
@@ -470,7 +470,7 @@ var cachedBreakLinesWithSpaces = {
 };
 var supportedEols = ['\n', '\r', '\r\n'];
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
+// ../../../../safeword-pr4042.QpO9jy/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
 function format(documentText, range, options) {
   let initialIndentLevel;
   let formatText;
@@ -715,7 +715,7 @@ function isEOL(text, offset) {
   return '\r\n'.indexOf(text.charAt(offset)) !== -1;
 }
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
+// ../../../../safeword-pr4042.QpO9jy/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
 var ParseOptions;
 (function (ParseOptions2) {
   ParseOptions2.DEFAULT = {
@@ -1289,7 +1289,7 @@ function getNodeType(value) {
   }
 }
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
+// ../../../../safeword-pr4042.QpO9jy/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
 function setProperty(text, originalPath, value, options) {
   const path = originalPath.slice();
   const errors = [];
@@ -1475,7 +1475,7 @@ function applyEdit(text, edit) {
   return text.substring(0, edit.offset) + edit.content + text.substring(edit.offset + edit.length);
 }
 
-// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
+// ../../../../safeword-pr4042.QpO9jy/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
 var ScanError;
 (function (ScanError2) {
   ScanError2[(ScanError2['None'] = 0)] = 'None';
@@ -1803,7 +1803,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/pr-readiness/SKILL.md':
         'b23b1bb565f0a4551defa0641b52254133807b1c79495641d82bba9102fd19ff',
       '.claude/skills/quality-review/SKILL.md':
-        '740dfa42e73913342c3d28bbc10d802cc97c6a011c515c5a7f3c541c2415ca96',
+        '2fd76e355078fad703e13b23d9de3a3fe71c1f98dffb38bdb2f9ff212c157372',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
@@ -1849,7 +1849,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '5bd62f8ad7ea5e1a8d8173d93e0514f2caf183c68d509e8e7d391f8741b9494e',
+        '3934bed4d94eaa61ccb52a52eb51e6f8442ee5920d15c4e73f1e0b25a8cda8db',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
