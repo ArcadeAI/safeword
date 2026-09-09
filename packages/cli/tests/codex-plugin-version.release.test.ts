@@ -123,6 +123,69 @@ describe('Codex plugin release contract', () => {
     expect(treeDigest(shippedRoot)).toBe(before);
   });
 
+  it('keeps default generation deterministic at the package version', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const generation = spawnSync('bun', ['scripts/generate-codex-plugin.ts', '--check'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    const packageVersion = (
+      JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8')) as { version: string }
+    ).version;
+
+    expect(generation.status, generation.stderr).toBe(0);
+    expect(generation.stdout).toContain(`current at ${packageVersion}`);
+  });
+
+  it('does not change Claude or Cursor artifacts during cachebusted generation', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const repoRoot = nodePath.resolve(root, '../..');
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-parity-'));
+    const output = nodePath.join(fixture, 'plugin');
+    const packageVersion = (
+      JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8')) as { version: string }
+    ).version;
+    const cachebustedVersion = `${packageVersion.split('+', 1)[0]}+codex.parity`;
+    const protectedTrees = [
+      nodePath.join(repoRoot, '.claude'),
+      nodePath.join(repoRoot, '.cursor'),
+      nodePath.join(root, '../../plugin'),
+    ];
+    const before = protectedTrees.map(treeDigest);
+    try {
+      const generation = spawnSync(
+        'bun',
+        ['scripts/generate-codex-plugin.ts', '--version', cachebustedVersion, '--output', output],
+        { cwd: root, encoding: 'utf8' },
+      );
+
+      expect(generation.status, generation.stderr).toBe(0);
+      expect(treeDigest(output)).not.toBe(treeDigest(nodePath.join(root, 'codex-plugin')));
+      expect(protectedTrees.map(treeDigest)).toEqual(before);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('records the independently adoptable task-bound Codex plugin-root contract', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+    const design = readFileSync(
+      nodePath.join(
+        repoRoot,
+        '.project/tickets/0HZBXF-keep-cachebusted-codex-plugins-operational/design.md',
+      ),
+      'utf8',
+    );
+    const upstreamContract = design
+      .split('## Upstream Codex contract\n', 2)[1]
+      ?.split('\n## ', 1)[0];
+
+    expect(upstreamContract).toContain('task-bound `PLUGIN_ROOT`');
+    expect(upstreamContract).toContain('exact immutable plugin directory');
+    expect(upstreamContract).toContain('Host adoption is a non-dependency for this delivery');
+    expect(upstreamContract).toContain('independently adoptable later');
+  });
+
   it('runs every hook through the bundled plugin CLI', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
     const version = JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8'))

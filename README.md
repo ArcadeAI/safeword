@@ -789,6 +789,23 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 3. Run the catalogue, package, cache, and parity tests
 4. Run `bunx safeword install` to sync the project plus Claude Code and Codex; add `--agents=claude,codex,cursor` when explicitly testing Cursor assets
 
+**Generating a cachebusted Codex bundle:**
+
+Use the generator's effective-version mode when a Codex development install
+needs SemVer build metadata:
+
+```bash
+bun packages/cli/scripts/generate-codex-plugin.ts \
+  --version 0.83.1+codex.20260909051010 \
+  --output /fresh/path/safeword-codex-plugin
+```
+
+The effective version must identify the same core and prerelease as the package
+version, and the output path must not exist. The generator publishes a complete
+bundle only after its manifest, package, runtime, skills, templates, and hooks
+are ready. Do not cachebust by rewriting only `plugin.json`: generated workflow
+paths and runtime identity would still point at the base version.
+
 ---
 
 ## Getting Help
