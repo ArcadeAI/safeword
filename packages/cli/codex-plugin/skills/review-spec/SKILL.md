@@ -106,8 +106,12 @@ independent evidence. Use the checks below as the scenario-gate rubric and to
 triage the returned findings.
 
 Fail closed: missing or unreadable required feature/spec inputs, dispatch
-failure, timeout, a pending/malformed result, `request_changes`, changed review
-inputs, or stamp-write failure all leave the ticket in `scenario-gate`. After an
+failure, timeout, a malformed result, `request_changes`, changed review inputs,
+or stamp-write failure all leave the ticket in `scenario-gate`. A healthy
+`REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`,
+continue other useful work, and run its typed `nextActions` status command until
+the review is terminal. Never redispatch the same sources merely because that
+review is still pending. After an
 approval, record the returned author, actual reviewer, verified model when
 present, and independence with
 `write-review-stamp.ts --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.

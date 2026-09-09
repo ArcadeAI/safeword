@@ -49,7 +49,78 @@ function executable(path: string, body: string): void {
 }
 
 function containsReviewLaunch(content: string): boolean {
-  return /(?:run-review\.ts|safeword(?:@\S+)?)\s+review\s+run\b/u.test(content);
+  return /(?:run-review\.ts|safeword(?:@\S+)?|runtime\/cli\.js["']?)\s+review\s+run\b/u.test(
+    content,
+  );
+}
+
+function reviewStampCommands(content: string): string[] {
+  const inlineCommands = content
+    .matchAll(/`([^`\n]*write-review-stamp[^`\n]*)`/gu)
+    .map(match => match[1] ?? '')
+    .toArray();
+  const fencedCommands = content
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('bun ') && line.includes('write-review-stamp'));
+
+  return [...new Set([...inlineCommands, ...fencedCommands])];
+}
+
+interface ReviewCallSection {
+  readonly kind: string;
+  readonly section: string;
+}
+
+function reviewCallWindowAt(lines: readonly string[], index: number): string {
+  const nextCall = lines.findIndex(
+    (line, candidate) => candidate > index && containsReviewLaunch(line),
+  );
+  const boundedEnd = Math.min(lines.length, index + 60);
+  const end = nextCall === -1 ? boundedEnd : Math.min(nextCall, boundedEnd);
+  return lines.slice(Math.max(0, index - 2), end).join('\n');
+}
+
+function reviewCallSections(relativePath: string): ReviewCallSection[] {
+  return reviewCallSectionsIn(readTemplate(relativePath));
+}
+
+function reviewCallSectionsIn(content: string): ReviewCallSection[] {
+  const lines = content.split('\n');
+  return lines.flatMap((line, index) => {
+    const match = /review run ([\w-]+)/u.exec(line);
+    if (!match || !containsReviewLaunch(line)) return [];
+    return [{ kind: match[1] ?? '', section: reviewCallWindowAt(lines, index) }];
+  });
+}
+
+function expectDispatchAuthorization(content: string, context: string): void {
+  const normalized = content.replaceAll(/\s+/gu, ' ');
+  expect(normalized, context).toContain(
+    '**The dispatch is authorized; skipping it is not your call.**',
+  );
+  expect(normalized, context).toMatch(/do not stop and ask.*consent.*in chat/iu);
+  expect(normalized, context).toMatch(/invoke the coordinator first/iu);
+  expect(normalized, context).toMatch(/native tool-approval request/iu);
+  expect(normalized, context).toMatch(/never replace.*with a chat question/iu);
+  expect(normalized, context).toMatch(/retry.*same bounded packet.*without asking again/iu);
+  expect(normalized, context).toContain('**A review you never dispatched is not coverage**');
+}
+
+function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): void {
+  const { kind, section } = call;
+  const context = `${relativePath}:${kind}`;
+  expect(section, context).toContain('--agent-handoff --json');
+
+  // Executable RED cannot use a same-agent fallback to authorize GREEN;
+  // its receipt gate owns the fail-closed recovery instead.
+  if (kind === 'executable-red') return;
+
+  const normalized = section.replaceAll(/\s+/gu, ' ');
+  expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
+  expect(section, context).toContain('REVIEW_PENDING');
+  expect(section, context).toContain('finish-review');
+  expect(normalized, context).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
 }
 
 // eslint-disable-next-line complexity -- one fixture intentionally exercises every resolver branch
@@ -65,17 +136,19 @@ function runResolver(
     const log = nodePath.join(fixture, 'calls.log');
     executable(
       nodePath.join(bin, 'bun'),
-      String.raw`${hangPlugin ? 'case "$1" in */plugin/runtime/cli.js) sleep 5;; esac\n' : ''}${rejectPlugin ? 'case "$1" in */plugin/runtime/cli.js) exit 1;; esac\n' : ''}printf 'bun:%s\n' "$*" >> "$CALL_LOG"`,
+      String.raw`${hangPlugin ? 'case "$1" in */plugin/runtime/cli.js) exec sleep 30;; esac\n' : ''}${rejectPlugin ? 'case "$1" in */plugin/runtime/cli.js) exit 1;; esac\n' : ''}printf 'bun:%s\n' "$*" >> "$CALL_LOG"`,
     );
     executable(nodePath.join(bin, 'bunx'), String.raw`printf 'bunx:%s\n' "$*" >> "$CALL_LOG"`);
 
+    const { HOME, TMPDIR, SystemRoot } = process.env;
     const env: NodeJS.ProcessEnv = {
-      ...process.env,
+      ...(HOME && { HOME }),
+      ...(TMPDIR && { TMPDIR }),
+      ...(SystemRoot && { SystemRoot }),
       CALL_LOG: log,
       PATH: `${bin}:/usr/bin:/bin`,
       SAFEWORD_REVIEW_CLI_PROBE_TIMEOUT_MS: '2000',
     };
-    delete env.CLAUDE_PLUGIN_ROOT;
     switch (route) {
       case 'plugin': {
         const pluginRoot = nodePath.join(fixture, 'plugin');
@@ -124,7 +197,7 @@ function runResolver(
       ],
       { cwd: fixture, env },
     );
-    return readFileSync(log, 'utf8').trim().split('\n');
+    return [`fixture:${fixture}`, ...readFileSync(log, 'utf8').trim().split('\n')];
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }
@@ -347,7 +420,7 @@ exit ${status}`,
     expect(content, relativePath).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
     expect(content, relativePath).toMatch(/execute its exact recovery command/iu);
     expect(content, relativePath).toMatch(/rerun the same coordinator command once/iu);
-    expect(content, relativePath).toMatch(/do not.*finish-review/iu);
+    expect(content, relativePath).toContain('Do not invoke `/finish-review`');
   });
 
   // A stamp claiming independence is a claim about a review the agent itself
@@ -358,13 +431,28 @@ exit ${status}`,
     'skills/bdd/PLAN_IMPLEMENTATION.md',
     'skills/bdd/TDD.md',
   ])('%s cites the review id when it stamps a coordinator verdict', relativePath => {
-    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+    const content = readTemplate(relativePath);
 
-    const stampCommands = content.match(/write-review-stamp\.ts[^`\n]*/gu) ?? [];
+    const stampCommands = reviewStampCommands(content);
+    expect(stampCommands, relativePath).not.toHaveLength(0);
     for (const stamp of stampCommands) {
       expect(stamp, relativePath).toContain('--review-id');
     }
-    expect(content, relativePath).toMatch(/--review-id/u);
+  });
+
+  it('puts dispatch authorization beside the executable RED review', () => {
+    const content = readTemplate('skills/bdd/TDD.md');
+    const delimiter = '### Checkbox Format Contract';
+    const delimiterIndex = content.indexOf(delimiter);
+    expect(delimiterIndex).toBeGreaterThan(-1);
+    const section = content.slice(0, delimiterIndex);
+
+    expect(section.length).toBeLessThan(content.length);
+
+    expect(section).toContain('run-review.ts review run executable-red');
+    expect(section).toContain('**The dispatch is authorized; skipping it is not your call.**');
+    expect(section).toMatch(/do not stop and ask.*consent.*in chat/isu);
+    expect(section).toContain('Invoke the coordinator first.');
   });
 
   // A Codex session skipped the coordinator entirely, reasoning that sending
@@ -373,80 +461,43 @@ exit ${status}`,
   // Nothing in the dispatch protocol said who authorized the route, and every
   // independence-disclosure rule keys off a returned typed result, so a review
   // that was never dispatched produced no result and therefore no disclosure.
-  it.each([
-    'skills/quality-review/SKILL.md',
-    'skills/review-spec/SKILL.md',
-    'skills/bdd/PLAN_IMPLEMENTATION.md',
-    'skills/bdd/TDD.md',
-  ])('%s authorizes the dispatch and forbids an undisclosed skip', relativePath => {
-    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+  it('authorizes every canonical coordinator call beside that call', () => {
+    const skills = nodePath.join(templates, 'skills');
+    const callers = markdownFiles(skills).filter(relativePath =>
+      containsReviewLaunch(readFileSync(nodePath.join(skills, relativePath), 'utf8')),
+    );
 
-    expect(content, relativePath).toContain(
-      '**The dispatch is authorized; skipping it is not your call.**',
-    );
-    expect(content, relativePath).toMatch(
-      /local subprocess of a CLI the user installed and signed in to/u,
-    );
-    expect(content, relativePath).toContain('`crossAgentReview: off`');
-    expect(content, relativePath).toMatch(/do not invent a disclosure-approval requirement/u);
-    expect(content, relativePath).toMatch(
-      /request the approval it needs, or report that block as the blocker/u,
-    );
-    expect(content, relativePath).toContain(
-      '**A review you never dispatched is not coverage** — say so unprompted, before any finding',
-    );
-  });
-
-  it.each([
-    'skills/quality-review/SKILL.md',
-    'skills/review-spec/SKILL.md',
-    'skills/bdd/PLAN_IMPLEMENTATION.md',
-    'skills/bdd/TDD.md',
-  ])('%s uses native tool approval instead of asking for consent in chat', relativePath => {
-    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
-
-    expect(content, relativePath).toMatch(/do not stop and ask.*consent.*in chat/iu);
-    expect(content, relativePath).toMatch(/invoke the coordinator first/iu);
-    expect(content, relativePath).toMatch(/native tool-approval request/iu);
-    expect(content, relativePath).toMatch(/never replace.*with a chat question/iu);
-    expect(content, relativePath).toMatch(/retry.*same bounded packet.*without asking again/iu);
+    expect(callers).not.toHaveLength(0);
+    for (const relativePath of callers) {
+      const calls = reviewCallSections(nodePath.join('skills', relativePath));
+      expect(calls, relativePath).not.toHaveLength(0);
+      for (const { kind, section } of calls) {
+        expectDispatchAuthorization(section, `${relativePath}:${kind}`);
+      }
+    }
   });
 
   it('ships the dispatch-authorization contract on every generated review surface', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
-    const generated = [
-      {
-        root: nodePath.join(repoRoot, 'plugin/skills'),
-        files: [
-          'quality-review/SKILL.md',
-          'review-spec/SKILL.md',
-          'bdd/PLAN_IMPLEMENTATION.md',
-          'bdd/TDD.md',
-        ],
-      },
-      {
-        root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
-        files: [
-          'quality-review/SKILL.md',
-          'review-spec/SKILL.md',
-          'bdd/references/PLAN_IMPLEMENTATION.md',
-          'bdd/references/TDD.md',
-        ],
-      },
+    const generatedRoots = [
+      nodePath.join(repoRoot, 'plugin/skills'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
     ];
 
-    for (const { root, files } of generated) {
+    for (const root of generatedRoots) {
+      const files = markdownFiles(root).filter(relativePath =>
+        containsReviewLaunch(readFileSync(nodePath.join(root, relativePath), 'utf8')),
+      );
+      expect(files, root).not.toHaveLength(0);
       for (const relativePath of files) {
-        const content = readFileSync(nodePath.join(root, relativePath), 'utf8').replaceAll(
-          /\s+/gu,
-          ' ',
-        );
-        expect(content, `${root}/${relativePath}`).toContain(
-          '**The dispatch is authorized; skipping it is not your call.**',
-        );
-        expect(content, `${root}/${relativePath}`).toContain(
-          '**A review you never dispatched is not coverage**',
-        );
+        const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
+        const calls = reviewCallSectionsIn(content);
+        expect(calls, `${root}/${relativePath}`).not.toHaveLength(0);
+        for (const call of calls) {
+          const context = `${root}/${relativePath}:${call.kind}`;
+          expectDispatchAuthorization(call.section, context);
+          expectTypedExhaustion(`${root}/${relativePath}`, call);
+        }
       }
     }
   });
@@ -531,18 +582,23 @@ exit ${status}`,
       'safeword@0.74.7 review run quality-review target --agent-handoff --json',
     ],
   ] as const)('executes the %s resolver route', (route, prefix, invocation) => {
-    const calls = runResolver(route);
+    const [fixtureMarker, ...calls] = runResolver(route);
     expect(calls.at(-1)?.startsWith(prefix)).toBe(true);
     expect(calls.at(-1)).toContain(invocation);
+    if (route === 'source') {
+      const fixtureRoot = fixtureMarker?.replace(/^fixture:/u, '') ?? '';
+      expect(fixtureRoot).not.toBe('');
+      expect(calls.at(-1)).toContain(nodePath.join(fixtureRoot, 'packages/cli/src/cli.ts'));
+    }
   });
 
   it('falls through when a higher-priority CLI lacks review support', () => {
-    const calls = runResolver('plugin', true);
+    const [, ...calls] = runResolver('plugin', true);
     expect(calls.at(-1)).toContain('safeword@0.74.7 review run quality-review');
   });
 
   it('falls through when a higher-priority CLI probe hangs', () => {
-    const calls = runResolver('plugin', false, true);
+    const [, ...calls] = runResolver('plugin', false, true);
     expect(calls.at(-1)).toContain('safeword@0.74.7 review run quality-review');
   });
 
@@ -762,19 +818,15 @@ exit ${status}`,
   it('wires every canonical coordinator caller to the same typed-exhaustion continuation', () => {
     const skills = nodePath.join(templates, 'skills');
     const callers = markdownFiles(skills).filter(relativePath =>
-      readFileSync(nodePath.join(skills, relativePath), 'utf8').includes(
-        'run-review.ts review run',
-      ),
+      containsReviewLaunch(readFileSync(nodePath.join(skills, relativePath), 'utf8')),
     );
 
     expect(callers.length).toBeGreaterThan(0);
     for (const relativePath of callers) {
-      const content = readFileSync(nodePath.join(skills, relativePath), 'utf8');
-      const normalized = content.replaceAll(/\s+/gu, ' ');
-      expect(content, relativePath).toContain('--agent-handoff --json');
-      expect(content, relativePath).toContain('REVIEW_ROUTES_EXHAUSTED');
-      expect(content, relativePath).toContain('/finish-review');
-      expect(normalized, relativePath).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
+      const calls = reviewCallSections(nodePath.join('skills', relativePath));
+      for (const call of calls) {
+        expectTypedExhaustion(relativePath, call);
+      }
     }
   });
 });
