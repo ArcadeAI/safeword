@@ -55,4 +55,4 @@ source share one ledger entry.
 
 - [x] RED skip: the approved design record existed before its regression assertion
 - [x] GREEN c182340db
-- [ ] REFACTOR
+- [x] REFACTOR skip: exact heading and contract phrases are the intended stable interface
