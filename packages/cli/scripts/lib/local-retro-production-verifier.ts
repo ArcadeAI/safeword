@@ -10,8 +10,9 @@ import {
 } from '../../src/retro/local-retro-readiness.js';
 
 export interface LocalRetroProductionVerificationOptions {
-  collectorCredential: string;
+  collectorOperatorCredential: string;
   collectorOrigin: string;
+  collectorPayloadCredential: string;
   buildCommit: string;
   faultDigests: LocalRetroReadinessManifest['recoveredFaults'];
   fetch: typeof fetch;
@@ -173,10 +174,10 @@ async function verifyHarness(
 ): Promise<boolean> {
   const evidence = manifest.harnesses[harness];
   if (lifecycle.every(item => !hasLifecycle(item, evidence))) return false;
-  const collectorPath = `/v1/public-retros/${encodeURIComponent(evidence.collectorReceipt)}`;
+  const collectorPath = `/v1/private/retros/${encodeURIComponent(evidence.requestId)}/payload`;
   const envelope = await readJson(
     new URL(collectorPath, options.collectorOrigin),
-    options.collectorCredential,
+    options.collectorPayloadCredential,
     options.fetch,
   );
   if (!validEnvelope(envelope, harness, options.repository, evidence.sessionScope)) return false;
@@ -262,7 +263,7 @@ async function readLifecycle(options: LocalRetroProductionVerificationOptions): 
   const response = record(
     await readJson(
       new URL('/v1/private/retros', options.collectorOrigin),
-      options.collectorCredential,
+      options.collectorOperatorCredential,
       options.fetch,
     ),
   );

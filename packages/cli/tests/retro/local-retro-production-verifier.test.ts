@@ -138,7 +138,7 @@ function harnessResponses(fault?: ProductionFault): Map<string, Response> {
     const sessionScope =
       fault === 'session-mismatch' && harness === 'cursor' ? 'f'.repeat(64) : evidence.sessionScope;
     responses.set(
-      `/v1/public-retros/${evidence.collectorReceipt}`,
+      `/v1/private/retros/${evidence.requestId}/payload`,
       Response.json({
         findings,
         sessionScope,
@@ -207,8 +207,9 @@ describe('local retro production verifier', () => {
   ): Promise<boolean> {
     return verifyLocalRetroProductionReadiness(manifest, attestation, {
       buildCommit: manifest.evidenceCommit,
-      collectorCredential: 'collector-secret',
+      collectorOperatorCredential: 'collector-secret',
       collectorOrigin: 'https://collector.example',
+      collectorPayloadCredential: 'break-glass-secret',
       faultDigests: completeFaultDigests,
       fetch: fetchImplementation,
       githubToken: 'github-token',
@@ -241,6 +242,7 @@ describe('local retro production verifier', () => {
         verifyCheckedInLocalRetroProductionReadiness(
           {
             GITHUB_TOKEN: 'github-token',
+            SAFEWORD_RETRO_COLLECTOR_BREAK_GLASS_CREDENTIAL: 'break-glass-secret',
             SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL: 'collector-secret',
             SAFEWORD_RETRO_COLLECTOR_ORIGIN: 'https://collector.example',
             SAFEWORD_RETRO_FAULT_DIGESTS_JSON: JSON.stringify(completeFaultDigests),
@@ -281,14 +283,38 @@ describe('local retro production verifier', () => {
     await expect(verify(productionFetch(fault))).resolves.toBe(false);
   });
 
+  it('reads server-owned payloads through the audited private route', async () => {
+    const transport = productionFetch();
+
+    await verify(transport);
+
+    expect(transport).toHaveBeenCalledWith(
+      new URL('/v1/private/retros', 'https://collector.example'),
+      expect.objectContaining({
+        headers: expect.objectContaining({ authorization: 'Bearer collector-secret' }),
+      }),
+    );
+
+    for (const harness of harnesses) {
+      const evidence = manifest.harnesses[harness];
+      expect(transport).toHaveBeenCalledWith(
+        new URL(`/v1/private/retros/${evidence.requestId}/payload`, 'https://collector.example'),
+        expect.objectContaining({
+          headers: expect.objectContaining({ authorization: 'Bearer break-glass-secret' }),
+        }),
+      );
+    }
+  });
+
   it('rejects fault digests that are not independently held by production', async () => {
     const faultDigests = { ...completeFaultDigests, workerOutage: 'f'.repeat(64) };
 
     await expect(
       verifyLocalRetroProductionReadiness(manifest, attestation, {
         buildCommit: manifest.evidenceCommit,
-        collectorCredential: 'collector-secret',
+        collectorOperatorCredential: 'collector-secret',
         collectorOrigin: 'https://collector.example',
+        collectorPayloadCredential: 'break-glass-secret',
         faultDigests,
         fetch: productionFetch(),
         githubToken: 'github-token',
@@ -329,8 +355,9 @@ describe('local retro production verifier', () => {
     await expect(
       verifyLocalRetroProductionReadiness(manifest, attestation, {
         buildCommit: manifest.evidenceCommit,
-        collectorCredential: 'collector-secret',
+        collectorOperatorCredential: 'collector-secret',
         collectorOrigin: 'https://collector.example',
+        collectorPayloadCredential: 'break-glass-secret',
         faultDigests: completeFaultDigests,
         fetch: productionFetch(),
         githubToken: 'github-token',

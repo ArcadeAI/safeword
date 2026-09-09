@@ -46,6 +46,14 @@ function required(environment: NodeJS.ProcessEnv, name: string): string {
   return value;
 }
 
+function installationId(environment: NodeJS.ProcessEnv): number {
+  const value = Number(required(environment, 'SAFEWORD_RETRO_RELAY_INSTALLATION_ID'));
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error('SAFEWORD_RETRO_RELAY_INSTALLATION_ID must be a positive integer');
+  }
+  return value;
+}
+
 function productionFaultDigests(
   environment: NodeJS.ProcessEnv,
 ): LocalRetroReadinessManifest['recoveredFaults'] {
@@ -109,13 +117,20 @@ export function localRetroProductionVerificationOptions(
 ): VerificationOptions {
   return {
     buildCommit: git.buildCommit(),
-    collectorCredential: required(environment, 'SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL'),
+    collectorOperatorCredential: required(
+      environment,
+      'SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL',
+    ),
     collectorOrigin: required(environment, 'SAFEWORD_RETRO_COLLECTOR_ORIGIN'),
+    collectorPayloadCredential: required(
+      environment,
+      'SAFEWORD_RETRO_COLLECTOR_BREAK_GLASS_CREDENTIAL',
+    ),
     faultDigests: productionFaultDigests(environment),
     fetch: transport,
     githubToken: environment.GITHUB_TOKEN,
     harnessEvidence: productionHarnessEvidence(environment),
-    installationId: Number(required(environment, 'SAFEWORD_RETRO_RELAY_INSTALLATION_ID')),
+    installationId: installationId(environment),
     isAncestor: git.isAncestor,
     relayCredential: required(environment, 'SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL'),
     relayOrigin: required(environment, 'SAFEWORD_RETRO_RELAY_ORIGIN'),

@@ -55063,7 +55063,7 @@ var init_local_retro_readiness_manifest = __esm(() => {
 });
 
 // src/retro/readiness-digest.ts
-import { createHash as createHash29 } from "crypto";
+import { createHash as createHash30 } from "crypto";
 function compareKeys2([left], [right]) {
   if (left < right)
     return -1;
@@ -55078,7 +55078,7 @@ function canonicalize(value) {
   return Object.fromEntries(entries.map(([key, item]) => [key, canonicalize(item)]));
 }
 function digestLocalRetroReadinessManifest(manifest) {
-  return createHash29("sha256").update(JSON.stringify(canonicalize(manifest))).digest("hex");
+  return createHash30("sha256").update(JSON.stringify(canonicalize(manifest))).digest("hex");
 }
 var init_readiness_digest = () => {};
 
@@ -60871,9 +60871,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash30 } from "crypto";
+import { createHash as createHash31 } from "crypto";
 function shortHash(material) {
-  return createHash30("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash31("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -60973,7 +60973,7 @@ var init_pipeline = __esm(() => {
 });
 
 // src/retro/public-delivery.ts
-import { createHash as createHash31 } from "crypto";
+import { createHash as createHash32 } from "crypto";
 import {
   closeSync as closeSync13,
   fsyncSync as fsyncSync4,
@@ -61008,7 +61008,7 @@ function isValidEnvelopeInput(input, projectUUID, version2) {
   return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && (version2 === "v3" ? source.hostClass === "local" : validSourceRoute(source));
 }
 function deriveSessionScope(harness, projectUUID, sessionId, windowStart) {
-  const hash = createHash31("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
+  const hash = createHash32("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
   if (windowStart > 0)
     hash.update("\x00window\x00").update(String(windowStart));
   return hash.digest("hex");
@@ -61117,7 +61117,7 @@ function claimServerPublicRetroRequest(built, dependencies) {
   let markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   let existing = readServerAttempt(markerPath2, built);
   if (existing.kind === "conflict") {
-    const digest4 = createHash31("sha256").update(built.bytes).digest("hex");
+    const digest4 = createHash32("sha256").update(built.bytes).digest("hex");
     markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.${digest4}.json`);
     existing = readServerAttempt(markerPath2, built);
   }
@@ -61767,7 +61767,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash32, randomUUID as randomUUID12 } from "crypto";
+import { createHash as createHash33, randomUUID as randomUUID12 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path7 from "path";
 function normalizeRelayOrigin(value) {
@@ -61804,10 +61804,10 @@ function relaySourcePayloadDigest(request) {
     repository: request.repository,
     title: request.title
   };
-  return createHash32("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash33("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 function relayRequestDigest(request) {
-  return createHash32("sha256").update(JSON.stringify(request)).digest("hex");
+  return createHash33("sha256").update(JSON.stringify(request)).digest("hex");
 }
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
@@ -61819,7 +61819,7 @@ function createRelayRequest(input, dependencies) {
   };
 }
 function relaySourceKey(sessionIdentity, windowStart, payload) {
-  return createHash32("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
+  return createHash33("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
 }
 function relayDirectory(projectDirectory) {
   return path7.join(projectDirectory, ".safeword", "retro-drafts", "relay");
@@ -61859,7 +61859,7 @@ function discardIntentTokenPath(projectDirectory, requestId, token) {
   return path7.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 function sourcePath(projectDirectory, sourceKey, suffix) {
-  const key = createHash32("sha256").update(sourceKey).digest("hex");
+  const key = createHash33("sha256").update(sourceKey).digest("hex");
   return path7.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
 }
 function sourceReservationPath(projectDirectory, sourceKey) {
@@ -63534,7 +63534,7 @@ var init_relay_readiness_manifest = __esm(() => {
 });
 
 // src/retro/relay-readiness.ts
-import { createHash as createHash33 } from "crypto";
+import { createHash as createHash34 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) || date.toISOString() !== value ? undefined : date;
@@ -63666,7 +63666,7 @@ function matchesAttestedManifest(manifest, attestation) {
   try {
     const bytes = Buffer.from(attestation.manifestBase64, "base64");
     const parsed2 = JSON.parse(bytes.toString("utf8"));
-    return createHash33("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
+    return createHash34("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
   } catch {
     return false;
   }
@@ -63686,7 +63686,7 @@ function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
         return Promise.resolve(undefined);
       }
       const bytes = Buffer.from(artifact.contentBase64, "base64");
-      const sha2567 = createHash33("sha256").update(bytes).digest("hex");
+      const sha2567 = createHash34("sha256").update(bytes).digest("hex");
       return Promise.resolve(sha2567 === artifact.sha256 ? { content: bytes.toString("utf8"), sha256: sha2567 } : undefined);
     }
   });
