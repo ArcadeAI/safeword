@@ -58,7 +58,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         'da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb',
       '.claude/skills/review-spec/SKILL.md':
-        '4e1d655f5be95bad272dd26cddde912a9d80f7fa13d963b43ba2e2d1ee58c38f',
+        'dc00cd695716a776cb56c6aa8e9ab59fddab2de9edc7b302ae8860833a0ab6cb',
       '.claude/skills/self-review/SKILL.md':
         '7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc',
       '.claude/skills/spike/SKILL.md':

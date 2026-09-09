@@ -21,12 +21,15 @@ describe('scenario rubric generation', () => {
     expect(SCENARIO_REVIEW_RUBRIC).toBe(extractScenarioReviewRubric(canonicalSkill));
   });
 
-  it('keeps failure independence as the compound-Then atomicity test', () => {
+  it('keeps one observable behavior as the compound-Then atomicity boundary', () => {
     expect(SCENARIO_REVIEW_RUBRIC).toContain(
-      'could these assertions fail independently of each other?',
+      'Use failure independence as a diagnostic, not the definition',
     );
     expect(SCENARIO_REVIEW_RUBRIC).toContain(
-      '"returns 200 with body X" can fail independently and should be split',
+      'Several `Then`/`And` assertions remain atomic when they jointly specify that behavior',
+    );
+    expect(SCENARIO_REVIEW_RUBRIC).toContain(
+      'Do not split merely to give every assertion its own scenario',
     );
   });
 
