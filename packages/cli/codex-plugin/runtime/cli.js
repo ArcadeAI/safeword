@@ -49941,6 +49941,7 @@ var exports_architecture = {};
 __export(exports_architecture, {
   architectureStaged: () => architectureStaged,
   architectureStage: () => architectureStage,
+  architectureIndexCheck: () => architectureIndexCheck,
   architecture: () => architecture
 });
 import { execFileSync as execFileSync8 } from "child_process";
@@ -49967,8 +49968,13 @@ function architectureMode(options) {
 }
 async function architecture(cwd = process11.cwd(), options = {}) {
   const mode = architectureMode(options);
+  if (mode.check && mode.stageOutput) {
+    error("--check cannot be combined with --stage-output; --check never writes or stages.");
+    process11.exitCode = 1;
+    return;
+  }
   if (mode.check) {
-    await architectureCheck(cwd);
+    await architectureCheck(cwd, mode.fromIndex);
     return;
   }
   if (mode.stageOutput && !mode.fromIndex) {
@@ -50151,6 +50157,33 @@ function architectureStaged(cwd, reporter = defaultReporter) {
     failed: false,
     autoStageAvailable: true
   });
+}
+function architectureIndexCheck(cwd) {
+  const failure = (message) => ({
+    stale: [],
+    unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
+    failureMessage: message
+  });
+  let gitContext;
+  try {
+    gitContext = resolveGitContext(cwd);
+  } catch (error_) {
+    return failure(errorMessage2(error_));
+  }
+  if (gitContext === undefined) {
+    return failure("No readable Git index found. Use `safeword project architecture --check` to check the worktree instead.");
+  }
+  try {
+    return withGitIndexSnapshot(cwd, gitContext, (snapshotDirectory) => {
+      assertSnapshotHealTargetsContained(snapshotDirectory);
+      return {
+        stale: planSelfHealProject(snapshotDirectory).filter((action) => isWouldChangeAction(action)),
+        unreadableWorkspaces: discoverUnreadableWorkspaces(snapshotDirectory)
+      };
+    });
+  } catch (error_) {
+    return failure(errorMessage2(error_));
+  }
 }
 function withGitIndexSnapshot(cwd, gitContext, useSnapshot) {
   const snapshotDirectory = mkdtempSync7(nodePath97.join(tmpdir5(), "safeword-architecture-index-"));
@@ -50479,13 +50512,21 @@ function warnExcludedWorktreeInputs(cwd, reporter = defaultReporter) {
 function errorMessage2(error_) {
   return error_ instanceof Error ? error_.message.replaceAll(/\s+/g, " ").trim() : String(error_);
 }
-function architectureCheck(cwd) {
+function architectureCheckFromIndex(cwd) {
+  const outcome = architectureIndexCheck(cwd);
+  if (outcome.failureMessage !== undefined) {
+    error(`Could not check architecture freshness from the Git index; nothing was written. Cause: ${outcome.failureMessage}`);
+    process11.exit(1);
+  }
+  return outcome.stale;
+}
+function architectureCheck(cwd, fromIndex = false) {
   warnUnreadableWorkspaces(cwd);
   if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
     success("Architecture doc enforcement is opted out (architectureDocEnforcement: false).");
     return Promise.resolve();
   }
-  const stale = planSelfHealProject(cwd).filter((action) => isWouldChangeAction(action));
+  const stale = fromIndex ? architectureCheckFromIndex(cwd) : planSelfHealProject(cwd).filter((action) => isWouldChangeAction(action));
   if (stale.length > 0) {
     error(`Architecture docs are stale (${stale.join(", ")}). Run \`safeword project architecture\` for the current worktree, or \`safeword project architecture --staged\` to reproduce the staged tree, then commit the result.`);
     process11.exit(1);
@@ -68989,6 +69030,30 @@ function architectureOptionsConflict(options) {
   const canonicalSelected = options.fromIndex === true || options.stageOutput === true;
   return legacyCount > 1 || legacyCount > 0 && canonicalSelected;
 }
+function architectureCheckWriteConflict(options) {
+  const stageOutputRequested = options.stageOutput === true || options.stage === true;
+  return options.check === true && stageOutputRequested;
+}
+async function runArchitectureIndexCheck(invocation) {
+  const { architectureIndexCheck: architectureIndexCheck2 } = await Promise.resolve().then(() => (init_architecture(), exports_architecture));
+  const outcome = architectureIndexCheck2(invocation.cwd);
+  const advisories = architectureAdvisories(outcome.unreadableWorkspaces);
+  if (outcome.failureMessage !== undefined) {
+    return createResult({
+      state: "failed",
+      findings: advisories,
+      errors: [
+        {
+          code: "ARCHITECTURE_INDEX_CHECK_FAILED",
+          message: `Could not check architecture freshness from the Git index; nothing was written or staged. Cause: ${outcome.failureMessage}`,
+          retryable: true
+        }
+      ],
+      data: { command: "project architecture", enforcement: true }
+    });
+  }
+  return architectureCheckResult(outcome.stale, advisories);
+}
 function withArchitectureOptionCompatibility(result, legacy) {
   if (legacy === undefined)
     return result;
@@ -69024,6 +69089,19 @@ async function architectureHandler(invocation) {
       data: { command: "project architecture" }
     });
   }
+  if (architectureCheckWriteConflict(invocation.options)) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "CLI_ARGUMENT_INVALID",
+          message: "--check cannot be combined with --stage-output; --check never writes documents or stages them.",
+          retryable: false
+        }
+      ],
+      data: { command: "project architecture" }
+    });
+  }
   const mode = architectureCliMode(invocation.options);
   if (mode.stageOutput && !mode.fromIndex) {
     return createResult({
@@ -69042,7 +69120,8 @@ async function architectureHandler(invocation) {
     return architectureEnforcementDisabledResult(architectureAdvisories(discoverUnreadableWorkspaces2(invocation.cwd)));
   }
   if (mode.fromIndex) {
-    const result = await runArchitectureStagedTreeMode(invocation, mode.stageOutput ? "stage" : "staged");
+    const generationMode = mode.stageOutput ? "stage" : "staged";
+    const result = await (invocation.options.check === true ? runArchitectureIndexCheck(invocation) : runArchitectureStagedTreeMode(invocation, generationMode));
     return withArchitectureOptionCompatibility(result, mode.legacy);
   }
   const snapshot = extractMonorepoArchitectureSnapshot2(invocation.cwd);

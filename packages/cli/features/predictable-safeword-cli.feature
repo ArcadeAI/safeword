@@ -33,6 +33,22 @@ Feature: One predictable Safeword CLI
         | drifted      | doctor  |
         | failed       | doctor  |
 
+    @rejection
+    Scenario Outline: A read-only architecture check never writes a document or stages one
+      Given a project with architecture drift staged in the Git index
+      When the user runs the read-only command "<command>"
+      Then the architecture documents and the Git index are unchanged
+      Examples:
+        | command                                                   |
+        | project architecture --check                              |
+        | project architecture --check --from-index                 |
+
+    @rejection
+    Scenario: A read-only check refuses to also stage its output
+      Given a project with architecture drift staged in the Git index
+      When the user runs "safeword project architecture --check --from-index --stage-output"
+      Then the invocation is refused as an invalid argument combination and nothing is written or staged
+
   @predictable-safeword-cli.TBU1.R3
   Rule: predictable-safeword-cli.TBU1.R3 — Human output leads with the outcome, says whether anything changed, and offers no more than one next action
     Scenario Outline: Human output has one verdict and an explicit change statement
