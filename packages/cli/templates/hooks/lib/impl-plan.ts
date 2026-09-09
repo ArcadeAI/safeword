@@ -208,3 +208,40 @@ export function hasCitation(text: string): boolean {
 export function sectionBody(content: string, name: ImplPlanSectionName): string {
   return (collectSectionBodies(activeLines(content)).get(name) ?? []).join('\n');
 }
+
+const UNRESOLVED_CHOICE = /^(?:|<[^>]+>|tbd|tbu|pending|open|unknown|unresolved|not decided)$/iu;
+
+/**
+ * Decision names whose Choice cell explicitly says the behavior-shaping choice
+ * is still open. These tokens are the machine-readable planning convention;
+ * semantic review remains responsible for finding choices disguised as prose.
+ */
+export function unresolvedDecisionNames(content: string): string[] {
+  const lines = sectionBody(content, 'Decisions').split('\n');
+  const recordedDecisions = lines.findIndex(line =>
+    /^#{3,6}\s+Recorded Decisions\s*$/iu.test(line.trim()),
+  );
+  if (recordedDecisions < 0) return [];
+
+  const names: string[] = [];
+  for (const line of lines.slice(recordedDecisions + 1)) {
+    if (/^#{2,6}\s+/u.test(line.trim())) break;
+    if (!line.trim().startsWith('|')) continue;
+    const cells = line
+      .trim()
+      .slice(1, -1)
+      .split('|')
+      .map(cell => cell.trim());
+    if (cells.length < 2) continue;
+    const [decision = '', choice = ''] = cells;
+    if (
+      decision !== '' &&
+      decision.toLowerCase() !== 'decision' &&
+      !/^[-: ]+$/u.test(decision) &&
+      UNRESOLVED_CHOICE.test(choice)
+    ) {
+      names.push(decision);
+    }
+  }
+  return names;
+}

@@ -47,7 +47,7 @@ import {
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
-import { evaluateImplementEntry } from './lib/plan-gate.ts';
+import { evaluateExecutionPlanningEntry, evaluateImplementEntry } from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
@@ -653,6 +653,21 @@ if (isCanonicalTicketEdit || isCanonicalSpecEdit) {
 // deviations only via per-phase phase_skips justifications. Ordered BEFORE the
 // #404 readiness gate so "wrong step" is reported before "step not earned".
 // ---------------------------------------------------------------------------
+
+// Implementation Planning decision gate (G1C9PP, #4200). Run before phase
+// provenance so a request to enter the newly introduced phase reports the
+// actual open decision instead of the transitional "unknown phase" fallback.
+if (isCanonicalTicketEdit) {
+  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
+  if (
+    proposedType === 'feature' &&
+    priorPhase === 'plan-implementation' &&
+    proposedPhase === 'plan-execution'
+  ) {
+    const verdict = evaluateExecutionPlanningEntry(nodePath.dirname(editedFile));
+    if (!verdict.ok) deny(verdict.reason, verdict.remediation);
+  }
+}
 
 if (isCanonicalTicketEdit) {
   // Only judge writes whose proposed content is reconstructable from the
