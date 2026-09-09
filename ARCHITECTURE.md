@@ -1,7 +1,7 @@
 # Safeword Architecture
 
 **Version:** 1.23
-**Last Updated:** 2026-09-02
+**Last Updated:** 2026-09-07
 **Status:** Production
 
 ---
@@ -70,10 +70,10 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ### Public retrospective collector boundary
 
-> **Cutover status:** The queue and worker implementation described below is
-> present, but local clients remain on direct filing. The production server route
-> is compiled fail-closed until an independent verifier and the required canary
-> and fault evidence exist.
+> **Cutover status:** The queue, worker, and independent release verifier described
+> below are present, but local clients remain on direct filing. The production
+> server route is compiled fail-closed until the required protected canary and
+> fault evidence exists.
 
 `packages/retro-collector` accepts released canonical `v1` single-finding bodies,
 canonical `v2` ordered finding batches, and server-owned `v3` local batches without
@@ -93,7 +93,7 @@ quota-blocked work stays queued and reaches an alerted dead letter after 24 hour
 
 ### Cutover-gated collector transfer worker boundary
 
-The planned single-replica Railway worker has no public route and no customer credential.
+The single-replica Railway worker has no public route and no customer credential.
 It leases FIFO `v3` rows over private networking, forwards the original bytes,
 collector digest and request UUID to the relay's dedicated
 `collector-worker` principal, and completes collector ownership only after relay
@@ -132,10 +132,12 @@ request's outcome is ambiguous, the relay quarantines it until a privileged
 reconciliation step finds exactly one reserved marker in a complete raw REST
 issue-body scan — sanitized MCP reads are never duplicate authority. The
 client supplies one absolute creation-plus-24-hour retry deadline, which the
-server persists and may shorten but never extend, followed by one-hour
-dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
-timed maintenance worker persists its retry schedule and terminal alert
-outbox in the same database. With #1474 and #1481 complete, canonical/legacy
+server persists and may shorten but never extend. Collector-owned `v3` is the
+exception: relay acceptance starts its fresh server-owned deadline, as recorded
+under [Collector-to-relay ownership transfer](#collector-to-relay-ownership-transfer).
+Both paths then have one-hour dispatch grace, 30-day filed-payload retention,
+and indefinite tombstones; the timed maintenance worker persists its retry
+schedule and terminal alert outbox in the same database. With #1474 and #1481 complete, canonical/legacy
 semantic adoption and cross-request aliasing remain unbuilt until the
 post-fix collision rates are remeasured and bound into the readiness
 evidence.
@@ -558,7 +560,7 @@ tsup → dist/
 
 Published files: `dist/` + `schemas/` + `templates/` (bundled for setup convergence) + `codex-plugin/` (bundled for Codex plugin install).
 
-**Publish path:** an annotated `v*` tag triggers `.github/workflows/release.yml`. Its unprivileged build job installs from the frozen lockfile, builds, runs the release-contract suite, and packs the tarball. A separate minimal OIDC job downloads that artifact and runs `npm publish --provenance --ignore-scripts`. The local `prepublishOnly` hook (tag check → release tests → build) remains defense in depth, not the canonical release path.
+**Publish path:** an annotated `v*` tag triggers `.github/workflows/release.yml`. Its unprivileged build job installs from the frozen lockfile, builds, runs the release-contract suite, and packs the tarball. When local retro cutover is enabled, a protected job validates fresh production evidence before publication; malformed cutover state or failed evidence blocks the release. A separate minimal OIDC job downloads the artifact and publishes stable versions to `latest` and prereleases to `next` with provenance and install scripts disabled. After a stable publish, a final job advances the non-forced `stable` branch only when it remains a fast-forward. The local `prepublishOnly` hook (tag check → release tests → build) remains defense in depth, not the canonical release path.
 
 ---
 
