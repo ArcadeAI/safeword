@@ -3,44 +3,44 @@
   "scenarios": {
     "Explicit reviewer and model routes run in configured order": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "executes an opted-in reviewer/model list in its declared order"
+      "runs Codex model A before OpenCode model B in declared route order"
     ],
     "Reversed reviewer and model routes run in configured order": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "places Codex model and schema flags before the trailing stdin marker"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "runs OpenCode model B before Codex model A in reversed route order"
     ],
     "Cached observations do not change route order": [
-      "packages/cli/tests/review/job.test.ts",
-      "reuses the running review for the same source"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "does not let prior route evidence reorder a configured review"
     ],
     "Runtime default keeps its configured position": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "keeps a runtime-default route eligible after model selection is unsupported"
+      "keeps a runtime-default route in its configured position"
     ],
     "First successful independent route completes the review": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "collects review status offline because durable job state is local"
+      "records the first successful independent route without trying later routes"
     ],
     "Invalid model identifiers reject route configuration": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "rejects null and invalid route maps with the config path"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "rejects an option-shaped model without launching a reviewer"
     ],
     "Empty route lists reject configuration": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "rejects $name safely without launching a reviewer",
-      "empty author routes"
+      "rejects empty author routes without launching a reviewer"
     ],
     "Unfunded routes are reported without launch": [
-      "packages/cli/tests/review/attempt-deadline.test.ts",
-      "honours an explicitly configured deadline"
+      "packages/cli/tests/cli-protocol/review-run-bound.test.ts",
+      "stops starting routes once the bound cannot fund another one under $policy policy",
+      "prefer"
     ],
     "Exhausted configured routes remain blocked": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
       "blocks with one recovery action after exhausting safe review routes"
     ],
     "A valid funded route launches normally": [
-      "packages/cli/tests/review/attempt-deadline.test.ts",
-      "reserves enough default time to fund a route after one full attempt"
+      "packages/cli/tests/cli-protocol/review-run-bound.test.ts",
+      "tries every route in order when the bound allows it"
     ],
     "Same-author success cannot satisfy independent review": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -52,39 +52,39 @@
     ],
     "Runtime-wide failure skips later models on that runtime": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "skips later models after a runtime-wide ranked-route failure"
+      "records a runtime-wide failure and skips later models before OpenCode"
     ],
     "Attempt failure keeps the next model on that runtime eligible": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "records an attempted alternate-model failure before a degraded fallback"
+      "tries the next configured model after an attempt-scoped failure"
     ],
     "Catalogued models are not reported as proven": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "distinguishes OpenCode catalogue presence from runtime-default routes"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports a catalogued model as compatible but not proven through public status"
     ],
     "Successful review records proven evidence": [
-      "packages/cli/tests/review/job.test.ts",
-      "preserves completed history beyond 128 reviews with one host key"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports a successful configured review as proven through public status"
     ],
     "Unlisted models are not reported as catalogued": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "treats empty OpenCode catalogue output as unavailable rather than absent"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports an unlisted model as compatible but not catalogued through public status"
     ],
     "Installed runtimes without model selection are not compatible": [
-      "packages/cli/tests/review/runtime.test.ts",
-      "reports an installed runtime without model selection as incompatible"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports an installed runtime without model selection as incompatible through public status"
     ],
     "Missing runtimes are reported as not installed": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "skips a reviewer candidate that fails with %s and runs the next compatible installation"
+      "reports a missing runtime as not installed through public status"
     ],
     "Most recent failure replaces stale proven evidence": [
-      "packages/cli/tests/review/job.test.ts",
-      "shell-quotes the proven CLI entrypoint in the status action"
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports the newest configured route failure through public status"
     ],
     "Ordered routes replace legacy route settings when both exist": [
       "packages/cli/tests/review/policy.test.ts",
-      "rejects malformed project configuration instead of silently falling back"
+      "excludes legacy model settings when an ordered route list is configured"
     ],
     "Legacy settings preserve the existing route plan": [
       [

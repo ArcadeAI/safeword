@@ -16,7 +16,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
         'c48f6f72619a751645a17db9100aa623b0fc7f8970f75dbc9d6601467cc7a7fd',
       '.claude/skills/bdd/SCENARIOS.md':
-        '315da79f1e48ff58646413960a681b486a3fbbdea35e306128a799eeee9efd67',
+        'd2d262f7b88d47df8d7d6da5cddbf78574252ce3eb1a25f4b978a41c42290cb8',
       '.claude/skills/bdd/SKILL.md':
         '970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516',
       '.claude/skills/bdd/SPLITTING.md':
@@ -54,17 +54,17 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
-        'ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0',
+        'c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78',
       '.claude/skills/retro/SKILL.md':
         'da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb',
       '.claude/skills/review-spec/SKILL.md':
-        '2a207556955728bc8045204ac16d663047ba02aff05a9aaf3625142d23a0aaa4',
+        'f296d45e5b3c20e27523c54803d85f1672bb4a920a95a7d24ccadfe10d02c464',
       '.claude/skills/self-review/SKILL.md':
-        'e2c56e6ac5427cd64386234129a5dffa4030c2baabd0cb4fb8e159e6750998db',
+        '7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc',
       '.claude/skills/spike/SKILL.md':
         '905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37',
       '.claude/skills/tdd-review/SKILL.md':
-        '56a04f7b72f0e64ddc0016a7ca81dc66dae51360acecd8689feb8c43bd5bfab0',
+        '322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43',
       '.claude/skills/testing/SKILL.md':
         'fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686',
       '.claude/skills/ticket-system/SKILL.md':
@@ -120,7 +120,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-dependency-readiness.ts':
         '295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff',
       '.safeword/hooks/session-lint-check.ts':
-        '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc',
       '.safeword/hooks/session-reply-format.ts':
         '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
       '.safeword/hooks/session-safeword-context.ts':
