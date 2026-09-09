@@ -112,11 +112,6 @@ export function observeCodexHostProcesses(): CodexHostProcessObservation {
   return codexHostsFromProcessTable(result.stdout, process.ppid);
 }
 
-export function observeRunningCodexHosts(): CodexHostProcessIdentity[] | null {
-  const observation = observeCodexHostProcesses();
-  return observation.available ? observation.running : null;
-}
-
 export function sameCodexHost(
   left: CodexHostProcessIdentity,
   right: CodexHostProcessIdentity,

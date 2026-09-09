@@ -324,8 +324,9 @@ function parseClaudeOutput(stdout: string): unknown {
   return envelope;
 }
 
-function parseCodexOutput(stdout: string): unknown {
-  const events = stdout
+/** Parse newline-delimited JSON, discarding lines that are not valid JSON. */
+function ndjsonEvents(stdout: string): unknown[] {
+  return stdout
     .split('\n')
     .filter(line => line.trim() !== '')
     .flatMap(line => {
@@ -335,6 +336,10 @@ function parseCodexOutput(stdout: string): unknown {
         return [];
       }
     });
+}
+
+function parseCodexOutput(stdout: string): unknown {
+  const events = ndjsonEvents(stdout);
   const message = events.findLast(
     event =>
       isRecord(event) &&
@@ -350,26 +355,16 @@ function parseCodexOutput(stdout: string): unknown {
 }
 
 function parseOpenCodeOutput(stdout: string): unknown {
-  const completed = stdout
-    .split('\n')
-    .filter(line => line.trim() !== '')
-    .flatMap(line => {
-      try {
-        return [parseJson(line)];
-      } catch {
-        return [];
-      }
-    })
-    .filter(
-      event =>
-        isRecord(event) &&
-        event.type === 'text' &&
-        isRecord(event.part) &&
-        event.part.type === 'text' &&
-        isRecord(event.part.time) &&
-        typeof event.part.time.end === 'number' &&
-        typeof event.part.text === 'string',
-    );
+  const completed = ndjsonEvents(stdout).filter(
+    event =>
+      isRecord(event) &&
+      event.type === 'text' &&
+      isRecord(event.part) &&
+      event.part.type === 'text' &&
+      isRecord(event.part.time) &&
+      typeof event.part.time.end === 'number' &&
+      typeof event.part.text === 'string',
+  );
   if (completed.length !== 1) throw new Error('invalid reviewer output');
   const [event] = completed;
   if (!isRecord(event) || !isRecord(event.part) || typeof event.part.text !== 'string') {
