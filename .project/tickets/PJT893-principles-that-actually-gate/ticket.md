@@ -3,7 +3,7 @@ id: PJT893
 slug: principles-that-actually-gate
 type: task
 phase: intake
-status: in_progress
+status: done
 created: 2026-09-05T22:36:59.730Z
 last_modified: 2026-09-05T22:36:59.730Z
 ---
