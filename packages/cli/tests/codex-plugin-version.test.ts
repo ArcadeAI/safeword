@@ -84,9 +84,11 @@ describe('Codex plugin release contract', () => {
         expect(JSON.parse(manifestContents)).toMatchObject({ version: effectiveVersion });
         expect(JSON.parse(runtimePackageContents)).toMatchObject({ version: effectiveVersion });
         expect(generatedHookManifest).toEqual(sourceHookManifest);
-        const generatedHooks = (JSON.parse(generatedHookManifest.toString()) as {
-          hooks: Record<string, CodexPluginHookEntry[]>;
-        }).hooks;
+        const generatedHooks = (
+          JSON.parse(generatedHookManifest.toString()) as {
+            hooks: Record<string, CodexPluginHookEntry[]>;
+          }
+        ).hooks;
         for (const command of codexPluginHookCommands(generatedHooks)) {
           expect(() => {
             assertBundledHookCommand(command);
