@@ -31,7 +31,11 @@ function isDelimiterRow(line: string): boolean {
 }
 
 function isTraceHeaderRow(line: string): boolean {
-  return rowCells(line).map(cell => cell.toLowerCase()).join('|') === 'principle|consequence|proof|conflict';
+  return (
+    rowCells(line)
+      .map(cell => cell.toLowerCase())
+      .join('|') === 'principle|consequence|proof|conflict'
+  );
 }
 
 /**
