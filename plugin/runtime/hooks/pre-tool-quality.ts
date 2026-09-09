@@ -263,10 +263,15 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
 // Verified at the point of reading: the ledger is a plain text file, so a stamp
 // claiming a coordinator verdict is held to that claim here rather than trusted
 // because it is written down (ticket PB1GMZ).
-function readReviewStamps(scope: string): ReviewStamp[] {
+function readReviewStamps(scope: string, requirePinnedReviewerModel = false): ReviewStamp[] {
   const logFile = nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log');
   if (!existsSync(logFile)) return [];
-  return verifiedStamps(parseReviewStamps(readFileSync(logFile, 'utf8')), projectDirectory, scope);
+  return verifiedStamps(
+    parseReviewStamps(readFileSync(logFile, 'utf8')),
+    projectDirectory,
+    scope,
+    requirePinnedReviewerModel,
+  );
 }
 
 /**
@@ -837,7 +842,8 @@ if (isCanonicalTicketEdit) {
           isValidSkipReason(stamp.skipReason),
       )
     ) {
-      const realReviews = stamps.filter(stamp =>
+      const modelVerifiedStamps = readReviewStamps(phaseScope, true);
+      const realReviews = modelVerifiedStamps.filter(stamp =>
         isSatisfyingCoordinatorReviewStamp(phaseScope, stamp, crossAgentReviewPolicy()),
       );
       const hasCrossModelReview = realReviews.some(

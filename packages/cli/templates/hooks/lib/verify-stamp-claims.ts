@@ -95,6 +95,7 @@ export function verifiedStamps(
   stamps: readonly ReviewStamp[],
   projectDirectory: string,
   scope: string,
+  requirePinnedReviewerModel = false,
 ): ReviewStamp[] {
   const readReceipt = createReviewReceiptReader(projectDirectory);
   return stamps
@@ -116,10 +117,14 @@ export function verifiedStamps(
         independence: stamp.independence,
         authorAgent: stamp.author,
         reviewerAgent: stamp.reviewer,
-        reviewerModel: stamp.model,
       });
       if (claim === undefined) return false;
 
-      return receiptGateVerdict(claim, readReceipt(stamp.reviewId)).ok;
+      const receipt = readReceipt(stamp.reviewId);
+      if (!receiptGateVerdict(claim, receipt).ok) return false;
+      return (
+        !requirePinnedReviewerModel ||
+        (stamp.model !== undefined && receipt?.reviewerModel === stamp.model)
+      );
     });
 }

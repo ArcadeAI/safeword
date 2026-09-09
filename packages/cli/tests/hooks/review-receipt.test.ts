@@ -332,16 +332,6 @@ describe('receiptGateVerdict — provenance the stamp claims', () => {
       ),
     ).toEqual({ ok: true });
   });
-
-  it('rejects a reviewer model the coordinator did not record', () => {
-    const verdict = receiptGateVerdict(
-      claimFor({ artifact: 'impl-plan', reviewerModel: 'different-model' }),
-      { ...approved, reviewerModel: 'actual-model' },
-    );
-
-    expect(verdict.ok).toBe(false);
-    expect(!verdict.ok && verdict.reason).toMatch(/model/u);
-  });
 });
 
 describe('receiptGateVerdict — stamps that claim nothing', () => {

@@ -41,8 +41,6 @@ export interface StampClaim {
   readonly intakeArtifact?: 'spec.md' | 'ticket.md';
   /** Repo-relative files changed by the current branch/worktree. */
   readonly implementationFiles?: readonly string[];
-  /** Reviewer model recorded on the stamp. */
-  readonly reviewerModel?: string;
   /** Author runtime the stamp reports, when it reports one. */
   readonly authorAgent?: string;
   /** Actual reviewer runtime the stamp reports, when it reports one. */
@@ -58,6 +56,7 @@ export interface ReviewReceipt {
   readonly independence?: string;
   readonly authorAgent?: string;
   readonly actualReviewer?: string;
+  /** Model explicitly pinned on the coordinator route, when one was pinned. */
   readonly reviewerModel?: string;
 }
 
@@ -215,7 +214,6 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
   const provenance = [
     ['author', claim.authorAgent, receipt.authorAgent],
     ['reviewer', claim.reviewerAgent, receipt.actualReviewer],
-    ['model', claim.reviewerModel, receipt.reviewerModel],
   ] as const;
   for (const [field, claimed, recorded] of provenance) {
     if (claimed !== undefined && recorded !== claimed)

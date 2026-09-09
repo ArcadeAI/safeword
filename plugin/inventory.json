@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b8de8f405fc87e2679a474ea90e0959e4454e120db0a21b81f0ffd1bf902a332"
+      "sha256": "5b01e6cb61d0d560e1e67c6a87744cc5190327bd77529fd1602039b6b381adc0"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "a8bbaabb91e3ccc24769417423b50b8ed0733c1284c41a71d4f39243f3db5f39"
+      "sha256": "a39e56f1c69b8a1d0de2409f5c228824ab2f4e189f0b349d74fec911714abdd8"
     },
     {
       "path": "runtime/event-groups.json",
@@ -379,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "adaf28c899a92d8a187d53f749257b8c4fe9f4b2cc4d5620df5e9215eb0e0ed4"
+      "sha256": "7d2e0998ea3bcfdc3f43ccd3a8100aa7c72c2448e40e890dc881825d21126683"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -427,7 +427,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "0e6c60faeb3d54929b91f4bcbab809747833226504096a8c54fe7540d96fb357"
+      "sha256": "cd97e0b706fad3f13d3e442784dbc21f8b5e0c3f6d4af75e1e06de2415eda8ce"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "2887e3e3029498df85a1ea23bfeeaf39de14806f4fa5004fa15c553f99a772d8"
+      "sha256": "778a0066465439cf04b1c3713021a46d1879de74405042035879ddfac25e0229"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -579,7 +579,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "386947fbf078f2f7dcb68f9b4ab3a575056e686beb02a2e834b943ed5af6d669"
+      "sha256": "0ceb405416b6d4b50c7f661a0c40a7e263de28f20129a36aa598ea40a3abd7dd"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "0cb1128c339b5c7eb609ff17b43453a4da1093a011f2529255ba866a57795a90"
+      "sha256": "0b04df8e2d51a603ee76f2c268c16b212a97c1e52c2a71eb2bb0dbeda6c86aba"
     },
     {
       "path": "skills/audit/SKILL.md",

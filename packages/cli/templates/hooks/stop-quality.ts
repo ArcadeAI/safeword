@@ -337,7 +337,8 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
   // skip records no real-review stamp, so it deliberately bypasses cross-model: that is the same
   // auditable escape valve every safeword gate carries, not an oversight.
   if (isCrossModelReviewRequired(rawConfig)) {
-    const realReviews = stamps.filter(stamp =>
+    const modelVerifiedStamps = verifiedStamps(stamps, projectDir, scope, true);
+    const realReviews = modelVerifiedStamps.filter(stamp =>
       isSatisfyingCoordinatorReviewStamp(scope, stamp, readCrossAgentReviewPolicy(rawConfig)),
     );
     const hasCrossModelReview = realReviews.some(

@@ -284,7 +284,6 @@ function resolveScope(ticketFolder: string): {
     ...reviewClaimContext(projectDirectory, ticketDirectory),
     authorAgent,
     reviewerAgent,
-    reviewerModel,
   };
   if (isPhase) {
     const value = positional[1];
