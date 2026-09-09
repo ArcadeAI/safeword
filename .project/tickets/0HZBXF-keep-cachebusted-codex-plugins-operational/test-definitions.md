@@ -31,7 +31,7 @@ source share one ledger entry.
 
 - [x] RED skip: cachebusted identity injection landed in the coherent-generator slice
 - [x] GREEN dddfa62a3
-- [ ] REFACTOR
+- [x] REFACTOR skip: status proof shares the real-install fixture without added abstractions
 
 ## Rule: cachebusted-codex.SWM1.R1 — Default generation remains deterministic at the package version
 
