@@ -18,7 +18,7 @@ import {
   inspirationActivationLines,
   validImplementationInspiration,
 } from '../fixtures/inspiration.js';
-import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
+import { expectHookAllow, expectHookDeny, type HookResult, writeGateConfig } from '../helpers';
 
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 const CODEX_GATE_PATH = nodePath.resolve(
@@ -195,6 +195,7 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
 
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'sw-plan-gate-'));
+    writeGateConfig(projectRoot, { reviewGate: false });
     ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', `${TICKET_ID}-gate`);
     mkdirSync(ticketDirectory, { recursive: true });
     mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });

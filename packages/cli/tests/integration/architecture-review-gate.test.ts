@@ -30,6 +30,7 @@ import {
 } from '../helpers.js';
 
 const REVIEW_ID = 'b3f1c2d4-0000-4000-8000-000000000019';
+const SECOND_REVIEW_ID = 'b3f1c2d4-0000-4000-8000-000000000020';
 const shared: { pluginDirectory: string; projectDirectory: string } = {
   pluginDirectory: '',
   projectDirectory: '',
@@ -44,23 +45,29 @@ function installReviewCli(): void {
       "import nodePath from 'node:path';",
       'const argv = process.argv.slice(2);',
       "if (argv[0] !== 'review' || argv[1] !== 'status') process.exit(1);",
-      "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', 'response.json'), 'utf8'));",
+      "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', `response-${argv[2]}.json`), 'utf8'));",
     ].join('\n'),
   );
 }
 
-function writeReviewResponse(id: string, status: string): void {
+function writeReviewResponse(
+  id: string,
+  status: string,
+  model?: string,
+  reviewId = REVIEW_ID,
+): void {
   writeFileSync(
-    nodePath.join(shared.pluginDirectory, 'response.json'),
+    nodePath.join(shared.pluginDirectory, `response-${reviewId}.json`),
     JSON.stringify({
       data: {
-        review_id: REVIEW_ID,
+        review_id: reviewId,
         status,
         review_kind: 'plan-implementation',
         review_targets: [`.project/tickets/${id}/impl-plan.md`],
         independence: 'cross-agent',
         author_agent: 'codex',
         actual_reviewer: 'claude',
+        reviewer_model: model,
       },
     }),
   );
@@ -154,6 +161,7 @@ function writeStamp(
     scopeId?: string;
     hashOf?: string;
     witnessed?: boolean;
+    reviewId?: string;
   } = {},
 ): void {
   const scope = reviewScope(
@@ -168,7 +176,7 @@ function writeStamp(
     options.witnessed ? 'codex' : undefined,
     options.witnessed ? 'claude' : undefined,
     options.witnessed ? 'cross-agent' : undefined,
-    options.witnessed ? REVIEW_ID : undefined,
+    options.witnessed ? (options.reviewId ?? REVIEW_ID) : undefined,
   )}`;
   appendFileSync(
     nodePath.join(shared.projectDirectory, '.project', 'skill-invocations.log'),
@@ -266,8 +274,18 @@ describe('architecture review gate (MR5M3A)', () => {
   it('blocks under cross-model when the stamp model equals the author model', () => {
     setConfig({ architectureReviewGate: true, crossModelReview: true });
     writeTicket('ARG006', 'feature', CITED);
-    writeStamp('ARG006', CITED, { model: 'claude-opus-4-8' });
+    writeReviewResponse('ARG006', 'approved', 'claude-opus-4-8');
+    writeStamp('ARG006', CITED, { model: 'claude-opus-4-8', witnessed: true });
     expect(runStopHook('ARG006', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' })).toContain(
+      CROSS_MODEL_MSG,
+    );
+  });
+
+  it('blocks under cross-model when the model tag has no coordinator receipt', () => {
+    setConfig({ architectureReviewGate: true, crossModelReview: true });
+    writeTicket('ARG006B', 'feature', CITED);
+    writeStamp('ARG006B', CITED, { model: 'claude-sonnet-4-6' });
+    expect(runStopHook('ARG006B', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' })).toContain(
       CROSS_MODEL_MSG,
     );
   });
@@ -275,8 +293,19 @@ describe('architecture review gate (MR5M3A)', () => {
   it('allows under cross-model when the stamp model differs from the author model', () => {
     setConfig({ architectureReviewGate: true, crossModelReview: true });
     writeTicket('ARG007', 'feature', CITED);
-    writeStamp('ARG007', CITED, { model: 'claude-sonnet-4-6' });
+    writeReviewResponse('ARG007', 'approved', 'claude-sonnet-4-6');
+    writeStamp('ARG007', CITED, { model: 'claude-sonnet-4-6', witnessed: true });
     const reason = runStopHook('ARG007', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' });
+    expect(reason).not.toContain(CROSS_MODEL_MSG);
+    expect(reason).not.toContain(REVIEW_MSG);
+  });
+
+  it('lets a deliberate review skip bypass the cross-model ceiling', () => {
+    setConfig({ architectureReviewGate: true, crossModelReview: true });
+    writeTicket('ARG007B', 'feature', CITED);
+    writeStamp('ARG007B', CITED, { skip: 'independent reviewer unavailable this run' });
+
+    const reason = runStopHook('ARG007B', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' });
     expect(reason).not.toContain(CROSS_MODEL_MSG);
     expect(reason).not.toContain(REVIEW_MSG);
   });
@@ -345,7 +374,8 @@ describe('architecture review gate (MR5M3A)', () => {
   it('allows under cross-model OFF even when the stamp model equals the author model', () => {
     setConfig({ architectureReviewGate: true });
     writeTicket('ARG015', 'feature', CITED);
-    writeStamp('ARG015', CITED, { model: 'claude-opus-4-8' });
+    writeReviewResponse('ARG015', 'approved', 'claude-opus-4-8');
+    writeStamp('ARG015', CITED, { model: 'claude-opus-4-8', witnessed: true });
     const reason = runStopHook('ARG015', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' });
     expect(reason).not.toContain(CROSS_MODEL_MSG);
     expect(reason).not.toContain(REVIEW_MSG);
@@ -354,7 +384,8 @@ describe('architecture review gate (MR5M3A)', () => {
   it('blocks under cross-model when the author model is unknown (fails closed)', () => {
     setConfig({ architectureReviewGate: true, crossModelReview: true });
     writeTicket('ARG016', 'feature', CITED);
-    writeStamp('ARG016', CITED, { model: 'claude-sonnet-4-6' });
+    writeReviewResponse('ARG016', 'approved', 'claude-sonnet-4-6');
+    writeStamp('ARG016', CITED, { model: 'claude-sonnet-4-6', witnessed: true });
     // SAFEWORD_AUTHOR_MODEL deliberately unset.
     expect(runStopHook('ARG016')).toContain(CROSS_MODEL_MSG);
   });
@@ -371,8 +402,14 @@ describe('architecture review gate (MR5M3A)', () => {
     setConfig({ architectureReviewGate: true, crossModelReview: true });
     writeTicket('ARG018', 'feature', CITED);
     // Append-only log: a same-model attempt first, then a corrected different-model review.
-    writeStamp('ARG018', CITED, { model: 'claude-opus-4-8' });
-    writeStamp('ARG018', CITED, { model: 'claude-sonnet-4-6' });
+    writeReviewResponse('ARG018', 'approved', 'claude-opus-4-8', REVIEW_ID);
+    writeStamp('ARG018', CITED, { model: 'claude-opus-4-8', witnessed: true });
+    writeReviewResponse('ARG018', 'approved', 'claude-sonnet-4-6', SECOND_REVIEW_ID);
+    writeStamp('ARG018', CITED, {
+      model: 'claude-sonnet-4-6',
+      witnessed: true,
+      reviewId: SECOND_REVIEW_ID,
+    });
     const reason = runStopHook('ARG018', { SAFEWORD_AUTHOR_MODEL: 'claude-opus-4-8' });
     expect(reason).not.toContain(CROSS_MODEL_MSG);
     expect(reason).not.toContain(REVIEW_MSG);

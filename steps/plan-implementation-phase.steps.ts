@@ -162,6 +162,13 @@ function ticketContent(options: { phase: string; type?: string; skips?: string[]
 function createProject(world: PlanWorld): string {
   const project = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-plan-phase-'));
   mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+  // Isolate from the phase-exit review gate (on by default since KHL52X): these
+  // scenarios prove the PLAN gate's verdicts, and a missing-stamp denial would
+  // mask them.
+  writeFileSync(
+    nodePath.join(project, '.safeword', 'config.json'),
+    `${JSON.stringify({ reviewGate: false }, undefined, 2)}\n`,
+  );
   world.projectDirectory = project;
   world.ticketDirectory = nodePath.join(project, '.project', 'tickets', TICKET_FOLDER);
   mkdirSync(world.ticketDirectory, { recursive: true });
