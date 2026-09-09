@@ -3584,7 +3584,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
         ".claude/skills/retro/SKILL.md": "da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb",
-        ".claude/skills/review-spec/SKILL.md": "f296d45e5b3c20e27523c54803d85f1672bb4a920a95a7d24ccadfe10d02c464",
+        ".claude/skills/review-spec/SKILL.md": "dc00cd695716a776cb56c6aa8e9ab59fddab2de9edc7b302ae8860833a0ab6cb",
         ".claude/skills/self-review/SKILL.md": "7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43",
@@ -31530,7 +31530,7 @@ Common vacuous patterns, each with its fix (apply only when you can state the do
 | **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
 | **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
 
-**Atomic** \u2014 a single \`When\`\u2192\`Then\` is atomic even if the \`Then\` asserts several properties of ONE outcome ("returns 200 with body X"). Flag non-atomic only when two genuinely independent behaviors could pass/fail separately (two \`When\` steps or two \`Then\`s asserting different system-level effects) \u2014 never for a merely compound \`Then\`.
+**Atomic** \u2014 a scenario proves one externally observable behavior. Several \`Then\`/\`And\` assertions remain atomic when they jointly specify that behavior, even if a property could fail independently (for example, "returns 200 with body X"). Use failure independence as a diagnostic, not the definition: split when independently failing assertions describe distinct system effects, user outcomes, or remediation paths. If removing one assertion would leave the scenario's named behavior fully specified, that assertion likely belongs elsewhere. Two \`When\` steps are non-atomic regardless. Do not split merely to give every assertion its own scenario; duplicated setup obscures the example. Early assertion failure can hide later defects, so prefer focused executable checks underneath a coherent BDD example ([arXiv:2504.04557](https://arxiv.org/html/2504.04557)).
 
 **Rule ownership** \u2014 review a coherent outcome under the Rule whose invariant it proves. An outcome owned by a different Rule is a lineage defect, not an atomicity defect; move or split it and report that single root cause.
 

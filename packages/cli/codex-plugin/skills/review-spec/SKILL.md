@@ -201,7 +201,7 @@ Common vacuous patterns, each with its fix (apply only when you can state the do
 | **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
 | **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
 
-**Atomic** — a single `When`→`Then` is atomic even if the `Then` asserts several properties of ONE outcome ("returns 200 with body X"). Flag non-atomic only when two genuinely independent behaviors could pass/fail separately (two `When` steps or two `Then`s asserting different system-level effects) — never for a merely compound `Then`.
+**Atomic** — a scenario proves one externally observable behavior. Several `Then`/`And` assertions remain atomic when they jointly specify that behavior, even if a property could fail independently (for example, "returns 200 with body X"). Use failure independence as a diagnostic, not the definition: split when independently failing assertions describe distinct system effects, user outcomes, or remediation paths. If removing one assertion would leave the scenario's named behavior fully specified, that assertion likely belongs elsewhere. Two `When` steps are non-atomic regardless. Do not split merely to give every assertion its own scenario; duplicated setup obscures the example. Early assertion failure can hide later defects, so prefer focused executable checks underneath a coherent BDD example ([arXiv:2504.04557](https://arxiv.org/html/2504.04557)).
 
 **Rule ownership** — review a coherent outcome under the Rule whose invariant it proves. An outcome owned by a different Rule is a lineage defect, not an atomicity defect; move or split it and report that single root cause.
 
