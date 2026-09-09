@@ -23,7 +23,7 @@
     },
     {
       "path": "resources/guides/architecture-guide.md",
-      "sha256": "2ebab4930a5b44104d4c61af9e63e413ac933c9113bb5c3f728338aa3947b55e"
+      "sha256": "cbe4ce94473b817406d767dea82c3032e4f8e4e3d76684f8c4620355238ffa7a"
     },
     {
       "path": "resources/guides/cold-start-check.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "1d2f8c6092ab912c512be6595ad335f8985aa7c4421703ef89867192d2ed7e7a"
+      "sha256": "dea21455e8dad67a990af06b1ac11fc8fc42dcba1c85ecba6d39d2bf95c2e3f3"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "a70cc348b0fa946d4d98f274342e186c45f1f6eb695ec7f327af50a8a482c899"
+      "sha256": "efdc7c95465438173c6be7c28f25bcec04d9771b62c3bc76931bd6e6f1be993a"
     },
     {
       "path": "runtime/event-groups.json",
@@ -687,7 +687,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "76fb9fc24162045005a2b354e808dbda281dcdc15b300f216af9d379d2cd5fb1"
+      "sha256": "d055e14a4627089b0e886139faa0008f3e2ee38cf323be15b9a0c38388ed0f5d"
     },
     {
       "path": "skills/refactor/SKILL.md",
