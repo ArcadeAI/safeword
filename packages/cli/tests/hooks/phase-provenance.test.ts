@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { evaluateTicketWrite } from '../../templates/hooks/lib/phase-provenance.js';
 
 const CANONICAL_PHASE_ORDER =
-  'intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done';
+  'intake → define-behavior → scenario-gate → plan-implementation → plan-execution → implement → verify → done';
 
 function ticket(options: { type?: string; phase?: string; skips?: string[] }): string {
   const lines = ['---', 'id: ZZTEST', 'slug: fixture'];
