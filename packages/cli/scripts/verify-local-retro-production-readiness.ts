@@ -39,6 +39,7 @@ interface VerificationSources {
 
 type RelayReadinessValidator = typeof validateRelayReadiness;
 type VerificationOptions = Omit<LocalRetroProductionVerificationOptions, 'relayReady'>;
+const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
 
 function required(environment: NodeJS.ProcessEnv, name: string): string {
   const value = environment[name]?.trim();
@@ -88,7 +89,9 @@ function gitArtifactAtCommit(
   path: string,
 ): Promise<{ content: string; sha256: string } | undefined> {
   try {
-    const bytes = execFileSync('git', ['show', `${commit}:${path}`]);
+    const bytes = execFileSync('git', ['show', `${commit}:${path}`], {
+      maxBuffer: GIT_MAX_BUFFER_BYTES,
+    });
     return Promise.resolve({
       content: bytes.toString('utf8'),
       sha256: createHash('sha256').update(bytes).digest('hex'),

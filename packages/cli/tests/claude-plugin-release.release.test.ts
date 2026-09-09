@@ -123,6 +123,7 @@ describe('Claude plugin release contract', () => {
       workflow.indexOf('  publish:'),
     );
 
+    expect(verifierJob).toContain('environment: retro-production-readiness');
     expect(verifierJob).toContain('fetch-depth: 0');
     expect(verifierJob).toContain(
       'RESULT=$(bun --no-install packages/cli/scripts/verify-local-retro-production-readiness.ts)',

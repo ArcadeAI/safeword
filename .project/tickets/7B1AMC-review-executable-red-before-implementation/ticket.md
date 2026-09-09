@@ -53,6 +53,7 @@ last_modified: 2026-09-08T01:31:09Z
 - 2026-09-07T23:50:00Z Implementation complete: The blocking gate now covers Claude Code, Codex, OpenCode, and Cursor edit adapters; focused regression evidence passes 11 tests across executor isolation, receipt integrity, exact ledger admission, CLI wiring, and real hook denial/allowance. Advanced to verification.
 - 2026-09-08T01:31:09Z Verified: All 52 ledger cells are complete; 9,564 JavaScript tests and 1,490 Cucumber scenarios pass, lint/typecheck/package builds/generated contracts are clean, dependency audits report no vulnerabilities, and the diff-scoped audit has zero change-scoped errors. Closed the ticket with explicit limits for unavailable independent reviewer routes, generated-only cloud evidence, the unexercised Windows termination branch, the local website native binding, and the deliberate same-user process trust boundary.
 - 2026-09-08T18:15:00-07:00 CI follow-up: Both Node lanes proved the descendant-cleanup test still coupled process-tree verification to a 50 ms parent startup deadline. The executor correctly killed the group before the parent could write its child PID, so the assertion failed with `ENOENT`. Gave only this process-tree fixture a one-second setup window; the adjacent short-timeout test continues to pin exact deadline attestation.
+- 2026-09-08T18:26:00-07:00 Safety follow-up: Independent review found a kill could interrupt the PID-file write after truncation, causing an empty file to parse as PID 0 and making cleanup signal the test runner process group. The fixture now rejects every non-positive or non-integer PID before recording it for observation or cleanup.
 
 ## Root Cause
 
@@ -71,6 +72,9 @@ CI load, both Node versions killed the parent before it wrote `descendant.pid`. 
 both lanes confirms startup starvation; the other 9,503 tests passed, including the executor's
 short-timeout attestation. The isolated descendant test passes, ruling out invalid child code, and
 the process-group implementation was unchanged, ruling out a branch-specific termination regression.
+The remaining partial-write window could turn an empty file into PID 0 because JavaScript converts
+an empty string to zero. Validating a positive integer before assignment keeps both the assertion and
+cleanup fail-closed even if the operating system interrupts the synchronous write.
 
 The final acceptance run also exposed generated-artifact drift: the live legacy classifier used the
 new pre-tool hook fingerprint while the bundled Claude runtime still embedded the prior historical

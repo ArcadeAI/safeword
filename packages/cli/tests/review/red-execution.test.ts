@@ -181,6 +181,7 @@ describe('trusted executable RED observation', () => {
           },
         });
         const observedPid = Number(readFileSync(pidPath, 'utf8'));
+        expect(Number.isSafeInteger(observedPid) && observedPid > 0).toBe(true);
         descendantPid = observedPid;
 
         await vi.waitFor(() => {
