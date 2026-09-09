@@ -28,6 +28,7 @@ import {
   inspirationActivationLines,
   validProductInspirationLines,
 } from '../fixtures/inspiration.js';
+import { writeGateConfig } from '../helpers';
 
 const ADAPTER = nodePath.resolve(__dirname, '../../templates/hooks/cursor/pre-tool-quality.ts');
 
@@ -154,6 +155,9 @@ describe('Cursor preToolUse edit-gate parity (F2TKR3)', () => {
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'cursor-pretooluse-'));
     mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+    // Isolate from the phase-exit review gate (on by default): these cases test
+    // Cursor's adapter parity, not whether a review stamp exists.
+    writeGateConfig(projectRoot, { reviewGate: false });
     ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', TICKET_FOLDER);
     mkdirSync(ticketDirectory, { recursive: true });
     writeFeatureAtImplement(ticketDirectory);

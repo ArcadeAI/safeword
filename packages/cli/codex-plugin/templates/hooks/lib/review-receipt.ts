@@ -37,6 +37,10 @@ export interface StampClaim {
   readonly projectDirectory: string;
   /** Exact configured ticket directory this stamp is about. */
   readonly ticketDirectory: string;
+  /** Intake's real output: features have a spec; lighter tickets use ticket.md. */
+  readonly intakeArtifact?: 'spec.md' | 'ticket.md';
+  /** Repo-relative files changed by the current branch/worktree. */
+  readonly implementationFiles?: readonly string[];
   /** Author runtime the stamp reports, when it reports one. */
   readonly authorAgent?: string;
   /** Actual reviewer runtime the stamp reports, when it reports one. */
@@ -52,15 +56,28 @@ export interface ReviewReceipt {
   readonly independence?: string;
   readonly authorAgent?: string;
   readonly actualReviewer?: string;
-  /**
-   * The reviewing model, when the coordinator recorded one. Not compared
-   * against a stamp's `model:` tag: the coordinator records the model that was
-   * *configured* for a route, not the one that ran, so it is absent on a review
-   * that ran without a pinned model — which is the default. Binding a claim to
-   * it would reject genuinely-witnessed stamps. Surfaced here so the gate can
-   * bind it once the coordinator records the served model.
-   */
+  /** Model explicitly pinned on the coordinator route, when one was pinned. */
   readonly reviewerModel?: string;
+}
+
+/**
+ * The review kind that witnesses a given phase exit.
+ *
+ * Two exits have a specialist reviewer whose rubric is generated from the same
+ * skill that authors the artifact, so the kind and the phase name coincide.
+ * Every other exit is witnessed by the general `quality-review`.
+ *
+ * Before this mapping existed the check was `receipt.kind === claim.phase`,
+ * which quietly made five of the seven exits unsatisfiable: `review run` accepts
+ * only these three kinds, so a stamp for `intake`, `define-behavior`,
+ * `implement`, `verify` or `done` could never cite a matching review. The gate
+ * still blocked, but only an uncited stamp or a logged skip could clear it —
+ * which is not the independent review the gate exists to require (ticket KHL52X).
+ *
+ * Adding a specialist kind later narrows this fallback rather than widening it.
+ */
+export function reviewKindForPhase(phase: string): string {
+  return phase === 'scenario-gate' || phase === 'plan-implementation' ? phase : 'quality-review';
 }
 
 /** Levels that assert a coordinator ran and returned a verdict. */
@@ -127,6 +144,51 @@ function coversArtifact(targets: readonly string[], claim: StampClaim, artifact:
   return targets.some(target => relativeTicketTarget(target, claim) === `${artifact}.md`);
 }
 
+/** Whether an exact file or reviewed parent directory covers a changed file. */
+function targetCoversFile(target: string, file: string, projectDirectory: string): boolean {
+  const relative = nodePath.relative(
+    resolveTarget(target, projectDirectory),
+    resolveTarget(file, projectDirectory),
+  );
+  return (
+    relative === '' ||
+    (relative !== '..' &&
+      !relative.startsWith(`..${nodePath.sep}`) &&
+      !nodePath.isAbsolute(relative))
+  );
+}
+
+/** Whether the receipt covered the artifact produced by this workflow phase. */
+function coversPhase(targets: readonly string[], claim: StampClaim, phase: string): boolean {
+  const ticketTargets = targets
+    .map(target => relativeTicketTarget(target, claim))
+    .filter((target): target is string => target !== undefined);
+
+  if (phase === 'intake')
+    return claim.intakeArtifact !== undefined && ticketTargets.includes(claim.intakeArtifact);
+  if (phase === 'define-behavior' || phase === 'scenario-gate')
+    return ticketTargets.some(
+      target => target === 'test-definitions.md' || target.endsWith('.feature'),
+    );
+  if (phase === 'plan-implementation') return ticketTargets.includes('impl-plan.md');
+  if (phase === 'verify') return ticketTargets.includes('verify.md');
+  if (phase === 'done') return ticketTargets.includes('ticket.md');
+  if (phase === 'implement') {
+    if (claim.implementationFiles === undefined) return false;
+    // Without a current Git change set there is no independent evidence that
+    // a reviewed file is the implementation this phase produced.
+    if (claim.implementationFiles.length === 0) return false;
+    const changed = claim.implementationFiles.filter(
+      target => relativeTicketTarget(target, claim) === undefined,
+    );
+    if (changed.length === 0) return false;
+    return changed.every(file =>
+      targets.some(target => targetCoversFile(target, file, claim.projectDirectory)),
+    );
+  }
+  return false;
+}
+
 /**
  * Whether a stamp may be written. Rejections name what to do next, because the
  * agent reading them is mid-workflow and the alternative to a clear instruction
@@ -179,15 +241,16 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
   const targets = receipt.targets ?? [];
 
   if (claim.phase !== undefined) {
-    if (receipt.kind !== claim.phase)
+    const requiredKind = reviewKindForPhase(claim.phase);
+    if (receipt.kind !== requiredKind)
       return {
         ok: false,
-        reason: `review ${receipt.reviewId} is a "${receipt.kind ?? 'unknown'}" review, not the "${claim.phase}" exit being stamped`,
+        reason: `review ${receipt.reviewId} is a "${receipt.kind ?? 'unknown'}" review, but the "${claim.phase}" exit needs a "${requiredKind}" review`,
       };
-    if (!targets.some(target => relativeTicketTarget(target, claim) !== undefined))
+    if (!coversPhase(targets, claim, claim.phase))
       return {
         ok: false,
-        reason: `review ${receipt.reviewId} reviewed nothing in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}`,
+        reason: `review ${receipt.reviewId} did not cover the work produced by the "${claim.phase}" phase in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}`,
       };
   }
 

@@ -210,13 +210,6 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
   });
 
   it('still writes a stamp naming a model, which the receipt does not record', () => {
-    // `approvedEnvelope` carries no `reviewer_model`, matching what the
-    // coordinator actually reports: it records the model *configured* for a
-    // route, not the one that ran, so the field is absent unless a model was
-    // pinned. Holding the stamp's `model:` tag to it refused genuinely
-    // witnessed reviews — an approving coordinator review came back
-    // `recorded "model: none recorded"`. The tag is written, not verified,
-    // until the coordinator records the served model.
     const result = stampImplPlan('--model', 'claude-opus-5');
 
     expect(result.status).toBe(0);
