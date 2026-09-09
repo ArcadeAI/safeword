@@ -92,6 +92,15 @@ function dispatchPrompt(
   });
 }
 
+/**
+ * Per-project plugin state inside the data directory the host exports (#3787),
+ * keyed by the digest of the canonical project root exactly as the runtime does.
+ */
+function pluginStatePath(pluginData: string, projectDirectory: string, name: string): string {
+  const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+  return nodePath.join(pluginData, 'project-state-v1', projectDigest, name);
+}
+
 function isolatedClaudeEnvironment(
   projectDirectory: string,
   pluginData: string,
@@ -289,9 +298,9 @@ describe('Claude plugin dispatcher', () => {
     const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'migration');
     expect(result.status, result.stderr).toBe(0);
     expect(existsSync(target)).toBe(false);
-    expect(
-      existsSync(nodePath.join(projectDirectory, '.safeword/claude-plugin/plugin-mode-v2.json')),
-    ).toBe(true);
+    expect(existsSync(pluginStatePath(pluginData, projectDirectory, 'plugin-mode-v2.json'))).toBe(
+      true,
+    );
     const settings = JSON.parse(
       readFileSync(nodePath.join(projectDirectory, '.claude/settings.json'), 'utf8'),
     );
@@ -320,10 +329,7 @@ describe('Claude plugin dispatcher', () => {
     const configDirectory = temporary('safeword-plugin-transient-attention-config-');
     const target = releasedAsset(projectDirectory);
     promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
-    const attentionPath = nodePath.join(
-      projectDirectory,
-      '.safeword/claude-plugin/attention-v1.json',
-    );
+    const attentionPath = pluginStatePath(pluginData, projectDirectory, 'attention-v1.json');
     mkdirSync(nodePath.dirname(attentionPath), { recursive: true });
     writeFileSync(
       attentionPath,
@@ -399,9 +405,9 @@ describe('Claude plugin dispatcher', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).not.toContain('nativeRan');
     expect(existsSync(target)).toBe(false);
-    expect(
-      existsSync(nodePath.join(projectDirectory, '.safeword/claude-plugin/plugin-mode-v2.json')),
-    ).toBe(true);
+    expect(existsSync(pluginStatePath(pluginData, projectDirectory, 'plugin-mode-v2.json'))).toBe(
+      true,
+    );
   });
 
   it('recognizes exact legacy hook authority in Claude JSONC settings', () => {
@@ -763,7 +769,7 @@ describe('Claude plugin dispatcher', () => {
 
     const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'legacy-marker');
     expect(result.status, result.stderr).toBe(0);
-    const currentMarker = nodePath.join(markerDirectory, 'plugin-mode-v2.json');
+    const currentMarker = pluginStatePath(pluginData, projectDirectory, 'plugin-mode-v2.json');
     expect(JSON.parse(readFileSync(currentMarker, 'utf8'))).toMatchObject({
       schema_version: 2,
       state: 'clean',
@@ -789,7 +795,7 @@ describe('Claude plugin dispatcher', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(existsSync(target)).toBe(false);
     expect(existsSync(nodePath.join(markerDirectory, 'plugin-mode-v1.json'))).toBe(false);
-    const currentMarkerPath = nodePath.join(markerDirectory, 'plugin-mode-v2.json');
+    const currentMarkerPath = pluginStatePath(pluginData, projectDirectory, 'plugin-mode-v2.json');
     const currentMarker = JSON.parse(readFileSync(currentMarkerPath, 'utf8'));
     expect(currentMarker).toMatchObject({
       state: 'clean',

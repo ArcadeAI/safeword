@@ -13,6 +13,7 @@ import {
   type SafewordSchema,
 } from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
+import { useIsolatedClaudePluginState } from '../helpers/claude-plugin-state.js';
 
 vi.mock('../../src/claude-plugin/status.js', async () => {
   const { createResult: resultFactory } = await import('../../src/cli-protocol/result.js');
@@ -35,6 +36,8 @@ vi.mock('../../src/codex-plugin/operations.js', async () => {
       }),
   };
 });
+
+useIsolatedClaudePluginState();
 
 function declaredSchemaPaths(schema: SafewordSchema): string[] {
   return [

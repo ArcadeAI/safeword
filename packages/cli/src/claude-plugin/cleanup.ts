@@ -17,7 +17,6 @@ import {
   readSync,
   renameSync,
   rmdirSync,
-  rmSync,
   writeSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -32,13 +31,14 @@ import {
   isAcceptedHistoricalFile,
   isAcceptedHistoricalHook,
 } from './historical-ownership.js';
-import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
 import { type ClaudeLegacyObservation, observeClaudeLegacy } from './legacy-classifier.js';
 import {
   advisoryStateDigest,
+  claudeProjectStatePath,
   claudeWatchedSettingsDigest,
   createClaudePluginMode,
   readClaudePluginMode,
+  removeClaudeProjectState,
   writeClaudeMigrationAttention,
   writeClaudePluginMode,
 } from './migration-state.js';
@@ -194,7 +194,7 @@ export function claudeCleanupPreconditionDigest(
 }
 
 function transactionPath(cwd: string): string {
-  return containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.transaction);
+  return claudeProjectStatePath(cwd, 'transaction');
 }
 
 function writeTransaction(cwd: string, transaction: CleanupTransaction): void {
@@ -475,7 +475,7 @@ function recordAutomaticAttention(
 }
 
 function waitForPluginMode(cwd: string, deadline: number, now: () => number): boolean {
-  const marker = containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2);
+  const marker = claudeProjectStatePath(cwd, 'pluginMarkerV2');
   const pause = new Int32Array(new SharedArrayBuffer(4));
   const maximumChecks = 25;
   for (let checks = 0; checks < maximumChecks && now() < deadline; checks += 1) {
@@ -736,7 +736,7 @@ function performAutomaticMigration(
     };
   }
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, 'transaction');
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
@@ -1083,7 +1083,7 @@ function applyRecoveryEntries(projectRoot: string, pending: readonly PendingReco
 
 function completedRecoveryResult(projectRoot: string, transaction: CleanupTransaction): CliResult {
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync(transactionPath(projectRoot), { force: true });
+  removeClaudeProjectState(projectRoot, 'transaction');
   pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return createResult({
     state: 'changed',
