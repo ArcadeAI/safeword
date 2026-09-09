@@ -1,6 +1,7 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -54,17 +55,16 @@ interface ReviewLaunch {
 }
 
 function reviewLaunchesIn(content: string): ReviewLaunch[] {
-  return content
-    .matchAll(/```(?:bash|sh)\n([\s\S]*?)```/gu)
-    .flatMap(match => {
-      const command = (match[1] ?? '').replaceAll(/\\\n\s*/gu, ' ');
-      const launch =
-        /(?:run-review\.ts|safeword(?:@\S+)?|runtime\/cli\.js["']?)\s+review\s+run\s+([\w-]+)/u.exec(
-          command,
-        );
-      if (!launch) return [];
+  const searchable = content.replaceAll(/\\\n[^\S\n]*/gu, continuation =>
+    ' '.repeat(continuation.length),
+  );
+  return searchable
+    .matchAll(
+      /(?:run-review\.ts|safeword(?:@\S+)?|runtime\/cli\.js["']?)\s+review\s+run\s+([\w-]+)/gu,
+    )
+    .map(match => {
       const index = content.slice(0, match.index).split('\n').length;
-      return [{ index, kind: launch[1] ?? '' }];
+      return { index, kind: match[1] ?? '' };
     })
     .toArray();
 }
@@ -93,15 +93,16 @@ interface ReviewCallSection {
 
 function reviewCallWindowAt(
   lines: readonly string[],
-  index: number,
-  callIndexes: readonly number[],
+  lineNumber: number,
+  callLineNumbers: readonly number[],
 ): string {
   // Commands may start two lines into a fence; sixty following lines cover the
   // longest current protocol (review-spec) while preventing the next call from lending proof.
-  const nextCall = callIndexes.find(candidate => candidate > index) ?? -1;
+  const index = lineNumber - 1;
+  const nextCallLineNumber = callLineNumbers.find(candidate => candidate > lineNumber);
+  const nextCallIndex = nextCallLineNumber === undefined ? lines.length : nextCallLineNumber - 1;
   const boundedEnd = Math.min(lines.length, index + 60);
-  const end = nextCall === -1 ? boundedEnd : Math.min(nextCall, boundedEnd);
-  return lines.slice(Math.max(0, index - 2), end).join('\n');
+  return lines.slice(Math.max(0, index - 2), Math.min(nextCallIndex, boundedEnd)).join('\n');
 }
 
 function reviewCallSections(relativePath: string): ReviewCallSection[] {
@@ -133,6 +134,9 @@ function expectDispatchAuthorization(content: string, context: string): void {
   expect(normalized, context).toContain(
     'Never pass credentials, customer data, or secret-bearing files as targets or `--context`;',
   );
+  expect(normalized, context).toContain(
+    'The coordinator enforces that setting before provider dispatch, so do not duplicate its policy check in chat.',
+  );
   expect(normalized, context).toContain('**A review you never dispatched is not coverage**');
 }
 
@@ -144,7 +148,6 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   expect(section, context).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
   expect(normalized, context).toMatch(/execute its exact recovery command/iu);
   expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
-  expect(section, context).toContain('finish-review');
   expect(section, context).toContain('REVIEW_PENDING');
   expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
 
@@ -158,8 +161,17 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
     return;
   }
 
+  if (kind !== 'quality-review') {
+    expect(normalized, context).toMatch(
+      /independence: degraded[^.]{0,240}do not stamp or advance/iu,
+    );
+  }
+
   expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
   expect(normalized, context).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
+  expect(normalized, context).toMatch(
+    /REVIEW_ROUTES_EXHAUSTED[^.]{0,200}invoke[^.]{0,80}finish-review/iu,
+  );
   expect(normalized, context).toContain(
     'Never substitute another surface-private reviewer or hand-written independent evidence.',
   );
@@ -517,6 +529,25 @@ exit ${status}`,
     }
   });
 
+  it('keeps coordinator launches out of command and agent templates', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const nonSkillRoots = [
+      nodePath.join(templates, 'commands'),
+      nodePath.join(templates, 'agents'),
+      nodePath.join(repoRoot, 'plugin/commands'),
+      nodePath.join(repoRoot, 'plugin/agents'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/commands'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/agents'),
+    ].filter(root => existsSync(root));
+
+    for (const root of nonSkillRoots) {
+      const callers = markdownFiles(root).filter(relativePath =>
+        containsReviewLaunch(readFileSync(nodePath.join(root, relativePath), 'utf8')),
+      );
+      expect(callers, root).toEqual([]);
+    }
+  });
+
   it('keeps scenario-gate coordinator ownership in review-spec', () => {
     const bdd = readTemplate('skills/bdd/SKILL.md');
     expect(bdd).toContain('`review-spec` in Review mode');
@@ -557,6 +588,13 @@ exit ${status}`,
 
     for (const { root, reviewEntrypoint, requiredReviewFiles } of generatedSurfaces) {
       expect(requiredReviewFiles, root).not.toHaveLength(0);
+      const discoveredReviewFiles = markdownFiles(root).filter(relativePath =>
+        containsReviewLaunch(readFileSync(nodePath.join(root, relativePath), 'utf8')),
+      );
+      const lexical = (left: string, right: string): number => left.localeCompare(right);
+      expect(discoveredReviewFiles.toSorted(lexical), root).toEqual(
+        requiredReviewFiles.toSorted(lexical),
+      );
       for (const relativePath of requiredReviewFiles) {
         const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
         expect(content, relativePath).toContain(`${reviewEntrypoint}review run`);
@@ -700,9 +738,8 @@ exit ${status}`,
 
       // A stale CLAUDE_PROJECT_DIR must not win over the real project the
       // caller is standing in, or the hook resolves someone else's checkout.
-      expect(reviewCandidates(fixture, { CLAUDE_PROJECT_DIR: bogus })).toContainEqual([
-        'bunx',
-        ['safeword@1.2.3'],
+      expect(reviewCandidates(fixture, { CLAUDE_PROJECT_DIR: bogus })).toEqual([
+        ['bunx', ['safeword@1.2.3']],
       ]);
     } finally {
       rmSync(fixture, { recursive: true, force: true });

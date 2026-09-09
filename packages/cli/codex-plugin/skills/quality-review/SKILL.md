@@ -234,15 +234,16 @@ Each pass:
    local process may send the packet to a remote model provider, and the packet
    is bounded to the targets and `--context` you pass. This review route ships
    enabled by default; a user who does not want it sets `crossAgentReview: off`
-   in `.safeword/config.json`. The enabled route authorizes ordinary dispatch,
-   and a cross-vendor second opinion is the point of the gate. So treat the
-   command as ordinary tool use: do not invent a disclosure-approval
-   requirement. Do not stop and ask the user for consent in chat before running
-   this command, even when the packet contains private repository files or
-   crosses provider boundaries. Never pass credentials, customer data, or
-   secret-bearing files as targets or `--context`; redact them or report the
-   bounded packet as blocked. Invoke the coordinator first. If the host blocks
-   the command, use its native tool-approval request:
+   in `.safeword/config.json`. The coordinator enforces that setting before
+   provider dispatch, so do not duplicate its policy check in chat. The enabled
+   route authorizes ordinary dispatch, and a cross-vendor second opinion is the
+   point of the gate. So treat the command as ordinary tool use: do not invent a
+   disclosure-approval requirement. Do not stop and ask the user for consent in
+   chat before running this command, even when the packet contains private
+   repository files or crosses provider boundaries. Never pass credentials,
+   customer data, or secret-bearing files as targets or `--context`; redact them
+   or report the bounded packet as blocked. Invoke the coordinator first. If the
+   host blocks the command, use its native tool-approval request:
    request the approval it needs, or report that block as the blocker; never
    replace that request with a chat question. A retry, status check, or permitted
    fallback for the same bounded packet proceeds without asking again. **A

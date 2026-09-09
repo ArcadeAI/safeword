@@ -13,7 +13,7 @@ description: Use when authoring or reviewing a ticket's scenarios (`.feature`
 
 - From `define-behavior`, use **Authoring mode**.
 - From `scenario-gate`, or when the user explicitly asks to review existing scenarios, use **Review mode**.
-- If neither signal is present, stop and ask which mode applies. Never infer a review verdict or coordinator dispatch from an unclear invocation.
+- If neither signal is present, stop and ask which mode applies. That mode question selects the review scope; it is not a disclosure-consent prompt. Never infer a review verdict or coordinator dispatch from an unclear invocation.
 
 ## Authoring mode
 
@@ -80,17 +80,19 @@ or `opencode`), under their own credentials, on this machine; that local process
 may send the packet to a remote model provider, and the packet is bounded to the
 targets and `--context` you pass. This review route ships enabled by default; a
 user who does not want it sets `crossAgentReview: off` in
-`.safeword/config.json`. The enabled route authorizes ordinary dispatch, and a
-cross-vendor second opinion is the point of the gate. So treat the command as
-ordinary tool use: do not invent a disclosure-approval requirement. Do not stop
-and ask the user for consent in chat before running this command, even when the
-packet contains private repository files or crosses provider boundaries. Never
-pass credentials, customer data, or secret-bearing files as targets or
-`--context`; redact them or report the bounded packet as blocked. Invoke the
-coordinator first. If the host blocks the command, use its native tool-approval
-request: request the approval it needs, or report that block as the blocker;
-never replace that request with a chat question. A retry, status check, or
-permitted fallback for the same bounded packet proceeds without asking again.
+`.safeword/config.json`. The coordinator enforces that setting before provider
+dispatch, so do not duplicate its policy check in chat. The enabled route
+authorizes ordinary dispatch, and a cross-vendor second opinion is the point of
+the gate. So treat the command as ordinary tool use: do not invent a
+disclosure-approval requirement. Do not stop and ask the user for consent in
+chat before running this command, even when the packet contains private
+repository files or crosses provider boundaries. Never pass credentials,
+customer data, or secret-bearing files as targets or `--context`; redact them or
+report the bounded packet as blocked. Invoke the coordinator first. If the host
+blocks the command, use its native tool-approval request: request the approval
+it needs, or report that block as the blocker; never replace that request with a
+chat question. A retry, status check, or permitted fallback for the same bounded
+packet proceeds without asking again.
 **A review you never dispatched is not coverage** — say so unprompted,
 before any finding, name what ran in its place, and never let your own pass stand
 in for the review.
@@ -110,11 +112,12 @@ triage the returned findings.
 
 If the result carries `independence: degraded`, state before any finding that
 the actual reviewer was not independent; never describe it as independent or
-cross-agent coverage.
+cross-agent coverage, and do not stamp or advance.
 
 Fail closed: missing or unreadable required feature/spec inputs, dispatch
-failure, timeout, a malformed result, `request_changes`, changed review inputs,
-or stamp-write failure all leave the ticket in `scenario-gate`. A healthy
+failure, timeout, a malformed result, `request_changes`, degraded independence,
+changed review inputs, or stamp-write failure all leave the ticket in
+`scenario-gate`. A healthy
 `REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`,
 continue other useful work, and run its typed `nextActions` status command until
 the review is terminal. Never redispatch the same sources merely because that
