@@ -1,8 +1,7 @@
 /**
- * TXRHMD (#480) transition gate: a new-flow feature ticket may only advance
- * plan-implementation → implement once impl-plan.md parses valid with status
- * `planned`. Wiring test — spawns the real pre-tool-quality hook with real
- * hook-lib collaborators; only the filesystem (temp project) is controlled.
+ * Implementation-plan transition gates (TXRHMD #480 and G1C9PP #4200).
+ * Wiring tests spawn the real pre-tool-quality hook with real hook-lib
+ * collaborators; only the filesystem (temp project) is controlled.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -19,7 +18,7 @@ import {
   inspirationActivationLines,
   validImplementationInspiration,
 } from '../fixtures/inspiration.js';
-import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
+import { expectHookAllow, expectHookDeny, type HookResult, writeGateConfig } from '../helpers';
 
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 const CODEX_GATE_PATH = nodePath.resolve(
@@ -221,15 +220,23 @@ describe('implementation planning transition gates (wired)', () => {
   });
 
   it('enters Execution Planning for a resolved plan with a current review', () => {
+    writeGateConfig(projectRoot, { reviewGate: true });
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+    const ticketScope = nodePath.basename(ticketDirectory);
     writeFileSync(
       nodePath.join(projectRoot, '.project', 'skill-invocations.log'),
-      `2026-09-09T00:00:00Z sess review:${reviewScope(TICKET_ID, 'impl-plan', hashArtifact(VALID_PLAN))}\n`,
+      [
+        `2026-09-09T00:00:00Z sess review:${reviewScope(ticketScope, 'impl-plan', hashArtifact(VALID_PLAN))}`,
+        `2026-09-09T00:00:01Z sess review:${reviewScope(ticketScope, 'phase', 'plan-implementation')}`,
+        '',
+      ].join('\n'),
     );
 
-    expectHookAllow(runAdvance('plan-implementation', 'plan-execution'));
+    const result = runAdvance('plan-implementation', 'plan-execution');
+    expect(result.status).toBe(0);
+    expectHookAllow(result);
   });
 
   it('allows implement entry when a valid planned impl-plan.md exists', () => {
