@@ -177,18 +177,17 @@ describe('Test Suite 2: Setup - Core Files', () => {
       expect(config.architectureDocEnforcement).toBe(false);
     });
 
-    it('defaults architecture-doc enforcement off in an existing config', async () => {
+    it('defaults architecture-doc enforcement off and records packs in a partial config', async () => {
       createTypeScriptProjectReadyForSetup(temporaryDirectory);
-      writeTestFile(
-        temporaryDirectory,
-        '.safeword/config.json',
-        JSON.stringify({ installedPacks: [] }),
-      );
+      writeTestFile(temporaryDirectory, 'pyproject.toml', `[project]\nname = "test"\n`);
+      writeTestFile(temporaryDirectory, '.safeword/config.json', JSON.stringify({}));
       initGitRepo(temporaryDirectory);
 
       await runCli(['setup', '--agents', 'none'], { cwd: temporaryDirectory });
 
-      expect(readSafewordConfig(temporaryDirectory).architectureDocEnforcement).toBe(false);
+      const config = readSafewordConfig(temporaryDirectory);
+      expect(config.architectureDocEnforcement).toBe(false);
+      expect(config.installedPacks).toContain('python');
     });
 
     it('preserves the legacy default for an already-installed project', async () => {

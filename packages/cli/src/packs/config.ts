@@ -12,7 +12,7 @@ import { readFileSafe, writeFile } from '../utils/fs.js';
 const CONFIG_PATH = '.safeword/config.json';
 
 interface SafewordConfig {
-  installedPacks: string[];
+  installedPacks?: string[];
   architectureDocEnforcement?: boolean;
   autoUpgrade?: boolean;
   /** SQL pack options — `fix: true` opts in to edit-time `sqlfluff fix` (#638). */
@@ -83,9 +83,10 @@ export function freshInstallDefaultsNeedUpdate(cwd: string): boolean {
  */
 export function addInstalledPack(cwd: string, packId: string): void {
   const config = readConfig(cwd) ?? { installedPacks: [] };
+  const installedPacks = config.installedPacks ?? [];
 
-  if (!config.installedPacks.includes(packId)) {
-    config.installedPacks.push(packId);
+  if (!installedPacks.includes(packId)) {
+    config.installedPacks = [...installedPacks, packId];
     writeConfig(cwd, config);
   }
 }
