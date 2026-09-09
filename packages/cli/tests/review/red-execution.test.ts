@@ -174,7 +174,10 @@ describe('trusted executable RED observation', () => {
             cwd: '.',
             evidenceClass: 'pure-contract',
             expectedFailure: 'expected descendant timeout',
-            timeoutMs: 50,
+            // This test needs the parent to start and record the descendant before
+            // the executor kills the process group. The deadline is not the behavior
+            // under test; the adjacent test covers exact short-timeout attestation.
+            timeoutMs: 1000,
           },
         });
         const observedPid = Number(readFileSync(pidPath, 'utf8'));
