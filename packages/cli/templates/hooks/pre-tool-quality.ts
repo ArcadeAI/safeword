@@ -248,10 +248,14 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
 // Verified at the point of reading: the ledger is a plain text file, so a stamp
 // claiming a coordinator verdict is held to that claim here rather than trusted
 // because it is written down (ticket PB1GMZ).
-function readReviewStamps(scope: string): ReviewStamp[] {
+function recordedReviewStamps(): ReviewStamp[] {
   const logFile = nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log');
   if (!existsSync(logFile)) return [];
-  return verifiedStamps(parseReviewStamps(readFileSync(logFile, 'utf8')), projectDirectory, scope);
+  return parseReviewStamps(readFileSync(logFile, 'utf8'));
+}
+
+function readReviewStamps(scope: string): ReviewStamp[] {
+  return verifiedStamps(recordedReviewStamps(), projectDirectory, scope);
 }
 
 /**
@@ -664,8 +668,35 @@ if (isCanonicalTicketEdit) {
     priorPhase === 'plan-implementation' &&
     proposedPhase === 'plan-execution'
   ) {
-    const verdict = evaluateExecutionPlanningEntry(nodePath.dirname(editedFile));
+    const ticketDirectory = nodePath.dirname(editedFile);
+    const verdict = evaluateExecutionPlanningEntry(ticketDirectory);
     if (!verdict.ok) deny(verdict.reason, verdict.remediation);
+
+    if (isReviewGateOn()) {
+      const planPath = nodePath.join(ticketDirectory, 'impl-plan.md');
+      const planContent = existsSync(planPath) ? readFileSync(planPath, 'utf8') : '';
+      const ticketScope = nodePath.basename(ticketDirectory);
+      const planScope = reviewScope(ticketScope, 'impl-plan', hashArtifact(planContent));
+      const reviewVerdict = reviewGateForNextAsset(
+        planScope,
+        readReviewStamps(planScope),
+        crossAgentReviewPolicy(),
+      );
+      if (!reviewVerdict.ok) {
+        const planScopePrefix = `${ticketScope}:impl-plan@`;
+        const hasSupersededReview = recordedReviewStamps().some(
+          stamp => stamp.scope.startsWith(planScopePrefix) && stamp.scope !== planScope,
+        );
+        deny(
+          hasSupersededReview
+            ? 'The Implementation Plan changed after its recorded review, so that review is superseded and requires plan revalidation before it can authorize Execution Planning.'
+            : 'The current Implementation Plan has not passed its required review, so Execution Planning cannot begin.',
+          hasSupersededReview
+            ? 'Run Implementation Plan revalidation against the current impl-plan.md, record the new content-bound review stamp, then retry the transition.'
+            : 'Run the Implementation Plan review against the current impl-plan.md, record its content-bound review stamp, then retry the transition.',
+        );
+      }
+    }
   }
 }
 
