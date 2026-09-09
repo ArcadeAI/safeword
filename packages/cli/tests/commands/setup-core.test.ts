@@ -203,9 +203,15 @@ describe('Test Suite 2: Setup - Core Files', () => {
       writeTestFile(temporaryDirectory, '.safeword/version', '0.82.0\n');
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup', '--agents', 'none'], { cwd: temporaryDirectory });
+      const result = await runCli(['setup', '--agents', 'none'], {
+        cwd: temporaryDirectory,
+        env: SKIP_INSTALL_ENV,
+      });
 
-      expect(readSafewordConfig(temporaryDirectory).architectureDocEnforcement).toBeUndefined();
+      const config = readSafewordConfig(temporaryDirectory);
+      expect(result.exitCode).toBe(0);
+      expect(config.installedPacks).toContain('typescript');
+      expect(config.architectureDocEnforcement).toBeUndefined();
     });
 
     it('preserves the legacy default when an installed project has no config', async () => {
@@ -213,12 +219,15 @@ describe('Test Suite 2: Setup - Core Files', () => {
       writeTestFile(temporaryDirectory, '.safeword/version', '0.82.0\n');
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup', '--agents', 'none'], {
+      const result = await runCli(['setup', '--agents', 'none'], {
         cwd: temporaryDirectory,
         env: SKIP_INSTALL_ENV,
       });
 
-      expect(readSafewordConfig(temporaryDirectory).architectureDocEnforcement).toBeUndefined();
+      const config = readSafewordConfig(temporaryDirectory);
+      expect(result.exitCode).toBe(0);
+      expect(config.installedPacks).toContain('typescript');
+      expect(config.architectureDocEnforcement).toBeUndefined();
     });
   });
 });
