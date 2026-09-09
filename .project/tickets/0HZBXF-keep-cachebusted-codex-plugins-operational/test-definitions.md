@@ -30,7 +30,7 @@ source share one ledger entry.
 ### Scenario: Profile status accepts the cachebusted bundle identity
 
 - [x] RED skip: cachebusted identity injection landed in the coherent-generator slice
-- [ ] GREEN
+- [x] GREEN dddfa62a3
 - [ ] REFACTOR
 
 ## Rule: cachebusted-codex.SWM1.R1 — Default generation remains deterministic at the package version
