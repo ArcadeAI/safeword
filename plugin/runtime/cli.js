@@ -21634,11 +21634,14 @@ function isPackInstalled(cwd, packId) {
   return getInstalledPacks(cwd).includes(packId);
 }
 function applyFreshInstallDefaults(cwd) {
-  const config = readConfig(cwd) ?? { installedPacks: [] };
-  if (config.architectureDocEnforcement !== undefined)
+  if (!freshInstallDefaultsNeedUpdate(cwd))
     return;
+  const config = readConfig(cwd) ?? { installedPacks: [] };
   config.architectureDocEnforcement = false;
   writeConfig(cwd, config);
+}
+function freshInstallDefaultsNeedUpdate(cwd) {
+  return readConfig(cwd)?.architectureDocEnforcement === undefined;
 }
 function addInstalledPack(cwd, packId) {
   const config = readConfig(cwd) ?? { installedPacks: [] };
@@ -45558,6 +45561,8 @@ function plannedJavaScriptPackageFiles(cwd) {
   ]);
 }
 function configNeedsCompatibilityUpdate(cwd) {
+  if (shouldApplyFreshInstallDefaults(cwd))
+    return true;
   if (publicRetroConfigNeedsUpdate(cwd))
     return true;
   if (getMissingPacks(cwd).length > 0)
@@ -45568,6 +45573,9 @@ function configNeedsCompatibilityUpdate(cwd) {
   } catch {
     return false;
   }
+}
+function shouldApplyFreshInstallDefaults(cwd) {
+  return !existsSync44(nodePath88.join(cwd, ".safeword/version")) && freshInstallDefaultsNeedUpdate(cwd);
 }
 function plannedCodexBootstrapEffect(cwd) {
   const target = ".codex/config.toml";
@@ -46323,8 +46331,8 @@ function projectClaudePluginEnrolled(cwd) {
     return false;
   }
 }
-function applyCompatibilityMigrations(cwd, completedEffects, freshInstall) {
-  if (freshInstall) {
+function applyCompatibilityMigrations(cwd, completedEffects, applyFreshDefaults) {
+  if (applyFreshDefaults) {
     observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => {
       applyFreshInstallDefaults(cwd);
     });
@@ -46404,7 +46412,7 @@ async function applySetup(cwd, input) {
     packageJsonCreated,
     preliminaryFileEffects
   } = input;
-  const freshInstall = !existsSync44(nodePath88.join(cwd, ".safeword/version"));
+  const applyFreshDefaults = shouldApplyFreshInstallDefaults(cwd);
   const context = createProjectContext(cwd);
   const operation = configured ? "upgrade" : "install";
   const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
@@ -46415,7 +46423,7 @@ async function applySetup(cwd, input) {
     network: []
   };
   try {
-    applyCompatibilityMigrations(cwd, completedEffects, freshInstall);
+    applyCompatibilityMigrations(cwd, completedEffects, applyFreshDefaults);
     observeFileStage(cwd, [".codex/config.toml"], completedEffects, () => installCodexProjectBootstrap(cwd));
     const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects);
     const architectureEffects = observeFileStage(cwd, [".safeword/depcruise-config.cjs", ".dependency-cruiser.cjs"], completedEffects, () => adapters.configureArchitecture(cwd));
