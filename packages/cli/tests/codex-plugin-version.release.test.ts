@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -24,6 +25,23 @@ import {
   extractPackedCliPackage,
   packCliPackage,
 } from './helpers/codex-plugin-package.js';
+
+function treeDigest(root: string): string {
+  const hash = createHash('sha256');
+  const visit = (directory: string): void => {
+    const entries = readdirSync(directory, { withFileTypes: true }).toSorted((left, right) =>
+      left.name.localeCompare(right.name),
+    );
+    for (const entry of entries) {
+      const path = nodePath.join(directory, entry.name);
+      hash.update(nodePath.relative(root, path));
+      if (entry.isDirectory()) visit(path);
+      else hash.update(readFileSync(path));
+    }
+  };
+  visit(root);
+  return hash.digest('hex');
+}
 
 describe('Codex plugin release contract', () => {
   it('generates a complete bundle at an explicit effective version', () => {
@@ -66,6 +84,44 @@ describe('Codex plugin release contract', () => {
       rmSync(fixture, { recursive: true, force: true });
     }
   }, 30_000);
+
+  it.each(['not-a-version', '0.84.0+codex.test'])(
+    'rejects effective version %s without changing the shipped bundle',
+    effectiveVersion => {
+      const root = nodePath.resolve(import.meta.dirname, '..');
+      const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-rejection-'));
+      const output = nodePath.join(fixture, 'plugin');
+      const shippedRoot = nodePath.join(root, 'codex-plugin');
+      const before = treeDigest(shippedRoot);
+      try {
+        const generation = spawnSync(
+          'bun',
+          ['scripts/generate-codex-plugin.ts', '--version', effectiveVersion, '--output', output],
+          { cwd: root, encoding: 'utf8' },
+        );
+
+        expect(generation.status).not.toBe(0);
+        expect(existsSync(output)).toBe(false);
+        expect(treeDigest(shippedRoot)).toBe(before);
+      } finally {
+        rmSync(fixture, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it('rejects a version override without a fresh output', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const shippedRoot = nodePath.join(root, 'codex-plugin');
+    const before = treeDigest(shippedRoot);
+    const generation = spawnSync(
+      'bun',
+      ['scripts/generate-codex-plugin.ts', '--version', '0.83.1+codex.test'],
+      { cwd: root, encoding: 'utf8' },
+    );
+
+    expect(generation.status).not.toBe(0);
+    expect(treeDigest(shippedRoot)).toBe(before);
+  });
 
   it('runs every hook through the bundled plugin CLI', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
