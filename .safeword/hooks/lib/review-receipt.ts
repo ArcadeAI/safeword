@@ -167,7 +167,9 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
   if (phase === 'intake')
     return claim.intakeArtifact !== undefined && ticketTargets.includes(claim.intakeArtifact);
   if (phase === 'define-behavior' || phase === 'scenario-gate')
-    return ticketTargets.some(target => target.endsWith('.feature'));
+    return ticketTargets.some(
+      target => target === 'test-definitions.md' || target.endsWith('.feature'),
+    );
   if (phase === 'plan-implementation') return ticketTargets.includes('impl-plan.md');
   if (phase === 'verify') return ticketTargets.includes('verify.md');
   if (phase === 'done') return ticketTargets.includes('ticket.md');
