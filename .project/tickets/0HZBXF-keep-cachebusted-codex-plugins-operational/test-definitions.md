@@ -11,7 +11,7 @@ source share one ledger entry.
 
 - [x] RED 9dfc12648
 - [x] GREEN daa6b7764
-- [ ] REFACTOR
+- [x] REFACTOR skip: generation and publication responsibilities are already separated
 
 ### Scenario: An invalid or incompatible effective version is rejected before output changes
 
