@@ -10,7 +10,10 @@
  *
  * `--check` is the CI backstop: a dry-run that writes nothing and exits non-zero
  * when ANY node is stale (a would-change action), so a silently-wrong doc cannot
- * reach the main branch.
+ * reach the main branch. It stays read-only in every combination: `--check
+ * --from-index` answers the same question against the staged Git index without
+ * writing a document or staging one, and `--check --stage-output` is refused
+ * outright rather than silently writing.
  *
  * `--from-index --stage-output` is the commit-time auto-fix: export the staged Git index, regenerate
  * every stale node from that deterministic tree, and `git add` each into the
@@ -41,6 +44,7 @@ import {
   isSafewordOwned,
   isWouldChangeAction,
   planSelfHealProject,
+  type SelfHealAction,
   selfHealProject,
   selfHealProjectPreservingProse,
   type SelfHealResult,
@@ -48,6 +52,7 @@ import {
 import {
   discoverUnreadableWorkspaces,
   extractMonorepoArchitectureSnapshot,
+  type UnreadableWorkspace,
 } from '../utils/architecture-monorepo.js';
 import {
   GENERATED_ARCHITECTURE_FILENAME,
@@ -103,8 +108,13 @@ export async function architecture(
   options: ArchitectureOptions = {},
 ): Promise<void> {
   const mode = architectureMode(options);
+  if (mode.check && mode.stageOutput) {
+    error('--check cannot be combined with --stage-output; --check never writes or stages.');
+    process.exitCode = 1;
+    return;
+  }
   if (mode.check) {
-    await architectureCheck(cwd);
+    await architectureCheck(cwd, mode.fromIndex);
     return;
   }
   if (mode.stageOutput && !mode.fromIndex) {
@@ -372,6 +382,74 @@ export function architectureStaged(
     failed: false,
     autoStageAvailable: true,
   });
+}
+
+export interface ArchitectureIndexCheckOutcome {
+  /** Would-change actions the index-sourced plan produced; empty means fresh. */
+  readonly stale: readonly SelfHealAction[];
+  readonly unreadableWorkspaces: readonly UnreadableWorkspace[];
+  readonly failureMessage?: string;
+}
+
+/**
+ * Read-only counterpart to {@link architectureStage}: answer "is the
+ * architecture document in the staged Git index fresh with respect to the
+ * staged tree?" without writing a document or touching the index.
+ *
+ * It answers from the index and nothing else. That independence is the whole
+ * contract, and it is why this does NOT reuse the staging path's
+ * plan/preflight: those exist to plan writes into the worktree, so their
+ * verdict bends to worktree state — a foreign (non-Safeword) document sitting
+ * unstaged in the worktree makes preflight skip the destination, which would
+ * report a stale indexed document as `healthy`. A CI freshness gate must not be
+ * silenceable by an uncommitted local file. Ownership is still honored, but
+ * decided from the *indexed* document: `planSelfHealProject` reports a foreign
+ * indexed document as `skipped`, which is not a would-change action.
+ *
+ * Unlike the generation modes, this never falls back to the worktree when the
+ * index is unavailable. The generation modes can degrade because they only have
+ * to produce *a* document and say where it came from; a check has to answer a
+ * specific question, and the worktree answers a different one.
+ * `resolveGitContext` reports an existing-but-unreadable repository the same way
+ * as a plain non-repository (`git rev-parse` fails identically for both), so a
+ * fallback here would let a stale index report `healthy` with exit 0 whenever
+ * Git discovery broke — dubious-ownership in a container being the common case.
+ * Failing loudly is the only answer that cannot be mistaken for a fresh index.
+ */
+export function architectureIndexCheck(cwd: string): ArchitectureIndexCheckOutcome {
+  const failure = (message: string): ArchitectureIndexCheckOutcome => ({
+    stale: [],
+    unreadableWorkspaces: discoverUnreadableWorkspaces(cwd),
+    failureMessage: message,
+  });
+
+  let gitContext: GitContext | undefined;
+  try {
+    gitContext = resolveGitContext(cwd);
+  } catch (error_) {
+    return failure(errorMessage(error_));
+  }
+
+  if (gitContext === undefined) {
+    return failure(
+      'No readable Git index found. Use `safeword project architecture --check` to check the worktree instead.',
+    );
+  }
+
+  try {
+    return withGitIndexSnapshot(cwd, gitContext, snapshotDirectory => {
+      // A configured project root that escapes the snapshot would make the plan
+      // read the live worktree document instead of the indexed one — a wrong
+      // answer rather than a missing one. Fail loudly instead.
+      assertSnapshotHealTargetsContained(snapshotDirectory);
+      return {
+        stale: planSelfHealProject(snapshotDirectory).filter(action => isWouldChangeAction(action)),
+        unreadableWorkspaces: discoverUnreadableWorkspaces(snapshotDirectory),
+      };
+    });
+  } catch (error_) {
+    return failure(errorMessage(error_));
+  }
 }
 
 /**
@@ -930,19 +1008,35 @@ function errorMessage(error_: unknown): string {
   return error_ instanceof Error ? error_.message.replaceAll(/\s+/g, ' ').trim() : String(error_);
 }
 
+/** Legacy-surface adapter over {@link architectureIndexCheck}: report, never write. */
+function architectureCheckFromIndex(cwd: string): readonly SelfHealAction[] {
+  const outcome = architectureIndexCheck(cwd);
+  if (outcome.failureMessage !== undefined) {
+    error(
+      `Could not check architecture freshness from the Git index; nothing was written. Cause: ${outcome.failureMessage}`,
+    );
+    process.exit(1);
+  }
+  return outcome.stale;
+}
+
 /**
  * CI staleness backstop. Exits non-zero when ANY node is stale (would change),
  * passes when every node is current/`noop`/foreign or when enforcement is opted
  * out. Writes nothing — the fix is the human running `safeword project architecture`.
+ * `fromIndex` swaps the source from the worktree to the staged Git index; it does
+ * not make the check any less read-only.
  */
-function architectureCheck(cwd: string): Promise<void> {
+function architectureCheck(cwd: string, fromIndex = false): Promise<void> {
   warnUnreadableWorkspaces(cwd);
   if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
     success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
     return Promise.resolve();
   }
 
-  const stale = planSelfHealProject(cwd).filter(action => isWouldChangeAction(action));
+  const stale = fromIndex
+    ? architectureCheckFromIndex(cwd)
+    : planSelfHealProject(cwd).filter(action => isWouldChangeAction(action));
   if (stale.length > 0) {
     error(
       `Architecture docs are stale (${stale.join(', ')}). Run \`safeword project architecture\` for the current worktree, or \`safeword project architecture --staged\` to reproduce the staged tree, then commit the result.`,
