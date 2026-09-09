@@ -55044,6 +55044,15 @@ var init_ledger = __esm(() => {
   PROVENANCE_AT_CHARS = /^[\d.:TZ-]{20,24}$/;
 });
 
+// src/retro/local-retro-production-attestation.json
+var local_retro_production_attestation_default;
+var init_local_retro_production_attestation = __esm(() => {
+  local_retro_production_attestation_default = {
+    enabled: false,
+    version: 1
+  };
+});
+
 // src/retro/local-retro-readiness-manifest.json
 var local_retro_readiness_manifest_default;
 var init_local_retro_readiness_manifest = __esm(() => {
@@ -55053,14 +55062,78 @@ var init_local_retro_readiness_manifest = __esm(() => {
   };
 });
 
-// src/retro/local-retro-readiness.ts
-function validateLocalRetroReadiness(_manifest, _input) {
-  return false;
+// src/retro/readiness-digest.ts
+import { createHash as createHash30 } from "crypto";
+function compareKeys2([left], [right]) {
+  if (left < right)
+    return -1;
+  return left > right ? 1 : 0;
 }
-var CHECKED_IN_LOCAL_RETRO_READINESS;
+function canonicalize(value) {
+  if (Array.isArray(value))
+    return value.map((item) => canonicalize(item));
+  if (typeof value !== "object" || value === null)
+    return value;
+  const entries = Object.entries(value).sort(compareKeys2);
+  return Object.fromEntries(entries.map(([key, item]) => [key, canonicalize(item)]));
+}
+function digestLocalRetroReadinessManifest(manifest) {
+  return createHash30("sha256").update(JSON.stringify(canonicalize(manifest))).digest("hex");
+}
+var init_readiness_digest = () => {};
+
+// src/retro/local-retro-readiness.ts
+function hasRequiredLifecycle(attestation) {
+  return attestation.lifecycle["claude-code"] === "claude-code-interactive" && attestation.lifecycle.codex === "codex-desktop" && attestation.lifecycle.cursor === "cursor-desktop";
+}
+function hasExactKeys4(record2, expected) {
+  const keys = Object.keys(record2);
+  return keys.length === expected.length && expected.every((key) => Object.hasOwn(record2, key));
+}
+function hasAncestry(ancestorPairs, ancestor, descendant) {
+  return ancestor === descendant || ancestorPairs.some((pair) => pair.ancestor === ancestor && pair.descendant === descendant);
+}
+function validHarnessEvidence(evidence, manifest, ancestorPairs) {
+  return HASH_PATTERN.test(evidence.artifactDigest) && COMMIT_PATTERN.test(evidence.buildCommit) && hasAncestry(ancestorPairs, evidence.buildCommit, manifest.evidenceCommit) && REQUEST_ID_PATTERN.test(evidence.collectorReceipt) && evidence.hostClass === "local" && /^[\w-]+$/u.test(evidence.relayReceipt) && REQUEST_ID_PATTERN.test(evidence.requestId) && HASH_PATTERN.test(evidence.sessionScope) && evidence.terminal === "filed";
+}
+function hasCompleteEvidence(manifest, ancestorPairs) {
+  const harnessEvidence = REQUIRED_HARNESSES.map((harness) => manifest.harnesses[harness]);
+  const distinctFields = ["collectorReceipt", "relayReceipt", "requestId", "sessionScope"];
+  return hasExactKeys4(manifest.harnesses, REQUIRED_HARNESSES) && harnessEvidence.every((evidence) => validHarnessEvidence(evidence, manifest, ancestorPairs)) && distinctFields.every((field) => new Set(harnessEvidence.map((evidence) => evidence[field])).size === harnessEvidence.length) && hasExactKeys4(manifest.recoveredFaults, REQUIRED_FAULTS) && REQUIRED_FAULTS.every((fault) => HASH_PATTERN.test(manifest.recoveredFaults[fault]));
+}
+function validProductionAttestation(manifest, attestation) {
+  if (!attestation?.enabled)
+    return false;
+  const reviewedAt = new Date(manifest.reviewedAt);
+  const verifiedAt = new Date(attestation.verifiedAt);
+  return attestation.version === 1 && attestation.authority === "retro-relay-production-v1" && hasRequiredLifecycle(attestation) && !Number.isNaN(reviewedAt.getTime()) && reviewedAt.toISOString() === manifest.reviewedAt && !Number.isNaN(verifiedAt.getTime()) && reviewedAt.getTime() <= verifiedAt.getTime() && attestation.manifestSha256 === digestLocalRetroReadinessManifest(manifest);
+}
+function validateLocalRetroReadiness(manifest, input) {
+  if (!manifest.enabled || manifest.version !== 1 || !manifest.harnesses || !manifest.recoveredFaults || !input.relayReady) {
+    return false;
+  }
+  return COMMIT_PATTERN.test(manifest.evidenceCommit) && COMMIT_PATTERN.test(input.buildCommit) && input.ancestorPairs.some((pair) => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit) && hasCompleteEvidence(manifest, input.ancestorPairs) && validProductionAttestation(manifest, input.productionAttestation);
+}
+var CHECKED_IN_LOCAL_RETRO_READINESS, CHECKED_IN_LOCAL_RETRO_PRODUCTION_ATTESTATION, COMMIT_PATTERN, HASH_PATTERN, REQUEST_ID_PATTERN, MAX_EVIDENCE_AGE_MS, REQUIRED_HARNESSES, REQUIRED_FAULTS;
 var init_local_retro_readiness = __esm(() => {
+  init_local_retro_production_attestation();
   init_local_retro_readiness_manifest();
+  init_readiness_digest();
+  init_readiness_digest();
   CHECKED_IN_LOCAL_RETRO_READINESS = local_retro_readiness_manifest_default;
+  CHECKED_IN_LOCAL_RETRO_PRODUCTION_ATTESTATION = local_retro_production_attestation_default;
+  COMMIT_PATTERN = /^[\da-f]{40}$/u;
+  HASH_PATTERN = /^[\da-f]{64}$/u;
+  REQUEST_ID_PATTERN = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
+  MAX_EVIDENCE_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+  REQUIRED_HARNESSES = ["claude-code", "codex", "cursor"];
+  REQUIRED_FAULTS = [
+    "ambiguousCreateMatch",
+    "ambiguousCreateNoMatch",
+    "claimCrash",
+    "retryExhaustion",
+    "workerOutage"
+  ];
 });
 
 // ../../node_modules/.bun/boundary@2.0.0/node_modules/boundary/lib/index.js
@@ -60798,9 +60871,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash30 } from "crypto";
+import { createHash as createHash31 } from "crypto";
 function shortHash(material) {
-  return createHash30("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash31("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -60900,7 +60973,7 @@ var init_pipeline = __esm(() => {
 });
 
 // src/retro/public-delivery.ts
-import { createHash as createHash31 } from "crypto";
+import { createHash as createHash32 } from "crypto";
 import {
   closeSync as closeSync13,
   fsyncSync as fsyncSync4,
@@ -60935,7 +61008,7 @@ function isValidEnvelopeInput(input, projectUUID, version2) {
   return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && (version2 === "v3" ? source.hostClass === "local" : validSourceRoute(source));
 }
 function deriveSessionScope(harness, projectUUID, sessionId, windowStart) {
-  const hash = createHash31("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
+  const hash = createHash32("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
   if (windowStart > 0)
     hash.update("\x00window\x00").update(String(windowStart));
   return hash.digest("hex");
@@ -61044,7 +61117,7 @@ function claimServerPublicRetroRequest(built, dependencies) {
   let markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   let existing = readServerAttempt(markerPath2, built);
   if (existing.kind === "conflict") {
-    const digest4 = createHash31("sha256").update(built.bytes).digest("hex");
+    const digest4 = createHash32("sha256").update(built.bytes).digest("hex");
     markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.${digest4}.json`);
     existing = readServerAttempt(markerPath2, built);
   }
@@ -61694,7 +61767,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash32, randomUUID as randomUUID12 } from "crypto";
+import { createHash as createHash33, randomUUID as randomUUID12 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path7 from "path";
 function normalizeRelayOrigin(value) {
@@ -61731,10 +61804,10 @@ function relaySourcePayloadDigest(request) {
     repository: request.repository,
     title: request.title
   };
-  return createHash32("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash33("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 function relayRequestDigest(request) {
-  return createHash32("sha256").update(JSON.stringify(request)).digest("hex");
+  return createHash33("sha256").update(JSON.stringify(request)).digest("hex");
 }
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
@@ -61746,7 +61819,7 @@ function createRelayRequest(input, dependencies) {
   };
 }
 function relaySourceKey(sessionIdentity, windowStart, payload) {
-  return createHash32("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
+  return createHash33("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
 }
 function relayDirectory(projectDirectory) {
   return path7.join(projectDirectory, ".safeword", "retro-drafts", "relay");
@@ -61786,7 +61859,7 @@ function discardIntentTokenPath(projectDirectory, requestId, token) {
   return path7.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 function sourcePath(projectDirectory, sourceKey, suffix) {
-  const key = createHash32("sha256").update(sourceKey).digest("hex");
+  const key = createHash33("sha256").update(sourceKey).digest("hex");
   return path7.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
 }
 function sourceReservationPath(projectDirectory, sourceKey) {
@@ -63461,13 +63534,13 @@ var init_relay_readiness_manifest = __esm(() => {
 });
 
 // src/retro/relay-readiness.ts
-import { createHash as createHash33 } from "crypto";
+import { createHash as createHash34 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) || date.toISOString() !== value ? undefined : date;
 }
 function validArtifact(artifact) {
-  return artifact.path.length > 0 && !artifact.path.startsWith("/") && !artifact.path.split("/").includes("..") && HASH_PATTERN.test(artifact.sha256) && Number.isSafeInteger(artifact.sampleSize) && artifact.sampleSize > 0;
+  return artifact.path.length > 0 && !artifact.path.startsWith("/") && !artifact.path.split("/").includes("..") && HASH_PATTERN2.test(artifact.sha256) && Number.isSafeInteger(artifact.sampleSize) && artifact.sampleSize > 0;
 }
 function parseObject(content) {
   try {
@@ -63477,12 +63550,12 @@ function parseObject(content) {
     return;
   }
 }
-function hasExactKeys4(record2, expectedKeys) {
+function hasExactKeys5(record2, expectedKeys) {
   const actualKeys = Object.keys(record2);
   return actualKeys.length === expectedKeys.length && expectedKeys.every((key) => Object.hasOwn(record2, key));
 }
 function hasMeasurementShape(record2) {
-  return hasExactKeys4(record2, [
+  return hasExactKeys5(record2, [
     "measuredAt",
     "metric",
     "repository",
@@ -63494,7 +63567,7 @@ function hasMeasurementShape(record2) {
 function hasValidCountResult(result) {
   if (typeof result !== "object" || result === null || Array.isArray(result))
     return false;
-  if (!hasExactKeys4(result, ["count"]))
+  if (!hasExactKeys5(result, ["count"]))
     return false;
   const count = result.count;
   return count === 0;
@@ -63510,7 +63583,7 @@ function drainThroughputResult(result) {
     "relayLatencyMs",
     "requestDeadlineMs"
   ];
-  if (!hasExactKeys4(result, expected)) {
+  if (!hasExactKeys5(result, expected)) {
     return;
   }
   return result;
@@ -63544,16 +63617,16 @@ async function validateRelayReadiness(manifest, dependencies) {
   if (!manifest.enabled)
     return { enabled: false };
   try {
-    if (manifest.version !== 1 || !COMMIT_PATTERN.test(dependencies.buildCommit) || !COMMIT_PATTERN.test(manifest.evidenceCommit)) {
+    if (manifest.version !== 1 || !COMMIT_PATTERN2.test(dependencies.buildCommit) || !COMMIT_PATTERN2.test(manifest.evidenceCommit)) {
       return { enabled: false };
     }
-    if (!hasExactKeys4(manifest.measurements, REQUIRED_MEASUREMENTS) || manifest.prerequisites.length !== 2) {
+    if (!hasExactKeys5(manifest.measurements, REQUIRED_MEASUREMENTS) || manifest.prerequisites.length !== 2) {
       return { enabled: false };
     }
     const expectedIssues = [1474, 1481];
     for (const [index, issue2] of expectedIssues.entries()) {
       const prerequisite = manifest.prerequisites[index];
-      if (prerequisite?.issue !== issue2 || prerequisite?.state !== "closed" || prerequisite?.url !== `https://github.com/ArcadeAI/safeword/issues/${issue2}` || !COMMIT_PATTERN.test(prerequisite?.mergedCommit ?? "")) {
+      if (prerequisite?.issue !== issue2 || prerequisite?.state !== "closed" || prerequisite?.url !== `https://github.com/ArcadeAI/safeword/issues/${issue2}` || !COMMIT_PATTERN2.test(prerequisite?.mergedCommit ?? "")) {
         return { enabled: false };
       }
     }
@@ -63571,12 +63644,12 @@ async function validateRelayReadiness(manifest, dependencies) {
       return { enabled: false };
     }
     const latestClose = Math.max(...closedDates.map((date) => date?.getTime() ?? NaN));
-    if (latestClose > dependencies.now.getTime() || reviewedAt.getTime() > dependencies.now.getTime() || reviewedAt.getTime() < latestClose || dependencies.now.getTime() - reviewedAt.getTime() > MAX_EVIDENCE_AGE_MS) {
+    if (latestClose > dependencies.now.getTime() || reviewedAt.getTime() > dependencies.now.getTime() || reviewedAt.getTime() < latestClose || dependencies.now.getTime() - reviewedAt.getTime() > MAX_EVIDENCE_AGE_MS2) {
       return { enabled: false };
     }
     for (const [metric, artifact] of Object.entries(manifest.measurements)) {
       const measuredAt = validDate(artifact.measuredAt);
-      if (!validArtifact(artifact) || measuredAt === undefined || measuredAt.getTime() < latestClose || measuredAt.getTime() > dependencies.now.getTime() || reviewedAt.getTime() < measuredAt.getTime() || dependencies.now.getTime() - measuredAt.getTime() > MAX_EVIDENCE_AGE_MS) {
+      if (!validArtifact(artifact) || measuredAt === undefined || measuredAt.getTime() < latestClose || measuredAt.getTime() > dependencies.now.getTime() || reviewedAt.getTime() < measuredAt.getTime() || dependencies.now.getTime() - measuredAt.getTime() > MAX_EVIDENCE_AGE_MS2) {
         return { enabled: false };
       }
       const durableArtifact = await dependencies.readArtifactAtCommit(manifest.evidenceCommit, artifact.path);
@@ -63593,7 +63666,7 @@ function matchesAttestedManifest(manifest, attestation) {
   try {
     const bytes = Buffer.from(attestation.manifestBase64, "base64");
     const parsed2 = JSON.parse(bytes.toString("utf8"));
-    return createHash33("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
+    return createHash34("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
   } catch {
     return false;
   }
@@ -63613,12 +63686,12 @@ function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
         return Promise.resolve(undefined);
       }
       const bytes = Buffer.from(artifact.contentBase64, "base64");
-      const sha2567 = createHash33("sha256").update(bytes).digest("hex");
+      const sha2567 = createHash34("sha256").update(bytes).digest("hex");
       return Promise.resolve(sha2567 === artifact.sha256 ? { content: bytes.toString("utf8"), sha256: sha2567 } : undefined);
     }
   });
 }
-var REQUIRED_MEASUREMENTS, CHECKED_IN_RELAY_READINESS, SAFEWORD_BUILD_COMMIT, SAFEWORD_RELAY_BUILD_ATTESTATION, COMMIT_PATTERN, HASH_PATTERN, MAX_EVIDENCE_AGE_MS, MIN_DRAIN_ACCEPTED_COUNT = 2, MIN_DRAIN_BACKLOG_SIZE = 300, MIN_RELAY_LATENCY_MS = 80, MAX_DRAIN_DURATION_MS = 1000;
+var REQUIRED_MEASUREMENTS, CHECKED_IN_RELAY_READINESS, SAFEWORD_BUILD_COMMIT, SAFEWORD_RELAY_BUILD_ATTESTATION, COMMIT_PATTERN2, HASH_PATTERN2, MAX_EVIDENCE_AGE_MS2, MIN_DRAIN_ACCEPTED_COUNT = 2, MIN_DRAIN_BACKLOG_SIZE = 300, MIN_RELAY_LATENCY_MS = 80, MAX_DRAIN_DURATION_MS = 1000;
 var init_relay_readiness = __esm(() => {
   init_relay_delivery();
   init_relay_readiness_manifest();
@@ -63637,9 +63710,9 @@ var init_relay_readiness = __esm(() => {
     manifestBase64: "",
     manifestSha256: ""
   };
-  COMMIT_PATTERN = /^[\da-f]{40}$/u;
-  HASH_PATTERN = /^[\da-f]{64}$/u;
-  MAX_EVIDENCE_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+  COMMIT_PATTERN2 = /^[\da-f]{40}$/u;
+  HASH_PATTERN2 = /^[\da-f]{64}$/u;
+  MAX_EVIDENCE_AGE_MS2 = 30 * 24 * 60 * 60 * 1000;
 });
 
 // src/retro/triage.ts
@@ -64751,7 +64824,7 @@ function resolvePublicRetroRoute(input) {
   const serverReady = input.serverReady ?? validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
     ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
     buildCommit: SAFEWORD_BUILD_COMMIT,
-    now: new Date,
+    productionAttestation: CHECKED_IN_LOCAL_RETRO_PRODUCTION_ATTESTATION,
     relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled
   });
   const useServerRoute = localServerRouteEnabled(localSource, serverReady || isCanary);
