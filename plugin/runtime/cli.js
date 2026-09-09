@@ -41386,7 +41386,11 @@ function readConfig2(cwd) {
   const content = readFileSafe(configPath3);
   if (!content)
     return;
-  return JSON.parse(content);
+  const config = JSON.parse(content);
+  if (config.installedPacks !== undefined && !Array.isArray(config.installedPacks)) {
+    throw new TypeError("Safeword config installedPacks must be an array.");
+  }
+  return config;
 }
 function writeConfig(cwd, config) {
   const configPath3 = nodePath67.join(cwd, CONFIG_PATH);
@@ -59711,6 +59715,13 @@ function configNeedsCompatibilityUpdate(cwd) {
 function shouldApplyFreshInstallDefaults(cwd) {
   return !existsSync46(nodePath104.join(cwd, ".safeword/version")) && freshInstallDefaultsNeedUpdate(cwd);
 }
+function applyPendingFreshInstallDefaults(cwd) {
+  const target = ".safeword/config.json";
+  const before = snapshotFiles(cwd, [target]);
+  if (shouldApplyFreshInstallDefaults(cwd))
+    applyFreshInstallDefaults(cwd);
+  return diffFileSnapshots(before, snapshotFiles(cwd, [target]));
+}
 function plannedCodexBootstrapEffect(cwd) {
   const target = ".codex/config.toml";
   const path8 = nodePath104.join(cwd, target);
@@ -60004,6 +60015,7 @@ async function convergeSetupValidated(cwd, options) {
     return versionGate.refusal;
   const versionMarkerEffects = versionGate.repaired ? [{ kind: "update", target: ".safeword/version" }] : [];
   let namespaceMigration = { effects: [], findings: [] };
+  let freshDefaultEffects = [];
   let packageJsonCreated = false;
   try {
     const adapters = {
@@ -60028,6 +60040,7 @@ async function convergeSetupValidated(cwd, options) {
         ...diffFileSnapshots(namespaceBefore, snapshotFiles(cwd, namespaceTargets))
       ])
     };
+    freshDefaultEffects = applyPendingFreshInstallDefaults(cwd);
     packageJsonCreated = configured ? false : ensurePackageJson(cwd);
     options.progress?.start(configured ? "Reconciling the Safeword upgrade\u2026" : "Setting up Safeword\u2026");
     return await applySetup(cwd, {
@@ -60035,7 +60048,7 @@ async function convergeSetupValidated(cwd, options) {
       packageJsonCreated,
       noModify: options.noModify === true,
       namespaceMigration,
-      preliminaryFileEffects: versionMarkerEffects,
+      preliminaryFileEffects: [...versionMarkerEffects, ...freshDefaultEffects],
       adapters,
       schema: options.schema
     });
@@ -60043,6 +60056,7 @@ async function convergeSetupValidated(cwd, options) {
     return setupFailure(setupError, {
       files: [
         ...versionMarkerEffects,
+        ...freshDefaultEffects,
         ...packageJsonCreated ? [{ kind: "create", target: "package.json" }] : [],
         ...namespaceMigration.effects
       ]
@@ -60465,12 +60479,7 @@ function projectClaudePluginEnrolled(cwd) {
     return false;
   }
 }
-function applyCompatibilityMigrations(cwd, completedEffects, applyFreshDefaults) {
-  if (applyFreshDefaults) {
-    observeFileStage(cwd, [".safeword/config.json"], completedEffects, () => {
-      applyFreshInstallDefaults(cwd);
-    });
-  }
+function applyCompatibilityMigrations(cwd, completedEffects) {
   const missingPacks = getMissingPacks(cwd);
   for (const packId of missingPacks) {
     const targets = [
@@ -60546,7 +60555,6 @@ async function applySetup(cwd, input) {
     packageJsonCreated,
     preliminaryFileEffects
   } = input;
-  const applyFreshDefaults = shouldApplyFreshInstallDefaults(cwd);
   const context = createProjectContext(cwd);
   const operation = configured ? "upgrade" : "install";
   const setupSchema = input.schema ?? schemaForClaudeDelivery(cwd);
@@ -60557,7 +60565,7 @@ async function applySetup(cwd, input) {
     network: []
   };
   try {
-    applyCompatibilityMigrations(cwd, completedEffects, applyFreshDefaults);
+    applyCompatibilityMigrations(cwd, completedEffects);
     observeFileStage(cwd, [".codex/config.toml"], completedEffects, () => installCodexProjectBootstrap(cwd));
     const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects);
     const architectureEffects = observeFileStage(cwd, [".safeword/depcruise-config.cjs", ".dependency-cruiser.cjs"], completedEffects, () => adapters.configureArchitecture(cwd));
