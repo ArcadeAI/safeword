@@ -25,7 +25,7 @@ source share one ledger entry.
 
 - [x] RED skip: effective-version runtime wiring landed in the coherent-generator slice
 - [x] GREEN dddfa62a3
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing real-install harness remains the simplest host boundary
 
 ### Scenario: Profile status accepts the cachebusted bundle identity
 
