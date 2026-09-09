@@ -16,7 +16,7 @@ source share one ledger entry.
 ### Scenario: An invalid or incompatible effective version is rejected before output changes
 
 - [x] RED skip: validation and atomic publication landed in the preceding coherent-generator slice
-- [ ] GREEN
+- [x] GREEN 4ddd53898
 - [ ] REFACTOR
 
 ## Rule: cachebusted-codex.TBU1.R2 — A cachebusted bundle executes and identifies itself from its exact installed directory
