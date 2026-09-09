@@ -39,6 +39,9 @@ last_modified: 2026-09-09T15:51:25.107Z
 
 ## Work Log
 
+- 2026-09-09T18:04:00Z Cross-scenario refactor: Kept fresh-output
+  ownership solely in the atomic publisher, with focused helper and full Codex
+  release tests passing in `392b4437f`.
 - 2026-09-09T17:53:00Z GREEN: Added validated effective-version generation,
   adjacent staging with atomic publication, coherent manifest/package/catalogue
   stamping, and build-time runtime identity injection. The focused real-process
