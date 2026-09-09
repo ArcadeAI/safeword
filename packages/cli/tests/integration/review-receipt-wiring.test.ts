@@ -154,6 +154,19 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
     expect(readLog()).toContain(`review-id:${REVIEW_ID}`);
   });
 
+  it('surfaces the reviewer model recorded by the coordinator', () => {
+    stubCoordinator({ ...approvedEnvelope, reviewer_model: 'claude-opus-5' });
+
+    const previousPluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+    process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+    try {
+      expect(readReviewReceipt(REVIEW_ID, projectRoot)?.reviewerModel).toBe('claude-opus-5');
+    } finally {
+      if (previousPluginRoot === undefined) delete process.env.CLAUDE_PLUGIN_ROOT;
+      else process.env.CLAUDE_PLUGIN_ROOT = previousPluginRoot;
+    }
+  });
+
   it("refuses when the cited review covered a different ticket's impl-plan", () => {
     stubCoordinator({
       ...approvedEnvelope,
@@ -194,6 +207,20 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
 
     expect(result.status).not.toBe(0);
     expect(result.stdout).toMatch(/reviewer/u);
+  });
+
+  it('still writes a stamp naming a model, which the receipt does not record', () => {
+    // `approvedEnvelope` carries no `reviewer_model`, matching what the
+    // coordinator actually reports: it records the model *configured* for a
+    // route, not the one that ran, so the field is absent unless a model was
+    // pinned. Holding the stamp's `model:` tag to it refused genuinely
+    // witnessed reviews — an approving coordinator review came back
+    // `recorded "model: none recorded"`. The tag is written, not verified,
+    // until the coordinator records the served model.
+    const result = stampImplPlan('--model', 'claude-opus-5');
+
+    expect(result.status).toBe(0);
+    expect(readLog()).toContain('model:claude-opus-5');
   });
 });
 
