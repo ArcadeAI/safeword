@@ -46,7 +46,7 @@ source share one ledger entry.
 ### Scenario: A Codex cachebuster does not alter other host catalogues
 
 - [x] RED skip: Claude and Cursor isolation is an unchanged regression contract
-- [ ] GREEN
+- [x] GREEN c182340db
 - [ ] REFACTOR
 
 ## Rule: cachebusted-codex.SWM1.R3 — The upstream design records a task-bound plugin-root contract without making delivery depend on it
