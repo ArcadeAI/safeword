@@ -105,7 +105,7 @@ describe('Claude plugin release contract', () => {
       'publish:\n    name: Publish to npm\n    needs: [build, verify-local-retro-production]',
     );
     expect(publishCondition).toBe(
-      "${{ !cancelled() && needs.build.result == 'success' && ((needs.build.outputs.local-retro-cutover-enabled == 'true' && needs.verify-local-retro-production.result == 'success') || (needs.build.outputs.local-retro-cutover-enabled != 'true' && needs.verify-local-retro-production.result == 'skipped')) }}",
+      "${{ !cancelled() && needs.build.result == 'success' && ((needs.build.outputs.local-retro-cutover-enabled == 'true' && needs.verify-local-retro-production.result == 'success') || (needs.build.outputs.local-retro-cutover-enabled == 'false' && needs.verify-local-retro-production.result == 'skipped')) }}",
     );
     expect(workflow).toContain("typeof enabled !== 'boolean'");
     expect(workflow).not.toContain('advisory-pr-review-smoke:');
@@ -131,6 +131,21 @@ describe('Claude plugin release contract', () => {
     expect(verifierJob).toContain(
       '[ "$RESULT" != \'Local retro production readiness verified.\' ]',
     );
+  });
+
+  it('runs the protected verifier through the exact source command and fails closed', () => {
+    const result = spawnSync(
+      'bun',
+      ['--no-install', 'packages/cli/scripts/verify-local-retro-production-readiness.ts'],
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('local retro production readiness is not verified');
   });
 
   it('validates enabled local evidence even while relay readiness is disabled', () => {

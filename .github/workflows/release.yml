@@ -163,7 +163,7 @@ jobs:
       ${{ !cancelled() && needs.build.result == 'success' &&
       ((needs.build.outputs.local-retro-cutover-enabled == 'true' &&
       needs.verify-local-retro-production.result == 'success') ||
-      (needs.build.outputs.local-retro-cutover-enabled != 'true' &&
+      (needs.build.outputs.local-retro-cutover-enabled == 'false' &&
       needs.verify-local-retro-production.result == 'skipped')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
