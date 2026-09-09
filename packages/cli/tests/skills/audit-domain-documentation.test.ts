@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { realBunExecutable } from '../helpers.js';
 import { extractFencedBashBlock } from '../helpers/fenced-bash.js';
 
 const ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -62,7 +63,7 @@ function runDomainDocumentationCheck(
         ? String.raw`if [ "$1" = "feature-directories" ]; then printf "%s\n%s\n%s\n" "$PWD/features" "$PWD/packages/cli/features" "$PWD/custom/features"; fi`
         : 'exit 1',
     );
-    const bunExecutable = spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
+    const bunExecutable = realBunExecutable();
     if (bunExecutable === '') throw new Error('bun is required for the audit fixture');
     symlinkSync(bunExecutable, nodePath.join(binDirectory, 'bun'));
     writeExecutable(binDirectory, 'bunx', 'exit 1');
