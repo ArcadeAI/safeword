@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -123,6 +124,32 @@ function expectEffectsInclude(
 }
 
 describe('install plan completeness', () => {
+  it('previews fresh-install defaults for an existing config without a version marker', async () => {
+    const directory = temporaryDirectory();
+    const installed = await runCliWithoutInstall(
+      [
+        'install',
+        '--agents=none',
+        '--no-input',
+        '--no-modify',
+        '--json',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+    expect(installed.exitCode, installed.stdout).toBe(0);
+    const config = readJson(directory, '.safeword/config.json') as Record<string, unknown>;
+    delete config.architectureDocEnforcement;
+    writeJson(directory, '.safeword/config.json', config);
+    rmSync(nodePath.join(directory, '.safeword/version'));
+
+    const { envelope } = await planProject(directory);
+
+    expectEffectsInclude(envelope, 'files', [{ kind: 'update', target: '.safeword/config.json' }]);
+  });
+
   it('previews package.json creation for a fresh project', async () => {
     const directory = temporaryDirectory();
 

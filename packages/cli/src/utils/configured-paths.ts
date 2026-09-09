@@ -187,9 +187,8 @@ export function readBddConventionsPath(cwd: string): string | undefined {
 
 /**
  * Whether architecture-doc staleness enforcement is active (ticket FPV0E4,
- * Slice 2). Default-ON: a missing config file, a missing key, or any non-`false`
- * value all resolve to enabled — only a literal `false` opts out. Defensive by
- * design: an unparseable config never silently disables enforcement.
+ * Slice 2). Existing projects remain default-on for compatibility; new installs
+ * explicitly write `false` to keep generated architecture local-only.
  *
  * Read by both enforcement surfaces — the commit-time stage hook and the CI
  * `safeword project architecture --check` backstop.

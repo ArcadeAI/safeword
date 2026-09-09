@@ -899,6 +899,7 @@ export function writeSafewordConfig(
  */
 export function readSafewordConfig(dir: string): {
   installedPacks: string[];
+  architectureDocEnforcement?: boolean;
   version?: string;
 } {
   return JSON.parse(readTestFile(dir, '.safeword/config.json'));

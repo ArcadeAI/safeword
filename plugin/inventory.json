@@ -23,7 +23,7 @@
     },
     {
       "path": "resources/guides/architecture-guide.md",
-      "sha256": "2ebab4930a5b44104d4c61af9e63e413ac933c9113bb5c3f728338aa3947b55e"
+      "sha256": "cbe4ce94473b817406d767dea82c3032e4f8e4e3d76684f8c4620355238ffa7a"
     },
     {
       "path": "resources/guides/cold-start-check.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9b3c37e10587427ec4f4ab88705eee2082d7f0739225cac36d337f4d33d783c4"
+      "sha256": "00a1e758b4c1cf50654b1ef8ee02f3c3dc1a6a8086a08c36634821d042536322"
     },
     {
       "path": "runtime/dispatch.js",
