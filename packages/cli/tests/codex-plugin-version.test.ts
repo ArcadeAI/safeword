@@ -556,8 +556,6 @@ describe('Codex plugin release contract', () => {
       expect(hook.stdout).toBe('');
 
       const baseInstalledPath = installed.installedPath;
-      const baseInstalledBackup = nodePath.join(fixture, 'base-installed-backup');
-      cpSync(baseInstalledPath, baseInstalledBackup, { recursive: true });
       const cachebustedVersion = `${installed.version.split('+', 1)[0]}+codex.test`;
       const marketplacePlugin = nodePath.join(marketplaceRoot, 'packages/cli/codex-plugin');
       rmSync(marketplacePlugin, { recursive: true, force: true });
@@ -585,8 +583,14 @@ describe('Codex plugin release contract', () => {
         version: string;
       };
       expect(cachebusted.version).toBe(cachebustedVersion);
-      cpSync(baseInstalledBackup, baseInstalledPath, { recursive: true });
       expect(existsSync(baseInstalledPath)).toBe(true);
+      const preservedBaseRuntime = spawnSync(
+        'bun',
+        [nodePath.join(baseInstalledPath, 'runtime/cli.js'), '--version'],
+        { encoding: 'utf8', env: environment },
+      );
+      expect(preservedBaseRuntime.status, preservedBaseRuntime.stderr).toBe(0);
+      expect(preservedBaseRuntime.stdout.trim()).toBe(installed.version);
       expect(realpathSync(cachebusted.installedPath)).toBe(
         realpathSync(
           nodePath.join(codexHome, 'plugins/cache/safeword/safeword', cachebustedVersion),
