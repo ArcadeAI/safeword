@@ -31,7 +31,7 @@ product_plan_contract: v1
 created: 2026-09-08T05:11:31.804Z
 last_modified: 2026-09-08T17:40:00.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/4200
-children: ['G1C9PP', '7CAMAD', '5F5ZZA', 'K3EBHB', 'YCFFNC', '3EG00H']
+children: ['G1C9PP', '7CAMAD', '5F5ZZA', 'K3EBHB', 'YCFFNC', '3EG00H', '6XW8H7']
 ---
 
 # Separate implementation decisions from execution sequencing
@@ -66,3 +66,5 @@ workflow phases with distinct, canonical author-review contracts.
 - 2026-09-08T17:10:10.000Z Intake: Applied the closing review's traceability finding. Added a numbered receipt obligation for the 30–60 minute reviewability judgment, split legacy-guide dispositions into independently provable Rules, defined project-context fallbacks and semantic normalization for provenance, made zero-decision evidence explicit, and required advisory labeling where Codex Cloud receives instructions without gates.
 - 2026-09-08T17:28:00.000Z Define behavior: Independent intake review approved with cross-agent Claude Opus coverage. Entered scenario authoring with 13 material dimensions spanning phase boundaries, planning quality, context and provenance, guide migration, work-type routing, TDD return paths, recovery messages, and host parity.
 - 2026-09-08T17:40:00.000Z Split: User approved the define-behavior decomposition after figure-it-out found 63 scenarios across six distinct behavioral clusters, above Safeword's 15-scenario or three-cluster threshold. Promoted 82T411 to the Product Plan epic; child features inherit its approved jobs, milestones, success threshold, non-goals, and Killer Demo by contract digest.
+
+- 2026-09-09T15:27:00.000Z Scope addition: User added child 6XW8H7 so Execution Plans explicitly divide large contributions into independently reviewable pull requests.
