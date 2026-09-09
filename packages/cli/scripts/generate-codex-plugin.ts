@@ -1,12 +1,4 @@
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -137,7 +129,6 @@ if (options.output === undefined) {
     rmSync(generatedRoot, { recursive: true, force: true });
   }
 } else {
-  if (existsSync(options.output)) throw new Error(`Output already exists: ${options.output}`);
   let assetCount = 0;
   await publishFreshDirectory(options.output, async generatedRoot => {
     assetCount = await generatePlugin(generatedRoot, true);
