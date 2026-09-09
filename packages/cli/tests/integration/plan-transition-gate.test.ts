@@ -205,6 +205,20 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     rmSync(projectRoot, { recursive: true, force: true });
   });
 
+  it('keeps an unresolved behavior-shaping choice in Implementation Planning and names it', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      VALID_PLAN.replace(
+        '| gate | pre-tool | stop-only | too late |',
+        '| Authentication ownership | unresolved | per-service ownership | decision pending |',
+      ),
+    );
+
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'Authentication ownership');
+  });
+
   it('allows implement entry when a valid planned impl-plan.md exists', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
