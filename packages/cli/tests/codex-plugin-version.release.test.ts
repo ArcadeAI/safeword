@@ -43,43 +43,77 @@ function treeDigest(root: string): string {
   return hash.digest('hex');
 }
 
+function filesUnder(root: string, relative = ''): string[] {
+  return readdirSync(nodePath.join(root, relative), { withFileTypes: true }).flatMap(entry => {
+    const path = nodePath.join(relative, entry.name);
+    return entry.isDirectory() ? filesUnder(root, path) : [path];
+  });
+}
+
 describe('Codex plugin release contract', () => {
   it('generates a complete bundle at an explicit effective version', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-effective-version-'));
-    const output = nodePath.join(fixture, 'plugin');
     const packageVersion = (
       JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8')) as {
         version: string;
       }
     ).version;
-    const effectiveVersion = `${packageVersion.split('+', 1)[0]}+codex.test`;
+    const effectiveVersions = [packageVersion, `${packageVersion.split('+', 1)[0]}+codex.test`];
 
     try {
-      const generation = spawnSync(
-        'bun',
-        ['scripts/generate-codex-plugin.ts', '--version', effectiveVersion, '--output', output],
-        { cwd: root, encoding: 'utf8' },
-      );
+      for (const [index, effectiveVersion] of effectiveVersions.entries()) {
+        const output = nodePath.join(fixture, `plugin-${index}`);
+        const generation = spawnSync(
+          'bun',
+          ['scripts/generate-codex-plugin.ts', '--version', effectiveVersion, '--output', output],
+          { cwd: root, encoding: 'utf8' },
+        );
 
-      expect(generation.status, generation.stderr).toBe(0);
-      expect(existsSync(output), generation.stdout).toBe(true);
-      const manifestContents = readFileSync(
-        nodePath.join(output, '.codex-plugin/plugin.json'),
-        'utf8',
-      );
-      const runtimePackageContents = readFileSync(nodePath.join(output, 'package.json'), 'utf8');
-      expect(JSON.parse(manifestContents)).toMatchObject({ version: effectiveVersion });
-      expect(JSON.parse(runtimePackageContents)).toMatchObject({ version: effectiveVersion });
-      expect(readFileSync(nodePath.join(output, 'skills/self-review/SKILL.md'), 'utf8')).toContain(
-        `/safeword/${effectiveVersion}/runtime/cli.js`,
-      );
+        expect(generation.status, generation.stderr).toBe(0);
+        expect(existsSync(output), generation.stdout).toBe(true);
+        const manifestContents = readFileSync(
+          nodePath.join(output, '.codex-plugin/plugin.json'),
+          'utf8',
+        );
+        const runtimePackageContents = readFileSync(nodePath.join(output, 'package.json'), 'utf8');
+        expect(JSON.parse(manifestContents)).toMatchObject({ version: effectiveVersion });
+        expect(JSON.parse(runtimePackageContents)).toMatchObject({ version: effectiveVersion });
+        const workflowContents = filesUnder(nodePath.join(output, 'skills'))
+          .map(path => readFileSync(nodePath.join(output, 'skills', path), 'utf8'))
+          .join('\n');
+        expect(workflowContents).toContain(`/safeword/${effectiveVersion}/runtime/cli.js`);
+        if (effectiveVersion !== packageVersion) {
+          expect(workflowContents).not.toContain(`/safeword/${packageVersion}/runtime/cli.js`);
+        }
 
-      const runtime = spawnSync('bun', [nodePath.join(output, 'runtime/cli.js'), '--version'], {
-        encoding: 'utf8',
-      });
-      expect(runtime.status, runtime.stderr).toBe(0);
-      expect(runtime.stdout.trim()).toBe(effectiveVersion);
+        const runtimePath = nodePath.join(output, 'runtime/cli.js');
+        const runtime = spawnSync('bun', [runtimePath, '--version'], { encoding: 'utf8' });
+        expect(runtime.status, runtime.stderr).toBe(0);
+        expect(runtime.stdout.trim()).toBe(effectiveVersion);
+
+        const codexHome = nodePath.join(fixture, `codex-home-${index}`);
+        const project = nodePath.join(fixture, `project-${index}`);
+        mkdirSync(project);
+        const sessionStart = spawnSync(
+          'bun',
+          [runtimePath, 'hook', 'codex', 'session-start', '--plugin-hook'],
+          {
+            cwd: project,
+            encoding: 'utf8',
+            env: { ...process.env, CODEX_HOME: codexHome },
+            input: JSON.stringify({ session_id: `effective-version-${index}` }),
+          },
+        );
+        expect(sessionStart.status, sessionStart.stderr).toBe(0);
+        const proof = JSON.parse(
+          readFileSync(
+            nodePath.join(codexHome, 'safeword/hook-proof-v2/session-start.json'),
+            'utf8',
+          ),
+        ) as Record<string, unknown>;
+        expect(proof).toMatchObject({ plugin_version: effectiveVersion });
+      }
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
