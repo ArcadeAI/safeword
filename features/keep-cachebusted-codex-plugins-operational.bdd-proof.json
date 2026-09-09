@@ -1,0 +1,33 @@
+{
+  "feature": "features/keep-cachebusted-codex-plugins-operational.feature",
+  "scenarios": {
+    "An accepted effective version is stamped throughout the bundle": [
+      "packages/cli/tests/codex-plugin-version.test.ts",
+      "generates a complete bundle at explicit effective version %s"
+    ],
+    "An invalid or incompatible effective version is rejected before output changes": [
+      "packages/cli/tests/codex-plugin-version.test.ts",
+      "rejects effective version %s without changing the shipped bundle"
+    ],
+    "A cachebusted workflow resolves its own installed runtime": [
+      "packages/cli/tests/codex-plugin-version.test.ts",
+      "executes from the cache path reported by a real Codex plugin install"
+    ],
+    "Profile status accepts the cachebusted bundle identity": [
+      "packages/cli/tests/codex-plugin-version.test.ts",
+      "accepts a cachebusted bundle identity without repair guidance"
+    ],
+    "Generation without an override reproduces the checked-in release bundle": [
+      "packages/cli/tests/codex-plugin-version.test.ts",
+      "keeps default generation deterministic at the package version"
+    ],
+    "A Codex cachebuster does not alter other host catalogues": [
+      "packages/cli/tests/codex-plugin-version.test.ts",
+      "does not change Claude or Cursor artifacts during cachebusted generation"
+    ],
+    "The host proposal is explicit and independently adoptable": [
+      "packages/cli/tests/codex-plugin-version.test.ts",
+      "records the independently adoptable task-bound Codex plugin-root contract"
+    ]
+  }
+}

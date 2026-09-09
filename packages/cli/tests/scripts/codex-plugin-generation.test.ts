@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -32,6 +32,19 @@ describe('Codex plugin generation boundary', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-publish-'));
     const output = nodePath.join(fixture, 'plugin');
     writeFileSync(output, 'owned');
+    try {
+      await expect(publishFreshDirectory(output, () => Promise.resolve())).rejects.toThrow(
+        'Output already exists',
+      );
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('does not replace a broken symlink at the output path', async () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-publish-'));
+    const output = nodePath.join(fixture, 'plugin');
+    symlinkSync(nodePath.join(fixture, 'missing-target'), output);
     try {
       await expect(publishFreshDirectory(output, () => Promise.resolve())).rejects.toThrow(
         'Output already exists',

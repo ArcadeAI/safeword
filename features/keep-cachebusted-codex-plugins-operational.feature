@@ -1,3 +1,7 @@
+# The real generator, installed Codex runtime, status, and host-parity boundaries
+# are exercised in codex-plugin-version.test.ts and
+# scripts/codex-plugin-generation.test.ts rather than duplicated as Cucumber steps.
+@proof.vitest
 Feature: Keep cachebusted Codex plugins operational
 
   @cachebusted-codex.TBU1.R1
