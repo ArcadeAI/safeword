@@ -300,9 +300,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Cursor local readiness requires positive host-bound Desktop lifecycle evidence
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
 
 ### Scenario: Enabling one harness canary leaves every other harness on its existing route
 
@@ -348,63 +348,93 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Complete truthful evidence enables global cutover
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
+
+### Scenario: Stale production verification cannot enable global cutover
+
+- [x] RED dbcba1337
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
+
+### Scenario: A released cutover does not expire against the customer's wall clock
+
+- [x] RED 4f1b148b5
+- [x] GREEN ccc30eb85
+- [x] REFACTOR skip: freshness now has one owner at the release boundary
 
 ### Scenario: Unavailable production authority keeps global cutover disabled
 
 - [x] RED
 - [x] GREEN
-- [ ] REFACTOR
+- [x] REFACTOR 03aca01b4
 
 ### Scenario: Managed Cursor evidence cannot satisfy local readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
+
+### Scenario: Checked-in harness evidence cannot authorize cutover without protected production agreement
+
+- [x] RED c4ed22394
+- [x] GREEN 3fc71c7ea
+- [x] REFACTOR skip: one exact comparison covers build, artifact, and lifecycle authority
 
 ### Scenario: Missing harness evidence keeps the global cutover disabled
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 538ddb0b0
+- [x] GREEN cb98cb7d3
+- [x] REFACTOR skip: exact-key validation shares the existing completeness helper
 
 ### Scenario: Socket presence without a real harness session cannot satisfy readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5f2388f38
+- [x] GREEN 5b43f4142
+- [x] REFACTOR skip: the lifecycle correlation predicate is already shared by all harnesses
 
 ### Scenario: Indeterminate Cursor provenance cannot satisfy local readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b74302007
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
 
 ### Scenario: Mismatched build ancestry cannot satisfy readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dbcba1337
+- [x] GREEN 03aca01b4
+- [x] REFACTOR cb98cb7d3
+
+### Scenario: Release verification consults real Git ancestry instead of trusting manifest pairs
+
+- [x] RED 4f1b148b5
+- [x] GREEN ccc30eb85
+- [x] REFACTOR c7813cdd2
 
 ### Scenario: Every harness rejects collector and relay receipts whose request identity or session scope does not correlate end to end
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5f2388f38
+- [x] GREEN 5b43f4142
+- [x] REFACTOR skip: one verifier path correlates the same identity and session fields for all three harnesses
 
 ### Scenario: Readiness retrieves a closed canary by exact issue GET and validates its raw body
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5f2388f38
+- [x] GREEN 5b43f4142
+- [x] REFACTOR skip: exact raw marker validation is one focused helper
 
 ### Scenario: A fault artifact without recovery evidence cannot enable cutover
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 538ddb0b0
+- [x] GREEN cb98cb7d3
+- [x] REFACTOR skip: fault completeness is a single exact-key-and-hash predicate
+
+### Scenario: Checked-in fault digests cannot authorize cutover without protected production agreement
+
+- [x] RED 980a1a677
+- [x] GREEN 30fc8f3d8
+- [x] REFACTOR skip: exact comparison against the protected value is already minimal
 
 ## Feature-level cross-scenario refactor
 
