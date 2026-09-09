@@ -1,6 +1,14 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -18,6 +26,47 @@ import {
 } from './helpers/codex-plugin-package.js';
 
 describe('Codex plugin release contract', () => {
+  it('generates a complete bundle at an explicit effective version', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-effective-version-'));
+    const output = nodePath.join(fixture, 'plugin');
+    const packageVersion = (
+      JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8')) as {
+        version: string;
+      }
+    ).version;
+    const effectiveVersion = `${packageVersion.split('+', 1)[0]}+codex.test`;
+
+    try {
+      const generation = spawnSync(
+        'bun',
+        ['scripts/generate-codex-plugin.ts', '--version', effectiveVersion, '--output', output],
+        { cwd: root, encoding: 'utf8' },
+      );
+
+      expect(generation.status, generation.stderr).toBe(0);
+      expect(existsSync(output), generation.stdout).toBe(true);
+      const manifestContents = readFileSync(
+        nodePath.join(output, '.codex-plugin/plugin.json'),
+        'utf8',
+      );
+      const runtimePackageContents = readFileSync(nodePath.join(output, 'package.json'), 'utf8');
+      expect(JSON.parse(manifestContents)).toMatchObject({ version: effectiveVersion });
+      expect(JSON.parse(runtimePackageContents)).toMatchObject({ version: effectiveVersion });
+      expect(readFileSync(nodePath.join(output, 'skills/self-review/SKILL.md'), 'utf8')).toContain(
+        `/safeword/${effectiveVersion}/runtime/cli.js`,
+      );
+
+      const runtime = spawnSync('bun', [nodePath.join(output, 'runtime/cli.js'), '--version'], {
+        encoding: 'utf8',
+      });
+      expect(runtime.status, runtime.stderr).toBe(0);
+      expect(runtime.stdout.trim()).toBe(effectiveVersion);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('runs every hook through the bundled plugin CLI', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
     const version = JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8'))
