@@ -63,6 +63,7 @@ interface PredictableCliWorld extends SafewordWorld {
   hostEnvironment?: NodeJS.ProcessEnv;
   resolvedBunPath?: string;
   expectedReadOnlyState?: string;
+  architectureFingerprint?: string;
   observedProcessOutput?: string;
   canonicalAliasResult?: CliResult;
   latencySamples?: number[];
@@ -485,7 +486,14 @@ Given('a project that is {word}', function (this: PredictableCliWorld, state: st
 When(
   'the user runs the read-only command {string}',
   function (this: PredictableCliWorld, command: string) {
-    runCli(this, [command, '--json', '--no-input', '--offline', '--cwd', temporaryProject(this)]);
+    runCli(this, [
+      ...command.split(' '),
+      '--json',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      temporaryProject(this),
+    ]);
   },
 );
 
@@ -502,6 +510,85 @@ Then('no filesystem package or network effect occurs', function (this: Predictab
   const witnessLog = assertPresent(this.witnessLog);
   assert.equal(existsSync(witnessLog) ? readFileSync(witnessLog, 'utf8') : '', '');
 });
+
+const ARCHITECTURE_DOCUMENT = '.project/architecture.generated.md';
+
+function gitInProject(world: PredictableCliWorld, ...args: string[]): string {
+  const completed = spawnSync('git', args, {
+    cwd: temporaryProject(world),
+    encoding: 'utf8',
+  });
+  assert.equal(completed.status, 0, `git ${args.join(' ')} failed: ${completed.stderr}`);
+  return completed.stdout;
+}
+
+/**
+ * The effect surfaces a read-only architecture check must leave alone: the exact
+ * index entries, the worktree/index divergence git reports, and the generated
+ * document's own bytes. `treeDigest` cannot stand in here — the Git index is the
+ * surface that regressed, and `.git` churns on read-only commands too.
+ */
+function architectureEffectFingerprint(world: PredictableCliWorld): string {
+  const documentPath = join(temporaryProject(world), ARCHITECTURE_DOCUMENT);
+  return JSON.stringify({
+    index: gitInProject(world, 'ls-files', '--stage'),
+    status: gitInProject(world, 'status', '--porcelain'),
+    document: existsSync(documentPath) ? readFileSync(documentPath, 'utf8') : '<absent>',
+  });
+}
+
+Given(
+  'a project with architecture drift staged in the Git index',
+  function (this: PredictableCliWorld) {
+    const directory = temporaryProject(this);
+    mkdirSync(join(directory, 'src', 'auth'), { recursive: true });
+    writeFileSync(join(directory, 'src', 'auth', 'index.ts'), 'export const auth = true;\n');
+    writeFileSync(
+      join(directory, 'package.json'),
+      JSON.stringify({ name: 'architecture-fixture' }),
+    );
+    gitInProject(this, 'init');
+    gitInProject(this, 'config', 'user.email', 'test@test.com');
+    gitInProject(this, 'config', 'user.name', 'Test User');
+    gitInProject(this, 'add', '-A');
+    gitInProject(this, 'commit', '-m', 'fixture');
+
+    // Record a current architecture document, then stage a source change the
+    // document does not describe yet: the index is stale, and the read-only
+    // check must say so without repairing or staging anything.
+    runCli(this, ['project', 'architecture', '--json', '--no-input', '--cwd', directory]);
+    gitInProject(this, 'add', '-A');
+    gitInProject(this, 'commit', '-m', 'record architecture');
+    mkdirSync(join(directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(join(directory, 'src', 'billing', 'index.ts'), 'export const billing = true;\n');
+    gitInProject(this, 'add', '--', 'src/billing/index.ts');
+
+    this.architectureFingerprint = architectureEffectFingerprint(this);
+  },
+);
+
+Then(
+  'the architecture documents and the Git index are unchanged',
+  function (this: PredictableCliWorld) {
+    assert.equal(architectureEffectFingerprint(this), assertPresent(this.architectureFingerprint));
+    const result = wireResult(this);
+    assert.equal(result.state, 'action_required');
+    assert.deepEqual(result.effects, EMPTY_EFFECTS);
+  },
+);
+
+Then(
+  'the invocation is refused as an invalid argument combination and nothing is written or staged',
+  function (this: PredictableCliWorld) {
+    const result = wireResult(this);
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(
+      (result.errors as { code: string }[]).map(error => error.code),
+      ['CLI_ARGUMENT_INVALID'],
+    );
+    assert.equal(architectureEffectFingerprint(this), assertPresent(this.architectureFingerprint));
+  },
+);
 
 Given(
   'a {word} result with {int} possible next actions',
