@@ -2,8 +2,8 @@
 id: 0HZBXF
 slug: keep-cachebusted-codex-plugins-operational
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope:
   - allow Codex plugin generation to accept one validated effective plugin version
   - stamp the effective version into the manifest package runtime and generated workflow paths
@@ -39,6 +39,13 @@ last_modified: 2026-09-09T15:51:25.107Z
 
 ## Work Log
 
+- 2026-09-09T19:00:00Z Verify exit: The authoritative full run passed 9,857
+  tests with 58 skipped; Gherkin passed 1,496 scenarios and 68,731 steps with
+  three scenarios and four steps skipped. Build, lint, typecheck, dependency
+  audit, BDD proof mapping, and the diff-scoped audit are green. The planner's
+  redundant second CLI run hit five unrelated stale-build timestamp checks;
+  all 112 tests in that file passed after a fresh build. Recorded the independent
+  review-route limitation and complete surface evidence in `verify.md`.
 - 2026-09-09T18:58:00Z Implement exit: Reconciled the plan with no decision
   changes or design deviations. The quality-review coordinator exhausted all
   configured reviewer routes (`231682f1-c740-4b72-a1df-d3f20a1429e1`), so the
