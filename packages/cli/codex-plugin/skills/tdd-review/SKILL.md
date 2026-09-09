@@ -1,8 +1,7 @@
 ---
 name: tdd-review
-description: Use when completing a TDD step and wanting a quality check. Reviews
-  test quality after RED, implementation correctness after GREEN, and scenario
-  completeness after REFACTOR.
+description: Quality check for a completed TDD step. Runs when safeword's TDD
+  flow finishes RED, GREEN, or REFACTOR; not a user-facing entry point.
 ---
 
 # TDD Review
@@ -82,6 +81,7 @@ If issues found: fix before implementing. If clean: commit and proceed to implem
 Moderate review (~1-2 minutes). Check the implementation:
 
 - **Minimal?** Only code the test requires. No anticipatory design.
+- **Already exists?** Only when the step added shared surface — a helper, util, or type others would reach for. Grep for one before keeping yours; prefer the stdlib or an installed dependency over either. A duplicate gets fixed once and stays broken twice.
 - **Correct?** Does it actually satisfy the test's intent, not just make it pass by coincidence?
 - **No regressions?** Run the **targeted** suite for the module under test. The full-suite regression check belongs once per scenario, at scenario close (after REFACTOR) — not at every GREEN.
 - **Run $safeword:refactor** for structural cleanup.

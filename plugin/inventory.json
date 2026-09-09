@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "b85367e654c0b067ec32f74026096405b6ab0967e93ae02b399bcf73c4c1628f"
+      "sha256": "161d432fdea6ed2a35b42f02424f11ee480116261aa5e29e6992ccee98f4651e"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -115,7 +115,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "9eb866ef4364ef9b2bf5527c041a6642c4608fab570e2e5e4762d04bc3a7611e"
+      "sha256": "6f4f7123183aa3ebabd36216fb4f1309556547ee6647a0f7e4afa0125d49cc05"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "945764b95fa0af2a2b21f461c1d5438ed66e12c0e62e566cf4b9b7c7e79c6124"
+      "sha256": "e7a8abdc84fc56e2a6e73c576a99f634f3ae57bcb8a8cb97601e7ba4496d83c8"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "ee59f654464ecc88306cbdc53b9176b54f826f6aba62d69f3cc67f69598a65f7"
+      "sha256": "82cd2e3a5ce9a575ffa65b82fda14c407b5a0ac840002dc42c2de88ee8023476"
     },
     {
       "path": "runtime/event-groups.json",
@@ -239,7 +239,7 @@
     },
     {
       "path": "runtime/hooks/lib/host-toolchain.ts",
-      "sha256": "b3e708a08076cd71cb67ad917af0d4bf25dc4ce083c7449c39844778141492be"
+      "sha256": "978442278e28a476b21acee45fd418ed16f89ba5957f0dc99f68a339e82493b2"
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
@@ -271,7 +271,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint-config.ts",
-      "sha256": "b0e1dec2d53852ee767ecb91e3ac6bf3421ba07bba6454d56e72a65e11b3e9a6"
+      "sha256": "496321a3c4dd5b6a6d9fc8a070b4bdaa800715288321ac2f7f7906afb4e1f8b2"
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
@@ -335,7 +335,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "6a72638e664174b49e1c8a5459a686fdb2ded16dc4859da1e4c8f69c8264579e"
+      "sha256": "8a86ecab48f65fce00bde3624eb8e17e4434b4fe1b0fc71acf483d1adbb04393"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -379,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "e205c293de97c576a5d83f89ca51d6d9a9ef082e6f8bd7449a6f20c375e3f418"
+      "sha256": "46f97f2ab26fd89bcab0c5573d82ef93475c2559c5b6547617b2a62e0a781d37"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -559,7 +559,7 @@
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",
-      "sha256": "54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2"
+      "sha256": "6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc"
     },
     {
       "path": "runtime/hooks/session-reply-format.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "315da79f1e48ff58646413960a681b486a3fbbdea35e306128a799eeee9efd67"
+      "sha256": "d2d262f7b88d47df8d7d6da5cddbf78574252ce3eb1a25f4b978a41c42290cb8"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -695,7 +695,7 @@
     },
     {
       "path": "skills/retro-filer/SKILL.md",
-      "sha256": "27675c6a2fedfdb207365e7605264c40589cfcff66c1461634bae0173e1cfcda"
+      "sha256": "9979448f6c06bb78fa087523f90b8102f8de81326b980ca609e887ba32bb5e80"
     },
     {
       "path": "skills/retro/SKILL.md",
@@ -703,11 +703,11 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "6f7db49984af9e3aaa48d3ae54a92b9547ea5af6c552fee7b8d85d866a0f8898"
+      "sha256": "6d5cd00bd18ce1ad676f315de85ee6cf907bfc164803bfedaf174034cbe2c03e"
     },
     {
       "path": "skills/self-review/SKILL.md",
-      "sha256": "f85fcfcfc7e10c833390f3166bc7447a67c7f0a216d297492d96fc54c6e628c5"
+      "sha256": "cf69c12d85294d59760ee8ba1b8a9f9ad0b88cfb3a9546a0a5b9c05e0e97e28f"
     },
     {
       "path": "skills/spike/SKILL.md",
@@ -715,7 +715,7 @@
     },
     {
       "path": "skills/tdd-review/SKILL.md",
-      "sha256": "56a04f7b72f0e64ddc0016a7ca81dc66dae51360acecd8689feb8c43bd5bfab0"
+      "sha256": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43"
     },
     {
       "path": "skills/testing/SKILL.md",

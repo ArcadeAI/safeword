@@ -132,7 +132,7 @@ The done gate hard-blocks until `verify.md` exists in the ticket folder. Run `$s
 
 ## Code Philosophy
 
-Optimize for **Clarity → Simplicity → Correctness**, in that order. When in doubt, choose the simpler solution that works today.
+Correctness is the floor, not a tiebreaker. Among solutions that are correct, optimize for **Clarity → Simplicity**, in that order. When in doubt, choose the simpler one that works today — simpler means less code, never a flimsier algorithm.
 
 - **Elegant code:** readable at a glance; clear naming; minimal cognitive load.
 - **No bloat:** delete unused code; no premature abstractions; no "just in case"; reuse existing patterns/tools before adding new ones.
