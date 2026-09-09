@@ -134,8 +134,13 @@ rerun the same coordinator command once after authentication succeeds. Do not in
 `/finish-review` for executable RED: a same-agent fallback cannot authorize GREEN. If authentication
 still fails or the typed result is `REVIEW_ROUTES_EXHAUSTED`, report the blocker and leave GREEN
 unchecked.
+If the typed result is `REVIEW_NOT_REQUESTED` because `crossAgentReview: off`, report that the
+executable-RED receipt gate requires independent review and leave GREEN unchecked. Re-enable the
+review route, or use the separate manual/live evidence path only when the scenario genuinely has
+that classification; never relabel an executable scenario to bypass the receipt gate.
 If a typed result nevertheless carries `independence: degraded`, state before reporting the blocker
 that the actual reviewer was not independent; degraded evidence cannot authorize GREEN.
+Never substitute another surface-private reviewer or hand-written independent evidence.
 
 Pass JSON argv, never shell text. Include the scenario, proof-plan row, primary proof target, and
 every support file whose change would invalidate the evidence. Use the exact active ledger heading

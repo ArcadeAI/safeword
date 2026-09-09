@@ -152,10 +152,15 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
   expect(section, context).toContain('REVIEW_PENDING');
   expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
+  expect(normalized, context).toContain(
+    'Never substitute another surface-private reviewer or hand-written independent evidence.',
+  );
 
   // Executable RED cannot use a same-agent fallback to authorize GREEN;
   // its receipt gate owns the fail-closed recovery instead.
   if (kind === 'executable-red') {
+    expect(section, context).toContain('`REVIEW_NOT_REQUESTED`');
+    expect(normalized, context).toMatch(/REVIEW_NOT_REQUESTED[^.]{0,200}leave GREEN unchecked/iu);
     expect(normalized, context).toMatch(/do not invoke[^.]{0,120}finish-review/iu);
     expect(normalized, context).toMatch(
       /REVIEW_ROUTES_EXHAUSTED[^.]{0,160}report the blocker[^.]{0,120}leave GREEN unchecked/iu,
@@ -173,9 +178,6 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   expect(normalized, context).toMatch(/Only when[^.]{0,240}REVIEW_ROUTES_EXHAUSTED/u);
   expect(normalized, context).toMatch(
     /REVIEW_ROUTES_EXHAUSTED[^.]{0,200}invoke[^.]{0,80}finish-review/iu,
-  );
-  expect(normalized, context).toContain(
-    'Never substitute another surface-private reviewer or hand-written independent evidence.',
   );
 }
 
