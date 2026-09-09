@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -181,32 +182,60 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   );
 }
 
+// Every subprocess fixture below builds its own project on disk. Inheriting the
+// host session's environment would let CLAUDE_PROJECT_DIR - which reviewProjectRoot
+// trusts ahead of the walk - point the hook at the real checkout instead, so the
+// fixture's stub CLI never runs and the test silently measures someone else's tree.
+function isolatedReviewEnvironment(
+  overrides: Readonly<Record<string, string>> = {},
+): NodeJS.ProcessEnv {
+  const { PATH, HOME, TMPDIR, SystemRoot } = process.env;
+  return {
+    ...(PATH && { PATH }),
+    ...(HOME && { HOME }),
+    ...(TMPDIR && { TMPDIR }),
+    ...(SystemRoot && { SystemRoot }),
+    ...overrides,
+  };
+}
+
+interface ResolverRun {
+  /** One `<route>:<forwarded arguments>` line per stub invocation, probes included. */
+  readonly calls: string[];
+  /** Physical working directory the last stub invocation ran in. */
+  readonly childDirectory: string;
+  /** Project root the fixture was built at, resolved through any symlinks. */
+  readonly projectDirectory: string;
+}
+
 // eslint-disable-next-line complexity -- one fixture intentionally exercises every resolver branch
 function runResolver(
   route: 'plugin' | 'local' | 'source' | 'fallback',
-  rejectPlugin = false,
-  hangPlugin = false,
-): string[] {
+  { rejectPlugin = false, hangPlugin = false, startSubdirectory = '' } = {},
+): ResolverRun {
   const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-resolver-'));
   try {
     const bin = nodePath.join(fixture, 'bin');
     mkdirSync(bin);
     const log = nodePath.join(fixture, 'calls.log');
+    const cwdLog = nodePath.join(fixture, 'cwd.log');
     executable(
       nodePath.join(bin, 'bun'),
-      String.raw`${hangPlugin ? 'case "$1" in */plugin/runtime/cli.js) exec sleep 30;; esac\n' : ''}${rejectPlugin ? 'case "$1" in */plugin/runtime/cli.js) exit 1;; esac\n' : ''}printf 'bun:%s\n' "$*" >> "$CALL_LOG"`,
+      String.raw`${hangPlugin ? 'case "$1" in */plugin/runtime/cli.js) exec sleep 30;; esac\n' : ''}${rejectPlugin ? 'case "$1" in */plugin/runtime/cli.js) exit 1;; esac\n' : ''}pwd -P > "$CWD_LOG"
+printf 'bun:%s\n' "$*" >> "$CALL_LOG"`,
     );
-    executable(nodePath.join(bin, 'bunx'), String.raw`printf 'bunx:%s\n' "$*" >> "$CALL_LOG"`);
+    executable(
+      nodePath.join(bin, 'bunx'),
+      String.raw`pwd -P > "$CWD_LOG"
+printf 'bunx:%s\n' "$*" >> "$CALL_LOG"`,
+    );
 
-    const { HOME, TMPDIR, SystemRoot } = process.env;
-    const env: NodeJS.ProcessEnv = {
-      ...(HOME && { HOME }),
-      ...(TMPDIR && { TMPDIR }),
-      ...(SystemRoot && { SystemRoot }),
+    const env = isolatedReviewEnvironment({
       CALL_LOG: log,
+      CWD_LOG: cwdLog,
       PATH: `${bin}:/usr/bin:/bin`,
       SAFEWORD_REVIEW_CLI_PROBE_TIMEOUT_MS: '2000',
-    };
+    });
     switch (route) {
       case 'plugin': {
         const pluginRoot = nodePath.join(fixture, 'plugin');
@@ -221,10 +250,14 @@ function runResolver(
         break;
       }
       case 'local': {
+        // A project-root marker, so a run started from a subdirectory can find
+        // its way back up here rather than treating that subdirectory as the project.
+        mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
         mkdirSync(nodePath.join(fixture, 'node_modules/.bin'), { recursive: true });
         executable(
           nodePath.join(fixture, 'node_modules/.bin/safeword'),
-          String.raw`printf 'local:%s\n' "$*" >> "$CALL_LOG"`,
+          String.raw`pwd -P > "$CWD_LOG"
+printf 'local:%s\n' "$*" >> "$CALL_LOG"`,
         );
 
         break;
@@ -242,6 +275,8 @@ function runResolver(
       }
     }
 
+    const startDirectory = nodePath.join(fixture, startSubdirectory);
+    mkdirSync(startDirectory, { recursive: true });
     execFileSync(
       process.execPath,
       [
@@ -253,9 +288,13 @@ function runResolver(
         '--agent-handoff',
         '--json',
       ],
-      { cwd: fixture, env },
+      { cwd: startDirectory, env },
     );
-    return [`fixture:${fixture}`, ...readFileSync(log, 'utf8').trim().split('\n')];
+    return {
+      calls: readFileSync(log, 'utf8').trim().split('\n'),
+      childDirectory: readFileSync(cwdLog, 'utf8').trim(),
+      projectDirectory: realpathSync(fixture),
+    };
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }
@@ -647,23 +686,35 @@ exit ${status}`,
       'safeword@0.74.7 review run quality-review target --agent-handoff --json',
     ],
   ] as const)('executes the %s resolver route', (route, prefix, invocation) => {
-    const [fixtureMarker, ...calls] = runResolver(route);
+    const { calls, projectDirectory } = runResolver(route);
     expect(calls.at(-1)?.startsWith(prefix)).toBe(true);
     expect(calls.at(-1)).toContain(invocation);
     if (route === 'source') {
-      const fixtureRoot = fixtureMarker?.replace(/^fixture:/u, '') ?? '';
-      expect(fixtureRoot).not.toBe('');
-      expect(calls.at(-1)).toContain(nodePath.join(fixtureRoot, 'packages/cli/src/cli.ts'));
+      expect(calls.at(-1)).toContain(nodePath.join(projectDirectory, 'packages/cli/src/cli.ts'));
     }
   });
 
+  it.each(['local', 'fallback'] as const)(
+    'runs the %s route from the project root, not the calling subdirectory',
+    route => {
+      const { calls, childDirectory, projectDirectory } = runResolver(route, {
+        startSubdirectory: 'packages/cli',
+      });
+
+      // The CLI scopes `.safeword/config.json` and its review state to its own
+      // cwd, so a child left in packages/cli would grow a second `.safeword/` there.
+      expect(childDirectory).toBe(projectDirectory);
+      expect(calls.at(-1)).toContain('review run quality-review target');
+    },
+  );
+
   it('falls through when a higher-priority CLI lacks review support', () => {
-    const [, ...calls] = runResolver('plugin', true);
+    const { calls } = runResolver('plugin', { rejectPlugin: true });
     expect(calls.at(-1)).toContain('safeword@0.74.7 review run quality-review');
   });
 
   it('falls through when a higher-priority CLI probe hangs', () => {
-    const [, ...calls] = runResolver('plugin', false, true);
+    const { calls } = runResolver('plugin', { hangPlugin: true });
     expect(calls.at(-1)).toContain('safeword@0.74.7 review run quality-review');
   });
 
@@ -717,6 +768,7 @@ exit ${status}`,
       expect(reviewCandidates(nested, {})).toContainEqual([
         'bun',
         [nodePath.join(fixture, 'packages/cli/src/cli.ts')],
+        fixture,
       ]);
     } finally {
       rmSync(fixture, { recursive: true, force: true });
@@ -732,8 +784,10 @@ exit ${status}`,
       mkdirSync(nodePath.join(elsewhere, '.safeword'), { recursive: true });
       writeFileSync(nodePath.join(elsewhere, '.safeword/version'), '9.9.9\n');
 
-      expect(reviewCandidates(elsewhere, { CLAUDE_PROJECT_DIR: fixture })).toEqual([
-        ['bunx', ['safeword@1.2.3']],
+      expect(reviewCandidates(elsewhere, { CLAUDE_PROJECT_DIR: fixture })).toContainEqual([
+        'bunx',
+        ['safeword@1.2.3'],
+        fixture,
       ]);
     } finally {
       rmSync(fixture, { recursive: true, force: true });
@@ -750,8 +804,10 @@ exit ${status}`,
 
       // A stale CLAUDE_PROJECT_DIR must not win over the real project the
       // caller is standing in, or the hook resolves someone else's checkout.
-      expect(reviewCandidates(fixture, { CLAUDE_PROJECT_DIR: bogus })).toEqual([
-        ['bunx', ['safeword@1.2.3']],
+      expect(reviewCandidates(fixture, { CLAUDE_PROJECT_DIR: bogus })).toContainEqual([
+        'bunx',
+        ['safeword@1.2.3'],
+        fixture,
       ]);
     } finally {
       rmSync(fixture, { recursive: true, force: true });
@@ -796,23 +852,8 @@ exit ${status}`,
   });
 
   // These two prove a REAL CLI runs, so each must prove its OWN named CLI ran.
-  // The wrapper falls through to whatever else it can find, and the ambient
-  // session exports CLAUDE_PLUGIN_ROOT and CLAUDE_PROJECT_DIR — inheriting them
-  // lets an unrelated collaborator answer and a broken named one still pass.
-  // Build the environment explicitly instead of spreading process.env.
-  function isolatedReviewEnvironment(
-    overrides: Readonly<Record<string, string>> = {},
-  ): NodeJS.ProcessEnv {
-    const { PATH, HOME, TMPDIR, SystemRoot } = process.env;
-    return {
-      ...(PATH && { PATH }),
-      ...(HOME && { HOME }),
-      ...(TMPDIR && { TMPDIR }),
-      ...(SystemRoot && { SystemRoot }),
-      ...overrides,
-    };
-  }
-
+  // The wrapper falls through to whatever else it can find, so on top of the
+  // shared isolation each pins the one route it names.
   it('runs the real source checkout CLI', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     // A checkout of this repo also carries node_modules/.bin/safeword and
@@ -825,7 +866,7 @@ exit ${status}`,
       const environment = isolatedReviewEnvironment();
 
       expect(reviewCandidates(fixture, environment)).toEqual([
-        ['bun', [nodePath.join(fixture, 'packages/cli/src/cli.ts')]],
+        ['bun', [nodePath.join(fixture, 'packages/cli/src/cli.ts')], fixture],
       ]);
 
       const output = execFileSync(
@@ -849,7 +890,7 @@ exit ${status}`,
       // the only candidate, so a broken bundle fails here instead of silently
       // falling through to a source checkout or an installed version.
       expect(reviewCandidates(fixture, environment)).toEqual([
-        ['bun', [nodePath.join(pluginRoot, 'runtime', 'cli.js')]],
+        ['bun', [nodePath.join(pluginRoot, 'runtime', 'cli.js')], fixture],
       ]);
 
       const output = execFileSync(
