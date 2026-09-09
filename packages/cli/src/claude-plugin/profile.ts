@@ -26,7 +26,7 @@ import {
   CLAUDE_PLUGIN_ID,
   claudeNativePayloadFiles,
 } from './inventory.js';
-import { claudeConfigDirectory } from './migration-state.js';
+import { claudeConfigDirectory } from './plugin-data.js';
 import { canonicalClaudeProjectRoot } from './project-root.js';
 
 const MINIMUM_CLAUDE_VERSION = [2, 1, 170] as const;

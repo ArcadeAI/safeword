@@ -3,9 +3,10 @@ name: Release
 # OIDC trusted publishing to npm. Triggered when a v* annotated tag is
 # pushed (tag push is restricted to mergers via repo ruleset).
 #
-# Two-job split: build runs all project code with NO id-token permission;
+# Privilege split: build runs all project code with NO production secrets or
+# id-token permission; the protected readiness job reads production evidence;
 # publish has id-token: write but executes only `npm publish` against a
-# downloaded artifact. Defends against the TanStack May-2026 vector where
+# downloaded artifact. This defends against the TanStack May-2026 vector where
 # a malicious dep extracted the OIDC token from runner memory mid-test.
 # See: https://tanstack.com/blog/npm-supply-chain-compromise-postmortem
 #
@@ -39,6 +40,8 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+    outputs:
+      local-retro-cutover-enabled: ${{ steps.local-retro-cutover.outputs.enabled }}
 
     steps:
       # Third-party + GitHub actions pinned to commit SHAs (with version
@@ -76,6 +79,12 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Detect local retro cutover
+        id: local-retro-cutover
+        run: |
+          ENABLED=$(node -e "const { enabled } = require('./packages/cli/src/retro/local-retro-readiness-manifest.json'); if (typeof enabled !== 'boolean') throw new Error('local retro cutover must be boolean'); process.stdout.write(String(enabled))")
+          echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
+
       - name: Build
         run: bun run --cwd packages/cli build
 
@@ -94,6 +103,51 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  verify-local-retro-production:
+    name: Verify local retro production evidence
+    needs: build
+    if: ${{ needs.build.outputs.local-retro-cutover-enabled == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: retro-production-readiness
+    permissions:
+      contents: read
+      issues: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Verify collector, relay, and raw GitHub evidence
+        # Deliberately no install: this protected job executes only checked-in,
+        # dependency-free TypeScript plus Bun and Node built-ins.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_RETRO_COLLECTOR_BREAK_GLASS_CREDENTIAL: ${{ secrets.SAFEWORD_RETRO_COLLECTOR_BREAK_GLASS_CREDENTIAL }}
+          SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL: ${{ secrets.SAFEWORD_RETRO_COLLECTOR_OPERATOR_CREDENTIAL }}
+          SAFEWORD_RETRO_COLLECTOR_ORIGIN: ${{ vars.SAFEWORD_RETRO_COLLECTOR_ORIGIN }}
+          SAFEWORD_RETRO_FAULT_DIGESTS_JSON: ${{ vars.SAFEWORD_RETRO_FAULT_DIGESTS_JSON }}
+          SAFEWORD_RETRO_HARNESS_EVIDENCE_JSON: ${{ vars.SAFEWORD_RETRO_HARNESS_EVIDENCE_JSON }}
+          SAFEWORD_RETRO_RELAY_INSTALLATION_ID: ${{ vars.SAFEWORD_RETRO_RELAY_INSTALLATION_ID }}
+          SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL: ${{ secrets.SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL }}
+          SAFEWORD_RETRO_RELAY_ORIGIN: ${{ vars.SAFEWORD_RETRO_RELAY_ORIGIN }}
+          SAFEWORD_RETRO_RELAY_REPOSITORY: ${{ vars.SAFEWORD_RETRO_RELAY_REPOSITORY }}
+          SAFEWORD_RETRO_RELAY_TENANT_ID: ${{ vars.SAFEWORD_RETRO_RELAY_TENANT_ID }}
+        run: |
+          RESULT=$(bun --no-install packages/cli/scripts/verify-local-retro-production-readiness.ts)
+          if [ "$RESULT" != 'Local retro production readiness verified.' ]; then
+            echo '::error::Local retro production verifier did not return its success receipt'
+            exit 1
+          fi
+          echo "$RESULT"
+
   # --------------------------------------------------------------------------
   # publish: runs ONLY `npm publish` against the artifact built above.
   # No project code, no test code, no install scripts execute here. Minimal
@@ -104,7 +158,13 @@ jobs:
   # --------------------------------------------------------------------------
   publish:
     name: Publish to npm
-    needs: build
+    needs: [build, verify-local-retro-production]
+    if: >-
+      ${{ !cancelled() && needs.build.result == 'success' &&
+      ((needs.build.outputs.local-retro-cutover-enabled == 'true' &&
+      needs.verify-local-retro-production.result == 'success') ||
+      (needs.build.outputs.local-retro-cutover-enabled == 'false' &&
+      needs.verify-local-retro-production.result == 'skipped')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
