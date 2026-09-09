@@ -21789,8 +21789,9 @@ function freshInstallDefaultsNeedUpdate(cwd) {
 }
 function addInstalledPack(cwd, packId) {
   const config = readConfig(cwd) ?? { installedPacks: [] };
-  if (!config.installedPacks.includes(packId)) {
-    config.installedPacks.push(packId);
+  const installedPacks2 = config.installedPacks ?? [];
+  if (!installedPacks2.includes(packId)) {
+    config.installedPacks = [...installedPacks2, packId];
     writeConfig(cwd, config);
   }
 }
