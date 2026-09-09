@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { inspirationContractProvenance } from '../../templates/hooks/lib/active-ticket.js';
 import { evaluateImplementEntry } from '../../templates/hooks/lib/plan-gate.js';
+import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
 import {
   inspirationActivationLines,
   validImplementationInspiration,
@@ -111,7 +112,7 @@ const ACTIVATED_UNSUCCESSFUL_PLAN = VALID_PLAN.replace(
   () => `**Status:** planned\n**Planned on:** ${TODAY}`,
 ).replace('## Decisions\n', () => `## Decisions\n\n${VALID_UNSUCCESSFUL_INSPIRATION}\n`);
 
-describe('TXRHMD plan-implementation → implement transition gate (wired)', () => {
+describe('implementation planning transition gates (wired)', () => {
   let projectRoot: string;
   let ticketDirectory: string;
   let ticketFile: string;
@@ -217,6 +218,18 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     );
 
     expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'Authentication ownership');
+  });
+
+  it('enters Execution Planning for a resolved plan with a current review', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+    writeFileSync(
+      nodePath.join(projectRoot, '.project', 'skill-invocations.log'),
+      `2026-09-09T00:00:00Z sess review:${reviewScope(TICKET_ID, 'impl-plan', hashArtifact(VALID_PLAN))}\n`,
+    );
+
+    expectHookAllow(runAdvance('plan-implementation', 'plan-execution'));
   });
 
   it('allows implement entry when a valid planned impl-plan.md exists', () => {
