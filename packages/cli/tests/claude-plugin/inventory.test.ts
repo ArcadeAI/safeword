@@ -69,6 +69,25 @@ describe('Claude cache metadata inventory', () => {
     expect(claudeNativePayloadFiles(root)).toEqual(['identity.json']);
   });
 
+  // A concurrent Claude session is midway through writing its lease: the temp is
+  // present and readable, but its JSON is truncated. Rejecting it failed every
+  // Safeword hook closed (NTVABC).
+  it('excludes a lease temp file caught partially written', () => {
+    const root = cacheFixture();
+    writeFileSync(nodePath.join(root, '.in_use/31100.tmp.6206975d'), '{"pid":31100,"procSt');
+
+    expect(claudeNativePayloadFiles(root)).toEqual(['identity.json']);
+  });
+
+  // The temp infix is what excuses unparseable content; a final `<pid>` lease is
+  // never mid-write, so malformed JSON there is still a payload file.
+  it('reports a final lease file whose contents are malformed', () => {
+    const root = cacheFixture();
+    writeFileSync(nodePath.join(root, '.in_use/31100'), '{"pid":31100,"procSt');
+
+    expect(claudeNativePayloadFiles(root)).toContain('.in_use/31100');
+  });
+
   it('excludes a lease temp file renamed away while the cache is walked', () => {
     const root = cacheFixture();
     const temporaryLease = nodePath.join(root, '.in_use/82289.tmp.faa7241e');
