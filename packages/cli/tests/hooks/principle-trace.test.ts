@@ -80,6 +80,18 @@ describe('checkPrincipleTrace', () => {
     ]);
   });
 
+  it('judges invalid traces beneath single-hyphen delimiter cells', () => {
+    const plan = PLAN.replace(
+      '| --- | --- | --- | --- |\n| Delight the user | Recovery stays in context | verify.md | |',
+      '| - | - | - | - |\n| Invented principle | Recovery stays in context | missing.md | |',
+    );
+
+    expect(checkPrincipleTrace(project(), plan)).toEqual([
+      '[E010] Broken principle trace: missing source principle: Invented principle',
+      '[E010] Broken principle trace: dead evidence reference: Invented principle',
+    ]);
+  });
+
   it('reports a row that carries claims but no principle name', () => {
     const plan = PLAN.replace(
       '| Delight the user | Recovery stays in context | verify.md | |',

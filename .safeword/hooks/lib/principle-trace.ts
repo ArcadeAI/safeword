@@ -21,7 +21,7 @@ function rowCells(line: string): string[] {
     .map(cell => cell.replaceAll(String.raw`\|`, '|').trim());
 }
 
-const SEPARATOR_CELL = /^:?-{3,}:?$/u;
+const SEPARATOR_CELL = /^:?-+:?$/u;
 
 /** A delimiter row is the one structure GFM actually requires of a table. */
 function isDelimiterRow(line: string): boolean {
