@@ -146,7 +146,7 @@ describe('Codex plugin release contract', () => {
 
   it.each([
     ['not-a-version', 'Effective version is not valid SemVer'],
-    [incompatibleReleaseVersion, 'Effective version must describe the same release as'],
+    ['different-release', 'Effective version must describe the same release as'],
   ])(
     'rejects effective version %s without changing the shipped bundle',
     (effectiveVersion, expectedError) => {
@@ -155,10 +155,12 @@ describe('Codex plugin release contract', () => {
       const output = nodePath.join(fixture, 'plugin');
       const shippedRoot = nodePath.join(root, 'codex-plugin');
       const before = treeDigest(shippedRoot);
+      const requestedVersion =
+        effectiveVersion === 'different-release' ? incompatibleReleaseVersion : effectiveVersion;
       try {
         const generation = spawnSync(
           'bun',
-          ['scripts/generate-codex-plugin.ts', '--version', effectiveVersion, '--output', output],
+          ['scripts/generate-codex-plugin.ts', '--version', requestedVersion, '--output', output],
           { cwd: root, encoding: 'utf8' },
         );
 
