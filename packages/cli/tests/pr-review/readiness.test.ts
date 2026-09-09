@@ -5,6 +5,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import {
   READINESS_STATUS_CONTEXT,
   reportReadinessCommand,
@@ -85,7 +86,20 @@ describe('readiness evidence freshness', () => {
 
   it('catches a blocked gate written with a plain hyphen', () => {
     const report = evaluateReadinessEvidence({
-      body: `Head: ${HEAD}\n3. End-user execution - BLOCKED: never ran it`,
+      body: evidence(HEAD).replace(
+        '3. End-user execution — PASS: ran the CLI end to end',
+        '3. End-user execution - BLOCKED: never ran it',
+      ),
+      draft: false,
+      headSha: HEAD,
+    });
+
+    expect(report.verdict).toBe('blocked');
+  });
+
+  it('catches a blocked gate regardless of capitalization', () => {
+    const report = evaluateReadinessEvidence({
+      body: evidence(HEAD, 'blocked: never ran it'),
       draft: false,
       headSha: HEAD,
     });
@@ -120,6 +134,16 @@ describe('readiness evidence freshness', () => {
   it('treats a bare Head line with no gates as no evidence at all', () => {
     const report = evaluateReadinessEvidence({
       body: `Head: ${HEAD}\n\nLooks good to me.`,
+      draft: false,
+      headSha: HEAD,
+    });
+
+    expect(report).toMatchObject({ state: 'failure', verdict: 'missing' });
+  });
+
+  it('does not treat an incidental Head line followed by another numbered list as evidence', () => {
+    const report = evaluateReadinessEvidence({
+      body: [`Head: ${HEAD}`, 'Rebased onto that commit.', '', '1. Fixed the parser'].join('\n'),
       draft: false,
       headSha: HEAD,
     });
@@ -240,11 +264,20 @@ describe('readiness status wiring against the GitHub boundary', () => {
       return Promise.resolve(Response.json({ id: 1 }, { status: 201 }));
     });
 
-    const { createGitHubReadinessBoundary, reportReadinessCommand: run } =
-      await import('../../src/commands/review-pr-readiness.js');
-    const outcome = await run(createGitHubReadinessBoundary());
+    const result = await publicHandler('review-pr readiness')({
+      cwd: process.cwd(),
+      noInput: true,
+      offline: false,
+      operands: [],
+      options: {},
+    });
 
-    expect(outcome).toMatchObject({ headSha: HEAD, state: 'success', verdict: 'current' });
+    expect(result).toMatchObject({
+      state: 'healthy',
+      data: {
+        outcome: { headSha: HEAD, state: 'success', verdict: 'current' },
+      },
+    });
     expect(requests).toEqual([
       {
         body: undefined,

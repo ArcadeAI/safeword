@@ -126,10 +126,26 @@ To disable a specific hook, remove the safeword hook entry from that agent's con
 
 ### Review gates
 
-Two opt-in review gates (both default off) add independent-review requirements on top of the always-on gates:
+Independent-review requirements on top of the always-on gates.
 
-- `reviewGate: true` — every ticket phase advance requires an independent phase-exit review stamp (a fresh-context reviewer, logged via `write-review-stamp.ts --phase <phase>`), or an explicitly logged skip reason. Built for autonomous runs where user checkpoints auto-confirm.
-- `stopQualityReview: true` — restores the review prompt and the decision-brief reply contract that used to fire whenever the agent finished a turn. Off by default: measured across 13 concurrent sessions it intervened once in roughly 220 turn-ends, to reformat a reply, and never produced a code change — the moment an agent stops has no relationship to the work it just did. The Stop hook's evidence gates (done, impl-plan, architecture, cumulative artifacts, typecheck advisory) are unaffected and always run; so is the phase-exit review gate below, which fires when work actually moves between phases.
+Work moves through phases — `intake`, `define-behavior`, `scenario-gate`, `plan-implementation`, `implement`, `verify`, `done` — and a phase change is an edit to `phase:` in the ticket's `ticket.md`. The phase-exit review gate reads that edit before it lands and blocks it until the phase you are leaving carries an independent review stamp (a fresh-context reviewer, logged via `write-review-stamp.ts --phase <phase>`), or an explicitly logged skip reason.
+
+**This gate is on at every exit by default**, including on a fresh install with no `reviewGate` key. Choose which exits it guards:
+
+| `reviewGate` value                     | Effect                                                               |
+| -------------------------------------- | -------------------------------------------------------------------- |
+| _(key absent)_                         | Every phase exit needs a review stamp. The default.                  |
+| `true`                                 | Same, and additionally turns on the per-asset inline stamp (Tier 1). |
+| `["define-behavior", "scenario-gate"]` | Only the exits you name. Everything else advances silently.          |
+| `false`                                | Off entirely.                                                        |
+
+A list is the usual way to tune this: it buys independent review where judgment carries the phase and skips exits that machine evidence already guards — `implement → verify` has tests, `verify → done` has the done gate. An unusable value (a bare string, a number, malformed JSON) keeps the default rather than reading as off, so a typo cannot quietly remove a gate; an empty list is a considered choice and does disable it.
+
+Each blocked exit names the phase, prints the exact `safeword review run` command for it, and says how to narrow the gate. `scenario-gate` and `plan-implementation` are reviewed by specialists whose rubrics are generated from the same skills that author those artifacts; every other exit is reviewed by the general `quality-review`. One review takes roughly half a minute on the default route.
+
+Two further review knobs, both opt-in and default off:
+
+- `stopQualityReview: true` — restores the review prompt and the decision-brief reply contract that used to fire whenever the agent finished a turn. Off by default: measured across 13 concurrent sessions it intervened once in roughly 220 turn-ends, to reformat a reply, and never produced a code change — the moment an agent stops has no relationship to the work it just did. The Stop hook's evidence gates (done, impl-plan, architecture, cumulative artifacts, typecheck advisory) are unaffected and always run; so is the phase-exit review gate above, which fires when work actually moves between phases.
 - `architectureReviewGate: true` — a new-flow feature can't reach verify/done until its `impl-plan.md` design has been independently reviewed: the Decisions section must cite evidence (URL or `[n]` marker), and the review stamp binds to the plan's content hash — editing the design after review invalidates it. Add `crossModelReview: true` to require the reviewer run on a different model than the author.
 
 Adversarial reviews use `crossAgentReview` to choose their reviewer route:

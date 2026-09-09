@@ -12,21 +12,19 @@ jobs:
   readiness:
     if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
-    # Serialize on the head SHA, not the pull request: the status is published
-    # per commit, so two pull requests sharing a head write to the same place.
-    # Newest event wins. Without this a delayed run can publish its stale
-    # snapshot over a newer verdict.
+    # Serialize every event for this pull request. The command fetches the
+    # current body and head at execution time, so older events converge on the
+    # newest state instead of racing a later run.
     concurrency:
-      group: pr-readiness-${{ github.event.pull_request.head.sha }}
+      group: pr-readiness-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     permissions:
       contents: read
       pull-requests: read
       statuses: write
     steps:
-      # Deterministic, no model, no checkout: reports whether the readiness
-      # evidence in the body still names this head. Deliberately outside the
-      # advisory worker so it still runs when a review route is unavailable.
+      # Deterministic, model-free, and no checkout: customer repositories run
+      # the CLI version that installed this workflow.
       - name: Report readiness evidence freshness
         env:
           GITHUB_TOKEN: ${{ github.token }}

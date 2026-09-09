@@ -49,10 +49,10 @@ const FAILING: ReadonlySet<ReadinessVerdict> = new Set<ReadinessVerdict>([
 ]);
 
 const HEAD_LINE = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/iu;
-const GATE_LINE = /^[ \t]*\d+\.[ \t]*\S/u;
+const GATE_LINE = /^[ \t]*(\d+)\.[ \t]*\S/u;
 // Dash-agnostic: a numbered gate line that says BLOCKED. Missing a real block
 // would be a false pass, which is the one direction this must not fail in.
-const BLOCKED_GATE_LINE = /^[ \t]*\d+\..*\bBLOCKED\b/u;
+const BLOCKED_GATE_LINE = /^[ \t]*\d+\..*\bBLOCKED\b/iu;
 
 interface EvidenceBlock {
   blocked: boolean;
@@ -66,9 +66,11 @@ function scanGates(rest: readonly string[]): { blocked: boolean; gates: number }
 
   for (const line of rest) {
     if (HEAD_LINE.test(line)) break;
-    if (!GATE_LINE.test(line)) continue;
+    const gate = GATE_LINE.exec(line);
+    if (gate === null || Number(gate[1]) !== gates + 1) break;
     gates += 1;
     if (BLOCKED_GATE_LINE.test(line)) blocked = true;
+    if (gates === 7) break;
   }
 
   return { blocked, gates };
@@ -89,7 +91,7 @@ function evidenceBlocks(body: string): EvidenceBlock[] {
     const sha = HEAD_LINE.exec(line)?.[1];
     if (sha === undefined) continue;
     const { blocked, gates } = scanGates(lines.slice(index + 1));
-    if (gates > 0) blocks.push({ blocked, sha: sha.toLowerCase() });
+    if (gates === 7) blocks.push({ blocked, sha: sha.toLowerCase() });
   }
 
   return blocks;

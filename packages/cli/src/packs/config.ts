@@ -12,7 +12,8 @@ import { readFileSafe, writeFile } from '../utils/fs.js';
 const CONFIG_PATH = '.safeword/config.json';
 
 interface SafewordConfig {
-  installedPacks: string[];
+  installedPacks?: string[];
+  architectureDocEnforcement?: boolean;
   autoUpgrade?: boolean;
   /** SQL pack options — `fix: true` opts in to edit-time `sqlfluff fix` (#638). */
   sql?: { fix?: boolean };
@@ -64,15 +65,28 @@ export function isPackInstalled(cwd: string, packId: string): boolean {
   return getInstalledPacks(cwd).includes(packId);
 }
 
+/** Preserve legacy installs while making the first setup explicitly local-only. */
+export function applyFreshInstallDefaults(cwd: string): void {
+  if (!freshInstallDefaultsNeedUpdate(cwd)) return;
+  const config = readConfig(cwd) ?? { installedPacks: [] };
+  config.architectureDocEnforcement = false;
+  writeConfig(cwd, config);
+}
+
+export function freshInstallDefaultsNeedUpdate(cwd: string): boolean {
+  return readConfig(cwd)?.architectureDocEnforcement === undefined;
+}
+
 /**
  * Add a pack to the installed packs list.
  * Creates config.json if it doesn't exist.
  */
 export function addInstalledPack(cwd: string, packId: string): void {
   const config = readConfig(cwd) ?? { installedPacks: [] };
+  const installedPacks = config.installedPacks ?? [];
 
-  if (!config.installedPacks.includes(packId)) {
-    config.installedPacks.push(packId);
+  if (!installedPacks.includes(packId)) {
+    config.installedPacks = [...installedPacks, packId];
     writeConfig(cwd, config);
   }
 }

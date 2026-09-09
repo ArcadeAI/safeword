@@ -46,6 +46,7 @@ brand/
 .safeword-coverage-bin-*/
 
 # Safeword - Local cache and transient state
+**/architecture.generated.md
 .safeword/.update-cache.json
 .safeword/config.local.json
 .safeword/retro-attempts/

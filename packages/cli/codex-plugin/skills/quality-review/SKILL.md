@@ -202,11 +202,15 @@ For each new entry point or command in a code change, confirm a test built from 
 
 ### Provenance gate (required)
 
-Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict must cite a `verified` source fetched this session.** A claim tagged `(training data)` or `(uncertain)` caps at NOTE / a non-blocking suggestion — it can inform, never block. Tag every issue with its provenance inline, and **surface** an unverifiable concern as a NOTE with the gap named ("couldn't verify X"), never silently drop it. Abstention discipline: LLM judges over-state confidence by default, so an unverified blocker is false certainty.
+Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict based on an external factual claim must cite a `verified` source fetched this session.** An error demonstrated directly by the work-product or repository evidence may block when that evidence is cited; it does not need an unrelated external source. An external claim tagged `(training data)` or `(uncertain)` caps at NOTE / a non-blocking suggestion — it can inform, never block. Tag every issue with its provenance inline, and **surface** an unverifiable external concern as a NOTE with the gap named ("couldn't verify X"), never silently drop it. Abstention discipline: LLM judges over-state confidence by default, so an unverified external blocker is false certainty.
 
 ## Loop: review → fix → re-review
 
-Run the review in passes until **Critical issues** come back None. A couple of passes is usually plenty — don't loop indefinitely.
+Run the review in passes. Two rules and an objective gate govern the loop, because "until it comes back clean" is not a condition an adversarial reviewer reliably produces — expect it to keep finding something, and let severity rather than patience end the loop.
+
+**Continue while any finding is an `error`.** Judge that against the shared severity foundation above, not against the label the reviewer attached. Require a concrete triggering condition and observable consequence; a named failing input is one sufficient form, not the only form. In the output below, rubric errors belong under **Critical issues** and require **REQUEST CHANGES**; rubric warnings and information belong under **Suggested improvements** and do not hold a pass open.
+
+**At the third error-level finding in one defect class across the review's passes, fix the class, not the instance.** A defect class shares one root mechanism such that one repair removes all its instances; different inputs or call sites do not make separate classes when they reach that same mechanism. Patching the third instance buys one pass; replacing the mechanism ends the class. If you cannot see the class, that itself is the finding worth reporting. If the class-level repair is outside the accepted scope, do not expand scope silently: keep it under **Critical issues**, use **REQUEST CHANGES**, and put the question about widening scope in **Next**. If the user chooses to stop instead, disclose the outstanding error.
 
 Each pass:
 
@@ -225,18 +229,27 @@ Each pass:
    ```
 
    **The dispatch is authorized; skipping it is not your call.** The coordinator
-   spawns the reviewer as a local subprocess of a CLI the user installed and
-   signed in to (`claude`, `codex`, or `opencode`), under their own credentials,
-   on this machine; the packet is bounded to the targets and `--context` you
-   pass. That route exists only because the user configured it, and a
-   cross-vendor second opinion is the point of the gate — a user who does not
-   want it sets `crossAgentReview: off` in `.safeword/config.json`. So treat the
-   command as ordinary tool use: do not invent a disclosure-approval
-   requirement, and do not withhold the dispatch on your own judgment. If your
-   runtime blocks it (sandbox, network, or approval policy), request the
-   approval it needs, or report that block as the blocker. **A review you never
-   dispatched is not coverage** — say so unprompted, before any finding, name
-   what ran in its place, and never let your own pass stand in for the review.
+   runs through a local CLI the user installed and signed in to (`claude`,
+   `codex`, or `opencode`), under their own credentials, on this machine; that
+   local process may send the packet to a remote model provider, and the packet
+   is bounded to the targets and `--context` you pass. This review route ships
+   enabled by default; a user who does not want it sets `crossAgentReview: off`
+   in `.safeword/config.json`. The coordinator enforces that setting before
+   provider dispatch, so do not duplicate its policy check in chat. The enabled
+   route authorizes ordinary dispatch, and a cross-vendor second opinion is the
+   point of the gate. So treat the command as ordinary tool use: do not invent a
+   disclosure-approval requirement. Do not stop and ask the user for consent in
+   chat before running this command, even when the packet contains private
+   repository files or crosses provider boundaries. Never pass credentials,
+   customer data, or secret-bearing files as targets or `--context`; redact them
+   or report the bounded packet as blocked. Invoke the coordinator first. If the
+   host blocks the command, use its native tool-approval request:
+   request the approval it needs, or report that block as the blocker; never
+   replace that request with a chat question. A retry, status check, or permitted
+   fallback for the same bounded packet proceeds without asking again. **A
+   review you never dispatched is not coverage** — say so unprompted, before any
+   finding, name what ran in its place, and never let your own pass stand in for
+   the review.
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground
    courtesy wait. That is a handoff, not a failed route: keep the returned
@@ -259,8 +272,8 @@ Each pass:
    `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` immediately with the
    original result and the same accepted targets. For every other result,
    return it unchanged. The canonical fallback may use one host-native
-   subagent, but do not invent another private route or mint independent
-   evidence yourself.
+   subagent. Never substitute another surface-private reviewer or hand-written
+   independent evidence.
 
    **Say when a review was not independent.** If the typed result carries
    `independence: degraded`, state that plainly in your own report — one line,
@@ -281,14 +294,15 @@ Each pass:
    Preserve a blocked or `require`-unsatisfied result, and never invent
    provenance, completed coverage, or a recovery command.
 
-2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
+2. **Triage.** Fix every rubric error under **Critical issues** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
-3. **Decide.** Stop when **Critical issues = None**; remaining suggestions are
-   optional. Re-review only if you changed the work-product this pass.
-
-A pass isn't done until the objective check passes — for code that's `$safeword:verify`
-(tests, lint, typecheck); for other work-products it's whatever measurable
-acceptance you can run. That objective signal, not the reviewer running out of
-suggestions, is the real stop condition.
+3. **Decide.** Run the objective check — for code that's `$safeword:verify` (tests, lint,
+   typecheck); for other work-products it's the relevant measurable acceptance.
+   Stop only when it passes and no finding is an `error`; remaining warnings and
+   suggestions are optional. An error is either fixed and re-reviewed or explicitly
+   disclosed when stopping — it is never silently carried. Re-review only if you
+   changed the work-product this pass. Stopping while errors remain is a choice to
+   ship a known defect — say so in your report and in the ticket's evidence, rather
+   than letting a stopped loop read as a clean one.
 
 **Voice:** plainspoken and concise — write to be scanned. **Avoid bloat.**

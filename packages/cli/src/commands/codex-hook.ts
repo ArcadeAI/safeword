@@ -757,23 +757,30 @@ function collectPostToolLintContexts(lintInputs: string[], projectDirectory: str
   return contexts;
 }
 
+/**
+ * Packaged PostToolUse hooks contributing plain additional context, applied
+ * in order. The lint hooks are not listed here: they carry a stdout fallback
+ * that {@link collectPostToolLintContexts} handles separately.
+ */
+const POST_TOOL_CONTEXT_HOOKS = [
+  'codex/post-tool-quality.ts',
+  'codex/post-tool-skill-nudge.ts',
+] as const;
+
 async function runPostToolUse(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
   if (!hasSafewordProjectMarker(projectDirectory)) return;
   const input = parseCodexHookInput(rawInput);
   const lintInputs = postToolLintInputs(input, rawInput, projectDirectory);
   const contexts = collectPostToolLintContexts(lintInputs, projectDirectory);
-  const qualityResult = runPackagedHook('codex/post-tool-quality.ts', rawInput, projectDirectory);
-  const qualityContext = packagedAdditionalContext(qualityResult, 'PostToolUse');
-  if (qualityContext) contexts.push(qualityContext);
 
-  const skillNudgeResult = runPackagedHook(
-    'codex/post-tool-skill-nudge.ts',
-    rawInput,
-    projectDirectory,
-  );
-  const skillContext = packagedAdditionalContext(skillNudgeResult, 'PostToolUse');
-  if (skillContext) contexts.push(skillContext);
+  for (const hook of POST_TOOL_CONTEXT_HOOKS) {
+    const context = packagedAdditionalContext(
+      runPackagedHook(hook, rawInput, projectDirectory),
+      'PostToolUse',
+    );
+    if (context) contexts.push(context);
+  }
 
   const additionalContext = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
   if (additionalContext) contexts.push(additionalContext);
@@ -809,6 +816,18 @@ async function runUserPromptSubmit(projectDirectory: string): Promise<void> {
   });
 }
 
+/**
+ * The packaged stop hook's stdout carries three distinct meanings:
+ * `block` (a real continuation to pass through), `noop` (a literal `{}`,
+ * meaning "nothing to say" — project-owned continuations still apply), and
+ * `absent` (no output at all).
+ */
+function classifyPackagedStopOutput(stdout: string): 'absent' | 'block' | 'noop' {
+  const trimmed = stdout.trim();
+  if (trimmed === '') return 'absent';
+  return trimmed === '{}' ? 'noop' : 'block';
+}
+
 async function runStop(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
   if (!hasSafewordProjectMarker(projectDirectory)) {
@@ -816,20 +835,21 @@ async function runStop(projectDirectory: string): Promise<void> {
     return;
   }
   const packagedResult = runPackagedHook('codex/stop.ts', rawInput, projectDirectory);
-  const trimmedPackagedOutput = packagedResult.stdout.trim();
-  if (trimmedPackagedOutput !== '' && trimmedPackagedOutput !== '{}') {
+  const packaged = classifyPackagedStopOutput(packagedResult.stdout);
+  if (packaged === 'block') {
     process.stdout.write(packagedResult.stdout);
     return;
   }
 
-  // `{}` is an intentional packaged no-op, so project-owned continuations still apply.
+  // A packaged no-op does not suppress project-owned continuations.
   const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
   if (reason) {
     emitStopContinuation({ decision: 'block', reason });
     return;
   }
 
-  if (trimmedPackagedOutput !== '') {
+  // Pass the packaged no-op through verbatim rather than re-emitting `{}\n`.
+  if (packaged === 'noop') {
     process.stdout.write(packagedResult.stdout);
     return;
   }
