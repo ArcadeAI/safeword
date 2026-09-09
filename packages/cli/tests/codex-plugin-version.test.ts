@@ -79,8 +79,19 @@ describe('Codex plugin release contract', () => {
           'utf8',
         );
         const runtimePackageContents = readFileSync(nodePath.join(output, 'package.json'), 'utf8');
+        const generatedHookManifest = readFileSync(nodePath.join(output, 'hooks.json'));
+        const sourceHookManifest = readFileSync(nodePath.join(root, 'codex-plugin/hooks.json'));
         expect(JSON.parse(manifestContents)).toMatchObject({ version: effectiveVersion });
         expect(JSON.parse(runtimePackageContents)).toMatchObject({ version: effectiveVersion });
+        expect(generatedHookManifest).toEqual(sourceHookManifest);
+        const generatedHooks = (JSON.parse(generatedHookManifest.toString()) as {
+          hooks: Record<string, CodexPluginHookEntry[]>;
+        }).hooks;
+        for (const command of codexPluginHookCommands(generatedHooks)) {
+          expect(() => {
+            assertBundledHookCommand(command);
+          }).not.toThrow();
+        }
         const bundleContents = filesUnder(output)
           .map(path => readFileSync(nodePath.join(output, path), 'utf8'))
           .join('\n');
@@ -583,6 +594,9 @@ describe('Codex plugin release contract', () => {
         version: string;
       };
       expect(cachebusted.version).toBe(cachebustedVersion);
+      expect(readFileSync(nodePath.join(cachebusted.installedPath, 'hooks.json'))).toEqual(
+        readFileSync(nodePath.join(root, 'codex-plugin/hooks.json')),
+      );
       expect(existsSync(baseInstalledPath)).toBe(true);
       const preservedBaseRuntime = spawnSync(
         'bun',
