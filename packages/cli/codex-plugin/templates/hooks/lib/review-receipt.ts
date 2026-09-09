@@ -52,6 +52,15 @@ export interface ReviewReceipt {
   readonly independence?: string;
   readonly authorAgent?: string;
   readonly actualReviewer?: string;
+  /**
+   * The reviewing model, when the coordinator recorded one. Not compared
+   * against a stamp's `model:` tag: the coordinator records the model that was
+   * *configured* for a route, not the one that ran, so it is absent on a review
+   * that ran without a pinned model — which is the default. Binding a claim to
+   * it would reject genuinely-witnessed stamps. Surfaced here so the gate can
+   * bind it once the coordinator records the served model.
+   */
+  readonly reviewerModel?: string;
 }
 
 /** Levels that assert a coordinator ran and returned a verdict. */

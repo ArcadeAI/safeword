@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "69dc06ddd484aec9d4a6ff4f31e35661a7778f67ef6d1ccfafc73ad23145855d"
+      "sha256": "5fefff4e500bd565b76d1b6f31e324fcbcd44e1a6b1a5133e3b7212df0c70556"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "d6ad3e140f5b8e37328b3edbbe2bfb702a5dc7480ce0e83ba2efa4cc4cf0c82c"
+      "sha256": "7ae8ff94d29c809b23beab3e82b1bba15bb6a6bd5c7e5af45b57dcb6cc6230a0"
     },
     {
       "path": "runtime/event-groups.json",
@@ -335,7 +335,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "6a72638e664174b49e1c8a5459a686fdb2ded16dc4859da1e4c8f69c8264579e"
+      "sha256": "8a86ecab48f65fce00bde3624eb8e17e4434b4fe1b0fc71acf483d1adbb04393"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -379,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "e205c293de97c576a5d83f89ca51d6d9a9ef082e6f8bd7449a6f20c375e3f418"
+      "sha256": "46f97f2ab26fd89bcab0c5573d82ef93475c2559c5b6547617b2a62e0a781d37"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
