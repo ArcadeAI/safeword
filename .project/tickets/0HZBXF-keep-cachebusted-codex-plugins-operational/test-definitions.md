@@ -23,7 +23,7 @@ source share one ledger entry.
 
 ### Scenario: A cachebusted workflow resolves its own installed runtime
 
-- [ ] RED
+- [x] RED skip: effective-version runtime wiring landed in the coherent-generator slice
 - [ ] GREEN
 - [ ] REFACTOR
 
