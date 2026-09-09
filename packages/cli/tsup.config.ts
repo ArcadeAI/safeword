@@ -5,6 +5,8 @@ import process from 'node:process';
 
 import { defineConfig } from 'tsup';
 
+import { digestLocalRetroReadinessManifest } from './src/retro/readiness-digest.js';
+
 const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
 const PUBLIC_RETRO_ORIGIN =
   process.env.SAFEWORD_PUBLIC_RETRO_BUILD_ORIGIN ??
@@ -27,6 +29,19 @@ const manifest = JSON.parse(manifestBytes.toString('utf8')) as {
   measurements?: Record<string, { path: string }>;
   prerequisites?: { mergedCommit: string }[];
 };
+const localManifest = JSON.parse(
+  readFileSync(new URL('src/retro/local-retro-readiness-manifest.json', import.meta.url), 'utf8'),
+) as {
+  enabled: boolean;
+  evidenceCommit?: string;
+  harnesses?: Record<string, { buildCommit: string }>;
+};
+const localProductionAttestation = JSON.parse(
+  readFileSync(
+    new URL('src/retro/local-retro-production-attestation.json', import.meta.url),
+    'utf8',
+  ),
+) as { enabled: boolean; manifestSha256?: string };
 
 function gitText(arguments_: string[]): string {
   return execFileSync('git', arguments_, {
@@ -110,6 +125,33 @@ function relayAncestorPairs(
   ];
 }
 
+function localRetroAncestorPairs(): { ancestor: string; descendant: string }[] {
+  if (!localManifest.enabled) return [];
+  const { evidenceCommit, harnesses } = localManifest;
+  if (
+    evidenceCommit === undefined ||
+    harnesses === undefined ||
+    !COMMIT_PATTERN.test(evidenceCommit) ||
+    Object.values(harnesses).some(item => !COMMIT_PATTERN.test(item.buildCommit))
+  ) {
+    throw new Error('enabled local retro readiness manifest contains an unsafe commit');
+  }
+  const manifestSha256 = digestLocalRetroReadinessManifest(localManifest);
+  if (
+    !localProductionAttestation.enabled ||
+    localProductionAttestation.manifestSha256 !== manifestSha256
+  ) {
+    throw new Error('enabled local retro readiness manifest lacks its production attestation');
+  }
+  return [
+    { ancestor: evidenceCommit, descendant: buildCommit },
+    ...Object.values(harnesses).map(harness => ({
+      ancestor: harness.buildCommit,
+      descendant: evidenceCommit,
+    })),
+  ];
+}
+
 function attestArtifacts(
   evidenceCommit: string,
   measurements: Record<string, { path: string }>,
@@ -132,7 +174,10 @@ function attestArtifacts(
 
 function buildRelayAttestation(): RelayBuildAttestation {
   const disabled = disabledRelayAttestation();
-  if (!manifest.enabled) return disabled;
+  if (!manifest.enabled) {
+    localRetroAncestorPairs();
+    return disabled;
+  }
   if (
     !COMMIT_PATTERN.test(buildCommit) ||
     manifest.evidenceCommit === undefined ||
@@ -146,7 +191,10 @@ function buildRelayAttestation(): RelayBuildAttestation {
   if (gitText(['status', '--porcelain']).length > 0) {
     throw new Error('enabled relay readiness manifest requires a clean source tree');
   }
-  const ancestorPairs = relayAncestorPairs(evidenceCommit, prerequisites);
+  const ancestorPairs = [
+    ...relayAncestorPairs(evidenceCommit, prerequisites),
+    ...localRetroAncestorPairs(),
+  ];
   for (const { ancestor, descendant } of ancestorPairs) {
     execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
       maxBuffer: GIT_MAX_BUFFER_BYTES,

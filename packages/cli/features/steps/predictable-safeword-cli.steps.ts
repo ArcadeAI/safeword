@@ -2,7 +2,6 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
   chmodSync,
   existsSync,
@@ -21,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
-import { CLAUDE_MIGRATION_SCHEMA } from '../../src/claude-plugin/inventory.ts';
+import { claudeProjectDigest, claudeProofDirectory } from '../../src/claude-plugin/plugin-data.ts';
 import {
   commandCatalog,
   type CommandDefinition,
@@ -411,12 +410,10 @@ esac
     ...world.hostEnvironment,
     PATH: `${directory}:${world.hostEnvironment?.PATH ?? process.env.PATH ?? ''}`,
   };
-  const proofDirectory = join(
-    hostProfileDirectory(world),
-    'claude-profile',
-    CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory,
-  );
-  const projectDigest = createHash('sha256').update(projectRoot).digest('hex');
+  const proofDirectory = claudeProofDirectory({
+    CLAUDE_CONFIG_DIR: join(hostProfileDirectory(world), 'claude-profile'),
+  });
+  const projectDigest = claudeProjectDigest(projectRoot);
   mkdirSync(proofDirectory, { recursive: true });
   writeFileSync(
     join(proofDirectory, `${projectDigest}.json`),
