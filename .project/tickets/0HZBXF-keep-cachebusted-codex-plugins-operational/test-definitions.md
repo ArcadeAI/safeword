@@ -38,7 +38,7 @@ source share one ledger entry.
 ### Scenario: Generation without an override reproduces the checked-in release bundle
 
 - [x] RED skip: deterministic default generation predates this change and is regression-only
-- [ ] GREEN
+- [x] GREEN c182340db
 - [ ] REFACTOR
 
 ## Rule: cachebusted-codex.SWM1.R2 — Claude Code and Cursor artifacts remain independent of the Codex effective version
