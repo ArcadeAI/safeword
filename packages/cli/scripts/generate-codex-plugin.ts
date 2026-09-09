@@ -28,6 +28,7 @@ await import('./generate-scenario-rubric.js');
 await import('./generate-plan-rubric.js');
 await import('./generate-quality-rubric.js');
 await import('./generate-red-rubric.js');
+await import('./generate-red-rubric.js');
 
 async function generatePlugin(
   generatedRoot: string,
