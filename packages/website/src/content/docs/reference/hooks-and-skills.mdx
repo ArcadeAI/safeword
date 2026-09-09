@@ -223,6 +223,14 @@ Your agent will check against official library docs, look for known security iss
 
 Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. Positional files are the bounded work product; `--context <paths...>` adds bounded supporting evidence without making it review targets. The coordinator snapshots and integrity-checks both roles, treats their contents as untrusted, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), validates the returned JSON and reviewer identity, and records raw machine provenance as `cross-agent`, `degraded`, or `none`. Human output presents validated cross-agent results as independent coverage and permitted same-agent results as standard coverage. Discovery, unsupported capabilities, compatibility-probe timeout, launch failure, authentication, and runtime failure remain distinct typed outcomes with targeted recovery guidance.
 
+BDD workflows can also request `review run executable-red` before production implementation.
+Safeword executes structured JSON argv without a shell, captures bounded output plus full-stream
+digests, and binds the command, working directory, evidence class, expected failure, timeout,
+scenario, proof-plan row, proof targets, and declared support files to the review receipt. A changed
+input cannot reuse an earlier approval, and author-pasted output is never execution evidence. This
+checkpoint blocks GREEN credit: only a fresh approved receipt permits the ledger transition; every
+other state denies it with the exact retry or recovery action.
+
 Safeword-managed review workflows also emit bounded lifecycle progress on stderr
 while a reviewer is active. The final machine result remains the only stdout
 artifact. During the foreground courtesy window, Safeword relays worker progress

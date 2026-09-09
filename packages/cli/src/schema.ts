@@ -11,7 +11,6 @@ import nodePath from 'node:path';
 
 import { acceptedHistoricalHookEntries } from './claude-plugin/historical-ownership.js';
 import { CODEX_MIGRATION_SCHEMA } from './codex-plugin/inventory.js';
-import { OPENCODE_CATALOGUE_OWNED_FILES } from './opencode/catalogue.js';
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
 import { rustManagedFiles, rustOwnedFiles } from './packs/rust/files.js';
@@ -330,17 +329,37 @@ export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/retro-drafts/',
   '.safeword/self-reports/',
   '.safeword/boundary-audit.jsonl',
-  // Native Claude plugin migration state. The plugin's UserPromptSubmit hook
-  // writes these directly every session — plugin mode, the attention record it
-  // dedupes advisories against, the per-session launch claims, and the durable
-  // cleanup transaction. `attempts-v1/` in particular grows one file per Claude
-  // session, so tracking it would commit churn to every customer repository.
+  // Native Claude plugin state. Session state moved to ${CLAUDE_PLUGIN_DATA}
+  // (issue #3787), so what remains here is the quarantine of legacy files the
+  // cleanup retired, plus the pre-0.84 layout until first adoption removes it.
+  // Still ignored: a customer who upgraded mid-session must not be handed a
+  // dirty tree, and quarantined bytes are recovery material, not source.
   '.safeword/claude-plugin/',
   '.safeword/state/reviews/',
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
 ];
+
+/**
+ * Top-level `.safeword/` entries that carry no proof a project install ever ran.
+ *
+ * Every one of them is written by a hook or by the native Claude plugin, so a
+ * repository that has only these is not configured — it is a repository some
+ * Safeword surface merely ran inside. Judging configured-ness by the bare
+ * existence of `.safeword/` made a plugin-only repository reconcile against the
+ * full project schema and report every managed file as drift (issue #3786).
+ *
+ * Derived from `SAFEWORD_TRANSIENT_PATHS` rather than restated, so a new
+ * transient path cannot silently start counting as an install.
+ */
+export const SAFEWORD_TRANSIENT_ROOT_ENTRIES: readonly string[] = [
+  ...new Set(
+    SAFEWORD_TRANSIENT_PATHS.filter(path => path.startsWith('.safeword/')).map(
+      path => path.slice('.safeword/'.length).split('/', 1)[0] ?? '',
+    ),
+  ),
+].filter(name => name !== '');
 
 /**
  * Content of the `.gitignore` written *inside* the resolved namespace root
@@ -569,9 +588,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/rules',
     '.cursor/commands',
     '.cursor/agents',
-    '.opencode',
-    '.opencode/commands',
-    '.opencode/agents',
   ],
 
   // Directories we add to but don't own (not deleted on reset)
@@ -801,6 +817,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/host-toolchain.ts': { template: 'hooks/lib/host-toolchain.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
+    '.safeword/hooks/lib/project-state.ts': { template: 'hooks/lib/project-state.ts' },
     '.safeword/hooks/lib/run-identity.ts': { template: 'hooks/lib/run-identity.ts' },
     '.safeword/hooks/lib/dependency-readiness.ts': {
       template: 'hooks/lib/dependency-readiness.ts',
@@ -1159,7 +1176,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/ticket-system/SKILL.md': {
       template: 'skills/ticket-system/SKILL.md',
     },
-    // Claude skills — action commands with disable-model-invocation
+    // Claude skills — Cursor-side action commands (manual-only on Cursor).
+    // Claude invocation is configured independently: `disable-model-invocation`
+    // makes a skill slash-command-only, while `user-invocable: false` reserves an
+    // internal skill for model and skill-to-skill use. Keep natural-language
+    // Safeword workflows model-invocable even when they can have side effects;
+    // their own approval gates remain the safety boundary.
     // Skills auto-create /slash-commands, so separate commands are unnecessary
     '.claude/skills/lint/SKILL.md': { template: 'skills/lint/SKILL.md' },
     '.claude/skills/verify/SKILL.md': { template: 'skills/verify/SKILL.md' },
@@ -1205,9 +1227,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'commands/cleanup-zombies.md',
     },
     '.cursor/commands/lint.md': { template: 'commands/lint.md' },
-
-    // OpenCode reads thin plural-form stubs and discovers canonical bodies via .claude/skills.
-    ...OPENCODE_CATALOGUE_OWNED_FILES,
 
     // Cursor hooks adapters - TypeScript with Bun runtime
     '.safeword/hooks/cursor/after-file-edit.ts': {

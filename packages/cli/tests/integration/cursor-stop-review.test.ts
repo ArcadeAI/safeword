@@ -56,7 +56,7 @@ function buildProject(phase: string, options: { architectureDrift?: boolean } = 
   const cwd = createTemporaryDirectory();
   writeGateConfig(cwd, { stopQualityReview: true });
   initGitRepo(cwd);
-  writeTestFile(cwd, '.safeword/.gitkeep', '');
+  writeTestFile(cwd, '.safeword/SAFEWORD.md', '# Safeword\n');
   writeTestFile(cwd, 'ARCHITECTURE.md', '# Architecture\n\nHuman narrative.\n');
   writeTestFile(
     cwd,

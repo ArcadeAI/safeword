@@ -154,6 +154,19 @@ describe('review-receipt wiring (write-review-stamp.ts ↔ review status --json)
     expect(readLog()).toContain(`review-id:${REVIEW_ID}`);
   });
 
+  it('surfaces the reviewer model recorded by the coordinator', () => {
+    stubCoordinator({ ...approvedEnvelope, reviewer_model: 'claude-opus-5' });
+
+    const previousPluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+    process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+    try {
+      expect(readReviewReceipt(REVIEW_ID, projectRoot)?.reviewerModel).toBe('claude-opus-5');
+    } finally {
+      if (previousPluginRoot === undefined) delete process.env.CLAUDE_PLUGIN_ROOT;
+      else process.env.CLAUDE_PLUGIN_ROOT = previousPluginRoot;
+    }
+  });
+
   it("refuses when the cited review covered a different ticket's impl-plan", () => {
     stubCoordinator({
       ...approvedEnvelope,

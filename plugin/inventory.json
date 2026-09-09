@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "452e342d49fe13c5e66da8684a17d8c8d8eafc58420a030a1168b4fea72da0e9"
+      "sha256": "161d432fdea6ed2a35b42f02424f11ee480116261aa5e29e6992ccee98f4651e"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -114,12 +114,8 @@
       "sha256": "33885d7eaec20c6edc0e1a8fb49dc633de5bb3304b8de8d8d3eb93715cd0d9c3"
     },
     {
-      "path": "resources/templates/feature-spec-template.md",
-      "sha256": "e9fdafae30f3f2fe662a89a1cf9051c672557d6d0858889ede4aef521380b41b"
-    },
-    {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "9eb866ef4364ef9b2bf5527c041a6642c4608fab570e2e5e4762d04bc3a7611e"
+      "sha256": "6f4f7123183aa3ebabd36216fb4f1309556547ee6647a0f7e4afa0125d49cc05"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -143,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "3c6308f77bbbf439151551cad3eb5e3d03500751c8793fca432ba55a25045a51"
+      "sha256": "4d379bd0374a465d1c128a970baf07a9e18c3bc8102715426f0063bef552b4af"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "49276859164d468b9e8c17821290ab6130feedb8e765c632403c03733a5bdff9"
+      "sha256": "d6ad3e140f5b8e37328b3edbbe2bfb702a5dc7480ce0e83ba2efa4cc4cf0c82c"
     },
     {
       "path": "runtime/event-groups.json",
@@ -199,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "94273583d0266873843317ed4d0b11f6724ad701d0be0486cd16efa447924912"
+      "sha256": "f5aea23bfc1797d0c197a5f92478a9a88e8ecf504512af4db75b7ab6841e8be8"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -243,7 +239,7 @@
     },
     {
       "path": "runtime/hooks/lib/host-toolchain.ts",
-      "sha256": "b3e708a08076cd71cb67ad917af0d4bf25dc4ce083c7449c39844778141492be"
+      "sha256": "978442278e28a476b21acee45fd418ed16f89ba5957f0dc99f68a339e82493b2"
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
@@ -275,7 +271,7 @@
     },
     {
       "path": "runtime/hooks/lib/lint-config.ts",
-      "sha256": "b0e1dec2d53852ee767ecb91e3ac6bf3421ba07bba6454d56e72a65e11b3e9a6"
+      "sha256": "496321a3c4dd5b6a6d9fc8a070b4bdaa800715288321ac2f7f7906afb4e1f8b2"
     },
     {
       "path": "runtime/hooks/lib/lint.ts",
@@ -291,7 +287,7 @@
     },
     {
       "path": "runtime/hooks/lib/owned-paths.ts",
-      "sha256": "cfafab5aa3af2c42cbc2b183940ecd69ae34291c66d9a681a2f05094e918f299"
+      "sha256": "bec99b5766f7c07477cb527f6030a13d1a1e93152806e8c6a0886a2c5b3d17cc"
     },
     {
       "path": "runtime/hooks/lib/parse-annotation.ts",
@@ -307,7 +303,7 @@
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
-      "sha256": "08244a3285824e3acbc9f538ea6b2d8cabd806f853b0fc30606f0a5abbda512f"
+      "sha256": "4652601c6278055c926f9c710129d45f865b29e85570ba71b278ba0315b5248b"
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
@@ -322,12 +318,16 @@
       "sha256": "57c008564fe56d0540c01d78e65b65b9ac1a2ce8635359714d136de4af3c7f72"
     },
     {
+      "path": "runtime/hooks/lib/project-state.ts",
+      "sha256": "fe69ee8de20d442d6b849f3fa45eac09e8cc92c333c4348fe6df8b5e66ef9fec"
+    },
+    {
       "path": "runtime/hooks/lib/quality-state.ts",
       "sha256": "fb6ddddca86d33991b184419f2e54e9b49dbe84d03a5ef53a73e95c76e99b774"
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "630782acc22a007f01a80b966583aa3bc8266d7919658bfb63d4aa83e7c07631"
+      "sha256": "2fb8f5d7016878ed032fc6e70da0bc3128a81cb98bf341dc1692aaf714877925"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -451,7 +451,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "15563ef325306e9ed63db14a15129b68f602dbe3648989eb70cab8f61a6da0ab"
+      "sha256": "f5a8268809244c3c32fbeda75a028e6b6ae2218da6b75f11ed58acfaedbcef3d"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "1b7d431f529afdadf4610dcf82995763d75203119ac72e7b816537ce5c24ef12"
+      "sha256": "5796604af7664317170bfeacb6d27139417c5ee4d5058e8a05068eec99dce0cc"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -503,7 +503,7 @@
     },
     {
       "path": "runtime/hooks/record-skill-invocation.ts",
-      "sha256": "b700df1e48aeb3e85aded1bcd042d12b82a901d4b1af79503a248df41045566f"
+      "sha256": "36ef8a6fd588d045684b55d1acf90afee2d424e82541c3d24c77330e53117dd0"
     },
     {
       "path": "runtime/hooks/resolve-namespace-root.ts",
@@ -515,7 +515,7 @@
     },
     {
       "path": "runtime/hooks/resolve-verify-ticket.ts",
-      "sha256": "0752de0d5d2701235ec00667bda595f11dae9a91a563e630cade52183da5f2bd"
+      "sha256": "6f53b7c07b28cb94cce44a09188912ba0eb902adf765f13f2fe47d90c4c8fd1c"
     },
     {
       "path": "runtime/hooks/run-review.ts",
@@ -559,7 +559,7 @@
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",
-      "sha256": "54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2"
+      "sha256": "6d8e5819bd52208799089d19bfdbd569fc46b9d518df4c45ab2c3b605d9647dc"
     },
     {
       "path": "runtime/hooks/session-reply-format.ts",
@@ -603,7 +603,7 @@
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "45459462d7c28e24f258e88b55b262f24ab4bea310fccb6b9ee413d74c44d41e"
+      "sha256": "8715d6aeed2e6e2dcaf840ab9c76c52a8dd38f498d220502e9178af7096ca686"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
@@ -615,11 +615,11 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "76a20577409fb9d514b06f84a8c3e37ef4f2bf3d2d30f42300713cc1cde80d9e"
+      "sha256": "b2add745768013c06a13ae745da0d5bc49f1b28c84ed79156352df48868c8f35"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "a12f8574734678367dc91b0c84e5bc390e51ad6ceee00fcf890a5b4ac7572bc5"
+      "sha256": "d2d262f7b88d47df8d7d6da5cddbf78574252ce3eb1a25f4b978a41c42290cb8"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -631,7 +631,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "7ebc4d5494c17b2c6536c5eaaf154a08053fe3f5c3c7fd210e1ebe2b01bb0b08"
+      "sha256": "dcabcd5bf31d33a74509970067638b7b0bd1f83f6c7317fbb9d1bf7c44b86f4b"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -651,7 +651,7 @@
     },
     {
       "path": "skills/debug/SKILL.md",
-      "sha256": "6fe09a11fea73743711cf620a222056fcc89e6b51e6a30f2dacce812a92c1b51"
+      "sha256": "fd948df163f18518ba9574a27f585bf187b238dea0cdaa1e6b1d2ea763fbed09"
     },
     {
       "path": "skills/demand-research/SKILL.md",
@@ -695,19 +695,19 @@
     },
     {
       "path": "skills/retro-filer/SKILL.md",
-      "sha256": "27675c6a2fedfdb207365e7605264c40589cfcff66c1461634bae0173e1cfcda"
+      "sha256": "9979448f6c06bb78fa087523f90b8102f8de81326b980ca609e887ba32bb5e80"
     },
     {
       "path": "skills/retro/SKILL.md",
-      "sha256": "4e06549e5f0d918e1e6efe899444ec2ac86f090fe3a32029649474d8e749d230"
+      "sha256": "da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb"
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "6f7db49984af9e3aaa48d3ae54a92b9547ea5af6c552fee7b8d85d866a0f8898"
+      "sha256": "6d5cd00bd18ce1ad676f315de85ee6cf907bfc164803bfedaf174034cbe2c03e"
     },
     {
       "path": "skills/self-review/SKILL.md",
-      "sha256": "f85fcfcfc7e10c833390f3166bc7447a67c7f0a216d297492d96fc54c6e628c5"
+      "sha256": "cf69c12d85294d59760ee8ba1b8a9f9ad0b88cfb3a9546a0a5b9c05e0e97e28f"
     },
     {
       "path": "skills/spike/SKILL.md",
@@ -715,19 +715,19 @@
     },
     {
       "path": "skills/tdd-review/SKILL.md",
-      "sha256": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f"
+      "sha256": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43"
     },
     {
       "path": "skills/testing/SKILL.md",
-      "sha256": "c24433f99f3283dcb083573fcfb1eddc8223d02bce09b9ead977597d0a219190"
+      "sha256": "fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686"
     },
     {
       "path": "skills/ticket-system/SKILL.md",
-      "sha256": "3bc4d8f26752ba292a38270e2a6d03e58dd87e92aaa7f00a9d71871b100dc339"
+      "sha256": "765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a"
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "eb58b32133c7372950e243a17f6ff5d71317238f2abbf664c518d1c043458f2a"
+      "sha256": "6d313d32755eae64d2707a6e001d41610d8ab01954c405ad13c55665d7dad5e3"
     }
   ]
 }
