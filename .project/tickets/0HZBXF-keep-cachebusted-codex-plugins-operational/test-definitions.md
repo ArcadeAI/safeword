@@ -24,7 +24,7 @@ source share one ledger entry.
 ### Scenario: A cachebusted workflow resolves its own installed runtime
 
 - [x] RED skip: effective-version runtime wiring landed in the coherent-generator slice
-- [ ] GREEN
+- [x] GREEN dddfa62a3
 - [ ] REFACTOR
 
 ### Scenario: Profile status accepts the cachebusted bundle identity
