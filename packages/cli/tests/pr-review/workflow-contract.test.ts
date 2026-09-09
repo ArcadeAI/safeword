@@ -12,6 +12,11 @@ import { VERSION } from '../../src/version.js';
 
 const templatesDirectory = nodePath.join(import.meta.dirname, '../../templates/workflows');
 const routerPath = nodePath.join(templatesDirectory, 'pr-review.yml');
+const dogfoodRouterPath = nodePath.join(
+  import.meta.dirname,
+  '../../../../.github/workflows/safeword-pr-review.yml',
+);
+const dogfoodBundlePath = nodePath.join(import.meta.dirname, '../../../../plugin/runtime/cli.js');
 const publisherPath = nodePath.join(templatesDirectory, 'pr-review-publisher.yml');
 const workerPath = nodePath.join(templatesDirectory, 'pr-review-worker.yml');
 const installedWorkflowPaths = [
@@ -112,15 +117,54 @@ describe('advisory PR review workflow contract', () => {
     const publisher = YAML.parse(readFileSync(publisherPath, 'utf8')) as Record<string, unknown>;
     const worker = YAML.parse(readFileSync(workerPath, 'utf8')) as Record<string, unknown>;
 
+    const dogfoodRouter = YAML.parse(readFileSync(dogfoodRouterPath, 'utf8')) as {
+      jobs: Record<string, { steps: unknown[] }>;
+    };
+    expect(dogfoodRouter.jobs.readiness?.steps[0]).toEqual({
+      uses: 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0',
+    });
+    expect(dogfoodRouter.jobs.readiness?.steps[1]).toEqual({
+      uses: 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6',
+      with: { 'bun-version-file': 'package.json' },
+    });
+    expect(dogfoodRouter.jobs.readiness?.steps[2]).toMatchObject({
+      run: 'bun plugin/runtime/cli.js --no-input --json review-pr readiness',
+    });
+    expect(existsSync(dogfoodBundlePath), 'missing dogfood bundled CLI').toBe(true);
+
     expect(router).toMatchObject({
       on: {
         pull_request_target: {
-          types: ['opened', 'reopened', 'synchronize', 'ready_for_review', 'converted_to_draft'],
+          // `edited` serves the deterministic readiness status, which is about
+          // the body. The advisory reviewer excludes it below so a body edit
+          // never spends a model call.
+          types: [
+            'opened',
+            'reopened',
+            'synchronize',
+            'ready_for_review',
+            'converted_to_draft',
+            'edited',
+          ],
         },
         schedule: [{ cron: '*/5 * * * *' }],
       },
       jobs: {
+        readiness: {
+          concurrency: {
+            'cancel-in-progress': true,
+            group: 'pr-readiness-${{ github.event.pull_request.number }}',
+          },
+          permissions: { contents: 'read', 'pull-requests': 'read', statuses: 'write' },
+          steps: [
+            {
+              name: 'Report readiness evidence freshness',
+              run: 'npx --yes safeword@__SAFEWORD_VERSION__ --no-input --json review-pr readiness',
+            },
+          ],
+        },
         'event-review': {
+          if: "github.event_name == 'pull_request_target' && github.event.action != 'edited'",
           permissions: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
           secrets: 'inherit',
           uses: './.github/workflows/safeword-pr-review-worker.yml',

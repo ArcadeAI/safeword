@@ -596,6 +596,37 @@ export async function reviewPrInspectHandler(invocation: CommandInvocation): Pro
   });
 }
 
+export async function reviewPrReadinessHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('review-pr readiness');
+  try {
+    const { createGitHubReadinessBoundary, reportReadinessCommand } =
+      await import('../commands/review-pr-readiness.js');
+    const outcome = await reportReadinessCommand(createGitHubReadinessBoundary());
+    return createResult({
+      // Publishing the signal succeeded even when the signal itself is a
+      // failure. Keep the Actions job green and let the named commit status
+      // carry the readiness verdict.
+      state: 'healthy',
+      changed: true,
+      effects: {
+        network: [{ kind: 'commit-status', target: 'GitHub', operation: 'read-write' }],
+      },
+      data: { command: 'review-pr readiness', outcome },
+    });
+  } catch (error: unknown) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PR_READINESS_REPORT_FAILED',
+          message: `Pull-request readiness reporting failed: ${error instanceof Error ? error.message : String(error)}`,
+          retryable: true,
+        },
+      ],
+    });
+  }
+}
+
 export async function reviewPrPublicationHandler(
   stage: 'invalidate' | 'publish',
   invocation: CommandInvocation,

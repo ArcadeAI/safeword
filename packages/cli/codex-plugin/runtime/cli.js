@@ -3579,7 +3579,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/REVIEWER.md": "7575d91eb96a1c4930c8e68da1f4bb982d052c5e89f75fb38ed6422a8df96562",
         ".claude/skills/finish-review/SKILL.md": "fdb8800d140467f1747f7b0ee067137386026003126ff17c00758940766dd07a",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
-        ".claude/skills/pr-readiness/SKILL.md": "b23b1bb565f0a4551defa0641b52254133807b1c79495641d82bba9102fd19ff",
+        ".claude/skills/pr-readiness/SKILL.md": "0e289cf59b11c72486d7d7fd9f73d5ff94f2ccccc1b116b0c77339c0cc9e949a",
         ".claude/skills/quality-review/SKILL.md": "46189c47ba851e20688c9668a2129bf0f8efa6188c5337c66add87aec566ae59",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
@@ -35873,6 +35873,160 @@ var init_review_pr = __esm(() => {
   ]);
 });
 
+// src/pr-review/github-request.ts
+import process11 from "process";
+function isRecord8(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function requiredEnvironment(name) {
+  const value = process11.env[name];
+  if (!value)
+    throw new Error(`review-pr: ${name} is required`);
+  return value;
+}
+async function githubRequest(path7, init) {
+  const token = requiredEnvironment("GITHUB_TOKEN");
+  const response = await fetch(`https://api.github.com${path7}`, {
+    ...init,
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      "x-github-api-version": "2022-11-28"
+    }
+  });
+  if (!response.ok)
+    throw new Error(`review-pr: GitHub request failed (${response.status})`);
+  return response.status === 204 ? undefined : response.json();
+}
+function requiredPullNumber() {
+  const pull = Number(requiredEnvironment("SAFEWORD_PR_NUMBER"));
+  if (!Number.isSafeInteger(pull) || pull <= 0)
+    throw new Error("review-pr: invalid pull number");
+  return pull;
+}
+var init_github_request = () => {};
+
+// src/pr-review/readiness.ts
+function scanGates(rest) {
+  let blocked = false;
+  let gates = 0;
+  for (const line of rest) {
+    if (HEAD_LINE.test(line))
+      break;
+    const gate = GATE_LINE.exec(line);
+    if (gate === null || Number(gate[1]) !== gates + 1)
+      break;
+    gates += 1;
+    if (BLOCKED_GATE_LINE.test(line))
+      blocked = true;
+    if (gates === 7)
+      break;
+  }
+  return { blocked, gates };
+}
+function evidenceBlocks(body) {
+  const lines = body.split(/\r?\n/u);
+  const blocks = [];
+  for (const [index, line] of lines.entries()) {
+    const sha = HEAD_LINE.exec(line)?.[1];
+    if (sha === undefined)
+      continue;
+    const { blocked, gates } = scanGates(lines.slice(index + 1));
+    if (gates === 7)
+      blocks.push({ blocked, sha: sha.toLowerCase() });
+  }
+  return blocks;
+}
+function report(verdict, evidenceSha) {
+  return {
+    description: DESCRIPTIONS[verdict],
+    ...evidenceSha !== undefined && { evidenceSha },
+    state: FAILING.has(verdict) ? "failure" : "success",
+    verdict
+  };
+}
+function evaluateReadinessEvidence(input) {
+  if (input.draft)
+    return report("draft");
+  const blocks = evidenceBlocks(input.body ?? "");
+  if (blocks.length === 0)
+    return report("missing");
+  const head = input.headSha.toLowerCase();
+  const stale = blocks.find((block) => !head.startsWith(block.sha));
+  if (stale !== undefined)
+    return report("stale", stale.sha);
+  const blocked = blocks.find((block) => block.blocked);
+  if (blocked !== undefined)
+    return report("blocked", blocked.sha);
+  return report("current", blocks[0]?.sha);
+}
+var DESCRIPTIONS, READINESS_DESCRIPTIONS, FAILING, HEAD_LINE, GATE_LINE, BLOCKED_GATE_LINE;
+var init_readiness = __esm(() => {
+  DESCRIPTIONS = {
+    blocked: "Readiness evidence records a blocked gate.",
+    current: "Readiness evidence is current for this head.",
+    draft: "Draft \u2014 readiness evidence is not required yet.",
+    missing: "No readiness evidence block in the pull request body.",
+    stale: "Readiness evidence is for an earlier revision."
+  };
+  READINESS_DESCRIPTIONS = Object.values(DESCRIPTIONS);
+  FAILING = new Set([
+    "blocked",
+    "missing",
+    "stale"
+  ]);
+  HEAD_LINE = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/iu;
+  GATE_LINE = /^[ \t]*(\d+)\.[ \t]*\S/u;
+  BLOCKED_GATE_LINE = /^[ \t]*\d+\..*\bBLOCKED\b/iu;
+});
+
+// src/commands/review-pr-readiness.ts
+var exports_review_pr_readiness = {};
+__export(exports_review_pr_readiness, {
+  reportReadinessCommand: () => reportReadinessCommand,
+  createGitHubReadinessBoundary: () => createGitHubReadinessBoundary,
+  READINESS_STATUS_CONTEXT: () => READINESS_STATUS_CONTEXT
+});
+async function reportReadinessCommand(github) {
+  const pullRequest = await github.readPullRequest();
+  const report2 = evaluateReadinessEvidence(pullRequest);
+  await github.publishStatus(pullRequest.headSha, report2);
+  return { ...report2, headSha: pullRequest.headSha };
+}
+function createGitHubReadinessBoundary() {
+  const root = `/repos/${requiredEnvironment("GITHUB_REPOSITORY")}`;
+  const pull = requiredPullNumber();
+  return {
+    publishStatus: async (headSha, report2) => {
+      await githubRequest(`${root}/statuses/${headSha}`, {
+        body: JSON.stringify({
+          context: READINESS_STATUS_CONTEXT,
+          description: report2.description,
+          state: report2.state
+        }),
+        method: "POST"
+      });
+    },
+    readPullRequest: async () => {
+      const payload = await githubRequest(`${root}/pulls/${pull}`);
+      if (!isRecord8(payload) || !isRecord8(payload.head) || typeof payload.head.sha !== "string") {
+        throw new Error("review-pr: invalid GitHub pull response");
+      }
+      return {
+        body: typeof payload.body === "string" ? payload.body : undefined,
+        draft: payload.draft === true,
+        headSha: payload.head.sha
+      };
+    }
+  };
+}
+var READINESS_STATUS_CONTEXT = "safeword/pr-readiness";
+var init_review_pr_readiness = __esm(() => {
+  init_github_request();
+  init_readiness();
+});
+
 // src/pr-review/publish.ts
 function hasExactReceiptMarker(body) {
   return body.split(/\r?\n/u).includes(RECEIPT_MARKER);
@@ -35968,10 +36122,6 @@ __export(exports_review_pr_publication, {
   createGitHubReviewBoundary: () => createGitHubReviewBoundary
 });
 import { readFileSync as readFileSync34 } from "fs";
-import process11 from "process";
-function isRecord8(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 function isReviewRunState(value) {
   return REVIEW_RUN_STATES.has(value);
 }
@@ -36174,33 +36324,9 @@ async function publishPullRequestCommand(github, resultPath) {
     reason
   };
 }
-function requiredEnvironment(name) {
-  const value = process11.env[name];
-  if (!value)
-    throw new Error(`review-pr: ${name} is required`);
-  return value;
-}
-async function githubRequest(path7, init) {
-  const token = requiredEnvironment("GITHUB_TOKEN");
-  const response = await fetch(`https://api.github.com${path7}`, {
-    ...init,
-    headers: {
-      accept: "application/vnd.github+json",
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-      "x-github-api-version": "2022-11-28"
-    }
-  });
-  if (!response.ok)
-    throw new Error(`review-pr: GitHub request failed (${response.status})`);
-  return response.status === 204 ? undefined : response.json();
-}
 function createGitHubReviewBoundary() {
-  const repoSlug = requiredEnvironment("GITHUB_REPOSITORY");
-  const pull = Number(requiredEnvironment("SAFEWORD_PR_NUMBER"));
-  if (!Number.isSafeInteger(pull) || pull <= 0)
-    throw new Error("review-pr: invalid pull number");
-  const root = `/repos/${repoSlug}`;
+  const root = `/repos/${requiredEnvironment("GITHUB_REPOSITORY")}`;
+  const pull = requiredPullNumber();
   return {
     publisher: {
       createComment: async (body) => {
@@ -36256,6 +36382,7 @@ function createGitHubReviewBoundary() {
 }
 var REVIEW_RUN_STATES, RECEIPT_CHECK_STATUSES, NON_RUN_STATUSES;
 var init_review_pr_publication = __esm(() => {
+  init_github_request();
   REVIEW_RUN_STATES = new Set(["complete", "failed", "incomplete", "stale"]);
   RECEIPT_CHECK_STATUSES = new Set(["failed", "pending", "success", "unknown"]);
   NON_RUN_STATUSES = new Set([
@@ -53629,14 +53756,14 @@ function coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId, featureFiles) 
     return emptyCoverageDiagnostics();
   const featureSource = readFeatureSource(cwd, ticketId, featureFiles);
   try {
-    const report = featureSource === undefined ? buildCoverageReport(specContent, readFileSafe(nodePath79.join(ticketDirectory, "test-definitions.md"))) : buildCoverageReportFromFeature(specContent, featureSource.content);
+    const report2 = featureSource === undefined ? buildCoverageReport(specContent, readFileSafe(nodePath79.join(ticketDirectory, "test-definitions.md"))) : buildCoverageReportFromFeature(specContent, featureSource.content);
     const surfaceReport = featureSource === undefined ? undefined : buildSurfaceCoverageReportFromFeature(specContent, featureSource.content);
     const lineageIssues = featureSource === undefined ? [] : formatFeatureLineageIssues(cwd, ticketId, featureSource, ticketContent);
     const ruleTier = ruleTierDiagnostics(ticketId, specContent, featureSource, ticketContent);
     return {
       issues: [...lineageIssues, ...ruleTier.issues],
       advisories: [
-        ...formatCoverageReport(ticketId, report, ticketContent),
+        ...formatCoverageReport(ticketId, report2, ticketContent),
         ...ruleTier.advisories,
         ...formatSurfaceCoverageReport(ticketId, surfaceReport, ticketContent)
       ]
@@ -53684,21 +53811,21 @@ function isInProgress(ticketContent) {
   }
   return false;
 }
-function formatCoverageReport(ticketId, report, ticketContent) {
+function formatCoverageReport(ticketId, report2, ticketContent) {
   const ticketLabel = formatCoverageTicketLabel(ticketId, ticketContent);
   return [
-    ...report.uncovered.map((id) => isRuleId(id) ? `${ticketLabel}: numbered rule ${id} has no scenario illustrating it (uncovered) \u2014 add a scenario tagged @${id}` : `${ticketLabel}: acceptance criterion ${id} has no scenario (uncovered)`),
-    ...report.stale.map((reference) => isRuleId(reference) ? `${ticketLabel}: scenario ref ${reference} matches no numbered rule under its JTBD (stale ref) \u2014 retag to a declared rule or declare it in spec.md` : `${ticketLabel}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`),
-    ...report.orphan.map((reference) => isRuleId(reference) ? `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan) \u2014 fix the tag's JTBD id or add that JTBD to spec.md` : `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`)
+    ...report2.uncovered.map((id) => isRuleId(id) ? `${ticketLabel}: numbered rule ${id} has no scenario illustrating it (uncovered) \u2014 add a scenario tagged @${id}` : `${ticketLabel}: acceptance criterion ${id} has no scenario (uncovered)`),
+    ...report2.stale.map((reference) => isRuleId(reference) ? `${ticketLabel}: scenario ref ${reference} matches no numbered rule under its JTBD (stale ref) \u2014 retag to a declared rule or declare it in spec.md` : `${ticketLabel}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`),
+    ...report2.orphan.map((reference) => isRuleId(reference) ? `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan) \u2014 fix the tag's JTBD id or add that JTBD to spec.md` : `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`)
   ];
 }
-function formatSurfaceCoverageReport(ticketId, report, ticketContent) {
-  if (report === undefined)
+function formatSurfaceCoverageReport(ticketId, report2, ticketContent) {
+  if (report2 === undefined)
     return [];
   const ticketLabel = formatCoverageTicketLabel(ticketId, ticketContent);
   return [
-    ...report.missing.map((surface) => `${ticketLabel}: affected surface ${surface.name} has no @surface.* scenario tag (uncovered surface)`),
-    ...report.stale.map((slug) => `${ticketLabel}: scenario surface tag @surface.${slug} is not listed under spec.md ## Surfaces Affected (stale surface)`)
+    ...report2.missing.map((surface) => `${ticketLabel}: affected surface ${surface.name} has no @surface.* scenario tag (uncovered surface)`),
+    ...report2.stale.map((slug) => `${ticketLabel}: scenario surface tag @surface.${slug} is not listed under spec.md ## Surfaces Affected (stale surface)`)
   ];
 }
 function formatCoverageTicketLabel(ticketId, ticketContent) {
@@ -62328,8 +62455,8 @@ function inputBindingViolations(steps) {
   const validate = stepById(steps, "validate");
   const verify = stepById(steps, "verify");
   const tests = stepById(steps, "tests");
-  const report = stepById(steps, "report");
-  const valid = hasExactEntries(mapping(validate?.env), { TARGET_SHA: INPUT_SHA, LANE: INPUT_LANE }) && hasExactEntries(mapping(verify?.env), { TARGET_SHA: INPUT_SHA }) && hasExactEntries(mapping(tests?.env), { LANE: INPUT_LANE }) && hasExactEntries(mapping(report?.env), {
+  const report2 = stepById(steps, "report");
+  const valid = hasExactEntries(mapping(validate?.env), { TARGET_SHA: INPUT_SHA, LANE: INPUT_LANE }) && hasExactEntries(mapping(verify?.env), { TARGET_SHA: INPUT_SHA }) && hasExactEntries(mapping(tests?.env), { LANE: INPUT_LANE }) && hasExactEntries(mapping(report2?.env), {
     TARGET_SHA: INPUT_SHA,
     LANE: INPUT_LANE,
     VALIDATION_OUTCOME: "${{ steps.validate.outcome }}",
@@ -70205,6 +70332,33 @@ async function reviewPrInspectHandler(invocation) {
     data: { command: "review-pr inspect", receipt }
   });
 }
+async function reviewPrReadinessHandler(invocation) {
+  if (invocation.offline)
+    return onlineRequired("review-pr readiness");
+  try {
+    const { createGitHubReadinessBoundary: createGitHubReadinessBoundary2, reportReadinessCommand: reportReadinessCommand2 } = await Promise.resolve().then(() => (init_review_pr_readiness(), exports_review_pr_readiness));
+    const outcome = await reportReadinessCommand2(createGitHubReadinessBoundary2());
+    return createResult({
+      state: "healthy",
+      changed: true,
+      effects: {
+        network: [{ kind: "commit-status", target: "GitHub", operation: "read-write" }]
+      },
+      data: { command: "review-pr readiness", outcome }
+    });
+  } catch (error2) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "PR_READINESS_REPORT_FAILED",
+          message: `Pull-request readiness reporting failed: ${error2 instanceof Error ? error2.message : String(error2)}`,
+          retryable: true
+        }
+      ]
+    });
+  }
+}
 async function reviewPrPublicationHandler(stage, invocation) {
   if (invocation.offline)
     return onlineRequired(`review-pr ${stage}`);
@@ -70849,6 +71003,7 @@ var HANDLERS = {
   "review-pr inspect": reviewPrInspectHandler,
   "review-pr invalidate": (invocation) => reviewPrPublicationHandler("invalidate", invocation),
   "review-pr publish": (invocation) => reviewPrPublicationHandler("publish", invocation),
+  "review-pr readiness": reviewPrReadinessHandler,
   "retro run": retroRunHandler,
   "retro signals": retroSignalsHandler,
   "retro reconcile": retroReconcileHandler,
@@ -71416,6 +71571,10 @@ var CANONICAL_COMMANDS = [
   command("review-pr invalidate", "Remove an obsolete advisory route", "mutate", {
     networkPolicy: "declared",
     fixture: { argv: ["review-pr", "invalidate", "--offline"], environment: MACHINE_ENVIRONMENT }
+  }),
+  command("review-pr readiness", "Report whether readiness evidence matches the head", "mutate", {
+    networkPolicy: "declared",
+    fixture: { argv: ["review-pr", "readiness", "--offline"], environment: MACHINE_ENVIRONMENT }
   }),
   command("review-pr publish", "Publish a validated advisory result", "mutate", {
     networkPolicy: "declared",

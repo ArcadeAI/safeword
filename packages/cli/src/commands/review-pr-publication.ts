@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs';
-import process from 'node:process';
 
+import {
+  githubRequest,
+  isRecord,
+  requiredEnvironment,
+  requiredPullNumber,
+} from '../pr-review/github-request.js';
 import {
   hasExactReceiptMarker,
   type IssueComment,
@@ -24,10 +29,6 @@ export interface ReviewPrGitHubBoundary {
 export interface ReviewPrStageOutcome {
   changed: boolean;
   reason: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 const REVIEW_RUN_STATES = new Set<unknown>(['complete', 'failed', 'incomplete', 'stale']);
@@ -338,32 +339,9 @@ export async function publishPullRequestCommand(
   };
 }
 
-function requiredEnvironment(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`review-pr: ${name} is required`);
-  return value;
-}
-
-async function githubRequest(path: string, init?: RequestInit): Promise<unknown> {
-  const token = requiredEnvironment('GITHUB_TOKEN');
-  const response = await fetch(`https://api.github.com${path}`, {
-    ...init,
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'content-type': 'application/json',
-      'x-github-api-version': '2022-11-28',
-    },
-  });
-  if (!response.ok) throw new Error(`review-pr: GitHub request failed (${response.status})`);
-  return response.status === 204 ? undefined : response.json();
-}
-
 export function createGitHubReviewBoundary(): ReviewPrGitHubBoundary {
-  const repoSlug = requiredEnvironment('GITHUB_REPOSITORY');
-  const pull = Number(requiredEnvironment('SAFEWORD_PR_NUMBER'));
-  if (!Number.isSafeInteger(pull) || pull <= 0) throw new Error('review-pr: invalid pull number');
-  const root = `/repos/${repoSlug}`;
+  const root = `/repos/${requiredEnvironment('GITHUB_REPOSITORY')}`;
+  const pull = requiredPullNumber();
 
   return {
     publisher: {

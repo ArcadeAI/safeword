@@ -2,15 +2,37 @@ name: Safeword advisory PR review
 
 on:
   pull_request_target:
-    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited]
   schedule:
     - cron: '*/5 * * * *'
 
 permissions: {}
 
 jobs:
-  event-review:
+  readiness:
     if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    # Serialize every event for this pull request. The command fetches the
+    # current body and head at execution time, so older events converge on the
+    # newest state instead of racing a later run.
+    concurrency:
+      group: pr-readiness-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      # Deterministic, model-free, and no checkout: customer repositories run
+      # the CLI version that installed this workflow.
+      - name: Report readiness evidence freshness
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: npx --yes safeword@__SAFEWORD_VERSION__ --no-input --json review-pr readiness
+
+  event-review:
+    if: github.event_name == 'pull_request_target' && github.event.action != 'edited'
     permissions:
       contents: read
       issues: write
