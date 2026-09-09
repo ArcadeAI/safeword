@@ -3562,11 +3562,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880",
         ".claude/skills/bdd/DISCOVERY.md": "c88ae677ac877afca87745f13403f06e7c2dab86efc7934979d430e03837bf76",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "c48f6f72619a751645a17db9100aa623b0fc7f8970f75dbc9d6601467cc7a7fd",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "ba6338d17b2e243c5c6b6d5a911a0429b8c8e4c0d138dacfb023ec650e45d4b5",
         ".claude/skills/bdd/SCENARIOS.md": "d2d262f7b88d47df8d7d6da5cddbf78574252ce3eb1a25f4b978a41c42290cb8",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "fa1b4ccd58ffdb3755bfd8bdaa1de4d7438ee3e06cfec0bd3ba5df6ff438a95d",
+        ".claude/skills/bdd/TDD.md": "83548dfb6274c98bb43a5c27f8e306d00aa92ad7b81c3df5966cd28f925c2cf0",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -3580,11 +3580,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/SKILL.md": "fdb8800d140467f1747f7b0ee067137386026003126ff17c00758940766dd07a",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
         ".claude/skills/pr-readiness/SKILL.md": "b23b1bb565f0a4551defa0641b52254133807b1c79495641d82bba9102fd19ff",
-        ".claude/skills/quality-review/SKILL.md": "2fd76e355078fad703e13b23d9de3a3fe71c1f98dffb38bdb2f9ff212c157372",
+        ".claude/skills/quality-review/SKILL.md": "46189c47ba851e20688c9668a2129bf0f8efa6188c5337c66add87aec566ae59",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
         ".claude/skills/retro/SKILL.md": "da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb",
-        ".claude/skills/review-spec/SKILL.md": "f296d45e5b3c20e27523c54803d85f1672bb4a920a95a7d24ccadfe10d02c464",
+        ".claude/skills/review-spec/SKILL.md": "cf7607c07fc8eadb501e988ebe36d9aa16a536b4dd90f16d9881a8a923eb3c9a",
         ".claude/skills/self-review/SKILL.md": "7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "322a56bf886d84d26fb13273dc1b9e46854e0b3cc58ce7898512b41cba5ede43",
@@ -3604,7 +3604,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "714cc2945603518efb118286ced3d27a082a7861b929392e614e2eb6c9344f48",
+        ".safeword/hooks/pre-tool-quality.ts": "3934bed4d94eaa61ccb52a52eb51e6f8442ee5920d15c4e73f1e0b25a8cda8db",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -3621,7 +3621,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "154eabcac8f8b406bc8e7ec4150b433a2aeaa35df9be5c36bb0491d9c2c19d66",
+        ".safeword/hooks/stop-quality.ts": "e9a9e9233e3d54246482f20e8381490d74ba39d99ab6dcc6c29a72812fd3e388",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "5b0767121376bac1ad9f2b57765f0e705b1c34bff72724133014d31e39c0b916",
@@ -31530,7 +31530,7 @@ Common vacuous patterns, each with its fix (apply only when you can state the do
 | **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
 | **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
 
-**Atomic** \u2014 a single \`When\`\u2192\`Then\` is atomic even if the \`Then\` asserts several properties of ONE outcome ("returns 200 with body X"). Flag non-atomic only when two genuinely independent behaviors could pass/fail separately (two \`When\` steps or two \`Then\`s asserting different system-level effects) \u2014 never for a merely compound \`Then\`.
+**Atomic** \u2014 a scenario proves one externally observable behavior. Several \`Then\`/\`And\` assertions remain atomic when they jointly specify that behavior, even if a property could fail independently (for example, "returns 200 with body X"). Use failure independence as a diagnostic, not the definition: split when independently failing assertions describe distinct system effects, user outcomes, or remediation paths. If removing one assertion would leave the scenario's named behavior fully specified, that assertion likely belongs elsewhere. Two \`When\` steps are non-atomic regardless. Do not split merely to give every assertion its own scenario; duplicated setup obscures the example. Early assertion failure can hide later defects, so prefer focused executable checks underneath a coherent BDD example ([arXiv:2504.04557](https://arxiv.org/html/2504.04557)).
 
 **Rule ownership** \u2014 review a coherent outcome under the Rule whose invariant it proves. An outcome owned by a different Rule is a lineage defect, not an atomicity defect; move or split it and report that single root cause.
 

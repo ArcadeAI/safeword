@@ -75,7 +75,7 @@ When the scenario source is a `.feature` file and the Cucumber lane exists, RED 
 
 - If `.safeword/config.json` sets `bdd.conventions`, read that doc first and follow it over the defaults below — it defines the host harness's stub shape, its spec-ahead verification lane (often a dry-run/check profile, not run-and-expect-failure), and its tag rules. Never pass ad-hoc `--tags` filters that bypass the host profiles' exclusions.
 - If no matching steps exist, the first RED can be `bun run test:bdd` failing with undefined or pending steps, then add the thinnest TypeScript step definitions under the project's step directory (`steps/` or `features/steps/` by default; `paths.steps` when configured). Run-and-expect-failure proves wiring for safeword's scaffolded lane — an adopted host harness whose hooks boot real infrastructure needs its documented dry-run/check profile instead.
-- **Verify RED on the reported step status, not the exit code alone.** Safeword's scaffolded `test:bdd` runs cucumber-js _without_ `--dry-run`, so undefined/pending steps exit non-zero — a genuine RED. But `cucumber-js --dry-run` _reports_ undefined/ambiguous/pending steps while still **exiting 0**; a lane (or host profile) built on `--dry-run` will look green even when steps are missing. Never substitute a bare `--dry-run` for this RED check, and when a dry-run/check profile is the host's spec-ahead lane, confirm RED by the reported undefined/pending count it prints, not by its exit status.
+- **Verify RED on the reported step status, not the exit code alone.** Safeword's scaffolded `test:bdd` runs cucumber-js _without_ `--dry-run`, so undefined/pending steps exit non-zero — a genuine RED. But `cucumber-js --dry-run` may exit 0 depending on the configured strict mode even while it reports undefined, ambiguous, or pending steps. Never substitute a bare `--dry-run` for this RED check, and when a dry-run/check profile is the host's spec-ahead lane, confirm RED by the reported undefined/pending count it prints, not by its exit status.
 - Keep step definitions thin; call app, API, CLI, or shell helpers from steps. Do not bury business logic in Cucumber glue.
 - Use Vitest for lower-level implementation proof when it gives faster or more precise coverage, especially pure functions and module contracts.
 - A scenario is not complete until both the relevant implementation tests and `test:bdd` pass. An explicitly tagged `@manual` or `@live` scenario instead requires the ticket-work-log evidence and ledger annotations described above.
@@ -95,25 +95,67 @@ plan, then ask Safeword to execute and independently review each distinct proof 
 
 ```bash
 SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run executable-red \
+  --agent-handoff --json \
   --scenario 'Scenario: exact ledger heading' \
   --ledger .project/tickets/TICKET/test-definitions.md \
   --context path/to/scenario.feature \
   --context path/to/impl-plan.md \
   --proof-cwd . \
-  --evidence-class pure-contract \
+  --evidence-class '<class>' \
   --expected-failure 'the intended actor-boundary failure' \
   --execute '["bun","run","test","path/to/proof.test.ts"]' \
   -- path/to/proof.test.ts path/to/declared-support.ts
 ```
 
+**The dispatch is authorized; skipping it is not your call.** The coordinator uses a local CLI
+the user configured and signed in to; that local process may send the bounded targets and
+`--context` packet to a remote model provider.
+This review route ships enabled by default; a user who does not want it sets
+`crossAgentReview: off` in `.safeword/config.json`. The coordinator enforces that setting before
+provider dispatch, so do not duplicate its policy check in chat. The enabled route authorizes
+ordinary dispatch, and a cross-vendor second opinion is the point of the gate, so do not invent a
+disclosure-approval requirement.
+Do not stop and ask the user for consent in chat before running it, even when the packet contains
+private repository files or crosses provider boundaries. Never pass credentials, customer data, or
+secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked.
+Invoke the coordinator first. If the host
+blocks the command, use its native tool-approval request: request the approval it needs, or report
+that block as the blocker; never replace that request with a chat question. A retry, status check,
+or permitted fallback for the same bounded packet proceeds without
+asking again. **A review you never dispatched is not coverage** — say so unprompted, before any
+finding, name what ran in its place, and never let your own pass stand in for the review.
+
+If the typed result is `REVIEW_PENDING`, keep its `review_id`, continue other useful work, and run
+its typed `nextActions` status command until the review is terminal. Never redispatch the same
+sources merely because that review is still pending.
+
+If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command and
+rerun the same coordinator command once after authentication succeeds. Do not invoke
+`$safeword:finish-review` for executable RED: a same-agent fallback cannot authorize GREEN. If authentication
+still fails or the typed result is `REVIEW_ROUTES_EXHAUSTED`, report the blocker and leave GREEN
+unchecked.
+If the typed result is `REVIEW_NOT_REQUESTED` because `crossAgentReview: off`, report that the
+executable-RED receipt gate requires independent review and leave GREEN unchecked. Re-enable the
+review route, or use the separate manual/live evidence path only when the scenario genuinely has
+that classification; never relabel an executable scenario to bypass the receipt gate.
+If a typed result nevertheless carries `independence: degraded`, state before reporting the blocker
+that the actual reviewer was not independent; degraded evidence cannot authorize GREEN.
+Never substitute another surface-private reviewer or hand-written independent evidence.
+
 Pass JSON argv, never shell text. Include the scenario, proof-plan row, primary proof target, and
 every support file whose change would invalidate the evidence. Use the exact active ledger heading
 as `--scenario` and its project-relative `test-definitions.md` path as `--ledger`. One fresh approved receipt may cover
 Scenario Outline rows only when their canonical command and declared proof targets are identical.
+Choose `--evidence-class` from `pure-contract`, `simulated-host`, `local-live-host`, or
+`external-live-host` according to the real boundary exercised by the command.
 The shared edit gate blocks the GREEN checkbox until `review gate executable-red` finds a fresh
-approved cross-agent receipt for that scenario. Missing, stale, fabricated, incomplete, mismatched,
-passing, wrong-reason, or same-agent evidence cannot authorize GREEN. Follow the exact recovery
-action and leave GREEN unchecked when independent review is unavailable.
+approved cross-agent receipt for that scenario. For scenarios inside this receipt path, missing,
+stale, fabricated, incomplete, mismatched, passing, wrong-reason, or same-agent evidence cannot
+authorize GREEN. Follow the exact recovery action and leave GREEN unchecked when independent review
+is unavailable.
+An explicitly tagged `@manual` or `@live` scenario whose RED row records the required
+`skip: manual` or `skip: live` work-log evidence is outside this executable-receipt gate; its
+separate evidence path above controls when GREEN may be recorded.
 
 ### Checkbox Format Contract
 
@@ -143,9 +185,10 @@ Then they see the dashboard
 Do not weaken the gate or force it through with `--no-verify`. Instead:
 
 1. Run the smallest command that proves the intended RED.
-2. Record the command and failure in the work log.
-3. Mark the scenario `RED skip: uncommittable partial state — <command> failed before GREEN because <reason>`.
-4. Move directly to GREEN and cite the GREEN commit on its own checkbox.
+2. Complete the trusted executable RED review above for the primary proof and obtain its approved receipt. The structural commit failure explains why there is no RED commit; it does not replace the intended `--expected-failure` evidence.
+3. Record the command and failure in the work log.
+4. Mark the scenario `RED skip: uncommittable partial state — <command> failed before GREEN because <reason>`.
+5. Move directly to GREEN and cite the GREEN commit on its own checkbox.
 
 At the bottom of `test-definitions.md`, add one row for the whole-ticket cross-scenario refactor pass (same annotation rule applies). It's **completed at implement-exit** (see "whole-ticket quality review + refactor" below), and the done-gate requires it only when the ticket has **two or more RGR loops** — a single-loop ticket has nothing to cross and may leave it unmarked:
 
@@ -210,7 +253,8 @@ All scenarios complete → reconcile `impl-plan.md` against what actually shippe
 
 _Worked example:_ the plan said "Decisions: parse with the shared markdown utility"; during implementation a local scan proved smaller, so the choice changed mid-implementation — the row now reads choice "local content-or-skip scan", with the shared utility recorded under Alternatives considered and the reason it lost. That update (not a rewrite of history — the alternatives column preserves it) is what reconciliation produces.
 
-Reconciled → set `phase: verify` and continue directly into the verify phase:
+Reconciled → first satisfy the independent design-review gate below when it is
+enabled; then set `phase: verify` and continue directly into the verify phase:
 run `$safeword:verify`, then `$safeword:audit`. Do not ask the user whether to proceed; verification
 is agent-owned work. Ask the user only if `$safeword:verify`, `$safeword:audit`, or a review
 surfaces a real spec, scope, value, or risk decision.
@@ -226,12 +270,12 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
    SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
    ```
 
-   **The dispatch is authorized; skipping it is not your call.** The coordinator spawns the reviewer as a local subprocess of a CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; the packet is bounded to the targets and `--context` you pass. That route exists only because the user configured it, and a cross-vendor second opinion is the point of the gate — a user who does not want it sets `crossAgentReview: off` in `.safeword/config.json`. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement, and do not withhold the dispatch on your own judgment. If your runtime blocks it (sandbox, network, or approval policy), request the approval it needs, or report that block as the blocker. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
+   **The dispatch is authorized; skipping it is not your call.** The coordinator runs through a local CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; that local process may send the packet to a remote model provider, and the packet is bounded to the targets and `--context` you pass. This review route ships enabled by default; a user who does not want it sets `crossAgentReview: off` in `.safeword/config.json`. The coordinator enforces that setting before provider dispatch, so do not duplicate its policy check in chat. The enabled route authorizes ordinary dispatch, and a cross-vendor second opinion is the point of the gate. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement. Do not stop and ask the user for consent in chat before running this command, even when the packet contains private repository files or crosses provider boundaries. Never pass credentials, customer data, or secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked. Invoke the coordinator first. If the host blocks the command, use its native tool-approval request: request the approval it needs, or report that block as the blocker; never replace that request with a chat question. A retry, status check, or permitted fallback for the same bounded packet proceeds without asking again. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
 
-   The shared coordinator prefers the opposite headless agent. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
+   The shared coordinator prefers the opposite headless agent. A healthy `REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`, continue other useful work, and run its typed `nextActions` status command until the review is terminal. Never redispatch the same sources merely because that review is still pending. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` with the original result and the same accepted targets; return every other result unchanged. Never substitute another surface-private reviewer or hand-written independent evidence. Degraded findings cannot satisfy a required independent-review gate. If the result carries `independence: degraded`, state before any finding that the actual reviewer was not independent; never describe it as independent or cross-agent coverage, and do not stamp or advance. On an independent pass, stamp it:
 
    ```bash
-   bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" impl-plan
+   bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation
    ```
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp. `--review-id` is the coordinator's `review_id` from the result you are stamping: it is what proves the review ran, so a stamp claiming independence without one is refused.
@@ -239,9 +283,9 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 **Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. Record a model only when the executed reviewer reports a verifiable identifier; the cross-agent coordinator does not guess a default model:
 
 ```bash
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" --review-id "review_id" impl-plan
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" --review-id "review_id" --phase plan-implementation
 ```
 
-The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. When `crossAgentReview` is `require`, degraded evidence and skips also fail closed; restore the opposite reviewer and rerun the coordinator. (This gate is stricter than quality-review's advisory loop, which may accept a labeled same-agent result under the default `prefer` policy.)
+The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. If the selected reviewer reports no verifiable model identifier, switch to a configured route that does; if none can, report the blocker and ask the user to disable `crossModelReview` before retrying. When `crossAgentReview` is `require`, degraded evidence and skips also fail closed; restore the opposite reviewer and rerun the coordinator. (This gate is stricter than quality-review's advisory loop, which may accept a labeled same-agent result under the default `prefer` policy.)
 
 **Avoid bloat.**
