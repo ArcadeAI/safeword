@@ -166,6 +166,23 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     ).toEqual({ ok: true });
   });
 
+  it('accepts a reviewed implementation file when Git cannot derive a change set', () => {
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'implement', implementationFiles: [] }), {
+        ...approved,
+        kind: 'quality-review',
+        targets: ['packages/cli/src/changed.ts'],
+      }),
+    ).toEqual({ ok: true });
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'implement' }), {
+        ...approved,
+        kind: 'quality-review',
+        targets: ['packages/cli/src/changed.ts'],
+      }).ok,
+    ).toBe(false);
+  });
+
   it.each(['implement', 'verify', 'done'])(
     'does not let a spec review witness the %s phase',
     phase => {

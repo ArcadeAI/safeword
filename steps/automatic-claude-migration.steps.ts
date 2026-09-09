@@ -30,10 +30,10 @@ import {
   recoverClaudeCleanup,
 } from '../packages/cli/src/claude-plugin/cleanup.js';
 import { historicalCatalogueDigest } from '../packages/cli/src/claude-plugin/historical-ownership.js';
-import { CLAUDE_MIGRATION_SCHEMA } from '../packages/cli/src/claude-plugin/inventory.js';
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
 import {
   claimClaudeMigrationAttempt,
+  claudeProjectStatePath,
   readClaudePluginMode,
 } from '../packages/cli/src/claude-plugin/migration-state.js';
 
@@ -60,8 +60,13 @@ import {
   writeProjectFile,
 } from './support/claude-migration-fixtures.ts';
 
-const MARKER = CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2;
-const TRANSACTION = CLAUDE_MIGRATION_SCHEMA.paths.transaction;
+/**
+ * Plugin state lives beside the plugin's data, not in the project (#3787), so
+ * these resolve to absolute paths outside the working tree.
+ */
+const pluginModePath = (root: string): string => claudeProjectStatePath(root, 'pluginMarkerV2');
+const cleanupTransactionPath = (root: string): string =>
+  claudeProjectStatePath(root, 'transaction');
 /** Migration's own state is the subject under test, never "unrelated bytes". */
 const MIGRATION_STATE = ['.safeword/claude-plugin'];
 /** Hook commands Safeword does not own and must never touch. */
@@ -85,6 +90,12 @@ interface MigrationWorld {
   expectedSettings?: string;
   raceRuns?: readonly { status: number; output: string }[];
   winningTransactionId?: string;
+}
+
+function writeTransaction(root: string, content: string): void {
+  const path = cleanupTransactionPath(root);
+  mkdirSync(nodePath.dirname(path), { recursive: true, mode: 0o700 });
+  writeFileSync(path, content);
 }
 
 function project(world: MigrationWorld): LegacyProject {
@@ -212,7 +223,7 @@ Then(
       0,
       `a clean contraction must stay silent, got: ${advisory(this)}`,
     );
-    assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
+    assert.ok(!existsSync(cleanupTransactionPath(project(this).root)));
   },
 );
 
@@ -443,12 +454,14 @@ Then(
   'the durable transaction records a recoverable before image without changing that target',
   function (this: MigrationWorld) {
     assert.ok(
-      existsSync(nodePath.join(project(this).root, TRANSACTION)),
+      existsSync(cleanupTransactionPath(project(this).root)),
       'the recovery transaction was discarded',
     );
     const [target] = this.preserved ?? [];
     assert.ok(target);
-    const transaction = JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+    const transaction = JSON.parse(
+      readFileSync(cleanupTransactionPath(project(this).root), 'utf8'),
+    ) as {
       state?: string;
       entries?: Array<{
         path?: string;
@@ -485,7 +498,7 @@ Then(
     const [target] = this.preserved ?? [];
     assert.ok(target);
     assert.equal(existsSync(nodePath.join(project(this).root, target)), false);
-    assert.equal(existsSync(nodePath.join(project(this).root, TRANSACTION)), false);
+    assert.equal(existsSync(cleanupTransactionPath(project(this).root)), false);
     assert.equal(marker(this).state, 'clean');
   },
 );
@@ -494,7 +507,7 @@ Given(
   'a cleanup-ready legacy project whose transaction path cannot store a durable record',
   function (this: MigrationWorld) {
     this.project = createLegacyProject({ release: '0.72.0' });
-    mkdirSync(nodePath.join(project(this).root, TRANSACTION), { recursive: true });
+    mkdirSync(cleanupTransactionPath(project(this).root), { recursive: true });
     this.before = snapshotTree(project(this).root, MIGRATION_STATE);
   },
 );
@@ -507,7 +520,7 @@ Then(
       changedPaths(this.before, snapshotTree(project(this).root, MIGRATION_STATE)),
       [],
     );
-    assert.ok(!existsSync(nodePath.join(project(this).root, MARKER)));
+    assert.ok(!existsSync(pluginModePath(project(this).root)));
   },
 );
 
@@ -548,7 +561,7 @@ Then(
 Then('no cleanup transaction includes that path', function (this: MigrationWorld) {
   assert.ok(this.symlinked);
   assert.ok(
-    !existsSync(nodePath.join(project(this).root, TRANSACTION)),
+    !existsSync(cleanupTransactionPath(project(this).root)),
     'an unsafe path left a transaction behind',
   );
   assert.ok(
@@ -615,7 +628,7 @@ Then(
 
     // Move the digest on: the same project must be re-evaluated, proving the
     // suppression is keyed on the catalogue and not simply permanent.
-    const markerPath = nodePath.join(project(this).root, MARKER);
+    const markerPath = pluginModePath(project(this).root);
     const stale = JSON.parse(readFileSync(markerPath, 'utf8')) as Record<string, unknown>;
     writeFileSync(
       markerPath,
@@ -652,7 +665,7 @@ Then(
   function (this: MigrationWorld) {
     assert.equal(marker(this).state, 'clean');
     assert.deepEqual(marker(this).unresolved_paths, []);
-    assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
+    assert.ok(!existsSync(cleanupTransactionPath(project(this).root)));
     assert.equal(occurrences(advisory(this), 'Safeword '), 0);
   },
 );
@@ -747,8 +760,8 @@ When('the failed event finishes', function (this: MigrationWorld) {
 });
 
 Then('no execution proof or migration transaction is written', function (this: MigrationWorld) {
-  assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
-  assert.ok(!existsSync(nodePath.join(project(this).root, MARKER)));
+  assert.ok(!existsSync(cleanupTransactionPath(project(this).root)));
+  assert.ok(!existsSync(pluginModePath(project(this).root)));
 });
 
 Then(
@@ -840,9 +853,9 @@ Then(
       0,
       this.command?.output,
     );
-    const transactionPath = nodePath.join(project(this).root, TRANSACTION);
+    const transactionPath = cleanupTransactionPath(project(this).root);
     const transaction = existsSync(transactionPath)
-      ? (JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+      ? (JSON.parse(readFileSync(cleanupTransactionPath(project(this).root), 'utf8')) as {
           transaction_id?: string;
           state?: string;
         })
@@ -862,7 +875,7 @@ Then(
 
 Then('the next prompt completes that same winning transaction', function (this: MigrationWorld) {
   runUntilAutomaticMigrationSettles(project(this), 'concurrent-migration-follow-up');
-  assert.equal(existsSync(nodePath.join(project(this).root, TRANSACTION)), false);
+  assert.equal(existsSync(cleanupTransactionPath(project(this).root)), false);
   assert.equal(marker(this).state, 'clean');
   assert.equal(marker(this).transaction_id, this.winningTransactionId);
   for (const relative of project(this).installed) {
@@ -876,9 +889,8 @@ Given(
     this.project = createLegacyProject({ release: '0.72.0', assetLimit: 2 });
     // The winner's transaction is on disk and its plugin-mode marker is not:
     // that is precisely "still active" from the loser's point of view.
-    writeProjectFile(
+    writeTransaction(
       project(this).root,
-      TRANSACTION,
       `${JSON.stringify({ schema_version: 1, transaction_id: 'winner', disposition: 'complete-forward', entries: [] })}\n`,
     );
     this.before = snapshotTree(project(this).root, MIGRATION_STATE);
@@ -906,7 +918,9 @@ Then(
   function (this: MigrationWorld) {
     assert.equal(this.migration?.state, 'deferred');
     assertSingleAdvisory(advisory(this), 'Another Safeword process is retiring');
-    const transaction = JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+    const transaction = JSON.parse(
+      readFileSync(cleanupTransactionPath(project(this).root), 'utf8'),
+    ) as {
       transaction_id: string;
     };
     assert.equal(transaction.transaction_id, 'winner', 'the loser overwrote the winner');
@@ -922,11 +936,11 @@ Then(
   'the next successful prompt enters plugin mode without creating another transaction',
   function (this: MigrationWorld) {
     // The winner finished and cleared its transaction; the next prompt converges.
-    rmSync(nodePath.join(project(this).root, TRANSACTION));
+    rmSync(cleanupTransactionPath(project(this).root));
     const run = runPluginHook(project(this), { sessionId: 'after-the-race' });
     assert.equal(run.status, 0, run.stderr);
     assert.equal(marker(this).state, 'clean');
-    assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
+    assert.ok(!existsSync(cleanupTransactionPath(project(this).root)));
   },
 );
 
@@ -949,7 +963,9 @@ Given(
       now: () => (reads++ === 0 ? 0 : 10),
     });
     assert.equal(deferred.state, 'deferred', 'fixture failed to record a transaction');
-    const transaction = JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+    const transaction = JSON.parse(
+      readFileSync(cleanupTransactionPath(project(this).root), 'utf8'),
+    ) as {
       entries: { path: string }[];
     };
     assert.ok(transaction.entries.length >= 3, 'need several targets to interleave images');
@@ -981,7 +997,7 @@ Then('every target contains its recorded after image', function (this: Migration
 });
 
 Then('the completed transaction is removed', function (this: MigrationWorld) {
-  assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
+  assert.ok(!existsSync(cleanupTransactionPath(project(this).root)));
 });
 
 Then(
@@ -1021,7 +1037,7 @@ Then(
       advisory(this),
       'Safeword will finish removing its old Claude integration',
     );
-    assert.ok(existsSync(nodePath.join(project(this).root, TRANSACTION)));
+    assert.ok(existsSync(cleanupTransactionPath(project(this).root)));
   },
 );
 
@@ -1031,7 +1047,7 @@ Then(
     const run = runPluginHook(project(this), { sessionId: 'next-prompt' });
     assert.equal(run.status, 0, run.stderr);
     assert.equal(marker(this).state, 'clean');
-    assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
+    assert.ok(!existsSync(cleanupTransactionPath(project(this).root)));
     for (const relative of project(this).installed) {
       assert.ok(!existsSync(nodePath.join(project(this).root, relative)));
     }
@@ -1053,7 +1069,7 @@ Given(
       now: () => (reads++ === 0 ? 0 : 10),
     });
     assert.equal(interrupted.state, 'deferred');
-    assert.ok(existsSync(nodePath.join(project(this).root, TRANSACTION)));
+    assert.ok(existsSync(cleanupTransactionPath(project(this).root)));
   },
 );
 
@@ -1066,7 +1082,7 @@ Then(
   'its dedicated recovery launch completes the transaction and enters plugin mode',
   function (this: MigrationWorld) {
     assert.equal(marker(this).state, 'clean');
-    assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
+    assert.ok(!existsSync(cleanupTransactionPath(project(this).root)));
     for (const relative of project(this).installed) {
       assert.ok(!existsSync(nodePath.join(project(this).root, relative)));
     }
@@ -1132,7 +1148,9 @@ Given(
       deadline: 5,
       now: () => (reads++ === 0 ? 0 : 10),
     });
-    const transaction = JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+    const transaction = JSON.parse(
+      readFileSync(cleanupTransactionPath(project(this).root), 'utf8'),
+    ) as {
       entries: { path: string }[];
     };
     const [entry] = transaction.entries;
@@ -1153,7 +1171,7 @@ Then(
       'a third image, written concurrently\n',
     );
     assert.ok(
-      existsSync(nodePath.join(project(this).root, TRANSACTION)),
+      existsSync(cleanupTransactionPath(project(this).root)),
       'recovery evidence was discarded on conflict',
     );
     assert.ok(this.before);
@@ -1183,7 +1201,9 @@ Given(
       deadline: 5,
       now: () => (reads++ === 0 ? 0 : 10),
     });
-    const transaction = JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+    const transaction = JSON.parse(
+      readFileSync(cleanupTransactionPath(project(this).root), 'utf8'),
+    ) as {
       entries: Array<{ path: string; before_sha256: string }>;
     };
     const entry = transaction.entries[0];
@@ -1198,7 +1218,7 @@ Given(
       rmSync(nodePath.join(project(this).root, entry.path));
       symlinkSync(this.externalFile, nodePath.join(project(this).root, entry.path));
     } else assert.fail(`unknown transaction defect: ${defect}`);
-    writeProjectFile(project(this).root, TRANSACTION, `${JSON.stringify(transaction)}\n`);
+    writeTransaction(project(this).root, `${JSON.stringify(transaction)}\n`);
     this.before = snapshotTree(project(this).root, MIGRATION_STATE);
   },
 );
@@ -1213,7 +1233,7 @@ Then(
       changedPaths(this.before, snapshotTree(project(this).root, MIGRATION_STATE)),
       [],
     );
-    assert.equal(existsSync(nodePath.join(project(this).root, TRANSACTION)), true);
+    assert.equal(existsSync(cleanupTransactionPath(project(this).root)), true);
   },
 );
 
@@ -1245,7 +1265,9 @@ Then(
     const [target] = this.preserved ?? [];
     assert.ok(target);
     assert.equal(readProjectFile(project(this).root, target), 'changed after claim\n');
-    const transaction = JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+    const transaction = JSON.parse(
+      readFileSync(cleanupTransactionPath(project(this).root), 'utf8'),
+    ) as {
       state: string;
       entries: Array<{ path: string; before_base64: string }>;
     };

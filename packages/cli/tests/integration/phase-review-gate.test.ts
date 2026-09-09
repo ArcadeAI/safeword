@@ -326,7 +326,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
       stampPhaseModel('define-behavior', 'claude-opus-4-8');
       appendFileSync(
         nodePath.join(projectRoot, '.safeword-project', 'skill-invocations.log'),
-        '2026-06-03T00:00:00.000Z sess-1 review:ABC123:phase@define-behavior model:claude-sonnet-4-6 independence:none\n',
+        '2026-06-03T00:00:00.000Z sess-1 review:ABC123:phase@define-behavior model:claude-sonnet-4-6 author:claude reviewer:codex independence:cross-agent review-id:00000000-0000-4000-8000-000000000000\n',
       );
 
       expectHookDeny(

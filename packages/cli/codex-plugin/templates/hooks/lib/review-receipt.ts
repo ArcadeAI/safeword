@@ -156,10 +156,13 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
   if (phase === 'verify') return ticketTargets.includes('verify.md');
   if (phase === 'done') return ticketTargets.includes('ticket.md');
   if (phase === 'implement') {
+    if (claim.implementationFiles === undefined) return false;
+    // In a non-git project (or work committed directly on its base branch),
+    // the approved receipt's explicit non-ticket target is the available proof.
+    if (claim.implementationFiles.length === 0)
+      return targets.some(target => relativeTicketTarget(target, claim) === undefined);
     const changed = new Set(
-      (claim.implementationFiles ?? []).map(target =>
-        resolveTarget(target, claim.projectDirectory),
-      ),
+      claim.implementationFiles.map(target => resolveTarget(target, claim.projectDirectory)),
     );
     return targets.some(
       target =>
