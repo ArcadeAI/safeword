@@ -47,7 +47,7 @@ source share one ledger entry.
 
 - [x] RED skip: Claude and Cursor isolation is an unchanged regression contract
 - [x] GREEN c182340db
-- [ ] REFACTOR
+- [x] REFACTOR skip: direct before-and-after tree digests are clearer than a shared abstraction
 
 ## Rule: cachebusted-codex.SWM1.R3 — The upstream design records a task-bound plugin-root contract without making delivery depend on it
 
