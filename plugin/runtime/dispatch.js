@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import nodePath10 from 'node:path';
 
-// ../../../../safeword-pr4041.3spb6P/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
   const len = text.length;
   let pos = 0,
@@ -439,7 +439,7 @@ var CharacterCodes;
   CharacterCodes2[(CharacterCodes2['tab'] = 9)] = 'tab';
 })(CharacterCodes || (CharacterCodes = {}));
 
-// ../../../../safeword-pr4041.3spb6P/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
 var cachedSpaces = new Array(20).fill(0).map((_, index) => {
   return ' '.repeat(index);
 });
@@ -470,7 +470,7 @@ var cachedBreakLinesWithSpaces = {
 };
 var supportedEols = ['\n', '\r', '\r\n'];
 
-// ../../../../safeword-pr4041.3spb6P/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
 function format(documentText, range, options) {
   let initialIndentLevel;
   let formatText;
@@ -715,7 +715,7 @@ function isEOL(text, offset) {
   return '\r\n'.indexOf(text.charAt(offset)) !== -1;
 }
 
-// ../../../../safeword-pr4041.3spb6P/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
 var ParseOptions;
 (function (ParseOptions2) {
   ParseOptions2.DEFAULT = {
@@ -1289,7 +1289,7 @@ function getNodeType(value) {
   }
 }
 
-// ../../../../safeword-pr4041.3spb6P/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
 function setProperty(text, originalPath, value, options) {
   const path = originalPath.slice();
   const errors = [];
@@ -1475,7 +1475,7 @@ function applyEdit(text, edit) {
   return text.substring(0, edit.offset) + edit.content + text.substring(edit.offset + edit.length);
 }
 
-// ../../../../safeword-pr4041.3spb6P/node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
+// ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
 var ScanError;
 (function (ScanError2) {
   ScanError2[(ScanError2['None'] = 0)] = 'None';
