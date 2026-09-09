@@ -34,9 +34,12 @@ import {
   type Finding,
 } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
-import { codexFinalizationIsComplete } from '../codex-plugin/finalization.js';
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
-import { automaticallyMigrateLegacyCodex } from '../codex-plugin/operations.js';
+import { CodexMigrationError } from '../codex-plugin/migration-error.js';
+import {
+  automaticallyMigrateLegacyCodex,
+  automaticLegacyCodexMigrationNeeded,
+} from '../codex-plugin/operations.js';
 import {
   installCodexProjectBootstrap,
   preparedCodexProjectBootstrap,
@@ -53,6 +56,7 @@ import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
   detectPythonPackageManager,
+  findPythonProjectDirectories,
   getPythonInstallCommand,
   getPythonToolDependencyGaps,
   installPythonDependencyBatch,
@@ -77,9 +81,11 @@ import {
 } from '../utils/install.js';
 import {
   executeNamespaceMigration,
+  type MigrationPlan,
   NamespaceMergeIncompleteError,
   NamespaceStructuralCollisionError,
   planNamespaceMigration,
+  plannedNamespaceMigrationFiles,
 } from '../utils/namespace-migration.js';
 import {
   stripDeadConfigVersion,
@@ -233,6 +239,30 @@ function plannedCodexBootstrapEffect(cwd: string): Effect[] {
   }
 }
 
+function codexProfileInstallEffects(): Effects {
+  return {
+    ...emptyEffects(),
+    configuration: [{ kind: 'enable', target: 'Safeword Codex profile plugin' }],
+    network: [
+      {
+        kind: 'fetch',
+        target: 'Safeword stable Codex marketplace',
+        operation: 'install',
+      },
+    ],
+  };
+}
+
+function plannedLegacyCodexMigrationEffects(cwd: string): Effects {
+  const effects = codexProfileInstallEffects();
+  try {
+    if (!automaticLegacyCodexMigrationNeeded(cwd)) return emptyEffects();
+  } catch {
+    return effects;
+  }
+  return effects;
+}
+
 function plannedArchitectureEffects(cwd: string): Effect[] {
   const architecture = buildArchitecture(cwd);
   if (!hasArchitectureDetected(architecture)) return [];
@@ -326,6 +356,13 @@ function plannedPythonEffects(cwd: string): Effects {
   };
 }
 
+function pythonObservationTargets(cwd: string): string[] {
+  return findPythonProjectDirectories(cwd).flatMap(directory => {
+    const prefix = nodePath.relative(cwd, directory);
+    return PYTHON_PACKAGE_FILES.map(file => (prefix === '' ? file : nodePath.join(prefix, file)));
+  });
+}
+
 function staleSafewordRegistryDependency(cwd: string): boolean {
   try {
     const manifest = JSON.parse(readFileSync(nodePath.join(cwd, 'package.json'), 'utf8')) as Record<
@@ -356,14 +393,17 @@ export interface SetupPlanOptions {
   readonly repairVersionMarker?: boolean;
 }
 
-function plannedNamespaceEffects(cwd: string, migrate: boolean | undefined): Effect[] {
-  if (migrate !== true || planNamespaceMigration(cwd) !== 'offer') return [];
-  const movedFiles = snapshotFiles(cwd, ['.safeword-project']).keys().toArray();
+function shouldMigrateNamespace(plan: MigrationPlan, migrate: boolean | undefined): boolean {
+  return migrate !== false && (plan === 'offer' || plan === 'both-dirs');
+}
+
+function plannedNamespaceEffects(cwd: string, migrate: boolean): Effect[] {
+  if (!migrate) return [];
   return [
     { kind: 'move', target: '.safeword-project → .project' },
-    ...movedFiles.flatMap(target => [
-      { kind: 'delete', target },
-      { kind: 'create', target: target.replace(/^\.safeword-project(?=\/|$)/u, '.project') },
+    ...plannedNamespaceMigrationFiles(cwd).flatMap(change => [
+      { kind: 'delete', target: change.source },
+      { kind: 'create', target: change.destination },
     ]),
     ...(existsSync(nodePath.join(cwd, '.safeword/config.json'))
       ? [{ kind: 'update', target: '.safeword/config.json' }]
@@ -387,8 +427,8 @@ function retargetLegacyNamespace(effect: Effect): Effect {
   };
 }
 
-function plannedReconciliationEffects(effects: Effects, migrate: boolean | undefined): Effects {
-  if (migrate !== true) return effects;
+function plannedReconciliationEffects(effects: Effects, migrate: boolean): Effects {
+  if (!migrate) return effects;
   return {
     files: effects.files.map(effect => retargetLegacyNamespace(effect)),
     packages: effects.packages.map(effect => retargetLegacyNamespace(effect)),
@@ -438,6 +478,7 @@ function setupPreconditionDigest(
     'Cargo.toml',
     ...JAVASCRIPT_PACKAGE_FILES,
     ...PYTHON_PACKAGE_FILES,
+    ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
     ...effects.files.map(effect => effect.target),
     ...effects.destructive.map(effect => effect.target),
   ].filter(target => !target.includes(' → '));
@@ -480,9 +521,13 @@ export async function createSetupPlan(
     schema,
     context,
   );
+  const migrateNamespace = shouldMigrateNamespace(
+    planNamespaceMigration(cwd),
+    options.migrateNamespace,
+  );
   const reconciliationEffects = plannedReconciliationEffects(
     reconciliation.plan.effects,
-    options.migrateNamespace,
+    migrateNamespace,
   );
   const reconciliationPackages = reconciliationEffects.packages.length > 0;
   const compatibilityFiles = [
@@ -503,7 +548,7 @@ export async function createSetupPlan(
       files: uniqueEffects([
         ...plannedPackageJsonEffects(cwd, configured),
         ...plannedVersionMarkerEffects(cwd, options.repairVersionMarker),
-        ...plannedNamespaceEffects(cwd, options.migrateNamespace),
+        ...plannedNamespaceEffects(cwd, migrateNamespace),
         ...compatibilityFiles,
         ...plannedPackEffects(cwd),
         ...plannedCodexBootstrapEffect(cwd),
@@ -519,6 +564,7 @@ export async function createSetupPlan(
         : [],
     },
     python,
+    plannedLegacyCodexMigrationEffects(cwd),
   ]);
   const effects = mergeEffects(combined);
   return createPlan({
@@ -662,7 +708,12 @@ async function convergeSetupValidated(
       ...DEFAULT_SETUP_ADAPTERS,
       ...options.adapters,
     };
-    const namespaceTargets = ['.safeword-project', '.project', '.safeword/config.json'];
+    const namespaceTargets = [
+      '.safeword-project',
+      '.project',
+      '.safeword/config.json',
+      '.safeword/namespace-migration-conflicts-v1',
+    ];
     const namespaceBefore = snapshotFiles(cwd, namespaceTargets);
     try {
       namespaceMigration = convergeNamespace(
@@ -734,7 +785,7 @@ function convergeNamespace(
           : [{ code: 'NAMESPACE_MIGRATION_BLOCKED', message, severity: 'warning' }],
     };
   }
-  if (migrate === false) {
+  if (!shouldMigrateNamespace(plan, migrate)) {
     return {
       effects: [],
       findings: [
@@ -1106,6 +1157,7 @@ interface SetupResultInput {
 interface CompletedSetupEffects {
   readonly files: Effect[];
   readonly packages: Effect[];
+  readonly configuration: Effect[];
   readonly network: Effect[];
 }
 
@@ -1159,6 +1211,10 @@ function emptyEffects(): Effects {
   return { files: [], packages: [], configuration: [], network: [], destructive: [] };
 }
 
+function completedSetupChanged(...effectGroups: readonly Effect[][]): boolean {
+  return effectGroups.some(effects => effects.length > 0);
+}
+
 function setupResult(input: SetupResultInput): CliResult {
   const {
     packageJsonCreated,
@@ -1177,8 +1233,9 @@ function setupResult(input: SetupResultInput): CliResult {
     ...completedEffects.files,
   ]);
   const packages = uniqueEffects(completedEffects.packages);
+  const configEffects = uniqueEffects(completedEffects.configuration);
   const network = uniqueEffects(completedEffects.network);
-  const changed = files.length > 0 || packages.length > 0;
+  const changed = completedSetupChanged(files, packages, configEffects);
   const findings = [
     ...packageFindings(installation),
     ...gitFindings(gitInitialized),
@@ -1239,7 +1296,7 @@ function setupResult(input: SetupResultInput): CliResult {
   return createResult({
     state,
     changed,
-    effects: { files, packages, network },
+    effects: { files, packages, configuration: configEffects, network },
     findings: resultFindings,
     nextActions: [nextAction],
     data: { configured: true, dependency_install: installation },
@@ -1339,6 +1396,11 @@ function migrateLegacyCodexDuringSetup(
   cwd: string,
   completedEffects: CompletedSetupEffects,
 ): Finding[] {
+  const recordProfileInstallEffects = (): void => {
+    const effects = codexProfileInstallEffects();
+    completedEffects.configuration.push(...effects.configuration);
+    completedEffects.network.push(...effects.network);
+  };
   const codexMigrationTargets = [
     CODEX_MIGRATION_SCHEMA.paths.config,
     CODEX_MIGRATION_SCHEMA.paths.backupRoot,
@@ -1352,21 +1414,27 @@ function migrateLegacyCodexDuringSetup(
       automaticallyMigrateLegacyCodex(cwd),
     );
     if (!migrated) return [];
-    const finalized = codexFinalizationIsComplete(cwd);
+    recordProfileInstallEffects();
     return [
       {
-        code: finalized ? 'CODEX_PLUGIN_HANDOFF_COMPLETE' : 'CODEX_PLUGIN_HANDOFF_PENDING_PROOF',
-        message: finalized
-          ? 'Codex verified the native profile plugin, backed up the legacy state, and retired the legacy project assets automatically.'
-          : 'Codex enabled the native profile plugin and retained legacy project protection. After a restarted task records current hook proof, the next setup will finish the recoverable cleanup automatically.',
+        code: 'CODEX_PLUGIN_HANDOFF_PENDING_PROOF',
+        message:
+          'Codex enabled the native profile plugin and retained legacy project protection. Restart Codex, review /hooks, then run `safeword codex migrate --remove-legacy-hooks` to finish the recoverable cleanup.',
         severity: 'info',
       },
     ];
   } catch (error) {
+    if (error instanceof CodexMigrationError && error.profileChanged) {
+      recordProfileInstallEffects();
+    }
+    const recovery =
+      error instanceof CodexMigrationError && error.recoveryCommand !== undefined
+        ? ` Recover with \`${error.recoveryCommand}\`.`
+        : '';
     return [
       {
         code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
-        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}${recovery}`,
         severity: 'warning',
       },
     ];
@@ -1389,6 +1457,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   const completedEffects: CompletedSetupEffects = {
     files: [...preliminaryFileEffects, ...effectsForReconciliation(result, 'upgrade').files],
     packages: [],
+    configuration: [],
     network: [],
   };
 
@@ -1434,11 +1503,8 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       }),
     );
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
-    const pythonSetup = observeFileStage(
-      cwd,
-      ['pyproject.toml', 'uv.lock', 'poetry.lock', 'Pipfile', 'Pipfile.lock'],
-      completedEffects,
-      () => adapters.configurePython(cwd, context),
+    const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () =>
+      adapters.configurePython(cwd, context),
     );
     if (pythonSetup.attempted) {
       for (const target of pythonSetup.attemptedTools) {
@@ -1452,7 +1518,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
         });
       }
     }
-    observeFileStage(cwd, ['package.json'], completedEffects, () => {
+    observeFileStage(cwd, JAVASCRIPT_PACKAGE_FILES, completedEffects, () => {
       applyPackageCompatibility(cwd, completedEffects);
     });
     const applied = setupResult({

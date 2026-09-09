@@ -341,7 +341,7 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
         ? 'PLUGIN_ENABLEMENT_UNKNOWN'
         : 'PLUGIN_ENABLEMENT_FAILED',
       `${prefix}: ${String(error)}`,
-      { cause: error },
+      { cause: error, profileChanged: options.installationCompleted === true },
     );
   }
   const plugin = pluginObservationFromList(pluginList);
@@ -349,6 +349,7 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
     throw new CodexMigrationError(
       'PLUGIN_ENABLEMENT_FAILED',
       'Codex did not report the Safeword plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.',
+      { profileChanged: options.installationCompleted === true },
     );
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
@@ -950,14 +951,20 @@ export async function removeLegacyCodexHooks(
   return true;
 }
 
-export function automaticallyMigrateLegacyCodex(
-  cwd = process.cwd(),
-  environment: NodeJS.ProcessEnv = process.env,
-): boolean {
+export function automaticLegacyCodexMigrationNeeded(cwd = process.cwd()): boolean {
   if (codexFinalizationIsComplete(cwd) || codexRecoveryIsRequired(cwd)) return false;
   const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
   const hasLegacy = preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
   if (!hasLegacy) return false;
+  const plugin = observeCodexPlugin();
+  return plugin.enabled !== true || !codexPluginVersionMatchesPackage(plugin);
+}
+
+export function automaticallyMigrateLegacyCodex(
+  cwd = process.cwd(),
+  environment: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (!automaticLegacyCodexMigrationNeeded(cwd)) return false;
 
   installCodexPlugin({ cwd, environment, json: true, reportMigrationState: false });
   return true;

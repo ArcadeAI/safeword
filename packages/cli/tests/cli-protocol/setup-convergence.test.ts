@@ -413,6 +413,41 @@ describe('convergent setup', () => {
     });
   });
 
+  it('journals Python manifest writes in nested projects', async () => {
+    const directory = createTemporaryDirectory();
+    const manifest = nodePath.join(directory, 'apps/api/pyproject.toml');
+    mkdirSync(nodePath.dirname(manifest), { recursive: true });
+    writeFileSync(manifest, '[project]\nname = "api"\n');
+
+    const previousSkipInstall = process.env.SAFEWORD_SKIP_INSTALL;
+    process.env.SAFEWORD_SKIP_INSTALL = '1';
+    try {
+      const result = await convergeSetup(directory, {
+        noModify: true,
+        adapters: {
+          configurePython: () => {
+            writeFileSync(manifest, '[project]\nname = "api"\ndependencies = ["ruff"]\n');
+            return {
+              tools: ['ruff'],
+              attemptedTools: ['ruff'],
+              installedTools: ['ruff'],
+              attempted: true,
+              installed: true,
+            };
+          },
+        },
+      });
+
+      expect(result.effects.files).toContainEqual({
+        kind: 'update',
+        target: 'apps/api/pyproject.toml',
+      });
+    } finally {
+      if (previousSkipInstall === undefined) delete process.env.SAFEWORD_SKIP_INSTALL;
+      else process.env.SAFEWORD_SKIP_INSTALL = previousSkipInstall;
+    }
+  });
+
   it('journals a namespace move when the later migration stage fails', async () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });

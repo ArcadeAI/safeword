@@ -141,6 +141,16 @@ describe('Config Tracking', () => {
     );
     expect(readTestFile(fixture.testDirectory, '.safeword/config.json')).toBe(malformedConfig);
   });
+
+  it('rejects a top-level array without rewriting config', () => {
+    const malformedConfig = '["python"]';
+    writeTestFile(fixture.testDirectory, '.safeword/config.json', malformedConfig);
+
+    expect(() => installPack('typescript', fixture.testDirectory)).toThrow(
+      'Safeword config must be an object',
+    );
+    expect(readTestFile(fixture.testDirectory, '.safeword/config.json')).toBe(malformedConfig);
+  });
 });
 
 // =============================================================================
