@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Approach decision state controls entry into Execution Planning
 
 - [x] RED 7b85f37d4
-- [ ] GREEN
+- [x] GREEN 537c8d93f
 - [ ] REFACTOR
 
 ### Scenario: Gated hosts enforce and release the decision boundary through the installed workflow
