@@ -165,6 +165,39 @@ describe('Codex plugin release contract', () => {
     expect(treeDigest(shippedRoot)).toBe(before);
   });
 
+  it('rejects a custom output inside the checked-in plugin directory', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const shippedRoot = nodePath.join(root, 'codex-plugin');
+    const output = nodePath.join(shippedRoot, `.cachebusted-test-${process.pid}`);
+    const packageVersion = (
+      JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8')) as { version: string }
+    ).version;
+    const before = treeDigest(shippedRoot);
+
+    try {
+      const generation = spawnSync(
+        'bun',
+        [
+          'scripts/generate-codex-plugin.ts',
+          '--version',
+          `${packageVersion.split('+', 1)[0]}+codex.test`,
+          '--output',
+          output,
+        ],
+        { cwd: root, encoding: 'utf8' },
+      );
+
+      expect(generation.status).not.toBe(0);
+      expect(generation.stderr).toContain(
+        'Custom output must be outside the checked-in Codex plugin directory',
+      );
+      expect(existsSync(output)).toBe(false);
+      expect(treeDigest(shippedRoot)).toBe(before);
+    } finally {
+      rmSync(output, { recursive: true, force: true });
+    }
+  });
+
   it('keeps default generation deterministic at the package version', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
     const generation = spawnSync('bun', ['scripts/generate-codex-plugin.ts', '--check'], {
@@ -192,6 +225,7 @@ describe('Codex plugin release contract', () => {
       nodePath.join(repoRoot, '.claude'),
       nodePath.join(repoRoot, '.cursor'),
       nodePath.join(root, '../../plugin'),
+      nodePath.join(root, 'codex-plugin'),
     ];
     const before = protectedTrees.map(treeDigest);
     try {

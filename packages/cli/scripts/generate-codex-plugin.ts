@@ -20,8 +20,15 @@ const shippedRoot = nodePath.join(packageRoot, 'codex-plugin');
 const authoredShippedFiles = ['.codex-plugin/plugin.json', 'hooks.json'] as const;
 const options = parseCodexPluginGenerationOptions(process.argv.slice(2), VERSION);
 
-if (options.output === shippedRoot) {
-  throw new Error('Custom output must not replace the checked-in Codex plugin directory');
+const outputRelativeToShippedRoot =
+  options.output === undefined ? undefined : nodePath.relative(shippedRoot, options.output);
+if (
+  outputRelativeToShippedRoot !== undefined &&
+  (outputRelativeToShippedRoot === '' ||
+    (!outputRelativeToShippedRoot.startsWith(`..${nodePath.sep}`) &&
+      !nodePath.isAbsolute(outputRelativeToShippedRoot)))
+) {
+  throw new Error('Custom output must be outside the checked-in Codex plugin directory');
 }
 
 await import('./generate-scenario-rubric.js');
