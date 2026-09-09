@@ -15,7 +15,7 @@ source share one ledger entry.
 
 ### Scenario: An invalid or incompatible effective version is rejected before output changes
 
-- [ ] RED
+- [x] RED skip: validation and atomic publication landed in the preceding coherent-generator slice
 - [ ] GREEN
 - [ ] REFACTOR
 
