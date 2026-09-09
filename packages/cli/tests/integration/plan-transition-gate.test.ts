@@ -239,6 +239,31 @@ describe('implementation planning transition gates (wired)', () => {
     expectHookAllow(result);
   });
 
+  it('keeps a superseded reviewed plan in Implementation Planning and names revalidation', () => {
+    writeGateConfig(projectRoot, { reviewGate: true });
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    const revisedPlan = VALID_PLAN.replace('| gate | pre-tool |', '| gate | shared gate |');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), revisedPlan);
+    const ticketScope = nodePath.basename(ticketDirectory);
+    writeFileSync(
+      nodePath.join(projectRoot, '.project', 'skill-invocations.log'),
+      [
+        `2026-09-09T00:00:00Z sess review:${reviewScope(ticketScope, 'impl-plan', hashArtifact(VALID_PLAN))}`,
+        `2026-09-09T00:00:01Z sess review:${reviewScope(ticketScope, 'phase', 'plan-implementation')}`,
+        '',
+      ].join('\n'),
+    );
+
+    const result = runAdvance('plan-implementation', 'plan-execution');
+    if (result.stdout.trim() === '') {
+      throw new Error(
+        'Expected a superseded Implementation Plan review to block the transition and name revalidation, but the hook allowed it.',
+      );
+    }
+    expectHookDeny(result, 'revalidation');
+  });
+
   it('allows implement entry when a valid planned impl-plan.md exists', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
