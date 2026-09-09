@@ -26,6 +26,15 @@ import {
   packCliPackage,
 } from './helpers/codex-plugin-package.js';
 
+const currentCliVersion = (
+  JSON.parse(readFileSync(nodePath.resolve(import.meta.dirname, '../package.json'), 'utf8')) as {
+    version: string;
+  }
+).version;
+const [currentMajor = '0', currentMinor = '0'] =
+  currentCliVersion.split('+', 1)[0]?.split('.') ?? [];
+const incompatibleReleaseVersion = `${currentMajor}.${Number(currentMinor) + 1}.0+codex.test`;
+
 function treeDigest(root: string): string {
   const hash = createHash('sha256');
   const visit = (directory: string): void => {
@@ -137,7 +146,7 @@ describe('Codex plugin release contract', () => {
 
   it.each([
     ['not-a-version', 'Effective version is not valid SemVer'],
-    ['0.84.0+codex.test', 'Effective version must describe the same release as'],
+    [incompatibleReleaseVersion, 'Effective version must describe the same release as'],
   ])(
     'rejects effective version %s without changing the shipped bundle',
     (effectiveVersion, expectedError) => {
