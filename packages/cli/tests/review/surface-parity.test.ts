@@ -60,7 +60,7 @@ function reviewLaunchesIn(content: string): ReviewLaunch[] {
   );
   return searchable
     .matchAll(
-      /(?:run-review\.ts|safeword(?:@\S+)?|runtime\/cli\.js["']?)\s+review\s+run\s+([\w-]+)/gu,
+      /(?:run-review\.ts|safeword(?:@\S+)?|runtime\/cli\.js)["']?\s+review\s+run\s+([\w-]+)/gu,
     )
     .map(match => {
       const index = content.slice(0, match.index).split('\n').length;
@@ -496,7 +496,15 @@ exit ${status}`,
       containsReviewLaunch(readFileSync(nodePath.join(skills, relativePath), 'utf8')),
     );
 
-    expect(callers).not.toHaveLength(0);
+    const lexical = (left: string, right: string): number => left.localeCompare(right);
+    expect(callers.toSorted(lexical)).toEqual(
+      [
+        'bdd/PLAN_IMPLEMENTATION.md',
+        'bdd/TDD.md',
+        'quality-review/SKILL.md',
+        'review-spec/SKILL.md',
+      ].toSorted(lexical),
+    );
     for (const relativePath of callers) {
       const calls = reviewCallSections(nodePath.join('skills', relativePath));
       expect(calls, relativePath).not.toHaveLength(0);
