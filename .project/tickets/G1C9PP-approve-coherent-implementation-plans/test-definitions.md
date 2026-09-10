@@ -95,7 +95,7 @@ prove real installed CLI wiring.
 ### Scenario: A one-file shared contract is significant while a many-file mechanical edit is not
 
 - [x] RED 9410f11e6
-- [ ] GREEN
+- [x] GREEN 6c7040887
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R9 — One feature has one design plan of record
