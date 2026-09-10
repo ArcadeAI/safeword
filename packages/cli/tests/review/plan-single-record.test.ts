@@ -7,12 +7,13 @@ import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 
 const PLAN_OF_RECORD_OBLIGATION = 'Single design plan of record';
 const REQUIRED_PHRASES = [
+  'must name all required decisions',
+  'each decision and consequence',
+  'linked supporting detail may carry full depth',
+  'block approval',
+  'second feature design document carries required decisions instead',
+  'return to',
   'impl-plan.md',
-  'single design plan of record',
-  'linked supporting detail',
-  'decision and consequence',
-  'required decisions',
-  'second feature design document',
 ] as const;
 
 function planOfRecordClause(contract: string): string | undefined {
@@ -136,5 +137,25 @@ Supporting detail: docs/alternate-design.md
         expect.objectContaining({ message: expect.stringContaining(finding) }),
       ]);
     }
+  });
+
+  it.each(REQUIRED_PHRASES)('fails closed when the packaged obligation drops %s', phrase => {
+    const clause = planOfRecordClause(PLAN_REVIEW_RUBRIC) ?? '';
+    expect(missingContractRequirements(clause)).toEqual([]);
+    const body = clause
+      .slice(clause.indexOf(':**') + ':**'.length)
+      .replaceAll(/\s+/gu, ' ')
+      .toLowerCase()
+      .replaceAll(phrase.toLowerCase(), '');
+    const mutated = `- **${PLAN_OF_RECORD_OBLIGATION}:**${body}`;
+
+    const result = reviewPlanOfRecord(
+      mutated,
+      'Required decision location: impl-plan.md\n',
+      new Set(),
+    );
+
+    expect(result.verdict).toBe('request_changes');
+    expect(result.findings[0]?.message.toLowerCase()).toContain(phrase.toLowerCase());
   });
 });
