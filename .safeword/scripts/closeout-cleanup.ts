@@ -494,7 +494,10 @@ export interface ProcessResult {
   status: number;
   stdout: string;
   stderr: string;
-  timedOut?: boolean;
+}
+
+export interface VerificationProcessResult extends ProcessResult {
+  timedOut: boolean;
 }
 
 function run(
@@ -504,7 +507,6 @@ function run(
   options: {
     shell?: boolean;
     env?: Record<string, string | undefined>;
-    timeout?: number;
   } = {},
 ): ProcessResult {
   const result = spawnSync(command, arguments_, {
@@ -512,7 +514,6 @@ function run(
     encoding: 'utf8',
     shell: options.shell ?? false,
     env: { ...process.env, ...options.env },
-    timeout: options.timeout,
   });
   return {
     status: result.status ?? 1,
@@ -545,7 +546,7 @@ export function runVerificationCommand(
   command: string,
   cwd: string,
   timeout = VERIFICATION_COMMAND_TIMEOUT_MS,
-): Promise<ProcessResult> {
+): Promise<VerificationProcessResult> {
   return new Promise(resolve => {
     let settled = false;
     let timedOut = false;
@@ -558,24 +559,25 @@ export function runVerificationCommand(
       stdio: 'ignore',
       windowsHide: true,
     });
-    const settle = (result: ProcessResult): void => {
+    const settle = (result: VerificationProcessResult): void => {
       if (settled) return;
       settled = true;
       if (timer !== undefined) clearTimeout(timer);
       resolve(result);
     };
     child.once('error', error => {
-      settle({ status: 1, stdout: '', stderr: error.message });
+      settle({ status: 1, stdout: '', stderr: error.message, timedOut: false });
     });
     child.once('close', code => {
       settle({
         status: timedOut ? 1 : (code ?? 1),
         stdout: '',
         stderr: timedOut ? `verification command timed out after ${timeout}ms` : '',
-        ...(timedOut ? { timedOut: true } : {}),
+        timedOut,
       });
     });
     timer = setTimeout(() => {
+      if (settled || child.exitCode !== null || child.signalCode !== null) return;
       timedOut = true;
       terminateProcessTree(child);
     }, timeout);

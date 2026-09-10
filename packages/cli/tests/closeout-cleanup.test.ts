@@ -41,7 +41,6 @@ import {
   retroAgentForRuntime,
   retroForMergedPullRequest,
   runBoundRetro,
-  runVerificationCommand,
   safewordCliCommand,
   transcriptMatchesBinding,
   VERIFICATION_COMMAND_TIMEOUT_MS,
@@ -188,21 +187,42 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   });
 
   it.skipIf(process.platform === 'win32')(
-    'returns after killing a timed-out verification command tree',
+    'returns under Bun after killing a timed-out verification command tree',
     async () => {
       const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-timeout-'));
       const pidFile = nodePath.join(root, 'descendant.pid');
+      const runner = nodePath.join(root, 'run-timeout.ts');
       try {
+        const closeoutScript = nodePath.join(
+          repoRoot,
+          'packages/cli/templates/scripts/closeout-cleanup.ts',
+        );
+        writeFileSync(
+          runner,
+          `import { runVerificationCommand } from ${JSON.stringify(closeoutScript)};\n` +
+            `const result = await runVerificationCommand(process.argv[2], process.cwd(), 1000);\n` +
+            `console.log(JSON.stringify(result));\n`,
+        );
         const started = Date.now();
-        const result = await runVerificationCommand(
-          `sleep 30 & child=$!; echo "$child" > ${JSON.stringify(pidFile)}; wait "$child"`,
-          root,
-          100,
+        const processResult = spawnSync(
+          'bun',
+          [
+            runner,
+            `sleep 30 & child=$!; echo "$child" > ${JSON.stringify(pidFile)}; wait "$child"`,
+          ],
+          { cwd: root, encoding: 'utf8', timeout: 5000 },
         );
 
-        expect(result).toMatchObject({ status: 1, timedOut: true });
-        expect(Date.now() - started).toBeLessThan(2000);
-        const descendantPid = Number(readFileSync(pidFile, 'utf8').trim());
+        expect(processResult.status).toBe(0);
+        expect(JSON.parse(processResult.stdout.trim())).toMatchObject({
+          status: 1,
+          timedOut: true,
+        });
+        expect(Date.now() - started).toBeLessThan(3000);
+        expect(existsSync(pidFile)).toBe(true);
+        const descendantPidText = readFileSync(pidFile, 'utf8').trim();
+        expect(descendantPidText).toMatch(/^[1-9]\d*$/);
+        const descendantPid = Number(descendantPidText);
         await expect
           .poll(() => {
             try {

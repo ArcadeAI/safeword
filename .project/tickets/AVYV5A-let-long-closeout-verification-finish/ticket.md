@@ -6,7 +6,7 @@ subtype: bug-investigated
 phase: implement
 status: in_progress
 created: 2026-09-10T15:56:28.091Z
-last_modified: 2026-09-10T15:58:50Z
+last_modified: 2026-09-10T17:17:00Z
 ---
 
 # Let long closeout verification finish
@@ -27,7 +27,7 @@ guard, or cleaning up pull request #4287 manually.
 
 - [x] Verification commands may run for up to one hour before closeout reports failure.
 - [x] A timed-out shell command and its descendants terminate without leaving closeout hung.
-- [x] The source template, installed dogfood copy, and plugin resource remain identical.
+- [x] The installed dogfood copy matches the source template and the generated plugin resource is current.
 
 **Tests:**
 
@@ -59,3 +59,8 @@ no child process and zero CPU use).
   closeout suite passes 115/115 tests with canonical parity restored.
 - 2026-09-10T16:09:21Z GREEN: Replaced synchronous timed verification with the existing async
   process-group pattern; the focused suite passes 116/116, including descendant cleanup.
+- 2026-09-10T17:00:00Z VERIFY: Build, typecheck, lint, generated-plugin checks, CLI contract,
+  diff-check, and the focused 116/116 closeout suite pass under the pinned toolchain.
+- 2026-09-10T17:17:00Z REVIEW: Independent Claude review found no blocking defect. Hardened
+  exit/deadline race handling, removed the obsolete synchronous timeout option, and made the
+  descendant-cleanup proof run through Bun with a repository-root-stable import.
