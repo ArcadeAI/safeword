@@ -1,5 +1,7 @@
 # Test Definitions: Keep tasks and patches proportional
 
+Feature source: `features/keep-tasks-and-patches-proportional.feature`
+
 test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU3.3EG00H.R1 — Formal planning phases remain feature-only
@@ -173,6 +175,20 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Installed classification failure cannot silently bypass feature ceremony
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU3.3EG00H.R14 — Tasks and patches carry a proportionate Delivery Checklist in their existing inline work record, with each applicable obligation proven, concretely skipped, or assigned as a human dependency without creating feature plans or claiming merge authority
+
+### Scenario: Small work records every applicable delivery obligation honestly
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A completed task checklist cannot claim merge authority
 
 - [ ] RED
 - [ ] GREEN

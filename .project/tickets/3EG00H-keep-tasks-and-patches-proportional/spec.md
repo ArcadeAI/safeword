@@ -7,7 +7,7 @@
 - **Parent:** 82T411
 - **Milestone:** M3
 - **Parent job:** plan-implementability.TBU3
-- **Killer Demo:** inherited from the parent spec — skip: this child proves proportional routing around the feature path
+- **Killer Demo:** inherited from the parent spec — this child owns the task-and-patch proportional-flow clause; G1C9PP and 7CAMAD own the feature plan-repair-and-start sequence
 
 <!-- Inherited by reference; the child never restates it. To skip demo proof for
      this feature alone, append an em-dash skip clause to the Killer Demo line
@@ -51,6 +51,8 @@ lineage parsing to satisfy a cosmetic heading rule. -->
 #### plan-implementability.TBU3.3EG00H.R12 — Newly discovered decisions return to the right layer
 
 #### plan-implementability.TBU3.3EG00H.R13 — Structural enforcement does not claim semantic classification
+
+#### plan-implementability.TBU3.3EG00H.R14 — Tasks and patches carry a proportionate Delivery Checklist in their existing inline work record, with each applicable obligation proven, concretely skipped, or assigned as a human dependency without creating feature plans or claiming merge authority
 
 <!-- markdownlint-enable MD001 -->
 

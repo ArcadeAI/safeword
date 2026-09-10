@@ -232,6 +232,10 @@ Each pass:
    approval it needs, or report that block as the blocker. **A review you never
    dispatched is not coverage** — say so unprompted, before any finding, name
    what ran in its place, and never let your own pass stand in for the review.
+   On Codex, invoke the coordinator with `sandbox_permissions: "require_escalated"`
+   on the command tool and explain that the named review packet goes to the
+   configured reviewer. The reviewer needs its authenticated network boundary;
+   running it in the default restricted sandbox produces a false login failure.
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground
    courtesy wait. That is a handoff, not a failed route: keep the returned

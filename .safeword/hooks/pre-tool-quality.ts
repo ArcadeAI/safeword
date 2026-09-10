@@ -47,7 +47,7 @@ import {
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
-import { evaluateImplementEntry } from './lib/plan-gate.ts';
+import { evaluateExecutionPlanningEntry, evaluateImplementEntry } from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
@@ -248,10 +248,14 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
 // Verified at the point of reading: the ledger is a plain text file, so a stamp
 // claiming a coordinator verdict is held to that claim here rather than trusted
 // because it is written down (ticket PB1GMZ).
-function readReviewStamps(scope: string): ReviewStamp[] {
+function recordedReviewStamps(): ReviewStamp[] {
   const logFile = nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log');
   if (!existsSync(logFile)) return [];
-  return verifiedStamps(parseReviewStamps(readFileSync(logFile, 'utf8')), projectDirectory, scope);
+  return parseReviewStamps(readFileSync(logFile, 'utf8'));
+}
+
+function readReviewStamps(scope: string): ReviewStamp[] {
+  return verifiedStamps(recordedReviewStamps(), projectDirectory, scope);
 }
 
 /**
@@ -653,6 +657,48 @@ if (isCanonicalTicketEdit || isCanonicalSpecEdit) {
 // deviations only via per-phase phase_skips justifications. Ordered BEFORE the
 // #404 readiness gate so "wrong step" is reported before "step not earned".
 // ---------------------------------------------------------------------------
+
+// Implementation Planning decision gate (G1C9PP, #4200). Run before phase
+// provenance so a request to enter the newly introduced phase reports the
+// actual open decision instead of the transitional "unknown phase" fallback.
+if (isCanonicalTicketEdit) {
+  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
+  if (
+    proposedType === 'feature' &&
+    priorPhase === 'plan-implementation' &&
+    proposedPhase === 'plan-execution'
+  ) {
+    const ticketDirectory = nodePath.dirname(editedFile);
+    const verdict = evaluateExecutionPlanningEntry(ticketDirectory);
+    if (!verdict.ok) deny(verdict.reason, verdict.remediation);
+
+    if (isReviewGateOn()) {
+      const planPath = nodePath.join(ticketDirectory, 'impl-plan.md');
+      const planContent = existsSync(planPath) ? readFileSync(planPath, 'utf8') : '';
+      const ticketScope = nodePath.basename(ticketDirectory);
+      const planScope = reviewScope(ticketScope, 'impl-plan', hashArtifact(planContent));
+      const reviewVerdict = reviewGateForNextAsset(
+        planScope,
+        readReviewStamps(planScope),
+        crossAgentReviewPolicy(),
+      );
+      if (!reviewVerdict.ok) {
+        const planScopePrefix = `${ticketScope}:impl-plan@`;
+        const hasSupersededReview = recordedReviewStamps().some(
+          stamp => stamp.scope.startsWith(planScopePrefix) && stamp.scope !== planScope,
+        );
+        deny(
+          hasSupersededReview
+            ? 'The Implementation Plan changed after its recorded review, so that review is superseded and requires plan revalidation before it can authorize Execution Planning.'
+            : 'The current Implementation Plan has not passed its required review, so Execution Planning cannot begin.',
+          hasSupersededReview
+            ? 'Run Implementation Plan revalidation against the current impl-plan.md, record the new content-bound review stamp, then retry the transition.'
+            : 'Run the Implementation Plan review against the current impl-plan.md, record its content-bound review stamp, then retry the transition.',
+        );
+      }
+    }
+  }
+}
 
 if (isCanonicalTicketEdit) {
   // Only judge writes whose proposed content is reconstructable from the

@@ -951,12 +951,15 @@ const PROCESS_GROUP_POLL_INTERVAL_MS = 50;
 const WINDOWS_CLEANUP_BUDGET_MS = 1000;
 
 /**
- * A reviewer that could not authenticate says so on stderr; anything else keeps
- * the caller's classification.
+ * A reviewer that could not authenticate may say so on either output stream;
+ * anything else keeps the caller's classification. Claude's structured JSON
+ * error envelope is written to stdout, while Codex and OpenCode commonly use
+ * stderr, so inspecting only one stream turns a recoverable login problem into
+ * an opaque process failure.
  */
-function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
+function classifyExit(stdout: string, stderr: string, otherwise: ReviewFailure): ReviewFailure {
   return /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(
-    stderr,
+    `${stdout}\n${stderr}`,
   )
     ? 'not_authenticated'
     : otherwise;
@@ -1248,7 +1251,7 @@ async function runCandidate(
             if (overflow) {
               reject(
                 new ReviewRuntimeError(
-                  classifyExit(stderr, 'invalid_output'),
+                  classifyExit(stdout, stderr, 'invalid_output'),
                   `${reviewer} exceeded its output limit`,
                 ),
               );
@@ -1257,7 +1260,7 @@ async function runCandidate(
             if (code !== 0) {
               reject(
                 new ReviewRuntimeError(
-                  classifyExit(stderr, 'process_failed'),
+                  classifyExit(stdout, stderr, 'process_failed'),
                   `${reviewer} review failed (${code ?? 'signal'}): ${stderr.trim()}`,
                 ),
               );

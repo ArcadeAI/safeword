@@ -21,4 +21,17 @@ describe('quality-review supporting context guidance', () => {
     expect(normalized).toContain('Do not dump the repository');
     expect(normalized).toContain('context is not additional work under review');
   });
+
+  it.each([
+    'packages/cli/templates/skills/quality-review/SKILL.md',
+    'packages/cli/templates/skills/review-spec/SKILL.md',
+    'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md',
+    'packages/cli/templates/skills/bdd/TDD.md',
+  ])('%s sends Codex review dispatches through the authenticated boundary', path => {
+    const content = readFileSync(nodePath.join(repoRoot, path), 'utf8');
+
+    expect(content).toContain('sandbox_permissions: "require_escalated"');
+    expect(content).toContain('authenticated network boundary');
+    expect(content).toContain('default restricted sandbox produces a false login failure');
+  });
 });

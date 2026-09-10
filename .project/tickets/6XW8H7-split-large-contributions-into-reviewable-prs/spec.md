@@ -16,13 +16,16 @@
 > each change can be understood, verified, and merged without reconstructing
 > the entire implementation or inventing a design decision.
 
+K3EBHB owns the plain-language recovery rendering for this child's semantic
+denials; this child owns the slicing judgment and installed contract dispatch.
+
 ## Rules
 
 <!-- markdownlint-disable MD001 -->
 
 #### plan-implementability.TBU2.6XW8H7.R1 — Execution Planning explicitly decides whether a large contribution needs multiple pull requests
 
-#### plan-implementability.TBU2.6XW8H7.R2 — Each planned pull request has one coherent purpose, boundary, prerequisite set, proof obligation, and completion signal
+#### plan-implementability.TBU2.6XW8H7.R2 — Each planned pull request has one coherent purpose, boundary, prerequisite set, proof obligation, and completion signal and can be implemented without inventing a design decision
 
 #### plan-implementability.TBU2.6XW8H7.R3 — Pull-request dependencies are ordered explicitly and every merge leaves the repository in a safe supported state
 
@@ -36,14 +39,15 @@
 
 Affected:
 
-- Claude Code
-- OpenAI Codex
-- OpenCode — profile catalogue only; Desktop remains advisory until native hook support exists
-- Cursor
+- Safeword CLI — installs and checks the shared Execution Plan contract
+- Claude Code — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
+- Claude Code Cloud — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
+- OpenAI Codex — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
+- OpenCode — skip: M1 defines the catalogue contract; YCFFNC in M2 owns catalogue delivery, while Desktop remains advisory until native hook dispatch is independently proven
+- Cursor — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
+- Cursor Cloud Agents — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 
 Unaffected:
 
-- Safeword CLI — PR slicing is authored through host planning guidance rather than a standalone CLI command
-- Claude Code Cloud — project instructions are advisory; no new cloud lifecycle enforcement is introduced
+- Claude Code on the Web — no browser-entry-point behavior changes
 - OpenAI Codex Cloud — repository instructions are advisory; no local planning gate is available
-- Cursor Cloud Agents — project instructions are advisory; no new cloud lifecycle enforcement is introduced

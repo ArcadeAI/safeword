@@ -2,9 +2,6 @@
 
 | Dimension | Partitions and boundaries |
 | --- | --- |
-| Scope source | ticket scope; project non-goal; milestone non-goal; inherited boundary |
-| Completeness | omitted in-scope obligation; proposed out-of-scope work; contradiction; complete plan |
-| Authority | blocking in-scope correction; optional strengthening accepted; strengthening declined |
-| Human approval | disabled; enabled interactive; enabled headless |
-| Recovery message | missing input; stale review; contract mismatch; fallback; task promotion |
+| Recovery message | missing input; stale review; contract mismatch; fallback; task promotion; pending human design approval; pending user-owned scope or dispute decision |
+| Audience detail | plain primary explanation; optional technical identifiers; jargon-only explanation |
 | Walkthrough | recovery obvious without code; jargon-only failure; surface-specific limitation |

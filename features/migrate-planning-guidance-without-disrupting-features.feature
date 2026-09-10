@@ -162,3 +162,74 @@ Feature: Migrate planning guidance without disrupting features
       Given an upgraded project fixture contains a legacy instruction requesting a separate deep-design artifact
       When real Safeword CLI install and reconcile updates the feature-planning guidance
       Then the installed instruction directs the detailed decisions into the Implementation Plan and contains no separate-artifact request
+
+  @plan-implementability.TBU1.YCFFNC.R6
+  Rule: plan-implementability.TBU1.YCFFNC.R6 — A plan created or revised after implementation exists reconciles its claims against current behavior and records discrepancies without relabeling them as accepted, proven, or approved
+
+    @surface.safeword-cli
+    Scenario Outline: Existing implementation state controls a retrofitted plan claim
+      Given a feature returning to planning has <implementation_state>
+      When its Implementation Plan is reconciled against current behavior through the installed Safeword CLI
+      Then <plan_result>
+
+      Examples:
+        | implementation_state | plan_result |
+        | current behavior matching an accepted legacy decision | the plan records the decision and labels the matching behavior as implemented without claiming proof or human approval |
+        | proposed behavior absent from the current implementation | the plan labels the behavior proposed rather than implemented |
+        | current behavior contradicting an accepted decision | the plan records the discrepancy as unresolved and does not relabel current behavior as accepted |
+        | proof retained only from an older revision | the plan preserves the evidence link and labels its revision limitation rather than calling the current implementation proven |
+
+    @rejection
+    Scenario: A plausible but unverified implementation claim blocks migrated-plan approval
+      Given a retrofitted Implementation Plan calls a process lease unique per incarnation without reconciling the current identity construction
+      When the plan is reviewed
+      Then approval is blocked until the implemented identity and any discrepancy are recorded truthfully
+
+  @plan-implementability.TBU1.YCFFNC.R7
+  Rule: plan-implementability.TBU1.YCFFNC.R7 — Installed guidance delivers both planning-phase entry gates and project-local artifacts, the feature Delivery Checklist, and reviewable pull-request slicing, and proves that behavior at each affected host boundary or records a specific justified limitation at that real boundary
+
+    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: Each authoritative host exposes the complete installed planning route
+      Given Safeword is installed for <host_entry>
+      When a feature reaches planning through that host's real entry point
+      Then the workflow produces the project-local Implementation Plan and Execution Plan, applies their current review contracts, carries the feature Delivery Checklist, and records a one-PR or dependency-ordered slicing decision
+
+      Examples:
+        | host_entry |
+        | Safeword CLI planning transition |
+        | Claude Code lifecycle-hook dispatch |
+        | Claude Code Cloud project hooks in a fresh VM |
+        | OpenAI Codex project workflow dispatch |
+        | OpenCode CLI/TUI plugin-event dispatch |
+        | Cursor project-hook dispatch |
+        | Cursor Cloud Agents project hooks in a fresh runner |
+
+    @surface.opencode
+    Scenario: An unsupported host boundary records a specific limitation
+      Given OpenCode Desktop cannot enforce the two planning reviews through reliable native hook dispatch
+      When installed planning guidance reaches that surface
+      Then the guidance labels the workflow advisory, names the missing native boundary, and directs the user to the authoritative OpenCode CLI or TUI route
+
+  @plan-implementability.TBU1.YCFFNC.R8 @demo
+  Rule: plan-implementability.TBU1.YCFFNC.R8 — On each supported authoritative host, a plain feature prompt automatically traverses intake, behavior definition, both planning phases, TDD implementation, verification, checklist completion, and pull-request preparation while preserving a contract-quality Product Plan, Implementation Plan, and Execution Plan and leaving human review and merge authority intact
+
+    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: MCP notification support travels from request to review-ready pull request
+      Given a user tells <host_entry> "let's support MCP notifications" in a configured project with no existing ticket
+      When Safeword carries the request through its automatic feature workflow
+      Then the resulting review-ready pull request has verified implementation, a completed Delivery Checklist, and current contract-approved Product, Implementation, and Execution Plans without claiming human review or merge approval
+
+      Examples:
+        | host_entry |
+        | Claude Code lifecycle-hook dispatch |
+        | Claude Code Cloud project hooks in a fresh VM |
+        | OpenAI Codex project workflow dispatch |
+        | OpenCode CLI/TUI plugin-event dispatch |
+        | Cursor project-hook dispatch |
+        | Cursor Cloud Agents project hooks in a fresh runner |
+
+    @rejection
+    Scenario: Manual artifact creation cannot masquerade as the complete journey
+      Given a user requests MCP notification support and only a ticket plus unchecked plan templates exist
+      When end-to-end completion is evaluated
+      Then the journey remains incomplete with the next unperformed workflow step named

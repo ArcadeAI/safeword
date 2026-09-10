@@ -11,11 +11,41 @@
   approach and sequencing the concrete work needed to carry it out. Adding
   detail for either job makes the other harder to judge, so teams compensate by
   writing two competing "implementation plans" by hand.
+- **Known facts:** The current planning phase mixes approach decisions with
+  execution sequencing; issue #4200 passed repeated plan reviews while leaving
+  data and API contracts unresolved; user feedback reports manually producing
+  separate decision and execution documents to make review workable.
+- **Assumptions:** The configured project personas and surface inventory are
+  current for this epic, and the existing optional human design-approval gate
+  remains the authority for accepting an approach.
+- **Unresolved product decisions:** None inside the accepted boundary. Technical
+  approach choices belong to Implementation Planning; sequencing and test
+  mechanics belong to Execution Planning.
+- **Persona outcome inventory:**
+  - **Technical Builder:** Success means reaching an accepted approach and then
+    startable, provable work. Unsafe phase advancement is refused. Failure means
+    a false, stale, or over-broad approval. Approval authority remains explicit
+    and bounded: the user owns scope and optional strengthening, while the
+    configured human gate owns design acceptance when enabled. Trust comes from
+    exact artifact and context binding plus honest independence labels. Recovery
+    always names the phase and unresolved decision to return to.
+  - **Non-Technical Builder:** Success means understanding why progress stopped
+    and the one action that resumes it. Unsafe progress is refused without
+    requiring the person to interpret code, digests, or phase internals. Failure
+    means a jargon-only stop or no usable next action. This persona has no
+    standing approval authority merely by being non-technical; any separately
+    assigned user or project authority remains explicit. Trust comes from plain,
+    honest state descriptions. Recovery is the single concrete next action.
 - **Expected outcome:** Safeword splits today's mixed planning step into two
   consecutive phases. **Implementation Plan** decides and explains the
   approach—architecture, contracts, responsibilities, tradeoffs, risks, and
   rollout—for both people and agents. **Execution Plan** follows it and
-  organizes the accepted approach into exact, startable build and test work.
+  organizes the accepted approach into exact, startable build and test work,
+  carries a complete feature Delivery Checklist, and divides large
+  contributions into dependency-ordered pull requests that can be reviewed and
+  verified independently. Tasks and patches carry the same delivery concerns
+  proportionally in their existing lightweight work records rather than
+  receiving either formal feature plan.
   Both remain project-local Safeword artifacts, following today's plan storage,
   review, and enforcement model. Each phase defines one canonical quality
   contract derived from one packaged authority and identified by a digest of
@@ -41,6 +71,23 @@
   authors and reviewers receive the complete current context, missing context
   fails closed, reviewers cannot silently expand scope, and edits invalidate
   every review that depended on the changed artifact or upstream decision.
+  The Product Plan/spec remains the authoritative statement of what should be
+  true: it names every accepted persona and their consequential success,
+  refusal, failure, approval, trust, and recovery needs; distinguishes known
+  facts, assumptions, and unresolved product decisions; and leaves technical
+  approach and execution mechanics downstream. Product Plan approval means the
+  behavior is worth building, not that it is feasible, implemented, proven, or
+  approved for release. Product, Implementation, and Execution Planning use
+  the same explicit contract shape—purpose, entry requirements, required and
+  prohibited content, review question, approval meaning, invalidation, and
+  return path—while answering different questions.
+  Quantitative promises follow the same boundary: the Product Plan owns the
+  outcome, affected population, target, and meaningful conditions;
+  Implementation Planning decides measurement origin, method, validity, and
+  failure behavior when those choices constrain the design; Execution Planning
+  owns concrete instrumentation and evidence collection. Reviewers may identify
+  missing decisions and explain constraints, but cannot silently choose new
+  behavior or architecture for the author.
 - **Success threshold:** An Implementation Plan can be judged on whether the
   approach is sufficiently decided in a focused 30–60 minute review without
   also carrying task sequencing, while retaining the technical detail needed
@@ -61,6 +108,15 @@
   context cannot produce approval, both plans are checked for omissions and
   scope overreach, and changing a plan or load-bearing upstream decision
   invalidates every dependent review.
+  Product Plan review proves that accepted personas and their consequential
+  success, refusal, failure, approval, trust, and recovery outcomes are all
+  inventoried or explicitly inapplicable; the later scenario review proves
+  that every applicable outcome is covered, without importing architecture or
+  delivery choices into the product contract.
+  Before contribution execution, every work type also has a visible,
+  proportionate delivery checklist; feature Execution Plans explicitly decide
+  whether multiple pull requests are needed, and every planned slice has a
+  coherent boundary, prerequisites, proof, and a safe completion signal.
 - **Project non-goals:** Split the phases solely by human versus agent audience;
   forbid technical detail from an Implementation Plan when it carries a design
   decision; duplicate decisions across both plans; integrate with or depend on
@@ -75,6 +131,11 @@
   test for non-behavioral edits; or use file count as the sole work-type rule.
   Do not require an interactive human to unblock a cloud or headless session,
   or describe a permitted exhausted-route fallback as independent review.
+  Do not use Product Plan approval to claim technical feasibility, completed
+  implementation, proof, human release approval, or merge authority.
+  Do not impose a fixed review-pass cap or add a bespoke convergence counter to
+  the two phase contracts; disputed-finding resolution is a separate job with
+  its own authority and headless-flow contract.
 
 ## Jobs To Be Done
 
@@ -106,7 +167,7 @@
 
 #### plan-implementability.TBU1.R10 — Implementation planning uses the testing guide to choose the proof scope, real boundary, and confidence argument for each behavior without requiring execution-level test mechanics
 
-#### plan-implementability.TBU1.R11 — The Implementation Plan contract rejects an approach that leaves applicable responsibilities, boundaries, API or data contracts, authorization, failure behavior, compatibility, migration, rollout, rollback, or proof scope for Execution Planning to decide
+#### plan-implementability.TBU1.R11 — The Implementation Plan contract returns an approach for correction when it leaves applicable responsibilities, boundaries, API or data contracts, authorization, failure behavior, compatibility, migration, rollout, rollback, or proof scope for Execution Planning to decide
 
 #### plan-implementability.TBU1.R12 — Each load-bearing choice records the decision, credible alternatives, why the choice won, why alternatives lost, and current evidence with version fit and license or security limits when those facts affect the choice
 
@@ -127,6 +188,22 @@
 #### plan-implementability.TBU1.R20 — Data guidance retains the store, model, flow, source-of-truth, ownership, access, lifecycle, migration, backfill, and compliance subjects in R6, redirects every feature-local Design result to the Implementation Plan, and retires both numeric entity thresholds and the single-store, simple-schema, and feature-scoped-entity skip carve-outs; R6 decides when to consult data guidance and R8 separately decides whether a durable architecture record is required
 
 #### plan-implementability.TBU1.R21 — The current separate deep-design lane is folded into the Implementation Plan contract and authoring guidance rather than retained as another artifact route
+
+#### plan-implementability.TBU1.R22 — When R8 identifies a concurrency-, security-, durability-, data-lifecycle-, migration-, or compatibility-significant decision, the Implementation Plan explains the applicable states, legal transitions, authority, atomicity or crash boundary, retry or idempotency behavior, and preserved evidence at decision depth without absorbing execution commands or exhaustive test cases
+
+#### plan-implementability.TBU1.R23 — For an accepted quantitative promise, the Implementation Plan decides measurement origin, method, validity safeguards, and failure behavior when they constrain the design, while leaving the promised outcome, affected population, target, and meaningful conditions in the Product Plan and concrete instrumentation and evidence collection in the Execution Plan
+
+#### plan-implementability.TBU1.R24 — The M2 delivery child installs both phase contracts and their real-boundary behavior across every affected host surface, with an explicit justified skip only where the actual host boundary cannot support the authoritative workflow; M1 contract-definition children name that M2 owner wherever installed delivery is deferred
+
+#### plan-implementability.TBU1.R25 — Implementation Planning derives design consequences for every accepted persona's consequential trust, operation, approval, and recovery needs inside the accepted scope, without importing new product behavior
+
+#### plan-implementability.TBU1.R26 — When planning and implementation states coexist, the Implementation Plan visibly distinguishes proposed decisions, implemented facts, available proof, known defects, and pending human authority without treating one state as another
+
+#### plan-implementability.TBU1.R27 — A plan created or revised after implementation exists reconciles its claims against current behavior and records discrepancies without relabeling them as accepted, proven, or approved design
+
+#### plan-implementability.TBU1.R28 — When semantic review finds an incomplete or incorrect Implementation Plan, Safeword returns to Implementation Planning, surfaces the full current set of blocking defects, resolves missing decisions through the existing decision-discovery and authority rules, corrects the plan, and repeats review on the new exact bytes until the plan is complete and correct or an honestly named external decision remains pending; the repair loop is the workflow, not merely a terminal rejection
+
+#### plan-implementability.TBU1.R29 — On each supported authoritative host, a plain feature request can travel through intake, behavior definition, Implementation Planning, Execution Planning, TDD implementation, verification, Delivery Checklist completion, and pull-request preparation without requiring the user to manually invoke or recreate the workflow; the resulting Product Plan, Implementation Plan, and Execution Plan each satisfy their own approved contract, and the completed pull request remains subject to normal human review and merge authority
 
 ### plan-implementability.TBU2 — Turn the accepted approach into startable work
 
@@ -157,6 +234,18 @@
 #### plan-implementability.TBU2.R10 — The Execution Plan maps every accepted scenario, decision, proof, affected surface, migration, rollout, rollback, and documentation obligation to dependency-ordered work with a concrete completion signal
 
 #### plan-implementability.TBU2.R11 — Changing load-bearing behavior or scope context invalidates the Implementation Plan review and every dependent Execution Plan review; changing an accepted Implementation Plan invalidates both plan reviews; changing only an Execution Plan invalidates only its own review
+
+#### plan-implementability.TBU2.R12 — The Execution Plan distinguishes current implementation from target work and records whether each obligation has current-revision real-boundary proof, reusable earlier-revision proof, partial or structural proof, or no proof
+
+#### plan-implementability.TBU2.R13 — The Execution Plan carries the feature Delivery Checklist and organizes large contributions into dependency-ordered, independently reviewable pull-request slices; each task and slice maps to the accepted scenario, decision, risk, or delivery obligation it implements and proves
+
+#### plan-implementability.TBU2.R14 — Execution Plan approval means the accepted design is startable and provable without a new behavior-shaping decision; it does not claim that implementation is complete, verification passed, a human approved release, or a pull request may merge
+
+#### plan-implementability.TBU2.R15 — Each accepted measurement design becomes concrete instrumentation, test, and evidence-collection work with a named completion signal; Execution Planning may not redefine the upstream promise or measurement validity contract
+
+#### plan-implementability.TBU2.R16 — Execution Planning supplies rather than replaces feature TDD by ordering the concrete test and build work that implementation executes through RED, GREEN, and REFACTOR
+
+#### plan-implementability.TBU2.R17 — When implementation discovers or makes a decision that changes the accepted approach, Safeword preserves still-valid completed work and evidence, returns to Implementation Planning, revises and re-reviews the exact Implementation Plan, refreshes and re-reviews the dependent Execution Plan, and then resumes implementation from the first invalidated obligation; when the change affects only execution sequencing or mechanics, Safeword returns only to Execution Planning, revises and re-reviews that plan, and resumes without invalidating the accepted design
 
 ### plan-implementability.TBU3 — Keep small work small without hiding decisions
 
@@ -191,9 +280,12 @@
 
 #### plan-implementability.TBU3.R12 — A newly discovered in-scope product-behavior decision returns to behavior definition, an implementation-design decision returns to Implementation Planning, and a sequencing-only change returns to Execution Planning; an idea outside accepted scope is dropped or offered as a user-owned scope decision rather than automatically promoting or expanding the work
 
-#### plan-implementability.TBU3.R13 — Execution Planning does not replace feature TDD: it supplies the concrete test and build order that TDD executes through RED, GREEN, and REFACTOR
+<!-- R13 was retired after its responsibility moved to the feature Delivery
+     Checklist; stable Rule IDs are not renumbered. -->
 
 #### plan-implementability.TBU3.R14 — Structural enforcement may verify work type, required artifacts, and observable proof facts, but does not claim that a task or patch classification is semantically correct
+
+#### plan-implementability.TBU3.R15 — Tasks and patches carry a proportionate Delivery Checklist in their existing inline work record: every applicable contributor-controlled obligation is proven, marked not applicable with a concrete reason, or recorded as a human-owned dependency without creating either feature planning artifact or treating contributor readiness as merge authority
 
 ### plan-implementability.TBU4 — Keep planning complete without expanding accepted scope
 
@@ -229,6 +321,31 @@
 
 #### plan-implementability.TBU4.R13 — When repository-level instructions reach a surface where Safeword cannot enforce the phase gates, they state plainly that the workflow is advisory on that surface, do not claim review or approval occurred, and direct the user to a supported gated surface for authoritative planning
 
+#### plan-implementability.TBU4.R14 — The Product Plan/spec, Implementation Plan, and Execution Plan contracts each state their purpose, entry requirements, required and prohibited content, review question, approval meaning, invalidating changes, and return path; each approval establishes only right behavior, an accepted design, or startable delivery respectively and cannot stand in for a downstream approval
+
+#### plan-implementability.TBU4.R15 — A blocking finding cites the accepted contract, Rule, scenario, or decision it protects and states the defect, unresolved choice, and relevant constraints; a reviewer may offer illustrative options but may not select new product behavior or architecture unless an accepted decision makes the correction unique, optional strengthening stays nonblocking until the user accepts it into scope, and every corrected plan requires a fresh verdict bound to its exact bytes
+
+#### plan-implementability.TBU4.R16 — The Product Plan contract requires every accepted persona's consequential success, refusal, failure, approval, trust, and recovery outcomes to be inventoried or explicitly marked inapplicable and keeps known facts, assumptions, and unresolved product decisions visibly distinct; the scenario contract separately requires coverage of every applicable outcome before scenario-gate approval
+
+### plan-implementability.TBU5 — Resolve disputed plan findings without review loops
+
+**Persona:** Technical Builder (TBU)
+
+> When a plan author and reviewer disagree about a finding, I want the dispute
+> routed to an authority that did not create it, so work reaches an honest
+> per-finding terminal result without reviewer-owned scope or silent
+> redispatch.
+
+#### plan-implementability.TBU5.R1 — The reviewer that raised a disputed finding cannot be the sole adjudicator of that finding
+
+#### plan-implementability.TBU5.R2 — Disputes are typed before routing: scope and optional strengthening belong to the user, review currency is resolved from bound provenance, and correctness or relevance requires a fresh adjudicator applying the accepted contract and scope
+
+#### plan-implementability.TBU5.R3 — A dispute over whether a finding is optional strengthening applies the baseline nonblocking rule in TBU4.R15; the dispute itself cannot make the finding blocking, and only user acceptance can change the scope boundary
+
+#### plan-implementability.TBU5.R4 — A headless or cloud flow never invents human authority or waits indefinitely for an unavailable person; it records the unresolved disposition, preserves the current nonblocking human-approval behavior, and never reports an unresolved correctness finding as approved
+
+#### plan-implementability.TBU5.R5 — Each disputed finding reaches a typed terminal result—upheld, reclassified, rejected, pending user-owned scope decision, or unresolved after available independent routes—without an arbitrary correctness-pass cap, silent redispatch, or silent scope expansion; this job does not claim to bound every future author-correct-re-review cycle
+
 ### plan-implementability.NTB1 — Recover from a planning gate without reading code
 
 **Persona:** Non-Technical Builder (NTB)
@@ -243,7 +360,7 @@
 
 #### plan-implementability.NTB1.R3 — When task work is promoted, Safeword explains the consequential decision it discovered, preserves completed test or investigation evidence, and names the phase where work will resume rather than presenting the promotion as lost progress
 
-#### plan-implementability.NTB1.R4 — Verification includes an NTB walkthrough for each distinct block, invalidation, fallback, and promotion message category, proving that a person can identify the recovery action without reading code; affected surfaces need real-boundary evidence or a specific limitation
+#### plan-implementability.NTB1.R4 — Verification includes an NTB walkthrough for each distinct block, invalidation, fallback, promotion, pending human design-approval, and pending user-owned scope or dispute message category, proving that a person can identify the recovery action without reading code; affected surfaces need real-boundary evidence or a specific limitation
 
 ## Shape
 
@@ -251,15 +368,20 @@
 
 - **Outcome:** Implementation Planning owns accepted approach decisions;
   Execution Planning owns dependency-ordered build and test mechanics; both
-  have authoritative author-review contracts and explicit return paths.
-- **Non-goals:** Host delivery, migration of existing tickets, and task or patch
-  routing changes.
+  have authoritative author-review contracts and explicit return paths; the
+  Execution Plan contract also owns the feature Delivery Checklist and coherent,
+  independently reviewable pull-request slicing for large contributions.
+- **Non-goals:** Installed-host delivery beyond the Safeword CLI contract demo,
+  migration of existing tickets, and task or patch routing changes.
 
 ### M2 — Deliver and enforce the workflow everywhere Safeword runs
 
 - **Outcome:** The phase model, artifacts, review dispatch, provenance,
-  invalidation, fail-closed recovery, and in-flight-ticket migration work
-  through the CLI and every affected agent surface.
+  invalidation, fail-closed recovery, feature Delivery Checklist, reviewable-PR
+  slicing, and in-flight-ticket migration work through the CLI and every
+  affected agent surface; a plain feature prompt can traverse the complete
+  workflow into a verified, review-ready pull request with contract-quality
+  Product, Implementation, and Execution Plans preserved along the way.
 - **Non-goals:** Claiming semantic quality from structural checks or adding a
   new external tracker dependency.
 
@@ -267,18 +389,39 @@
 
 - **Outcome:** Classification, decision discovery, testing guidance, and
   promotion rules keep small work lightweight while preventing consequential
-  choices from being invented during implementation.
+  choices from being invented during implementation; tasks and patches carry
+  the applicable Delivery Checklist obligations in their existing lightweight
+  records rather than new planning artifacts.
 - **Non-goals:** Formal planning artifacts or independent planning reviews for
   tasks and patches.
 
 ## Killer Demo
 
-> For a technical builder starting with accepted feature behavior but an
-> ambiguous implementation, Safeword discovers and independently approves the
-> approach before producing executable work, visibly proven when a cold-start
-> agent rejects a plan with a missing contract and then begins the corrected
-> first RED step without inventing a decision, while tasks and patches follow a
-> lighter proportional flow.
+- **Plan repair:** For a technical builder starting with accepted feature
+  behavior but an ambiguous implementation, Safeword discovers the material
+  decisions and reviews the resulting Implementation Plan. When review finds
+  missing or incorrect decisions, Safeword returns to Implementation Planning,
+  fills in the complete set of known gaps through the proper decision owners,
+  and re-reviews the corrected exact plan until it is complete and correct. A
+  fresh agent then turns that accepted approach into an Execution Plan and
+  begins the first RED step without inventing a decision, while tasks and
+  patches follow a lighter proportional flow.
+- **Complete feature journey:** A user gives Safeword a plain request such as
+  “let's support MCP notifications.” Without the user manually invoking each
+  workflow step, Safeword carries the request from intake through behavior
+  definition, Implementation Planning, Execution Planning, TDD implementation,
+  verification, Delivery Checklist completion, and a completed review-ready
+  pull request. The Product Plan, Implementation Plan, and Execution Plan left
+  behind are each independently strong artifacts for their distinct purpose;
+  the pull request still requires normal human review and merge authority.
+- **Implementation replan:** During implementation, the user or agent reaches a
+  new decision that changes the accepted approach or planned execution. If it
+  changes the approach, Safeword returns to Implementation Planning, updates
+  and re-reviews that plan, then refreshes and re-reviews the dependent
+  Execution Plan. If it changes only execution sequencing or mechanics,
+  Safeword returns directly to Execution Planning. In both cases, valid
+  completed work and evidence are preserved, and implementation resumes from
+  the first affected obligation under current approvals.
 
 ## Surfaces
 
@@ -287,8 +430,6 @@ Affected:
 - Safeword CLI
 - Claude Code
 - Claude Code Cloud
-- Claude Code on the Web — skip: no browser-entry-point behavior changes; the
-  shared ephemeral-runtime behavior is proven at the Claude Code Cloud boundary
 - OpenAI Codex
 - OpenCode — profile catalogue only; Desktop remains advisory until native hook
   dispatch is independently proven
@@ -297,6 +438,8 @@ Affected:
 
 Unaffected:
 
+- Claude Code on the Web — no browser-entry-point behavior changes; shared
+  ephemeral-runtime behavior is proven at the Claude Code Cloud boundary
 - OpenAI Codex Cloud — it reads repository `AGENTS.md` but does not receive the
   packaged local Codex plugin or lifecycle hooks that own these planning phases;
   guidance delivered there must label the workflow advisory and must not claim

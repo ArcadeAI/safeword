@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9b3c37e10587427ec4f4ab88705eee2082d7f0739225cac36d337f4d33d783c4"
+      "sha256": "7f15527e1fddb2d65034f5280638369acef1c06c42d393106a2acdaf628e6e6d"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "331b57f65b6a6ee4ee256ec6f80a2b92da1adda7a58ca6b7ef8d77b846e439fc"
+      "sha256": "e5a899c09955c7d3c3464cf48eecce9e50d0f8f51bdd48680268a3e814d10eb8"
     },
     {
       "path": "runtime/event-groups.json",
@@ -243,7 +243,7 @@
     },
     {
       "path": "runtime/hooks/lib/impl-plan.ts",
-      "sha256": "53c766fd99667a08b642b5650c50ea3690618ffd60a76718845e80ae1056fdd0"
+      "sha256": "9fcfd25821d33826b72688ab6226f118488500fec8b5c51541d798c3e5dfceb7"
     },
     {
       "path": "runtime/hooks/lib/inspiration.ts",
@@ -295,11 +295,11 @@
     },
     {
       "path": "runtime/hooks/lib/phase-provenance.ts",
-      "sha256": "77a7aea77f21b611f1b65ea7728c53b115ae18cebb769fa2d29e7df708e0065e"
+      "sha256": "ea3c4fe77df918b55c4495cef42494ecaa5c01977921345733da2941dc24e734"
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
-      "sha256": "1faba40cc03419da77122ab91209c7a00feb5b741e20d9f2d7605dc5f0ba48cf"
+      "sha256": "dc96ffcf0f039de7fdfb156b8e538a2c9ae32cc59292f983cb7ba1da189adbad"
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
@@ -327,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "2fb8f5d7016878ed032fc6e70da0bc3128a81cb98bf341dc1692aaf714877925"
+      "sha256": "c9d7c7c7e7c98365824e73a8a8d98374753dd18c8ba0523db592b4aded5de631"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "5796604af7664317170bfeacb6d27139417c5ee4d5058e8a05068eec99dce0cc"
+      "sha256": "bef1f10d24e0137159a975a7e1adf1186ca688560480170d9a5e7491f16f3b0b"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -615,7 +615,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "b2add745768013c06a13ae745da0d5bc49f1b28c84ed79156352df48868c8f35"
+      "sha256": "1335be64b4cb71253e507022377073a1abc7a267348b55b8097acdcb3c8c77ce"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -631,7 +631,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "dcabcd5bf31d33a74509970067638b7b0bd1f83f6c7317fbb9d1bf7c44b86f4b"
+      "sha256": "bb7e3c0f485bdc1586d4f1cbb94e6210245d6d695832bd892e6eb09f4b256528"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -687,7 +687,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "76fb9fc24162045005a2b354e808dbda281dcdc15b300f216af9d379d2cd5fb1"
+      "sha256": "3fe40757e50950627e2eae2d9762db7aaf4f53502c27ed1b2b68ba869c7e2115"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -703,7 +703,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "6d5cd00bd18ce1ad676f315de85ee6cf907bfc164803bfedaf174034cbe2c03e"
+      "sha256": "a17b0e87a2aeb5c1302510f1c0309b58028eab1854a3a955e9e9bd187fea26b3"
     },
     {
       "path": "skills/self-review/SKILL.md",

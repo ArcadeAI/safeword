@@ -1,5 +1,7 @@
 # Test Definitions: Migrate planning guidance without disrupting features
 
+Feature source: `features/migrate-planning-guidance-without-disrupting-features.feature`
+
 test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.YCFFNC.R1 — In-flight tickets migrate without retroactive blocking
@@ -103,6 +105,48 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Reconcile redirects a legacy separate-design request into the Implementation Plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU1.YCFFNC.R6 — A plan created or revised after implementation exists reconciles its claims against current behavior and records discrepancies without relabeling them as accepted, proven, or approved
+
+### Scenario: Existing implementation state controls a retrofitted plan claim
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A plausible but unverified implementation claim blocks migrated-plan approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU1.YCFFNC.R7 — Installed guidance delivers both planning-phase entry gates and project-local artifacts, the feature Delivery Checklist, and reviewable pull-request slicing, and proves that behavior at each affected host boundary or records a specific justified limitation at that real boundary
+
+### Scenario: Each authoritative host exposes the complete installed planning route
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unsupported host boundary records a specific limitation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU1.YCFFNC.R8 — On each supported authoritative host, a plain feature prompt automatically traverses intake, behavior definition, both planning phases, TDD implementation, verification, checklist completion, and pull-request preparation while preserving a contract-quality Product Plan, Implementation Plan, and Execution Plan and leaving human review and merge authority intact
+
+### Scenario: MCP notification support travels from request to review-ready pull request
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Manual artifact creation cannot masquerade as the complete journey
 
 - [ ] RED
 - [ ] GREEN

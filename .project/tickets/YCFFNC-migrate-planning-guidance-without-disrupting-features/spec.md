@@ -7,7 +7,7 @@
 - **Parent:** 82T411
 - **Milestone:** M2
 - **Parent job:** plan-implementability.TBU1
-- **Killer Demo:** inherited from the parent spec — skip: this child preserves the route but does not own the execution result
+- **Killer Demo:** inherited from the parent spec — this child owns the installed complete-feature journey across supported authoritative hosts; G1C9PP and 7CAMAD own the plan-repair-and-start proof
 
 <!-- Inherited by reference; the child never restates it. To skip demo proof for
      this feature alone, append an em-dash skip clause to the Killer Demo line
@@ -17,7 +17,8 @@
 ## Contribution
 
 Replace legacy feature-design routes with the two-plan workflow while preserving
-accepted work already in implementation.
+accepted work already in implementation and proving the installed planning
+behavior at every affected host boundary.
 
 ## Rules
 
@@ -35,6 +36,12 @@ lineage parsing to satisfy a cosmetic heading rule. -->
 #### plan-implementability.TBU1.YCFFNC.R4 — Data guidance uses semantic applicability and significance
 
 #### plan-implementability.TBU1.YCFFNC.R5 — Deep design is folded into the Implementation Plan
+
+#### plan-implementability.TBU1.YCFFNC.R6 — A plan created or revised after implementation exists reconciles its claims against current behavior and records discrepancies without relabeling them as accepted, proven, or approved
+
+#### plan-implementability.TBU1.YCFFNC.R7 — Installed guidance delivers both planning-phase entry gates and project-local artifacts, the feature Delivery Checklist, and reviewable pull-request slicing, and proves that behavior at each affected host boundary or records a specific justified limitation at that real boundary
+
+#### plan-implementability.TBU1.YCFFNC.R8 — On each supported authoritative host, a plain feature prompt automatically traverses intake, behavior definition, both planning phases, TDD implementation, verification, checklist completion, and pull-request preparation while preserving a contract-quality Product Plan, Implementation Plan, and Execution Plan and leaving human review and merge authority intact
 
 <!-- markdownlint-enable MD001 -->
 

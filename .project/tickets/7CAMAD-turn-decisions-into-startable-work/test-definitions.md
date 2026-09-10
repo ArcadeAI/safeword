@@ -12,12 +12,6 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Each agent host applies review state at its real entry point
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: Exhausted review routes preserve their actual provenance
 
 - [ ] RED
@@ -38,13 +32,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R2 — Every execution step is startable without inventing a contract
 
-### Scenario: A fresh-context agent can begin the first step from accepted artifacts alone
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A forced behavior decision prevents a fresh-context start
+### Scenario: A fresh-context agent turns an accepted approach into the first RED
 
 - [ ] RED
 - [ ] GREEN
@@ -92,12 +80,6 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Agent hosts cannot authorize coding from host-local notes
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ## Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
 
 ### Scenario: Data-decision specificity controls semantic approval
@@ -130,7 +112,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Agent hosts block edits authorized by a stale Execution Plan
+### Scenario: Execution Plan verdict and recorded assurance control coding authorization
 
 - [ ] RED
 - [ ] GREEN
@@ -171,6 +153,90 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Production code cannot precede the named RED
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.7CAMAD.R15 — Accepted measurement decisions become concrete instrumentation, test, and evidence-collection work without redefining the upstream promise or validity contract
+
+### Scenario: Measurement execution preserves the accepted promise and validity contract
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.7CAMAD.R16 — Changing load-bearing behavior or scope invalidates both plan reviews, changing the accepted Implementation Plan invalidates both plan reviews, and changing only the Execution Plan invalidates only its own review
+
+### Scenario: Review invalidation follows dependency direction
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An Execution Plan cannot stay current after its source approach changes
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.7CAMAD.R17 — A design-changing implementation decision returns through revised and re-reviewed Implementation and Execution Plans, while a sequencing-only decision returns through a revised and re-reviewed Execution Plan; both paths preserve still-valid work and evidence and resume from the first invalidated obligation
+
+### Scenario: Implementation-time replanning preserves valid progress and refreshes the affected plans
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Implementation cannot continue under a stale affected plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.7CAMAD.R12 — The Execution Plan distinguishes current implementation from target work and uses the canonical evidence-currency taxonomy owned by A639WN.R7
+
+### Scenario: Evidence state controls the delivery claim
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Delivery evidence uses the canonical checklist taxonomy
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Partial structural evidence cannot authorize completion
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.7CAMAD.R13 — The Execution Plan carries the feature Delivery Checklist and maps accepted obligations into dependency-ordered tasks and independently reviewable pull-request slices under the sibling checklist and slicing contracts
+
+### Scenario: The Execution Plan maps delivery obligations into owned review units
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Contribution shape controls pull-request decomposition
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A complete-looking task list cannot leave delivery obligations unowned
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.7CAMAD.R14 — Execution Plan approval establishes only that delivery is startable and provable without a new behavior-shaping decision; it does not claim implementation, verification, human release approval, or merge authority
+
+### Scenario: Execution approval cannot impersonate a downstream approval
 
 - [ ] RED
 - [ ] GREEN

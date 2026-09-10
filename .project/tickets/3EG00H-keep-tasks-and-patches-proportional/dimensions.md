@@ -8,3 +8,4 @@
 | Decision discovery | none; reversible local choice; shared or durable choice; proof-boundary change |
 | Promotion | before RED; after investigation; after test evidence; resume phase |
 | Ceremony | no formal plans for patch/task; feature contracts after promotion |
+| Delivery checklist | applicable contributor obligation; concrete not-applicable reason; human-owned dependency; attempted merge-authority claim |

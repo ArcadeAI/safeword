@@ -18,68 +18,33 @@ Feature: Turn accepted decisions into startable work
         | current with a valid approving semantic review receipt and achieved review provenance recorded | the workflow enters Execution Planning |
         | current with a semantic review receipt recording rejection | the transition is blocked and the receipt's rejection is reported |
 
-    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
-    Scenario Outline: Each agent host applies review state at its real entry point
-      Given an Implementation Plan is <review_state>
-      When <host> attempts Execution Planning through <host_entry>
-      Then <transition_result>
-
-      Examples:
-        | host | host_entry | review_state | transition_result |
-        | Claude Code | installed lifecycle-hook dispatch | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
-        | Claude Code | installed lifecycle-hook dispatch | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
-        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
-        | Claude Code Cloud | actual lifecycle dispatch from project hooks in a fresh VM | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
-        | OpenAI Codex | installed project workflow dispatch | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
-        | OpenAI Codex | installed project workflow dispatch | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
-        | OpenCode CLI/TUI | installed plugin-event dispatch | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
-        | OpenCode CLI/TUI | installed plugin-event dispatch | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
-        | Cursor | installed project-hook dispatch | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
-        | Cursor | installed project-hook dispatch | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
-        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | missing a semantic review receipt | the host keeps the ticket in Implementation Planning and reports the missing review |
-        | Cursor Cloud Agents | actual lifecycle dispatch from project hooks in a fresh runner | current with an approving receipt and recorded review provenance | the host enters Execution Planning |
-
     @surface.safeword-cli
     Scenario: Exhausted review routes preserve their actual provenance
-      Given a current Implementation Plan has a valid receipt from the permitted exhausted-route fallback
+      Given a current Implementation Plan has a receipt whose achieved-assurance field was validated by 5F5ZZA as a permitted fallback
       When the installed Safeword CLI begins Execution Planning
-      Then the workflow enters Execution Planning and records the actual fallback route rather than independent provenance
+      Then the workflow enters Execution Planning from the recorded achieved assurance without treating it as independent review
 
     @surface.safeword-cli
     Scenario: An unearned fallback receipt cannot authorize planning
-      Given a current Implementation Plan has a fallback receipt but no record that stronger review routes were attempted and unavailable
+      Given a current Implementation Plan has a receipt whose achieved-assurance field is unsatisfied after 5F5ZZA provenance validation
       When the installed Safeword CLI attempts to begin Execution Planning
-      Then the transition is blocked and the strongest unexhausted route is named
+      Then the transition is blocked because the required achieved assurance is absent
 
     @surface.safeword-cli
     Scenario: A self-authored independence claim cannot authorize planning
-      Given the authoring agent added a receipt claiming independent review without a matching reviewer route result
+      Given the authoring agent added an independence claim that 5F5ZZA provenance validation did not accept as achieved assurance
       When the installed Safeword CLI attempts to begin Execution Planning
-      Then the transition is blocked and the unsupported provenance claim is named
+      Then the transition is blocked because the required achieved assurance is absent
 
   @plan-implementability.TBU2.7CAMAD.R2
   Rule: plan-implementability.TBU2.7CAMAD.R2 — Every execution step is startable without inventing a contract
 
-    @demo @surface.safeword-cli
-    Scenario: A fresh-context agent can begin the first step from accepted artifacts alone
-      Given an agent has only the accepted behavior, Implementation Plan, and Execution Plan
-      When it begins the first execution step
-      Then the ledger records the plan's exact first test action failing before any production-code edit and records no new behavior-shaping decision
-
-    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
-    Scenario Outline: A forced behavior decision prevents a fresh-context start
-      Given an Execution Plan leaves the authorization failure behavior undecided
-      When a fresh-context agent attempts the first step through <host_entry>
-      Then the workflow stops before production code and reports the unresolved authorization decision
-
-      Examples:
-        | host_entry |
-        | Claude Code lifecycle-hook dispatch |
-        | Claude Code Cloud project hooks in a fresh VM |
-        | OpenAI Codex project workflow dispatch |
-        | OpenCode CLI/TUI plugin-event dispatch |
-        | Cursor project-hook dispatch |
-        | Cursor Cloud Agents project hooks in a fresh runner |
+    @surface.safeword-cli
+    @demo
+    Scenario: A fresh-context agent turns an accepted approach into the first RED
+      Given an agent has only the accepted behavior and a current approved Implementation Plan
+      When it uses the installed Safeword CLI to create and review the Execution Plan and begin its first step
+      Then a contract-satisfying Execution Plan maps every accepted obligation and the ledger records its named test action failing before any production edit without a new behavior-shaping decision
 
     @surface.safeword-cli
     Scenario: A later unstartable step blocks an otherwise startable plan
@@ -143,7 +108,7 @@ Feature: Turn accepted decisions into startable work
       Examples:
         | plan_state | authorization_result |
         | the only execution notes are host-local scratch notes | coding is blocked because the project-local Execution Plan is missing |
-        | a current reviewed project-local Execution Plan with achieved review provenance exists | coding is authorized by that project-local plan |
+        | a current project-local Execution Plan with an approving semantic review and achieved review provenance exists | coding is authorized by that project-local plan |
         | a stale unreviewed project-local Execution Plan and host-local scratch notes recording semantic approval exist | coding is blocked because only the project-local plan supplies authorization |
 
     @surface.safeword-cli
@@ -151,21 +116,6 @@ Feature: Turn accepted decisions into startable work
       Given the only execution notes are host-local scratch notes
       When coding authorization is evaluated through the installed Safeword CLI
       Then one receipt names creating and reviewing the project-local Execution Plan as the next action and progressively discloses the failing check, expected plan location, and review command
-
-    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
-    Scenario Outline: Agent hosts cannot authorize coding from host-local notes
-      Given only host-local scratch notes record semantic approval and no project-local Execution Plan exists
-      When production code is edited through <host_entry>
-      Then the host blocks the edit and names the missing project-local Execution Plan
-
-      Examples:
-        | host_entry |
-        | Claude Code lifecycle-hook dispatch |
-        | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
-        | OpenAI Codex project workflow dispatch |
-        | OpenCode CLI/TUI plugin-event dispatch |
-        | Cursor project-hook dispatch |
-        | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
 
   @plan-implementability.TBU2.7CAMAD.R6
   Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
@@ -222,27 +172,20 @@ Feature: Turn accepted decisions into startable work
       Examples:
         | plan_state | coding_result |
         | edited after semantic approval | coding is blocked until the current plan passes semantic review |
-        | current but the semantic reviewer returned no verdict | coding is blocked and the receipt records that no semantic verdict was obtained |
-        | current but the semantic reviewer returned a rejection verdict | coding is blocked and the receipt records the rejection |
-        | current with a valid permitted-fallback verdict and its actual route recorded | coding is authorized without relabeling the fallback as independent |
-        | current with a fallback verdict but no record that stronger review routes were attempted and unavailable | coding is blocked and the strongest unexhausted route is named |
         | unedited after valid semantic approval with achieved independence recorded | coding is authorized |
-        | approved before its source Implementation Plan changed | coding is blocked until the Execution Plan is reconciled to and reviewed against the current approach |
 
-    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
-    Scenario Outline: Agent hosts block edits authorized by a stale Execution Plan
-      Given the project-local Execution Plan was edited after semantic approval
-      When production code is edited through <host_entry>
-      Then the host blocks the edit until the current project-local plan is reviewed
+    @surface.safeword-cli
+    Scenario Outline: Execution Plan verdict and recorded assurance control coding authorization
+      Given a current Execution Plan has <review_state>
+      When production-code work is attempted through the installed Safeword CLI
+      Then <coding_result>
 
       Examples:
-        | host_entry |
-        | Claude Code lifecycle-hook dispatch |
-        | actual Claude Code Cloud lifecycle dispatch from project hooks in a fresh VM |
-        | OpenAI Codex project workflow dispatch |
-        | OpenCode CLI/TUI plugin-event dispatch |
-        | Cursor project-hook dispatch |
-        | actual Cursor Cloud Agents lifecycle dispatch from project hooks in a fresh runner |
+        | review_state | coding_result |
+        | a semantic receipt with no verdict | coding is blocked and the missing verdict is reported |
+        | a semantic receipt recording rejection | coding is blocked and the rejection is reported |
+        | a valid permitted-fallback verdict with its actual assurance recorded | coding is authorized without treating the fallback as independent |
+        | a receipt whose achieved-assurance field is unsatisfied after 5F5ZZA provenance validation | coding is blocked because the required achieved assurance is absent |
 
   @plan-implementability.TBU2.7CAMAD.R10
   Rule: plan-implementability.TBU2.7CAMAD.R10 — Every accepted obligation maps to startable work
@@ -290,32 +233,151 @@ Feature: Turn accepted decisions into startable work
   @plan-implementability.TBU2.7CAMAD.R11
   Rule: plan-implementability.TBU2.7CAMAD.R11 — Execution Planning supplies rather than replaces TDD
 
-    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
-    Scenario Outline: An execution step still proceeds through RED GREEN and REFACTOR
+    @surface.safeword-cli
+    Scenario: An execution step still proceeds through RED GREEN and REFACTOR
       Given an approved Execution Plan names the exact test and build order
-      When implementation completes that step through <host_entry>
+      When implementation completes that step through the installed Safeword CLI contract workflow
       Then the ledger records RED from the named test before production code, GREEN with that test passing and no production edit outside the step's named scope, and REFACTOR under the same passing proof
 
-      Examples:
-        | host_entry |
-        | Claude Code lifecycle-hook dispatch |
-        | Claude Code Cloud project hooks in a fresh VM |
-        | OpenAI Codex project workflow dispatch |
-        | OpenCode CLI/TUI plugin-event dispatch |
-        | Cursor project-hook dispatch |
-        | Cursor Cloud Agents project hooks in a fresh runner |
-
-    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
-    Scenario Outline: Production code cannot precede the named RED
+    @rejection @surface.safeword-cli
+    Scenario: Production code cannot precede the named RED
       Given an approved Execution Plan names the first test action
-      When production code is edited through <host_entry> before that test has an observed failure
+      When production code is requested through the installed Safeword CLI contract workflow before that test has an observed failure
       Then the edit is blocked and the named RED action is the recovery
 
+  @plan-implementability.TBU2.7CAMAD.R12
+  Rule: plan-implementability.TBU2.7CAMAD.R12 — The Execution Plan distinguishes current implementation from target work and uses the canonical evidence-currency taxonomy owned by A639WN.R7
+
+    @surface.safeword-cli
+    Scenario Outline: Evidence state controls the delivery claim
+      Given an Execution Plan obligation has <delivery_state>
+      When the installed Safeword CLI records its current-to-target state
+      Then <recorded_claim>
+
       Examples:
-        | host_entry |
-        | Claude Code lifecycle-hook dispatch |
-        | Claude Code Cloud project hooks in a fresh VM |
-        | OpenAI Codex project workflow dispatch |
-        | OpenCode CLI/TUI plugin-event dispatch |
-        | Cursor project-hook dispatch |
-        | Cursor Cloud Agents project hooks in a fresh runner |
+        | delivery_state | recorded_claim |
+        | no implementation and no proof | the obligation is target work with no proof |
+        | matching implementation with current-revision real-boundary proof | the obligation is implemented and proven at the current revision |
+        | matching implementation with only earlier-revision proof | the obligation is implemented with reusable but stale proof and remains open for current proof |
+        | a known defect contradicting the accepted design | the current defect and target correction are separate and the obligation is not called complete |
+
+    @surface.safeword-cli
+    Scenario Outline: Delivery evidence uses the canonical checklist taxonomy
+      Given an Execution Plan obligation has <available_evidence>
+      When the installed Safeword CLI records its delivery evidence state
+      Then it uses the canonical A639WN evidence class <evidence_class>
+
+      Examples:
+        | available_evidence | evidence_class |
+        | current-revision proof at the accepted real boundary | current-revision real-boundary proof |
+        | proof from an earlier revision that still applies | reusable earlier-revision proof |
+        | a structural check that proves only part of the obligation | partial or structural proof |
+        | no relevant proof | missing proof |
+
+    @rejection @surface.safeword-cli
+    Scenario: Partial structural evidence cannot authorize completion
+      Given an Execution Plan obligation requires real subprocess proof and has only a unit-level structural check
+      When delivery readiness is evaluated through the installed Safeword CLI
+      Then the obligation remains open with the missing real boundary named
+
+  @plan-implementability.TBU2.7CAMAD.R13
+  Rule: plan-implementability.TBU2.7CAMAD.R13 — The Execution Plan carries the feature Delivery Checklist and maps accepted obligations into dependency-ordered tasks and independently reviewable pull-request slices under the sibling checklist and slicing contracts
+
+    @surface.safeword-cli
+    Scenario: The Execution Plan maps delivery obligations into owned review units
+      Given an accepted feature requires code, tests, migration, monitoring, rollback, and documentation across several independently provable changes
+      When its Execution Plan is reviewed through the installed Safeword CLI
+      Then its Delivery Checklist maps every obligation to a dependency-ordered task and independently reviewable pull-request slice with a completion signal under the A639WN checklist and 6XW8H7 slicing contracts
+
+    @surface.safeword-cli
+    Scenario Outline: Contribution shape controls pull-request decomposition
+      Given an accepted feature has <contribution_shape>
+      When its Execution Plan is reviewed through the installed Safeword CLI against the 6XW8H7 slicing contract
+      Then <slice_result>
+
+      Examples:
+        | contribution_shape | slice_result |
+        | one coherent purpose with independently provable completion | the plan records one coherent pull-request slice without artificial decomposition |
+        | several dependency-ordered purposes with independent proof | the plan records the dependency-ordered reviewable slices |
+
+    @rejection @surface.safeword-cli
+    Scenario: A complete-looking task list cannot leave delivery obligations unowned
+      Given an Execution Plan lists coding tasks but maps no pull-request slice to the accepted rollback obligation
+      When its execution completeness is reviewed through the installed Safeword CLI
+      Then approval is blocked with the unowned rollback obligation named
+
+  @plan-implementability.TBU2.7CAMAD.R14
+  Rule: plan-implementability.TBU2.7CAMAD.R14 — Execution Plan approval establishes only that delivery is startable and provable without a new behavior-shaping decision; it does not claim implementation, verification, human release approval, or merge authority
+
+    @surface.safeword-cli
+    Scenario Outline: Execution approval cannot impersonate a downstream approval
+      Given a current Execution Plan has passed semantic implementability review
+      When a downstream gate asks the installed Safeword CLI to substantiate <claimed_state> from that approval
+      Then <report_result>
+
+      Examples:
+        | claimed_state | report_result |
+        | delivery is startable and provable without a new behavior-shaping decision | the CLI confirms exactly that state and records no implementation, verification, release-approval, or merge claim |
+        | implementation is complete | the claim is rejected because implementation evidence has not been established |
+        | verification passed | the claim is rejected because verification evidence has not been established |
+        | release has human approval | the claim is rejected because human authority has not been established |
+        | the contribution may merge | the claim is rejected because merge authority has not been established |
+
+  @plan-implementability.TBU2.7CAMAD.R15
+  Rule: plan-implementability.TBU2.7CAMAD.R15 — Accepted measurement decisions become concrete instrumentation, test, and evidence-collection work without redefining the upstream promise or validity contract
+
+    @surface.safeword-cli
+    Scenario Outline: Measurement execution preserves the accepted promise and validity contract
+      Given the accepted plans define an outcome, population, target, measurement origin, method, validity safeguards, and failure behavior
+      When the installed Safeword CLI reviews an Execution Plan that <execution_state>
+      Then <review_result>
+
+      Examples:
+        | execution_state | review_result |
+        | maps them to owned instrumentation, tests, evidence collection, and a completion signal | measurement execution does not block approval |
+        | omits the accepted instrumentation work | approval is blocked with the missing instrumentation work named |
+        | omits evidence collection for the accepted target | approval is blocked with the missing evidence work named |
+        | changes the target while defining instrumentation | approval is blocked because execution changed Product-owned behavior |
+        | changes the measurement origin without returning to Implementation Planning | approval is blocked because execution changed the accepted design |
+
+  @plan-implementability.TBU2.7CAMAD.R16
+  Rule: plan-implementability.TBU2.7CAMAD.R16 — Changing load-bearing behavior or scope invalidates both plan reviews, changing the accepted Implementation Plan invalidates both plan reviews, and changing only the Execution Plan invalidates only its own review
+
+    @surface.safeword-cli
+    Scenario Outline: Review invalidation follows dependency direction
+      Given the Product, Implementation, and Execution Plans each have a current review
+      When the installed Safeword CLI observes <change> changing semantically
+      Then <invalidation_result>
+
+      Examples:
+        | change | invalidation_result |
+        | accepted product behavior or scope | both planning reviews become stale |
+        | the accepted Implementation Plan | both planning reviews become stale |
+        | only Execution Plan sequencing | only the Execution Plan review becomes stale |
+        | formatting with no semantic effect | neither planning review becomes stale |
+
+    @rejection @surface.safeword-cli
+    Scenario: An Execution Plan cannot stay current after its source approach changes
+      Given an Execution Plan was approved before its source Implementation Plan changed
+      When coding is requested through the installed Safeword CLI
+      Then coding remains blocked until the Execution Plan is reconciled to and reviewed against the current approach
+
+  @plan-implementability.TBU2.7CAMAD.R17
+  Rule: plan-implementability.TBU2.7CAMAD.R17 — A design-changing implementation decision returns through revised and re-reviewed Implementation and Execution Plans, while a sequencing-only decision returns through a revised and re-reviewed Execution Plan; both paths preserve still-valid work and evidence and resume from the first invalidated obligation
+
+    @demo @surface.safeword-cli
+    Scenario Outline: Implementation-time replanning preserves valid progress and refreshes the affected plans
+      Given implementation has completed still-valid proof and then reaches <new_decision>
+      When the installed Safeword CLI routes and completes the replan
+      Then <resume_result>
+
+      Examples:
+        | new_decision | resume_result |
+        | a change to the accepted authorization approach | the revised Implementation Plan and dependent Execution Plan each receive a fresh exact-content review before work resumes from the first invalidated authorization obligation |
+        | a change only to the order of two independent build tasks | only the revised Execution Plan receives a fresh exact-content review before work resumes from the first reordered task |
+
+    @rejection @surface.safeword-cli
+    Scenario: Implementation cannot continue under a stale affected plan
+      Given an implementation-time decision changes the accepted data ownership approach
+      When production work attempts to continue through the installed Safeword CLI using the previously approved Execution Plan
+      Then the work remains unauthorized until both affected plans are revised and reviewed while still-valid completed evidence remains recorded

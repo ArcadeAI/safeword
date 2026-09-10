@@ -1,0 +1,115 @@
+# Test Definitions: Complete contributions with a default delivery checklist
+
+Feature source: `features/complete-contributions-with-a-default-delivery-checklist.feature`
+
+test-definitions.md is the R/G/R ledger.
+
+## Rule: plan-implementability.TBU2.A639WN.R1 — Feature execution begins only after Safeword has created one visible default Delivery Checklist from accepted scenarios and an accepted implementation approach
+
+### Scenario: The installed CLI workflow creates the checklist before execution
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Missing contribution context blocks execution
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Several missing prerequisites are reported in deterministic planning order
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.A639WN.R2 — The feature Delivery Checklist covers outcome and scope, resolved decisions, dependency and pull-request decomposition, testing, data and compatibility, monitoring and failure signals, security and privacy, rollout and rollback, documentation, ownership and human dependencies, and concrete completion evidence
+
+### Scenario: A complete checklist exposes every default obligation category
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A silently omitted default category prevents checklist completion
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.A639WN.R3 — Safeword carries the checklist through feature execution rather than using it only as an end-of-work audit, and each category is completed with evidence, marked not applicable with a concrete reason, or recorded as an explicit human-owned dependency
+
+### Scenario: An applicable item records an honest disposition
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Contributor-controlled work cannot be dismissed as a human handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: In-flight checklist state reflects partial execution progress
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unreadable Execution Plan blocks checklist updates
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.A639WN.R4 — The feature checklist lives in the Execution Plan; the TBU3 small-work contract separately owns proportionate task and patch checklist behavior without creating feature artifacts
+
+### Scenario: The feature Delivery Checklist lives in the Execution Plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The feature checklist contract cannot impose feature artifacts on smaller work
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.A639WN.R5 — Large feature contributions use the reviewable pull-request slicing contract from child 6XW8H7, while a contribution small enough for one coherent review records that decision without artificial decomposition
+
+### Scenario: The checklist records the appropriate PR-slicing outcome
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A large contribution cannot leave PR slicing unresolved
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.A639WN.R6 — Safeword reports contributor readiness only when every contributor-controlled obligation is completed and proven, reports pending human approvals or ownership as unresolved dependencies, and never treats readiness evidence as human approval or merge authority
+
+### Scenario: Readiness reports the next owning boundary without inventing authority
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementability.TBU2.A639WN.R7 — This child defines the canonical Delivery Checklist evidence-currency taxonomy—current-revision real-boundary proof, reusable earlier-revision proof, partial or structural proof, and missing proof—and never silently upgrades one class into another
+
+### Scenario: Evidence class controls the claim Safeword may make
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Earlier or partial evidence cannot silently become current complete proof
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR

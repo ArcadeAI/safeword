@@ -85,6 +85,11 @@ block as the blocker. **A review you never dispatched is not coverage** — say 
 unprompted, before any finding, name what ran in its place, and never let your
 own pass stand in for the review.
 
+On Codex, invoke the coordinator with `sandbox_permissions: "require_escalated"`
+on the command tool and explain that the named review packet goes to the
+configured reviewer. The reviewer needs its authenticated network boundary;
+running it in the default restricted sandbox produces a false login failure.
+
 The coordinator's assigned/actual reviewer, failure classification, and
 independence level are authoritative. If the typed result is
 `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the

@@ -7,7 +7,7 @@
 - **Parent:** 82T411
 - **Milestone:** M1
 - **Parent job:** plan-implementability.TBU2
-- **Killer Demo:** inherited from the parent spec
+- **Killer Demo:** inherited from the parent spec — G1C9PP owns the plan repair loop, this child owns the accepted-plan-to-first-RED continuation and implementation-time replan, and 3EG00H owns the task-and-patch proportional-flow clause
 
 <!-- Inherited by reference; the child never restates it. To skip demo proof for
      this feature alone, append an em-dash skip clause to the Killer Demo line
@@ -18,6 +18,9 @@
 
 Turn an approved approach into dependency-ordered work that a fresh agent can
 start and verify without silently making a new behavior-shaping decision.
+
+K3EBHB owns the plain-language recovery rendering for this child's blocked gate
+outcomes; 5F5ZZA owns review transport, fallback, and provenance validation.
 
 ## Rules
 
@@ -48,6 +51,18 @@ lineage parsing to satisfy a cosmetic heading rule. -->
 
 #### plan-implementability.TBU2.7CAMAD.R11 — Execution Planning supplies rather than replaces TDD
 
+#### plan-implementability.TBU2.7CAMAD.R12 — The Execution Plan distinguishes current implementation from target work and uses the canonical evidence-currency taxonomy owned by A639WN.R7
+
+#### plan-implementability.TBU2.7CAMAD.R13 — The Execution Plan carries the feature Delivery Checklist and maps accepted obligations into dependency-ordered tasks and independently reviewable pull-request slices under the sibling checklist and slicing contracts
+
+#### plan-implementability.TBU2.7CAMAD.R14 — Execution Plan approval establishes only that delivery is startable and provable without a new behavior-shaping decision; it does not claim implementation, verification, human release approval, or merge authority
+
+#### plan-implementability.TBU2.7CAMAD.R15 — Accepted measurement decisions become concrete instrumentation, test, and evidence-collection work without redefining the upstream promise or validity contract
+
+#### plan-implementability.TBU2.7CAMAD.R16 — Changing load-bearing behavior or scope invalidates both plan reviews, changing the accepted Implementation Plan invalidates both plan reviews, and changing only the Execution Plan invalidates only its own review
+
+#### plan-implementability.TBU2.7CAMAD.R17 — A design-changing implementation decision returns through revised and re-reviewed Implementation and Execution Plans, while a sequencing-only decision returns through a revised and re-reviewed Execution Plan; both paths preserve still-valid work and evidence and resume from the first invalidated obligation
+
 <!-- markdownlint-enable MD001 -->
 
 ## Surfaces
@@ -55,12 +70,12 @@ lineage parsing to satisfy a cosmetic heading rule. -->
 Affected:
 
 - Safeword CLI
-- Claude Code
-- Claude Code Cloud
-- OpenAI Codex
-- OpenCode — profile catalogue only; Desktop remains advisory until native hook support exists
-- Cursor
-- Cursor Cloud Agents
+- Claude Code — skip: M1 defines the plan contract; YCFFNC in M2 owns installed delivery and real-boundary proof
+- Claude Code Cloud — skip: M1 defines the plan contract; YCFFNC in M2 owns installed delivery and real-boundary proof
+- OpenAI Codex — skip: M1 defines the plan contract; YCFFNC in M2 owns installed delivery and real-boundary proof
+- OpenCode — skip: M1 defines the profile contract; YCFFNC in M2 owns catalogue delivery, while Desktop remains advisory until native hook dispatch is independently proven
+- Cursor — skip: M1 defines the plan contract; YCFFNC in M2 owns installed delivery and real-boundary proof
+- Cursor Cloud Agents — skip: M1 defines the plan contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 
 Unaffected:
 

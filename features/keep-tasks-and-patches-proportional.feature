@@ -232,3 +232,23 @@ Feature: Keep tasks and patches proportional
       Given a feature candidate reaches actual installed CLI dispatch with corrupt classification configuration
       When classification and structural validation attempt to run with real collaborators
       Then the workflow remains blocked and the primary message names restoring the classification configuration as the one next action
+
+  @plan-implementability.TBU3.3EG00H.R14 @demo
+  Rule: plan-implementability.TBU3.3EG00H.R14 — Tasks and patches carry a proportionate Delivery Checklist in their existing inline work record, with each applicable obligation proven, concretely skipped, or assigned as a human dependency without creating feature plans or claiming merge authority
+
+    Scenario Outline: Small work records every applicable delivery obligation honestly
+      Given <work_type> has <delivery_obligation>
+      When Safeword prepares the work for contributor handoff
+      Then <checklist_result>
+
+      Examples:
+        | work_type | delivery_obligation | checklist_result |
+        | task | a contributor-controlled documentation update | the inline task record keeps the item open until current proof is attached |
+        | patch | monitoring is concretely irrelevant to a wording-only correction | the inline patch record marks monitoring not applicable with that reason |
+        | task | production rollout approval owned by a human | the inline task record names the human dependency without claiming approval |
+
+    @rejection
+    Scenario: A completed task checklist cannot claim merge authority
+      Given every contributor-controlled task obligation has current proof
+      When Safeword reports contributor readiness
+      Then it reports the task ready for human review without creating feature plans or claiming the change may merge
