@@ -12,7 +12,7 @@ prove real installed CLI wiring.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R1 — Implementation Planning is a distinct approach-decision phase
 
-### Scenario: Safeword CLI enforces and releases the decision boundary
+## Scenario: Safeword CLI enforces and releases the decision boundary
 
 - [x] RED d847b78da
 - [ ] GREEN
