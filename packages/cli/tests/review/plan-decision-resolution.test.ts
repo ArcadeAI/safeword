@@ -35,6 +35,12 @@ function missingContractRequirements(contract: string): string[] {
   return REQUIRED_CONTRACT_PHRASES.filter(phrase => !normalized.includes(phrase.toLowerCase()));
 }
 
+function removePhraseCaseInsensitive(value: string, phrase: string): string {
+  const index = value.toLowerCase().indexOf(phrase.toLowerCase());
+  if (index === -1) return value;
+  return value.slice(0, index) + value.slice(index + phrase.length);
+}
+
 function decisionValue(plan: string, field: string): string | undefined {
   const prefix = `${field}:`;
   return plan
@@ -100,7 +106,10 @@ describe('Implementation Plan decision ownership boundary', () => {
     },
     {
       state: 'a resolved API contract',
-      plan: OTHERWISE_COMPLETE_PLAN,
+      plan: withDecision(
+        'API contract',
+        'resolved: POST /accounts accepts provider identity and returns the account link',
+      ),
       verdict: 'approve',
       finding: undefined,
     },
@@ -112,7 +121,10 @@ describe('Implementation Plan decision ownership boundary', () => {
     },
     {
       state: 'resolved rollback behavior',
-      plan: OTHERWISE_COMPLETE_PLAN,
+      plan: withDecision(
+        'Rollback',
+        'resolved: disable new writes before restoring the prior lookup',
+      ),
       verdict: 'approve',
       finding: undefined,
     },
@@ -124,7 +136,10 @@ describe('Implementation Plan decision ownership boundary', () => {
     },
     {
       state: 'resolved proof scope',
-      plan: OTHERWISE_COMPLETE_PLAN,
+      plan: withDecision(
+        'Proof scope',
+        'resolved: end-to-end proof at the installed CLI process boundary',
+      ),
       verdict: 'approve',
       finding: undefined,
     },
@@ -150,10 +165,7 @@ describe('Implementation Plan decision ownership boundary', () => {
     phrase => {
       const clause = obligationClause(PLAN_REVIEW_RUBRIC) ?? '';
       expect(missingContractRequirements(clause)).toEqual([]);
-      const mutated = clause
-        .replaceAll(/\s+/gu, ' ')
-        .toLowerCase()
-        .replaceAll(phrase.toLowerCase(), '');
+      const mutated = removePhraseCaseInsensitive(clause.replaceAll(/\s+/gu, ' '), phrase);
 
       const result = reviewDecisionResolution(mutated, OTHERWISE_COMPLETE_PLAN);
 
