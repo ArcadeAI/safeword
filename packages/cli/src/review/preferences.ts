@@ -6,7 +6,6 @@ import type { ReviewAgent, ReviewAuthor } from './contract.js';
 import { parseConfiguredReviewRoutes, type ReviewRoute } from './route-config.js';
 
 export type ReviewRouteScope = 'project' | 'user';
-export type ReviewRouteSource = ReviewRouteScope | 'built-in';
 
 export interface UserConfigEnvironment {
   readonly platform: 'unix' | 'windows';
