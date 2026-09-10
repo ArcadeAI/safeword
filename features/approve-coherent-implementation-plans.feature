@@ -265,7 +265,7 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | scope_decision | scope_result |
         | no user-supplied scope-change approval | the capability remains outside the accepted plan |
-        | fixture-minted typed scope-change authority bound to this ticket, session, and proposed scope | the capability enters this ticket's accepted consumer boundary |
+        | typed scope-change authority bound to this ticket, session, and proposed scope | the capability enters this ticket's accepted consumer boundary |
         | only an agent-authored assertion with no externally supplied user authority | the capability remains outside the accepted plan |
 
     Scenario Outline: Persona consequence coverage controls approach approval
@@ -431,15 +431,15 @@ Feature: Approve coherent Implementation Plans
       Then both exact-plan decisions are readable and neither append overwrites the other
 
     @surface.safeword-cli
-    Scenario Outline: An interrupted approval resumes without duplicating authority
+    Scenario Outline: An interrupted approval resumes according to durable authority
       Given an authorized approval write is interrupted <interruption_boundary> and that invocation exits
       When a fresh installed Safeword CLI invocation resumes the same ticket's approval through real internal collaborators
-      Then exactly one current approval is recorded and Execution Planning begins without a second human decision
+      Then <resume_result>
 
       Examples:
-        | interruption_boundary |
-        | before the decision event becomes durable |
-        | after the decision event becomes durable but before the phase changes |
+        | interruption_boundary | resume_result |
+        | before the decision event becomes durable | no approval is recorded, the ticket remains in Implementation Planning, and a new human decision is required |
+        | after the decision event becomes durable but before the phase changes | exactly one current approval remains recorded and Execution Planning begins without a second human decision |
 
     @surface.safeword-cli
     Scenario: Approval-ledger contention fails closed without changing authority
@@ -475,8 +475,8 @@ Feature: Approve coherent Implementation Plans
       Then the first receipt names all three defects together and the approving receipt binds the corrected bytes rather than the original bytes and records no remaining blocking defect
 
     Scenario: External authority pauses repair without disguising the plan as complete
-      Given a plan defect requires the user who owns scope and behavior to choose between two behaviorally different outcomes
-      When no authorized decision is available during the repair loop
+      Given a plan defect requires the user who owns scope and behavior to choose between two behaviorally different outcomes and no authorized decision is available
+      When the repair loop reaches that defect
       Then the plan remains unapproved with the pending decision, its consequences, and the one resume action named
 
     Scenario Outline: Every corrected plan is re-reviewed until its current bytes are clean

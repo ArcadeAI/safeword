@@ -284,7 +284,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An interrupted approval resumes without duplicating authority
+### Scenario: An interrupted approval resumes according to durable authority
 
 - [ ] RED
 - [ ] GREEN
