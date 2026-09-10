@@ -182,6 +182,10 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBeGreaterThan(0);
   });
 
+  it('allows an hour for a project verification command to finish', () => {
+    expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBe(60 * 60 * 1000);
+  });
+
   it('uses Codex Desktop identity only when a fresh bridge agrees with the authenticated task', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-codex-desktop-'));
     try {

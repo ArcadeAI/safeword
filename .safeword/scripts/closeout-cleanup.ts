@@ -25,7 +25,7 @@ import { draftSpoolPath, readAcks, readSpooledDrafts } from '../hooks/lib/retro-
 import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
-export const VERIFICATION_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
+export const VERIFICATION_COMMAND_TIMEOUT_MS = 60 * 60 * 1000;
 
 export interface PullRequestIdentity {
   url: string;
