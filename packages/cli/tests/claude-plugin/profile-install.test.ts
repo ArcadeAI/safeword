@@ -525,33 +525,61 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('restores both marketplace records when the host refresh fails', () => {
-    const { knownMarketplacePath, project, settingsPath } = fixture(true, 'v0.83.1', undefined, {
-      installedVersion: '0.83.1',
-      marketplaceUpdateFails: true,
-    });
+    const { knownMarketplacePath, log, project, settingsPath } = fixture(
+      true,
+      'v0.83.1',
+      undefined,
+      {
+        installedVersion: '0.83.1',
+        marketplaceUpdateFails: true,
+      },
+    );
     const settingsBefore = readFileSync(settingsPath, 'utf8');
     const registryBefore = readFileSync(knownMarketplacePath, 'utf8');
 
     const result = installClaudePlugin(project);
 
     expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_PROFILE_COMMAND_FAILED');
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace update safeword');
     expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
     expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
   });
 
   it('restores both marketplace records when the host does not confirm the new ref', () => {
-    const { knownMarketplacePath, project, settingsPath } = fixture(true, 'v0.83.1', undefined, {
-      installedVersion: '0.83.1',
-      marketplaceUpdatePersists: false,
-    });
+    const { knownMarketplacePath, log, project, settingsPath } = fixture(
+      true,
+      'v0.83.1',
+      undefined,
+      {
+        installedVersion: '0.83.1',
+        marketplaceUpdatePersists: false,
+      },
+    );
     const settingsBefore = readFileSync(settingsPath, 'utf8');
     const registryBefore = readFileSync(knownMarketplacePath, 'utf8');
 
     const result = installClaudePlugin(project);
 
     expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_MARKETPLACE_UNVERIFIED');
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace update safeword');
     expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
     expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
+  });
+
+  it('reports marketplace effects before refusing a plugin downgrade', () => {
+    const { project } = fixture(true, 'v0.83.1', undefined, { installedVersion: '9.0.0' });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_PLUGIN_DOWNGRADE_REFUSED');
+    expect(result.effects?.configuration).toContainEqual({
+      kind: 'update',
+      target: 'safeword',
+      operation: 'project',
+    });
   });
 
   it('repairs a GitHub-shorthand registration of the same repository instead of refusing', () => {

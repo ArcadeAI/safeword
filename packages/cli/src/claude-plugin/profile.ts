@@ -730,17 +730,19 @@ function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effec
   enableMarketplaceAutoUpdate(cwd, scope, effects);
 }
 
-function assertConvergeablePluginVersion(plugin: JsonObject): void {
+function assertConvergeablePluginVersion(plugin: JsonObject, effects: readonly Effect[]): void {
   if (typeof plugin.version !== 'string' || !isSafePackageVersion(plugin.version)) {
     throw new ClaudeProfileError(
       'CLAUDE_PLUGIN_METADATA_UNVERIFIED',
       `Claude reported malformed ${CLAUDE_PLUGIN_ID} version metadata in the selected scope.`,
+      effects,
     );
   }
   if (compareVersions(plugin.version, VERSION) > 0) {
     throw new ClaudeProfileError(
       'CLAUDE_PLUGIN_DOWNGRADE_REFUSED',
       `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${VERSION}; refusing an implicit downgrade.`,
+      effects,
     );
   }
 }
@@ -751,7 +753,7 @@ function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]
     runClaude(cwd, ['plugin', 'install', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
     effects.push({ kind: 'install', target: CLAUDE_PLUGIN_ID, operation: scope });
   } else {
-    assertConvergeablePluginVersion(plugin);
+    assertConvergeablePluginVersion(plugin, effects);
     if (plugin.version !== VERSION) {
       runClaude(cwd, ['plugin', 'update', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
       effects.push({ kind: 'update', target: CLAUDE_PLUGIN_ID, operation: scope });
