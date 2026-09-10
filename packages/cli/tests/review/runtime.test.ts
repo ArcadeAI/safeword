@@ -13,7 +13,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ReviewerOutput } from '../../src/review/contract.js';
+import type { ReviewerOutput, ReviewPacket } from '../../src/review/contract.js';
 import {
   inspectReviewRoute,
   parseProcessStat,
@@ -552,6 +552,66 @@ describe('reviewer process-group liveness', () => {
 });
 
 describe('headless reviewer process lifecycle', () => {
+  it.skipIf(process.platform === 'win32')(
+    'blocks contradictory plan contracts even when the reviewer approves',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
+  exit 0
+fi
+/bin/cat > /dev/null
+printf '%s' '${JSON.stringify({ structured_output: output })}'
+`,
+      );
+      chmodSync(executable, 0o755);
+      vi.stubEnv('PATH', bin);
+
+      const authorContract = {
+        sha256: 'author-contract',
+        obligations: ['record architecture consequences', 'exclude execution sequencing'],
+      };
+      const packet = {
+        schema_version: 1,
+        dispatch_id: 'dispatch-1',
+        kind: 'plan-implementation',
+        logical_files: [{ path: 'impl-plan.md', content: '# Plan' }],
+        plan_contract: {
+          author: authorContract,
+          reviewer: {
+            sha256: 'reviewer-contract',
+            obligations: ['record architecture consequences', 'require execution sequencing'],
+          },
+        },
+      } as ReviewPacket;
+
+      const matchingPacket = {
+        ...packet,
+        plan_contract: {
+          author: authorContract,
+          reviewer: authorContract,
+        },
+      } as ReviewPacket;
+      const matching = await runHeadlessReviewer('claude', matchingPacket, project, untrustedRoot);
+      expect(matching.verdict).toBe('approve');
+
+      const result = await runHeadlessReviewer('claude', packet, project, untrustedRoot);
+      expect(result.verdict).toBe('request_changes');
+      expect(result.findings).toHaveLength(2);
+      expect(result.findings[0]?.severity).toBe('error');
+      expect(result.findings[0]?.message).toContain('exclude execution sequencing');
+      expect(result.findings[1]?.severity).toBe('error');
+      expect(result.findings[1]?.message).toContain('require execution sequencing');
+    },
+  );
+
   // The only real-process test of the SUCCESS path. Every other real-process
   // case here ends in a timeout, a rejected probe, or an uncleanable tree, so
   // without this one a break in the spawn → stdin → stdout → parse → cleanup
