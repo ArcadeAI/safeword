@@ -104,7 +104,7 @@ prove real installed CLI wiring.
 
 - [x] RED c572e44ab
 - [x] GREEN 19016b552
-- [ ] REFACTOR
+- [x] REFACTOR 7f8181ac1
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope and confidence without absorbing execution mechanics or the verification ledger
 
