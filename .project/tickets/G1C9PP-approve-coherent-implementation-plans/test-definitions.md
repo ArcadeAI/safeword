@@ -31,7 +31,7 @@ prove real installed CLI wiring.
 ## Scenario: Decision presentation controls focused reviewability
 
 - [x] RED 57a353172
-- [ ] GREEN
+- [x] GREEN b59f684be
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
