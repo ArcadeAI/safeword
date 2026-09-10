@@ -11,7 +11,7 @@ import {
   inspirationActivationLines,
   validProductInspirationLines,
 } from '../fixtures/inspiration.js';
-import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
+import { expectHookAllow, expectHookDeny, type HookResult, writeGateConfig } from '../helpers';
 
 const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 const CODEX_HOOK_PATH = nodePath.resolve(
@@ -117,6 +117,7 @@ describe('activated intake inspiration transition wiring', () => {
 
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'sw-inspiration-intake-'));
+    writeGateConfig(projectRoot, { reviewGate: false });
     ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', 'INS001-gate');
     mkdirSync(ticketDirectory, { recursive: true });
     ticketFile = nodePath.join(ticketDirectory, 'ticket.md');

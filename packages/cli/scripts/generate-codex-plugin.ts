@@ -10,6 +10,26 @@ import {
 import { VERSION } from '../src/version.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
+import {
+  parseCodexPluginGenerationOptions,
+  publishFreshDirectory,
+} from './lib/codex-plugin-generation.js';
+
+const packageRoot = nodePath.resolve(import.meta.dirname, '..');
+const shippedRoot = nodePath.join(packageRoot, 'codex-plugin');
+const authoredShippedFiles = ['.codex-plugin/plugin.json', 'hooks.json'] as const;
+const options = parseCodexPluginGenerationOptions(process.argv.slice(2), VERSION);
+
+const outputRelativeToShippedRoot =
+  options.output === undefined ? undefined : nodePath.relative(shippedRoot, options.output);
+if (
+  outputRelativeToShippedRoot !== undefined &&
+  (outputRelativeToShippedRoot === '' ||
+    (!outputRelativeToShippedRoot.startsWith(`..${nodePath.sep}`) &&
+      !nodePath.isAbsolute(outputRelativeToShippedRoot)))
+) {
+  throw new Error('Custom output must be outside the checked-in Codex plugin directory');
+}
 
 await import('./generate-scenario-rubric.js');
 await import('./generate-plan-rubric.js');
@@ -17,13 +37,11 @@ await import('./generate-quality-rubric.js');
 await import('./generate-red-rubric.js');
 await import('./generate-red-rubric.js');
 
-const packageRoot = nodePath.resolve(import.meta.dirname, '..');
-const checkOnly = process.argv.includes('--check');
-const shippedRoot = nodePath.join(packageRoot, 'codex-plugin');
-const generatedRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-'));
-const authoredShippedFiles = ['.codex-plugin/plugin.json', 'hooks.json'] as const;
-
-try {
+async function generatePlugin(
+  generatedRoot: string,
+  includeAuthoredFiles: boolean,
+): Promise<number> {
+  const builtVersion = options.effectiveVersion === VERSION ? undefined : options.effectiveVersion;
   // Keep Codex hooks and skill commands independent from bunx's shared mutable
   // package installation. This is the same standalone build shape as the Claude
   // plugin runtime, emitted into the Codex plugin payload.
@@ -31,19 +49,24 @@ try {
     packageRoot,
     rootPackageJson.packageManager,
     'Codex',
+    builtVersion,
   );
   const runtimeDirectory = nodePath.join(generatedRoot, 'runtime');
   mkdirSync(runtimeDirectory, { recursive: true });
   writeFileSync(nodePath.join(runtimeDirectory, 'cli.js'), cliBundle, { mode: 0o755 });
   writeFileSync(
     nodePath.join(generatedRoot, 'package.json'),
-    `${JSON.stringify({ name: 'safeword-codex-plugin', version: VERSION, type: 'module' }, undefined, 2)}\n`,
+    `${JSON.stringify(
+      { name: 'safeword-codex-plugin', version: options.effectiveVersion, type: 'module' },
+      undefined,
+      2,
+    )}\n`,
   );
 
   const assets = writeCodexPluginCatalogue(
     nodePath.join(packageRoot, 'templates/skills'),
     generatedRoot,
-    VERSION,
+    options.effectiveVersion,
   );
   const knownSkillNames = new Set<string>();
   for (const asset of assets) {
@@ -69,18 +92,56 @@ try {
     },
   );
 
-  if (checkOnly) {
-    const differences = generatedTreeDifferences(generatedRoot, shippedRoot, authoredShippedFiles);
-    if (differences.length > 0) {
-      throw new Error(
-        `Generated Codex plugin is stale; run generate:codex-plugin:\n${differences.join('\n')}`,
-      );
+  if (includeAuthoredFiles) {
+    const manifestSource = readFileSync(
+      nodePath.join(shippedRoot, '.codex-plugin/plugin.json'),
+      'utf8',
+    );
+    const baseVersionField = `"version": "${VERSION}"`;
+    if (manifestSource.split(baseVersionField).length !== 2) {
+      throw new Error(`Codex plugin manifest does not declare package version ${VERSION}`);
     }
-    console.log(`Generated Codex plugin is current at ${VERSION}.`);
-  } else {
-    reconcileGeneratedTree(generatedRoot, shippedRoot, authoredShippedFiles);
-    console.log(`Generated ${assets.length} Codex plugin workflow assets.`);
+    const manifestDirectory = nodePath.join(generatedRoot, '.codex-plugin');
+    mkdirSync(manifestDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(manifestDirectory, 'plugin.json'),
+      manifestSource.replaceAll(baseVersionField, () => `"version": "${options.effectiveVersion}"`),
+    );
+    cpSync(nodePath.join(shippedRoot, 'hooks.json'), nodePath.join(generatedRoot, 'hooks.json'));
   }
-} finally {
-  rmSync(generatedRoot, { recursive: true, force: true });
+
+  return assets.length;
+}
+
+if (options.output === undefined) {
+  const generatedRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-'));
+  try {
+    const assetCount = await generatePlugin(generatedRoot, false);
+    if (options.checkOnly) {
+      const differences = generatedTreeDifferences(
+        generatedRoot,
+        shippedRoot,
+        authoredShippedFiles,
+      );
+      if (differences.length > 0) {
+        throw new Error(
+          `Generated Codex plugin is stale; run generate:codex-plugin:\n${differences.join('\n')}`,
+        );
+      }
+      console.log(`Generated Codex plugin is current at ${VERSION}.`);
+    } else {
+      reconcileGeneratedTree(generatedRoot, shippedRoot, authoredShippedFiles);
+      console.log(`Generated ${assetCount} Codex plugin workflow assets.`);
+    }
+  } finally {
+    rmSync(generatedRoot, { recursive: true, force: true });
+  }
+} else {
+  let assetCount = 0;
+  await publishFreshDirectory(options.output, async generatedRoot => {
+    assetCount = await generatePlugin(generatedRoot, true);
+  });
+  console.log(
+    `Generated ${assetCount} Codex plugin workflow assets at ${options.effectiveVersion} in ${options.output}.`,
+  );
 }

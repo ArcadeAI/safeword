@@ -10,7 +10,7 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     test: {
-      include: ['tests/**/*.release.test.ts'],
+      include: ['tests/**/*.release.test.ts', 'tests/codex-plugin-version.test.ts'],
     },
   }),
 );

@@ -21,6 +21,7 @@ import {
 import { expectHookAllow, expectHookDeny, type HookResult, writeGateConfig } from '../helpers';
 
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
+const STAMP_PATH = nodePath.resolve(__dirname, '../../templates/hooks/write-review-stamp.ts');
 const CODEX_GATE_PATH = nodePath.resolve(
   __dirname,
   '../../templates/hooks/codex/pre-tool-quality.ts',
@@ -30,6 +31,7 @@ const CURSOR_GATE_PATH = nodePath.resolve(
   '../../templates/hooks/cursor/pre-tool-quality.ts',
 );
 const TICKET_ID = 'TX480G';
+const REVIEW_ID = 'b3f1c2d4-0000-4000-8000-000000000420';
 const TODAY = new Date().toISOString().slice(0, 10);
 
 const ticketBody = (phase: string, type = 'feature', activated = false): string =>
@@ -113,6 +115,7 @@ const ACTIVATED_UNSUCCESSFUL_PLAN = VALID_PLAN.replace(
 
 describe('implementation planning transition gates (wired)', () => {
   let projectRoot: string;
+  let pluginRoot: string;
   let ticketDirectory: string;
   let ticketFile: string;
 
@@ -127,7 +130,11 @@ describe('implementation planning transition gates (wired)', () => {
         },
       }),
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      env: {
+        ...process.env,
+        CLAUDE_PLUGIN_ROOT: pluginRoot,
+        CLAUDE_PROJECT_DIR: projectRoot,
+      },
     });
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
@@ -193,8 +200,67 @@ describe('implementation planning transition gates (wired)', () => {
     ).toBe(0);
   }
 
+  function stampCurrentPlanReview(): void {
+    const ticketScope = nodePath.basename(ticketDirectory);
+    writeFileSync(
+      nodePath.join(pluginRoot, 'response.json'),
+      JSON.stringify({
+        data: {
+          review_id: REVIEW_ID,
+          status: 'approved',
+          review_kind: 'plan-implementation',
+          review_targets: [`.project/tickets/${ticketScope}/impl-plan.md`],
+          independence: 'cross-agent',
+          author_agent: 'codex',
+          actual_reviewer: 'claude',
+        },
+      }),
+    );
+    const commonArguments = [
+      '--ticket',
+      ticketScope,
+      '--author-agent',
+      'codex',
+      '--reviewer-agent',
+      'claude',
+      '--independence',
+      'cross-agent',
+      '--review-id',
+      REVIEW_ID,
+    ];
+    const environment = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: projectRoot,
+      CLAUDE_PLUGIN_ROOT: pluginRoot,
+      CLAUDE_SESSION_ID: 'plan-transition-fixture',
+    };
+    expect(
+      spawnSync('bun', [STAMP_PATH, ...commonArguments, 'impl-plan'], {
+        encoding: 'utf8',
+        env: environment,
+      }).status,
+    ).toBe(0);
+    expect(
+      spawnSync('bun', [STAMP_PATH, ...commonArguments, '--phase', 'plan-implementation'], {
+        encoding: 'utf8',
+        env: environment,
+      }).status,
+    ).toBe(0);
+  }
+
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'sw-plan-gate-'));
+    pluginRoot = mkdtempSync(nodePath.join(tmpdir(), 'sw-plan-gate-cli-'));
+    mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
+    writeFileSync(
+      nodePath.join(pluginRoot, 'runtime', 'cli.js'),
+      [
+        "import { readFileSync } from 'node:fs';",
+        "import nodePath from 'node:path';",
+        "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', 'response.json'), 'utf8'));",
+      ].join('\n'),
+    );
+    writeGateConfig(projectRoot, { reviewGate: false });
     ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', `${TICKET_ID}-gate`);
     mkdirSync(ticketDirectory, { recursive: true });
     mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
@@ -203,6 +269,7 @@ describe('implementation planning transition gates (wired)', () => {
 
   afterEach(() => {
     rmSync(projectRoot, { recursive: true, force: true });
+    rmSync(pluginRoot, { recursive: true, force: true });
   });
 
   it('keeps an unresolved behavior-shaping choice in Implementation Planning and names it', () => {
@@ -268,15 +335,7 @@ describe('implementation planning transition gates (wired)', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
-    const ticketScope = nodePath.basename(ticketDirectory);
-    writeFileSync(
-      nodePath.join(projectRoot, '.project', 'skill-invocations.log'),
-      [
-        `2026-09-09T00:00:00Z sess review:${reviewScope(ticketScope, 'impl-plan', hashArtifact(VALID_PLAN))}`,
-        `2026-09-09T00:00:01Z sess review:${reviewScope(ticketScope, 'phase', 'plan-implementation')}`,
-        '',
-      ].join('\n'),
-    );
+    stampCurrentPlanReview();
 
     const result = runAdvance('plan-implementation', 'plan-execution');
     expect(result.status).toBe(0);
@@ -760,7 +819,12 @@ describe('implementation planning transition gates (wired)', () => {
       );
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), completed);
 
-    expect(evaluateImplementEntry(ticketDirectory, { evaluationDate: TODAY })).toEqual({
+    expect(
+      evaluateImplementEntry(ticketDirectory, {
+        evaluationDate: TODAY,
+        projectDirectory: projectRoot,
+      }),
+    ).toEqual({
       ok: true,
     });
   });

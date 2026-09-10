@@ -256,7 +256,10 @@ describe('migrate codex-plugin command', () => {
     writeFileSync(legacySkill, 'legacy audit skill\n');
     const environment = stubAutomaticMigrationEnvironment(fixture);
 
-    expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
+    expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toEqual({
+      migrated: true,
+      marketplaceReplaced: false,
+    });
 
     // Automatic migration installs the plugin but leaves legacy protection in
     // place: removing it is an explicit `--finalize` decision, so an unattended
@@ -299,7 +302,10 @@ describe('migrate codex-plugin command', () => {
     writeFileSync(safewordSkill, 'legacy audit skill\n');
     const environment = stubAutomaticMigrationEnvironment(fixture);
 
-    expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toBe(true);
+    expect(automaticallyMigrateLegacyCodex(fixture.directory, environment)).toEqual({
+      migrated: true,
+      marketplaceReplaced: false,
+    });
     expect(existsSync(safewordSkill)).toBe(true);
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
 
@@ -785,9 +791,20 @@ command = 'echo "keep this user hook"'
       '[marketplaces.safeword]\nsource = "https://github.com/ArcadeAI/safeword.git"\nref = "main"\n',
     );
 
-    const result = await runCodexCommand(fixture, ['codex', 'install']);
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json']);
 
     expect(result.exitCode).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      effects: {
+        destructive: [
+          {
+            kind: 'replace',
+            target: 'Safeword Codex marketplace',
+            operation: 'stable-channel',
+          },
+        ],
+      },
+    });
     const calls = readFileSync(fixture.logPath, 'utf8');
     expect(calls).toContain('plugin marketplace remove safeword --json');
     expect(calls).toContain('plugin marketplace add ArcadeAI/safeword --ref stable');
@@ -798,6 +815,39 @@ command = 'echo "keep this user hook"'
     expect(calls.indexOf('plugin marketplace add')).toBeLessThan(
       calls.indexOf('plugin add safeword@safeword'),
     );
+  });
+
+  it('reports stable marketplace replacement when later plugin installation fails', async () => {
+    const fixture = createMigrationFixture('', { pluginVersion: '0.68.0' });
+    writeFileSync(
+      nodePath.join(fixture.directory, 'profile/config.toml'),
+      '[marketplaces.safeword]\nsource = "https://github.com/ArcadeAI/safeword.git"\nref = "main"\n',
+    );
+
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], {
+      SAFEWORD_FAIL_CODEX_PLUGIN_ADD: '1',
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      changed: true,
+      effects: {
+        configuration: [
+          {
+            kind: 'install',
+            target: 'Safeword Codex profile plugin',
+            operation: 'enablement-unverified',
+          },
+        ],
+        destructive: [
+          {
+            kind: 'replace',
+            target: 'Safeword Codex marketplace',
+            operation: 'stable-channel',
+          },
+        ],
+      },
+    });
   });
 
   it('reports profile mutation and recovery when stable enrollment and restoration both fail', async () => {
@@ -1030,18 +1080,16 @@ command = 'echo "keep this user hook"'
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
   });
 
-  it('reports unknown enablement without changing the repository after partial installation', async () => {
+  it('reports a configured marketplace when the following plugin add fails', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
       pluginInitiallyInstalled: false,
     });
-    const beforeConfig = readFileSync(fixture.configPath, 'utf8');
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json'], {
-      SAFEWORD_FAIL_PLUGIN_VERIFY: '1',
+      SAFEWORD_FAIL_CODEX_PLUGIN_ADD: '1',
     });
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toBe('');
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'failed',
       changed: true,
@@ -1054,11 +1102,51 @@ command = 'echo "keep this user hook"'
           },
         ],
       },
-      errors: [{ code: 'PLUGIN_ENABLEMENT_UNKNOWN' }],
+      recovery: [
+        {
+          command: 'codex plugin add safeword@safeword --json',
+          description: 'Retry the Safeword Codex plugin installation.',
+        },
+      ],
+      errors: [{ code: 'PLUGIN_INSTALL_FAILED' }],
     });
-    expect(readFileSync(fixture.configPath, 'utf8')).toBe(beforeConfig);
-    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
   });
+
+  it.each([
+    ['the verification command fails', { SAFEWORD_FAIL_PLUGIN_VERIFY: '1' }],
+    ['the verification response is malformed', { SAFEWORD_MALFORMED_PLUGIN_LIST: '1' }],
+  ])(
+    'reports unknown enablement without changing the repository when %s',
+    async (_case, environment) => {
+      const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, {
+        pluginInitiallyInstalled: false,
+      });
+      const beforeConfig = readFileSync(fixture.configPath, 'utf8');
+
+      const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json'], environment);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe('');
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        changed: true,
+        effects: {
+          configuration: [
+            {
+              kind: 'install',
+              target: 'Safeword Codex profile plugin',
+              operation: 'enablement-unverified',
+            },
+          ],
+        },
+        errors: [{ code: 'PLUGIN_ENABLEMENT_UNKNOWN' }],
+      });
+      expect(readFileSync(fixture.configPath, 'utf8')).toBe(beforeConfig);
+      expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(
+        false,
+      );
+    },
+  );
 
   it('reports an enabled plugin without current hook proof as unproven', async () => {
     const fixture = createMigrationFixture('');
@@ -1366,6 +1454,32 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(jsonResult.stderr).toBe('');
     expect(JSON.parse(jsonResult.stdout)).toMatchObject({
       errors: [{ code: 'FINALIZATION_PROOF_REQUIRED' }],
+    });
+  });
+
+  it('does not report a mutation when plugin verification blocks finalization', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const preview = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--json']);
+    const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+    writeFileSync(nodePath.join(fixture.codexHome, 'plugin-state'), 'disabled');
+
+    const result = await runCodexCommand(fixture, [
+      'codex',
+      'migrate',
+      '--finalize',
+      '--yes',
+      '--plan',
+      planId,
+      '--json',
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      effects: { files: [], configuration: [] },
+      errors: [{ code: 'PLUGIN_ENABLEMENT_FAILED' }],
     });
   });
 
@@ -2067,6 +2181,28 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       data: { migration_state: 'recovery_required' },
       errors: [],
       next_actions: [{ command: 'safeword codex recover' }],
+    });
+    expect(existsSync(fixture.logPath)).toBe(false);
+  });
+
+  it('returns one unchanged envelope when install is blocked by recovery evidence', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const backupDirectory = nodePath.join(fixture.directory, '.safeword/codex-migration-backup');
+    mkdirSync(backupDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(backupDirectory, 'manifest.json'),
+      JSON.stringify({ schema_version: 1, status: 'prepared', entries: [] }),
+    );
+
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json']);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      data: { migration_state: 'recovery_required' },
+      effects: { configuration: [] },
     });
     expect(existsSync(fixture.logPath)).toBe(false);
   });

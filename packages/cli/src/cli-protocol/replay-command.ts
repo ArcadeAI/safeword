@@ -21,3 +21,11 @@ export function buildReplayCommand(input: {
     shellArgument(input.cwd),
   ].join(' ');
 }
+
+/**
+ * `shellArgument` for values that may be absent; an absent value quotes to an
+ * empty argument rather than disappearing from the command line.
+ */
+export function shellQuote(value: string | undefined): string {
+  return shellArgument(value ?? '');
+}

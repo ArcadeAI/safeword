@@ -38,6 +38,7 @@ import { readSessionState } from './lib/quality-state.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
 import { readReviewReceipt } from './lib/read-receipt.ts';
 import { receiptGateVerdict, type StampClaim } from './lib/review-receipt.ts';
+import { reviewClaimContext } from './lib/verify-stamp-claims.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
 
@@ -273,12 +274,14 @@ function resolveScope(ticketFolder: string): {
   label: string;
   claim: StampClaim;
 } {
+  const ticketDirectory = nodePath.join(ticketsDirectory, ticketFolder);
   const claimed = {
     independence,
     skip: skipReason !== undefined,
     ticketFolder,
     projectDirectory,
-    ticketDirectory: nodePath.join(ticketsDirectory, ticketFolder),
+    ticketDirectory,
+    ...reviewClaimContext(projectDirectory, ticketDirectory),
     authorAgent,
     reviewerAgent,
   };

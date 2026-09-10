@@ -88,6 +88,163 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     expect(receiptGateVerdict(claim, approved).ok).toBe(false);
   });
 
+  it.each([
+    ['define-behavior', 'quality-review'],
+    ['scenario-gate', 'scenario-gate'],
+  ])('accepts test-definitions.md as the scenario artifact for %s', (phase, kind) => {
+    expect(
+      receiptGateVerdict(claimFor({ phase }), {
+        ...approved,
+        kind,
+        targets: [`.project/tickets/${TICKET}/test-definitions.md`],
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('witnesses the five non-specialist exits with a quality-review', () => {
+    // These phases have no specialist reviewer, and `review run` only accepts
+    // three kinds — so requiring kind === phase made them unsatisfiable by any
+    // real review (ticket KHL52X).
+    const phaseTargets = {
+      intake: `.project/tickets/${TICKET}/spec.md`,
+      'define-behavior': `.project/tickets/${TICKET}/feature.feature`,
+      implement: 'packages/cli/src/feature.ts',
+      verify: `.project/tickets/${TICKET}/verify.md`,
+      done: `.project/tickets/${TICKET}/ticket.md`,
+    } as const;
+    for (const [phase, target] of Object.entries(phaseTargets)) {
+      const claim = claimFor({
+        phase,
+        ...(phase === 'intake' && { intakeArtifact: 'spec.md' }),
+        ...(phase === 'implement' && { implementationFiles: [target] }),
+      });
+
+      expect(
+        receiptGateVerdict(claim, {
+          ...approved,
+          kind: 'quality-review',
+          targets: [target],
+        }),
+      ).toEqual({ ok: true });
+
+      const wrongKind = receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'scenario-gate',
+        targets: [`.project/tickets/${TICKET}/ticket.md`],
+      });
+      expect(wrongKind.ok).toBe(false);
+      expect(!wrongKind.ok && wrongKind.reason).toContain('quality-review');
+    }
+  });
+
+  it('lets a task intake review cover ticket.md when the ticket has no spec', () => {
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'intake', intakeArtifact: 'ticket.md' }), {
+        ...approved,
+        kind: 'quality-review',
+        targets: [`.project/tickets/${TICKET}/ticket.md`],
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('still requires spec.md when intake produced a spec', () => {
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'intake', intakeArtifact: 'spec.md' }), {
+        ...approved,
+        kind: 'quality-review',
+        targets: [`.project/tickets/${TICKET}/ticket.md`],
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('requires an implement review target to be part of the current change set', () => {
+    const claim = claimFor({
+      phase: 'implement',
+      implementationFiles: ['packages/cli/src/changed.ts'],
+    });
+
+    expect(
+      receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'quality-review',
+        targets: ['README.md'],
+      }).ok,
+    ).toBe(false);
+    expect(
+      receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'quality-review',
+        targets: ['packages/cli/src/changed.ts'],
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('requires an implement review to cover the whole current implementation set', () => {
+    const claim = claimFor({
+      phase: 'implement',
+      implementationFiles: ['packages/cli/src/changed.ts', 'packages/cli/tests/changed.test.ts'],
+    });
+
+    expect(
+      receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'quality-review',
+        targets: ['packages/cli/src/changed.ts'],
+      }).ok,
+    ).toBe(false);
+    expect(
+      receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'quality-review',
+        targets: ['packages/cli'],
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('fails closed when Git cannot derive an implementation change set', () => {
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'implement', implementationFiles: [] }), {
+        ...approved,
+        kind: 'quality-review',
+        targets: [`.project/tickets/${TICKET}/ticket.md`, 'packages/cli/src/changed.ts'],
+      }).ok,
+    ).toBe(false);
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'implement' }), {
+        ...approved,
+        kind: 'quality-review',
+        targets: ['packages/cli/src/changed.ts'],
+      }).ok,
+    ).toBe(false);
+  });
+
+  it.each(['implement', 'verify', 'done'])(
+    'does not let a spec review witness the %s phase',
+    phase => {
+      expect(
+        receiptGateVerdict(claimFor({ phase }), {
+          ...approved,
+          kind: 'quality-review',
+          targets: [`.project/tickets/${TICKET}/spec.md`],
+        }).ok,
+      ).toBe(false);
+    },
+  );
+
+  it('still demands the specialist kind where one exists', () => {
+    for (const phase of ['scenario-gate', 'plan-implementation']) {
+      const claim = claimFor({ phase });
+      const generic = receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'quality-review',
+        targets: [`.project/tickets/${TICKET}/ticket.md`],
+      });
+
+      expect(generic.ok).toBe(false);
+      expect(!generic.ok && generic.reason).toContain(phase);
+    }
+  });
+
   it('holds a degraded stamp to the same receipt requirement', () => {
     expect(
       receiptGateVerdict(claimFor({ independence: 'degraded', artifact: 'impl-plan' })).ok,

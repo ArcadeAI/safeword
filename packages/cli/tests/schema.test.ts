@@ -216,6 +216,7 @@ describe('Schema - Single Source of Truth', () => {
         (Array.isArray(gitignorePatch) ? gitignorePatch[0]?.content : gitignorePatch?.content) ??
         '';
       for (const entry of [
+        '**/architecture.generated.md',
         '.safeword/.update-cache.json',
         '.safeword-project/quality-state*.json',
         '.safeword-project/failure-counts.json',

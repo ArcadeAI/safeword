@@ -15,7 +15,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, it } from 'vitest';
 
-import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
+import { expectHookAllow, expectHookDeny, type HookResult, writeGateConfig } from '../helpers';
 
 const GATE_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 const SUBJECT_ID = 'SUBJ01';
@@ -92,6 +92,7 @@ describe('MBGQ89 blocked_on phase gate (wired, always-on)', () => {
 
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'blocked-on-gate-'));
+    writeGateConfig(projectRoot, { reviewGate: false });
     ticketsRoot = nodePath.join(projectRoot, '.safeword-project', 'tickets');
     mkdirSync(nodePath.join(ticketsRoot, SUBJECT_ID), { recursive: true });
     subjectFile = nodePath.join(ticketsRoot, SUBJECT_ID, 'ticket.md');

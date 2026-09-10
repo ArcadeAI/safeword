@@ -206,7 +206,7 @@ function exactVersionReference(ref: string): string | undefined {
   return isSafePackageVersion(version) ? version : undefined;
 }
 
-function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): void {
+function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): boolean {
   const source = configured.source ?? MARKETPLACE_SOURCE;
   runCodexMarketplace(
     ['remove', 'safeword', '--json'],
@@ -240,6 +240,7 @@ function replaceCodexMarketplaceWithStable(configured: ConfiguredMarketplace): v
     }
     throw error;
   }
+  return true;
 }
 
 function assertMarketplacePinIsNotNewer(
@@ -258,7 +259,7 @@ function assertMarketplacePinIsNotNewer(
 function refreshOfficialGitMarketplace(
   marketplace: CodexMarketplaceList['marketplaces'][number],
   environment: NodeJS.ProcessEnv,
-): void {
+): boolean {
   const source = marketplace.marketplaceSource?.source;
   if (!isOfficialSafewordGitSource(source)) {
     throw new CodexMigrationError(
@@ -271,19 +272,22 @@ function refreshOfficialGitMarketplace(
   const pinnedVersion = ref === undefined ? undefined : exactVersionReference(ref);
   assertMarketplacePinIsNotNewer(ref, pinnedVersion);
   if (ref === 'main' || pinnedVersion !== undefined) {
-    replaceCodexMarketplaceWithStable({ ...configured, source: configured?.source ?? source });
-    return;
+    return replaceCodexMarketplaceWithStable({
+      ...configured,
+      source: configured?.source ?? source,
+    });
   }
   runCodexMarketplace(
     ['upgrade', 'safeword', '--json'],
     'Could not refresh the configured Safeword Codex marketplace',
   );
+  return false;
 }
 
 function refreshOrAddCodexMarketplace(
   marketplaceSource: string | undefined,
   environment: NodeJS.ProcessEnv = process.env,
-): void {
+): boolean {
   if (marketplaceSource === undefined) {
     const output = runCodexMarketplace(
       ['list', '--json'],
@@ -293,8 +297,7 @@ function refreshOrAddCodexMarketplace(
       candidate => candidate.name === 'safeword',
     );
     if (marketplace?.marketplaceSource?.sourceType === 'git') {
-      refreshOfficialGitMarketplace(marketplace, environment);
-      return;
+      return refreshOfficialGitMarketplace(marketplace, environment);
     }
     if (marketplace !== undefined) {
       throw new CodexMigrationError(
@@ -317,14 +320,25 @@ function refreshOrAddCodexMarketplace(
     ],
     'Could not add the Safeword Codex marketplace',
   );
+  return false;
 }
 
 function addCodexPluginToProfile(
   marketplaceSource: string | undefined,
   environment: NodeJS.ProcessEnv = process.env,
-): void {
-  refreshOrAddCodexMarketplace(marketplaceSource, environment);
-  run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
+): boolean {
+  const marketplaceReplaced = refreshOrAddCodexMarketplace(marketplaceSource, environment);
+  const recoveryCommand = `codex plugin add ${PLUGIN_ID} --json`;
+  try {
+    run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
+  } catch (error) {
+    throw new CodexMigrationError(
+      'PLUGIN_INSTALL_FAILED',
+      `The Safeword marketplace was configured, but plugin installation failed: ${String(error)}`,
+      { cause: error, marketplaceReplaced, profileChanged: true, recoveryCommand },
+    );
+  }
+  return marketplaceReplaced;
 }
 
 function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean } = {}): void {
@@ -341,14 +355,26 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
         ? 'PLUGIN_ENABLEMENT_UNKNOWN'
         : 'PLUGIN_ENABLEMENT_FAILED',
       `${prefix}: ${String(error)}`,
-      { cause: error },
+      { cause: error, profileChanged: options.installationCompleted === true },
     );
   }
-  const plugin = pluginObservationFromList(pluginList);
+  let plugin: CodexPluginObservation;
+  try {
+    plugin = pluginObservationFromList(pluginList);
+  } catch (error) {
+    throw new CodexMigrationError(
+      options.installationCompleted === true
+        ? 'PLUGIN_ENABLEMENT_UNKNOWN'
+        : 'PLUGIN_ENABLEMENT_FAILED',
+      `Codex returned malformed plugin discovery JSON; Safeword could not verify enablement: ${String(error)}`,
+      { cause: error, profileChanged: options.installationCompleted === true },
+    );
+  }
   if (plugin.enabled !== true) {
     throw new CodexMigrationError(
       'PLUGIN_ENABLEMENT_FAILED',
       'Codex did not report the Safeword plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.',
+      { profileChanged: options.installationCompleted === true },
     );
   }
   if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
@@ -584,11 +610,11 @@ export function installCodexPlugin(
     cwd?: string;
     environment?: NodeJS.ProcessEnv;
   } = {},
-): void {
+): boolean {
   const cwd = options.cwd ?? process.cwd();
   if (shouldReportExistingMigrationState(cwd, options)) {
     reportCodexMigration(cwd, { json: options.json, environment: options.environment });
-    return;
+    return false;
   }
   const lock = acquireCodexProfileLock(options.environment);
   if (lock === undefined) {
@@ -597,12 +623,15 @@ export function installCodexPlugin(
       'Another Safeword task is updating this Codex profile. No profile changes were made; retry `safeword codex install` in a moment.',
     );
   }
+  let marketplaceReplaced = false;
   try {
     run('bun', ['--version']);
     run('codex', ['--version']);
-    addCodexPluginToProfile(options.marketplaceSource, options.environment);
+    marketplaceReplaced = addCodexPluginToProfile(options.marketplaceSource, options.environment);
     verifyCodexPluginIsEnabled({ installationCompleted: true });
     if (options.recordActivationPending !== false) writeCodexActivationMarker(options.environment);
+  } catch (error) {
+    rethrowCodexInstallFailure(error, marketplaceReplaced);
   } finally {
     releaseCodexProfileLock(lock);
   }
@@ -610,7 +639,7 @@ export function installCodexPlugin(
   if (options.json !== true) {
     success('Safeword Codex plugin is enabled for this profile.');
     info(
-      `This Codex app may keep its loaded Safeword catalogue. ${CODEX_REVIEW_THEN_RESTART_ACTION}. If this project uses Safeword legacy hooks, run \`safeword codex migrate --remove-legacy-hooks\` to remove only those hooks.`,
+      `This Codex app may keep its loaded Safeword catalogue. ${CODEX_REVIEW_THEN_RESTART_ACTION}. If this project uses Safeword legacy hooks, run \`safeword codex migrate --finalize\` to remove only those hooks.`,
     );
   }
   if (options.reportMigrationState === true) {
@@ -620,6 +649,7 @@ export function installCodexPlugin(
       changed: true,
     });
   }
+  return marketplaceReplaced;
 }
 
 function shouldReportExistingMigrationState(
@@ -633,6 +663,18 @@ function shouldReportExistingMigrationState(
   if (options.reportMigrationState !== true) return false;
   const plugin = observeCodexMigrationResult(cwd, options.environment).plugin;
   return plugin.enabled === true && codexPluginVersionMatchesPackage(plugin);
+}
+
+function rethrowCodexInstallFailure(error: unknown, marketplaceReplaced: boolean): never {
+  if (marketplaceReplaced && error instanceof CodexMigrationError && !error.marketplaceReplaced) {
+    throw new CodexMigrationError(error.code, error.message, {
+      cause: error,
+      marketplaceReplaced: true,
+      profileChanged: error.profileChanged,
+      recoveryCommand: error.recoveryCommand,
+    });
+  }
+  throw error;
 }
 
 function buildCodexFinalizationMutations(
@@ -950,17 +992,38 @@ export async function removeLegacyCodexHooks(
   return true;
 }
 
+export function legacyCodexHandoffPending(cwd = process.cwd()): boolean {
+  if (codexFinalizationIsComplete(cwd) || codexRecoveryIsRequired(cwd)) return false;
+  const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
+  return preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
+}
+
+export function automaticLegacyCodexMigrationNeeded(cwd = process.cwd()): boolean {
+  if (!legacyCodexHandoffPending(cwd)) return false;
+  const plugin = observeCodexPlugin();
+  return plugin.enabled !== true || !codexPluginVersionMatchesPackage(plugin);
+}
+
+export interface AutomaticLegacyCodexMigrationResult {
+  readonly migrated: boolean;
+  readonly marketplaceReplaced: boolean;
+}
+
 export function automaticallyMigrateLegacyCodex(
   cwd = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
-): boolean {
-  if (codexFinalizationIsComplete(cwd) || codexRecoveryIsRequired(cwd)) return false;
-  const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
-  const hasLegacy = preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
-  if (!hasLegacy) return false;
+): AutomaticLegacyCodexMigrationResult {
+  if (!automaticLegacyCodexMigrationNeeded(cwd)) {
+    return { migrated: false, marketplaceReplaced: false };
+  }
 
-  installCodexPlugin({ cwd, environment, json: true, reportMigrationState: false });
-  return true;
+  const marketplaceReplaced = installCodexPlugin({
+    cwd,
+    environment,
+    json: true,
+    reportMigrationState: false,
+  });
+  return { migrated: true, marketplaceReplaced };
 }
 
 /**
@@ -982,6 +1045,7 @@ export async function migrateCodexPlugin(
     return;
   }
   installCodexPlugin({
+    cwd,
     marketplaceSource: options.marketplaceSource,
     recordActivationPending: false,
   });

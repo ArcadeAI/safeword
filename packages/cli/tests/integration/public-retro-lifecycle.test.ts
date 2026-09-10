@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -23,6 +23,7 @@ import {
   cursorProjectStashPath,
   cursorTranscriptStashPath,
 } from '../../templates/hooks/lib/cursor-state.js';
+import { realBunExecutable } from '../helpers.js';
 
 const ROOT = path.resolve(import.meta.dirname, '../../../..');
 const CLI_PACKAGE = path.join(ROOT, 'packages/cli');
@@ -339,7 +340,7 @@ process.exit(result.status ?? 1);
 `,
       );
       const hook = harness === 'cursor' ? cursorRunner : HOOKS[harness];
-      const bun = spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
+      const bun = realBunExecutable();
       expect(bun).not.toBe('');
       const controlledEnvironment = {
         ...process.env,

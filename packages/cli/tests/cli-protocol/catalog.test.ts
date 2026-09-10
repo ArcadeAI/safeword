@@ -72,6 +72,7 @@ describe('CLI command catalog', () => {
       'tracker sync',
       'codex bootstrap',
       'review-pr invalidate',
+      'review-pr readiness',
       'migrate codex-plugin',
     ]) {
       const definition = commandCatalog.find(command => command.name === name);
@@ -136,6 +137,7 @@ describe('CLI command catalog', () => {
       'review routes reset',
       'review-pr inspect',
       'review-pr invalidate',
+      'review-pr readiness',
       'review-pr publish',
       'retro run',
       'retro signals',

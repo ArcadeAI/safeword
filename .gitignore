@@ -46,6 +46,7 @@ brand/
 .safeword-coverage-bin-*/
 
 # Safeword - Local cache and transient state
+**/architecture.generated.md
 .safeword/.update-cache.json
 .safeword/config.local.json
 .safeword/retro-attempts/
@@ -68,3 +69,6 @@ brand/
 .safeword-project/skill-invocations.log
 .safeword-project/re-entry.md
 .safeword-project/dependency-readiness.json
+
+# Go build artifacts from experiments (produced by test runs)
+experiments/**/checker

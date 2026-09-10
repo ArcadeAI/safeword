@@ -323,6 +323,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  * static repo-root block cannot name an arbitrary root (issue #272).
  */
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
+  '**/architecture.generated.md',
   '.safeword/.update-cache.json',
   '.safeword/config.local.json',
   '.safeword/retro-attempts/',
@@ -406,14 +407,14 @@ const PRETTIER_EXCLUSIONS_HEADER = '# Safeword - managed prettier exclusions (ow
 const GITATTRIBUTES_HEADER = '# Safeword - managed merge strategy for generated artifacts';
 
 /**
- * The managed `.gitattributes` block (issue #566): safeword's committed but
- * deterministically-regenerated artifacts — the architecture docs and the ticket index —
- * get `merge=union` so a local `git merge`/`rebase`/`pull` of the default branch
+ * The managed `.gitattributes` block (issue #566): safeword's committed,
+ * deterministically-regenerated ticket indexes, plus architecture snapshots for
+ * projects that opt into tracking them, get `merge=union` so a local
+ * `git merge`/`rebase`/`pull` of the default branch
  * auto-resolves them instead of conflicting on the `fingerprint:` line + reconcile/stale
  * markers. `union` is a BUILT-IN driver (attribute-only, no `git config`), so it works on
- * any clone/CI from the committed file; the heal + `architecture --check` pipeline then
- * reconciles the union result to the correct content. `linguist-generated=true` collapses
- * their diffs and marks them generated on GitHub. Resolved per-ctx so a custom
+ * any clone/CI from the committed file. `linguist-generated=true` collapses their diffs
+ * and marks them generated on GitHub. Resolved per-ctx so a custom
  * `paths.projectRoot` ticket index is covered; the architecture-doc glob is root-agnostic.
  */
 function managedGitattributes(ctx: ProjectContext): string {
@@ -505,11 +506,8 @@ function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
     generator: (ctx: ProjectContext): string | undefined =>
       prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
     normalizeForUnmodifiedComparison: normalizePrReviewWorkflowVersionPins,
-    // The pin names the safeword these workflows fetch from npm. They carry write
-    // scopes under `pull_request_target` and check nothing out, so the version
-    // cannot come from the repo and has to be written into the file — which meant
-    // it froze at whichever release first installed it. Refresh it on upgrade,
-    // while the workflow is still safeword's own.
+    // These workflows fetch a pinned Safeword release from npm. Refresh those
+    // pins on upgrade while the workflow is still Safeword's own.
     refreshWhileUnmodified: true,
     removeIfUnmodified: workflowContent,
     removeWhenGeneratorOmitted: true,

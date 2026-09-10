@@ -66,6 +66,7 @@
     "markdown-it": "^14.2.0",
     "nanoid": "3.3.18",
     "postcss": "8.5.23",
+    "smol-toml": "1.8.0",
     "svgo": "^4.1.0",
     "turbo": "2.9.18",
     "yaml": "^2.9.0",

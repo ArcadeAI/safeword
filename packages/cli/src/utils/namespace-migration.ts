@@ -104,6 +104,38 @@ function conflictArchivePath(source: string, relative: string): string {
   return nodePath.join('.safeword', 'namespace-migration-conflicts-v1', digest, relative);
 }
 
+export interface NamespaceMigrationFileChange {
+  readonly source: string;
+  readonly destination: string;
+}
+
+/** File-level writes a namespace migration can make, without changing the tree. */
+export function plannedNamespaceMigrationFiles(cwd: string): NamespaceMigrationFileChange[] {
+  const legacy = nodePath.join(cwd, LEGACY_ROOT);
+  const current = nodePath.join(cwd, DEFAULT_ROOT);
+  const changes: NamespaceMigrationFileChange[] = [];
+  const visit = (directory: string, relative: string): void => {
+    const entries = readdirSync(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      const child = relative === '' ? entry.name : nodePath.join(relative, entry.name);
+      const source = nodePath.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(source, child);
+        continue;
+      }
+      const currentTarget = nodePath.join(current, child);
+      changes.push({
+        source: nodePath.join(LEGACY_ROOT, child),
+        destination: existsSync(currentTarget)
+          ? conflictArchivePath(source, child)
+          : nodePath.join(DEFAULT_ROOT, child),
+      });
+    }
+  };
+  if (isDirectory(legacy)) visit(legacy, '');
+  return changes;
+}
+
 // The branches here are the explicit prepare/commit/rollback states of one
 // filesystem transaction; splitting that state would obscure recovery order.
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Transaction states must remain visibly ordered.

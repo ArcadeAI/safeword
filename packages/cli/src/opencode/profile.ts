@@ -916,6 +916,21 @@ function terminalUnlessDispatcherNeedsRepair(
     : terminal;
 }
 
+/**
+ * The result to return without touching the profile, or undefined to proceed
+ * with the write. Evaluated on both sides of the lock, because the profile can
+ * change while we wait for it.
+ */
+function resultIfNoChangeNeeded(
+  paths: OpenCodeProfilePaths,
+  input: ReconcileOpenCodeProfileInput,
+): CliResult | undefined {
+  const mutationProblem = profileMutationProblem(paths, input);
+  if (mutationProblem !== undefined) return mutationProblem;
+  const observation = observeProfile(paths, input.pluginBytes, input.identity);
+  return terminalUnlessDispatcherNeedsRepair(paths, input, observation);
+}
+
 function acquireOpenCodeProfileLock(path: string): ReturnType<typeof acquireProfileLock> {
   const deadline = Date.now() + PROFILE_LOCK_WAIT_MS;
   let lock = acquireProfileLock(path);
@@ -939,11 +954,8 @@ function profileMutationProblem(
 
 export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): CliResult {
   const paths = openCodeProfilePaths(input.root);
-  const initialProblem = profileMutationProblem(paths, input);
-  if (initialProblem !== undefined) return initialProblem;
-  const initial = observeProfile(paths, input.pluginBytes, input.identity);
-  const initialResult = terminalUnlessDispatcherNeedsRepair(paths, input, initial);
-  if (initialResult !== undefined) return initialResult;
+  const beforeLock = resultIfNoChangeNeeded(paths, input);
+  if (beforeLock !== undefined) return beforeLock;
 
   const lock = acquireOpenCodeProfileLock(paths.lock);
   if (lock === undefined) {
@@ -954,11 +966,8 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
     );
   }
   try {
-    const currentProblem = profileMutationProblem(paths, input);
-    if (currentProblem !== undefined) return currentProblem;
-    const current = observeProfile(paths, input.pluginBytes, input.identity);
-    const currentResult = terminalUnlessDispatcherNeedsRepair(paths, input, current);
-    if (currentResult !== undefined) return currentResult;
+    const underLock = resultIfNoChangeNeeded(paths, input);
+    if (underLock !== undefined) return underLock;
     if (input.operation === 'install') {
       writeManagedProfile({
         root: input.root,

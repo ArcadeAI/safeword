@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 describe('isArchitectureDocumentEnforcementEnabled — default-on with opt-out', () => {
-  it('is enabled when no config file is present (default-on)', () => {
+  it('is enabled when no config file is present (backward-compatible default)', () => {
     expect(isArchitectureDocumentEnforcementEnabled(context.directory)).toBe(true);
   });
 
@@ -47,19 +47,19 @@ describe('isArchitectureDocumentEnforcementEnabled — default-on with opt-out',
     expect(isArchitectureDocumentEnforcementEnabled(context.directory)).toBe(true);
   });
 
-  it('is disabled only when the key is literally false', () => {
+  it('is disabled when the key is explicitly false', () => {
     writeConfig(context.directory, { architectureDocEnforcement: false });
 
     expect(isArchitectureDocumentEnforcementEnabled(context.directory)).toBe(false);
   });
 
-  it('treats a non-boolean value as enabled (defensive — only false opts out)', () => {
+  it('treats a non-boolean value as enabled', () => {
     writeConfig(context.directory, { architectureDocEnforcement: 'no' });
 
     expect(isArchitectureDocumentEnforcementEnabled(context.directory)).toBe(true);
   });
 
-  it('treats an unparseable config file as enabled (default-on, never silently off)', () => {
+  it('treats an unparseable config file as enabled', () => {
     writeConfig(context.directory, '{ not valid json');
 
     expect(isArchitectureDocumentEnforcementEnabled(context.directory)).toBe(true);

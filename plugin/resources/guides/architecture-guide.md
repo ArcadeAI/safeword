@@ -15,7 +15,7 @@ that rot differently — keep them apart and never edit one as if it were the ot
 | **Answers**   | "What the system **is** right now"                                                                          | "**Why** we decided X"                      |
 | **Owner**     | Split — structure is machine-owned; module purpose prose is human-owned                                     | Humans                                      |
 | **Editing**   | Edit module purpose prose only; never edit structural fields                                                | In place, by people                         |
-| **Freshness** | Self-heals at session start; enforced in commits + CI                                                       | Reviewed like any doc                       |
+| **Freshness** | Regenerated locally at session start; commit + CI enforcement is opt-in                                     | Reviewed like any doc                       |
 
 The rest of this guide is the how-to for the **hand-curated decision doc**. The
 generated state doc is summarized next, including its narrow editable region.
@@ -36,10 +36,10 @@ Safeword keeps a deterministic, point-in-time map of the system fresh on its own
   after out-of-band human edits). Prose that has fallen behind the structure is
   flagged `⚠ stale` rather than left silently wrong. A doc safeword does not own
   (no marker) is never touched.
-- **Enforced, not just suggested** — `safeword project architecture --check` fails CI when
-  a committed doc is stale; a commit-time hook regenerates and stages it
-  automatically. Both honor `architectureDocEnforcement` (default-on; set `false`
-  to opt out).
+- **Local by default** — generated docs are gitignored and refreshed at session start.
+  Set `architectureDocEnforcement: true` to opt into committed snapshots; then
+  `safeword project architecture --check` fails CI when a committed doc is stale and
+  a commit-time hook regenerates and stages it automatically.
 - **Machine-owned structure** — headings, code references, fingerprints,
   reconciliation stamps, dependency edges, and status markers are regenerated.
   The monorepo root index is fully machine-owned.

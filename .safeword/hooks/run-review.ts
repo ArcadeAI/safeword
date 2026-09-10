@@ -105,7 +105,10 @@ function supportsReview(
 
 // The hook is launched from whatever directory the caller happened to be in.
 // Anchoring discovery on that directory hides a working CLI one level up and
-// reports it as missing, so resolve the project root before looking.
+// reports it as missing, so resolve the project root before looking. The
+// resolved root is also where the CLI runs: it scopes its config and review
+// state to its own cwd, so launching from a subdirectory would otherwise grow
+// a second `.safeword/` tree there instead of using the project's.
 function looksLikeProjectRoot(directory: string): boolean {
   return (
     existsSync(nodePath.join(directory, '.safeword')) ||
@@ -141,18 +144,18 @@ export function reviewCandidates(
   const pluginRoot = environment.CLAUDE_PLUGIN_ROOT;
   if (pluginRoot) {
     const bundledCli = nodePath.join(pluginRoot, 'runtime', 'cli.js');
-    if (existsSync(bundledCli)) candidates.push(['bun', [bundledCli]]);
+    if (existsSync(bundledCli)) candidates.push(['bun', [bundledCli], projectDirectory]);
   }
 
   const localCli = nodePath.join(projectDirectory, 'node_modules', '.bin', 'safeword');
-  if (existsSync(localCli)) candidates.push([localCli, []]);
+  if (existsSync(localCli)) candidates.push([localCli, [], projectDirectory]);
 
   const sourcePackage = nodePath.join(projectDirectory, 'packages', 'cli', 'package.json');
   const sourceCli = nodePath.join(projectDirectory, 'packages', 'cli', 'src', 'cli.ts');
   if (existsSync(sourceCli) && existsSync(sourcePackage)) {
     try {
       const manifest = JSON.parse(readFileSync(sourcePackage, 'utf8')) as { name?: unknown };
-      if (manifest.name === 'safeword') candidates.push(['bun', [sourceCli]]);
+      if (manifest.name === 'safeword') candidates.push(['bun', [sourceCli], projectDirectory]);
     } catch {
       // A malformed lookalike checkout is not a trusted Safeword source route.
     }
@@ -161,7 +164,7 @@ export function reviewCandidates(
   const versionPath = nodePath.join(projectDirectory, '.safeword', 'version');
   if (existsSync(versionPath)) {
     const version = readFileSync(versionPath, 'utf8').trim();
-    if (SEMVER.test(version)) candidates.push(['bunx', [`safeword@${version}`]]);
+    if (SEMVER.test(version)) candidates.push(['bunx', [`safeword@${version}`], projectDirectory]);
   }
   return candidates;
 }

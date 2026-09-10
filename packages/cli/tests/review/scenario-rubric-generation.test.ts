@@ -21,6 +21,18 @@ describe('scenario rubric generation', () => {
     expect(SCENARIO_REVIEW_RUBRIC).toBe(extractScenarioReviewRubric(canonicalSkill));
   });
 
+  it('keeps one observable behavior as the compound-Then atomicity boundary', () => {
+    expect(SCENARIO_REVIEW_RUBRIC).toContain(
+      'Use failure independence as a diagnostic, not the definition',
+    );
+    expect(SCENARIO_REVIEW_RUBRIC).toContain(
+      'Several `Then`/`And` assertions remain atomic when they jointly specify that behavior',
+    );
+    expect(SCENARIO_REVIEW_RUBRIC).toContain(
+      'Do not split merely to give every assertion its own scenario',
+    );
+  });
+
   it.each([
     ['missing markers', 'rubric'],
     [

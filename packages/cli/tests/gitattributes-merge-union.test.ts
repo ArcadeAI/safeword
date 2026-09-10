@@ -10,7 +10,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -57,7 +57,7 @@ describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', (
     return readFileSync(nodePath.join(cwd, '.gitattributes'), 'utf8');
   }
 
-  it('install writes the managed block marking the generated artifacts merge=union', async () => {
+  it('install writes the managed block marking ticket indexes merge=union', async () => {
     await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(cwd));
 
     const content = gitattributes();
@@ -96,7 +96,6 @@ describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', (
     expect(content).not.toContain(
       '.project/tickets/INDEX-completed.md merge=union linguist-generated=true',
     );
-    // The architecture-doc glob is root-agnostic, so it stays the same.
     expect(content).toContain('**/architecture.generated.md merge=union linguist-generated=true');
 
     await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(cwd));
@@ -180,18 +179,28 @@ describe('merge=union actually auto-resolves the #566 conflict (git-level)', () 
   afterEach(() => {
     const directories = [...created];
     created.length = 0;
-    for (const dir of directories) rmSync(dir, { recursive: true, force: true });
+    for (const dir of directories) removeTemporaryDirectory(dir);
   });
 
-  it('a generated-doc divergence that conflicts WITHOUT the attribute auto-merges WITH it', () => {
+  it('an opted-in generated-doc divergence auto-merges with the installed attribute', async () => {
     const dir = mkdtempSync(nodePath.join(tmpdir(), 'union-'));
     created.push(dir);
     git(dir, 'init', '-q', '-b', 'main');
     git(dir, 'config', 'user.email', 't@t.co');
     git(dir, 'config', 'user.name', 't');
-    write(dir, '.gitattributes', '.project/architecture.generated.md merge=union\n');
+    write(dir, 'package.json', JSON.stringify({ name: 'consumer' }));
+    write(
+      dir,
+      '.safeword/config.json',
+      JSON.stringify({ installedPacks: [], architectureDocEnforcement: true }),
+    );
+    await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(dir));
+    expect(readFileSync(nodePath.join(dir, '.gitattributes'), 'utf8')).toContain(
+      '**/architecture.generated.md merge=union linguist-generated=true',
+    );
     write(dir, '.project/architecture.generated.md', '---\nfingerprint: AAAA\n---\n### web\n');
     git(dir, 'add', '-A');
+    git(dir, 'add', '-f', '.project/architecture.generated.md');
     git(dir, 'commit', '-qm', 'base');
 
     git(dir, 'checkout', '-q', '-b', 'feature-1');
