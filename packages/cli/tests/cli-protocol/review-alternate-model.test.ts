@@ -157,6 +157,76 @@ describe('alternate-model review route', () => {
     },
   );
 
+  it('preserves executable RED evidence when the reviewer retries on its alternate model', async () => {
+    const directory = createTemporaryDirectory();
+    const modelLog = nodePath.join(directory, 'model.log');
+    const proof = nodePath.join(directory, 'proof');
+    writeFileSync(nodePath.join(directory, 'proof.test.ts'), 'focused decision proof\n');
+    writeFileSync(
+      nodePath.join(directory, 'test-definitions.md'),
+      '## Scenario: Focused plan review\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+    );
+    writeFileSync(proof, "#!/bin/sh\nprintf 'missing focused decision behavior\\n' >&2\nexit 1\n", {
+      mode: 0o755,
+    });
+    chmodSync(proof, 0o755);
+    writeConfig(directory, { crossAgentReview: 'require' });
+    const bin = installModelDependentReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'executable-red',
+        'proof.test.ts',
+        '--scenario',
+        'Scenario: Focused plan review',
+        '--ledger',
+        'test-definitions.md',
+        '--proof-cwd',
+        '.',
+        '--evidence-class',
+        'pure-contract',
+        '--expected-failure',
+        'missing focused decision behavior',
+        '--execute',
+        JSON.stringify([proof]),
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+          SAFEWORD_REVIEW_ACCEPTED_MODEL: 'sonnet',
+          SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR: 'timeout',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '1500',
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '5000',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        status: 'approved',
+        actual_reviewer: 'claude',
+        reviewer_model: 'sonnet',
+        independence: 'cross-agent',
+        execution_attestation: {
+          expected_failure: { matched: true },
+          termination: { exit_code: 1, timed_out: false },
+        },
+      },
+    });
+  });
+
   it('uses Opus for the primary Claude review when no model is configured', async () => {
     const directory = createTemporaryDirectory();
     const modelLog = nodePath.join(directory, 'model.log');
