@@ -40,6 +40,12 @@ prove real installed CLI wiring.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A load-bearing decision cannot disappear from the review path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
 
 ### Scenario: Safeword CLI accepts only the project-local Implementation Plan

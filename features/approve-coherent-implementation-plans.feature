@@ -50,7 +50,11 @@ Feature: Approve coherent Implementation Plans
         | an architecture-at-a-glance mental model followed by decision-bearing contracts, operational risks, and unresolved authority with supporting detail linked | the plan passes focused reviewability |
         | decision-bearing contracts, operational risks, and unresolved authority in the main review path but no architecture-at-a-glance mental model | the plan fails focused reviewability because it does not open with an architecture-at-a-glance mental model |
         | a short summary that opens with the architecture-at-a-glance mental model, names a load-bearing failure-posture decision and its consequence, and links only fuller subordinate detail | the plan passes focused reviewability because the decision remains in the main review path |
-        | a short summary with a load-bearing failure-posture decision recorded nowhere in the plan or its linked detail | the plan fails focused reviewability because that decision is absent from the review path |
+
+    Scenario: A load-bearing decision cannot disappear from the review path
+      Given a short Implementation Plan summary with a load-bearing failure-posture decision recorded nowhere in the plan or its linked detail
+      When its focused decision review is completed
+      Then the plan fails focused reviewability because that decision is absent from the review path
 
   @plan-implementability.TBU1.G1C9PP.R4
   Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
@@ -145,6 +149,7 @@ Feature: Approve coherent Implementation Plans
         | one project-owned architecture file | that exact file | the architecture-record edit is permitted so a significant decision can be recorded before review |
         | one project-owned architecture file | a sibling file beside it | the edit remains blocked because resemblance does not grant planning access |
         | a project-owned ADR directory | a direct child named YYYYMMDD-slug.md | creation is permitted so a significant decision can be recorded before review |
+        | a project-owned ADR directory | a direct child named YYYYMMDD-slug.md whose resolved target lies outside that directory | the edit remains blocked because the record path must resolve inside the configured location |
         | a project-owned ADR directory | a direct child that does not match YYYYMMDD-slug.md | the edit remains blocked because directory membership alone does not make it an architecture record |
         | a project-owned ADR directory | a nested dated ADR below a child directory | the edit remains blocked because only direct dated ADR children are records |
         | a project-owned ADR directory | a dated ADR outside that directory | the edit remains blocked because the configured directory grants no access outside it |
