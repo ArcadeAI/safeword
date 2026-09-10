@@ -70,6 +70,12 @@ prove real installed CLI wiring.
 - [x] GREEN 80e39608d
 - [x] REFACTOR 790f3be0e
 
+### Scenario: Conflicting data ownership blocks approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
 
 ### Scenario: Durable recording routes only significant decisions to the architecture record
@@ -234,6 +240,12 @@ release prerequisite by itself.
 - [ ] REFACTOR
 
 ### Scenario: An accepted design enters Execution Planning
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A review-blocked design is never presented for human approval
 
 - [ ] RED
 - [ ] GREEN

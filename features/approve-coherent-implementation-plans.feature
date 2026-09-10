@@ -94,7 +94,6 @@ Feature: Approve coherent Implementation Plans
         | one persisted entity change that omits data ownership and migration decisions | approval is blocked with ownership and migration named |
         | one persisted entity change that omits retention and rollback consequences | approval is blocked with retention and rollback named |
         | one persisted entity change that omits identity and integrity decisions | approval is blocked with identity and integrity named |
-        | a persisted entity names an owner that contradicts the plan's source-of-truth authority | approval is blocked with the conflicting data owner named |
         | purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback decisions recorded without migration commands | data guidance does not block approval |
         | a persisted cross-system flow with no source of truth or access decision | approval is blocked with source of truth and access named |
         | a regulated backfill with no compliance consequence | approval is blocked with compliance named |
@@ -104,6 +103,11 @@ Feature: Approve coherent Implementation Plans
       Given an Implementation Plan records every required data decision together with exact migration commands
       When the Implementation Plan is reviewed
       Then approval is blocked with the execution mechanics named for removal to Execution Planning
+
+    Scenario: Conflicting data ownership blocks approval
+      Given an Implementation Plan names a persisted entity owner that contradicts its source-of-truth authority
+      When the Implementation Plan is reviewed
+      Then approval is blocked with the conflicting data owner named
 
   @plan-implementability.TBU1.G1C9PP.R7
   Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
@@ -295,12 +299,12 @@ Feature: Approve coherent Implementation Plans
     Scenario: A blocked receipt gives a Non-Technical Builder a concrete recovery
       Given a failed review addressed to a Non-Technical Builder because a shared-contract choice has no durable architecture link
       When the installed Safeword CLI presents the review receipt through real internal collaborators
-      Then it says the shared-contract choice needs an architecture record without internal phase or type jargon and tells them to add that link before resubmitting
+      Then it says the shared-contract choice needs an architecture record and tells them to add that link before resubmitting, without leading with phase names, review identifiers, contract digests, or internal type names
 
     @surface.safeword-cli
     Scenario: A blocked receipt preserves evidence for a Technical Builder
       Given a failed review addressed to a Technical Builder because a shared-contract choice has no durable architecture link
-      When the review receipt is presented
+      When the installed Safeword CLI presents the review receipt through real internal collaborators
       Then it preserves the failing check, Implementation Plan location, and durable-record obligation alongside the recovery
 
   @plan-implementability.TBU1.G1C9PP.R16
@@ -381,6 +385,12 @@ Feature: Approve coherent Implementation Plans
       Given human design approval is enabled and the approver accepts the exact reviewed approach
       When the installed Safeword CLI records the decision through real internal collaborators
       Then the approval is bound to those approach bytes and the ticket enters Execution Planning
+
+    @surface.safeword-cli
+    Scenario: A review-blocked design is never presented for human approval
+      Given human design approval is enabled and semantic review has blocked the Implementation Plan with a named finding
+      When the installed Safeword CLI reaches the approval boundary through real internal collaborators
+      Then no human design decision is requested and the ticket remains in Implementation Planning with the blocking finding named
 
     Scenario Outline: Human design authority follows approach currency
       Given human design approval is enabled and the approval's bound approach bytes have <approval_currency>
