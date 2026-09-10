@@ -238,6 +238,26 @@ describe('implementation planning transition gates (wired)', () => {
     expectHookDeny(result, 'Authentication ownership');
   });
 
+  it('keeps an unresolved behavior-shaping choice in Implementation Planning when review is default-off', () => {
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      VALID_PLAN.replace(
+        '| gate | pre-tool | stop-only | too late |',
+        '| Authentication ownership | unresolved | per-service ownership | decision pending |',
+      ),
+    );
+
+    const result = runAdvance('plan-implementation', 'plan-execution');
+    expect(result.status).toBe(0);
+    expectHookDeny(
+      result,
+      'Implementation Planning still has unresolved behavior-shaping choices:',
+    );
+    expectHookDeny(result, 'Authentication ownership');
+  });
+
   it('enters Execution Planning for a resolved plan with a current review', () => {
     writeGateConfig(projectRoot, { reviewGate: true });
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
