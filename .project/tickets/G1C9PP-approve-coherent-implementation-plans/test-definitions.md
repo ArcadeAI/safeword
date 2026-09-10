@@ -110,7 +110,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Proof scope excludes execution mechanics
 
-- [ ] RED
+- [x] RED 6b72a8724
 - [ ] GREEN
 - [ ] REFACTOR
 
