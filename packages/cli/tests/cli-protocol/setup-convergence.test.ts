@@ -14,8 +14,10 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { convergeSetup } from '../../src/lifecycle/project-install.js';
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, runCliWithoutInstall } from '../helpers.js';
+import { installFakeCodexRuntime } from '../helpers/fake-codex-runtime.js';
 
 const PROJECT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 
@@ -46,6 +48,22 @@ async function expectOfflineSetupSuccess(directory: string): Promise<void> {
 }
 
 describe('convergent setup', () => {
+  it('persists fresh defaults before reconciliation can interrupt setup', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await convergeSetup(directory, {
+      noModify: true,
+      schema: {
+        ...SAFEWORD_SCHEMA,
+        ownedFiles: {
+          '.safeword/unreachable': { template: 'missing-interruption-fixture' },
+        },
+      },
+    });
+
+    expect(result.state).toBe('failed');
+    expect(readProjectConfig(directory).architectureDocEnforcement).toBe(false);
+  });
+
   it('creates a local public-retro project identity on first setup', async () => {
     const directories = [createTemporaryDirectory(), createTemporaryDirectory()];
     const identities: unknown[] = [];
@@ -370,6 +388,54 @@ describe('convergent setup', () => {
     expect(readFileSync(packagePath, 'utf8')).toContain('"format":"fmt"');
   });
 
+  it('preserves Codex profile recovery when a later setup stage fails', async () => {
+    const directory = createTemporaryDirectory();
+    await expectOfflineSetupSuccess(directory);
+    const legacySkill = nodePath.join(directory, '.agents/skills/audit/SKILL.md');
+    mkdirSync(nodePath.dirname(legacySkill), { recursive: true });
+    writeFileSync(legacySkill, 'legacy audit skill\n');
+    const runtime = installFakeCodexRuntime(createTemporaryDirectory(), {
+      pluginEnabled: false,
+      pluginInitiallyInstalled: false,
+    });
+    const previousEnvironment = {
+      CODEX_HOME: process.env.CODEX_HOME,
+      PATH: process.env.PATH,
+      SAFEWORD_CODEX_LOG: process.env.SAFEWORD_CODEX_LOG,
+      SAFEWORD_FAIL_CODEX_PLUGIN_ADD: process.env.SAFEWORD_FAIL_CODEX_PLUGIN_ADD,
+    };
+    Object.assign(process.env, {
+      CODEX_HOME: runtime.codexHome,
+      PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_CODEX_LOG: runtime.logPath,
+      SAFEWORD_FAIL_CODEX_PLUGIN_ADD: '1',
+    });
+
+    try {
+      const result = await convergeSetup(directory, {
+        noModify: true,
+        adapters: {
+          configureArchitecture: () => {
+            throw new Error('later architecture failed');
+          },
+        },
+      });
+
+      expect(result.state).toBe('failed');
+      expect(result.recovery).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ command: 'codex plugin add safeword@safeword --json' }),
+          expect.objectContaining({ command: 'safeword status --verbose' }),
+        ]),
+      );
+    } finally {
+      for (const [key, value] of Object.entries(previousEnvironment)) {
+        if (value === undefined) Reflect.deleteProperty(process.env, key);
+        else process.env[key] = value;
+      }
+    }
+  });
+
   it('journals a workspace write when an adapter returns no declared effects', async () => {
     const directory = createTemporaryDirectory();
     const packagePath = nodePath.join(directory, 'packages/a/package.json');
@@ -394,6 +460,57 @@ describe('convergent setup', () => {
       kind: 'update',
       target: 'packages/a/package.json',
     });
+  });
+
+  it('journals Python manifest writes in nested projects', async () => {
+    const directory = createTemporaryDirectory();
+    const manifest = nodePath.join(directory, 'apps/api/pyproject.toml');
+    mkdirSync(nodePath.dirname(manifest), { recursive: true });
+    writeFileSync(manifest, '[project]\nname = "api"\n');
+
+    const previousSkipInstall = process.env.SAFEWORD_SKIP_INSTALL;
+    process.env.SAFEWORD_SKIP_INSTALL = '1';
+    try {
+      const result = await convergeSetup(directory, {
+        noModify: true,
+        adapters: {
+          configurePython: () => {
+            writeFileSync(manifest, '[project]\nname = "api"\ndependencies = ["ruff"]\n');
+            return {
+              tools: ['ruff'],
+              attemptedTools: ['ruff'],
+              installedTools: ['ruff'],
+              attempted: true,
+              installed: true,
+            };
+          },
+        },
+      });
+
+      expect(result.effects.files).toContainEqual({
+        kind: 'update',
+        target: 'apps/api/pyproject.toml',
+      });
+    } finally {
+      if (previousSkipInstall === undefined) delete process.env.SAFEWORD_SKIP_INSTALL;
+      else process.env.SAFEWORD_SKIP_INSTALL = previousSkipInstall;
+    }
+  });
+
+  it('shell-quotes nested Python project paths in manual install guidance', async () => {
+    const directory = createTemporaryDirectory();
+    const relative = 'apps/api-$(touch injected)-`touch injected`';
+    const manifest = nodePath.join(directory, relative, 'pyproject.toml');
+    mkdirSync(nodePath.dirname(manifest), { recursive: true });
+    writeFileSync(manifest, '[project]\nname = "api"\n');
+
+    const result = await convergeSetup(directory, { noModify: true, offline: true });
+
+    expect(result.nextActions).toContainEqual(
+      expect.objectContaining({
+        command: expect.stringContaining(`(cd '${relative}' && `),
+      }),
+    );
   });
 
   it('journals a namespace move when the later migration stage fails', async () => {

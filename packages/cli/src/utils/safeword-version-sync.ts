@@ -49,25 +49,24 @@ function isCurrentSafewordRegistrySpec(spec: string): boolean {
   return [VERSION, SAFEWORD_REGISTRY_SPEC, `~${VERSION}`].includes(spec);
 }
 
-export function syncPackageJsonSafewordVersion(
-  cwd: string,
-  options: { report?: boolean } = {},
-): boolean {
+export function packageJsonSafewordVersionNeedsUpdate(cwd: string): boolean {
   const packageJson = readPackageJson(cwd);
   if (!packageJson) return false;
+  return DEPENDENCY_FIELDS.some(field => {
+    const spec = packageJson[field]?.safeword;
+    return (
+      spec !== undefined && !isNonRegistryPackageSpec(spec) && !isCurrentSafewordRegistrySpec(spec)
+    );
+  });
+}
 
-  for (const field of DEPENDENCY_FIELDS) {
-    const dependencies = packageJson[field];
-    const currentSpec = dependencies?.safeword;
-    if (!dependencies || currentSpec === undefined || isNonRegistryPackageSpec(currentSpec))
-      continue;
-
-    if (isCurrentSafewordRegistrySpec(currentSpec)) continue;
-    installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], 'safeword package', options);
-    return packageJsonReferencesCurrentSafewordVersion(cwd);
-  }
-
-  return false;
+export function syncPackageJsonSafewordVersion(
+  cwd: string,
+  options: { offline?: boolean; report?: boolean } = {},
+): boolean {
+  if (!packageJsonSafewordVersionNeedsUpdate(cwd)) return false;
+  installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], 'safeword package', options);
+  return packageJsonReferencesCurrentSafewordVersion(cwd);
 }
 
 function readPackageJson(cwd: string): PackageJson | undefined {

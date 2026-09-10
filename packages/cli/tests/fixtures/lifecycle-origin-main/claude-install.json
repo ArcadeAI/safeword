@@ -1,6 +1,6 @@
 {
   "integration": "claude",
   "operation": "install",
-  "result_sha256": "81a536876e7b53bad69d52820cbde8e09021d6246e7f7e0e971787f247c1d1cd",
+  "result_sha256": "e3018f97deeb7471f043179476d4125243a0b9e8ebe1e9567abb9c7fc3179964",
   "tree_sha256": "93eef6791fabe7c23eeac18128a7706e8c7143a131b94df3230c88b490df142d"
 }

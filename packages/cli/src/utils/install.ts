@@ -78,7 +78,7 @@ export function installDependencies(
   cwd: string,
   packages: string[],
   label = 'packages',
-  options: { report?: boolean } = {},
+  options: { offline?: boolean; report?: boolean } = {},
 ): DependencyInstallResult {
   if (packages.length === 0 || process.env.SAFEWORD_SKIP_INSTALL) {
     return { attempted: false, installed: false };
@@ -90,6 +90,9 @@ export function installDependencies(
   const extraFlags = pnpmWorkspaceFlags(pm, cwd);
   const flagString = extraFlags.length > 0 ? ` ${extraFlags.join(' ')}` : '';
   const displayCommand = `${pm} ${install} ${DEV_FLAG}${flagString} ${packages.join(' ')}`;
+  if (options.offline === true) {
+    return { attempted: false, installed: false, command: displayCommand };
+  }
 
   reportWhen(options.report !== false, () => {
     reportInstallStart(label, displayCommand);

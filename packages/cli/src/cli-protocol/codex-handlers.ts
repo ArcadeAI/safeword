@@ -17,7 +17,11 @@ import type {
   LegacyGlobalGuidanceObservation,
 } from '../codex-plugin/legacy-global-guidance.js';
 import { CODEX_REVIEW_THEN_RESTART_ACTION } from '../codex-plugin/migration.js';
-import { CodexMigrationError } from '../codex-plugin/migration-error.js';
+import {
+  CodexMigrationError,
+  codexProfileFailureDestructiveEffects,
+  codexProfileFailureEffects,
+} from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../codex-plugin/operations.js';
 import { observedFileEffect, observeFile } from './file-snapshot.js';
 import type { CommandInvocation } from './handler.js';
@@ -392,10 +396,13 @@ function runCodexInstall(
   migration: typeof CodexMigration,
 ): CliResult {
   const before = migration.observeCodexMigrationResult(invocation.cwd);
+  if (before.state === 'recovery_required') {
+    return migration.observeCodexMigration(invocation.cwd);
+  }
   if (!migration.codexInstallRequiresMutation(before)) {
     return migration.observeCodexMigration(invocation.cwd);
   }
-  migration.installCodexPlugin({
+  const marketplaceReplaced = migration.installCodexPlugin({
     cwd: invocation.cwd,
     json: true,
     reportMigrationState: false,
@@ -413,6 +420,15 @@ function runCodexInstall(
           target: 'Safeword Codex profile plugin',
         },
       ],
+      destructive: marketplaceReplaced
+        ? [
+            {
+              kind: 'replace',
+              target: 'Safeword Codex marketplace',
+              operation: 'stable-channel',
+            },
+          ]
+        : [],
     },
   };
 }
@@ -458,45 +474,18 @@ function codexFailureCode(
     : 'FINALIZATION_FAILED';
 }
 
-function codexFailureConfig(
-  partialInstall: boolean,
-  partialMarketplace: boolean,
-): CliResult['effects']['configuration'] {
-  if (partialInstall) {
-    return [
-      {
-        kind: 'install',
-        target: 'Safeword Codex profile plugin',
-        operation: 'enablement-unverified',
-      },
-    ];
-  }
-  if (partialMarketplace) {
-    return [
-      {
-        kind: 'remove',
-        target: 'Safeword Codex marketplace',
-        operation: 'restoration-failed',
-      },
-    ];
-  }
-  return [];
-}
-
 function codexFailureRecovery(
   error: unknown,
   partialMarketplace: boolean,
   fileEffects: CliResult['effects']['files'],
 ): CliResult['recovery'] {
-  if (
-    partialMarketplace &&
-    error instanceof CodexMigrationError &&
-    error.recoveryCommand !== undefined
-  ) {
+  if (error instanceof CodexMigrationError && error.recoveryCommand !== undefined) {
     return [
       {
         command: error.recoveryCommand,
-        description: 'Restore the Safeword marketplace removed by the failed replacement.',
+        description: partialMarketplace
+          ? 'Restore the Safeword marketplace removed by the failed replacement.'
+          : 'Retry the Safeword Codex plugin installation.',
         requiresHuman: true,
       },
     ];
@@ -511,6 +500,14 @@ function codexFailureRecovery(
     ];
   }
   return [];
+}
+
+function codexMarketplaceIsMissing(error: unknown): boolean {
+  return (
+    error instanceof CodexMigrationError &&
+    error.code === 'PLUGIN_MARKETPLACE_FAILED' &&
+    error.profileChanged
+  );
 }
 
 function codexFailure(
@@ -533,17 +530,18 @@ function codexFailure(
       ],
     });
   }
-  const partialInstall =
-    /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(
-      message,
-    );
-  const partialMarketplace = error instanceof CodexMigrationError && error.profileChanged;
+  const partialMarketplace = codexMarketplaceIsMissing(error);
+  const configEffects = codexProfileFailureEffects(error);
   return createResult({
     state: 'failed',
-    changed: partialInstall || partialMarketplace || fileEffects.length > 0,
+    changed:
+      (error instanceof CodexMigrationError && error.profileChanged) ||
+      fileEffects.length > 0 ||
+      configEffects.length > 0,
     effects: {
       files: fileEffects,
-      configuration: codexFailureConfig(partialInstall, partialMarketplace),
+      configuration: configEffects,
+      destructive: codexProfileFailureDestructiveEffects(error),
     },
     recovery: codexFailureRecovery(error, partialMarketplace, fileEffects),
     errors: [
