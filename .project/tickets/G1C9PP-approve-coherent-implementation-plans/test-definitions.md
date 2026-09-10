@@ -26,6 +26,12 @@ prove real installed CLI wiring.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A missing packaged contract blocks installed review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
 
 ### Scenario: Decision presentation controls focused reviewability
@@ -219,7 +225,13 @@ release prerequisite by itself.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R18 — Accepted quantitative promises carry a design-level measurement contract without moving Product-owned outcomes or Execution-owned instrumentation into the Implementation Plan
 
-### Scenario: Measurement detail stays with the phase that owns it
+### Scenario: Measurement ownership stays with the phase that owns it
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Measurement applicability is explicit
 
 - [ ] RED
 - [ ] GREEN

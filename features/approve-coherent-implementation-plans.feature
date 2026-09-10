@@ -28,7 +28,12 @@ Feature: Approve coherent Implementation Plans
         | contract_state | review_result |
         | the same current decision-quality obligations | the plan is eligible for semantic review against those shared obligations |
         | contradictory decision-quality obligations | approval is blocked with the conflicting obligation named for contract reconciliation |
-        | no packaged decision-quality contract reachable | authoring and approval are blocked with the regenerate action named |
+
+    @surface.safeword-cli
+    Scenario: A missing packaged contract blocks installed review
+      Given real project configuration and no packaged decision-quality contract is reachable
+      When the installed Safeword CLI prepares Implementation Plan review through real internal collaborators
+      Then authoring and approval are blocked with the regenerate action named
 
   @plan-implementability.TBU1.G1C9PP.R3
   Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
@@ -288,14 +293,14 @@ Feature: Approve coherent Implementation Plans
   Rule: plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability and concrete recovery
 
     Scenario Outline: The receipt records the focused-review judgment
-      Given an Implementation Plan is <reviewability>
+      Given an Implementation Plan has <presentation>
       When its semantic review reaches a verdict
       Then the receipt records <receipt_result>
 
       Examples:
-        | reviewability | receipt_result |
-        | reviewable from its decision summary and linked detail | a reviewability pass |
-        | obscured by execution detail | a reviewability failure naming the obscuring detail |
+        | presentation | receipt_result |
+        | a concise decision summary with named decisions and subordinate linked detail | a reviewability pass |
+        | a decision summary buried beneath step-by-step execution detail | a reviewability failure naming the obscuring detail |
 
     @surface.safeword-cli
     Scenario: A blocked receipt gives a Non-Technical Builder a concrete recovery
@@ -347,21 +352,29 @@ Feature: Approve coherent Implementation Plans
   @plan-implementability.TBU1.G1C9PP.R18
   Rule: plan-implementability.TBU1.G1C9PP.R18 — Accepted quantitative promises carry a design-level measurement contract without moving Product-owned outcomes or Execution-owned instrumentation into the Implementation Plan
 
-    Scenario Outline: Measurement detail stays with the phase that owns it
-      Given <product_measurement_state> and the Implementation Plan <measurement_state>
+    Scenario Outline: Measurement ownership stays with the phase that owns it
+      Given the Product Plan promises a measurable outcome for a named population and condition and the Implementation Plan <measurement_state>
       When the Implementation Plan is reviewed
       Then <review_result>
 
       Examples:
-        | product_measurement_state | measurement_state | review_result |
-        | the Product Plan promises a measurable outcome for a named population and condition | decides the origin, method, validity safeguards, and failure behavior | measurement design does not block approval |
-        | the Product Plan promises a measurable outcome for a named population and condition | changes the promised target | approval is blocked because the Product-owned target was changed |
-        | the Product Plan promises a measurable outcome for a named population and condition | changes the affected population | approval is blocked because the Product-owned population was changed |
-        | the Product Plan promises a measurable outcome for a named population and condition | decides origin, method, validity safeguards, and failure behavior but also lists exact instrumentation commands | approval is blocked because instrumentation belongs in Execution Planning |
-        | the Product Plan promises a measurable outcome for a named population and condition | leaves validity safeguards unresolved without listing instrumentation commands | approval is blocked with the missing validity decision named |
-        | the Product Plan makes no quantitative promise | records no measurement-design applicability decision | approval is blocked until measurement applicability is explicit |
-        | the Product Plan makes no quantitative promise | records a bare applicability skip with no reason | approval is blocked until the measurement skip is justified |
-        | the Product Plan makes no quantitative promise | records a justified measurement-design applicability skip | measurement design does not block approval |
+        | measurement_state | review_result |
+        | decides the origin, method, validity safeguards, and failure behavior | measurement design does not block approval |
+        | changes the promised target | approval is blocked because the Product-owned target was changed |
+        | changes the affected population | approval is blocked because the Product-owned population was changed |
+        | decides origin, method, validity safeguards, and failure behavior but also lists exact instrumentation commands | approval is blocked because instrumentation belongs in Execution Planning |
+        | leaves validity safeguards unresolved without listing instrumentation commands | approval is blocked with the missing validity decision named |
+
+    Scenario Outline: Measurement applicability is explicit
+      Given the Product Plan makes no quantitative promise and the Implementation Plan <applicability_state>
+      When the Implementation Plan is reviewed
+      Then <review_result>
+
+      Examples:
+        | applicability_state | review_result |
+        | records no measurement-design applicability decision | approval is blocked until measurement applicability is explicit |
+        | records a bare applicability skip with no reason | approval is blocked until the measurement skip is justified |
+        | records a justified measurement-design applicability skip | measurement design does not block approval |
 
   @plan-implementability.TBU1.G1C9PP.R19
   Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, and headless work records pending authority without deadlocking or claiming approval
@@ -398,14 +411,14 @@ Feature: Approve coherent Implementation Plans
 
     @surface.safeword-cli
     Scenario Outline: Human design authority follows approach currency
-      Given human design approval is enabled and the approval's bound approach bytes have <approval_currency>
+      Given human design approval is enabled and the Implementation Plan bytes have <byte_change> since their approval
       When Execution Planning is requested through the installed Safeword CLI and real internal collaborators
       Then <approval_result>
 
       Examples:
-        | approval_currency | approval_result |
-        | an approval that still binds its exact current plan | no further human decision is requested and Execution Planning proceeds on the existing approval |
-        | changed so the prior approval no longer binds the current plan | the current approach requires a new human decision |
+        | byte_change | approval_result |
+        | not changed | no further human decision is requested and Execution Planning proceeds on the existing approval |
+        | changed | the current approach requires a new human decision |
 
     @surface.safeword-cli
     Scenario: A completed Execution Plan does not trigger a second design approval
