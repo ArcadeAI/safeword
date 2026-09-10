@@ -362,32 +362,32 @@ function withExecutionAttestation(
   };
 }
 
+function failedReviewWorker(error: CliResult['errors'][number], reviewId?: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [error],
+    data: {
+      command: 'review run',
+      status: 'failed',
+      ...(reviewId !== undefined && { review_id: reviewId }),
+    },
+  });
+}
+
 async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult> {
   const id = process.env.SAFEWORD_REVIEW_JOB_ID;
   if (id === undefined) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'REVIEW_WORKER_ID_MISSING',
-          message: 'The detached review worker has no job ID.',
-          retryable: false,
-        },
-      ],
-      data: { command: 'review run', status: 'failed' },
+    return failedReviewWorker({
+      code: 'REVIEW_WORKER_ID_MISSING',
+      message: 'The detached review worker has no job ID.',
+      retryable: false,
     });
   }
   if (invocation.options.workerJobId !== id) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'REVIEW_WORKER_ID_INVALID',
-          message: 'The detached review worker identity does not match its job.',
-          retryable: false,
-        },
-      ],
-      data: { command: 'review run', status: 'failed' },
+    return failedReviewWorker({
+      code: 'REVIEW_WORKER_ID_INVALID',
+      message: 'The detached review worker identity does not match its job.',
+      retryable: false,
     });
   }
   const [{ runReview }, { completeReviewJob, reviewJobWorkerInput }, { ReviewPacketError }] =
@@ -400,20 +400,17 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
   try {
     persistedInput = reviewJobWorkerInput(invocation.cwd, id);
   } catch (error) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'REVIEW_WORKER_JOB_INVALID',
-          message:
-            error instanceof Error
-              ? `The detached review worker could not load its job: ${error.message}`
-              : 'The detached review worker could not load its job.',
-          retryable: false,
-        },
-      ],
-      data: { command: 'review run', status: 'failed', review_id: id },
-    });
+    return failedReviewWorker(
+      {
+        code: 'REVIEW_WORKER_JOB_INVALID',
+        message:
+          error instanceof Error
+            ? `The detached review worker could not load its job: ${error.message}`
+            : 'The detached review worker could not load its job.',
+        retryable: false,
+      },
+      id,
+    );
   }
   let result: CliResult;
   try {
@@ -448,35 +445,26 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
   try {
     completeReviewJob(invocation.cwd, id, result);
   } catch (error) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'REVIEW_RESULT_PERSIST_FAILED',
-          message:
-            error instanceof Error
-              ? `The review finished but its result could not be saved: ${error.message}`
-              : 'The review finished but its result could not be saved.',
-          retryable: true,
-        },
-      ],
-      data: { command: 'review run', status: 'failed', review_id: id },
-    });
+    return failedReviewWorker(
+      {
+        code: 'REVIEW_RESULT_PERSIST_FAILED',
+        message:
+          error instanceof Error
+            ? `The review finished but its result could not be saved: ${error.message}`
+            : 'The review finished but its result could not be saved.',
+        retryable: true,
+      },
+      id,
+    );
   }
   return result;
 }
 
 function reviewExecutionFailure(error: unknown, packetError: boolean): CliResult {
-  return createResult({
-    state: 'failed',
-    errors: [
-      {
-        code: packetError ? 'REVIEW_PACKET_INVALID' : 'REVIEW_WORKER_FAILED',
-        message: error instanceof Error ? error.message : 'The review worker failed.',
-        retryable: !packetError,
-      },
-    ],
-    data: { command: 'review run', status: 'failed' },
+  return failedReviewWorker({
+    code: packetError ? 'REVIEW_PACKET_INVALID' : 'REVIEW_WORKER_FAILED',
+    message: error instanceof Error ? error.message : 'The review worker failed.',
+    retryable: !packetError,
   });
 }
 

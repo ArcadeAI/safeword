@@ -64,8 +64,7 @@ export function claudeProofDirectory(
  * the customer's working tree (issue #3787). Claude Code documents the data
  * directory as the place plugin state belongs, and removes it on uninstall.
  *
- * Throws when the project root cannot be resolved; callers that must not fail
- * a session over it use {@link claudeProjectStateDirectoryOrUndefined}.
+ * Throws when the project root cannot be resolved.
  */
 export function claudeProjectStateDirectory(cwd: string): string {
   const canonical = canonicalClaudeProjectRoot(cwd);
@@ -74,12 +73,4 @@ export function claudeProjectStateDirectory(cwd: string): string {
     CLAUDE_MIGRATION_SCHEMA.data.projectState,
     claudeProjectDigest(canonical),
   );
-}
-
-export function claudeProjectStateDirectoryOrUndefined(cwd: string): string | undefined {
-  try {
-    return claudeProjectStateDirectory(cwd);
-  } catch {
-    return undefined;
-  }
 }

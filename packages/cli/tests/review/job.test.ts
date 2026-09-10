@@ -93,7 +93,23 @@ function project(): string {
   mkdirSync(nodePath.join(directory, '.project/tickets/TST'), { recursive: true });
   writeFileSync(
     nodePath.join(directory, '.project/tickets/TST/test-definitions.md'),
-    '### Scenario: exact actor boundary\n\n- [x] RED abc1234\n- [ ] GREEN\n',
+    [
+      '### Scenario: exact actor boundary',
+      '',
+      '- [x] RED abc1234',
+      '- [ ] GREEN',
+      '',
+      '### Scenario Outline: shared proof rows',
+      '',
+      '- [x] RED abc1234',
+      '- [ ] GREEN',
+      '',
+      '### Scenario: similar actor boundary',
+      '',
+      '- [x] RED abc1234',
+      '- [ ] GREEN',
+      '',
+    ].join('\n'),
   );
   return directory;
 }
@@ -453,10 +469,99 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
-  it.each([
-    ['identical canonical proof inputs', 'reused'],
-    ['different canonical proof inputs', 'not reused'],
-  ] as const)('resolves %s as %s', async (relationship, verdict) => {
+  it('reuses one approved receipt across Scenario Outline rows with identical proof inputs', async () => {
+    const cwd = project();
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution = {
+      scenario: 'Scenario Outline: shared proof rows',
+      ledger: '.project/tickets/TST/test-definitions.md',
+      argv: [process.execPath, '-e', 'process.exit(1)'] as const,
+      cwd: '.',
+      evidenceClass: 'pure-contract' as const,
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    const first = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+    const second = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+
+    expect((second.data as { review_id: string }).review_id).toBe(
+      (first.data as { review_id: string }).review_id,
+    );
+    expect(reviewJobStatus(cwd, (second.data as { review_id: string }).review_id)).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved', execution_attestation: { expected_failure: { matched: true } } },
+    });
+  });
+
+  it('executes distinct primary proof targets under separate approved attestations', async () => {
+    const cwd = project();
+    writeFileSync(nodePath.join(cwd, 'alternate.md'), 'alternate proof target\n');
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution = {
+      scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
+      argv: [process.execPath, '-e', 'process.exit(1)'] as const,
+      cwd: '.',
+      evidenceClass: 'pure-contract' as const,
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    const first = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+    const second = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['alternate.md'],
+      execution: { ...execution, argv: [process.execPath, '-e', 'process.exit(2)'] },
+    });
+    const firstId = (first.data as { review_id: string }).review_id;
+    const secondId = (second.data as { review_id: string }).review_id;
+    const firstStatus = reviewJobStatus(cwd, firstId);
+    const secondStatus = reviewJobStatus(cwd, secondId);
+
+    expect(secondId).not.toBe(firstId);
+    expect(firstStatus).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved', execution_attestation: { expected_failure: { matched: true } } },
+    });
+    expect(secondStatus).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved', execution_attestation: { expected_failure: { matched: true } } },
+    });
+    expect(
+      (secondStatus.data as { execution_attestation: { source_fingerprint: string } })
+        .execution_attestation.source_fingerprint,
+    ).not.toBe(
+      (firstStatus.data as { execution_attestation: { source_fingerprint: string } })
+        .execution_attestation.source_fingerprint,
+    );
+  });
+
+  it('requires separate receipts for similar scenarios with different proof implementations', async () => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
       'reviewer_output: {',
@@ -479,20 +584,20 @@ describe('durable review jobs', () => {
       targets: ['input.md'],
       execution,
     });
-    const candidate = await startReviewJob({
+    const second = await startReviewJob({
       cwd,
       kind: 'executable-red',
       targets: ['input.md'],
-      execution:
-        relationship === 'identical canonical proof inputs'
-          ? execution
-          : { ...execution, expectedFailure: 'different actor assertion' },
+      execution: {
+        ...execution,
+        scenario: 'Scenario: similar actor boundary',
+        expectedFailure: 'similar actor assertion',
+      },
     });
-    const sameReview =
-      (candidate.data as { review_id: string }).review_id ===
-      (first.data as { review_id: string }).review_id;
 
-    expect(sameReview).toBe(verdict === 'reused');
+    expect((second.data as { review_id: string }).review_id).not.toBe(
+      (first.data as { review_id: string }).review_id,
+    );
   });
 
   it('does not reuse an executable RED approval without bound execution evidence', async () => {
@@ -1227,6 +1332,7 @@ describe('durable review jobs', () => {
     const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
     const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
     delete record.pid;
+    record.integrity = signRecord(cwd, record);
     writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
 
     const result = reviewJobStatus(cwd, id);

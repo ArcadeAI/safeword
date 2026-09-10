@@ -7,7 +7,7 @@
     ],
     "Distinct primary proofs are executed separately": [
       "packages/cli/tests/review/job.test.ts",
-      "resolves %s as %s"
+      "executes distinct primary proof targets under separate approved attestations"
     ],
     "Author-supplied output cannot stand in for execution": [
       "packages/cli/tests/review/packet.test.ts",
@@ -39,11 +39,11 @@
     ],
     "Scenario Outline rows share one proof implementation": [
       "packages/cli/tests/review/job.test.ts",
-      "reserves one worker for simultaneous starts of the same source"
+      "reuses one approved receipt across Scenario Outline rows with identical proof inputs"
     ],
     "Similar scenarios use materially different proof implementations": [
       "packages/cli/tests/review/job.test.ts",
-      "does not reuse a review when a context file becomes a target"
+      "requires separate receipts for similar scenarios with different proof implementations"
     ],
     "Supported agents use the same trusted execution contract": [
       "packages/cli/tests/cli-protocol/executable-red-wiring.test.ts",
@@ -54,8 +54,14 @@
       "refuses executable RED receipt reuse when a declared support file is omitted"
     ],
     "Proof identity determines receipt reuse": [
-      "packages/cli/tests/review/job.test.ts",
-      "resolves %s as %s"
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "reuses one approved receipt across Scenario Outline rows with identical proof inputs"
+      ],
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "executes distinct primary proof targets under separate approved attestations"
+      ]
     ],
     "Unavailable independent review blocks GREEN approval": [
       "packages/cli/tests/review/job.test.ts",
@@ -68,19 +74,24 @@
       ],
       [
         "packages/cli/tests/review/job.test.ts",
-        "invalidates a completed record that appears before its worker publishes"
-      ],
-      [
-        "packages/cli/tests/integration/write-time-annotation-gate.test.ts",
-        "binds a local Edit to its exact scenario when several GREEN rows remain open"
+        "blocks GREEN when no fresh approved executable RED receipt matches the scenario"
       ],
       [
         "packages/cli/tests/review/job.test.ts",
-        "rejects a running job record without its worker pid"
+        "blocks GREEN when claimed reviewer provenance contradicts the signed verdict author"
+      ],
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "refuses executable RED receipt reuse when a declared support file is omitted"
       ],
       [
         "packages/cli/tests/review/job.test.ts",
         "permits GREEN only while the approved cross-agent receipt still matches current inputs"
+      ],
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "invalidates executable RED approval when the %s changes",
+        "primary proof target"
       ],
       [
         "packages/cli/tests/review/job.test.ts",

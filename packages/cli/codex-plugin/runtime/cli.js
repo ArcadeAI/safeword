@@ -33712,9 +33712,7 @@ __export(exports_preferences, {
   scopedConfigPath: () => scopedConfigPath,
   resolveSafewordUserConfigPath: () => resolveSafewordUserConfigPath,
   resetScopedReviewRoutes: () => resetScopedReviewRoutes,
-  readConfigFile: () => readConfigFile,
-  effectiveConfiguredRoutes: () => effectiveConfiguredRoutes,
-  currentUserConfigPath: () => currentUserConfigPath
+  effectiveConfiguredRoutes: () => effectiveConfiguredRoutes
 });
 import { existsSync as existsSync15, readFileSync as readFileSync31 } from "fs";
 import nodePath46 from "path";
@@ -33893,7 +33891,6 @@ __export(exports_policy, {
   readPrimaryReviewerModel: () => readPrimaryReviewerModel,
   readConfiguredReviewRoutes: () => readConfiguredReviewRoutes,
   readAlternateReviewerModel: () => readAlternateReviewerModel,
-  oppositeReviewPair: () => oppositeReviewPair,
   builtInReviewRoutes: () => builtInReviewRoutes
 });
 import { readFileSync as readFileSync32 } from "fs";
@@ -33924,10 +33921,6 @@ function reviewRoutePlan(author) {
     };
   }
   return;
-}
-function oppositeReviewPair(author) {
-  const plan = reviewRoutePlan(author);
-  return plan === undefined ? undefined : { author: plan.author, reviewer: plan.preferred };
 }
 function readConfiguredReviewRoutes(cwd, author) {
   const plan = reviewRoutePlan(author);
@@ -34823,6 +34816,17 @@ function degradedFailureRoutes(input, fallbackFailure) {
   routes.push({ agent: input.author, role: "fallback review", failure: fallbackFailure });
   return routes;
 }
+function degradedFallbackNetworkEffects(input, fallback) {
+  return degradedNetworkEffects({
+    assignedReviewer: input.assignedReviewer,
+    author: input.author,
+    preferredFailure: input.preferredFailure,
+    alternateFailure: input.alternateFailure,
+    independentFallback: input.independentFallback,
+    independentFallbackFailure: input.independentFallbackFailure,
+    fallback
+  });
+}
 async function runDegradedFallback(input) {
   const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared, undefined, input.runDeadline);
@@ -34836,15 +34840,7 @@ async function runDegradedFallback(input) {
     context: input.context,
     sourceChanged,
     snapshotChanged,
-    network: degradedNetworkEffects({
-      assignedReviewer: input.assignedReviewer,
-      author: input.author,
-      preferredFailure: input.preferredFailure,
-      alternateFailure: input.alternateFailure,
-      independentFallback: input.independentFallback,
-      independentFallbackFailure: input.independentFallbackFailure,
-      fallback
-    })
+    network: degradedFallbackNetworkEffects(input, fallback)
   });
   if (changedResult !== undefined)
     return changedResult;
@@ -34860,14 +34856,9 @@ async function runDegradedFallback(input) {
         }
       ],
       effects: {
-        network: degradedNetworkEffects({
-          assignedReviewer: input.assignedReviewer,
-          author: input.author,
-          preferredFailure: input.preferredFailure,
-          alternateFailure: input.alternateFailure,
-          independentFallback: input.independentFallback,
-          independentFallbackFailure: input.independentFallbackFailure,
-          fallback: { kind: "failed", failure: assessment.failure }
+        network: degradedFallbackNetworkEffects(input, {
+          kind: "failed",
+          failure: assessment.failure
         })
       },
       recovery: [
@@ -34902,15 +34893,7 @@ async function runDegradedFallback(input) {
         ...reviewerFeedback(completedOutput)
       ],
       effects: {
-        network: degradedNetworkEffects({
-          assignedReviewer: input.assignedReviewer,
-          author: input.author,
-          preferredFailure: input.preferredFailure,
-          alternateFailure: input.alternateFailure,
-          independentFallback: input.independentFallback,
-          independentFallbackFailure: input.independentFallbackFailure,
-          fallback: { kind: "completed" }
-        })
+        network: degradedFallbackNetworkEffects(input, { kind: "completed" })
       },
       recovery: [
         {
@@ -34943,15 +34926,7 @@ async function runDegradedFallback(input) {
       ...reviewerFeedback(completedOutput)
     ],
     effects: {
-      network: degradedNetworkEffects({
-        assignedReviewer: input.assignedReviewer,
-        author: input.author,
-        preferredFailure: input.preferredFailure,
-        alternateFailure: input.alternateFailure,
-        independentFallback: input.independentFallback,
-        independentFallbackFailure: input.independentFallbackFailure,
-        fallback: { kind: "completed" }
-      })
+      network: degradedFallbackNetworkEffects(input, { kind: "completed" })
     },
     data: {
       command: "review run",
@@ -70372,32 +70347,31 @@ function withExecutionAttestation(result, attestation, input) {
     }
   };
 }
+function failedReviewWorker(error2, reviewId) {
+  return createResult({
+    state: "failed",
+    errors: [error2],
+    data: {
+      command: "review run",
+      status: "failed",
+      ...reviewId !== undefined && { review_id: reviewId }
+    }
+  });
+}
 async function runReviewWorker(invocation) {
   const id = process.env.SAFEWORD_REVIEW_JOB_ID;
   if (id === undefined) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "REVIEW_WORKER_ID_MISSING",
-          message: "The detached review worker has no job ID.",
-          retryable: false
-        }
-      ],
-      data: { command: "review run", status: "failed" }
+    return failedReviewWorker({
+      code: "REVIEW_WORKER_ID_MISSING",
+      message: "The detached review worker has no job ID.",
+      retryable: false
     });
   }
   if (invocation.options.workerJobId !== id) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "REVIEW_WORKER_ID_INVALID",
-          message: "The detached review worker identity does not match its job.",
-          retryable: false
-        }
-      ],
-      data: { command: "review run", status: "failed" }
+    return failedReviewWorker({
+      code: "REVIEW_WORKER_ID_INVALID",
+      message: "The detached review worker identity does not match its job.",
+      retryable: false
     });
   }
   const [{ runReview: runReview2 }, { completeReviewJob: completeReviewJob2, reviewJobWorkerInput: reviewJobWorkerInput2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
@@ -70409,17 +70383,11 @@ async function runReviewWorker(invocation) {
   try {
     persistedInput = reviewJobWorkerInput2(invocation.cwd, id);
   } catch (error2) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "REVIEW_WORKER_JOB_INVALID",
-          message: error2 instanceof Error ? `The detached review worker could not load its job: ${error2.message}` : "The detached review worker could not load its job.",
-          retryable: false
-        }
-      ],
-      data: { command: "review run", status: "failed", review_id: id }
-    });
+    return failedReviewWorker({
+      code: "REVIEW_WORKER_JOB_INVALID",
+      message: error2 instanceof Error ? `The detached review worker could not load its job: ${error2.message}` : "The detached review worker could not load its job.",
+      retryable: false
+    }, id);
   }
   let result;
   try {
@@ -70448,31 +70416,19 @@ async function runReviewWorker(invocation) {
   try {
     completeReviewJob2(invocation.cwd, id, result);
   } catch (error2) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "REVIEW_RESULT_PERSIST_FAILED",
-          message: error2 instanceof Error ? `The review finished but its result could not be saved: ${error2.message}` : "The review finished but its result could not be saved.",
-          retryable: true
-        }
-      ],
-      data: { command: "review run", status: "failed", review_id: id }
-    });
+    return failedReviewWorker({
+      code: "REVIEW_RESULT_PERSIST_FAILED",
+      message: error2 instanceof Error ? `The review finished but its result could not be saved: ${error2.message}` : "The review finished but its result could not be saved.",
+      retryable: true
+    }, id);
   }
   return result;
 }
 function reviewExecutionFailure(error2, packetError) {
-  return createResult({
-    state: "failed",
-    errors: [
-      {
-        code: packetError ? "REVIEW_PACKET_INVALID" : "REVIEW_WORKER_FAILED",
-        message: error2 instanceof Error ? error2.message : "The review worker failed.",
-        retryable: !packetError
-      }
-    ],
-    data: { command: "review run", status: "failed" }
+  return failedReviewWorker({
+    code: packetError ? "REVIEW_PACKET_INVALID" : "REVIEW_WORKER_FAILED",
+    message: error2 instanceof Error ? error2.message : "The review worker failed.",
+    retryable: !packetError
   });
 }
 async function startReviewInBackground(invocation, kind, targets, context, execution) {
