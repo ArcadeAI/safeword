@@ -16,7 +16,7 @@ prove real installed CLI wiring.
 
 - [x] RED d847b78da
 - [x] GREEN 828d8af75
-- [ ] REFACTOR
+- [x] REFACTOR skip: gate wiring and decision parsing are already minimal
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R2 — Authors and reviewers use one decision-quality contract
 
