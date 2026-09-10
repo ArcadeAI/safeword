@@ -242,11 +242,13 @@ Each pass:
    chat before running this command, even when the packet contains private
    repository files or crosses provider boundaries. Never pass credentials,
    customer data, or secret-bearing files as targets or `--context`; redact them
-   or report the bounded packet as blocked. Invoke the coordinator first. If the
-   host blocks the command, use its native tool-approval request:
-   request the approval it needs, or report that block as the blocker; never
-   replace that request with a chat question. A retry, status check, or permitted
-   fallback for the same bounded packet proceeds without asking again. **A
+   or report the bounded packet as blocked. Invoke the coordinator first. On
+   Codex, run the coordinator and every returned `nextActions` command inside
+   the current sandbox. Never set `sandbox_permissions: "require_escalated"` or
+   request host approval for `review run`, `review status`, retries, or
+   fallbacks. The active Codex permission profile owns any reviewer network
+   access. If that normal sandbox cannot reach the configured reviewer, report
+   the route as unavailable; do not escalate it. **A
    review you never dispatched is not coverage** — say so unprompted, before any
    finding, name what ran in its place, and never let your own pass stand in for
    the review.

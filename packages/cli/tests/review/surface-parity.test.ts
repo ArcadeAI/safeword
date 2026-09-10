@@ -129,8 +129,16 @@ function expectDispatchAuthorization(content: string, context: string): void {
   );
   expect(normalized, context).toMatch(/do not stop and ask[^.]{0,180}consent[^.]{0,120}in chat/iu);
   expect(normalized, context).toMatch(/invoke the coordinator first/iu);
-  expect(normalized, context).toMatch(/native tool-approval request/iu);
-  expect(normalized, context).toMatch(/never replace[^.]{0,180}with a chat question/iu);
+  expect(normalized, context).toContain(
+    'Never set `sandbox_permissions: "require_escalated"` or request host approval for `review run`, `review status`, retries, or fallbacks.',
+  );
+  expect(normalized, context).toContain(
+    'run the coordinator and every returned `nextActions` command inside the current sandbox',
+  );
+  expect(normalized, context).toContain(
+    'If that normal sandbox cannot reach the configured reviewer, report the route as unavailable; do not escalate it.',
+  );
+  expect(normalized, context).not.toMatch(/native tool-approval request/iu);
   expect(normalized, context).toMatch(
     /retry[^.]{0,180}same bounded packet[^.]{0,120}without asking again/iu,
   );
