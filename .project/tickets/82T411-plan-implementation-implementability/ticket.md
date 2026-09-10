@@ -43,9 +43,9 @@ done_when:
   - on every supported authoritative host, a plain feature request can traverse intake, behavior definition, both planning stages, TDD, verification, delivery checks, and pull-request preparation while leaving strong Product, Implementation, and Execution Plans behind
 product_plan_contract: v1
 created: 2026-09-08T05:11:31.804Z
-last_modified: 2026-09-10T00:14:30.000Z
+last_modified: 2026-09-10T18:43:58.353Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/4200
-children: ['G1C9PP', '7CAMAD', '5F5ZZA', 'K3EBHB', 'YCFFNC', '3EG00H', '6XW8H7', 'A639WN', '26FK42']
+children: ['G1C9PP', '7CAMAD', '5F5ZZA', 'K3EBHB', 'YCFFNC', '3EG00H', '6XW8H7', 'A639WN', '26FK42', 'ZSHVEB']
 ---
 
 # Separate implementation decisions from execution sequencing
@@ -56,6 +56,8 @@ workflow phases with distinct, canonical author-review contracts.
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-10T18:43:58.353Z Scope linkage: Added ZSHVEB as the M1 child for GitHub issue #4366. It owns reusable technical-writing guidance plus the plan-specific extension consumed by Product, Implementation, and Execution Plan authoring and review; the existing phase contracts remain authoritative for behavior.
 
 - 2026-09-10T00:14:30.000Z Scenario completeness accepted: User approved the nine-child scenario set after rule-lineage reconciliation, removal of stale moved behavior, and addition of plan repair, full prompt-to-PR, implementation-time replan, dispute, delivery-checklist, and plain-recovery examples. Independent child reviews are next.
 
