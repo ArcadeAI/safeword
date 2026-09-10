@@ -82,7 +82,7 @@ prove real installed CLI wiring.
 
 - [x] RED 37d445eb2
 - [x] GREEN 8504f326d
-- [ ] REFACTOR
+- [x] REFACTOR b58e82d6f
 
 ### Scenario: Planning access permits only the configured durable architecture record
 
