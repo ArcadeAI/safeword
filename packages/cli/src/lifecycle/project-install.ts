@@ -1523,6 +1523,10 @@ function migrateLegacyCodexDuringSetup(
   }
 }
 
+function setupPackageChecksAreSkipped(offline: boolean): boolean {
+  return offline || Boolean(process.env.SAFEWORD_SKIP_INSTALL);
+}
+
 async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
   const {
     adapters,
@@ -1625,7 +1629,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       claudeProjectPluginEnrolled: projectClaudePluginEnrolled(cwd),
     });
     const health = await checkHealth(cwd, {
-      skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+      skipPackageChecks: setupPackageChecksAreSkipped(input.offline),
       skipPythonToolChecks: !configured && pythonSetup.tools.length > 0 && !pythonSetup.installed,
       schema: setupSchema,
     });
