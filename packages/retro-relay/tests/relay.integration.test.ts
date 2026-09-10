@@ -1975,6 +1975,7 @@ describe('retry-safe retro relay', () => {
       details: { disposition: 'incomplete' },
     });
     expect(github.createBodies).toHaveLength(0);
+    expect(reopened.receipt(ambiguous.scope)).toMatchObject({ state: 'ambiguous' });
     reopened.close();
   });
 

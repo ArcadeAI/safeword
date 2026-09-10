@@ -1332,6 +1332,7 @@ describe('durable review jobs', () => {
     const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
     const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
     delete record.pid;
+    record.integrity = signRecord(cwd, record);
     writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
 
     const result = reviewJobStatus(cwd, id);

@@ -74,19 +74,24 @@
       ],
       [
         "packages/cli/tests/review/job.test.ts",
-        "invalidates a completed record that appears before its worker publishes"
+        "blocks GREEN when no fresh approved executable RED receipt matches the scenario"
       ],
       [
         "packages/cli/tests/review/job.test.ts",
-        "refuses a planted record with an arbitrary pid and result"
+        "blocks GREEN when claimed reviewer provenance contradicts the signed verdict author"
       ],
       [
         "packages/cli/tests/review/job.test.ts",
-        "rejects a running job record without its worker pid"
+        "refuses executable RED receipt reuse when a declared support file is omitted"
       ],
       [
         "packages/cli/tests/review/job.test.ts",
         "permits GREEN only while the approved cross-agent receipt still matches current inputs"
+      ],
+      [
+        "packages/cli/tests/review/job.test.ts",
+        "invalidates executable RED approval when the %s changes",
+        "primary proof target"
       ],
       [
         "packages/cli/tests/review/job.test.ts",

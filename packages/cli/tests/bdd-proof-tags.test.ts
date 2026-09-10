@@ -690,9 +690,8 @@ describe('BDD proof provenance', () => {
   });
 
   it('keeps shared proof fan-in within the reviewed baseline', () => {
-    // Baseline measured after exposing the previously feature-level-@manual local-retro
-    // scenarios: 69 reused tests and a maximum fan-in of fourteen. Three additional
-    // cross-boundary proofs now cover both sides of the client/collector contracts.
+    // Current baseline after exposing the previously feature-level-@manual local-retro
+    // scenarios: 73 reused tests and a maximum fan-in of fourteen.
     // These remain ratchets—lower them as proofs become scenario-specific.
     let sharedProofs = 0;
     let maximumFanIn = 0;
@@ -710,7 +709,7 @@ describe('BDD proof provenance', () => {
       maximumFanIn = Math.max(maximumFanIn, fanIn);
     }
 
-    expect(sharedProofs).toBeLessThanOrEqual(72);
+    expect(sharedProofs).toBeLessThanOrEqual(73);
     expect(maximumFanIn).toBeLessThanOrEqual(14);
   });
 

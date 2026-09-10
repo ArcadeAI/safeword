@@ -463,7 +463,6 @@ it('does not treat outage age as quota-block age when capacity fills after recov
   const secondBody = encoded({
     ...(JSON.parse(new TextDecoder().decode(first.body)) as Record<string, unknown>),
     findings: ['second outage finding'],
-    requestId: secondId,
     sessionScope: 'a'.repeat(64),
   });
   store.accept(first.requestId, '9'.repeat(64), first.body, 'v3', 'project-a');
@@ -1554,6 +1553,30 @@ it.each([
 
   expect(invalidResponse.status).toBeGreaterThanOrEqual(400);
   expect(validResponse.status).toBe(201);
+});
+
+it('rejects a well-formed non-v4 identity for v3 before persistence', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const request = {
+    ...fixtureServerOwnedRequest(),
+    requestId: '01911111-2222-7333-8444-55555555555a',
+  };
+
+  const rejected = await submit(runtime.url, request);
+  const claim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-fixture-credential' },
+  });
+  await runtime.close();
+
+  expect(rejected.status).toBe(400);
+  await expect(rejected.json()).resolves.toEqual({ error: 'invalid_request' });
+  expect(claim.status).toBe(204);
 });
 
 async function expectSizedEnvelopeStatus(

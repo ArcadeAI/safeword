@@ -139,7 +139,7 @@
     ],
     "A malformed request identity is rejected before storage": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "rejects a %s request identity without persistence"
+      "rejects a well-formed non-v4 identity for v3 before persistence"
     ],
     "Prohibited request fields are rejected before storage": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",

@@ -66,5 +66,8 @@ cases/d.md   1a469432e36af273cfe7f237d36444b3e6d631fa3df1cbd59951e1ef08a88f6d
 Scope: independent review of the demo fragment with the real intake standard
 and shared epic/standalone product context. This is not separate execution of
 each plan-owner path, automatic skill loading, or all four tagged agent hosts.
+The two runs use the same context and four case fixtures but different
+`DISCOVERY.md` playbook revisions, so they are comparable smoke checks rather
+than identical-input reproducibility runs.
 Those remain coverage intent; this smoke evidence must not be presented as
 full end-to-end proof of the manual scenarios.
