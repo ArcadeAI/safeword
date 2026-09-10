@@ -46,7 +46,7 @@ prove real installed CLI wiring.
 
 - [x] RED 4f168b359
 - [x] GREEN 2722ee208
-- [ ] REFACTOR
+- [x] REFACTOR skip: the scenario reuses the same single authority boundary and packet capture path
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R5 — Architecture applicability is explicit
 
