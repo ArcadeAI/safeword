@@ -52,7 +52,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Architecture applicability accepts consequences or a justified skip
 
-- [ ] RED
+- [x] RED 61636f429
 - [ ] GREEN
 - [ ] REFACTOR
 
