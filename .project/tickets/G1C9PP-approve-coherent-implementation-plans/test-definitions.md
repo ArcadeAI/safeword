@@ -118,7 +118,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Decision resolution controls its Implementation Plan obligation
 
-- [x] RED dc4cedfa2
+- [x] RED 50dbf9bb5
 - [ ] GREEN
 - [ ] REFACTOR
 
