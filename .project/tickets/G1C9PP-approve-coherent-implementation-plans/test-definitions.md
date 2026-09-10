@@ -74,7 +74,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Durable recording routes only significant decisions to the architecture record
 
-- [ ] RED
+- [x] RED ca18e79a6
 - [ ] GREEN
 - [ ] REFACTOR
 
