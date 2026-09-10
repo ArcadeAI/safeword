@@ -134,23 +134,6 @@ function withoutFields(...fields: readonly string[]): string {
     .join('\n');
 }
 
-const DATA_CLAUSE_FIXTURE = `- **Data applicability and decisions:** Require \`Data applicability:\` to state
-  either \`skip: <reason>\` when there is no data-contract, ownership, or lifecycle
-  impact, or decision-depth coverage of Purpose, Store and model, Schema and
-  relationships, Source of truth, Ownership and access, Identity and integrity,
-  Cross-system flow, Lifecycle and retention, Migration and backfill, Compliance,
-  and Rollback.`;
-
-function contractWithDataFixture(): string {
-  const existing = obligationClause(PLAN_REVIEW_RUBRIC, DATA_OBLIGATION);
-  if (existing !== undefined && missingDataContractRequirements(existing).length === 0) {
-    return PLAN_REVIEW_RUBRIC;
-  }
-  if (existing === undefined) return `${PLAN_REVIEW_RUBRIC}\n${DATA_CLAUSE_FIXTURE}`;
-  const clauseStart = PLAN_REVIEW_RUBRIC.indexOf(existing);
-  return `${PLAN_REVIEW_RUBRIC.slice(0, clauseStart)}${DATA_CLAUSE_FIXTURE}${PLAN_REVIEW_RUBRIC.slice(clauseStart + existing.length)}`;
-}
-
 describe('Implementation Plan data applicability contract', () => {
   it.each([
     {
@@ -213,8 +196,7 @@ describe('Implementation Plan data applicability contract', () => {
   it.each([...DATA_FIELDS, 'Data applicability:', 'skip: <reason>'])(
     'fails closed when the contract drops %s',
     requirement => {
-      const contract = contractWithDataFixture();
-      const clause = obligationClause(contract, DATA_OBLIGATION) ?? '';
+      const clause = obligationClause(PLAN_REVIEW_RUBRIC, DATA_OBLIGATION) ?? '';
       expect(missingDataContractRequirements(clause)).toEqual([]);
       const mutated = clause.replaceAll(/\s+/gu, ' ').replace(requirement, '');
 
@@ -245,7 +227,7 @@ describe('Implementation Plan migration-command separation', () => {
   });
 
   it('fails closed when the migration-command separation sentence is removed', () => {
-    const contract = `${DATA_CLAUSE_FIXTURE} ${MIGRATION_COMMAND_REQUIREMENT}.`;
+    const contract = obligationClause(PLAN_REVIEW_RUBRIC, DATA_OBLIGATION) ?? '';
     expect(obligationClause(contract, DATA_OBLIGATION)).toContain(MIGRATION_COMMAND_REQUIREMENT);
     const mutated = contract.replace(MIGRATION_COMMAND_REQUIREMENT, '');
 
