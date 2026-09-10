@@ -4,7 +4,7 @@
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -46,7 +46,11 @@ import {
   readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
-import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import {
+  isNamespacePath,
+  resolveConfiguredPath,
+  resolveNamespaceRoot,
+} from './lib/namespace-root.ts';
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
@@ -91,6 +95,34 @@ function isTestFile(path: string): boolean {
     path.includes('/tests/') ||
     path.startsWith('tests/') ||
     path.includes('/__tests__/')
+  );
+}
+
+/**
+ * During Implementation Planning, the configured durable architecture record
+ * is the one non-meta planning output that may be edited. The resolved target
+ * must remain inside the project. A configured file matches exactly; an
+ * existing configured directory permits its descendant ADR files, but never a
+ * sibling that merely shares its name.
+ */
+function isConfiguredArchitectureRecordEdit(filePath: string, projectRoot: string): boolean {
+  if (filePath.length === 0) return false;
+  const target = nodePath.resolve(resolveConfiguredPath(projectRoot, 'architecture'));
+  const targetFromProject = nodePath.relative(projectRoot, target);
+  if (targetFromProject.startsWith('..') || nodePath.isAbsolute(targetFromProject)) return false;
+
+  const edited = nodePath.resolve(projectRoot, filePath);
+  if (edited === target) return true;
+  try {
+    if (!statSync(target).isDirectory()) return false;
+  } catch {
+    return false;
+  }
+  const editedFromTarget = nodePath.relative(target, edited);
+  return (
+    editedFromTarget !== '' &&
+    !editedFromTarget.startsWith('..') &&
+    !nodePath.isAbsolute(editedFromTarget)
   );
 }
 
@@ -992,8 +1024,13 @@ if (state.activeTicket) {
 
   // Planning code freeze (TXRHMD, #480): while a feature plans, application
   // code stays untouched — the plan is the phase's only deliverable. Meta
-  // paths (ticket artifacts, impl-plan.md) already exited above.
+  // paths (ticket artifacts, impl-plan.md) already exited above. A significant
+  // decision may also need to land in the configured durable architecture
+  // record before plan review, so that exact project-owned target is allowed.
   if (ticketInfo.type === 'feature' && ticketInfo.phase === 'plan-implementation') {
+    if (isConfiguredArchitectureRecordEdit(editedFile, projectDirectory)) {
+      process.exit(0);
+    }
     recordFailure(projectDirectory, input.session_id, 'plan-implementation-code-freeze');
     deny(
       'Feature at plan-implementation phase: application code stays untouched while planning. Finish impl-plan.md, advance the ticket to implement, then write code.',
