@@ -96,7 +96,7 @@ prove real installed CLI wiring.
 
 - [x] RED 9410f11e6
 - [x] GREEN 6c7040887
-- [ ] REFACTOR
+- [x] REFACTOR f76c9d7e4
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R9 — One feature has one design plan of record
 
