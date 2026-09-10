@@ -110,9 +110,13 @@ proof in this exact table shape (the audit checker reads it):
 
 When Conflict is `explicit-conflict`, Known deviations must name the same
 principle. Then name the existing architecture decisions (ADRs / architecture.md at
-the configured paths.architecture location) this implementation honors. Do not
-copy either catalogue. If neither applies, write
-`skip: no applicable principles or ADRs`. -->
+the configured paths.architecture location) this implementation honors. Add an
+`Architecture applicability:` statement with either a concrete component or
+shared-contract consequence, or `skip: <reason>` when neither applies. Do not
+copy either catalogue. A bare `skip:` is never sufficient. If neither principles
+nor architecture records apply, the section may say
+`skip: no applicable principles or ADRs` in addition to the architecture
+applicability statement. -->
 
 ## Known deviations
 
