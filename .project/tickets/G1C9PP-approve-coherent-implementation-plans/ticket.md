@@ -2,7 +2,7 @@
 id: G1C9PP
 slug: approve-coherent-implementation-plans
 type: feature
-phase: plan-implementation
+phase: scenario-gate
 status: in_progress
 phase_skips:
   - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
@@ -132,3 +132,7 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 - 2026-09-10T19:23:00.000Z Implementation Plan review repair: Clarified approval ownership across G1C9PP, 7CAMAD, and 5F5ZZA; placed R2 extraction-to-receipt integration in build order; added sibling-path and concurrency proof; decided decline and unknown-ledger-event compatibility; and documented transitional template and architecture-freeze limitations. Exact corrected bytes require a fresh independent plan review before implementation resumes.
 
 - 2026-09-10T19:34:00.000Z Implementation Plan review repair: Independent review b501494e-06ce-46f3-8129-9b21b7b2d7a3 approved the approach and exposed non-blocking ambiguities. Tightened obligation-naming receipts, stale-approval CLI ownership, current delivery-state truth, bounded competing-plan discovery, lock-based append serialization, quantitative ownership, host-deferral prose, and the reverse-marker rationale. Re-review is required because these corrections change the approved bytes.
+
+- 2026-09-10T19:41:00.000Z Returned to scenario gate: Independent review e88f5507-056d-4dea-b6cf-a73202ae0358 found that R7's configured architecture record can be either a file or an ADR directory, while the accepted examples only discriminated the file case. The scenario contract must decide directory-child admission and adjacent-path denial before the plan can be approved.
+
+- 2026-09-10T19:44:00.000Z Scenario repair: Expanded R7's installed planning-gate outline to distinguish an exact configured file from a configured ADR directory. A directory permits only direct `YYYYMMDD-slug.md` children; non-dated children, nested paths, paths outside the directory, and ordinary source/documentation paths remain blocked.

@@ -117,16 +117,19 @@ Feature: Approve coherent Implementation Plans
       Then approval is blocked until the shared-contract choice is linked to a durable architecture record
 
     @surface.safeword-cli
-    Scenario Outline: Planning access permits only the configured durable architecture record
-      Given real project configuration resolves its durable architecture record to <target_path>
-      When the installed Safeword planning edit gate evaluates an edit during Implementation Planning
+    Scenario Outline: Planning access permits only configured durable architecture records
+      Given real project configuration resolves its durable architecture location as <architecture_location>
+      When the installed Safeword planning edit gate evaluates <target_path> during Implementation Planning
       Then <edit_result>
 
       Examples:
-        | target_path | edit_result |
-        | the configured project-owned architecture path | the architecture-record edit is permitted so a significant decision can be recorded before review |
-        | a sibling file beside the configured architecture record | the edit remains blocked because resemblance does not grant planning access |
-        | an ordinary source or documentation path | the edit remains blocked by the planning freeze |
+        | architecture_location | target_path | edit_result |
+        | one project-owned architecture file | that exact file | the architecture-record edit is permitted so a significant decision can be recorded before review |
+        | one project-owned architecture file | a sibling file beside it | the edit remains blocked because resemblance does not grant planning access |
+        | a project-owned ADR directory | a direct child named YYYYMMDD-slug.md | creation is permitted so a significant decision can be recorded before review |
+        | a project-owned ADR directory | a direct child that does not match YYYYMMDD-slug.md | the edit remains blocked because directory membership alone does not make it an architecture record |
+        | a project-owned ADR directory | a path outside or nested below that directory | the edit remains blocked because only direct dated ADR children are records |
+        | either configured form | an ordinary source or documentation path | the edit remains blocked by the planning freeze |
 
   @plan-implementability.TBU1.G1C9PP.R8
   Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
