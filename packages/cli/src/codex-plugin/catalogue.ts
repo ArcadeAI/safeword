@@ -270,10 +270,6 @@ function adaptRuntimeInvocations(markdown: string, cli: string): string {
   return adapted;
 }
 
-export function adaptPackagedRuntimeInvocations(markdown: string, version: string): string {
-  return adaptRuntimeInvocations(markdown, `bunx --bun safeword@${version}`);
-}
-
 export function adaptNativeRuntimeInvocations(markdown: string, version: string): string {
   const cli = `bunx --bun safeword@${version}`;
   const withoutCodexCachePaths = markdown.split(codexBundledCliCommand(version)).join(cli);
