@@ -550,7 +550,6 @@ export function runVerificationCommand(
   return new Promise(resolve => {
     let settled = false;
     let timedOut = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
     const child = spawn(command, [], {
       cwd,
       detached: process.platform !== 'win32',
@@ -562,7 +561,7 @@ export function runVerificationCommand(
     const settle = (result: VerificationProcessResult): void => {
       if (settled) return;
       settled = true;
-      if (timer !== undefined) clearTimeout(timer);
+      clearTimeout(timer);
       resolve(result);
     };
     child.once('error', error => {
@@ -576,7 +575,7 @@ export function runVerificationCommand(
         timedOut,
       });
     });
-    timer = setTimeout(() => {
+    const timer = setTimeout(() => {
       if (settled || child.exitCode !== null || child.signalCode !== null) return;
       timedOut = true;
       terminateProcessTree(child);
