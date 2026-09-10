@@ -31149,6 +31149,7 @@ records as context around the one \`impl-plan.md\` work artifact.
   are honored, and that significant structural or hard-to-reverse changes get
   an ADR while routine choices do not.
   Keep reversible feature-local choices in the Implementation Plan and link only difficult-to-reverse structural or shared-contract decisions to the configured durable architecture record.
+  A significant decision without a resolvable durable architecture link blocks approval.
   Require Architecture applicability to
   state either a concrete component or shared-contract consequence, or a
   justified \`skip: <reason>\` when neither applies. Block both a missing

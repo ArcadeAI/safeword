@@ -128,7 +128,8 @@ nor architecture records apply, the section may say
 `skip: no applicable principles or ADRs` in addition to the architecture
 applicability statement. Keep reversible feature-local choices only in this
 plan. Keep each significant structural or hard-to-reverse decision here too,
-and link it to its resolvable configured durable architecture record. -->
+and link it to its resolvable configured durable architecture record. A missing
+or unresolved required link blocks approval. -->
 
 ## Known deviations
 

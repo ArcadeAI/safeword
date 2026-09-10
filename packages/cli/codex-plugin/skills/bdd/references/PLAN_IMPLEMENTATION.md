@@ -73,6 +73,7 @@ Scaffold from `references/impl-plan-template.md` (sibling to `ticket.md`), statu
 
 - **Emit only when significant.** Offer an ADR when a decision affects **structure, key quality attributes**, or is **difficult to reverse**. Routine choices live and die in the plan's Decisions table — no ceremony records. Keep the significant decision in the Implementation Plan too, with a resolvable link to its configured durable architecture record.
 - **Scaffold from the template into the configured location.** New ADRs scaffold from `references/adr-template.md` and land at the `paths.architecture` location: a file receives an appended entry; a directory receives one file per ADR with a merge-safe **date-prefixed** filename (`YYYYMMDD-slug.md` — sequential numbers collide across parallel sessions).
+- **Resolve before review.** Do not request Implementation Plan approval until every required durable architecture link resolves.
 - **Never into generated docs.** `architecture.generated.md` and its per-package leaves are machine-owned state; never write decision records there — the record (_why_) is the only destination.
 - **Keep records lean** — a page or two each; no mega-ADRs, no design guides in disguise (deep design belongs in the design-doc lane above).
 - **Supersede, never edit.** A changed or contradicted decision gets a new record marked "supersedes", and the old one "superseded by" — linked both directions, nothing deleted. This applies **mid-flight too**: when implementation proves a planned decision wrong during implement, update the plan section then, note the change in Decisions, and supersede the affected ADR before `verify` — implement-exit reconciliation is the backstop, not the excuse to defer.
@@ -153,6 +154,7 @@ records as context around the one `impl-plan.md` work artifact.
   are honored, and that significant structural or hard-to-reverse changes get
   an ADR while routine choices do not.
   Keep reversible feature-local choices in the Implementation Plan and link only difficult-to-reverse structural or shared-contract decisions to the configured durable architecture record.
+  A significant decision without a resolvable durable architecture link blocks approval.
   Require Architecture applicability to
   state either a concrete component or shared-contract consequence, or a
   justified `skip: <reason>` when neither applies. Block both a missing
