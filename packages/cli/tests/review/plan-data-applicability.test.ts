@@ -31,11 +31,11 @@ function obligationClause(contract: string, obligation: string): string | undefi
 
 function missingDataContractRequirements(clause: string | undefined): string[] {
   if (clause === undefined) return [DATA_OBLIGATION];
-  const normalized = clause.replaceAll(/\s+/gu, ' ');
+  const normalized = clause.slice(clause.indexOf(':**') + ':**'.length).replaceAll(/\s+/gu, ' ');
   const missing = DATA_FIELDS.filter(
     field => !normalized.toLowerCase().includes(field.toLowerCase()),
   );
-  if (!normalized.includes('Data applicability')) missing.push('Data applicability');
+  if (!normalized.includes('Data applicability:')) missing.push('Data applicability:');
   if (!normalized.includes('skip: <reason>')) missing.push('skip: <reason>');
   return missing;
 }
@@ -134,7 +134,7 @@ function withoutFields(...fields: readonly string[]): string {
     .join('\n');
 }
 
-const DATA_CLAUSE_FIXTURE = `- **Data applicability and decisions:** Require Data applicability to state
+const DATA_CLAUSE_FIXTURE = `- **Data applicability and decisions:** Require \`Data applicability:\` to state
   either \`skip: <reason>\` when there is no data-contract, ownership, or lifecycle
   impact, or decision-depth coverage of Purpose, Store and model, Schema and
   relationships, Source of truth, Ownership and access, Identity and integrity,
@@ -146,7 +146,9 @@ function contractWithDataFixture(): string {
   if (existing !== undefined && missingDataContractRequirements(existing).length === 0) {
     return PLAN_REVIEW_RUBRIC;
   }
-  return `${PLAN_REVIEW_RUBRIC}\n${DATA_CLAUSE_FIXTURE}`;
+  if (existing === undefined) return `${PLAN_REVIEW_RUBRIC}\n${DATA_CLAUSE_FIXTURE}`;
+  const clauseStart = PLAN_REVIEW_RUBRIC.indexOf(existing);
+  return `${PLAN_REVIEW_RUBRIC.slice(0, clauseStart)}${DATA_CLAUSE_FIXTURE}${PLAN_REVIEW_RUBRIC.slice(clauseStart + existing.length)}`;
 }
 
 describe('Implementation Plan data applicability contract', () => {
@@ -208,11 +210,12 @@ describe('Implementation Plan data applicability contract', () => {
     }
   });
 
-  it.each([...DATA_FIELDS, 'Data applicability', 'skip: <reason>'])(
+  it.each([...DATA_FIELDS, 'Data applicability:', 'skip: <reason>'])(
     'fails closed when the contract drops %s',
     requirement => {
       const contract = contractWithDataFixture();
       const clause = obligationClause(contract, DATA_OBLIGATION) ?? '';
+      expect(missingDataContractRequirements(clause)).toEqual([]);
       const mutated = clause.replaceAll(/\s+/gu, ' ').replace(requirement, '');
 
       const result = reviewDataApplicability(mutated, COMPLETE_DATA_PLAN);
@@ -242,7 +245,8 @@ describe('Implementation Plan migration-command separation', () => {
   });
 
   it('fails closed when the migration-command separation sentence is removed', () => {
-    const contract = `${contractWithDataFixture()} ${MIGRATION_COMMAND_REQUIREMENT}.`;
+    const contract = `${DATA_CLAUSE_FIXTURE} ${MIGRATION_COMMAND_REQUIREMENT}.`;
+    expect(obligationClause(contract, DATA_OBLIGATION)).toContain(MIGRATION_COMMAND_REQUIREMENT);
     const mutated = contract.replace(MIGRATION_COMMAND_REQUIREMENT, '');
 
     const result = reviewMigrationCommandSeparation(mutated, COMPLETE_DATA_PLAN);
