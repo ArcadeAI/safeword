@@ -420,6 +420,36 @@ describe('Quality Gates', () => {
       expect(result.stdout).toBe('');
     });
 
+    it('2.2c: permits only the configured durable architecture record during implementation planning', () => {
+      writeGateConfig(projectDirectory, {
+        reviewGate: false,
+        paths: { architecture: 'docs/decisions.md' },
+      });
+      seedPlanImplementationFeature();
+
+      const architectureEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/decisions.md'),
+      );
+      const siblingEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/decisions-notes.md'),
+      );
+      const sourceEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'src/app.ts'),
+      );
+
+      expect(architectureEdit.status).toBe(0);
+      expect(architectureEdit.stdout).toBe('');
+      for (const blocked of [siblingEdit, sourceEdit]) {
+        expect(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+      }
+    });
+
     it('2.2: PreToolUse allows edits even with phase gate set (gates are now reminders)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
