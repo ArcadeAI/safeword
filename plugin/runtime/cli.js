@@ -54620,6 +54620,62 @@ function marketplaceIsCurrent(observation) {
 function marketplaceEffectKind(observation) {
   return observation.declarationStatus === "stale" || observation.sharedStatus === "stale" ? "update" : "add";
 }
+function canonicalMarketplaceSource() {
+  return {
+    source: "git",
+    url: MARKETPLACE_BASE,
+    ref: officialMarketplaceSource().slice(MARKETPLACE_BASE.length + 1)
+  };
+}
+function readMarketplaceRegistry() {
+  const path8 = nodePath82.join(claudeConfigDirectory(), "plugins/known_marketplaces.json");
+  if (!existsSync38(path8)) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude reported the Safeword marketplace but its marketplace registry is missing.");
+  }
+  const metadata = lstatSync16(path8);
+  if (!metadata.isFile()) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace registry is not a regular file.");
+  }
+  const contents = readFileSync51(path8, "utf8");
+  const errors = [];
+  const value = parse3(contents, errors, {
+    allowTrailingComma: true,
+    disallowComments: false
+  });
+  if (errors.length > 0 || !isJsonObject(value)) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace registry is malformed.");
+  }
+  return { contents, mode: metadata.mode & 511, path: path8, value };
+}
+function refreshStaleMarketplace(cwd, scope, effects) {
+  const settingsPath = scopedSettingsPath(cwd, scope);
+  const settingsMetadata = lstatSync16(settingsPath);
+  if (!settingsMetadata.isFile()) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", `Claude ${scope}-scope settings are not a regular file.`);
+  }
+  const settingsContents = readFileSync51(settingsPath, "utf8");
+  const registry = readMarketplaceRegistry();
+  const registryEntry = registry.value[MARKETPLACE_NAME];
+  if (!isJsonObject(registryEntry) || marketplaceSourceStatus(registryEntry) === "conflict") {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace registry does not contain the trusted Safeword source.");
+  }
+  const source = canonicalMarketplaceSource();
+  const updatedSettings = applyEdits(settingsContents, modify(settingsContents, ["extraKnownMarketplaces", MARKETPLACE_NAME, "source"], source, {}));
+  const updatedRegistry = applyEdits(registry.contents, modify(registry.contents, [MARKETPLACE_NAME, "source"], source, {}));
+  try {
+    writeDurableFile(settingsPath, updatedSettings, { mode: settingsMetadata.mode & 511 });
+    writeDurableFile(registry.path, updatedRegistry, { mode: registry.mode });
+    runClaude(cwd, ["plugin", "marketplace", "update", MARKETPLACE_NAME], effects);
+  } catch (error2) {
+    writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 511 });
+    writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
+    throw error2;
+  }
+  return () => {
+    writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 511 });
+    writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
+  };
+}
 function ensureMarketplace(cwd, scope, effects) {
   const before = observeMarketplace(cwd, scope, effects);
   assertTrustedMarketplace(before);
@@ -54632,14 +54688,25 @@ function ensureMarketplace(cwd, scope, effects) {
   if (autoUpdatePreference === false) {
     throw new ClaudeProfileError("CLAUDE_AUTO_UPDATE_DISABLED", `Claude ${scope}-scope marketplace auto-update is explicitly disabled; Safeword left the marketplace declaration unchanged.`);
   }
-  runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", scope], effects);
+  const effectKind = marketplaceEffectKind(before);
+  let rollbackMarketplace;
+  if (effectKind === "update" && before.declaration !== undefined && before.shared !== undefined) {
+    rollbackMarketplace = refreshStaleMarketplace(cwd, scope, effects);
+  } else {
+    runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", scope], effects);
+  }
   effects.push({
-    kind: marketplaceEffectKind(before),
+    kind: effectKind,
     target: MARKETPLACE_NAME,
     operation: scope
   });
-  if (!marketplaceIsCurrent(observeMarketplace(cwd, scope, effects))) {
-    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
+  try {
+    if (!marketplaceIsCurrent(observeMarketplace(cwd, scope, effects))) {
+      throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
+    }
+  } catch (error2) {
+    rollbackMarketplace?.();
+    throw error2;
   }
   enableMarketplaceAutoUpdate(cwd, scope, effects);
 }
