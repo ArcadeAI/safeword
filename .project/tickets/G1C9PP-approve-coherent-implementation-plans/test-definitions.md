@@ -239,6 +239,11 @@ release prerequisite by itself.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, headless work records pending authority without deadlocking or claiming approval, and the shared decision record preserves authority across concurrent writes, interruption, retry, contention, and compatible extensions
 
+Proof boundary: the interactive approver-available row must drive the installed
+CLI through a real terminal/PTY human-input boundary; an injected in-process
+prompter cannot satisfy RED or GREEN. The non-interactive rows prove their
+outcomes from CLI exit state, ticket phase, and the project-local receipt.
+
 ### Scenario: Installed CLI human design authority follows configuration
 
 - [ ] RED

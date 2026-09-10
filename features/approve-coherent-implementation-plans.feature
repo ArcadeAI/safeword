@@ -258,7 +258,7 @@ Feature: Approve coherent Implementation Plans
   Rule: plan-implementability.TBU1.G1C9PP.R14 — Decision discovery is scope-bounded and covers the consequential trust, operation, approval, and recovery needs of every accepted persona
 
     Scenario Outline: Discovery respects and updates scope only with user authority
-      Given discovery has surfaced an in-scope policy choice and an out-of-scope capability with <scope_decision>
+      Given discovery has surfaced an out-of-scope capability with <scope_decision>
       When Implementation Planning converges
       Then <scope_result>
 
