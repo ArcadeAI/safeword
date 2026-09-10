@@ -46,6 +46,7 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | presentation | reviewability_result |
         | a decision summary buried beneath step-by-step coding instructions and repeated test evidence | the plan fails focused reviewability |
+        | a decision summary buried beneath a repeated test-by-test evidence ledger with no execution instructions | the plan fails focused reviewability |
         | an architecture-at-a-glance mental model followed by decision-bearing contracts, operational risks, and unresolved authority with supporting detail linked | the plan passes focused reviewability |
         | decision-bearing contracts, operational risks, and unresolved authority in the main review path but no architecture-at-a-glance mental model | the plan fails focused reviewability because it does not open with an architecture-at-a-glance mental model |
         | a short summary that opens with the architecture-at-a-glance mental model, names a load-bearing failure-posture decision and its consequence, and links only fuller subordinate detail | the plan passes focused reviewability because the decision remains in the main review path |
@@ -229,6 +230,7 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | evidence_state | review_result |
         | current evidence but neither a credible alternative nor a losing tradeoff | approval is blocked until the alternative and why it lost are explicit |
+        | current evidence and a credible alternative but no reason the alternative lost | approval is blocked until why the alternative lost is explicit |
         | current evidence, a credible alternative, and an explicit reason the alternative lost | decision evidence does not block approval |
         | a credible alternative and losing reason but evidence superseded by a named release after the choice | approval is blocked until the evidence is refreshed against that release |
 
@@ -256,7 +258,8 @@ Feature: Approve coherent Implementation Plans
         | evidence_presentation | result |
         | the decision, alternative, losing reason, evidence reference, retrieval date, and applicable version in the packaged table | eligible for semantic review |
         | the same complete information in concise prose and bullets | eligible for semantic review |
-        | prose that omits the evidence reference and applicable version | blocked by the structural check with the missing evidence fields named |
+        | prose that omits the evidence reference | blocked by the structural check with the missing evidence reference named |
+        | prose that omits the applicable version | blocked by the structural check with the missing applicable version named |
         | prose that omits the retrieval date | blocked by the structural check with the missing retrieval date named |
 
   @plan-implementability.TBU1.G1C9PP.R14
@@ -445,6 +448,12 @@ Feature: Approve coherent Implementation Plans
         | interruption_boundary | resume_result |
         | before the decision event becomes durable | no approval is recorded, the ticket remains in Implementation Planning, and a new human decision is required |
         | after the decision event becomes durable but before the phase changes | exactly one current approval remains recorded and Execution Planning begins without a second human decision |
+
+    @surface.safeword-cli
+    Scenario: Retrying the same design approval does not duplicate authority
+      Given the same authorized exact-plan approval is submitted twice to the real project approval ledger
+      When both installed Safeword CLI invocations settle through real internal collaborators
+      Then the ledger contains one approval event for that decision identity and exactly one current approval
 
     @surface.safeword-cli
     Scenario: Approval-ledger contention fails closed without changing authority
