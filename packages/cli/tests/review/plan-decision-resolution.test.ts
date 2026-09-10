@@ -36,9 +36,13 @@ function missingContractRequirements(contract: string): string[] {
 }
 
 function removePhraseCaseInsensitive(value: string, phrase: string): string {
-  const index = value.toLowerCase().indexOf(phrase.toLowerCase());
-  if (index === -1) return value;
-  return value.slice(0, index) + value.slice(index + phrase.length);
+  let result = value;
+  let index = result.toLowerCase().indexOf(phrase.toLowerCase());
+  while (index !== -1) {
+    result = result.slice(0, index) + result.slice(index + phrase.length);
+    index = result.toLowerCase().indexOf(phrase.toLowerCase());
+  }
+  return result;
 }
 
 function decisionValue(plan: string, field: string): string | undefined {
