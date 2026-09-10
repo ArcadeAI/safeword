@@ -32,7 +32,7 @@ prove real installed CLI wiring.
 
 - [x] RED 57a353172
 - [x] GREEN b59f684be
-- [ ] REFACTOR
+- [x] REFACTOR skip: the focused-review obligation is one canonical clause with generated mirrors and no duplicated production path
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
 
