@@ -60780,6 +60780,9 @@ function migrateLegacyCodexDuringSetup(cwd, completedEffects, offline) {
     return recordCodexHandoffFailure(error2, completedEffects);
   }
 }
+function setupPackageChecksAreSkipped(offline) {
+  return offline || Boolean(process.env.SAFEWORD_SKIP_INSTALL);
+}
 async function applySetup(cwd, input) {
   const {
     adapters,
@@ -60858,7 +60861,7 @@ async function applySetup(cwd, input) {
       claudeProjectPluginEnrolled: projectClaudePluginEnrolled(cwd)
     });
     const health = await checkHealth(cwd, {
-      skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+      skipPackageChecks: setupPackageChecksAreSkipped(input.offline),
       skipPythonToolChecks: !configured && pythonSetup.tools.length > 0 && !pythonSetup.installed,
       schema: setupSchema
     });
