@@ -155,8 +155,8 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | artifact_state | review_result |
         | all decisions contained in the Implementation Plan | the receipt names it as the single design plan of record and requires no second design artifact |
-        | all required decisions in the Implementation Plan with linked supporting detail outside it | the receipt names the Implementation Plan as the single design plan of record and accepts the supporting link |
-        | a second feature design document carrying required decisions | approval is blocked until those decisions return to the Implementation Plan |
+        | all required decisions named with their consequence in the Implementation Plan and fuller detail linked as explicitly subordinate support | the receipt names the Implementation Plan as the single design plan of record and accepts the supporting link |
+        | a linked document that claims independent feature-plan authority or carries a required decision the Implementation Plan does not name | approval is blocked until the authority and required decision return to the Implementation Plan |
 
   @plan-implementability.TBU1.G1C9PP.R10
   Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope and confidence without absorbing execution mechanics or the verification ledger

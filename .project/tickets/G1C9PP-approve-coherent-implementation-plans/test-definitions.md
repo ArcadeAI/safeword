@@ -12,7 +12,7 @@ prove real installed CLI wiring.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R1 — Implementation Planning is a distinct approach-decision phase
 
-## Scenario: Safeword CLI enforces and releases the decision boundary
+### Scenario: Safeword CLI enforces and releases the decision boundary
 
 - [x] RED d847b78da
 - [x] GREEN 828d8af75
@@ -28,7 +28,7 @@ prove real installed CLI wiring.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
 
-## Scenario: Decision presentation controls focused reviewability
+### Scenario: Decision presentation controls focused reviewability
 
 - [x] RED 57a353172
 - [x] GREEN b59f684be
@@ -84,11 +84,11 @@ prove real installed CLI wiring.
 - [x] GREEN 8504f326d
 - [x] REFACTOR b58e82d6f
 
-### Scenario: Planning access permits only the configured durable architecture record
+### Scenario: Planning access permits only configured durable architecture records
 
-- [x] RED a6dd169da
-- [x] GREEN 6c3fbeb00
-- [x] REFACTOR 9056971a8
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
 
