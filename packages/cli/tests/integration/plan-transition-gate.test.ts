@@ -216,7 +216,17 @@ describe('implementation planning transition gates (wired)', () => {
       ),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'Authentication ownership');
+    const result = runAdvance('plan-implementation', 'plan-execution');
+    if (result.stdout.trim() === '') {
+      throw new Error(
+        'Expected the Implementation Planning decision gate to deny the transition and name Authentication ownership, but the hook allowed it.',
+      );
+    }
+    expectHookDeny(
+      result,
+      'Implementation Planning still has unresolved behavior-shaping choices:',
+    );
+    expectHookDeny(result, 'Authentication ownership');
   });
 
   it('enters Execution Planning for a resolved plan with a current review', () => {
