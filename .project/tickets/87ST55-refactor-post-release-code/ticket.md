@@ -5,7 +5,7 @@ type: task
 phase: done
 status: done
 created: 2026-09-10T16:54:47.144Z
-last_modified: 2026-09-10T17:25:18Z
+last_modified: 2026-09-10T18:14:38Z
 ---
 
 # Simplify code added since v0.83.1
@@ -51,6 +51,7 @@ last_modified: 2026-09-10T17:25:18Z
 - 2026-09-10 Verification: repository lint, Gherkin lint, and TypeScript typecheck passed. Focused suites passed for review wiring and degradation (117), relay integration (77), review policy (11), preferences (31), Claude state location (13), and the Codex catalogue. The paired OpenCode catalogue run could not install its isolated fixture dependencies; that environment failure did not affect the Codex assertion or the final build/typecheck.
 - 2026-09-10 Final audit: dependency-cruiser reported zero violations across 703 modules and 1,383 dependencies. A release-range duplication scan covered 85 changed hand-written TypeScript files and found zero clones. Knip's remaining findings are pre-release tooling, test, experiment, or intentionally exported API entries and are outside this bounded refactor.
 - 2026-09-10 Full verification: 9,969 executed tests pass with 17 intentional skips. The only initial unit and acceptance failures identified stale generated plugin runtimes; regenerating the Codex and Claude mirrors fixed the 18-test release contract and all three affected acceptance scenarios (135 steps). All builds, lint, typecheck, and dependency audits pass after restoring a lockfile-pinned native website package locally without changing manifests.
+- 2026-09-10 Independent quality review: Claude found no error-severity defect in the canonical source diff and approved shipping. Its suggestions concern pre-existing behavior outside this ticket's changed hunks, so they were deferred rather than expanding a behavior-preserving refactor.
 
 ## Refactor ledger
 
