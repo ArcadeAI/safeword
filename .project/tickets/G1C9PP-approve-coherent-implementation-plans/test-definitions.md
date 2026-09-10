@@ -28,7 +28,7 @@ prove real installed CLI wiring.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
 
-### Scenario: Decision presentation controls focused reviewability
+## Scenario: Decision presentation controls focused reviewability
 
 - [x] RED 57a353172
 - [ ] GREEN
