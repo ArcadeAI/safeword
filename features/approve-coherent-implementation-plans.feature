@@ -115,6 +115,11 @@ Feature: Approve coherent Implementation Plans
       When the Implementation Plan is reviewed
       Then approval is blocked with the conflicting data owner named
 
+    Scenario: Coherent data ownership permits approval
+      Given an Implementation Plan names a persisted entity owner that agrees with its source-of-truth authority
+      When the Implementation Plan is reviewed
+      Then data ownership consistency does not block approval
+
   @plan-implementability.TBU1.G1C9PP.R7
   Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
 
@@ -443,7 +448,7 @@ Feature: Approve coherent Implementation Plans
 
     @surface.safeword-cli
     Scenario: Approval-ledger contention fails closed without changing authority
-      Given one writer holds the real project approval ledger while another authorized approval reaches its contention timeout
+      Given one writer holds the real project approval ledger for longer than another authorized approval's bounded contention timeout
       When the second installed Safeword CLI invocation completes through real internal collaborators
       Then its ticket remains in Implementation Planning with approval pending and the ledger contains no approval for that plan
 

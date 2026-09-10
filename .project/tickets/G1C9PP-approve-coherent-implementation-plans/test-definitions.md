@@ -64,6 +64,10 @@ prove real installed CLI wiring.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R6 — Applicable data decisions cover purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback at decision depth
 
+Acceptance-matrix boundary: every row represents a distinct decision family named
+by this Rule and must produce the family-specific missing-decision result shown in
+the feature. Lower-level contract tests own permutations within each family.
+
 ### Scenario: Data guidance follows data-contract applicability
 
 - [ ] RED
@@ -77,6 +81,12 @@ prove real installed CLI wiring.
 - [x] REFACTOR 790f3be0e
 
 ### Scenario: Conflicting data ownership blocks approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Coherent data ownership permits approval
 
 - [ ] RED
 - [ ] GREEN
@@ -217,6 +227,11 @@ release prerequisite by itself.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R17 — Significant concurrency, security, durability, lifecycle, migration, and compatibility choices include the applicable state, authority, atomicity, retry, and evidence model at decision depth
 
+Acceptance-matrix boundary: every positive/negative pair represents a distinct
+significant concern family named by this Rule and must identify that family's
+missing decision model. Lower-level contract tests own permutations within a
+family.
+
 ### Scenario: Significant workflow decisions are complete at decision depth
 
 - [ ] RED
@@ -239,10 +254,11 @@ release prerequisite by itself.
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, headless work records pending authority without deadlocking or claiming approval, and the shared decision record preserves authority across concurrent writes, interruption, retry, contention, and compatible extensions
 
-Proof boundary: the interactive approver-available row must drive the installed
-CLI through a real terminal/PTY human-input boundary; an injected in-process
-prompter cannot satisfy RED or GREEN. The non-interactive rows prove their
-outcomes from CLI exit state, ticket phase, and the project-local receipt.
+Proof boundary: the interactive approver-available row and the accepted and
+declined design scenarios must drive the installed CLI through a real
+terminal/PTY human-input boundary; an injected in-process prompter cannot satisfy
+RED or GREEN. The non-interactive rows prove their outcomes from CLI exit state,
+ticket phase, and the project-local receipt.
 
 ### Scenario: Installed CLI human design authority follows configuration
 

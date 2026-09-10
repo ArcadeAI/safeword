@@ -39,7 +39,7 @@ parent: 82T411
 parent_job: plan-implementability.TBU1
 milestone: M1
 created: 2026-09-08T17:36:33.419Z
-last_modified: 2026-09-10T22:23:00.000Z
+last_modified: 2026-09-10T23:05:42.000Z
 parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afac25da34a
 ---
 
@@ -50,6 +50,8 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-10T23:05:42.000Z Scenario review polish: Independent review `644f5a4d-eac4-489e-bafb-17257f72e141` approved the reconciled 45/45 packet and identified four non-blocking proof gaps. The refreshed 46/46 packet adds the coherent-ownership counterpart, places all interactive decisions behind a real terminal boundary, makes contention ordering a bounded fixture guarantee, and records why R6/R17 need one acceptance partition per Rule-named family while lower-level tests own intra-family permutations. Historical 41-scenario entries describe earlier packets; the current packet has 46 scenarios.
 
 - 2026-09-10T22:23:00.000Z Returned to Scenario Gate before implementation: independent Implementation Plan review `64f969e3-8fd9-4cbf-872b-423f70e2e7e9` found that the accepted plan and architecture record introduced shared approval-ledger concurrency, crash-recovery, idempotency, timeout, and compatibility behavior without accepted scenarios. No implementation begins until those externally meaningful outcomes enter the behavior contract, the complete scenario packet is reviewed, and the revised exact plan is independently re-approved.
 
