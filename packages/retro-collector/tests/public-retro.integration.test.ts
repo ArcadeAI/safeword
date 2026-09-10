@@ -145,11 +145,17 @@ it('persists the public intake quota across collector restarts', async () => {
   const rejected = await submit(secondRuntime.url, secondRequest);
   const duplicate = await submit(secondRuntime.url, fixtureServerOwnedRequest());
   await secondRuntime.close();
+  const stored = new PublicRetroStore(databasePath);
+  const lifecycle = stored.listLifecycle();
+  stored.close();
 
   expect(first.status).toBe(201);
   expect(rejected.status).toBe(429);
   expect(await rejected.json()).toEqual({ error: 'intake_quota_exhausted' });
   expect(duplicate.status).toBe(200);
+  expect(lifecycle).not.toEqual(
+    expect.arrayContaining([expect.objectContaining({ requestId: secondRequest.requestId })]),
+  );
 });
 
 it('applies the public intake quota across legacy and server-owned envelopes', async () => {
@@ -246,10 +252,50 @@ it('persists global and per-project filing reservations across restarts', async 
     headers: workerHeaders,
   });
   await restarted.close();
+  const stored = new PublicRetroStore(databasePath);
+  const lifecycle = stored.listLifecycle();
+  stored.close();
 
   expect(firstLease.requestId).toBe('11111111-1111-4111-8111-111111111111');
   expect(secondLease.requestId).toBe('33333333-3333-4333-8333-333333333333');
   expect(exhausted.status).toBe(204);
+  expect(lifecycle).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        requestId: '22222222-2222-4222-8222-222222222222',
+        state: 'queued',
+      }),
+    ]),
+  );
+});
+
+it('leases the oldest eligible request and leaves newer work queued', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let now = 0;
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    now: () => now,
+    projectFilingLimitPerHour: 1,
+  });
+  const older = fixtureServerOwnedRequest();
+  const newerId = '22222222-2222-4222-8222-222222222222';
+  const newerBody = encoded({
+    ...(JSON.parse(new TextDecoder().decode(older.body)) as Record<string, unknown>),
+    findings: ['newer queued finding'],
+    sessionScope: 'a'.repeat(64),
+  });
+  store.accept(older.requestId, '9'.repeat(64), older.body, 'v3', 'project-a');
+  now = 1;
+  store.accept(newerId, 'a'.repeat(64), newerBody, 'v3', 'project-a');
+
+  const leased = store.claim();
+  const lifecycle = store.listLifecycle();
+  store.close();
+
+  expect(leased?.requestId).toBe(older.requestId);
+  expect(lifecycle).toEqual(
+    expect.arrayContaining([expect.objectContaining({ requestId: newerId, state: 'queued' })]),
+  );
 });
 
 it('keeps lifecycle inspection payload-free and audits separate payload principals', async () => {
@@ -262,42 +308,106 @@ it('keeps lifecycle inspection payload-free and audits separate payload principa
     databasePath,
     operatorCredential: 'operator-secret',
   });
-  const request = fixtureServerOwnedRequest();
-  await submit(runtime.url, request);
+  const requestFor = (requestId: string, scope: string, finding: string) => {
+    const fixture = fixtureServerOwnedRequest();
+    return {
+      body: encoded({
+        ...(JSON.parse(new TextDecoder().decode(fixture.body)) as Record<string, unknown>),
+        findings: [finding],
+        sessionScope: scope,
+      }),
+      requestId,
+    };
+  };
+  const completedRequest = requestFor(
+    '11111111-1111-4111-8111-111111111111',
+    '1'.repeat(64),
+    'completed finding',
+  );
+  const leasedRequest = requestFor(
+    '22222222-2222-4222-8222-222222222222',
+    '2'.repeat(64),
+    'leased finding',
+  );
+  const queuedRequest = requestFor(
+    '33333333-3333-4333-8333-333333333333',
+    '3'.repeat(64),
+    'queued finding',
+  );
+  await Promise.all(
+    [completedRequest, leasedRequest, queuedRequest].map(request => submit(runtime.url, request)),
+  );
+
+  const workerHeaders = { authorization: 'Bearer worker-secret' };
+  const completedClaim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const completedLease = (await completedClaim.json()) as {
+    bodyBase64: string;
+    leaseToken: string;
+    requestId: string;
+  };
+  await fetch(`${runtime.url}/v1/private/retro-claims/${completedLease.requestId}`, {
+    method: 'PUT',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': completedLease.leaseToken },
+  });
+  const leasedClaim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const leasedLease = (await leasedClaim.json()) as { requestId: string };
 
   const lifecycle = await fetch(`${runtime.url}/v1/private/retros`, {
     headers: { authorization: 'Bearer operator-secret' },
   });
   const lifecycleText = await lifecycle.text();
+  const lifecycleBody = JSON.parse(lifecycleText) as {
+    retros: { requestId: string; state: string }[];
+  };
   const operatorPayload = await fetch(
-    `${runtime.url}/v1/private/retros/${request.requestId}/payload`,
+    `${runtime.url}/v1/private/retros/${completedRequest.requestId}/payload`,
     { headers: { authorization: 'Bearer operator-secret' } },
   );
-  const operatorLegacyRead = await fetch(`${runtime.url}/v1/public-retros/${request.requestId}`, {
-    headers: { authorization: 'Bearer operator-secret' },
-  });
+  const operatorLegacyRead = await fetch(
+    `${runtime.url}/v1/public-retros/${completedRequest.requestId}`,
+    { headers: { authorization: 'Bearer operator-secret' } },
+  );
   const breakGlassPayload = await fetch(
-    `${runtime.url}/v1/private/retros/${request.requestId}/payload`,
+    `${runtime.url}/v1/private/retros/${completedRequest.requestId}/payload`,
     { headers: { authorization: 'Bearer break-glass-secret' } },
   );
-  const workerClaim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
-    method: 'POST',
-    headers: { authorization: 'Bearer worker-secret' },
-  });
   await runtime.close();
   const database = new DatabaseSync(databasePath);
   const audit = database
-    .prepare('SELECT principal FROM payload_access_audit ORDER BY id')
-    .all() as unknown as { principal: string }[];
+    .prepare('SELECT principal, request_id AS requestId FROM payload_access_audit ORDER BY id')
+    .all() as unknown as { principal: string; requestId: string }[];
   database.close();
 
   expect(lifecycle.status).toBe(200);
-  expect(lifecycleText).not.toContain('server-owned sanitized finding');
+  expect(lifecycleBody.retros).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ requestId: completedRequest.requestId, state: 'completed' }),
+      expect.objectContaining({ requestId: leasedRequest.requestId, state: 'leased' }),
+      expect.objectContaining({ requestId: queuedRequest.requestId, state: 'queued' }),
+    ]),
+  );
+  expect(lifecycleText).not.toContain('finding');
   expect(operatorPayload.status).toBe(404);
   expect(operatorLegacyRead.status).toBe(404);
-  expect(new Uint8Array(await breakGlassPayload.arrayBuffer())).toEqual(request.body);
-  expect(workerClaim.status).toBe(200);
-  expect(audit).toEqual([{ principal: 'break-glass' }, { principal: 'collector-worker' }]);
+  expect(new Uint8Array(await breakGlassPayload.arrayBuffer())).toEqual(completedRequest.body);
+  expect(completedClaim.status).toBe(200);
+  expect(completedLease.requestId).toBe(completedRequest.requestId);
+  expect(new Uint8Array(Buffer.from(completedLease.bodyBase64, 'base64'))).toEqual(
+    completedRequest.body,
+  );
+  expect(leasedClaim.status).toBe(200);
+  expect(leasedLease.requestId).toBe(leasedRequest.requestId);
+  expect(audit).toEqual([
+    { principal: 'collector-worker', requestId: completedRequest.requestId },
+    { principal: 'collector-worker', requestId: leasedRequest.requestId },
+    { principal: 'break-glass', requestId: completedRequest.requestId },
+  ]);
 });
 
 it('dead-letters and alerts work only after filing quota blocks it for 24 hours', () => {
@@ -353,7 +463,6 @@ it('does not treat outage age as quota-block age when capacity fills after recov
   const secondBody = encoded({
     ...(JSON.parse(new TextDecoder().decode(first.body)) as Record<string, unknown>),
     findings: ['second outage finding'],
-    requestId: secondId,
     sessionScope: 'a'.repeat(64),
   });
   store.accept(first.requestId, '9'.repeat(64), first.body, 'v3', 'project-a');
@@ -1011,7 +1120,7 @@ it.each([
   ['relay signature authority syntax', ['<!-- safeword-retro-signature: retro:abc -->']],
   ['relay canonical authority syntax', ['<!-- safeword-retro-canonical: canonical:abc -->']],
   ['relay request authority syntax', ['<!-- safeword-retro-request-v1: abc -->']],
-] as const)('rejects v3 with %s before durable storage', async (_, findings) => {
+] as const)('rejects v3 finding sets with %s before durable storage', async (_, findings) => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
   const runtime = await startPublicRetroCollector({
@@ -1025,6 +1134,65 @@ it.each([
       ...(JSON.parse(new TextDecoder().decode(fixture.body)) as Record<string, unknown>),
       findings,
     }),
+  };
+
+  const rejected = await submit(runtime.url, request);
+  const accepted = await submit(runtime.url, fixture);
+  const claim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-fixture-credential' },
+  });
+  await runtime.close();
+
+  expect(rejected.status).toBe(400);
+  expect(accepted.status).toBe(201);
+  expect(claim.status).toBe(200);
+  await expect(claim.json()).resolves.toMatchObject({ requestId: fixture.requestId });
+});
+
+it.each([
+  'a user identity field',
+  'a transcript or prompt field',
+  'a tool output or file content field',
+  'a secret material field',
+] as const)('rejects v3 with %s before durable storage', async prohibitedField => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const fixture = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(fixture.body)) as Record<string, unknown>;
+  let prohibitedEnvelope: Record<string, unknown>;
+  switch (prohibitedField) {
+    case 'a user identity field': {
+      prohibitedEnvelope = {
+        ...envelope,
+        source: { ...(envelope.source as object), userIdentity: 'customer-fixture' },
+      };
+
+      break;
+    }
+    case 'a transcript or prompt field': {
+      prohibitedEnvelope = { ...envelope, transcript: 'private fixture' };
+
+      break;
+    }
+    case 'a tool output or file content field': {
+      prohibitedEnvelope = { ...envelope, toolOutput: 'private fixture' };
+
+      break;
+    }
+    case 'a secret material field': {
+      prohibitedEnvelope = { ...envelope, secret: 'private fixture' };
+
+      break;
+    }
+  }
+  const request = {
+    ...fixture,
+    body: encoded(prohibitedEnvelope),
   };
 
   const rejected = await submit(runtime.url, request);
@@ -1385,6 +1553,30 @@ it.each([
 
   expect(invalidResponse.status).toBeGreaterThanOrEqual(400);
   expect(validResponse.status).toBe(201);
+});
+
+it('rejects a well-formed non-v4 identity for v3 before persistence', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const request = {
+    ...fixtureServerOwnedRequest(),
+    requestId: '01911111-2222-7333-8444-55555555555a',
+  };
+
+  const rejected = await submit(runtime.url, request);
+  const claim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-fixture-credential' },
+  });
+  await runtime.close();
+
+  expect(rejected.status).toBe(400);
+  await expect(rejected.json()).resolves.toEqual({ error: 'invalid_request' });
+  expect(claim.status).toBe(204);
 });
 
 async function expectSizedEnvelopeStatus(
