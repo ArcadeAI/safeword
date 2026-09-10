@@ -31135,6 +31135,11 @@ records as context around the one \`impl-plan.md\` work artifact.
   consequence. Block a missing mental model or load-bearing decision. When
   step-by-step coding instructions or repeated test evidence obscure the
   choices, name the removable detail instead of rewarding its volume.
+- **Single design plan of record:** \`impl-plan.md\` is the single design plan of record.
+  It must name all required decisions and each decision and consequence.
+  Linked supporting detail may carry full depth, but block approval when a
+  second feature design document carries required decisions instead; require
+  those decisions to return to \`impl-plan.md\`.
 - **Proof quality:** For each scenario and new entry point, require the highest
   practical proof scope and a real wiring proof. Flag a proof that can pass
   while the user-visible claim remains broken.

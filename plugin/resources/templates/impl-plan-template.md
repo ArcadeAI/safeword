@@ -29,6 +29,11 @@ phase's proof plan + sequencing output here. -->
 
 ## Decisions
 
+<!-- This impl-plan.md is the feature's single design plan of record. Keep every
+required decision and its consequence here. Linked supporting detail may carry
+the full depth, but never a second, separately authoritative feature design
+plan. -->
+
 ### Implementation Inspiration
 
 <!--
