@@ -88,7 +88,7 @@ prove real installed CLI wiring.
 
 - [x] RED a6dd169da
 - [x] GREEN 6c3fbeb00
-- [ ] REFACTOR
+- [x] REFACTOR 9056971a8
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
 
