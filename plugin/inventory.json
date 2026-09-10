@@ -115,7 +115,7 @@
     },
     {
       "path": "resources/templates/impl-plan-template.md",
-      "sha256": "e93b6fdc2f9d739dbb3a9af79c16caa0c42ad1fbf6554128d8ccbb8a25f48292"
+      "sha256": "dc2f0c21dd04b1219d3b1878929c981e8dbdb64cb23ef29f77505b008c9bc79f"
     },
     {
       "path": "resources/templates/task-spec-template.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f4c720178d3506d541d1fe65729e448f9c602cef4bb37190246db53ee14ef8a1"
+      "sha256": "71e0644044451aa4fecac11425411f36b4266e85d3700bc133630c34f154e20b"
     },
     {
       "path": "runtime/dispatch.js",
@@ -615,7 +615,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "011d0429e5add7649133f90f3cf8bf0651885817061876ad0f0fdbb2621d8f20"
+      "sha256": "9d692ec2d53305c438c8da7b5e30e4ad87a229974d2e414f8a1e0bc9a9612695"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",

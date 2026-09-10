@@ -98,6 +98,15 @@ A dependency row then reads (shape, not real figures — look yours up):
 
 -->
 
+### Data applicability
+
+<!-- If the feature changes a data contract, ownership, or lifecycle, record
+the decisions at review depth: purpose; store and model; schema and
+relationships; source of truth; ownership and access; identity and integrity;
+cross-system flow; lifecycle and retention; migration and backfill; compliance;
+and rollback. Explain choices and consequences, not migration commands. If none
+apply, write `skip: <reason>`. -->
+
 ## Design alignment
 
 <!-- First name only the applicable project principles from the configured

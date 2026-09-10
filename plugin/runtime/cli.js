@@ -31151,6 +31151,12 @@ records as context around the one \`impl-plan.md\` work artifact.
   state either a concrete component or shared-contract consequence, or a
   justified \`skip: <reason>\` when neither applies. Block both a missing
   applicability statement and a bare \`skip:\` with no reason.
+- **Data applicability and decisions:** Require Data applicability to state
+  either \`skip: <reason>\` when there is no data-contract, ownership, or
+  lifecycle impact, or decision-depth coverage of Purpose, Store and model,
+  Schema and relationships, Source of truth, Ownership and access, Identity and
+  integrity, Cross-system flow, Lifecycle and retention, Migration and backfill,
+  Compliance, and Rollback.
 - **Personas and surfaces:** Verify the design fulfills each persona's JTBD and
   flag any omitted surface. Every affected surface needs credible proof or an
   explicit justified skip.
