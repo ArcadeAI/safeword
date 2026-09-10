@@ -17,6 +17,7 @@ import { convergeSetup } from '../../src/lifecycle/project-install.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, runCliWithoutInstall } from '../helpers.js';
+import { installFakeCodexRuntime } from '../helpers/fake-codex-runtime.js';
 
 const PROJECT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 
@@ -385,6 +386,54 @@ describe('convergent setup', () => {
       target: 'packages/a/package.json',
     });
     expect(readFileSync(packagePath, 'utf8')).toContain('"format":"fmt"');
+  });
+
+  it('preserves Codex profile recovery when a later setup stage fails', async () => {
+    const directory = createTemporaryDirectory();
+    await expectOfflineSetupSuccess(directory);
+    const legacySkill = nodePath.join(directory, '.agents/skills/audit/SKILL.md');
+    mkdirSync(nodePath.dirname(legacySkill), { recursive: true });
+    writeFileSync(legacySkill, 'legacy audit skill\n');
+    const runtime = installFakeCodexRuntime(createTemporaryDirectory(), {
+      pluginEnabled: false,
+      pluginInitiallyInstalled: false,
+    });
+    const previousEnvironment = {
+      CODEX_HOME: process.env.CODEX_HOME,
+      PATH: process.env.PATH,
+      SAFEWORD_CODEX_LOG: process.env.SAFEWORD_CODEX_LOG,
+      SAFEWORD_FAIL_CODEX_PLUGIN_ADD: process.env.SAFEWORD_FAIL_CODEX_PLUGIN_ADD,
+    };
+    Object.assign(process.env, {
+      CODEX_HOME: runtime.codexHome,
+      PATH: `${runtime.bin}:${process.env.PATH ?? ''}`,
+      SAFEWORD_CODEX_LOG: runtime.logPath,
+      SAFEWORD_FAIL_CODEX_PLUGIN_ADD: '1',
+    });
+
+    try {
+      const result = await convergeSetup(directory, {
+        noModify: true,
+        adapters: {
+          configureArchitecture: () => {
+            throw new Error('later architecture failed');
+          },
+        },
+      });
+
+      expect(result.state).toBe('failed');
+      expect(result.recovery).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ command: 'codex plugin add safeword@safeword --json' }),
+          expect.objectContaining({ command: 'safeword status --verbose' }),
+        ]),
+      );
+    } finally {
+      for (const [key, value] of Object.entries(previousEnvironment)) {
+        if (value === undefined) Reflect.deleteProperty(process.env, key);
+        else process.env[key] = value;
+      }
+    }
   });
 
   it('journals a workspace write when an adapter returns no declared effects', async () => {

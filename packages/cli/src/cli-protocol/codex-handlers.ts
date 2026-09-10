@@ -17,7 +17,11 @@ import type {
   LegacyGlobalGuidanceObservation,
 } from '../codex-plugin/legacy-global-guidance.js';
 import { CODEX_REVIEW_THEN_RESTART_ACTION } from '../codex-plugin/migration.js';
-import { CodexMigrationError } from '../codex-plugin/migration-error.js';
+import {
+  CodexMigrationError,
+  codexProfileFailureDestructiveEffects,
+  codexProfileFailureEffects,
+} from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../codex-plugin/operations.js';
 import { observedFileEffect, observeFile } from './file-snapshot.js';
 import type { CommandInvocation } from './handler.js';
@@ -398,7 +402,7 @@ function runCodexInstall(
   if (!migration.codexInstallRequiresMutation(before)) {
     return migration.observeCodexMigration(invocation.cwd);
   }
-  migration.installCodexPlugin({
+  const marketplaceReplaced = migration.installCodexPlugin({
     cwd: invocation.cwd,
     json: true,
     reportMigrationState: false,
@@ -416,6 +420,15 @@ function runCodexInstall(
           target: 'Safeword Codex profile plugin',
         },
       ],
+      destructive: marketplaceReplaced
+        ? [
+            {
+              kind: 'replace',
+              target: 'Safeword Codex marketplace',
+              operation: 'stable-channel',
+            },
+          ]
+        : [],
     },
   };
 }
@@ -461,31 +474,6 @@ function codexFailureCode(
     : 'FINALIZATION_FAILED';
 }
 
-function codexFailureConfig(
-  partialInstall: boolean,
-  partialMarketplace: boolean,
-): CliResult['effects']['configuration'] {
-  if (partialInstall) {
-    return [
-      {
-        kind: 'install',
-        target: 'Safeword Codex profile plugin',
-        operation: 'enablement-unverified',
-      },
-    ];
-  }
-  if (partialMarketplace) {
-    return [
-      {
-        kind: 'remove',
-        target: 'Safeword Codex marketplace',
-        operation: 'restoration-failed',
-      },
-    ];
-  }
-  return [];
-}
-
 function codexFailureRecovery(
   error: unknown,
   partialMarketplace: boolean,
@@ -512,19 +500,6 @@ function codexFailureRecovery(
     ];
   }
   return [];
-}
-
-function codexPluginInstallIsIncomplete(error: unknown, message: string): boolean {
-  if (
-    error instanceof CodexMigrationError &&
-    error.profileChanged &&
-    (error.code === 'PLUGIN_INSTALL_FAILED' || error.code === 'PLUGIN_ENABLEMENT_UNKNOWN')
-  ) {
-    return true;
-  }
-  return /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(
-    message,
-  );
 }
 
 function codexMarketplaceIsMissing(error: unknown): boolean {
@@ -555,15 +530,18 @@ function codexFailure(
       ],
     });
   }
-  const partialInstall = codexPluginInstallIsIncomplete(error, message);
   const partialMarketplace = codexMarketplaceIsMissing(error);
+  const configEffects = codexProfileFailureEffects(error);
   return createResult({
     state: 'failed',
     changed:
-      (error instanceof CodexMigrationError && error.profileChanged) || fileEffects.length > 0,
+      (error instanceof CodexMigrationError && error.profileChanged) ||
+      fileEffects.length > 0 ||
+      configEffects.length > 0,
     effects: {
       files: fileEffects,
-      configuration: codexFailureConfig(partialInstall, partialMarketplace),
+      configuration: configEffects,
+      destructive: codexProfileFailureDestructiveEffects(error),
     },
     recovery: codexFailureRecovery(error, partialMarketplace, fileEffects),
     errors: [

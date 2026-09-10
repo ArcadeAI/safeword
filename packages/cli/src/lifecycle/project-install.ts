@@ -35,10 +35,15 @@ import {
 } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
-import { CodexMigrationError } from '../codex-plugin/migration-error.js';
+import {
+  CodexMigrationError,
+  codexProfileFailureDestructiveEffects,
+  codexProfileFailureEffects,
+} from '../codex-plugin/migration-error.js';
 import {
   automaticallyMigrateLegacyCodex,
   automaticLegacyCodexMigrationNeeded,
+  legacyCodexHandoffPending,
 } from '../codex-plugin/operations.js';
 import {
   installCodexProjectBootstrap,
@@ -254,8 +259,40 @@ function codexProfileInstallEffects(): Effects {
   };
 }
 
-function plannedLegacyCodexMigrationEffects(cwd: string): Effects {
+function plannedCodexProfileInstallEffects(): Effects {
   const effects = codexProfileInstallEffects();
+  return {
+    ...effects,
+    configuration: [
+      ...effects.configuration,
+      {
+        kind: 'install',
+        target: 'Safeword Codex profile plugin',
+        operation: 'enablement-unverified',
+      },
+      {
+        kind: 'remove',
+        target: 'Safeword Codex marketplace',
+        operation: 'restoration-failed',
+      },
+      {
+        kind: 'update',
+        target: 'Safeword Codex profile',
+        operation: 'mutation-incomplete',
+      },
+    ],
+    destructive: [
+      {
+        kind: 'replace',
+        target: 'Safeword Codex marketplace',
+        operation: 'stable-channel',
+      },
+    ],
+  };
+}
+
+function plannedLegacyCodexMigrationEffects(cwd: string): Effects {
+  const effects = plannedCodexProfileInstallEffects();
   try {
     if (!automaticLegacyCodexMigrationNeeded(cwd)) return emptyEffects();
   } catch {
@@ -579,6 +616,7 @@ interface PythonSetupResult {
 function configurePython(
   cwd: string,
   context: ReturnType<typeof createProjectContext>,
+  options: { offline?: boolean } = {},
 ): PythonSetupResult {
   if (!context.languages?.python) {
     return {
@@ -607,7 +645,8 @@ function configurePython(
     })
     .join(' && ');
   const installable = commands.filter(item => item.packageManager !== 'pip');
-  const shouldInstall = !process.env.SAFEWORD_SKIP_INSTALL && installable.length > 0;
+  const shouldInstall =
+    options.offline !== true && !process.env.SAFEWORD_SKIP_INSTALL && installable.length > 0;
   if (!shouldInstall) {
     return {
       tools,
@@ -636,9 +675,14 @@ function configurePython(
 }
 
 class SetupApplyError extends Error {
-  readonly completedEffects: Partial<Effects>;
+  readonly completedEffects: Partial<Effects> & {
+    readonly recovery?: CliResult['recovery'];
+  };
 
-  constructor(cause: unknown, completedEffects: Partial<Effects>) {
+  constructor(
+    cause: unknown,
+    completedEffects: Partial<Effects> & { readonly recovery?: CliResult['recovery'] },
+  ) {
     super(cause instanceof Error ? cause.message : String(cause), { cause });
     this.name = 'SetupApplyError';
     this.completedEffects = completedEffects;
@@ -655,6 +699,7 @@ function publicRetroConfigRefusal(cwd: string): CliResult | undefined {
 }
 
 interface ConvergeSetupOptions {
+  offline?: boolean;
   noModify?: boolean;
   migrateNamespace?: boolean;
   repairVersionMarker?: boolean;
@@ -728,6 +773,7 @@ async function convergeSetupValidated(
     );
     return await applySetup(cwd, {
       configured,
+      offline: options.offline === true,
       packageJsonCreated,
       noModify: options.noModify === true,
       namespaceMigration,
@@ -1145,6 +1191,8 @@ interface CompletedSetupEffects {
   readonly packages: Effect[];
   readonly configuration: Effect[];
   readonly network: Effect[];
+  readonly destructive: Effect[];
+  readonly recovery: CliResult['recovery'][number][];
 }
 
 function snapshotFiles(cwd: string, targets: readonly string[]): Map<string, string> {
@@ -1221,7 +1269,8 @@ function setupResult(input: SetupResultInput): CliResult {
   const packages = uniqueEffects(completedEffects.packages);
   const configEffects = uniqueEffects(completedEffects.configuration);
   const network = uniqueEffects(completedEffects.network);
-  const changed = completedSetupChanged(files, packages, configEffects);
+  const destructive = uniqueEffects(completedEffects.destructive);
+  const changed = completedSetupChanged(files, packages, configEffects, destructive);
   const findings = [
     ...packageFindings(installation),
     ...gitFindings(gitInitialized),
@@ -1282,8 +1331,9 @@ function setupResult(input: SetupResultInput): CliResult {
   return createResult({
     state,
     changed,
-    effects: { files, packages, configuration: configEffects, network },
+    effects: { files, packages, configuration: configEffects, network, destructive },
     findings: resultFindings,
+    recovery: completedEffects.recovery,
     nextActions: [nextAction],
     data: { configured: true, dependency_install: installation },
   });
@@ -1352,8 +1402,12 @@ function recordInstalledPackages(
   }
 }
 
-function applyPackageCompatibility(cwd: string, completedEffects: CompletedSetupEffects): void {
-  if (!syncPackageJsonSafewordVersion(cwd, { report: false })) return;
+function applyPackageCompatibility(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+  offline: boolean,
+): void {
+  if (!syncPackageJsonSafewordVersion(cwd, { offline, report: false })) return;
   const compatibilityPackage = `safeword@${VERSION}`;
   completedEffects.packages.push({ kind: 'update', target: compatibilityPackage });
   completedEffects.network.push({
@@ -1365,6 +1419,7 @@ function applyPackageCompatibility(cwd: string, completedEffects: CompletedSetup
 
 interface ApplySetupInput {
   readonly configured: boolean;
+  readonly offline: boolean;
   readonly packageJsonCreated: boolean;
   readonly noModify: boolean;
   readonly namespaceMigration: NamespaceConvergence;
@@ -1378,10 +1433,57 @@ interface ApplySetupInput {
  * A failure here is reported, never fatal: the legacy protection stays in
  * place rather than leaving the project unguarded mid-setup.
  */
+function offlineCodexHandoffFindings(cwd: string): Finding[] {
+  try {
+    if (!legacyCodexHandoffPending(cwd)) return [];
+  } catch {
+    // Conservatively report a deferred handoff when local legacy-state
+    // inspection cannot prove that no handoff is pending.
+  }
+  return [
+    {
+      code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+      message: 'Codex profile enrollment was deferred because setup is running offline.',
+      severity: 'info',
+    },
+  ];
+}
+
+function recordCodexHandoffFailure(
+  error: unknown,
+  completedEffects: CompletedSetupEffects,
+): Finding[] {
+  if (error instanceof CodexMigrationError && error.profileChanged) {
+    completedEffects.configuration.push(...codexProfileFailureEffects(error));
+    completedEffects.destructive.push(...codexProfileFailureDestructiveEffects(error));
+    completedEffects.network.push(...codexProfileInstallEffects().network);
+    if (error.recoveryCommand !== undefined) {
+      completedEffects.recovery.push({
+        command: error.recoveryCommand,
+        description: 'Recover the incomplete Safeword Codex profile enrollment.',
+        requiresHuman: true,
+      });
+    }
+  }
+  const recovery =
+    error instanceof CodexMigrationError && error.recoveryCommand !== undefined
+      ? ` Recover with \`${error.recoveryCommand}\`.`
+      : '';
+  return [
+    {
+      code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
+      message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}${recovery}`,
+      severity: 'warning',
+    },
+  ];
+}
+
 function migrateLegacyCodexDuringSetup(
   cwd: string,
   completedEffects: CompletedSetupEffects,
+  offline: boolean,
 ): Finding[] {
+  if (offline) return offlineCodexHandoffFindings(cwd);
   const recordProfileInstallEffects = (): void => {
     const effects = codexProfileInstallEffects();
     completedEffects.configuration.push(...effects.configuration);
@@ -1396,11 +1498,18 @@ function migrateLegacyCodexDuringSetup(
     ...CODEX_MIGRATION_SCHEMA.cleanupFiles,
   ];
   try {
-    const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () =>
+    const migration = observeFileStage(cwd, codexMigrationTargets, completedEffects, () =>
       automaticallyMigrateLegacyCodex(cwd),
     );
-    if (!migrated) return [];
+    if (!migration.migrated) return [];
     recordProfileInstallEffects();
+    if (migration.marketplaceReplaced) {
+      completedEffects.destructive.push({
+        kind: 'replace',
+        target: 'Safeword Codex marketplace',
+        operation: 'stable-channel',
+      });
+    }
     return [
       {
         code: 'CODEX_PLUGIN_HANDOFF_PENDING_PROOF',
@@ -1410,20 +1519,7 @@ function migrateLegacyCodexDuringSetup(
       },
     ];
   } catch (error) {
-    if (error instanceof CodexMigrationError && error.profileChanged) {
-      recordProfileInstallEffects();
-    }
-    const recovery =
-      error instanceof CodexMigrationError && error.recoveryCommand !== undefined
-        ? ` Recover with \`${error.recoveryCommand}\`.`
-        : '';
-    return [
-      {
-        code: 'CODEX_PLUGIN_HANDOFF_DEFERRED',
-        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error instanceof Error ? error.message : String(error)}${recovery}`,
-        severity: 'warning',
-      },
-    ];
+    return recordCodexHandoffFailure(error, completedEffects);
   }
 }
 
@@ -1445,6 +1541,8 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     packages: [],
     configuration: [],
     network: [],
+    destructive: [],
+    recovery: [],
   };
 
   try {
@@ -1452,7 +1550,11 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     observeFileStage(cwd, ['.codex/config.toml'], completedEffects, () =>
       installCodexProjectBootstrap(cwd),
     );
-    const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects);
+    const codexHandoffFindings = migrateLegacyCodexDuringSetup(
+      cwd,
+      completedEffects,
+      input.offline,
+    );
     const architectureEffects = observeFileStage(
       cwd,
       ['.safeword/depcruise-config.cjs', '.dependency-cruiser.cjs'],
@@ -1485,12 +1587,13 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     ];
     const installation = observeFileStage(cwd, packageFiles, completedEffects, () =>
       installDependencies(cwd, result.packagesToInstall, 'missing packages', {
+        offline: input.offline,
         report: false,
       }),
     );
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
     const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () =>
-      adapters.configurePython(cwd, context),
+      adapters.configurePython(cwd, context, { offline: input.offline }),
     );
     if (pythonSetup.attempted) {
       for (const target of pythonSetup.attemptedTools) {
@@ -1505,7 +1608,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       }
     }
     observeFileStage(cwd, JAVASCRIPT_PACKAGE_FILES, completedEffects, () => {
-      applyPackageCompatibility(cwd, completedEffects);
+      applyPackageCompatibility(cwd, completedEffects, input.offline);
     });
     const applied = setupResult({
       packageJsonCreated,
@@ -1623,6 +1726,8 @@ function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): Cl
         }
       : {};
   const applyEffects = setupError instanceof SetupApplyError ? setupError.completedEffects : {};
+  const applyRecovery =
+    setupError instanceof SetupApplyError ? setupError.completedEffects.recovery : undefined;
   const effects = mergeEffects(initialEffects, reconciliationEffects, applyEffects);
   const changed = Object.values(effects).some(category => category.length > 0);
   return createResult({
@@ -1637,6 +1742,7 @@ function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): Cl
       },
     ],
     recovery: [
+      ...(applyRecovery ?? []),
       {
         command: 'safeword status --verbose',
         description: 'Inspect the partial project state before retrying install.',

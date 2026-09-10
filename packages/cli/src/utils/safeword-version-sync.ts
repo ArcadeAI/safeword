@@ -62,7 +62,7 @@ export function packageJsonSafewordVersionNeedsUpdate(cwd: string): boolean {
 
 export function syncPackageJsonSafewordVersion(
   cwd: string,
-  options: { report?: boolean } = {},
+  options: { offline?: boolean; report?: boolean } = {},
 ): boolean {
   if (!packageJsonSafewordVersionNeedsUpdate(cwd)) return false;
   installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], 'safeword package', options);

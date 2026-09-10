@@ -15470,6 +15470,9 @@ function installDependencies(cwd, packages, label = "packages", options = {}) {
   const extraFlags = pnpmWorkspaceFlags(pm, cwd);
   const flagString = extraFlags.length > 0 ? ` ${extraFlags.join(" ")}` : "";
   const displayCommand = `${pm} ${install} ${DEV_FLAG}${flagString} ${packages.join(" ")}`;
+  if (options.offline === true) {
+    return { attempted: false, installed: false, command: displayCommand };
+  }
   reportWhen(options.report !== false, () => {
     reportInstallStart(label, displayCommand);
   });
@@ -16787,16 +16790,63 @@ var init_migration = __esm(() => {
 });
 
 // src/codex-plugin/migration-error.ts
+function marketplaceRestorationFailed(error2) {
+  return error2 instanceof CodexMigrationError && error2.code === "PLUGIN_MARKETPLACE_FAILED" && error2.profileChanged;
+}
+function pluginInstallIncomplete(error2) {
+  return error2 instanceof CodexMigrationError && error2.profileChanged && (error2.code === "PLUGIN_INSTALL_FAILED" || error2.code === "PLUGIN_ENABLEMENT_UNKNOWN");
+}
+function codexProfileFailureEffects(error2) {
+  if (marketplaceRestorationFailed(error2)) {
+    return [
+      {
+        kind: "remove",
+        target: "Safeword Codex marketplace",
+        operation: "restoration-failed"
+      }
+    ];
+  }
+  if (pluginInstallIncomplete(error2)) {
+    return [
+      {
+        kind: "install",
+        target: "Safeword Codex profile plugin",
+        operation: "enablement-unverified"
+      }
+    ];
+  }
+  if (error2 instanceof CodexMigrationError && error2.profileChanged) {
+    return [
+      {
+        kind: "update",
+        target: "Safeword Codex profile",
+        operation: "mutation-incomplete"
+      }
+    ];
+  }
+  return [];
+}
+function codexProfileFailureDestructiveEffects(error2) {
+  return error2 instanceof CodexMigrationError && error2.marketplaceReplaced ? [
+    {
+      kind: "replace",
+      target: "Safeword Codex marketplace",
+      operation: "stable-channel"
+    }
+  ] : [];
+}
 var CodexMigrationError;
 var init_migration_error = __esm(() => {
   CodexMigrationError = class CodexMigrationError extends Error {
     code;
+    marketplaceReplaced;
     profileChanged;
     recoveryCommand;
     constructor(code, message, options) {
       super(message, options);
       this.name = "CodexMigrationError";
       this.code = code;
+      this.marketplaceReplaced = options?.marketplaceReplaced === true;
       this.profileChanged = options?.profileChanged === true;
       this.recoveryCommand = options?.recoveryCommand;
     }
@@ -19095,6 +19145,7 @@ __export(exports_operations, {
   observeCodexFinalizationPlan: () => observeCodexFinalizationPlan,
   observeCodexFinalizationEffects: () => observeCodexFinalizationEffects,
   migrateCodexPlugin: () => migrateCodexPlugin,
+  legacyCodexHandoffPending: () => legacyCodexHandoffPending,
   installCodexPlugin: () => installCodexPlugin,
   codexInstallRequiresMutation: () => codexInstallRequiresMutation,
   automaticallyMigrateLegacyCodex: () => automaticallyMigrateLegacyCodex,
@@ -19208,6 +19259,7 @@ function replaceCodexMarketplaceWithStable(configured) {
     }
     throw error2;
   }
+  return true;
 }
 function assertMarketplacePinIsNotNewer(ref, pinnedVersion) {
   if (pinnedVersion === undefined || compareVersions(pinnedVersion, SAFEWORD_SCHEMA.version) <= 0) {
@@ -19225,18 +19277,20 @@ function refreshOfficialGitMarketplace(marketplace, environment) {
   const pinnedVersion = ref === undefined ? undefined : exactVersionReference(ref);
   assertMarketplacePinIsNotNewer(ref, pinnedVersion);
   if (ref === "main" || pinnedVersion !== undefined) {
-    replaceCodexMarketplaceWithStable({ ...configured, source: configured?.source ?? source });
-    return;
+    return replaceCodexMarketplaceWithStable({
+      ...configured,
+      source: configured?.source ?? source
+    });
   }
   runCodexMarketplace(["upgrade", "safeword", "--json"], "Could not refresh the configured Safeword Codex marketplace");
+  return false;
 }
 function refreshOrAddCodexMarketplace(marketplaceSource, environment = process.env) {
   if (marketplaceSource === undefined) {
     const output = runCodexMarketplace(["list", "--json"], "Could not inspect configured Codex marketplaces");
     const marketplace = marketplaceListFromOutput(output).marketplaces.find((candidate) => candidate.name === "safeword");
     if (marketplace?.marketplaceSource?.sourceType === "git") {
-      refreshOfficialGitMarketplace(marketplace, environment);
-      return;
+      return refreshOfficialGitMarketplace(marketplace, environment);
     }
     if (marketplace !== undefined) {
       throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "The configured Codex marketplace named safeword is not a Git marketplace. Safeword left it unchanged because replacing an unknown marketplace type is not safely reversible.");
@@ -19252,15 +19306,17 @@ function refreshOrAddCodexMarketplace(marketplaceSource, environment = process.e
     "packages/cli/codex-plugin",
     "--json"
   ], "Could not add the Safeword Codex marketplace");
+  return false;
 }
 function addCodexPluginToProfile(marketplaceSource, environment = process.env) {
-  refreshOrAddCodexMarketplace(marketplaceSource, environment);
+  const marketplaceReplaced = refreshOrAddCodexMarketplace(marketplaceSource, environment);
   const recoveryCommand = `codex plugin add ${PLUGIN_ID} --json`;
   try {
     run("codex", ["plugin", "add", PLUGIN_ID, "--json"]);
   } catch (error2) {
-    throw new CodexMigrationError("PLUGIN_INSTALL_FAILED", `The Safeword marketplace was configured, but plugin installation failed: ${String(error2)}`, { cause: error2, profileChanged: true, recoveryCommand });
+    throw new CodexMigrationError("PLUGIN_INSTALL_FAILED", `The Safeword marketplace was configured, but plugin installation failed: ${String(error2)}`, { cause: error2, marketplaceReplaced, profileChanged: true, recoveryCommand });
   }
+  return marketplaceReplaced;
 }
 function verifyCodexPluginIsEnabled(options = {}) {
   let pluginList;
@@ -19441,19 +19497,22 @@ function installCodexPlugin(options = {}) {
   const cwd = options.cwd ?? process.cwd();
   if (shouldReportExistingMigrationState(cwd, options)) {
     reportCodexMigration(cwd, { json: options.json, environment: options.environment });
-    return;
+    return false;
   }
   const lock = acquireCodexProfileLock(options.environment);
   if (lock === undefined) {
     throw new CodexMigrationError("PLUGIN_PROFILE_BUSY", "Another Safeword task is updating this Codex profile. No profile changes were made; retry `safeword codex install` in a moment.");
   }
+  let marketplaceReplaced = false;
   try {
     run("bun", ["--version"]);
     run("codex", ["--version"]);
-    addCodexPluginToProfile(options.marketplaceSource, options.environment);
+    marketplaceReplaced = addCodexPluginToProfile(options.marketplaceSource, options.environment);
     verifyCodexPluginIsEnabled({ installationCompleted: true });
     if (options.recordActivationPending !== false)
       writeCodexActivationMarker(options.environment);
+  } catch (error2) {
+    rethrowCodexInstallFailure(error2, marketplaceReplaced);
   } finally {
     releaseProfileLock(lock);
   }
@@ -19468,6 +19527,7 @@ function installCodexPlugin(options = {}) {
       changed: true
     });
   }
+  return marketplaceReplaced;
 }
 function shouldReportExistingMigrationState(cwd, options) {
   if (codexRecoveryIsRequired(cwd))
@@ -19476,6 +19536,17 @@ function shouldReportExistingMigrationState(cwd, options) {
     return false;
   const plugin = observeCodexMigrationResult(cwd, options.environment).plugin;
   return plugin.enabled === true && codexPluginVersionMatchesPackage(plugin);
+}
+function rethrowCodexInstallFailure(error2, marketplaceReplaced) {
+  if (marketplaceReplaced && error2 instanceof CodexMigrationError && !error2.marketplaceReplaced) {
+    throw new CodexMigrationError(error2.code, error2.message, {
+      cause: error2,
+      marketplaceReplaced: true,
+      profileChanged: error2.profileChanged,
+      recoveryCommand: error2.recoveryCommand
+    });
+  }
+  throw error2;
 }
 function buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval) {
   const mutations = [];
@@ -19701,21 +19772,29 @@ async function removeLegacyCodexHooks(cwd = process.cwd(), options = {}) {
   });
   return true;
 }
-function automaticLegacyCodexMigrationNeeded(cwd = process.cwd()) {
+function legacyCodexHandoffPending(cwd = process.cwd()) {
   if (codexFinalizationIsComplete(cwd) || codexRecoveryIsRequired(cwd))
     return false;
   const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
-  const hasLegacy = preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
-  if (!hasLegacy)
+  return preparedLegacyHookRemoval !== undefined || observeLegacyAssets(cwd).length > 0;
+}
+function automaticLegacyCodexMigrationNeeded(cwd = process.cwd()) {
+  if (!legacyCodexHandoffPending(cwd))
     return false;
   const plugin = observeCodexPlugin();
   return plugin.enabled !== true || !codexPluginVersionMatchesPackage(plugin);
 }
 function automaticallyMigrateLegacyCodex(cwd = process.cwd(), environment = process.env) {
-  if (!automaticLegacyCodexMigrationNeeded(cwd))
-    return false;
-  installCodexPlugin({ cwd, environment, json: true, reportMigrationState: false });
-  return true;
+  if (!automaticLegacyCodexMigrationNeeded(cwd)) {
+    return { migrated: false, marketplaceReplaced: false };
+  }
+  const marketplaceReplaced = installCodexPlugin({
+    cwd,
+    environment,
+    json: true,
+    reportMigrationState: false
+  });
+  return { migrated: true, marketplaceReplaced };
 }
 async function migrateCodexPlugin(cwd = process.cwd(), options = {}) {
   if (options.removeLegacyHooks) {
@@ -59790,8 +59869,39 @@ function codexProfileInstallEffects() {
     ]
   };
 }
-function plannedLegacyCodexMigrationEffects(cwd) {
+function plannedCodexProfileInstallEffects() {
   const effects = codexProfileInstallEffects();
+  return {
+    ...effects,
+    configuration: [
+      ...effects.configuration,
+      {
+        kind: "install",
+        target: "Safeword Codex profile plugin",
+        operation: "enablement-unverified"
+      },
+      {
+        kind: "remove",
+        target: "Safeword Codex marketplace",
+        operation: "restoration-failed"
+      },
+      {
+        kind: "update",
+        target: "Safeword Codex profile",
+        operation: "mutation-incomplete"
+      }
+    ],
+    destructive: [
+      {
+        kind: "replace",
+        target: "Safeword Codex marketplace",
+        operation: "stable-channel"
+      }
+    ]
+  };
+}
+function plannedLegacyCodexMigrationEffects(cwd) {
+  const effects = plannedCodexProfileInstallEffects();
   try {
     if (!automaticLegacyCodexMigrationNeeded(cwd))
       return emptyEffects();
@@ -60014,7 +60124,7 @@ async function createSetupPlan(cwd, schema, options = {}) {
     verification: [{ description: "Re-run safeword status" }]
   });
 }
-function configurePython(cwd, context) {
+function configurePython(cwd, context, options = {}) {
   if (!context.languages?.python) {
     return {
       tools: [],
@@ -60039,7 +60149,7 @@ function configurePython(cwd, context) {
     return relative === "" ? item.command : `(cd ${JSON.stringify(relative)} && ${item.command})`;
   }).join(" && ");
   const installable = commands.filter((item) => item.packageManager !== "pip");
-  const shouldInstall = !process.env.SAFEWORD_SKIP_INSTALL && installable.length > 0;
+  const shouldInstall = options.offline !== true && !process.env.SAFEWORD_SKIP_INSTALL && installable.length > 0;
   if (!shouldInstall) {
     return {
       tools,
@@ -60119,6 +60229,7 @@ async function convergeSetupValidated(cwd, options) {
     options.progress?.start(configured ? "Reconciling the Safeword upgrade\u2026" : "Setting up Safeword\u2026");
     return await applySetup(cwd, {
       configured,
+      offline: options.offline === true,
       packageJsonCreated,
       noModify: options.noModify === true,
       namespaceMigration,
@@ -60489,7 +60600,8 @@ function setupResult(input) {
   const packages = uniqueEffects(completedEffects.packages);
   const configEffects = uniqueEffects(completedEffects.configuration);
   const network = uniqueEffects(completedEffects.network);
-  const changed2 = completedSetupChanged(files2, packages, configEffects);
+  const destructive = uniqueEffects(completedEffects.destructive);
+  const changed2 = completedSetupChanged(files2, packages, configEffects, destructive);
   const findings = [
     ...packageFindings(installation),
     ...gitFindings(gitInitialized),
@@ -60530,8 +60642,9 @@ function setupResult(input) {
   return createResult({
     state,
     changed: changed2,
-    effects: { files: files2, packages, configuration: configEffects, network },
+    effects: { files: files2, packages, configuration: configEffects, network, destructive },
     findings: resultFindings,
+    recovery: completedEffects.recovery,
     nextActions: [nextAction2],
     data: { configured: true, dependency_install: installation }
   });
@@ -60582,8 +60695,8 @@ function recordInstalledPackages(packagesToInstall, installation, completedEffec
     });
   }
 }
-function applyPackageCompatibility(cwd, completedEffects) {
-  if (!syncPackageJsonSafewordVersion(cwd, { report: false }))
+function applyPackageCompatibility(cwd, completedEffects, offline) {
+  if (!syncPackageJsonSafewordVersion(cwd, { offline, report: false }))
     return;
   const compatibilityPackage = `safeword@${VERSION}`;
   completedEffects.packages.push({ kind: "update", target: compatibilityPackage });
@@ -60593,7 +60706,44 @@ function applyPackageCompatibility(cwd, completedEffects) {
     operation: "update"
   });
 }
-function migrateLegacyCodexDuringSetup(cwd, completedEffects) {
+function offlineCodexHandoffFindings(cwd) {
+  try {
+    if (!legacyCodexHandoffPending(cwd))
+      return [];
+  } catch {}
+  return [
+    {
+      code: "CODEX_PLUGIN_HANDOFF_DEFERRED",
+      message: "Codex profile enrollment was deferred because setup is running offline.",
+      severity: "info"
+    }
+  ];
+}
+function recordCodexHandoffFailure(error2, completedEffects) {
+  if (error2 instanceof CodexMigrationError && error2.profileChanged) {
+    completedEffects.configuration.push(...codexProfileFailureEffects(error2));
+    completedEffects.destructive.push(...codexProfileFailureDestructiveEffects(error2));
+    completedEffects.network.push(...codexProfileInstallEffects().network);
+    if (error2.recoveryCommand !== undefined) {
+      completedEffects.recovery.push({
+        command: error2.recoveryCommand,
+        description: "Recover the incomplete Safeword Codex profile enrollment.",
+        requiresHuman: true
+      });
+    }
+  }
+  const recovery = error2 instanceof CodexMigrationError && error2.recoveryCommand !== undefined ? ` Recover with \`${error2.recoveryCommand}\`.` : "";
+  return [
+    {
+      code: "CODEX_PLUGIN_HANDOFF_DEFERRED",
+      message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error2 instanceof Error ? error2.message : String(error2)}${recovery}`,
+      severity: "warning"
+    }
+  ];
+}
+function migrateLegacyCodexDuringSetup(cwd, completedEffects, offline) {
+  if (offline)
+    return offlineCodexHandoffFindings(cwd);
   const recordProfileInstallEffects = () => {
     const effects = codexProfileInstallEffects();
     completedEffects.configuration.push(...effects.configuration);
@@ -60608,10 +60758,17 @@ function migrateLegacyCodexDuringSetup(cwd, completedEffects) {
     ...CODEX_MIGRATION_SCHEMA.cleanupFiles
   ];
   try {
-    const migrated = observeFileStage(cwd, codexMigrationTargets, completedEffects, () => automaticallyMigrateLegacyCodex(cwd));
-    if (!migrated)
+    const migration = observeFileStage(cwd, codexMigrationTargets, completedEffects, () => automaticallyMigrateLegacyCodex(cwd));
+    if (!migration.migrated)
       return [];
     recordProfileInstallEffects();
+    if (migration.marketplaceReplaced) {
+      completedEffects.destructive.push({
+        kind: "replace",
+        target: "Safeword Codex marketplace",
+        operation: "stable-channel"
+      });
+    }
     return [
       {
         code: "CODEX_PLUGIN_HANDOFF_PENDING_PROOF",
@@ -60620,17 +60777,7 @@ function migrateLegacyCodexDuringSetup(cwd, completedEffects) {
       }
     ];
   } catch (error2) {
-    if (error2 instanceof CodexMigrationError && error2.profileChanged) {
-      recordProfileInstallEffects();
-    }
-    const recovery = error2 instanceof CodexMigrationError && error2.recoveryCommand !== undefined ? ` Recover with \`${error2.recoveryCommand}\`.` : "";
-    return [
-      {
-        code: "CODEX_PLUGIN_HANDOFF_DEFERRED",
-        message: `Codex native plugin handoff could not complete, so legacy project protection was retained: ${error2 instanceof Error ? error2.message : String(error2)}${recovery}`,
-        severity: "warning"
-      }
-    ];
+    return recordCodexHandoffFailure(error2, completedEffects);
   }
 }
 async function applySetup(cwd, input) {
@@ -60650,12 +60797,14 @@ async function applySetup(cwd, input) {
     files: [...preliminaryFileEffects, ...effectsForReconciliation(result, operation).files],
     packages: [],
     configuration: [],
-    network: []
+    network: [],
+    destructive: [],
+    recovery: []
   };
   try {
     applyCompatibilityMigrations(cwd, completedEffects);
     observeFileStage(cwd, [".codex/config.toml"], completedEffects, () => installCodexProjectBootstrap(cwd));
-    const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects);
+    const codexHandoffFindings = migrateLegacyCodexDuringSetup(cwd, completedEffects, input.offline);
     const architectureEffects = observeFileStage(cwd, [".safeword/depcruise-config.cjs", ".dependency-cruiser.cjs"], completedEffects, () => adapters.configureArchitecture(cwd));
     observeFileStage(cwd, workspacePackageJsonTargets(cwd, context), completedEffects, () => adapters.configureWorkspaces(cwd, context));
     const eslintConfig = context.projectType.existingEslintConfig;
@@ -60674,10 +60823,11 @@ async function applySetup(cwd, input) {
       "yarn.lock"
     ];
     const installation = observeFileStage(cwd, packageFiles, completedEffects, () => installDependencies(cwd, result.packagesToInstall, "missing packages", {
+      offline: input.offline,
       report: false
     }));
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
-    const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () => adapters.configurePython(cwd, context));
+    const pythonSetup = observeFileStage(cwd, pythonObservationTargets(cwd), completedEffects, () => adapters.configurePython(cwd, context, { offline: input.offline }));
     if (pythonSetup.attempted) {
       for (const target of pythonSetup.attemptedTools) {
         if (pythonSetup.installedTools.includes(target)) {
@@ -60691,7 +60841,7 @@ async function applySetup(cwd, input) {
       }
     }
     observeFileStage(cwd, JAVASCRIPT_PACKAGE_FILES, completedEffects, () => {
-      applyPackageCompatibility(cwd, completedEffects);
+      applyPackageCompatibility(cwd, completedEffects, input.offline);
     });
     const applied = setupResult({
       packageJsonCreated,
@@ -60798,6 +60948,7 @@ function setupFailure(setupError, initialEffects) {
     ]
   } : {};
   const applyEffects = setupError instanceof SetupApplyError ? setupError.completedEffects : {};
+  const applyRecovery = setupError instanceof SetupApplyError ? setupError.completedEffects.recovery : undefined;
   const effects = mergeEffects(initialEffects, reconciliationEffects, applyEffects);
   const changed2 = Object.values(effects).some((category) => category.length > 0);
   return createResult({
@@ -60812,6 +60963,7 @@ function setupFailure(setupError, initialEffects) {
       }
     ],
     recovery: [
+      ...applyRecovery ?? [],
       {
         command: "safeword status --verbose",
         description: "Inspect the partial project state before retrying install.",
@@ -60991,6 +61143,7 @@ function combineInstallResults(agents, surfaces) {
 async function installProjectSurface(invocation, agents) {
   const projectSchema = projectLifecycleSchema(invocation.cwd, agents);
   return convergeSetup(invocation.cwd, {
+    offline: invocation.offline,
     noModify: invocation.options.modify === false,
     repairVersionMarker: invocation.options.repairVersionMarker === true,
     migrateNamespace: typeof invocation.options.migrateNamespace === "boolean" ? invocation.options.migrateNamespace : undefined,
@@ -69312,7 +69465,7 @@ function runCodexInstall(invocation, migration) {
   if (!migration.codexInstallRequiresMutation(before)) {
     return migration.observeCodexMigration(invocation.cwd);
   }
-  migration.installCodexPlugin({
+  const marketplaceReplaced = migration.installCodexPlugin({
     cwd: invocation.cwd,
     json: true,
     reportMigrationState: false
@@ -69329,7 +69482,14 @@ function runCodexInstall(invocation, migration) {
           kind: before.plugin.installed ? "update" : "enable",
           target: "Safeword Codex profile plugin"
         }
-      ]
+      ],
+      destructive: marketplaceReplaced ? [
+        {
+          kind: "replace",
+          target: "Safeword Codex marketplace",
+          operation: "stable-channel"
+        }
+      ] : []
     }
   };
 }
@@ -69363,27 +69523,6 @@ function codexFailureCode(error2, message, name, isFinalization) {
     return name === "codex recover" ? "RECOVERY_FAILED" : "PLUGIN_INSTALL_FAILED";
   return /current plugin[- ]hook proof/i.test(message) ? "FINALIZATION_PROOF_REQUIRED" : "FINALIZATION_FAILED";
 }
-function codexFailureConfig(partialInstall, partialMarketplace) {
-  if (partialInstall) {
-    return [
-      {
-        kind: "install",
-        target: "Safeword Codex profile plugin",
-        operation: "enablement-unverified"
-      }
-    ];
-  }
-  if (partialMarketplace) {
-    return [
-      {
-        kind: "remove",
-        target: "Safeword Codex marketplace",
-        operation: "restoration-failed"
-      }
-    ];
-  }
-  return [];
-}
 function codexFailureRecovery(error2, partialMarketplace, fileEffects) {
   if (error2 instanceof CodexMigrationError && error2.recoveryCommand !== undefined) {
     return [
@@ -69405,12 +69544,6 @@ function codexFailureRecovery(error2, partialMarketplace, fileEffects) {
   }
   return [];
 }
-function codexPluginInstallIsIncomplete(error2, message) {
-  if (error2 instanceof CodexMigrationError && error2.profileChanged && (error2.code === "PLUGIN_INSTALL_FAILED" || error2.code === "PLUGIN_ENABLEMENT_UNKNOWN")) {
-    return true;
-  }
-  return /Plugin installation succeeded, but enablement is unknown|did not report the Safeword plugin as enabled/iu.test(message);
-}
 function codexMarketplaceIsMissing(error2) {
   return error2 instanceof CodexMigrationError && error2.code === "PLUGIN_MARKETPLACE_FAILED" && error2.profileChanged;
 }
@@ -69429,14 +69562,15 @@ function codexFailure(error2, name, isFinalization, fileEffects = []) {
       ]
     });
   }
-  const partialInstall = codexPluginInstallIsIncomplete(error2, message);
   const partialMarketplace = codexMarketplaceIsMissing(error2);
+  const configEffects = codexProfileFailureEffects(error2);
   return createResult({
     state: "failed",
-    changed: error2 instanceof CodexMigrationError && error2.profileChanged || fileEffects.length > 0,
+    changed: error2 instanceof CodexMigrationError && error2.profileChanged || fileEffects.length > 0 || configEffects.length > 0,
     effects: {
       files: fileEffects,
-      configuration: codexFailureConfig(partialInstall, partialMarketplace)
+      configuration: configEffects,
+      destructive: codexProfileFailureDestructiveEffects(error2)
     },
     recovery: codexFailureRecovery(error2, partialMarketplace, fileEffects),
     errors: [
