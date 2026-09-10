@@ -10,6 +10,7 @@ phase_skips:
 phase_anchors:
   - scenario-gate: features/approve-coherent-implementation-plans.feature
   - plan-implementation: .project/tickets/G1C9PP-approve-coherent-implementation-plans/impl-plan.md
+  - implement: .project/tickets/G1C9PP-approve-coherent-implementation-plans/impl-plan.md
 scope:
   - define Implementation Planning as the phase that resolves and approves behavior-shaping approach decisions
   - make the project-local Implementation Plan the single design record for architecture, data, rollout, rollback, and proof-scope choices
@@ -36,7 +37,7 @@ parent: 82T411
 parent_job: plan-implementability.TBU1
 milestone: M1
 created: 2026-09-08T17:36:33.419Z
-last_modified: 2026-09-10T10:35:00.000Z
+last_modified: 2026-09-10T10:48:00.000Z
 parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afac25da34a
 ---
 
@@ -47,6 +48,10 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-10T10:48:00.000Z Implementation Planning complete: Claude Opus approved the exact committed, formatter-stable Implementation Plan bytes with cross-agent provenance (review `0342d73b-7936-4ec0-86d2-121d466c1153`). The refreshed stamp replaces the stale pre-format receipt; the ticket re-enters implementation with its reviewed plan as the phase anchor and no code changes made before approval.
+
+- 2026-09-10T10:40:00.000Z Returned before implementation: The planning checkpoint's pre-commit formatter changed the reviewed Implementation Plan bytes, and `review status 79604310-795c-4de4-8f5d-e7570744e3b8` correctly reported `REVIEW_STALE`. No code work began. Refreshing independent review against the committed formatted artifact before re-entering implementation.
 
 - 2026-09-10T10:35:00.000Z Implementation Plan independently approved: Claude Opus could not find a release-relevant failure in the final planned design (review `79604310-795c-4de4-8f5d-e7570744e3b8`). The parse-valid plan has planned status, all required sections plus Doc impact, names R1 as the riskiest assumption and proving scenario, covers all 20 Rules, and records honest surface/proof limits. Stamped the exact plan bytes. The split checkpoint found six ordered steps across five major components, below the greater-than-five-component split trigger, so the ticket advances without further decomposition under the currently installed workflow.
 
