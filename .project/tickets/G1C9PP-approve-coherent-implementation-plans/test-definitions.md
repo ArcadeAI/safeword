@@ -103,7 +103,7 @@ prove real installed CLI wiring.
 ### Scenario: One design plan remains the feature plan of record
 
 - [x] RED c572e44ab
-- [ ] GREEN
+- [x] GREEN 19016b552
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope and confidence without absorbing execution mechanics or the verification ledger
