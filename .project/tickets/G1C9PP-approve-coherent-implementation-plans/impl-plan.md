@@ -25,12 +25,13 @@ implemented facts, available proof, known deviations, and pending human
 authority separately. Existing code is evidence about current behavior, not
 automatic proof that the proposed design is correct or approved.
 
-Current delivery state is explicit: the R1–R10 contract slices are implemented
-and carry completed ledger proof; R11 has an independently accepted executable
-RED proving the packaged contract still lacks its decision-boundary obligation,
-with no R11 production change yet. That missing clause is the current known
-defect. The immediately preceding plan revision had independent semantic
-approval; these review-driven edits make that receipt stale until re-review.
+Current delivery state is explicit: production slices for R1–R10 exist, but
+scenario repairs reopened R1, R2, R3, R6, R7, and R9 because their old proof no
+longer covers the accepted behavior. R11 retains only its independently accepted
+executable RED; R12 is the last currently proven scenario. R13–R20 and the new
+missing-contract, directory-ADR, ownership-conflict, lifecycle, approval-order,
+and applicability partitions remain unimplemented. These open ledger entries
+are the current known defects. Scenario-driven edits require a fresh plan review.
 The optional human design-approval gate is not configured, so no human plan
 authority is pending. The 2026-09-10 architecture decision was separately
 user-authorized and remains distinct from plan-review or test state.
@@ -59,11 +60,10 @@ receipt. This ticket distinguishes present-but-unequal author/reviewer contract
 identities. Digest inequality blocks approval; the same delimited-obligation
 comparison used by conformance proof identifies each missing or changed
 obligation by its contract heading in the receipt and names reconciliation as
-recovery. A mismatch-only receipt is insufficient. The parent-level behavior
-for a missing or unreadable canonical contract is not claimed by this child
-because it has no child-owned scenario here. SHA-256 is integrity identity, not
-a claim that the prose is semantically good; independent semantic review still
-judges the decisions.
+recovery. A mismatch-only receipt is insufficient. If no packaged contract is
+readable, the installed CLI blocks authoring and approval and names the
+regenerate action. SHA-256 is integrity identity, not a claim that the prose is
+semantically good; independent semantic review still judges the decisions.
 
 The Implementation Plan parser will enforce only observable structure and
 applicability: an architecture-at-a-glance mental model, scope boundary,
@@ -86,10 +86,10 @@ the real judgment boundary.
 
 The R9 single-plan check runs at semantic review. Project knowledge resolution
 supplies a candidate manifest covering every Markdown artifact in the active
-ticket directory, the configured architecture record, configured project design
-roots, and every design link named by the ticket or plan. A file outside those
-configured or referenced authority roots is not a project design record and
-cannot silently compete. The candidate contents enter review context while
+ticket directory, the configured architecture record, and every design link
+named by the ticket or plan. Those are the complete default authority roots; no
+new design-root setting is introduced. A file outside those configured or
+referenced roots is not a project design record and cannot silently compete. The candidate contents enter review context while
 `impl-plan.md` remains the sole authoritative feature design work product.
 Linked detail remains inside the review path only when the plan names the
 decision and consequence, marks the linked artifact as supporting rather than
@@ -127,8 +127,12 @@ non-interactive runs may report pending but cannot manufacture a decision.
 The shared ledger writer uses a project-local exclusive lock keyed to the ledger
 path. A writer acquires the lock, rereads the current ledger inside it, appends,
 and atomically replaces the bytes before releasing it. Lock ownership carries a
-lease; stale recovery requires an expired lease, while contention timeout fails
-closed as pending and writes nothing. An idempotency key over ticket, plan
+lease and monotonically increasing fencing token. Stale recovery requires an
+expired lease; immediately before replacement, a writer must still own the
+current token or discard its bytes and retry. Contention timeout fails closed as
+pending and writes nothing. This guarantee applies to supported-host local
+filesystems; filesystems without exclusive-create and atomic same-directory
+rename semantics fail closed. An idempotency key over ticket, plan
 digest, decision, and authority event makes retry safe. The gate rereads the
 committed ledger before changing phase, so a crash after the event write but
 before the phase write safely resumes, while a crash before the event write
@@ -153,15 +157,15 @@ Proof strategy by behavior cluster:
 | --- | --- | --- | --- |
 | R1 phase entry | Ticket transition through the installed hook/CLI gate | Integration | Local integration proves deterministic phase gating; cloud-host rows still require their existing real-host acceptance lanes. |
 | R11 unresolved decisions | Exact packaged Implementation Plan contract through the deterministic contract-conformance reviewer; installed CLI review receipt for the simultaneous-blocker case | Pure contract matrix plus separate real-process CLI integration | The contract matrix proves unresolved and resolved API, rollback, and proof-scope outcomes at the accepted semantic-fixture boundary. It does not prove installed wiring or live-reviewer consistency; the tagged CLI scenario separately proves that one installed invocation retains every simultaneous blocker. |
-| R2 exact contract identity and R13 structural-vs-semantic evidence | Canonical skill extraction → packet → reviewer → receipt/stamp | Integration plus unit parser matrices for equal and present-but-unequal contracts | Independent review, rather than digest equality, proves semantic quality. Missing/unreadable canonical-contract recovery is a parent-level obligation not claimed by this child packet. |
+| R2 exact contract identity and R13 structural-vs-semantic evidence | Canonical skill extraction → packet → reviewer → receipt/stamp and installed missing-contract recovery | Integration plus unit parser matrices for equal, unequal, and absent contracts | Independent review, rather than digest equality, proves semantic quality. The installed absence row proves actionable fail-closed recovery. |
 | R3 mental model and focused reviewability, R12 evidence quality, R14 bounded discovery and persona consequences, R15 persona-specific receipts, R16 state truthfulness | Real review coordinator with bounded project-local packet | Deterministic contract-conformance integration plus a current-revision independent-review acceptance artifact | CI fixtures prove contract-byte routing and receipt projection, not that every live reviewer will reach the same semantic verdict. Current exact contract acceptance is recorded outside the deterministic suite and must be downgraded when unavailable. R14 is partial here: absence of the required typed authority is proven fail-closed; authentic production and anti-forgery provenance remain a 5F5ZZA prerequisite. |
 | R4 project-local authority and OpenCode Desktop advisory behavior | Installed Safeword CLI and project-local artifact resolution | CLI integration | This ticket proves only the canonical CLI boundary. Installed host delivery and parity are explicit YCFFNC prerequisites. |
-| R5 architecture, R6 decision-bearing data coverage, R7–R9 durable/single-record behavior | Implementation Plan parser and semantic review using configured project knowledge; phase edit gate for the configured architecture record | Unit contract matrices plus integration review packet and edit-gate matrix covering the exact configured architecture path, a sibling-path near miss, and an ordinary source/documentation denial | Parser tests can prove presence and routing only; reviewer tests must distinguish meaningful coverage from labels and choreography. The edit-gate matrix proves only the configured architecture record is writable during planning; review still blocks a significant choice whose link is absent or unresolved. |
+| R5 architecture, R6 decision-bearing data coverage, R7–R9 durable/single-record behavior | Implementation Plan parser and semantic review using configured project knowledge; phase edit gate for the configured architecture location | Unit contract matrices plus integration review packet and edit-gate matrix covering an exact configured file; a sibling; a direct `YYYYMMDD-slug.md` child of a configured ADR directory; non-dated, nested, and outside-directory near misses; and ordinary path denials | A configured file admits only itself. A configured directory admits only direct children matching the dated ADR filename contract. Semantic review still blocks absent or unresolved links. |
 | R8 file-count-independent architecture significance | Semantic-review contract over shared-interface, quality-attribute, data-lifecycle, migration/compatibility, difficult-reversal, and contract-preserving mechanical fixtures | Contract matrix plus independent-review acceptance pair | The review receipt requires a durable record for every semantic trigger family and does not require one for the mechanical control; file count is never a trigger. |
 | R10 proof scope without mechanics or evidence ledger | Implementation Plan parser and reviewer contract | Unit rejection matrix plus review integration | The plan names behavior, real boundary, proof type, and confidence limit, then links detailed evidence. Lexical checks alone cannot classify every sentence; semantic review remains authoritative. |
-| R17 significant workflow decision depth | Packaged plan contract and deterministic semantic-review conformance boundary | Contract matrix plus installed CLI review integration | Durable state, authorization, migration, and concurrency fixtures vary state, transition authority, atomicity, retry, compatibility, and preserved evidence so labels alone cannot pass. |
+| R17 significant workflow decision depth | Packaged plan contract and deterministic semantic-review conformance boundary | Contract matrix plus installed CLI review integration | Durable state, authorization, migration, concurrency, and lifecycle fixtures vary state, transition authority, atomicity, retry, compatibility, and preserved evidence so labels alone cannot pass. |
 | R18 measurement-design ownership | Product promise → Implementation Plan review packet | Contract matrix plus deterministic semantic review | Product owns the promised 30–60 minute target and reviewer population. This plan owns the study method and validity safeguards: start when the reviewer begins the decision summary, stop at approve/block, record whether the reviewer can explain the approach and unresolved authority, sample reviewers without authoring context, and report setup interruptions separately. Rejection cases prevent changing Product-owned targets or substituting instrumentation commands for validity decisions. The semantic receipt's pass/fail is diagnostic input, not duration proof by self-report. |
-| R19 exact-plan human approval and headless completion | Installed CLI approval boundary with interactive and non-interactive invocation fixtures | Real-process integration | Approval is bound to exact reviewed approach bytes, reused only while those bytes remain current, refreshed after change even when an Execution Plan exists, and recorded pending without prompting or deadlocking when no approver is available. G1C9PP proves the currently installed implement-entry gate recomputes currency after a plan edit and blocks the CLI request on stale approval. Sibling 7CAMAD's replacement gate must consume the same current result; 5F5ZZA owns semantic review-record invalidation and provenance recomputation. |
+| R19 exact-plan human approval and headless completion | Installed CLI approval boundary with interactive and non-interactive invocation fixtures | Real-process integration | Approval runs only after semantic review passes, binds exact bytes, recomputes currency after edits, and leaves headless work settled in Implementation Planning with approval pending. Fixture authority proves consumer behavior only; authentic human-event provenance remains a 5F5ZZA release prerequisite. G1C9PP proves the current gate; 7CAMAD's replacement consumes the same result. |
 | R20 complete repair loop | Installed CLI review and decision-discovery loop with deterministic reviewer process results | End-to-end CLI integration | The first receipt exposes the full three-defect set together; accepted owners resolve each decision; the approving receipt binds the corrected digest and cannot bind the original bytes; unavailable external authority produces an honest pending result rather than approval or a fixed retry cap. |
 
 Affected-surface coverage. All six host rows share one justified M2 deferral:
@@ -178,27 +182,30 @@ distinct proof boundary.
 | Cursor | skip: installed project-hook boundary in M2. |
 | Cursor Cloud Agents | skip: fresh-runner boundary in M2. |
 
-Build order under the current planning contract:
+Build order under the current planning contract; labels state current progress:
 
-1. Add the canonical phase, contract identity, and approval-state domain model;
-   prove the pure equal/unequal contract and current/stale approval cases.
-2. Delivery gate: sibling `7CAMAD` must establish the Execution Plan artifact
+1. **Reopened proof:** prove the riskiest R1 installed phase-transition boundary
+   before further rubric investment.
+2. **Partly implemented; proof reopened:** maintain the canonical phase,
+   contract identity, and approval-state domain model; prove equal, unequal,
+   absent-contract, and current/stale approval cases.
+3. **External prerequisite:** sibling `7CAMAD` must establish the Execution Plan artifact
    and implement-entry gate before this ticket may remove build/test mechanics
    from the current plan contract or ship.
-3. Replace the current proof-quality-heavy Implementation Plan template/rubric
+4. **Implemented through R12; expanded proof open:** replace the current proof-quality-heavy Implementation Plan template/rubric
    with the decision-focused artifact contract, including architecture, data,
    rollout/rollback, proof-scope, reviewability, persona consequences, truthful
    state, significant-workflow decision depth, measurement design, and
    all-blocker receipts; prove R3 and R5–R18.
-4. Carry the phase, contract, configured-architecture edit exception, canonical
+5. **Partly implemented; expanded proof open:** carry the phase, contract, configured-architecture edit exception, canonical
    skill extraction through review packet to receipt/stamp, and project-local
    plan authority through the installed Safeword CLI; prove the tagged R1, R2,
    R4, and R7 boundaries there.
-5. Implement digest-bound approval/decline/pending state and the complete
+6. **Not implemented:** implement digest-bound approval/decline/pending state and the complete
    decision-discovery repair loop on that installed CLI boundary; prove R19 and
    R20 with deterministic reviewer-process results. Keep the six agent-host
    delivery paths as explicit YCFFNC M2 prerequisites.
-6. Update configured customer documentation and the durable architecture record,
+7. **Not implemented:** update configured customer documentation and the durable architecture record,
    then run targeted, full, and release-contract verification for this M1 slice.
 
 Dogfood activation is deliberately last. Source contracts and tests may be built
@@ -231,9 +238,9 @@ an invisible substate.
 | Represent Execution Planning as an explicit canonical phase | Add `plan-execution` between `plan-implementation` and `implement`, with `execution-plan.md` owned by that phase | Two sections in one plan; two files in one phase with hidden substate | One plan preserves the mixed review unit; hidden state cannot be observed or enforced consistently by host gates and receipts |
 | Give Implementation Planning one author/reviewer contract | Extract one canonical contract block into generated runtime text and bind its SHA-256 identity into review packets and receipts | Duplicate author/reviewer prose with parity tests; runtime-only rubric; schema alone | Duplicate prose can drift before tests run; runtime-only text is not available to authors; structural schema cannot express semantic decision quality |
 | Keep structural and semantic checks separate | Parsers enforce required structure/applicability; independent review judges implementability, evidence, trade-offs, and focused reviewability | Encode all quality as lexical/parser rules; let review check everything including file existence | Lexical rules reward proof-shaped prose and create false confidence; review-only structure produces slow, inconsistent recovery for observable omissions |
-| Validate evidence fields in prose semantically | The parser requires an evidence-bearing decision section or justified applicability skip; when an external fact materially affects a load-bearing choice, semantic review requires a stable reference, retrieval date, and applicable version whether expressed as a table, prose, or bullets; otherwise the entry may say evidence is not applicable with a reason | Parse one mandatory table shape; require invented citations for internal policy choices; use lexical searches over free-form prose; leave all evidence checks implicit | One table violates presentation neutrality; invented citations reduce trust; lexical searches confuse labels with meaningful values; implicit checks cannot name the missing field in recovery |
+| Validate evidence without prescribing presentation | The parser requires an evidence-bearing decision section or justified applicability skip and, for each applicable external evidence entry, a stable reference, retrieval date, and applicable version in table, prose, or bullets; semantic review judges credibility, currency, and support | Parse one mandatory table; require invented citations; leave field presence to semantic review | One table violates presentation neutrality; invented citations reduce trust; semantic review is the wrong expensive boundary for observable missing fields |
 | Keep one design plan of record | `impl-plan.md` remains authoritative and names each required decision, why it matters, and its consequence; a resolvable subordinate artifact included in the review packet may carry full decision detail; significant cross-feature decisions also enter configured architecture | Require every detail inline; allow unlinked or separately authoritative feature design documents | Embedding all detail defeats focused reviewability; competing authority splits the review path and lets required decisions evade the bounded review |
-| Make durable architecture recording possible before approval | During planning, permit edits only to the configured project-owned architecture record in addition to existing meta paths; require the significant decision's resolvable link before semantic approval | Record the decision after implementation starts; accept a typed promise to record it later; put the architecture record under the ticket namespace | Post-approval recording makes R7 circular and lets an unrecorded decision advance; a promise weakens the accepted rejection behavior; a ticket-local substitute ignores the project's configured durable record |
+| Make durable architecture recording possible before approval | A configured architecture file admits only that exact file; a configured ADR directory admits only direct `YYYYMMDD-slug.md` children. Siblings, non-dated children, nested/outside paths, and ordinary files remain frozen. | Exact-path-only directory matching; permit every directory child; record after implementation starts | Exact-only prevents ADR creation; blanket prefix access widens the freeze; post-approval recording makes R7 circular |
 | Lead with the reviewer's mental model | Open with architecture at a glance, then contracts and invariants, operational consequences and risks, and unresolved decisions with their authority | Follow code order; use a generic executive summary; lead with a verification ledger | Code order serves the implementer; a generic summary can omit load-bearing choices; evidence-first prose makes proof volume stand in for design quality |
 | Apply guides by decision applicability | Architecture guidance applies to component/shared-contract consequences; data guidance covers purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback at decision depth; testing guidance chooses behavior, real boundary, proof type, and limitation only | Always require every guide; leave guides entirely to Execution Planning | Universal checklists add noise; deferral lets behavior-shaping architecture/data/proof decisions become implementer guesses |
 | Keep the evidence ledger outside the decision path | The plan states proof scope and confidence and links detailed current-revision, earlier-revision, partial, or missing evidence in its owning artifact | Repeat test names, hashes, and scenario results in the plan; omit proof state entirely | Repetition bloats and stales the approval surface; omission prevents reviewers from judging whether the approach can be validated |
@@ -254,7 +261,7 @@ informed by SLSA v1.2 provenance's subject identity
 informational patterns only:
 Safeword claims neither OpenAPI nor SLSA conformance, and reuses no source code.
 
-The explicit phase, planning edit exception, and contract/receipt identity are
+The explicit phase and planning edit exception are
 significant shared workflow contracts. They are recorded in the resolvable
 `ARCHITECTURE.md` section “Separate Implementation and Execution Planning
 Gates,” which explicitly supersedes the transition and six-section artifact
@@ -289,7 +296,7 @@ Existing decisions honored:
   currency check: any source-byte change makes the receipt stale and names
   revalidation. Sibling `5F5ZZA` later narrows invalidation to semantically
   relevant context without weakening this ticket's fail-closed behavior.
-- “Typed Integration Registry for Harness-Neutral Lifecycle Workflows” remains
+- “Registry-Driven Agent Integrations with Native Trust Boundaries” remains
   the source of host capability truth; unsupported Desktop enforcement is not
   overstated.
 
@@ -354,6 +361,10 @@ verified shipped behavior.
   detail behind links; do not move unresolved decisions into Execution Planning.
 - Contract-digest mismatches occur during normal same-version use: audit
   generation and delivery provenance before weakening identity checks.
+- Normal local use repeatedly hits approval-ledger contention timeouts, stale
+  lease recovery, or material audit-read cost: reassess the append-only ledger,
+  lock lease, fencing token, and retention policy before weakening fail-closed
+  authority behavior.
 - An Execution Plan review returns a newly discovered architecture, API, data,
   rollback, or proof-scope choice to Implementation Planning: strengthen the
   corresponding decision-discovery obligation before accepting that choice

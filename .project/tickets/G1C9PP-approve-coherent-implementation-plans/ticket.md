@@ -2,7 +2,7 @@
 id: G1C9PP
 slug: approve-coherent-implementation-plans
 type: feature
-phase: scenario-gate
+phase: plan-implementation
 status: in_progress
 phase_skips:
   - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
@@ -152,3 +152,7 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 - 2026-09-10T20:30:00.000Z Scenario review polish: Independent review cfe50c42-5924-4fd9-a403-0306aed3ee45 approved all 39 scenarios. Applied every remaining warning: R19 now derives currency from changed or unchanged bytes; R15 begins from raw plan presentation; missing-contract recovery has an installed CLI scenario; R18 separates ownership from applicability; and the child Killer Demo names the exact partial payoff and deferred continuation. The packet now contains 41 scenarios.
 
 - 2026-09-10T20:37:00.000Z Scenario review polish: Independent review b561dca2-0e46-40eb-9724-2d766a0b7db0 approved all 41 scenarios. Added discriminating R6 foundational-data and R17 lifecycle rows, made R14's fixture-minted authority and 5F5ZZA release limit visible in the scenario, and replaced R19's open-ended headless assertion with the settled ticket phase and pending approval state.
+
+- 2026-09-10T20:45:00.000Z Scenario gate exit: The final exact-byte independent review exhausted both configured Claude routes after timeout (review d17299ff-19eb-49ed-bf6b-2e9c51c1a6bf). Under the trusted `prefer` policy, the one permitted fresh-context fallback also timed out; the bounded main-thread fallback approved the 41/41 reconciled feature and ledger with no findings and no claim of independence. Returned to Implementation Planning to reconcile the plan with the newly accepted scenarios.
+
+- 2026-09-10T20:52:00.000Z Implementation Plan reconciliation: Updated delivery-state truth for reopened proofs; added installed missing-contract recovery; decided bounded design-record discovery; added lease fencing and local-filesystem limits; specified file-versus-ADR-directory edit admission; aligned evidence field ownership; moved the riskiest R1 boundary first; corrected architecture decision citations; and added a durable-ledger reassessment trigger. Exact plan bytes now require independent re-review.
