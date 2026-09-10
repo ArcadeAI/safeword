@@ -7,7 +7,16 @@ import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 
 const SIGNIFICANCE_OBLIGATION = 'Architecture significance';
 const SIGNIFICANCE_CLAUSE_FIXTURE = `- **Architecture significance:** Determine significance
-  from shared API and migration compatibility effects, never file count or labels.`;
+  from shared API and migration compatibility effects, significant even when one file;
+  a many-file mechanical edit is not. Never use file count or labels.`;
+const REQUIRED_SIGNIFICANCE_PHRASES = [
+  'shared API',
+  'migration compatibility',
+  'significant even when',
+  'many-file mechanical edit',
+  'Never use file count',
+  'labels',
+] as const;
 
 interface ChangeImpact {
   name: string;
@@ -28,12 +37,21 @@ function parseChanges(plan: string): ChangeImpact[] {
           .find(line => line.startsWith(prefix))
           ?.slice(prefix.length)
           .trim();
+      const files = Number(field('Files changed: '));
+      const effect = (prefix: string): 'changed' | 'preserved' => {
+        const value = field(prefix);
+        if (value !== 'changed' && value !== 'preserved') {
+          throw new Error(`Invalid or missing ${prefix}`);
+        }
+        return value;
+      };
+      if (!Number.isSafeInteger(files) || files < 1)
+        throw new Error('Invalid or missing file count.');
       return {
         name: field('### Change: ') ?? '',
-        files: Number(field('Files changed: ')),
-        sharedApi: field('Shared API effect: ') === 'changed' ? 'changed' : 'preserved',
-        migrationCompatibility:
-          field('Migration compatibility effect: ') === 'changed' ? 'changed' : 'preserved',
+        files,
+        sharedApi: effect('Shared API effect: '),
+        migrationCompatibility: effect('Migration compatibility effect: '),
         architectureRecord: field('Architecture record: '),
       };
     });
@@ -50,7 +68,7 @@ function missingSignificanceRequirements(contract: string): string[] {
   const clause = significanceClause(contract);
   if (clause === undefined) return [SIGNIFICANCE_OBLIGATION];
   const normalized = clause.replaceAll(/\s+/gu, ' ').toLowerCase();
-  return ['shared api', 'migration compatibility', 'file count', 'labels'].filter(
+  return REQUIRED_SIGNIFICANCE_PHRASES.map(requirement => requirement.toLowerCase()).filter(
     requirement => !normalized.includes(requirement),
   );
 }
@@ -141,6 +159,20 @@ Migration compatibility effect: preserved
           message: expect.stringContaining('Generated import formatting'),
         }),
       ]);
+    },
+  );
+
+  it.each(REQUIRED_SIGNIFICANCE_PHRASES)(
+    'fails closed when the packaged significance clause drops %s',
+    requirement => {
+      const clause = significanceClause(PLAN_REVIEW_RUBRIC) ?? '';
+      expect(missingSignificanceRequirements(clause)).toEqual([]);
+      const mutated = clause.replace(requirement, '');
+
+      const result = reviewArchitectureSignificance(mutated, '');
+
+      expect(result.verdict).toBe('request_changes');
+      expect(result.findings[0]?.message.toLowerCase()).toContain(requirement.toLowerCase());
     },
   );
 });
