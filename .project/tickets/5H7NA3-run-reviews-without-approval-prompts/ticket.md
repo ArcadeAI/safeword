@@ -59,3 +59,9 @@ last_modified: 2026-09-10T23:06:30.082Z
 - 2026-09-10T23:26:00Z Verified: Focused review surface suite passes 44/44; Claude and Codex
   generated-plugin checks are current; a sandboxed missing-ID status probe reported no network
   effects.
+- 2026-09-10T23:31:00Z Restart check: Codex replaced the cachebuster build with stable `0.83.1`,
+  changing the immutable runtime path. Refreshed the exact-command rule and installed review
+  examples for that live path; execpolicy matches dispatch only and excludes status/arbitrary Bun.
+- 2026-09-10T23:32:00Z Pending activation: The running Codex process loaded rules before the path
+  refresh, so a real dispatch still reached auto-review and was denied. One final restart is needed
+  to load the refreshed stable-path rule; no one-off payload approval was requested.
