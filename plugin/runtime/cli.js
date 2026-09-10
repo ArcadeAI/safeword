@@ -60146,7 +60146,7 @@ function configurePython(cwd, context, options = {}) {
   }));
   const command = commands.map((item) => {
     const relative = nodePath104.relative(cwd, item.directory);
-    return relative === "" ? item.command : `(cd ${JSON.stringify(relative)} && ${item.command})`;
+    return relative === "" ? item.command : `(cd ${shellQuote(relative)} && ${item.command})`;
   }).join(" && ");
   const installable = commands.filter((item) => item.packageManager !== "pip");
   const shouldInstall = options.offline !== true && !process.env.SAFEWORD_SKIP_INSTALL && installable.length > 0;
