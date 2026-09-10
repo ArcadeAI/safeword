@@ -24,7 +24,7 @@ prove real installed CLI wiring.
 
 - [x] RED 50004d6fe
 - [x] GREEN 5f6201106
-- [ ] REFACTOR
+- [x] REFACTOR skip: contract comparison is isolated and introduces no duplicated production path
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
 
