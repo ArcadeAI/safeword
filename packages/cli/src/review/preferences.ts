@@ -6,7 +6,6 @@ import type { ReviewAgent, ReviewAuthor } from './contract.js';
 import { parseConfiguredReviewRoutes, type ReviewRoute } from './route-config.js';
 
 export type ReviewRouteScope = 'project' | 'user';
-export type ReviewRouteSource = ReviewRouteScope | 'built-in';
 
 export interface UserConfigEnvironment {
   readonly platform: 'unix' | 'windows';
@@ -34,7 +33,7 @@ function absolute(value: string | undefined, paths: typeof nodePath.posix): stri
   return trimmed !== undefined && paths.isAbsolute(trimmed) ? trimmed : undefined;
 }
 
-export function currentUserConfigPath(): string {
+function currentUserConfigPath(): string {
   const path = optionalCurrentUserConfigPath();
   if (path === undefined)
     throw new Error('Cannot locate the Safeword user configuration directory.');
@@ -54,7 +53,7 @@ export function scopedConfigPath(cwd: string, scope: ReviewRouteScope): string {
     : currentUserConfigPath();
 }
 
-export function readConfigFile(path: string): Record<string, unknown> {
+function readConfigFile(path: string): Record<string, unknown> {
   if (!existsSync(path)) return {};
   let contents: string;
   try {
