@@ -488,6 +488,68 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('## Shared implementation-plan judgment standard');
   });
 
+  it('accepts only a ticket-owned Implementation Plan through the public review command', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    const privateDirectory = nodePath.join(directory, '.claude', 'plans');
+    mkdirSync(ticketDirectory, { recursive: true });
+    mkdirSync(privateDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Project plan\n');
+    writeFileSync(nodePath.join(privateDirectory, 'impl-plan.md'), '# Host-private plan\n');
+    const bin = installFakeReviewer(directory, 'claude');
+    const environment = {
+      PATH: `${bin}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_LOG: reviewLog,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+
+    const accepted = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    expect(accepted.exitCode, accepted.stdout).toBe(0);
+    expect(JSON.parse(accepted.stdout)).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved' },
+    });
+
+    const rejected = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        '.claude/plans/impl-plan.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    expect(rejected.exitCode, rejected.stdout).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_PLAN_TARGET_INVALID',
+          message: expect.stringContaining('.project/tickets/<ticket>/impl-plan.md'),
+        },
+      ],
+    });
+  });
+
   it.each([
     { label: 'missing', context: [] },
     { label: 'blank', context: ['--context', 'spec.md'] },
