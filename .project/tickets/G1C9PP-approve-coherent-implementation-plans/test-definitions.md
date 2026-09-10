@@ -44,7 +44,7 @@ prove real installed CLI wiring.
 
 ### Scenario: A divergent host-private copy never becomes authoritative
 
-- [ ] RED
+- [x] RED 4f168b359
 - [ ] GREEN
 - [ ] REFACTOR
 
