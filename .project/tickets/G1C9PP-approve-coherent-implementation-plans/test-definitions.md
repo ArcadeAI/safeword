@@ -53,7 +53,7 @@ prove real installed CLI wiring.
 ### Scenario: Architecture applicability accepts consequences or a justified skip
 
 - [x] RED 61636f429
-- [ ] GREEN
+- [x] GREEN 5b00d9413
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R6 — Applicable data decisions cover purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback at decision depth
