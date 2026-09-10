@@ -14,7 +14,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Safeword CLI enforces and releases the decision boundary
 
-- [x] RED d847b78da — executable mutation proof approved by Claude Opus (`e4ef427a-c849-4d68-b123-a9773207fead`)
+- [x] RED d847b78da
 - [ ] GREEN
 - [ ] REFACTOR
 
