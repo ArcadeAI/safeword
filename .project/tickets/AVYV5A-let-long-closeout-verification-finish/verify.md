@@ -6,6 +6,8 @@ Verified: 2026-09-10T17:22:00Z
 
 **Focused Test Suite:** ✓ 116/116 closeout-cleanup tests pass, including a real Bun subprocess
 that times out and removes its background descendant.
+**Lifecycle Contract:** ✓ 13/13 origin/main lifecycle contracts pass after intentionally
+regenerating the three affected Cursor tree hashes; combined focused run is 129/129.
 **Build:** ✅ Success for retro-relay, retro-collector, and CLI, including declaration output.
 **Typecheck:** ✅ Clean across all three packages.
 **Lint:** ✅ Clean (ESLint, Gherkin lint, and CLI TypeScript).
@@ -45,3 +47,10 @@ failures remain fail-closed, the async settle/timer path removes the reported no
 Bun integration test discriminates whole-tree termination from direct-shell termination. Remaining
 notes concern optional future work: parent-interrupt cleanup, aggregate-stage deadlines, richer
 failure diagnostics, and native Windows coverage.
+
+## Hosted CI remediation
+
+The first Node 24 run exposed three stale Cursor lifecycle tree digests caused by the changed
+installed closeout script. The documented fixture generator updated only Cursor install, check, and
+upgrade tree hashes plus their manifest digests; result hashes and every Claude, Codex, and uninstall
+fixture remained unchanged. The update-mode run and the required non-update verification both pass.
