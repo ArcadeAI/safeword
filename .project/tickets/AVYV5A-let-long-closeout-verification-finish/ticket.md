@@ -4,9 +4,9 @@ slug: let-long-closeout-verification-finish
 type: task
 subtype: bug-investigated
 phase: implement
-status: in_progress
+status: done
 created: 2026-09-10T15:56:28.091Z
-last_modified: 2026-09-10T17:17:00Z
+last_modified: 2026-09-10T18:27:20Z
 ---
 
 # Let long closeout verification finish
@@ -64,3 +64,5 @@ no child process and zero CPU use).
 - 2026-09-10T17:17:00Z REVIEW: Independent Claude review found no blocking defect. Hardened
   exit/deadline race handling, removed the obsolete synchronous timeout option, and made the
   descendant-cleanup proof run through Bun with a repository-root-stable import.
+- 2026-09-10T18:27:20Z DONE: Focused verification, diff audit, independent quality review, and
+  hosted CI all pass; the ticket is ready to ride the review-ready pull request.
