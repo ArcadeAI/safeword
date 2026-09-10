@@ -13,6 +13,10 @@ const MISSING_ROUTING_FINDING = {
   severity: 'error' as const,
   message: 'The packaged contract is missing the durable-record routing requirement.',
 };
+const MISSING_UNRESOLVED_GATE_FINDING = {
+  severity: 'error' as const,
+  message: 'The packaged contract is missing the unresolved-significant-decision gate.',
+};
 
 interface PlannedDecision {
   name: string;
@@ -95,15 +99,10 @@ function reviewUnrecordedSignificantDecision(
       reviewer_agent: 'claude',
       verdict: 'request_changes',
       summary: 'The durable-link approval gate is missing.',
-      findings: [
-        {
-          severity: 'error',
-          message: 'The packaged contract is missing the unresolved-significant-decision gate.',
-        },
-      ],
+      findings: [MISSING_UNRESOLVED_GATE_FINDING],
     };
   }
-  return reviewRecordingDestinations(`${contract} ${ROUTING_REQUIREMENT}`, plan, resolvableRecords);
+  return reviewRecordingDestinations(contract, plan, resolvableRecords);
 }
 
 describe('Implementation Plan durable architecture routing', () => {
@@ -172,10 +171,7 @@ Significance: difficult-to-reverse shared-contract choice
 
     const result = reviewUnrecordedSignificantDecision(PLAN_REVIEW_RUBRIC, plan, new Set());
 
-    expect(
-      result.findings.filter(finding => finding.message.startsWith('The packaged contract')),
-      'The packaged contract is missing the unresolved-significant-decision gate.',
-    ).toEqual([]);
+    expect(result.findings).not.toContainEqual(MISSING_UNRESOLVED_GATE_FINDING);
     expect(result.verdict).toBe('request_changes');
     expect(result.findings).toEqual([
       expect.objectContaining({
@@ -191,7 +187,7 @@ Architecture record: ARCHITECTURE.md#gateway-authorization
 `;
 
     const result = reviewUnrecordedSignificantDecision(
-      BLOCKING_REQUIREMENT,
+      PLAN_REVIEW_RUBRIC,
       plan,
       new Set(['ARCHITECTURE.md#gateway-authorization']),
     );
