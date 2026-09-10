@@ -22,17 +22,17 @@ prove real installed CLI wiring.
 
 ### Scenario: Contract agreement controls review eligibility
 
-- [x] RED 50004d6fe
-- [x] GREEN 5f6201106
-- [x] REFACTOR skip: contract comparison is isolated and introduces no duplicated production path
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
 
 ### Scenario: Decision presentation controls focused reviewability
 
-- [x] RED 57a353172
-- [x] GREEN b59f684be
-- [x] REFACTOR skip: the focused-review obligation is one canonical clause with generated mirrors and no duplicated production path
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
 
@@ -60,9 +60,9 @@ prove real installed CLI wiring.
 
 ### Scenario: Data guidance follows data-contract applicability
 
-- [x] RED 23abfdefc
-- [x] GREEN 6e58244f2
-- [x] REFACTOR skip: the field list is one review obligation mirrored once in the authoring template, with no production parser added
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Data decisions cannot be replaced by migration commands
 
@@ -102,9 +102,9 @@ prove real installed CLI wiring.
 
 ### Scenario: One design plan remains the feature plan of record
 
-- [x] RED c572e44ab
-- [x] GREEN 19016b552
-- [x] REFACTOR 7f8181ac1
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope and confidence without absorbing execution mechanics or the verification ledger
 

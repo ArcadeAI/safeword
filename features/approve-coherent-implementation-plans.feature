@@ -94,6 +94,7 @@ Feature: Approve coherent Implementation Plans
         | one persisted entity change that omits data ownership and migration decisions | approval is blocked with ownership and migration named |
         | one persisted entity change that omits retention and rollback consequences | approval is blocked with retention and rollback named |
         | one persisted entity change that omits identity and integrity decisions | approval is blocked with identity and integrity named |
+        | a persisted entity names an owner that contradicts the plan's source-of-truth authority | approval is blocked with the conflicting data owner named |
         | purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback decisions recorded without migration commands | data guidance does not block approval |
         | a persisted cross-system flow with no source of truth or access decision | approval is blocked with source of truth and access named |
         | a regulated backfill with no compliance consequence | approval is blocked with compliance named |
@@ -129,8 +130,10 @@ Feature: Approve coherent Implementation Plans
         | one project-owned architecture file | a sibling file beside it | the edit remains blocked because resemblance does not grant planning access |
         | a project-owned ADR directory | a direct child named YYYYMMDD-slug.md | creation is permitted so a significant decision can be recorded before review |
         | a project-owned ADR directory | a direct child that does not match YYYYMMDD-slug.md | the edit remains blocked because directory membership alone does not make it an architecture record |
-        | a project-owned ADR directory | a path outside or nested below that directory | the edit remains blocked because only direct dated ADR children are records |
-        | either configured form | an ordinary source or documentation path | the edit remains blocked by the planning freeze |
+        | a project-owned ADR directory | a nested dated ADR below a child directory | the edit remains blocked because only direct dated ADR children are records |
+        | a project-owned ADR directory | a dated ADR outside that directory | the edit remains blocked because the configured directory grants no access outside it |
+        | one project-owned architecture file | an ordinary source or documentation path | the edit remains blocked by the planning freeze |
+        | a project-owned ADR directory | an ordinary source or documentation path | the edit remains blocked by the planning freeze |
 
   @plan-implementability.TBU1.G1C9PP.R8
   Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
@@ -294,6 +297,7 @@ Feature: Approve coherent Implementation Plans
       When the installed Safeword CLI presents the review receipt through real internal collaborators
       Then it says the shared-contract choice needs an architecture record without internal phase or type jargon and tells them to add that link before resubmitting
 
+    @surface.safeword-cli
     Scenario: A blocked receipt preserves evidence for a Technical Builder
       Given a failed review addressed to a Technical Builder because a shared-contract choice has no durable architecture link
       When the review receipt is presented
