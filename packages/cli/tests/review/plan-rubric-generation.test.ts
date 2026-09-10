@@ -21,6 +21,15 @@ describe('plan rubric generation', () => {
     expect(PLAN_REVIEW_RUBRIC).toBe(extractPlanReviewRubric(canonicalSkill));
   });
 
+  it('makes exact author-reviewer contract agreement an approval precondition', () => {
+    expect(PLAN_REVIEW_RUBRIC).toContain(
+      'The packet must carry one exact current decision-quality contract for both author and reviewer.',
+    );
+    expect(PLAN_REVIEW_RUBRIC).toContain(
+      'If obligations conflict, block approval and name each conflicting obligation.',
+    );
+  });
+
   it.each([
     ['missing markers', 'rubric'],
     ['duplicate start', `${PLAN_RUBRIC_START} a ${PLAN_RUBRIC_START} b ${PLAN_RUBRIC_END}`],
