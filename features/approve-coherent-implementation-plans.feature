@@ -252,7 +252,7 @@ Feature: Approve coherent Implementation Plans
     @surface.safeword-cli
     Scenario Outline: Evidence presentation does not replace evidence completeness
       Given an Implementation Plan records <evidence_presentation>
-      When structural and semantic evidence checks run
+      When those structural and semantic evidence checks run through the installed Safeword CLI
       Then <result>
 
       Examples:

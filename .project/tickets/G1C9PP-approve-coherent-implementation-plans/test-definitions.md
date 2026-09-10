@@ -261,6 +261,13 @@ in-process prompter cannot satisfy RED or GREEN. The other non-interactive rows
 prove their outcomes from CLI exit state, ticket phase, and the project-local
 receipt.
 
+Contention proof boundary: the fixture holding the first writer releases only
+after the second invocation's configured bounded contention timeout has elapsed.
+
+Headless reviewable-output delivery — skip: sibling `YCFFNC` owns installed host
+delivery of the reviewed approach; this ticket proves pending authority and
+nonblocking behavior at the canonical CLI boundary.
+
 ### Scenario: Installed CLI human design authority follows configuration
 
 - [ ] RED
