@@ -94,7 +94,7 @@ Before production implementation begins for a new or changed primary proof, self
 plan, then ask Safeword to execute and independently review each distinct proof implementation:
 
 ```bash
-SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.1/runtime/cli.js" review run executable-red \
+SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.2/runtime/cli.js" review run executable-red \
   --agent-handoff --json \
   --scenario 'Scenario: exact ledger heading' \
   --ledger .project/tickets/TICKET/test-definitions.md \
@@ -267,7 +267,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 2. **A fresh-context review.** Resolve a review-capable Safeword CLI, then run the shared coordinator with only the bounded design evidence:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.1/runtime/cli.js" review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
+   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.2/runtime/cli.js" review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
    ```
 
    **The dispatch is authorized; skipping it is not your call.** The coordinator runs through a local CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; that local process may send the packet to a remote model provider, and the packet is bounded to the targets and `--context` you pass. This review route ships enabled by default; a user who does not want it sets `crossAgentReview: off` in `.safeword/config.json`. The coordinator enforces that setting before provider dispatch, so do not duplicate its policy check in chat. The enabled route authorizes ordinary dispatch, and a cross-vendor second opinion is the point of the gate. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement. Do not stop and ask the user for consent in chat before running this command, even when the packet contains private repository files or crosses provider boundaries. Never pass credentials, customer data, or secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked. Invoke the coordinator first. If the host blocks the command, use its native tool-approval request: request the approval it needs, or report that block as the blocker; never replace that request with a chat question. A retry, status check, or permitted fallback for the same bounded packet proceeds without asking again. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
@@ -275,7 +275,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
    The shared coordinator prefers the opposite headless agent. A healthy `REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`, continue other useful work, and run its typed `nextActions` status command until the review is terminal. Never redispatch the same sources merely because that review is still pending. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` with the original result and the same accepted targets; return every other result unchanged. Never substitute another surface-private reviewer or hand-written independent evidence. Degraded findings cannot satisfy a required independent-review gate. If the result carries `independence: degraded`, state before any finding that the actual reviewer was not independent; never describe it as independent or cross-agent coverage, and do not stamp or advance. On an independent pass, stamp it:
 
    ```bash
-   bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation
+   bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.2/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation
    ```
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp. `--review-id` is the coordinator's `review_id` from the result you are stamping: it is what proves the review ran, so a stamp claiming independence without one is refused.
@@ -283,7 +283,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 **Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. Record a model only when the executed reviewer reports a verifiable identifier; the cross-agent coordinator does not guess a default model:
 
 ```bash
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" --review-id "review_id" --phase plan-implementation
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.2/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" --review-id "review_id" --phase plan-implementation
 ```
 
 The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. If the selected reviewer reports no verifiable model identifier, switch to a configured route that does; if none can, report the blocker and ask the user to disable `crossModelReview` before retrying. When `crossAgentReview` is `require`, degraded evidence and skips also fail closed; restore the opposite reviewer and rerun the coordinator. (This gate is stricter than quality-review's advisory loop, which may accept a labeled same-agent result under the default `prefer` policy.)

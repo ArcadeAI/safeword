@@ -596,6 +596,95 @@ function marketplaceEffectKind(observation: MarketplaceObservation): 'add' | 'up
     : 'add';
 }
 
+function canonicalMarketplaceSource(): JsonObject {
+  return {
+    source: 'git',
+    url: MARKETPLACE_BASE,
+    ref: officialMarketplaceSource().slice(MARKETPLACE_BASE.length + 1),
+  };
+}
+
+function readMarketplaceRegistry(): {
+  readonly contents: string;
+  readonly mode: number;
+  readonly path: string;
+  readonly value: JsonObject;
+} {
+  const path = nodePath.join(claudeConfigDirectory(), 'plugins/known_marketplaces.json');
+  if (!existsSync(path)) {
+    throw new ClaudeProfileError(
+      'CLAUDE_MARKETPLACE_UNVERIFIED',
+      'Claude reported the Safeword marketplace but its marketplace registry is missing.',
+    );
+  }
+  const metadata = lstatSync(path);
+  if (!metadata.isFile()) {
+    throw new ClaudeProfileError(
+      'CLAUDE_MARKETPLACE_UNVERIFIED',
+      'Claude marketplace registry is not a regular file.',
+    );
+  }
+  const contents = readFileSync(path, 'utf8');
+  const errors: ParseError[] = [];
+  const value = parse(contents, errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  }) as unknown;
+  if (errors.length > 0 || !isJsonObject(value)) {
+    throw new ClaudeProfileError(
+      'CLAUDE_MARKETPLACE_UNVERIFIED',
+      'Claude marketplace registry is malformed.',
+    );
+  }
+  return { contents, mode: metadata.mode & 0o777, path, value };
+}
+
+function refreshStaleMarketplace(
+  cwd: string,
+  scope: ClaudePluginScope,
+  effects: Effect[],
+): () => void {
+  const settingsPath = scopedSettingsPath(cwd, scope);
+  const settingsMetadata = lstatSync(settingsPath);
+  if (!settingsMetadata.isFile()) {
+    throw new ClaudeProfileError(
+      'CLAUDE_MARKETPLACE_UNVERIFIED',
+      `Claude ${scope}-scope settings are not a regular file.`,
+    );
+  }
+  const settingsContents = readFileSync(settingsPath, 'utf8');
+  const registry = readMarketplaceRegistry();
+  const registryEntry = registry.value[MARKETPLACE_NAME];
+  if (!isJsonObject(registryEntry) || marketplaceSourceStatus(registryEntry) === 'conflict') {
+    throw new ClaudeProfileError(
+      'CLAUDE_MARKETPLACE_UNVERIFIED',
+      'Claude marketplace registry does not contain the trusted Safeword source.',
+    );
+  }
+  const source = canonicalMarketplaceSource();
+  const updatedSettings = applyEdits(
+    settingsContents,
+    modify(settingsContents, ['extraKnownMarketplaces', MARKETPLACE_NAME, 'source'], source, {}),
+  );
+  const updatedRegistry = applyEdits(
+    registry.contents,
+    modify(registry.contents, [MARKETPLACE_NAME, 'source'], source, {}),
+  );
+  try {
+    writeDurableFile(settingsPath, updatedSettings, { mode: settingsMetadata.mode & 0o777 });
+    writeDurableFile(registry.path, updatedRegistry, { mode: registry.mode });
+    runClaude(cwd, ['plugin', 'marketplace', 'update', MARKETPLACE_NAME], effects);
+  } catch (error) {
+    writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 0o777 });
+    writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
+    throw error;
+  }
+  return () => {
+    writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 0o777 });
+    writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
+  };
+}
+
 function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
   const before = observeMarketplace(cwd, scope, effects);
   assertTrustedMarketplace(before);
@@ -610,37 +699,50 @@ function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effec
       `Claude ${scope}-scope marketplace auto-update is explicitly disabled; Safeword left the marketplace declaration unchanged.`,
     );
   }
-  runClaude(
-    cwd,
-    ['plugin', 'marketplace', 'add', officialMarketplaceSource(), '--scope', scope],
-    effects,
-  );
+  const effectKind = marketplaceEffectKind(before);
+  let rollbackMarketplace: (() => void) | undefined;
+  if (effectKind === 'update' && before.declaration !== undefined && before.shared !== undefined) {
+    rollbackMarketplace = refreshStaleMarketplace(cwd, scope, effects);
+  } else {
+    runClaude(
+      cwd,
+      ['plugin', 'marketplace', 'add', officialMarketplaceSource(), '--scope', scope],
+      effects,
+    );
+  }
   effects.push({
-    kind: marketplaceEffectKind(before),
+    kind: effectKind,
     target: MARKETPLACE_NAME,
     operation: scope,
   });
-  if (!marketplaceIsCurrent(observeMarketplace(cwd, scope, effects))) {
-    throw new ClaudeProfileError(
-      'CLAUDE_MARKETPLACE_UNVERIFIED',
-      'Claude did not report the exact official Safeword marketplace after adding it.',
-      effects,
-    );
+  try {
+    if (!marketplaceIsCurrent(observeMarketplace(cwd, scope, effects))) {
+      throw new ClaudeProfileError(
+        'CLAUDE_MARKETPLACE_UNVERIFIED',
+        'Claude did not report the exact official Safeword marketplace after adding it.',
+        effects,
+      );
+    }
+  } catch (error) {
+    rollbackMarketplace?.();
+    throw error;
   }
   enableMarketplaceAutoUpdate(cwd, scope, effects);
 }
 
-function assertConvergeablePluginVersion(plugin: JsonObject): void {
+function assertConvergeablePluginVersion(plugin: JsonObject, effects: readonly Effect[]): void {
   if (typeof plugin.version !== 'string' || !isSafePackageVersion(plugin.version)) {
     throw new ClaudeProfileError(
       'CLAUDE_PLUGIN_METADATA_UNVERIFIED',
       `Claude reported malformed ${CLAUDE_PLUGIN_ID} version metadata in the selected scope.`,
+      effects,
     );
   }
   if (compareVersions(plugin.version, VERSION) > 0) {
     throw new ClaudeProfileError(
       'CLAUDE_PLUGIN_DOWNGRADE_REFUSED',
       `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${VERSION}; refusing an implicit downgrade.`,
+      effects,
     );
   }
 }
@@ -651,7 +753,7 @@ function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]
     runClaude(cwd, ['plugin', 'install', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
     effects.push({ kind: 'install', target: CLAUDE_PLUGIN_ID, operation: scope });
   } else {
-    assertConvergeablePluginVersion(plugin);
+    assertConvergeablePluginVersion(plugin, effects);
     if (plugin.version !== VERSION) {
       runClaude(cwd, ['plugin', 'update', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
       effects.push({ kind: 'update', target: CLAUDE_PLUGIN_ID, operation: scope });
