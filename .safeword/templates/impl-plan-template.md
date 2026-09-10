@@ -129,7 +129,9 @@ nor architecture records apply, the section may say
 applicability statement. Keep reversible feature-local choices only in this
 plan. Keep each significant structural or hard-to-reverse decision here too,
 and link it to its resolvable configured durable architecture record. A missing
-or unresolved required link blocks approval. -->
+or unresolved required link blocks approval. Judge significance from shared
+API, migration compatibility, structural, and reversibility effects—not file
+count or the author's label. -->
 
 ## Known deviations
 

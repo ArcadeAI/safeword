@@ -31154,6 +31154,10 @@ records as context around the one \`impl-plan.md\` work artifact.
   state either a concrete component or shared-contract consequence, or a
   justified \`skip: <reason>\` when neither applies. Block both a missing
   applicability statement and a bare \`skip:\` with no reason.
+- **Architecture significance:** Judge significance from behavioral consequences.
+  A shared API or migration compatibility change is significant even when it
+  touches one file. A many-file mechanical edit that preserves contracts is
+  not. Never use file count or author-applied labels as the trigger.
 - **Data applicability and decisions:** Require \`Data applicability:\` to state
   either \`skip: <reason>\` when there is no data-contract, ownership, or
   lifecycle impact, or decision-depth coverage of Purpose, Store and model,
