@@ -38,7 +38,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Safeword CLI accepts only the project-local Implementation Plan
 
-- [ ] RED
+- [x] RED b59d6f7b9
 - [ ] GREEN
 - [ ] REFACTOR
 
