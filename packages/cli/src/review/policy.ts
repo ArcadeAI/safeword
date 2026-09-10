@@ -8,11 +8,6 @@ import { MODEL_NAME, type ReviewRoute } from './route-config.js';
 
 export type { ReviewRoute } from './route-config.js';
 
-export interface OppositeReviewPair {
-  readonly author: ReviewAgent;
-  readonly reviewer: ReviewAgent;
-}
-
 export interface ReviewRoutePlan {
   readonly author: ReviewAgent;
   readonly preferred: ReviewAgent;
@@ -46,11 +41,6 @@ export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefin
     };
   }
   return undefined;
-}
-
-export function oppositeReviewPair(author: ReviewAuthor): OppositeReviewPair | undefined {
-  const plan = reviewRoutePlan(author);
-  return plan === undefined ? undefined : { author: plan.author, reviewer: plan.preferred };
 }
 
 const DEFAULT_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'opus' };
