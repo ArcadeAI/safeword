@@ -81,7 +81,7 @@ prove real installed CLI wiring.
 ### Scenario: An unrecorded significant decision blocks approval
 
 - [x] RED 37d445eb2
-- [ ] GREEN
+- [x] GREEN 8504f326d
 - [ ] REFACTOR
 
 ### Scenario: Planning access permits only the configured durable architecture record
