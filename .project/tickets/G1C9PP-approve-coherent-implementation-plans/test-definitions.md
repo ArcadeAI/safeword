@@ -23,7 +23,7 @@ prove real installed CLI wiring.
 ### Scenario: Contract agreement controls review eligibility
 
 - [x] RED 50004d6fe
-- [ ] GREEN
+- [x] GREEN 5f6201106
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
