@@ -102,7 +102,7 @@ prove real installed CLI wiring.
 
 ### Scenario: One design plan remains the feature plan of record
 
-- [ ] RED
+- [x] RED c572e44ab
 - [ ] GREEN
 - [ ] REFACTOR
 
