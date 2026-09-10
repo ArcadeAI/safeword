@@ -2,7 +2,7 @@
 id: G1C9PP
 slug: approve-coherent-implementation-plans
 type: feature
-phase: plan-implementation
+phase: scenario-gate
 status: in_progress
 phase_skips:
   - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
@@ -18,6 +18,7 @@ scope:
   - give reviewers an architecture-at-a-glance mental model, explicit unresolved-decision state, and consequences for every accepted persona
   - distinguish proposed design, existing implementation, available proof, known defects, and pending human authority when those states coexist
   - apply the existing optional human design approval once to the reviewed approach without duplicating it after Execution Planning or deadlocking headless work
+  - preserve exact-plan approval authority when shared review-ledger writes overlap, stop, retry, time out, or encounter compatible unknown events
   - require decision-depth state and measurement models when significant behavior depends on them
   - repair incomplete or incorrect plans by returning to decision discovery, filling the known gaps through the proper decision owners, and re-reviewing the corrected plan
 out_of_scope:
@@ -31,13 +32,14 @@ done_when:
   - a plan cannot imply that implemented means proven or that independent review means human approval
   - significant concurrency, security, durability, lifecycle, migration, compatibility, and quantitative choices are sufficiently decided without absorbing execution mechanics
   - human design approval, when configured, is requested once on the reviewed approach and remains honestly pending where the surface cannot collect it
+  - concurrent or interrupted approval writes cannot lose, duplicate, invent, or silently invalidate review authority
   - an incomplete or incorrect plan is iteratively completed and corrected rather than ending at a rejection message
 product_plan_contract: v1
 parent: 82T411
 parent_job: plan-implementability.TBU1
 milestone: M1
 created: 2026-09-08T17:36:33.419Z
-last_modified: 2026-09-10T10:48:00.000Z
+last_modified: 2026-09-10T22:23:00.000Z
 parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afac25da34a
 ---
 
@@ -48,6 +50,8 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-10T22:23:00.000Z Returned to Scenario Gate before implementation: independent Implementation Plan review `64f969e3-8fd9-4cbf-872b-423f70e2e7e9` found that the accepted plan and architecture record introduced shared approval-ledger concurrency, crash-recovery, idempotency, timeout, and compatibility behavior without accepted scenarios. No implementation begins until those externally meaningful outcomes enter the behavior contract, the complete scenario packet is reviewed, and the revised exact plan is independently re-approved.
 
 - 2026-09-10T19:15:00.000Z Returned before production change: Executable-RED review `50fa4abb-9611-4ed6-8cea-d04f599ba606` approved the corrected R11 contract proof, then identified that the accepted Implementation Plan conflated R11's pure packaged-contract matrix with its separate installed-CLI receipt proof. Returned to Implementation Planning to split those proof boundaries and re-review the exact plan before resuming GREEN.
 

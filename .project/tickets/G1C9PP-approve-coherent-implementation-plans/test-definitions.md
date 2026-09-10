@@ -237,7 +237,7 @@ release prerequisite by itself.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, and headless work records pending authority without deadlocking or claiming approval
+## Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, headless work records pending authority without deadlocking or claiming approval, and the shared decision record preserves authority across concurrent writes, interruption, retry, contention, and compatible extensions
 
 ### Scenario: Installed CLI human design authority follows configuration
 
@@ -268,6 +268,30 @@ release prerequisite by itself.
 Proof limit: this scenario proves only whether human design approval still
 binds the exact current approach bytes. Sibling `5F5ZZA` owns semantic review
 record invalidation, provenance changes, and context-digest recomputation.
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Concurrent design decisions do not overwrite each other
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An interrupted approval resumes without duplicating authority
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Approval-ledger contention fails closed without changing authority
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A design decision preserves compatible review-ledger extensions
 
 - [ ] RED
 - [ ] GREEN

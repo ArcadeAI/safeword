@@ -379,7 +379,7 @@ Feature: Approve coherent Implementation Plans
         | records a justified measurement-design applicability skip | measurement design does not block approval |
 
   @plan-implementability.TBU1.G1C9PP.R19
-  Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, and headless work records pending authority without deadlocking or claiming approval
+  Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, headless work records pending authority without deadlocking or claiming approval, and the shared decision record preserves authority across concurrent writes, interruption, retry, contention, and compatible extensions
 
     @surface.safeword-cli
     Scenario Outline: Installed CLI human design authority follows configuration
@@ -421,6 +421,35 @@ Feature: Approve coherent Implementation Plans
         | byte_change | approval_result |
         | not changed | no further human decision is requested and Execution Planning proceeds on the existing approval |
         | changed | the current approach requires a new human decision |
+
+    @surface.safeword-cli
+    Scenario: Concurrent design decisions do not overwrite each other
+      Given two distinct reviewed Implementation Plans have authorized design decisions writing concurrently to the same real project review ledger
+      When both installed Safeword CLI writers settle through real internal collaborators
+      Then both exact-plan decisions are readable and neither append overwrites the other
+
+    @surface.safeword-cli
+    Scenario Outline: An interrupted approval resumes without duplicating authority
+      Given an authorized approval write is interrupted <interruption_boundary>
+      When the same installed Safeword CLI request resumes through real internal collaborators
+      Then exactly one current approval is recorded and Execution Planning begins without a second human decision
+
+      Examples:
+        | interruption_boundary |
+        | before the decision event becomes durable |
+        | after the decision event becomes durable but before the phase changes |
+
+    @surface.safeword-cli
+    Scenario: Approval-ledger contention fails closed without changing authority
+      Given one writer holds the real project review ledger while another authorized approval reaches its contention timeout
+      When the second installed Safeword CLI invocation completes through real internal collaborators
+      Then its ticket remains in Implementation Planning with approval pending and the ledger contains no approval for that plan
+
+    @surface.safeword-cli
+    Scenario: A design decision preserves compatible review-ledger extensions
+      Given the real project review ledger contains a readable review receipt and an unknown extension event
+      When the installed Safeword CLI appends an authorized design approval through real internal collaborators
+      Then the earlier receipt remains readable, the unknown event bytes are unchanged, and the new exact-plan approval is current
 
     @surface.safeword-cli
     Scenario: A completed Execution Plan does not trigger a second design approval
