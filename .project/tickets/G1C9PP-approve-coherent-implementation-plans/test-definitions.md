@@ -76,7 +76,7 @@ prove real installed CLI wiring.
 
 - [x] RED ca18e79a6
 - [x] GREEN d2084c8c0
-- [ ] REFACTOR
+- [x] REFACTOR 0379b57e3
 
 ### Scenario: An unrecorded significant decision blocks approval
 
