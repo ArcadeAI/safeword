@@ -67,7 +67,7 @@ prove real installed CLI wiring.
 ### Scenario: Data decisions cannot be replaced by migration commands
 
 - [x] RED c642b9967
-- [ ] GREEN
+- [x] GREEN 80e39608d
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
