@@ -6,6 +6,8 @@ import type { ReviewerOutput } from '../../src/review/contract.js';
 import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 
 const DATA_OBLIGATION = 'Data applicability and decisions';
+const MIGRATION_COMMAND_REQUIREMENT =
+  'Migration commands are execution mechanics and cannot replace data decisions';
 const DATA_FIELDS = [
   'Purpose',
   'Store and model',
@@ -77,6 +79,35 @@ function reviewDataApplicability(contract: string, plan: string): ReviewerOutput
     verdict: findings.length === 0 ? 'approve' : 'request_changes',
     summary:
       findings.length === 0 ? 'Data decisions are complete.' : 'Data decisions need changes.',
+    findings,
+  };
+}
+
+function reviewMigrationCommandSeparation(contract: string, plan: string): ReviewerOutput {
+  const clause = obligationClause(contract, DATA_OBLIGATION);
+  const findings: { severity: 'error'; message: string }[] = [];
+  if (clause?.includes(MIGRATION_COMMAND_REQUIREMENT) !== true) {
+    findings.push({
+      severity: 'error',
+      message:
+        'The packaged plan contract is missing the migration-command separation requirement.',
+    });
+  } else if (/^(?:ALTER|CREATE|DROP|UPDATE|INSERT)\s+/mu.test(plan)) {
+    findings.push({
+      severity: 'error',
+      message:
+        'Move exact migration commands to Execution Planning; keep migration decisions here.',
+    });
+  }
+  return {
+    schema_version: 1,
+    dispatch_id: createHash('sha256').update(contract).digest('hex'),
+    reviewer_agent: 'claude',
+    verdict: findings.length === 0 ? 'approve' : 'request_changes',
+    summary:
+      findings.length === 0
+        ? 'Migration content stays at decision depth.'
+        : 'Migration execution mechanics need removal.',
     findings,
   };
 }
@@ -190,4 +221,35 @@ describe('Implementation Plan data applicability contract', () => {
       expect(result.findings.some(candidate => candidate.message.includes(requirement))).toBe(true);
     },
   );
+});
+
+describe('Implementation Plan migration-command separation', () => {
+  it('rejects exact migration commands even when every data decision is present', () => {
+    const plan = `${COMPLETE_DATA_PLAN}\nMigration commands:\nALTER TABLE account_links ADD COLUMN issuer TEXT;\n`;
+
+    const result = reviewMigrationCommandSeparation(PLAN_REVIEW_RUBRIC, plan);
+
+    expect(
+      result.findings.filter(candidate =>
+        candidate.message.startsWith('The packaged plan contract'),
+      ),
+      'The packaged contract is missing the migration-command separation requirement.',
+    ).toEqual([]);
+    expect(result.verdict).toBe('request_changes');
+    expect(result.findings).toEqual([
+      expect.objectContaining({ message: expect.stringContaining('Execution Planning') }),
+    ]);
+  });
+
+  it('fails closed when the migration-command separation sentence is removed', () => {
+    const contract = `${contractWithDataFixture()} ${MIGRATION_COMMAND_REQUIREMENT}.`;
+    const mutated = contract.replace(MIGRATION_COMMAND_REQUIREMENT, '');
+
+    const result = reviewMigrationCommandSeparation(mutated, COMPLETE_DATA_PLAN);
+
+    expect(result.verdict).toBe('request_changes');
+    expect(result.findings).toEqual([
+      expect.objectContaining({ message: expect.stringContaining('separation requirement') }),
+    ]);
+  });
 });
