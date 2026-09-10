@@ -28,6 +28,7 @@ Feature: Approve coherent Implementation Plans
         | contract_state | review_result |
         | the same current decision-quality obligations | the plan is eligible for semantic review against those shared obligations |
         | contradictory decision-quality obligations | approval is blocked with the conflicting obligation named for contract reconciliation |
+        | no packaged decision-quality contract reachable | authoring and approval are blocked with the regenerate action named |
 
   @plan-implementability.TBU1.G1C9PP.R3
   Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
@@ -42,7 +43,7 @@ Feature: Approve coherent Implementation Plans
         | a decision summary buried beneath step-by-step coding instructions and repeated test evidence | the plan fails focused reviewability and names the removable execution and evidence detail |
         | an architecture-at-a-glance mental model followed by decision-bearing contracts, operational risks, and unresolved authority with supporting detail linked | the plan passes focused reviewability |
         | decision-bearing contracts, operational risks, and unresolved authority in the main review path but no architecture-at-a-glance mental model | the plan fails focused reviewability because it does not open with an architecture-at-a-glance mental model |
-        | a short summary that opens with the architecture-at-a-glance mental model and records a load-bearing failure-posture decision only in its linked detail | the plan passes focused reviewability because the decision remains in the review path |
+        | a short summary that opens with the architecture-at-a-glance mental model, names a load-bearing failure-posture decision and its consequence, and links only fuller subordinate detail | the plan passes focused reviewability because the decision remains in the main review path |
         | a short summary with a load-bearing failure-posture decision recorded nowhere in the plan or its linked detail | the plan fails focused reviewability because that decision is absent from the review path |
 
   @plan-implementability.TBU1.G1C9PP.R4
@@ -156,7 +157,8 @@ Feature: Approve coherent Implementation Plans
         | artifact_state | review_result |
         | all decisions contained in the Implementation Plan | the receipt names it as the single design plan of record and requires no second design artifact |
         | all required decisions named with their consequence in the Implementation Plan and fuller detail linked as explicitly subordinate support | the receipt names the Implementation Plan as the single design plan of record and accepts the supporting link |
-        | a linked document that claims independent feature-plan authority or carries a required decision the Implementation Plan does not name | approval is blocked until the authority and required decision return to the Implementation Plan |
+        | a linked document that claims independent feature-plan authority | approval is blocked until that authority returns to the Implementation Plan |
+        | a linked document that carries a required decision the Implementation Plan does not name | approval is blocked until that required decision returns to the Implementation Plan |
 
   @plan-implementability.TBU1.G1C9PP.R10
   Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope and confidence without absorbing execution mechanics or the verification ledger
@@ -235,7 +237,8 @@ Feature: Approve coherent Implementation Plans
         | evidence_presentation | result |
         | the decision, alternative, losing reason, evidence reference, retrieval date, and applicable version in the packaged table | eligible for semantic review |
         | the same complete information in concise prose and bullets | eligible for semantic review |
-        | prose that omits the evidence reference and applicable version | blocked by semantic review with the missing evidence fields named |
+        | prose that omits the evidence reference and applicable version | blocked by the structural check with the missing evidence fields named |
+        | prose that omits the retrieval date | blocked by the structural check with the missing retrieval date named |
 
   @plan-implementability.TBU1.G1C9PP.R14
   Rule: plan-implementability.TBU1.G1C9PP.R14 — Decision discovery is scope-bounded and covers the consequential trust, operation, approval, and recovery needs of every accepted persona
@@ -368,6 +371,12 @@ Feature: Approve coherent Implementation Plans
       Given human design approval is enabled and the approver declines the exact reviewed approach
       When the installed Safeword CLI records the decision through real internal collaborators
       Then the ticket remains in Implementation Planning with the declined approach named for repair
+
+    @surface.safeword-cli
+    Scenario: An accepted design enters Execution Planning
+      Given human design approval is enabled and the approver accepts the exact reviewed approach
+      When the installed Safeword CLI records the decision through real internal collaborators
+      Then the approval is bound to those approach bytes and the ticket enters Execution Planning
 
     Scenario Outline: Human design authority follows approach currency
       Given human design approval is enabled and the approval's bound approach bytes have <approval_currency>

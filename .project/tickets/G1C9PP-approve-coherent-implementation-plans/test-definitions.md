@@ -233,6 +233,12 @@ release prerequisite by itself.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An accepted design enters Execution Planning
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Human design authority follows approach currency
 
 Proof limit: this scenario proves only whether human design approval still

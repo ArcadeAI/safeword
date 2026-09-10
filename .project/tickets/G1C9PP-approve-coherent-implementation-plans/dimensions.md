@@ -3,6 +3,7 @@
 | Dimension | Partitions and boundaries |
 | --- | --- |
 | Phase responsibility | approach decision; execution detail; unresolved decision at boundary |
+| Contract availability | same current contract; contradictory contract; no packaged contract reachable |
 | Reviewability | compact decision summary; linked supporting detail; execution detail obscures choice |
 | Reviewer mental model | architecture at a glance; contracts and invariants; operations and risk; unresolved decisions and authority |
 | Guidance routing | architecture not applicable; local architecture; significant durable decision; data purpose and ownership; identity and integrity; lifecycle and retention; migration and rollback |
