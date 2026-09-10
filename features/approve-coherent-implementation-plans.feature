@@ -40,7 +40,7 @@ Feature: Approve coherent Implementation Plans
 
       Examples:
         | presentation | reviewability_result |
-        | a decision summary buried beneath step-by-step coding instructions and repeated test evidence | the plan fails focused reviewability and names the removable execution and evidence detail |
+        | a decision summary buried beneath step-by-step coding instructions and repeated test evidence | the plan fails focused reviewability |
         | an architecture-at-a-glance mental model followed by decision-bearing contracts, operational risks, and unresolved authority with supporting detail linked | the plan passes focused reviewability |
         | decision-bearing contracts, operational risks, and unresolved authority in the main review path but no architecture-at-a-glance mental model | the plan fails focused reviewability because it does not open with an architecture-at-a-glance mental model |
         | a short summary that opens with the architecture-at-a-glance mental model, names a load-bearing failure-posture decision and its consequence, and links only fuller subordinate detail | the plan passes focused reviewability because the decision remains in the main review path |
@@ -136,8 +136,10 @@ Feature: Approve coherent Implementation Plans
         | a project-owned ADR directory | a direct child that does not match YYYYMMDD-slug.md | the edit remains blocked because directory membership alone does not make it an architecture record |
         | a project-owned ADR directory | a nested dated ADR below a child directory | the edit remains blocked because only direct dated ADR children are records |
         | a project-owned ADR directory | a dated ADR outside that directory | the edit remains blocked because the configured directory grants no access outside it |
-        | one project-owned architecture file | an ordinary source or documentation path | the edit remains blocked by the planning freeze |
-        | a project-owned ADR directory | an ordinary source or documentation path | the edit remains blocked by the planning freeze |
+        | one project-owned architecture file | an ordinary source path | the edit remains blocked by the planning freeze |
+        | one project-owned architecture file | an ordinary documentation path | the edit remains blocked by the planning freeze |
+        | a project-owned ADR directory | an ordinary source path | the edit remains blocked by the planning freeze |
+        | a project-owned ADR directory | an ordinary documentation path | the edit remains blocked by the planning freeze |
 
   @plan-implementability.TBU1.G1C9PP.R8
   Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
@@ -353,7 +355,8 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | product_measurement_state | measurement_state | review_result |
         | the Product Plan promises a measurable outcome for a named population and condition | decides the origin, method, validity safeguards, and failure behavior | measurement design does not block approval |
-        | the Product Plan promises a measurable outcome for a named population and condition | changes the promised target or affected population | approval is blocked because Product-owned behavior was changed |
+        | the Product Plan promises a measurable outcome for a named population and condition | changes the promised target | approval is blocked because the Product-owned target was changed |
+        | the Product Plan promises a measurable outcome for a named population and condition | changes the affected population | approval is blocked because the Product-owned population was changed |
         | the Product Plan promises a measurable outcome for a named population and condition | decides origin, method, validity safeguards, and failure behavior but also lists exact instrumentation commands | approval is blocked because instrumentation belongs in Execution Planning |
         | the Product Plan promises a measurable outcome for a named population and condition | leaves validity safeguards unresolved without listing instrumentation commands | approval is blocked with the missing validity decision named |
         | the Product Plan makes no quantitative promise | records no measurement-design applicability decision | approval is blocked until measurement applicability is explicit |
@@ -393,9 +396,10 @@ Feature: Approve coherent Implementation Plans
       When the installed Safeword CLI reaches the approval boundary through real internal collaborators
       Then no human design decision is requested and the ticket remains in Implementation Planning with the blocking finding named
 
+    @surface.safeword-cli
     Scenario Outline: Human design authority follows approach currency
       Given human design approval is enabled and the approval's bound approach bytes have <approval_currency>
-      When Execution Planning is requested
+      When Execution Planning is requested through the installed Safeword CLI and real internal collaborators
       Then <approval_result>
 
       Examples:
@@ -403,9 +407,10 @@ Feature: Approve coherent Implementation Plans
         | an approval that still binds its exact current plan | no further human decision is requested and Execution Planning proceeds on the existing approval |
         | changed so the prior approval no longer binds the current plan | the current approach requires a new human decision |
 
+    @surface.safeword-cli
     Scenario: A completed Execution Plan does not trigger a second design approval
       Given the reviewed approach already has its required human approval and the dependent Execution Plan is complete
-      When implementation is about to begin
+      When implementation is requested through the installed Safeword CLI and real internal collaborators
       Then no second design approval is requested and implementation proceeds on the existing approach approval
 
     @surface.safeword-cli

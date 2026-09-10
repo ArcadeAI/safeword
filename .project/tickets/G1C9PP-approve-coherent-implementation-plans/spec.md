@@ -7,7 +7,7 @@
 - **Parent:** 82T411
 - **Milestone:** M1
 - **Parent job:** plan-implementability.TBU1
-- **Killer Demo:** inherited from the parent spec — this child owns the incomplete-or-incorrect plan repair loop; 7CAMAD owns the accepted-plan-to-first-RED continuation
+- **Killer Demo:** inherited from the parent spec — this child owns the incomplete-or-incorrect Plan repair payoff; skip Complete feature journey: YCFFNC owns installed conversational-host delivery; skip Implementation replan: 7CAMAD owns implementation-time plan revision and resume
 
 <!-- Inherited by reference; the child never restates it. To skip demo proof for
      this feature alone, append an em-dash skip clause to the Killer Demo line
