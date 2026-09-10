@@ -2,7 +2,7 @@
 id: G1C9PP
 slug: approve-coherent-implementation-plans
 type: feature
-phase: implement
+phase: plan-implementation
 status: in_progress
 phase_skips:
   - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
@@ -48,6 +48,8 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-10T19:15:00.000Z Returned before production change: Executable-RED review `50fa4abb-9611-4ed6-8cea-d04f599ba606` approved the corrected R11 contract proof, then identified that the accepted Implementation Plan conflated R11's pure packaged-contract matrix with its separate installed-CLI receipt proof. Returned to Implementation Planning to split those proof boundaries and re-review the exact plan before resuming GREEN.
 
 - 2026-09-10T10:48:00.000Z Implementation Planning complete: Claude Opus approved the exact committed, formatter-stable Implementation Plan bytes with cross-agent provenance (review `0342d73b-7936-4ec0-86d2-121d466c1153`). The refreshed stamp replaces the stale pre-format receipt; the ticket re-enters implementation with its reviewed plan as the phase anchor and no code changes made before approval.
 
