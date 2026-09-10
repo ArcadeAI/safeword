@@ -13,7 +13,8 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ReviewerOutput, ReviewPacket } from '../../src/review/contract.js';
+import type { ReviewerOutput } from '../../src/review/contract.js';
+import { prepareReviewPacket } from '../../src/review/packet.js';
 import {
   inspectReviewRoute,
   parseProcessStat,
@@ -573,42 +574,55 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       );
       chmodSync(executable, 0o755);
       vi.stubEnv('PATH', bin);
+      writeFileSync(nodePath.join(project, 'impl-plan.md'), '# Plan\n');
 
       const authorContract = {
         sha256: 'author-contract',
         obligations: ['record architecture consequences', 'exclude execution sequencing'],
       };
-      const packet = {
-        schema_version: 1,
-        dispatch_id: 'dispatch-1',
-        kind: 'plan-implementation',
-        logical_files: [{ path: 'impl-plan.md', content: '# Plan' }],
-        plan_contract: {
-          author: authorContract,
-          reviewer: {
-            sha256: 'reviewer-contract',
-            obligations: ['record architecture consequences', 'require execution sequencing'],
+      const contradictory = prepareReviewPacket(
+        project,
+        'plan-implementation',
+        ['impl-plan.md'],
+        [],
+        {
+          allowMissing: true,
+          planContract: {
+            author: authorContract,
+            reviewer: {
+              sha256: 'reviewer-contract',
+              obligations: ['record architecture consequences', 'require execution sequencing'],
+            },
           },
         },
-      } as ReviewPacket;
+      );
+      const matching = prepareReviewPacket(project, 'plan-implementation', ['impl-plan.md'], [], {
+        allowMissing: true,
+        planContract: { author: authorContract, reviewer: authorContract },
+      });
+      const matchingResult = await runHeadlessReviewer(
+        'claude',
+        matching.packet,
+        project,
+        untrustedRoot,
+      );
+      expect(matchingResult.verdict).toBe('approve');
 
-      const matchingPacket = {
-        ...packet,
-        plan_contract: {
-          author: authorContract,
-          reviewer: authorContract,
-        },
-      } as ReviewPacket;
-      const matching = await runHeadlessReviewer('claude', matchingPacket, project, untrustedRoot);
-      expect(matching.verdict).toBe('approve');
-
-      const result = await runHeadlessReviewer('claude', packet, project, untrustedRoot);
+      const result = await runHeadlessReviewer(
+        'claude',
+        contradictory.packet,
+        project,
+        untrustedRoot,
+      );
       expect(result.verdict).toBe('request_changes');
       expect(result.findings).toHaveLength(2);
       expect(result.findings.every(finding => finding.severity === 'error')).toBe(true);
       const messages = result.findings.map(finding => finding.message);
       expect(messages.some(message => message.includes('exclude execution sequencing'))).toBe(true);
       expect(messages.some(message => message.includes('require execution sequencing'))).toBe(true);
+      expect(messages.some(message => message.includes('record architecture consequences'))).toBe(
+        false,
+      );
     },
   );
 

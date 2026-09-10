@@ -86,6 +86,16 @@ export interface UnverifiedReviewerOutput {
   readonly findings: readonly ReviewFinding[];
 }
 
+export interface PlanContractIdentity {
+  readonly sha256: string;
+  readonly obligations: readonly string[];
+}
+
+export interface PlanContractPair {
+  readonly author: PlanContractIdentity;
+  readonly reviewer: PlanContractIdentity;
+}
+
 export interface ReviewPacket {
   readonly schema_version: 1;
   readonly dispatch_id: string;
@@ -99,6 +109,8 @@ export interface ReviewPacket {
     readonly path: string;
     readonly content: string;
   }[];
+  /** Exact author/reviewer planning obligations carried through semantic review. */
+  readonly plan_contract?: PlanContractPair;
   /** Trusted process evidence, present only for executable RED review. */
   readonly execution_attestation?: RedExecutionAttestation;
 }

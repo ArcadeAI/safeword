@@ -16,7 +16,13 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import type { RedExecutionAttestation, ReviewKind, ReviewPacket } from './contract.js';
+import type {
+  PlanContractPair,
+  RedExecutionAttestation,
+  ReviewKind,
+  ReviewPacket,
+} from './contract.js';
+import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -95,6 +101,7 @@ function requireExecutableRedAttestation(
 interface ReviewPacketExecution {
   readonly attestation?: RedExecutionAttestation;
   readonly allowMissing?: boolean;
+  readonly planContract?: PlanContractPair;
 }
 
 function checkedExecutionAttestation(
@@ -107,6 +114,27 @@ function checkedExecutionAttestation(
 
 function digest(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
+}
+
+function planObligations(contract: string): string[] {
+  return Array.from(contract.matchAll(/^- \*\*([^*]+):\*\*/gmu), match => match[1]?.trim() ?? '');
+}
+
+function currentPlanContract(): PlanContractPair {
+  const identity = {
+    sha256: digest(PLAN_REVIEW_RUBRIC),
+    obligations: planObligations(PLAN_REVIEW_RUBRIC),
+  };
+  return { author: identity, reviewer: identity };
+}
+
+function packetPlanContract(
+  kind: ReviewKind,
+  configured: PlanContractPair | undefined,
+): { readonly plan_contract?: PlanContractPair } {
+  return kind === 'plan-implementation'
+    ? { plan_contract: configured ?? currentPlanContract() }
+    : {};
 }
 
 function fileDigest(path: string): string | undefined {
@@ -277,6 +305,7 @@ function prepareReviewPacketUnsafe(
     kind,
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
+    ...packetPlanContract(kind, execution.planContract),
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
   };
   if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {
