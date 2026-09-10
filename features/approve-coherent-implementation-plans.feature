@@ -347,9 +347,12 @@ Feature: Approve coherent Implementation Plans
         | authorization | permissions but no authority for a destructive transition | approval is blocked with the missing authority decision named |
         | concurrent state transition | transition states, authority, atomicity boundary, retry behavior, and preserved evidence | decision depth does not block approval |
         | concurrent state transition | transition states and authority but no atomicity boundary or retry behavior | approval is blocked with the missing concurrency decisions named |
+        | lifecycle-scheduled deletion | deletion states, transition authority, atomicity, retry behavior, and preserved evidence | decision depth does not block approval |
         | lifecycle-scheduled deletion | deletion states, transition authority, atomicity, and retry behavior but no preserved evidence | approval is blocked with the missing lifecycle evidence model named |
         | migration | the target schema, crash boundary, retry behavior, and compatibility policy | decision depth does not block approval |
         | migration | the target schema but no crash, retry, or compatibility behavior | approval is blocked with the missing migration decisions named |
+        | compatibility | supported-version states, change authority, atomic cutover boundary, retry behavior, and preserved interoperability evidence | decision depth does not block approval |
+        | compatibility | supported-version states and change authority but no cutover boundary, retry behavior, or preserved interoperability evidence | approval is blocked with the missing compatibility decisions named |
 
   @plan-implementability.TBU1.G1C9PP.R18
   Rule: plan-implementability.TBU1.G1C9PP.R18 — Accepted quantitative promises carry a design-level measurement contract without moving Product-owned outcomes or Execution-owned instrumentation into the Implementation Plan
@@ -424,7 +427,7 @@ Feature: Approve coherent Implementation Plans
 
     @surface.safeword-cli
     Scenario: Concurrent design decisions do not overwrite each other
-      Given two distinct reviewed Implementation Plans have authorized design decisions writing concurrently to the same real project review ledger
+      Given two distinct reviewed Implementation Plans have authorized design decisions writing concurrently to the same real project approval ledger
       When both installed Safeword CLI writers settle through real internal collaborators
       Then both exact-plan decisions are readable and neither append overwrites the other
 
@@ -441,15 +444,15 @@ Feature: Approve coherent Implementation Plans
 
     @surface.safeword-cli
     Scenario: Approval-ledger contention fails closed without changing authority
-      Given one writer holds the real project review ledger while another authorized approval reaches its contention timeout
+      Given one writer holds the real project approval ledger while another authorized approval reaches its contention timeout
       When the second installed Safeword CLI invocation completes through real internal collaborators
       Then its ticket remains in Implementation Planning with approval pending and the ledger contains no approval for that plan
 
     @surface.safeword-cli
-    Scenario: A design decision preserves compatible review-ledger extensions
-      Given the real project review ledger contains a readable review receipt and an unknown extension event
+    Scenario: A design decision preserves compatible approval-ledger extensions
+      Given the real project approval ledger contains a readable known event and an unknown compatible extension event
       When the installed Safeword CLI appends an authorized design approval through real internal collaborators
-      Then the earlier receipt remains readable, the unknown event bytes are unchanged, and the new exact-plan approval is current
+      Then the earlier known event remains readable, the unknown event bytes are unchanged, and the new exact-plan approval is current
 
     @surface.safeword-cli
     Scenario: A completed Execution Plan does not trigger a second design approval

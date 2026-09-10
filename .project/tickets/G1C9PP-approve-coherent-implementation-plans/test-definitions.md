@@ -291,7 +291,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A design decision preserves compatible review-ledger extensions
+### Scenario: A design decision preserves compatible approval-ledger extensions
 
 - [ ] RED
 - [ ] GREEN
