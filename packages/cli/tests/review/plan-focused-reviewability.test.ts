@@ -6,6 +6,24 @@ import type { ReviewerOutput } from '../../src/review/contract.js';
 import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 
 const FOCUSED_REVIEW_OBLIGATION = 'Focused decision path';
+const FOCUSED_REVIEW_REQUIREMENTS = [
+  {
+    name: 'opening architecture mental model',
+    pattern: /architecture-at-a-glance\s+mental model/u,
+  },
+  {
+    name: 'load-bearing choice in the main review path',
+    pattern: /every load-bearing choice in the\s+main review path/u,
+  },
+  {
+    name: 'linked supporting detail in the review path',
+    pattern: /Explicitly linked supporting detail remains in that path/u,
+  },
+  {
+    name: 'removable execution and evidence detail',
+    pattern: /step-by-step coding instructions or repeated test evidence/u,
+  },
+] as const;
 
 interface PlanReviewFixture {
   readonly plan: string;
@@ -30,9 +48,9 @@ function structuralFindings(plan: string): { severity: 'error'; message: string 
   }
 
   const architectureOffset = plan.indexOf('## Architecture at a glance');
-  const firstDecisionOffset = plan.search(/^## (?:Decision-bearing contracts|Decisions)/mu);
+  const firstDecisionOffset = plan.search(/^## .*Decisions?/mu);
   const reviewLead = plan.slice(0, firstDecisionOffset === -1 ? plan.length : firstDecisionOffset);
-  if (/^\d+\. (?:Edit|Run|Add|Create|Implement)\b/mu.test(reviewLead)) {
+  if (/^\d+\.\s+\S+/mu.test(reviewLead)) {
     findings.push({
       severity: 'error',
       message: 'Remove step-by-step coding instructions from the focused decision path.',
@@ -55,8 +73,7 @@ function structuralFindings(plan: string): { severity: 'error'; message: string 
 
 function decisionFindings(fixture: PlanReviewFixture): { severity: 'error'; message: string }[] {
   const linkedDetailIsInReviewPath =
-    fixture.linkedDetail !== undefined &&
-    /^Supporting detail: linked-design\.md$/mu.test(fixture.plan);
+    fixture.linkedDetail !== undefined && /^Supporting detail:\s+\S+$/mu.test(fixture.plan);
   const reviewPath = linkedDetailIsInReviewPath
     ? `${fixture.plan}\n${fixture.linkedDetail}`
     : fixture.plan;
@@ -85,6 +102,16 @@ function reviewFocusedDecisionPath(contract: string, fixture: PlanReviewFixture)
       message: `The packaged plan contract is missing the "${FOCUSED_REVIEW_OBLIGATION}" obligation.`,
     });
   } else {
+    for (const requirement of FOCUSED_REVIEW_REQUIREMENTS) {
+      if (!requirement.pattern.test(clause)) {
+        findings.push({
+          severity: 'error',
+          message: `The packaged plan contract is missing the focused-review requirement for ${requirement.name}.`,
+        });
+      }
+    }
+  }
+  if (findings.length === 0) {
     findings.push(...structuralFindings(fixture.plan), ...decisionFindings(fixture));
   }
 
@@ -121,6 +148,22 @@ Stale authorization could expose a resource after tool access is revoked.
 
 Product must decide whether denied reads are visible in the activity log.
 `;
+
+const FOCUSED_REVIEW_CLAUSE_FIXTURE = `- **Focused decision path:** Require the plan to open with an
+  architecture-at-a-glance mental model, then keep decision-bearing contracts,
+  operational risks, unresolved authority, and every load-bearing choice in the
+  main review path. Explicitly linked supporting detail remains in that path and
+  may carry a decision's full depth when the plan names the decision and its
+  consequence. Block a missing mental model or load-bearing decision. When
+  step-by-step coding instructions or repeated test evidence obscure the
+  choices, name the removable detail instead of rewarding its volume.`;
+
+function contractWithFocusedReviewFixture(): string {
+  const existing = obligationClause(PLAN_REVIEW_RUBRIC, FOCUSED_REVIEW_OBLIGATION);
+  if (existing === undefined) return `${PLAN_REVIEW_RUBRIC}\n${FOCUSED_REVIEW_CLAUSE_FIXTURE}`;
+  const offset = PLAN_REVIEW_RUBRIC.indexOf(existing);
+  return `${PLAN_REVIEW_RUBRIC.slice(0, offset)}${FOCUSED_REVIEW_CLAUSE_FIXTURE}${PLAN_REVIEW_RUBRIC.slice(offset + existing.length)}`;
+}
 
 describe('Implementation Plan focused reviewability contract', () => {
   it.each([
@@ -171,8 +214,25 @@ ${architecture}${decisions}`,
       verdict: 'request_changes',
       findings: ['failure-posture decision is absent'],
     },
+    {
+      name: 'rejects unlinked supporting detail as outside the review path',
+      fixture: {
+        plan: `${architecture}\n## Decision-bearing contracts\n\nAuthorization is checked per request.\n`,
+        linkedDetail:
+          '# Supporting design\n\nFailure posture: deny resource access when authorization is unavailable.\n',
+      },
+      verdict: 'request_changes',
+      findings: ['failure-posture decision is absent'],
+    },
   ])('$name', ({ fixture, findings, verdict }) => {
     const result = reviewFocusedDecisionPath(PLAN_REVIEW_RUBRIC, fixture);
+
+    const contractFailures = result.findings.filter(finding =>
+      finding.message.startsWith('The packaged plan contract is missing'),
+    );
+    expect(contractFailures, contractFailures.map(finding => finding.message).join('\n')).toEqual(
+      [],
+    );
 
     expect(result.verdict).toBe(verdict);
     for (const finding of findings) {
@@ -181,9 +241,10 @@ ${architecture}${decisions}`,
   });
 
   it('fails closed and names the missing obligation when its exact clause is removed', () => {
-    const clause = obligationClause(PLAN_REVIEW_RUBRIC, FOCUSED_REVIEW_OBLIGATION);
-    expect(clause).toBeDefined();
-    const mutatedContract = PLAN_REVIEW_RUBRIC.replace(clause ?? '', '');
+    const contract = contractWithFocusedReviewFixture();
+    const clause = obligationClause(contract, FOCUSED_REVIEW_OBLIGATION) ?? '';
+    const clauseOffset = contract.indexOf(clause);
+    const mutatedContract = `${contract.slice(0, clauseOffset)}${contract.slice(clauseOffset + clause.length)}`;
 
     const result = reviewFocusedDecisionPath(mutatedContract, {
       plan: `${architecture}${decisions}`,
@@ -194,4 +255,27 @@ ${architecture}${decisions}`,
       expect.objectContaining({ message: expect.stringContaining(FOCUSED_REVIEW_OBLIGATION) }),
     ]);
   });
+
+  it.each(FOCUSED_REVIEW_REQUIREMENTS)(
+    'fails closed when the contract drops $name',
+    requirement => {
+      const contract = contractWithFocusedReviewFixture();
+      const clause = obligationClause(contract, FOCUSED_REVIEW_OBLIGATION);
+      const clauseText = clause ?? '';
+      const clauseOffset = contract.indexOf(clauseText);
+      const mutatedClause = clauseText.replace(requirement.pattern, '');
+      const mutatedContract = `${contract.slice(0, clauseOffset)}${mutatedClause}${contract.slice(clauseOffset + clauseText.length)}`;
+
+      const result = reviewFocusedDecisionPath(mutatedContract, {
+        plan: `${architecture}${decisions}\nSupporting detail: linked-design.md\n`,
+        linkedDetail:
+          '# Supporting design\n\nFailure posture: deny resource access when authorization is unavailable.\n',
+      });
+
+      expect(result.verdict).toBe('request_changes');
+      expect(result.findings).toEqual([
+        expect.objectContaining({ message: expect.stringContaining(requirement.name) }),
+      ]);
+    },
+  );
 });
