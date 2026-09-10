@@ -98,7 +98,7 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | data_state | review_result |
         | one persisted entity change that omits data ownership and migration decisions | approval is blocked with ownership and migration named |
-        | one persisted entity change that omits its purpose, store and model, and schema relationships | approval is blocked with the foundational data decisions named |
+        | one persisted entity change that omits its purpose, store and model, and schema relationships | approval is blocked with purpose, store and model, and schema relationships named |
         | one persisted entity change that omits retention and rollback consequences | approval is blocked with retention and rollback named |
         | one persisted entity change that omits identity and integrity decisions | approval is blocked with identity and integrity named |
         | purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback decisions recorded without migration commands | data guidance does not block approval |
@@ -249,6 +249,7 @@ Feature: Approve coherent Implementation Plans
         | a local non-load-bearing technology choice declared under a no-load-bearing-choice skip | eligible for semantic approval |
         | an explicit no-load-bearing-choice skip with a credible reason | eligible for semantic approval |
 
+    @surface.safeword-cli
     Scenario Outline: Evidence presentation does not replace evidence completeness
       Given an Implementation Plan records <evidence_presentation>
       When structural and semantic evidence checks run
@@ -353,13 +354,13 @@ Feature: Approve coherent Implementation Plans
         | authorization | permissions and the authority for every destructive transition | decision depth does not block approval |
         | authorization | permissions but no authority for a destructive transition | approval is blocked with the missing authority decision named |
         | concurrent state transition | transition states, authority, atomicity boundary, retry behavior, and preserved evidence | decision depth does not block approval |
-        | concurrent state transition | transition states and authority but no atomicity boundary or retry behavior | approval is blocked with the missing concurrency decisions named |
+        | concurrent state transition | transition states and authority but no atomicity boundary or retry behavior | approval is blocked with atomicity boundary and retry behavior named |
         | lifecycle-scheduled deletion | deletion states, transition authority, atomicity, retry behavior, and preserved evidence | decision depth does not block approval |
         | lifecycle-scheduled deletion | deletion states, transition authority, atomicity, and retry behavior but no preserved evidence | approval is blocked with the missing lifecycle evidence model named |
         | migration | the target schema, crash boundary, retry behavior, and compatibility policy | decision depth does not block approval |
-        | migration | the target schema but no crash, retry, or compatibility behavior | approval is blocked with the missing migration decisions named |
+        | migration | the target schema but no crash, retry, or compatibility behavior | approval is blocked with crash boundary, retry behavior, and compatibility policy named |
         | compatibility | supported-version states, change authority, atomic cutover boundary, retry behavior, and preserved interoperability evidence | decision depth does not block approval |
-        | compatibility | supported-version states and change authority but no cutover boundary, retry behavior, or preserved interoperability evidence | approval is blocked with the missing compatibility decisions named |
+        | compatibility | supported-version states and change authority but no cutover boundary, retry behavior, or preserved interoperability evidence | approval is blocked with cutover boundary, retry behavior, and preserved interoperability evidence named |
 
   @plan-implementability.TBU1.G1C9PP.R18
   Rule: plan-implementability.TBU1.G1C9PP.R18 — Accepted quantitative promises carry a design-level measurement contract without moving Product-owned outcomes or Execution-owned instrumentation into the Implementation Plan

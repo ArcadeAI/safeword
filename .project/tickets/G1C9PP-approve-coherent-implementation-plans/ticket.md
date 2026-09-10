@@ -39,7 +39,7 @@ parent: 82T411
 parent_job: plan-implementability.TBU1
 milestone: M1
 created: 2026-09-08T17:36:33.419Z
-last_modified: 2026-09-10T23:13:00.000Z
+last_modified: 2026-09-10T23:18:00.000Z
 parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afac25da34a
 ---
 
@@ -50,6 +50,8 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-10T23:18:00.000Z Scenario review repair: Independent review `ee5afe4d-9f75-4b60-8da8-4ee654b541fe` found four bundled omission results that a partial checker could satisfy. Each result now enumerates every omitted R6/R17 obligation, and R13's evidence-field structure is exercised through the installed CLI. R10's verification-ledger row was introduced in `ddaebbdb0c` before its later RED/GREEN/REFACTOR proofs (`6b72a8724`, `ec3a723a5`, `58aebd530`), so that ledger remains current.
 
 - 2026-09-10T23:13:00.000Z Scenario review repair: Independent review `1b5d8b7a-5254-4b92-805e-9898e1b44710` found that bundled omission rows could pass without checking why an alternative lost or whether an applicable-version field exists. The refreshed 47/47 packet isolates both obligations, independently rejects evidence-ledger bloat, proves plain idempotent retry, and requires a real terminal boundary when proving that a review-blocked plan never prompts.
 
