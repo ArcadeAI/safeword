@@ -349,3 +349,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
