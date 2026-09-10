@@ -9,7 +9,7 @@ const ARCHITECTURE_OBLIGATION = 'Principles and architecture';
 const ARCHITECTURE_REQUIREMENTS = [
   {
     name: 'explicit applicability',
-    pattern: /Require Architecture applicability to state/u,
+    pattern: /Require Architecture applicability to\s+state/u,
   },
   {
     name: 'concrete consequence',
@@ -21,7 +21,7 @@ const ARCHITECTURE_REQUIREMENTS = [
   },
   {
     name: 'missing or bare skip rejection',
-    pattern: /Block both a missing applicability statement\s+and a bare `skip:`/u,
+    pattern: /Block both a missing\s+applicability statement\s+and a bare `skip:`/u,
   },
 ] as const;
 

@@ -503,7 +503,7 @@ exit ${status}`,
 
       expect(commands, relativePath).not.toHaveLength(0);
       for (const command of commands) {
-        expect(command, relativePath).toMatch(/ --context .+ -- impl-plan\.md$/u);
+        expect(command, relativePath).toMatch(/ --context .+ -- ticket-path\/impl-plan\.md$/u);
       }
     },
   );
