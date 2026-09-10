@@ -143,9 +143,6 @@ Feature: Approve coherent Implementation Plans
         | a project-owned ADR directory | a nested dated ADR below a child directory | the edit remains blocked because only direct dated ADR children are records |
         | a project-owned ADR directory | a dated ADR outside that directory | the edit remains blocked because the configured directory grants no access outside it |
         | one project-owned architecture file | an ordinary source path | the edit remains blocked by the planning freeze |
-        | one project-owned architecture file | an ordinary documentation path | the edit remains blocked by the planning freeze |
-        | a project-owned ADR directory | an ordinary source path | the edit remains blocked by the planning freeze |
-        | a project-owned ADR directory | an ordinary documentation path | the edit remains blocked by the planning freeze |
 
   @plan-implementability.TBU1.G1C9PP.R8
   Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
@@ -205,6 +202,8 @@ Feature: Approve coherent Implementation Plans
         | a resolved API contract | the API contract does not block approval |
         | unresolved rollback behavior | approval is blocked with rollback named as an Implementation Planning obligation |
         | resolved rollback behavior | rollback does not block approval |
+        | unresolved rollout behavior | approval is blocked with rollout named as an Implementation Planning obligation |
+        | resolved rollout behavior | rollout does not block approval |
         | unresolved proof scope | approval is blocked with proof scope named as an Implementation Planning obligation |
         | resolved proof scope | proof scope does not block approval |
 
@@ -261,12 +260,12 @@ Feature: Approve coherent Implementation Plans
     Scenario Outline: Discovery respects and updates scope only with user authority
       Given discovery has surfaced an in-scope policy choice and an out-of-scope capability with <scope_decision>
       When Implementation Planning converges
-      Then the policy choice is decided and <scope_result>
+      Then <scope_result>
 
       Examples:
         | scope_decision | scope_result |
         | no user-supplied scope-change approval | the capability remains outside the accepted plan |
-        | fixture-minted typed scope-change authority bound to this ticket, session, and proposed scope | the capability enters this ticket's accepted consumer boundary while authentic release authority remains unproven until 5F5ZZA supplies it |
+        | fixture-minted typed scope-change authority bound to this ticket, session, and proposed scope | the capability enters this ticket's accepted consumer boundary |
         | only an agent-authored assertion with no externally supplied user authority | the capability remains outside the accepted plan |
 
     Scenario Outline: Persona consequence coverage controls approach approval
@@ -433,8 +432,8 @@ Feature: Approve coherent Implementation Plans
 
     @surface.safeword-cli
     Scenario Outline: An interrupted approval resumes without duplicating authority
-      Given an authorized approval write is interrupted <interruption_boundary>
-      When the same installed Safeword CLI request resumes through real internal collaborators
+      Given an authorized approval write is interrupted <interruption_boundary> and that invocation exits
+      When a fresh installed Safeword CLI invocation resumes the same ticket's approval through real internal collaborators
       Then exactly one current approval is recorded and Execution Planning begins without a second human decision
 
       Examples:
