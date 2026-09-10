@@ -29,9 +29,12 @@ function obligationClause(contract: string, obligation: string): string | undefi
 
 function missingDataContractRequirements(clause: string | undefined): string[] {
   if (clause === undefined) return [DATA_OBLIGATION];
-  const missing = DATA_FIELDS.filter(field => !clause.toLowerCase().includes(field.toLowerCase()));
-  if (!clause.includes('Data applicability')) missing.push('Data applicability');
-  if (!clause.includes('skip: <reason>')) missing.push('skip: <reason>');
+  const normalized = clause.replaceAll(/\s+/gu, ' ');
+  const missing = DATA_FIELDS.filter(
+    field => !normalized.toLowerCase().includes(field.toLowerCase()),
+  );
+  if (!normalized.includes('Data applicability')) missing.push('Data applicability');
+  if (!normalized.includes('skip: <reason>')) missing.push('skip: <reason>');
   return missing;
 }
 
@@ -179,9 +182,7 @@ describe('Implementation Plan data applicability contract', () => {
     requirement => {
       const contract = contractWithDataFixture();
       const clause = obligationClause(contract, DATA_OBLIGATION) ?? '';
-      const offset = contract.indexOf(clause);
-      const mutatedClause = clause.replace(requirement, '');
-      const mutated = `${contract.slice(0, offset)}${mutatedClause}${contract.slice(offset + clause.length)}`;
+      const mutated = clause.replaceAll(/\s+/gu, ' ').replace(requirement, '');
 
       const result = reviewDataApplicability(mutated, COMPLETE_DATA_PLAN);
 
