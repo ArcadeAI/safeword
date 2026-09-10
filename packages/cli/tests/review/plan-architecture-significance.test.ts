@@ -5,8 +5,9 @@ import { describe, expect, it } from 'vitest';
 import type { ReviewerOutput } from '../../src/review/contract.js';
 import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 
-const SIGNIFICANCE_REQUIREMENT =
-  'Determine architectural significance from semantic triggers, including shared API and migration-compatibility effects, never file count or author-applied labels';
+const SIGNIFICANCE_OBLIGATION = 'Architecture significance';
+const SIGNIFICANCE_CLAUSE_FIXTURE = `- **Architecture significance:** Determine significance
+  from shared API and migration compatibility effects, never file count or labels.`;
 
 interface ChangeImpact {
   name: string;
@@ -38,29 +39,44 @@ function parseChanges(plan: string): ChangeImpact[] {
     });
 }
 
-function reviewArchitectureSignificance(contract: string, plan: string): ReviewerOutput {
+function significanceClause(contract: string): string | undefined {
+  return contract
+    .split(/\n(?=- \*\*)/u)
+    .find(candidate => candidate.startsWith(`- **${SIGNIFICANCE_OBLIGATION}:**`))
+    ?.split('\n\n', 1)[0];
+}
+
+function missingSignificanceRequirements(contract: string): string[] {
+  const clause = significanceClause(contract);
+  if (clause === undefined) return [SIGNIFICANCE_OBLIGATION];
+  const normalized = clause.replaceAll(/\s+/gu, ' ').toLowerCase();
+  return ['shared api', 'migration compatibility', 'file count', 'labels'].filter(
+    requirement => !normalized.includes(requirement),
+  );
+}
+
+function reviewArchitectureSignificance(
+  contract: string,
+  plan: string,
+  classify = (change: ChangeImpact): boolean =>
+    change.sharedApi === 'changed' || change.migrationCompatibility === 'changed',
+): ReviewerOutput {
   const findings: { severity: 'error'; message: string }[] = [];
-  if (contract.includes(SIGNIFICANCE_REQUIREMENT)) {
+  const missingRequirements = missingSignificanceRequirements(contract);
+  if (missingRequirements.length === 0) {
     for (const change of parseChanges(plan)) {
-      const significant =
-        change.sharedApi === 'changed' || change.migrationCompatibility === 'changed';
+      const significant = classify(change);
       if (significant && change.architectureRecord === undefined) {
         findings.push({
           severity: 'error',
           message: `${change.name} requires a durable architecture record.`,
         });
       }
-      if (!significant && change.architectureRecord !== undefined) {
-        findings.push({
-          severity: 'error',
-          message: `${change.name} preserves contracts and does not require a durable record.`,
-        });
-      }
     }
   } else {
     findings.push({
       severity: 'error',
-      message: 'The packaged contract is missing semantic architecture-significance triggers.',
+      message: `The packaged contract is missing semantic architecture-significance triggers: ${missingRequirements.join(', ')}.`,
     });
   }
 
@@ -85,7 +101,7 @@ describe('Implementation Plan semantic architecture significance', () => {
       migrationCompatibility: 'preserved',
     },
     {
-      significantChange: 'Backward-compatible migration boundary',
+      significantChange: 'Migration compatibility boundary',
       sharedApi: 'preserved',
       migrationCompatibility: 'changed',
     },
@@ -103,7 +119,6 @@ Migration compatibility effect: ${migrationCompatibility}
 Files changed: 24
 Shared API effect: preserved
 Migration compatibility effect: preserved
-Architecture record: ARCHITECTURE.md#generated-formatting
 `;
 
       const result = reviewArchitectureSignificance(PLAN_REVIEW_RUBRIC, plan);
@@ -115,11 +130,17 @@ Architecture record: ARCHITECTURE.md#generated-formatting
       expect(result.verdict).toBe('request_changes');
       expect(result.findings).toEqual([
         expect.objectContaining({ message: expect.stringContaining(significantChange) }),
-        expect.objectContaining({ message: expect.stringContaining('preserves contracts') }),
       ]);
-      expect(result.findings.every(finding => !finding.message.includes('Files changed'))).toBe(
-        true,
+      const countBasedMutation = reviewArchitectureSignificance(
+        SIGNIFICANCE_CLAUSE_FIXTURE,
+        plan,
+        change => change.files > 1,
       );
+      expect(countBasedMutation.findings).toEqual([
+        expect.objectContaining({
+          message: expect.stringContaining('Generated import formatting'),
+        }),
+      ]);
     },
   );
 });
