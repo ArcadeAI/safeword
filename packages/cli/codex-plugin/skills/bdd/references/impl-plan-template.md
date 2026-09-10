@@ -20,12 +20,15 @@ if no single slice is load-bearing, say so. Then record how each
 scenario/behavior will be satisfied: which component or layer owns it, the
 primary proof (`unit`, `integration`, `E2E`, or `eval`) chosen by
 `testing/SKILL.md`'s highest practical scope rule, the reason that proof is
-enough, any supporting proof needed for pure-logic edge cases, AI output
+enough, the real system boundary it exercises, its confidence limitation, any
+supporting proof needed for pure-logic edge cases, AI output
 quality, or entry-point wiring, and the build order so each task builds on
 what's already green — among dependency-free work, sequence the load-bearing
 slice (the one proving that riskiest assumption) first, so a wrong design fails
 on slice 1 while it's still cheap. Record the plan-implementation
-phase's proof plan + sequencing output here. -->
+phase's proof plan + sequencing output here. Link separately owned detailed
+evidence when useful. Do not copy test paths, commands, current hashes,
+individual results, or the verification ledger into this decision path. -->
 
 ## Decisions
 

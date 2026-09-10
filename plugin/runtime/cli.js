@@ -31143,6 +31143,11 @@ records as context around the one \`impl-plan.md\` work artifact.
 - **Proof quality:** For each scenario and new entry point, require the highest
   practical proof scope and a real wiring proof. Flag a proof that can pass
   while the user-visible claim remains broken.
+- **Proof strategy boundary:** Require behavior, the real system boundary, proof
+  type, and confidence limitation. Accept linked detailed evidence without
+  copying it into the plan. Block test paths or commands and name them for
+  removal to Execution Planning. Block verification ledger detail and name it
+  for removal from the decision review path.
 - **Decision quality:** Check each significant choice against credible
   alternatives, current version-matched evidence, license and security
   boundaries, reversibility, and the recorded reason for rejection. Research
