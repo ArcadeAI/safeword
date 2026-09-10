@@ -128,6 +128,14 @@ records as context around the one `impl-plan.md` work artifact.
   addresses every saved scenario and affected surface, starts with the
   load-bearing risk, chooses a coherent build order, and does not preserve the
   status quo merely because it already exists.
+- **Focused decision path:** Require the plan to open with an
+  architecture-at-a-glance mental model, then keep decision-bearing contracts,
+  operational risks, unresolved authority, and every load-bearing choice in the
+  main review path. Explicitly linked supporting detail remains in that path and
+  may carry a decision's full depth when the plan names the decision and its
+  consequence. Block a missing mental model or load-bearing decision. When
+  step-by-step coding instructions or repeated test evidence obscure the
+  choices, name the removable detail instead of rewarding its volume.
 - **Proof quality:** For each scenario and new entry point, require the highest
   practical proof scope and a real wiring proof. Flag a proof that can pass
   while the user-visible claim remains broken.
