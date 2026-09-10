@@ -497,6 +497,22 @@ describe('convergent setup', () => {
     }
   });
 
+  it('shell-quotes nested Python project paths in manual install guidance', async () => {
+    const directory = createTemporaryDirectory();
+    const relative = 'apps/api-$(touch injected)-`touch injected`';
+    const manifest = nodePath.join(directory, relative, 'pyproject.toml');
+    mkdirSync(nodePath.dirname(manifest), { recursive: true });
+    writeFileSync(manifest, '[project]\nname = "api"\n');
+
+    const result = await convergeSetup(directory, { noModify: true, offline: true });
+
+    expect(result.nextActions).toContainEqual(
+      expect.objectContaining({
+        command: expect.stringContaining(`(cd '${relative}' && `),
+      }),
+    );
+  });
+
   it('journals a namespace move when the later migration stage fails', async () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });

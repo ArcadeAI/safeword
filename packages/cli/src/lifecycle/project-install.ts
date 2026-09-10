@@ -24,7 +24,7 @@ import {
   effectsForReconciliation,
   preconditionDigestForPaths,
 } from '../cli-protocol/reconciliation.js';
-import { buildReplayCommand } from '../cli-protocol/replay-command.js';
+import { buildReplayCommand, shellQuote } from '../cli-protocol/replay-command.js';
 import {
   type CliResult,
   combineEffects,
@@ -641,7 +641,7 @@ function configurePython(
   const command = commands
     .map(item => {
       const relative = nodePath.relative(cwd, item.directory);
-      return relative === '' ? item.command : `(cd ${JSON.stringify(relative)} && ${item.command})`;
+      return relative === '' ? item.command : `(cd ${shellQuote(relative)} && ${item.command})`;
     })
     .join(' && ');
   const installable = commands.filter(item => item.packageManager !== 'pip');
