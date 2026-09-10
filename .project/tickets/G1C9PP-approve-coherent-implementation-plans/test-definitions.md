@@ -75,7 +75,7 @@ prove real installed CLI wiring.
 ### Scenario: Durable recording routes only significant decisions to the architecture record
 
 - [x] RED ca18e79a6
-- [ ] GREEN
+- [x] GREEN d2084c8c0
 - [ ] REFACTOR
 
 ### Scenario: An unrecorded significant decision blocks approval
