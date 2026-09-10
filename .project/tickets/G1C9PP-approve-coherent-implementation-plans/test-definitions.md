@@ -40,7 +40,7 @@ prove real installed CLI wiring.
 
 - [x] RED b59d6f7b9
 - [x] GREEN 2722ee208
-- [ ] REFACTOR
+- [x] REFACTOR skip: the authority check is one public-command boundary with no duplicated production path
 
 ### Scenario: A divergent host-private copy never becomes authoritative
 
