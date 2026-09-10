@@ -7,7 +7,8 @@
 - **Parent:** 82T411
 - **Milestone:** M2
 - **Parent job:** plan-implementability.TBU1
-- **Killer Demo:** inherited from the parent spec — this child owns the installed complete-feature journey across supported authoritative hosts; G1C9PP and 7CAMAD own the plan-repair-and-start proof
+- **Killer Demo:** inherited from the parent spec — this child owns the installed complete-feature journey across supported conversational agent hosts; Safeword CLI is excluded because it is not a plain-prompt entry point; G1C9PP and 7CAMAD own the plan-repair-and-start proof, and 7CAMAD owns the implementation-replan proof
+- **NTB recovery:** skip: K3EBHB owns plain-language explanations and one-action recovery for planning blocks; this child proves the installed block and names the missing accepted plan
 
 <!-- Inherited by reference; the child never restates it. To skip demo proof for
      this feature alone, append an em-dash skip clause to the Killer Demo line
@@ -41,7 +42,7 @@ lineage parsing to satisfy a cosmetic heading rule. -->
 
 #### plan-implementability.TBU1.YCFFNC.R7 — Installed guidance delivers both planning-phase entry gates and project-local artifacts, the feature Delivery Checklist, and reviewable pull-request slicing, and proves that behavior at each affected host boundary or records a specific justified limitation at that real boundary
 
-#### plan-implementability.TBU1.YCFFNC.R8 — On each supported authoritative host, a plain feature prompt automatically traverses intake, behavior definition, both planning phases, TDD implementation, verification, checklist completion, and pull-request preparation while preserving a contract-quality Product Plan, Implementation Plan, and Execution Plan and leaving human review and merge authority intact
+#### plan-implementability.TBU1.YCFFNC.R8 — On each supported conversational agent host, a plain feature prompt automatically traverses intake, behavior definition, both planning phases, TDD implementation, verification, checklist completion, and pull-request preparation while preserving a contract-quality Product Plan, Implementation Plan, and Execution Plan and leaving human review and merge authority intact
 
 <!-- markdownlint-enable MD001 -->
 

@@ -2,10 +2,10 @@
 id: YCFFNC
 slug: migrate-planning-guidance-without-disrupting-features
 type: feature
-phase: scenario-gate
+phase: plan-implementation
 status: in_progress
 phase_skips:
-  - "intake: originally inherited the 2026-09-08 approval of 82T411; that approval is stale after material parent changes, so this child cannot earn another approval or enter implementation until 82T411 receives fresh Product Plan approval"
+  - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
   - "define-behavior: partitioned the accepted 82T411 Rule and scenario packet at Safeword's documented split restart point"
 phase_anchors:
   - scenario-gate: features/migrate-planning-guidance-without-disrupting-features.feature
@@ -15,7 +15,7 @@ scope:
   - migrate in-flight feature tickets without retroactively blocking accepted implementation work
   - reconcile plan claims against current behavior when existing implementation returns to planning and preserve discrepancies as unresolved state
   - deliver both planning-phase contracts, the feature Delivery Checklist, and reviewable pull-request slicing through every affected host and collect real-boundary behavior proof or a specific justified host limitation
-  - prove that a plain feature prompt automatically travels through the full workflow into a verified, review-ready pull request with strong Product, Implementation, and Execution Plans preserved
+  - prove that a plain feature prompt automatically travels through the full workflow on every supported conversational agent host into a verified, review-ready pull request with strong Product, Implementation, and Execution Plans preserved
 out_of_scope:
   - defining plan contracts, review infrastructure, execution decomposition, and small-work routing
 done_when:
@@ -24,14 +24,13 @@ done_when:
   - pre-implementation tickets migrate while already accepted implementation continues until it returns to planning
   - a returned or retrofitted plan cannot silently rewrite current implementation as accepted, proven, or approved design
   - every affected host executes the installed Implementation Planning, Execution Planning, feature-checklist, and PR-slicing behavior at its real boundary or records a specific justified limitation
-  - on each supported authoritative host, a plain request such as MCP notification support can travel from intake to a completed, review-ready pull request without manual workflow orchestration or loss of planning quality
+  - on each supported conversational agent host, a plain request such as MCP notification support can travel from intake to a completed, review-ready pull request without manual workflow orchestration or loss of planning quality
 product_plan_contract: v1
 parent: 82T411
-blocked_on: [82T411]
 parent_job: plan-implementability.TBU1
 milestone: M2
 created: 2026-09-08T17:36:35.373Z
-last_modified: 2026-09-09T23:39:27.000Z
+last_modified: 2026-09-10T05:48:00.000Z
 parent_contract_digest: b673888e6e44b77dfa690acf7450e2b8aebccb654631ffa83eaea838d0737ea9
 ---
 
@@ -42,6 +41,16 @@ parent_contract_digest: b673888e6e44b77dfa690acf7450e2b8aebccb654631ffa83eaea838
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-10T05:48:00.000Z Scenario gate approved: Claude Opus independently approved all 28 scenarios with cross-agent provenance (review `87860f25-114c-47ba-920f-0a9f7a7dc57c`) after the packet bound automatic orchestration, human merge authority, both planning gates, semantic guidance review, and complete installed-host delivery. Stamped the exact reviewed bytes and advanced to Implementation Planning; six nonblocking strengthening ideas remain available for that plan.
+
+- 2026-09-10T05:41:00.000Z Scenario review correction: Added real-host refusal proof for both planning entry gates, split installed planning from checklist and pull-request delivery, required approved exact-content receipts in the complete journey, named independent semantic review as the guidance proof boundary, and recorded K3EBHB ownership of NTB recovery language.
+
+- 2026-09-10T05:34:00.000Z Scenario review correction: Bound human merge authority to the observable pull-request state, added complete-versus-incomplete CLI journey evaluation, named durable completion evidence instead of trusting a terminal claim, aligned the ledger's R8 contract text, and removed decorative persona prefixes.
+
+- 2026-09-10T05:29:00.000Z Scenario review correction: Independent review found the full-journey scenario assumed automatic orchestration without asserting it. Added a direct no-manual-invocation assertion and rejection case, positive migrated-plan review, explicit slicing record, exact recovery step, correct demo tagging, conversational-host boundary, and explicit implementation-replan ownership.
+
+- 2026-09-10T05:24:00.000Z Parent gate cleared: Parent reconciliation reports this child healthy against the current accepted 82T411 contract, so removed the obsolete stale-approval blocker before independent scenario review.
 
 - 2026-09-09T23:39:27.000Z Killer Demo addition: User added the full golden journey—a plain feature prompt such as MCP notification support should travel automatically from intake through high-quality Product, Implementation, and Execution Plans, TDD delivery, verification, checklist completion, and a completed review-ready PR. This child owns installed end-to-end proof while preserving human review and merge authority.
 

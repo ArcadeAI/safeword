@@ -15,7 +15,7 @@ Feature: Migrate planning guidance without disrupting features
         | a legacy design artifact |
 
     Scenario Outline: Accepted implementation work resumes against its accepted artifact
-      Given TBU has a feature already in implementation with <accepted_artifact> and its existing test evidence
+      Given a feature is already in implementation with <accepted_artifact> and its existing test evidence
       When the new planning workflow resumes it
       Then the ticket resumes at implementation against that accepted artifact with its test evidence preserved and no draft Implementation Plan or Execution Plan is demanded retroactively
 
@@ -36,9 +36,9 @@ Feature: Migrate planning guidance without disrupting features
 
     @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed hosts enforce the migrated Execution Plan requirement
-      Given NTB has a pre-implementation legacy feature with a migrated draft Implementation Plan but no Execution Plan
+      Given a pre-implementation legacy feature has a migrated draft Implementation Plan but no Execution Plan
       When <installed_entry> attempts to begin implementation with real configuration and collaborators on <host>
-      Then implementation remains blocked and the primary message plainly names creating the missing Execution Plan as the one next action
+      Then implementation remains blocked because the required Execution Plan is missing
 
       Examples:
         | host | installed_entry |
@@ -104,8 +104,8 @@ Feature: Migrate planning guidance without disrupting features
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed architecture guidance routes by significance without a second feature plan
       Given a real install and reconcile has materialized every registered host's architecture guidance in a project fixture
-      When the installed architecture guidance files are read for <decision_shape>
-      Then each states <route> and contains no separate feature-design plan route
+      When an independent semantic reviewer evaluates the installed architecture guidance for <decision_shape>
+      Then the reviewer confirms each host guidance states <route> and contains no separate feature-design plan route
 
       Examples:
         | decision_shape | route |
@@ -124,8 +124,8 @@ Feature: Migrate planning guidance without disrupting features
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed data guidance follows semantic relevance rather than apparent size
       Given a real install and reconcile has materialized every registered host's data guidance in a project fixture
-      When the installed data guidance files are read for <data_change>
-      Then each states <applicability_result> and contains no entity-count or simple-schema exemption that contradicts that result
+      When an independent semantic reviewer evaluates the installed data guidance for <data_change>
+      Then the reviewer confirms each host guidance states <applicability_result> and contains no entity-count or simple-schema exemption that contradicts that result
 
       Examples:
         | data_change | applicability_result |
@@ -135,8 +135,8 @@ Feature: Migrate planning guidance without disrupting features
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Durable recording follows architectural significance rather than entity count
       Given a real install and reconcile has materialized every registered host's data and architecture guidance in a project fixture
-      When those installed guidance files are read for a change that is <decision_shape>
-      Then each states <recording_result> and contains no numeric entity-count rule that contradicts that result
+      When an independent semantic reviewer evaluates those installed guidance files for a change that is <decision_shape>
+      Then the reviewer confirms each host guidance states <recording_result> and contains no numeric entity-count rule that contradicts that result
 
       Examples:
         | decision_shape | recording_result |
@@ -149,8 +149,8 @@ Feature: Migrate planning guidance without disrupting features
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: Installed guidance keeps routine and deep design in one Implementation Plan lane
       Given a real install and reconcile has materialized every registered host's feature-planning guidance in a project fixture
-      When the installed feature-planning guidance files are read for <design_depth>
-      Then each states <plan_result> and contains no separate deep-design artifact route
+      When an independent semantic reviewer evaluates the installed feature-planning guidance for <design_depth>
+      Then the reviewer confirms each host guidance states <plan_result> and contains no separate deep-design artifact route
 
       Examples:
         | design_depth | plan_result |
@@ -179,20 +179,74 @@ Feature: Migrate planning guidance without disrupting features
         | current behavior contradicting an accepted decision | the plan records the discrepancy as unresolved and does not relabel current behavior as accepted |
         | proof retained only from an older revision | the plan preserves the evidence link and labels its revision limitation rather than calling the current implementation proven |
 
-    @rejection
+    @surface.safeword-cli
+    Scenario: A truthfully reconciled retrofitted plan can proceed
+      Given a retrofitted Implementation Plan accurately distinguishes accepted decisions, current implementation, unresolved discrepancies, and revision-limited proof
+      When the plan is reviewed through the installed Safeword CLI
+      Then the review does not block it for failing to reconcile its claims against current behavior
+
+    @rejection @surface.safeword-cli
     Scenario: A plausible but unverified implementation claim blocks migrated-plan approval
       Given a retrofitted Implementation Plan calls a process lease unique per incarnation without reconciling the current identity construction
-      When the plan is reviewed
+      When the plan is reviewed through the installed Safeword CLI
       Then approval is blocked until the implemented identity and any discrepancy are recorded truthfully
 
   @plan-implementability.TBU1.YCFFNC.R7
   Rule: plan-implementability.TBU1.YCFFNC.R7 — Installed guidance delivers both planning-phase entry gates and project-local artifacts, the feature Delivery Checklist, and reviewable pull-request slicing, and proves that behavior at each affected host boundary or records a specific justified limitation at that real boundary
 
     @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
-    Scenario Outline: Each authoritative host exposes the complete installed planning route
+    Scenario Outline: Each authoritative host exposes installed planning artifacts and reviews
       Given Safeword is installed for <host_entry>
       When a feature reaches planning through that host's real entry point
-      Then the workflow produces the project-local Implementation Plan and Execution Plan, applies their current review contracts, carries the feature Delivery Checklist, and records a one-PR or dependency-ordered slicing decision
+      Then the workflow produces the project-local Implementation Plan and Execution Plan and applies each plan's current review contract
+
+      Examples:
+        | host_entry |
+        | Safeword CLI planning transition |
+        | Claude Code lifecycle-hook dispatch |
+        | Claude Code Cloud project hooks in a fresh VM |
+        | OpenAI Codex project workflow dispatch |
+        | OpenCode CLI/TUI plugin-event dispatch |
+        | Cursor project-hook dispatch |
+        | Cursor Cloud Agents project hooks in a fresh runner |
+
+    @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: Each authoritative host carries delivery checks and pull-request slicing
+      Given Safeword is installed for <host_entry>
+      When a feature reaches Execution Planning through that host's real entry point
+      Then the workflow carries the feature Delivery Checklist and records an explicit pull-request slicing decision
+
+      Examples:
+        | host_entry |
+        | Safeword CLI planning transition |
+        | Claude Code lifecycle-hook dispatch |
+        | Claude Code Cloud project hooks in a fresh VM |
+        | OpenAI Codex project workflow dispatch |
+        | OpenCode CLI/TUI plugin-event dispatch |
+        | Cursor project-hook dispatch |
+        | Cursor Cloud Agents project hooks in a fresh runner |
+
+    @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: Each authoritative host blocks Execution Planning without an accepted Implementation Plan
+      Given a feature has an Implementation Plan without a current accepted review
+      When <host_entry> attempts to enter Execution Planning through the host's real entry point
+      Then the transition is blocked because a current accepted Implementation Plan is missing
+
+      Examples:
+        | host_entry |
+        | Safeword CLI planning transition |
+        | Claude Code lifecycle-hook dispatch |
+        | Claude Code Cloud project hooks in a fresh VM |
+        | OpenAI Codex project workflow dispatch |
+        | OpenCode CLI/TUI plugin-event dispatch |
+        | Cursor project-hook dispatch |
+        | Cursor Cloud Agents project hooks in a fresh runner |
+
+    @rejection @surface.safeword-cli @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    Scenario Outline: Each authoritative host blocks implementation without an accepted Execution Plan
+      Given a feature has an accepted Implementation Plan and an Execution Plan without a current accepted review
+      When <host_entry> attempts to enter implementation through the host's real entry point
+      Then the transition is blocked because a current accepted Execution Plan is missing
 
       Examples:
         | host_entry |
@@ -210,14 +264,14 @@ Feature: Migrate planning guidance without disrupting features
       When installed planning guidance reaches that surface
       Then the guidance labels the workflow advisory, names the missing native boundary, and directs the user to the authoritative OpenCode CLI or TUI route
 
-  @plan-implementability.TBU1.YCFFNC.R8 @demo
-  Rule: plan-implementability.TBU1.YCFFNC.R8 — On each supported authoritative host, a plain feature prompt automatically traverses intake, behavior definition, both planning phases, TDD implementation, verification, checklist completion, and pull-request preparation while preserving a contract-quality Product Plan, Implementation Plan, and Execution Plan and leaving human review and merge authority intact
+  @plan-implementability.TBU1.YCFFNC.R8
+  Rule: plan-implementability.TBU1.YCFFNC.R8 — On each supported conversational agent host, a plain feature prompt automatically traverses intake, behavior definition, both planning phases, TDD implementation, verification, checklist completion, and pull-request preparation while preserving a contract-quality Product Plan, Implementation Plan, and Execution Plan and leaving human review and merge authority intact
 
-    @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
+    @demo @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.opencode @surface.cursor @surface.cursor-cloud-agents
     Scenario Outline: MCP notification support travels from request to review-ready pull request
-      Given a user tells <host_entry> "let's support MCP notifications" in a configured project with no existing ticket
-      When Safeword carries the request through its automatic feature workflow
-      Then the resulting review-ready pull request has verified implementation, a completed Delivery Checklist, and current contract-approved Product, Implementation, and Execution Plans without claiming human review or merge approval
+      Given a user tells <host_entry> "let's support MCP notifications" in a controlled configured project with no existing ticket
+      When Safeword reaches its observable terminal workflow-complete state tied to the resulting pull request
+      Then the completion record identifies passing verification evidence, a completed Delivery Checklist, and approved review receipts bound to the exact current bytes of the Product, Implementation, and Execution Plans under their own phase contracts, the user issued no workflow command or phase invocation after the initial request, and the pull request remains open and unmerged awaiting a human merge decision because the workflow performed no merge
 
       Examples:
         | host_entry |
@@ -228,8 +282,20 @@ Feature: Migrate planning guidance without disrupting features
         | Cursor project-hook dispatch |
         | Cursor Cloud Agents project hooks in a fresh runner |
 
-    @rejection
+    @surface.safeword-cli
+    Scenario: A fully traversed journey is reported complete
+      Given a recorded feature journey contains every required phase transition, current exact-content plan review receipt, passing verification result, completed Delivery Checklist item, and an open unmerged review-ready pull request
+      When workflow completion is checked through the installed Safeword CLI
+      Then the journey is reported complete and awaiting human pull-request review
+
+    @rejection @surface.safeword-cli
+    Scenario: A journey that requires a manual phase invocation is incomplete
+      Given a plain feature request completes behavior definition but stops until the user manually invokes Implementation Planning
+      When workflow completion is checked through the installed Safeword CLI
+      Then the journey is incomplete at Implementation Planning even if later manual phase commands could produce every expected artifact
+
+    @rejection @surface.safeword-cli
     Scenario: Manual artifact creation cannot masquerade as the complete journey
-      Given a user requests MCP notification support and only a ticket plus unchecked plan templates exist
-      When end-to-end completion is evaluated
-      Then the journey remains incomplete with the next unperformed workflow step named
+      Given a user requests MCP notification support and only a ticket, an approved Product Plan, and unchecked Implementation Plan and Execution Plan templates exist
+      When workflow completion is checked through the installed Safeword CLI
+      Then the journey remains incomplete and names completing Implementation Planning as the next unperformed workflow step

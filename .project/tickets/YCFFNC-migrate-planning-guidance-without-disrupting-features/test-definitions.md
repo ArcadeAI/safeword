@@ -118,6 +118,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A truthfully reconciled retrofitted plan can proceed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A plausible but unverified implementation claim blocks migrated-plan approval
 
 - [ ] RED
@@ -126,7 +132,25 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU1.YCFFNC.R7 — Installed guidance delivers both planning-phase entry gates and project-local artifacts, the feature Delivery Checklist, and reviewable pull-request slicing, and proves that behavior at each affected host boundary or records a specific justified limitation at that real boundary
 
-### Scenario: Each authoritative host exposes the complete installed planning route
+### Scenario: Each authoritative host exposes installed planning artifacts and reviews
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Each authoritative host carries delivery checks and pull-request slicing
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Each authoritative host blocks Execution Planning without an accepted Implementation Plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Each authoritative host blocks implementation without an accepted Execution Plan
 
 - [ ] RED
 - [ ] GREEN
@@ -138,9 +162,21 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU1.YCFFNC.R8 — On each supported authoritative host, a plain feature prompt automatically traverses intake, behavior definition, both planning phases, TDD implementation, verification, checklist completion, and pull-request preparation while preserving a contract-quality Product Plan, Implementation Plan, and Execution Plan and leaving human review and merge authority intact
+## Rule: plan-implementability.TBU1.YCFFNC.R8 — On each supported conversational agent host, a plain feature prompt automatically traverses intake, behavior definition, both planning phases, TDD implementation, verification, checklist completion, and pull-request preparation while preserving a contract-quality Product Plan, Implementation Plan, and Execution Plan and leaving human review and merge authority intact
 
 ### Scenario: MCP notification support travels from request to review-ready pull request
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A fully traversed journey is reported complete
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A journey that requires a manual phase invocation is incomplete
 
 - [ ] RED
 - [ ] GREEN

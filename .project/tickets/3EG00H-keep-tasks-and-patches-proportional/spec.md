@@ -8,6 +8,8 @@
 - **Milestone:** M3
 - **Parent job:** plan-implementability.TBU3
 - **Killer Demo:** inherited from the parent spec — this child owns the task-and-patch proportional-flow clause; G1C9PP and 7CAMAD own the feature plan-repair-and-start sequence
+- **NTB recovery:** skip: K3EBHB owns plain-language one-action recovery messages; this child proves technical blocking, evidence preservation, and the correct resume phase
+- **Host semantics:** Safeword CLI owns the shared semantic classification result in R13; R2 proves every affected host reaches that classifier, while R1 proves each host applies the resulting ceremony
 
 <!-- Inherited by reference; the child never restates it. To skip demo proof for
      this feature alone, append an em-dash skip clause to the Killer Demo line
