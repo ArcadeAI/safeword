@@ -62,7 +62,7 @@ prove real installed CLI wiring.
 
 - [x] RED 23abfdefc
 - [x] GREEN 6e58244f2
-- [ ] REFACTOR
+- [x] REFACTOR skip: the field list is one review obligation mirrored once in the authoring template, with no production parser added
 
 ### Scenario: Data decisions cannot be replaced by migration commands
 
