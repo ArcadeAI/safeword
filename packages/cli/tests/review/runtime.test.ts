@@ -605,10 +605,10 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       const result = await runHeadlessReviewer('claude', packet, project, untrustedRoot);
       expect(result.verdict).toBe('request_changes');
       expect(result.findings).toHaveLength(2);
-      expect(result.findings[0]?.severity).toBe('error');
-      expect(result.findings[0]?.message).toContain('exclude execution sequencing');
-      expect(result.findings[1]?.severity).toBe('error');
-      expect(result.findings[1]?.message).toContain('require execution sequencing');
+      expect(result.findings.every(finding => finding.severity === 'error')).toBe(true);
+      const messages = result.findings.map(finding => finding.message);
+      expect(messages.some(message => message.includes('exclude execution sequencing'))).toBe(true);
+      expect(messages.some(message => message.includes('require execution sequencing'))).toBe(true);
     },
   );
 
