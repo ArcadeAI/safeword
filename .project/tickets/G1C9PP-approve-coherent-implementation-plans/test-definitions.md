@@ -94,7 +94,7 @@ prove real installed CLI wiring.
 
 ### Scenario: A one-file shared contract is significant while a many-file mechanical edit is not
 
-- [x] RED 6f39930e3
+- [x] RED 9410f11e6
 - [ ] GREEN
 - [ ] REFACTOR
 
