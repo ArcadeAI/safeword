@@ -7,6 +7,10 @@ import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 
 const ROUTING_REQUIREMENT =
   'Keep reversible feature-local choices in the Implementation Plan and link only difficult-to-reverse structural or shared-contract decisions to the configured durable architecture record';
+const MISSING_ROUTING_FINDING = {
+  severity: 'error' as const,
+  message: 'The packaged contract is missing the durable-record routing requirement.',
+};
 
 interface PlannedDecision {
   name: string;
@@ -61,10 +65,7 @@ function reviewRecordingDestinations(
       }
     }
   } else {
-    findings.push({
-      severity: 'error',
-      message: 'The packaged contract is missing the durable-record routing requirement.',
-    });
+    findings.push(MISSING_ROUTING_FINDING);
   }
 
   return {
@@ -102,10 +103,7 @@ Architecture record: ARCHITECTURE.md#gateway-authorization
       'Retry label wording',
       'Gateway authorization contract',
     ]);
-    expect(
-      result.findings.filter(finding => finding.message.startsWith('The packaged contract')),
-      'The packaged contract is missing the durable-record routing requirement.',
-    ).toEqual([]);
+    expect(result.findings).not.toContainEqual(MISSING_ROUTING_FINDING);
     expect(result.verdict).toBe('approve');
     expect(result.findings).toEqual([]);
   });
@@ -130,7 +128,7 @@ Architecture record: ARCHITECTURE.md#missing
       expected: 'needs a resolvable durable architecture record',
     },
   ])('$name', ({ expected, plan, records }) => {
-    const result = reviewRecordingDestinations(ROUTING_REQUIREMENT, plan, records);
+    const result = reviewRecordingDestinations(PLAN_REVIEW_RUBRIC, plan, records);
 
     expect(result.verdict).toBe('request_changes');
     expect(result.findings).toEqual([
