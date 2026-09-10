@@ -97,6 +97,7 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | data_state | review_result |
         | one persisted entity change that omits data ownership and migration decisions | approval is blocked with ownership and migration named |
+        | one persisted entity change that omits its purpose, store and model, and schema relationships | approval is blocked with the foundational data decisions named |
         | one persisted entity change that omits retention and rollback consequences | approval is blocked with retention and rollback named |
         | one persisted entity change that omits identity and integrity decisions | approval is blocked with identity and integrity named |
         | purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback decisions recorded without migration commands | data guidance does not block approval |
@@ -265,7 +266,7 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | scope_decision | scope_result |
         | no user-supplied scope-change approval | the capability remains outside the accepted plan |
-        | user-supplied scope-change authority bound to this ticket, session, and proposed scope | the capability enters the accepted plan and boundary |
+        | fixture-minted typed scope-change authority bound to this ticket, session, and proposed scope | the capability enters this ticket's accepted consumer boundary while authentic release authority remains unproven until 5F5ZZA supplies it |
         | only an agent-authored assertion with no externally supplied user authority | the capability remains outside the accepted plan |
 
     Scenario Outline: Persona consequence coverage controls approach approval
@@ -346,6 +347,7 @@ Feature: Approve coherent Implementation Plans
         | authorization | permissions but no authority for a destructive transition | approval is blocked with the missing authority decision named |
         | concurrent state transition | transition states, authority, atomicity boundary, retry behavior, and preserved evidence | decision depth does not block approval |
         | concurrent state transition | transition states and authority but no atomicity boundary or retry behavior | approval is blocked with the missing concurrency decisions named |
+        | lifecycle-scheduled deletion | deletion states, transition authority, atomicity, and retry behavior but no preserved evidence | approval is blocked with the missing lifecycle evidence model named |
         | migration | the target schema, crash boundary, retry behavior, and compatibility policy | decision depth does not block approval |
         | migration | the target schema but no crash, retry, or compatibility behavior | approval is blocked with the missing migration decisions named |
 
@@ -389,7 +391,7 @@ Feature: Approve coherent Implementation Plans
         | approval_setting | invocation_context | approval_result |
         | disabled | a non-interactive invocation | the CLI enters Execution Planning and records that human design approval was not required |
         | enabled | an interactive invocation with an approver available | the reviewed approach is presented once for that person's decision |
-        | enabled | a non-interactive invocation with no approver available | the reviewed approach is emitted with approval honestly pending, the CLI invocation completes without requesting approver input, and Execution Planning does not begin until a human decides |
+        | enabled | a non-interactive invocation with no approver available | the CLI invocation completes without requesting approver input, with the ticket still in Implementation Planning and approval recorded as pending |
 
     @surface.safeword-cli
     Scenario: A declined design returns to Implementation Planning
