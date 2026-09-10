@@ -61,7 +61,7 @@ prove real installed CLI wiring.
 ### Scenario: Data guidance follows data-contract applicability
 
 - [x] RED 23abfdefc
-- [ ] GREEN
+- [x] GREEN 6e58244f2
 - [ ] REFACTOR
 
 ### Scenario: Data decisions cannot be replaced by migration commands
