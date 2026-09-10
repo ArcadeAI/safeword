@@ -66,7 +66,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Data decisions cannot be replaced by migration commands
 
-- [x] RED a4bc7450b
+- [x] RED c642b9967
 - [ ] GREEN
 - [ ] REFACTOR
 
