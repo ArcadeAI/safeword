@@ -725,6 +725,24 @@ and Codex Stop so all three address the same state key.
 
 **Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. TDD gates have priority over LOC gate (LOC gate cannot overwrite an active TDD gate).
 
+### Separate Implementation and Execution Planning Gates
+
+**Status:** Accepted
+**Date:** 2026-09-10
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | Feature work uses two explicit, separately reviewed planning phases: Implementation Planning decides the behavior-shaping architecture, data, interface, operational, rollout, rollback, and proof-scope choices in one project-local `impl-plan.md`; Execution Planning translates that approved approach into startable TDD slices and independently reviewable PRs in `execution-plan.md`.                                                |
+| Why            | A plan optimized for design approval and a plan optimized for execution have different jobs. Keeping them distinct lets people review the approach in a focused meeting while giving an agent enough concrete sequencing to build it without inventing design decisions.                                                                                                                                                                     |
+| Trade-off      | The workflow gains one public phase and one artifact. Phase transitions, review receipts, migration, and every installed host must agree on the added state.                                                                                                                                                                                                                                                                                 |
+| Alternatives   | Keep one mixed plan (rejected: execution detail obscures design decisions); keep two files in one phase (rejected: the boundary is not observable or consistently enforceable); make Execution Planning an agent-private artifact (rejected: it cannot support durable handoff or review).                                                                                                                                                   |
+| Implementation | The canonical phase model inserts `plan-execution` between `plan-implementation` and `implement`. Each phase has one author/reviewer contract and its own current review currency. Significant decisions are linked here before Implementation Plan approval. The planning edit freeze narrowly permits the configured, project-owned architecture record so this requirement is satisfiable; code and ordinary documentation remain frozen. |
+
+This decision supersedes the transition and six-section artifact portions of
+the 2026-07-09 “plan-implementation: a gated planning phase as the Automation
+on-ramp” decision. It preserves that decision's rationale, project-local
+authority, and content-hash review history.
+
 ### Frozen Transcript Fixture Testing
 
 **Status:** Accepted

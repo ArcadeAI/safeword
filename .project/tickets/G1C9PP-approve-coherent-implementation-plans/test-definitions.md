@@ -4,6 +4,12 @@ Feature source: `features/approve-coherent-implementation-plans.feature`
 
 test-definitions.md is the R/G/R ledger.
 
+Proof boundary: every untagged semantic scenario must derive its verdict from
+the exact packaged Implementation Plan contract bytes through the deterministic
+contract-conformance reviewer boundary. A per-scenario scripted verdict cannot
+satisfy RED or GREEN. Scenarios tagged `@surface.safeword-cli` additionally
+prove real installed CLI wiring.
+
 ## Rule: plan-implementability.TBU1.G1C9PP.R1 — Implementation Planning is a distinct approach-decision phase
 
 ### Scenario: Safeword CLI enforces and releases the decision boundary
@@ -58,6 +64,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Data decisions cannot be replaced by migration commands
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
 
 ### Scenario: Durable recording routes only significant decisions to the architecture record
@@ -67,6 +79,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: An unrecorded significant decision blocks approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Planning access permits only the configured durable architecture record
 
 - [ ] RED
 - [ ] GREEN
@@ -104,7 +122,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A receipt reports every simultaneous decision blocker
+### Scenario: Installed review reports every simultaneous decision blocker
 
 - [ ] RED
 - [ ] GREEN
@@ -136,11 +154,22 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Discovery respects and updates scope only with user authority
 
+Proof limit: the accepting scope-expansion row exercises the consumer contract
+with fixture-minted authority. Sibling `5F5ZZA` owns authentic host-user-event
+provenance and the end-to-end positive proof; this scenario cannot satisfy that
+release prerequisite by itself.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Persona consequence coverage controls approach approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Omitting one accepted persona blocks approach approval
 
 - [ ] RED
 - [ ] GREEN
@@ -190,9 +219,15 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval occurs once on the semantically reviewed Implementation Plan before Execution Planning; it is not duplicated after the Execution Plan, and headless work records pending authority without deadlocking or claiming approval
+## Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, and headless work records pending authority without deadlocking or claiming approval
 
-### Scenario: Human design authority follows configuration
+### Scenario: Installed CLI human design authority follows configuration
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A declined design returns to Implementation Planning
 
 - [ ] RED
 - [ ] GREEN
@@ -200,11 +235,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Human design authority follows approach currency
 
+Proof limit: this scenario proves only whether human design approval still
+binds the exact current approach bytes. Sibling `5F5ZZA` owns semantic review
+record invalidation, provenance changes, and context-digest recomputation.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A completed Execution Plan does not trigger a second design approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A completed Execution Plan cannot preserve stale design approval
 
 - [ ] RED
 - [ ] GREEN

@@ -1,5 +1,6 @@
 Feature: Approve coherent Implementation Plans
   Safeword makes approach decisions complete and reviewable before execution is sequenced.
+  Untagged semantic scenarios evaluate the real packaged review contract through a deterministic contract-conformance reviewer fixture; tagged scenarios additionally prove installed CLI wiring.
 
   @plan-implementability.TBU1.G1C9PP.R1
   Rule: plan-implementability.TBU1.G1C9PP.R1 — Implementation Planning is a distinct approach-decision phase
@@ -40,7 +41,9 @@ Feature: Approve coherent Implementation Plans
         | presentation | reviewability_result |
         | a decision summary buried beneath step-by-step coding instructions and repeated test evidence | the plan fails focused reviewability and names the removable execution and evidence detail |
         | an architecture-at-a-glance mental model followed by decision-bearing contracts, operational risks, and unresolved authority with supporting detail linked | the plan passes focused reviewability |
-        | a short summary that omits a load-bearing failure-posture decision | the plan fails focused reviewability because that decision is absent from the review path |
+        | decision-bearing contracts, operational risks, and unresolved authority in the main review path but no architecture-at-a-glance mental model | the plan fails focused reviewability because it does not open with an architecture-at-a-glance mental model |
+        | a short summary that opens with the architecture-at-a-glance mental model and records a load-bearing failure-posture decision only in its linked detail | the plan passes focused reviewability because the decision remains in the review path |
+        | a short summary with a load-bearing failure-posture decision recorded nowhere in the plan or its linked detail | the plan fails focused reviewability because that decision is absent from the review path |
 
   @plan-implementability.TBU1.G1C9PP.R4
   Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
@@ -89,10 +92,16 @@ Feature: Approve coherent Implementation Plans
         | data_state | review_result |
         | one persisted entity change that omits data ownership and migration decisions | approval is blocked with ownership and migration named |
         | one persisted entity change that omits retention and rollback consequences | approval is blocked with retention and rollback named |
+        | one persisted entity change that omits identity and integrity decisions | approval is blocked with identity and integrity named |
         | purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback decisions recorded without migration commands | data guidance does not block approval |
         | a persisted cross-system flow with no source of truth or access decision | approval is blocked with source of truth and access named |
         | a regulated backfill with no compliance consequence | approval is blocked with compliance named |
         | no data-contract, ownership, or lifecycle impact | data guidance does not block approval |
+
+    Scenario: Data decisions cannot be replaced by migration commands
+      Given an Implementation Plan records every required data decision together with exact migration commands
+      When the Implementation Plan is reviewed
+      Then approval is blocked with the execution mechanics named for removal to Execution Planning
 
   @plan-implementability.TBU1.G1C9PP.R7
   Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
@@ -107,13 +116,30 @@ Feature: Approve coherent Implementation Plans
       When the plan is reviewed
       Then approval is blocked until the shared-contract choice is linked to a durable architecture record
 
+    @surface.safeword-cli
+    Scenario Outline: Planning access permits only the configured durable architecture record
+      Given real project configuration resolves its durable architecture record to <target_path>
+      When the installed Safeword planning edit gate evaluates an edit during Implementation Planning
+      Then <edit_result>
+
+      Examples:
+        | target_path | edit_result |
+        | the configured project-owned architecture path | the architecture-record edit is permitted so a significant decision can be recorded before review |
+        | a sibling file beside the configured architecture record | the edit remains blocked because resemblance does not grant planning access |
+        | an ordinary source or documentation path | the edit remains blocked by the planning freeze |
+
   @plan-implementability.TBU1.G1C9PP.R8
   Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
 
-    Scenario: A one-file shared contract is significant while a many-file mechanical edit is not
-      Given a one-file change alters a shared API and a many-file edit preserves every contract
+    Scenario Outline: A one-file shared contract is significant while a many-file mechanical edit is not
+      Given a one-file change <significant_change> and a many-file edit preserves every contract
       When architecture significance is evaluated
-      Then the shared API change is significant and the mechanical edit is not
+      Then the one-file change requires a durable architecture record and the mechanical edit does not
+
+      Examples:
+        | significant_change |
+        | alters a shared API |
+        | changes migration compatibility without altering a shared API |
 
   @plan-implementability.TBU1.G1C9PP.R9
   Rule: plan-implementability.TBU1.G1C9PP.R9 — One feature has one design plan of record
@@ -162,9 +188,10 @@ Feature: Approve coherent Implementation Plans
         | unresolved proof scope | approval is blocked with proof scope named as an Implementation Planning obligation |
         | resolved proof scope | proof scope does not block approval |
 
-    Scenario: A receipt reports every simultaneous decision blocker
-      Given a plan has an unresolved API contract and unresolved rollback behavior
-      When the plan is reviewed
+    @surface.safeword-cli
+    Scenario: Installed review reports every simultaneous decision blocker
+      Given real project configuration, a plan with an unresolved API contract and unresolved rollback behavior, and a deterministic reviewer process result containing both findings
+      When the installed Safeword CLI reviews the plan through real internal collaborators and the controlled reviewer process boundary
       Then the receipt names the API contract and rollback behavior without requiring an order
 
   @plan-implementability.TBU1.G1C9PP.R12
@@ -177,7 +204,7 @@ Feature: Approve coherent Implementation Plans
 
       Examples:
         | evidence_state | review_result |
-        | current evidence but no credible alternative or losing tradeoff | approval is blocked until the alternative and why it lost are explicit |
+        | current evidence but neither a credible alternative nor a losing tradeoff | approval is blocked until the alternative and why it lost are explicit |
         | current evidence, a credible alternative, and an explicit reason the alternative lost | decision evidence does not block approval |
         | a credible alternative and losing reason but evidence superseded by a named release after the choice | approval is blocked until the evidence is refreshed against that release |
 
@@ -191,8 +218,8 @@ Feature: Approve coherent Implementation Plans
 
       Examples:
         | decision_state | result |
-        | no decision entries and no skip | blocked before approval |
-        | an explicit no-load-bearing-choice skip contradicted by the plan's own load-bearing technology choice | blocked before approval |
+        | no decision entries and no skip | blocked by the structural check with the missing decision entry named |
+        | an explicit no-load-bearing-choice skip contradicted by the plan's own load-bearing technology choice | blocked by semantic review before approval |
         | a local non-load-bearing technology choice declared under a no-load-bearing-choice skip | eligible for semantic approval |
         | an explicit no-load-bearing-choice skip with a credible reason | eligible for semantic approval |
 
@@ -205,7 +232,7 @@ Feature: Approve coherent Implementation Plans
         | evidence_presentation | result |
         | the decision, alternative, losing reason, evidence reference, retrieval date, and applicable version in the packaged table | eligible for semantic review |
         | the same complete information in concise prose and bullets | eligible for semantic review |
-        | prose that omits the evidence reference and applicable version | blocked with the missing evidence fields named |
+        | prose that omits the evidence reference and applicable version | blocked by semantic review with the missing evidence fields named |
 
   @plan-implementability.TBU1.G1C9PP.R14
   Rule: plan-implementability.TBU1.G1C9PP.R14 — Decision discovery is scope-bounded and covers the consequential trust, operation, approval, and recovery needs of every accepted persona
@@ -218,8 +245,8 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | scope_decision | scope_result |
         | no user-supplied scope-change approval | the capability remains outside the accepted plan |
-        | a user-supplied scope-change approval in the session record | the capability enters the accepted plan and boundary |
-        | only an agent-authored assertion that the user approved expansion | the capability remains outside the accepted plan |
+        | user-supplied scope-change authority bound to this ticket, session, and proposed scope | the capability enters the accepted plan and boundary |
+        | only an agent-authored assertion with no externally supplied user authority | the capability remains outside the accepted plan |
 
     Scenario Outline: Persona consequence coverage controls approach approval
       Given the accepted Product Plan includes a persona who must <persona_need> and the Implementation Plan <coverage_state>
@@ -237,6 +264,11 @@ Feature: Approve coherent Implementation Plans
         | recover safely after a refused operation | records that design consequence and its limit | persona coverage does not block approval |
         | recover safely after a refused operation | omits that consequence | approval is blocked with the uncovered recovery need named |
 
+    Scenario: Omitting one accepted persona blocks approach approval
+      Given the accepted Product Plan includes a Technical Builder with an authorization-trust need and a Non-Technical Builder with a safe-recovery need, while the Implementation Plan covers only the Technical Builder's consequence
+      When the Implementation Plan is reviewed
+      Then approval is blocked with the omitted Non-Technical Builder and safe-recovery consequence named
+
   @plan-implementability.TBU1.G1C9PP.R15
   Rule: plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability and concrete recovery
 
@@ -250,9 +282,10 @@ Feature: Approve coherent Implementation Plans
         | reviewable from its decision summary and linked detail | a reviewability pass |
         | obscured by execution detail | a reviewability failure naming the obscuring detail |
 
+    @surface.safeword-cli
     Scenario: A blocked receipt gives a Non-Technical Builder a concrete recovery
       Given a failed review addressed to a Non-Technical Builder because a shared-contract choice has no durable architecture link
-      When the review receipt is presented
+      When the installed Safeword CLI presents the review receipt through real internal collaborators
       Then it says the shared-contract choice needs an architecture record without internal phase or type jargon and tells them to add that link before resubmitting
 
     Scenario: A blocked receipt preserves evidence for a Technical Builder
@@ -264,16 +297,17 @@ Feature: Approve coherent Implementation Plans
   Rule: plan-implementability.TBU1.G1C9PP.R16 — When planning and implementation states coexist, the plan distinguishes proposed decisions, implemented facts, available proof, known defects, and pending human authority without treating one as another
 
     Scenario Outline: Plan-state claims remain truthful
-      Given an Implementation Plan is written after some implementation exists and <actual_state>
-      When its decision review evaluates <plan_claim>
+      Given an Implementation Plan is written after some implementation exists with <actual_state> and claims <plan_claim>
+      When its decision review runs
       Then <review_result>
 
       Examples:
         | actual_state | plan_claim | review_result |
         | code exists without current-boundary proof | the behavior is implemented and proven | approval is blocked because implementation is presented as proof |
         | current-boundary proof exists but human approval is pending | the feature is approved to release | approval is blocked because proof is presented as human authority |
+        | independent semantic review passed but configured human design approval was never requested | the approach is human-approved | approval is blocked because independent review is presented as human authority |
         | an implementation defect contradicts the proposed decision | the proposed decision, implemented behavior, known defect, and pending correction are labeled separately | state truthfulness does not block approval |
-        | no implementation exists yet | every approach entry is labeled proposed rather than implemented | state truthfulness does not block approval |
+        | existing implementation covers another accepted behavior while this planned behavior is absent | the absent behavior's approach entry is labeled proposed rather than implemented | state truthfulness does not block approval |
 
   @plan-implementability.TBU1.G1C9PP.R17
   Rule: plan-implementability.TBU1.G1C9PP.R17 — Significant concurrency, security, durability, lifecycle, migration, and compatibility choices include the applicable state, authority, atomicity, retry, and evidence model at decision depth
@@ -286,63 +320,84 @@ Feature: Approve coherent Implementation Plans
       Examples:
         | concern | decision_detail | review_result |
         | durable state | legal states, transitions, transition authority, atomicity boundary, retry behavior, and preserved evidence | decision depth does not block approval |
+        | durable state | legal states, transitions, transition authority, atomicity boundary, and retry behavior but no preserved evidence | approval is blocked with the missing evidence model named |
+        | authorization | permissions and the authority for every destructive transition | decision depth does not block approval |
         | authorization | permissions but no authority for a destructive transition | approval is blocked with the missing authority decision named |
+        | concurrent state transition | transition states, authority, atomicity boundary, retry behavior, and preserved evidence | decision depth does not block approval |
+        | concurrent state transition | transition states and authority but no atomicity boundary or retry behavior | approval is blocked with the missing concurrency decisions named |
+        | migration | the target schema, crash boundary, retry behavior, and compatibility policy | decision depth does not block approval |
         | migration | the target schema but no crash, retry, or compatibility behavior | approval is blocked with the missing migration decisions named |
 
   @plan-implementability.TBU1.G1C9PP.R18
   Rule: plan-implementability.TBU1.G1C9PP.R18 — Accepted quantitative promises carry a design-level measurement contract without moving Product-owned outcomes or Execution-owned instrumentation into the Implementation Plan
 
     Scenario Outline: Measurement detail stays with the phase that owns it
-      Given the Product Plan promises a measurable outcome for a named population and condition and the Implementation Plan <measurement_state>
+      Given <product_measurement_state> and the Implementation Plan <measurement_state>
       When the Implementation Plan is reviewed
       Then <review_result>
 
       Examples:
-        | measurement_state | review_result |
-        | decides the origin, method, validity safeguards, and failure behavior | measurement design does not block approval |
-        | changes the promised target or affected population | approval is blocked because Product-owned behavior was changed |
-        | lists exact instrumentation commands but leaves validity unresolved | approval is blocked because execution detail replaced a design decision |
+        | product_measurement_state | measurement_state | review_result |
+        | the Product Plan promises a measurable outcome for a named population and condition | decides the origin, method, validity safeguards, and failure behavior | measurement design does not block approval |
+        | the Product Plan promises a measurable outcome for a named population and condition | changes the promised target or affected population | approval is blocked because Product-owned behavior was changed |
+        | the Product Plan promises a measurable outcome for a named population and condition | lists exact instrumentation commands but leaves validity unresolved | approval is blocked because execution detail replaced a design decision |
+        | the Product Plan makes no quantitative promise | records no measurement-design applicability decision | approval is blocked until measurement applicability is explicit |
+        | the Product Plan makes no quantitative promise | records a bare applicability skip with no reason | approval is blocked until the measurement skip is justified |
+        | the Product Plan makes no quantitative promise | records a justified measurement-design applicability skip | measurement design does not block approval |
 
   @plan-implementability.TBU1.G1C9PP.R19
-  Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval occurs once on the semantically reviewed Implementation Plan before Execution Planning; it is not duplicated after the Execution Plan, and headless work records pending authority without deadlocking or claiming approval
+  Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, and headless work records pending authority without deadlocking or claiming approval
 
-    Scenario Outline: Human design authority follows configuration
-      Given the human design-approval setting is <approval_setting>
-      When a semantically reviewed Implementation Plan reaches the approval boundary
+    @surface.safeword-cli
+    Scenario Outline: Installed CLI human design authority follows configuration
+      Given real project configuration sets human design approval to <approval_setting> for <invocation_context> and a deterministic reviewer process has approved the exact Implementation Plan
+      When the installed Safeword CLI reaches the approval boundary through real internal collaborators
       Then <approval_result>
 
       Examples:
-        | approval_setting | approval_result |
-        | disabled | Execution Planning may begin without inventing a human approval |
-        | enabled with an interactive approver | the reviewed approach is presented once for that person's decision |
-        | enabled in a headless session | the reviewed approach is emitted with approval honestly pending |
+        | approval_setting | invocation_context | approval_result |
+        | disabled | a non-interactive invocation | the CLI enters Execution Planning and records that human design approval was not required |
+        | enabled | an interactive invocation with an approver available | the reviewed approach is presented once for that person's decision |
+        | enabled | a non-interactive invocation with no approver available | the reviewed approach is emitted with approval honestly pending, the CLI invocation completes without requesting approver input, and Execution Planning does not begin until a human decides |
+
+    @surface.safeword-cli
+    Scenario: A declined design returns to Implementation Planning
+      Given human design approval is enabled and the approver declines the exact reviewed approach
+      When the installed Safeword CLI records the decision through real internal collaborators
+      Then the ticket remains in Implementation Planning with the declined approach named for repair
 
     Scenario Outline: Human design authority follows approach currency
-      Given human design approval is enabled and the reviewed approach has <approval_currency>
+      Given human design approval is enabled and the approval's bound approach bytes have <approval_currency>
       When Execution Planning is requested
       Then <approval_result>
 
       Examples:
         | approval_currency | approval_result |
         | an approval that still binds its exact current plan | no further human decision is requested and Execution Planning proceeds on the existing approval |
-        | changed so the prior approval no longer binds the current plan | the current approach requires a new human decision without defining review-invalidation machinery |
+        | changed so the prior approval no longer binds the current plan | the current approach requires a new human decision |
 
     Scenario: A completed Execution Plan does not trigger a second design approval
       Given the reviewed approach already has its required human approval and the dependent Execution Plan is complete
       When implementation is about to begin
       Then no second design approval is requested and implementation proceeds on the existing approach approval
 
+    @surface.safeword-cli
+    Scenario: A completed Execution Plan cannot preserve stale design approval
+      Given human design approval is enabled, the dependent Execution Plan is complete, and the approach bytes changed after their prior human approval
+      When implementation is requested through the installed Safeword CLI
+      Then implementation remains blocked until a human makes a new decision on the current approach bytes
+
   @plan-implementability.TBU1.G1C9PP.R20
   Rule: plan-implementability.TBU1.G1C9PP.R20 — An incomplete or incorrect plan returns to decision discovery with the full current set of blocking defects and is corrected and re-reviewed on its new exact bytes until complete and correct or honestly waiting on an external decision
 
     @demo @surface.safeword-cli
     Scenario: Review repairs every known plan defect before execution planning
-      Given real project configuration and an Implementation Plan with a missing authorization boundary, an incorrect data owner, and no rollback decision
-      When the installed Safeword CLI completes semantic review and the resulting decision-discovery repair loop
-      Then the newly reviewed exact plan records the resolved authorization, data ownership, and rollback decisions with no blocking defect left for Execution Planning to invent
+      Given real project configuration, an Implementation Plan with a missing authorization boundary, an incorrect data owner, and no rollback decision, and deterministic reviewer process results that return those findings then approve the corrected exact bytes
+      When the installed Safeword CLI completes the review and repair loop through real internal collaborators and the controlled reviewer process boundary
+      Then the first receipt names all three defects together and the approving receipt binds the corrected bytes rather than the original bytes and records no remaining blocking defect
 
     Scenario: External authority pauses repair without disguising the plan as complete
-      Given a plan defect requires a product owner to choose between two behaviorally different outcomes
+      Given a plan defect requires the user who owns scope and behavior to choose between two behaviorally different outcomes
       When no authorized decision is available during the repair loop
       Then the plan remains unapproved with the pending decision, its consequences, and the one resume action named
 

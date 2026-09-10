@@ -2,10 +2,10 @@
 id: G1C9PP
 slug: approve-coherent-implementation-plans
 type: feature
-phase: plan-implementation
+phase: implement
 status: in_progress
 phase_skips:
-  - "intake: originally inherited the 2026-09-08 approval of 82T411; that approval is stale after material parent changes, so this child cannot earn another approval or enter implementation until 82T411 receives fresh Product Plan approval"
+  - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
   - "define-behavior: partitioned the accepted 82T411 Rule and scenario packet at Safeword's documented split restart point"
 phase_anchors:
   - scenario-gate: features/approve-coherent-implementation-plans.feature
@@ -21,7 +21,7 @@ scope:
   - repair incomplete or incorrect plans by returning to decision discovery, filling the known gaps through the proper decision owners, and re-reviewing the corrected plan
 out_of_scope:
   - execution sequencing, coding instructions, exact test commands, and first-RED mechanics
-  - review transport, provenance, invalidation, fallback, and migration behavior
+  - review transport, provenance, review-record invalidation, fallback, and migration behavior owned by sibling 5F5ZZA
 done_when:
   - every in-scope behavior-shaping choice is decided or explicitly marked not applicable before Execution Planning
   - load-bearing choices record credible alternatives and current evidence without prescribing one table format
@@ -33,11 +33,10 @@ done_when:
   - an incomplete or incorrect plan is iteratively completed and corrected rather than ending at a rejection message
 product_plan_contract: v1
 parent: 82T411
-blocked_on: [82T411]
 parent_job: plan-implementability.TBU1
 milestone: M1
 created: 2026-09-08T17:36:33.419Z
-last_modified: 2026-09-10T01:38:23.000Z
+last_modified: 2026-09-10T10:35:00.000Z
 parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afac25da34a
 ---
 
@@ -48,6 +47,48 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-10T10:35:00.000Z Implementation Plan independently approved: Claude Opus could not find a release-relevant failure in the final planned design (review `79604310-795c-4de4-8f5d-e7570744e3b8`). The parse-valid plan has planned status, all required sections plus Doc impact, names R1 as the riskiest assumption and proving scenario, covers all 20 Rules, and records honest surface/proof limits. Stamped the exact plan bytes. The split checkpoint found six ordered steps across five major components, below the greater-than-five-component split trigger, so the ticket advances without further decomposition under the currently installed workflow.
+
+- 2026-09-10T10:22:00.000Z Implementation-plan review correction: Defined the linked-detail versus competing-plan boundary, reordered installed CLI proof before approval/repair proof, specified decline state, designed the project-local digest-bound approval ledger with atomic/idempotent recovery, added per-decision evidence applicability, deferred integration activation semantics honestly to YCFFNC, and named schema ownership as an existing regression lane rather than accepted feature behavior.
+
+- 2026-09-10T10:05:00.000Z Scenario gate independently approved: Claude Opus approved the exact current 36-scenario packet with full parent, persona, surface, scope, determinism, and Killer Demo context (review `d1e0b260-c185-4d6c-abfb-a9a61ddefe19`). Stamped the exact bytes and returned to Implementation Planning. The plan now drops an unsupported child claim about missing-contract recovery and records the live-reviewer limitation of deterministic semantic conformance proof.
+
+- 2026-09-10T09:52:00.000Z Final scenario clarity pass after approval: Isolated R3's linked-detail dimension, named semantic review as R13's free-form evidence judge, expressed R14 authority in business language while corroborating 5F5ZZA ownership in ticket scope, added R7's sibling-path near miss, added R18 missing/bare/justified applicability rows, and removed the lone inconsistent rejection tag. Scenario identities remain 36/36.
+
+- 2026-09-10T09:44:00.000Z Scenario review correction: Pending headless approval now explicitly holds before Execution Planning, human decline returns the exact approach to Implementation Planning, authorization and migration have positive counterparts, measurement has a no-promise applicability case, the Killer Demo ends in an observable clean receipt, and R12's missing-evidence state is unambiguous. R14 now honestly proves typed-input consumption versus absence while deferring authentic production and anti-forgery provenance to 5F5ZZA.
+
+- 2026-09-10T09:32:00.000Z Scenario strengthening: Added a non-API migration/compatibility significance case to R8, made the Killer Demo expose the full first receipt and bind approval to corrected rather than original bytes, and recorded that R19 proves human-approval currency only while 5F5ZZA owns review-record invalidation and provenance.
+
+- 2026-09-10T09:28:00.000Z Scenario and plan correction: Added R7's installed planning-gate allow/deny behavior as scenario 35. The plan now preserves the full eleven-part data decision surface, resolves feature personas from the accepted Product Plan, treats the 30–60 minute promise as a timestamped Product-owned review study rather than reviewer self-report, and assigns free-form evidence-field completeness to semantic review while the parser checks only observable section/applicability structure.
+
+- 2026-09-10T09:20:00.000Z Returned to scenario gate after an approved plan review: Review `528576c2-5d0b-4c67-b17e-0d85ad48b4c4` found that the newly chosen planning-time architecture-path exception had no accepted scenario or ledger entry. Because that enabler changes a shared access-control invariant, it must become explicit behavior before implementation. The same correction pass will make four plan decisions unambiguous without expanding scope.
+
+- 2026-09-10T09:05:00.000Z Scenario gate independently approved: Claude Opus approved the exact 34-scenario feature/ledger packet with full parent, persona, and surface context (review `7e643bf1-2692-4931-b839-ca8f7cb57425`). All 20 Rules, inherited non-goals, the child-owned Killer Demo slice, ordering safety, and affected-surface boundaries passed. Stamped the exact bytes and returned to Implementation Planning. Non-blocking proof-strength notes are carried into the plan as mutation-based contract conformance, full architecture-trigger matrices, human-approval-only R19 scope, and digest-bound R20 loop evidence.
+
+- 2026-09-10T08:50:00.000Z Scenario strengthening after approval: Made linked-only versus wholly absent decisions explicit in R3, changed R8 from an internal significance label to the observable durable-record obligation, added a complete concurrency acceptance row to prevent per-concern over-blocking, and bound untagged RED/GREEN proof to actual packaged contract bytes rather than scripted verdicts. A fresh exact-byte review is required.
+
+- 2026-09-10T08:42:00.000Z Scenario review correction: Made the architecture-at-a-glance requirement independently falsifiable, added the missing preserved-evidence negative case for significant durable workflows, and replaced an invented product-owner role with the parent-defined user authority. The 34 scenario identities and ledger headings remain unchanged.
+
+- 2026-09-10T08:35:00.000Z Scenario review correction: Added a concurrency-specific missing-atomicity/retry row to R17 and moved Non-Technical Builder recovery wording to the installed Safeword CLI boundary. Scenario headings remain a matched 34/34; the refreshed review packet includes the parent Product Plan for inherited non-goals and Killer Demo judgment.
+
+- 2026-09-10T08:30:00.000Z Returned to scenario gate: Review `8e153ca5-3531-4227-b769-f4607e3418ee` could not check inherited boundaries because the parent spec was omitted from its context. It also found that concurrency-specific atomicity/retry enforcement and real CLI rendering of builder recovery were not directly falsifiable. The next packet will add those proofs and include the parent Product Plan.
+
+- 2026-09-10T08:15:00.000Z Implementation-plan review correction: Resolved the architecture-record/code-freeze circularity by designing a narrow configured-architecture-path planning exception and a one-time logged bootstrap transition to record this decision. Corrected the R4 proof boundary, distinguished missing-contract restoration from contract drift, exposed the R14 fixture-provenance limit in the verification ledger, and restated assessment triggers in terms of evidence the design actually emits. Because the ledger bytes changed, the scenario review stamp must be refreshed before implementation-plan approval can advance.
+
+- 2026-09-10T07:26:00.000Z Scenario gate independently approved: Claude Opus approved the exact current feature and ledger bytes with cross-agent provenance (review `2ec9a6ac-7080-4146-a710-655d1f487dcd`) after headless completion, accepted-persona completeness, state truthfulness, data mechanics, and stale human-approval precedence were made falsifiable. The files contain 34 matched scenario headings; the review narrative's 33-scenario count is a nonbinding counting error. Stamped the reviewed bytes and returned to Implementation Planning.
+
+- 2026-09-10T07:18:00.000Z Scenario review correction: Added the stale-human-approval case after an Execution Plan exists, bound approval currency specifically to the approved approach bytes, made the no-approval path observable, declared the deterministic packaged-contract conformance boundary, and required repair decisions to come from their accepted owners.
+
+- 2026-09-10T07:09:00.000Z Scenario review correction: Moved headless approval to a real non-interactive CLI completion boundary, made live-review scenarios deterministic at the reviewer process edge, separated data execution mechanics into a coherent scenario, made plan claims part of Given state, added independent-review-versus-human-authority rejection, and clarified that approval currency is separate from sibling-owned review-record invalidation.
+
+- 2026-09-10T07:00:00.000Z Scenario review correction: Replaced the contradictory zero-implementation row with a true coexistence case, added missing identity/integrity and migration-command data cases, made persona omission a review event, and stated that human approval binds exact approach bytes and must refresh after an approach change.
+
+- 2026-09-10T06:51:00.000Z Scenario review correction: Bound headless approval to returning control without an approver, added a two-persona omission rejection, distinguished structural from semantic evidence failures, made simultaneous blocking proof run through the installed CLI, and removed a non-falsifiable invalidation disclaimer.
+
+- 2026-09-10T06:50:00.000Z Returned to scenario gate: Fresh independent review found two behavior-level gaps in the current packet—headless approval could emit pending state and still wait forever, and persona coverage could ignore an accepted persona entirely. Returning before changing scenario bytes.
+
+- 2026-09-10T06:43:00.000Z Implementation Planning resumed: Parent reconciliation is healthy and every epic child has cleared scenario review. Removed the obsolete parent blocker and began revalidating the existing planned design against the expanded current scenarios and plan contract.
 
 - 2026-09-10T01:38:23.000Z Scenario gate: The standard coordinator's Claude Opus and Sonnet routes timed out on the final 31-scenario packet (`6331924c-3fbd-402e-973d-4c19c0111d53`). Under the configured `prefer` policy, the required one-shot fallback completed a main-thread review with no remaining findings after the exact Rule text, approval boundary, and iterative repair convergence were tightened. Advanced without an independent stamp; independence remains honestly recorded as none.
 
