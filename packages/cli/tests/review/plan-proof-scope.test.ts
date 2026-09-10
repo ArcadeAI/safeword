@@ -7,15 +7,15 @@ import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 
 const PROOF_SCOPE_OBLIGATION = 'Proof strategy boundary';
 const REQUIRED_CONTRACT_PHRASES = [
-  'behavior',
+  'Require behavior',
   'real system boundary',
   'proof type',
   'confidence limitation',
-  'linked detailed evidence',
-  'test paths or commands',
-  'Execution Planning',
-  'verification ledger',
-  'decision review path',
+  'Accept linked detailed evidence',
+  'Block test paths or commands',
+  'removal to Execution Planning',
+  'Block verification ledger detail',
+  'removal from the decision review path',
 ] as const;
 
 function proofScopeClause(contract: string): string | undefined {
@@ -142,4 +142,23 @@ describe('Implementation Plan proof strategy boundary', () => {
       ]);
     }
   });
+
+  it.each(REQUIRED_CONTRACT_PHRASES)(
+    'fails closed when the packaged proof boundary drops %s',
+    phrase => {
+      const clause = proofScopeClause(PLAN_REVIEW_RUBRIC) ?? '';
+      expect(missingContractRequirements(clause)).toEqual([]);
+      const body = clause
+        .slice(clause.indexOf(':**') + ':**'.length)
+        .replaceAll(/\s+/gu, ' ')
+        .toLowerCase()
+        .replaceAll(phrase.toLowerCase(), '');
+      const mutated = `- **${PROOF_SCOPE_OBLIGATION}:**${body}`;
+
+      const result = reviewProofScope(mutated, COMPLETE_STRATEGY);
+
+      expect(result.verdict).toBe('request_changes');
+      expect(result.findings[0]?.message.toLowerCase()).toContain(phrase.toLowerCase());
+    },
+  );
 });
