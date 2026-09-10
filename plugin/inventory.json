@@ -615,7 +615,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "33c8d0dbf79943dce98a88c670fd3e3b933351e45bcf5ff1e5af6f75dfe675ac"
+      "sha256": "f95cb1268192a33ba0aca421202203b62c0d31bbcd3d76ef697485745d0bca46"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -631,7 +631,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "9a40a4248cf5524cad184e3e5a2ac20c79ab1d9972c0eeb93608bc56402775e8"
+      "sha256": "4b31bdbd8f13ac4adaa6786e5b588f77ea493eff0d9bd04d146e16ee0a48179b"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -687,7 +687,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "f6904f6277a2d68dca40142d6c89ff6c3b626e40e6497977e54320b9b7ea47fa"
+      "sha256": "f8a034fd8b0ae0669246596d8bae28a542d0db73f44653d25566cb77a44df295"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -703,7 +703,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "7b8ae9d8fbc2dfb530edcd634695838a649907500ada8ef15cfcd2789a78355f"
+      "sha256": "d90935694d9aa8842a448107f86c4efec262bf590f20c32210ad98cd8b99fa30"
     },
     {
       "path": "skills/self-review/SKILL.md",

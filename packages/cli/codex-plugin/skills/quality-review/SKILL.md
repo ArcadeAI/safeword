@@ -243,12 +243,12 @@ Each pass:
    repository files or crosses provider boundaries. Never pass credentials,
    customer data, or secret-bearing files as targets or `--context`; redact them
    or report the bounded packet as blocked. Invoke the coordinator first. On
-   Codex, run the coordinator and every returned `nextActions` command inside
-   the current sandbox. Never set `sandbox_permissions: "require_escalated"` or
-   request host approval for `review run`, `review status`, retries, or
-   fallbacks. The active Codex permission profile owns any reviewer network
-   access. If that normal sandbox cannot reach the configured reviewer, report
-   the route as unavailable; do not escalate it. **A
+   Codex, `review run` may use `sandbox_permissions: "require_escalated"` only
+   through a previously installed exact-command allow rule; never surface a
+   host approval request. Run `review status` and every status retry inside the
+   normal workspace sandbox, and never escalate them. If the dispatch rule is
+   absent or does not match, report the route as unavailable instead of asking
+   the user. **A
    review you never dispatched is not coverage** — say so unprompted, before any
    finding, name what ran in its place, and never let your own pass stand in for
    the review.

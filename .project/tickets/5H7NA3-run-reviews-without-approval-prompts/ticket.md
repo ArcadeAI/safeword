@@ -16,12 +16,12 @@ last_modified: 2026-09-10T23:06:30.082Z
 
 ## Scope
 
-- Codex review instructions run dispatch, retry, fallback, and status commands in the normal
-  workspace sandbox without requesting escalation or host approval.
+- Codex review dispatch uses a previously installed exact-command allow rule without surfacing a
+  host approval request; status polling remains in the normal workspace sandbox.
 - Generated Codex review skills retain the zero-approval instruction.
 - This machine's combined Arcade/Bosslevel MCP server automatically approves all of its tools.
-- This machine's workspace sandbox permits the network destinations required by the configured
-  independent Claude reviewer.
+- This machine has a narrow allow rule for the exact installed Safeword runtime's `review run`
+  prefix; it excludes `review status` and arbitrary Bun commands.
 
 ## Out of Scope
 
@@ -31,18 +31,18 @@ last_modified: 2026-09-10T23:06:30.082Z
 
 ## Done When
 
-- Every canonical review-launch surface explicitly forbids `require_escalated` and approval requests
-  for review commands.
+- Every canonical review-launch surface permits escalation only through a previously installed
+  exact-command rule, forbids surfaced approval requests, and forbids escalation for status polls.
 - Generated Claude and Codex plugin artifacts carry the source-template behavior.
 - The Arcade/Bosslevel MCP server uses `default_tools_approval_mode = "approve"`.
-- The normal workspace sandbox can reach the documented Claude Code endpoints without widening
-  filesystem access.
+- The exact installed Safeword review dispatcher can reach its reviewer without granting general
+  sandbox network access.
 - Focused review parity and generated-plugin checks pass.
 
 ## Test Plan
 
-- RED: the canonical review-surface test fails until every review caller requires normal-sandbox,
-  zero-prompt execution.
+- RED: the canonical review-surface test fails until every review caller preserves the no-prompt
+  dispatch rule and normal-sandbox status boundary.
 - GREEN: the focused review parity suite and generated Codex plugin check pass.
 - Manual: inspect the effective Codex config for the Arcade/Bosslevel server approval mode and
   sandboxed-network settings without exposing secrets.
@@ -52,3 +52,10 @@ last_modified: 2026-09-10T23:06:30.082Z
 - 2026-09-10T23:06:30.082Z Started: Created ticket 5H7NA3
 - 2026-09-10T23:08:00Z Scoped: User requires zero approval prompts for Safeword reviews and
   every Arcade/Bosslevel MCP call; unrelated Codex protections remain in place.
+- 2026-09-10T23:24:00Z Implemented: Added and execpolicy-tested an exact installed-runtime allow
+  rule for `review run`; confirmed it does not match `review status` or arbitrary Bun scripts.
+- 2026-09-10T23:25:00Z Configured: Set the combined Arcade/Bosslevel MCP server's default tool
+  approval mode to `approve`.
+- 2026-09-10T23:26:00Z Verified: Focused review surface suite passes 44/44; Claude and Codex
+  generated-plugin checks are current; a sandboxed missing-ID status probe reported no network
+  effects.

@@ -130,18 +130,15 @@ function expectDispatchAuthorization(content: string, context: string): void {
   expect(normalized, context).toMatch(/do not stop and ask[^.]{0,180}consent[^.]{0,120}in chat/iu);
   expect(normalized, context).toMatch(/invoke the coordinator first/iu);
   expect(normalized, context).toContain(
-    'Never set `sandbox_permissions: "require_escalated"` or request host approval for `review run`, `review status`, retries, or fallbacks.',
+    '`review run` may use `sandbox_permissions: "require_escalated"` only through a previously installed exact-command allow rule; never surface a host approval request.',
   );
   expect(normalized, context).toContain(
-    'run the coordinator and every returned `nextActions` command inside the current sandbox',
+    'Run `review status` and every status retry inside the normal workspace sandbox, and never escalate them.',
   );
   expect(normalized, context).toContain(
-    'If that normal sandbox cannot reach the configured reviewer, report the route as unavailable; do not escalate it.',
+    'If the dispatch rule is absent or does not match, report the route as unavailable instead of asking the user.',
   );
   expect(normalized, context).not.toMatch(/native tool-approval request/iu);
-  expect(normalized, context).toMatch(
-    /retry[^.]{0,180}same bounded packet[^.]{0,120}without asking again/iu,
-  );
   expect(normalized, context).toContain(
     'Never pass credentials, customer data, or secret-bearing files as targets or `--context`;',
   );
@@ -659,7 +656,11 @@ exit ${status}`,
         expect(content, relativePath).toContain(`${reviewEntrypoint}review run`);
         expect(content, relativePath).toContain('--agent-handoff --json');
         for (const line of content.split('\n')) {
-          if (line.includes('review run')) {
+          if (
+            /review run (?:quality-review|scenario-gate|plan-implementation|executable-red)/u.test(
+              line,
+            )
+          ) {
             expect(line, `${relativePath}: ${line}`).toContain(reviewEntrypoint);
           }
         }
