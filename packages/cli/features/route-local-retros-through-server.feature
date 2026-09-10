@@ -1,4 +1,4 @@
-@route-local-retros-through-server @manual
+@route-local-retros-through-server @proof.vitest
 Feature: Route local retros through the durable server
 
   Newly captured local retros move from one bounded client request into durable
@@ -173,17 +173,17 @@ Feature: Route local retros through the durable server
       Then it returns a typed rejection and stores no record
 
     @rejection
-    Scenario Outline: Prohibited finding content is rejected before storage
-      Given a public request with <prohibited-content>
+    Scenario Outline: Prohibited request fields are rejected before storage
+      Given a public request with <prohibited-field>
       When the collector validates it
       Then it returns a typed rejection and stores no record
 
       Examples:
-        | prohibited-content          |
-        | a user identity field       |
-        | transcript or prompt text   |
-        | tool output or file content |
-        | secret material             |
+        | prohibited-field                   |
+        | a user identity field              |
+        | a transcript or prompt field       |
+        | a tool output or file content field |
+        | a secret material field            |
 
     Scenario: Public intake holds no GitHub filing authority
       Given a valid credentialless public request

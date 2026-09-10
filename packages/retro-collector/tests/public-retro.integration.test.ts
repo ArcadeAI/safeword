@@ -1011,7 +1011,7 @@ it.each([
   ['relay signature authority syntax', ['<!-- safeword-retro-signature: retro:abc -->']],
   ['relay canonical authority syntax', ['<!-- safeword-retro-canonical: canonical:abc -->']],
   ['relay request authority syntax', ['<!-- safeword-retro-request-v1: abc -->']],
-] as const)('rejects v3 with %s before durable storage', async (_, findings) => {
+] as const)('rejects v3 finding sets with %s before durable storage', async (_, findings) => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
   const runtime = await startPublicRetroCollector({
@@ -1025,6 +1025,62 @@ it.each([
       ...(JSON.parse(new TextDecoder().decode(fixture.body)) as Record<string, unknown>),
       findings,
     }),
+  };
+
+  const rejected = await submit(runtime.url, request);
+  const claim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-fixture-credential' },
+  });
+  await runtime.close();
+
+  expect(rejected.status).toBe(400);
+  expect(claim.status).toBe(204);
+});
+
+it.each([
+  'a user identity field',
+  'a transcript or prompt field',
+  'a tool output or file content field',
+  'a secret material field',
+] as const)('rejects v3 with %s before durable storage', async prohibitedField => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const fixture = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(fixture.body)) as Record<string, unknown>;
+  let prohibitedEnvelope: Record<string, unknown>;
+  switch (prohibitedField) {
+    case 'a user identity field': {
+      prohibitedEnvelope = {
+        ...envelope,
+        source: { ...(envelope.source as object), userIdentity: 'customer-fixture' },
+      };
+
+      break;
+    }
+    case 'a transcript or prompt field': {
+      prohibitedEnvelope = { ...envelope, transcript: 'private fixture' };
+
+      break;
+    }
+    case 'a tool output or file content field': {
+      prohibitedEnvelope = { ...envelope, toolOutput: 'private fixture' };
+
+      break;
+    }
+    case 'a secret material field': {
+      prohibitedEnvelope = { ...envelope, secret: 'private fixture' };
+
+      break;
+    }
+  }
+  const request = {
+    ...fixture,
+    body: encoded(prohibitedEnvelope),
   };
 
   const rejected = await submit(runtime.url, request);

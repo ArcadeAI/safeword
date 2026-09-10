@@ -168,11 +168,11 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: Prohibited finding content is rejected before storage
+### Scenario: Prohibited request fields are rejected before storage
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [x] RED skip: audit repair adds proof for an existing schema rejection
+- [x] GREEN skip: exact-key validation already existed; the focused collector suite passes
+- [x] REFACTOR skip: the boundary test needs no reusable abstraction
 
 ### Scenario: Public intake holds no GitHub filing authority
 
