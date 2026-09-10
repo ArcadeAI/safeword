@@ -128,3 +128,5 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 - 2026-09-09T22:03:00.000Z Review correction: Restored the complete parent-owned data-decision surface in the child Rule, including store/model, schema/relationships, source of truth, access, cross-system flow, backfill, and compliance.
 
 - 2026-09-09T22:09:00.000Z Review correction: Preserved M1 as contract definition by adding explicit affected-surface skips; YCFFNC in M2 owns installed host delivery and real-boundary proof.
+
+- 2026-09-10T19:23:00.000Z Implementation Plan review repair: Clarified approval ownership across G1C9PP, 7CAMAD, and 5F5ZZA; placed R2 extraction-to-receipt integration in build order; added sibling-path and concurrency proof; decided decline and unknown-ledger-event compatibility; and documented transitional template and architecture-freeze limitations. Exact corrected bytes require a fresh independent plan review before implementation resumes.
