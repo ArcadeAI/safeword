@@ -171,7 +171,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 ### Scenario: Prohibited request fields are rejected before storage
 
 - [x] RED skip: audit repair adds proof for an existing schema rejection
-- [x] GREEN skip: exact-key validation already existed; the focused collector suite passes
+- [x] GREEN 3a84c300a
 - [x] REFACTOR skip: the boundary test needs no reusable abstraction
 
 ### Scenario: Public intake holds no GitHub filing authority
@@ -438,4 +438,4 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: proof migration changed no shared production structure
