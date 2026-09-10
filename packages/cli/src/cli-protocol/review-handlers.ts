@@ -17,6 +17,7 @@ import type {
   RedExecutionRequest,
   ReviewKind,
 } from '../review/contract.js';
+import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import type { CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
 import { shellQuote } from './replay-command.js';
@@ -44,9 +45,53 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
     : [];
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
+  if (rawKind === 'plan-implementation') {
+    const targetFailure = invalidImplementationPlanTarget(invocation.cwd, targets);
+    if (targetFailure !== undefined) return targetFailure;
+  }
   const execution = redExecutionRequest(rawKind, invocation.options);
   if (execution instanceof Error) return invalidOperand('review run', execution.message);
   return startReviewInBackground(invocation, rawKind, targets, context, execution);
+}
+
+function invalidImplementationPlanTarget(
+  cwd: string,
+  targets: readonly string[],
+): CliResult | undefined {
+  // Packet validation owns missing/multiple targets. This boundary adds the
+  // authority rule for the one otherwise-valid impl-plan.md target.
+  if (targets.length !== 1) return undefined;
+
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  const [rawTarget] = targets;
+  if (rawTarget === undefined) return undefined;
+  const target = nodePath.resolve(cwd, rawTarget);
+  const relativeTarget = nodePath.relative(ticketsDirectory, target);
+  const segments = relativeTarget.split(nodePath.sep);
+  const ticketDirectory = segments[0];
+  if (
+    segments.length === 2 &&
+    ticketDirectory !== undefined &&
+    ticketDirectory !== '' &&
+    ticketDirectory !== '.' &&
+    segments[1] === 'impl-plan.md' &&
+    existsSync(nodePath.join(ticketsDirectory, ticketDirectory, 'ticket.md'))
+  ) {
+    return undefined;
+  }
+
+  const ticketsLabel = nodePath.relative(cwd, ticketsDirectory) || ticketsDirectory;
+  return createResult({
+    state: 'failed',
+    errors: [
+      {
+        code: 'REVIEW_PLAN_TARGET_INVALID',
+        message: `Review the ticket-owned Implementation Plan at ${ticketsLabel}/<ticket>/impl-plan.md. Host-private and other non-ticket copies are not authoritative.`,
+        retryable: false,
+      },
+    ],
+    data: { command: 'review run', status: 'failed', review_kind: 'plan-implementation' },
+  });
 }
 
 export async function executableRedGateHandler(invocation: CommandInvocation): Promise<CliResult> {

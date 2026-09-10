@@ -35134,6 +35134,7 @@ async function runRemainingRoutes(input) {
     kind: input.kind,
     targets: input.targets,
     context: input.context,
+    executionAttestation: input.executionAttestation,
     progress: input.progress,
     author: input.author,
     reviewer: input.assignedReviewer,
@@ -70168,6 +70169,7 @@ async function retroReconcileHandler(invocation) {
 }
 
 // src/cli-protocol/review-handlers.ts
+init_configured_paths();
 init_online_required();
 init_result();
 import { existsSync as existsSync16 } from "fs";
@@ -70193,10 +70195,42 @@ async function reviewRunHandler(invocation) {
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")
     return runReviewWorker(invocation);
+  if (rawKind === "plan-implementation") {
+    const targetFailure = invalidImplementationPlanTarget(invocation.cwd, targets);
+    if (targetFailure !== undefined)
+      return targetFailure;
+  }
   const execution = redExecutionRequest(rawKind, invocation.options);
   if (execution instanceof Error)
     return invalidOperand("review run", execution.message);
   return startReviewInBackground(invocation, rawKind, targets, context, execution);
+}
+function invalidImplementationPlanTarget(cwd, targets) {
+  if (targets.length !== 1)
+    return;
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  const [rawTarget] = targets;
+  if (rawTarget === undefined)
+    return;
+  const target = nodePath50.resolve(cwd, rawTarget);
+  const relativeTarget = nodePath50.relative(ticketsDirectory, target);
+  const segments = relativeTarget.split(nodePath50.sep);
+  const ticketDirectory = segments[0];
+  if (segments.length === 2 && ticketDirectory !== undefined && ticketDirectory !== "" && ticketDirectory !== "." && segments[1] === "impl-plan.md" && existsSync16(nodePath50.join(ticketsDirectory, ticketDirectory, "ticket.md"))) {
+    return;
+  }
+  const ticketsLabel = nodePath50.relative(cwd, ticketsDirectory) || ticketsDirectory;
+  return createResult({
+    state: "failed",
+    errors: [
+      {
+        code: "REVIEW_PLAN_TARGET_INVALID",
+        message: `Review the ticket-owned Implementation Plan at ${ticketsLabel}/<ticket>/impl-plan.md. Host-private and other non-ticket copies are not authoritative.`,
+        retryable: false
+      }
+    ],
+    data: { command: "review run", status: "failed", review_kind: "plan-implementation" }
+  });
 }
 async function executableRedGateHandler(invocation) {
   const scenario = invocation.options.scenario;

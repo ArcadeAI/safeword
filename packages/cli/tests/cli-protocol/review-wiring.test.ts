@@ -456,7 +456,10 @@ describe('cross-agent review public-command wiring', () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
     const promptLog = nodePath.join(directory, 'prompt.log');
-    writeFileSync(nodePath.join(directory, 'impl-plan.md'), '# Implementation plan\n');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation plan\n');
     const bin = installFakeReviewer(directory, 'claude');
 
     const result = await runCli(
@@ -464,7 +467,7 @@ describe('cross-agent review public-command wiring', () => {
         'review',
         'run',
         'plan-implementation',
-        'impl-plan.md',
+        '.project/tickets/T1-feature/impl-plan.md',
         '--json',
         '--no-input',
         '--cwd',
