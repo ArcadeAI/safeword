@@ -450,6 +450,49 @@ function reviewPrompt(reviewer: ReviewAgent, packet: ReviewPacket): string {
   ].join('\n');
 }
 
+function reconcilePlanContract(
+  packet: ReviewPacket,
+  output: UnverifiedReviewerOutput,
+): UnverifiedReviewerOutput {
+  const contract = packet.plan_contract;
+  if (packet.kind !== 'plan-implementation' || contract === undefined) return output;
+
+  const author = new Set(contract.author.obligations);
+  const reviewer = new Set(contract.reviewer.obligations);
+  const conflicts = [
+    ...[...author]
+      .filter(obligation => !reviewer.has(obligation))
+      .map(
+        obligation => `Author contract requires "${obligation}" but reviewer contract does not.`,
+      ),
+    ...[...reviewer]
+      .filter(obligation => !author.has(obligation))
+      .map(
+        obligation => `Reviewer contract requires "${obligation}" but author contract does not.`,
+      ),
+  ];
+  const identitiesMatch = contract.author.sha256 === contract.reviewer.sha256;
+  if (identitiesMatch && conflicts.length === 0) return output;
+  if (conflicts.length === 0) {
+    conflicts.push(
+      `Author contract ${contract.author.sha256} conflicts with reviewer contract ${contract.reviewer.sha256}.`,
+    );
+  }
+
+  return {
+    ...output,
+    verdict: 'request_changes',
+    summary: 'Safeword blocked approval until the author and reviewer contracts are reconciled.',
+    findings: [
+      ...output.findings,
+      ...conflicts.map(message => ({
+        severity: 'error' as const,
+        message: `Safeword contract reconciliation: ${message}`,
+      })),
+    ],
+  };
+}
+
 function inside(root: string, candidate: string): boolean {
   const relative = nodePath.relative(root, candidate);
   return (
@@ -1289,7 +1332,7 @@ async function runCandidate(
     // Preserve the review, but surface failed cleanup as a retryable candidate
     // failure so another installation or route can still provide coverage.
     await stopReviewerOrThrow(child, reviewer, false);
-    return output;
+    return reconcilePlanContract(packet, output);
   } finally {
     process.off('SIGTERM', terminateReviewer);
   }

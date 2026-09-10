@@ -52,6 +52,11 @@ describe('review packet containment and change accounting', () => {
     try {
       expect(prepared.packet.logical_files.map(file => file.path)).toEqual(['impl-plan.md']);
       expect(prepared.packet.context_files?.map(file => file.path)).toEqual(['spec.md']);
+      expect(prepared.packet.plan_contract?.author).toEqual(
+        prepared.packet.plan_contract?.reviewer,
+      );
+      expect(prepared.packet.plan_contract?.author.sha256).toMatch(/^[a-f0-9]{64}$/u);
+      expect(prepared.packet.plan_contract?.author.obligations).toContain('Decision quality');
     } finally {
       prepared.cleanup();
     }
