@@ -112,7 +112,7 @@ prove real installed CLI wiring.
 
 - [x] RED 6b72a8724
 - [x] GREEN ec3a723a5
-- [ ] REFACTOR
+- [x] REFACTOR 58aebd530
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R11 — Behavior-shaping decisions cannot leak into execution planning
 
