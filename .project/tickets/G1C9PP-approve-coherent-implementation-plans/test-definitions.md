@@ -111,7 +111,7 @@ prove real installed CLI wiring.
 ### Scenario: Proof scope excludes execution mechanics
 
 - [x] RED 6b72a8724
-- [ ] GREEN
+- [x] GREEN ec3a723a5
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R11 — Behavior-shaping decisions cannot leak into execution planning
