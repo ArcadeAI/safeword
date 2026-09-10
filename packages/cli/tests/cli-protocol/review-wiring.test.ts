@@ -493,11 +493,14 @@ describe('cross-agent review public-command wiring', () => {
     const reviewLog = nodePath.join(directory, 'review.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
     const privateDirectory = nodePath.join(directory, '.claude', 'plans');
+    const notesDirectory = nodePath.join(directory, 'notes');
     mkdirSync(ticketDirectory, { recursive: true });
     mkdirSync(privateDirectory, { recursive: true });
+    mkdirSync(notesDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Project plan\n');
     writeFileSync(nodePath.join(privateDirectory, 'impl-plan.md'), '# Host-private plan\n');
+    writeFileSync(nodePath.join(notesDirectory, 'impl-plan.md'), '# Unowned plan\n');
     const bin = installFakeReviewer(directory, 'claude');
     const environment = {
       PATH: `${bin}:/usr/bin:/bin`,
@@ -525,29 +528,36 @@ describe('cross-agent review public-command wiring', () => {
       data: { status: 'approved' },
     });
 
-    const rejected = await runCli(
-      [
-        'review',
-        'run',
-        'plan-implementation',
-        '.claude/plans/impl-plan.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      { cwd: directory, env: environment },
-    );
-    expect(rejected.exitCode, rejected.stdout).toBe(1);
-    expect(JSON.parse(rejected.stdout)).toMatchObject({
-      state: 'failed',
-      errors: [
-        {
-          code: 'REVIEW_PLAN_TARGET_INVALID',
-          message: expect.stringContaining('.project/tickets/<ticket>/impl-plan.md'),
-        },
-      ],
-    });
+    rmSync(nodePath.join(ticketDirectory, 'impl-plan.md'));
+    for (const target of ['.claude/plans/impl-plan.md', 'notes/impl-plan.md']) {
+      const rejected = await runCli(
+        [
+          'review',
+          'run',
+          'plan-implementation',
+          target,
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        { cwd: directory, env: environment },
+      );
+      expect(
+        rejected.exitCode,
+        `A non-ticket Implementation Plan reached the reviewer: ${rejected.stdout}`,
+      ).toBe(1);
+      expect(JSON.parse(rejected.stdout)).toMatchObject({
+        state: 'failed',
+        errors: [
+          {
+            code: 'REVIEW_PLAN_TARGET_INVALID',
+            message: expect.stringContaining('.project/tickets/<ticket>/impl-plan.md'),
+          },
+        ],
+      });
+    }
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
   });
 
   it.each([
