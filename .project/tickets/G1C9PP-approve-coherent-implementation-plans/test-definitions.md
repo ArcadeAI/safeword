@@ -14,9 +14,9 @@ prove real installed CLI wiring.
 
 ### Scenario: Safeword CLI enforces and releases the decision boundary
 
-- [x] RED d847b78da
-- [x] GREEN 828d8af75
-- [x] REFACTOR skip: gate wiring and decision parsing are already minimal
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R2 — Authors and reviewers use one decision-quality contract
 

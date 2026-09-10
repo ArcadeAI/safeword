@@ -7,7 +7,7 @@ Feature: Approve coherent Implementation Plans
 
     @surface.safeword-cli
     Scenario Outline: Safeword CLI enforces and releases the decision boundary
-      Given real project configuration and a ticket with <decision_state> and any required human design approval satisfied
+      Given real project configuration, a ticket with <decision_state>, and human design approval is not required
       When the installed Safeword CLI requests Execution Planning
       Then <phase_result>
 
@@ -299,7 +299,7 @@ Feature: Approve coherent Implementation Plans
     Scenario: A blocked receipt gives a Non-Technical Builder a concrete recovery
       Given a failed review addressed to a Non-Technical Builder because a shared-contract choice has no durable architecture link
       When the installed Safeword CLI presents the review receipt through real internal collaborators
-      Then it says the shared-contract choice needs an architecture record and tells them to add that link before resubmitting, without leading with phase names, review identifiers, contract digests, or internal type names
+      Then its first user-visible sentence says the shared-contract choice needs an architecture record and its recovery line tells them to add that link before resubmitting, with neither line containing phase names, review identifiers, contract digests, or internal type names
 
     @surface.safeword-cli
     Scenario: A blocked receipt preserves evidence for a Technical Builder
@@ -354,7 +354,8 @@ Feature: Approve coherent Implementation Plans
         | product_measurement_state | measurement_state | review_result |
         | the Product Plan promises a measurable outcome for a named population and condition | decides the origin, method, validity safeguards, and failure behavior | measurement design does not block approval |
         | the Product Plan promises a measurable outcome for a named population and condition | changes the promised target or affected population | approval is blocked because Product-owned behavior was changed |
-        | the Product Plan promises a measurable outcome for a named population and condition | lists exact instrumentation commands but leaves validity unresolved | approval is blocked because execution detail replaced a design decision |
+        | the Product Plan promises a measurable outcome for a named population and condition | decides origin, method, validity safeguards, and failure behavior but also lists exact instrumentation commands | approval is blocked because instrumentation belongs in Execution Planning |
+        | the Product Plan promises a measurable outcome for a named population and condition | leaves validity safeguards unresolved without listing instrumentation commands | approval is blocked with the missing validity decision named |
         | the Product Plan makes no quantitative promise | records no measurement-design applicability decision | approval is blocked until measurement applicability is explicit |
         | the Product Plan makes no quantitative promise | records a bare applicability skip with no reason | approval is blocked until the measurement skip is justified |
         | the Product Plan makes no quantitative promise | records a justified measurement-design applicability skip | measurement design does not block approval |
