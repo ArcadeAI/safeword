@@ -26,13 +26,13 @@ guard, or cleaning up pull request #4287 manually.
 **Done When:**
 
 - [x] Verification commands may run for up to one hour before closeout reports failure.
-- [ ] A timed-out shell command and its descendants terminate without leaving closeout hung.
-- [ ] The source template, installed dogfood copy, and plugin resource remain identical.
+- [x] A timed-out shell command and its descendants terminate without leaving closeout hung.
+- [x] The source template, installed dogfood copy, and plugin resource remain identical.
 
 **Tests:**
 
 - [x] Unit: the configured closeout verification deadline is one hour.
-- [ ] Integration: a command that exceeds an injected short deadline returns a timed-out failure
+- [x] Integration: a command that exceeds an injected short deadline returns a timed-out failure
       promptly and leaves no descendant process running.
 
 ## Root Cause
@@ -57,3 +57,5 @@ no child process and zero CPU use).
   supported verification lanes and can strand Bun after timeout cleanup.
 - 2026-09-10T16:05:27Z GREEN: Raised the project verification deadline to one hour; the focused
   closeout suite passes 115/115 tests with canonical parity restored.
+- 2026-09-10T16:09:21Z GREEN: Replaced synchronous timed verification with the existing async
+  process-group pattern; the focused suite passes 116/116, including descendant cleanup.

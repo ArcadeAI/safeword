@@ -41,6 +41,7 @@ import {
   retroAgentForRuntime,
   retroForMergedPullRequest,
   runBoundRetro,
+  runVerificationCommand,
   safewordCliCommand,
   transcriptMatchesBinding,
   VERIFICATION_COMMAND_TIMEOUT_MS,
@@ -185,6 +186,38 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   it('allows an hour for a project verification command to finish', () => {
     expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBe(60 * 60 * 1000);
   });
+
+  it.skipIf(process.platform === 'win32')(
+    'returns after killing a timed-out verification command tree',
+    async () => {
+      const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-timeout-'));
+      const pidFile = nodePath.join(root, 'descendant.pid');
+      try {
+        const started = Date.now();
+        const result = await runVerificationCommand(
+          `sleep 30 & child=$!; echo "$child" > ${JSON.stringify(pidFile)}; wait "$child"`,
+          root,
+          100,
+        );
+
+        expect(result).toMatchObject({ status: 1, timedOut: true });
+        expect(Date.now() - started).toBeLessThan(2000);
+        const descendantPid = Number(readFileSync(pidFile, 'utf8').trim());
+        await expect
+          .poll(() => {
+            try {
+              process.kill(descendantPid, 0);
+              return true;
+            } catch {
+              return false;
+            }
+          })
+          .toBe(false);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   it('uses Codex Desktop identity only when a fresh bridge agrees with the authenticated task', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-codex-desktop-'));
