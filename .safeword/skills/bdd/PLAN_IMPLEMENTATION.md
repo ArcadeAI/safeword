@@ -71,7 +71,7 @@ Scaffold from `.safeword/templates/impl-plan-template.md` (sibling to `ticket.md
 
 ## ADR lifecycle
 
-- **Emit only when significant.** Offer an ADR when a decision affects **structure, key quality attributes**, or is **difficult to reverse**. Routine choices live and die in the plan's Decisions table — no ceremony records.
+- **Emit only when significant.** Offer an ADR when a decision affects **structure, key quality attributes**, or is **difficult to reverse**. Routine choices live and die in the plan's Decisions table — no ceremony records. Keep the significant decision in the Implementation Plan too, with a resolvable link to its configured durable architecture record.
 - **Scaffold from the template into the configured location.** New ADRs scaffold from `.safeword/templates/adr-template.md` and land at the `paths.architecture` location: a file receives an appended entry; a directory receives one file per ADR with a merge-safe **date-prefixed** filename (`YYYYMMDD-slug.md` — sequential numbers collide across parallel sessions).
 - **Never into generated docs.** `architecture.generated.md` and its per-package leaves are machine-owned state; never write decision records there — the record (_why_) is the only destination.
 - **Keep records lean** — a page or two each; no mega-ADRs, no design guides in disguise (deep design belongs in the design-doc lane above).
@@ -151,7 +151,9 @@ records as context around the one `impl-plan.md` work artifact.
   principles. For each one, verify that the concrete consequence follows and
   that the named proof can establish it. Confirm relevant architecture records
   are honored, and that significant structural or hard-to-reverse changes get
-  an ADR while routine choices do not. Require Architecture applicability to
+  an ADR while routine choices do not.
+  Keep reversible feature-local choices in the Implementation Plan and link only difficult-to-reverse structural or shared-contract decisions to the configured durable architecture record.
+  Require Architecture applicability to
   state either a concrete component or shared-contract consequence, or a
   justified `skip: <reason>` when neither applies. Block both a missing
   applicability statement and a bare `skip:` with no reason.

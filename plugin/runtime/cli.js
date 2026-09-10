@@ -31147,7 +31147,9 @@ records as context around the one \`impl-plan.md\` work artifact.
   principles. For each one, verify that the concrete consequence follows and
   that the named proof can establish it. Confirm relevant architecture records
   are honored, and that significant structural or hard-to-reverse changes get
-  an ADR while routine choices do not. Require Architecture applicability to
+  an ADR while routine choices do not.
+  Keep reversible feature-local choices in the Implementation Plan and link only difficult-to-reverse structural or shared-contract decisions to the configured durable architecture record.
+  Require Architecture applicability to
   state either a concrete component or shared-contract consequence, or a
   justified \`skip: <reason>\` when neither applies. Block both a missing
   applicability statement and a bare \`skip:\` with no reason.
