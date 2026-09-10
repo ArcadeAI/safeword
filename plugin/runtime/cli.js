@@ -35591,7 +35591,7 @@ function appendBounded(current, currentBytes, chunk) {
   };
 }
 function classifyExit(stdout, stderr, otherwise) {
-  return /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(`${stdout}
+  return /not logged in|sign in|authenticat(?:e|ion)|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(`${stdout}
 ${stderr}`) ? "not_authenticated" : otherwise;
 }
 function stopWindowsReviewer(child, pid) {

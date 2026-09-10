@@ -2,7 +2,7 @@
 
 | Dimension | Partitions and boundaries |
 | --- | --- |
-| Dispute class | scope; optional strengthening; review currency; correctness; relevance |
+| Dispute class | scope; optional-strengthening scope adoption; optional-strengthening classification; review currency; correctness; relevance |
 | Resolver | user; provenance check; fresh independent adjudicator; originating reviewer alone |
 | Finding state | blocking defect; nonblocking advice; accepted scope change; unresolved external decision |
 | Terminal result | upheld; reclassified; rejected; pending user decision; unresolved after available routes |

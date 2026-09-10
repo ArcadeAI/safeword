@@ -19591,11 +19591,18 @@ function evaluateAdvance(priorPhase, proposedPhase, proposed) {
   const toIndex = canonicalIndex(proposedPhase);
   if (toIndex <= fromIndex + 1)
     return OK;
-  return requireJustifiedSkips(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex), (missing) => ({
+  if (effectivePrior === "plan-implementation" && proposedPhase === "implement")
+    return OK;
+  return requireJustifiedSkips(proposed, migrationCompatibleBypassed(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex)), (missing) => ({
     ok: false,
     reason: `Phases advance one canonical step at a time \u2014 ${effectivePrior} \u2192 ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(", ")}.`,
     remediation: `Advance one phase at a time (${CANONICAL_SEQUENCE}), or ${SKIPS_SYNTAX}.`
   }));
+}
+function migrationCompatibleBypassed(meta, bypassed) {
+  if (!bypassed.includes("plan-execution"))
+    return bypassed;
+  return parseSkips(meta).justified.has("plan-implementation") ? bypassed.filter((phase) => phase !== "plan-execution") : bypassed;
 }
 function requireJustifiedSkips(meta, bypassed, denialFor) {
   const skips = parseSkips(meta);
@@ -19622,7 +19629,7 @@ function evaluateBirth(meta, context) {
       remediation: "Create the ticket at phase: intake (or another canonical phase justified via phase_skips) and work forward."
     };
   }
-  return requireJustifiedSkips(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase)), (missing) => {
+  return requireJustifiedSkips(meta, migrationCompatibleBypassed(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase))), (missing) => {
     const act = context === "creation" ? "begin life" : "become a feature";
     return {
       ok: false,
@@ -19744,6 +19751,7 @@ var init_phase_provenance = __esm(() => {
     "define-behavior",
     "scenario-gate",
     "plan-implementation",
+    "plan-execution",
     "implement",
     "verify",
     "done"
@@ -19770,6 +19778,12 @@ var init_phase_provenance = __esm(() => {
     },
     "scenario-gate": FEATURE_SOURCE_ANCHOR,
     "plan-implementation": FEATURE_SOURCE_ANCHOR,
+    "plan-execution": {
+      label: "impl-plan.md",
+      example: "<ticket-folder>/impl-plan.md",
+      matches: (relpath) => basenameOf(relpath) === "impl-plan.md",
+      shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0
+    },
     implement: {
       label: "impl-plan.md",
       example: "<ticket-folder>/impl-plan.md",
@@ -35577,7 +35591,7 @@ function appendBounded(current, currentBytes, chunk) {
   };
 }
 function classifyExit(stdout, stderr, otherwise) {
-  return /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(`${stdout}
+  return /not logged in|sign in|authenticat(?:e|ion)|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(`${stdout}
 ${stderr}`) ? "not_authenticated" : otherwise;
 }
 function stopWindowsReviewer(child, pid) {

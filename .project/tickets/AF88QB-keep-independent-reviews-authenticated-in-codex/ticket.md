@@ -41,17 +41,24 @@ plan.
 
 ## Root Cause
 
-The coordinator was invoked inside Codex's restricted command sandbox. Its
-Claude and Codex subprocesses could not use their normal authenticated network
-boundary and exited before reviewing. Claude wrote its login failure inside a
-structured stdout envelope, while Safeword classified authentication only from
-stderr, so the receipt reported `process_failed` instead of the recoverable
-authentication condition.
+Two distinct failures shared the same misleading symptom. First, the
+coordinator was invoked inside Codex's restricted command sandbox, so its Claude
+and Codex subprocesses could not use their normal authenticated network
+boundary. Second, after that boundary was fixed, Claude reported an expired
+OAuth session as `Failed to authenticate` in its structured stdout envelope.
+Safeword inspected both streams but recognized the noun `authentication`, not
+the verb `authenticate`, so the receipt again reported `process_failed` instead
+of the recoverable authentication condition.
 
 Confirmed with the same harmless structured-output request: it failed inside
 the restricted sandbox in 0.19 seconds and succeeded through the authenticated
 boundary in 4 seconds. After the fix, the real 171 KB bounded #4200 packet
 reached Claude and returned a substantive cross-agent verdict.
+
+The later regression was confirmed by a direct structured-output request that
+returned exit 1 and the exact expired-session phrase, plus a public CLI test
+that was RED with `preferred_failure: process_failed` and GREEN after the
+classifier accepted both `authenticate` and `authentication`.
 
 Ruled out:
 
@@ -59,9 +66,12 @@ Ruled out:
 - **Unsupported flags:** both CLIs advertise the required flags; Claude completed with them.
 - **Packet preparation:** the original durable job record contained a valid fingerprint and targets.
 - **Semantic rejection:** the failed routes returned no verdict in about 1.2 seconds total.
+- **Packet size or content:** the failure reproduced with a one-sentence prompt
+  and a two-field JSON schema before any #4200 packet was involved.
 
 ## Work Log
 
+- 2026-09-10T04:30:00.000Z Regression investigation: Three consecutive 26FK42 review dispatches degraded after both Claude models exited. A direct structured-output launch reproduced exit 1 with `Failed to authenticate: OAuth session expired and could not be refreshed`; the existing classifier misses the verb `authenticate`, so the coordinator incorrectly reports `process_failed` instead of the login recovery path.
 - 2026-09-08T16:05:06.142Z Started: Created ticket AF88QB
 - 2026-09-08T16:06:00.000Z RED: Reproduced the Claude stdout authentication envelope inside Codex's restricted sandbox; existing classification returned `process_failed`.
 - 2026-09-08T16:07:00.000Z GREEN: Classified authentication from both output streams and added explicit authenticated-boundary dispatch guidance to all four review workflows.

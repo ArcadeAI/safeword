@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { inspirationContractProvenance, specArtifactProvenance } from './feature-provenance.js';
-import { type ImplPlanResult, parseImplPlan } from './impl-plan.js';
+import { type ImplPlanResult, parseImplPlan, unresolvedDecisionNames } from './impl-plan.js';
 import { evaluateImplementationInspiration } from './inspiration.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
@@ -59,6 +59,21 @@ function validateParsedPlan(parsed: ImplPlanResult, requireDocImpact: boolean): 
     };
   }
   return OK;
+}
+
+/** Block Execution Planning while the plan explicitly carries open choices. */
+export function evaluateExecutionPlanningEntry(ticketDirectory: string): PlanGateVerdict {
+  const planPath = nodePath.join(ticketDirectory, 'impl-plan.md');
+  if (!existsSync(planPath)) return evaluateImplementEntry(ticketDirectory);
+
+  const unresolved = unresolvedDecisionNames(readFileSync(planPath, 'utf8'));
+  if (unresolved.length === 0) return OK;
+  return {
+    ok: false,
+    reason: `Implementation Planning still has unresolved behavior-shaping choices: ${unresolved.join(', ')}.`,
+    remediation:
+      'Decide each named choice in impl-plan.md, then run the Implementation Plan review again before entering Execution Planning.',
+  };
 }
 
 /** Gate the plan-implementation → implement transition on a valid, planned plan. */

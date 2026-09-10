@@ -12,9 +12,21 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Missing originating-reviewer provenance blocks adjudication
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU5.26FK42.R2 — Scope and optional-strengthening disputes route to the user, currency disputes resolve from bound provenance, and correctness or relevance disputes route to a fresh adjudicator applying the accepted contract and scope
 
 ### Scenario: Dispute classification selects one explicit resolver
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unsupported dispute class is not assigned a default resolver
 
 - [ ] RED
 - [ ] GREEN
@@ -40,9 +52,21 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: The plan gate respects user authority over optional advice
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU5.26FK42.R4 — Headless and cloud work preserves current nonblocking human-approval behavior, records unresolved dispositions for later review, and never turns an unresolved correctness dispute into approval
 
-### Scenario: Unavailable human authority produces a durable pending result
+### Scenario: Unavailable human authority returns pending without waiting
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A later review recovers the durable pending disposition
 
 - [ ] RED
 - [ ] GREEN

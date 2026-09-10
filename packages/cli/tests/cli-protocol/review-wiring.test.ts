@@ -105,6 +105,10 @@ if [ "$failure" = "auth-stdout" ] && { [ -z "$failure_agent" ] || [ "$failure_ag
   printf '{"is_error":true,"result":"Not logged in · Please run /login"}\n'
   exit 1
 fi
+if [ "$failure" = "auth-expired-stdout" ] && { [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; } && { [ -z "$failure_path" ] || printf '%s' "$0" | /usr/bin/grep -q "$failure_path"; }; then
+  printf '{"is_error":true,"result":"Failed to authenticate: OAuth session expired and could not be refreshed"}\n'
+  exit 1
+fi
 payload=$(cat)
 prompt_log=$(printenv SAFEWORD_REVIEW_PROMPT_LOG || true)
 model_prompt_log=$(printenv SAFEWORD_REVIEW_MODEL_PROMPT_LOG || true)
@@ -1340,6 +1344,11 @@ describe('cross-agent review public-command wiring', () => {
     },
     {
       failure: 'auth-stdout',
+      classification: 'not_authenticated',
+      action: 'Reauthenticate Codex, then retry the original independent review.',
+    },
+    {
+      failure: 'auth-expired-stdout',
       classification: 'not_authenticated',
       action: 'Reauthenticate Codex, then retry the original independent review.',
     },

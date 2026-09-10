@@ -41,9 +41,13 @@ parent_contract_digest: 14f5ff452e2d4677538aa87f31ef91a6304878cf072fd0c7ec5a9bb2
 
 ## Work Log
 
+- 2026-09-10T04:25:00.000Z Scenario proof refinement: Degraded review `df18ef5e-8096-4d1c-a66e-b6fcc6490242` found two discriminating gaps. Added a real gate-boundary outline pairing disputed unaccepted advice with accepted unfinished work, and expanded correctness recovery across one, two, and three failed routes with lower-level variable-count proof required. Claude again exited before returning a verdict, so this review was not treated as independent approval.
+
+- 2026-09-10T04:20:00.000Z Scenario review refinement: Degraded review `8b5d6e76-1fa2-49d9-bacf-084e70680c57` correctly showed that later-session recovery alone could pass while the originating invocation still waited. Split immediate nonblocking exit from durable later-session recovery, including reclaimed cloud runtimes, and bound classification routing to the real CLI entry point. Claude did not complete this attempt, so no independent approval was claimed.
+
 - 2026-09-10T04:14:33.000Z Scenario review changes requested: Independent review `94505e81-9574-49f8-bcba-ac9b4b394182` found that the headless/cloud scenario proved exit-time reporting but not durable recovery in a later session. It also identified nearby clarity and negative-path improvements; correcting the reviewed packet before redispatch.
 
-- 2026-09-10T00:14:30.000Z Define behavior accepted: User approved the complete epic scenario set. This child entered scenario review with seven representative scenarios covering dispute classification, resolver authority, optional advice, headless termination, typed outcomes, and the boundary between a closed dispute and a later correction cycle.
+- 2026-09-10T00:14:30.000Z Define behavior accepted: User approved the complete epic scenario set. This child entered scenario review with representative scenarios covering dispute classification, resolver authority, optional advice, headless termination, typed outcomes, and the boundary between a closed dispute and a later correction cycle.
 
 - 2026-09-09T23:55:18.000Z Intake accepted: The parent Product Plan approvals explicitly covered dispute routing Rules and local engineering scope, so no duplicate child decision was requested. The content-bound child spec self-review passed and the child entered behavior definition.
 

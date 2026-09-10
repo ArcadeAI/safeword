@@ -958,7 +958,7 @@ const WINDOWS_CLEANUP_BUDGET_MS = 1000;
  * an opaque process failure.
  */
 function classifyExit(stdout: string, stderr: string, otherwise: ReviewFailure): ReviewFailure {
-  return /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(
+  return /not logged in|sign in|authenticat(?:e|ion)|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(
     `${stdout}\n${stderr}`,
   )
     ? 'not_authenticated'
