@@ -182,6 +182,63 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBeGreaterThan(0);
   });
 
+  it('allows an hour for a project verification command to finish', () => {
+    expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBe(60 * 60 * 1000);
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'returns under Bun after killing a timed-out verification command tree',
+    async () => {
+      const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-timeout-'));
+      const pidFile = nodePath.join(root, 'descendant.pid');
+      const runner = nodePath.join(root, 'run-timeout.ts');
+      try {
+        const closeoutScript = nodePath.join(
+          repoRoot,
+          'packages/cli/templates/scripts/closeout-cleanup.ts',
+        );
+        writeFileSync(
+          runner,
+          `import { runVerificationCommand } from ${JSON.stringify(closeoutScript)};\n` +
+            `const result = await runVerificationCommand(process.argv[2], process.cwd(), 1000);\n` +
+            `console.log(JSON.stringify(result));\n`,
+        );
+        const started = Date.now();
+        const processResult = spawnSync(
+          'bun',
+          [
+            runner,
+            `sleep 30 & child=$!; echo "$child" > ${JSON.stringify(pidFile)}; wait "$child"`,
+          ],
+          { cwd: root, encoding: 'utf8', timeout: 5000 },
+        );
+
+        expect(processResult.status).toBe(0);
+        expect(JSON.parse(processResult.stdout.trim())).toMatchObject({
+          status: 1,
+          timedOut: true,
+        });
+        expect(Date.now() - started).toBeLessThan(3000);
+        expect(existsSync(pidFile)).toBe(true);
+        const descendantPidText = readFileSync(pidFile, 'utf8').trim();
+        expect(descendantPidText).toMatch(/^[1-9]\d*$/);
+        const descendantPid = Number(descendantPidText);
+        await expect
+          .poll(() => {
+            try {
+              process.kill(descendantPid, 0);
+              return true;
+            } catch {
+              return false;
+            }
+          })
+          .toBe(false);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
   it('uses Codex Desktop identity only when a fresh bridge agrees with the authenticated task', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-codex-desktop-'));
     try {
