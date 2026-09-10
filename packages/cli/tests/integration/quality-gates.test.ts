@@ -33,7 +33,10 @@ import {
 // Absolute paths to hook scripts in safeword source tree
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const POST_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-quality.ts');
-const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
+const PRE_TOOL_QUALITY = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/pre-tool-quality.ts',
+);
 
 /** Get per-session state file path */
 function stateFilePath(sessionId = 'test-session'): string {
@@ -442,12 +445,41 @@ describe('Quality Gates', () => {
         'Edit',
         nodePath.join(projectDirectory, 'src/app.ts'),
       );
+      const documentationEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/guide.md'),
+      );
 
       expect(architectureEdit.status).toBe(0);
       expect(architectureEdit.stdout).toBe('');
-      for (const blocked of [siblingEdit, sourceEdit]) {
+      for (const blocked of [siblingEdit, sourceEdit, documentationEdit]) {
         expect(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
       }
+    });
+
+    it('2.2d: permits ADR files inside a configured architecture directory, not its siblings', () => {
+      writeGateConfig(projectDirectory, {
+        reviewGate: false,
+        paths: { architecture: 'docs/adr' },
+      });
+      writeTestFile(projectDirectory, 'docs/adr/existing.md', '# Existing decision\n');
+      seedPlanImplementationFeature();
+
+      const adrEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/adr/20260910-new-decision.md'),
+      );
+      const siblingEdit = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'docs/adr-notes.md'),
+      );
+
+      expect(adrEdit.status).toBe(0);
+      expect(adrEdit.stdout).toBe('');
+      expect(JSON.parse(siblingEdit.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
     });
 
     it('2.2: PreToolUse allows edits even with phase gate set (gates are now reminders)', () => {
