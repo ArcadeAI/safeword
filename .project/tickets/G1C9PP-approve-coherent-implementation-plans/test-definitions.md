@@ -87,7 +87,7 @@ prove real installed CLI wiring.
 ### Scenario: Planning access permits only the configured durable architecture record
 
 - [x] RED a6dd169da
-- [ ] GREEN
+- [x] GREEN 6c3fbeb00
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
