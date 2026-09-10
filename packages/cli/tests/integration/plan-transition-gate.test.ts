@@ -206,17 +206,26 @@ describe('implementation planning transition gates (wired)', () => {
   });
 
   it('keeps an unresolved behavior-shaping choice in Implementation Planning and names it', () => {
+    writeGateConfig(projectRoot, { reviewGate: true });
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    const unresolvedPlan = VALID_PLAN.replace(
+      '| gate | pre-tool | stop-only | too late |',
+      '| Authentication ownership | unresolved | per-service ownership | decision pending |',
+    );
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), unresolvedPlan);
+    const ticketScope = nodePath.basename(ticketDirectory);
     writeFileSync(
-      nodePath.join(ticketDirectory, 'impl-plan.md'),
-      VALID_PLAN.replace(
-        '| gate | pre-tool | stop-only | too late |',
-        '| Authentication ownership | unresolved | per-service ownership | decision pending |',
-      ),
+      nodePath.join(projectRoot, '.project', 'skill-invocations.log'),
+      [
+        `2026-09-09T00:00:00Z sess review:${reviewScope(ticketScope, 'impl-plan', hashArtifact(unresolvedPlan))}`,
+        `2026-09-09T00:00:01Z sess review:${reviewScope(ticketScope, 'phase', 'plan-implementation')}`,
+        '',
+      ].join('\n'),
     );
 
     const result = runAdvance('plan-implementation', 'plan-execution');
+    expect(result.status).toBe(0);
     if (result.stdout.trim() === '') {
       throw new Error(
         'Expected the Implementation Planning decision gate to deny the transition and name Authentication ownership, but the hook allowed it.',
