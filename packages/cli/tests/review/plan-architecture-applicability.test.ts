@@ -113,6 +113,9 @@ const ARCHITECTURE_CLAUSE_FIXTURE = `- **Principles and architecture:** Using th
 function contractWithArchitectureFixture(): string {
   const existing = obligationClause(PLAN_REVIEW_RUBRIC, ARCHITECTURE_OBLIGATION);
   if (existing === undefined) return `${PLAN_REVIEW_RUBRIC}\n${ARCHITECTURE_CLAUSE_FIXTURE}`;
+  if (ARCHITECTURE_REQUIREMENTS.every(requirement => requirement.pattern.test(existing))) {
+    return PLAN_REVIEW_RUBRIC;
+  }
   const offset = PLAN_REVIEW_RUBRIC.indexOf(existing);
   return `${PLAN_REVIEW_RUBRIC.slice(0, offset)}${ARCHITECTURE_CLAUSE_FIXTURE}${PLAN_REVIEW_RUBRIC.slice(offset + existing.length)}`;
 }
