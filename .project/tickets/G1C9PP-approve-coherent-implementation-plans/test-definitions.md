@@ -45,7 +45,7 @@ prove real installed CLI wiring.
 ### Scenario: A divergent host-private copy never becomes authoritative
 
 - [x] RED 4f168b359
-- [ ] GREEN
+- [x] GREEN 2722ee208
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R5 — Architecture applicability is explicit
