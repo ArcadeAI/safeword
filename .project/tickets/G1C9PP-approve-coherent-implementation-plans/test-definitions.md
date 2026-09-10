@@ -68,7 +68,7 @@ prove real installed CLI wiring.
 
 - [x] RED c642b9967
 - [x] GREEN 80e39608d
-- [ ] REFACTOR
+- [x] REFACTOR 790f3be0e
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
 
