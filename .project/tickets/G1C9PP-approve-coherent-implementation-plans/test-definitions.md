@@ -60,7 +60,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Data guidance follows data-contract applicability
 
-- [ ] RED
+- [x] RED 23abfdefc
 - [ ] GREEN
 - [ ] REFACTOR
 
