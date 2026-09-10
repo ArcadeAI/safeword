@@ -54,7 +54,7 @@ prove real installed CLI wiring.
 
 - [x] RED 61636f429
 - [x] GREEN 5b00d9413
-- [ ] REFACTOR
+- [x] REFACTOR skip: one rubric clause and one authoring prompt express the applicability rule without a new parser or abstraction
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R6 — Applicable data decisions cover purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback at decision depth
 
