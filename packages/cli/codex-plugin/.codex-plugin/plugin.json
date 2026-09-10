@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.83.1",
+  "version": "1.0.0-rc.1",
   "description": "Safeword workflow guidance and gates for Codex.",
   "author": {
     "name": "Arcade AI"
