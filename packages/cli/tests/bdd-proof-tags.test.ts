@@ -12,6 +12,7 @@ import {
   defaultVitestExclude,
   defaultVitestInclude,
 } from '../../../vitest.default-projects.js';
+import collectorVitestConfig from '../../retro-collector/vitest.config.js';
 import relayVitestConfig from '../../retro-relay/vitest.config.js';
 import { collectExecutableFeatureFiles } from '../src/utils/feature-source.js';
 import cliVitestConfig from '../vitest.config.js';
@@ -93,7 +94,7 @@ function onDiskProofManifestPaths(): string[] {
     for (const entry of entries) {
       const relativePath = nodePath.posix.join(directory, entry.name);
       if (entry.isDirectory()) {
-        if (!['.git', 'dist', 'node_modules'].includes(entry.name)) visit(relativePath);
+        if (!defaultExcludedPathSegments.has(entry.name)) visit(relativePath);
       } else if (entry.name.endsWith('.bdd-proof.json')) {
         manifests.push(relativePath);
       }
@@ -112,6 +113,10 @@ function readProofManifest(relativePath: string): ScenarioProofManifest {
   }
   if (!isRepoFeaturePath(manifest.feature)) {
     throw new TypeError(`${relativePath}: ${manifest.feature} must be a collected feature`);
+  }
+  const expectedFeature = relativePath.replace(/\.bdd-proof\.json$/u, '.feature');
+  if (manifest.feature !== expectedFeature) {
+    throw new TypeError(`${relativePath} must declare its matching feature ${expectedFeature}`);
   }
   for (const [scenario, registration] of Object.entries(manifest.scenarios)) {
     const registrations = proofRegistrations(registration);
@@ -686,9 +691,9 @@ describe('BDD proof provenance', () => {
 
   it('keeps shared proof fan-in within the reviewed baseline', () => {
     // Baseline measured after exposing the previously feature-level-@manual local-retro
-    // scenarios: 69 reused tests and a maximum fan-in of fourteen. The migration
-    // makes existing sharing visible; it does not add wrapper tests just to lower the
-    // count. These remain ratchets—lower them as proofs become scenario-specific.
+    // scenarios: 69 reused tests and a maximum fan-in of fourteen. Three additional
+    // cross-boundary proofs now cover both sides of the client/collector contracts.
+    // These remain ratchets—lower them as proofs become scenario-specific.
     let sharedProofs = 0;
     let maximumFanIn = 0;
     const registrations = new Map<string, number>();
@@ -705,7 +710,7 @@ describe('BDD proof provenance', () => {
       maximumFanIn = Math.max(maximumFanIn, fanIn);
     }
 
-    expect(sharedProofs).toBeLessThanOrEqual(69);
+    expect(sharedProofs).toBeLessThanOrEqual(72);
     expect(maximumFanIn).toBeLessThanOrEqual(14);
   });
 
@@ -861,16 +866,22 @@ describe('BDD proof provenance', () => {
   });
 
   it('uses the same include and exclude rules as the shipped Vitest configs', () => {
-    expect(cliVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/cli'));
-    expect(cliVitestConfig.test?.exclude).toEqual([
-      ...configDefaults.exclude,
-      ...defaultVitestExclude('packages/cli'),
+    const shippedConfigs = new Map([
+      ['packages/cli', cliVitestConfig],
+      ['packages/retro-relay', relayVitestConfig],
+      ['packages/retro-collector', collectorVitestConfig],
     ]);
-    expect(relayVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/retro-relay'));
-    expect(relayVitestConfig.test?.exclude).toEqual([
-      ...configDefaults.exclude,
-      ...defaultVitestExclude('packages/retro-relay'),
-    ]);
+    expect(shippedConfigs.keys().toArray()).toEqual(
+      DEFAULT_VITEST_PROJECTS.map(project => project.root),
+    );
+    for (const project of DEFAULT_VITEST_PROJECTS) {
+      const config = shippedConfigs.get(project.root);
+      expect(config?.test?.include).toEqual(defaultVitestInclude(project.root));
+      expect(config?.test?.exclude).toEqual([
+        ...configDefaults.exclude,
+        ...defaultVitestExclude(project.root),
+      ]);
+    }
   });
 
   it('enumerates every workspace Vitest project in the shared collection contract', () => {

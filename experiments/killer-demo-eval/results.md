@@ -3,9 +3,10 @@
 ## Live smoke result — 2026-09-10 UTC
 
 **4/4 expected decisions and defect reasons observed.** One independent Claude
-Opus review per case through the shared coordinator; independence was reported
-as `cross-agent`. No expected labels or other cases were included in a review
-packet.
+review per case through Safeword 0.83.1's shared coordinator; reported model
+alias `opus`, independence `cross-agent`. The alias is recorded as reported,
+not claimed to identify a pinned model version. No expected labels or other
+cases were included in a review packet.
 
 | Case | Review ID                              | Actual decision | Observed reason                                                                                           |
 | ---- | -------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------- |
@@ -51,7 +52,7 @@ Negative-case findings are expected test outcomes, not defects to fix in the
 fixtures. Some incidental suggestions were overly prescriptive; only the
 seeded defect and readiness decision were scored.
 
-## Input SHA-256
+### Input SHA-256
 
 ```text
 DISCOVERY.md c317894d75ed665f0cd082ee3a8306a0d25b47b700fdb733b94cfc55d9092aca

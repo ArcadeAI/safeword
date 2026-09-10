@@ -104,10 +104,10 @@ Feature: Route local retros through the durable server
       Then local filing ownership is released and direct GitHub filing stays disabled for that source
 
     @rejection
-    Scenario: A legacy quarantine receipt does not transfer recovery
+    Scenario: A legacy quarantine receipt preserves direct recovery
       Given a locally recoverable legacy v2 request
       When the collector returns a quarantine receipt
-      Then the request remains locally recoverable with its original identity and bytes and the worker cannot lease it
+      Then the findings remain on the established direct-filing path and the worker cannot lease the quarantined request
 
     @rejection
     Scenario: A typed intake rejection preserves local diagnosis
@@ -136,7 +136,7 @@ Feature: Route local retros through the durable server
 
     @rejection
     Scenario Outline: Non-authoritative evidence cannot suppress filing
-      Given no create has been attempted for the request and duplicate investigation has only <evidence>
+      Given no create has been attempted for the request and GitHub contains only <evidence>
       When the relay evaluates the accepted request
       Then the relay proceeds to create the issue rather than suppressing it as a duplicate
 
@@ -145,20 +145,19 @@ Feature: Route local retros through the durable server
         | a sanitized MCP read  |
         | a similar issue body without exact markers |
         | a lone request marker |
-        | an incomplete scan    |
 
   @local-retro-cutover.TBU1.R4 @surface.safeword-cli @surface.railway-public-retro-collector @surface.railway-hosted-relay
   Rule: local-retro-cutover.TBU1.R4 — Accepted intake is safe and relay-compatible
 
-    Scenario: The largest relay-compatible normalized batch is accepted
+    Scenario: The maximum-count relay-compatible batch is filed without truncation
       Given fifty findings whose rendered issue body remains below sixty thousand bytes
-      When the client and collector validate the complete envelope
-      Then both accept it with every finding present
+      When the relay files the complete envelope
+      Then one GitHub issue is created with every finding present
 
-    Scenario: The largest accepted batch remains relay-compatible
-      Given the largest relay-compatible fifty-finding envelope reaches the filing worker
-      When the relay files it
-      Then the relay records one created GitHub issue with every finding represented
+    Scenario: The rendered-body boundary is accepted end to end
+      Given a complete envelope whose rendered issue body is exactly sixty thousand bytes
+      When the collector accepts it and the worker transfers it to the relay
+      Then the relay records one created GitHub issue without truncation
 
     @rejection
     Scenario: An oversized envelope is rejected before storage
@@ -219,7 +218,7 @@ Feature: Route local retros through the durable server
   Rule: local-retro-cutover.TBU1.R6 — Routine operations do not expose findings
 
     Scenario: Lifecycle inspection returns metadata without payload
-      Given accepted records exist in queued, retryable, and terminal states
+      Given accepted records exist in queued, leased, and terminal states
       When an operator lists their lifecycle
       Then each result contains identity and state but no finding content
 
@@ -283,7 +282,7 @@ Feature: Route local retros through the durable server
 
       Examples:
         | runtime-evidence                              | host-class    | eligibility |
-        | no managed metadata socket in a local runtime | local         | eligible    |
+        | positive host-bound Cursor Desktop lifecycle evidence | local | eligible    |
         | metadata socket exists but does not prove locality | unknown    | ineligible  |
         | indeterminate metadata                        | unknown       | ineligible  |
 

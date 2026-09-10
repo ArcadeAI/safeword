@@ -77,8 +77,8 @@
         "invalidates a completed record that appears before its worker publishes"
       ],
       [
-        "packages/cli/tests/integration/write-time-annotation-gate.test.ts",
-        "binds a local Edit to its exact scenario when several GREEN rows remain open"
+        "packages/cli/tests/review/job.test.ts",
+        "refuses a planted record with an arbitrary pid and result"
       ],
       [
         "packages/cli/tests/review/job.test.ts",

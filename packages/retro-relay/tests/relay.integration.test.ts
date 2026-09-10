@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { GitHubCreateError } from '../src/github.js';
 import type { RelayServerFaults } from '../src/http-server.js';
-import { payloadHash } from '../src/identity.js';
+import { payloadHash, requestMarker as requestScopeMarker } from '../src/identity.js';
 import {
   CredentialRegistry,
   type FileRetroDraftRequest,
@@ -1393,6 +1393,29 @@ describe('retry-safe retro relay', () => {
       state: 'filed',
     });
     reopened.close();
+  });
+
+  it.each([
+    ['a sanitized MCP read', 'Retry-safe retro filing\ncanonical:abc123\nretro:def456'],
+    ['a similar issue body without exact markers', 'The filing path lost its response.'],
+    [
+      'a lone request marker',
+      requestScopeMarker({
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        requestId: draft().requestId,
+        tenantId: 'tenant-1',
+      }),
+    ],
+  ])('files a fresh request despite %s', async (_evidence, rawBody) => {
+    const setup = await fixture({ rawBodies: [rawBody] });
+
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
+    ).resolves.toMatchObject({ issueNumber: 901, state: 'filed' });
+
+    expect(setup.rawIssueUrls).toHaveLength(0);
+    expect(setup.createBodies).toHaveLength(1);
   });
 
   it.each([0, 2])(

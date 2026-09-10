@@ -44,8 +44,14 @@
       "honors an explicit public retrospective opt-out"
     ],
     "A lost receipt retries the persisted request": [
-      "packages/cli/tests/commands/retro.test.ts",
-      "retries a retained server-v3 request on the next matching retro run"
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "retries a retained server-v3 request on the next matching retro run"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "returns the original durable receipt for an exact retry after restart"
+      ]
     ],
     "Re-extracting the same transcript window reuses its durable identity": [
       "packages/cli/src/retro/public-delivery.test.ts",
@@ -56,17 +62,33 @@
       "delivers later delta windows from one session under distinct public scopes"
     ],
     "Conflicting retry bytes preserve both recovery records": [
-      "packages/cli/src/retro/public-delivery.test.ts",
-      "preserves conflicting bytes for one session scope under distinct request identities"
+      [
+        "packages/cli/src/retro/public-delivery.test.ts",
+        "preserves conflicting bytes for one session scope under distinct request identities"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "accepts only one of two concurrent byte-different bodies with one request identity"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "rejects byte-different reuse of an accepted session scope"
+      ]
     ],
     "Collector acceptance transfers recovery to the server": [
       "packages/cli/tests/commands/retro.test.ts",
       "routes a server-v3 finding only through the collector when it is %s",
       "accepted"
     ],
-    "A legacy quarantine receipt does not transfer recovery": [
-      "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "keeps accepted %s quarantine records out of worker leases"
+    "A legacy quarantine receipt preserves direct recovery": [
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "preserves every valid finding privately after public batch acceptance"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "keeps accepted %s quarantine records out of worker leases"
+      ]
     ],
     "A typed intake rejection preserves local diagnosis": [
       "packages/cli/src/retro/public-delivery.test.ts",
@@ -75,11 +97,11 @@
     "A transport failure before acceptance preserves local recovery": [
       [
         "packages/cli/src/retro/public-delivery.test.ts",
-        "contains a collector connection failure without retrying"
+        "abandons a collector handoff at the existing deadline without retrying"
       ],
       [
         "packages/cli/src/retro/public-delivery.test.ts",
-        "abandons a collector handoff at the existing deadline without retrying"
+        "contains a collector connection failure without retrying"
       ]
     ],
     "Exact authority markers suppress a duplicate create": [
@@ -89,24 +111,27 @@
     "Non-authoritative evidence cannot suppress filing": [
       [
         "packages/retro-relay/tests/relay.integration.test.ts",
-        "keeps an ambiguous request quarantined for %i raw request-marker matches"
+        "files a fresh request despite %s",
+        "a sanitized MCP read"
       ],
       [
         "packages/retro-relay/tests/relay.integration.test.ts",
-        "keeps a sole request-marker match quarantined when its raw evidence conflicts"
+        "files a fresh request despite %s",
+        "a similar issue body without exact markers"
       ],
       [
         "packages/retro-relay/tests/relay.integration.test.ts",
-        "fails closed when raw REST pagination is incomplete"
+        "files a fresh request despite %s",
+        "a lone request marker"
       ]
     ],
-    "The largest relay-compatible normalized batch is accepted": [
+    "The maximum-count relay-compatible batch is filed without truncation": [
       "packages/retro-relay/tests/relay.integration.test.ts",
       "accepts the largest relay-compatible collector batch without truncating its body"
     ],
-    "The largest accepted batch remains relay-compatible": [
-      "packages/retro-relay/tests/relay.integration.test.ts",
-      "accepts the largest relay-compatible collector batch without truncating its body"
+    "The rendered-body boundary is accepted end to end": [
+      "packages/retro-collector/tests/worker.integration.test.ts",
+      "transfers collector acceptance through the real relay contract"
     ],
     "An oversized envelope is rejected before storage": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
@@ -130,6 +155,10 @@
         "reports an expired collector lease as queued before it is reclaimed"
       ],
       [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "prevents a stale lease token from mutating a reclaimed live lease"
+      ],
+      [
         "packages/retro-collector/tests/worker.integration.test.ts",
         "transfers collector acceptance through the real relay contract"
       ]
@@ -141,7 +170,7 @@
       ],
       [
         "packages/retro-relay/tests/relay.integration.test.ts",
-        "keeps an ambiguous request quarantined for %i raw request-marker matches"
+        "lets only an operator recover a complete zero-match with the reserved request marker"
       ]
     ],
     "Incomplete ambiguity scan retains the request for reconciliation": [
@@ -198,7 +227,7 @@
     ],
     "Admitted work drains oldest-first within filing quotas": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "persists global and per-project filing reservations across restarts"
+      "leases the oldest eligible request and leaves newer work queued"
     ],
     "Configured filing quota controls admitted filing volume": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
