@@ -38,7 +38,7 @@ prove real installed CLI wiring.
 
 - [x] RED c4674408b
 - [x] GREEN 2e01fc849
-- [ ] REFACTOR
+- [x] REFACTOR skip: the conformance fixture is already separated into contract, structure, and decision judgments; further extraction would not improve this scenario's behavior or proof
 
 ### Scenario: A load-bearing decision cannot disappear from the review path
 
