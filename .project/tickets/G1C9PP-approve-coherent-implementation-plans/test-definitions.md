@@ -96,7 +96,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 - [x] RED cec8e4aab
 - [x] GREEN 7a7473024
-- [ ] REFACTOR
+- [x] REFACTOR skip: the paired control reuses the same reviewer and replaces duplicate ownership lines through one shared fixture builder; no production structure needs cleanup
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
 
