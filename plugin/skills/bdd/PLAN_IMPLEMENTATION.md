@@ -18,7 +18,7 @@ worktree. Never reuse the spike's experimental code or commits.
 ## Design the approach — ideal first
 
 1. **Inventory constraints, then sketch candidates.** Read only the public contracts, runtime boundaries, dependency manifests and installed versions, plus known license/security obligations needed to judge comparability. Derive 2–3 candidate approaches without first surveying the local solution.
-2. **Capture Implementation Inspiration.** Ask who has implemented this technical problem exceptionally well under comparable constraints. Favor current primary source, architecture docs, benchmarks, postmortems, and version-matched library docs. Write the exact reference table (or exact unsuccessful-search record) under `## Decisions` → `### Implementation Inspiration`, including what changed or was retained. For either resolution path, make `Decision informed` exactly match the unique `Decision` cell of the affected `### Recorded Decisions` row; on the reference path, that row must cite at least one exact reference URL. Run `/figure-it-out` for each load-bearing choice.
+2. **Capture Implementation Inspiration.** Ask who has implemented this technical problem exceptionally well under comparable constraints. Favor current primary source, architecture docs, benchmarks, postmortems, and version-matched library docs. Record every decision, choice, alternative, losing reason, evidence reference, retrieval date, and applicable version. Use either the packaged tables, one concise labeled prose/bullet record under `## Decisions` → `### Recorded Decisions`, or the exact unsuccessful-search record. Presentation may change; evidence completeness may not. For either table resolution path, make `Decision informed` exactly match the unique `Decision` cell of the affected `### Recorded Decisions` row; on the reference path, that row must cite at least one exact reference URL. Run `/figure-it-out` for each load-bearing choice.
 3. **Then survey what exists** — after sketching the ideal and comparing candidates, read the generated architecture state doc (`architecture.generated.md` — the machine-owned _what-is_) and the decision record (resolved from `paths.architecture`) for **reuse** candidates. Order matters: surveying first anchors the design to the status quo.
 4. **Reconcile without sunk-cost conformance.** Existing architecture is changeable with a recorded decision, not a constraint to conform to. Reuse what's better; change what's worse — deliberately, with the change recorded (ADR lifecycle below).
 
@@ -63,7 +63,7 @@ Component design and data-model design may use the lanes that already ship as li
 Scaffold from `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md` (sibling to `ticket.md`), status `planned`. Sections stay **content-or-skip** — every section gets real content or `skip: <non-empty reason>`:
 
 - **Approach** — open with the riskiest assumption and the cheapest scenario that proves it; then the proof plan: for each scenario the behavior, real system boundary, proof type (`unit`, `integration`, `E2E`, or `eval` per `testing/SKILL.md`'s highest practical scope rule), confidence limitation, supporting proofs, at least one wiring test per new entry point, and the build order with the load-bearing slice first. Cover each **affected surface** the spec lists — name the proof that covers it or a per-surface `skip: <reason>`. Link separately owned detailed evidence when useful; leave test paths, commands, hashes, individual results, and the verification ledger to Execution Planning and verification.
-- **Decisions** — use the exact `### Implementation Inspiration` and `### Recorded Decisions` structure from Design the approach step 2 above and `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md`; record one row per significant technical choice with its alternatives, rejected-because rationale, and `/figure-it-out` evidence.
+- **Decisions** — use either the packaged table structure or the labeled prose/bullet structure from Design the approach step 2 and `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md`; record one complete evidence-bearing entry per significant technical choice. When there is no load-bearing choice, replace the evidence entry with `Decision evidence applicability: skip: <reason>` inside `### Recorded Decisions`; a local non-load-bearing choice may still be named elsewhere in the plan.
 - **Design alignment** — record applicable project principles with their concrete consequence and proof, then consult the architecture record (resolve `paths.architecture` in `.safeword/config.json`; default `.project/architecture.md`; a directory holds one ADR per `.md`, README excluded). Records exist: list the decisions this design honors. With applicable principles but no records, write `None recorded yet` for the architecture sub-entry and offer to draft the first ADR for a significant decision. With neither applicable principles nor architecture records, write `skip: no applicable principles or ADRs` and offer to draft the first ADR for a significant decision (technology choices spanning features, data ownership, cross-service contracts).
 - **Known deviations** — where this deviates from guidance and why that's acceptable.
 - **Doc impact** — which configured `docs.sources` surfaces the customer-visible changes touch, folded into the build order as tasks; internal-only: `skip: <reason>`.
@@ -156,10 +156,15 @@ records as context around the one `impl-plan.md` work artifact.
   copying it into the plan. Block test paths or commands and name them for
   removal to Execution Planning. Block verification ledger detail and name it
   for removal from the decision review path.
-- **Decision quality:** Check each significant choice against credible
-  alternatives, current version-matched evidence, license and security
-  boundaries, reversibility, and the recorded reason for rejection. Research
-  claims must support the decision they are cited for.
+- **Decision quality:** Check each significant choice against at least one
+  credible alternative and record why each credible alternative lost. Require
+  evidence current for the applicable target version, plus license and security
+  boundaries and reversibility. When a named newer release supersedes the
+  evidence baseline after the choice, refresh the evidence against that release
+  before approval. Require an evidence-bearing decision entry or a justified
+  no-load-bearing-choice skip. A local non-load-bearing choice does not contradict
+  that skip. Block the skip when it contradicts the plan's own load-bearing choice.
+  Research claims must support the decision they are cited for.
 - **Principles and architecture:** Using the supplied configured principles file,
   challenge whether the plan identified the actually applicable project
   principles. For each one, verify that the concrete consequence follows and
