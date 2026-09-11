@@ -47,6 +47,8 @@ The exact-tree lifecycle fixtures were refreshed before the final closeout harde
 
 Ruled out: a Node 24 compatibility regression, because the lifecycle result digests were identical and the same stale tree digest reproduced locally; locale-dependent ordering, because both the default locale and `LC_ALL=C` produced the same current digest.
 
+The release lane then exposed a separate `prefer-const` violation in the installed closeout script. The repository lint did not report it because the root CLI override intentionally relaxes that rule, while the release contract correctly applies Safeword's shipped host preset to the installed customer surface. Moving the timer declaration to its single assignment fixed the source template without changing behavior; regenerated dogfood and plugin copies now pass the release validation.
+
 ## Work Log
 
 - 2026-09-11T00:16:46.744Z Started: Created ticket TWPNFP
@@ -56,3 +58,4 @@ Ruled out: a Node 24 compatibility regression, because the lifecycle result dige
 - 2026-09-11 Verified: Focused resolver and closeout unit tests pass; all 27 host-adapter integration tests pass with registry access.
 - 2026-09-11 Audited: No change-scoped architecture or test-quality error; evidence recorded in verify.md.
 - 2026-09-11 CI debug: Refreshed the Cursor lifecycle tree fixtures after the final generated-script changes; the 13-case origin/main contract now passes at the branch head.
+- 2026-09-11 Release debug: Fixed the installed-surface `prefer-const` error at the template source, regenerated every managed copy, and passed the four-case shipped TypeScript validation plus the refreshed 13-case lifecycle contract.

@@ -586,7 +586,6 @@ export function runVerificationCommand(
     let settled = false;
     let timedOut = false;
     let exitStatus: number | undefined;
-    let commandTimer: NodeJS.Timeout | undefined;
     let drainTimer: NodeJS.Timeout | undefined;
     let terminationTimer: NodeJS.Timeout | undefined;
     let stdout: Buffer = Buffer.alloc(0);
@@ -649,7 +648,7 @@ export function runVerificationCommand(
         }, VERIFICATION_OUTPUT_DRAIN_TIMEOUT_MS);
       }
     });
-    commandTimer = setTimeout(() => {
+    const commandTimer = setTimeout(() => {
       if (settled || child.exitCode !== null || child.signalCode !== null) return;
       timedOut = true;
       terminateProcessTree(child);

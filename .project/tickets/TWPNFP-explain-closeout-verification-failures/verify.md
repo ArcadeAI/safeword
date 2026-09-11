@@ -8,6 +8,7 @@ Verified: 2026-09-11T03:17:59Z
 **Scenarios:** ✅ Locked-runner absence, bounded failed output, inherited output pipes, detailed blockers, and legacy generic blockers are covered
 **PR Scope:** ✅ Closeout reports failures but does not install dependencies or change cleanup authority
 **Reconcile:** ✅ All 264 template pairs, 8 contracts, and 13 lifecycle origin-main contracts are synchronized
+**Installed surface:** ✅ All 4 shipped TypeScript template validation cases pass under the customer-facing ESLint and typecheck presets
 **Evidence limits:** ⚠️ Dependency-backed adapter tests require registry access; their sandboxed attempts timed out during fixture setup, then passed outside the restricted network sandbox.
 
 Evidence:
@@ -20,5 +21,6 @@ Evidence:
 - Production host-adapter coverage asserts the exact failed-command and unavailable-runner blockers end to end.
 - Receipt publication failure keeps its specific blocker after both hosted-CI trust and fresh local verification paths.
 - Generated Claude and Codex plugin assets were regenerated and parity-checked.
+- The installed closeout script passes the shipped host ESLint baseline after moving the command timer to its single assignment.
 - Refactoring made the failure list the single verdict source and isolated per-lane execution without changing behavior; timing-based assertions were removed.
 - Diff-scoped audit reports no change-scoped architecture, domain-reference, or test-quality error; unrelated historical principle-trace and Python experiment findings remain outside this ticket.
