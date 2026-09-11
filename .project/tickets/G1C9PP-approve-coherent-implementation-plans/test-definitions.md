@@ -22,7 +22,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Contract agreement controls review eligibility
 
-- [ ] RED
+- [x] RED 3ee9348f4
 - [ ] GREEN
 - [ ] REFACTOR
 
