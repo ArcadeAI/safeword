@@ -114,7 +114,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 ### Scenario: Planning access permits only configured durable architecture records
 
-- [ ] RED
+- [x] RED 446fe35b9
 - [ ] GREEN
 - [ ] REFACTOR
 
