@@ -174,7 +174,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 ### Scenario: Evidence presentation does not replace evidence completeness
 
-- [ ] RED
+- [x] RED 89f22b337
 - [ ] GREEN
 - [ ] REFACTOR
 
