@@ -177,6 +177,16 @@ Compliance: tokens remain encrypted and excluded from review artifacts.
 Rollback: retain the old lookup until backfill verification completes.
 `;
 
+export function ownershipPlan(sourceAuthority: string, persistedEntityOwner: string): string {
+  return COMPLETE_DATA_PLAN.replace(
+    /^Source of truth: .+$/mu,
+    () => `Source of truth: ${sourceAuthority} is authoritative.`,
+  ).replace(
+    /^Ownership and access: .+$/mu,
+    () => `Ownership and access: ${persistedEntityOwner} owns the persisted entity.`,
+  );
+}
+
 export function withoutDataFields(...fields: readonly string[]): string {
   return COMPLETE_DATA_PLAN.split('\n')
     .filter(line => fields.every(field => !line.startsWith(`${field}:`)))

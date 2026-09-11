@@ -35,6 +35,7 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import { REVIEWER_CAPABILITIES } from '../packages/cli/tests/review-fixtures.ts';
 import {
   COMPLETE_DATA_PLAN,
+  ownershipPlan,
   reviewDataApplicability,
   reviewDataOwnershipConsistency,
   withoutDataFields,
@@ -815,10 +816,14 @@ Given(/^a feature has (.+)$/u, function (this: PlanWorld, dataState: string) {
 Given(
   'an Implementation Plan names a persisted entity owner that contradicts its source-of-truth authority',
   function (this: PlanWorld) {
-    this.dataOwnershipPlan = `${COMPLETE_DATA_PLAN}
-Source of truth: the identity service is authoritative.
-Ownership and access: the profile service owns the persisted entity.
-`;
+    this.dataOwnershipPlan = ownershipPlan('the identity service', 'the profile service');
+  },
+);
+
+Given(
+  'an Implementation Plan names a persisted entity owner that agrees with its source-of-truth authority',
+  function (this: PlanWorld) {
+    this.dataOwnershipPlan = ownershipPlan('the identity service', 'the identity service');
   },
 );
 
@@ -1287,6 +1292,14 @@ Then('approval is blocked with the conflicting data owner named', function (this
   assert.match(
     this.dataOwnershipReview?.findings.map(finding => finding.message).join('\n') ?? '',
     /conflicting data owner.+profile service/iu,
+  );
+});
+
+Then('data ownership consistency does not block approval', function (this: PlanWorld) {
+  assert.equal(
+    this.dataOwnershipReview?.verdict,
+    'approve',
+    this.dataOwnershipReview?.findings.map(finding => finding.message).join('\n'),
   );
 });
 
