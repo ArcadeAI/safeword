@@ -161,7 +161,7 @@ the feature. Lower-level contract tests own permutations within each family.
 ### Scenario: Decision evidence controls semantic review
 
 - [x] RED 3b5f78a9b
-- [ ] GREEN
+- [x] GREEN f6343f586
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R13 — Decision evidence is structurally present and semantically judged
