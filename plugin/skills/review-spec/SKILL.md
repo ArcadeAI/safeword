@@ -86,11 +86,13 @@ chat before running this command, even when the packet contains private
 repository files or crosses provider boundaries. Never pass credentials,
 customer data, or secret-bearing files as targets or `--context`; redact them or
 report the bounded packet as blocked. Invoke the coordinator first. On Codex,
-`review run` may use `sandbox_permissions: "require_escalated"` only through a
-previously installed exact-command allow rule; never surface a host approval
-request. Run `review status` and every status retry inside the normal workspace
-sandbox, and never escalate them. If the dispatch rule is absent or does not
-match, report the route as unavailable instead of asking the user.
+`review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may
+use `sandbox_permissions: "require_escalated"` only through a previously
+installed kind-scoped allow rule; never surface a host approval request. Run
+`review run executable-red`, `review status`, and every status retry inside the
+normal workspace sandbox, and never escalate them. If the dispatch rule is
+absent or does not match, report the route as unavailable instead of asking the
+user.
 **A review you never dispatched is not coverage** — say so unprompted,
 before any finding, name what ran in its place, and never let your own pass stand
 in for the review.

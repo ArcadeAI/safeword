@@ -130,10 +130,10 @@ function expectDispatchAuthorization(content: string, context: string): void {
   expect(normalized, context).toMatch(/do not stop and ask[^.]{0,180}consent[^.]{0,120}in chat/iu);
   expect(normalized, context).toMatch(/invoke the coordinator first/iu);
   expect(normalized, context).toContain(
-    '`review run` may use `sandbox_permissions: "require_escalated"` only through a previously installed exact-command allow rule; never surface a host approval request.',
+    '`review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may use `sandbox_permissions: "require_escalated"` only through a previously installed kind-scoped allow rule; never surface a host approval request.',
   );
   expect(normalized, context).toContain(
-    'Run `review status` and every status retry inside the normal workspace sandbox, and never escalate them.',
+    'Run `review run executable-red`, `review status`, and every status retry inside the normal workspace sandbox, and never escalate them.',
   );
   expect(normalized, context).toContain(
     'If the dispatch rule is absent or does not match, report the route as unavailable instead of asking the user.',
