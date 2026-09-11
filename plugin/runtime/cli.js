@@ -63610,35 +63610,35 @@ function isPythonTestFile(filename) {
 function pythonInvocation(index, binary, args = "") {
   const suffix = args ? ` ${args}` : "";
   if (index.has("uv.lock"))
-    return { command: `uv run --locked ${binary}${suffix}`, gate: "uv" };
+    return { command: `uv run --locked ${binary}${suffix}`, runner: "uv" };
   if (index.has("poetry.lock"))
-    return { command: `poetry run ${binary}${suffix}`, gate: "poetry" };
-  return { command: `${binary}${suffix}`, gate: binary };
+    return { command: `poetry run ${binary}${suffix}`, runner: "poetry" };
+  return { command: `${binary}${suffix}`, runner: binary };
 }
 function resolvePythonTypecheck(index, cwd, isAvailable) {
   if (mypyConfigured(index)) {
-    const { command, gate } = pythonInvocation(index, "mypy", ".");
-    return entry("python", cwd, command, gate, isAvailable(gate));
+    const { command, runner } = pythonInvocation(index, "mypy", ".");
+    return entry("python", cwd, command, runner, isAvailable(runner));
   }
   if (pyrightConfigured(index)) {
-    const { command, gate } = pythonInvocation(index, "pyright");
-    return entry("python", cwd, command, gate, isAvailable(gate));
+    const { command, runner } = pythonInvocation(index, "pyright");
+    return entry("python", cwd, command, runner, isAvailable(runner));
   }
   return;
 }
 function resolvePythonBdd(index, cwd, isAvailable) {
   if (!behaveConfigured(index))
     return;
-  const { command, gate } = pythonInvocation(index, "behave");
-  return entry("python", cwd, command, gate, isAvailable(gate));
+  const { command, runner } = pythonInvocation(index, "behave");
+  return entry("python", cwd, command, runner, isAvailable(runner));
 }
 function resolvePythonTest(index, cwd, isAvailable, nestedProjects) {
   if (index.has("tox.ini"))
     return entry("python", cwd, "tox", "tox", isAvailable("tox"));
   const hasPythonTests = findFileMatchingInTree(cwd, isPythonTestFile, 10, nestedProjects) !== undefined;
   if (pytestConfigured(index) || hasPythonTests && isAvailable("pytest")) {
-    const { command, gate } = pythonInvocation(index, "pytest");
-    return entry("python", cwd, command, gate, isAvailable(gate));
+    const { command, runner } = pythonInvocation(index, "pytest");
+    return entry("python", cwd, command, runner, isAvailable(runner));
   }
   if (!hasPythonTests)
     return;
