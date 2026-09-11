@@ -5,7 +5,7 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-09-10T23:06:30.082Z
-last_modified: 2026-09-11T04:43:43Z
+last_modified: 2026-09-11T23:37:16Z
 ---
 
 # Run trusted review routes without approval prompts
@@ -20,7 +20,8 @@ last_modified: 2026-09-11T04:43:43Z
   kind-scoped allow rules without surfacing a host approval request; status polling remains in the
   normal workspace sandbox.
 - Generated Codex review skills retain the zero-approval instruction.
-- This machine's combined Arcade/Bosslevel MCP server automatically approves all of its tools.
+- This machine's combined Arcade/Bosslevel MCP server automatically approves its entire tool
+  surface, including tools added to that server later; this is the user's accepted trust boundary.
 - This machine has narrow allow rules for the exact installed Safeword runtime's
   `quality-review`, `scenario-gate`, and `plan-implementation` dispatches. Their normal arguments
   remain available, while executable RED reviews, `review status`, and arbitrary Bun commands are
@@ -48,7 +49,8 @@ last_modified: 2026-09-11T04:43:43Z
 ## Test Plan
 
 - RED: the canonical review-surface test fails until every review caller preserves the no-prompt
-  dispatch rule and normal-sandbox status boundary.
+  kind-scoped dispatch rule and the normal-sandbox boundaries for executable RED reviews and status
+  polling.
 - GREEN: the focused review parity suite and generated Codex plugin check pass.
 - End to end: run a bounded packet through the live installed runtime and verify that Codex applies
   the installed rule without surfacing an approval request.
@@ -84,3 +86,9 @@ last_modified: 2026-09-11T04:43:43Z
   normal-sandbox requirement for executable RED reviews. Execpolicy now allows all three ordinary
   review kinds and rejects executable RED, status, and arbitrary Bun commands. Focused parity passes
   44/44 and both generated-plugin checks are current.
+- 2026-09-11T23:37:16Z Verified narrowed rules after restart: A bounded `quality-review` dispatch
+  matched the loaded kind-scoped rule, reached Claude, and returned a typed verdict without a user
+  approval prompt. A separate `review status` probe ran without escalation, returned
+  `REVIEW_JOB_NOT_FOUND` for the synthetic ID, and reported no network or file effects. The effective
+  Codex config still sets the combined Arcade/Bosslevel server to automatic approval and contains no
+  general sandbox network-access override; the session sandbox remains network-restricted.
