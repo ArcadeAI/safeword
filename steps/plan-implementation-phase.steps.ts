@@ -897,6 +897,11 @@ Then(
     assert.equal(review.verdict, 'approve');
     assert.deepEqual(review.authorObligations, review.reviewerObligations);
     assert.ok(review.authorObligations.length > 0, 'the shared contract has no obligations');
+    assert.equal(
+      review.findings.some(finding => /contract reconciliation/i.test(finding.message)),
+      false,
+      'matching contracts must not add a reconciliation finding',
+    );
   },
 );
 

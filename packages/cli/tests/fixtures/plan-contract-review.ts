@@ -45,9 +45,11 @@ try {
       summary: 'The supplied plan is otherwise reviewable.',
       findings: [],
     };
+    const outputPath = nodePath.join(trustedBin, 'review-output.json');
+    writeFileSync(outputPath, JSON.stringify({ structured_output: reviewerOutput }));
     writeFileSync(
       executable,
-      `#!/bin/sh\nif [ "\${1:-}" = "--help" ]; then\n  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'\n  exit 0\nfi\n/bin/cat >/dev/null\nprintf '%s' '${JSON.stringify({ structured_output: reviewerOutput })}'\n`,
+      `#!/bin/sh\nif [ "\${1:-}" = "--help" ]; then\n  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'\n  exit 0\nfi\n/bin/cat >/dev/null\n/bin/cat '${outputPath}'\n`,
     );
     chmodSync(executable, 0o755);
     process.env.NODE_ENV = 'test';
