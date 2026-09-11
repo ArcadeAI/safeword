@@ -336,6 +336,7 @@ esac
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   process.env.PATH = originalPath;
   if (originalClaudeConfigDirectory === undefined) delete process.env.CLAUDE_CONFIG_DIR;
   else process.env.CLAUDE_CONFIG_DIR = originalClaudeConfigDirectory;
@@ -654,6 +655,8 @@ describe('Claude marketplace update enrollment', () => {
 
     expect(result.state).toBe('failed');
     expect(result.errors[0]?.code).toBe('CLAUDE_MARKETPLACE_UNVERIFIED');
+    expect(result.changed).toBe(false);
+    expect(result.effects?.configuration).toEqual([]);
     expect(readFileSync(log, 'utf8')).toContain('plugin marketplace remove safeword');
     expect(readFileSync(log, 'utf8')).toContain('plugin marketplace add');
     expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
@@ -682,6 +685,8 @@ describe('Claude marketplace update enrollment', () => {
     const result = installClaudePlugin(project);
 
     expect(result.state).toBe('failed');
+    expect(result.changed).toBe(false);
+    expect(result.effects?.configuration).toEqual([]);
     expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
     expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
     expect(readFileSync(installedPluginsPath, 'utf8')).toBe(pluginsBefore);
@@ -728,6 +733,17 @@ describe('Claude marketplace update enrollment', () => {
         source: 'git',
         url: 'https://github.com/ArcadeAI/safeword.git',
       },
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state, JSON.stringify(result)).toBe('action_required');
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace remove safeword');
+  });
+
+  it('repairs a packed URL registration of the same repository without a ref', () => {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+      marketplaceListedSource: { source: 'https://github.com/ArcadeAI/safeword.git' },
     });
 
     const result = installClaudePlugin(project);

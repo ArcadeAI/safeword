@@ -17,8 +17,10 @@ const output = [
 if (process.argv.includes('--check')) {
   if (readFileSync(outputPath, 'utf8') !== output)
     throw new Error('Generated executable RED rubric is stale; run generate:red-rubric');
+  console.log('Generated executable RED review runtime rubric is current.');
 } else {
   if (!existsSync(outputPath) || readFileSync(outputPath, 'utf8') !== output) {
     writeFileSync(outputPath, output);
   }
+  console.log('Generated the executable RED review runtime rubric.');
 }

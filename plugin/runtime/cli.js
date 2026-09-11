@@ -54463,11 +54463,15 @@ function marketplaceSource(entry) {
   let url = source.url;
   let ref = source.ref;
   let kind = source.source;
-  if (typeof entry.source === "string" && url === undefined && ref === undefined) {
-    const separator = entry.source.lastIndexOf("#");
+  const packedSource = typeof source.source === "string" ? source.source : undefined;
+  if (packedSource !== undefined && url === undefined && ref === undefined) {
+    const separator = packedSource.lastIndexOf("#");
     if (separator !== -1) {
-      url = entry.source.slice(0, separator);
-      ref = entry.source.slice(separator + 1);
+      url = packedSource.slice(0, separator);
+      ref = packedSource.slice(separator + 1);
+      kind = undefined;
+    } else if (packedSource === MARKETPLACE_BASE) {
+      url = packedSource;
       kind = undefined;
     }
   }
@@ -54730,6 +54734,7 @@ function ensureMarketplace(cwd, scope, effects) {
   }
   assertMarketplacePluginCanChange(cwd, scope, effects);
   const effectKind = marketplaceEffectKind(before);
+  const replacementEffectStart = effects.length;
   let replacement;
   if (effectKind === "update" && before.declaration !== undefined && before.shared !== undefined) {
     replacement = replaceStaleMarketplace(cwd, scope, effects);
@@ -54747,7 +54752,10 @@ function ensureMarketplace(cwd, scope, effects) {
     }
     enableMarketplaceAutoUpdate(cwd, scope, effects);
   } catch (error2) {
-    replacement?.rollback();
+    if (replacement !== undefined) {
+      replacement.rollback();
+      effects.splice(replacementEffectStart);
+    }
     throw error2;
   }
   return replacement;

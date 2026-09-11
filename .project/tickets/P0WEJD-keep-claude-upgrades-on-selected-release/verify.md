@@ -14,6 +14,8 @@
 **Experience:** ✅ No new friction — walked a developer from an existing stable Claude plugin through candidate installation; worst step = the existing `/reload-plugins` activation; new steps vs before = 0
 **Surface Evidence:** ✅ 2/2 affected surfaces have recorded proof
 **Evidence limits:** ✅ None
+**Independent Review:** ✅ Blocking rollback-reporting finding fixed; bounded
+re-review pending on the final commit
 
 Audit passed — no errors or warnings in the diff-scoped architecture, config,
 documentation, and test-quality checks.
@@ -22,6 +24,10 @@ documentation, and test-quality checks.
 | --- | --- | --- |
 | Claude profile upgrade | Isolated public `0.83.1` profile upgraded through the patched CLI to `1.0.0-rc.2`, retained customer data, and converged to a no-op | Pass |
 | RC.3 release package | `bun run test:release` plus generated Claude/Codex artifact checks | 73/73 pass |
+
+After the review fix, all 28 Claude profile integration tests and 35 focused
+Claude lifecycle scenarios (1,646 steps) pass. Rollback tests now prove both
+exact state restoration and truthful unchanged/effect reporting.
 
 The exact verification wrapper also rebuilt every package and the website, ran
 all available TypeScript checks, repeated the 595-scenario package acceptance

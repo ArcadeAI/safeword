@@ -3,7 +3,7 @@ id: P0WEJD
 slug: keep-claude-upgrades-on-selected-release
 type: task
 subtype: bug-investigated
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-09-10T23:33:09.817Z
 last_modified: 2026-09-10T23:33:09.817Z
@@ -91,3 +91,11 @@ metadata lag (the marketplace checkout itself never moved).
   registry. The exact wrapper passed 9,939 package tests, 1,499 acceptance
   scenarios, 45 proof-tag checks, every build/typecheck, and dependency audits.
   A final diff audit found no architecture or dependency violations.
+- 2026-09-11T02:05:00.000Z Independent review: corrected rolled-back marketplace
+  replacement reporting so an exactly restored profile returns `changed: false`
+  with no completed effects. Also accepted packed trusted marketplace URLs without
+  a ref and restored test mocks between cases. All 28 profile tests and 35 focused
+  Claude scenarios pass.
+- 2026-09-11T02:10:00.000Z Release recheck: regenerated both bundled runtimes;
+  73/73 release-contract tests, repository lint, Gherkin lint, TypeScript, and
+  whitespace validation pass with the pinned Bun 1.3.14 toolchain.
