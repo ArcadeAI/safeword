@@ -116,7 +116,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 - [x] RED 446fe35b9
 - [x] GREEN be327806e
-- [ ] REFACTOR
+- [x] REFACTOR skip: two small path helpers keep physical containment separate from the direct dated-ADR policy; no further extraction has another consumer
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
 
