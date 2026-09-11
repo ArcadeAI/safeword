@@ -905,7 +905,11 @@ Then(
   function (this: PlanWorld) {
     const review = this.planContractReview;
     assert.ok(review, 'semantic review did not return a result');
-    assert.equal(review.verdict, 'request_changes');
+    assert.equal(
+      review.verdict,
+      'request_changes',
+      'contract reconciliation must block approval when Proof quality conflicts with Require execution sequencing',
+    );
     const errors = review.findings
       .filter(finding => finding.severity === 'error')
       .map(finding => finding.message)
