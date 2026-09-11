@@ -1472,7 +1472,13 @@ function passedVerification(
     stateHash,
     recordedAt: new Date().toISOString(),
   });
-  return { current: true, passed, headOid, stateHash };
+  return {
+    current: true,
+    passed,
+    headOid,
+    stateHash,
+    ...(passed ? {} : { failures: ['the verification receipt could not be published'] }),
+  };
 }
 
 async function verificationFailuresForKind(

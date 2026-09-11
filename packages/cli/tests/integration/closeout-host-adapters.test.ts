@@ -1313,7 +1313,9 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         plan: { blockers: string[]; operations: unknown[] };
       }
     ).plan;
-    expect(plan.blockers).toContain('local verification failed');
+    expect(plan.blockers).toContain(
+      'local verification failed: the verification receipt could not be published',
+    );
     expect(plan.operations).toEqual([]);
     expect(existsSync(fixture.topic)).toBe(true);
   }, 30_000);

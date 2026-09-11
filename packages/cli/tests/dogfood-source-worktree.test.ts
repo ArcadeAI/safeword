@@ -19,7 +19,7 @@ function runNodeFromRepoRoot(source: string): string {
 }
 
 describe('dogfood source worktree package resolution (470)', () => {
-  it('keeps repository runtimes aligned with package metadata and CI', () => {
+  it('keeps pinned core runtimes aligned with package metadata and CI', () => {
     const packageJson = readJson(nodePath.join(repoRoot, 'package.json')) as {
       packageManager?: string;
     };
@@ -59,6 +59,12 @@ describe('dogfood source worktree package resolution (470)', () => {
       'mypy==2.3.1',
       'ruff==0.16.5',
     ]);
+  });
+
+  it('keeps the uv environment outside the repository lint surface', () => {
+    const eslintConfig = readFileSync(nodePath.join(repoRoot, 'eslint.config.ts'), 'utf8');
+
+    expect(eslintConfig).toContain("'**/.venv/'");
   });
 
   it('installs CI Python tools from the checked lockfile', () => {

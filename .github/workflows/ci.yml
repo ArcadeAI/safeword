@@ -298,11 +298,9 @@ jobs:
         run: |
           bun run --cwd packages/cli generate:claude-plugin
           bun run --cwd packages/cli generate:codex-plugin
-          # --intent-to-add so a brand-new generated file counts as drift:
-          # `git diff` alone ignores untracked paths, which would report fresh
-          # and skip the artifact upload for the one case hardest to fix by hand.
-          git add --all --intent-to-add -- plugin packages/cli/codex-plugin
-          if ! git diff --quiet -- plugin packages/cli/codex-plugin; then
+          # Porcelain status covers generated additions, modifications, and
+          # deletions without staging them and accidentally hiding a deletion.
+          if [ -n "$(git status --porcelain -- plugin packages/cli/codex-plugin)" ]; then
             echo 'drifted=true' >> "$GITHUB_OUTPUT"
             echo "::error::Generated plugin trees drifted from canonical sources. Download this run's 'regenerated-plugin' artifact and commit it, or run 'bun run --cwd packages/cli generate:claude-plugin && bun run --cwd packages/cli generate:codex-plugin' and commit plugin/ and packages/cli/codex-plugin/. If the Claude historical catalogue is also stale, regenerate that first: it writes CLI source these bundles compile in, so rebuilding the bundles first only re-drifts them."
             exit 1
