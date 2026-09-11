@@ -28,7 +28,7 @@ prove real installed CLI wiring.
 
 ### Scenario: A missing packaged contract blocks installed review
 
-- [x] RED f57474bb3
+- [x] RED 556c923b5
 - [ ] GREEN
 - [ ] REFACTOR
 
