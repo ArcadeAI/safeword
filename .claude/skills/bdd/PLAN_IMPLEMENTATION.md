@@ -63,7 +63,7 @@ Component design and data-model design may use the lanes that already ship as li
 Scaffold from `.safeword/templates/impl-plan-template.md` (sibling to `ticket.md`), status `planned`. Sections stay **content-or-skip** — every section gets real content or `skip: <non-empty reason>`:
 
 - **Approach** — open with the riskiest assumption and the cheapest scenario that proves it; then the proof plan: for each scenario the behavior, real system boundary, proof type (`unit`, `integration`, `E2E`, or `eval` per `testing/SKILL.md`'s highest practical scope rule), confidence limitation, supporting proofs, at least one wiring test per new entry point, and the build order with the load-bearing slice first. Cover each **affected surface** the spec lists — name the proof that covers it or a per-surface `skip: <reason>`. Link separately owned detailed evidence when useful; leave test paths, commands, hashes, individual results, and the verification ledger to Execution Planning and verification.
-- **Decisions** — use the exact `### Implementation Inspiration` and `### Recorded Decisions` structure from Design the approach step 2 above and `.safeword/templates/impl-plan-template.md`; record one row per significant technical choice with its alternatives, rejected-because rationale, and `/figure-it-out` evidence.
+- **Decisions** — use the exact `### Implementation Inspiration` and `### Recorded Decisions` structure from Design the approach step 2 above and `.safeword/templates/impl-plan-template.md`; record one row per significant technical choice with its alternatives, rejected-because rationale, and `/figure-it-out` evidence. When there is no load-bearing choice, replace the evidence entry with `Decision evidence applicability: skip: <reason>` inside `### Recorded Decisions`; a local non-load-bearing choice may still be named elsewhere in the plan.
 - **Design alignment** — record applicable project principles with their concrete consequence and proof, then consult the architecture record (resolve `paths.architecture` in `.safeword/config.json`; default `.project/architecture.md`; a directory holds one ADR per `.md`, README excluded). Records exist: list the decisions this design honors. With applicable principles but no records, write `None recorded yet` for the architecture sub-entry and offer to draft the first ADR for a significant decision. With neither applicable principles nor architecture records, write `skip: no applicable principles or ADRs` and offer to draft the first ADR for a significant decision (technology choices spanning features, data ownership, cross-service contracts).
 - **Known deviations** — where this deviates from guidance and why that's acceptable.
 - **Doc impact** — which configured `docs.sources` surfaces the customer-visible changes touch, folded into the build order as tasks; internal-only: `skip: <reason>`.
@@ -161,7 +161,10 @@ records as context around the one `impl-plan.md` work artifact.
   evidence current for the applicable target version, plus license and security
   boundaries and reversibility. When a named newer release supersedes the
   evidence baseline after the choice, refresh the evidence against that release
-  before approval. Research claims must support the decision they are cited for.
+  before approval. Require an evidence-bearing decision entry or a justified
+  no-load-bearing-choice skip. A local non-load-bearing choice does not contradict
+  that skip. Block the skip when it contradicts the plan's own load-bearing choice.
+  Research claims must support the decision they are cited for.
 - **Principles and architecture:** Using the supplied configured principles file,
   challenge whether the plan identified the actually applicable project
   principles. For each one, verify that the concrete consequence follows and

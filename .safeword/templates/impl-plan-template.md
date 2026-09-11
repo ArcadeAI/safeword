@@ -75,8 +75,11 @@ readers must be able to tell intentional design from accident.
 | Decision | Choice | Alternatives considered | Rejected because |
 | -------- | ------ | ----------------------- | ---------------- |
 
-Complex decisions may add a short paragraph under the table. If the feature
-has no architectural choices, write `skip: <reason>` instead.
+Complex decisions may add a short paragraph under the table. If the feature has
+no load-bearing choices, replace the evidence entry with
+`Decision evidence applicability: skip: <reason>` inside this section. A local,
+reversible choice may still be named elsewhere without invalidating that skip;
+semantic review decides whether the applicability claim is honest.
 
 When the Choice adds a dependency the project does not already have, the
 project's own health is part of the decision, not a footnote. Safeword already

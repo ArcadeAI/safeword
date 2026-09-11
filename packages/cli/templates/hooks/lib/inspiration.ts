@@ -14,7 +14,8 @@ export interface InspirationActivationInput {
 export type InspirationActivationVerdict =
   { ok: true; activated: boolean } | { ok: false; reason: string; remediation: string };
 
-export type InspirationEvidencePath = 'legacy' | 'reference' | 'unsuccessful-search';
+export type InspirationEvidencePath =
+  'legacy' | 'reference' | 'unsuccessful-search' | 'not-applicable';
 
 export type InspirationEvidenceVerdict =
   { ok: true; path: InspirationEvidencePath } | { ok: false; reason: string; remediation: string };
@@ -48,6 +49,7 @@ export const IMPLEMENTATION_INSPIRATION_GRAMMAR = {
     '| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |',
   searchDelimiter: '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   recordedDecisionsHeading: '### Recorded Decisions',
+  decisionEvidenceApplicability: 'Decision evidence applicability: skip:',
 } as const;
 
 const {
@@ -305,6 +307,15 @@ function decisionRows(content: string): string[][] {
   return new Set(identifiers).size === identifiers.length ? rows : [];
 }
 
+function hasJustifiedDecisionEvidenceSkip(recordedDecisions: string): boolean {
+  const prefix = IMPLEMENTATION_INSPIRATION_GRAMMAR.decisionEvidenceApplicability;
+  const lines = recordedDecisions.split(/\r?\n/u);
+  const candidates = lines.filter(line => line.startsWith(prefix));
+  if (candidates.length !== 1) return false;
+  const reason = candidates[0]?.slice(prefix.length).trim() ?? '';
+  return reason !== '' && reason !== '<reason>';
+}
+
 function validateProductReferences(
   section: string,
   baseline: string,
@@ -533,7 +544,21 @@ export function evaluateImplementationInspiration(
   const decisions = extractSection(input.planContent, '## Decisions', 2);
   if (decisions === undefined) {
     return evidenceFailure(
-      'Implementation Inspiration must appear once directly inside Decisions.',
+      'Recorded Decisions has a missing decision entry and no justified applicability skip.',
+    );
+  }
+  const recordedDecisions = extractSection(decisions, '### Recorded Decisions', 3);
+  const recordedRows = recordedDecisions === undefined ? [] : decisionRows(recordedDecisions);
+  if (
+    recordedRows.length === 0 &&
+    recordedDecisions !== undefined &&
+    hasJustifiedDecisionEvidenceSkip(recordedDecisions)
+  ) {
+    return { ok: true, path: 'not-applicable' };
+  }
+  if (recordedRows.length === 0) {
+    return evidenceFailure(
+      'Recorded Decisions has a missing decision entry and no justified applicability skip.',
     );
   }
   const section = extractSection(decisions, '### Implementation Inspiration', 3);
@@ -542,9 +567,6 @@ export function evaluateImplementationInspiration(
       'Implementation Inspiration must appear once directly inside Decisions.',
     );
   }
-  const recordedDecisions = extractSection(decisions, '### Recorded Decisions', 3);
-  const recordedRows = recordedDecisions === undefined ? [] : decisionRows(recordedDecisions);
-
   const hasReference = section.includes(IMPLEMENTATION_HEADER);
   const searchSection = extractSection(section, '#### Implementation Unsuccessful Search', 4);
   const hasSearch = searchSection !== undefined;
