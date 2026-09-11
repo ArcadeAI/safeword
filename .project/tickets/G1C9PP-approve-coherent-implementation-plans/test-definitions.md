@@ -95,7 +95,7 @@ the feature. Lower-level contract tests own permutations within each family.
 ### Scenario: Coherent data ownership permits approval
 
 - [x] RED cec8e4aab
-- [ ] GREEN
+- [x] GREEN 7a7473024
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
