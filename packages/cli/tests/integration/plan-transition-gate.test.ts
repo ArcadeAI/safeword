@@ -30,6 +30,8 @@ const CURSOR_GATE_PATH = nodePath.resolve(
   __dirname,
   '../../templates/hooks/cursor/pre-tool-quality.ts',
 );
+const PACKAGED_CODEX_CLI = nodePath.resolve(__dirname, '../../codex-plugin/runtime/cli.js');
+const PACKAGED_CLI = nodePath.resolve(__dirname, '../../dist/cli.js');
 const TICKET_ID = 'TX480G';
 const REVIEW_ID = 'b3f1c2d4-0000-4000-8000-000000000420';
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -154,6 +156,29 @@ describe('implementation planning transition gates (wired)', () => {
       encoding: 'utf8',
       env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
     });
+    return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+  }
+
+  function runPackagedCodexAdvance(fromPhase: string, toPhase: string): HookResult {
+    const result = spawnSync(
+      'bun',
+      [PACKAGED_CODEX_CLI, 'hook', 'codex', 'pre-tool-use', '--plugin-hook'],
+      {
+        cwd: projectRoot,
+        input: JSON.stringify({
+          hook_event_name: 'PreToolUse',
+          session_id: 'plan-packaged-codex',
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: ticketFile,
+            old_string: `phase: ${fromPhase}`,
+            new_string: `phase: ${toPhase}`,
+          },
+        }),
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      },
+    );
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
@@ -340,6 +365,43 @@ describe('implementation planning transition gates (wired)', () => {
     const result = runAdvance('plan-implementation', 'plan-execution');
     expect(result.status).toBe(0);
     expectHookAllow(result);
+  });
+
+  it.each([
+    {
+      state: 'an unresolved behavior-shaping choice',
+      plan: VALID_PLAN.replace(
+        '| gate | pre-tool | stop-only | too late |',
+        '| Authentication ownership | unresolved | per-service ownership | decision pending |',
+      ),
+      denied: true,
+    },
+    { state: 'all behavior-shaping choices resolved', plan: VALID_PLAN, denied: false },
+  ])('packaged CLI enforces and releases the decision boundary for $state', ({ plan, denied }) => {
+    const install = spawnSync(
+      process.execPath,
+      [PACKAGED_CLI, 'install', '--agents=none', '--no-input', '--offline', '--no-modify'],
+      { cwd: projectRoot, encoding: 'utf8' },
+    );
+    expect(install.status, `${install.stdout ?? ''}\n${install.stderr ?? ''}`).toBe(0);
+    writeGateConfig(projectRoot, { reviewGate: false, designApprovalGate: false });
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    expectHookDeny(runPackagedCodexAdvance('plan-implementation', 'implement'), 'impl-plan.md');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), plan);
+
+    const result = runPackagedCodexAdvance('plan-implementation', 'plan-execution');
+    expect(result.status, result.stderr).toBe(0);
+    if (denied) {
+      if (result.stdout.trim() === '') {
+        throw new Error(
+          'installed packaged CLI allowed an unresolved behavior-shaping choice into Execution Planning',
+        );
+      }
+      expectHookDeny(result, 'Authentication ownership');
+    } else {
+      expectHookAllow(result);
+    }
   });
 
   it('keeps a superseded reviewed plan in Implementation Planning and names revalidation', () => {

@@ -18,7 +18,7 @@
 import { strict as assert } from 'node:assert';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-  copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -46,11 +46,7 @@ const REVIEW_STAMP_HOOK = nodePath.join(
 const STOP_HOOK = nodePath.join(PROJECT_ROOT, 'packages/cli/templates/hooks/stop-quality.ts');
 const PROMPT_HOOK = nodePath.join(PROJECT_ROOT, 'packages/cli/templates/hooks/prompt-questions.ts');
 const CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
-const CODEX_PLUGIN_RUNTIME = nodePath.join(
-  PROJECT_ROOT,
-  'packages/cli/codex-plugin/runtime/cli.js',
-);
-const CODEX_PLUGIN_MANIFEST = nodePath.join(PROJECT_ROOT, 'packages/cli/codex-plugin/package.json');
+const CODEX_PLUGIN_ROOT = nodePath.join(PROJECT_ROOT, 'packages/cli/codex-plugin');
 
 /** Both shipped copies of every bdd skill document (template + dogfood). */
 const BDD_SKILL_ROOTS = [
@@ -257,18 +253,51 @@ function runPreTool(
 }
 
 function installProjectHooks(world: PlanWorld): void {
-  const runtimeDirectory = nodePath.join(world.projectDirectory!, '.installed-safeword', 'runtime');
-  mkdirSync(runtimeDirectory, { recursive: true });
-  world.installedCliPath = nodePath.join(runtimeDirectory, 'cli.js');
-  copyFileSync(CODEX_PLUGIN_RUNTIME, world.installedCliPath);
-  copyFileSync(
-    CODEX_PLUGIN_MANIFEST,
-    nodePath.join(world.projectDirectory!, '.installed-safeword', 'package.json'),
+  const install = spawnSync(
+    'bun',
+    [CLI, 'install', '--agents=none', '--no-input', '--offline', '--no-modify'],
+    {
+      cwd: world.projectDirectory,
+      encoding: 'utf8',
+    },
   );
+  assert.equal(
+    install.status,
+    0,
+    `Safeword project enrollment failed:\n${install.stdout ?? ''}\n${install.stderr ?? ''}`,
+  );
+  const installedPlugin = nodePath.join(world.projectDirectory!, '.installed-safeword');
+  cpSync(CODEX_PLUGIN_ROOT, installedPlugin, { recursive: true });
+  world.installedCliPath = nodePath.join(installedPlugin, 'runtime', 'cli.js');
   writeFileSync(
     nodePath.join(world.projectDirectory!, '.safeword', 'config.json'),
-    `${JSON.stringify({ reviewGate: true, designApprovalGate: false }, undefined, 2)}\n`,
+    `${JSON.stringify({ reviewGate: false, designApprovalGate: false }, undefined, 2)}\n`,
   );
+}
+
+function assertInstalledPlanGateIsLive(world: PlanWorld): void {
+  assert.ok(world.installedCliPath, 'the packaged Safeword CLI must be installed in the fixture');
+  const result = spawnSync(
+    'bun',
+    [world.installedCliPath, 'hook', 'codex', 'pre-tool-use', '--plugin-hook'],
+    {
+      cwd: world.projectDirectory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: world.projectDirectory },
+      input: JSON.stringify({
+        hook_event_name: 'PreToolUse',
+        session_id: SESSION_ID,
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: ticketArtifact(world, 'ticket.md'),
+          old_string: 'phase: plan-implementation',
+          new_string: 'phase: implement',
+        },
+      }),
+      encoding: 'utf8',
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /impl-plan\.md/, 'installed CLI must enforce a known plan denial');
 }
 
 function stampCurrentPlanReview(world: PlanWorld): void {
@@ -459,6 +488,7 @@ Given(
     createProject(this);
     installProjectHooks(this);
     seedTicket(this, { phase: 'plan-implementation', spec: true });
+    assertInstalledPlanGateIsLive(this);
     writeFileSync(
       ticketArtifact(this, 'impl-plan.md'),
       VALID_PLAN.replace(
@@ -475,6 +505,7 @@ Given(
     createProject(this);
     installProjectHooks(this);
     seedTicket(this, { phase: 'plan-implementation', spec: true });
+    assertInstalledPlanGateIsLive(this);
     writeFileSync(ticketArtifact(this, 'impl-plan.md'), VALID_PLAN);
     stampCurrentPlanReview(this);
   },
