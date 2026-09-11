@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import type { ReviewerOutput } from '../../src/review/contract.js';
 
 export const FOCUSED_REVIEW_OBLIGATION = 'Focused decision path';
+const PLAN_RUBRIC_START = '<!-- SAFEWORD:PLAN_RUBRIC_START -->';
+const PLAN_RUBRIC_END = '<!-- SAFEWORD:PLAN_RUBRIC_END -->';
 export const FOCUSED_REVIEW_REQUIREMENTS = [
   {
     name: 'opening architecture mental model',
@@ -29,6 +31,13 @@ export const FOCUSED_REVIEW_REQUIREMENTS = [
 export interface PlanReviewFixture {
   readonly plan: string;
   readonly linkedDetail?: string;
+}
+
+export function extractPackagedPlanReviewRubric(skill: string): string {
+  const start = skill.indexOf(PLAN_RUBRIC_START);
+  const end = skill.indexOf(PLAN_RUBRIC_END);
+  if (start === -1 || end <= start) throw new Error('the packaged plan rubric is unavailable');
+  return skill.slice(start + PLAN_RUBRIC_START.length, end).trim();
 }
 
 export function obligationClause(contract: string, obligation: string): string | undefined {

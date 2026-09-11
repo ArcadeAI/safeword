@@ -34,10 +34,10 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import { REVIEWER_CAPABILITIES } from '../packages/cli/tests/review-fixtures.ts';
 import {
+  extractPackagedPlanReviewRubric,
   type PlanReviewFixture,
   reviewFocusedDecisionPath,
 } from '../packages/cli/tests/fixtures/plan-focused-reviewability.ts';
-import { PLAN_REVIEW_RUBRIC } from '../packages/cli/src/review/plan-rubric.generated.ts';
 import type { ReviewerOutput } from '../packages/cli/src/review/contract.ts';
 import { git } from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
@@ -938,7 +938,8 @@ When('the plan is submitted for semantic review', SUBPROCESS, function (this: Pl
 
 When('its focused decision review is completed', function (this: PlanWorld) {
   assert.ok(this.focusedPlan, 'the focused-review plan fixture was not arranged');
-  this.focusedPlanReview = reviewFocusedDecisionPath(PLAN_REVIEW_RUBRIC, this.focusedPlan);
+  const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  this.focusedPlanReview = reviewFocusedDecisionPath(contract, this.focusedPlan);
 });
 
 When(

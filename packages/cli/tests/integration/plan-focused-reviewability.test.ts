@@ -22,5 +22,5 @@ it('keeps Implementation Plan decisions focused and reviewable', { timeout: 60_0
     result.status,
     `focused reviewability did not preserve the architecture-first decision path\n${result.stdout ?? ''}\n${result.stderr ?? ''}`,
   ).toBe(0);
-  expect(result.stdout).toMatch(/5 scenarios \(5 passed\)/);
+  expect(`${result.stdout ?? ''}\n${result.stderr ?? ''}`).toMatch(/5 scenarios \(5 passed\)/);
 });
