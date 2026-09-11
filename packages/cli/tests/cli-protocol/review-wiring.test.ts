@@ -137,6 +137,13 @@ if [ -z "$verdict" ]; then verdict=approve; fi
 summary=$(printenv SAFEWORD_REVIEW_FAKE_SUMMARY || true)
 if [ -z "$summary" ]; then summary=reviewed; fi
 finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
+finding_second=''
+case "$finding" in
+  *'|||'*)
+    finding_second=${'$'}{finding#*|||}
+    finding=${'$'}{finding%%|||*}
+    ;;
+esac
 env_log=$(printenv SAFEWORD_REVIEW_ENV_LOG || true)
 if [ -n "$env_log" ]; then
   if printenv ANTHROPIC_API_KEY >/dev/null 2>&1; then printf 'anthropic=present\n' >> "$env_log"; else printf 'anthropic=absent\n' >> "$env_log"; fi
@@ -156,6 +163,8 @@ elif [ "$identity" = "dispatch" ]; then
   else
     printf '%s\n' "$result"
   fi
+elif [ -n "$finding" ] && [ -n "$finding_second" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"},{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$finding_second"
 elif [ -n "$finding" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding"
 elif [ "${agent}" = "opencode" ]; then
@@ -983,6 +992,57 @@ describe('cross-agent review public-command wiring', () => {
       });
     },
   );
+
+  it('preserves every simultaneous Implementation Planning blocker in the installed CLI receipt', async () => {
+    const directory = createTemporaryDirectory();
+    await createConfiguredProject(directory);
+    const log = nodePath.join(directory, 'review.log');
+    const plan = '.project/tickets/PLAN01/impl-plan.md';
+    mkdirSync(nodePath.join(directory, '.project', 'tickets', 'PLAN01'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.project', 'tickets', 'PLAN01', 'ticket.md'),
+      '---\nid: PLAN01\ntype: feature\nphase: plan-implementation\n---\n',
+    );
+    writeFileSync(nodePath.join(directory, plan), '# Implementation Plan\n');
+    const bin = installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      ['review', 'run', 'plan-implementation', plan, '--json', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_FAKE_FINDING:
+            'API contract is unresolved|||Rollback behavior is unresolved',
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    const payload = JSON.parse(result.stdout) as {
+      findings: { code: string; message: string; severity: string }[];
+      data: { reviewer_output: { findings: { message: string; severity: string }[] } };
+    };
+    expect(payload, result.stdout).toMatchObject({
+      data: { reviewer_output: { findings: expect.any(Array) } },
+    });
+    const publicFindings = payload.findings.filter(finding => finding.code === 'REVIEWER_FINDING');
+    for (const findings of [publicFindings, payload.data.reviewer_output.findings]) {
+      expect(findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: 'API contract is unresolved', severity: 'error' }),
+          expect.objectContaining({
+            message: 'Rollback behavior is unresolved',
+            severity: 'error',
+          }),
+        ]),
+      );
+    }
+  });
 
   it.each(['prefer', 'require'] as const)(
     'returns typed exhaustion for a Cursor author under $policy policy without invoking OpenCode',
