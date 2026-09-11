@@ -44,7 +44,7 @@ prove real installed CLI wiring.
 
 - [x] RED 9ad2d2518
 - [x] GREEN 2e01fc849
-- [ ] REFACTOR
+- [x] REFACTOR skip: the missing-decision rule is one clause in the shared focused-review obligation and reuses the same decision judgment as the outline
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
 
