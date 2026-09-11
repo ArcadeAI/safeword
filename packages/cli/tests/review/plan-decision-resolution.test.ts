@@ -63,7 +63,7 @@ function reviewDecisionResolution(contract: string, plan: string): ReviewerOutpu
       message: `The packaged contract is missing decision-boundary requirements: ${missingContract.join(', ')}.`,
     });
   } else {
-    for (const field of ['API contract', 'Rollback', 'Proof scope']) {
+    for (const field of ['API contract', 'Rollback', 'Rollout', 'Proof scope']) {
       const value = decisionValue(plan, field);
       if (value?.startsWith('unresolved') === true) {
         findings.push({
@@ -91,6 +91,7 @@ const OTHERWISE_COMPLETE_PLAN = `# Implementation Plan
 
 API contract: resolved: POST /accounts returns the accepted account-link result
 Rollback: resolved: retain the prior lookup until the backfill is verified
+Rollout: resolved: enable the new lookup for one cohort before wider release
 Proof scope: resolved: integration proof at the installed CLI boundary
 `;
 
@@ -128,6 +129,21 @@ describe('Implementation Plan decision ownership boundary', () => {
       plan: withDecision(
         'Rollback',
         'resolved: disable new writes before restoring the prior lookup',
+      ),
+      verdict: 'approve',
+      finding: undefined,
+    },
+    {
+      state: 'unresolved rollout behavior',
+      plan: withDecision('Rollout', 'unresolved: release order and stop conditions'),
+      verdict: 'request_changes',
+      finding: 'Rollout',
+    },
+    {
+      state: 'resolved rollout behavior',
+      plan: withDecision(
+        'Rollout',
+        'resolved: enable one cohort, inspect the named signal, then expand',
       ),
       verdict: 'approve',
       finding: undefined,
