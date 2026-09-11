@@ -90,7 +90,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 - [x] RED 9845cadf0
 - [x] GREEN 7a7473024
-- [ ] REFACTOR
+- [x] REFACTOR skip: one explicit reviewer obligation is the smallest production change; the shared semantic fixture stays reusable for the agreeing-owner control
 
 ### Scenario: Coherent data ownership permits approval
 
