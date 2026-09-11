@@ -1519,9 +1519,9 @@ async function runVerification(
         };
   }
   // A fresh verdict is trustworthy only if the stale receipt was invalidated.
-  let passed = invalidateVerificationReceipt(root);
-  const failures: string[] = [];
-  if (!passed) failures.push('the stale verification receipt could not be removed');
+  const failures: string[] = invalidateVerificationReceipt(root)
+    ? []
+    : ['the stale verification receipt could not be removed'];
   for (const kind of POST_MERGE_VERIFICATION_KINDS) {
     const planResult = runSafeword(root, [
       'project',
@@ -1534,7 +1534,6 @@ async function runVerification(
     ]);
     const plan = json<TestPlanEntry[]>(planResult);
     if (!plan) {
-      passed = false;
       const diagnostic = [planResult.stderr, planResult.stdout].find(
         output => output.trim() !== '',
       );
@@ -1544,13 +1543,11 @@ async function runVerification(
       continue;
     }
     if (plan.length === 0) {
-      passed = false;
       failures.push(`no ${kind} verification command was resolved`);
       continue;
     }
     for (const entry of plan) {
       if (!entry.available) {
-        passed = false;
         failures.push(
           `runner \`${entry.runner}\` is unavailable for \`${entry.command}\` in ${entry.cwd}`,
         );
@@ -1558,7 +1555,6 @@ async function runVerification(
       }
       const result = await runVerificationCommand(entry.command, entry.cwd);
       if (result.status !== 0) {
-        passed = false;
         const diagnostic = boundedOutputTail(
           [result.stderr, result.stdout].filter(output => output.trim() !== '').join('\n'),
         );
@@ -1567,7 +1563,6 @@ async function runVerification(
         );
       }
       if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) {
-        passed = false;
         failures.push(`HEAD changed while \`${entry.command}\` ran in ${entry.cwd}`);
       }
     }
@@ -1578,7 +1573,7 @@ async function runVerification(
   if (!clean) failures.push('the working tree changed during local verification');
   const verification = {
     current: headOid === expectedOid,
-    passed: passed && clean,
+    passed: failures.length === 0,
     headOid,
     stateHash: createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex'),
     ...(failures.length === 0 ? {} : { failures }),
