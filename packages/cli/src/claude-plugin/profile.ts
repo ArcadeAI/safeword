@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   closeSync,
+  cpSync,
   existsSync,
   lstatSync,
   mkdtempSync,
@@ -387,7 +388,7 @@ function marketplaceSourceStatus(entry: JsonObject): MarketplaceSourceStatus {
 }
 
 function marketplaceReferenceStatus(ref: unknown): MarketplaceSourceStatus {
-  if (ref === 'stable') return 'current';
+  if (ref === 'stable') return VERSION.includes('-') ? 'stale' : 'current';
   // Same repository, no pinned ref: the registration tracks a default branch
   // rather than a promoted tag. That is a reason to re-add the canonical pinned
   // source, not to refuse the install and strand the project (issue #3338).
@@ -547,6 +548,17 @@ interface MarketplaceObservation {
   readonly sharedStatus?: MarketplaceSourceStatus;
 }
 
+interface MarketplaceReplacement {
+  readonly commit: () => void;
+  readonly rollback: () => void;
+}
+
+interface FileSnapshot {
+  readonly contents?: Buffer;
+  readonly mode?: number;
+  readonly path: string;
+}
+
 function observeMarketplace(
   cwd: string,
   scope: ClaudePluginScope,
@@ -639,11 +651,31 @@ function readMarketplaceRegistry(): {
   return { contents, mode: metadata.mode & 0o777, path, value };
 }
 
-function refreshStaleMarketplace(
+function captureFile(path: string): FileSnapshot {
+  if (!existsSync(path)) return { path };
+  const metadata = lstatSync(path);
+  if (!metadata.isFile()) {
+    throw new ClaudeProfileError(
+      'CLAUDE_MARKETPLACE_UNVERIFIED',
+      `Claude profile metadata is not a regular file: ${path}`,
+    );
+  }
+  return { contents: readFileSync(path), mode: metadata.mode & 0o777, path };
+}
+
+function restoreFile(snapshot: FileSnapshot): void {
+  if (snapshot.contents === undefined || snapshot.mode === undefined) {
+    rmSync(snapshot.path, { force: true });
+    return;
+  }
+  writeDurableFile(snapshot.path, snapshot.contents, { mode: snapshot.mode });
+}
+
+function replaceStaleMarketplace(
   cwd: string,
   scope: ClaudePluginScope,
   effects: Effect[],
-): () => void {
+): MarketplaceReplacement {
   const settingsPath = scopedSettingsPath(cwd, scope);
   const settingsMetadata = lstatSync(settingsPath);
   if (!settingsMetadata.isFile()) {
@@ -661,37 +693,81 @@ function refreshStaleMarketplace(
       'Claude marketplace registry does not contain the trusted Safeword source.',
     );
   }
-  const source = canonicalMarketplaceSource();
+  const configDirectory = claudeConfigDirectory();
+  const marketplacePath = nodePath.join(configDirectory, 'plugins/marketplaces', MARKETPLACE_NAME);
+  if (
+    canonicalDirectory(registryEntry.installLocation) !== canonicalDirectory(marketplacePath) ||
+    !lstatSync(marketplacePath).isDirectory()
+  ) {
+    throw new ClaudeProfileError(
+      'CLAUDE_MARKETPLACE_UNVERIFIED',
+      'Claude marketplace checkout is missing or outside the expected profile location.',
+    );
+  }
+  const installedPlugins = captureFile(
+    nodePath.join(configDirectory, 'plugins/installed_plugins.json'),
+  );
+  const backupRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-marketplace-'));
+  const checkoutBackup = nodePath.join(backupRoot, MARKETPLACE_NAME);
+  cpSync(marketplacePath, checkoutBackup, { recursive: true, preserveTimestamps: true });
+  let active = true;
+  const finish = () => {
+    active = false;
+    rmSync(backupRoot, { recursive: true, force: true });
+  };
+  const rollback = () => {
+    if (!active) return;
+    rmSync(marketplacePath, { recursive: true, force: true });
+    cpSync(checkoutBackup, marketplacePath, { recursive: true, preserveTimestamps: true });
+    writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 0o777 });
+    writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
+    restoreFile(installedPlugins);
+    finish();
+  };
   const updatedSettings = applyEdits(
     settingsContents,
-    modify(settingsContents, ['extraKnownMarketplaces', MARKETPLACE_NAME, 'source'], source, {}),
-  );
-  const updatedRegistry = applyEdits(
-    registry.contents,
-    modify(registry.contents, [MARKETPLACE_NAME, 'source'], source, {}),
+    modify(
+      settingsContents,
+      ['extraKnownMarketplaces', MARKETPLACE_NAME, 'source'],
+      canonicalMarketplaceSource(),
+      {},
+    ),
   );
   try {
+    runClaude(cwd, ['plugin', 'marketplace', 'remove', MARKETPLACE_NAME], effects);
+    runClaude(
+      cwd,
+      ['plugin', 'marketplace', 'add', officialMarketplaceSource(), '--scope', scope],
+      effects,
+    );
     writeDurableFile(settingsPath, updatedSettings, { mode: settingsMetadata.mode & 0o777 });
-    writeDurableFile(registry.path, updatedRegistry, { mode: registry.mode });
-    runClaude(cwd, ['plugin', 'marketplace', 'update', MARKETPLACE_NAME], effects);
   } catch (error) {
-    writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 0o777 });
-    writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
+    rollback();
     throw error;
   }
-  return () => {
-    writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 0o777 });
-    writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
-  };
+  return { commit: finish, rollback };
 }
 
-function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effect[]): void {
+function assertMarketplacePluginCanChange(
+  cwd: string,
+  scope: ClaudePluginScope,
+  effects: readonly Effect[],
+): void {
+  const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
+  if (plugin !== undefined) assertConvergeablePluginVersion(plugin, effects);
+}
+
+function ensureMarketplace(
+  cwd: string,
+  scope: ClaudePluginScope,
+  effects: Effect[],
+): MarketplaceReplacement | undefined {
   const before = observeMarketplace(cwd, scope, effects);
   assertTrustedMarketplace(before);
   const autoUpdatePreference = marketplaceAutoUpdatePreference(before.declaration, scope);
   if (marketplaceIsCurrent(before)) {
     if (autoUpdatePreference !== false) enableMarketplaceAutoUpdate(cwd, scope, effects);
-    return;
+    return undefined;
   }
   if (autoUpdatePreference === false) {
     throw new ClaudeProfileError(
@@ -699,10 +775,11 @@ function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effec
       `Claude ${scope}-scope marketplace auto-update is explicitly disabled; Safeword left the marketplace declaration unchanged.`,
     );
   }
+  assertMarketplacePluginCanChange(cwd, scope, effects);
   const effectKind = marketplaceEffectKind(before);
-  let rollbackMarketplace: (() => void) | undefined;
+  let replacement: MarketplaceReplacement | undefined;
   if (effectKind === 'update' && before.declaration !== undefined && before.shared !== undefined) {
-    rollbackMarketplace = refreshStaleMarketplace(cwd, scope, effects);
+    replacement = replaceStaleMarketplace(cwd, scope, effects);
   } else {
     runClaude(
       cwd,
@@ -724,10 +801,11 @@ function ensureMarketplace(cwd: string, scope: ClaudePluginScope, effects: Effec
       );
     }
   } catch (error) {
-    rollbackMarketplace?.();
+    replacement?.rollback();
     throw error;
   }
   enableMarketplaceAutoUpdate(cwd, scope, effects);
+  return replacement;
 }
 
 function assertConvergeablePluginVersion(plugin: JsonObject, effects: readonly Effect[]): void {
@@ -1008,12 +1086,14 @@ export function claudeInstallRequiresMutation(cwd: string, scope: ClaudePluginSc
 
 export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'project'): CliResult {
   const effects: Effect[] = [];
+  let marketplaceReplacement: MarketplaceReplacement | undefined;
   try {
     const projectRoot = canonicalClaudeProjectRoot(cwd);
     assertSupportedHost(projectRoot);
-    ensureMarketplace(projectRoot, scope, effects);
+    marketplaceReplacement = ensureMarketplace(projectRoot, scope, effects);
     convergePlugin(projectRoot, scope, effects);
     const plugins = verifyPlugin(projectRoot, scope, effects);
+    marketplaceReplacement?.commit();
     const overlap = applicableSafewordPlugins(plugins, projectRoot).length > 1;
 
     return createResult({
@@ -1042,7 +1122,19 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
       },
     });
   } catch (error) {
-    return failedResult(error, scope);
+    try {
+      marketplaceReplacement?.rollback();
+      return failedResult(error, scope);
+    } catch (rollbackError) {
+      return failedResult(
+        new ClaudeProfileError(
+          'CLAUDE_PLUGIN_ROLLBACK_FAILED',
+          `Claude upgrade failed and the prior profile could not be restored: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+          effects,
+        ),
+        scope,
+      );
+    }
   }
 }
 
