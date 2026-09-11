@@ -170,7 +170,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 - [x] RED 06221b2df
 - [x] GREEN d33f7a62c
-- [ ] REFACTOR
+- [x] REFACTOR skip: the section-scoped applicability helper is one small production rule beside the existing decision parser
 
 ### Scenario: Evidence presentation does not replace evidence completeness
 
