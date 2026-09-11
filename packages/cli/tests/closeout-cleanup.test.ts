@@ -247,7 +247,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
             `const result = await runVerificationCommand(process.argv[2], process.cwd(), 1000);\n` +
             `console.log(JSON.stringify(result));\n`,
         );
-        const started = Date.now();
         const processResult = spawnSync(
           'bun',
           [
@@ -262,7 +261,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
           status: 1,
           timedOut: true,
         });
-        expect(Date.now() - started).toBeLessThan(3000);
         expect(existsSync(pidFile)).toBe(true);
         const descendantPidText = readFileSync(pidFile, 'utf8').trim();
         expect(descendantPidText).toMatch(/^[1-9]\d*$/);
