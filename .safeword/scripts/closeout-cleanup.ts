@@ -524,6 +524,13 @@ function boundedOutputTail(output: string): string {
   return appendOutputTail(Buffer.alloc(0), output).toString().trim();
 }
 
+function verificationDiagnostic(result: VerificationProcessResult): string {
+  const streams = [result.stderr, result.stdout].filter(output => output.trim() !== '');
+  const combined = streams.join('\n');
+  if (Buffer.byteLength(combined) <= VERIFICATION_OUTPUT_LIMIT_BYTES) return combined.trim();
+  return boundedOutputTail(result.stderr.trim() === '' ? result.stdout : result.stderr);
+}
+
 function run(
   command: string,
   arguments_: string[],
@@ -577,6 +584,7 @@ export function runVerificationCommand(
     let exitStatus: number | undefined;
     let commandTimer: NodeJS.Timeout | undefined;
     let drainTimer: NodeJS.Timeout | undefined;
+    let terminationTimer: NodeJS.Timeout | undefined;
     let stdout: Buffer = Buffer.alloc(0);
     let stderr: Buffer = Buffer.alloc(0);
     const child = spawn(command, [], {
@@ -592,6 +600,7 @@ export function runVerificationCommand(
       settled = true;
       if (commandTimer) clearTimeout(commandTimer);
       if (drainTimer) clearTimeout(drainTimer);
+      if (terminationTimer) clearTimeout(terminationTimer);
       child.stdout?.destroy();
       child.stderr?.destroy();
       resolve(result);
@@ -640,6 +649,16 @@ export function runVerificationCommand(
       if (settled || child.exitCode !== null || child.signalCode !== null) return;
       timedOut = true;
       terminateProcessTree(child);
+      terminationTimer = setTimeout(() => {
+        settle({
+          status: 1,
+          stdout: stdout.toString(),
+          stderr: [stderr.toString(), `verification command timed out after ${timeout}ms`]
+            .filter(Boolean)
+            .join('\n'),
+          timedOut: true,
+        });
+      }, VERIFICATION_OUTPUT_DRAIN_TIMEOUT_MS);
     }, timeout);
   });
 }
@@ -1510,9 +1529,7 @@ async function verificationFailuresForKind(
     }
     const result = await runVerificationCommand(entry.command, entry.cwd);
     if (result.status !== 0) {
-      const diagnostic = boundedOutputTail(
-        [result.stderr, result.stdout].filter(output => output.trim() !== '').join('\n'),
-      );
+      const diagnostic = verificationDiagnostic(result);
       failures.push(
         `command \`${entry.command}\` failed in ${entry.cwd} (exit ${result.status})${diagnostic ? `: ${diagnostic}` : ''}`,
       );

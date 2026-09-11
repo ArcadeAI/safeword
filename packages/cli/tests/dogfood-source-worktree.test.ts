@@ -61,17 +61,54 @@ describe('dogfood source worktree package resolution (470)', () => {
     ]);
   });
 
-  it('keeps the uv environment outside the repository lint surface', () => {
+  it('keeps the uv environment outside repository scanners', () => {
     const eslintConfig = readFileSync(nodePath.join(repoRoot, 'eslint.config.ts'), 'utf8');
+    const gitignore = readFileSync(nodePath.join(repoRoot, '.gitignore'), 'utf8');
+    const prettierignore = readFileSync(nodePath.join(repoRoot, '.prettierignore'), 'utf8');
 
     expect(eslintConfig).toContain("'**/.venv/'");
+    expect(gitignore.split('\n')).toContain('.venv/');
+    expect(prettierignore.split('\n')).toContain('.venv/');
   });
 
   it('installs CI Python tools from the checked lockfile', () => {
     const workflow = readFileSync(nodePath.join(repoRoot, '.github/workflows/ci.yml'), 'utf8');
     expect(workflow).toContain('version-file: pyproject.toml');
     expect(workflow).toContain('uv sync --locked');
+    expect(workflow).toContain('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"');
     expect(workflow).not.toContain('requirements-ci.txt');
+  });
+
+  it('resolves the real repository mypy lane through uv', () => {
+    const output = execFileSync(
+      'bun',
+      [
+        nodePath.join('packages', 'cli', 'src', 'cli.ts'),
+        'project',
+        'test-plan',
+        '.',
+        '--kind',
+        'typecheck',
+        '--format',
+        'json',
+      ],
+      { cwd: repoRoot, encoding: 'utf8' },
+    );
+    const plan = JSON.parse(output) as {
+      language: string;
+      cwd: string;
+      command: string;
+      runner: string;
+      available: boolean;
+    }[];
+
+    expect(plan).toContainEqual({
+      language: 'python',
+      cwd: repoRoot,
+      command: 'uv run --locked mypy .',
+      runner: 'uv',
+      available: true,
+    });
   });
 
   it('declares the CLI workspace as a root devDependency so Bun links safeword', () => {

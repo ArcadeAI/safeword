@@ -1369,12 +1369,13 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     writeFileSync(dirtyPath, 'requires a new verification\n');
 
     const failingCli = nodePath.join(fixture.bin, 'failing-safeword.ts');
+    const failingCommand = `${JSON.stringify(process.execPath)} -e "process.stdout.write('x'.repeat(9000)); process.stderr.write('useful failure'); process.exit(7)"`;
     executable(
       failingCli,
       `#!/usr/bin/env bun
 const args = process.argv.slice(2);
 if (args[0] === 'project' && args[1] === 'test-plan') {
-  console.log(JSON.stringify([{ cwd: process.cwd(), command: "echo 'useful failure' >&2; exit 7", runner: 'sh', available: true }]));
+  console.log(JSON.stringify([{ cwd: process.cwd(), command: ${JSON.stringify(failingCommand)}, runner: 'sh', available: true }]));
 } else if (args[0] === 'retro' && args[1] === 'run') {
   console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false }, errors: [] }));
 } else process.exit(1);
@@ -1398,7 +1399,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     const failureBlockers = (JSON.parse(failed.stdout) as { plan: { blockers: string[] } }).plan
       .blockers;
     expect(failureBlockers, JSON.stringify(failureBlockers)).toContain(
-      `local verification failed: command \`echo 'useful failure' >&2; exit 7\` failed in ${realpathSync(fixture.topic)} (exit 7): useful failure`,
+      `local verification failed: command \`${failingCommand}\` failed in ${realpathSync(fixture.topic)} (exit 7): useful failure`,
     );
     expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
 

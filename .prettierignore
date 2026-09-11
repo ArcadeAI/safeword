@@ -17,6 +17,7 @@ packages/cli/codex-plugin/skills/
 packages/cli/codex-plugin/templates/
 packages/cli/src/review/scenario-rubric.generated.ts
 packages/website/.astro/
+.venv/
 
 # Safeword - managed prettier exclusions (owned dirs)
 .husky/_

@@ -1,8 +1,8 @@
-Verified: 2026-09-11T02:37:55Z
+Verified: 2026-09-11T03:17:59Z
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 202/202 focused unit/contract tests and 27/27 closeout host-adapter integration tests pass
+**Test Suite:** ✓ 207/207 focused unit/contract tests and 27/27 closeout host-adapter integration tests pass
 **Build:** ✅ CLI build and declarations succeed
 **Lint:** ✅ Changed TypeScript files pass ESLint, Prettier, and `tsc --noEmit`
 **Scenarios:** ✅ Locked-runner absence, bounded failed output, inherited output pipes, detailed blockers, and legacy generic blockers are covered
@@ -14,7 +14,9 @@ Evidence:
 
 - A uv-locked plan keeps `uv run --locked mypy .` and reports `uv` unavailable instead of borrowing a global `mypy`.
 - Failed commands report command, working directory, exit status, and an 8 KiB diagnostic tail.
+- When combined output exceeds the cap, stderr wins so a large stdout stream cannot evict the actionable error.
 - Verification drains normal output after process exit, then settles after a bounded grace period when a descendant inherits its output pipe.
+- Timeout handling has its own bounded settlement path even if process-tree termination never produces an exit event.
 - Production host-adapter coverage asserts the exact failed-command and unavailable-runner blockers end to end.
 - Generated Claude and Codex plugin assets were regenerated and parity-checked.
 - Refactoring made the failure list the single verdict source and isolated per-lane execution without changing behavior; timing-based assertions were removed.
