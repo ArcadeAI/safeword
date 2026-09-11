@@ -152,7 +152,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 ### Scenario: Installed review reports every simultaneous decision blocker
 
-- [ ] RED
+- [x] RED ee611ade9
 - [ ] GREEN
 - [ ] REFACTOR
 
