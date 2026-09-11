@@ -2,10 +2,10 @@
 id: 33Y0RH
 slug: reproduce-dogfood-toolchain
 type: task
-phase: verification
-status: in_progress
+phase: done
+status: done
 created: 2026-09-11T00:16:46.739Z
-last_modified: 2026-09-11T05:06:00Z
+last_modified: 2026-09-11T05:45:00Z
 ---
 
 # Reproduce the development toolchain for Safeword contributors
@@ -49,3 +49,4 @@ last_modified: 2026-09-11T05:06:00Z
 - 2026-09-11 Hardened: Configured mise to source uv's existing environment so repository-owned Python tools cannot be shadowed by unrelated global binaries.
 - 2026-09-11 Verified: Recorded final focused, typecheck, parity, and audit evidence in verify.md.
 - 2026-09-11 Corrected: Updated the executable Cucumber contract to expect the resolver's locked uv command after exact-head CI exposed the stale scenario wording.
+- 2026-09-11 Completed: Exact-head CI passed both Node lanes, Cucumber acceptance, lint, release gates, parity, dependency audit, CLI contract, and OpenCode conformance.

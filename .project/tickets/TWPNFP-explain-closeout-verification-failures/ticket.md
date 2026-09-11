@@ -2,10 +2,10 @@
 id: TWPNFP
 slug: explain-closeout-verification-failures
 type: task
-phase: verification
-status: in_progress
+phase: done
+status: done
 created: 2026-09-11T00:16:46.744Z
-last_modified: 2026-09-11T01:42:00Z
+last_modified: 2026-09-11T05:45:00Z
 ---
 
 # Explain closeout verification failures to maintainers
@@ -29,7 +29,7 @@ last_modified: 2026-09-11T01:42:00Z
 
 ## Scenarios
 
-- Given a uv-locked project without `uv`, when Safeword resolves mypy, then it emits `uv run mypy .` as unavailable instead of borrowing global mypy.
+- Given a uv-locked project without `uv`, when Safeword resolves mypy, then it emits `uv run --locked mypy .` as unavailable instead of borrowing global mypy.
 - Given a verification command that fails, when closeout builds its cleanup plan, then the blocker names the command, cwd, exit status, and bounded diagnostic tail.
 - Given an unavailable verification entry, when closeout builds its cleanup plan, then the blocker names the runner and recovery context without executing cleanup.
 - Given an older observation with no detailed failures, when verification failed, then closeout retains the existing generic blocker.
@@ -59,3 +59,4 @@ The release lane then exposed a separate `prefer-const` violation in the install
 - 2026-09-11 Audited: No change-scoped architecture or test-quality error; evidence recorded in verify.md.
 - 2026-09-11 CI debug: Refreshed the Cursor lifecycle tree fixtures after the final generated-script changes; the 13-case origin/main contract now passes at the branch head.
 - 2026-09-11 Release debug: Fixed the installed-surface `prefer-const` error at the template source, regenerated every managed copy, and passed the four-case shipped TypeScript validation plus the refreshed 13-case lifecycle contract.
+- 2026-09-11 Completed: Exact-head CI passed both Node lanes, Cucumber acceptance, lint, release gates, parity, dependency audit, CLI contract, and OpenCode conformance.
