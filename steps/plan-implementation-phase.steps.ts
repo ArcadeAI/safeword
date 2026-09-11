@@ -17,7 +17,15 @@
 
 import { strict as assert } from 'node:assert';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 
@@ -31,9 +39,18 @@ const PRE_TOOL_HOOK = nodePath.join(
   PROJECT_ROOT,
   'packages/cli/templates/hooks/pre-tool-quality.ts',
 );
+const REVIEW_STAMP_HOOK = nodePath.join(
+  PROJECT_ROOT,
+  'packages/cli/templates/hooks/write-review-stamp.ts',
+);
 const STOP_HOOK = nodePath.join(PROJECT_ROOT, 'packages/cli/templates/hooks/stop-quality.ts');
 const PROMPT_HOOK = nodePath.join(PROJECT_ROOT, 'packages/cli/templates/hooks/prompt-questions.ts');
 const CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
+const CODEX_PLUGIN_RUNTIME = nodePath.join(
+  PROJECT_ROOT,
+  'packages/cli/codex-plugin/runtime/cli.js',
+);
+const CODEX_PLUGIN_MANIFEST = nodePath.join(PROJECT_ROOT, 'packages/cli/codex-plugin/package.json');
 
 /** Both shipped copies of every bdd skill document (template + dogfood). */
 const BDD_SKILL_ROOTS = [
@@ -96,6 +113,7 @@ interface PlanWorld extends SafewordWorld {
   stop?: { decision?: string; reason: string; exitCode: number };
   promptOutput?: string;
   cli?: { exitCode: number; output: string };
+  installedCliPath?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -238,6 +256,115 @@ function runPreTool(
   };
 }
 
+function installProjectHooks(world: PlanWorld): void {
+  const runtimeDirectory = nodePath.join(world.projectDirectory!, '.installed-safeword', 'runtime');
+  mkdirSync(runtimeDirectory, { recursive: true });
+  world.installedCliPath = nodePath.join(runtimeDirectory, 'cli.js');
+  copyFileSync(CODEX_PLUGIN_RUNTIME, world.installedCliPath);
+  copyFileSync(
+    CODEX_PLUGIN_MANIFEST,
+    nodePath.join(world.projectDirectory!, '.installed-safeword', 'package.json'),
+  );
+  writeFileSync(
+    nodePath.join(world.projectDirectory!, '.safeword', 'config.json'),
+    `${JSON.stringify({ reviewGate: true, designApprovalGate: false }, undefined, 2)}\n`,
+  );
+}
+
+function stampCurrentPlanReview(world: PlanWorld): void {
+  const pluginRoot = nodePath.join(world.projectDirectory!, '.review-plugin');
+  mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
+  writeFileSync(
+    nodePath.join(pluginRoot, 'runtime', 'cli.js'),
+    [
+      'const id = process.argv[4];',
+      `process.stdout.write(JSON.stringify({ data: { review_id: id, status: 'approved', review_kind: 'plan-implementation', review_targets: ['.project/tickets/${TICKET_FOLDER}/impl-plan.md'], independence: 'cross-agent', author_agent: 'codex', actual_reviewer: 'claude' } }));`,
+    ].join('\n'),
+  );
+  const result = spawnSync(
+    'bun',
+    [
+      REVIEW_STAMP_HOOK,
+      '--ticket',
+      TICKET_FOLDER,
+      '--author-agent',
+      'codex',
+      '--reviewer-agent',
+      'claude',
+      '--independence',
+      'cross-agent',
+      '--review-id',
+      'b3f1c2d4-0000-4000-8000-000000000420',
+      'impl-plan',
+    ],
+    {
+      cwd: world.projectDirectory,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PLUGIN_ROOT: pluginRoot,
+        CLAUDE_PROJECT_DIR: world.projectDirectory,
+        CLAUDE_SESSION_ID: SESSION_ID,
+      },
+    },
+  );
+  assert.equal(
+    result.status,
+    0,
+    `review stamp failed:\n${result.stdout ?? ''}\n${result.stderr ?? ''}`,
+  );
+}
+
+function requestExecutionPlanning(world: PlanWorld): void {
+  const ticket = ticketArtifact(world, 'ticket.md');
+  assert.ok(world.installedCliPath, 'the packaged Safeword CLI must be installed in the fixture');
+  const stdout = execFileSync(
+    'bun',
+    [world.installedCliPath, 'hook', 'codex', 'pre-tool-use', '--plugin-hook'],
+    {
+      cwd: world.projectDirectory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: world.projectDirectory },
+      input: JSON.stringify({
+        hook_event_name: 'PreToolUse',
+        session_id: SESSION_ID,
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: ticket,
+          old_string: 'phase: plan-implementation',
+          new_string: 'phase: plan-execution',
+        },
+      }),
+      encoding: 'utf8',
+    },
+  );
+  const trimmed = stdout.trim();
+  if (trimmed === '') {
+    world.verdict = { decision: 'allow', text: '' };
+    writeFileSync(
+      ticket,
+      readFileSync(ticket, 'utf8').replace('phase: plan-implementation', 'phase: plan-execution'),
+    );
+    world.ticketPhase = 'plan-execution';
+    return;
+  }
+  const parsed = JSON.parse(trimmed) as {
+    systemMessage?: string;
+    hookSpecificOutput?: {
+      permissionDecision?: string;
+      permissionDecisionReason?: string;
+      additionalContext?: string;
+    };
+  };
+  world.verdict = {
+    decision: parsed.hookSpecificOutput?.permissionDecision === 'deny' ? 'deny' : 'allow',
+    text: [
+      parsed.hookSpecificOutput?.permissionDecisionReason ?? '',
+      parsed.hookSpecificOutput?.additionalContext ?? '',
+      parsed.systemMessage ?? '',
+    ].join('\n'),
+  };
+}
+
 function advancePhase(world: PlanWorld, targetPhase: string): void {
   const prior = world.ticketPhase;
   assert.ok(prior, 'fixture must record its starting phase');
@@ -325,6 +452,33 @@ After(function (this: PlanWorld) {
 Given('a new-flow feature ticket at the plan-implementation phase', function (this: PlanWorld) {
   seedTicket(this, { phase: 'plan-implementation', spec: true });
 });
+
+Given(
+  'real project configuration, a ticket with an unresolved behavior-shaping choice, and human design approval is not required',
+  function (this: PlanWorld) {
+    createProject(this);
+    installProjectHooks(this);
+    seedTicket(this, { phase: 'plan-implementation', spec: true });
+    writeFileSync(
+      ticketArtifact(this, 'impl-plan.md'),
+      VALID_PLAN.replace(
+        '| gate | pre-tool | stop-only | too late |',
+        '| Authentication ownership | unresolved | per-service ownership | decision pending |',
+      ),
+    );
+  },
+);
+
+Given(
+  'real project configuration, a ticket with all behavior-shaping choices resolved in a reviewed current plan, and human design approval is not required',
+  function (this: PlanWorld) {
+    createProject(this);
+    installProjectHooks(this);
+    seedTicket(this, { phase: 'plan-implementation', spec: true });
+    writeFileSync(ticketArtifact(this, 'impl-plan.md'), VALID_PLAN);
+    stampCurrentPlanReview(this);
+  },
+);
 
 Given('its impl-plan.md is valid with status planned', function (this: PlanWorld) {
   writeFileSync(ticketArtifact(this, 'impl-plan.md'), VALID_PLAN);
@@ -501,6 +655,14 @@ When('the phase order is inspected', function (this: PlanWorld) {
   assert.ok(this.phaseList.length > 0);
 });
 
+When(
+  'the installed Safeword CLI requests Execution Planning',
+  SUBPROCESS,
+  function (this: PlanWorld) {
+    requestExecutionPlanning(this);
+  },
+);
+
 When('the plan-implementation distribution is inspected', function (this: PlanWorld) {
   assert.ok(this.schemaSource.length > 0);
   assert.ok(this.cursorWrapperSource.length > 0);
@@ -643,6 +805,29 @@ Then('the phase change is accepted', function (this: PlanWorld) {
     'allow',
     `expected the phase change to be allowed; denial was:\n${this.verdict?.text}`,
   );
+});
+
+Then(
+  'the workflow keeps the ticket in Implementation Planning and reports the unresolved choice',
+  function (this: PlanWorld) {
+    assert.equal(
+      this.verdict?.decision,
+      'deny',
+      'installed CLI must keep an unresolved behavior-shaping choice in Implementation Planning',
+    );
+    assert.equal(this.ticketPhase, 'plan-implementation');
+    assert.match(this.verdict?.text ?? '', /Authentication ownership/);
+  },
+);
+
+Then('the workflow enters Execution Planning', function (this: PlanWorld) {
+  assert.equal(
+    this.verdict?.decision,
+    'allow',
+    `expected Execution Planning entry; denial was:\n${this.verdict?.text ?? ''}`,
+  );
+  assert.equal(this.ticketPhase, 'plan-execution');
+  assert.match(readFileSync(ticketArtifact(this, 'ticket.md'), 'utf8'), /phase: plan-execution/);
 });
 
 Then('the phase change is denied', function (this: PlanWorld) {
