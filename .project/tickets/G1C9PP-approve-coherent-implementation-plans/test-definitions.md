@@ -14,7 +14,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Safeword CLI enforces and releases the decision boundary
 
-- [ ] RED
+- [x] RED b1727e245
 - [ ] GREEN
 - [ ] REFACTOR
 
