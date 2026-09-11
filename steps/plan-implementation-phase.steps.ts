@@ -17,7 +17,16 @@
 
 import { strict as assert } from 'node:assert';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 
@@ -536,6 +545,23 @@ Given(
   },
 );
 
+Given(
+  'real project configuration and no packaged decision-quality contract is reachable',
+  function (this: PlanWorld) {
+    createProject(this);
+    seedTicket(this, { phase: 'plan-implementation', spec: true });
+    writeFileSync(ticketArtifact(this, 'impl-plan.md'), VALID_PLAN);
+    writeFileSync(
+      nodePath.join(this.projectDirectory!, '.safeword', 'config.json'),
+      `${JSON.stringify({ crossAgentReview: 'off' }, undefined, 2)}\n`,
+    );
+    const pluginRoot = nodePath.join(this.projectDirectory!, 'codex-plugin');
+    cpSync(CODEX_PLUGIN_ROOT, pluginRoot, { recursive: true });
+    unlinkSync(nodePath.join(pluginRoot, 'skills/bdd/references/PLAN_IMPLEMENTATION.md'));
+    this.installedCliPath = nodePath.join(pluginRoot, 'runtime/cli.js');
+  },
+);
+
 Given('its impl-plan.md is missing a required section', function (this: PlanWorld) {
   writeFileSync(
     ticketArtifact(this, 'impl-plan.md'),
@@ -801,6 +827,36 @@ When('the plan is submitted for semantic review', SUBPROCESS, function (this: Pl
   this.planContractReview = JSON.parse(result.stdout) as PlanWorld['planContractReview'];
 });
 
+When(
+  'the installed Safeword CLI prepares Implementation Plan review through real internal collaborators',
+  SUBPROCESS,
+  function (this: PlanWorld) {
+    assert.ok(this.installedCliPath, 'the packaged Safeword CLI was not arranged');
+    const result = spawnSync(
+      'bun',
+      [
+        this.installedCliPath,
+        'review',
+        'run',
+        'plan-implementation',
+        '--agent-handoff',
+        '--json',
+        '--',
+        ticketArtifact(this, 'impl-plan.md'),
+      ],
+      {
+        cwd: this.projectDirectory,
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_PROJECT_DIR: this.projectDirectory },
+      },
+    );
+    this.cli = {
+      exitCode: result.status ?? 1,
+      output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim(),
+    };
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Whens — document reads
 // ---------------------------------------------------------------------------
@@ -922,6 +978,20 @@ Then(
     assert.match(errors, /Proof quality/);
     assert.match(errors, /Require execution sequencing/);
     assert.match(errors, /contract reconciliation/i);
+  },
+);
+
+Then(
+  'authoring and approval are blocked with the regenerate action named',
+  function (this: PlanWorld) {
+    assert.ok(this.cli, 'the installed review command did not return');
+    assert.match(
+      this.cli.output,
+      /packaged decision-quality contract/i,
+      'installed CLI must block authoring and approval when the packaged decision-quality contract is missing',
+    );
+    assert.match(this.cli.output, /generate:plan-rubric/);
+    assert.notEqual(this.cli.exitCode, 0);
   },
 );
 
