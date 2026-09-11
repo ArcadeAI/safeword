@@ -94,7 +94,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 ### Scenario: Coherent data ownership permits approval
 
-- [ ] RED
+- [x] RED cec8e4aab
 - [ ] GREEN
 - [ ] REFACTOR
 
