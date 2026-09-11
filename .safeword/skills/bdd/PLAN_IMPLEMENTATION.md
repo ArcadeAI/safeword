@@ -156,10 +156,12 @@ records as context around the one `impl-plan.md` work artifact.
   copying it into the plan. Block test paths or commands and name them for
   removal to Execution Planning. Block verification ledger detail and name it
   for removal from the decision review path.
-- **Decision quality:** Check each significant choice against credible
-  alternatives, current version-matched evidence, license and security
-  boundaries, reversibility, and the recorded reason for rejection. Research
-  claims must support the decision they are cited for.
+- **Decision quality:** Check each significant choice against at least one
+  credible alternative and record why each credible alternative lost. Require
+  evidence current for the applicable target version, plus license and security
+  boundaries and reversibility. When a named newer release supersedes the
+  evidence baseline after the choice, refresh the evidence against that release
+  before approval. Research claims must support the decision they are cited for.
 - **Principles and architecture:** Using the supplied configured principles file,
   challenge whether the plan identified the actually applicable project
   principles. For each one, verify that the concrete consequence follows and
