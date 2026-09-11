@@ -3,10 +3,10 @@ id: P0WEJD
 slug: keep-claude-upgrades-on-selected-release
 type: task
 subtype: bug-investigated
-phase: verify
-status: in_progress
+phase: done
+status: completed
 created: 2026-09-10T23:33:09.817Z
-last_modified: 2026-09-10T23:33:09.817Z
+last_modified: 2026-09-11T03:28:00.000Z
 ---
 
 # Keep Claude upgrades on the selected release
@@ -112,3 +112,5 @@ metadata lag (the marketplace checkout itself never moved).
 - 2026-09-11T03:22:00.000Z Final accounting review: bounded compensation to the
   marketplace transaction itself. Later plugin command effects remain reported
   after rollback because host/cache side effects cannot be proven absent.
+- 2026-09-11T03:28:00.000Z Complete: final focused independent review approved
+  the release-relevant code with no blocking findings.

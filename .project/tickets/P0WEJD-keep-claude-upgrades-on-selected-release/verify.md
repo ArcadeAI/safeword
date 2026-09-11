@@ -14,8 +14,7 @@
 **Experience:** ✅ No new friction — walked a developer from an existing stable Claude plugin through candidate installation; worst step = the existing `/reload-plugins` activation; new steps vs before = 0
 **Surface Evidence:** ✅ 2/2 affected surfaces have recorded proof
 **Evidence limits:** ✅ None
-**Independent Review:** ✅ Blocking rollback-reporting finding fixed; bounded
-re-review pending on the final commit
+**Independent Review:** ✅ Final focused review approved with no blocking findings
 
 Audit passed — no errors or warnings in the diff-scoped architecture, config,
 documentation, and test-quality checks.
