@@ -42,7 +42,7 @@ prove real installed CLI wiring.
 
 ### Scenario: A load-bearing decision cannot disappear from the review path
 
-- [ ] RED
+- [x] RED 9ad2d2518
 - [ ] GREEN
 - [ ] REFACTOR
 
