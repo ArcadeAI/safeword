@@ -63610,7 +63610,7 @@ function isPythonTestFile(filename) {
 function pythonInvocation(index, binary, args = "") {
   const suffix = args ? ` ${args}` : "";
   if (index.has("uv.lock"))
-    return { command: `uv run ${binary}${suffix}`, gate: "uv" };
+    return { command: `uv run --locked ${binary}${suffix}`, gate: "uv" };
   if (index.has("poetry.lock"))
     return { command: `poetry run ${binary}${suffix}`, gate: "poetry" };
   return { command: `${binary}${suffix}`, gate: binary };

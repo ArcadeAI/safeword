@@ -511,6 +511,7 @@ export interface VerificationProcessResult extends ProcessResult {
 }
 
 export const VERIFICATION_OUTPUT_LIMIT_BYTES = 8 * 1024;
+const VERIFICATION_OUTPUT_DRAIN_TIMEOUT_MS = 100;
 
 function appendOutputTail(current: Buffer, chunk: Buffer | string): Buffer {
   const combined = Buffer.concat([current, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
@@ -573,6 +574,9 @@ export function runVerificationCommand(
   return new Promise(resolve => {
     let settled = false;
     let timedOut = false;
+    let exitStatus: number | undefined;
+    let commandTimer: NodeJS.Timeout | undefined;
+    let drainTimer: NodeJS.Timeout | undefined;
     let stdout: Buffer = Buffer.alloc(0);
     let stderr: Buffer = Buffer.alloc(0);
     const child = spawn(command, [], {
@@ -586,8 +590,23 @@ export function runVerificationCommand(
     const settle = (result: VerificationProcessResult): void => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (commandTimer) clearTimeout(commandTimer);
+      if (drainTimer) clearTimeout(drainTimer);
+      child.stdout?.destroy();
+      child.stderr?.destroy();
       resolve(result);
+    };
+    let stdoutEnded = child.stdout === null;
+    let stderrEnded = child.stderr === null;
+    const settleAfterExit = (): void => {
+      if (exitStatus === undefined || !stdoutEnded || !stderrEnded) return;
+      const timeoutMessage = timedOut ? `verification command timed out after ${timeout}ms` : '';
+      settle({
+        status: timedOut ? 1 : exitStatus,
+        stdout: stdout.toString(),
+        stderr: [stderr.toString(), timeoutMessage].filter(Boolean).join('\n'),
+        timedOut,
+      });
     };
     child.once('error', error => {
       settle({ status: 1, stdout: stdout.toString(), stderr: error.message, timedOut: false });
@@ -598,18 +617,26 @@ export function runVerificationCommand(
     child.stderr?.on('data', chunk => {
       stderr = appendOutputTail(stderr, chunk as Buffer);
     });
-    child.once('exit', code => {
-      const timeoutMessage = timedOut ? `verification command timed out after ${timeout}ms` : '';
-      settle({
-        status: timedOut ? 1 : (code ?? 1),
-        stdout: stdout.toString(),
-        stderr: [stderr.toString(), timeoutMessage].filter(Boolean).join('\n'),
-        timedOut,
-      });
-      child.stdout?.destroy();
-      child.stderr?.destroy();
+    child.stdout?.once('end', () => {
+      stdoutEnded = true;
+      settleAfterExit();
     });
-    const timer = setTimeout(() => {
+    child.stderr?.once('end', () => {
+      stderrEnded = true;
+      settleAfterExit();
+    });
+    child.once('exit', code => {
+      exitStatus = code ?? 1;
+      settleAfterExit();
+      if (!settled) {
+        drainTimer = setTimeout(() => {
+          stdoutEnded = true;
+          stderrEnded = true;
+          settleAfterExit();
+        }, VERIFICATION_OUTPUT_DRAIN_TIMEOUT_MS);
+      }
+    });
+    commandTimer = setTimeout(() => {
       if (settled || child.exitCode !== null || child.signalCode !== null) return;
       timedOut = true;
       terminateProcessTree(child);

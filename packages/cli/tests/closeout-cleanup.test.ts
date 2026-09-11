@@ -205,16 +205,28 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     'returns when an exited command leaves an output-inheriting descendant behind',
     async () => {
       const executable = JSON.stringify(process.execPath);
-      const started = Date.now();
-      const result = await runVerificationCommand(
-        `${executable} -e "const { spawn } = require('node:child_process'); const child = spawn('sleep', ['2'], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }); child.unref(); console.log('command complete')"`,
-        repoRoot,
-        5000,
-      );
+      let descendantPid: number | undefined;
+      try {
+        const result = await runVerificationCommand(
+          `${executable} -e "const { spawn } = require('node:child_process'); const child = spawn('sleep', ['30'], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }); child.unref(); console.log(child.pid)"`,
+          repoRoot,
+          5000,
+        );
 
-      expect(result).toMatchObject({ status: 0, timedOut: false });
-      expect(result.stdout).toContain('command complete');
-      expect(Date.now() - started).toBeLessThan(1000);
+        expect(result).toMatchObject({ status: 0, timedOut: false });
+        const parsedPid = Number(result.stdout.trim());
+        expect(parsedPid).toBeGreaterThan(0);
+        descendantPid = parsedPid;
+        expect(() => process.kill(parsedPid, 0)).not.toThrow();
+      } finally {
+        if (descendantPid) {
+          try {
+            process.kill(descendantPid, 'SIGKILL');
+          } catch {
+            // The test only needs cleanup while the descendant is still alive.
+          }
+        }
+      }
     },
   );
 

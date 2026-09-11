@@ -169,7 +169,7 @@ jobs:
 
       - name: Install Python tools
         run: |
-          uv sync --frozen
+          uv sync --locked
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install Poetry

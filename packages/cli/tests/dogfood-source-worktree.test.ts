@@ -19,10 +19,29 @@ function runNodeFromRepoRoot(source: string): string {
 }
 
 describe('dogfood source worktree package resolution (470)', () => {
-  it('pins local runtimes and Python verification tools in repository-owned files', () => {
+  it('keeps repository runtimes aligned with package metadata and CI', () => {
     const packageJson = readJson(nodePath.join(repoRoot, 'package.json')) as {
       packageManager?: string;
     };
+    const mise = parse(readFileSync(nodePath.join(repoRoot, 'mise.toml'), 'utf8')) as {
+      tools?: Record<string, string>;
+      settings?: { python?: { uv_venv_auto?: string } };
+    };
+    const workflow = readFileSync(nodePath.join(repoRoot, '.github/workflows/ci.yml'), 'utf8');
+
+    expect(mise.tools).toEqual({
+      bun: packageJson.packageManager?.replace('bun@', ''),
+      node: '24.18.1',
+      go: '1.25',
+      python: '3.12',
+      uv: '0.12.9',
+    });
+    expect(workflow).toContain(`node-version: ['22.23.2', '${mise.tools?.node}']`);
+    expect(workflow).toContain(`go-version: '${mise.tools?.go}'`);
+    expect(workflow).toContain(`python-version: '${mise.tools?.python}'`);
+  });
+
+  it('pins Python verification tools and activates the uv environment', () => {
     const mise = parse(readFileSync(nodePath.join(repoRoot, 'mise.toml'), 'utf8')) as {
       tools?: Record<string, string>;
       settings?: { python?: { uv_venv_auto?: string } };
@@ -32,13 +51,6 @@ describe('dogfood source worktree package resolution (470)', () => {
       tool?: { uv?: { 'required-version'?: string } };
     };
 
-    expect(mise.tools).toEqual({
-      bun: packageJson.packageManager?.replace('bun@', ''),
-      node: '24.18.1',
-      go: '1.25',
-      python: '3.12',
-      uv: '0.12.9',
-    });
     expect(pyproject.tool?.uv?.['required-version']).toBe(`==${mise.tools?.uv}`);
     expect(mise.settings?.python?.uv_venv_auto).toBe('source');
     expect(pyproject['dependency-groups']?.dev).toEqual([
@@ -47,10 +59,12 @@ describe('dogfood source worktree package resolution (470)', () => {
       'mypy==2.3.1',
       'ruff==0.16.5',
     ]);
+  });
 
+  it('installs CI Python tools from the checked lockfile', () => {
     const workflow = readFileSync(nodePath.join(repoRoot, '.github/workflows/ci.yml'), 'utf8');
     expect(workflow).toContain('version-file: pyproject.toml');
-    expect(workflow).toContain('uv sync --frozen');
+    expect(workflow).toContain('uv sync --locked');
     expect(workflow).not.toContain('requirements-ci.txt');
   });
 

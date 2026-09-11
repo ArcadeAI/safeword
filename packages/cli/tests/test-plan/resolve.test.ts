@@ -154,7 +154,7 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
       'uv.lock': '',
     });
     const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('uv', 'pytest') });
-    expect(entryFor(plan, 'python')?.command).toBe('uv run pytest');
+    expect(entryFor(plan, 'python')?.command).toBe('uv run --locked pytest');
   });
 
   it('uses a workspace-root uv lock for nested Python projects', () => {
@@ -168,7 +168,10 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     );
 
     expect(python).toEqual([
-      expect.objectContaining({ cwd: nodePath.join(root, 'apps/api'), command: 'uv run pytest' }),
+      expect.objectContaining({
+        cwd: nodePath.join(root, 'apps/api'),
+        command: 'uv run --locked pytest',
+      }),
     ]);
   });
 
@@ -187,7 +190,7 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
         .filter(item => item.language === 'python')
         .map(item => [nodePath.relative(root, item.cwd), item.command]),
     ).toEqual([
-      ['apps/api', 'uv run pytest'],
+      ['apps/api', 'uv run --locked pytest'],
       ['services/legacy', 'pytest'],
     ]);
   });
@@ -637,7 +640,7 @@ describe('resolveTestPlan — typecheck plan — Python mypy/pyright (kind: type
       'uv.lock': '',
     });
     const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: onlyTools('uv') });
-    expect(entryFor(plan, 'python')?.command).toBe('uv run mypy .');
+    expect(entryFor(plan, 'python')?.command).toBe('uv run --locked mypy .');
   });
 
   it('keeps the uv invocation visible but unavailable when uv is missing', () => {
@@ -651,7 +654,7 @@ describe('resolveTestPlan — typecheck plan — Python mypy/pyright (kind: type
     });
 
     expect(entryFor(plan, 'python')).toMatchObject({
-      command: 'uv run mypy .',
+      command: 'uv run --locked mypy .',
       runner: 'uv',
       available: false,
     });
