@@ -26,9 +26,9 @@ documentation, and test-quality checks.
 | RC.3 release package | `bun run test:release` plus generated Claude/Codex artifact checks | 73/73 pass |
 
 After the review fixes, all 31 Claude profile integration tests and 35 focused
-Claude lifecycle scenarios (1,646 steps) pass. Rollback tests now prove both
-exact state restoration and truthful unchanged/effect reporting, including a
-failure after marketplace replacement completes.
+Claude lifecycle scenarios (1,646 steps) pass. Rollback tests prove exact stored
+state restoration and truthful effect reporting: marketplace effects are
+compensated, while later plugin command effects remain visible.
 
 The exact verification wrapper also rebuilt every package and the website, ran
 all available TypeScript checks, repeated the 595-scenario package acceptance

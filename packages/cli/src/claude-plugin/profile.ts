@@ -558,6 +558,7 @@ interface MarketplaceObservation {
 
 interface MarketplaceReplacement {
   readonly commit: () => void;
+  readonly completeEffects: () => void;
   readonly rollback: () => void;
 }
 
@@ -737,6 +738,7 @@ function replaceStaleMarketplace(
   const checkoutBackup = nodePath.join(backupRoot, MARKETPLACE_NAME);
   cpSync(marketplacePath, checkoutBackup, { recursive: true, preserveTimestamps: true });
   let active = true;
+  let effectEnd: number | undefined;
   const finish = () => {
     active = false;
     rmSync(backupRoot, { recursive: true, force: true });
@@ -748,7 +750,7 @@ function replaceStaleMarketplace(
     writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 0o777 });
     writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
     restoreFile(installedPlugins);
-    effects.splice(effectStart);
+    effects.splice(effectStart, (effectEnd ?? effects.length) - effectStart);
     finish();
   };
   const updatedSettings = applyEdits(
@@ -776,7 +778,13 @@ function replaceStaleMarketplace(
     rollback();
     throw error;
   }
-  return { commit: finish, rollback };
+  return {
+    commit: finish,
+    completeEffects: () => {
+      effectEnd = effects.length;
+    },
+    rollback,
+  };
 }
 
 function assertMarketplacePluginCanChange(
@@ -836,6 +844,7 @@ function ensureMarketplace(
     rollbackMarketplaceReplacement(replacement, effects);
     throw error;
   }
+  replacement?.completeEffects();
   return replacement;
 }
 

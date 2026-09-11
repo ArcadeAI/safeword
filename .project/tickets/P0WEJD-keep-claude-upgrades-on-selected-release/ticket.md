@@ -100,9 +100,8 @@ metadata lag (the marketplace checkout itself never moved).
   73/73 release-contract tests, repository lint, Gherkin lint, TypeScript, and
   whitespace validation pass with the pinned Bun 1.3.14 toolchain.
 - 2026-09-11T02:50:00.000Z Independent re-review: moved effect compensation
-  into the replacement transaction so later plugin or payload failures report
-  the fully restored profile as unchanged. Added a discriminating payload-failure
-  regression and scoped marketplace removal to the selected profile.
+  into the replacement transaction and added a discriminating payload-failure
+  regression. Marketplace removal is scoped to the selected profile.
 - 2026-09-11T03:02:00.000Z Confirmation review: preserved live effects for raw
   host/filesystem failures and made restore failures return the explicit
   rollback-failed result. A targeted injected checkout-restore failure proves
@@ -110,3 +109,6 @@ metadata lag (the marketplace checkout itself never moved).
 - 2026-09-11T03:12:00.000Z Focused confirmation: aligned mutation planning with
   installation's canonical project root and added a nested-directory regression.
   Missing marketplace checkouts now return the intended diagnostic.
+- 2026-09-11T03:22:00.000Z Final accounting review: bounded compensation to the
+  marketplace transaction itself. Later plugin command effects remain reported
+  after rollback because host/cache side effects cannot be proven absent.

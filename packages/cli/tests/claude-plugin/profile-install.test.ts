@@ -703,7 +703,7 @@ describe('Claude marketplace update enrollment', () => {
     expect(readFileSync(installedPluginsPath, 'utf8')).toBe(pluginsBefore);
   });
 
-  it('reports no completed effects when payload verification rolls back a replacement', () => {
+  it('retains later plugin effects when payload verification rolls back a replacement', () => {
     const { installedPluginsPath, knownMarketplacePath, project, settingsPath } = fixture(
       true,
       'v0.83.1',
@@ -718,8 +718,10 @@ describe('Claude marketplace update enrollment', () => {
 
     expect(result.state).toBe('failed');
     expect(result.errors?.[0]?.code).toBe('CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED');
-    expect(result.changed).toBe(false);
-    expect(result.effects?.configuration).toEqual([]);
+    expect(result.changed).toBe(true);
+    expect(result.effects?.configuration).toEqual([
+      { kind: 'install', target: 'safeword@safeword', operation: 'project' },
+    ]);
     expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
     expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
     expect(readFileSync(installedPluginsPath, 'utf8')).toBe(pluginsBefore);

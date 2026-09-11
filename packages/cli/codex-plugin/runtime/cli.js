@@ -54700,6 +54700,7 @@ function replaceStaleMarketplace(cwd, scope, effects) {
   const checkoutBackup = nodePath82.join(backupRoot, MARKETPLACE_NAME);
   cpSync2(marketplacePath, checkoutBackup, { recursive: true, preserveTimestamps: true });
   let active = true;
+  let effectEnd;
   const finish = () => {
     active = false;
     rmSync10(backupRoot, { recursive: true, force: true });
@@ -54712,7 +54713,7 @@ function replaceStaleMarketplace(cwd, scope, effects) {
     writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 511 });
     writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
     restoreFile(installedPlugins);
-    effects.splice(effectStart);
+    effects.splice(effectStart, (effectEnd ?? effects.length) - effectStart);
     finish();
   };
   const updatedSettings = applyEdits(settingsContents, modify(settingsContents, ["extraKnownMarketplaces", MARKETPLACE_NAME, "source"], canonicalMarketplaceSource(), {}));
@@ -54724,7 +54725,13 @@ function replaceStaleMarketplace(cwd, scope, effects) {
     rollback();
     throw error2;
   }
-  return { commit: finish, rollback };
+  return {
+    commit: finish,
+    completeEffects: () => {
+      effectEnd = effects.length;
+    },
+    rollback
+  };
 }
 function assertMarketplacePluginCanChange(cwd, scope, effects) {
   const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
@@ -54765,6 +54772,7 @@ function ensureMarketplace(cwd, scope, effects) {
     rollbackMarketplaceReplacement(replacement, effects);
     throw error2;
   }
+  replacement?.completeEffects();
   return replacement;
 }
 function assertConvergeablePluginVersion(plugin, effects) {
