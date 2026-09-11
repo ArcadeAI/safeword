@@ -16,7 +16,7 @@ prove real installed CLI wiring.
 
 - [x] RED b1727e245
 - [x] GREEN 828d8af75
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing gate is already a single unconditional decision check; this loop only restored packaged boundary proof
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R2 — Authors and reviewers use one decision-quality contract
 
