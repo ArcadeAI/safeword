@@ -25,7 +25,6 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
-  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import nodeOs from 'node:os';
@@ -563,7 +562,17 @@ Given(
     const missingPluginRoot = nodePath.join(this.projectDirectory!, 'missing-codex-plugin');
     cpSync(CODEX_PLUGIN_ROOT, controlPluginRoot, { recursive: true });
     cpSync(CODEX_PLUGIN_ROOT, missingPluginRoot, { recursive: true });
-    unlinkSync(nodePath.join(missingPluginRoot, 'skills/bdd/references/PLAN_IMPLEMENTATION.md'));
+    const missingContractPath = nodePath.join(
+      missingPluginRoot,
+      'skills/bdd/references/PLAN_IMPLEMENTATION.md',
+    );
+    const withContract = readFileSync(missingContractPath, 'utf8');
+    const withoutContract = withContract.replace(
+      /<!-- SAFEWORD:PLAN_RUBRIC_START -->[\s\S]*?<!-- SAFEWORD:PLAN_RUBRIC_END -->/u,
+      '',
+    );
+    assert.notEqual(withoutContract, withContract, 'the packaged contract fixture was not removed');
+    writeFileSync(missingContractPath, withoutContract);
     this.controlInstalledCliPath = nodePath.join(controlPluginRoot, 'runtime/cli.js');
     this.installedCliPath = nodePath.join(missingPluginRoot, 'runtime/cli.js');
 
@@ -1023,7 +1032,7 @@ Then(
     assert.match(
       this.cli.output,
       /packaged decision-quality contract/i,
-      'installed CLI must block authoring and approval when the packaged decision-quality contract is missing',
+      `installed CLI did not name the generate:plan-rubric recovery for its missing packaged decision-quality contract:\n${this.cli.output}`,
     );
     assert.match(this.cli.output, /generate:plan-rubric/);
     assert.notEqual(this.cli.exitCode, 0);
