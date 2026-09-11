@@ -34,6 +34,11 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import { REVIEWER_CAPABILITIES } from '../packages/cli/tests/review-fixtures.ts';
 import {
+  COMPLETE_DATA_PLAN,
+  reviewDataApplicability,
+  withoutDataFields,
+} from '../packages/cli/tests/fixtures/plan-data-applicability.ts';
+import {
   extractPackagedPlanReviewRubric,
   type PlanReviewFixture,
   reviewFocusedDecisionPath,
@@ -136,6 +141,8 @@ interface PlanWorld extends SafewordWorld {
   focusedPlan?: PlanReviewFixture;
   focusedPlanReview?: ReviewerOutput;
   focusedExpectedFinding?: string;
+  dataPlan?: string;
+  dataPlanReview?: ReviewerOutput;
 }
 
 // ---------------------------------------------------------------------------
@@ -770,6 +777,38 @@ Given(
   },
 );
 
+Given(/^a feature has (.+)$/u, function (this: PlanWorld, dataState: string) {
+  switch (dataState) {
+    case 'one persisted entity change that omits data ownership and migration decisions':
+      this.dataPlan = withoutDataFields('Ownership and access', 'Migration and backfill');
+      break;
+    case 'one persisted entity change that omits its purpose, store and model, and schema relationships':
+      this.dataPlan = withoutDataFields('Purpose', 'Store and model', 'Schema and relationships');
+      break;
+    case 'one persisted entity change that omits retention and rollback consequences':
+      this.dataPlan = withoutDataFields('Lifecycle and retention', 'Rollback');
+      break;
+    case 'one persisted entity change that omits identity and integrity decisions':
+      this.dataPlan = withoutDataFields('Identity and integrity');
+      break;
+    case 'purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback decisions recorded without migration commands':
+      this.dataPlan = COMPLETE_DATA_PLAN;
+      break;
+    case 'a persisted cross-system flow with no source of truth or access decision':
+      this.dataPlan = withoutDataFields('Source of truth', 'Ownership and access');
+      break;
+    case 'a regulated backfill with no compliance consequence':
+      this.dataPlan = withoutDataFields('Compliance');
+      break;
+    case 'no data-contract, ownership, or lifecycle impact':
+      this.dataPlan =
+        '# Implementation Plan\n\nData applicability: skip: no data-contract, ownership, or lifecycle impact\n';
+      break;
+    default:
+      assert.fail(`unknown data-applicability state: ${dataState}`);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Givens — shipped documents, manifest, and record
 // ---------------------------------------------------------------------------
@@ -940,6 +979,12 @@ When('its focused decision review is completed', function (this: PlanWorld) {
   assert.ok(this.focusedPlan, 'the focused-review plan fixture was not arranged');
   const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
   this.focusedPlanReview = reviewFocusedDecisionPath(contract, this.focusedPlan);
+});
+
+When('the Implementation Plan is reviewed', function (this: PlanWorld) {
+  assert.ok(this.dataPlan, 'the data-applicability plan fixture was not arranged');
+  const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  this.dataPlanReview = reviewDataApplicability(contract, this.dataPlan);
 });
 
 When(
@@ -1175,6 +1220,47 @@ Then(
     );
   },
 );
+
+function assertDataFindings(world: PlanWorld, ...findings: string[]): void {
+  assert.equal(world.dataPlanReview?.verdict, 'request_changes');
+  const messages = world.dataPlanReview?.findings.map(finding => finding.message).join('\n') ?? '';
+  for (const finding of findings) assert.match(messages, new RegExp(finding, 'iu'));
+}
+
+Then('approval is blocked with ownership and migration named', function (this: PlanWorld) {
+  assertDataFindings(this, 'Ownership and access', 'Migration and backfill');
+});
+
+Then(
+  'approval is blocked with purpose, store and model, and schema relationships named',
+  function (this: PlanWorld) {
+    assertDataFindings(this, 'Purpose', 'Store and model', 'Schema and relationships');
+  },
+);
+
+Then('approval is blocked with retention and rollback named', function (this: PlanWorld) {
+  assertDataFindings(this, 'Lifecycle and retention', 'Rollback');
+});
+
+Then('approval is blocked with identity and integrity named', function (this: PlanWorld) {
+  assertDataFindings(this, 'Identity and integrity');
+});
+
+Then('data guidance does not block approval', function (this: PlanWorld) {
+  assert.equal(
+    this.dataPlanReview?.verdict,
+    'approve',
+    this.dataPlanReview?.findings.map(finding => finding.message).join('\n'),
+  );
+});
+
+Then('approval is blocked with source of truth and access named', function (this: PlanWorld) {
+  assertDataFindings(this, 'Source of truth', 'Ownership and access');
+});
+
+Then('approval is blocked with compliance named', function (this: PlanWorld) {
+  assertDataFindings(this, 'Compliance');
+});
 
 Then('the phase change is denied', function (this: PlanWorld) {
   assert.equal(this.verdict?.decision, 'deny', 'expected the hook to deny this phase change');
