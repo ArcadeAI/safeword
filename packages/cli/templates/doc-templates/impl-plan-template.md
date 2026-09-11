@@ -81,6 +81,13 @@ no load-bearing choices, replace the evidence entry with
 reversible choice may still be named elsewhere without invalidating that skip;
 semantic review decides whether the applicability claim is honest.
 
+The table pair above is the compact default. A decision that reads better as
+prose or bullets may instead delete `### Implementation Inspiration` and record
+these seven labeled fields here: `Decision`, `Choice`, `Alternative considered`,
+`Rejected because`, `Evidence reference`, `Retrieval date`, and
+`Applicable version`. Every label still needs one non-empty value; changing the
+presentation never removes an evidence obligation.
+
 When the Choice adds a dependency the project does not already have, the
 project's own health is part of the decision, not a footnote. Safeword already
 refuses a version number written from memory; a library chosen from memory
