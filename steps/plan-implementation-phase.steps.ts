@@ -135,6 +135,7 @@ interface PlanWorld extends SafewordWorld {
   };
   focusedPlan?: PlanReviewFixture;
   focusedPlanReview?: ReviewerOutput;
+  focusedExpectedFinding?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -720,8 +721,7 @@ Given(
 );
 
 Given(/^an Implementation Plan with (.+)$/u, function (this: PlanWorld, presentation: string) {
-  const buried = (lead: string) =>
-    `${FOCUSED_ARCHITECTURE.replace('## Architecture at a glance', `${lead}\n\n## Architecture at a glance`)}${FOCUSED_DECISIONS}`;
+  const buried = (lead: string) => `${FOCUSED_ARCHITECTURE}\n${lead}${FOCUSED_DECISIONS}`;
   switch (presentation) {
     case 'a decision summary buried beneath step-by-step coding instructions and repeated test evidence':
       this.focusedPlan = {
@@ -729,6 +729,7 @@ Given(/^an Implementation Plan with (.+)$/u, function (this: PlanWorld, presenta
           '## Approach\n\n1. Create the authorization service.\n2. Run the gateway integration test.\n\nEvidence: gateway test passed.\nEvidence: gateway test passed again.',
         ),
       };
+      this.focusedExpectedFinding = 'step-by-step coding instructions';
       break;
     case 'a decision summary buried beneath a repeated test-by-test evidence ledger with no execution instructions':
       this.focusedPlan = {
@@ -736,6 +737,7 @@ Given(/^an Implementation Plan with (.+)$/u, function (this: PlanWorld, presenta
           '## Evidence ledger\n\nEvidence: gateway request test passed.\nEvidence: authorization failure test passed.',
         ),
       };
+      this.focusedExpectedFinding = 'repeated test evidence';
       break;
     case 'an architecture-at-a-glance mental model followed by decision-bearing contracts, operational risks, and unresolved authority with supporting detail linked':
       this.focusedPlan = {
@@ -748,9 +750,9 @@ Given(/^an Implementation Plan with (.+)$/u, function (this: PlanWorld, presenta
       break;
     case 'a short summary that opens with the architecture-at-a-glance mental model, names a load-bearing failure-posture decision and its consequence, and links only fuller subordinate detail':
       this.focusedPlan = {
-        plan: `${FOCUSED_ARCHITECTURE}${FOCUSED_DECISIONS}\nSupporting detail: linked-design.md\n`,
+        plan: `${FOCUSED_ARCHITECTURE}\n## Decision-bearing contracts\n\nFailure-posture decision: fail closed when authorization is unavailable.\nConsequence: authorization outages deny resource access instead of risking exposure.\n\nSupporting detail: linked-design.md\n`,
         linkedDetail:
-          '# Supporting design\n\nThe denial response uses the existing unavailable status.\n',
+          '# Supporting design\n\nFailure posture: deny resource access when current authorization cannot be established.\n',
       };
       break;
     default:
@@ -1125,6 +1127,11 @@ Then(
 
 Then('the plan fails focused reviewability', function (this: PlanWorld) {
   assert.equal(this.focusedPlanReview?.verdict, 'request_changes');
+  assert.ok(this.focusedExpectedFinding, 'the expected removable detail was not arranged');
+  assert.match(
+    this.focusedPlanReview?.findings.map(finding => finding.message).join('\n') ?? '',
+    new RegExp(this.focusedExpectedFinding, 'u'),
+  );
 });
 
 Then('the plan passes focused reviewability', function (this: PlanWorld) {

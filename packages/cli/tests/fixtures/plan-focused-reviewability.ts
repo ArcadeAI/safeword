@@ -6,11 +6,11 @@ export const FOCUSED_REVIEW_OBLIGATION = 'Focused decision path';
 export const FOCUSED_REVIEW_REQUIREMENTS = [
   {
     name: 'opening architecture mental model',
-    pattern: /architecture-at-a-glance\s+mental model/u,
+    pattern: /architecture-at-a-glance mental model/u,
   },
   {
     name: 'load-bearing choice in the main review path',
-    pattern: /every load-bearing choice in the\s+main review path/u,
+    pattern: /every load-bearing choice in the main review path/u,
   },
   {
     name: 'linked supporting detail in the review path',
@@ -18,7 +18,7 @@ export const FOCUSED_REVIEW_REQUIREMENTS = [
   },
   {
     name: 'named decision consequence before linked detail',
-    pattern: /plan names the decision and its\s+consequence/u,
+    pattern: /plan names the decision and its consequence/u,
   },
   {
     name: 'removable execution and evidence detail',
@@ -73,9 +73,15 @@ function structuralFindings(plan: string): { severity: 'error'; message: string 
 }
 
 function decisionFindings(fixture: PlanReviewFixture): { severity: 'error'; message: string }[] {
-  const decisionIsNamed = /^Failure posture: .+$/mu.test(fixture.plan);
+  const linkedDetailIsInReviewPath =
+    fixture.linkedDetail !== undefined && /^Supporting detail:\s+\S+$/mu.test(fixture.plan);
+  const reviewPath = linkedDetailIsInReviewPath
+    ? `${fixture.plan}\n${fixture.linkedDetail}`
+    : fixture.plan;
+  const decisionIsNamed = /^Failure[- ]posture(?: decision)?: .+$/imu.test(fixture.plan);
   const consequenceIsNamed = /^Consequence: .+$/mu.test(fixture.plan);
-  if (decisionIsNamed && consequenceIsNamed) return [];
+  const decisionDepthIsInReviewPath = /^Failure posture: .+$/mu.test(reviewPath);
+  if (decisionIsNamed && consequenceIsNamed && decisionDepthIsInReviewPath) return [];
   return [
     {
       severity: 'error',
@@ -88,8 +94,10 @@ function decisionFindings(fixture: PlanReviewFixture): { severity: 'error'; mess
 /**
  * Deterministic conformance collaborator for the semantic fixture corpus. It
  * applies one obligation to every artifact shape; it does not select a verdict
- * by scenario name or expected outcome. Live semantic review remains the
- * production judgment boundary.
+ * by scenario name or expected outcome. The headings used to model a named
+ * decision, consequence, and full-depth detail are fixture protocol rather than
+ * a production parser. Live semantic review remains the production judgment
+ * boundary.
  */
 export function reviewFocusedDecisionPath(
   contract: string,
@@ -103,8 +111,9 @@ export function reviewFocusedDecisionPath(
       message: `The packaged plan contract is missing the "${FOCUSED_REVIEW_OBLIGATION}" obligation.`,
     });
   } else {
+    const normalizedClause = clause.replaceAll(/\s+/gu, ' ');
     for (const requirement of FOCUSED_REVIEW_REQUIREMENTS) {
-      if (!requirement.pattern.test(clause)) {
+      if (!requirement.pattern.test(normalizedClause)) {
         findings.push({
           severity: 'error',
           message: `The packaged plan contract is missing the focused-review requirement for ${requirement.name}.`,

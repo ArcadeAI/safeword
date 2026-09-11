@@ -80,9 +80,9 @@ ${architecture}${decisions}`,
     {
       name: 'accepts linked detail after the main plan names the decision and consequence',
       fixture: {
-        plan: `${architecture}\n## Decision-bearing contracts\n\nFailure posture: deny resource access when authorization is unavailable.\nConsequence: authorization outages deny resource access instead of risking exposure.\n\nSupporting detail: linked-design.md\n`,
+        plan: `${architecture}\n## Decision-bearing contracts\n\nFailure-posture decision: fail closed when authorization is unavailable.\nConsequence: authorization outages deny resource access instead of risking exposure.\n\nSupporting detail: linked-design.md\n`,
         linkedDetail:
-          '# Supporting design\n\nThe denial response uses the existing unavailable status.\n',
+          '# Supporting design\n\nFailure posture: deny resource access when authorization is unavailable.\n',
       },
       verdict: 'approve',
       findings: [],
@@ -144,7 +144,7 @@ ${architecture}${decisions}`,
       const clause = obligationClause(contract, FOCUSED_REVIEW_OBLIGATION);
       const clauseText = clause ?? '';
       const clauseOffset = contract.indexOf(clauseText);
-      const mutatedClause = clauseText.replace(requirement.pattern, '');
+      const mutatedClause = clauseText.replaceAll(/\s+/gu, ' ').replace(requirement.pattern, '');
       const mutatedContract = `${contract.slice(0, clauseOffset)}${mutatedClause}${contract.slice(clauseOffset + clauseText.length)}`;
 
       const result = reviewFocusedDecisionPath(mutatedContract, {
