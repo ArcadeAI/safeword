@@ -160,7 +160,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 ### Scenario: Decision evidence controls semantic review
 
-- [ ] RED
+- [x] RED 3b5f78a9b
 - [ ] GREEN
 - [ ] REFACTOR
 
