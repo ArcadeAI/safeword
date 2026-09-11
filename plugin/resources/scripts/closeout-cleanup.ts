@@ -1475,6 +1475,53 @@ function passedVerification(
   return { current: true, passed, headOid, stateHash };
 }
 
+async function verificationFailuresForKind(
+  root: string,
+  expectedOid: string,
+  kind: (typeof POST_MERGE_VERIFICATION_KINDS)[number],
+): Promise<string[]> {
+  const planResult = runSafeword(root, [
+    'project',
+    'test-plan',
+    root,
+    '--kind',
+    kind,
+    '--format',
+    'json',
+  ]);
+  const plan = json<TestPlanEntry[]>(planResult);
+  if (!plan) {
+    const diagnostic = [planResult.stderr, planResult.stdout].find(output => output.trim() !== '');
+    return [
+      `Safeword could not resolve the ${kind} verification plan${diagnostic ? `: ${boundedOutputTail(diagnostic)}` : ''}`,
+    ];
+  }
+  if (plan.length === 0) return [`no ${kind} verification command was resolved`];
+
+  const failures: string[] = [];
+  for (const entry of plan) {
+    if (!entry.available) {
+      failures.push(
+        `runner \`${entry.runner}\` is unavailable for \`${entry.command}\` in ${entry.cwd}`,
+      );
+      continue;
+    }
+    const result = await runVerificationCommand(entry.command, entry.cwd);
+    if (result.status !== 0) {
+      const diagnostic = boundedOutputTail(
+        [result.stderr, result.stdout].filter(output => output.trim() !== '').join('\n'),
+      );
+      failures.push(
+        `command \`${entry.command}\` failed in ${entry.cwd} (exit ${result.status})${diagnostic ? `: ${diagnostic}` : ''}`,
+      );
+    }
+    if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) {
+      failures.push(`HEAD changed while \`${entry.command}\` ran in ${entry.cwd}`);
+    }
+  }
+  return failures;
+}
+
 async function runVerification(
   root: string,
   expectedOid: string,
@@ -1523,49 +1570,7 @@ async function runVerification(
     ? []
     : ['the stale verification receipt could not be removed'];
   for (const kind of POST_MERGE_VERIFICATION_KINDS) {
-    const planResult = runSafeword(root, [
-      'project',
-      'test-plan',
-      root,
-      '--kind',
-      kind,
-      '--format',
-      'json',
-    ]);
-    const plan = json<TestPlanEntry[]>(planResult);
-    if (!plan) {
-      const diagnostic = [planResult.stderr, planResult.stdout].find(
-        output => output.trim() !== '',
-      );
-      failures.push(
-        `Safeword could not resolve the ${kind} verification plan${diagnostic ? `: ${boundedOutputTail(diagnostic)}` : ''}`,
-      );
-      continue;
-    }
-    if (plan.length === 0) {
-      failures.push(`no ${kind} verification command was resolved`);
-      continue;
-    }
-    for (const entry of plan) {
-      if (!entry.available) {
-        failures.push(
-          `runner \`${entry.runner}\` is unavailable for \`${entry.command}\` in ${entry.cwd}`,
-        );
-        continue;
-      }
-      const result = await runVerificationCommand(entry.command, entry.cwd);
-      if (result.status !== 0) {
-        const diagnostic = boundedOutputTail(
-          [result.stderr, result.stdout].filter(output => output.trim() !== '').join('\n'),
-        );
-        failures.push(
-          `command \`${entry.command}\` failed in ${entry.cwd} (exit ${result.status})${diagnostic ? `: ${diagnostic}` : ''}`,
-        );
-      }
-      if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) {
-        failures.push(`HEAD changed while \`${entry.command}\` ran in ${entry.cwd}`);
-      }
-    }
+    failures.push(...(await verificationFailuresForKind(root, expectedOid, kind)));
   }
   const headOid = git(root, 'rev-parse', 'HEAD').stdout.trim();
   const status = git(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all');
