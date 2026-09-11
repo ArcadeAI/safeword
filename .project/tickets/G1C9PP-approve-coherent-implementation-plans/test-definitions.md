@@ -147,7 +147,7 @@ the feature. Lower-level contract tests own permutations within each family.
 ### Scenario: Decision resolution controls its Implementation Plan obligation
 
 - [x] RED 78c997859
-- [ ] GREEN
+- [x] GREEN b3c2f898d
 - [ ] REFACTOR
 
 ### Scenario: Installed review reports every simultaneous decision blocker
