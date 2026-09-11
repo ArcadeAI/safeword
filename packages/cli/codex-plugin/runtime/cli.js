@@ -54261,6 +54261,7 @@ import { spawnSync as spawnSync8 } from "child_process";
 import { createHash as createHash24 } from "crypto";
 import {
   closeSync as closeSync8,
+  cpSync as cpSync2,
   existsSync as existsSync38,
   lstatSync as lstatSync16,
   mkdtempSync as mkdtempSync7,
@@ -54462,11 +54463,15 @@ function marketplaceSource(entry) {
   let url = source.url;
   let ref = source.ref;
   let kind = source.source;
-  if (typeof entry.source === "string" && url === undefined && ref === undefined) {
-    const separator = entry.source.lastIndexOf("#");
+  const packedSource = typeof source.source === "string" ? source.source : undefined;
+  if (packedSource !== undefined && url === undefined && ref === undefined) {
+    const separator = packedSource.lastIndexOf("#");
     if (separator !== -1) {
-      url = entry.source.slice(0, separator);
-      ref = entry.source.slice(separator + 1);
+      url = packedSource.slice(0, separator);
+      ref = packedSource.slice(separator + 1);
+      kind = undefined;
+    } else if (packedSource === MARKETPLACE_BASE) {
+      url = packedSource;
       kind = undefined;
     }
   }
@@ -54488,7 +54493,7 @@ function marketplaceSourceStatus(entry) {
 }
 function marketplaceReferenceStatus(ref) {
   if (ref === "stable")
-    return "current";
+    return VERSION.includes("-") ? "stale" : "current";
   if (ref === undefined)
     return "stale";
   if (typeof ref !== "string" || !ref.startsWith("v"))
@@ -54533,13 +54538,13 @@ function applicableSafewordPlugins(entries, cwd) {
     return entry.id === CLAUDE_PLUGIN_ID && (scope === "user" || scope === "project" && canonicalDirectory(entry.projectPath) === cwd);
   });
 }
-function failedResult(error2, scope) {
+function failedResult(error2, scope, effects = []) {
   let failure;
   if (error2 instanceof ClaudeProfileError)
     failure = error2;
   else {
     const message = error2 instanceof Error ? error2.message : String(error2);
-    failure = new ClaudeProfileError("CLAUDE_PLUGIN_INSTALL_FAILED", message);
+    failure = new ClaudeProfileError("CLAUDE_PLUGIN_INSTALL_FAILED", message, effects);
   }
   let classification = "errored";
   let nextAction2 = "safeword install --agents=claude";
@@ -54587,6 +54592,15 @@ function failedResult(error2, scope) {
     ],
     data: { command: "claude install", classification }
   });
+}
+function rollbackMarketplaceReplacement(replacement, effects) {
+  if (replacement === undefined)
+    return;
+  try {
+    replacement.rollback();
+  } catch (error2) {
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_ROLLBACK_FAILED", `Claude upgrade failed and the prior profile could not be restored: ${error2 instanceof Error ? error2.message : String(error2)}`, effects);
+  }
 }
 function observeMarketplace(cwd, scope, effects) {
   const declaration = scopedMarketplaceDeclaration(cwd, scope);
@@ -54647,7 +54661,24 @@ function readMarketplaceRegistry() {
   }
   return { contents, mode: metadata.mode & 511, path: path8, value };
 }
-function refreshStaleMarketplace(cwd, scope, effects) {
+function captureFile(path8) {
+  if (!existsSync38(path8))
+    return { path: path8 };
+  const metadata = lstatSync16(path8);
+  if (!metadata.isFile()) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", `Claude profile metadata is not a regular file: ${path8}`);
+  }
+  return { contents: readFileSync51(path8), mode: metadata.mode & 511, path: path8 };
+}
+function restoreFile(snapshot) {
+  if (snapshot.contents === undefined || snapshot.mode === undefined) {
+    rmSync10(snapshot.path, { force: true });
+    return;
+  }
+  writeDurableFile(snapshot.path, snapshot.contents, { mode: snapshot.mode });
+}
+function replaceStaleMarketplace(cwd, scope, effects) {
+  const effectStart = effects.length;
   const settingsPath = scopedSettingsPath(cwd, scope);
   const settingsMetadata = lstatSync16(settingsPath);
   if (!settingsMetadata.isFile()) {
@@ -54659,22 +54690,53 @@ function refreshStaleMarketplace(cwd, scope, effects) {
   if (!isJsonObject(registryEntry) || marketplaceSourceStatus(registryEntry) === "conflict") {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace registry does not contain the trusted Safeword source.");
   }
-  const source = canonicalMarketplaceSource();
-  const updatedSettings = applyEdits(settingsContents, modify(settingsContents, ["extraKnownMarketplaces", MARKETPLACE_NAME, "source"], source, {}));
-  const updatedRegistry = applyEdits(registry.contents, modify(registry.contents, [MARKETPLACE_NAME, "source"], source, {}));
-  try {
-    writeDurableFile(settingsPath, updatedSettings, { mode: settingsMetadata.mode & 511 });
-    writeDurableFile(registry.path, updatedRegistry, { mode: registry.mode });
-    runClaude(cwd, ["plugin", "marketplace", "update", MARKETPLACE_NAME], effects);
-  } catch (error2) {
+  const configDirectory = claudeConfigDirectory();
+  const marketplacePath = nodePath82.join(configDirectory, "plugins/marketplaces", MARKETPLACE_NAME);
+  if (!existsSync38(marketplacePath) || canonicalDirectory(registryEntry.installLocation) !== canonicalDirectory(marketplacePath) || !lstatSync16(marketplacePath).isDirectory()) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace checkout is missing or outside the expected profile location.");
+  }
+  const installedPlugins = captureFile(nodePath82.join(configDirectory, "plugins/installed_plugins.json"));
+  const backupRoot = mkdtempSync7(nodePath82.join(tmpdir5(), "safeword-claude-marketplace-"));
+  const checkoutBackup = nodePath82.join(backupRoot, MARKETPLACE_NAME);
+  cpSync2(marketplacePath, checkoutBackup, { recursive: true, preserveTimestamps: true });
+  let active = true;
+  let effectEnd;
+  const finish = () => {
+    active = false;
+    rmSync10(backupRoot, { recursive: true, force: true });
+  };
+  const rollback = () => {
+    if (!active)
+      return;
+    rmSync10(marketplacePath, { recursive: true, force: true });
+    cpSync2(checkoutBackup, marketplacePath, { recursive: true, preserveTimestamps: true });
     writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 511 });
     writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
+    restoreFile(installedPlugins);
+    effects.splice(effectStart, (effectEnd ?? effects.length) - effectStart);
+    finish();
+  };
+  const updatedSettings = applyEdits(settingsContents, modify(settingsContents, ["extraKnownMarketplaces", MARKETPLACE_NAME, "source"], canonicalMarketplaceSource(), {}));
+  try {
+    runClaude(cwd, ["plugin", "marketplace", "remove", MARKETPLACE_NAME, "--scope", scope], effects);
+    runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", scope], effects);
+    writeDurableFile(settingsPath, updatedSettings, { mode: settingsMetadata.mode & 511 });
+  } catch (error2) {
+    rollback();
     throw error2;
   }
-  return () => {
-    writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 511 });
-    writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
+  return {
+    commit: finish,
+    completeEffects: () => {
+      effectEnd = effects.length;
+    },
+    rollback
   };
+}
+function assertMarketplacePluginCanChange(cwd, scope, effects) {
+  const plugin = safewordPlugin(pluginEntries(cwd, effects), scope, cwd);
+  if (plugin !== undefined)
+    assertConvergeablePluginVersion(plugin, effects);
 }
 function ensureMarketplace(cwd, scope, effects) {
   const before = observeMarketplace(cwd, scope, effects);
@@ -54688,10 +54750,11 @@ function ensureMarketplace(cwd, scope, effects) {
   if (autoUpdatePreference === false) {
     throw new ClaudeProfileError("CLAUDE_AUTO_UPDATE_DISABLED", `Claude ${scope}-scope marketplace auto-update is explicitly disabled; Safeword left the marketplace declaration unchanged.`);
   }
+  assertMarketplacePluginCanChange(cwd, scope, effects);
   const effectKind = marketplaceEffectKind(before);
-  let rollbackMarketplace;
+  let replacement;
   if (effectKind === "update" && before.declaration !== undefined && before.shared !== undefined) {
-    rollbackMarketplace = refreshStaleMarketplace(cwd, scope, effects);
+    replacement = replaceStaleMarketplace(cwd, scope, effects);
   } else {
     runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", scope], effects);
   }
@@ -54704,11 +54767,13 @@ function ensureMarketplace(cwd, scope, effects) {
     if (!marketplaceIsCurrent(observeMarketplace(cwd, scope, effects))) {
       throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
     }
+    enableMarketplaceAutoUpdate(cwd, scope, effects);
   } catch (error2) {
-    rollbackMarketplace?.();
+    rollbackMarketplaceReplacement(replacement, effects);
     throw error2;
   }
-  enableMarketplaceAutoUpdate(cwd, scope, effects);
+  replacement?.completeEffects();
+  return replacement;
 }
 function assertConvergeablePluginVersion(plugin, effects) {
   if (typeof plugin.version !== "string" || !isSafePackageVersion(plugin.version)) {
@@ -54899,12 +54964,13 @@ function observeClaudeProfile(cwd, scope) {
 }
 function claudeInstallRequiresMutation(cwd, scope) {
   try {
-    if (observeClaudeProfile(cwd, scope).health !== "current")
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
+    if (observeClaudeProfile(projectRoot, scope).health !== "current")
       return true;
-    const marketplace = observeMarketplace(cwd, scope, []);
+    const marketplace = observeMarketplace(projectRoot, scope, []);
     if (!marketplaceIsCurrent(marketplace))
       return true;
-    const settings = readScopedSettings(cwd, scope);
+    const settings = readScopedSettings(projectRoot, scope);
     const declaration = marketplace.declaration;
     if (!isJsonObject(settings) || declaration === undefined)
       return true;
@@ -54919,12 +54985,14 @@ function claudeInstallRequiresMutation(cwd, scope) {
 }
 function installClaudePlugin(cwd, scope = "project") {
   const effects = [];
+  let marketplaceReplacement;
   try {
     const projectRoot = canonicalClaudeProjectRoot(cwd);
     assertSupportedHost(projectRoot);
-    ensureMarketplace(projectRoot, scope, effects);
+    marketplaceReplacement = ensureMarketplace(projectRoot, scope, effects);
     convergePlugin(projectRoot, scope, effects);
     const plugins = verifyPlugin(projectRoot, scope, effects);
+    marketplaceReplacement?.commit();
     const overlap = applicableSafewordPlugins(plugins, projectRoot).length > 1;
     return createResult({
       state: effects.length === 0 ? "healthy" : "action_required",
@@ -54943,7 +55011,12 @@ function installClaudePlugin(cwd, scope = "project") {
       }
     });
   } catch (error2) {
-    return failedResult(error2, scope);
+    try {
+      rollbackMarketplaceReplacement(marketplaceReplacement, effects);
+      return failedResult(error2, scope, effects);
+    } catch (rollbackError) {
+      return failedResult(new ClaudeProfileError("CLAUDE_PLUGIN_ROLLBACK_FAILED", `Claude upgrade failed and the prior profile could not be restored: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`, effects), scope, effects);
+    }
   }
 }
 function uninstallClaudePlugin(cwd, scope = "project") {
@@ -56929,7 +57002,7 @@ import { spawn as spawn4, spawnSync as spawnSync9 } from "child_process";
 import { randomUUID as randomUUID11 } from "crypto";
 import {
   chmodSync as chmodSync4,
-  cpSync as cpSync2,
+  cpSync as cpSync3,
   existsSync as existsSync42,
   mkdirSync as mkdirSync18,
   mkdtempSync as mkdtempSync8,
@@ -56961,7 +57034,7 @@ function prepareCatalogueFixture(root, profile, fault) {
   mkdirSync18(nodePath89.join(project, ".opencode", "agents"), { recursive: true });
   mkdirSync18(nodePath89.join(project, ".claude", "skills", "bdd"), { recursive: true });
   mkdirSync18(nodePath89.join(project, ".safeword"), { recursive: true });
-  cpSync2(nodePath89.join(getTemplatesDirectory(), "hooks"), nodePath89.join(project, ".safeword", "hooks"), { recursive: true });
+  cpSync3(nodePath89.join(getTemplatesDirectory(), "hooks"), nodePath89.join(project, ".safeword", "hooks"), { recursive: true });
   if (fault !== "missing-command") {
     writeFileSync23(nodePath89.join(project, ".opencode", "commands", "bdd.md"), renderOpenCodeCommand(command));
   }
@@ -59043,7 +59116,7 @@ import { createHash as createHash29 } from "crypto";
 import {
   closeSync as closeSync9,
   constants as fsConstants3,
-  cpSync as cpSync3,
+  cpSync as cpSync4,
   existsSync as existsSync44,
   fstatSync as fstatSync6,
   lstatSync as lstatSync20,
@@ -59171,13 +59244,13 @@ function mergeLegacyDirectory(cwd, hooks) {
         ensureDirectory2(nodePath98.dirname(archived));
         if (!existsSync44(archived)) {
           createdFiles.push(archived);
-          cpSync3(source, archived, { dereference: false });
+          cpSync4(source, archived, { dereference: false });
         }
         conflicts.push({ path: child, archivedAs });
       } else {
         ensureDirectory2(nodePath98.dirname(target));
         createdFiles.push(target);
-        cpSync3(source, target, { dereference: false });
+        cpSync4(source, target, { dereference: false });
       }
     }
   };
@@ -62776,7 +62849,7 @@ function commandViolations(steps) {
     ...stepById(steps, "validate")?.run === VALIDATE_COMMAND ? [] : ["fixed_validation"],
     ...stepById(steps, "verify")?.run === VERIFY_COMMAND ? [] : ["fixed_revision_verification"]
   ];
-  return testRun === 'npx --yes safeword@1.0.0-rc.2 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
+  return testRun === 'npx --yes safeword@1.0.0-rc.3 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
 }
 function executionViolations(steps) {
   return [
@@ -63200,6 +63273,10 @@ var init_remote_workflow_state = __esm(() => {
     {
       version: 5,
       normalizedSha256: "f2c0b4edf01017be6c34fadbf91457ee9ee8ce1c4de3e44f8e3ce08ffc971744"
+    },
+    {
+      version: 6,
+      normalizedSha256: "ee986693fddf819f1d37843a8964428b1e43a7196d70e70798ea42a9b17881b1"
     }
   ];
   HISTORICAL_MANAGED_DIGESTS = new Set(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1).map((release) => release.normalizedSha256));
@@ -66134,7 +66211,7 @@ __export(exports_codex_hook, {
 });
 import { spawnSync as spawnSync16 } from "child_process";
 import {
-  cpSync as cpSync4,
+  cpSync as cpSync5,
   existsSync as existsSync60,
   mkdirSync as mkdirSync25,
   mkdtempSync as mkdtempSync9,
@@ -66423,7 +66500,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   try {
     if (relativePath === "session-codex-start.ts") {
       temporaryHookDirectory = mkdtempSync9(nodePath129.join(tmpdir7(), "safeword-codex-hook-"));
-      cpSync4(nodePath129.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      cpSync5(nodePath129.dirname(hookPath), temporaryHookDirectory, { recursive: true });
       writeFileSync30(nodePath129.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath129.join(temporaryHookDirectory, nodePath129.basename(hookPath));
     }
@@ -66489,7 +66566,7 @@ function snapshotPackagedHook(relativePath) {
   const stagingHooksDirectory = nodePath129.join(directory, "hooks-copying");
   const snapshotHooksDirectory = nodePath129.join(directory, "hooks");
   try {
-    cpSync4(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
+    cpSync5(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
     if (process22.env.SAFEWORD_AGENT_RUNTIME === "opencode") {
       rewriteSnapshotImportsForNode(stagingHooksDirectory);
     }
