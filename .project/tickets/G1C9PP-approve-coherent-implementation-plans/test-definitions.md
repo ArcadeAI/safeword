@@ -175,7 +175,7 @@ the feature. Lower-level contract tests own permutations within each family.
 ### Scenario: Evidence presentation does not replace evidence completeness
 
 - [x] RED 89f22b337
-- [ ] GREEN
+- [x] GREEN 631ee43e1
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R14 — Decision discovery is scope-bounded and covers the consequential trust, operation, approval, and recovery needs of every accepted persona
