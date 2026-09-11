@@ -169,7 +169,7 @@ the feature. Lower-level contract tests own permutations within each family.
 ### Scenario: Evidence fields accept honest applicability without allowing empty decision coverage
 
 - [x] RED 06221b2df
-- [ ] GREEN
+- [x] GREEN d33f7a62c
 - [ ] REFACTOR
 
 ### Scenario: Evidence presentation does not replace evidence completeness
