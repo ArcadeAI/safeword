@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   constants,
+  existsSync,
   fstatSync,
   lstatSync,
   mkdirSync,
@@ -23,6 +24,7 @@ import type {
   ReviewPacket,
 } from './contract.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
+import { extractPlanReviewRubric } from './plan-rubric.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -120,12 +122,41 @@ function planObligations(contract: string): string[] {
   return Array.from(contract.matchAll(/^- \*\*([^*]+):\*\*/gmu), match => match[1]?.trim() ?? '');
 }
 
+function packageRoot(): string {
+  const runtimeDirectory = nodePath.basename(import.meta.dirname);
+  return runtimeDirectory === 'dist' || runtimeDirectory === 'runtime'
+    ? nodePath.dirname(import.meta.dirname)
+    : nodePath.resolve(import.meta.dirname, '../..');
+}
+
+function packagedPlanAuthorRubric(): string {
+  const root = packageRoot();
+  const contractPath = [
+    nodePath.join(root, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
+    nodePath.join(root, 'skills/bdd/PLAN_IMPLEMENTATION.md'),
+    nodePath.join(root, 'skills/bdd/references/PLAN_IMPLEMENTATION.md'),
+  ].find(candidate => existsSync(candidate));
+  try {
+    if (contractPath === undefined) throw new Error('contract file is absent');
+    return extractPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+  } catch {
+    throw new ReviewPacketError(
+      'The packaged decision-quality contract is unavailable, so Safeword cannot author or approve an Implementation Plan. Run `bun run generate:plan-rubric`, rebuild the Safeword package, and retry.',
+    );
+  }
+}
+
 function currentPlanContract(): PlanContractPair {
-  const identity = {
+  const authorRubric = packagedPlanAuthorRubric();
+  const author = {
+    sha256: digest(authorRubric),
+    obligations: planObligations(authorRubric),
+  };
+  const reviewer = {
     sha256: digest(PLAN_REVIEW_RUBRIC),
     obligations: planObligations(PLAN_REVIEW_RUBRIC),
   };
-  return { author: identity, reviewer: identity };
+  return { author, reviewer };
 }
 
 function packetPlanContract(
