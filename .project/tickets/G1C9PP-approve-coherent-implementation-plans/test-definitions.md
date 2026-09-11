@@ -162,7 +162,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 - [x] RED 3b5f78a9b
 - [x] GREEN f6343f586
-- [ ] REFACTOR
+- [x] REFACTOR skip: one reviewer clause and the existing generator are already the smallest single-source production path
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R13 — Decision evidence is structurally present and semantically judged
 
