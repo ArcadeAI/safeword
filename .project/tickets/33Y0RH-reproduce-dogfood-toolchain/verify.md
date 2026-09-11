@@ -1,21 +1,38 @@
-Verified: 2026-09-11T03:17:59Z
+Verified: 2026-09-11T07:06:56Z
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 207/207 focused closeout, resolver, CI, and dogfood tests; 27/27 closeout host-adapter tests; 19/19 runnable dependency-contract tests (2 platform cases skipped)
-**Build:** ✅ CLI build and declarations succeed as part of the focused test wrapper
-**Lint:** ✅ Full ESLint, Prettier, Gherkin lint, and `tsc --noEmit` pass with the root uv environment present
-**PR Scope:** ✅ Runtime ownership is confined to dogfood configuration and CI; customer projects are not required to use mise
-**Dep Drift:** ✅ Python tools are pinned in `uv.lock`; JavaScript remains owned by Bun
-**Evidence limits:** ⚠️ The full repository baseline has two pre-existing acceptance failures and a Darwin website native-binding failure, reproduced outside this change's scope.
+**Test Suite:** ✓ 9999/9999 full-suite tests pass (12 conditional skips); the amended resolver file passes 79/79 and the dogfood contract passes 7/7
+**Gherkin:** ✅ Acceptance lane passes — 1499/1499 scenarios and 68735/68735 steps
+**Build:** ✅ Success — all workspace packages and the Astro site build
+**Lint:** ✅ Clean — Prettier, ESLint, Gherkin lint, and TypeScript checks
+**Scenarios:** ⏭️ Skipped — task ticket has no test-definitions.md
+**Refactor:** ✅ Completed — Python runner ownership is named directly; the full scoped scout found no further production refactor worth the churn
+**PR Scope:** ✅ Diff matches ticket scope
+**Dep Drift:** ✅ Clean
+**Parent Epic:** N/A
+**Reconcile:** ✅ No pattern deviation
+**Experience:** ⏭️ N/A — internal contributor and verification plumbing
+**Surface Evidence:** ✅ 3/3 affected surfaces have recorded proof
+**Evidence limits:** ⚠️ The redundant standalone BDD proof retry could not acquire another worktree's live Vitest lock; the same proof file passed inside the full 578-file suite. The repository-wide audit also reports pre-existing debt outside this PR.
 
-Evidence:
+## Review Gates
 
-- `mise exec -- uv lock --check` succeeds; CI uses `uv sync --locked` so stale project metadata fails closed.
-- `mise exec -- mypy .` passes against the activated uv environment: 5 source files, no issues.
-- `mise exec -- which python`, `mypy`, and `deadcode` all resolve inside the repository `.venv`.
-- The real repository typecheck plan resolves `uv run --locked mypy .` with `uv` available; a dogfood contract test pins that boundary.
-- `.gitignore`, `.prettierignore`, and the repo ESLint config keep the root `.venv` out of source scans; Knip uses the Git ignore rather than a redundant config entry.
-- CI consumes `pyproject.toml` and `uv.lock` through the pinned setup-uv action rather than `.github/requirements-ci.txt`.
-- Diff-scoped audit through mise found no architecture violations; its Python findings are two pre-existing unused GEPA experiment methods outside this change.
-- Refactor review kept mise as dogfood infrastructure rather than a customer requirement and renamed Python runner ownership directly in the resolver.
+- **Full audit:** Completed. No error is attributable to this PR. The repository baseline contains 25 broken principle-trace references across six older tickets, three no-orphan warnings, and advisory dead-code/duplication/tool-version findings.
+- **Full refactor:** Completed. Four existing scoped refactor commits already isolate runner ownership, lane execution, verdict derivation, and timing-free tests; the final whole-change scout found no additional clear win.
+- **Full quality review:** APPROVE from an independent Claude reviewer. The review's `.venv` uncertainty was resolved against the shared tree scanner and pinned with an explicit 79-test resolver contract; CI setup ordering was strengthened and passes its seven-test dogfood contract.
+
+## Surface Evidence
+
+| Affected surface | Proof | Result |
+| --- | --- | --- |
+| Contributor toolchain | `mise exec -- uv run --locked mypy .` plus generated typecheck plan | Passes with repository-owned Python tools |
+| CI dependency setup | Full exact-head CI and repository contract suite | Locked uv environment and parity checks pass |
+| Fresh worktree contract | Full Vitest suite | Dogfood runtime/dependency declarations remain pinned |
+
+## Notes
+
+- The first restricted run could not bind local sockets; the unrestricted run passed 198 retro-relay tests, 153 retro-collector tests, and 9648 CLI tests.
+- The website initially lacked Bun's optional Darwin ARM64 Satteri binding. Installing the version already present in `bun.lock` with `bun add --no-save` restored the build without changing source, manifests, or locks.
+- `bun audit` and `uv audit` found no known vulnerabilities; `pip-audit` was not installed and was explicitly skipped by the generated plan.
+- Current primary documentation confirms that `mise.toml` is project-local tool selection and that `uv run --locked` errors rather than updating a stale lock.
