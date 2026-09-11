@@ -37,7 +37,7 @@ prove real installed CLI wiring.
 ### Scenario: Decision presentation controls focused reviewability
 
 - [x] RED c4674408b
-- [ ] GREEN
+- [x] GREEN 2e01fc849
 - [ ] REFACTOR
 
 ### Scenario: A load-bearing decision cannot disappear from the review path
