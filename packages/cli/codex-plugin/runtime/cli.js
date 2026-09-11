@@ -31174,6 +31174,8 @@ records as context around the one \`impl-plan.md\` work artifact.
   Schema and relationships, Source of truth, Ownership and access, Identity and
   integrity, Cross-system flow, Lifecycle and retention, Migration and backfill,
   Compliance, and Rollback.
+  Require every named persisted entity owner to agree with its source-of-truth authority;
+  block approval and name the conflicting data owner when they contradict.
   Migration commands are execution mechanics and cannot replace data decisions;
   name them for removal to Execution Planning.
 - **Personas and surfaces:** Verify the design fulfills each persona's JTBD and
