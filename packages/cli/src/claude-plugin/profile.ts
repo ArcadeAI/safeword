@@ -800,11 +800,11 @@ function ensureMarketplace(
         effects,
       );
     }
+    enableMarketplaceAutoUpdate(cwd, scope, effects);
   } catch (error) {
     replacement?.rollback();
     throw error;
   }
-  enableMarketplaceAutoUpdate(cwd, scope, effects);
   return replacement;
 }
 

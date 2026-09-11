@@ -54745,11 +54745,11 @@ function ensureMarketplace(cwd, scope, effects) {
     if (!marketplaceIsCurrent(observeMarketplace(cwd, scope, effects))) {
       throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
     }
+    enableMarketplaceAutoUpdate(cwd, scope, effects);
   } catch (error2) {
     replacement?.rollback();
     throw error2;
   }
-  enableMarketplaceAutoUpdate(cwd, scope, effects);
   return replacement;
 }
 function assertConvergeablePluginVersion(plugin, effects) {

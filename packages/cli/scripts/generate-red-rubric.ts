@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractExecutableRedRubric } from '../src/review/red-rubric.js';
@@ -18,5 +18,7 @@ if (process.argv.includes('--check')) {
   if (readFileSync(outputPath, 'utf8') !== output)
     throw new Error('Generated executable RED rubric is stale; run generate:red-rubric');
 } else {
-  writeFileSync(outputPath, output);
+  if (!existsSync(outputPath) || readFileSync(outputPath, 'utf8') !== output) {
+    writeFileSync(outputPath, output);
+  }
 }

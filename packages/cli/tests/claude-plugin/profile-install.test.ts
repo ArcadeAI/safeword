@@ -1,7 +1,17 @@
-import { chmodSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  cpSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('node:fs', { spy: true });
 
 import {
   installClaudePlugin,
@@ -648,6 +658,33 @@ describe('Claude marketplace update enrollment', () => {
     expect(readFileSync(log, 'utf8')).toContain('plugin marketplace add');
     expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
     expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
+  });
+
+  it('restores the prior profile when auto-update enrollment fails after replacement', async () => {
+    const { installedPluginsPath, knownMarketplacePath, project, settingsPath } = fixture(
+      undefined,
+      'v0.83.1',
+      undefined,
+      { installedVersion: '0.83.1' },
+    );
+    const settingsBefore = readFileSync(settingsPath, 'utf8');
+    const registryBefore = readFileSync(knownMarketplacePath, 'utf8');
+    const pluginsBefore = readFileSync(installedPluginsPath, 'utf8');
+    const actualFileSystem = await vi.importActual<{ renameSync: typeof renameSync }>('node:fs');
+    let writes = 0;
+    vi.mocked(renameSync).mockImplementation((source, destination) => {
+      if (++writes === 2) {
+        throw Object.assign(new Error('injected settings write failure'), { code: 'EIO' });
+      }
+      actualFileSystem.renameSync(source, destination);
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
+    expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
+    expect(readFileSync(installedPluginsPath, 'utf8')).toBe(pluginsBefore);
   });
 
   it('refuses a plugin downgrade before replacing the marketplace', () => {

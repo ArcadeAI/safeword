@@ -79,3 +79,15 @@ metadata lag (the marketplace checkout itself never moved).
 - 2026-09-11T00:00:00.000Z Restart check: reran all 26 profile integration
   tests, targeted ESLint, TypeScript, and the isolated Claude no-op; every check
   passed and the stored checkout still resolves exactly to `v1.0.0-rc.2`.
+- 2026-09-11T00:37:00.000Z Review: external reviewer routes were exhausted.
+  Same-thread supplemental review found a rollback gap after marketplace
+  replacement; auto-update enrollment now shares the rollback boundary, with
+  failure injection proving exact restoration.
+- 2026-09-11T00:44:00.000Z Final verification: 27/27 Claude profile tests,
+  73/73 release-contract tests, lint/typecheck, and the full 9,588-test suite
+  pass. Diff audit passed after documenting the transactional profile decision.
+- 2026-09-11T01:47:14.000Z Release verification: fixed generator mtime churn
+  and brought the Claude lifecycle fixture in line with the real marketplace
+  registry. The exact wrapper passed 9,939 package tests, 1,499 acceptance
+  scenarios, 45 proof-tag checks, every build/typecheck, and dependency audits.
+  A final diff audit found no architecture or dependency violations.

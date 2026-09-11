@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractScenarioReviewRubric } from '../src/review/scenario-rubric.js';
@@ -19,6 +19,8 @@ if (process.argv.includes('--check')) {
   }
   console.log('Generated scenario-review runtime rubric is current.');
 } else {
-  writeFileSync(outputPath, output);
+  if (!existsSync(outputPath) || readFileSync(outputPath, 'utf8') !== output) {
+    writeFileSync(outputPath, output);
+  }
   console.log('Generated the scenario-review runtime rubric.');
 }
