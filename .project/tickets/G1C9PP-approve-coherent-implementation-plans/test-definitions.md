@@ -78,7 +78,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 - [x] RED a1ab09835
 - [x] GREEN 6e58244f28
-- [ ] REFACTOR
+- [x] REFACTOR skip: one shared field matrix drives both the eight-row acceptance proof and per-field contract mutations; no production structure changed in this requalification loop
 
 ### Scenario: Data decisions cannot be replaced by migration commands
 
