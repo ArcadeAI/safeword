@@ -130,7 +130,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 ### Scenario: One design plan remains the feature plan of record
 
-- [ ] RED
+- [x] RED 7bdd33ed0
 - [ ] GREEN
 - [ ] REFACTOR
 
