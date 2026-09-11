@@ -529,10 +529,11 @@ function boundedOutputTail(output: string): string {
 }
 
 function verificationDiagnostic(result: VerificationProcessResult): string {
-  const streams = [result.stderr, result.stdout].filter(output => output.trim() !== '');
+  // Keep stderr last so a bounded tail retains the conventional error stream,
+  // while still preserving as much actionable stdout as the shared budget allows.
+  const streams = [result.stdout, result.stderr].filter(output => output.trim() !== '');
   const combined = streams.join('\n');
-  if (Buffer.byteLength(combined) <= VERIFICATION_OUTPUT_LIMIT_BYTES) return combined.trim();
-  return boundedOutputTail(result.stderr.trim() === '' ? result.stdout : result.stderr);
+  return boundedOutputTail(combined);
 }
 
 function run(

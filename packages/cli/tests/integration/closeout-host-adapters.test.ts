@@ -1369,7 +1369,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     writeFileSync(dirtyPath, 'requires a new verification\n');
 
     const failingCli = nodePath.join(fixture.bin, 'failing-safeword.ts');
-    const failingCommand = `${JSON.stringify(process.execPath)} -e "process.stdout.write('x'.repeat(9000)); process.stderr.write('useful failure'); process.exit(7)"`;
+    const failingCommand = `${JSON.stringify(process.execPath)} -e "process.stdout.write('x'.repeat(9000) + 'actionable stdout'); process.stderr.write('useful failure'); process.exit(7)"`;
     executable(
       failingCli,
       `#!/usr/bin/env bun
@@ -1398,9 +1398,13 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     expect(failed.status).toBe(2);
     const failureBlockers = (JSON.parse(failed.stdout) as { plan: { blockers: string[] } }).plan
       .blockers;
-    expect(failureBlockers, JSON.stringify(failureBlockers)).toContain(
-      `local verification failed: command \`${failingCommand}\` failed in ${realpathSync(fixture.topic)} (exit 7): useful failure`,
+    const commandFailure = failureBlockers.find(blocker =>
+      blocker.startsWith(
+        `local verification failed: command \`${failingCommand}\` failed in ${realpathSync(fixture.topic)} (exit 7):`,
+      ),
     );
+    expect(commandFailure).toContain('actionable stdout');
+    expect(commandFailure).toContain('useful failure');
     expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
 
     executable(
