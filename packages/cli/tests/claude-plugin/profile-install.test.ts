@@ -1,9 +1,20 @@
-import { chmodSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  cpSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('node:fs', { spy: true });
 
 import {
+  claudeInstallRequiresMutation,
   installClaudePlugin,
   observeApplicableClaudePlugins,
 } from '../../src/claude-plugin/profile.js';
@@ -27,14 +38,14 @@ interface FixtureState {
   readonly installedVersion?: string | false;
   readonly largePluginInventory?: boolean;
   readonly marketplaceAddPersists?: boolean;
+  readonly marketplaceAddFails?: boolean;
   readonly marketplaceDeclared?: boolean;
   /** Raw `extraKnownMarketplaces.safeword.source` value, for non-canonical shapes. */
   readonly marketplaceDeclaredSource?: Record<string, unknown>;
   readonly marketplaceListedReference?: string | false;
   /** Raw `plugin marketplace list --json` entry, for non-canonical source shapes. */
   readonly marketplaceListedSource?: Record<string, unknown>;
-  readonly marketplaceUpdateFails?: boolean;
-  readonly marketplaceUpdatePersists?: boolean;
+  readonly marketplaceRemoveFails?: boolean;
   readonly omittedUserScope?: boolean;
   readonly oversizedPluginInventory?: boolean;
   readonly oversizedVersionOutput?: boolean;
@@ -146,26 +157,43 @@ function writeKnownMarketplaceState(
   sourceOverride?: Record<string, unknown>,
 ): string {
   const path = nodePath.join(configDirectory, 'plugins/known_marketplaces.json');
+  const installLocation = nodePath.join(configDirectory, 'plugins/marketplaces/safeword');
+  mkdirSync(installLocation, { recursive: true });
+  writeFileSync(nodePath.join(installLocation, 'checkout-sentinel'), 'prior marketplace\n');
   const source = sourceOverride ?? {
     source: 'git',
     url: 'https://github.com/ArcadeAI/safeword.git',
     ref: reference,
   };
-  const contents =
-    typeof reference === 'string' ? { safeword: { source, installLocation: '/tmp/safeword' } } : {};
+  const contents = typeof reference === 'string' ? { safeword: { source, installLocation } } : {};
   writeFileSync(path, `${JSON.stringify(contents, undefined, 2)}\n`);
   return path;
 }
 
-function marketplaceUpdateCommand(state: FixtureState, listing: string, current: string): string {
-  if (state.marketplaceUpdateFails === true) return 'exit 98';
-  if (state.marketplaceUpdatePersists === false) return ':';
-  return `rm -f ${JSON.stringify(listing)}\nprintf '%s\\n' ${JSON.stringify(OFFICIAL_MARKETPLACE_REF)} > ${JSON.stringify(current)}`;
+function marketplaceAddCommand(
+  state: FixtureState,
+  commandFixture: {
+    readonly knownMarketplacePath: string;
+    readonly listingOverride: string;
+    readonly marketplaceState: string;
+    readonly persistedRegistry: string;
+    readonly persistedSettings: string;
+    readonly settingsPath: string;
+  },
+): string {
+  if (state.marketplaceAddFails === true) return 'exit 96';
+  if (state.marketplaceAddPersists === false) return ':';
+  return `rm -f ${JSON.stringify(commandFixture.listingOverride)}\nprintf '%s\\n' ${JSON.stringify(OFFICIAL_MARKETPLACE_REF)} > ${JSON.stringify(commandFixture.marketplaceState)}\nprintf '%s\\n' ${JSON.stringify(commandFixture.persistedSettings)} > ${JSON.stringify(commandFixture.settingsPath)}\nprintf '%s\\n' ${JSON.stringify(commandFixture.persistedRegistry)} > ${JSON.stringify(commandFixture.knownMarketplacePath)}`;
+}
+
+function marketplaceRemovalCommand(state: FixtureState, paths: readonly string[]): string {
+  if (state.marketplaceRemoveFails === true) return 'exit 98';
+  return `rm -f ${paths.map(path => JSON.stringify(path)).join(' ')}`;
 }
 
 function fixture(
   autoUpdate: boolean | undefined,
-  ref = 'stable',
+  ref = OFFICIAL_MARKETPLACE_REF,
   environment?: Record<string, unknown>,
   state: FixtureState = {},
 ) {
@@ -199,6 +227,8 @@ function fixture(
     marketplaceListedReference,
     state.marketplaceListedSource,
   );
+  const installedPluginsPath = nodePath.join(configDirectory, 'plugins/installed_plugins.json');
+  writeFileSync(installedPluginsPath, '{"version":2,"plugins":{"safeword@safeword":[]}}\n');
   const declaration: Record<string, unknown> = {
     source: state.marketplaceDeclaredSource ?? {
       source: 'git',
@@ -224,11 +254,34 @@ function fixture(
       },
     },
   });
-  const persistMarketplace =
-    state.marketplaceAddPersists === false
-      ? ':'
-      : `rm -f ${JSON.stringify(listingOverride)}\nprintf '%s\\n' ${JSON.stringify(OFFICIAL_MARKETPLACE_REF)} > ${JSON.stringify(marketplaceState)}\nprintf '%s\\n' ${JSON.stringify(persistedMarketplaceSettings)} > ${JSON.stringify(settingsPath)}`;
-  const updateMarketplace = marketplaceUpdateCommand(state, listingOverride, marketplaceState);
+  const persistedMarketplaceRegistry = JSON.stringify({
+    safeword: {
+      source: {
+        source: 'git',
+        url: 'https://github.com/ArcadeAI/safeword.git',
+        ref: OFFICIAL_MARKETPLACE_REF,
+      },
+      installLocation: nodePath.join(configDirectory, 'plugins/marketplaces/safeword'),
+    },
+  });
+  const persistMarketplace = marketplaceAddCommand(state, {
+    knownMarketplacePath,
+    listingOverride,
+    marketplaceState,
+    persistedRegistry: persistedMarketplaceRegistry,
+    persistedSettings: persistedMarketplaceSettings,
+    settingsPath,
+  });
+  const removalState = marketplaceRemovalCommand(state, [
+    marketplaceState,
+    installedState,
+    enabledState,
+  ]);
+  const marketplaceRemoval = `${removalState}
+rm -rf ${JSON.stringify(nodePath.join(configDirectory, 'plugins/marketplaces/safeword'))}
+printf '{}\n' > ${JSON.stringify(settingsPath)}
+printf '{}\n' > ${JSON.stringify(knownMarketplacePath)}
+printf '{"version":2,"plugins":{}}\n' > ${JSON.stringify(installedPluginsPath)}`;
   const executable = nodePath.join(bin, 'claude');
   writeFileSync(
     executable,
@@ -248,7 +301,7 @@ case "$*" in
     fi
     ;;
   'plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project') ${persistMarketplace} ;;
-  'plugin marketplace update safeword') ${updateMarketplace} ;;
+  'plugin marketplace remove safeword --scope project') ${marketplaceRemoval} ;;
   'plugin list --json')
     if [ -f ${JSON.stringify(pluginListOverride)} ]; then
       if [ -p /dev/fd/1 ] || [ -S /dev/fd/1 ]; then
@@ -280,10 +333,11 @@ esac
   process.env.PATH = `${bin}:${originalPath ?? ''}`;
   process.env.CLAUDE_CONFIG_DIR = configDirectory;
   process.env.CLAUDE_PROJECT_DIR = project;
-  return { knownMarketplacePath, log, project, settingsPath };
+  return { installedPluginsPath, knownMarketplacePath, log, project, settingsPath };
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   process.env.PATH = originalPath;
   if (originalClaudeConfigDirectory === undefined) delete process.env.CLAUDE_CONFIG_DIR;
   else process.env.CLAUDE_CONFIG_DIR = originalClaudeConfigDirectory;
@@ -294,6 +348,16 @@ afterEach(() => {
 });
 
 describe('Claude marketplace update enrollment', () => {
+  it('plans project-scope installation from the canonical project root', () => {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, {
+      CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1',
+    });
+    const nestedDirectory = nodePath.join(project, 'packages/example');
+    mkdirSync(nestedDirectory, { recursive: true });
+
+    expect(claudeInstallRequiresMutation(nestedDirectory, 'project')).toBe(false);
+  });
+
   it('reports a missing Claude host with an installation action', () => {
     const root = createTemporaryDirectory();
     const project = nodePath.join(root, 'project');
@@ -310,7 +374,9 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('installs a missing plugin at project scope through the real Claude command boundary', () => {
-    const { log, project } = fixture(true, 'stable', undefined, { installedVersion: false });
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+      installedVersion: false,
+    });
 
     const result = installClaudePlugin(project);
 
@@ -319,7 +385,7 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('updates and re-enables a disabled older plugin through the real Claude command boundary', () => {
-    const { log, project } = fixture(true, 'stable', undefined, {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
       installedVersion: '0.72.0',
       pluginEnabled: false,
     });
@@ -336,7 +402,9 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('reports a non-mutating diagnostic for an unhealthy installed payload', () => {
-    const { project } = fixture(true, 'stable', undefined, { healthyPayload: false });
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+      healthyPayload: false,
+    });
 
     const result = installClaudePlugin(project);
 
@@ -348,7 +416,7 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('adds an absent marketplace and verifies the persisted host state', () => {
-    const { log, project } = fixture(true, 'stable', undefined, {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
       marketplaceDeclared: false,
       marketplaceListedReference: false,
     });
@@ -361,7 +429,7 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('reports a non-mutating diagnostic when Claude does not persist an added marketplace', () => {
-    const { project } = fixture(true, 'stable', undefined, {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
       marketplaceAddPersists: false,
       marketplaceDeclared: false,
       marketplaceListedReference: false,
@@ -390,7 +458,9 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('treats an omitted Claude plugin scope as the default user scope', () => {
-    const { project } = fixture(true, 'stable', undefined, { omittedUserScope: true });
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+      omittedUserScope: true,
+    });
 
     expect(observeApplicableClaudePlugins(project)).toMatchObject({
       status: 'observed',
@@ -399,7 +469,9 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('observes a valid Claude plugin inventory larger than 64 KiB', () => {
-    const { project } = fixture(true, 'stable', undefined, { largePluginInventory: true });
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+      largePluginInventory: true,
+    });
 
     expect(observeApplicableClaudePlugins(project)).toMatchObject({
       status: 'observed',
@@ -408,7 +480,9 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('reports an actionable error when Claude output exceeds the safety limit', () => {
-    const { project } = fixture(true, 'stable', undefined, { oversizedPluginInventory: true });
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+      oversizedPluginInventory: true,
+    });
 
     expect(observeApplicableClaudePlugins(project)).toMatchObject({
       status: 'errored',
@@ -421,7 +495,7 @@ describe('Claude marketplace update enrollment', () => {
   it.each([{ oversizedVersionOutput: true }, { oversizedVersionStderr: true }])(
     'reports an operational error when the Claude version probe exceeds its limit',
     state => {
-      const { project } = fixture(true, 'stable', undefined, state);
+      const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, state);
 
       expect(observeApplicableClaudePlugins(project)).toMatchObject({
         status: 'errored',
@@ -452,7 +526,7 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('preserves existing environment settings and an explicit marketplace failure policy', () => {
-    const { project, settingsPath } = fixture(true, 'stable', {
+    const { project, settingsPath } = fixture(true, OFFICIAL_MARKETPLACE_REF, {
       KEEP_ME: 'yes',
       CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '0',
     });
@@ -497,10 +571,10 @@ describe('Claude marketplace update enrollment', () => {
     expect(readFileSync(log, 'utf8')).not.toContain('plugin list --json');
   });
 
-  it('updates an older trusted marketplace ref without removing the installed plugin', () => {
+  it('replaces the stable marketplace ref before installing a requested prerelease', () => {
     const { knownMarketplacePath, log, project, settingsPath } = fixture(
       true,
-      'v0.83.1',
+      'stable',
       undefined,
       { installedVersion: '0.83.1' },
     );
@@ -516,22 +590,51 @@ describe('Claude marketplace update enrollment', () => {
     };
 
     expect(result.state, JSON.stringify(result)).toBe('action_required');
-    expect(commands).toContain('plugin marketplace update safeword');
-    expect(commands).toContain('plugin update safeword@safeword --scope project');
-    expect(commands).not.toContain('plugin marketplace add');
+    expect(commands).toContain('plugin marketplace remove safeword --scope project');
+    expect(commands).toContain(
+      `plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project`,
+    );
+    expect(commands).toContain('plugin install safeword@safeword --scope project');
+    expect(commands).not.toContain('plugin marketplace update safeword');
     expect(settings.unrelated).toEqual({ keep: true });
     expect(settings.extraKnownMarketplaces.safeword.source.ref).toBe(OFFICIAL_MARKETPLACE_REF);
     expect(registry.safeword.source.ref).toBe(OFFICIAL_MARKETPLACE_REF);
   });
 
-  it('restores both marketplace records when the host refresh fails', () => {
+  it('restores the prior Claude profile when replacement cannot add the requested ref', () => {
+    const { installedPluginsPath, knownMarketplacePath, log, project, settingsPath } = fixture(
+      true,
+      'v0.83.1',
+      undefined,
+      { installedVersion: '0.83.1', marketplaceAddFails: true },
+    );
+    const settingsBefore = readFileSync(settingsPath, 'utf8');
+    const registryBefore = readFileSync(knownMarketplacePath, 'utf8');
+    const pluginsBefore = readFileSync(installedPluginsPath, 'utf8');
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('CLAUDE_PROFILE_COMMAND_FAILED');
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace remove safeword');
+    expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
+    expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
+    expect(readFileSync(installedPluginsPath, 'utf8')).toBe(pluginsBefore);
+    const checkoutSentinel = nodePath.join(
+      nodePath.dirname(knownMarketplacePath),
+      'marketplaces/safeword/checkout-sentinel',
+    );
+    expect(readFileSync(checkoutSentinel, 'utf8')).toBe('prior marketplace\n');
+  });
+
+  it('restores both marketplace records when the host removal fails', () => {
     const { knownMarketplacePath, log, project, settingsPath } = fixture(
       true,
       'v0.83.1',
       undefined,
       {
         installedVersion: '0.83.1',
-        marketplaceUpdateFails: true,
+        marketplaceRemoveFails: true,
       },
     );
     const settingsBefore = readFileSync(settingsPath, 'utf8');
@@ -541,7 +644,7 @@ describe('Claude marketplace update enrollment', () => {
 
     expect(result.state).toBe('failed');
     expect(result.errors[0]?.code).toBe('CLAUDE_PROFILE_COMMAND_FAILED');
-    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace update safeword');
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace remove safeword');
     expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
     expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
   });
@@ -553,7 +656,7 @@ describe('Claude marketplace update enrollment', () => {
       undefined,
       {
         installedVersion: '0.83.1',
-        marketplaceUpdatePersists: false,
+        marketplaceAddPersists: false,
       },
     );
     const settingsBefore = readFileSync(settingsPath, 'utf8');
@@ -563,29 +666,105 @@ describe('Claude marketplace update enrollment', () => {
 
     expect(result.state).toBe('failed');
     expect(result.errors[0]?.code).toBe('CLAUDE_MARKETPLACE_UNVERIFIED');
-    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace update safeword');
+    expect(result.changed).toBe(false);
+    expect(result.effects?.configuration).toEqual([]);
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace remove safeword');
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace add');
     expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
     expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
   });
 
-  it('reports marketplace effects before refusing a plugin downgrade', () => {
-    const { project } = fixture(true, 'v0.83.1', undefined, { installedVersion: '9.0.0' });
+  it('restores the prior profile when auto-update enrollment fails after replacement', async () => {
+    const { installedPluginsPath, knownMarketplacePath, project, settingsPath } = fixture(
+      undefined,
+      'v0.83.1',
+      undefined,
+      { installedVersion: '0.83.1' },
+    );
+    const settingsBefore = readFileSync(settingsPath, 'utf8');
+    const registryBefore = readFileSync(knownMarketplacePath, 'utf8');
+    const pluginsBefore = readFileSync(installedPluginsPath, 'utf8');
+    const actualFileSystem = await vi.importActual<{ renameSync: typeof renameSync }>('node:fs');
+    let writes = 0;
+    vi.mocked(renameSync).mockImplementation((source, destination) => {
+      if (++writes === 2) {
+        throw Object.assign(new Error('injected settings write failure'), { code: 'EIO' });
+      }
+      actualFileSystem.renameSync(source, destination);
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.changed).toBe(false);
+    expect(result.effects?.configuration).toEqual([]);
+    expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
+    expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
+    expect(readFileSync(installedPluginsPath, 'utf8')).toBe(pluginsBefore);
+  });
+
+  it('retains later plugin effects when payload verification rolls back a replacement', () => {
+    const { installedPluginsPath, knownMarketplacePath, project, settingsPath } = fixture(
+      true,
+      'v0.83.1',
+      undefined,
+      { installedVersion: '0.83.1', unexpectedPayload: true },
+    );
+    const settingsBefore = readFileSync(settingsPath, 'utf8');
+    const registryBefore = readFileSync(knownMarketplacePath, 'utf8');
+    const pluginsBefore = readFileSync(installedPluginsPath, 'utf8');
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors?.[0]?.code).toBe('CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED');
+    expect(result.changed).toBe(true);
+    expect(result.effects?.configuration).toEqual([
+      { kind: 'install', target: 'safeword@safeword', operation: 'project' },
+    ]);
+    expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
+    expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
+    expect(readFileSync(installedPluginsPath, 'utf8')).toBe(pluginsBefore);
+  });
+
+  it('reports completed effects when restoring a replaced checkout fails', async () => {
+    const { project } = fixture(true, 'v0.83.1', undefined, {
+      installedVersion: '0.83.1',
+      unexpectedPayload: true,
+    });
+    const actualFileSystem = await vi.importActual<{ cpSync: typeof cpSync }>('node:fs');
+    vi.mocked(cpSync).mockImplementation((source, destination, options) => {
+      if (String(source).includes('safeword-claude-marketplace-')) {
+        throw Object.assign(new Error('injected checkout restore failure'), { code: 'EIO' });
+      }
+      actualFileSystem.cpSync(source, destination, options);
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors?.[0]?.code).toBe('CLAUDE_PLUGIN_ROLLBACK_FAILED');
+    expect(result.changed).toBe(true);
+    expect(result.effects?.configuration).not.toEqual([]);
+  });
+
+  it('refuses a plugin downgrade before replacing the marketplace', () => {
+    const { log, project } = fixture(true, 'v0.83.1', undefined, {
+      installedVersion: '9.0.0',
+    });
 
     const result = installClaudePlugin(project);
 
     expect(result.state).toBe('failed');
     expect(result.errors[0]?.code).toBe('CLAUDE_PLUGIN_DOWNGRADE_REFUSED');
-    expect(result.effects?.configuration).toContainEqual({
-      kind: 'update',
-      target: 'safeword',
-      operation: 'project',
-    });
+    expect(result.effects?.configuration).toEqual([]);
+    expect(readFileSync(log, 'utf8')).not.toContain('plugin marketplace remove safeword');
   });
 
   it('repairs a GitHub-shorthand registration of the same repository instead of refusing', () => {
     // `claude plugin marketplace add ArcadeAI/safeword` is the form the Claude
     // Code docs lead with; refusing the install strands the project (#3338).
-    const { log, project, settingsPath } = fixture(true, 'stable', undefined, {
+    const { log, project, settingsPath } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
       marketplaceListedSource: { source: 'github', repo: 'ArcadeAI/safeword' },
     });
 
@@ -595,7 +774,7 @@ describe('Claude marketplace update enrollment', () => {
     };
 
     expect(result.state, JSON.stringify(result)).toBe('action_required');
-    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace update safeword');
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace remove safeword');
     expect(result.effects?.configuration).toContainEqual({
       kind: 'update',
       target: 'safeword',
@@ -605,7 +784,7 @@ describe('Claude marketplace update enrollment', () => {
   });
 
   it('repairs a project declaration that names the same repository without a ref', () => {
-    const { log, project } = fixture(true, 'stable', undefined, {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
       marketplaceDeclaredSource: {
         source: 'git',
         url: 'https://github.com/ArcadeAI/safeword.git',
@@ -615,11 +794,22 @@ describe('Claude marketplace update enrollment', () => {
     const result = installClaudePlugin(project);
 
     expect(result.state, JSON.stringify(result)).toBe('action_required');
-    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace update safeword');
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace remove safeword');
+  });
+
+  it('repairs a packed URL registration of the same repository without a ref', () => {
+    const { log, project } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
+      marketplaceListedSource: { source: 'https://github.com/ArcadeAI/safeword.git' },
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state, JSON.stringify(result)).toBe('action_required');
+    expect(readFileSync(log, 'utf8')).toContain('plugin marketplace remove safeword');
   });
 
   it('still refuses a marketplace registered from a different repository, changing nothing', () => {
-    const { log, project, settingsPath } = fixture(true, 'stable', undefined, {
+    const { log, project, settingsPath } = fixture(true, OFFICIAL_MARKETPLACE_REF, undefined, {
       marketplaceListedSource: { source: 'github', repo: 'attacker/safeword' },
     });
     const before = readFileSync(settingsPath, 'utf8');
@@ -637,7 +827,7 @@ describe('Claude marketplace update enrollment', () => {
   it('accepts Claude-owned cache metadata beside an otherwise verified plugin', () => {
     const { project } = fixture(
       true,
-      'stable',
+      OFFICIAL_MARKETPLACE_REF,
       { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
       { cacheMetadata: true },
     );
@@ -648,7 +838,7 @@ describe('Claude marketplace update enrollment', () => {
   it('still rejects an unlisted file inside the cached plugin payload', () => {
     const { project } = fixture(
       true,
-      'stable',
+      OFFICIAL_MARKETPLACE_REF,
       { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' },
       { unexpectedPayload: true },
     );
