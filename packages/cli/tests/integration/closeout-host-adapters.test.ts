@@ -616,7 +616,7 @@ else if (args[0] === 'retro' && args[1] === 'run') {
     expect(preview.status).toBe(2);
     expect(
       (JSON.parse(preview.stdout) as { plan: { blockers: string[] } }).plan.blockers,
-    ).toContain('local verification failed');
+    ).toContain('local verification failed: no verify verification command was resolved');
     expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
   }, 30_000);
 

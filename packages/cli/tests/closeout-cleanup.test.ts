@@ -41,9 +41,11 @@ import {
   retroAgentForRuntime,
   retroForMergedPullRequest,
   runBoundRetro,
+  runVerificationCommand,
   safewordCliCommand,
   transcriptMatchesBinding,
   VERIFICATION_COMMAND_TIMEOUT_MS,
+  VERIFICATION_OUTPUT_LIMIT_BYTES,
   workingStateHash,
 } from '../templates/scripts/closeout-cleanup.ts';
 
@@ -185,6 +187,36 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   it('allows an hour for a project verification command to finish', () => {
     expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBe(60 * 60 * 1000);
   });
+
+  it('captures a bounded diagnostic tail from a failed verification command', async () => {
+    const executable = JSON.stringify(process.execPath);
+    const result = await runVerificationCommand(
+      `${executable} -e "process.stdout.write('DROP-ME' + 'x'.repeat(${VERIFICATION_OUTPUT_LIMIT_BYTES + 100}) + 'OUT-END'); process.stderr.write('useful error')"; exit 7`,
+      repoRoot,
+    );
+
+    expect(result).toMatchObject({ status: 7, stderr: 'useful error', timedOut: false });
+    expect(result.stdout.length).toBeLessThanOrEqual(VERIFICATION_OUTPUT_LIMIT_BYTES);
+    expect(result.stdout.endsWith('OUT-END')).toBe(true);
+    expect(result.stdout).not.toContain('DROP-ME');
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'returns when an exited command leaves an output-inheriting descendant behind',
+    async () => {
+      const executable = JSON.stringify(process.execPath);
+      const started = Date.now();
+      const result = await runVerificationCommand(
+        `${executable} -e "const { spawn } = require('node:child_process'); const child = spawn('sleep', ['2'], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }); child.unref(); console.log('command complete')"`,
+        repoRoot,
+        5000,
+      );
+
+      expect(result).toMatchObject({ status: 0, timedOut: false });
+      expect(result.stdout).toContain('command complete');
+      expect(Date.now() - started).toBeLessThan(1000);
+    },
+  );
 
   it.skipIf(process.platform === 'win32')(
     'returns under Bun after killing a timed-out verification command tree',
@@ -1591,6 +1623,30 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       expectEveryDeletionBlocked(overrides, expectedBlocker);
     },
   );
+
+  it('surfaces detailed verification failures in cleanup blockers', () => {
+    const plan = buildCleanupPlan(
+      safeObservation({
+        verification: {
+          ...safeObservation().verification,
+          passed: false,
+          failures: [
+            'command `bun run test` failed in /repo (exit 1): tsup: command not found',
+            'runner `uv` is unavailable for `uv run mypy .` in /repo',
+          ],
+        },
+      }),
+    );
+
+    expect(plan.blockers).toEqual(
+      expect.arrayContaining([
+        'local verification failed: command `bun run test` failed in /repo (exit 1): tsup: command not found',
+        'local verification failed: runner `uv` is unavailable for `uv run mypy .` in /repo',
+      ]),
+    );
+    expect(plan.blockers).not.toContain('local verification failed');
+    expect(plan.operations).toEqual([]);
+  });
 
   it.each([
     [

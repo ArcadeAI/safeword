@@ -1,0 +1,17 @@
+[project]
+name = "safeword-dev"
+version = "0.0.0"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "deadcode==2.4.1",
+  "import-linter==2.14",
+  "mypy==2.3.1",
+  "ruff==0.16.5",
+]
+
+[tool.uv]
+package = false
+required-version = "==0.12.9"

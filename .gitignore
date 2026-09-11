@@ -1,4 +1,5 @@
 node_modules/
+.venv/
 packages/cli/.test-tmp/
 .safeword-review-runtime-*
 packages/cli/.public-retro-build-*

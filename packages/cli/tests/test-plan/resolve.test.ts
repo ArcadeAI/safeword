@@ -640,6 +640,23 @@ describe('resolveTestPlan — typecheck plan — Python mypy/pyright (kind: type
     expect(entryFor(plan, 'python')?.command).toBe('uv run mypy .');
   });
 
+  it('keeps the uv invocation visible but unavailable when uv is missing', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[tool.mypy]\n',
+      'uv.lock': '',
+    });
+    const plan = resolveTestPlan(root, {
+      kind: 'typecheck',
+      isToolAvailable: onlyTools('mypy'),
+    });
+
+    expect(entryFor(plan, 'python')).toMatchObject({
+      command: 'uv run mypy .',
+      runner: 'uv',
+      available: false,
+    });
+  });
+
   // Each remaining config marker is its own branch in mypyConfigured/pyrightConfigured.
   it.each([
     ['.mypy.ini file', { '.mypy.ini': '[mypy]\n' }, 'mypy .'],

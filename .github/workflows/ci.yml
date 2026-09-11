@@ -150,8 +150,13 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: '.github/requirements-ci.txt'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: pyproject.toml
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -163,7 +168,9 @@ jobs:
         run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.10.1
 
       - name: Install Python tools
-        run: pip install -r .github/requirements-ci.txt
+        run: |
+          uv sync --frozen
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install Poetry
         run: pipx install poetry

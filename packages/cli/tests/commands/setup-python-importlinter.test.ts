@@ -404,8 +404,8 @@ describe("python-importlinter-scaffold.TB1.R5 — installed with the pack's othe
 });
 
 // E2E teeth: prove the scaffold is valid FOR THE REAL TOOL, not merely present.
-// Guarded on binary availability (visible skip locally); CI installs import-linter
-// via .github/requirements-ci.txt so these always run there.
+// Guarded on binary availability (visible skip locally); CI syncs the root uv
+// development group and adds its virtual environment to PATH, so these run there.
 const HAS_LINT_IMPORTS = spawnSync('lint-imports', ['--version'], { stdio: 'ignore' }).status === 0;
 
 /** Run lint-imports in the project; returns exit status and combined output. */
