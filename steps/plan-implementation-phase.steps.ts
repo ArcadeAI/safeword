@@ -40,6 +40,10 @@ const PROMPT_HOOK = nodePath.join(PROJECT_ROOT, 'packages/cli/templates/hooks/pr
 const CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
 const PACKAGED_CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/dist/cli.js');
 const CODEX_PLUGIN_ROOT = nodePath.join(PROJECT_ROOT, 'packages/cli/codex-plugin');
+const PLAN_CONTRACT_REVIEW_HELPER = nodePath.join(
+  PROJECT_ROOT,
+  'packages/cli/tests/fixtures/plan-contract-review.ts',
+);
 
 /** Both shipped copies of every bdd skill document (template + dogfood). */
 const BDD_SKILL_ROOTS = [
@@ -103,6 +107,13 @@ interface PlanWorld extends SafewordWorld {
   promptOutput?: string;
   cli?: { exitCode: number; output: string };
   installedCliPath?: string;
+  planContractState?: string;
+  planContractReview?: {
+    verdict: string;
+    findings: Array<{ message: string; severity: string }>;
+    authorObligations: string[];
+    reviewerObligations: string[];
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -518,6 +529,13 @@ Given('no impl-plan.md exists in the ticket folder', function (this: PlanWorld) 
   assert.equal(existsSync(ticketArtifact(this, 'impl-plan.md')), false);
 });
 
+Given(
+  /^the Implementation Plan author and semantic reviewer receive (.+)$/,
+  function (this: PlanWorld, contractState: string) {
+    this.planContractState = contractState;
+  },
+);
+
 Given('its impl-plan.md is missing a required section', function (this: PlanWorld) {
   writeFileSync(
     ticketArtifact(this, 'impl-plan.md'),
@@ -772,6 +790,17 @@ When('the user submits a prompt', SUBPROCESS, function (this: PlanWorld) {
   });
 });
 
+When('the plan is submitted for semantic review', SUBPROCESS, function (this: PlanWorld) {
+  assert.ok(this.planContractState, 'the contract state was not arranged');
+  const result = spawnSync('bun', [PLAN_CONTRACT_REVIEW_HELPER], {
+    cwd: PROJECT_ROOT,
+    encoding: 'utf8',
+    input: JSON.stringify({ contractState: this.planContractState }),
+  });
+  assert.equal(result.status, 0, result.stderr);
+  this.planContractReview = JSON.parse(result.stdout) as PlanWorld['planContractReview'];
+});
+
 // ---------------------------------------------------------------------------
 // Whens — document reads
 // ---------------------------------------------------------------------------
@@ -859,6 +888,33 @@ Then('the workflow enters Execution Planning', function (this: PlanWorld) {
   assert.equal(this.ticketPhase, 'plan-execution');
   assert.match(readFileSync(ticketArtifact(this, 'ticket.md'), 'utf8'), /phase: plan-execution/);
 });
+
+Then(
+  'the plan is eligible for semantic review against those shared obligations',
+  function (this: PlanWorld) {
+    const review = this.planContractReview;
+    assert.ok(review, 'semantic review did not return a result');
+    assert.equal(review.verdict, 'approve');
+    assert.deepEqual(review.authorObligations, review.reviewerObligations);
+    assert.ok(review.authorObligations.length > 0, 'the shared contract has no obligations');
+  },
+);
+
+Then(
+  'approval is blocked with the conflicting obligation named for contract reconciliation',
+  function (this: PlanWorld) {
+    const review = this.planContractReview;
+    assert.ok(review, 'semantic review did not return a result');
+    assert.equal(review.verdict, 'request_changes');
+    const errors = review.findings
+      .filter(finding => finding.severity === 'error')
+      .map(finding => finding.message)
+      .join('\n');
+    assert.match(errors, /Proof quality/);
+    assert.match(errors, /Require execution sequencing/);
+    assert.match(errors, /contract reconciliation/i);
+  },
+);
 
 Then('the phase change is denied', function (this: PlanWorld) {
   assert.equal(this.verdict?.decision, 'deny', 'expected the hook to deny this phase change');
