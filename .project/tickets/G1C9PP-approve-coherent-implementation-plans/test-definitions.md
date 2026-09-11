@@ -154,7 +154,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 - [x] RED ee611ade9
 - [x] GREEN 07b38e5410
-- [ ] REFACTOR
+- [x] REFACTOR skip: the installed-boundary proof and shared reviewer projection are already the smallest coherent structure
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R12 — Load-bearing choices carry alternatives and evidence
 
