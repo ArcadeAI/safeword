@@ -25,6 +25,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import nodeOs from 'node:os';
@@ -126,6 +127,7 @@ interface PlanWorld extends SafewordWorld {
   schemaSource?: string;
   cursorWrapperSource?: string;
   architectureRecord?: string;
+  architectureEditTarget?: string;
   stop?: { decision?: string; reason: string; exitCode: number };
   promptOutput?: string;
   cli?: { exitCode: number; output: string };
@@ -827,6 +829,37 @@ Given(
   },
 );
 
+Given(
+  /^real project configuration resolves its durable architecture location as (.+)$/u,
+  function (this: PlanWorld, architectureLocation: string) {
+    createProject(this);
+    const architecture =
+      architectureLocation === 'one project-owned architecture file'
+        ? 'docs/decisions.md'
+        : 'docs/adr';
+    assert.ok(
+      architectureLocation === 'one project-owned architecture file' ||
+        architectureLocation === 'a project-owned ADR directory',
+      `unknown architecture location: ${architectureLocation}`,
+    );
+    const configPath = nodePath.join(this.projectDirectory!, '.safeword', 'config.json');
+    writeFileSync(
+      configPath,
+      `${JSON.stringify({ reviewGate: false, paths: { architecture } }, undefined, 2)}\n`,
+    );
+    if (architecture.endsWith('.md')) {
+      mkdirSync(nodePath.dirname(nodePath.join(this.projectDirectory!, architecture)), {
+        recursive: true,
+      });
+      writeFileSync(nodePath.join(this.projectDirectory!, architecture), '# Decisions\n');
+    } else {
+      mkdirSync(nodePath.join(this.projectDirectory!, architecture), { recursive: true });
+    }
+    seedTicket(this, { phase: 'plan-implementation', spec: true });
+    bindActiveTicket(this, SESSION_ID);
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Givens — shipped documents, manifest, and record
 // ---------------------------------------------------------------------------
@@ -1011,6 +1044,37 @@ When('the Implementation Plan is reviewed', function (this: PlanWorld) {
   }
   assert.fail('no Implementation Plan review fixture was arranged');
 });
+
+When(
+  /^the installed Safeword planning edit gate evaluates (.+) during Implementation Planning$/u,
+  function (this: PlanWorld, targetPath: string) {
+    const project = this.projectDirectory!;
+    const targets: Record<string, string> = {
+      'that exact file': 'docs/decisions.md',
+      'a sibling file beside it': 'docs/decisions-notes.md',
+      'a direct child named YYYYMMDD-slug.md': 'docs/adr/20260910-new-decision.md',
+      'a direct child that does not match YYYYMMDD-slug.md': 'docs/adr/new-decision.md',
+      'a nested dated ADR below a child directory': 'docs/adr/nested/20260910-decision.md',
+      'a dated ADR outside that directory': 'docs/20260910-outside.md',
+      'an ordinary source path': 'src/app.ts',
+    };
+    if (
+      targetPath ===
+      'a direct child named YYYYMMDD-slug.md whose resolved target lies outside that directory'
+    ) {
+      writeFileSync(nodePath.join(project, 'docs/outside.md'), '# Outside\n');
+      const linked = nodePath.join(project, 'docs/adr/20260910-escaped.md');
+      symlinkSync('../outside.md', linked);
+      this.architectureEditTarget = linked;
+    } else {
+      const relative = targets[targetPath];
+      assert.ok(relative, `unknown architecture edit target: ${targetPath}`);
+      this.architectureEditTarget = nodePath.join(project, relative);
+      if (targetPath.includes('nested')) mkdirSync(nodePath.dirname(this.architectureEditTarget));
+    }
+    this.verdict = runPreTool(this, 'Edit', { file_path: this.architectureEditTarget }, SESSION_ID);
+  },
+);
 
 When(
   'the installed Safeword CLI prepares Implementation Plan review through real internal collaborators',
@@ -1301,6 +1365,38 @@ Then('data ownership consistency does not block approval', function (this: PlanW
     'approve',
     this.dataOwnershipReview?.findings.map(finding => finding.message).join('\n'),
   );
+});
+
+Then(
+  'the architecture-record edit is permitted so a significant decision can be recorded before review',
+  function (this: PlanWorld) {
+    assert.equal(this.verdict?.decision, 'allow', this.verdict?.text);
+  },
+);
+
+Then(
+  'creation is permitted so a significant decision can be recorded before review',
+  function (this: PlanWorld) {
+    assert.equal(this.verdict?.decision, 'allow', this.verdict?.text);
+  },
+);
+
+Then(/^the edit remains blocked because (.+)$/u, function (this: PlanWorld, _reason: string) {
+  assert.equal(
+    this.verdict?.decision,
+    'deny',
+    'the planning edit gate unexpectedly allowed the path',
+  );
+  assert.match(this.verdict?.text ?? '', /application code stays untouched while planning/iu);
+});
+
+Then('the edit remains blocked by the planning freeze', function (this: PlanWorld) {
+  assert.equal(
+    this.verdict?.decision,
+    'deny',
+    'the planning edit gate unexpectedly allowed the path',
+  );
+  assert.match(this.verdict?.text ?? '', /application code stays untouched while planning/iu);
 });
 
 Then('the phase change is denied', function (this: PlanWorld) {
