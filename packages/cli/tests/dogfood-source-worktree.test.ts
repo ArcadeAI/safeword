@@ -73,9 +73,20 @@ describe('dogfood source worktree package resolution (470)', () => {
 
   it('installs CI Python tools from the checked lockfile', () => {
     const workflow = readFileSync(nodePath.join(repoRoot, '.github/workflows/ci.yml'), 'utf8');
-    expect(workflow).toContain('version-file: pyproject.toml');
-    expect(workflow).toContain('uv sync --locked');
-    expect(workflow).toContain('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"');
+    const testJob = /^ {2}test:\n(?<body>[\s\S]*?)(?=^ {2}[a-z][a-z-]+:\n)/mu.exec(workflow)?.groups
+      ?.body;
+
+    expect(testJob).toBeDefined();
+    if (testJob === undefined) throw new Error('CI test job is missing');
+    expect(testJob).toContain('version-file: pyproject.toml');
+    expect(testJob).toContain('uv sync --locked');
+    expect(testJob).toContain('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"');
+    expect(testJob.indexOf('- name: Setup uv')).toBeLessThan(
+      testJob.indexOf('- name: Install Python tools'),
+    );
+    expect(testJob.indexOf('- name: Install Python tools')).toBeLessThan(
+      testJob.indexOf('- name: Test all packages'),
+    );
     expect(workflow).not.toContain('requirements-ci.txt');
   });
 
