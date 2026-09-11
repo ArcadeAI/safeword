@@ -5,7 +5,7 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-09-10T23:06:30.082Z
-last_modified: 2026-09-11T04:34:09Z
+last_modified: 2026-09-11T04:43:43Z
 ---
 
 # Run trusted review routes without approval prompts
@@ -16,13 +16,15 @@ last_modified: 2026-09-11T04:34:09Z
 
 ## Scope
 
-- Codex review dispatch uses a previously installed executable-and-subcommand allow rule without
-  surfacing a host approval request; status polling remains in the normal workspace sandbox.
+- Codex quality, scenario, and implementation-plan review dispatches use previously installed
+  kind-scoped allow rules without surfacing a host approval request; status polling remains in the
+  normal workspace sandbox.
 - Generated Codex review skills retain the zero-approval instruction.
 - This machine's combined Arcade/Bosslevel MCP server automatically approves all of its tools.
-- This machine has a narrow allow rule for the exact installed Safeword runtime's `review run`
-  prefix. Normal `review run` arguments remain available, while `review status` and arbitrary Bun
-  commands are excluded.
+- This machine has narrow allow rules for the exact installed Safeword runtime's
+  `quality-review`, `scenario-gate`, and `plan-implementation` dispatches. Their normal arguments
+  remain available, while executable RED reviews, `review status`, and arbitrary Bun commands are
+  excluded.
 
 ## Out of Scope
 
@@ -33,8 +35,8 @@ last_modified: 2026-09-11T04:34:09Z
 ## Done When
 
 - Every canonical review-launch surface permits escalation only through a previously installed
-  executable-and-subcommand rule, forbids surfaced approval requests, and forbids escalation for
-  status polls.
+  kind-scoped rule, forbids surfaced approval requests, and forbids escalation for executable RED
+  reviews and status polls.
 - Generated Claude and Codex plugin artifacts carry the source-template behavior.
 - The Arcade/Bosslevel MCP server uses `default_tools_approval_mode = "approve"`.
 - The exact installed Safeword review dispatcher can reach its reviewer without granting general
@@ -76,3 +78,9 @@ last_modified: 2026-09-11T04:34:09Z
   surfacing any user approval. The rule remains deliberately fixed to the installed executable and
   `review run` subcommand while allowing normal review arguments; status and arbitrary Bun commands
   remain outside the rule. Arcade/Bosslevel automatic tool approval also persisted across restart.
+- 2026-09-11T04:43:43Z Narrowed after adversarial review: Confirmed that `executable-red` accepts
+  an exact command to execute, so a rule ending at `review run` was broader than intended. Replaced
+  it with separate rules for the three non-executing review kinds and added an explicit
+  normal-sandbox requirement for executable RED reviews. Execpolicy now allows all three ordinary
+  review kinds and rejects executable RED, status, and arbitrary Bun commands. Focused parity passes
+  44/44 and both generated-plugin checks are current.

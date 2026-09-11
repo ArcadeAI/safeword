@@ -89,7 +89,7 @@ report the bounded packet as blocked. Invoke the coordinator first. On Codex,
 `review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may
 use `sandbox_permissions: "require_escalated"` only through a previously
 installed kind-scoped allow rule; never surface a host approval request. Run
-`review run executable-red`, `review status`, and every status retry inside the
+executable RED reviews, `review status`, and every status retry inside the
 normal workspace sandbox, and never escalate them. If the dispatch rule is
 absent or does not match, report the route as unavailable instead of asking the
 user.
