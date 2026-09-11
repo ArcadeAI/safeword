@@ -153,7 +153,7 @@ the feature. Lower-level contract tests own permutations within each family.
 ### Scenario: Installed review reports every simultaneous decision blocker
 
 - [x] RED ee611ade9
-- [ ] GREEN
+- [x] GREEN 07b38e5410
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R12 — Load-bearing choices carry alternatives and evidence
