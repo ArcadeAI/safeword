@@ -132,7 +132,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 - [x] RED 7bdd33ed0
 - [x] GREEN e3b149f29
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared fixture is already extracted and the contract change is one minimal rule
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope and confidence without absorbing execution mechanics or the verification ledger
 
