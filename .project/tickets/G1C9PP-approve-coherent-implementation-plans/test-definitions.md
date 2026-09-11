@@ -115,7 +115,7 @@ the feature. Lower-level contract tests own permutations within each family.
 ### Scenario: Planning access permits only configured durable architecture records
 
 - [x] RED 446fe35b9
-- [ ] GREEN
+- [x] GREEN be327806e
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
