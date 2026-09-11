@@ -77,7 +77,7 @@ the feature. Lower-level contract tests own permutations within each family.
 ### Scenario: Data guidance follows data-contract applicability
 
 - [x] RED a1ab09835
-- [ ] GREEN
+- [x] GREEN 6e58244f28
 - [ ] REFACTOR
 
 ### Scenario: Data decisions cannot be replaced by migration commands
