@@ -47,6 +47,7 @@ import {
   reviewFocusedDecisionPath,
 } from '../packages/cli/tests/fixtures/plan-focused-reviewability.ts';
 import type { ReviewerOutput } from '../packages/cli/src/review/contract.ts';
+import { reviewPlanOfRecord } from '../packages/cli/tests/fixtures/plan-single-record.ts';
 import { git } from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
@@ -149,6 +150,9 @@ interface PlanWorld extends SafewordWorld {
   dataPlanReview?: ReviewerOutput;
   dataOwnershipPlan?: string;
   dataOwnershipReview?: ReviewerOutput;
+  planOfRecord?: string;
+  planOfRecordSupporting?: Set<string>;
+  planOfRecordReview?: ReviewerOutput;
 }
 
 // ---------------------------------------------------------------------------
@@ -860,6 +864,44 @@ Given(
   },
 );
 
+Given(
+  /^a feature needs component and data design detail with (.+)$/u,
+  function (this: PlanWorld, artifactState: string) {
+    const linked = 'docs/feature-detail.md';
+    this.planOfRecordSupporting = new Set<string>();
+    switch (artifactState) {
+      case 'all decisions contained in the Implementation Plan':
+        this.planOfRecord = 'Required decision location: impl-plan.md\n';
+        break;
+      case 'all required decisions named with their consequence in the Implementation Plan and fuller detail linked as explicitly subordinate support':
+        this.planOfRecord = `Required decision location: linked supporting detail
+Decision and consequence: The identity service owns account links.
+Supporting detail: ${linked}
+Supporting authority: subordinate
+`;
+        this.planOfRecordSupporting.add(linked);
+        break;
+      case 'a linked document that claims independent feature-plan authority':
+        this.planOfRecord = `Required decision location: linked supporting detail
+Decision and consequence: The identity service owns account links.
+Supporting detail: ${linked}
+Supporting authority: independent feature plan
+`;
+        this.planOfRecordSupporting.add(linked);
+        break;
+      case 'a linked document that carries a required decision the Implementation Plan does not name':
+        this.planOfRecord = `Required decision location: linked supporting detail
+Supporting detail: ${linked}
+Supporting authority: subordinate
+`;
+        this.planOfRecordSupporting.add(linked);
+        break;
+      default:
+        assert.fail(`unknown plan-of-record artifact state: ${artifactState}`);
+    }
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Givens — shipped documents, manifest, and record
 // ---------------------------------------------------------------------------
@@ -1040,6 +1082,14 @@ When('the Implementation Plan is reviewed', function (this: PlanWorld) {
   }
   if (this.dataOwnershipPlan !== undefined) {
     this.dataOwnershipReview = reviewDataOwnershipConsistency(contract, this.dataOwnershipPlan);
+    return;
+  }
+  if (this.planOfRecord !== undefined) {
+    this.planOfRecordReview = reviewPlanOfRecord(
+      contract,
+      this.planOfRecord,
+      this.planOfRecordSupporting ?? new Set(),
+    );
     return;
   }
   assert.fail('no Implementation Plan review fixture was arranged');
@@ -1398,6 +1448,25 @@ Then('the edit remains blocked by the planning freeze', function (this: PlanWorl
   );
   assert.match(this.verdict?.text ?? '', /application code stays untouched while planning/iu);
 });
+
+Then(
+  /^the receipt names (?:it|the Implementation Plan) as the single design plan of record and (?:requires no second design artifact|accepts the supporting link)$/u,
+  function (this: PlanWorld) {
+    assert.equal(this.planOfRecordReview?.verdict, 'approve');
+    assert.match(this.planOfRecordReview?.summary ?? '', /single design plan of record/iu);
+  },
+);
+
+Then(
+  /^approval is blocked until (?:that authority|that required decision) returns to the Implementation Plan$/u,
+  function (this: PlanWorld) {
+    assert.equal(this.planOfRecordReview?.verdict, 'request_changes');
+    assert.match(
+      this.planOfRecordReview?.findings.map(finding => finding.message).join('\n') ?? '',
+      /return .+ to impl-plan\.md/iu,
+    );
+  },
+);
 
 Then('the phase change is denied', function (this: PlanWorld) {
   assert.equal(this.verdict?.decision, 'deny', 'expected the hook to deny this phase change');
