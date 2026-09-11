@@ -131,7 +131,7 @@ the feature. Lower-level contract tests own permutations within each family.
 ### Scenario: One design plan remains the feature plan of record
 
 - [x] RED 7bdd33ed0
-- [ ] GREEN
+- [x] GREEN e3b149f29
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope and confidence without absorbing execution mechanics or the verification ledger
