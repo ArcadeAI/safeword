@@ -36,7 +36,7 @@ prove real installed CLI wiring.
 
 ### Scenario: Decision presentation controls focused reviewability
 
-- [ ] RED
+- [x] RED c4674408b
 - [ ] GREEN
 - [ ] REFACTOR
 
