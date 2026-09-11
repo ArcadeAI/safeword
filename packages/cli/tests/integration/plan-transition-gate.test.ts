@@ -876,8 +876,8 @@ describe('implementation planning transition gates (wired)', () => {
           `| --- | --- | --- | --- | --- | --- | --- |\n| https://spec.commonmark.org/0.31.2/ | ${TODAY} | 0.31.2 | 0.31.2 | Exact grammar | Keep exact records | V1 subset only |\n\n**Decision impact:** retained: exact records fit\n**Decision informed:** parser`,
       )
       .replace(
-        '## Design alignment',
-        '| Decision | Choice | Alternatives considered | Rejected because |\n| --- | --- | --- | --- |\n| parser | https://spec.commonmark.org/0.31.2/ | permissive parser | exact contract is safer |\n\n## Design alignment',
+        '### Data applicability',
+        '| Decision | Choice | Alternatives considered | Rejected because |\n| --- | --- | --- | --- |\n| parser | https://spec.commonmark.org/0.31.2/ | permissive parser | exact contract is safer |\n\n### Data applicability',
       );
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), completed);
 

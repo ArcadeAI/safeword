@@ -27,11 +27,13 @@ describe('quality-review supporting context guidance', () => {
     'packages/cli/templates/skills/review-spec/SKILL.md',
     'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md',
     'packages/cli/templates/skills/bdd/TDD.md',
-  ])('%s sends Codex review dispatches through the authenticated boundary', path => {
+  ])('%s sends Codex review dispatches through native approval', path => {
     const content = readFileSync(nodePath.join(repoRoot, path), 'utf8');
+    const normalized = content.replaceAll(/\s+/gu, ' ');
 
-    expect(content).toContain('sandbox_permissions: "require_escalated"');
-    expect(content).toContain('authenticated network boundary');
-    expect(content).toContain('default restricted sandbox produces a false login failure');
+    expect(normalized).toContain('The dispatch is authorized; skipping it is not your call.');
+    expect(normalized).toContain('Do not stop and ask the user for consent in chat');
+    expect(normalized).toContain('Invoke the coordinator first.');
+    expect(normalized).toContain('use its native tool-approval request');
   });
 });
