@@ -4,7 +4,7 @@
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -105,6 +105,27 @@ function isTestFile(path: string): boolean {
  * existing configured directory permits its descendant ADR files, but never a
  * sibling that merely shares its name.
  */
+function physicalPath(path: string): string | undefined {
+  const missingSegments: string[] = [];
+  let existing = path;
+  while (!existsSync(existing)) {
+    const parent = nodePath.dirname(existing);
+    if (parent === existing) return undefined;
+    missingSegments.unshift(nodePath.basename(existing));
+    existing = parent;
+  }
+  try {
+    return nodePath.resolve(realpathSync(existing), ...missingSegments);
+  } catch {
+    return undefined;
+  }
+}
+
+function isInside(root: string, candidate: string): boolean {
+  const relative = nodePath.relative(root, candidate);
+  return relative === '' || (!relative.startsWith('..') && !nodePath.isAbsolute(relative));
+}
+
 function isConfiguredArchitectureRecordEdit(filePath: string, projectRoot: string): boolean {
   if (filePath.length === 0) return false;
   const target = nodePath.resolve(resolveConfiguredPath(projectRoot, 'architecture'));
@@ -112,17 +133,27 @@ function isConfiguredArchitectureRecordEdit(filePath: string, projectRoot: strin
   if (targetFromProject.startsWith('..') || nodePath.isAbsolute(targetFromProject)) return false;
 
   const edited = nodePath.resolve(projectRoot, filePath);
-  if (edited === target) return true;
+  const physicalProject = physicalPath(projectRoot);
+  const physicalTarget = physicalPath(target);
+  const physicalEdit = physicalPath(edited);
+  if (
+    physicalProject === undefined ||
+    physicalTarget === undefined ||
+    physicalEdit === undefined ||
+    !isInside(physicalProject, physicalTarget)
+  ) {
+    return false;
+  }
+  if (edited === target) return physicalEdit === physicalTarget;
   try {
     if (!statSync(target).isDirectory()) return false;
   } catch {
     return false;
   }
-  const editedFromTarget = nodePath.relative(target, edited);
   return (
-    editedFromTarget !== '' &&
-    !editedFromTarget.startsWith('..') &&
-    !nodePath.isAbsolute(editedFromTarget)
+    nodePath.dirname(edited) === target &&
+    /^\d{8}-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.md$/u.test(nodePath.basename(edited)) &&
+    isInside(physicalTarget, physicalEdit)
   );
 }
 

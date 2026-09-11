@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "6700830e69493bf75d517be3b28b62d7f5f991834ac6d9d09e646feb79dcb625"
+      "sha256": "cd74f705be4c5b6f47ae5e19c873ce1b89db7b311303cfc6c2f806e91e5be8fc"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
