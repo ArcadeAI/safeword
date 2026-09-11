@@ -33,6 +33,12 @@ import nodePath from 'node:path';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import { REVIEWER_CAPABILITIES } from '../packages/cli/tests/review-fixtures.ts';
+import {
+  type PlanReviewFixture,
+  reviewFocusedDecisionPath,
+} from '../packages/cli/tests/fixtures/plan-focused-reviewability.ts';
+import { PLAN_REVIEW_RUBRIC } from '../packages/cli/src/review/plan-rubric.generated.ts';
+import type { ReviewerOutput } from '../packages/cli/src/review/contract.ts';
 import { git } from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
@@ -127,6 +133,8 @@ interface PlanWorld extends SafewordWorld {
     authorObligations: string[];
     reviewerObligations: string[];
   };
+  focusedPlan?: PlanReviewFixture;
+  focusedPlanReview?: ReviewerOutput;
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +176,28 @@ const VALID_PLAN = [
   'Revisit when a second gate consumer appears.',
   '',
 ].join('\n');
+
+const FOCUSED_ARCHITECTURE = `# Implementation Plan
+
+## Architecture at a glance
+
+Gateway requests pass through one authorization boundary before resource access.
+`;
+
+const FOCUSED_DECISIONS = `
+## Decision-bearing contracts
+
+Failure posture: deny resource access when current authorization cannot be established.
+Consequence: authorization outages deny resource access instead of risking exposure.
+
+## Operational risks
+
+Stale authorization could expose a resource after tool access is revoked.
+
+## Unresolved authority
+
+Product must decide whether denied reads are visible in the activity log.
+`;
 
 function ticketContent(options: { phase: string; type?: string; skips?: string[] }): string {
   const lines = [
@@ -689,6 +719,55 @@ Given(
   },
 );
 
+Given(/^an Implementation Plan with (.+)$/u, function (this: PlanWorld, presentation: string) {
+  const buried = (lead: string) =>
+    `${FOCUSED_ARCHITECTURE.replace('## Architecture at a glance', `${lead}\n\n## Architecture at a glance`)}${FOCUSED_DECISIONS}`;
+  switch (presentation) {
+    case 'a decision summary buried beneath step-by-step coding instructions and repeated test evidence':
+      this.focusedPlan = {
+        plan: buried(
+          '## Approach\n\n1. Create the authorization service.\n2. Run the gateway integration test.\n\nEvidence: gateway test passed.\nEvidence: gateway test passed again.',
+        ),
+      };
+      break;
+    case 'a decision summary buried beneath a repeated test-by-test evidence ledger with no execution instructions':
+      this.focusedPlan = {
+        plan: buried(
+          '## Evidence ledger\n\nEvidence: gateway request test passed.\nEvidence: authorization failure test passed.',
+        ),
+      };
+      break;
+    case 'an architecture-at-a-glance mental model followed by decision-bearing contracts, operational risks, and unresolved authority with supporting detail linked':
+      this.focusedPlan = {
+        plan: `${FOCUSED_ARCHITECTURE}${FOCUSED_DECISIONS}\nSupporting detail: linked-design.md\n`,
+        linkedDetail: '# Supporting design\n\nThe denial response uses the unavailable status.\n',
+      };
+      break;
+    case 'decision-bearing contracts, operational risks, and unresolved authority in the main review path but no architecture-at-a-glance mental model':
+      this.focusedPlan = { plan: `# Implementation Plan\n${FOCUSED_DECISIONS}` };
+      break;
+    case 'a short summary that opens with the architecture-at-a-glance mental model, names a load-bearing failure-posture decision and its consequence, and links only fuller subordinate detail':
+      this.focusedPlan = {
+        plan: `${FOCUSED_ARCHITECTURE}${FOCUSED_DECISIONS}\nSupporting detail: linked-design.md\n`,
+        linkedDetail:
+          '# Supporting design\n\nThe denial response uses the existing unavailable status.\n',
+      };
+      break;
+    default:
+      assert.fail(`unknown focused-review presentation: ${presentation}`);
+  }
+});
+
+Given(
+  'a short Implementation Plan summary with a load-bearing failure-posture decision recorded nowhere in the plan or its linked detail',
+  function (this: PlanWorld) {
+    this.focusedPlan = {
+      plan: `${FOCUSED_ARCHITECTURE}\n## Decision-bearing contracts\n\nAuthorization is checked per request.\n\nSupporting detail: linked-design.md\n`,
+      linkedDetail: '# Supporting design\n\nThe gateway uses the shared authorization service.\n',
+    };
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Givens — shipped documents, manifest, and record
 // ---------------------------------------------------------------------------
@@ -853,6 +932,11 @@ When('the plan is submitted for semantic review', SUBPROCESS, function (this: Pl
   });
   assert.equal(result.status, 0, result.stderr);
   this.planContractReview = JSON.parse(result.stdout) as PlanWorld['planContractReview'];
+});
+
+When('its focused decision review is completed', function (this: PlanWorld) {
+  assert.ok(this.focusedPlan, 'the focused-review plan fixture was not arranged');
+  this.focusedPlanReview = reviewFocusedDecisionPath(PLAN_REVIEW_RUBRIC, this.focusedPlan);
 });
 
 When(
@@ -1036,6 +1120,51 @@ Then(
     );
     assert.match(this.cli.output, /generate:plan-rubric/);
     assert.notEqual(this.cli.exitCode, 0);
+  },
+);
+
+Then('the plan fails focused reviewability', function (this: PlanWorld) {
+  assert.equal(this.focusedPlanReview?.verdict, 'request_changes');
+});
+
+Then('the plan passes focused reviewability', function (this: PlanWorld) {
+  assert.equal(
+    this.focusedPlanReview?.verdict,
+    'approve',
+    this.focusedPlanReview?.findings.map(finding => finding.message).join('\n'),
+  );
+});
+
+Then(
+  'the plan fails focused reviewability because it does not open with an architecture-at-a-glance mental model',
+  function (this: PlanWorld) {
+    assert.equal(this.focusedPlanReview?.verdict, 'request_changes');
+    assert.match(
+      this.focusedPlanReview?.findings.map(finding => finding.message).join('\n') ?? '',
+      /architecture-at-a-glance mental model/,
+    );
+  },
+);
+
+Then(
+  'the plan passes focused reviewability because the decision remains in the main review path',
+  function (this: PlanWorld) {
+    assert.equal(
+      this.focusedPlanReview?.verdict,
+      'approve',
+      this.focusedPlanReview?.findings.map(finding => finding.message).join('\n'),
+    );
+  },
+);
+
+Then(
+  'the plan fails focused reviewability because that decision is absent from the review path',
+  function (this: PlanWorld) {
+    assert.equal(this.focusedPlanReview?.verdict, 'request_changes');
+    assert.match(
+      this.focusedPlanReview?.findings.map(finding => finding.message).join('\n') ?? '',
+      /failure-posture decision and its consequence are absent/,
+    );
   },
 );
 
