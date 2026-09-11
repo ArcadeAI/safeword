@@ -18,6 +18,7 @@
 import { strict as assert } from 'node:assert';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
+  chmodSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -32,6 +33,7 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { REVIEWER_CAPABILITIES } from '../packages/cli/tests/review-fixtures.ts';
 import { git } from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
@@ -116,6 +118,9 @@ interface PlanWorld extends SafewordWorld {
   promptOutput?: string;
   cli?: { exitCode: number; output: string };
   installedCliPath?: string;
+  controlInstalledCliPath?: string;
+  reviewerBinDirectory?: string;
+  reviewerLaunchLog?: string;
   planContractState?: string;
   planContractReview?: {
     verdict: string;
@@ -491,6 +496,9 @@ After(function (this: PlanWorld) {
   if (this.projectDirectory !== undefined) {
     rmSync(this.projectDirectory, { recursive: true, force: true });
   }
+  if (this.reviewerBinDirectory !== undefined) {
+    rmSync(this.reviewerBinDirectory, { recursive: true, force: true });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -551,14 +559,25 @@ Given(
     createProject(this);
     seedTicket(this, { phase: 'plan-implementation', spec: true });
     writeFileSync(ticketArtifact(this, 'impl-plan.md'), VALID_PLAN);
-    writeFileSync(
-      nodePath.join(this.projectDirectory!, '.safeword', 'config.json'),
-      `${JSON.stringify({ crossAgentReview: 'off' }, undefined, 2)}\n`,
+    const controlPluginRoot = nodePath.join(this.projectDirectory!, 'control-codex-plugin');
+    const missingPluginRoot = nodePath.join(this.projectDirectory!, 'missing-codex-plugin');
+    cpSync(CODEX_PLUGIN_ROOT, controlPluginRoot, { recursive: true });
+    cpSync(CODEX_PLUGIN_ROOT, missingPluginRoot, { recursive: true });
+    unlinkSync(nodePath.join(missingPluginRoot, 'skills/bdd/references/PLAN_IMPLEMENTATION.md'));
+    this.controlInstalledCliPath = nodePath.join(controlPluginRoot, 'runtime/cli.js');
+    this.installedCliPath = nodePath.join(missingPluginRoot, 'runtime/cli.js');
+
+    this.reviewerBinDirectory = mkdtempSync(
+      nodePath.join(nodeOs.tmpdir(), 'plan-contract-cucumber-'),
     );
-    const pluginRoot = nodePath.join(this.projectDirectory!, 'codex-plugin');
-    cpSync(CODEX_PLUGIN_ROOT, pluginRoot, { recursive: true });
-    unlinkSync(nodePath.join(pluginRoot, 'skills/bdd/references/PLAN_IMPLEMENTATION.md'));
-    this.installedCliPath = nodePath.join(pluginRoot, 'runtime/cli.js');
+    chmodSync(this.reviewerBinDirectory, 0o700);
+    this.reviewerLaunchLog = nodePath.join(this.projectDirectory!, 'reviewer-launch.log');
+    const reviewer = nodePath.join(this.reviewerBinDirectory, 'claude');
+    writeFileSync(
+      reviewer,
+      `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then\n  echo '${REVIEWER_CAPABILITIES.claude}'\n  exit 0\nfi\nprintf 'invoked\\n' >> "$SAFEWORD_REVIEW_LAUNCH_LOG"\npayload=$(/bin/cat)\ndispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"The plan is otherwise reviewable.","findings":[]}\\n' "$dispatch_id"\n`,
+    );
+    chmodSync(reviewer, 0o755);
   },
 );
 
@@ -832,24 +851,40 @@ When(
   SUBPROCESS,
   function (this: PlanWorld) {
     assert.ok(this.installedCliPath, 'the packaged Safeword CLI was not arranged');
-    const result = spawnSync(
-      'bun',
-      [
-        this.installedCliPath,
-        'review',
-        'run',
-        'plan-implementation',
-        '--agent-handoff',
-        '--json',
-        '--',
-        ticketArtifact(this, 'impl-plan.md'),
-      ],
-      {
-        cwd: this.projectDirectory,
-        encoding: 'utf8',
-        env: { ...process.env, CLAUDE_PROJECT_DIR: this.projectDirectory },
-      },
-    );
+    assert.ok(this.controlInstalledCliPath, 'the control packaged CLI was not arranged');
+    assert.ok(this.reviewerBinDirectory, 'the deterministic reviewer was not arranged');
+    assert.ok(this.reviewerLaunchLog, 'the reviewer launch log was not arranged');
+    const run = (cliPath: string) =>
+      spawnSync(
+        'bun',
+        [
+          cliPath,
+          'review',
+          'run',
+          'plan-implementation',
+          '--json',
+          '--',
+          nodePath.relative(this.projectDirectory!, ticketArtifact(this, 'impl-plan.md')),
+        ],
+        {
+          cwd: this.projectDirectory,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            CLAUDE_PROJECT_DIR: this.projectDirectory,
+            NODE_ENV: 'test',
+            PATH: `${this.reviewerBinDirectory}:${process.env.PATH ?? ''}`,
+            SAFEWORD_AGENT_RUNTIME: 'codex',
+            SAFEWORD_REVIEW_LAUNCH_LOG: this.reviewerLaunchLog,
+          },
+        },
+      );
+    const control = run(this.controlInstalledCliPath);
+    assert.equal(control.status, 0, `${control.stdout ?? ''}\n${control.stderr ?? ''}`);
+    assert.match(control.stdout, /"status":"approved"/);
+    assert.match(readFileSync(this.reviewerLaunchLog, 'utf8'), /invoked/);
+
+    const result = run(this.installedCliPath);
     this.cli = {
       exitCode: result.status ?? 1,
       output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim(),
