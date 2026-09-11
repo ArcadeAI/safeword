@@ -23,6 +23,10 @@ export const FOCUSED_REVIEW_REQUIREMENTS = [
     pattern: /plan names the decision and its consequence/u,
   },
   {
+    name: 'missing load-bearing decision is blocked',
+    pattern: /Block a missing mental model or load-bearing decision/u,
+  },
+  {
     name: 'removable execution and evidence detail',
     pattern: /step-by-step coding instructions or repeated test evidence/u,
   },
