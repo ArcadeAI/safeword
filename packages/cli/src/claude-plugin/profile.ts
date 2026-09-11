@@ -721,6 +721,7 @@ function replaceStaleMarketplace(
   const configDirectory = claudeConfigDirectory();
   const marketplacePath = nodePath.join(configDirectory, 'plugins/marketplaces', MARKETPLACE_NAME);
   if (
+    !existsSync(marketplacePath) ||
     canonicalDirectory(registryEntry.installLocation) !== canonicalDirectory(marketplacePath) ||
     !lstatSync(marketplacePath).isDirectory()
   ) {
@@ -1097,10 +1098,11 @@ export function observeClaudeProfile(
 
 export function claudeInstallRequiresMutation(cwd: string, scope: ClaudePluginScope): boolean {
   try {
-    if (observeClaudeProfile(cwd, scope).health !== 'current') return true;
-    const marketplace = observeMarketplace(cwd, scope, []);
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
+    if (observeClaudeProfile(projectRoot, scope).health !== 'current') return true;
+    const marketplace = observeMarketplace(projectRoot, scope, []);
     if (!marketplaceIsCurrent(marketplace)) return true;
-    const settings = readScopedSettings(cwd, scope);
+    const settings = readScopedSettings(projectRoot, scope);
     const declaration = marketplace.declaration;
     if (!isJsonObject(settings) || declaration === undefined) return true;
     const autoUpdatePreference = marketplaceAutoUpdatePreference(declaration, scope);

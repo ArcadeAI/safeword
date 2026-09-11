@@ -107,3 +107,6 @@ metadata lag (the marketplace checkout itself never moved).
   host/filesystem failures and made restore failures return the explicit
   rollback-failed result. A targeted injected checkout-restore failure proves
   the result remains truthful when exact restoration cannot complete.
+- 2026-09-11T03:12:00.000Z Focused confirmation: aligned mutation planning with
+  installation's canonical project root and added a nested-directory regression.
+  Missing marketplace checkouts now return the intended diagnostic.

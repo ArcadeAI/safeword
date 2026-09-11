@@ -54692,7 +54692,7 @@ function replaceStaleMarketplace(cwd, scope, effects) {
   }
   const configDirectory = claudeConfigDirectory();
   const marketplacePath = nodePath82.join(configDirectory, "plugins/marketplaces", MARKETPLACE_NAME);
-  if (canonicalDirectory(registryEntry.installLocation) !== canonicalDirectory(marketplacePath) || !lstatSync16(marketplacePath).isDirectory()) {
+  if (!existsSync38(marketplacePath) || canonicalDirectory(registryEntry.installLocation) !== canonicalDirectory(marketplacePath) || !lstatSync16(marketplacePath).isDirectory()) {
     throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude marketplace checkout is missing or outside the expected profile location.");
   }
   const installedPlugins = captureFile(nodePath82.join(configDirectory, "plugins/installed_plugins.json"));
@@ -54956,12 +54956,13 @@ function observeClaudeProfile(cwd, scope) {
 }
 function claudeInstallRequiresMutation(cwd, scope) {
   try {
-    if (observeClaudeProfile(cwd, scope).health !== "current")
+    const projectRoot = canonicalClaudeProjectRoot(cwd);
+    if (observeClaudeProfile(projectRoot, scope).health !== "current")
       return true;
-    const marketplace = observeMarketplace(cwd, scope, []);
+    const marketplace = observeMarketplace(projectRoot, scope, []);
     if (!marketplaceIsCurrent(marketplace))
       return true;
-    const settings = readScopedSettings(cwd, scope);
+    const settings = readScopedSettings(projectRoot, scope);
     const declaration = marketplace.declaration;
     if (!isJsonObject(settings) || declaration === undefined)
       return true;

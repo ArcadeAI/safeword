@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('node:fs', { spy: true });
 
 import {
+  claudeInstallRequiresMutation,
   installClaudePlugin,
   observeApplicableClaudePlugins,
 } from '../../src/claude-plugin/profile.js';
@@ -347,6 +348,16 @@ afterEach(() => {
 });
 
 describe('Claude marketplace update enrollment', () => {
+  it('plans project-scope installation from the canonical project root', () => {
+    const { project } = fixture(true, OFFICIAL_MARKETPLACE_REF, {
+      CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1',
+    });
+    const nestedDirectory = nodePath.join(project, 'packages/example');
+    mkdirSync(nestedDirectory, { recursive: true });
+
+    expect(claudeInstallRequiresMutation(nestedDirectory, 'project')).toBe(false);
+  });
+
   it('reports a missing Claude host with an installation action', () => {
     const root = createTemporaryDirectory();
     const project = nodePath.join(root, 'project');
