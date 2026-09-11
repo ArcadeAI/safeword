@@ -43,7 +43,7 @@ prove real installed CLI wiring.
 ### Scenario: A load-bearing decision cannot disappear from the review path
 
 - [x] RED 9ad2d2518
-- [ ] GREEN
+- [x] GREEN 2e01fc849
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
