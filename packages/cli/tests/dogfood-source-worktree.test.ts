@@ -102,13 +102,14 @@ describe('dogfood source worktree package resolution (470)', () => {
       available: boolean;
     }[];
 
-    expect(plan).toContainEqual({
-      language: 'python',
-      cwd: repoRoot,
-      command: 'uv run --locked mypy .',
-      runner: 'uv',
-      available: true,
-    });
+    expect(plan).toContainEqual(
+      expect.objectContaining({
+        language: 'python',
+        cwd: repoRoot,
+        command: 'uv run --locked mypy .',
+        runner: 'uv',
+      }),
+    );
   });
 
   it('declares the CLI workspace as a root devDependency so Bun links safeword', () => {

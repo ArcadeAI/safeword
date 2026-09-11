@@ -1602,8 +1602,9 @@ async function runVerification(
     stateHash: createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex'),
     ...(failures.length === 0 ? {} : { failures }),
   };
-  if (verification.current && verification.passed)
-    verification.passed = passedVerification(root, headOid, verification.stateHash).passed;
+  if (verification.current && verification.passed) {
+    return passedVerification(root, headOid, verification.stateHash);
+  }
   return verification;
 }
 

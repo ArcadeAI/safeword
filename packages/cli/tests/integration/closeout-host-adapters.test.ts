@@ -1276,9 +1276,9 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
   }, 30_000);
 
-  it('blocks every cleanup operation when durable receipt publication fails', () => {
+  it('reports receipt publication failure after local verification succeeds', () => {
     const fixture = deliveryFixture();
-    installBoundaryFakes(fixture);
+    installBoundaryFakes(fixture, false);
     const sandbox = nodePath.dirname(fixture.bare);
     const id = 'claude-receipt-publication-failure';
     const transcript = nodePath.join(sandbox, `${id}.jsonl`);

@@ -18,6 +18,7 @@ Evidence:
 - Verification drains normal output after process exit, then settles after a bounded grace period when a descendant inherits its output pipe.
 - Timeout handling has its own bounded settlement path even if process-tree termination never produces an exit event.
 - Production host-adapter coverage asserts the exact failed-command and unavailable-runner blockers end to end.
+- Receipt publication failure keeps its specific blocker after both hosted-CI trust and fresh local verification paths.
 - Generated Claude and Codex plugin assets were regenerated and parity-checked.
 - Refactoring made the failure list the single verdict source and isolated per-lane execution without changing behavior; timing-based assertions were removed.
 - Diff-scoped audit reports no change-scoped architecture, domain-reference, or test-quality error; unrelated historical principle-trace and Python experiment findings remain outside this ticket.
