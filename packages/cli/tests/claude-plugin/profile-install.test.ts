@@ -714,6 +714,27 @@ describe('Claude marketplace update enrollment', () => {
     expect(readFileSync(installedPluginsPath, 'utf8')).toBe(pluginsBefore);
   });
 
+  it('reports completed effects when restoring a replaced checkout fails', async () => {
+    const { project } = fixture(true, 'v0.83.1', undefined, {
+      installedVersion: '0.83.1',
+      unexpectedPayload: true,
+    });
+    const actualFileSystem = await vi.importActual<{ cpSync: typeof cpSync }>('node:fs');
+    vi.mocked(cpSync).mockImplementation((source, destination, options) => {
+      if (String(source).includes('safeword-claude-marketplace-')) {
+        throw Object.assign(new Error('injected checkout restore failure'), { code: 'EIO' });
+      }
+      actualFileSystem.cpSync(source, destination, options);
+    });
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors?.[0]?.code).toBe('CLAUDE_PLUGIN_ROLLBACK_FAILED');
+    expect(result.changed).toBe(true);
+    expect(result.effects?.configuration).not.toEqual([]);
+  });
+
   it('refuses a plugin downgrade before replacing the marketplace', () => {
     const { log, project } = fixture(true, 'v0.83.1', undefined, {
       installedVersion: '9.0.0',

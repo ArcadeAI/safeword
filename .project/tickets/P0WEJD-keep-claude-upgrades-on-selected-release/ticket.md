@@ -103,3 +103,7 @@ metadata lag (the marketplace checkout itself never moved).
   into the replacement transaction so later plugin or payload failures report
   the fully restored profile as unchanged. Added a discriminating payload-failure
   regression and scoped marketplace removal to the selected profile.
+- 2026-09-11T03:02:00.000Z Confirmation review: preserved live effects for raw
+  host/filesystem failures and made restore failures return the explicit
+  rollback-failed result. A targeted injected checkout-restore failure proves
+  the result remains truthful when exact restoration cannot complete.

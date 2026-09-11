@@ -54538,13 +54538,13 @@ function applicableSafewordPlugins(entries, cwd) {
     return entry.id === CLAUDE_PLUGIN_ID && (scope === "user" || scope === "project" && canonicalDirectory(entry.projectPath) === cwd);
   });
 }
-function failedResult(error2, scope) {
+function failedResult(error2, scope, effects = []) {
   let failure;
   if (error2 instanceof ClaudeProfileError)
     failure = error2;
   else {
     const message = error2 instanceof Error ? error2.message : String(error2);
-    failure = new ClaudeProfileError("CLAUDE_PLUGIN_INSTALL_FAILED", message);
+    failure = new ClaudeProfileError("CLAUDE_PLUGIN_INSTALL_FAILED", message, effects);
   }
   let classification = "errored";
   let nextAction2 = "safeword install --agents=claude";
@@ -54592,6 +54592,15 @@ function failedResult(error2, scope) {
     ],
     data: { command: "claude install", classification }
   });
+}
+function rollbackMarketplaceReplacement(replacement, effects) {
+  if (replacement === undefined)
+    return;
+  try {
+    replacement.rollback();
+  } catch (error2) {
+    throw new ClaudeProfileError("CLAUDE_PLUGIN_ROLLBACK_FAILED", `Claude upgrade failed and the prior profile could not be restored: ${error2 instanceof Error ? error2.message : String(error2)}`, effects);
+  }
 }
 function observeMarketplace(cwd, scope, effects) {
   const declaration = scopedMarketplaceDeclaration(cwd, scope);
@@ -54753,9 +54762,7 @@ function ensureMarketplace(cwd, scope, effects) {
     }
     enableMarketplaceAutoUpdate(cwd, scope, effects);
   } catch (error2) {
-    if (replacement !== undefined) {
-      replacement.rollback();
-    }
+    rollbackMarketplaceReplacement(replacement, effects);
     throw error2;
   }
   return replacement;
@@ -54996,10 +55003,10 @@ function installClaudePlugin(cwd, scope = "project") {
     });
   } catch (error2) {
     try {
-      marketplaceReplacement?.rollback();
-      return failedResult(error2, scope);
+      rollbackMarketplaceReplacement(marketplaceReplacement, effects);
+      return failedResult(error2, scope, effects);
     } catch (rollbackError) {
-      return failedResult(new ClaudeProfileError("CLAUDE_PLUGIN_ROLLBACK_FAILED", `Claude upgrade failed and the prior profile could not be restored: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`, effects), scope);
+      return failedResult(new ClaudeProfileError("CLAUDE_PLUGIN_ROLLBACK_FAILED", `Claude upgrade failed and the prior profile could not be restored: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`, effects), scope, effects);
     }
   }
 }

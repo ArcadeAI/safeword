@@ -25,7 +25,7 @@ documentation, and test-quality checks.
 | Claude profile upgrade | Isolated public `0.83.1` profile upgraded through the patched CLI to `1.0.0-rc.2`, retained customer data, and converged to a no-op | Pass |
 | RC.3 release package | `bun run test:release` plus generated Claude/Codex artifact checks | 73/73 pass |
 
-After the review fixes, all 29 Claude profile integration tests and 35 focused
+After the review fixes, all 30 Claude profile integration tests and 35 focused
 Claude lifecycle scenarios (1,646 steps) pass. Rollback tests now prove both
 exact state restoration and truthful unchanged/effect reporting, including a
 failure after marketplace replacement completes.

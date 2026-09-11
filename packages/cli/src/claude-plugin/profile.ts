@@ -490,12 +490,16 @@ const DIAGNOSTIC_FAILURES: Readonly<
   },
 };
 
-function failedResult(error: unknown, scope: ClaudePluginScope): CliResult {
+function failedResult(
+  error: unknown,
+  scope: ClaudePluginScope,
+  effects: readonly Effect[] = [],
+): CliResult {
   let failure: ClaudeProfileError;
   if (error instanceof ClaudeProfileError) failure = error;
   else {
     const message = error instanceof Error ? error.message : String(error);
-    failure = new ClaudeProfileError('CLAUDE_PLUGIN_INSTALL_FAILED', message);
+    failure = new ClaudeProfileError('CLAUDE_PLUGIN_INSTALL_FAILED', message, effects);
   }
   let classification = 'errored';
   let nextAction = 'safeword install --agents=claude';
@@ -555,6 +559,22 @@ interface MarketplaceObservation {
 interface MarketplaceReplacement {
   readonly commit: () => void;
   readonly rollback: () => void;
+}
+
+function rollbackMarketplaceReplacement(
+  replacement: MarketplaceReplacement | undefined,
+  effects: readonly Effect[],
+): void {
+  if (replacement === undefined) return;
+  try {
+    replacement.rollback();
+  } catch (error) {
+    throw new ClaudeProfileError(
+      'CLAUDE_PLUGIN_ROLLBACK_FAILED',
+      `Claude upgrade failed and the prior profile could not be restored: ${error instanceof Error ? error.message : String(error)}`,
+      effects,
+    );
+  }
 }
 
 interface FileSnapshot {
@@ -812,9 +832,7 @@ function ensureMarketplace(
     }
     enableMarketplaceAutoUpdate(cwd, scope, effects);
   } catch (error) {
-    if (replacement !== undefined) {
-      replacement.rollback();
-    }
+    rollbackMarketplaceReplacement(replacement, effects);
     throw error;
   }
   return replacement;
@@ -1135,8 +1153,8 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
     });
   } catch (error) {
     try {
-      marketplaceReplacement?.rollback();
-      return failedResult(error, scope);
+      rollbackMarketplaceReplacement(marketplaceReplacement, effects);
+      return failedResult(error, scope, effects);
     } catch (rollbackError) {
       return failedResult(
         new ClaudeProfileError(
@@ -1145,6 +1163,7 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
           effects,
         ),
         scope,
+        effects,
       );
     }
   }
