@@ -2,7 +2,7 @@
 id: G1C9PP
 slug: approve-coherent-implementation-plans
 type: feature
-phase: plan-implementation
+phase: implement
 status: in_progress
 phase_skips:
   - "intake: inherited the user's 2026-09-09 acceptance of the refreshed 82T411 Product Plan and its current parent contract"
@@ -39,7 +39,7 @@ parent: 82T411
 parent_job: plan-implementability.TBU1
 milestone: M1
 created: 2026-09-08T17:36:33.419Z
-last_modified: 2026-09-10T23:49:31.000Z
+last_modified: 2026-09-11T00:33:52.174Z
 parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afac25da34a
 ---
 
