@@ -155,6 +155,98 @@ interface PlanWorld extends SafewordWorld {
   planOfRecordReview?: ReviewerOutput;
 }
 
+const EVIDENCE_REFERENCE = 'https://spec.commonmark.org/0.31.2/';
+const EVIDENCE_DATE = '2026-09-10';
+const EVIDENCE_PRESENTATIONS = [
+  'the decision, alternative, losing reason, evidence reference, retrieval date, and applicable version in the packaged table',
+  'the same complete information in concise prose and bullets',
+  'prose that omits the evidence reference',
+  'prose that omits the applicable version',
+  'prose that omits the retrieval date',
+] as const;
+
+function evidencePresentationPlan(presentation: string): string {
+  assert.ok(
+    EVIDENCE_PRESENTATIONS.includes(presentation as (typeof EVIDENCE_PRESENTATIONS)[number]),
+    `unknown evidence presentation: ${presentation}`,
+  );
+  const table = [
+    '### Implementation Inspiration',
+    '',
+    '| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    `| ${EVIDENCE_REFERENCE} | ${EVIDENCE_DATE} | 0.31.2 | 0.31.2 | Exact grammar | Keep exact records | Strict subset only |`,
+    '',
+    '**Decision impact:** retained: exact records fit the design',
+    '**Decision informed:** parser boundary',
+    '',
+    '### Recorded Decisions',
+    '',
+    '| Decision | Choice | Alternatives considered | Rejected because |',
+    '| --- | --- | --- | --- |',
+    `| parser boundary | ${EVIDENCE_REFERENCE} | full Markdown | the strict subset is easier to audit |`,
+  ].join('\n');
+  const prose = [
+    '### Recorded Decisions',
+    '',
+    '- **Decision:** parser boundary',
+    '- **Choice:** keep an exact record grammar',
+    '- **Alternative considered:** full Markdown',
+    '- **Rejected because:** the strict subset is easier to audit',
+    `- **Evidence reference:** ${EVIDENCE_REFERENCE}`,
+    `- **Retrieval date:** ${EVIDENCE_DATE}`,
+    '- **Applicable version:** 0.31.2',
+  ];
+  const decisions =
+    presentation ===
+    'the decision, alternative, losing reason, evidence reference, retrieval date, and applicable version in the packaged table'
+      ? table
+      : prose
+          .filter(line => {
+            if (presentation === 'prose that omits the evidence reference') {
+              return !line.includes('Evidence reference:');
+            }
+            if (presentation === 'prose that omits the applicable version') {
+              return !line.includes('Applicable version:');
+            }
+            if (presentation === 'prose that omits the retrieval date') {
+              return !line.includes('Retrieval date:');
+            }
+            return true;
+          })
+          .join('\n');
+  return [
+    '# Impl Plan: Evidence presentation',
+    '',
+    '**Status:** planned',
+    `**Planned on:** ${EVIDENCE_DATE}`,
+    '',
+    '## Approach',
+    '',
+    'Riskiest assumption: the installed gate reads either supported presentation.',
+    '',
+    '## Decisions',
+    '',
+    decisions,
+    '',
+    '## Design alignment',
+    '',
+    'Architecture applicability: skip: no shared contract consequence',
+    '',
+    '## Known deviations',
+    '',
+    'skip: no deviations planned',
+    '',
+    '## Doc impact',
+    '',
+    'skip: fixture-only behavior',
+    '',
+    '## Assessment triggers',
+    '',
+    'Revisit when evidence grammar changes.',
+  ].join('\n');
+}
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -834,6 +926,47 @@ Given(
 );
 
 Given(
+  /^an Implementation Plan records (the decision, alternative, losing reason, evidence reference, retrieval date, and applicable version in the packaged table|the same complete information in concise prose and bullets|prose that omits the evidence reference|prose that omits the applicable version|prose that omits the retrieval date)$/u,
+  SUBPROCESS,
+  function (this: PlanWorld, evidencePresentation: string) {
+    createProject(this);
+    installProjectHooks(this);
+    writeFileSync(
+      ticketArtifact(this, 'ticket.md'),
+      [
+        '---',
+        `id: ${TICKET_ID}`,
+        'type: feature',
+        'phase: plan-implementation',
+        'status: in_progress',
+        `created: ${EVIDENCE_DATE}T00:00:00.000Z`,
+        'inspiration_contract: v1',
+        'inspiration_contract_scaffold: v1',
+        'scope:',
+        '  - verify decision evidence presentation',
+        'out_of_scope:',
+        '  - unrelated behavior',
+        'done_when:',
+        '  - the installed gate reports evidence omissions',
+        '---',
+        '',
+        '# Evidence presentation fixture',
+      ].join('\n'),
+    );
+    writeFileSync(
+      ticketArtifact(this, 'spec.md'),
+      '<!-- safeword:inspiration-contract:v1 -->\n# Spec: Evidence presentation\n',
+    );
+    assertInstalledPlanGateIsLive(this);
+    writeFileSync(
+      ticketArtifact(this, 'impl-plan.md'),
+      evidencePresentationPlan(evidencePresentation),
+    );
+    this.ticketPhase = 'plan-implementation';
+  },
+);
+
+Given(
   /^real project configuration resolves its durable architecture location as (.+)$/u,
   function (this: PlanWorld, architectureLocation: string) {
     createProject(this);
@@ -1172,6 +1305,55 @@ When(
   },
 );
 
+When(
+  'those structural and semantic evidence checks run through the installed Safeword CLI',
+  SUBPROCESS,
+  function (this: PlanWorld) {
+    assert.ok(this.installedCliPath, 'the packaged Safeword CLI was not installed');
+    const result = spawnSync(
+      'bun',
+      [this.installedCliPath, 'hook', 'codex', 'pre-tool-use', '--plugin-hook'],
+      {
+        cwd: this.projectDirectory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: this.projectDirectory },
+        input: JSON.stringify({
+          hook_event_name: 'PreToolUse',
+          session_id: SESSION_ID,
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: ticketArtifact(this, 'ticket.md'),
+            old_string: 'phase: plan-implementation',
+            new_string: 'phase: implement',
+          },
+        }),
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const output = (result.stdout ?? '').trim();
+    if (output === '') {
+      this.verdict = { decision: 'allow', text: '' };
+      return;
+    }
+    const parsed = JSON.parse(output) as {
+      systemMessage?: string;
+      hookSpecificOutput?: {
+        permissionDecision?: string;
+        permissionDecisionReason?: string;
+        additionalContext?: string;
+      };
+    };
+    this.verdict = {
+      decision: parsed.hookSpecificOutput?.permissionDecision === 'deny' ? 'deny' : 'allow',
+      text: [
+        parsed.hookSpecificOutput?.permissionDecisionReason ?? '',
+        parsed.hookSpecificOutput?.additionalContext ?? '',
+        parsed.systemMessage ?? '',
+      ].join('\n'),
+    };
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Whens — document reads
 // ---------------------------------------------------------------------------
@@ -1416,6 +1598,31 @@ Then('data ownership consistency does not block approval', function (this: PlanW
     this.dataOwnershipReview?.findings.map(finding => finding.message).join('\n'),
   );
 });
+
+Then('eligible for semantic review', function (this: PlanWorld) {
+  assert.equal(
+    this.verdict?.decision,
+    'allow',
+    `complete evidence should reach semantic review:\n${this.verdict?.text ?? ''}`,
+  );
+});
+
+Then(
+  /^blocked by the structural check with the missing (evidence reference|applicable version|retrieval date) named$/u,
+  function (this: PlanWorld, missingField: string) {
+    assert.equal(this.verdict?.decision, 'deny', 'incomplete evidence must be blocked');
+    const reason = this.verdict?.text?.split('\n')[0] ?? '';
+    assert.match(
+      reason,
+      new RegExp(`Implementation decision evidence is missing the ${missingField}\\.`, 'iu'),
+    );
+    for (const presentField of ['evidence reference', 'applicable version', 'retrieval date']) {
+      if (presentField !== missingField) {
+        assert.doesNotMatch(reason, new RegExp(presentField, 'iu'));
+      }
+    }
+  },
+);
 
 Then(
   'the architecture-record edit is permitted so a significant decision can be recorded before review',
