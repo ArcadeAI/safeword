@@ -2,10 +2,10 @@
 id: 5H7NA3
 slug: run-reviews-without-approval-prompts
 type: task
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-09-10T23:06:30.082Z
-last_modified: 2026-09-11T23:37:16Z
+last_modified: 2026-09-11T23:50:08Z
 ---
 
 # Run trusted review routes without approval prompts
@@ -92,3 +92,9 @@ last_modified: 2026-09-11T23:37:16Z
   `REVIEW_JOB_NOT_FOUND` for the synthetic ID, and reported no network or file effects. The effective
   Codex config still sets the combined Arcade/Bosslevel server to automatic approval and contains no
   general sandbox network-access override; the session sandbox remains network-restricted.
+- 2026-09-11T23:50:08Z Closing verification: Focused review parity remains green at 44/44,
+  generated plugins are current, type checking passes across the monorepo, and the live approval
+  boundary is green. Full repository verification is locally limited: relay tests cannot bind
+  `127.0.0.1` in the Codex sandbox (`EPERM`), and the website build lacks the optional native
+  `@bruits/satteri-darwin-arm64` package. These failures are outside this ticket's diff and do not
+  contradict the bounded live proof.
