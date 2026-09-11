@@ -139,6 +139,15 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     expect(entryFor(plan, 'python')).toBeUndefined();
   });
 
+  it('ignores python test files inside a project uv environment', () => {
+    const root = makeRepo({
+      'requirements.txt': 'gepa==0.1.1\n',
+      '.venv/lib/python3.12/site-packages/pkg/test_vendored.py': 'def test_x():\n    assert True\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')).toBeUndefined();
+  });
+
   it('detects pytest configured via setup.cfg [tool:pytest]', () => {
     const root = makeRepo({
       'pyproject.toml': '[project]\nname="x"\n',
@@ -154,7 +163,7 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
       'uv.lock': '',
     });
     const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('uv', 'pytest') });
-    expect(entryFor(plan, 'python')?.command).toBe('uv run pytest');
+    expect(entryFor(plan, 'python')?.command).toBe('uv run --locked pytest');
   });
 
   it('uses a workspace-root uv lock for nested Python projects', () => {
@@ -168,7 +177,10 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     );
 
     expect(python).toEqual([
-      expect.objectContaining({ cwd: nodePath.join(root, 'apps/api'), command: 'uv run pytest' }),
+      expect.objectContaining({
+        cwd: nodePath.join(root, 'apps/api'),
+        command: 'uv run --locked pytest',
+      }),
     ]);
   });
 
@@ -187,7 +199,7 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
         .filter(item => item.language === 'python')
         .map(item => [nodePath.relative(root, item.cwd), item.command]),
     ).toEqual([
-      ['apps/api', 'uv run pytest'],
+      ['apps/api', 'uv run --locked pytest'],
       ['services/legacy', 'pytest'],
     ]);
   });
@@ -637,7 +649,24 @@ describe('resolveTestPlan — typecheck plan — Python mypy/pyright (kind: type
       'uv.lock': '',
     });
     const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: onlyTools('uv') });
-    expect(entryFor(plan, 'python')?.command).toBe('uv run mypy .');
+    expect(entryFor(plan, 'python')?.command).toBe('uv run --locked mypy .');
+  });
+
+  it('keeps the uv invocation visible but unavailable when uv is missing', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[tool.mypy]\n',
+      'uv.lock': '',
+    });
+    const plan = resolveTestPlan(root, {
+      kind: 'typecheck',
+      isToolAvailable: onlyTools('mypy'),
+    });
+
+    expect(entryFor(plan, 'python')).toMatchObject({
+      command: 'uv run --locked mypy .',
+      runner: 'uv',
+      available: false,
+    });
   });
 
   // Each remaining config marker is its own branch in mypyConfigured/pyrightConfigured.

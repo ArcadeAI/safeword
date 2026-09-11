@@ -99,7 +99,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "bbe05cc0a4fdd8d63c536153b4ac872ad3db58cd5a1544a77207fcf637e4516d"
+      "sha256": "d96bc312428847de3572732b28658bec5c31d0b2ff0c1d887d5508c414e38678"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "8043c037f1631e44f263b7eed61f26568e3dc986cd316b7c4b28c32d3084c0ec"
+      "sha256": "b0c13a87e78ae88a5e08b772ffe7456b713b3dd5234cbc1974f79a6316f55805"
     },
     {
       "path": "runtime/dispatch.js",

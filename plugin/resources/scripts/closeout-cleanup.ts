@@ -71,7 +71,13 @@ export interface CloseoutObservation {
   protection: 'protected' | 'unprotected' | 'unknown';
   deliveryWorktreePath: string;
   worktrees: WorktreeIdentity[];
-  verification: { current: boolean; passed: boolean; headOid: string; stateHash: string };
+  verification: {
+    current: boolean;
+    passed: boolean;
+    headOid: string;
+    stateHash: string;
+    failures?: string[];
+  };
   retro: {
     bound: boolean;
     complete: boolean;
@@ -140,7 +146,11 @@ function collectPrerequisiteBlockers(
   if (pullRequest?.state !== 'MERGED')
     block(plan, 'the exact pull request is not confirmed merged');
   if (!observation.verification.current) block(plan, 'local verification is stale');
-  if (!observation.verification.passed) block(plan, 'local verification failed');
+  if (!observation.verification.passed) {
+    const failures = observation.verification.failures ?? [];
+    if (failures.length === 0) block(plan, 'local verification failed');
+    for (const failure of failures) block(plan, `local verification failed: ${failure}`);
+  }
   if (!observation.retro.bound)
     advise(plan, 'the current host session binding is missing or expired');
   if (observation.retro.failure === 'extraction') {
@@ -504,6 +514,28 @@ export interface VerificationProcessResult extends ProcessResult {
   timedOut: boolean;
 }
 
+export const VERIFICATION_OUTPUT_LIMIT_BYTES = 8 * 1024;
+const VERIFICATION_OUTPUT_DRAIN_TIMEOUT_MS = 100;
+
+function appendOutputTail(current: Buffer, chunk: Buffer | string): Buffer {
+  const combined = Buffer.concat([current, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
+  return combined.length <= VERIFICATION_OUTPUT_LIMIT_BYTES
+    ? combined
+    : combined.subarray(combined.length - VERIFICATION_OUTPUT_LIMIT_BYTES);
+}
+
+function boundedOutputTail(output: string): string {
+  return appendOutputTail(Buffer.alloc(0), output).toString().trim();
+}
+
+function verificationDiagnostic(result: VerificationProcessResult): string {
+  // Keep stderr last so a bounded tail retains the conventional error stream,
+  // while still preserving as much actionable stdout as the shared budget allows.
+  const streams = [result.stdout, result.stderr].filter(output => output.trim() !== '');
+  const combined = streams.join('\n');
+  return boundedOutputTail(combined);
+}
+
 function run(
   command: string,
   arguments_: string[],
@@ -554,35 +586,83 @@ export function runVerificationCommand(
   return new Promise(resolve => {
     let settled = false;
     let timedOut = false;
+    let exitStatus: number | undefined;
+    let drainTimer: NodeJS.Timeout | undefined;
+    let terminationTimer: NodeJS.Timeout | undefined;
+    let stdout: Buffer = Buffer.alloc(0);
+    let stderr: Buffer = Buffer.alloc(0);
     const child = spawn(command, [], {
       cwd,
       detached: process.platform !== 'win32',
       env: process.env,
       shell: true,
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
     const settle = (result: VerificationProcessResult): void => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (commandTimer) clearTimeout(commandTimer);
+      if (drainTimer) clearTimeout(drainTimer);
+      if (terminationTimer) clearTimeout(terminationTimer);
+      child.stdout?.destroy();
+      child.stderr?.destroy();
       resolve(result);
     };
-    child.once('error', error => {
-      settle({ status: 1, stdout: '', stderr: error.message, timedOut: false });
-    });
-    child.once('close', code => {
+    let stdoutEnded = child.stdout === null;
+    let stderrEnded = child.stderr === null;
+    const settleAfterExit = (): void => {
+      if (exitStatus === undefined || !stdoutEnded || !stderrEnded) return;
+      const timeoutMessage = timedOut ? `verification command timed out after ${timeout}ms` : '';
       settle({
-        status: timedOut ? 1 : (code ?? 1),
-        stdout: '',
-        stderr: timedOut ? `verification command timed out after ${timeout}ms` : '',
+        status: timedOut ? 1 : exitStatus,
+        stdout: stdout.toString(),
+        stderr: [stderr.toString(), timeoutMessage].filter(Boolean).join('\n'),
         timedOut,
       });
+    };
+    child.once('error', error => {
+      settle({ status: 1, stdout: stdout.toString(), stderr: error.message, timedOut: false });
     });
-    const timer = setTimeout(() => {
+    child.stdout?.on('data', chunk => {
+      stdout = appendOutputTail(stdout, chunk as Buffer);
+    });
+    child.stderr?.on('data', chunk => {
+      stderr = appendOutputTail(stderr, chunk as Buffer);
+    });
+    child.stdout?.once('end', () => {
+      stdoutEnded = true;
+      settleAfterExit();
+    });
+    child.stderr?.once('end', () => {
+      stderrEnded = true;
+      settleAfterExit();
+    });
+    child.once('exit', code => {
+      exitStatus = code ?? 1;
+      settleAfterExit();
+      if (!settled) {
+        drainTimer = setTimeout(() => {
+          stdoutEnded = true;
+          stderrEnded = true;
+          settleAfterExit();
+        }, VERIFICATION_OUTPUT_DRAIN_TIMEOUT_MS);
+      }
+    });
+    const commandTimer = setTimeout(() => {
       if (settled || child.exitCode !== null || child.signalCode !== null) return;
       timedOut = true;
       terminateProcessTree(child);
+      terminationTimer = setTimeout(() => {
+        settle({
+          status: 1,
+          stdout: stdout.toString(),
+          stderr: [stderr.toString(), `verification command timed out after ${timeout}ms`]
+            .filter(Boolean)
+            .join('\n'),
+          timedOut: true,
+        });
+      }, VERIFICATION_OUTPUT_DRAIN_TIMEOUT_MS);
     }, timeout);
   });
 }
@@ -994,6 +1074,7 @@ function runBoundRetroWindows(
 interface TestPlanEntry {
   cwd: string;
   command: string;
+  runner: string;
   available: boolean;
 }
 
@@ -1410,7 +1491,58 @@ function passedVerification(
     stateHash,
     recordedAt: new Date().toISOString(),
   });
-  return { current: true, passed, headOid, stateHash };
+  return {
+    current: true,
+    passed,
+    headOid,
+    stateHash,
+    ...(passed ? {} : { failures: ['the verification receipt could not be published'] }),
+  };
+}
+
+async function verificationFailuresForKind(
+  root: string,
+  expectedOid: string,
+  kind: (typeof POST_MERGE_VERIFICATION_KINDS)[number],
+): Promise<string[]> {
+  const planResult = runSafeword(root, [
+    'project',
+    'test-plan',
+    root,
+    '--kind',
+    kind,
+    '--format',
+    'json',
+  ]);
+  const plan = json<TestPlanEntry[]>(planResult);
+  if (!plan) {
+    const diagnostic = [planResult.stderr, planResult.stdout].find(output => output.trim() !== '');
+    return [
+      `Safeword could not resolve the ${kind} verification plan${diagnostic ? `: ${boundedOutputTail(diagnostic)}` : ''}`,
+    ];
+  }
+  if (plan.length === 0) return [`no ${kind} verification command was resolved`];
+
+  const failures: string[] = [];
+  for (const entry of plan) {
+    if (!entry.available) {
+      failures.push(
+        `runner \`${entry.runner}\` is unavailable for \`${entry.command}\` in ${entry.cwd}`,
+      );
+      continue;
+    }
+    const result = await runVerificationCommand(entry.command, entry.cwd);
+    if (result.status !== 0) {
+      const diagnostic = verificationDiagnostic(result);
+      failures.push(
+        `command \`${entry.command}\` failed in ${entry.cwd} (exit ${result.status})${diagnostic ? `: ${diagnostic}` : ''}`,
+      );
+    }
+    if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) {
+      failures.push(`HEAD changed while \`${entry.command}\` ran in ${entry.cwd}`);
+    }
+  }
+  return failures;
 }
 
 async function runVerification(
@@ -1457,38 +1589,26 @@ async function runVerification(
         };
   }
   // A fresh verdict is trustworthy only if the stale receipt was invalidated.
-  let passed = invalidateVerificationReceipt(root);
+  const failures: string[] = invalidateVerificationReceipt(root)
+    ? []
+    : ['the stale verification receipt could not be removed'];
   for (const kind of POST_MERGE_VERIFICATION_KINDS) {
-    const planResult = runSafeword(root, [
-      'project',
-      'test-plan',
-      root,
-      '--kind',
-      kind,
-      '--format',
-      'json',
-    ]);
-    const plan = json<TestPlanEntry[]>(planResult);
-    if (!plan || plan.length === 0 || plan.some(entry => !entry.available)) {
-      passed = false;
-      continue;
-    }
-    for (const entry of plan) {
-      if ((await runVerificationCommand(entry.command, entry.cwd)).status !== 0) passed = false;
-      if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) passed = false;
-    }
+    failures.push(...(await verificationFailuresForKind(root, expectedOid, kind)));
   }
   const headOid = git(root, 'rev-parse', 'HEAD').stdout.trim();
   const status = git(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all');
   const clean = status.status === 0 && status.stdout === '';
+  if (!clean) failures.push('the working tree changed during local verification');
   const verification = {
     current: headOid === expectedOid,
-    passed: passed && clean,
+    passed: failures.length === 0,
     headOid,
     stateHash: createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex'),
+    ...(failures.length === 0 ? {} : { failures }),
   };
-  if (verification.current && verification.passed)
-    verification.passed = passedVerification(root, headOid, verification.stateHash).passed;
+  if (verification.current && verification.passed) {
+    return passedVerification(root, headOid, verification.stateHash);
+  }
   return verification;
 }
 

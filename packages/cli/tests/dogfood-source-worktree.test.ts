@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { parse } from 'smol-toml';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
@@ -18,6 +19,110 @@ function runNodeFromRepoRoot(source: string): string {
 }
 
 describe('dogfood source worktree package resolution (470)', () => {
+  it('keeps pinned core runtimes aligned with package metadata and CI', () => {
+    const packageJson = readJson(nodePath.join(repoRoot, 'package.json')) as {
+      packageManager?: string;
+    };
+    const mise = parse(readFileSync(nodePath.join(repoRoot, 'mise.toml'), 'utf8')) as {
+      tools?: Record<string, string>;
+      settings?: { python?: { uv_venv_auto?: string } };
+    };
+    const workflow = readFileSync(nodePath.join(repoRoot, '.github/workflows/ci.yml'), 'utf8');
+
+    expect(mise.tools).toEqual({
+      bun: packageJson.packageManager?.replace('bun@', ''),
+      node: '24.18.1',
+      go: '1.25',
+      python: '3.12',
+      uv: '0.12.9',
+    });
+    expect(workflow).toContain(`node-version: ['22.23.2', '${mise.tools?.node}']`);
+    expect(workflow).toContain(`go-version: '${mise.tools?.go}'`);
+    expect(workflow).toContain(`python-version: '${mise.tools?.python}'`);
+  });
+
+  it('pins Python verification tools and activates the uv environment', () => {
+    const mise = parse(readFileSync(nodePath.join(repoRoot, 'mise.toml'), 'utf8')) as {
+      tools?: Record<string, string>;
+      settings?: { python?: { uv_venv_auto?: string } };
+    };
+    const pyproject = parse(readFileSync(nodePath.join(repoRoot, 'pyproject.toml'), 'utf8')) as {
+      'dependency-groups'?: { dev?: string[] };
+      tool?: { uv?: { 'required-version'?: string } };
+    };
+
+    expect(pyproject.tool?.uv?.['required-version']).toBe(`==${mise.tools?.uv}`);
+    expect(mise.settings?.python?.uv_venv_auto).toBe('source');
+    expect(pyproject['dependency-groups']?.dev).toEqual([
+      'deadcode==2.4.1',
+      'import-linter==2.14',
+      'mypy==2.3.1',
+      'ruff==0.16.5',
+    ]);
+  });
+
+  it('keeps the uv environment outside repository scanners', () => {
+    const eslintConfig = readFileSync(nodePath.join(repoRoot, 'eslint.config.ts'), 'utf8');
+    const gitignore = readFileSync(nodePath.join(repoRoot, '.gitignore'), 'utf8');
+    const prettierignore = readFileSync(nodePath.join(repoRoot, '.prettierignore'), 'utf8');
+
+    expect(eslintConfig).toContain("'**/.venv/'");
+    expect(gitignore.split('\n')).toContain('.venv/');
+    expect(prettierignore.split('\n')).toContain('.venv/');
+  });
+
+  it('installs CI Python tools from the checked lockfile', () => {
+    const workflow = readFileSync(nodePath.join(repoRoot, '.github/workflows/ci.yml'), 'utf8');
+    const testJob = /^ {2}test:\n(?<body>[\s\S]*?)(?=^ {2}[a-z][a-z-]+:\n)/mu.exec(workflow)?.groups
+      ?.body;
+
+    expect(testJob).toBeDefined();
+    if (testJob === undefined) throw new Error('CI test job is missing');
+    expect(testJob).toContain('version-file: pyproject.toml');
+    expect(testJob).toContain('uv sync --locked');
+    expect(testJob).toContain('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"');
+    expect(testJob.indexOf('- name: Setup uv')).toBeLessThan(
+      testJob.indexOf('- name: Install Python tools'),
+    );
+    expect(testJob.indexOf('- name: Install Python tools')).toBeLessThan(
+      testJob.indexOf('- name: Test all packages'),
+    );
+    expect(workflow).not.toContain('requirements-ci.txt');
+  });
+
+  it('resolves the real repository mypy lane through uv', () => {
+    const output = execFileSync(
+      'bun',
+      [
+        nodePath.join('packages', 'cli', 'src', 'cli.ts'),
+        'project',
+        'test-plan',
+        '.',
+        '--kind',
+        'typecheck',
+        '--format',
+        'json',
+      ],
+      { cwd: repoRoot, encoding: 'utf8' },
+    );
+    const plan = JSON.parse(output) as {
+      language: string;
+      cwd: string;
+      command: string;
+      runner: string;
+      available: boolean;
+    }[];
+
+    expect(plan).toContainEqual(
+      expect.objectContaining({
+        language: 'python',
+        cwd: repoRoot,
+        command: 'uv run --locked mypy .',
+        runner: 'uv',
+      }),
+    );
+  });
+
   it('declares the CLI workspace as a root devDependency so Bun links safeword', () => {
     const rootPackageJson = readJson(nodePath.join(repoRoot, 'package.json')) as {
       devDependencies?: Record<string, string>;
