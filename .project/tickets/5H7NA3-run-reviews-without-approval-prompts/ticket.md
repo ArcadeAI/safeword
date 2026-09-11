@@ -5,7 +5,7 @@ type: task
 phase: implement
 status: in_progress
 created: 2026-09-10T23:06:30.082Z
-last_modified: 2026-09-10T23:06:30.082Z
+last_modified: 2026-09-11T04:34:09Z
 ---
 
 # Run trusted review routes without approval prompts
@@ -16,12 +16,13 @@ last_modified: 2026-09-10T23:06:30.082Z
 
 ## Scope
 
-- Codex review dispatch uses a previously installed exact-command allow rule without surfacing a
-  host approval request; status polling remains in the normal workspace sandbox.
+- Codex review dispatch uses a previously installed executable-and-subcommand allow rule without
+  surfacing a host approval request; status polling remains in the normal workspace sandbox.
 - Generated Codex review skills retain the zero-approval instruction.
 - This machine's combined Arcade/Bosslevel MCP server automatically approves all of its tools.
 - This machine has a narrow allow rule for the exact installed Safeword runtime's `review run`
-  prefix; it excludes `review status` and arbitrary Bun commands.
+  prefix. Normal `review run` arguments remain available, while `review status` and arbitrary Bun
+  commands are excluded.
 
 ## Out of Scope
 
@@ -32,11 +33,14 @@ last_modified: 2026-09-10T23:06:30.082Z
 ## Done When
 
 - Every canonical review-launch surface permits escalation only through a previously installed
-  exact-command rule, forbids surfaced approval requests, and forbids escalation for status polls.
+  executable-and-subcommand rule, forbids surfaced approval requests, and forbids escalation for
+  status polls.
 - Generated Claude and Codex plugin artifacts carry the source-template behavior.
 - The Arcade/Bosslevel MCP server uses `default_tools_approval_mode = "approve"`.
 - The exact installed Safeword review dispatcher can reach its reviewer without granting general
   sandbox network access.
+- A live dispatch against the installed runtime reaches the external reviewer without surfacing a
+  user approval request.
 - Focused review parity and generated-plugin checks pass.
 
 ## Test Plan
@@ -44,6 +48,8 @@ last_modified: 2026-09-10T23:06:30.082Z
 - RED: the canonical review-surface test fails until every review caller preserves the no-prompt
   dispatch rule and normal-sandbox status boundary.
 - GREEN: the focused review parity suite and generated Codex plugin check pass.
+- End to end: run a bounded packet through the live installed runtime and verify that Codex applies
+  the installed rule without surfacing an approval request.
 - Manual: inspect the effective Codex config for the Arcade/Bosslevel server approval mode and
   sandboxed-network settings without exposing secrets.
 
@@ -65,3 +71,8 @@ last_modified: 2026-09-10T23:06:30.082Z
 - 2026-09-10T23:32:00Z Pending activation: The running Codex process loaded rules before the path
   refresh, so a real dispatch still reached auto-review and was denied. One final restart is needed
   to load the refreshed stable-path rule; no one-off payload approval was requested.
+- 2026-09-11T04:34:09Z Verified after restart: A bounded live dispatch through the installed
+  `0.83.1` runtime reached Claude and returned a typed `changes_requested` verdict without
+  surfacing any user approval. The rule remains deliberately fixed to the installed executable and
+  `review run` subcommand while allowing normal review arguments; status and arbitrary Bun commands
+  remain outside the rule. Arcade/Bosslevel automatic tool approval also persisted across restart.
