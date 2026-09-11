@@ -17,15 +17,7 @@
 
 import { strict as assert } from 'node:assert';
 import { execFileSync, spawnSync } from 'node:child_process';
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 
@@ -46,6 +38,7 @@ const REVIEW_STAMP_HOOK = nodePath.join(
 const STOP_HOOK = nodePath.join(PROJECT_ROOT, 'packages/cli/templates/hooks/stop-quality.ts');
 const PROMPT_HOOK = nodePath.join(PROJECT_ROOT, 'packages/cli/templates/hooks/prompt-questions.ts');
 const CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
+const PACKAGED_CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/dist/cli.js');
 const CODEX_PLUGIN_ROOT = nodePath.join(PROJECT_ROOT, 'packages/cli/codex-plugin');
 
 /** Both shipped copies of every bdd skill document (template + dogfood). */
@@ -131,6 +124,8 @@ const VALID_PLAN = [
   'Riskiest assumption: the gate fires → scenario 1.',
   '',
   '## Decisions',
+  '',
+  '### Recorded Decisions',
   '',
   '| Decision | Choice | Alternatives considered | Rejected because |',
   '| - | - | - | - |',
@@ -254,8 +249,8 @@ function runPreTool(
 
 function installProjectHooks(world: PlanWorld): void {
   const install = spawnSync(
-    'bun',
-    [CLI, 'install', '--agents=none', '--no-input', '--offline', '--no-modify'],
+    process.execPath,
+    [PACKAGED_CLI, 'install', '--agents=none', '--no-input', '--offline', '--no-modify'],
     {
       cwd: world.projectDirectory,
       encoding: 'utf8',
@@ -266,12 +261,16 @@ function installProjectHooks(world: PlanWorld): void {
     0,
     `Safeword project enrollment failed:\n${install.stdout ?? ''}\n${install.stderr ?? ''}`,
   );
-  const installedPlugin = nodePath.join(world.projectDirectory!, '.installed-safeword');
-  cpSync(CODEX_PLUGIN_ROOT, installedPlugin, { recursive: true });
-  world.installedCliPath = nodePath.join(installedPlugin, 'runtime', 'cli.js');
+  world.installedCliPath = nodePath.join(CODEX_PLUGIN_ROOT, 'runtime', 'cli.js');
+  const configPath = nodePath.join(world.projectDirectory!, '.safeword', 'config.json');
+  const installedConfig = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
   writeFileSync(
-    nodePath.join(world.projectDirectory!, '.safeword', 'config.json'),
-    `${JSON.stringify({ reviewGate: false, designApprovalGate: false }, undefined, 2)}\n`,
+    configPath,
+    `${JSON.stringify(
+      { ...installedConfig, reviewGate: false, designApprovalGate: false },
+      undefined,
+      2,
+    )}\n`,
   );
 }
 
