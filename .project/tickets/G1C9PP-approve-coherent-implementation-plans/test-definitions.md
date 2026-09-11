@@ -88,7 +88,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 ### Scenario: Conflicting data ownership blocks approval
 
-- [ ] RED
+- [x] RED 9845cadf0
 - [ ] GREEN
 - [ ] REFACTOR
 
