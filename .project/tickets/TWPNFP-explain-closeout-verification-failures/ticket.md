@@ -41,6 +41,12 @@ last_modified: 2026-09-11T01:42:00Z
 - Add cleanup-plan coverage for detailed and backward-compatible verification blockers.
 - Run closeout guard, test-plan resolver, parity, typecheck, and formatting checks.
 
+## Root Cause
+
+The exact-tree lifecycle fixtures were refreshed before the final closeout hardening commits. Those later commits changed the generated closeout script on Cursor's managed delivery surface, so the fixture's tree digest no longer described the branch head. The existing byte-for-byte contract reproduced the CI failure locally and passed after regenerating the fixtures from the final source tree.
+
+Ruled out: a Node 24 compatibility regression, because the lifecycle result digests were identical and the same stale tree digest reproduced locally; locale-dependent ordering, because both the default locale and `LC_ALL=C` produced the same current digest.
+
 ## Work Log
 
 - 2026-09-11T00:16:46.744Z Started: Created ticket TWPNFP
@@ -49,3 +55,4 @@ last_modified: 2026-09-11T01:42:00Z
 - 2026-09-11 Hardened: Closeout now settles on command exit so an output-inheriting descendant cannot hold verification open indefinitely.
 - 2026-09-11 Verified: Focused resolver and closeout unit tests pass; all 27 host-adapter integration tests pass with registry access.
 - 2026-09-11 Audited: No change-scoped architecture or test-quality error; evidence recorded in verify.md.
+- 2026-09-11 CI debug: Refreshed the Cursor lifecycle tree fixtures after the final generated-script changes; the 13-case origin/main contract now passes at the branch head.
