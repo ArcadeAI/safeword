@@ -30,7 +30,7 @@ prove real installed CLI wiring.
 
 - [x] RED 917fca1a0
 - [x] GREEN e8a440de4
-- [ ] REFACTOR
+- [x] REFACTOR skip: the package-relative lookup is one focused boundary and mirrors the existing packaged-runtime root rule; extracting two call sites would add indirection without changing behavior
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R3 — The plan opens with an architecture-at-a-glance mental model and keeps decision-bearing detail in the main review path without becoming an execution or evidence manual
 
