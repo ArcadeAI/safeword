@@ -5,6 +5,11 @@ import type { ReviewerOutput } from '../../src/review/contract.js';
 export const DATA_OBLIGATION = 'Data applicability and decisions';
 export const MIGRATION_COMMAND_REQUIREMENT =
   'Migration commands are execution mechanics and cannot replace data decisions';
+export const DATA_OWNERSHIP_REQUIREMENTS = [
+  'persisted entity owner',
+  'source-of-truth authority',
+  'conflicting data owner',
+] as const;
 export const DATA_FIELDS = [
   'Purpose',
   'Store and model',
@@ -105,6 +110,53 @@ export function reviewMigrationCommandSeparation(contract: string, plan: string)
       findings.length === 0
         ? 'Migration content stays at decision depth.'
         : 'Migration execution mechanics need removal.',
+    findings,
+  };
+}
+
+function dataOwnershipFindings(
+  contract: string,
+  plan: string,
+): { severity: 'error'; message: string }[] {
+  const normalizedClause = obligationClause(contract, DATA_OBLIGATION)?.replaceAll(/\s+/gu, ' ');
+  const missingRequirement = DATA_OWNERSHIP_REQUIREMENTS.find(
+    requirement => normalizedClause?.includes(requirement) !== true,
+  );
+  if (missingRequirement !== undefined) {
+    return [
+      {
+        severity: 'error',
+        message: `The packaged plan contract is missing the data-ownership consistency requirement for ${missingRequirement}.`,
+      },
+    ];
+  }
+
+  const sourceAuthority = /^Source of truth: (.+?) is authoritative\.$/mu.exec(plan)?.[1];
+  const persistedEntityOwner = /^Ownership and access: (.+?) owns the persisted entity\.$/mu.exec(
+    plan,
+  )?.[1];
+  if (sourceAuthority === undefined || persistedEntityOwner === undefined) return [];
+  if (sourceAuthority === persistedEntityOwner) return [];
+  return [
+    {
+      severity: 'error',
+      message: `Conflicting data owner: ${persistedEntityOwner} owns the persisted entity, but ${sourceAuthority} is the source-of-truth authority.`,
+    },
+  ];
+}
+
+export function reviewDataOwnershipConsistency(contract: string, plan: string): ReviewerOutput {
+  const findings = dataOwnershipFindings(contract, plan);
+
+  return {
+    schema_version: 1,
+    dispatch_id: createHash('sha256').update(contract).digest('hex'),
+    reviewer_agent: 'claude',
+    verdict: findings.length === 0 ? 'approve' : 'request_changes',
+    summary:
+      findings.length === 0
+        ? 'Data ownership agrees with its authority.'
+        : 'Data ownership consistency needs changes.',
     findings,
   };
 }

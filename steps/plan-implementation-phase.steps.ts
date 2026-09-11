@@ -36,6 +36,7 @@ import { REVIEWER_CAPABILITIES } from '../packages/cli/tests/review-fixtures.ts'
 import {
   COMPLETE_DATA_PLAN,
   reviewDataApplicability,
+  reviewDataOwnershipConsistency,
   withoutDataFields,
 } from '../packages/cli/tests/fixtures/plan-data-applicability.ts';
 import {
@@ -143,6 +144,8 @@ interface PlanWorld extends SafewordWorld {
   focusedExpectedFinding?: string;
   dataPlan?: string;
   dataPlanReview?: ReviewerOutput;
+  dataOwnershipPlan?: string;
+  dataOwnershipReview?: ReviewerOutput;
 }
 
 // ---------------------------------------------------------------------------
@@ -809,6 +812,16 @@ Given(/^a feature has (.+)$/u, function (this: PlanWorld, dataState: string) {
   }
 });
 
+Given(
+  'an Implementation Plan names a persisted entity owner that contradicts its source-of-truth authority',
+  function (this: PlanWorld) {
+    this.dataOwnershipPlan = `${COMPLETE_DATA_PLAN}
+Source of truth: the identity service is authoritative.
+Ownership and access: the profile service owns the persisted entity.
+`;
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Givens — shipped documents, manifest, and record
 // ---------------------------------------------------------------------------
@@ -982,9 +995,16 @@ When('its focused decision review is completed', function (this: PlanWorld) {
 });
 
 When('the Implementation Plan is reviewed', function (this: PlanWorld) {
-  assert.ok(this.dataPlan, 'the data-applicability plan fixture was not arranged');
   const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
-  this.dataPlanReview = reviewDataApplicability(contract, this.dataPlan);
+  if (this.dataPlan !== undefined) {
+    this.dataPlanReview = reviewDataApplicability(contract, this.dataPlan);
+    return;
+  }
+  if (this.dataOwnershipPlan !== undefined) {
+    this.dataOwnershipReview = reviewDataOwnershipConsistency(contract, this.dataOwnershipPlan);
+    return;
+  }
+  assert.fail('no Implementation Plan review fixture was arranged');
 });
 
 When(
@@ -1260,6 +1280,14 @@ Then('approval is blocked with source of truth and access named', function (this
 
 Then('approval is blocked with compliance named', function (this: PlanWorld) {
   assertDataFindings(this, 'Compliance');
+});
+
+Then('approval is blocked with the conflicting data owner named', function (this: PlanWorld) {
+  assert.equal(this.dataOwnershipReview?.verdict, 'request_changes');
+  assert.match(
+    this.dataOwnershipReview?.findings.map(finding => finding.message).join('\n') ?? '',
+    /conflicting data owner.+profile service/iu,
+  );
 });
 
 Then('the phase change is denied', function (this: PlanWorld) {
