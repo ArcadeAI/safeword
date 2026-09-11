@@ -24,7 +24,7 @@ prove real installed CLI wiring.
 
 - [x] RED 5c33fe706
 - [x] GREEN 5f6201106
-- [ ] REFACTOR
+- [x] REFACTOR skip: contract extraction and reconciliation already have one production path; the new fixture only exposes that boundary to Cucumber
 
 ### Scenario: A missing packaged contract blocks installed review
 
