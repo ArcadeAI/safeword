@@ -148,7 +148,7 @@ the feature. Lower-level contract tests own permutations within each family.
 
 - [x] RED 78c997859
 - [x] GREEN b3c2f898d
-- [ ] REFACTOR
+- [x] REFACTOR skip: the decision family loop and one contract clause are already the smallest coherent structure
 
 ### Scenario: Installed review reports every simultaneous decision blocker
 
