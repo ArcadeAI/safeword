@@ -728,7 +728,7 @@ if (operation === 'plugin marketplace list --json') {
   syncMarketplaceRegistry();
   console.log(JSON.stringify(state.marketplaces)); process.exit(0);
 }
-if (operation === 'plugin marketplace remove safeword') {
+if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'remove' && args[3] === 'safeword') {
   state.marketplaces = state.marketplaces.filter(entry => entry.name !== 'safeword');
   fs.rmSync(path.join(process.env.CLAUDE_CONFIG_DIR, 'plugins', 'marketplaces', 'safeword'), { recursive: true, force: true });
   syncMarketplaceRegistry();

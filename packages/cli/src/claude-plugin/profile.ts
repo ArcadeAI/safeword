@@ -680,6 +680,7 @@ function replaceStaleMarketplace(
   scope: ClaudePluginScope,
   effects: Effect[],
 ): MarketplaceReplacement {
+  const effectStart = effects.length;
   const settingsPath = scopedSettingsPath(cwd, scope);
   const settingsMetadata = lstatSync(settingsPath);
   if (!settingsMetadata.isFile()) {
@@ -726,6 +727,7 @@ function replaceStaleMarketplace(
     writeDurableFile(settingsPath, settingsContents, { mode: settingsMetadata.mode & 0o777 });
     writeDurableFile(registry.path, registry.contents, { mode: registry.mode });
     restoreFile(installedPlugins);
+    effects.splice(effectStart);
     finish();
   };
   const updatedSettings = applyEdits(
@@ -738,7 +740,11 @@ function replaceStaleMarketplace(
     ),
   );
   try {
-    runClaude(cwd, ['plugin', 'marketplace', 'remove', MARKETPLACE_NAME], effects);
+    runClaude(
+      cwd,
+      ['plugin', 'marketplace', 'remove', MARKETPLACE_NAME, '--scope', scope],
+      effects,
+    );
     runClaude(
       cwd,
       ['plugin', 'marketplace', 'add', officialMarketplaceSource(), '--scope', scope],
@@ -781,7 +787,6 @@ function ensureMarketplace(
   }
   assertMarketplacePluginCanChange(cwd, scope, effects);
   const effectKind = marketplaceEffectKind(before);
-  const replacementEffectStart = effects.length;
   let replacement: MarketplaceReplacement | undefined;
   if (effectKind === 'update' && before.declaration !== undefined && before.shared !== undefined) {
     replacement = replaceStaleMarketplace(cwd, scope, effects);
@@ -809,7 +814,6 @@ function ensureMarketplace(
   } catch (error) {
     if (replacement !== undefined) {
       replacement.rollback();
-      effects.splice(replacementEffectStart);
     }
     throw error;
   }

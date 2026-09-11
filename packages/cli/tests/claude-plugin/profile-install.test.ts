@@ -300,7 +300,7 @@ case "$*" in
     fi
     ;;
   'plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project') ${persistMarketplace} ;;
-  'plugin marketplace remove safeword') ${marketplaceRemoval} ;;
+  'plugin marketplace remove safeword --scope project') ${marketplaceRemoval} ;;
   'plugin list --json')
     if [ -f ${JSON.stringify(pluginListOverride)} ]; then
       if [ -p /dev/fd/1 ] || [ -S /dev/fd/1 ]; then
@@ -579,7 +579,7 @@ describe('Claude marketplace update enrollment', () => {
     };
 
     expect(result.state, JSON.stringify(result)).toBe('action_required');
-    expect(commands).toContain('plugin marketplace remove safeword');
+    expect(commands).toContain('plugin marketplace remove safeword --scope project');
     expect(commands).toContain(
       `plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project`,
     );
@@ -685,6 +685,28 @@ describe('Claude marketplace update enrollment', () => {
     const result = installClaudePlugin(project);
 
     expect(result.state).toBe('failed');
+    expect(result.changed).toBe(false);
+    expect(result.effects?.configuration).toEqual([]);
+    expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);
+    expect(readFileSync(knownMarketplacePath, 'utf8')).toBe(registryBefore);
+    expect(readFileSync(installedPluginsPath, 'utf8')).toBe(pluginsBefore);
+  });
+
+  it('reports no completed effects when payload verification rolls back a replacement', () => {
+    const { installedPluginsPath, knownMarketplacePath, project, settingsPath } = fixture(
+      true,
+      'v0.83.1',
+      undefined,
+      { installedVersion: '0.83.1', unexpectedPayload: true },
+    );
+    const settingsBefore = readFileSync(settingsPath, 'utf8');
+    const registryBefore = readFileSync(knownMarketplacePath, 'utf8');
+    const pluginsBefore = readFileSync(installedPluginsPath, 'utf8');
+
+    const result = installClaudePlugin(project);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors?.[0]?.code).toBe('CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED');
     expect(result.changed).toBe(false);
     expect(result.effects?.configuration).toEqual([]);
     expect(readFileSync(settingsPath, 'utf8')).toBe(settingsBefore);

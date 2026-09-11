@@ -99,3 +99,7 @@ metadata lag (the marketplace checkout itself never moved).
 - 2026-09-11T02:10:00.000Z Release recheck: regenerated both bundled runtimes;
   73/73 release-contract tests, repository lint, Gherkin lint, TypeScript, and
   whitespace validation pass with the pinned Bun 1.3.14 toolchain.
+- 2026-09-11T02:50:00.000Z Independent re-review: moved effect compensation
+  into the replacement transaction so later plugin or payload failures report
+  the fully restored profile as unchanged. Added a discriminating payload-failure
+  regression and scoped marketplace removal to the selected profile.
