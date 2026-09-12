@@ -63,6 +63,15 @@ function decisionReply(paragraph: 'Next' | 'Need', terminal: string): string {
       ].join('\n\n');
 }
 
+function actionReply(terminal: string, open = 'none'): string {
+  return [
+    '**CONFIDENT** — The implementation is complete.',
+    '**Decided:** Keep the change focused.',
+    `**Open:** ${open}.`,
+    `**Next:** ${terminal}`,
+  ].join('\n\n');
+}
+
 Given(
   'a long work update ending in a Next decision that requires a human choice, with every decision role in plain language',
   function (this: SafewordWorld) {
@@ -161,6 +170,82 @@ Given(
   },
 );
 
+Given(
+  'a substantive no-decision update ending in one concrete next action and one essential reason',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = actionReply(
+      'Action: Run the release verification. Reason: Required because deployment is blocked until it passes.',
+    );
+  },
+);
+
+Given(
+  'a substantive no-decision update ending in one concrete next action and no reason',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = actionReply('Action: Run the release verification.');
+  },
+);
+
+Given(
+  'a substantive no-decision update ending in one concrete action and one Required because reason clause that repeats earlier context inside the clause',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = actionReply(
+      'Action: Run the release verification. Reason: Required because the release verification must pass before deployment.',
+    );
+  },
+);
+
+Given(
+  'a substantive no-decision update ending in one concrete action and two Required because reason clauses',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = actionReply(
+      'Action: Run the release verification. Reason: Required because deployment is blocked. Reason: Required because telemetry is waiting.',
+    );
+  },
+);
+
+Given(
+  'a substantive update ending in an action form with an imperative but no specific object',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = actionReply('Action: Continue.');
+  },
+);
+
+Given(
+  'a substantive no-decision update ending in a list of several concrete next actions',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = actionReply(
+      'Action: Run the release verification. Action: Deploy the stable build.',
+    );
+  },
+);
+
+Given(
+  'a substantive update declaring Open none whose Next paragraph carries recommendation and tradeoff clauses',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = actionReply(decisionTerminal());
+  },
+);
+
+Given(
+  'a substantive update declaring a human-owned release-target choice whose Next paragraph uses the action form',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = actionReply(
+      'Action: Deploy the selected release.',
+      'human: choose beta or stable',
+    );
+  },
+);
+
+Given(
+  'a substantive no-decision update ending in one concrete action and repeated context outside the Required because reason clause',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = actionReply(
+      'Action: Run the release verification. The implementation is already complete.',
+    );
+  },
+);
+
 When(
   'the shared deterministic terminal-handoff evaluator checks the reply',
   function (this: SafewordWorld) {
@@ -238,4 +323,42 @@ Then(
 Then('the decision handoff is rejected as not one concrete choice', function (this: SafewordWorld) {
   assert.equal(stateFor(this).evaluation?.compliant, false);
   assert.ok(stateFor(this).evaluation?.requirements?.includes('concrete choice'));
+});
+
+Then('the no-decision handoff is accepted as concrete and concise', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, true);
+  assert.equal(stateFor(this).evaluation?.form, 'action');
+});
+
+Then(
+  'the action handoff is rejected as carrying more than one reason clause',
+  function (this: SafewordWorld) {
+    assert.equal(stateFor(this).evaluation?.compliant, false);
+    assert.ok(stateFor(this).evaluation?.requirements?.includes('one essential reason'));
+  },
+);
+
+Then('the action handoff is rejected as not concrete', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, false);
+  assert.ok(stateFor(this).evaluation?.requirements?.includes('one concrete action'));
+});
+
+Then('the action handoff is rejected as not one concrete action', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, false);
+  assert.ok(stateFor(this).evaluation?.requirements?.includes('one concrete action'));
+});
+
+Then('the action handoff is rejected as unnecessarily ceremonial', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, false);
+  assert.ok(stateFor(this).evaluation?.requirements?.includes('one concrete action'));
+});
+
+Then('the action handoff is rejected as missing the decision form', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, false);
+  assert.equal(stateFor(this).evaluation?.form, 'decision');
+});
+
+Then('the action handoff is rejected as unnecessarily verbose', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, false);
+  assert.ok(stateFor(this).evaluation?.requirements?.includes('one concrete action'));
 });
