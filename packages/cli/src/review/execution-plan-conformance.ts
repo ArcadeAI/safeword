@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import type { ReviewAgent, ReviewPacketKind } from './contract.js';
+import { EXECUTION_PLAN_ADMISSION_EVIDENCE } from './execution-plan-admission.generated.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
 import type { ReviewRoute } from './route-config.js';
 
@@ -12,7 +13,10 @@ const OBLIGATIONS = [
   'Documentation work',
   'Affected-surface work',
 ] as const;
-const DECISIONS = ['One shared authorization service', 'Host-neutral dependency order'] as const;
+const DECISIONS = [
+  'One shared authorization service owns permission checks for every transport.',
+  'Host-neutral dependency order keeps every intermediate merge supported.',
+] as const;
 
 const IMPLEMENTATION_PLAN = `# Implementation Plan
 
@@ -72,7 +76,10 @@ function executionPlan(input: {
   readonly decisionText?: string;
 }): string {
   const owners = OBLIGATIONS.filter(obligation => obligation !== input.omittedObligation)
-    .map(obligation => `- ${obligation}: ${input.slices.at(-1)?.name ?? 'Contract'}`)
+    .map((obligation, index) => {
+      const owner = index === 0 ? input.slices[0] : input.slices.at(-1);
+      return `- ${obligation}: ${owner?.name ?? 'Contract'}`;
+    })
     .join('\n');
   return `# Execution Plan
 
@@ -241,7 +248,7 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
         },
       ],
     }),
-    ['coherent', 'purpose'],
+    ['two', 'purpose'],
   ),
   denied(
     'unresolved-authorization-decision',
@@ -285,7 +292,7 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
         },
       ],
     }),
-    ['unsafe', 'prerequisite'],
+    ['supported', 'prerequisite'],
   ),
   approved(
     'many-mechanical-edits',
@@ -339,7 +346,7 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
       rationale: 'The slice replaces the accepted authorization design.',
       slices: [{ ...CONTRACT_SLICE, purpose: 'Move authorization into each transport.' }],
       decisionText:
-        '- One shared authorization service: changed to per-transport checks\n- Host-neutral dependency order: unchanged',
+        '- One shared authorization service owns permission checks for every transport: changed to per-transport checks\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged',
     }),
     ['authorization'],
   ),
@@ -460,7 +467,7 @@ function admittedIdentity(
 export function filterExecutionPlanRoutes(
   kind: ReviewPacketKind,
   routes: readonly ReviewRoute[],
-  evidence: ExecutionPlanAdmissionEvidence | undefined,
+  evidence: ExecutionPlanAdmissionEvidence | undefined = EXECUTION_PLAN_ADMISSION_EVIDENCE,
 ): readonly ReviewRoute[] {
   if (kind !== 'plan-execution') return routes;
   if (evidence === undefined || !hasCurrentDigests(evidence)) return [];

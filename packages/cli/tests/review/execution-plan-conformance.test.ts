@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-/* eslint-disable import-x/no-unresolved -- RED: Slice 3 adds this production boundary. */
 import {
   buildExecutionPlanAdmissionEvidence,
   EXECUTION_PLAN_CONFORMANCE_CASES,
@@ -9,7 +8,6 @@ import {
   filterExecutionPlanRoutes,
   renderExecutionPlanAdmissionEvidence,
 } from '../../src/review/execution-plan-conformance.js';
-/* eslint-enable import-x/no-unresolved */
 import type { ReviewRoute } from '../../src/review/policy.js';
 
 const EXPECTED_CASE_IDS = [
@@ -93,7 +91,7 @@ describe('Execution Plan semantic conformance admission', () => {
     ],
     [
       'a duplicate case',
-      [...passingResults('claude', 'opus'), passingResults('claude', 'opus')[0]],
+      [...passingResults('claude', 'opus'), ...passingResults('claude', 'opus').slice(0, 1)],
     ],
   ])('refuses to write evidence from %s', (_label, results) => {
     expect(() => buildExecutionPlanAdmissionEvidence(results)).toThrow(
@@ -145,7 +143,7 @@ describe('Execution Plan semantic conformance admission', () => {
   it.each(['quality-review', 'scenario-gate', 'plan-implementation', 'executable-red'] as const)(
     'leaves %s routes unchanged',
     kind => {
-      expect(filterExecutionPlanRoutes(kind, routes, undefined)).toBe(routes);
+      expect(filterExecutionPlanRoutes(kind, routes)).toBe(routes);
     },
   );
 });

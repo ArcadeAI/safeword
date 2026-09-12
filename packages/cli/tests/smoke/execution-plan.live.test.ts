@@ -1,141 +1,126 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
-import nodePath from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
+import process from 'node:process';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
-import { reviewTimeoutMilliseconds } from '../../src/review/runtime.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, runCli } from '../helpers.js';
+import type { ReviewAgent, ReviewerOutput, ReviewPacket } from '../../src/review/contract.js';
+import {
+  EXECUTION_PLAN_CONFORMANCE_CASES,
+  type ExecutionPlanConformanceCase,
+  type ExecutionPlanConformanceResult,
+} from '../../src/review/execution-plan-conformance.js';
+import { reviewTimeoutMilliseconds, runHeadlessReviewer } from '../../src/review/runtime.js';
+import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
-const MISSING_KIND_ERROR =
-  'Review kind must be quality-review, scenario-gate, plan-implementation, or executable-red.';
 const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
 const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
-const temporaryDirectories: string[] = [];
+const reviewer = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER as ReviewAgent | undefined;
+const model = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_MODEL?.trim() || undefined;
+const resultsPath = process.env.SAFEWORD_EXECUTION_PLAN_RESULTS_PATH;
+const results: ExecutionPlanConformanceResult[] = [];
 
-const IMPLEMENTATION_PLAN = `# Implementation Plan
+function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent): ReviewPacket {
+  const identity =
+    model === undefined ? `${assigned} runtime default` : `${assigned} model ${model}`;
+  return {
+    schema_version: 1,
+    dispatch_id: randomUUID(),
+    kind: 'plan-execution',
+    logical_files: [{ path: 'execution-plan.md', content: testCase.execution_plan }],
+    context_files: [
+      { path: 'impl-plan.md', content: testCase.implementation_plan },
+      { path: 'scenario.feature', content: testCase.scenario },
+      {
+        path: 'reviewer-identity.md',
+        content: `Assigned reviewer: ${identity}.`,
+      },
+    ],
+  };
+}
 
-## Recorded decisions
+function recordOf(output: ReviewerOutput): NonNullable<ReviewerOutput['execution_plan_record']> {
+  const record = output.execution_plan_record;
+  if (record === undefined || record === null) throw new Error('Approval omitted its typed record');
+  return record;
+}
 
-- Keep the existing CLI command boundary.
-- Use one generated contract for authoring and review.
-`;
+function assertApproval(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
+  expect(output.verdict).toBe('approve');
+  const record = recordOf(output);
+  expect(record.slicing_decision).toBe(testCase.expectation.slicing_decision);
+  expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
+  const expectedObligations = testCase.expectation.obligations ?? [];
+  for (const obligation of expectedObligations) {
+    expect(record.obligation_owners.map(owner => owner.obligation)).toContain(obligation);
+  }
+  const expectedDecisions = testCase.expectation.decisions ?? [];
+  for (const decision of expectedDecisions) {
+    expect(record.decision_statuses).toContainEqual({ decision, status: 'unchanged' });
+  }
+}
 
-const CASES = [
-  {
-    label: 'one coherent change',
-    plan: `# Execution Plan
+function assertDenial(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
+  expect(output.verdict).toBe('request_changes');
+  expect(output.execution_plan_record).toBeNull();
+  const explanation =
+    `${output.summary}\n${output.findings.map(finding => finding.message).join('\n')}`.toLowerCase();
+  const expectedTerms = testCase.expectation.finding_terms ?? [];
+  for (const term of expectedTerms) {
+    expect(explanation).toContain(term.toLowerCase());
+  }
+}
 
-## Pull-request slicing
+function assertCase(
+  testCase: ExecutionPlanConformanceCase,
+  output: ReviewerOutput,
+  assigned: ReviewAgent,
+  dispatchId: string,
+): void {
+  expect(output.reviewer_agent).toBe(assigned);
+  expect(output.dispatch_id).toBe(dispatchId);
+  if (testCase.expectation.verdict === 'approve') assertApproval(testCase, output);
+  else assertDenial(testCase, output);
+}
 
-Decision: one pull request.
-Rationale: every edit replaces the same generated banner and one integration test proves the shared outcome; another split would add no independent review value.
-
-### PR 1 — Replace the generated banner
-
-- Purpose: replace the generated banner across every installed host.
-- Boundary: generated banner assets and their generator only.
-- Prerequisites: none.
-- Proof: the installed-host integration test observes the new banner on every host.
-- Completion signal: every generated host asset contains the new banner and the repository remains supported.
-`,
-    expected: ['Slicing decision: one pull request', 'PR 1', 'Proof'],
-  },
-  {
-    label: 'two independent changes',
-    plan: `# Execution Plan
-
-## Pull-request slicing
-
-Decision: multiple pull requests.
-Rationale: contract delivery and command routing are independently reviewable and have separate proof.
-
-### PR 1 — Deliver the contract
-
-- Purpose: install the canonical Execution Plan contract.
-- Boundary: contract template, schema registration, and generated assets.
-- Prerequisites: none.
-- Proof: installation tests compare the shipped contract bytes.
-- Completion signal: every supported package contains the contract and the repository remains supported.
-
-### PR 2 — Route review
-
-- Purpose: route Execution Plan review through the shared coordinator.
-- Boundary: review kind, packet validation, and CLI presentation.
-- Prerequisites: PR 1.
-- Proof: a CLI integration test observes the canonical contract at the reviewer boundary.
-- Completion signal: Execution Plan review returns a typed result and the repository remains supported.
-`,
-    expected: ['Slicing decision: multiple pull requests', 'PR 1', 'PR 2', 'Proof'],
-  },
-] as const;
-
-afterEach(() => {
-  for (const directory of temporaryDirectories) removeTemporaryDirectory(directory);
-  temporaryDirectories.length = 0;
+afterAll(() => {
+  if (CAN_RUN && resultsPath !== undefined) {
+    writeFileSync(resultsPath, `${JSON.stringify(results, undefined, 2)}\n`, { mode: 0o600 });
+  }
 });
 
-describe.skipIf(!CAN_RUN)('live Execution Plan review', () => {
-  it.each(CASES)(
-    'records the explicit slicing decision for $label',
+describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
+  it('requires one explicit reviewer identity and evidence destination', () => {
+    expect(['claude', 'codex']).toContain(reviewer);
+    expect(resultsPath).toBeTruthy();
+  });
+
+  it.each(EXECUTION_PLAN_CONFORMANCE_CASES)(
+    '$id',
     async testCase => {
-      const directory = createTemporaryDirectory();
-      temporaryDirectories.push(directory);
-      const ticketDirectory = nodePath.join(
-        directory,
-        '.project',
-        'tickets',
-        'EXEC01-reviewable-delivery',
-      );
-      mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-      mkdirSync(ticketDirectory, { recursive: true });
-      writeFileSync(
-        nodePath.join(directory, '.safeword', 'config.json'),
-        JSON.stringify({ crossAgentReview: 'require' }),
-      );
-      writeFileSync(
-        nodePath.join(ticketDirectory, 'ticket.md'),
-        '---\nid: EXEC01\ntype: feature\nphase: plan-execution\nstatus: in_progress\n---\n',
-      );
-      writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), IMPLEMENTATION_PLAN);
-      writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), testCase.plan);
-
-      const result = await runCli(
-        [
-          '--json',
-          '--no-input',
-          '--cwd',
-          directory,
-          'review',
-          'run',
-          'plan-execution',
-          '--context',
-          nodePath.join(ticketDirectory, 'impl-plan.md'),
-          '--',
-          nodePath.join(ticketDirectory, 'execution-plan.md'),
-        ],
-        {
-          cwd: directory,
-          env: {
-            SAFEWORD_AGENT_RUNTIME: 'codex',
-            SAFEWORD_NO_UPDATE_CHECK: '1',
-            SAFEWORD_REVIEW_TIMEOUT_MS: String(REVIEW_TIMEOUT_MS),
-          },
-          timeout: LIVE_TEST_TIMEOUT_MS,
-        },
-      );
-
-      const processOutput = `${result.stdout}\n${result.stderr}`;
-      if (result.exitCode !== 0) {
-        expect(processOutput).toContain(MISSING_KIND_ERROR);
-        throw new Error(MISSING_KIND_ERROR);
+      expect.hasAssertions();
+      if (reviewer !== 'claude' && reviewer !== 'codex') {
+        throw new Error('SAFEWORD_EXECUTION_PLAN_LIVE_REVIEWER must be claude or codex');
       }
-      const output = JSON.parse(result.stdout) as {
-        data: { status: string; reviewer_output: { summary: string } };
-      };
-      expect(output.data.status).toBe('approved');
-      for (const expected of testCase.expected) {
-        expect(output.data.reviewer_output.summary).toContain(expected);
+      const directory = createTemporaryDirectory();
+      const packet = packetFor(testCase, reviewer);
+      let passed = false;
+      try {
+        const output = (await runHeadlessReviewer(reviewer, packet, directory, process.cwd(), {
+          ...(model !== undefined && { model }),
+          runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
+        })) as ReviewerOutput;
+        assertCase(testCase, output, reviewer, packet.dispatch_id);
+        passed = true;
+      } finally {
+        results.push({
+          case_id: testCase.id,
+          reviewer,
+          ...(model !== undefined && { model }),
+          passed,
+        });
+        removeTemporaryDirectory(directory);
       }
     },
     LIVE_TEST_TIMEOUT_MS,
