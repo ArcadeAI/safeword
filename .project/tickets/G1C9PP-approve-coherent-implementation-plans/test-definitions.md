@@ -311,8 +311,8 @@ record invalidation, provenance changes, and context-digest recomputation.
 ### Scenario: Concurrent design decisions do not overwrite each other
 
 - [x] RED 06724f70c
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 426ccbf7e
+- [x] REFACTOR skip: GREEN is the planned extraction into one shared approval-ledger boundary; further durability behavior remains scenario-driven below
 
 ### Scenario: An interrupted approval resumes according to durable authority
 
