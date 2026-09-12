@@ -959,8 +959,8 @@ if (
         );
       }
       // Manual/live is the intentional escape path for behavior that cannot be
-      // executable. collectNewTransitions only supplies this value from the
-      // prior on-disk row, never from an annotation introduced by this edit.
+      // executable. This is an ordering/audit boundary, not an authenticity
+      // check: the durable annotation must exist on disk before this tool call.
       if (transition.evidenceMode !== undefined) continue;
       const ledger = nodePath.relative(projectDirectory, editedFile);
       const gateDenial = executableRedGateDenial(scenario, ledger);

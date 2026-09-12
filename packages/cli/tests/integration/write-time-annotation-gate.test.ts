@@ -60,6 +60,33 @@ function runEditHook(
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
+function runReplaceAllEditHook(
+  cwd: string,
+  filePath: string,
+  oldString: string,
+  newString: string,
+  environment: NodeJS.ProcessEnv,
+): HookResult {
+  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'test-session',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: filePath,
+        old_string: oldString,
+        new_string: newString,
+        replace_all: true,
+      },
+    }),
+    cwd,
+    env: { ...process.env, ...environment, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
 function runMultiEditHook(
   cwd: string,
   filePath: string,
@@ -293,6 +320,20 @@ describe('write-time annotation gate', () => {
       );
       expectHookAllow(result);
     });
+
+    it('ignores checkbox examples inside balanced tilde fences', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n~~~markdown\n- [ ] GREEN\n~~~\n\n- [ ] RED\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN',
+      );
+      expectHookAllow(result);
+    });
   });
 
   describe('Executable RED GREEN admission', () => {
@@ -331,6 +372,21 @@ describe('write-time annotation gate', () => {
         setup.testDefinitionsPath,
         '- [ ] GREEN',
         '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('does not let an unclosed fence hide a GREEN transition', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '```\n- [x] GREEN def5678',
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
       );
       expectHookDeny(result, 'executable RED');
@@ -491,6 +547,20 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'historical evidence');
     });
 
+    it('blocks rewriting the annotation on historical REFACTOR evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN def5678\n- [x] REFACTOR 9876fed\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] REFACTOR 9876fed',
+        '- [x] REFACTOR 123abcd',
+      );
+      expectHookDeny(result, 'REFACTOR row that already carries historical evidence');
+    });
+
     it('does not let a new manual RED row exempt GREEN in the same edit', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
@@ -632,6 +702,32 @@ describe('write-time annotation gate', () => {
       );
       projectDirectory = setup.cwd;
       const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy') },
+      );
+      expectHookAllow(result);
+    });
+
+    it('reconstructs all GREEN transitions for replace_all edits', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: first',
+          '',
+          '- [x] RED abc1234',
+          '- [ ] GREEN',
+          '',
+          '### Scenario: second',
+          '',
+          '- [x] RED 9876fed',
+          '- [ ] GREEN',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const result = runReplaceAllEditHook(
         setup.cwd,
         setup.testDefinitionsPath,
         '- [ ] GREEN',
@@ -880,6 +976,40 @@ describe('write-time annotation gate', () => {
         setup.cwd,
         patch,
         gateStub(setup.cwd, 'healthy', 'Scenario: approved elsewhere'),
+      );
+
+      expectHookDeny(result, 'could not identify the active scenario');
+    });
+
+    it('rejects a disk-derived apply_patch binding when the scenario heading is duplicated', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: duplicate',
+          '',
+          '- [x] RED abc1234',
+          '',
+          '### Scenario: duplicate',
+          '',
+          '- [ ] GREEN',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const patch = [
+        '*** Begin Patch',
+        `*** Update File: ${setup.testDefinitionsPath}`,
+        '@@',
+        ' ### Scenario: duplicate',
+        ' non-contiguous context',
+        '-- [ ] GREEN',
+        '+- [x] GREEN def5678',
+        '*** End Patch',
+      ].join('\n');
+
+      const result = runCodexPatchHook(
+        setup.cwd,
+        patch,
+        gateStub(setup.cwd, 'healthy', 'Scenario: duplicate'),
       );
 
       expectHookDeny(result, 'could not identify the active scenario');

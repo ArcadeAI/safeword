@@ -26,6 +26,7 @@ export interface TransitionHookInput {
     old_string?: string;
     new_string?: string;
     content?: string;
+    replace_all?: boolean;
     edits?: Array<{ old_string?: string; new_string?: string }>;
   };
 }
@@ -34,16 +35,49 @@ interface CheckboxState extends CheckboxTransition {
   checked: boolean;
 }
 
+function balancedFenceBodyLines(lines: readonly string[]): Set<number> {
+  const bodyLines = new Set<number>();
+  let fence: { character: '`' | '~'; length: number; body: number[] } | undefined;
+  for (const [index, line] of lines.entries()) {
+    const marker = /^\s*(?<fence>`{3,}|~{3,})/u.exec(line)?.groups?.fence;
+    if (fence === undefined) {
+      if (marker !== undefined) {
+        fence = { character: marker[0] as '`' | '~', length: marker.length, body: [] };
+      }
+      continue;
+    }
+    if (marker !== undefined && marker[0] === fence.character && marker.length >= fence.length) {
+      for (const bodyLine of fence.body) bodyLines.add(bodyLine);
+      fence = undefined;
+      continue;
+    }
+    fence.body.push(index);
+  }
+  // An unclosed fence is agent-authored ambiguity, not permission to hide the
+  // remainder of the ledger. Only bodies with a matching close are ignored.
+  return bodyLines;
+}
+
+function countScenarioHeadings(text: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  const lines = text.split('\n');
+  const fencedBodyLines = balancedFenceBodyLines(lines);
+  for (const [index, line] of lines.entries()) {
+    if (fencedBodyLines.has(index)) continue;
+    const heading = /^#{2,6}\s+(.+)$/u.exec(line)?.[1]?.trim();
+    if (heading !== undefined) counts.set(heading, (counts.get(heading) ?? 0) + 1);
+  }
+  return counts;
+}
+
 function checkboxStates(text: string): CheckboxState[] {
   const states: CheckboxState[] = [];
   let scenario: string | undefined;
-  let fenced = false;
-  for (const line of text.split('\n')) {
-    if (/^\s*```/u.test(line)) {
-      fenced = !fenced;
-      continue;
-    }
-    if (fenced) continue;
+  const lines = text.split('\n');
+  const fencedBodyLines = balancedFenceBodyLines(lines);
+  for (const [index, line] of lines.entries()) {
+    if (fencedBodyLines.has(index)) continue;
+    if (/^\s*(?:`{3,}|~{3,})/u.test(line)) continue;
     const heading = /^(#{1,6})\s+(.+)$/u.exec(line);
     if (heading !== null) {
       scenario = heading[1]?.length === 1 ? undefined : heading[2]?.trim();
@@ -120,25 +154,15 @@ function findTransitions(
     ...state,
     evidenceMode: priorEvidenceModeByScenario.get(state.scenario),
   });
-  const scenarioHeadingCounts = new Map<string, number>();
-  let fenced = false;
-  for (const line of newText.split('\n')) {
-    if (/^\s*```/u.test(line)) {
-      fenced = !fenced;
-      continue;
-    }
-    const heading = fenced ? undefined : /^#{2,6}\s+(.+)$/u.exec(line)?.[1]?.trim();
-    if (heading !== undefined) {
-      scenarioHeadingCounts.set(heading, (scenarioHeadingCounts.get(heading) ?? 0) + 1);
-    }
-  }
+  const scenarioHeadingCounts = countScenarioHeadings(newText);
   const usedOld = new Set<number>();
   const unmatched: CheckboxState[] = [];
   const transitions: CheckboxTransition[] = [];
 
   const preservedHistoricalRows = new Set<number>();
   for (const oldState of oldStates.filter(
-    state => ['RED', 'GREEN'].includes(state.step) && state.checked && state.annotation !== '',
+    state =>
+      ['RED', 'GREEN', 'REFACTOR'].includes(state.step) && state.checked && state.annotation !== '',
   )) {
     const preservedIndex = newStates.findIndex(
       (newState, index) =>
@@ -256,8 +280,12 @@ function transitionsForAppliedEdit(
   oldText: string,
   newText: string,
   evidenceBaseline = current,
+  replaceAll = false,
 ): { next: string; transitions: CheckboxTransition[] } {
-  const next = applyUniqueEdit(current, oldText, newText);
+  const next =
+    replaceAll && oldText !== '' && current.includes(oldText)
+      ? current.replaceAll(oldText, newText)
+      : applyUniqueEdit(current, oldText, newText);
   if (next !== undefined)
     return { next, transitions: findTransitions(current, next, evidenceBaseline) };
 
@@ -284,10 +312,14 @@ function transitionsForAppliedEdit(
       const candidates = currentStates.filter(
         state => !state.checked && state.step === transition.step,
       );
-      return candidates.length === 1
+      const candidate = candidates.length === 1 ? candidates[0] : undefined;
+      const duplicateScenario =
+        candidate?.scenario !== undefined &&
+        (countScenarioHeadings(current).get(candidate.scenario) ?? 0) > 1;
+      return candidate !== undefined && !duplicateScenario
         ? {
             ...transition,
-            scenario: candidates[0]?.scenario,
+            scenario: candidate.scenario,
             // Candidates are unchecked rows, so they cannot carry an evidence
             // exemption. State that guarantee explicitly.
             evidenceMode: undefined,
@@ -308,7 +340,13 @@ export function collectNewTransitions(
     const oldString = toolInput.old_string ?? '';
     const newString = toolInput.new_string ?? '';
     const current = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
-    return transitionsForAppliedEdit(current, oldString, newString).transitions;
+    return transitionsForAppliedEdit(
+      current,
+      oldString,
+      newString,
+      current,
+      toolInput.replace_all === true,
+    ).transitions;
   }
 
   if (toolName === 'Write') {
