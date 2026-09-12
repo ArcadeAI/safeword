@@ -1,0 +1,9 @@
+{
+  "feature": "features/make-agent-handoffs-decision-complete.feature",
+  "scenarios": {
+    "A complete Next decision can be acted on without earlier prose": [
+      "packages/cli/tests/hooks/terminal-handoff-contract.test.ts",
+      "accepts one self-contained Next decision under the versioned contract"
+    ]
+  }
+}
