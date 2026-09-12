@@ -193,7 +193,7 @@ release prerequisite by itself.
 
 ### Scenario: Persona consequence coverage controls approach approval
 
-- [x] RED (`63dab8b2c`)
+- [x] RED 63dab8b2c
 - [ ] GREEN
 - [ ] REFACTOR
 
