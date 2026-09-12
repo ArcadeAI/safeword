@@ -189,7 +189,7 @@ release prerequisite by itself.
 
 - [x] RED 8adbd9581
 - [x] GREEN c23b88b7a
-- [ ] REFACTOR
+- [x] REFACTOR skip: the explicit three-binding fail-closed predicate is already the smallest clear trust-boundary consumer
 
 ### Scenario: Persona consequence coverage controls approach approval
 
