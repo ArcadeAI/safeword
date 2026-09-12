@@ -332,6 +332,12 @@ record invalidation, provenance changes, and context-digest recomputation.
 - [x] GREEN cd60ba10e
 - [x] REFACTOR skip: the guarded test-only mutation sits immediately before the existing ownership recheck, making deletion of that load-bearing guard observable without changing the production protocol
 
+### Scenario: The latest serialized decision controls phase and retry identity
+
+- [x] RED 5e4197aea
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An interrupted approval resumes according to durable authority
 
 - [x] RED e707a8f87
