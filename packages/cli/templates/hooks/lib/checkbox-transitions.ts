@@ -45,7 +45,7 @@ function checkboxStates(text: string): CheckboxState[] {
     }
     if (fenced) continue;
     const heading = /^(#{1,6})\s+(.+)$/u.exec(line);
-    if (heading !== undefined && heading !== null) {
+    if (heading !== null) {
       scenario = heading[1]?.length === 1 ? undefined : heading[2]?.trim();
     }
     const parsed = parseCheckboxAnnotation(line);
@@ -68,7 +68,11 @@ function checkboxStates(text: string): CheckboxState[] {
   return states;
 }
 
-function findTransitions(oldText: string, newText: string): CheckboxTransition[] {
+function findTransitions(
+  oldText: string,
+  newText: string,
+  evidenceBaseline = oldText,
+): CheckboxTransition[] {
   const oldStates = checkboxStates(oldText);
   const newStates = checkboxStates(newText);
   const scenarioSignature = (states: readonly CheckboxState[], scenario: string): string =>
@@ -103,9 +107,11 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
     newScenario: string | undefined,
   ): boolean =>
     oldScenario === newScenario ||
-    (newScenario !== undefined && renamedScenarioOrigins.get(newScenario) === oldScenario);
+    (newScenario !== undefined &&
+      renamedScenarioOrigins.has(newScenario) &&
+      renamedScenarioOrigins.get(newScenario) === oldScenario);
   const priorEvidenceModeByScenario = new Map<string | undefined, 'live' | 'manual'>();
-  for (const state of oldStates) {
+  for (const state of checkboxStates(evidenceBaseline)) {
     if (state.step === 'RED' && state.checked && state.evidenceMode !== undefined) {
       priorEvidenceModeByScenario.set(state.scenario, state.evidenceMode);
     }
@@ -196,7 +202,7 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
     if (movedChecked !== undefined) {
       // Historical RED and GREEN credit cannot silently move to a different
       // scenario; its evidence was recorded for the original binding.
-      transitions.push(withPriorEvidenceMode({ ...state, scenario: undefined }));
+      transitions.push({ ...state, scenario: undefined, evidenceMode: undefined });
       continue;
     }
     // A checked recognized row with no old counterpart is still new credit.
@@ -206,9 +212,9 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
     // let the edit choose an already-approved scenario. Withhold the binding so
     // the executable-RED gate denies the combined boundary change.
     transitions.push(
-      withPriorEvidenceMode(
-        movedUnchecked === undefined ? state : { ...state, scenario: undefined },
-      ),
+      movedUnchecked === undefined
+        ? withPriorEvidenceMode(state)
+        : { ...state, scenario: undefined, evidenceMode: undefined },
     );
   }
 
@@ -249,9 +255,11 @@ function transitionsForAppliedEdit(
   current: string,
   oldText: string,
   newText: string,
+  evidenceBaseline = current,
 ): { next: string; transitions: CheckboxTransition[] } {
   const next = applyUniqueEdit(current, oldText, newText);
-  if (next !== undefined) return { next, transitions: findTransitions(current, next) };
+  if (next !== undefined)
+    return { next, transitions: findTransitions(current, next, evidenceBaseline) };
 
   // The edit tool will reject a missing or ambiguous replacement. Still surface
   // any attempted checked credit. Patch adapters may provide non-contiguous
@@ -261,7 +269,7 @@ function transitionsForAppliedEdit(
   const currentStates = checkboxStates(current);
   return {
     next: current,
-    transitions: findTransitions(oldText, newText).map(transition => {
+    transitions: findTransitions(oldText, newText, evidenceBaseline).map(transition => {
       const fragmentPrior = oldStates.find(
         state =>
           !state.checked &&
@@ -280,7 +288,9 @@ function transitionsForAppliedEdit(
         ? {
             ...transition,
             scenario: candidates[0]?.scenario,
-            evidenceMode: candidates[0]?.evidenceMode,
+            // Candidates are unchecked rows, so they cannot carry an evidence
+            // exemption. State that guarantee explicitly.
+            evidenceMode: undefined,
           }
         : { ...transition, scenario: undefined, evidenceMode: undefined };
     }),
@@ -309,13 +319,15 @@ export function collectNewTransitions(
 
   if (toolName === 'MultiEdit') {
     const edits = toolInput.edits ?? [];
-    let current = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
+    const baseline = existsSync(filePath) ? readFileSync(filePath, 'utf8') : '';
+    let current = baseline;
     const transitions: CheckboxTransition[] = [];
     for (const edit of edits) {
       const applied = transitionsForAppliedEdit(
         current,
         edit.old_string ?? '',
         edit.new_string ?? '',
+        baseline,
       );
       current = applied.next;
       transitions.push(...applied.transitions);

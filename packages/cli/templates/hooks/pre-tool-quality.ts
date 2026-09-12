@@ -4,7 +4,7 @@
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -207,18 +207,18 @@ function crossAgentReviewPolicy() {
 
 function safewordCliCommand(): [string, ...string[]] | undefined {
   const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-  if (pluginCli !== undefined && pluginCli.trim() !== '') return ['bun', pluginCli];
-  const installedCli = nodePath.join(
-    projectDirectory,
-    'node_modules',
-    'safeword',
-    'dist',
-    'cli.js',
-  );
-  if (existsSync(installedCli)) return ['bun', installedCli];
-  const sourceCli = nodePath.join(projectDirectory, 'packages', 'cli', 'src', 'cli.ts');
-  if (existsSync(sourceCli)) return ['bun', sourceCli];
-  return undefined;
+  if (pluginCli === undefined || pluginCli.trim() === '') return undefined;
+  try {
+    const candidate = realpathSync(pluginCli);
+    const project = realpathSync(projectDirectory);
+    const relative = nodePath.relative(project, candidate);
+    if (relative === '' || (!relative.startsWith('..') && !nodePath.isAbsolute(relative))) {
+      return undefined;
+    }
+    return ['bun', candidate];
+  } catch {
+    return undefined;
+  }
 }
 
 function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
@@ -250,9 +250,15 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
     const parsed = JSON.parse(checked.stdout) as {
       state?: unknown;
       findings?: Array<{ message?: unknown }>;
-      data?: { status?: unknown };
+      data?: { status?: unknown; scenario?: unknown; ledger?: unknown };
     };
-    if (checked.status === 0 && parsed.state === 'healthy' && parsed.data?.status === 'approved')
+    if (
+      checked.status === 0 &&
+      parsed.state === 'healthy' &&
+      parsed.data?.status === 'approved' &&
+      parsed.data.scenario === scenario &&
+      parsed.data.ledger === ledger
+    )
       return undefined;
     const message = parsed.findings?.find(finding => typeof finding.message === 'string')?.message;
     return typeof message === 'string'
@@ -927,8 +933,8 @@ if (
   for (const transition of transitions) {
     if (transition.historicalEvidenceRemoved === true) {
       deny(
-        `Cannot rewrite, uncheck, or remove a ${transition.step} row that already carries historical evidence.`,
-        `Keep the checked ${transition.step} row intact and add a new unchecked ${transition.step} row when reopening the scenario.`,
+        `Cannot move, rewrite, uncheck, or remove a ${transition.step} row that already carries historical evidence.`,
+        `Keep the checked ${transition.step} row and its scenario binding intact. If you are renaming a scenario while checking another row, split those changes into separate edits.`,
       );
     }
     if (transition.annotation === '') {

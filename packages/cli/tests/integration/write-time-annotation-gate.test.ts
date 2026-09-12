@@ -81,6 +81,27 @@ function runMultiEditHook(
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
+function runWriteHook(
+  cwd: string,
+  filePath: string,
+  content: string,
+  environment: NodeJS.ProcessEnv = {},
+): HookResult {
+  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'test-session',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Write',
+      tool_input: { file_path: filePath, content },
+    }),
+    cwd,
+    env: { ...process.env, ...environment, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
 function runNotebookEditHook(cwd: string, filePath: string): HookResult {
   const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
     input: JSON.stringify({
@@ -158,6 +179,7 @@ function setupProject(initialTestDefinitions: string): {
 
 describe('write-time annotation gate', () => {
   let projectDirectory: string;
+  const gateDirectories: string[] = [];
 
   beforeEach(() => {
     projectDirectory = '';
@@ -167,6 +189,7 @@ describe('write-time annotation gate', () => {
     if (projectDirectory) {
       removeTemporaryDirectory(projectDirectory);
     }
+    for (const directory of gateDirectories.splice(0)) removeTemporaryDirectory(directory);
   });
 
   describe('Rule 1: Marking a TDD checkbox requires a SHA or skip reason', () => {
@@ -274,12 +297,14 @@ describe('write-time annotation gate', () => {
 
   describe('Executable RED GREEN admission', () => {
     function gateStub(
-      cwd: string,
+      _cwd: string,
       state: 'healthy' | 'action_required',
       expectedScenario?: string,
       expectedLedger?: string,
     ): string {
-      const path = nodePath.join(cwd, 'gate-stub.mjs');
+      const directory = createTemporaryDirectory();
+      gateDirectories.push(directory);
+      const path = nodePath.join(directory, 'gate-stub.mjs');
       const expectedCheck =
         expectedScenario === undefined
           ? 'true'
@@ -289,9 +314,9 @@ describe('write-time annotation gate', () => {
           ? 'true'
           : `process.argv.includes(${JSON.stringify(expectedLedger)})`;
       writeTestFile(
-        cwd,
+        directory,
         'gate-stub.mjs',
-        `const approved = ${state === 'healthy'} && ${expectedCheck} && ${ledgerCheck}; console.log(JSON.stringify({ schemaVersion: 1, ok: approved, changed: false, state: approved ? 'healthy' : 'action_required', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: approved ? 'approved' : 'blocked' } }));\n`,
+        `const value = flag => { const index = process.argv.indexOf(flag); return index < 0 ? undefined : process.argv[index + 1]; }; const approved = ${state === 'healthy'} && ${expectedCheck} && ${ledgerCheck}; console.log(JSON.stringify({ schemaVersion: 1, ok: approved, changed: false, state: approved ? 'healthy' : 'action_required', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: approved ? 'approved' : 'blocked', scenario: value('--scenario'), ledger: value('--ledger') } }));\n`,
       );
       return path;
     }
@@ -481,6 +506,49 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
+    it('does not let an earlier MultiEdit add manual RED evidence that exempts GREEN', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runMultiEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        [
+          {
+            old_string: '- [ ] RED',
+            new_string: '- [x] RED skip: manual — see timestamped work log',
+          },
+          { old_string: '- [ ] GREEN', new_string: '- [x] GREEN skip: observed' },
+        ],
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('checks a whole-file Write that authors a heading and GREEN credit', () => {
+      const setup = setupProject('- [ ] GREEN\n');
+      projectDirectory = setup.cwd;
+      const result = runWriteHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '### Scenario: authored\n\n- [x] GREEN def5678\n',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy') },
+      );
+      expectHookDeny(result, 'could not identify the active scenario');
+    });
+
+    it('blocks a whole-file Write that drops checked RED evidence', () => {
+      const setup = setupProject('### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n');
+      projectDirectory = setup.cwd;
+      const result = runWriteHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '### Scenario: example\n\n- [ ] GREEN\n',
+      );
+      expectHookDeny(result, 'RED row that already carries historical evidence');
+    });
+
     it('blocks transplanting checked GREEN credit onto a reopened row', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN def5678\n- [ ] GREEN\n- [ ] REFACTOR\n',
@@ -508,8 +576,10 @@ describe('write-time annotation gate', () => {
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
       );
       projectDirectory = setup.cwd;
-      const unavailableGate = nodePath.join(setup.cwd, 'unavailable-gate.mjs');
-      writeTestFile(setup.cwd, 'unavailable-gate.mjs', 'process.exit(1);\n');
+      const unavailableDirectory = createTemporaryDirectory();
+      gateDirectories.push(unavailableDirectory);
+      const unavailableGate = nodePath.join(unavailableDirectory, 'unavailable-gate.mjs');
+      writeTestFile(unavailableDirectory, 'unavailable-gate.mjs', 'process.exit(1);\n');
 
       const result = runEditHook(
         setup.cwd,
@@ -532,6 +602,26 @@ describe('write-time annotation gate', () => {
         '- [ ] GREEN',
         '- [x] GREEN def5678',
         { SAFEWORD_PLUGIN_CLI: '' },
+      );
+      expectHookDeny(result, 'could not find its local CLI');
+    });
+
+    it('rejects a project-writable CLI that claims the receipt is approved', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(
+        setup.cwd,
+        'packages/cli/src/cli.ts',
+        `console.log(JSON.stringify({ state: 'healthy', data: { status: 'approved', scenario: 'Scenario: example', ledger: '.safeword-project/tickets/TST001/test-definitions.md' } }));\n`,
+      );
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: nodePath.join(setup.cwd, 'packages/cli/src/cli.ts') },
       );
       expectHookDeny(result, 'could not find its local CLI');
     });

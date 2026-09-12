@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "50ed0ae4eeb319b0ae8b9d899dad9cc9c7138a43cba199b2b736add6a0021ce9"
+      "sha256": "007af03fa7edc62113971f6ea0ea8dd2b770cfb1043234aa3542623703de4348"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "932ab985724a9cf47e4b6b9c7e8ffb5ec83e27cd178b4a923415115689fbee35"
+      "sha256": "c57ec5ee31c7736722623d603c817cf531d1a2226cdf569efb2d8bae35af9655"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
