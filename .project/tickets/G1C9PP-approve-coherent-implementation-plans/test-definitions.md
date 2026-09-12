@@ -283,8 +283,8 @@ nonblocking behavior at the canonical CLI boundary.
 ### Scenario: A declined design returns to Implementation Planning
 
 - [x] RED afd16b0b2
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN a7de9a01f
+- [x] REFACTOR skip: one declined-result sentence now carries the exact plan path and repair state without adding a second receipt shape
 
 ### Scenario: An accepted design enters Execution Planning
 
