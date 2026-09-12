@@ -2,10 +2,11 @@
 id: 5H7NA3
 slug: run-reviews-without-approval-prompts
 type: task
+subtype: bug-investigated
 phase: verify
 status: in_progress
 created: 2026-09-10T23:06:30.082Z
-last_modified: 2026-09-12T07:42:53Z
+last_modified: 2026-09-12T15:51:15Z
 ---
 
 # Run trusted review routes without approval prompts
@@ -56,6 +57,22 @@ last_modified: 2026-09-12T07:42:53Z
   the installed rule without surfacing an approval request.
 - Manual: inspect the effective Codex config for the Arcade/Bosslevel server approval mode and
   sandboxed-network settings without exposing secrets.
+
+## Root Cause
+
+The closing verification exposed an acceptance-fixture timing defect. Successful fake reviewers
+and deliberately non-responsive reviewers shared the same five-second total attempt budget, even
+though capability probing and review execution consume that budget together. Under the accumulated
+load of the repeated full acceptance lane, an otherwise immediate fake reviewer could spend the
+entire budget waiting to be scheduled and be misclassified as `probe_timed_out`.
+
+Confirmed by the full run: the first 1,499-scenario pass was green, while the immediately repeated
+lane failed two adjacent instant-review cases at the capability boundary. Both cases passed together
+in an isolated rerun (2/2 scenarios, 90/90 steps in 5.9 seconds). A deterministic production
+regression was therefore ruled out. Cross-scenario data leakage was also ruled out: each scenario
+uses a fresh world, project directory, executable directory, and an `After` cleanup. The surviving
+cause is an underfunded fixture deadline under accumulated host load. Successful-review fixtures now
+receive scheduling headroom; scenarios whose subject is a short timeout set that deadline explicitly.
 
 ## Work Log
 
@@ -132,3 +149,9 @@ last_modified: 2026-09-12T07:42:53Z
   malformed dispatcher handling, and live allow-rule coverage for normal argument variants. Focused
   regressions pass 97/97, review wiring passes 122/122, the installed-Codex boundary passes 1/1,
   lint/typecheck/format/Markdown checks are clean, and every generated artifact is current.
+- 2026-09-12T15:51:15Z Full verification follow-up: Fixed stale generated/reference fixtures and a
+  real Claude lifecycle defect where a partially failed prompt event could write false execution
+  proof. The restarted full run passed all unit suites, builds, typechecks, audits, and its first
+  1,499-scenario acceptance pass, then exposed an underfunded review-fixture deadline in the repeated
+  acceptance lane. Root cause and ruled-out alternatives are recorded above; fixture budgets were
+  separated by intended behavior before restarting verification.

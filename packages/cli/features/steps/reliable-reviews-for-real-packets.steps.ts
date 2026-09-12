@@ -22,10 +22,11 @@ import type { SafewordWorld } from './world.js';
 // the steps that invoke the CLI so unrelated Cucumber scenarios still fail fast.
 const REVIEW_STEP_TIMEOUT_MS = 40_000;
 const REVIEW_PROCESS_TIMEOUT_MS = 35_000;
-// Capability probing and the answer share an attempt deadline. Use the
-// runtime's normal probe ceiling so classification cases actually reach the
-// behavior they describe under suite load. Deadline-specific cases override it.
-const FIXTURE_ATTEMPT_TIMEOUT_MS = 5000;
+// Capability probing and the answer share an attempt deadline. Give ordinary
+// success cases room beyond the five-second probe ceiling under suite load;
+// scenarios whose subject is a short timeout override this explicitly.
+const FIXTURE_ATTEMPT_TIMEOUT_MS = 12_000;
+const INTENTIONAL_TIMEOUT_MS = 5000;
 const FIXTURE_RUN_BOUND_MS = 30_000;
 
 const execFileAsync = promisify(execFile);
@@ -324,7 +325,9 @@ Given('an explicitly configured attempt deadline', function (this: SafewordWorld
 });
 
 Given('a reviewer that never answers', function (this: SafewordWorld) {
-  installReviewer(state(this), 'codex', 'never answers');
+  const current = state(this);
+  current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = String(INTENTIONAL_TIMEOUT_MS);
+  installReviewer(current, 'codex', 'never answers');
 });
 
 Given('no later route can complete either', function (this: SafewordWorld) {
@@ -352,6 +355,7 @@ Given('the second executable answers promptly', function (this: SafewordWorld) {
 
 Given('two installed reviewer executables that never answer', function (this: SafewordWorld) {
   const current = state(this);
+  current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = String(INTENTIONAL_TIMEOUT_MS);
   installReviewer(current, 'codex', 'never answers', 'first');
   installReviewer(current, 'codex', 'never answers', 'second');
 });
@@ -360,6 +364,7 @@ Given(
   'a reviewer that never answers and leaves a grandchild grouped with it',
   function (this: SafewordWorld) {
     const current = state(this);
+    current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = String(INTENTIONAL_TIMEOUT_MS);
     current.environment.SAFEWORD_REVIEW_DESCENDANT_PID_FILE = nodePath.join(
       current.project,
       'descendant.pid',
@@ -492,6 +497,7 @@ Given('a preferred cross-agent review policy', function (this: SafewordWorld) {
 
 Given('no route ever answers', function (this: SafewordWorld) {
   const current = state(this);
+  current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = String(INTENTIONAL_TIMEOUT_MS);
   installReviewer(current, 'codex', 'never answers');
   installReviewer(current, 'claude', 'never answers');
 });
@@ -508,6 +514,7 @@ Given(
 
 Given('the assigned reviewer timed out', function (this: SafewordWorld) {
   const current = state(this);
+  current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = String(INTENTIONAL_TIMEOUT_MS);
   installReviewer(current, 'codex', 'never answers');
 });
 
