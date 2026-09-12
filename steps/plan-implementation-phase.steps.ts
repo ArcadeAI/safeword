@@ -459,6 +459,21 @@ function installProjectHooks(world: PlanWorld): void {
   );
 }
 
+function arrangeArchitectureReceipt(world: PlanWorld): void {
+  createProject(world);
+  installProjectHooks(world);
+  seedTicket(world, { phase: 'plan-implementation', spec: true });
+  writeFileSync(ticketArtifact(world, 'impl-plan.md'), VALID_PLAN);
+  world.reviewerBinDirectory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'plan-receipt-'));
+  chmodSync(world.reviewerBinDirectory, 0o700);
+  const reviewer = nodePath.join(world.reviewerBinDirectory, 'claude');
+  writeFileSync(
+    reviewer,
+    `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then\n  echo '${REVIEWER_CAPABILITIES.claude}'\n  exit 0\nfi\npayload=$(/bin/cat)\ndispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"The architecture decision needs attention.","findings":[{"severity":"error","message":"The shared-contract choice needs a resolvable durable architecture record; impl-plan.md has no configured architecture link."}]}\\n' "$dispatch_id"\n`,
+  );
+  chmodSync(reviewer, 0o755);
+}
+
 function assertInstalledPlanGateIsLive(world: PlanWorld): void {
   assert.ok(world.installedCliPath, 'the packaged Safeword CLI must be installed in the fixture');
   const result = spawnSync(
@@ -1089,18 +1104,14 @@ Given(
 Given(
   'a failed review addressed to a Non-Technical Builder because a shared-contract choice has no durable architecture link',
   function (this: PlanWorld) {
-    createProject(this);
-    installProjectHooks(this);
-    seedTicket(this, { phase: 'plan-implementation', spec: true });
-    writeFileSync(ticketArtifact(this, 'impl-plan.md'), VALID_PLAN);
-    this.reviewerBinDirectory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'plan-receipt-'));
-    chmodSync(this.reviewerBinDirectory, 0o700);
-    const reviewer = nodePath.join(this.reviewerBinDirectory, 'claude');
-    writeFileSync(
-      reviewer,
-      `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then\n  echo '${REVIEWER_CAPABILITIES.claude}'\n  exit 0\nfi\npayload=$(/bin/cat)\ndispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"The architecture decision needs attention.","findings":[{"severity":"error","message":"The shared-contract choice needs a resolvable durable architecture record; impl-plan.md has no configured architecture link."}]}\\n' "$dispatch_id"\n`,
-    );
-    chmodSync(reviewer, 0o755);
+    arrangeArchitectureReceipt(this);
+  },
+);
+
+Given(
+  'a failed review addressed to a Technical Builder because a shared-contract choice has no durable architecture link',
+  function (this: PlanWorld) {
+    arrangeArchitectureReceipt(this);
   },
 );
 
@@ -1899,6 +1910,23 @@ Then(
       nonTechnicalLines,
       /plan-implementation|plan-execution|review[_ -]?id|dispatch[_ -]?id|sha-?256|digest|ReviewerOutput|CliResult/iu,
     );
+  },
+);
+
+Then(
+  'it preserves the failing check, Implementation Plan location, and durable-record obligation alongside the recovery',
+  function (this: PlanWorld) {
+    const output = this.cli?.output ?? '';
+    assert.match(output, /Check: durable architecture link — failed/iu);
+    assert.match(
+      output,
+      new RegExp(`Implementation Plan: \\.project/tickets/${TICKET_FOLDER}/impl-plan\\.md`, 'u'),
+    );
+    assert.match(
+      output,
+      /Obligation: shared-contract choices require a resolvable durable architecture record/iu,
+    );
+    assert.match(output, /Recovery: add the durable architecture link before resubmitting/iu);
   },
 );
 
