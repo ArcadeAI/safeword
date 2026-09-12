@@ -354,19 +354,19 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 ### Scenario: Review repairs every known plan defect before execution planning
 
-- [ ] RED
+- [x] RED 8eab8e7f0
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: External authority pauses repair without disguising the plan as complete
 
-- [ ] RED
+- [x] RED 8eab8e7f0
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Every corrected plan is re-reviewed until its current bytes are clean
 
-- [ ] RED
+- [x] RED 8eab8e7f0
 - [ ] GREEN
 - [ ] REFACTOR
 
