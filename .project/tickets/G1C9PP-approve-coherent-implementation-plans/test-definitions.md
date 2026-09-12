@@ -248,7 +248,7 @@ family.
 
 ### Scenario: Measurement ownership stays with the phase that owns it
 
-- [ ] RED
+- [x] RED 0eb25d232
 - [ ] GREEN
 - [ ] REFACTOR
 
