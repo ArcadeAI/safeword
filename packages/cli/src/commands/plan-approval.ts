@@ -133,6 +133,7 @@ function result(
   status: ApprovalStatus,
   changedFiles: readonly string[],
   finding?: string,
+  findingSeverity: 'info' | 'warning' = 'warning',
 ): CliResult {
   let state: CliResult['state'] = changedFiles.length > 0 ? 'changed' : 'healthy';
   if (status === 'pending') state = 'action_required';
@@ -145,7 +146,7 @@ function result(
     findings:
       finding === undefined
         ? []
-        : [{ code: 'PLAN_APPROVAL_STATUS', message: finding, severity: 'warning' }],
+        : [{ code: 'PLAN_APPROVAL_STATUS', message: finding, severity: findingSeverity }],
     nextActions:
       status === 'pending'
         ? [
@@ -177,6 +178,27 @@ async function askForApproval(plan: string): Promise<boolean> {
   }
 }
 
+function settleInteractiveDecision(
+  context: ApprovalContext,
+  accepted: boolean,
+  ledgerTarget: string,
+): CliResult {
+  const status = accepted ? 'approved' : 'declined';
+  appendDecision(context, status);
+  appendReceipt(context, status);
+  if (accepted) advanceToExecutionPlanning(context);
+  const planPath = nodePath.relative(context.cwd, context.planPath);
+  return result(
+    context,
+    status,
+    [ledgerTarget, ...(accepted ? [nodePath.relative(context.cwd, context.ticketPath)] : [])],
+    accepted
+      ? `Approved approach: ${planPath} at ${context.digest}.`
+      : `Declined approach: ${planPath}. It remains in Implementation Planning for repair.`,
+    accepted ? 'info' : 'warning',
+  );
+}
+
 async function approve(context: ApprovalContext, noInput: boolean): Promise<CliResult> {
   const review = currentReview(context);
   if (!review.ok) {
@@ -204,18 +226,7 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
   }
 
   const accepted = await askForApproval(context.plan);
-  const status = accepted ? 'approved' : 'declined';
-  appendDecision(context, status);
-  appendReceipt(context, status);
-  if (accepted) advanceToExecutionPlanning(context);
-  return result(
-    context,
-    status,
-    [ledgerTarget, ...(accepted ? [nodePath.relative(context.cwd, context.ticketPath)] : [])],
-    accepted
-      ? undefined
-      : `Declined approach: ${nodePath.relative(context.cwd, context.planPath)}. It remains in Implementation Planning for repair.`,
-  );
+  return settleInteractiveDecision(context, accepted, ledgerTarget);
 }
 
 export async function approvePlanResult(
