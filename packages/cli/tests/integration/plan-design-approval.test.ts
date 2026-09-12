@@ -408,6 +408,27 @@ describe('human design authority follows approach currency', () => {
     );
     expect(events[1]).toContain('"decision":"declined"');
   });
+
+  it('enters Execution Planning when the changed approach is approved', () => {
+    const project = fixture(true);
+    expect(runApprovalInPty(project, 'y').status).toBe(0);
+    const changedPlan = `${PLAN}\nA newly approved authorization boundary.\n`;
+    writeFileSync(nodePath.join(project.ticketDirectory, 'impl-plan.md'), changedPlan);
+    appendCurrentReview(project, changedPlan);
+
+    const resumed = runApprovalInPty(project, 'y');
+
+    expect(resumed.status).toBe(0);
+    expect(resumed.stdout).toContain('Approve this reviewed Implementation Plan?');
+    expect(resumed.stdout).toContain(
+      `Approved approach: .project/tickets/${TICKET_FOLDER}/impl-plan.md`,
+    );
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(decisionPayloads(project.ledgerPath).at(-1)).toMatchObject({
+      decision: 'approved',
+      planDigest: createHash('sha256').update(changedPlan).digest('hex'),
+    });
+  });
 });
 
 describe('concurrent design decisions do not overwrite each other', () => {
