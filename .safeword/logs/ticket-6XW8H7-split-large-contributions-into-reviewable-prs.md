@@ -119,3 +119,15 @@
   contract and corpus digests are checked at admission. The explicit bootstrap
   phase skip permits implementation because this ticket creates the first
   `plan-execution` gate.
+- Slice 1 packages the canonical Execution Planning contract, artifact template,
+  generated reviewer rubric, schema entries, and Claude/Codex/dogfood assets.
+  The first full-suite attempt mixed two environmental faults with legitimate
+  fixture drift: sandboxed tests could not chmod their `~/.cache` reviewer
+  fixtures, and child processes selected Bun 1.4.0 instead of the repository's
+  pinned 1.3.14. The same review-wiring file passed 120/120 with normal fixture
+  access, and the Codex bundle file passed 18/18 with Bun 1.3.14 first on PATH,
+  ruling out contract or bundle logic regressions. Regenerating the lifecycle
+  hashes for the two new managed files and the CLI reference, plus restoring the
+  complete focused-review fixture clause, resolved the genuine drift. Final
+  proof: 612/612 test files green (9,773 passed, 57 skipped), package lint,
+  TypeScript, parity, generator freshness, and repository formatting all pass.

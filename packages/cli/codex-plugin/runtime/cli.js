@@ -16262,6 +16262,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/templates/impl-plan-template.md": {
         template: "doc-templates/impl-plan-template.md"
       },
+      ".safeword/templates/execution-plan-template.md": {
+        template: "doc-templates/execution-plan-template.md"
+      },
       ".safeword/templates/adr-template.md": {
         template: "doc-templates/adr-template.md"
       },
@@ -16325,6 +16328,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": {
         template: "skills/bdd/PLAN_IMPLEMENTATION.md"
+      },
+      ".claude/skills/bdd/PLAN_EXECUTION.md": {
+        template: "skills/bdd/PLAN_EXECUTION.md"
       },
       ".claude/skills/bdd/SCENARIOS.md": {
         template: "skills/bdd/SCENARIOS.md"
@@ -56301,6 +56307,7 @@ var init_catalogue = __esm(() => {
   import_yaml3 = __toESM(require_dist(), 1);
   PACKAGED_SKILL_REFERENCES = [
     { skill: "bdd", filename: "adr-template.md" },
+    { skill: "bdd", filename: "execution-plan-template.md" },
     { skill: "bdd", filename: "impl-plan-template.md" }
   ];
   FRONTMATTER = /^---\r?\n(?<metadata>[\s\S]*?)\r?\n---\r?\n/u;

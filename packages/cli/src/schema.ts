@@ -1076,6 +1076,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/templates/impl-plan-template.md': {
       template: 'doc-templates/impl-plan-template.md',
     },
+    '.safeword/templates/execution-plan-template.md': {
+      template: 'doc-templates/execution-plan-template.md',
+    },
     '.safeword/templates/adr-template.md': {
       template: 'doc-templates/adr-template.md',
     },
@@ -1155,6 +1158,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.claude/skills/bdd/PLAN_IMPLEMENTATION.md': {
       template: 'skills/bdd/PLAN_IMPLEMENTATION.md',
+    },
+    '.claude/skills/bdd/PLAN_EXECUTION.md': {
+      template: 'skills/bdd/PLAN_EXECUTION.md',
     },
     '.claude/skills/bdd/SCENARIOS.md': {
       template: 'skills/bdd/SCENARIOS.md',

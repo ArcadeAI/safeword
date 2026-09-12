@@ -114,6 +114,10 @@
       "sha256": "33885d7eaec20c6edc0e1a8fb49dc633de5bb3304b8de8d8d3eb93715cd0d9c3"
     },
     {
+      "path": "resources/templates/execution-plan-template.md",
+      "sha256": "bbdb8185649f02b183e01763ebd58f481295d9bb6a47cba765bffbf1a8e02412"
+    },
+    {
       "path": "resources/templates/impl-plan-template.md",
       "sha256": "dcb24e383a1810f9023f84d0dd60f71664a6ccb90dc8e2f1f478a7a6eae29223"
     },
@@ -139,7 +143,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "1617eb77957254dd978c08a44a03b0bc0e2306744f1e793a76a962924cda1d3e"
+      "sha256": "5f2ac0612ee08ecd9faf93a330cd1e42f21318be5535b28099980a44c4c2fa06"
     },
     {
       "path": "runtime/dispatch.js",
@@ -612,6 +616,10 @@
     {
       "path": "skills/bdd/DONE.md",
       "sha256": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60"
+    },
+    {
+      "path": "skills/bdd/PLAN_EXECUTION.md",
+      "sha256": "bb680592d34c6e79a3981f6cbde0a2bb3f5819ffc45f446dbcef1ed9316ca618"
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",

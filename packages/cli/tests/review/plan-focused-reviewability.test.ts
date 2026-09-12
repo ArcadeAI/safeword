@@ -37,7 +37,9 @@ const FOCUSED_REVIEW_CLAUSE_FIXTURE = `- **Focused decision path:** Require the 
   may carry a decision's full depth when the plan names the decision and its
   consequence. Block a missing mental model or load-bearing decision. When
   step-by-step coding instructions or repeated test evidence obscure the
-  choices, name the removable detail instead of rewarding its volume.`;
+  choices, name the removable detail instead of rewarding its volume. Require
+  the receipt to record focused reviewability as pass or failure and, on
+  failure, name the obscuring detail.`;
 
 function contractWithFocusedReviewFixture(): string {
   const existing = obligationClause(PLAN_REVIEW_RUBRIC, FOCUSED_REVIEW_OBLIGATION);
