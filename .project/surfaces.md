@@ -65,7 +65,7 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Kind:** Agent runtime
 **Description:** The Cursor desktop IDE running on a developer's own machine, with agent mode, inline edits, and Tab completion operating directly on the local filesystem and git checkout.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
-**Examples:** `.cursor/rules`, `.cursor/commands`, `.cursor/hooks.json`, `~/.cursor/hooks.json`, `cursor-agent` CLI, IDE-only hooks (`sessionStart`, `sessionEnd`, `beforeSubmitPrompt`)
+**Examples:** `.cursor/rules`, `.cursor/commands`, `.cursor/hooks.json`, `~/.cursor/hooks.json`, `cursor-agent` CLI, IDE-only hooks (`sessionStart`, `sessionEnd`, `beforeSubmitPrompt`, `stop` with `followup_message`)
 **Coverage notes:** Tag feature scenarios with `@surface.cursor` when behavior must work through Cursor's installed files or workflow on a developer's local machine.
 **Do not confuse with:** Cursor Cloud Agents — runs in an isolated cloud VM with no home directory, so user-level hooks and IDE-only hook events don't apply.
 
