@@ -221,3 +221,22 @@ describe('a declined design returns to Implementation Planning', () => {
     expect(events[0]).toContain('"decision":"declined"');
   });
 });
+
+describe('an accepted design enters Execution Planning', () => {
+  it('binds the approval to the exact approach bytes before advancing', () => {
+    const project = fixture(true);
+    const digest = createHash('sha256').update(PLAN).digest('hex');
+
+    const result = runApprovalInPty(project, 'y');
+
+    expect(result.status).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(result.stdout).toContain(
+      `Approved approach: .project/tickets/${TICKET_FOLDER}/impl-plan.md at ${digest}`,
+    );
+    const events = approvalEvents(project.ledgerPath);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toContain(`"planDigest":"${digest}"`);
+    expect(events[0]).toContain('"decision":"approved"');
+  });
+});
