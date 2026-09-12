@@ -70289,8 +70289,10 @@ function redExecutionRequest(kind, options) {
       "execute",
       "scenario",
       "ledger",
+      "proofCwd",
       "evidenceClass",
-      "expectedFailure"
+      "expectedFailure",
+      "executionTimeout"
     ].find((option) => options[option] !== undefined);
     if (redOnlyOption !== undefined) {
       const flag = redOnlyOption.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
@@ -70313,7 +70315,7 @@ function redExecutionRequest(kind, options) {
   }
   if (!Array.isArray(argv) || argv.length === 0 || argv.some((value) => typeof value !== "string"))
     return new Error("Executable-red review requires --execute with exact argv.");
-  const cwd = options.proofCwd;
+  const cwd = options.proofCwd ?? ".";
   if (typeof cwd !== "string" || cwd.trim() === "")
     return new Error("Executable-red review requires a project-contained --proof-cwd.");
   const evidenceClass = options.evidenceClass;
@@ -70322,7 +70324,7 @@ function redExecutionRequest(kind, options) {
   const expectedFailure = options.expectedFailure;
   if (typeof expectedFailure !== "string" || expectedFailure === "")
     return new Error("Executable-red review requires a non-empty --expected-failure literal.");
-  const timeoutMs = Number(options.executionTimeout);
+  const timeoutMs = Number(options.executionTimeout ?? 120000);
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600000)
     return new Error("--execution-timeout must be an integer from 1 to 600000 milliseconds.");
   return {
@@ -71656,8 +71658,7 @@ var CANONICAL_COMMANDS = [
       },
       {
         flags: "--proof-cwd <path>",
-        description: "Project-contained working directory for the RED proof",
-        defaultValue: "."
+        description: "Project-contained working directory for the RED proof"
       },
       {
         flags: "--evidence-class <class>",
@@ -71669,8 +71670,7 @@ var CANONICAL_COMMANDS = [
       },
       {
         flags: "--execution-timeout <milliseconds>",
-        description: "Bounded RED proof execution time",
-        defaultValue: "120000"
+        description: "Bounded RED proof execution time"
       },
       {
         flags: "--execute <json-argv>",

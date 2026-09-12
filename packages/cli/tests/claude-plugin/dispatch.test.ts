@@ -1034,6 +1034,48 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stdout).toBe('');
   });
 
+  it('preserves an earlier prompt denial when a later sibling hook errors', () => {
+    const projectDirectory = temporary('safeword-plugin-prompt-sibling-error-project-');
+    const pluginData = temporary('safeword-plugin-prompt-sibling-error-data-');
+    const configDirectory = temporary('safeword-plugin-prompt-sibling-error-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-prompt-sibling-error-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      {
+        hooks: [
+          {
+            type: 'command',
+            command: String.raw`printf '{"decision":"block","reason":"earlier denial"}\n'`,
+          },
+          { type: 'command', command: 'exit 1' },
+        ],
+      },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(
+      projectDirectory,
+      pluginData,
+      configDirectory,
+      'prompt-sibling-error',
+      { pluginRoot },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      decision: 'block',
+      reason: 'earlier denial',
+    });
+  });
+
   it('preserves legacy delivery when project and user declarations differ', () => {
     const projectDirectory = temporary('safeword-plugin-overlap-project-');
     const pluginData = temporary('safeword-plugin-overlap-data-');

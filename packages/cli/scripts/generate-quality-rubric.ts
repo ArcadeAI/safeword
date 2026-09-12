@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractQualityReviewRubric } from '../src/review/quality-rubric.js';
-import { runGeneratedRubric } from './lib/reconcile-generated-file.js';
+import { isDirectGeneratorInvocation, runGeneratedRubric } from './lib/reconcile-generated-file.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const skillPath = nodePath.join(packageRoot, 'templates/skills/quality-review/SKILL.md');
@@ -15,10 +15,17 @@ const output = [
   '',
 ].join('\n');
 
-runGeneratedRubric({
-  content: output,
-  defaultOutputPath,
-  generateCommand: 'generate:quality-rubric',
-  generatorEntrypoint: import.meta.filename,
-  label: 'quality-review',
-});
+export function generateQualityRubric(check = false): void {
+  runGeneratedRubric({
+    check,
+    content: output,
+    defaultOutputPath,
+    generateCommand: 'generate:quality-rubric',
+    generatorEntrypoint: import.meta.filename,
+    label: 'quality-review',
+  });
+}
+
+if (isDirectGeneratorInvocation(import.meta.filename)) {
+  generateQualityRubric(process.argv.includes('--check'));
+}

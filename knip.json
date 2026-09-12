@@ -51,7 +51,6 @@
     "\\.safeword/",
     "scripts/generate-claude-historical-catalogue.ts",
     "scripts/check-claude-plugin-release.ts",
-    "scripts/generate-plan-rubric.ts",
     "scripts/parity-check.ts"
   ],
   "ignoreIssues": {

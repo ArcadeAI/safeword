@@ -756,7 +756,16 @@ function runEventGroup(
     if (!eventEntryMatches(event, entry, hookInput)) continue;
     const hooks = entry.hooks ?? [];
     const status = runEventHooks(event, hooks, standardInput, response);
-    if (status !== 0) return { status, stdout: '' };
+    if (status !== 0) {
+      // Claude ignores stdout from a nonzero UserPromptSubmit hook. Preserve
+      // any response already produced by an earlier sibling by returning that
+      // merged response successfully; without prior output, retain the hook's
+      // ordinary nonblocking error status.
+      if (event === 'UserPromptSubmit' && Object.keys(response).length > 0) {
+        return { status: 0, stdout: `${JSON.stringify(response)}\n` };
+      }
+      return { status, stdout: '' };
+    }
   }
   return {
     status: 0,

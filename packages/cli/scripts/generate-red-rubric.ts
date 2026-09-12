@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractExecutableRedRubric } from '../src/review/red-rubric.js';
-import { runGeneratedRubric } from './lib/reconcile-generated-file.js';
+import { isDirectGeneratorInvocation, runGeneratedRubric } from './lib/reconcile-generated-file.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const skillPath = nodePath.join(packageRoot, 'templates/skills/tdd-review/SKILL.md');
@@ -15,10 +15,17 @@ const output = [
   '',
 ].join('\n');
 
-runGeneratedRubric({
-  content: output,
-  defaultOutputPath,
-  generateCommand: 'generate:red-rubric',
-  generatorEntrypoint: import.meta.filename,
-  label: 'executable RED',
-});
+export function generateRedRubric(check = false): void {
+  runGeneratedRubric({
+    check,
+    content: output,
+    defaultOutputPath,
+    generateCommand: 'generate:red-rubric',
+    generatorEntrypoint: import.meta.filename,
+    label: 'executable RED',
+  });
+}
+
+if (isDirectGeneratorInvocation(import.meta.filename)) {
+  generateRedRubric(process.argv.includes('--check'));
+}

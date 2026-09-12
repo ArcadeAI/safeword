@@ -10,6 +10,7 @@ interface ReconcileGeneratedFileOptions {
 export type GeneratedFileReconciliation = 'current' | 'stale' | 'updated';
 
 interface GeneratedRubricOptions {
+  check: boolean;
   content: string;
   defaultOutputPath: string;
   generateCommand: string;
@@ -17,12 +18,14 @@ interface GeneratedRubricOptions {
   label: string;
 }
 
-function isDirectGeneratorInvocation(generatorEntrypoint: string): boolean {
+export function isDirectGeneratorInvocation(generatorEntrypoint: string): boolean {
   const invokedEntrypoint = process.argv[1];
-  return (
-    invokedEntrypoint !== undefined &&
-    realpathSync(invokedEntrypoint) === realpathSync(generatorEntrypoint)
-  );
+  if (invokedEntrypoint === undefined) return false;
+  try {
+    return realpathSync(invokedEntrypoint) === realpathSync(generatorEntrypoint);
+  } catch {
+    return false;
+  }
 }
 
 /** Resolve a direct generator's optional output without consuming an importing script's argv. */
@@ -61,10 +64,8 @@ export function reconcileGeneratedFile({
 /** Reconcile one generated runtime rubric and report its stable CLI result. */
 export function runGeneratedRubric(options: GeneratedRubricOptions): void {
   const outputPath = generatedOutputPath(options.defaultOutputPath, options.generatorEntrypoint);
-  const check =
-    isDirectGeneratorInvocation(options.generatorEntrypoint) && process.argv.includes('--check');
   const reconciliation = reconcileGeneratedFile({
-    check,
+    check: options.check,
     content: options.content,
     outputPath,
   });
@@ -73,7 +74,7 @@ export function runGeneratedRubric(options: GeneratedRubricOptions): void {
   if (reconciliation === 'stale') {
     console.error(`${description} is stale; run ${options.generateCommand}`);
     process.exitCode = 1;
-  } else if (check) {
+  } else if (options.check) {
     console.log(`${description} is current.`);
   } else if (reconciliation === 'current') {
     const sentenceLabel = `${options.label[0]?.toUpperCase()}${options.label.slice(1)}`;

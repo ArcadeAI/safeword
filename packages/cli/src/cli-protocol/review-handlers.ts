@@ -277,8 +277,10 @@ function redExecutionRequest(
       'execute',
       'scenario',
       'ledger',
+      'proofCwd',
       'evidenceClass',
       'expectedFailure',
+      'executionTimeout',
     ].find(option => options[option] !== undefined);
     if (redOnlyOption !== undefined) {
       const flag = redOnlyOption.replaceAll(/[A-Z]/gu, letter => `-${letter.toLowerCase()}`);
@@ -301,7 +303,7 @@ function redExecutionRequest(
   }
   if (!Array.isArray(argv) || argv.length === 0 || argv.some(value => typeof value !== 'string'))
     return new Error('Executable-red review requires --execute with exact argv.');
-  const cwd = options.proofCwd;
+  const cwd = options.proofCwd ?? '.';
   if (typeof cwd !== 'string' || cwd.trim() === '')
     return new Error('Executable-red review requires a project-contained --proof-cwd.');
   const evidenceClass = options.evidenceClass;
@@ -313,7 +315,7 @@ function redExecutionRequest(
   const expectedFailure = options.expectedFailure;
   if (typeof expectedFailure !== 'string' || expectedFailure === '')
     return new Error('Executable-red review requires a non-empty --expected-failure literal.');
-  const timeoutMs = Number(options.executionTimeout);
+  const timeoutMs = Number(options.executionTimeout ?? 120_000);
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600_000)
     return new Error('--execution-timeout must be an integer from 1 to 600000 milliseconds.');
   return {

@@ -14,7 +14,10 @@ import { pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { reconcileGeneratedFile } from '../../scripts/lib/reconcile-generated-file.js';
+import {
+  isDirectGeneratorInvocation,
+  reconcileGeneratedFile,
+} from '../../scripts/lib/reconcile-generated-file.js';
 
 const GENERATORS = [
   ['generate-plan-rubric.ts', 'plan-review', 'generate:plan-rubric'],
@@ -97,6 +100,21 @@ describe('reconcileGeneratedFile', () => {
       }),
     ).toBe('updated');
     expect(readFileSync(path, 'utf8')).toBe('generated\n');
+  });
+
+  it('treats a synthetic missing entrypoint as an importing host', () => {
+    const previousEntrypoint = process.argv[1];
+    process.argv[1] = nodePath.join(nodePath.dirname(outputPath()), 'missing-entrypoint.ts');
+    try {
+      expect(
+        isDirectGeneratorInvocation(
+          nodePath.join(import.meta.dirname, '../../scripts/generate-plan-rubric.ts'),
+        ),
+      ).toBe(false);
+    } finally {
+      if (previousEntrypoint === undefined) process.argv.splice(1, 1);
+      else process.argv[1] = previousEntrypoint;
+    }
   });
 
   it.each(['missing', 'different'] as const)(
@@ -182,7 +200,7 @@ describe('reconcileGeneratedFile', () => {
     });
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('Plan-review runtime rubric is already current.');
+    expect(result.stdout).toBe('');
     expect(existsSync(redirectedPath)).toBe(false);
   }, 15_000);
 

@@ -580,7 +580,6 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       {
         flags: '--proof-cwd <path>',
         description: 'Project-contained working directory for the RED proof',
-        defaultValue: '.',
       },
       {
         flags: '--evidence-class <class>',
@@ -593,7 +592,6 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       {
         flags: '--execution-timeout <milliseconds>',
         description: 'Bounded RED proof execution time',
-        defaultValue: '120000',
       },
       {
         flags: '--execute <json-argv>',

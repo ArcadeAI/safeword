@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractPlanReviewRubric } from '../src/review/plan-rubric.js';
-import { runGeneratedRubric } from './lib/reconcile-generated-file.js';
+import { isDirectGeneratorInvocation, runGeneratedRubric } from './lib/reconcile-generated-file.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const skillPath = nodePath.join(packageRoot, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md');
@@ -15,10 +15,17 @@ const output = [
   '',
 ].join('\n');
 
-runGeneratedRubric({
-  content: output,
-  defaultOutputPath,
-  generateCommand: 'generate:plan-rubric',
-  generatorEntrypoint: import.meta.filename,
-  label: 'plan-review',
-});
+export function generatePlanRubric(check = false): void {
+  runGeneratedRubric({
+    check,
+    content: output,
+    defaultOutputPath,
+    generateCommand: 'generate:plan-rubric',
+    generatorEntrypoint: import.meta.filename,
+    label: 'plan-review',
+  });
+}
+
+if (isDirectGeneratorInvocation(import.meta.filename)) {
+  generatePlanRubric(process.argv.includes('--check'));
+}

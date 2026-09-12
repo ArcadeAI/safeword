@@ -8,6 +8,10 @@ import {
   writeCodexPluginCatalogue,
 } from '../src/codex-plugin/catalogue.js';
 import { VERSION } from '../src/version.js';
+import { generatePlanRubric } from './generate-plan-rubric.js';
+import { generateQualityRubric } from './generate-quality-rubric.js';
+import { generateRedRubric } from './generate-red-rubric.js';
+import { generateScenarioRubric } from './generate-scenario-rubric.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
 import {
@@ -31,11 +35,10 @@ if (
   throw new Error('Custom output must be outside the checked-in Codex plugin directory');
 }
 
-await import('./generate-scenario-rubric.js');
-await import('./generate-plan-rubric.js');
-await import('./generate-quality-rubric.js');
-await import('./generate-red-rubric.js');
-await import('./generate-red-rubric.js');
+generateScenarioRubric(options.checkOnly);
+generatePlanRubric(options.checkOnly);
+generateQualityRubric(options.checkOnly);
+generateRedRubric(options.checkOnly);
 
 async function generatePlugin(
   generatedRoot: string,

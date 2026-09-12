@@ -121,8 +121,8 @@ describe.skipIf(!CAN_RUN)('live smoke: installed Codex review approval boundary'
         'Scenario: example',
         '--ledger',
         'README.md',
-        '--proof-target',
-        'packages/cli/package.json',
+        '--proof-cwd',
+        '.',
       ],
       [bun, '-e', 'console.log("unrelated")'],
     ]) {
