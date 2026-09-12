@@ -70,6 +70,48 @@ describe('review packet containment and change accounting', () => {
       prepareReviewPacket(root, 'plan-implementation', ['impl-plan.md', 'spec.md']),
     ).toThrow('one non-blank impl-plan.md work file');
   });
+
+  it('seals one Execution Plan with its canonical contract and required design context', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'execution-plan.md'), '# Execution Plan\n');
+    writeFileSync(nodePath.join(root, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(root, 'behavior.feature'), 'Feature: planned behavior\n');
+
+    const prepared = prepareReviewPacket(
+      root,
+      'plan-execution',
+      ['execution-plan.md'],
+      ['impl-plan.md', 'behavior.feature'],
+    );
+    try {
+      expect(prepared.packet.logical_files.map(file => file.path)).toEqual(['execution-plan.md']);
+      expect(prepared.packet.context_files?.map(file => file.path)).toEqual([
+        'impl-plan.md',
+        'behavior.feature',
+      ]);
+      expect(prepared.packet.plan_contract?.author).toEqual(
+        prepared.packet.plan_contract?.reviewer,
+      );
+      expect(prepared.packet.plan_contract?.author.obligations).toContain('Slicing decision');
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
+  it.each([
+    { targets: ['execution-plan.md', 'impl-plan.md'], context: ['behavior.feature'] },
+    { targets: ['execution-plan.md'], context: ['behavior.feature'] },
+    { targets: ['execution-plan.md'], context: ['impl-plan.md'] },
+  ])('rejects an incomplete Execution Plan packet', ({ targets, context }) => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'execution-plan.md'), '# Execution Plan\n');
+    writeFileSync(nodePath.join(root, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(root, 'behavior.feature'), 'Feature: planned behavior\n');
+
+    expect(() => prepareReviewPacket(root, 'plan-execution', targets, context)).toThrow(
+      /one non-blank execution-plan\.md|non-blank impl-plan\.md and approved \.feature/u,
+    );
+  });
   it('rejects a target that escapes through a symlinked parent directory', () => {
     const project = temporaryDirectory();
     const outside = temporaryDirectory();
