@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const skillPath = nodePath.join(packageRoot, 'templates/skills/bdd/PLAN_EXECUTION.md');
-const artifactPath = nodePath.join(packageRoot, 'templates/templates/execution-plan-template.md');
+const artifactPath = nodePath.join(
+  packageRoot,
+  'templates/doc-templates/execution-plan-template.md',
+);
 const generatedPath = nodePath.join(packageRoot, 'src/review/execution-plan-rubric.generated.ts');
 const startMarker = '<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_START -->';
 const endMarker = '<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_END -->';
