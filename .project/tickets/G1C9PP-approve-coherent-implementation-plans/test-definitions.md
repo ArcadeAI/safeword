@@ -229,7 +229,7 @@ release prerequisite by itself.
 
 - [x] RED 8c1ff90f4
 - [x] GREEN ae74ea6e2
-- [ ] REFACTOR
+- [x] REFACTOR skip: one explicit state taxonomy and a table of forbidden claim promotions keep the boundary direct and extensible
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R17 — Significant concurrency, security, durability, lifecycle, migration, and compatibility choices include the applicable state, authority, atomicity, retry, and evidence model at decision depth
 
