@@ -360,7 +360,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 - [x] RED 8c8a663b9
 - [x] GREEN 6bcacef21
-- [ ] REFACTOR
+- [x] REFACTOR skip: one anchored line pattern and one timestamp equality check are the smallest parser boundary that distinguishes canonical authority from inert extension text
 
 ### Scenario: A design decision preserves compatible approval-ledger extensions
 
