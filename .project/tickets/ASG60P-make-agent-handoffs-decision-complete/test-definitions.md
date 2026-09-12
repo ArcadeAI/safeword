@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A complete Next decision can be acted on without earlier prose
 
 - [x] RED 5ba92f469
-- [ ] GREEN
+- [x] GREEN 2f8930686
 - [ ] REFACTOR
 
 ### Scenario: The observed Next decision omission is rejected
