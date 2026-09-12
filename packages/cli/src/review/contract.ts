@@ -2,6 +2,8 @@ export type ReviewAgent = 'claude' | 'codex' | 'opencode';
 export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
 export type ReviewKind =
   'quality-review' | 'scenario-gate' | 'plan-implementation' | 'executable-red';
+/** Internal packet kind; public command parsing adds plan-execution only at activation. */
+export type ReviewPacketKind = ReviewKind | 'plan-execution';
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type RedEvidenceClass =
   'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
@@ -68,6 +70,34 @@ interface ReviewFinding {
   readonly message: string;
 }
 
+export interface ExecutionPlanSlice {
+  readonly name: string;
+  readonly purpose: string;
+  readonly boundary: string;
+  readonly prerequisites: readonly string[];
+  readonly proof: string;
+  readonly completion_signal: string;
+  readonly relies_on_unmerged_successor: boolean;
+}
+
+export interface ExecutionPlanObligationOwner {
+  readonly obligation: string;
+  readonly slices: readonly string[];
+}
+
+export interface ExecutionPlanDecisionStatus {
+  readonly decision: string;
+  readonly status: 'unchanged';
+}
+
+export interface ExecutionPlanRecord {
+  readonly slicing_decision: 'one_pull_request' | 'multiple_pull_requests';
+  readonly rationale: string;
+  readonly slices: readonly ExecutionPlanSlice[];
+  readonly obligation_owners: readonly ExecutionPlanObligationOwner[];
+  readonly decision_statuses: readonly ExecutionPlanDecisionStatus[];
+}
+
 export interface ReviewerOutput {
   readonly schema_version: 1;
   readonly dispatch_id: string;
@@ -75,6 +105,7 @@ export interface ReviewerOutput {
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly execution_plan_record?: ExecutionPlanRecord | null;
 }
 
 export interface UnverifiedReviewerOutput {
@@ -84,6 +115,7 @@ export interface UnverifiedReviewerOutput {
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly execution_plan_record?: unknown;
 }
 
 export interface PlanContractIdentity {
@@ -99,7 +131,7 @@ export interface PlanContractPair {
 export interface ReviewPacket {
   readonly schema_version: 1;
   readonly dispatch_id: string;
-  readonly kind: ReviewKind;
+  readonly kind: ReviewPacketKind;
   readonly logical_files: readonly {
     readonly path: string;
     readonly content: string;

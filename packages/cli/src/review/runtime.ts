@@ -25,9 +25,12 @@ import type {
   ReviewAgent,
   ReviewFailure,
   ReviewPacket,
+  ReviewPacketKind,
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js';
+import { validateExecutionPlanOutput } from './execution-plan-output.js';
+import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { QUALITY_REVIEW_RUBRIC } from './quality-rubric.generated.js';
 import { EXECUTABLE_RED_REVIEW_RUBRIC } from './red-rubric.generated.js';
@@ -66,6 +69,95 @@ const REVIEW_OUTPUT_SCHEMA_SHAPE = {
 } as const;
 
 const REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
+
+const EXECUTION_PLAN_RECORD_SCHEMA = {
+  anyOf: [
+    { type: 'null' },
+    {
+      type: 'object',
+      properties: {
+        slicing_decision: {
+          type: 'string',
+          enum: ['one_pull_request', 'multiple_pull_requests'],
+        },
+        rationale: { type: 'string' },
+        slices: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              purpose: { type: 'string' },
+              boundary: { type: 'string' },
+              prerequisites: { type: 'array', items: { type: 'string' } },
+              proof: { type: 'string' },
+              completion_signal: { type: 'string' },
+              relies_on_unmerged_successor: { type: 'boolean' },
+            },
+            required: [
+              'name',
+              'purpose',
+              'boundary',
+              'prerequisites',
+              'proof',
+              'completion_signal',
+              'relies_on_unmerged_successor',
+            ],
+            additionalProperties: false,
+          },
+        },
+        obligation_owners: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              obligation: { type: 'string' },
+              slices: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['obligation', 'slices'],
+            additionalProperties: false,
+          },
+        },
+        decision_statuses: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              decision: { type: 'string' },
+              status: { type: 'string', enum: ['unchanged'] },
+            },
+            required: ['decision', 'status'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: [
+        'slicing_decision',
+        'rationale',
+        'slices',
+        'obligation_owners',
+        'decision_statuses',
+      ],
+      additionalProperties: false,
+    },
+  ],
+} as const;
+
+const EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
+  ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+  properties: {
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+    execution_plan_record: EXECUTION_PLAN_RECORD_SCHEMA,
+  },
+  required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, 'execution_plan_record'],
+} as const;
+
+/** Select the provider contract without changing any existing review-kind bytes. */
+export function reviewOutputSchema(kind: ReviewPacketKind): string {
+  return kind === 'plan-execution'
+    ? JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE)
+    : REVIEW_OUTPUT_SCHEMA;
+}
 const CLAUDE_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
 /**
@@ -119,6 +211,28 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   opencode: ['run', '--format', 'json', '--pure'],
 };
 
+function baseReviewerArguments(reviewer: ReviewAgent, kind: ReviewPacketKind): string[] {
+  const base = [...ARGUMENTS[reviewer]];
+  if (reviewer !== 'claude') return base;
+  const schemaIndex = base.indexOf('--json-schema') + 1;
+  base[schemaIndex] = reviewOutputSchema(kind);
+  return base;
+}
+
+function reviewerExtraArguments(
+  reviewer: ReviewAgent,
+  model: string | undefined,
+  schemaPath: string | undefined,
+  environment: Readonly<Record<string, string | undefined>>,
+): string[] {
+  const extra: string[] = [];
+  if (model !== undefined) extra.push('--model', model);
+  const effort = reviewer === 'claude' ? configuredClaudeEffort(environment) : undefined;
+  if (effort !== undefined) extra.push('--effort', effort);
+  if (reviewer === 'codex' && schemaPath !== undefined) extra.push('--output-schema', schemaPath);
+  return extra;
+}
+
 /**
  * Codex reads its prompt from stdin via a trailing `-`, so a model flag has to
  * land before it. Claude takes the prompt on stdin with no positional marker,
@@ -129,15 +243,10 @@ export function reviewerArguments(
   model: string | undefined,
   schemaPath: string | undefined,
   environment: Readonly<Record<string, string | undefined>> = process.env,
+  kind: ReviewPacketKind = 'quality-review',
 ): string[] {
-  const base = [...ARGUMENTS[reviewer]];
-  const extra: string[] = [];
-  if (model !== undefined) extra.push('--model', model);
-  if (reviewer === 'claude') {
-    const effort = configuredClaudeEffort(environment);
-    if (effort !== undefined) extra.push('--effort', effort);
-  }
-  if (reviewer === 'codex' && schemaPath !== undefined) extra.push('--output-schema', schemaPath);
+  const base = baseReviewerArguments(reviewer, kind);
+  const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
   if (extra.length === 0) return base;
   if (reviewer !== 'codex') return [...base, ...extra];
   const stdinMarker = base.length - 1;
@@ -221,9 +330,14 @@ export function planReviewRubric(): string {
   return composeReviewRubric(PLAN_REVIEW_RUBRIC);
 }
 
+export function executionPlanReviewRubric(): string {
+  return composeReviewRubric(EXECUTION_PLAN_REVIEW_RUBRIC);
+}
+
 function reviewRubric(kind: ReviewPacket['kind']): string {
   if (kind === 'scenario-gate') return scenarioReviewRubric();
   if (kind === 'plan-implementation') return planReviewRubric();
+  if (kind === 'plan-execution') return executionPlanReviewRubric();
   if (kind === 'executable-red') return composeReviewRubric(EXECUTABLE_RED_REVIEW_RUBRIC);
   return qualityReviewRubric();
 }
@@ -380,9 +494,8 @@ function reviewerVerdictMatchesFindings(verdict: unknown, findings: readonly unk
   );
 }
 
-function hasValidReviewerOutputBody(value: unknown): boolean {
-  if (!isRecord(value)) return false;
-  const allowedOutputKeys = new Set([
+function reviewerOutputKeys(kind: ReviewPacketKind): Set<string> {
+  const keys = new Set([
     'schema_version',
     'dispatch_id',
     'reviewer_agent',
@@ -390,12 +503,24 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
     'summary',
     'findings',
   ]);
+  if (kind === 'plan-execution') keys.add('execution_plan_record');
+  return keys;
+}
+
+function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewPacketKind): boolean {
+  return kind !== 'plan-execution' || Object.hasOwn(value, 'execution_plan_record');
+}
+
+function hasValidReviewerOutputBody(value: unknown, kind: ReviewPacketKind): boolean {
+  if (!isRecord(value)) return false;
+  const allowedOutputKeys = reviewerOutputKeys(kind);
   if (
     Object.keys(value).some(key => !allowedOutputKeys.has(key)) ||
     value.schema_version !== 1 ||
     (value.verdict !== 'approve' && value.verdict !== 'request_changes') ||
     typeof value.summary !== 'string' ||
-    !Array.isArray(value.findings)
+    !Array.isArray(value.findings) ||
+    !hasKindSpecificOutput(value, kind)
   ) {
     return false;
   }
@@ -421,12 +546,13 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
 export function parseReviewerOutput(
   reviewer: ReviewAgent,
   stdout: string,
+  kind: ReviewPacketKind = 'quality-review',
 ): UnverifiedReviewerOutput {
   let output: unknown;
   if (reviewer === 'claude') output = parseClaudeOutput(stdout);
   else if (reviewer === 'codex') output = parseCodexOutput(stdout);
   else output = parseOpenCodeOutput(stdout);
-  if (!hasValidReviewerOutputBody(output)) throw new Error('invalid reviewer output');
+  if (!hasValidReviewerOutputBody(output, kind)) throw new Error('invalid reviewer output');
   // Identity fields cross a separate trust boundary in coordinator.ts, which
   // reports missing and contradictory provenance as distinct public failures.
   return output as UnverifiedReviewerOutput;
@@ -1220,13 +1346,17 @@ async function runCandidate(
   timeoutMs: number,
 ): Promise<UnverifiedReviewerOutput> {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
-  const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath), {
-    cwd,
-    env: reviewerEnvironment(reviewer),
-    stdio: ['pipe', 'pipe', 'pipe'],
-    // Its own process group, so cleanup can reach descendants.
-    detached: process.platform !== 'win32',
-  });
+  const child = spawn(
+    executable,
+    reviewerArguments(reviewer, model, schemaPath, process.env, packet.kind),
+    {
+      cwd,
+      env: reviewerEnvironment(reviewer),
+      stdio: ['pipe', 'pipe', 'pipe'],
+      // Its own process group, so cleanup can reach descendants.
+      detached: process.platform !== 'win32',
+    },
+  );
   const terminateReviewer = (): void => {
     void stopReviewer(child).finally(() => process.exit(143));
   };
@@ -1305,7 +1435,14 @@ async function runCandidate(
               return;
             }
             try {
-              resolve(parseReviewerOutput(reviewer, stdout));
+              const parsed = parseReviewerOutput(reviewer, stdout, packet.kind);
+              if (packet.kind !== 'plan-execution') {
+                resolve(parsed);
+                return;
+              }
+              const validation = validateExecutionPlanOutput(parsed);
+              if (validation.kind === 'invalid_output') throw new Error('invalid reviewer output');
+              resolve(validation.output);
             } catch {
               reject(
                 new ReviewRuntimeError(
@@ -1408,7 +1545,7 @@ export async function runHeadlessReviewer(
   // temporary path.
   let contract: ContractFile | undefined;
   try {
-    contract = reviewer === 'codex' ? writeContractFile() : undefined;
+    contract = reviewer === 'codex' ? writeContractFile(packet.kind) : undefined;
   } catch {
     throw new ReviewRuntimeError('process_failed', `The ${reviewer} review could not be prepared`);
   }
@@ -1428,10 +1565,10 @@ interface ContractFile {
   readonly cleanup: () => void;
 }
 
-function writeContractFile(): ContractFile {
+function writeContractFile(kind: ReviewPacketKind): ContractFile {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-contract-'));
   const path = nodePath.join(directory, 'review-result.schema.json');
-  writeFileSync(path, REVIEW_OUTPUT_SCHEMA, { mode: 0o600 });
+  writeFileSync(path, reviewOutputSchema(kind), { mode: 0o600 });
   return {
     path,
     cleanup: () => {

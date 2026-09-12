@@ -31705,6 +31705,196 @@ var init_environment = __esm(() => {
   ];
 });
 
+// src/review/execution-plan-output.ts
+function isRecord3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function hasExactKeys3(value, keys) {
+  const expected = new Set(keys);
+  return Object.keys(value).length === keys.length && Object.keys(value).every((key) => expected.has(key));
+}
+function isNonblank(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+function uniqueNonblankStrings(value, allowEmpty) {
+  if (!Array.isArray(value) || !allowEmpty && value.length === 0)
+    return false;
+  if (!value.every(isNonblank))
+    return false;
+  return new Set(value).size === value.length;
+}
+function deniedOutput(output, messages2 = []) {
+  return {
+    kind: "denied",
+    output: {
+      ...output,
+      verdict: "request_changes",
+      execution_plan_record: NULL_EXECUTION_PLAN_RECORD,
+      findings: [
+        ...output.findings,
+        ...messages2.map((message) => ({ severity: "error", message }))
+      ]
+    }
+  };
+}
+function successorTripwireFinding(value, index) {
+  if (!isRecord3(value) || value.relies_on_unmerged_successor !== true)
+    return;
+  const name = isNonblank(value.name) ? value.name : `slice ${index + 1}`;
+  return `Execution Plan slice "${name}" relies on an unmerged successor.`;
+}
+function decisionTripwireFinding(value, index) {
+  if (!isRecord3(value) || !isNonblank(value.status) || value.status === "unchanged") {
+    return;
+  }
+  const name = isNonblank(value.decision) ? value.decision : `decision ${index + 1}`;
+  return `Execution Plan decision "${name}" has status "${value.status}" instead of unchanged.`;
+}
+function readableTripwireFindings(record) {
+  const sliceFindings = Array.isArray(record.slices) ? record.slices.map((slice, index) => successorTripwireFinding(slice, index)).filter((finding) => finding !== undefined) : [];
+  const decisionFindings = Array.isArray(record.decision_statuses) ? record.decision_statuses.map((decision, index) => decisionTripwireFinding(decision, index)).filter((finding) => finding !== undefined) : [];
+  return [...sliceFindings, ...decisionFindings];
+}
+function isValidSlice(value) {
+  if (!isRecord3(value))
+    return false;
+  if (!hasExactKeys3(value, [
+    "name",
+    "purpose",
+    "boundary",
+    "prerequisites",
+    "proof",
+    "completion_signal",
+    "relies_on_unmerged_successor"
+  ])) {
+    return false;
+  }
+  return isNonblank(value.name) && isNonblank(value.purpose) && isNonblank(value.boundary) && uniqueNonblankStrings(value.prerequisites, true) && isNonblank(value.proof) && isNonblank(value.completion_signal) && value.relies_on_unmerged_successor === false;
+}
+function hasValidRecordHeader(value) {
+  const decisionIsValid = value.slicing_decision === "one_pull_request" || value.slicing_decision === "multiple_pull_requests";
+  return hasExactKeys3(value, [
+    "slicing_decision",
+    "rationale",
+    "slices",
+    "obligation_owners",
+    "decision_statuses"
+  ]) && decisionIsValid && isNonblank(value.rationale) && Array.isArray(value.slices) && value.slices.every(isValidSlice);
+}
+function hasValidSliceGraph(record) {
+  const slices = record.slices;
+  const countMatchesDecision = record.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
+  const sliceNames = slices.map((slice) => slice.name);
+  const namesAreUnique = new Set(sliceNames).size === sliceNames.length;
+  const prerequisitesAreEarlier = slices.every((slice, index) => {
+    const earlier = new Set(sliceNames.slice(0, index));
+    return slice.prerequisites.every((prerequisite) => earlier.has(prerequisite));
+  });
+  return countMatchesDecision && namesAreUnique && prerequisitesAreEarlier;
+}
+function isValidObligationOwner(value, sliceNames, seen) {
+  if (!isRecord3(value) || !hasExactKeys3(value, ["obligation", "slices"]))
+    return false;
+  if (!isNonblank(value.obligation) || seen.has(value.obligation))
+    return false;
+  if (!uniqueNonblankStrings(value.slices, false))
+    return false;
+  if (value.slices.some((slice) => !sliceNames.includes(slice)))
+    return false;
+  seen.add(value.obligation);
+  return true;
+}
+function hasValidObligationOwners(record) {
+  if (record.obligation_owners.length === 0)
+    return false;
+  const sliceNames = record.slices.map((slice) => slice.name);
+  const seen = new Set;
+  const valid = record.obligation_owners.every((owner) => isValidObligationOwner(owner, sliceNames, seen));
+  if (!valid)
+    return false;
+  const owned = new Set(record.obligation_owners.flatMap((owner) => owner.slices));
+  return sliceNames.every((slice) => owned.has(slice));
+}
+function hasValidDecisionStatuses(record) {
+  if (record.decision_statuses.length === 0)
+    return false;
+  const seen = new Set;
+  return record.decision_statuses.every((decision) => {
+    if (!isRecord3(decision) || !hasExactKeys3(decision, ["decision", "status"]))
+      return false;
+    if (!isNonblank(decision.decision) || seen.has(decision.decision))
+      return false;
+    if (decision.status !== "unchanged")
+      return false;
+    seen.add(decision.decision);
+    return true;
+  });
+}
+function isValidExecutionPlanRecord(value) {
+  if (!isRecord3(value) || !hasValidRecordHeader(value))
+    return false;
+  const record = value;
+  return hasValidSliceGraph(record) && hasValidObligationOwners(record) && hasValidDecisionStatuses(record);
+}
+function validateExecutionPlanOutput(output) {
+  if (output.verdict === "request_changes")
+    return deniedOutput(output);
+  const candidate = output.execution_plan_record;
+  if (isRecord3(candidate)) {
+    const tripwires = readableTripwireFindings(candidate);
+    if (tripwires.length > 0)
+      return deniedOutput(output, tripwires);
+  }
+  if (!isValidExecutionPlanRecord(candidate))
+    return { kind: "invalid_output" };
+  return { kind: "approved", output: { ...output, execution_plan_record: candidate } };
+}
+var NULL_EXECUTION_PLAN_RECORD;
+var init_execution_plan_output = __esm(() => {
+  NULL_EXECUTION_PLAN_RECORD = JSON.parse("null");
+});
+
+// src/review/execution-plan-rubric.generated.ts
+var EXECUTION_PLAN_REVIEW_RUBRIC = `Review the Execution Plan against the exact approved scenarios and
+Implementation Plan supplied in the bounded packet. Do not substitute a
+reviewer-created baseline, reopen an accepted decision, or infer an obligation
+from outside those sources.
+
+- **Slicing decision:** Require an explicit \`one_pull_request\` or
+  \`multiple_pull_requests\` decision and a nonblank rationale grounded in
+  conceptual cohesion and independent proof. One pull request has exactly one
+  slice; multiple pull requests have at least two. Reject line or file count as
+  the sole justification.
+- **Complete slices:** Require one record per plan slice, in plan order. Every
+  slice has a unique nonblank name, one coherent purpose, a clear boundary, a
+  present prerequisite list, its own proof obligation, a concrete completion
+  signal, and a readable \`relies_on_unmerged_successor\` assertion. Reject a
+  slice with two independently valuable purposes or any implementation choice
+  the approved plan did not settle.
+- **Dependency safety:** Require every prerequisite to name a unique earlier
+  slice. Reject cycles, forward dependencies, missing prerequisites, and any
+  slice that becomes safe only after a later merge. Every intermediate merge
+  must leave the repository in a supported state.
+- **Conceptual reviewability:** Judge boundaries by whether one concern can be
+  understood and proven independently. Many mechanical edits with one outcome
+  may be one slice; a few edits with two independently valuable outcomes may
+  require two. Numeric size signals may prompt inspection but never decide it.
+- **Obligation and decision preservation:** Require at least one obligation-owner
+  entry and cover every accepted behavior, migration, rollout, rollback,
+  documentation, and affected-surface obligation with existing slice names.
+  Require at least one decision-status entry and account for every Recorded
+  Decision, or the explicit no-load-bearing-choice applicability decision, with
+  the readable status \`unchanged\`. Reject an omitted obligation, an unowned
+  slice, or any reopened decision.
+
+For an approval, return \`execution_plan_record\` containing the slicing decision
+and rationale; the complete ordered slices; obligation-owner entries; and
+decision-status entries. Set every slice's \`relies_on_unmerged_successor\` to
+\`false\` and every decision status to \`unchanged\` only when the source evidence
+supports those assertions. For a denial, return the record as null and name
+each blocking slice, field, obligation, dependency, or decision in findings.
+Never approve because the prose merely contains the expected labels.`;
+
 // src/review/quality-rubric.generated.ts
 var QUALITY_REVIEW_RUBRIC = `## Shared adversarial-review severity foundation
 
@@ -31880,6 +32070,9 @@ import {
 } from "fs";
 import { homedir as homedir5, tmpdir as tmpdir4 } from "os";
 import nodePath44 from "path";
+function reviewOutputSchema(kind) {
+  return kind === "plan-execution" ? JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE) : REVIEW_OUTPUT_SCHEMA;
+}
 function configuredClaudeEffort(environment) {
   const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
   if (effort === undefined || effort.trim() === "")
@@ -31889,18 +32082,28 @@ function configuredClaudeEffort(environment) {
   warn(`Ignoring SAFEWORD_REVIEW_EFFORT_CLAUDE='${effort}' - expected low, medium, high, xhigh, or max.`);
   return;
 }
-function reviewerArguments(reviewer, model, schemaPath, environment = process.env) {
+function baseReviewerArguments(reviewer, kind) {
   const base = [...ARGUMENTS[reviewer]];
+  if (reviewer !== "claude")
+    return base;
+  const schemaIndex = base.indexOf("--json-schema") + 1;
+  base[schemaIndex] = reviewOutputSchema(kind);
+  return base;
+}
+function reviewerExtraArguments(reviewer, model, schemaPath, environment) {
   const extra = [];
   if (model !== undefined)
     extra.push("--model", model);
-  if (reviewer === "claude") {
-    const effort = configuredClaudeEffort(environment);
-    if (effort !== undefined)
-      extra.push("--effort", effort);
-  }
+  const effort = reviewer === "claude" ? configuredClaudeEffort(environment) : undefined;
+  if (effort !== undefined)
+    extra.push("--effort", effort);
   if (reviewer === "codex" && schemaPath !== undefined)
     extra.push("--output-schema", schemaPath);
+  return extra;
+}
+function reviewerArguments(reviewer, model, schemaPath, environment = process.env, kind = "quality-review") {
+  const base = baseReviewerArguments(reviewer, kind);
+  const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
   if (extra.length === 0)
     return base;
   if (reviewer !== "codex")
@@ -31919,11 +32122,16 @@ function qualityReviewRubric() {
 function planReviewRubric() {
   return composeReviewRubric(PLAN_REVIEW_RUBRIC);
 }
+function executionPlanReviewRubric() {
+  return composeReviewRubric(EXECUTION_PLAN_REVIEW_RUBRIC);
+}
 function reviewRubric(kind) {
   if (kind === "scenario-gate")
     return scenarioReviewRubric();
   if (kind === "plan-implementation")
     return planReviewRubric();
+  if (kind === "plan-execution")
+    return executionPlanReviewRubric();
   if (kind === "executable-red")
     return composeReviewRubric(EXECUTABLE_RED_REVIEW_RUBRIC);
   return qualityReviewRubric();
@@ -31956,7 +32164,7 @@ function reviewTimeoutMilliseconds(env2 = process.env) {
   const requested = Number.isFinite(configured) && configured > 0 ? configured : defaultDeadline;
   return Math.min(requested, maximumAttempt);
 }
-function isRecord3(value) {
+function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function parseJson(value) {
@@ -31964,10 +32172,10 @@ function parseJson(value) {
 }
 function parseClaudeOutput(stdout) {
   const envelope = parseJson(stdout);
-  if (isRecord3(envelope) && isRecord3(envelope.structured_output)) {
+  if (isRecord4(envelope) && isRecord4(envelope.structured_output)) {
     return envelope.structured_output;
   }
-  if (isRecord3(envelope) && typeof envelope.result === "string") {
+  if (isRecord4(envelope) && typeof envelope.result === "string") {
     return parseJson(envelope.result);
   }
   return envelope;
@@ -31984,29 +32192,27 @@ function ndjsonEvents(stdout) {
 }
 function parseCodexOutput(stdout) {
   const events = ndjsonEvents(stdout);
-  const message = events.findLast((event) => isRecord3(event) && event.type === "item.completed" && isRecord3(event.item) && event.item.type === "agent_message" && typeof event.item.text === "string");
-  if (isRecord3(message) && isRecord3(message.item) && typeof message.item.text === "string") {
+  const message = events.findLast((event) => isRecord4(event) && event.type === "item.completed" && isRecord4(event.item) && event.item.type === "agent_message" && typeof event.item.text === "string");
+  if (isRecord4(message) && isRecord4(message.item) && typeof message.item.text === "string") {
     return parseJson(message.item.text);
   }
   return parseJson(stdout);
 }
 function parseOpenCodeOutput(stdout) {
-  const completed = ndjsonEvents(stdout).filter((event2) => isRecord3(event2) && event2.type === "text" && isRecord3(event2.part) && event2.part.type === "text" && isRecord3(event2.part.time) && typeof event2.part.time.end === "number" && typeof event2.part.text === "string");
+  const completed = ndjsonEvents(stdout).filter((event2) => isRecord4(event2) && event2.type === "text" && isRecord4(event2.part) && event2.part.type === "text" && isRecord4(event2.part.time) && typeof event2.part.time.end === "number" && typeof event2.part.text === "string");
   if (completed.length !== 1)
     throw new Error("invalid reviewer output");
   const [event] = completed;
-  if (!isRecord3(event) || !isRecord3(event.part) || typeof event.part.text !== "string") {
+  if (!isRecord4(event) || !isRecord4(event.part) || typeof event.part.text !== "string") {
     throw new Error("invalid reviewer output");
   }
   return parseJson(event.part.text);
 }
 function reviewerVerdictMatchesFindings(verdict, findings) {
-  return verdict !== "approve" || findings.every((finding) => isRecord3(finding) && finding.severity !== "error");
+  return verdict !== "approve" || findings.every((finding) => isRecord4(finding) && finding.severity !== "error");
 }
-function hasValidReviewerOutputBody(value) {
-  if (!isRecord3(value))
-    return false;
-  const allowedOutputKeys = new Set([
+function reviewerOutputKeys(kind) {
+  const keys = new Set([
     "schema_version",
     "dispatch_id",
     "reviewer_agent",
@@ -32014,15 +32220,26 @@ function hasValidReviewerOutputBody(value) {
     "summary",
     "findings"
   ]);
-  if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings)) {
+  if (kind === "plan-execution")
+    keys.add("execution_plan_record");
+  return keys;
+}
+function hasKindSpecificOutput(value, kind) {
+  return kind !== "plan-execution" || Object.hasOwn(value, "execution_plan_record");
+}
+function hasValidReviewerOutputBody(value, kind) {
+  if (!isRecord4(value))
+    return false;
+  const allowedOutputKeys = reviewerOutputKeys(kind);
+  if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings) || !hasKindSpecificOutput(value, kind)) {
     return false;
   }
-  const findingsAreValid = value.findings.every((finding) => isRecord3(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && typeof finding.severity === "string" && ["info", "warning", "error"].includes(finding.severity) && typeof finding.message === "string");
+  const findingsAreValid = value.findings.every((finding) => isRecord4(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && typeof finding.severity === "string" && ["info", "warning", "error"].includes(finding.severity) && typeof finding.message === "string");
   if (!findingsAreValid)
     return false;
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
 }
-function parseReviewerOutput(reviewer, stdout) {
+function parseReviewerOutput(reviewer, stdout, kind = "quality-review") {
   let output;
   if (reviewer === "claude")
     output = parseClaudeOutput(stdout);
@@ -32030,7 +32247,7 @@ function parseReviewerOutput(reviewer, stdout) {
     output = parseCodexOutput(stdout);
   else
     output = parseOpenCodeOutput(stdout);
-  if (!hasValidReviewerOutputBody(output))
+  if (!hasValidReviewerOutputBody(output, kind))
     throw new Error("invalid reviewer output");
   return output;
 }
@@ -32529,7 +32746,7 @@ async function stopReviewerOnce(child) {
 }
 async function runCandidate(executable, attempt, timeoutMs) {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
-  const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath), {
+  const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath, process.env, packet.kind), {
     cwd,
     env: reviewerEnvironment(reviewer),
     stdio: ["pipe", "pipe", "pipe"],
@@ -32598,7 +32815,15 @@ async function runCandidate(executable, attempt, timeoutMs) {
               return;
             }
             try {
-              resolve(parseReviewerOutput(reviewer, stdout));
+              const parsed2 = parseReviewerOutput(reviewer, stdout, packet.kind);
+              if (packet.kind !== "plan-execution") {
+                resolve(parsed2);
+                return;
+              }
+              const validation = validateExecutionPlanOutput(parsed2);
+              if (validation.kind === "invalid_output")
+                throw new Error("invalid reviewer output");
+              resolve(validation.output);
             } catch {
               reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
             }
@@ -32658,7 +32883,7 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
   }
   let contract;
   try {
-    contract = reviewer === "codex" ? writeContractFile() : undefined;
+    contract = reviewer === "codex" ? writeContractFile(packet.kind) : undefined;
   } catch {
     throw new ReviewRuntimeError("process_failed", `The ${reviewer} review could not be prepared`);
   }
@@ -32668,10 +32893,10 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
     contract?.cleanup();
   }
 }
-function writeContractFile() {
+function writeContractFile(kind) {
   const directory = mkdtempSync6(nodePath44.join(tmpdir4(), "safeword-review-contract-"));
   const path7 = nodePath44.join(directory, "review-result.schema.json");
-  writeFileSync12(path7, REVIEW_OUTPUT_SCHEMA, { mode: 384 });
+  writeFileSync12(path7, reviewOutputSchema(kind), { mode: 384 });
   return {
     path: path7,
     cleanup: () => {
@@ -32679,9 +32904,10 @@ function writeContractFile() {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.", ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.", ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
+  init_execution_plan_output();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
     type: "object",
     properties: {
@@ -32707,6 +32933,86 @@ var init_runtime = __esm(() => {
     additionalProperties: false
   };
   REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
+  EXECUTION_PLAN_RECORD_SCHEMA = {
+    anyOf: [
+      { type: "null" },
+      {
+        type: "object",
+        properties: {
+          slicing_decision: {
+            type: "string",
+            enum: ["one_pull_request", "multiple_pull_requests"]
+          },
+          rationale: { type: "string" },
+          slices: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                purpose: { type: "string" },
+                boundary: { type: "string" },
+                prerequisites: { type: "array", items: { type: "string" } },
+                proof: { type: "string" },
+                completion_signal: { type: "string" },
+                relies_on_unmerged_successor: { type: "boolean" }
+              },
+              required: [
+                "name",
+                "purpose",
+                "boundary",
+                "prerequisites",
+                "proof",
+                "completion_signal",
+                "relies_on_unmerged_successor"
+              ],
+              additionalProperties: false
+            }
+          },
+          obligation_owners: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                obligation: { type: "string" },
+                slices: { type: "array", items: { type: "string" } }
+              },
+              required: ["obligation", "slices"],
+              additionalProperties: false
+            }
+          },
+          decision_statuses: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                decision: { type: "string" },
+                status: { type: "string", enum: ["unchanged"] }
+              },
+              required: ["decision", "status"],
+              additionalProperties: false
+            }
+          }
+        },
+        required: [
+          "slicing_decision",
+          "rationale",
+          "slices",
+          "obligation_owners",
+          "decision_statuses"
+        ],
+        additionalProperties: false
+      }
+    ]
+  };
+  EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+    properties: {
+      ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+      execution_plan_record: EXECUTION_PLAN_RECORD_SCHEMA
+    },
+    required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, "execution_plan_record"]
+  };
   CLAUDE_EFFORT_LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
   ARGUMENTS = {
     claude: [
@@ -33861,7 +34167,7 @@ function parseConfiguredReviewRoutes(config, author, source) {
   const configured = config.crossAgentReviewRoutes;
   if (configured === undefined)
     return;
-  if (!isRecord4(configured) || Array.isArray(configured))
+  if (!isRecord5(configured) || Array.isArray(configured))
     throw configError("must be an object", source);
   const unsupportedAuthor = Object.keys(configured).find((key) => !REVIEW_AGENTS2.has(key));
   if (unsupportedAuthor !== undefined)
@@ -33881,7 +34187,7 @@ function parseRouteText(value, author) {
   }, 0, author);
 }
 function parseRoute(value, index, author, source) {
-  if (!isRecord4(value) || Array.isArray(value))
+  if (!isRecord5(value) || Array.isArray(value))
     throw configError(`.${author}[${index}] must be an object`, source);
   const reviewer = value.reviewer;
   if (typeof reviewer !== "string" || !REVIEW_AGENTS2.has(reviewer))
@@ -33895,7 +34201,7 @@ function parseRoute(value, index, author, source) {
     independence: reviewer === author ? "degraded" : "cross-agent"
   };
 }
-function isRecord4(value) {
+function isRecord5(value) {
   return typeof value === "object" && value !== null;
 }
 function configError(detail, source) {
@@ -33979,7 +34285,7 @@ function setScopedReviewRoutes(cwd, scope, author, routes) {
   const path7 = scopedConfigPath(cwd, scope);
   const config = readConfigFile(path7);
   const current = config.crossAgentReviewRoutes;
-  if (current !== undefined && (!isRecord5(current) || Array.isArray(current))) {
+  if (current !== undefined && (!isRecord6(current) || Array.isArray(current))) {
     throw new Error(`Invalid Safeword configuration at ${path7}: crossAgentReviewRoutes must be an object.`);
   }
   const routeMap = current === undefined ? {} : { ...current };
@@ -33998,7 +34304,7 @@ function resetScopedReviewRoutes(cwd, scope, author) {
     return false;
   const config = readConfigFile(path7);
   const current = config.crossAgentReviewRoutes;
-  if (current !== undefined && (!isRecord5(current) || Array.isArray(current))) {
+  if (current !== undefined && (!isRecord6(current) || Array.isArray(current))) {
     throw new Error(`Invalid Safeword configuration at ${path7}: crossAgentReviewRoutes must be an object.`);
   }
   if (current === undefined || !Object.hasOwn(current, author))
@@ -34026,7 +34332,7 @@ function effectiveConfiguredRoutes(cwd, author) {
     return { source: "project", routes: projectRoutes };
   return userRoutes === undefined ? undefined : { source: "user", routes: userRoutes };
 }
-function isRecord5(value) {
+function isRecord6(value) {
   return typeof value === "object" && value !== null;
 }
 var init_preferences = __esm(() => {
@@ -35636,18 +35942,18 @@ var init_coordinator = __esm(() => {
 });
 
 // src/pr-review/providers/openai.ts
-function isRecord6(value) {
+function isRecord7(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function outputText(response) {
-  if (!isRecord6(response) || !Array.isArray(response.output)) {
+  if (!isRecord7(response) || !Array.isArray(response.output)) {
     throw new Error("OpenAI reviewer returned no output");
   }
   for (const item of response.output) {
-    if (!isRecord6(item) || !Array.isArray(item.content))
+    if (!isRecord7(item) || !Array.isArray(item.content))
       continue;
     for (const content of item.content) {
-      if (isRecord6(content) && content.type === "output_text" && typeof content.text === "string") {
+      if (isRecord7(content) && content.type === "output_text" && typeof content.text === "string") {
         return content.text;
       }
     }
@@ -35659,11 +35965,11 @@ function hasFindingFields(finding) {
 }
 function parseFindings(text, evidencePaths) {
   const parsed2 = JSON.parse(text);
-  if (!isRecord6(parsed2) || !Array.isArray(parsed2.findings)) {
+  if (!isRecord7(parsed2) || !Array.isArray(parsed2.findings)) {
     throw new Error("OpenAI reviewer returned invalid findings");
   }
   return parsed2.findings.map((finding) => {
-    if (!isRecord6(finding) || !hasFindingFields(finding) || typeof finding.path !== "string" || !evidencePaths.has(finding.path)) {
+    if (!isRecord7(finding) || !hasFindingFields(finding) || typeof finding.path !== "string" || !evidencePaths.has(finding.path)) {
       throw new Error("OpenAI reviewer returned an invalid path-bound finding");
     }
     return {
@@ -35721,7 +36027,7 @@ async function reviewWithOpenAI(options) {
   if (!response.ok)
     throw new Error(`OpenAI reviewer request failed (${response.status})`);
   const payload = await response.json();
-  const usage = isRecord6(payload) && isRecord6(payload.usage) ? payload.usage : undefined;
+  const usage = isRecord7(payload) && isRecord7(payload.usage) ? payload.usage : undefined;
   return {
     findings: parseFindings(outputText(payload), new Set(options.evidence.map((item) => item.path))),
     tokenUsage: {
@@ -35932,14 +36238,14 @@ __export(exports_review_pr, {
 import { readFileSync as readFileSync33, writeFileSync as writeFileSync14 } from "fs";
 import nodePath49 from "path";
 import process10 from "process";
-function isRecord7(value) {
+function isRecord8(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function isPullState(value) {
   return typeof value === "string" && PULL_STATES.has(value);
 }
 function validRequiredChecks(value) {
-  return value === undefined || Array.isArray(value) && value.every((check) => isRecord7(check) && typeof check.context === "string" && check.context.length > 0);
+  return value === undefined || Array.isArray(value) && value.every((check) => isRecord8(check) && typeof check.context === "string" && check.context.length > 0);
 }
 function hasValidInputEnvelope(raw) {
   const validHead = typeof raw.headSha === "string" && /^[a-f\d]{40,64}$/u.test(raw.headSha);
@@ -35948,7 +36254,7 @@ function hasValidInputEnvelope(raw) {
 }
 function parseConfig(cwd) {
   const raw = JSON.parse(readFileSync33(nodePath49.join(cwd, ".safeword", "config.json"), "utf8"));
-  if (!isRecord7(raw) || !isRecord7(raw.prReview)) {
+  if (!isRecord8(raw) || !isRecord8(raw.prReview)) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
   const config = raw.prReview;
@@ -35968,10 +36274,10 @@ function decodeFullContent(encoded) {
   }
 }
 function isNonTextArtifact(artifact) {
-  return isRecord7(artifact) && (artifact.kind === "non_text" || artifact.kind === "unreadable_text") && typeof artifact.path === "string";
+  return isRecord8(artifact) && (artifact.kind === "non_text" || artifact.kind === "unreadable_text") && typeof artifact.path === "string";
 }
 function isTextArtifact(artifact) {
-  return isRecord7(artifact) && artifact.kind === "text" && typeof artifact.content === "string" && typeof artifact.path === "string" && artifact.path.length > 0;
+  return isRecord8(artifact) && artifact.kind === "text" && typeof artifact.content === "string" && typeof artifact.path === "string" && artifact.path.length > 0;
 }
 function parseArtifact(artifact) {
   if (isNonTextArtifact(artifact)) {
@@ -36000,18 +36306,18 @@ function parseArtifact(artifact) {
 }
 function parseInput(inputPath) {
   const raw = JSON.parse(readFileSync33(inputPath, "utf8"));
-  if (!isRecord7(raw) || !hasValidInputEnvelope(raw)) {
+  if (!isRecord8(raw) || !hasValidInputEnvelope(raw)) {
     throw new Error("review-pr: invalid inspection input");
   }
   const artifacts = raw.artifacts.map((artifact) => parseArtifact(artifact));
   const checks = raw.checks.map((check) => {
-    if (!isRecord7(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string") {
+    if (!isRecord8(check) || typeof check.name !== "string" || typeof check.status !== "string" || check.conclusion !== null && typeof check.conclusion !== "string") {
       throw new Error("review-pr: invalid check-run sample");
     }
     return { conclusion: check.conclusion, name: check.name, status: check.status };
   });
   const statuses = raw.statuses.map((status) => {
-    if (!isRecord7(status) || typeof status.context !== "string" || typeof status.state !== "string") {
+    if (!isRecord8(status) || typeof status.context !== "string" || typeof status.state !== "string") {
       throw new Error("review-pr: invalid commit-status sample");
     }
     return { context: status.context, state: status.state };
@@ -36030,7 +36336,7 @@ function parseInput(inputPath) {
   };
 }
 function parseOwnReceipt(value) {
-  if (!isRecord7(value) || typeof value.reviewedSha !== "string" || value.route === undefined && typeof value.status !== "string" || value.route !== undefined && value.route !== "looks_ready" && value.route !== "needs_human") {
+  if (!isRecord8(value) || typeof value.reviewedSha !== "string" || value.route === undefined && typeof value.status !== "string" || value.route !== undefined && value.route !== "looks_ready" && value.route !== "needs_human") {
     throw new Error("review-pr: invalid inspection result");
   }
   return value;
@@ -36251,7 +36557,7 @@ var init_review_pr = __esm(() => {
 
 // src/pr-review/github-request.ts
 import process11 from "process";
-function isRecord8(value) {
+function isRecord9(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function requiredEnvironment(name) {
@@ -36386,7 +36692,7 @@ function createGitHubReadinessBoundary() {
     },
     readPullRequest: async () => {
       const payload = await githubRequest(`${root}/pulls/${pull}`);
-      if (!isRecord8(payload) || !isRecord8(payload.head) || typeof payload.head.sha !== "string") {
+      if (!isRecord9(payload) || !isRecord9(payload.head) || typeof payload.head.sha !== "string") {
         throw new Error("review-pr: invalid GitHub pull response");
       }
       return {
@@ -36501,28 +36807,28 @@ import { readFileSync as readFileSync34 } from "fs";
 function isReviewRunState(value) {
   return REVIEW_RUN_STATES.has(value);
 }
-function hasExactKeys3(value, expected) {
+function hasExactKeys4(value, expected) {
   const actual = Object.keys(value).toSorted((left, right) => left.localeCompare(right));
   return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
 }
 function isSerializedFinding(value) {
-  return isRecord8(value) && typeof value.consequential === "boolean" && typeof value.consequence === "string" && typeof value.evidence === "string" && (value.line === undefined || typeof value.line === "number") && typeof value.nextAction === "string" && typeof value.path === "string";
+  return isRecord9(value) && typeof value.consequential === "boolean" && typeof value.consequence === "string" && typeof value.evidence === "string" && (value.line === undefined || typeof value.line === "number") && typeof value.nextAction === "string" && typeof value.path === "string";
 }
 function isSerializedCheck(value) {
-  return isRecord8(value) && hasExactKeys3(value, ["name", "status"]) && typeof value.name === "string" && RECEIPT_CHECK_STATUSES.has(String(value.status));
+  return isRecord9(value) && hasExactKeys4(value, ["name", "status"]) && typeof value.name === "string" && RECEIPT_CHECK_STATUSES.has(String(value.status));
 }
 function isSerializedCoverage(value) {
-  if (!isRecord8(value) || typeof value.path !== "string")
+  if (!isRecord9(value) || typeof value.path !== "string")
     return false;
   if (value.status === "integrity_reviewed")
-    return hasExactKeys3(value, ["path", "status"]);
-  return value.status === "skipped" && value.skipReason === "non_text" && hasExactKeys3(value, ["path", "skipReason", "status"]);
+    return hasExactKeys4(value, ["path", "status"]);
+  return value.status === "skipped" && value.skipReason === "non_text" && hasExactKeys4(value, ["path", "skipReason", "status"]);
 }
 function isTokenUsage(value) {
-  if (isRecord8(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
+  if (isRecord9(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
     return false;
   }
-  if (!isRecord8(value)) {
+  if (!isRecord9(value)) {
     return false;
   }
   return Object.values(value).every((tokens) => Number.isSafeInteger(tokens) && Number(tokens) >= 0);
@@ -36534,7 +36840,7 @@ function hasValidReceiptScalars(receipt) {
   return typeof receipt.reviewedSha === "string" && (receipt.route === "looks_ready" || receipt.route === "needs_human") && isReviewRunState(receipt.runState) && typeof receipt.reviewableTextArtifacts === "number" && isTokenUsage(receipt.tokenUsage);
 }
 function hasValidReceiptShape(receipt) {
-  return hasExactKeys3(receipt, [
+  return hasExactKeys4(receipt, [
     "checks",
     "coverage",
     "findings",
@@ -36549,10 +36855,10 @@ function hasValidReceiptShape(receipt) {
   ]) && hasValidReceiptArrays(receipt) && hasValidReceiptScalars(receipt);
 }
 function hasValidNotReadyShape(receipt) {
-  return hasExactKeys3(receipt, ["markerOwned", "reason", "reviewedSha", "status"]) && typeof receipt.reason === "string" && ["closed", "draft", "merged"].includes(receipt.reason);
+  return hasExactKeys4(receipt, ["markerOwned", "reason", "reviewedSha", "status"]) && typeof receipt.reason === "string" && ["closed", "draft", "merged"].includes(receipt.reason);
 }
 function hasValidPendingShape(receipt) {
-  return hasExactKeys3(receipt, [
+  return hasExactKeys4(receipt, [
     "markerOwned",
     "missingChecks",
     "nextAction",
@@ -36567,10 +36873,10 @@ function hasValidNonRunShape(receipt) {
   if (receipt.status === "not_ready")
     return hasValidNotReadyShape(receipt);
   if (receipt.status === "prerequisites_unconfigured") {
-    return hasExactKeys3(receipt, ["markerOwned", "nextAction", "reviewedSha", "status"]) && typeof receipt.nextAction === "string";
+    return hasExactKeys4(receipt, ["markerOwned", "nextAction", "reviewedSha", "status"]) && typeof receipt.nextAction === "string";
   }
   if (receipt.status === "prerequisites_failed") {
-    return hasExactKeys3(receipt, ["markerOwned", "reviewedSha", "status"]);
+    return hasExactKeys4(receipt, ["markerOwned", "reviewedSha", "status"]);
   }
   return hasValidPendingShape(receipt);
 }
@@ -36578,12 +36884,12 @@ function hasConsistentRoute(receipt) {
   const findings = receipt.findings;
   const unknowns = receipt.unknowns;
   const missingEvidence = receipt.missingEvidence;
-  const mayLookReady = receipt.runState === "complete" && unknowns.length === 0 && missingEvidence.length === 0 && Number(receipt.reviewableTextArtifacts) > 0 && findings.every((finding) => isRecord8(finding) && finding.consequential === false);
+  const mayLookReady = receipt.runState === "complete" && unknowns.length === 0 && missingEvidence.length === 0 && Number(receipt.reviewableTextArtifacts) > 0 && findings.every((finding) => isRecord9(finding) && finding.consequential === false);
   return receipt.route === "looks_ready" === mayLookReady;
 }
 function parseHandoffEnvelope(path7) {
   const value = JSON.parse(readFileSync34(path7, "utf8"));
-  if (!isRecord8(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
+  if (!isRecord9(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
     throw new Error("review-pr: invalid advisory result artifact");
   }
   return value;
@@ -36591,12 +36897,12 @@ function parseHandoffEnvelope(path7) {
 function parseReviewedReceipt(path7) {
   const value = parseHandoffEnvelope(path7);
   if (value.kind === "noop") {
-    if (!hasExactKeys3(value, ["inspectionAudit", "kind", "schemaVersion"])) {
+    if (!hasExactKeys4(value, ["inspectionAudit", "kind", "schemaVersion"])) {
       throw new Error("review-pr: invalid no-op artifact");
     }
     return { inspectionAudit: value.inspectionAudit };
   }
-  if (!hasExactKeys3(value, ["inspectionAudit", "kind", "receipt", "schemaVersion"]) || !isRecord8(value.receipt)) {
+  if (!hasExactKeys4(value, ["inspectionAudit", "kind", "receipt", "schemaVersion"]) || !isRecord9(value.receipt)) {
     throw new Error("review-pr: invalid advisory result artifact");
   }
   const receipt = value.receipt;
@@ -36719,7 +37025,7 @@ function createGitHubReviewBoundary() {
         if (!Array.isArray(payload))
           throw new Error("review-pr: invalid GitHub comments response");
         return payload.map((comment) => {
-          if (!isRecord8(comment) || !isRecord8(comment.user)) {
+          if (!isRecord9(comment) || !isRecord9(comment.user)) {
             throw new Error("review-pr: invalid GitHub comment");
           }
           if (typeof comment.body !== "string" || typeof comment.created_at !== "string" || typeof comment.id !== "number") {
@@ -36742,7 +37048,7 @@ function createGitHubReviewBoundary() {
     },
     readPullRequest: async () => {
       const payload = await githubRequest(`${root}/pulls/${pull}`);
-      if (!isRecord8(payload) || !isRecord8(payload.head) || typeof payload.head.sha !== "string") {
+      if (!isRecord9(payload) || !isRecord9(payload.head) || typeof payload.head.sha !== "string") {
         throw new Error("review-pr: invalid GitHub pull response");
       }
       let state = "ready";
@@ -62759,7 +63065,7 @@ function canonicalBase64(value) {
     throw new Error("Claude cleanup image is malformed.");
   return bytes;
 }
-function hasExactKeys4(value, keys) {
+function hasExactKeys5(value, keys) {
   const actual = Object.keys(value).toSorted((left, right) => left.localeCompare(right));
   return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
 }
@@ -62770,7 +63076,7 @@ function expectedCleanupEntryKeys(entry) {
   ].toSorted((left, right) => left.localeCompare(right));
 }
 function hasValidBeforeImage(entry, before) {
-  return hasExactKeys4(entry, expectedCleanupEntryKeys(entry)) && typeof entry.path === "string" && typeof entry.before_sha256 === "string" && SHA256_PATTERN2.test(entry.before_sha256) && sha2566(before) === entry.before_sha256 && Number.isSafeInteger(entry.before_mode) && entry.before_mode >= 0 && entry.before_mode <= 511;
+  return hasExactKeys5(entry, expectedCleanupEntryKeys(entry)) && typeof entry.path === "string" && typeof entry.before_sha256 === "string" && SHA256_PATTERN2.test(entry.before_sha256) && sha2566(before) === entry.before_sha256 && Number.isSafeInteger(entry.before_mode) && entry.before_mode >= 0 && entry.before_mode <= 511;
 }
 function deterministicAfterImage(path8, before) {
   if (path8 === ".claude/settings.json")
@@ -62829,13 +63135,13 @@ function hasValidPluginModeMetadata(pluginMode) {
 function validatePluginMode(value) {
   const pluginMode = record(value);
   const expectedKeys = expectedPluginModeKeys(pluginMode);
-  if (!hasExactKeys4(pluginMode, expectedKeys) || !hasValidPluginModeDigests(pluginMode) || !hasValidPluginModeMetadata(pluginMode)) {
+  if (!hasExactKeys5(pluginMode, expectedKeys) || !hasValidPluginModeDigests(pluginMode) || !hasValidPluginModeMetadata(pluginMode)) {
     throw new Error("Claude cleanup plugin mode is malformed.");
   }
   return pluginMode;
 }
 function hasValidTransactionHeader(value) {
-  return hasExactKeys4(value, [
+  return hasExactKeys5(value, [
     "disposition",
     "entries",
     "owner_pid",
@@ -63293,12 +63599,12 @@ import { createHash as createHash34 } from "crypto";
 function mapping(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
 }
-function hasExactKeys5(value, expected) {
+function hasExactKeys6(value, expected) {
   const actual = Object.keys(value ?? {});
   return actual.length === expected.length && actual.every((key) => expected.includes(key));
 }
 function hasExactEntries(value, expected) {
-  return hasExactKeys5(value, Object.keys(expected)) && Object.entries(expected).every(([key, expectedValue]) => value?.[key] === expectedValue);
+  return hasExactKeys6(value, Object.keys(expected)) && Object.entries(expected).every(([key, expectedValue]) => value?.[key] === expectedValue);
 }
 function actionReference(value) {
   if (typeof value !== "string" || value.startsWith("./") || value.startsWith("docker://")) {
@@ -63317,17 +63623,17 @@ function dispatchViolations(workflow) {
     return input?.required !== true || input.type !== "string" || "default" in (input ?? {});
   });
   return [
-    ...hasExactKeys5(trigger, ["workflow_dispatch"]) ? [] : ["manual_dispatch_only"],
-    ...hasExactKeys5(inputs, ["lane", "target_sha"]) && !invalidInput ? [] : ["required_inputs"]
+    ...hasExactKeys6(trigger, ["workflow_dispatch"]) ? [] : ["manual_dispatch_only"],
+    ...hasExactKeys6(inputs, ["lane", "target_sha"]) && !invalidInput ? [] : ["required_inputs"]
   ];
 }
 function jobViolations(workflow) {
   const permissions = mapping(workflow.permissions);
   const jobs = mapping(workflow.jobs);
   const job = mapping(jobs?.test);
-  const readOnly = hasExactKeys5(permissions, ["contents"]) && permissions?.contents === "read";
-  const fixedWorkflow = hasExactKeys5(workflow, ["name", "on", "permissions", "jobs"]);
-  const singleJob = hasExactKeys5(jobs, ["test"]) && job !== undefined && hasExactKeys5(job, ["runs-on", "steps"]) && job["runs-on"] === "ubuntu-latest";
+  const readOnly = hasExactKeys6(permissions, ["contents"]) && permissions?.contents === "read";
+  const fixedWorkflow = hasExactKeys6(workflow, ["name", "on", "permissions", "jobs"]);
+  const singleJob = hasExactKeys6(jobs, ["test"]) && job !== undefined && hasExactKeys6(job, ["runs-on", "steps"]) && job["runs-on"] === "ubuntu-latest";
   return {
     job,
     violations: [
@@ -63378,7 +63684,7 @@ function hasFixedStepShape(steps) {
     const step = steps[index];
     if (!step)
       return false;
-    return step?.id === expected.id && step.uses === expected.uses && hasExactKeys5(step, [...expected.keys]) && (!expected.with || hasExactEntries(mapping(step.with), expected.with));
+    return step?.id === expected.id && step.uses === expected.uses && hasExactKeys6(step, [...expected.keys]) && (!expected.with || hasExactEntries(mapping(step.with), expected.with));
   });
 }
 function inputBindingViolations(steps) {
