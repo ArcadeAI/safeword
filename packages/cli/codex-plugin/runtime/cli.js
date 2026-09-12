@@ -31134,7 +31134,9 @@ records as context around the one \`impl-plan.md\` work artifact.
   may carry a decision's full depth when the plan names the decision and its
   consequence. Block a missing mental model or load-bearing decision. When
   step-by-step coding instructions or repeated test evidence obscure the
-  choices, name the removable detail instead of rewarding its volume.
+  choices, name the removable detail instead of rewarding its volume. Require
+  the receipt to record focused reviewability as pass or failure and, on
+  failure, name the obscuring detail.
 - **Single design plan of record:** \`impl-plan.md\` is the single design plan of record.
   It must name all required decisions and each decision and consequence.
   Under this rule, linked supporting detail may carry full depth when it is explicitly subordinate support, but block approval when a second feature design document carries required decisions instead; require those decisions to return to \`impl-plan.md\`.
