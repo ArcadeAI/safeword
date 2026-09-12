@@ -295,9 +295,14 @@ export function currentDesignDecision(
   planDigest: string,
 ): DesignDecision | undefined {
   if (!existsSync(ledgerPath)) return undefined;
-  const matching = decisionEvents(readFileSync(ledgerPath, 'utf8')).filter(
-    event => event.ticket === ticket && event.planDigest === planDigest,
-  );
+  let matching: DecisionEvent[];
+  try {
+    matching = decisionEvents(readFileSync(ledgerPath, 'utf8')).filter(
+      event => event.ticket === ticket && event.planDigest === planDigest,
+    );
+  } catch {
+    return undefined;
+  }
   if (matching.length === 0) return undefined;
   const highestPosition = Math.max(...matching.map(event => event.appendPosition));
   const current = matching.filter(event => event.appendPosition === highestPosition);
