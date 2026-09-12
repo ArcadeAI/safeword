@@ -66076,7 +66076,12 @@ ${receipt}
 function currentDesignDecision(ledgerPath, ticket, planDigest) {
   if (!existsSync56(ledgerPath))
     return;
-  const matching = decisionEvents(readFileSync76(ledgerPath, "utf8")).filter((event) => event.ticket === ticket && event.planDigest === planDigest);
+  let matching;
+  try {
+    matching = decisionEvents(readFileSync76(ledgerPath, "utf8")).filter((event) => event.ticket === ticket && event.planDigest === planDigest);
+  } catch {
+    return;
+  }
   if (matching.length === 0)
     return;
   const highestPosition = Math.max(...matching.map((event) => event.appendPosition));
