@@ -343,6 +343,15 @@ async function namespaceRootHandler(invocation: CommandInvocation): Promise<CliR
   return observeNamespaceRoot(invocation.cwd, invocation.options);
 }
 
+async function ticketApprovePlanHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket approve-plan', 'ticket id must be non-empty text.');
+  }
+  const { approvePlanResult } = await import('../commands/plan-approval.js');
+  return approvePlanResult(invocation.cwd, ticket, { noInput: invocation.noInput });
+}
+
 async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeReviewKnowledge } = await import('../commands/review-knowledge.js');
   return observeReviewKnowledge(invocation.cwd);
@@ -479,6 +488,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
   'ticket reconcile-parent': ticketReconcileParentHandler,
+  'ticket approve-plan': ticketApprovePlanHandler,
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,
   'review status': reviewStatusHandler,

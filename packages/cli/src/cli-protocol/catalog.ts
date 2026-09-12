@@ -552,6 +552,19 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       { flags: '--accept', description: 'Accept a changed parent contract after intake' },
     ],
   }),
+  command(
+    'ticket approve-plan',
+    'Record human authority for the current reviewed Implementation Plan',
+    'mutate',
+    {
+      promptPolicy: 'confirm',
+      syntax: 'approve-plan <ticketId>',
+      fixture: {
+        argv: ['ticket', 'approve-plan', 'fixture', '--no-input'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('review run', 'Run an independent adversarial review', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'run <kind> <targets...>',

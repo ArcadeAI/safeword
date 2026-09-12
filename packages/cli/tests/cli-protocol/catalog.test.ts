@@ -128,6 +128,7 @@ describe('CLI command catalog', () => {
       'ticket list',
       'ticket new',
       'ticket reconcile-parent',
+      'ticket approve-plan',
       'review run',
       'review status',
       'review gate executable-red',
