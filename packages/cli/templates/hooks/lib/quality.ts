@@ -129,8 +129,15 @@ ${shapes}
 
 export const DECISION_BRIEF_CONTRACT = renderDecisionBriefContract();
 
+/** Stable identity shared by prompt rendering, evaluation, and host corrections. */
+export const TERMINAL_HANDOFF_CONTRACT_VERSION = 'terminal-handoff/v1';
+
+export type TerminalHandoffForm = 'decision' | 'action' | 'outside';
+
 export interface DecisionBriefCompliance {
   compliant: boolean;
+  contractVersion: typeof TERMINAL_HANDOFF_CONTRACT_VERSION;
+  form: TerminalHandoffForm;
   /** Deterministic work counter used to assert the scanner's fixed linear bound. */
   examinedCharacters: number;
   /** First structural reason a noncompliant reply cannot satisfy the grammar. */
@@ -389,11 +396,14 @@ export function evaluateDecisionBriefCompliance(
 ): DecisionBriefCompliance {
   const scan = scanTopLevelParagraphs(reply);
   let examinedCharacters = scan.examinedCharacters;
+  let form: TerminalHandoffForm = 'outside';
   const result = (
     compliant: boolean,
     violation?: DecisionBriefViolation,
   ): DecisionBriefCompliance => ({
     compliant,
+    contractVersion: TERMINAL_HANDOFF_CONTRACT_VERSION,
+    form,
     examinedCharacters,
     ...(violation ? { violation } : {}),
   });
@@ -413,6 +423,14 @@ export function evaluateDecisionBriefCompliance(
   if (!verdictEntry) return result(false, { kind: 'verdict-count', count: 0 });
   const { index: verdictIndex, verdict: rawVerdict } = verdictEntry;
   const verdict = rawVerdict as DecisionBriefVerdict;
+  if (verdict === 'BLOCKED') {
+    form = 'decision';
+  } else {
+    const openParagraph = paragraphs
+      .slice(verdictIndex + 1)
+      .find(paragraph => LABEL.exec(paragraph.text)?.[1] === 'Open');
+    form = /^\*\*Open:\*\*\s+human:/iu.test(openParagraph?.text ?? '') ? 'decision' : 'action';
+  }
   const grammarLabels = new Set(
     Object.values(grammar.variants).flatMap(variant =>
       variant.paragraphs.map(paragraph => paragraph.label),
