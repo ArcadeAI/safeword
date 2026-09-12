@@ -218,10 +218,10 @@ describe('review packet containment and change accounting', () => {
   });
 
   it.each([
-    '-----BEGIN PRIVATE KEY-----\nfixture',
-    'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE',
-    'OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz012345',
-  ])('rejects high-confidence credentials before dispatch', credential => {
+    ['private key', ['-----BEGIN ', 'PRIVATE KEY-----\nfixture'].join('')],
+    ['AWS key', ['AWS_ACCESS_KEY_ID=AKIA', 'IOSFODNN7EXAMPLE'].join('')],
+    ['OpenAI key', ['OPENAI_API_KEY=sk-proj-', 'abcdefghijklmnopqrstuvwxyz012345'].join('')],
+  ])('rejects a high-confidence %s before dispatch', (_label, credential) => {
     const project = temporaryDirectory();
     writeFileSync(nodePath.join(project, 'secret.md'), credential);
 
