@@ -335,7 +335,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 ### Scenario: The latest serialized decision controls phase and retry identity
 
 - [x] RED 5e4197aea
-- [ ] GREEN
+- [x] GREEN 0189cb294
 - [ ] REFACTOR
 
 ### Scenario: An interrupted approval resumes according to durable authority
