@@ -539,3 +539,45 @@ describe('a design decision preserves compatible approval-ledger extensions', ()
     expect(decisionPayloads(project.ledgerPath)).toHaveLength(1);
   });
 });
+
+describe('a completed Execution Plan does not trigger a second design approval', () => {
+  it('reuses current approach approval at the downstream implementation boundary', () => {
+    const project = fixture(true);
+    expect(runApprovalInPty(project, 'y').status).toBe(0);
+    writeFileSync(
+      nodePath.join(project.ticketDirectory, 'execution-plan.md'),
+      '# Execution Plan\n\n**Status:** complete\n',
+    );
+
+    const result = runApprovalInPty(project, 'n');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain('Approve this reviewed Implementation Plan?');
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(approvalEvents(project.ledgerPath)).toHaveLength(1);
+  });
+});
+
+describe('a completed Execution Plan cannot preserve stale design approval', () => {
+  it('returns to a fresh human decision when the accepted approach bytes changed', () => {
+    const project = fixture(true);
+    expect(runApprovalInPty(project, 'y').status).toBe(0);
+    writeFileSync(
+      nodePath.join(project.ticketDirectory, 'execution-plan.md'),
+      '# Execution Plan\n\n**Status:** complete\n',
+    );
+    const changedPlan = `${PLAN}\nA changed decision after execution planning.\n`;
+    writeFileSync(nodePath.join(project.ticketDirectory, 'impl-plan.md'), changedPlan);
+    appendCurrentReview(project, changedPlan);
+
+    const result = runApprovalInPty(project, 'n');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Approve this reviewed Implementation Plan?');
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(decisionPayloads(project.ledgerPath).at(-1)).toMatchObject({
+      decision: 'declined',
+      planDigest: createHash('sha256').update(changedPlan).digest('hex'),
+    });
+  });
+});
