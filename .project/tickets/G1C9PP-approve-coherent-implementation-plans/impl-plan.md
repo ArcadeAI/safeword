@@ -1,6 +1,6 @@
 # Impl Plan: Approve coherent Implementation Plans
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-09-08
 
 ## Approach
@@ -26,22 +26,22 @@ implemented facts, available proof, known deviations, and pending human
 authority separately. Existing code is evidence about current behavior, not
 automatic proof that the proposed design is correct or approved.
 
-Current delivery state is explicit: production slices for R1–R10 exist, but
-scenario repairs reopened R1, R2, R3, R6, R7, and R9 because their old proof no
-longer covers the accepted behavior. R11 retains only its independently accepted
-executable RED; its installed simultaneous-blocker scenario remains open.
-R12–R20 and the new
-missing-contract, resolved-path, ownership-consistency, lifecycle,
-approval-order, approval-ledger durability, repair-loop, and applicability
-partitions remain unimplemented. These open ledger entries are the current known
-defects. The exact 48-scenario behavior contract passed independent Claude Opus
-review with cross-agent provenance in review
+Current delivery state is explicit: production and current scenario evidence
+for R1–R20 are complete, including the missing-contract, resolved-path,
+ownership-consistency, lifecycle, approval-order, approval-ledger durability,
+repair-loop, and applicability partitions. The R19 shared writer serializes the
+design-decision events owned by this ticket; migration of every pre-existing
+review-stamp writer and mixed-version activation remains sibling `YCFFNC`'s
+release prerequisite rather than an authority claim by this ticket. The exact
+48-scenario behavior contract passed independent Claude Opus review with
+cross-agent provenance in review
 `c1d15391-60ce-4053-ae7a-75886f688577`; that accepts what must be built but is
-not implementation proof. Scenario-driven edits require a fresh scenario and
-plan review. The optional human design-approval gate is not configured, so no
-human plan authority is pending. Both 2026-09-10 architecture decisions were
-separately user-authorized and remain distinct from scenario-review,
-plan-review, or test state.
+not implementation proof. The completed implementation is now in closing
+verification and requires a fresh current-byte plan review before release. The
+optional human design-approval gate is not configured, so no human plan
+authority is pending. Both 2026-09-10 architecture decisions were separately
+user-authorized and remain distinct from scenario-review, plan-review, or test
+state.
 
 The riskiest assumption is that a second explicit planning phase produces a
 real enforced boundary at the canonical Safeword CLI rather than another
@@ -243,32 +243,33 @@ distinct proof boundary.
 
 Build order under the current planning contract; labels state current progress:
 
-1. **Reopened proof:** prove the riskiest R1 installed phase-transition boundary
+1. **Implemented:** prove the riskiest R1 installed phase-transition boundary
    before further rubric investment.
-2. **Partly implemented; proof reopened:** maintain the canonical phase,
+2. **Implemented:** maintain the canonical phase,
    contract identity, and approval-state domain model; prove equal, unequal,
    absent-contract, and current/stale approval cases.
-3. **External prerequisite:** sibling `7CAMAD` must establish the Execution Plan artifact
+3. **External release prerequisite:** sibling `7CAMAD` must establish the Execution Plan artifact
    and implement-entry gate before this ticket may remove build/test mechanics
    from the current plan contract or ship.
-4. **Production slices exist through R10; R11 has accepted executable RED; R12–R18 proof remains open:** replace the current proof-quality-heavy Implementation Plan template/rubric
+4. **Implemented:** replace the current proof-quality-heavy Implementation Plan template/rubric
    with the decision-focused artifact contract, including architecture, data,
    rollout/rollback, proof-scope, reviewability, persona consequences, truthful
    state, significant-workflow decision depth, measurement design, and
    all-blocker receipts; prove R3 and R5–R18.
-5. **Partly implemented; expanded proof open:** carry the phase, contract, configured-architecture edit exception, canonical
+5. **Implemented:** carry the phase, contract, configured-architecture edit exception, canonical
    skill extraction through review packet to receipt/stamp, and project-local
    plan authority through the installed Safeword CLI; prove the tagged R1, R2,
    R4, R7, R11, and R15 boundaries there, including simultaneous-blocker and
    distinct Non-Technical Builder and Technical Builder receipt projections.
-6. **Not implemented:** implement digest-bound approval/decline/pending state,
-   migrate existing review-stamp appends onto the same shared ledger writer, and
-   implement the complete decision-discovery repair loop on that installed CLI
-   boundary; prove R19's approval/receipt mixed append, sidecar lifecycle,
+6. **Implemented for this ticket:** implement digest-bound
+   approval/decline/pending state and the complete decision-discovery repair loop
+   on the installed CLI boundary; prove R19's decision append, sidecar lifecycle,
    crash-resume, live-owner refusal, lease/fencing, timeout, idempotency,
    unknown-event, approval-currency, and headless cases plus R20's repair loop
-   with deterministic process results.
-7. **Not implemented:** update configured customer documentation, confirm the
+   with deterministic process results. Sibling `YCFFNC` owns migration of the
+   remaining review-stamp writers onto this protocol before mixed-version
+   activation.
+7. **In verification:** update configured customer documentation, confirm the
    durable architecture record remains current, then run targeted, full, and
    release-contract verification for this M1 slice.
 
