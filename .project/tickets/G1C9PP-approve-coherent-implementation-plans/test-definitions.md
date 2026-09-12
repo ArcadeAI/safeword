@@ -330,7 +330,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 - [x] RED 9fab905a2
 - [x] GREEN cd60ba10e
-- [ ] REFACTOR
+- [x] REFACTOR skip: the guarded test-only mutation sits immediately before the existing ownership recheck, making deletion of that load-bearing guard observable without changing the production protocol
 
 ### Scenario: An interrupted approval resumes according to durable authority
 
