@@ -495,3 +495,28 @@ describe('retrying the same design approval does not duplicate authority', () =>
     });
   });
 });
+
+describe('approval-ledger contention fails closed without changing authority', () => {
+  it('returns pending within the configured budget while a live writer owns the lock', () => {
+    const project = fixture(true);
+    writeFileSync(
+      `${project.ledgerPath}.approval-lock`,
+      `${JSON.stringify({
+        leaseExpiresAt: Date.now() + 10_000,
+        pid: process.pid,
+        token: 'live-test-owner',
+      })}\n`,
+    );
+
+    const started = Date.now();
+    const result = runApprovalInPty(project, 'y', {
+      SAFEWORD_APPROVAL_LOCK_TIMEOUT_MS: '100',
+    });
+
+    expect(Date.now() - started).toBeLessThan(1000);
+    expect(result.status).toBe(2);
+    expect(result.stdout).toContain('approval remains pending');
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(approvalEvents(project.ledgerPath)).toEqual([]);
+  });
+});
