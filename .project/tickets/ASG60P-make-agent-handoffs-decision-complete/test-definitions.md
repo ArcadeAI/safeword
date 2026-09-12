@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED fc0fedbf0
 - [x] GREEN a7f03cab0
-- [ ] REFACTOR
+- [x] REFACTOR skip: focused linear parser has no duplication or nesting to remove yet
 
 ### Scenario: A complete Need decision can be acted on without earlier prose
 
