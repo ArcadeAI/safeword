@@ -284,7 +284,7 @@ nonblocking behavior at the canonical CLI boundary.
 
 - [x] RED 0302d818d
 - [x] GREEN 34cc6a317
-- [ ] REFACTOR
+- [x] REFACTOR skip: the narrow parser guard preserves the existing missing-or-disabled semantics while turning only unreadable, malformed, or non-object configuration into an explicit fail-closed result
 
 ### Scenario: A declined design returns to Implementation Planning
 
