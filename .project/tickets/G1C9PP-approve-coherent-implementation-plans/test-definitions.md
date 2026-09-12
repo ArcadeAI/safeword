@@ -240,7 +240,7 @@ family.
 
 ### Scenario: Significant workflow decisions are complete at decision depth
 
-- [x] RED 4a1b9f5ba
+- [x] RED c62458a80
 - [ ] GREEN
 - [ ] REFACTOR
 
