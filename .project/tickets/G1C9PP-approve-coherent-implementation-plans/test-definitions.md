@@ -213,7 +213,7 @@ release prerequisite by itself.
 
 ### Scenario: A blocked receipt gives a Non-Technical Builder a concrete recovery
 
-- [ ] RED
+- [x] RED 87fa059b3
 - [ ] GREEN
 - [ ] REFACTOR
 
