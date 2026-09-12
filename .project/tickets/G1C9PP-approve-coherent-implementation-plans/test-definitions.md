@@ -280,6 +280,12 @@ nonblocking behavior at the canonical CLI boundary.
 - [x] GREEN ffc20b29f
 - [x] REFACTOR skip: the first slice keeps ticket resolution, review admission, prompt, receipt, and phase mutation together until the durability scenarios establish the shared ledger boundary
 
+### Scenario: Malformed approval configuration fails closed
+
+- [x] RED 0302d818d
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A declined design returns to Implementation Planning
 
 - [x] RED afd16b0b2
