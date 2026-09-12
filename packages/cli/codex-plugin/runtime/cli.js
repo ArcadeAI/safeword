@@ -66077,12 +66077,11 @@ function currentDesignDecision(ledgerPath, ticket, planDigest) {
   if (!existsSync56(ledgerPath))
     return;
   const matching = decisionEvents(readFileSync76(ledgerPath, "utf8")).filter((event) => event.ticket === ticket && event.planDigest === planDigest);
-  let current;
-  for (const event of matching) {
-    if (current === undefined || event.appendPosition > current.appendPosition)
-      current = event;
-  }
-  return current?.decision;
+  if (matching.length === 0)
+    return;
+  const highestPosition = Math.max(...matching.map((event) => event.appendPosition));
+  const current = matching.filter((event) => event.appendPosition === highestPosition);
+  return current.length === 1 ? current[0]?.decision : undefined;
 }
 var LOCK_RETRY_MS = 10, LOCK_TIMEOUT_MS = 2000, LOCK_LEASE_MS = 1e4, waiter;
 var init_approval_ledger = __esm(() => {
