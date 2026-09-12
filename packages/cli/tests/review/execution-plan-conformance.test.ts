@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,7 +10,9 @@ import {
   filterExecutionPlanRoutes,
   renderExecutionPlanAdmissionEvidence,
 } from '../../src/review/execution-plan-conformance.js';
+import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
 import type { ReviewRoute } from '../../src/review/policy.js';
+import { executionPlanReviewRubric } from '../../src/review/runtime.js';
 
 const EXPECTED_CASE_IDS = [
   'one-coherent-change',
@@ -61,6 +65,25 @@ describe('Execution Plan semantic conformance admission', () => {
   it('keeps every authoritative scenario example as its own case', () => {
     expect(EXECUTION_PLAN_CONFORMANCE_CASES.map(testCase => testCase.id)).toEqual(
       EXPECTED_CASE_IDS,
+    );
+  });
+
+  it('gives every approved scenario a distinct reviewer input', () => {
+    const approvedInputs = EXECUTION_PLAN_CONFORMANCE_CASES.filter(
+      testCase => testCase.expectation.verdict === 'approve',
+    ).map(testCase => `${testCase.implementation_plan}\0${testCase.execution_plan}`);
+
+    expect(new Set(approvedInputs).size).toBe(approvedInputs.length);
+  });
+
+  it('binds admission to the exact composed contract dispatched to reviewers', () => {
+    const sha256 = (value: string): string => createHash('sha256').update(value).digest('hex');
+
+    expect(executionPlanConformanceDigests().contract_sha256).toBe(
+      sha256(executionPlanReviewRubric()),
+    );
+    expect(executionPlanConformanceDigests().contract_sha256).not.toBe(
+      sha256(EXECUTION_PLAN_REVIEW_RUBRIC),
     );
   });
 

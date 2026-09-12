@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import type { ReviewAgent, ReviewKind } from './contract.js';
 import { EXECUTION_PLAN_ADMISSION_EVIDENCE } from './execution-plan-admission.generated.js';
-import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
+import { executionPlanReviewRubric } from './review-rubric.js';
 import type { ReviewRoute } from './route-config.js';
 
 const OBLIGATIONS = [
@@ -162,6 +162,107 @@ const MULTI_PLAN = executionPlan({
   rationale: 'Contract delivery and activation are independently reviewable with separate proof.',
   slices: [CONTRACT_SLICE, ACTIVATION_SLICE],
 });
+const COMPLETE_RECORD_PLAN = executionPlan({
+  decision: 'one pull request',
+  rationale: 'One typed review-result change has one proof and one supported completion state.',
+  slices: [
+    {
+      name: 'Typed review result',
+      purpose: 'Retain one complete typed Execution Plan judgment.',
+      boundary: 'Result type, validation, and persistence for that judgment.',
+      prerequisites: 'none',
+      proof: 'A result test asserts every retained field.',
+      completion: 'A complete judgment round-trips without activating a command.',
+    },
+  ],
+});
+const ORDERED_SCHEMA_PLAN = executionPlan({
+  decision: 'multiple pull requests',
+  rationale:
+    'The reader compiles only after its schema exists, while each merge remains supported.',
+  slices: [
+    {
+      name: 'Schema',
+      purpose: 'Add the inert result schema.',
+      boundary: 'Types and schema only; no reader calls it.',
+      prerequisites: 'none',
+      proof: 'Schema golden tests pass.',
+      completion: 'The unused schema ships without changing runtime behavior.',
+    },
+    {
+      name: 'Reader',
+      purpose: 'Read and retain schema-valid results.',
+      boundary: 'Reader activation and persistence only.',
+      prerequisites: 'Schema',
+      proof: 'A reader integration test retains a schema-valid result.',
+      completion: 'The reader is active and every merge remains supported.',
+    },
+  ],
+});
+const MECHANICAL_MIRRORS_PLAN = executionPlan({
+  decision: 'one pull request',
+  rationale:
+    'Forty generated and installed file edits mirror one canonical contract and share one parity proof.',
+  slices: [
+    {
+      name: 'Contract mirrors',
+      purpose: 'Publish one canonical contract through every generated mirror.',
+      boundary: 'Canonical source plus forty mechanical generated or installed copies.',
+      prerequisites: 'none',
+      proof: 'One parity test compares every mirror with the canonical source.',
+      completion: 'All mirrors expose the same contract and no runtime behavior changes.',
+    },
+  ],
+});
+const FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
+  decision: 'multiple pull requests',
+  rationale:
+    'Only two files change, but inert schema delivery and public activation are separately valuable and provable.',
+  slices: [
+    {
+      name: 'Inert schema',
+      purpose: 'Ship a typed schema without changing public behavior.',
+      boundary: 'One schema file.',
+      prerequisites: 'none',
+      proof: 'A golden test proves the schema bytes.',
+      completion: 'The schema is available but unused.',
+    },
+    {
+      name: 'Public activation',
+      purpose: 'Expose the new review command.',
+      boundary: 'One routing file.',
+      prerequisites: 'Inert schema',
+      proof: 'A CLI test proves public dispatch and retention.',
+      completion: 'The command works and every merge remains supported.',
+    },
+  ],
+});
+const OBLIGATION_PLAN = executionPlan({
+  decision: 'multiple pull requests',
+  rationale:
+    'Contract delivery and release activation divide ownership without dropping an obligation.',
+  slices: [
+    { ...CONTRACT_SLICE, name: 'Contract owner' },
+    {
+      ...ACTIVATION_SLICE,
+      name: 'Release owner',
+      prerequisites: 'Contract owner',
+      completion: 'Every accepted obligation has an owner and the repository remains supported.',
+    },
+  ],
+});
+const UNCHANGED_DECISIONS_PLAN = executionPlan({
+  decision: 'one pull request',
+  rationale: 'One activation preserves both accepted decisions exactly as approved.',
+  slices: [
+    {
+      ...ACTIVATION_SLICE,
+      name: 'Decision-preserving activation',
+      prerequisites: 'none',
+      boundary: 'Activate review while retaining shared authorization and host-neutral ordering.',
+    },
+  ],
+});
 
 function missingFieldCase(
   id: string,
@@ -224,9 +325,9 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
   approved(
     'complete-slice-record',
     'A complete slice receives a complete record.',
-    ONE_PLAN,
+    COMPLETE_RECORD_PLAN,
     'one_pull_request',
-    ['Contract'],
+    ['Typed review result'],
   ),
   missingFieldCase('missing-purpose', 'purpose', 'purpose'),
   missingFieldCase('missing-boundary', 'boundary', 'boundary'),
@@ -269,9 +370,9 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
   approved(
     'ordered-schema-before-reader',
     'Schema addition precedes reader activation.',
-    MULTI_PLAN,
+    ORDERED_SCHEMA_PLAN,
     'multiple_pull_requests',
-    ['Contract', 'Activation'],
+    ['Schema', 'Reader'],
   ),
   denied(
     'unsafe-intermediate-merge',
@@ -297,16 +398,16 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
   approved(
     'many-mechanical-edits',
     'Many mechanical edits with one proof remain one concern.',
-    ONE_PLAN,
+    MECHANICAL_MIRRORS_PLAN,
     'one_pull_request',
-    ['Contract'],
+    ['Contract mirrors'],
   ),
   approved(
     'few-files-two-outcomes',
     'Few edits with two separately provable outcomes become two concerns.',
-    MULTI_PLAN,
+    FEW_FILES_TWO_OUTCOMES_PLAN,
     'multiple_pull_requests',
-    ['Contract', 'Activation'],
+    ['Inert schema', 'Public activation'],
   ),
   denied(
     'line-count-only-rationale',
@@ -321,16 +422,16 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
   approved(
     'all-obligations-assigned',
     'Every accepted obligation has an owner.',
-    MULTI_PLAN,
+    OBLIGATION_PLAN,
     'multiple_pull_requests',
-    ['Contract', 'Activation'],
+    ['Contract owner', 'Release owner'],
   ),
   approved(
     'all-decisions-unchanged',
     'Every accepted decision remains unchanged.',
-    MULTI_PLAN,
-    'multiple_pull_requests',
-    ['Contract', 'Activation'],
+    UNCHANGED_DECISIONS_PLAN,
+    'one_pull_request',
+    ['Decision-preserving activation'],
   ),
   missingObligationCase('missing-behavior-obligation', 'Accepted behavior'),
   missingObligationCase('missing-migration-obligation', 'Migration work'),
@@ -381,7 +482,7 @@ export function executionPlanConformanceDigests(): {
   readonly corpus_sha256: string;
 } {
   return {
-    contract_sha256: sha256(EXECUTION_PLAN_REVIEW_RUBRIC),
+    contract_sha256: sha256(executionPlanReviewRubric()),
     corpus_sha256: sha256(JSON.stringify(EXECUTION_PLAN_CONFORMANCE_CASES)),
   };
 }

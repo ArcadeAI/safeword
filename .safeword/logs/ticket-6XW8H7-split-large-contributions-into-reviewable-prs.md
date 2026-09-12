@@ -158,3 +158,12 @@
   Opus identity plus all 25/25 semantic cases in 739.7 seconds. Evidence digests:
   contract `15507633fda621d9b5b6ec117c3e2687c70af27a16ba18600b2d8a18de19aa9e`;
   corpus `59819df04cc76546ac2a93c3512932040dcf5fe6c8a888b411227ba2f8a4b65b`.
+- Independent review `e7af4634-7d00-43e2-9a0c-33697239d6ac` found that
+  admission hashed only the specialist rubric even though reviewers receive the
+  shared severity foundation too, and that eight positive cases collapsed to
+  two distinct inputs. Admission now hashes the exact composed contract, every
+  positive scenario carries a distinct decision-relevant plan, and Claude Opus
+  passed the strengthened final matrix: 25/25 semantic cases in 708.4 seconds.
+  Fresh evidence digests: contract
+  `4cb21f0f955ed138e68265b2c73943cdce3e157177b2aba8dcc0981a3ab65a4a`;
+  corpus `4077d5cab2e60bb889b841e9d9300ca6ed0688426374fe28ecf1c8e745cff5d8`.

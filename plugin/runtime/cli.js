@@ -32110,6 +32110,38 @@ and \`info\`, respectively. An \`error\` requires \`request_changes\`; \`approve
 valid only when there are no \`error\` findings. Return findings through the typed
 result contract.`;
 
+// src/review/review-rubric.ts
+function composeReviewRubric(specialistRubric) {
+  return `${QUALITY_REVIEW_RUBRIC}
+
+${specialistRubric}`;
+}
+function scenarioReviewRubric() {
+  return composeReviewRubric(SCENARIO_REVIEW_RUBRIC);
+}
+function qualityReviewRubric() {
+  return composeReviewRubric(QUALITY_REVIEW_FOCUS);
+}
+function planReviewRubric() {
+  return composeReviewRubric(PLAN_REVIEW_RUBRIC);
+}
+function executionPlanReviewRubric() {
+  return composeReviewRubric(EXECUTION_PLAN_REVIEW_RUBRIC);
+}
+function reviewRubric(kind) {
+  if (kind === "scenario-gate")
+    return scenarioReviewRubric();
+  if (kind === "plan-implementation")
+    return planReviewRubric();
+  if (kind === "plan-execution")
+    return executionPlanReviewRubric();
+  if (kind === "executable-red")
+    return composeReviewRubric(EXECUTABLE_RED_REVIEW_RUBRIC);
+  return qualityReviewRubric();
+}
+var QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.";
+var init_review_rubric = () => {};
+
 // src/review/runtime.ts
 import { spawn } from "child_process";
 import { createHash as createHash17 } from "crypto";
@@ -32174,34 +32206,6 @@ function reviewerArguments(reviewer, model, schemaPath, environment = process.en
   if (base[stdinMarker] !== "-")
     throw new Error("Codex reviewer arguments lack the stdin marker");
   return [...base.slice(0, stdinMarker), ...extra, "-"];
-}
-function scenarioReviewRubric() {
-  return composeReviewRubric(SCENARIO_REVIEW_RUBRIC);
-}
-function qualityReviewRubric() {
-  return composeReviewRubric(QUALITY_REVIEW_FOCUS);
-}
-function planReviewRubric() {
-  return composeReviewRubric(PLAN_REVIEW_RUBRIC);
-}
-function executionPlanReviewRubric() {
-  return composeReviewRubric(EXECUTION_PLAN_REVIEW_RUBRIC);
-}
-function reviewRubric(kind) {
-  if (kind === "scenario-gate")
-    return scenarioReviewRubric();
-  if (kind === "plan-implementation")
-    return planReviewRubric();
-  if (kind === "plan-execution")
-    return executionPlanReviewRubric();
-  if (kind === "executable-red")
-    return composeReviewRubric(EXECUTABLE_RED_REVIEW_RUBRIC);
-  return qualityReviewRubric();
-}
-function composeReviewRubric(specialistRubric) {
-  return `${QUALITY_REVIEW_RUBRIC}
-
-${specialistRubric}`;
 }
 function reviewRunCeiling(env2) {
   return env2.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_RUN_BOUND_MS : RUN_BOUND_MS;
@@ -32966,10 +32970,12 @@ function writeContractFile(kind) {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.", ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
   init_execution_plan_output();
+  init_review_rubric();
+  init_review_rubric();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
     type: "object",
     properties: {
@@ -34800,8 +34806,8 @@ var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
-    contract_sha256: "15507633fda621d9b5b6ec117c3e2687c70af27a16ba18600b2d8a18de19aa9e",
-    corpus_sha256: "59819df04cc76546ac2a93c3512932040dcf5fe6c8a888b411227ba2f8a4b65b",
+    contract_sha256: "4cb21f0f955ed138e68265b2c73943cdce3e157177b2aba8dcc0981a3ab65a4a",
+    corpus_sha256: "4077d5cab2e60bb889b841e9d9300ca6ed0688426374fe28ecf1c8e745cff5d8",
     identities: [
       {
         reviewer: "claude",
@@ -34919,7 +34925,7 @@ function sha2564(value) {
 }
 function executionPlanConformanceDigests() {
   return {
-    contract_sha256: sha2564(EXECUTION_PLAN_REVIEW_RUBRIC),
+    contract_sha256: sha2564(executionPlanReviewRubric()),
     corpus_sha256: sha2564(JSON.stringify(EXECUTION_PLAN_CONFORMANCE_CASES))
   };
 }
@@ -34941,9 +34947,10 @@ function filterExecutionPlanRoutes(kind, routes, evidence = EXECUTION_PLAN_ADMIS
     return [];
   return routes.filter((route) => admittedIdentity(route, evidence.identities));
 }
-var OBLIGATIONS, DECISIONS, IMPLEMENTATION_PLAN, CONTRACT_SLICE, ACTIVATION_SLICE, ONE_PLAN, MULTI_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
+var OBLIGATIONS, DECISIONS, IMPLEMENTATION_PLAN, CONTRACT_SLICE, ACTIVATION_SLICE, ONE_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, UNCHANGED_DECISIONS_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
 var init_execution_plan_conformance = __esm(() => {
   init_execution_plan_admission_generated();
+  init_review_rubric();
   OBLIGATIONS = [
     "Accepted behavior",
     "Migration work",
@@ -34994,6 +35001,103 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     rationale: "Contract delivery and activation are independently reviewable with separate proof.",
     slices: [CONTRACT_SLICE, ACTIVATION_SLICE]
   });
+  COMPLETE_RECORD_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "One typed review-result change has one proof and one supported completion state.",
+    slices: [
+      {
+        name: "Typed review result",
+        purpose: "Retain one complete typed Execution Plan judgment.",
+        boundary: "Result type, validation, and persistence for that judgment.",
+        prerequisites: "none",
+        proof: "A result test asserts every retained field.",
+        completion: "A complete judgment round-trips without activating a command."
+      }
+    ]
+  });
+  ORDERED_SCHEMA_PLAN = executionPlan({
+    decision: "multiple pull requests",
+    rationale: "The reader compiles only after its schema exists, while each merge remains supported.",
+    slices: [
+      {
+        name: "Schema",
+        purpose: "Add the inert result schema.",
+        boundary: "Types and schema only; no reader calls it.",
+        prerequisites: "none",
+        proof: "Schema golden tests pass.",
+        completion: "The unused schema ships without changing runtime behavior."
+      },
+      {
+        name: "Reader",
+        purpose: "Read and retain schema-valid results.",
+        boundary: "Reader activation and persistence only.",
+        prerequisites: "Schema",
+        proof: "A reader integration test retains a schema-valid result.",
+        completion: "The reader is active and every merge remains supported."
+      }
+    ]
+  });
+  MECHANICAL_MIRRORS_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "Forty generated and installed file edits mirror one canonical contract and share one parity proof.",
+    slices: [
+      {
+        name: "Contract mirrors",
+        purpose: "Publish one canonical contract through every generated mirror.",
+        boundary: "Canonical source plus forty mechanical generated or installed copies.",
+        prerequisites: "none",
+        proof: "One parity test compares every mirror with the canonical source.",
+        completion: "All mirrors expose the same contract and no runtime behavior changes."
+      }
+    ]
+  });
+  FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
+    decision: "multiple pull requests",
+    rationale: "Only two files change, but inert schema delivery and public activation are separately valuable and provable.",
+    slices: [
+      {
+        name: "Inert schema",
+        purpose: "Ship a typed schema without changing public behavior.",
+        boundary: "One schema file.",
+        prerequisites: "none",
+        proof: "A golden test proves the schema bytes.",
+        completion: "The schema is available but unused."
+      },
+      {
+        name: "Public activation",
+        purpose: "Expose the new review command.",
+        boundary: "One routing file.",
+        prerequisites: "Inert schema",
+        proof: "A CLI test proves public dispatch and retention.",
+        completion: "The command works and every merge remains supported."
+      }
+    ]
+  });
+  OBLIGATION_PLAN = executionPlan({
+    decision: "multiple pull requests",
+    rationale: "Contract delivery and release activation divide ownership without dropping an obligation.",
+    slices: [
+      { ...CONTRACT_SLICE, name: "Contract owner" },
+      {
+        ...ACTIVATION_SLICE,
+        name: "Release owner",
+        prerequisites: "Contract owner",
+        completion: "Every accepted obligation has an owner and the repository remains supported."
+      }
+    ]
+  });
+  UNCHANGED_DECISIONS_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "One activation preserves both accepted decisions exactly as approved.",
+    slices: [
+      {
+        ...ACTIVATION_SLICE,
+        name: "Decision-preserving activation",
+        prerequisites: "none",
+        boundary: "Activate review while retaining shared authorization and host-neutral ordering."
+      }
+    ]
+  });
   EXECUTION_PLAN_CONFORMANCE_CASES = [
     approved("one-coherent-change", "One coherent change records one pull request.", ONE_PLAN, "one_pull_request", ["Contract"]),
     approved("several-ordered-changes", "Several independent changes record ordered pull requests.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
@@ -35001,7 +35105,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       rationale: "Contract and activation are described but the slicing decision is unspecified.",
       slices: [CONTRACT_SLICE, ACTIVATION_SLICE]
     }), ["slicing", "decision"]),
-    approved("complete-slice-record", "A complete slice receives a complete record.", ONE_PLAN, "one_pull_request", ["Contract"]),
+    approved("complete-slice-record", "A complete slice receives a complete record.", COMPLETE_RECORD_PLAN, "one_pull_request", ["Typed review result"]),
     missingFieldCase("missing-purpose", "purpose", "purpose"),
     missingFieldCase("missing-boundary", "boundary", "boundary"),
     missingFieldCase("missing-prerequisites", "prerequisites", "prerequisite"),
@@ -35029,7 +35133,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         }
       ]
     }), ["authorization"]),
-    approved("ordered-schema-before-reader", "Schema addition precedes reader activation.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
+    approved("ordered-schema-before-reader", "Schema addition precedes reader activation.", ORDERED_SCHEMA_PLAN, "multiple_pull_requests", ["Schema", "Reader"]),
     denied("unsafe-intermediate-merge", "An earlier merge requiring an unmerged handler is denied with its missing prerequisite.", executionPlan({
       decision: "multiple pull requests",
       rationale: "The workflow state and handler are in separate pull requests.",
@@ -35046,15 +35150,15 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         }
       ]
     }), ["supported", "prerequisite"]),
-    approved("many-mechanical-edits", "Many mechanical edits with one proof remain one concern.", ONE_PLAN, "one_pull_request", ["Contract"]),
-    approved("few-files-two-outcomes", "Few edits with two separately provable outcomes become two concerns.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
+    approved("many-mechanical-edits", "Many mechanical edits with one proof remain one concern.", MECHANICAL_MIRRORS_PLAN, "one_pull_request", ["Contract mirrors"]),
+    approved("few-files-two-outcomes", "Few edits with two separately provable outcomes become two concerns.", FEW_FILES_TWO_OUTCOMES_PLAN, "multiple_pull_requests", ["Inert schema", "Public activation"]),
     denied("line-count-only-rationale", "Line count alone cannot justify a review boundary.", executionPlan({
       decision: "one pull request",
       rationale: "This is reviewable only because it is below 400 changed lines.",
       slices: [CONTRACT_SLICE]
     }), ["conceptual", "proof"]),
-    approved("all-obligations-assigned", "Every accepted obligation has an owner.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
-    approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
+    approved("all-obligations-assigned", "Every accepted obligation has an owner.", OBLIGATION_PLAN, "multiple_pull_requests", ["Contract owner", "Release owner"]),
+    approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", UNCHANGED_DECISIONS_PLAN, "one_pull_request", ["Decision-preserving activation"]),
     missingObligationCase("missing-behavior-obligation", "Accepted behavior"),
     missingObligationCase("missing-migration-obligation", "Migration work"),
     missingObligationCase("missing-rollout-obligation", "Rollout work"),
