@@ -141,8 +141,7 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
         !preservedCheckedRed.has(index) &&
         newState.step === 'RED' &&
         newState.checked &&
-        newState.annotation === oldState.annotation &&
-        sameScenario(oldState.scenario, newState.scenario),
+        newState.annotation === oldState.annotation,
     );
     if (preservedIndex >= 0) preservedCheckedRed.add(preservedIndex);
     else {

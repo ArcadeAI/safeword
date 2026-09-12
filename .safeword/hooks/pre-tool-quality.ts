@@ -912,17 +912,18 @@ if (
     );
   }
   const transitions = collectNewTransitions(input, editedFile);
+  const relabeledEvidence = transitions.find(transition => transition.evidenceModeChanged === true);
+  if (relabeledEvidence !== undefined) {
+    deny(
+      'Cannot retroactively relabel an already-checked RED as manual or live evidence.',
+      'Leave the historical RED annotation unchanged. Reopen the scenario with a new unchecked RED row and record the manual/live evidence there.',
+    );
+  }
   for (const transition of transitions) {
     if (transition.historicalEvidenceRemoved === true) {
       deny(
         'Cannot uncheck or remove a RED row that already carries historical evidence.',
         'Keep the checked RED row intact and add a new unchecked RED row when reopening the scenario.',
-      );
-    }
-    if (transition.evidenceModeChanged === true) {
-      deny(
-        'Cannot retroactively relabel an already-checked RED as manual or live evidence.',
-        'Leave the historical RED annotation unchanged. Reopen the scenario with a new unchecked RED row and record the manual/live evidence there.',
       );
     }
     if (transition.annotation === '') {
