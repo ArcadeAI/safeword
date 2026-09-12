@@ -283,7 +283,7 @@ nonblocking behavior at the canonical CLI boundary.
 ### Scenario: Malformed approval configuration fails closed
 
 - [x] RED 0302d818d
-- [ ] GREEN
+- [x] GREEN 34cc6a317
 - [ ] REFACTOR
 
 ### Scenario: A declined design returns to Implementation Planning
