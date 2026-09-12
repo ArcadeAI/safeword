@@ -131,3 +131,13 @@
   complete focused-review fixture clause, resolved the genuine drift. Final
   proof: 612/612 test files green (9,773 passed, 57 skipped), package lint,
   TypeScript, parity, generator freshness, and repository formatting all pass.
+- Slice 2 adds a kind-specific strict provider schema and pure classifier for a
+  typed `execution_plan_record` while preserving every legacy schema byte for
+  byte. Focused judgment and runtime tests passed 101 assertions with two
+  intentional skips; package lint and TypeScript passed. The first full run
+  exposed two build-artifact issues rather than product failures: the Claude
+  bundle had not been regenerated beside Codex, and cache-busted plugin
+  generation rewrote unchanged rubric files, making concurrent built-CLI tests
+  reject their own fresh build. Regenerated both bundles and made all rubric
+  writers content-aware, with a regression assertion that their mtimes remain
+  unchanged. Final proof: 613/613 test files green (9,808 passed, 57 skipped).
