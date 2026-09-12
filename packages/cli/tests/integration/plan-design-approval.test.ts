@@ -7,6 +7,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -49,9 +50,10 @@ const PLAN = [
 
 const PTY_RUNNER = String.raw`
 import errno, os, pty, select, sys
+response = sys.argv[1].encode() + b'\n'
 pid, fd = pty.fork()
 if pid == 0:
-    os.execvpe(sys.argv[1], sys.argv[1:], os.environ)
+    os.execvpe(sys.argv[2], sys.argv[2:], os.environ)
 output = bytearray()
 answered = False
 while True:
@@ -69,7 +71,7 @@ while True:
         break
     output.extend(chunk)
     if not answered and b'Approve this reviewed Implementation Plan?' in output:
-        os.write(fd, b'n\n')
+        os.write(fd, response)
         answered = True
 _, status = os.waitpid(pid, 0)
 sys.stdout.buffer.write(output)
@@ -134,6 +136,25 @@ function approvalEvents(path: string): string[] {
     .filter(line => line.includes(' design-decision:'));
 }
 
+function runApprovalInPty(project: Fixture, response: 'y' | 'n') {
+  return spawnSync(
+    'python3',
+    [
+      '-c',
+      PTY_RUNNER,
+      response,
+      process.execPath,
+      testCliPath,
+      '--cwd',
+      project.root,
+      'ticket',
+      'approve-plan',
+      TICKET_ID,
+    ],
+    { cwd: project.root, encoding: 'utf8', env: { ...process.env, NODE_ENV: 'test' } },
+  );
+}
+
 afterEach(() => {
   for (const root of fixtures.splice(0)) rmSync(root, { recursive: true, force: true });
 });
@@ -157,21 +178,7 @@ describe('installed CLI human design authority follows configuration', () => {
   it('presents the reviewed approach exactly once through a real terminal', () => {
     const project = fixture(true);
 
-    const result = spawnSync(
-      'python3',
-      [
-        '-c',
-        PTY_RUNNER,
-        process.execPath,
-        testCliPath,
-        '--cwd',
-        project.root,
-        'ticket',
-        'approve-plan',
-        TICKET_ID,
-      ],
-      { cwd: project.root, encoding: 'utf8', env: { ...process.env, NODE_ENV: 'test' } },
-    );
+    const result = runApprovalInPty(project, 'n');
 
     expect(result.status).toBe(0);
     expect(result.stdout.match(/# Impl Plan: Review the approach/gu)).toHaveLength(1);
@@ -192,5 +199,25 @@ describe('installed CLI human design authority follows configuration', () => {
     expect(result.stdout).not.toContain('Approve this reviewed Implementation Plan?');
     expect(readFileSync(project.ledgerPath, 'utf8')).toContain('human-approval:pending');
     expect(approvalEvents(project.ledgerPath)).toEqual([]);
+  });
+});
+
+describe('a declined design returns to Implementation Planning', () => {
+  it('names the exact declined approach and leaves it in planning for repair', () => {
+    const project = fixture(true);
+
+    const result = runApprovalInPty(project, 'n');
+
+    expect(result.status).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(result.stdout).toContain(
+      `Declined approach: .project/tickets/${TICKET_FOLDER}/impl-plan.md`,
+    );
+    const events = approvalEvents(project.ledgerPath);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toContain(
+      `"planDigest":"${createHash('sha256').update(PLAN).digest('hex')}"`,
+    );
+    expect(events[0]).toContain('"decision":"declined"');
   });
 });
