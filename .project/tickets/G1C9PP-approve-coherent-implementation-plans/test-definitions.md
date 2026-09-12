@@ -201,7 +201,7 @@ release prerequisite by itself.
 
 - [x] RED ed13f8d63
 - [x] GREEN 7de8f700c
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared persona fixture now covers both per-need and whole-inventory omissions without production duplication
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability and concrete recovery
 
