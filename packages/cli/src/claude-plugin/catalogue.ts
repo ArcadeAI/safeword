@@ -109,9 +109,9 @@ function adaptPluginScriptReference(content: string): string {
 }
 
 function adaptPluginRuntime(content: string): string {
-  // SAFEWORD_PLUGIN_CLI is not a caller-selected escape hatch in the packaged
-  // runtime: the verified dispatcher overwrites it with the bundled CLI path
-  // immediately before any child hook runs.
+  // The bunx fallbacks rewritten below occur in lifecycle hooks launched by
+  // the verified dispatcher. It overwrites SAFEWORD_PLUGIN_CLI with the
+  // bundled path immediately before launching those child hooks.
   const adapted = adaptWorkflowReference(content)
     .replaceAll(
       "['bunx', ['safeword@latest',",

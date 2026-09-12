@@ -1775,7 +1775,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '70b4228b1310c2ed2ed5829d022bbf27a58477ada190c20eb55debb06051c175',
+        'b2253803de4e464b35ea0995df793110e6e9f7a7f3b0e8b467df7c0f65f96575',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -5913,6 +5913,8 @@ function exposePackagedSafewordContext(pluginRoot) {
   const packagedSafewordPath = nodePath10.join(pluginRoot, 'resources', 'SAFEWORD.md');
   if (existsSync7(packagedSafewordPath)) {
     process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
+  } else {
+    delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
   }
 }
 function mainUnsafe(event, mode, command) {

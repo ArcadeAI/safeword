@@ -272,7 +272,20 @@ function redExecutionRequest(
   kind: ReviewKind,
   options: Readonly<Record<string, unknown>>,
 ): RedExecutionRequest | undefined | Error {
-  if (kind !== 'executable-red') return undefined;
+  if (kind !== 'executable-red') {
+    const redOnlyOption = [
+      'execute',
+      'scenario',
+      'ledger',
+      'evidenceClass',
+      'expectedFailure',
+    ].find(option => options[option] !== undefined);
+    if (redOnlyOption !== undefined) {
+      const flag = redOnlyOption.replaceAll(/[A-Z]/gu, letter => `-${letter.toLowerCase()}`);
+      return new Error(`--${flag} is only valid for executable-red reviews.`);
+    }
+    return undefined;
+  }
   const scenario = options.scenario;
   if (typeof scenario !== 'string' || scenario.trim() === '')
     return new Error('Executable-red review requires a non-empty --scenario.');

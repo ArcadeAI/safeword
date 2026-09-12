@@ -3566,7 +3566,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/SCENARIOS.md": "d2d262f7b88d47df8d7d6da5cddbf78574252ce3eb1a25f4b978a41c42290cb8",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "70b4228b1310c2ed2ed5829d022bbf27a58477ada190c20eb55debb06051c175",
+        ".claude/skills/bdd/TDD.md": "b2253803de4e464b35ea0995df793110e6e9f7a7f3b0e8b467df7c0f65f96575",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -70284,8 +70284,20 @@ var RED_EVIDENCE_CLASSES = new Set([
   "external-live-host"
 ]);
 function redExecutionRequest(kind, options) {
-  if (kind !== "executable-red")
+  if (kind !== "executable-red") {
+    const redOnlyOption = [
+      "execute",
+      "scenario",
+      "ledger",
+      "evidenceClass",
+      "expectedFailure"
+    ].find((option) => options[option] !== undefined);
+    if (redOnlyOption !== undefined) {
+      const flag = redOnlyOption.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
+      return new Error(`--${flag} is only valid for executable-red reviews.`);
+    }
     return;
+  }
   const scenario = options.scenario;
   if (typeof scenario !== "string" || scenario.trim() === "")
     return new Error("Executable-red review requires a non-empty --scenario.");

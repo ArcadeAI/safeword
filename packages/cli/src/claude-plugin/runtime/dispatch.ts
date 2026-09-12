@@ -817,6 +817,8 @@ function exposePackagedSafewordContext(pluginRoot: string): void {
   const packagedSafewordPath = nodePath.join(pluginRoot, 'resources', 'SAFEWORD.md');
   if (existsSync(packagedSafewordPath)) {
     process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
+  } else {
+    delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
   }
 }
 

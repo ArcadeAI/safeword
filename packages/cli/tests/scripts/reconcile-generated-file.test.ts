@@ -1,7 +1,16 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -158,6 +167,24 @@ describe('reconcileGeneratedFile', () => {
     },
     15_000,
   );
+
+  it('ignores output and check flags owned by an importing wrapper', () => {
+    const redirectedPath = outputPath();
+    const wrapperPath = nodePath.join(nodePath.dirname(redirectedPath), 'wrapper.ts');
+    const generatorUrl = pathToFileURL(
+      nodePath.join(import.meta.dirname, '../../scripts/generate-plan-rubric.ts'),
+    ).href;
+    writeFileSync(wrapperPath, `await import(${JSON.stringify(generatorUrl)});\n`);
+
+    const result = spawnSync('bun', [wrapperPath, '--output', redirectedPath, '--check'], {
+      cwd: nodePath.join(import.meta.dirname, '../..'),
+      encoding: 'utf8',
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('Plan-review runtime rubric is already current.');
+    expect(existsSync(redirectedPath)).toBe(false);
+  }, 15_000);
 
   it('rejects an output flag without a path', () => {
     const result = spawnSync('bun', ['scripts/generate-plan-rubric.ts', '--output', '--check'], {

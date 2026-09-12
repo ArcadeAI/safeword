@@ -247,7 +247,7 @@ them.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Collection is silent and bounded by default, while a local CLI opt-out and operator evidence remain available | `packages/cli/features/route-local-retros-through-server.feature` | |
+| Optimize for the NTB without constraining the TBU | Collection is silent and bounded by default, while a local CLI opt-out and operator evidence remain available | `packages/cli/tests/integration/public-retro-lifecycle.test.ts`    | |
 | 1. Structure enforces; instructions suggest | Public quarantine is a separate package, process, volume, and credential boundary with no private-filing dependency | `packages/retro-collector/tests/worker.integration.test.ts` | |
 | 3. Add, never replace | Install reconciliation preserves existing UUID, opt-out, and unrelated harness configuration | `packages/cli/tests/commands/retro.test.ts` | |
 | 5. Correct and safe; then clear; then simple | One shared builder and one small SQLite service replace per-harness transports and another managed database | `packages/retro-collector/tests/public-retro.integration.test.ts` | |

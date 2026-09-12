@@ -16,7 +16,6 @@ const output = [
 ].join('\n');
 
 runGeneratedRubric({
-  check: process.argv.includes('--check'),
   content: output,
   defaultOutputPath,
   generateCommand: 'generate:scenario-rubric',

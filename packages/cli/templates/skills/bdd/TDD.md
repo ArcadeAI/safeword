@@ -128,7 +128,9 @@ reviews, `review status`, and every status retry inside the normal workspace san
 never escalate them. Executable RED stays sandboxed because its request contains an exact command
 to execute; in a network-restricted sandbox, its independent-review step may therefore be
 unavailable and GREEN remains blocked. Do not trade that containment for an approval prompt or an
-unsandboxed execution. If the dispatch rule is absent or does not match, report the route as
+unsandboxed execution. Recover by enabling sandbox network access to the configured reviewer
+endpoint before rerunning the receipt, or by running the RED review from a supported host whose
+normal sandbox already has that access. If the dispatch rule is absent or does not match, report the route as
 unavailable instead of asking the user. **A review you never
 dispatched is not coverage** — say so unprompted, before any
 finding, name what ran in its place, and never let your own pass stand in for the review.
