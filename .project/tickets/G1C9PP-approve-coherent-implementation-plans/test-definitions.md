@@ -219,7 +219,7 @@ release prerequisite by itself.
 
 ### Scenario: A blocked receipt preserves evidence for a Technical Builder
 
-- [ ] RED
+- [x] RED 7e4281d7c
 - [ ] GREEN
 - [ ] REFACTOR
 
