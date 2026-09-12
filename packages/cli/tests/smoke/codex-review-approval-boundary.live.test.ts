@@ -11,7 +11,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -74,10 +74,19 @@ describe.skipIf(!CAN_RUN)('live smoke: installed Codex review approval boundary'
       version,
       'runtime/cli.js',
     );
+    if (!existsSync(runtime)) {
+      throw new Error(`Installed Safeword runtime not found at ${runtime}`);
+    }
     const rulesDirectory = nodePath.join(codexHome, 'rules');
+    if (!existsSync(rulesDirectory)) {
+      throw new Error(`Codex rules directory not found at ${rulesDirectory}`);
+    }
     const rules = readdirSync(rulesDirectory)
       .filter(name => name.endsWith('.rules'))
       .map(name => nodePath.join(rulesDirectory, name));
+    if (rules.length === 0) {
+      throw new Error(`No Codex rule files found in ${rulesDirectory}`);
+    }
     // This is the exact argv shape submitted to Codex after wrapping the
     // command with the explicit environment required by the installed rule.
     const prefix = ['/usr/bin/env', 'SAFEWORD_REVIEW_PROGRESS=1', bun, runtime, 'review'];

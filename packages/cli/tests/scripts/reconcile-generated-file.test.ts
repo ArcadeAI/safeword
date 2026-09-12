@@ -7,6 +7,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { reconcileGeneratedFile } from '../../scripts/lib/reconcile-generated-file.js';
 
+const GENERATORS = [
+  ['generate-plan-rubric.ts', 'plan-review', 'generate:plan-rubric'],
+  ['generate-quality-rubric.ts', 'quality-review', 'generate:quality-rubric'],
+  ['generate-red-rubric.ts', 'executable RED', 'generate:red-rubric'],
+  ['generate-scenario-rubric.ts', 'scenario-review', 'generate:scenario-rubric'],
+] as const;
+
 describe('reconcileGeneratedFile', () => {
   const temporaryDirectories: string[] = [];
 
@@ -70,6 +77,19 @@ describe('reconcileGeneratedFile', () => {
     expect(readFileSync(path, 'utf8')).toBe('second\n');
   });
 
+  it('creates a missing parent directory for custom output', () => {
+    const path = nodePath.join(nodePath.dirname(outputPath()), 'nested', 'generated.ts');
+
+    expect(
+      reconcileGeneratedFile({
+        check: false,
+        content: 'generated\n',
+        outputPath: path,
+      }),
+    ).toBe('updated');
+    expect(readFileSync(path, 'utf8')).toBe('generated\n');
+  });
+
   it.each(['missing', 'different'] as const)(
     'returns stale when check-mode output is %s',
     state => {
@@ -99,42 +119,45 @@ describe('reconcileGeneratedFile', () => {
     ).toBe('current');
   });
 
-  it('reports a clean failure when a generator entry point checks stale output', () => {
-    const path = outputPath();
-    writeFileSync(path, 'stale\n');
+  it.each(GENERATORS)(
+    'reports a clean failure when %s checks stale output',
+    (script, label, generateCommand) => {
+      const path = outputPath();
+      writeFileSync(path, 'stale\n');
 
-    const result = runGenerator('generate-plan-rubric.ts', path, '--check');
+      const result = runGenerator(script, path, '--check');
 
-    expect(result.status).toBe(1);
-    expect(result.stderr.trim()).toBe(
-      `Generated plan-review rubric at ${path} is stale; run generate:plan-rubric`,
-    );
-    expect(result.stderr).not.toContain('Error:');
-  });
+      expect(result.status).toBe(1);
+      expect(result.stderr.trim()).toBe(
+        `Generated ${label} runtime rubric at ${path} is stale; run ${generateCommand}`,
+      );
+      expect(result.stderr).not.toContain('Error:');
+    },
+    15_000,
+  );
 
-  it.each([
-    ['generate-plan-rubric.ts', 'plan-review'],
-    ['generate-quality-rubric.ts', 'quality-review'],
-    ['generate-red-rubric.ts', 'executable RED'],
-    ['generate-scenario-rubric.ts', 'scenario-review'],
-  ])('reports %s output states without rewriting current output', (script, label) => {
-    const path = outputPath();
-    const generated = runGenerator(script, path);
-    expect(generated.status, generated.stderr).toBe(0);
-    expect(generated.stdout).toContain(`Generated the ${label} runtime rubric.`);
-    const before = statSync(path).mtimeMs;
+  it.each(GENERATORS)(
+    'reports %s output states without rewriting current output',
+    (script, label) => {
+      const path = outputPath();
+      const generated = runGenerator(script, path);
+      expect(generated.status, generated.stderr).toBe(0);
+      expect(generated.stdout).toContain(`Generated the ${label} runtime rubric.`);
+      const before = statSync(path).mtimeMs;
 
-    const noOp = runGenerator(script, path);
-    expect(noOp.status, noOp.stderr).toBe(0);
-    expect(noOp.stdout).toContain(
-      `${label[0]?.toUpperCase()}${label.slice(1)} runtime rubric is already current.`,
-    );
-    expect(statSync(path).mtimeMs).toBe(before);
+      const noOp = runGenerator(script, path);
+      expect(noOp.status, noOp.stderr).toBe(0);
+      expect(noOp.stdout).toContain(
+        `${label[0]?.toUpperCase()}${label.slice(1)} runtime rubric is already current.`,
+      );
+      expect(statSync(path).mtimeMs).toBe(before);
 
-    const checked = runGenerator(script, path, '--check');
-    expect(checked.status, checked.stderr).toBe(0);
-    expect(checked.stdout).toContain(`Generated ${label} runtime rubric at ${path} is current.`);
-  });
+      const checked = runGenerator(script, path, '--check');
+      expect(checked.status, checked.stderr).toBe(0);
+      expect(checked.stdout).toContain(`Generated ${label} runtime rubric at ${path} is current.`);
+    },
+    15_000,
+  );
 
   it('rejects an output flag without a path', () => {
     const result = spawnSync('bun', ['scripts/generate-plan-rubric.ts', '--output', '--check'], {
@@ -144,5 +167,5 @@ describe('reconcileGeneratedFile', () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('--output requires a path');
-  });
+  }, 15_000);
 });
