@@ -326,6 +326,12 @@ record invalidation, provenance changes, and context-digest recomputation.
 - [x] GREEN 426ccbf7e
 - [x] REFACTOR skip: GREEN is the planned extraction into one shared approval-ledger boundary; further durability behavior remains scenario-driven below
 
+### Scenario: A stale fencing generation cannot commit authority
+
+- [x] RED 9fab905a2
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An interrupted approval resumes according to durable authority
 
 - [x] RED e707a8f87
