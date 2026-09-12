@@ -336,7 +336,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 - [x] RED 5e4197aea
 - [x] GREEN 0189cb294
-- [ ] REFACTOR
+- [x] REFACTOR skip: one shared current-decision selector now drives retry identity, reads, phase reconciliation, and truthful CLI results; another state layer would add indirection without closing a distinct behavior gap
 
 ### Scenario: An interrupted approval resumes according to durable authority
 
