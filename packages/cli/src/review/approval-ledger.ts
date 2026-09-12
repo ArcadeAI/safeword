@@ -298,9 +298,8 @@ export function currentDesignDecision(
   const matching = decisionEvents(readFileSync(ledgerPath, 'utf8')).filter(
     event => event.ticket === ticket && event.planDigest === planDigest,
   );
-  let current: DecisionEvent | undefined;
-  for (const event of matching) {
-    if (current === undefined || event.appendPosition > current.appendPosition) current = event;
-  }
-  return current?.decision;
+  if (matching.length === 0) return undefined;
+  const highestPosition = Math.max(...matching.map(event => event.appendPosition));
+  const current = matching.filter(event => event.appendPosition === highestPosition);
+  return current.length === 1 ? current[0]?.decision : undefined;
 }
