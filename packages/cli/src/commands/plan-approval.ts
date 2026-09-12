@@ -214,7 +214,7 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
     [ledgerTarget, ...(accepted ? [nodePath.relative(context.cwd, context.ticketPath)] : [])],
     accepted
       ? undefined
-      : 'The reviewed approach was declined and remains in Implementation Planning for repair.',
+      : `Declined approach: ${nodePath.relative(context.cwd, context.planPath)}. It remains in Implementation Planning for repair.`,
   );
 }
 
