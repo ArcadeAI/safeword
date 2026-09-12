@@ -166,7 +166,7 @@ describe('review routes CLI wiring', () => {
     });
   });
 
-  it('validates the user profile even when the project has a valid route', async () => {
+  it('uses the higher-precedence project route without reading the user profile', async () => {
     const root = createTemporaryDirectory();
     directories.push(root);
     const xdg = nodePath.join(root, 'profile');
@@ -182,10 +182,9 @@ describe('review routes CLI wiring', () => {
 
     const listed = await invoke(root, ['review', 'routes', 'list', '--author', 'claude']);
     expect(listed).toMatchObject({
-      state: 'failed',
-      errors: [{ code: 'REVIEW_ROUTE_CONFIG_INVALID' }],
+      state: 'healthy',
+      data: { source: 'project', routes: [{ reviewer: 'codex' }] },
     });
-    expect((listed.errors as { message: string }[])[0]?.message).toContain(profile);
   });
 
   it('preserves unrelated project configuration while setting and resetting routes', async () => {
