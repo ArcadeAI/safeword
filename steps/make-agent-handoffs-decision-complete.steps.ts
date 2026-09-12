@@ -2,12 +2,15 @@ import { strict as assert } from 'node:assert';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
+import * as quality from '../packages/cli/templates/hooks/lib/quality.js';
 import { evaluateDecisionBriefCompliance } from '../packages/cli/templates/hooks/lib/quality.js';
 import type { SafewordWorld } from './world.js';
 
 interface HandoffState {
   reply?: string;
   substantiveEvidence?: 'current-turn-tool' | 'none';
+  contract?: unknown;
+  contractValidation?: { valid: boolean; requirements?: string[] };
   evaluation?: ReturnType<typeof evaluateDecisionBriefCompliance> & {
     contractVersion?: string;
     form?: string;
@@ -279,6 +282,12 @@ Given('a work result ending in an empty Next paragraph', function (this: Safewor
   ].join('\n\n');
 });
 
+Given('the canonical terminal-handoff contract', function (this: SafewordWorld) {
+  stateFor(this).contract = (
+    quality as typeof quality & { TERMINAL_HANDOFF_CONTRACT?: unknown }
+  ).TERMINAL_HANDOFF_CONTRACT;
+});
+
 When(
   'the shared deterministic terminal-handoff evaluator checks the reply',
   function (this: SafewordWorld) {
@@ -287,6 +296,22 @@ When(
     state.evaluation = evaluateDecisionBriefCompliance(state.reply, undefined, {
       substantiveEvidence: state.substantiveEvidence,
     });
+  },
+);
+
+When(
+  'the shared terminal-handoff contract validator checks the contract',
+  function (this: SafewordWorld) {
+    const validator = (
+      quality as typeof quality & {
+        validateTerminalHandoffContract?: (contract: unknown) => {
+          valid: boolean;
+          requirements?: string[];
+        };
+      }
+    ).validateTerminalHandoffContract;
+    assert.equal(typeof validator, 'function', 'terminal-handoff contract validator is available');
+    stateFor(this).contractValidation = validator(stateFor(this).contract);
   },
 );
 
@@ -419,3 +444,10 @@ Then('the handoff is rejected as empty', function (this: SafewordWorld) {
   assert.equal(evaluation?.compliant, false);
   assert.ok(evaluation?.requirements?.includes('terminal paragraph'));
 });
+
+Then(
+  'the contract is accepted at the canonical version with exactly these five roles in any order for each of Next and Need: concrete choice, recommendation, controlling reason, material tradeoff or consequences, and exact reply, plus a separate concise no-decision action form',
+  function (this: SafewordWorld) {
+    assert.deepEqual(stateFor(this).contractValidation, { valid: true });
+  },
+);
