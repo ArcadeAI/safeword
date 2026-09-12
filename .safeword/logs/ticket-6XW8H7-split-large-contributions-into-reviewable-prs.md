@@ -41,3 +41,10 @@
   required exact missing-field and obligation names, assigned exhaustive
   examples to deterministic fixtures and representative application to live
   review, and qualified every mutation check as contract-presence proof only.
+- Review `d922e688-e007-422f-9fe8-d1abbf1f189f` found two omitted live
+  assertions: the two-purpose denial and the unsafe merge's missing prerequisite.
+  Added both, moved a minimal cohesion probe ahead of exhaustive fixture work,
+  bound mandatory live provenance and fixture digests to `verify.md`, clarified
+  `5F5ZZA` versus `G1C9PP` invalidation ownership, made byte/digest comparison
+  explicit, and recorded why only representative omission permutations spend
+  live-review tokens.

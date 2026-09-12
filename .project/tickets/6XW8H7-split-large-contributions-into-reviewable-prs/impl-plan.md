@@ -26,16 +26,20 @@ review summaries must record slice eligibility, the one-versus-many rationale,
 the schema-before-reader merge order with no unmerged-successor reliance, each
 obligation owner, and that accepted decisions remain unchanged. The negative
 matrix contains distinct cases for an omitted slicing decision, one specifically
-named field omission, a formally complete slice with an unresolved authorization
-boundary, an unsafe dependency, a threshold-only justification, one specifically
-named unassigned obligation, and a rewritten accepted decision. Its review must
-return one typed blocking finding per category and name the exact omitted field,
-unassigned obligation, and unresolved authorization decision. Deterministic
-fixtures exhaustively cover all five field omissions and all six obligation
-omissions by name. Separate contract-derived tests remove each R1–R5 clause in
-turn and must fail; these mutations prove only that required contract bytes are
-present and dispatched, while the live lane proves representative semantic
-application.
+named field omission, a two-independent-purpose slice, a formally complete slice
+with an unresolved authorization boundary, an unsafe dependency, a
+threshold-only justification, one specifically named unassigned obligation, and
+a rewritten accepted decision. Its review must return one typed blocking finding
+per category; the findings must name the exact omitted field, require one
+coherent purpose per slice, name the unsafe intermediate merge and its missing
+prerequisite, and name the unassigned obligation and unresolved authorization
+decision. Deterministic fixtures exhaustively cover all five field omissions and
+all six obligation omissions by name. Separate contract-derived tests remove
+each R1–R5 clause in turn and must fail; these mutations prove only that required
+contract bytes are present and dispatched, while the live lane proves
+representative semantic application. Exact dispatch proof compares the captured
+contract bytes and their SHA-256 digest with the installed source; a version
+label cannot satisfy it.
 
 Proof strategy:
 
@@ -43,9 +47,9 @@ Proof strategy:
 | --- | --- | --- | --- |
 | R1 makes and justifies the one-versus-many slicing decision | Packaged author/reviewer contract through the installed CLI route | Exact-contract integration, R1 clause-deletion mutation, live one-slice and two-slice positive records, and an omitted-decision denial | Mutation proves clause presence only; live records prove that one-slice plans explain why another split adds no review value, two-slice plans name both proofs, and omission is denied, not a universal estimate of review effort |
 | R2 requires a complete, single-purpose slice with no invented design | Semantic reviewer consuming the accepted approach and proposed slices | Field-omission, two-purpose, and separately formally-complete-but-undecided-design fixtures; R2 clause-deletion mutation; live eligible-slice record and distinct negative findings | Deterministic proof establishes contract presence and routing; live proof inspects the positive eligibility record and requires the unresolved-design finding to name the authorization decision |
-| R3 orders dependencies and keeps every intermediate merge supported | Semantic reviewer over schema-before-reader and unsafe-successor examples | R3 clause-deletion mutation, live positive summary naming schema-before-reader order and no successor reliance, and live unsafe-dependency finding | Mutation proves clause presence only; live proof establishes the explicit dependency distinction, not repository-host merge behavior |
+| R3 orders dependencies and keeps every intermediate merge supported | Semantic reviewer over schema-before-reader and unsafe-successor examples | R3 clause-deletion mutation, live positive summary naming schema-before-reader order and no successor reliance, and live denial naming the unsafe intermediate merge and missing prerequisite | Mutation proves clause presence only; live proof establishes the explicit dependency distinction, not repository-host merge behavior |
 | R4 judges conceptual scope and proof rather than size alone | Semantic reviewer over large-mechanical, small-multi-purpose, and threshold-only examples | R4 clause-deletion mutation, live one-concern and two-concern positive records with named proof, and threshold-only denial | Mutation proves clause presence only; live proof establishes conceptual application while line and file counts remain advisory signals |
-| R5 assigns every accepted obligation without rewriting the approach | Reviewer packet containing the current Implementation Plan and proposed slice map | Exhaustive named obligation-omission fixtures and changed-decision fixtures, R5 clause-deletion mutation, live positive summary containing the obligation-to-slice map and unchanged-decision record, and representative live denials naming the omitted obligation and changed decision | Mutation proves clause presence only; deterministic examples prove every required name; live proof establishes representative semantic application; `5F5ZZA` owns stale-context invalidation |
+| R5 assigns every accepted obligation without rewriting the approach | Reviewer packet containing the current Implementation Plan and proposed slice map | Exhaustive named obligation-omission fixtures and changed-decision fixtures, R5 clause-deletion mutation, live positive summary containing the obligation-to-slice map and unchanged-decision record, and representative live denials naming the omitted obligation and changed decision | Mutation proves clause presence only; deterministic examples prove every required name; live proof establishes representative semantic application; `5F5ZZA` owns semantic-context digest invalidation for both review kinds, while `G1C9PP` owns the current Implementation Plan decision consumer |
 | New Execution Plan review entry point | Real CLI, real packet builder and coordinator, deterministic substitute only for the external reviewer process | Wiring integration | Proves local CLI wiring; installed agent-host delivery remains a `YCFFNC` prerequisite |
 
 Build order begins with RED proof for the canonical Execution Planning
@@ -53,13 +57,18 @@ skill/template, whose marked review section is the one author/reviewer contract,
 then implements that contract and extractor. A second RED step proves the
 Execution Plan review kind before extending the shared packet and coordinator
 path. Contract-derived semantic fixtures and clause-deletion mutations stay in
-the same RED/GREEN slice as each R1–R5 obligation. The live-model lane then
-checks the assembled boundary, and generated host assets refresh last. Its
-environment flag remains opt-in so ordinary test runs do not spend tokens, but
-a passing live result is mandatory completion evidence for this child; an
-unavailable reviewer blocks completion rather than becoming a claimed pass.
-The contract slice is load-bearing: if author and reviewer bytes or obligations
-diverge, no later work proceeds.
+the same RED/GREEN slice as each R1–R5 obligation. As soon as the contract and
+review kind exist, a minimal live probe tests one coherent positive and one
+two-purpose negative before further fixture investment. The full live-model
+matrix then checks the assembled boundary, and generated host assets refresh
+last. Its environment flag remains opt-in so ordinary test runs do not spend
+tokens, but a passing live result is mandatory completion evidence for this
+child; `verify.md` records the exact fixture digests, coordinator review IDs,
+reviewer provenance, verdicts, and required positive/negative record checks. An
+unavailable reviewer blocks completion rather than becoming a claimed pass. The
+contract and its minimal semantic probe are load-bearing: if author/reviewer
+bytes diverge or the reviewer misses conceptual cohesion, no later work
+proceeds.
 
 Affected surfaces:
 
@@ -141,6 +150,13 @@ counts as workflow decomposition prompts. This plan does not remove those
 prompts; it deliberately refuses to treat any numeric threshold as sufficient
 proof that a code-review slice is coherent. The two mechanisms answer different
 questions.
+
+Live proof uses one representative named field omission and one representative
+named obligation omission. Skip: running all eleven permutations through a
+token-spending reviewer repeats the same semantic class without increasing the
+confidence boundary. Exhaustive deterministic fixtures still require every
+field and obligation name in the shipped contract, while the representative
+live cases prove the reviewer applies that naming rule.
 
 ## Doc impact
 
