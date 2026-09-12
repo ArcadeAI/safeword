@@ -276,7 +276,7 @@ nonblocking behavior at the canonical CLI boundary.
 
 ### Scenario: Installed CLI human design authority follows configuration
 
-- [ ] RED
+- [x] RED ba24ca98e
 - [ ] GREEN
 - [ ] REFACTOR
 
