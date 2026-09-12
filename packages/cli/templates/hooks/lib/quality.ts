@@ -156,6 +156,17 @@ interface MarkdownParagraph {
   grammarOpaque: boolean;
 }
 
+function determineTerminalHandoffForm(
+  verdict: DecisionBriefVerdict,
+  paragraphsAfterVerdict: readonly MarkdownParagraph[],
+): Exclude<TerminalHandoffForm, 'outside'> {
+  if (verdict === 'BLOCKED') return 'decision';
+  const openParagraph = paragraphsAfterVerdict.find(
+    paragraph => LABEL.exec(paragraph.text)?.[1] === 'Open',
+  );
+  return /^\*\*Open:\*\*\s+human:/iu.test(openParagraph?.text ?? '') ? 'decision' : 'action';
+}
+
 /** Public test contract: all explicitly counted passes remain below this fixed factor. */
 export const DECISION_BRIEF_MAX_WORK_FACTOR = 8;
 
@@ -423,14 +434,7 @@ export function evaluateDecisionBriefCompliance(
   if (!verdictEntry) return result(false, { kind: 'verdict-count', count: 0 });
   const { index: verdictIndex, verdict: rawVerdict } = verdictEntry;
   const verdict = rawVerdict as DecisionBriefVerdict;
-  if (verdict === 'BLOCKED') {
-    form = 'decision';
-  } else {
-    const openParagraph = paragraphs
-      .slice(verdictIndex + 1)
-      .find(paragraph => LABEL.exec(paragraph.text)?.[1] === 'Open');
-    form = /^\*\*Open:\*\*\s+human:/iu.test(openParagraph?.text ?? '') ? 'decision' : 'action';
-  }
+  form = determineTerminalHandoffForm(verdict, paragraphs.slice(verdictIndex + 1));
   const grammarLabels = new Set(
     Object.values(grammar.variants).flatMap(variant =>
       variant.paragraphs.map(paragraph => paragraph.label),
