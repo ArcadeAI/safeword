@@ -18,5 +18,5 @@ if (process.argv.includes('--check')) {
   if (readFileSync(outputPath, 'utf8') !== output)
     throw new Error('Generated executable RED rubric is stale; run generate:red-rubric');
 } else {
-  writeFileSync(outputPath, output);
+  if (readFileSync(outputPath, 'utf8') !== output) writeFileSync(outputPath, output);
 }

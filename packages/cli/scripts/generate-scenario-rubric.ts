@@ -19,6 +19,6 @@ if (process.argv.includes('--check')) {
   }
   console.log('Generated scenario-review runtime rubric is current.');
 } else {
-  writeFileSync(outputPath, output);
+  if (readFileSync(outputPath, 'utf8') !== output) writeFileSync(outputPath, output);
   console.log('Generated the scenario-review runtime rubric.');
 }

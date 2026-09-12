@@ -22,6 +22,6 @@ if (process.argv.includes('--check')) {
   }
   console.log('Generated Execution Plan reviewer rubric is current.');
 } else {
-  writeFileSync(outputPath, output);
+  if (readFileSync(outputPath, 'utf8') !== output) writeFileSync(outputPath, output);
   console.log('Generated the Execution Plan reviewer rubric.');
 }

@@ -9,6 +9,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -251,7 +252,15 @@ describe('Codex plugin release contract', () => {
       nodePath.join(root, '../../plugin'),
       nodePath.join(root, 'codex-plugin'),
     ];
+    const generatedRubrics = [
+      'scenario-rubric.generated.ts',
+      'plan-rubric.generated.ts',
+      'execution-plan-rubric.generated.ts',
+      'quality-rubric.generated.ts',
+      'red-rubric.generated.ts',
+    ].map(file => nodePath.join(root, 'src/review', file));
     const before = protectedTrees.map(treeDigest);
+    const rubricMtimesBefore = generatedRubrics.map(path => statSync(path).mtimeMs);
     try {
       const generation = spawnSync(
         'bun',
@@ -262,6 +271,7 @@ describe('Codex plugin release contract', () => {
       expect(generation.status, generation.stderr).toBe(0);
       expect(treeDigest(output)).not.toBe(treeDigest(nodePath.join(root, 'codex-plugin')));
       expect(protectedTrees.map(treeDigest)).toEqual(before);
+      expect(generatedRubrics.map(path => statSync(path).mtimeMs)).toEqual(rubricMtimesBefore);
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
