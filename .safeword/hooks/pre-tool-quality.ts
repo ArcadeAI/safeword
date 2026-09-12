@@ -67,6 +67,7 @@ interface HookInput {
     notebook_path?: string;
     old_string?: string;
     new_string?: string;
+    replace_all?: boolean;
     content?: string;
     edits?: Array<{ old_string?: string; new_string?: string }>;
     command?: string;
@@ -206,13 +207,25 @@ function crossAgentReviewPolicy() {
 }
 
 function safewordCliCommand(): [string, ...string[]] | undefined {
-  const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-  if (pluginCli === undefined || pluginCli.trim() === '') return undefined;
+  const explicitCli = process.env.SAFEWORD_PLUGIN_CLI?.trim();
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
+  const pluginCli =
+    explicitCli !== undefined && explicitCli !== ''
+      ? explicitCli
+      : pluginRoot !== undefined && pluginRoot !== ''
+        ? nodePath.join(pluginRoot, 'runtime', 'cli.js')
+        : undefined;
+  if (pluginCli === undefined) return undefined;
   try {
     const candidate = realpathSync(pluginCli);
     const project = realpathSync(projectDirectory);
     const relative = nodePath.relative(project, candidate);
-    if (relative === '' || (!relative.startsWith('..') && !nodePath.isAbsolute(relative))) {
+    const insideProject =
+      relative === '' ||
+      (relative !== '..' &&
+        !relative.startsWith(`..${nodePath.sep}`) &&
+        !nodePath.isAbsolute(relative));
+    if (insideProject) {
       return undefined;
     }
     return ['bun', candidate];
@@ -342,7 +355,18 @@ try {
 }
 
 const tool = input.tool_name ?? '';
-const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
+const requestedEditedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
+let editedFile = requestedEditedFile;
+if (requestedEditedFile !== '' && existsSync(requestedEditedFile)) {
+  try {
+    // Existing aliases must be judged by their real target. Otherwise a symlink
+    // with an innocuous basename can bypass canonical ticket-file gates.
+    editedFile = realpathSync(requestedEditedFile);
+  } catch {
+    // A later filesystem operation will surface an unreadable path. Preserve the
+    // requested value here rather than making unrelated hook checks fail closed.
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Bash gates:
@@ -597,6 +621,11 @@ function nextContentAfterEdit(
     return current;
   }
   if (toolInput?.old_string !== undefined) {
+    if (toolInput.replace_all === true && toolInput.old_string !== '') {
+      return priorContent.includes(toolInput.old_string)
+        ? priorContent.replaceAll(toolInput.old_string, toolInput.new_string ?? '')
+        : undefined;
+    }
     return applyUniqueEdit(priorContent, toolInput.old_string, toolInput.new_string ?? '');
   }
   return undefined;
@@ -955,18 +984,20 @@ if (
       if (scenario === undefined) {
         deny(
           'Cannot mark GREEN because Safeword could not identify the active scenario for executable RED review.',
-          'Leave GREEN unchecked. If a heading was renamed or duplicated, revert that edit; then restore one standard Scenario heading with RED/GREEN/REFACTOR rows and retry.',
+          'Leave GREEN unchecked. If a heading was renamed or duplicated, revert that edit; then restore one standard level-2 through level-6 Scenario heading with RED/GREEN/REFACTOR rows and retry.',
         );
       }
       // Manual/live is the intentional escape path for behavior that cannot be
       // executable. This is an ordering/audit boundary, not an authenticity
       // check: the durable annotation must exist on disk before this tool call.
+      // The completion gate still requires every scenario row to be complete;
+      // it does not independently authenticate a user-authored evidence record.
       if (transition.evidenceMode !== undefined) continue;
-      const ledger = nodePath.relative(projectDirectory, editedFile);
+      const ledger = nodePath.relative(realpathSync(projectDirectory), editedFile);
       const gateDenial = executableRedGateDenial(scenario, ledger);
       if (gateDenial !== undefined) {
         deny(
-          `Cannot mark GREEN without a fresh independent executable RED approval. ${gateDenial}`,
+          `Cannot mark GREEN without either prior manual/live evidence or a fresh independent executable RED approval. ${gateDenial}`,
           `Run the exact \`safeword review run executable-red --scenario ${JSON.stringify(scenario)} --ledger ${JSON.stringify(ledger)} ...\` request for the current proof, wait for independent approval, then retry this GREEN edit.`,
         );
       }

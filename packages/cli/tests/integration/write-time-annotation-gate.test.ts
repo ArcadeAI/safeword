@@ -11,6 +11,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { symlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -342,10 +343,11 @@ describe('write-time annotation gate', () => {
       state: 'healthy' | 'action_required',
       expectedScenario?: string,
       expectedLedger?: string,
+      relativePath = 'gate-stub.mjs',
     ): string {
       const directory = createTemporaryDirectory();
       gateDirectories.push(directory);
-      const path = nodePath.join(directory, 'gate-stub.mjs');
+      const path = nodePath.join(directory, relativePath);
       const expectedCheck =
         expectedScenario === undefined
           ? 'true'
@@ -356,7 +358,7 @@ describe('write-time annotation gate', () => {
           : `process.argv.includes(${JSON.stringify(expectedLedger)})`;
       writeTestFile(
         directory,
-        'gate-stub.mjs',
+        relativePath,
         `const value = flag => { const index = process.argv.indexOf(flag); return index < 0 ? undefined : process.argv[index + 1]; }; const approved = ${state === 'healthy'} && ${expectedCheck} && ${ledgerCheck}; console.log(JSON.stringify({ schemaVersion: 1, ok: approved, changed: false, state: approved ? 'healthy' : 'action_required', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: approved ? 'approved' : 'blocked', scenario: value('--scenario'), ledger: value('--ledger') } }));\n`,
       );
       return path;
@@ -457,6 +459,20 @@ describe('write-time annotation gate', () => {
     it('allows a new manual RED record beside older executable RED evidence', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] RED',
+        '- [x] RED skip: manual — see timestamped work log',
+      );
+      expectHookAllow(result);
+    });
+
+    it('allows a new manual RED record inserted above older executable RED evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [ ] RED\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
       );
       projectDirectory = setup.cwd;
       const result = runEditHook(
@@ -676,6 +692,25 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'could not find its local CLI');
     });
 
+    it('discovers the bundled CLI from CLAUDE_PLUGIN_ROOT', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const gate = gateStub(setup.cwd, 'healthy', undefined, undefined, 'runtime/cli.js');
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        {
+          SAFEWORD_PLUGIN_CLI: '',
+          CLAUDE_PLUGIN_ROOT: nodePath.dirname(nodePath.dirname(gate)),
+        },
+      );
+      expectHookAllow(result);
+    });
+
     it('rejects a project-writable CLI that claims the receipt is approved', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
@@ -711,7 +746,7 @@ describe('write-time annotation gate', () => {
       expectHookAllow(result);
     });
 
-    it('reconstructs all GREEN transitions for replace_all edits', () => {
+    it('gates every GREEN transition produced by replace_all', () => {
       const setup = setupProject(
         [
           '### Scenario: first',
@@ -732,9 +767,24 @@ describe('write-time annotation gate', () => {
         setup.testDefinitionsPath,
         '- [ ] GREEN',
         '- [x] GREEN def5678',
-        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy') },
+        {
+          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: first'),
+        },
       );
-      expectHookAllow(result);
+      expectHookDeny(result, 'receipt check did not approve this scenario');
+    });
+
+    it('does not bypass the canonical ledger gate through a symlink alias', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const alias = nodePath.join(setup.cwd, 'ledger-notes.md');
+      symlinkSync(setup.testDefinitionsPath, alias);
+      const result = runEditHook(setup.cwd, alias, '- [ ] GREEN', '- [x] GREEN def5678', {
+        SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required'),
+      });
+      expectHookDeny(result, 'without either prior manual/live evidence');
     });
 
     it('blocks a GREEN transition when the replacement inserts a line before the checkbox', () => {
