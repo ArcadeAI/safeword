@@ -215,7 +215,7 @@ release prerequisite by itself.
 
 - [x] RED 87fa059b3
 - [x] GREEN 19c911c56
-- [ ] REFACTOR
+- [x] REFACTOR skip: one plan-specific projection prepends plain recovery while retaining the existing coordinator receipt beneath it
 
 ### Scenario: A blocked receipt preserves evidence for a Technical Builder
 
