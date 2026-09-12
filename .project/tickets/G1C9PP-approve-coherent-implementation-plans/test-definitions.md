@@ -290,7 +290,7 @@ nonblocking behavior at the canonical CLI boundary.
 
 - [x] RED f9d832a6c
 - [x] GREEN cb285bee7
-- [ ] REFACTOR
+- [x] REFACTOR skip: the exit now has one command-owned approval and phase boundary; further extraction would duplicate the public CLI contract or blur the distinct headless outcome
 
 ### Scenario: A declined design returns to Implementation Planning
 
