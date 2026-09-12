@@ -1070,7 +1070,7 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stdout).toBe('');
   });
 
-  it('preserves an earlier prompt denial when a later sibling hook errors', () => {
+  it('blocks consistently when a prompt sibling hook fails after an earlier denial', () => {
     const projectDirectory = temporary('safeword-plugin-prompt-sibling-error-project-');
     const pluginData = temporary('safeword-plugin-prompt-sibling-error-data-');
     const configDirectory = temporary('safeword-plugin-prompt-sibling-error-config-');
@@ -1105,15 +1105,9 @@ describe('Claude plugin dispatcher', () => {
       'prompt-sibling-error',
       { pluginRoot },
     );
-    expect(result.status, result.stderr).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      decision: 'block',
-      reason: 'earlier denial',
-      hookSpecificOutput: {
-        additionalContext:
-          'Safeword stopped this event group after a sibling hook failed; later checks did not run.',
-      },
-    });
+    expect(result.status, result.stderr).toBe(2);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('sibling hook failed; later checks did not run');
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 

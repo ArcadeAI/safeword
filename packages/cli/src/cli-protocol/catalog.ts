@@ -371,6 +371,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('project record-skill-invocation', 'Record current-run workflow proof', 'mutate', {
     syntax: 'record-skill-invocation <skill> [session-id]',
+    fixture: {
+      argv: ['project', 'record-skill-invocation', 'verify'],
+      environment: MACHINE_ENVIRONMENT,
+    },
   }),
   command(
     'project runtime',
@@ -379,6 +383,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     {
       syntax: 'runtime <helper> [args...]',
       networkPolicy: 'declared',
+      fixture: {
+        argv: ['project', 'runtime', 'audit-principle-trace'],
+        environment: MACHINE_ENVIRONMENT,
+      },
     },
   ),
   command('project retro-drain', 'Drain acknowledged retro drafts from a spool', 'mutate', {
@@ -406,6 +414,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     'mutate',
     {
       syntax: 'public-retros <state>',
+      fixture: {
+        argv: ['project', 'public-retros', 'off'],
+        environment: MACHINE_ENVIRONMENT,
+      },
     },
   ),
   command(
@@ -901,11 +913,17 @@ const HIDDEN_COMMANDS: readonly CommandDefinition[] = [
   hidden('boundary', {
     commandOptions: [{ flags: '--at <boundary>', description: 'which boundary: commit | push' }],
   }),
-  hidden('hook codex', {
-    syntax: 'codex <event>',
-    commandOptions: [{ flags: '--plugin-hook', description: '', hidden: true }],
-  }),
-  hidden('codex-hook', { syntax: 'codex-hook <event>' }),
+  {
+    ...hidden('hook codex', {
+      syntax: 'codex <event>',
+      commandOptions: [{ flags: '--plugin-hook', description: '', hidden: true }],
+    }),
+    fixture: { argv: ['hook', 'codex', 'SessionStart'], environment: MACHINE_ENVIRONMENT },
+  },
+  {
+    ...hidden('codex-hook', { syntax: 'codex-hook <event>' }),
+    fixture: { argv: ['codex-hook', 'SessionStart'], environment: MACHINE_ENVIRONMENT },
+  },
   hidden('feature-directories'),
 ];
 
@@ -1076,6 +1094,11 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
     prompt_policy: definition.promptPolicy,
     network_policy: definition.networkPolicy,
     schema_versions: definition.schemaVersions,
+    ...(definition.exitPolicy !== undefined && {
+      exit_policy: {
+        action_required_as_success_option: definition.exitPolicy.actionRequiredAsSuccessOption,
+      },
+    }),
     fixture: definition.fixture,
     options: definition.registration.options
       .filter(option => option.hidden !== true)

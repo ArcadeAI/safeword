@@ -245,12 +245,15 @@ describe('review route preferences', () => {
     expect(readFileSync(project, 'utf8')).toBe('{ malformed');
   });
 
-  it('rejects an empty user route list before using project routes', () => {
+  it('uses a valid project route without parsing a malformed user route', () => {
     const { cwd, user } = fixture();
     mkdirSync(nodePath.dirname(user), { recursive: true });
     writeFileSync(user, JSON.stringify({ crossAgentReviewRoutes: { claude: [] } }));
     setScopedReviewRoutes(cwd, 'project', 'claude', [{ reviewer: 'codex' }]);
-    expect(() => effectiveConfiguredRoutes(cwd, 'claude')).toThrow(user);
+    expect(effectiveConfiguredRoutes(cwd, 'claude')).toMatchObject({
+      source: 'project',
+      routes: [{ reviewer: 'codex' }],
+    });
   });
 
   it('keeps user routes when the project configures another author', () => {

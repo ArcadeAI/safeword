@@ -245,34 +245,6 @@ function writeDurableRecord(
   );
 }
 
-function setupRanForSession(
-  pluginData: string,
-  sessionId: string | undefined,
-  pluginRoot: string,
-  projectRoot: string,
-  identity: PluginIdentityV1,
-): boolean {
-  if (sessionId === undefined) return false;
-  const path = nodePath.join(pluginData, 'cache-smoke-v1.json');
-  if (!existsSync(path)) return false;
-  try {
-    const smoke = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-    const expected: Record<string, unknown> = {
-      schema_version: 1,
-      event: 'Setup',
-      session_id: sessionId,
-      project_root: projectRoot,
-      plugin_version: identity.plugin_version,
-      hook_manifest_sha256: identity.hook_manifest_sha256,
-      inventory_sha256: identity.inventory_sha256,
-      canonical_plugin_root: pluginRoot,
-    };
-    return Object.entries(expected).every(([key, value]) => smoke[key] === value);
-  } catch {
-    return false;
-  }
-}
-
 function recordExecutionProof(
   event: string,
   pluginRoot: string,
@@ -281,18 +253,6 @@ function recordExecutionProof(
 ): void {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
-  if (
-    event === 'SessionStart' &&
-    setupRanForSession(
-      requiredEnvironment('CLAUDE_PLUGIN_DATA'),
-      input.session_id,
-      pluginRoot,
-      projectRoot,
-      identity,
-    )
-  ) {
-    return;
-  }
   writeDurableRecord(claudeProofDirectory(), `${claudeProjectDigest(projectRoot)}.json`, {
     schema_version: 2,
     project_root: projectRoot,
@@ -378,7 +338,7 @@ function readEventEntries(event: string, eventGroupsContent: Buffer): readonly E
 
 function appendUniqueText(current: unknown, next: string): string {
   if (typeof current !== 'string' || current === '') return next;
-  if (current === next || current.split('\n').includes(next)) return current;
+  if (current.includes(next)) return current;
   return `${current}\n${next}`;
 }
 
@@ -765,21 +725,11 @@ function runEventGroup(
     const hooks = entry.hooks ?? [];
     const status = runEventHooks(event, hooks, standardInput, response);
     if (status !== 0) {
-      // Claude ignores stdout from a nonzero UserPromptSubmit hook. Preserve
-      // any response already produced by an earlier sibling by returning that
-      // merged response successfully; without prior output, retain the hook's
-      // ordinary nonblocking error status.
-      if (event === 'UserPromptSubmit' && Object.keys(response).length > 0) {
-        const output = specificOutput(response, event);
-        output.additionalContext = appendUniqueText(
-          output.additionalContext,
-          'Safeword stopped this event group after a sibling hook failed; later checks did not run.',
+      if (event === 'UserPromptSubmit') {
+        process.stderr.write(
+          'Safeword blocked prompt submission because a sibling hook failed; later checks did not run.\n',
         );
-        return {
-          postExecutionEligible: false,
-          status: 0,
-          stdout: `${JSON.stringify(response)}\n`,
-        };
+        return { postExecutionEligible: false, status: 2, stdout: '' };
       }
       return { status, stdout: '' };
     }

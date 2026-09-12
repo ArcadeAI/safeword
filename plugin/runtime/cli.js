@@ -31051,7 +31051,8 @@ __export(exports_preferences, {
   resolveSafewordUserConfigPath: () => resolveSafewordUserConfigPath,
   resetScopedReviewRoutes: () => resetScopedReviewRoutes,
   effectiveConfiguredRoutes: () => effectiveConfiguredRoutes,
-  ReviewUserConfigPathError: () => ReviewUserConfigPathError
+  ReviewUserConfigPathError: () => ReviewUserConfigPathError,
+  ReviewConfigReadError: () => ReviewConfigReadError
 });
 import { existsSync as existsSync14, readFileSync as readFileSync28 } from "fs";
 import nodePath43 from "path";
@@ -31096,7 +31097,7 @@ function readConfigFile(path7) {
   try {
     contents = readFileSync28(path7, "utf8");
   } catch (error2) {
-    throw new Error(`Unable to read Safeword configuration at ${path7}: ${error2 instanceof Error ? error2.message : String(error2)}`, { cause: error2 });
+    throw new ReviewConfigReadError(`Unable to read Safeword configuration at ${path7}: ${error2 instanceof Error ? error2.message : String(error2)}`, { cause: error2 });
   }
   let parsed2;
   try {
@@ -31117,7 +31118,7 @@ function setScopedReviewRoutes(cwd, scope, author, routes) {
   }
   const config = readConfigFile(path7);
   const current = config.crossAgentReviewRoutes;
-  if (current !== undefined && (!isRecord4(current) || Array.isArray(current))) {
+  if (current !== undefined && !isRecord4(current)) {
     throw new ReviewRouteConfigError(`Invalid Safeword configuration at ${path7}: crossAgentReviewRoutes must be an object.`);
   }
   const routeMap = current === undefined ? {} : { ...current };
@@ -31136,7 +31137,7 @@ function resetScopedReviewRoutes(cwd, scope, author) {
     return false;
   const config = readConfigFile(path7);
   const current = config.crossAgentReviewRoutes;
-  if (current !== undefined && (!isRecord4(current) || Array.isArray(current))) {
+  if (current !== undefined && !isRecord4(current)) {
     throw new ReviewRouteConfigError(`Invalid Safeword configuration at ${path7}: crossAgentReviewRoutes must be an object.`);
   }
   if (current === undefined || !Object.hasOwn(current, author))
@@ -31156,23 +31157,26 @@ function resetScopedReviewRoutes(cwd, scope, author) {
 function effectiveConfiguredRoutes(cwd, author) {
   if (author !== "claude" && author !== "codex" && author !== "opencode")
     return;
-  const userPath = optionalCurrentUserConfigPath();
-  const userRoutes = userPath === undefined ? undefined : parseConfiguredReviewRoutes(readConfigFile(userPath), author, userPath);
   const projectPath = scopedConfigPath(cwd, "project");
   const projectRoutes = parseConfiguredReviewRoutes(readConfigFile(projectPath), author, projectPath);
   if (projectRoutes !== undefined)
     return { source: "project", routes: projectRoutes };
+  const userPath = optionalCurrentUserConfigPath();
+  const userRoutes = userPath === undefined ? undefined : parseConfiguredReviewRoutes(readConfigFile(userPath), author, userPath);
   return userRoutes === undefined ? undefined : { source: "user", routes: userRoutes };
 }
 function isRecord4(value) {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-var ReviewUserConfigPathError;
+var ReviewUserConfigPathError, ReviewConfigReadError;
 var init_preferences = __esm(() => {
   init_durable_write();
   init_route_config();
   ReviewUserConfigPathError = class ReviewUserConfigPathError extends Error {
     name = "ReviewUserConfigPathError";
+  };
+  ReviewConfigReadError = class ReviewConfigReadError extends Error {
+    name = "ReviewConfigReadError";
   };
 });
 
@@ -31408,6 +31412,9 @@ function readContainedText(root, source, target, packetBytesRemaining) {
     } catch {
       throw new Error(`Review target is not valid UTF-8 text: ${target}`);
     }
+    if (HIGH_CONFIDENCE_SECRET_PATTERNS.some((pattern) => pattern.test(content))) {
+      throw new Error(`Review packet rejected a high-confidence credential in ${target}; redact it before dispatch`);
+    }
     return { bytes, content, device: opened.dev, inode: opened.ino };
   } finally {
     closeSync4(descriptor);
@@ -31535,10 +31542,18 @@ function prepareReviewPacket(cwd, kind, targets, context = [], execution = {}) {
     throw new ReviewPacketError(message.startsWith("Review ") ? message : "Review packet could not be prepared. Check that every target and context path exists and is readable.");
   }
 }
-var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES, ReviewPacketError;
+var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES, HIGH_CONFIDENCE_SECRET_PATTERNS, ReviewPacketError;
 var init_packet = __esm(() => {
   MAX_FILE_BYTES = 256 * 1024;
   MAX_PACKET_BYTES = 1024 * 1024;
+  HIGH_CONFIDENCE_SECRET_PATTERNS = [
+    /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u,
+    /\bAKIA[0-9A-Z]{16}\b/u,
+    /\bgh[pousr]_[A-Za-z0-9]{36,}\b/u,
+    /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/u,
+    /\bsk-(?:proj-|ant-)[\w-]{16,}\b/u,
+    /\bAIza[\w-]{35}\b/u
+  ];
   ReviewPacketError = class ReviewPacketError extends Error {
     name = "ReviewPacketError";
   };
@@ -70142,7 +70157,7 @@ function reviewRouteAuthor(value) {
 function reviewRoutesFailure(command, error2) {
   const message = error2 instanceof Error ? error2.message : "Review route configuration is invalid.";
   const invalid = error2 instanceof ReviewRouteConfigError || error2 instanceof ReviewUserConfigPathError;
-  const readFailure = command === "review routes list" && !invalid;
+  const readFailure = error2 instanceof ReviewConfigReadError;
   let code = "REVIEW_ROUTE_CONFIG_WRITE_FAILED";
   if (invalid)
     code = "REVIEW_ROUTE_CONFIG_INVALID";
@@ -70214,20 +70229,19 @@ async function reviewRoutesListHandler(invocation) {
   const authors = requested === undefined ? REVIEW_ROUTE_AUTHORS : [requested];
   const [{ effectiveConfiguredRoutes: effectiveConfiguredRoutes2, scopedConfigPath: scopedConfigPath2 }, { builtInReviewRoutes: builtInReviewRoutes2 }] = await Promise.all([Promise.resolve().then(() => (init_preferences(), exports_preferences)), Promise.resolve().then(() => (init_policy2(), exports_policy))]);
   const listed = [];
-  for (const author of authors) {
-    let configured;
-    try {
-      configured = effectiveConfiguredRoutes2(invocation.cwd, author);
-    } catch (error2) {
-      return reviewRoutesFailure("review routes list", error2);
+  try {
+    for (const author of authors) {
+      const configured = effectiveConfiguredRoutes2(invocation.cwd, author);
+      listed.push({
+        author,
+        ...configured ?? {
+          source: "built-in",
+          routes: builtInReviewRoutes2(invocation.cwd, author)
+        }
+      });
     }
-    listed.push({
-      author,
-      ...configured ?? {
-        source: "built-in",
-        routes: builtInReviewRoutes2(invocation.cwd, author)
-      }
-    });
+  } catch (error2) {
+    return reviewRoutesFailure("review routes list", error2);
   }
   const projectConfig = nodePath50.relative(invocation.cwd, scopedConfigPath2(invocation.cwd, "project"));
   const body = [
@@ -71516,11 +71530,19 @@ var CANONICAL_COMMANDS = [
     syntax: "audit-scope"
   }),
   command("project record-skill-invocation", "Record current-run workflow proof", "mutate", {
-    syntax: "record-skill-invocation <skill> [session-id]"
+    syntax: "record-skill-invocation <skill> [session-id]",
+    fixture: {
+      argv: ["project", "record-skill-invocation", "verify"],
+      environment: MACHINE_ENVIRONMENT
+    }
   }),
   command("project runtime", "Run an allowlisted packaged helper with the helper arguments after --", "destructive", {
     syntax: "runtime <helper> [args...]",
-    networkPolicy: "declared"
+    networkPolicy: "declared",
+    fixture: {
+      argv: ["project", "runtime", "audit-principle-trace"],
+      environment: MACHINE_ENVIRONMENT
+    }
   }),
   command("project retro-drain", "Drain acknowledged retro drafts from a spool", "mutate", {
     syntax: "retro-drain <spool>",
@@ -71537,7 +71559,11 @@ var CANONICAL_COMMANDS = [
   }),
   command("project review-knowledge", "Resolve the principles, personas, and surfaces sources for a review", "observe", { syntax: "review-knowledge" }),
   command("project public-retros", "Turn silent public retrospective collection on or off", "mutate", {
-    syntax: "public-retros <state>"
+    syntax: "public-retros <state>",
+    fixture: {
+      argv: ["project", "public-retros", "off"],
+      environment: MACHINE_ENVIRONMENT
+    }
   }),
   command("project namespace-root", "Print the resolved project-knowledge namespace root", "observe", {
     syntax: "namespace-root",
@@ -71981,11 +72007,17 @@ var HIDDEN_COMMANDS = [
   hidden("boundary", {
     commandOptions: [{ flags: "--at <boundary>", description: "which boundary: commit | push" }]
   }),
-  hidden("hook codex", {
-    syntax: "codex <event>",
-    commandOptions: [{ flags: "--plugin-hook", description: "", hidden: true }]
-  }),
-  hidden("codex-hook", { syntax: "codex-hook <event>" }),
+  {
+    ...hidden("hook codex", {
+      syntax: "codex <event>",
+      commandOptions: [{ flags: "--plugin-hook", description: "", hidden: true }]
+    }),
+    fixture: { argv: ["hook", "codex", "SessionStart"], environment: MACHINE_ENVIRONMENT }
+  },
+  {
+    ...hidden("codex-hook", { syntax: "codex-hook <event>" }),
+    fixture: { argv: ["codex-hook", "SessionStart"], environment: MACHINE_ENVIRONMENT }
+  },
   hidden("feature-directories")
 ];
 var commandCatalog = [
@@ -72110,6 +72142,11 @@ function capability(definition) {
     prompt_policy: definition.promptPolicy,
     network_policy: definition.networkPolicy,
     schema_versions: definition.schemaVersions,
+    ...definition.exitPolicy !== undefined && {
+      exit_policy: {
+        action_required_as_success_option: definition.exitPolicy.actionRequiredAsSuccessOption
+      }
+    },
     fixture: definition.fixture,
     options: definition.registration.options.filter((option) => option.hidden !== true).map(({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
       flags,

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -58,7 +59,11 @@ describe('Claude plugin catalogue generation', () => {
   });
 
   it('targets the oldest Node major the package declares as supported', () => {
-    expect(CLAUDE_DISPATCHER_NODE_TARGET).toBe('node22');
+    const packageJson = JSON.parse(
+      readFileSync(nodePath.join(packageRoot, 'package.json'), 'utf8'),
+    ) as { engines?: { node?: string } };
+    const oldestMajor = /\d+/u.exec(packageJson.engines?.node ?? '')?.[0];
+    expect(CLAUDE_DISPATCHER_NODE_TARGET).toBe(`node${oldestMajor}`);
   });
 
   it('qualifies collision-prone workflows while preserving public skill references', () => {

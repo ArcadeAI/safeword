@@ -356,7 +356,21 @@ function pluginEventGroups(): string {
   return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}\n`;
 }
 
-function pluginInventory(assets: readonly GeneratedClaudePluginAsset[]): string {
+function assertEventGroupManifestCoverage(hookManifest: string, eventGroups: string): void {
+  const manifest = JSON.parse(hookManifest) as { hooks?: Record<string, unknown> };
+  const groups = JSON.parse(eventGroups) as { groups?: Record<string, unknown> };
+  const groupNames = new Set(Object.keys(groups.groups ?? {}));
+  const hookEntries = Object.entries(manifest.hooks ?? {});
+  for (const [event, entries] of hookEntries) {
+    if (JSON.stringify(entries).includes('--event-group') && !groupNames.has(event)) {
+      throw new Error(`Claude plugin manifest references a missing event group: ${event}`);
+    }
+  }
+}
+
+function pluginInventory(
+  assets: readonly { readonly relativePath: string; readonly content: string | Buffer }[],
+): string {
   return `${JSON.stringify(
     {
       schema_version: 1,
@@ -434,6 +448,7 @@ export function generateClaudePluginAssets(
   const { cliBundle, sourceRoot, templatesRoot, version } = input;
   const hookManifest = pluginHookManifest();
   const eventGroups = pluginEventGroups();
+  assertEventGroupManifestCoverage(hookManifest, eventGroups);
   const candidateAssets = [
     {
       relativePath: '.claude-plugin/plugin.json',
@@ -561,7 +576,7 @@ export function sealClaudePluginCatalogue(pluginRoot: string, version: string): 
   ].toSorted((left, right) => left.localeCompare(right));
   const assets = paths.map(relativePath => ({
     relativePath,
-    content: readFileSync(nodePath.join(pluginRoot, relativePath), 'utf8'),
+    content: readFileSync(nodePath.join(pluginRoot, relativePath)),
   }));
   const inventory = pluginInventory(assets);
   const hookManifest = readFileSync(nodePath.join(pluginRoot, 'hooks', 'hooks.json'), 'utf8');

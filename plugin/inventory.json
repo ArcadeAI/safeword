@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "29ec2bb417608f1e4066c3788238ea78b399074d12394f3e1e5579e1ea74e373"
+      "sha256": "7c57e62a01ef374632a3bc6e3ea13c32c8d57aa8575e453cb6afd5e439deac7b"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "2a14d56a23f78d7a671271bb9a2bb34d0e071daa8220427d729efc3e666a0405"
+      "sha256": "3ac23ce5edcc18b626cb173dfccabf837a0b34ea7123a43939c1cb4e73b7ed34"
     },
     {
       "path": "runtime/event-groups.json",
@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "0f8ffc3b85a00371883a821614c4313a995dd7f316b998640547dec9d7483f81"
+      "sha256": "4a2a6b8ef49cffaf77950af1af88daa6cce6761ac9431784d2bd4105d8fccaf3"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "6409a9327f4b8e0111479b6a883feb1228682c9cc42855b298df185eada19185"
+      "sha256": "7ec4bf667d6594bf4ef426403fbef46b50850dc33bd2c9b43d893bd70c5c08ab"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -615,7 +615,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "ff3c86ffc06ed4a031d4766bba8fac6eb9028c55d82071bb2cfdc4d9f84bacf1"
+      "sha256": "05dad448b4f403160c2ae761a6a67ccd47b7be7c7323c9194679bee52fd917fb"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -687,7 +687,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "388bc1a707305aa1fb7bf77dec22e847c8a43368a4d1f2bd1f03d9f91ae87ba1"
+      "sha256": "2ec6a4f9b4da9fd28ecd263f73bf9d2aa6c4d35d00c389a46dfb964afb6ef8bc"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -703,7 +703,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "bd2b50b4c31dad2bca52ab845cd984af8edb978c0e6633d2c4ae15de40f6d0eb"
+      "sha256": "3e31efafae0809bfb715ab333c48a4b05deb7b6e18dcb04c38f0da951494c3da"
     },
     {
       "path": "skills/self-review/SKILL.md",

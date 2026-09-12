@@ -21,6 +21,14 @@ import type { RedExecutionAttestation, ReviewKind, ReviewPacket } from './contra
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
 const MAX_PACKET_BYTES = 1024 * 1024;
+const HIGH_CONFIDENCE_SECRET_PATTERNS = [
+  /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u,
+  /\bAKIA[0-9A-Z]{16}\b/u,
+  /\bgh[pousr]_[A-Za-z0-9]{36,}\b/u,
+  /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/u,
+  /\bsk-(?:proj-|ant-)[\w-]{16,}\b/u,
+  /\bAIza[\w-]{35}\b/u,
+] as const;
 
 export interface PreparedReviewPacket {
   readonly packet: ReviewPacket;
@@ -170,6 +178,11 @@ function readContainedText(
       content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     } catch {
       throw new Error(`Review target is not valid UTF-8 text: ${target}`);
+    }
+    if (HIGH_CONFIDENCE_SECRET_PATTERNS.some(pattern => pattern.test(content))) {
+      throw new Error(
+        `Review packet rejected a high-confidence credential in ${target}; redact it before dispatch`,
+      );
     }
     return { bytes, content, device: opened.dev, inode: opened.ino };
   } finally {

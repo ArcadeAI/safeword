@@ -4,6 +4,8 @@
  * Unlike surface-parity tests, this asks the installed Codex binary to evaluate
  * the installed Safeword runtime and real profile rule files. It therefore
  * fails when a plugin upgrade moves the runtime without refreshing the rules.
+ * If a forbidden execution flag is accidentally allowed, this bounded fixture
+ * may start a harmless local review before the tripwire detects the regression.
  *
  * Run with:
  *
@@ -114,7 +116,9 @@ function expectRuntimeRejectsExecutionOptions(
         expect(decision(codex, rules, command).decision).toBe('allow');
         const rejected = run(command[0] ?? '', command.slice(1));
         expect(rejected.status, `${rejected.stdout ?? ''}${rejected.stderr ?? ''}`).not.toBe(0);
-        expect(rejected.stdout).toContain('is only valid for executable-red reviews');
+        expect(`${rejected.stdout ?? ''}${rejected.stderr ?? ''}`).toContain(
+          'is only valid for executable-red reviews',
+        );
         expect(existsSync(nodePath.join(fixture, '.safeword', 'reviews'))).toBe(false);
       }
     }

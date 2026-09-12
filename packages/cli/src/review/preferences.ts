@@ -20,6 +20,10 @@ export class ReviewUserConfigPathError extends Error {
   override readonly name = 'ReviewUserConfigPathError';
 }
 
+export class ReviewConfigReadError extends Error {
+  override readonly name = 'ReviewConfigReadError';
+}
+
 export function resolveSafewordUserConfigPath(input: UserConfigEnvironment): string | undefined {
   const paths = input.platform === 'windows' ? nodePath.win32 : nodePath.posix;
   const xdg = absolute(input.env.XDG_CONFIG_HOME, paths);
@@ -67,7 +71,7 @@ function readConfigFile(path: string): Record<string, unknown> {
   try {
     contents = readFileSync(path, 'utf8');
   } catch (error) {
-    throw new Error(
+    throw new ReviewConfigReadError(
       `Unable to read Safeword configuration at ${path}: ${error instanceof Error ? error.message : String(error)}`,
       { cause: error },
     );
@@ -105,7 +109,7 @@ export function setScopedReviewRoutes(
   }
   const config = readConfigFile(path);
   const current = config.crossAgentReviewRoutes;
-  if (current !== undefined && (!isRecord(current) || Array.isArray(current))) {
+  if (current !== undefined && !isRecord(current)) {
     throw new ReviewRouteConfigError(
       `Invalid Safeword configuration at ${path}: crossAgentReviewRoutes must be an object.`,
     );
@@ -133,7 +137,7 @@ export function resetScopedReviewRoutes(
   if (!existsSync(path)) return false;
   const config = readConfigFile(path);
   const current = config.crossAgentReviewRoutes;
-  if (current !== undefined && (!isRecord(current) || Array.isArray(current))) {
+  if (current !== undefined && !isRecord(current)) {
     throw new ReviewRouteConfigError(
       `Invalid Safeword configuration at ${path}: crossAgentReviewRoutes must be an object.`,
     );
@@ -154,11 +158,6 @@ export function effectiveConfiguredRoutes(
   author: ReviewAuthor,
 ): { readonly source: ReviewRouteScope; readonly routes: readonly ReviewRoute[] } | undefined {
   if (author !== 'claude' && author !== 'codex' && author !== 'opencode') return undefined;
-  const userPath = optionalCurrentUserConfigPath();
-  const userRoutes =
-    userPath === undefined
-      ? undefined
-      : parseConfiguredReviewRoutes(readConfigFile(userPath), author, userPath);
   const projectPath = scopedConfigPath(cwd, 'project');
   const projectRoutes = parseConfiguredReviewRoutes(
     readConfigFile(projectPath),
@@ -166,9 +165,14 @@ export function effectiveConfiguredRoutes(
     projectPath,
   );
   if (projectRoutes !== undefined) return { source: 'project', routes: projectRoutes };
+  const userPath = optionalCurrentUserConfigPath();
+  const userRoutes =
+    userPath === undefined
+      ? undefined
+      : parseConfiguredReviewRoutes(readConfigFile(userPath), author, userPath);
   return userRoutes === undefined ? undefined : { source: 'user', routes: userRoutes };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

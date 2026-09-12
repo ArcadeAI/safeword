@@ -28,7 +28,10 @@ import {
 } from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
+const PRE_TOOL_QUALITY = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/pre-tool-quality.ts',
+);
 const CODEX_PRE_TOOL_QUALITY = nodePath.join(
   SAFEWORD_ROOT,
   'packages/cli/templates/hooks/codex/pre-tool-quality.ts',
@@ -72,6 +75,22 @@ function runMultiEditHook(
     }),
     cwd,
     env: { ...process.env, ...environment, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+function runNotebookEditHook(cwd: string, filePath: string): HookResult {
+  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'test-session',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'NotebookEdit',
+      tool_input: { notebook_path: filePath, content: '- [x] GREEN def5678' },
+    }),
+    cwd,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -293,6 +312,43 @@ describe('write-time annotation gate', () => {
       expectHookAllow(result);
     });
 
+    it('does not treat a word beginning with manual as the manual evidence mode', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED skip: manually reproduced later\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('blocks retroactively relabeling checked RED as manual evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED abc1234',
+        '- [x] RED skip: manual — relabeled later',
+      );
+      expectHookDeny(result, 'retroactively relabel');
+    });
+
+    it('blocks ledger edits attempted through NotebookEdit', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      expectHookDeny(runNotebookEditHook(setup.cwd, setup.testDefinitionsPath), 'NotebookEdit');
+    });
+
     it('blocks an annotated GREEN transition when the receipt gate process fails', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
@@ -396,6 +452,39 @@ describe('write-time annotation gate', () => {
         },
       );
       expectHookAllow(result);
+    });
+
+    it('blocks GREEN when MultiEdit creates a duplicate approved scenario heading', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: approved',
+          '',
+          '- [x] RED abc1234',
+          '- [ ] GREEN',
+          '- [ ] REFACTOR',
+          '',
+          '### Scenario: other',
+          '',
+          '- [x] RED 987fedc',
+          '- [ ] GREEN',
+          '- [ ] REFACTOR',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const result = runMultiEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        [
+          { old_string: '### Scenario: other', new_string: '### Scenario: approved' },
+          {
+            old_string: '- [x] RED 987fedc\n- [ ] GREEN',
+            new_string: '- [x] RED 987fedc\n- [x] GREEN def5678',
+          },
+        ],
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: approved') },
+      );
+      expectHookDeny(result, 'could not identify the active scenario');
     });
 
     it('blocks checked GREEN credit restored after an unrecognized-step rename', () => {

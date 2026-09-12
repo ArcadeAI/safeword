@@ -16,6 +16,7 @@ export interface CheckboxTransition {
   annotation: string;
   scenario?: string;
   evidenceMode?: 'live' | 'manual';
+  evidenceModeChanged?: boolean;
 }
 
 export interface TransitionHookInput {
@@ -44,7 +45,9 @@ function checkboxStates(text: string): CheckboxState[] {
   const evidenceModeByScenario = new Map<string | undefined, 'live' | 'manual'>();
   for (const state of states) {
     if (state.step !== 'RED' || !state.checked) continue;
-    const mode = /^skip:\s*(manual|live)\b/iu.exec(state.annotation)?.[1]?.toLowerCase();
+    const mode = /^skip:\s*(manual|live)(?:\s*(?:—|:)\s*|$)/iu
+      .exec(state.annotation)?.[1]
+      ?.toLowerCase();
     if (mode === 'manual' || mode === 'live') evidenceModeByScenario.set(state.scenario, mode);
   }
   return states.map(state => ({
@@ -57,6 +60,11 @@ function checkboxStates(text: string): CheckboxState[] {
 
 function findTransitions(oldText: string, newText: string): CheckboxTransition[] {
   const oldStates = checkboxStates(oldText);
+  const newStates = checkboxStates(newText);
+  const scenarioCounts = new Map<string | undefined, number>();
+  for (const state of newStates) {
+    scenarioCounts.set(state.scenario, (scenarioCounts.get(state.scenario) ?? 0) + 1);
+  }
   const usedOld = new Set<number>();
   const unmatched: CheckboxState[] = [];
   const transitions: CheckboxTransition[] = [];
@@ -78,8 +86,16 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
     return oldStates[index];
   };
 
-  for (const state of checkboxStates(newText).filter(candidate => candidate.checked)) {
-    if (consumeOld(state, true, true) === undefined) unmatched.push(state);
+  for (const state of newStates.filter(candidate => candidate.checked)) {
+    const prior = consumeOld(state, true, true);
+    if (prior === undefined) unmatched.push(state);
+    else if (
+      state.step === 'RED' &&
+      prior.evidenceMode === undefined &&
+      state.evidenceMode !== undefined
+    ) {
+      transitions.push({ ...state, evidenceModeChanged: true });
+    }
   }
 
   const scenarioChanged: CheckboxState[] = [];
@@ -105,7 +121,13 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
     transitions.push(movedUnchecked === undefined ? state : { ...state, scenario: undefined });
   }
 
-  return transitions.map(({ step, annotation, scenario }) => ({ step, annotation, scenario }));
+  return transitions.map(({ step, annotation, scenario, evidenceMode, evidenceModeChanged }) => ({
+    step,
+    annotation,
+    scenario: (scenarioCounts.get(scenario) ?? 0) > 3 ? undefined : scenario,
+    evidenceMode,
+    evidenceModeChanged,
+  }));
 }
 
 function applyUniqueEdit(current: string, oldText: string, newText: string): string | undefined {

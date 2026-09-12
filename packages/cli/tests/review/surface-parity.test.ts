@@ -75,14 +75,15 @@ function containsReviewLaunch(content: string): boolean {
 }
 
 function reviewStampCommands(content: string): string[] {
-  const inlineCommands = content
+  const normalized = content.replaceAll(/\\\n[^\S\n]*/gu, ' ');
+  const inlineCommands = normalized
     .matchAll(/`([^`\n]*write-review-stamp[^`\n]*)`/gu)
     .map(match => match[1] ?? '')
     .toArray();
-  const fencedCommands = content
+  const fencedCommands = normalized
     .split('\n')
     .map(line => line.trim())
-    .filter(line => line.startsWith('bun ') && line.includes('write-review-stamp'));
+    .filter(line => line.includes('write-review-stamp'));
 
   return [...new Set([...inlineCommands, ...fencedCommands])];
 }
@@ -142,7 +143,6 @@ function expectDispatchAuthorization(content: string, context: string): void {
   expect(normalized, context).toContain(
     'If the dispatch rule is absent or does not match, report the route as unavailable instead of asking the user.',
   );
-  expect(normalized, context).not.toMatch(/native tool-approval request/iu);
   expect(normalized, context).toContain(
     'Never pass credentials, customer data, or secret-bearing files as targets or `--context`;',
   );
@@ -604,6 +604,20 @@ exit ${status}`,
           expectDispatchAuthorization(call.section, context);
           expectTypedExhaustion(`${root}/${relativePath}`, call);
         }
+      }
+    }
+  });
+
+  it('never tells any shipped skill to surface a native approval request', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    for (const root of [
+      nodePath.join(templates, 'skills'),
+      nodePath.join(repoRoot, 'plugin/skills'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+    ]) {
+      for (const relativePath of markdownFiles(root)) {
+        const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
+        expect(content, `${root}/${relativePath}`).not.toMatch(/native tool-approval request/iu);
       }
     }
   });

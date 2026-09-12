@@ -17,7 +17,7 @@ import type {
   RedExecutionRequest,
   ReviewKind,
 } from '../review/contract.js';
-import { ReviewUserConfigPathError } from '../review/preferences.js';
+import { ReviewConfigReadError, ReviewUserConfigPathError } from '../review/preferences.js';
 import { ReviewRouteConfigError } from '../review/route-config.js';
 import type { CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
@@ -78,7 +78,7 @@ function reviewRoutesFailure(command: string, error: unknown): CliResult {
   const message = error instanceof Error ? error.message : 'Review route configuration is invalid.';
   const invalid =
     error instanceof ReviewRouteConfigError || error instanceof ReviewUserConfigPathError;
-  const readFailure = command === 'review routes list' && !invalid;
+  const readFailure = error instanceof ReviewConfigReadError;
   let code = 'REVIEW_ROUTE_CONFIG_WRITE_FAILED';
   if (invalid) code = 'REVIEW_ROUTE_CONFIG_INVALID';
   else if (readFailure) code = 'REVIEW_ROUTE_CONFIG_READ_FAILED';
@@ -168,20 +168,19 @@ export async function reviewRoutesListHandler(invocation: CommandInvocation): Pr
     source: string;
     routes: readonly { reviewer: string; model?: string; independence: string }[];
   }[] = [];
-  for (const author of authors) {
-    let configured: ReturnType<typeof effectiveConfiguredRoutes>;
-    try {
-      configured = effectiveConfiguredRoutes(invocation.cwd, author);
-    } catch (error) {
-      return reviewRoutesFailure('review routes list', error);
+  try {
+    for (const author of authors) {
+      const configured = effectiveConfiguredRoutes(invocation.cwd, author);
+      listed.push({
+        author,
+        ...(configured ?? {
+          source: 'built-in',
+          routes: builtInReviewRoutes(invocation.cwd, author),
+        }),
+      });
     }
-    listed.push({
-      author,
-      ...(configured ?? {
-        source: 'built-in',
-        routes: builtInReviewRoutes(invocation.cwd, author),
-      }),
-    });
+  } catch (error) {
+    return reviewRoutesFailure('review routes list', error);
   }
 
   // Project-scoped paths travel relative to the project, matching `routes set`

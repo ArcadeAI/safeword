@@ -223,6 +223,7 @@ function safewordCliCommand(): [string, ...string[]] {
 
 function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
   const [executable, ...prefix] = safewordCliCommand();
+  const command = [executable, ...prefix].join(' ');
   const checked = spawnSync(
     executable,
     [
@@ -254,7 +255,7 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
       ? message
       : 'The executable RED receipt check did not approve this scenario.';
   } catch {
-    return 'The executable RED receipt check could not produce a valid result.';
+    return `The executable RED receipt check could not produce a valid result from ${command}.`;
   }
 }
 
@@ -883,8 +884,20 @@ if (isCanonicalTicketEdit) {
 // ---------------------------------------------------------------------------
 
 if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 'tickets/')) {
+  if (input.tool_name === 'NotebookEdit') {
+    deny(
+      'Cannot update the markdown R/G/R ledger through NotebookEdit.',
+      'Use Edit, Write, or MultiEdit so Safeword can reconstruct and validate the exact checkbox transition.',
+    );
+  }
   const transitions = collectNewTransitions(input, editedFile);
   for (const transition of transitions) {
+    if (transition.evidenceModeChanged === true) {
+      deny(
+        'Cannot retroactively relabel an already-checked RED as manual or live evidence.',
+        'Leave the historical RED annotation unchanged. Reopen the scenario with a new unchecked RED row and record the manual/live evidence there.',
+      );
+    }
     if (transition.annotation === '') {
       deny(
         `Cannot mark "[x] ${transition.step}" without an annotation. Use "${transition.step} <sha>" or "${transition.step} skip: <non-empty reason>".`,
@@ -903,7 +916,7 @@ if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 't
       if (scenario === undefined) {
         deny(
           'Cannot mark GREEN because Safeword could not identify the active scenario for executable RED review.',
-          'Leave GREEN unchecked, restore a standard Scenario heading with RED/GREEN/REFACTOR rows, then retry.',
+          'Leave GREEN unchecked. If a heading was renamed or duplicated, revert that edit; then restore one standard Scenario heading with RED/GREEN/REFACTOR rows and retry.',
         );
       }
       const ledger = nodePath.relative(projectDirectory, editedFile);

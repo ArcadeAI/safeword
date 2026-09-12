@@ -217,6 +217,19 @@ describe('review packet containment and change accounting', () => {
     );
   });
 
+  it.each([
+    '-----BEGIN PRIVATE KEY-----\nfixture',
+    'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE',
+    'OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz012345',
+  ])('rejects high-confidence credentials before dispatch', credential => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'secret.md'), credential);
+
+    expect(() => prepareReviewPacket(project, 'quality-review', ['secret.md'])).toThrow(
+      'high-confidence credential',
+    );
+  });
+
   it('preserves a UTF-8 BOM without reporting a reviewer mutation', () => {
     const project = temporaryDirectory();
     writeFileSync(
