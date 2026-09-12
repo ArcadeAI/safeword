@@ -238,6 +238,12 @@ function lockStillOwned(lockPath: string, fencePath: string, owner: LockOwner): 
   }
 }
 
+function staleFenceForTest(fencePath: string, generation: number): void {
+  if (process.env.NODE_ENV === 'test' && process.env.SAFEWORD_APPROVAL_TEST_STALE_FENCE === '1') {
+    writeFileSync(fencePath, `${generation + 1}\n`, { mode: 0o600 });
+  }
+}
+
 export function appendDesignDecision(
   ledgerPath: string,
   identity: DecisionIdentity,
@@ -258,6 +264,7 @@ export function appendDesignDecision(
     publishGeneration(fencePath, generation, owner.token);
     const owned: LockOwner = { ...owner, generation };
     writeFileSync(lockPath, `${JSON.stringify(owned)}\n`, { mode: 0o600 });
+    staleFenceForTest(fencePath, generation);
     if (!lockStillOwned(lockPath, fencePath, owned)) return { status: 'pending' };
     const appendPosition = Math.max(0, ...events.map(event => event.appendPosition)) + 1;
     const timestamp = new Date().toISOString();
