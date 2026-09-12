@@ -305,8 +305,8 @@ binds the exact current approach bytes. Sibling `5F5ZZA` owns semantic review
 record invalidation, provenance changes, and context-digest recomputation.
 
 - [x] RED c3b190c73
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 13d2085d3
+- [x] REFACTOR skip: the next durability scenario drives the planned shared-ledger extraction; moving the parser before that contract exists would only relocate unsettled behavior
 
 ### Scenario: Concurrent design decisions do not overwrite each other
 
