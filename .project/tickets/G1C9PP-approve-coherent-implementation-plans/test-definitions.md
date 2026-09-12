@@ -294,7 +294,7 @@ nonblocking behavior at the canonical CLI boundary.
 
 ### Scenario: A review-blocked design is never presented for human approval
 
-- [ ] RED
+- [x] RED c5dad14b1
 - [ ] GREEN
 - [ ] REFACTOR
 
