@@ -327,6 +327,21 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
+    it('does not exempt manual evidence without a durable reference', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED skip: manual — reproduced later\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN skip: evidence passed',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
     it('blocks retroactively relabeling checked RED as manual evidence', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
@@ -336,9 +351,23 @@ describe('write-time annotation gate', () => {
         setup.cwd,
         setup.testDefinitionsPath,
         '- [x] RED abc1234',
-        '- [x] RED skip: manual — relabeled later',
+        '- [x] RED skip: manual — see timestamped work log',
       );
       expectHookDeny(result, 'retroactively relabel');
+    });
+
+    it('blocks removing previously checked RED evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED abc1234',
+        '- [ ] RED abc1234',
+      );
+      expectHookDeny(result, 'historical evidence');
     });
 
     it('blocks ledger edits attempted through NotebookEdit', () => {

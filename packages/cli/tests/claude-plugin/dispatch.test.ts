@@ -296,17 +296,16 @@ describe('Claude plugin dispatcher', () => {
     const projectDirectory = temporary('safeword-plugin-stale-smoke-project-');
     const pluginData = temporary('safeword-plugin-stale-smoke-data-');
     const identity = JSON.parse(readFileSync(nodePath.join(PLUGIN_ROOT, 'identity.json'), 'utf8'));
-    writeFileSync(
-      nodePath.join(pluginData, 'cache-smoke-v1.json'),
-      `${JSON.stringify({
-        schema_version: 1,
-        ...identity,
-        canonical_plugin_root: '/different/plugin/root',
-        project_root: realpathSync(projectDirectory),
-        event: 'Setup',
-        session_id: 'shared-session',
-      })}\n`,
-    );
+    const staleSmokePath = nodePath.join(pluginData, 'cache-smoke-v1.json');
+    const staleSmoke = `${JSON.stringify({
+      schema_version: 1,
+      ...identity,
+      canonical_plugin_root: '/different/plugin/root',
+      project_root: realpathSync(projectDirectory),
+      event: 'Setup',
+      session_id: 'shared-session',
+    })}\n`;
+    writeFileSync(staleSmokePath, staleSmoke);
 
     const result = dispatchEvent(projectDirectory, pluginData, undefined, 'shared-session', {
       event: 'SessionStart',
@@ -316,6 +315,7 @@ describe('Claude plugin dispatcher', () => {
     expect(
       existsSync(nodePath.join(pluginData, 'execution-proofs-v2', `${projectDigest}.json`)),
     ).toBe(true);
+    expect(readFileSync(staleSmokePath, 'utf8')).toBe(staleSmoke);
   });
 
   it('records prompt proof without requiring the host plugin-data variable', () => {
@@ -730,6 +730,39 @@ describe('Claude plugin dispatcher', () => {
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
+  it('rejects duplicate asset paths in a self-sealed inventory', () => {
+    const projectDirectory = temporary('safeword-plugin-duplicate-inventory-project-');
+    const pluginData = temporary('safeword-plugin-duplicate-inventory-data-');
+    const configDirectory = temporary('safeword-plugin-duplicate-inventory-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-duplicate-inventory-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const inventoryPath = nodePath.join(pluginRoot, 'inventory.json');
+    const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8')) as {
+      assets: { path: string; sha256: string }[];
+    };
+    const firstAsset = inventory.assets[0];
+    if (firstAsset === undefined) throw new Error('Fixture inventory has no assets.');
+    inventory.assets.push(firstAsset);
+    writeFileSync(inventoryPath, `${JSON.stringify(inventory, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot);
+
+    const result = dispatchPrompt(
+      projectDirectory,
+      pluginData,
+      configDirectory,
+      'duplicate-inventory',
+      { pluginRoot },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('damaged native plugin cache');
+    expect(result.stdout).toContain('inventory contains duplicate asset paths');
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+  });
+
   it('returns Claude blocking status when a blockable hook has a damaged cache', () => {
     const projectDirectory = temporary('safeword-plugin-blockable-damage-project-');
     const pluginData = temporary('safeword-plugin-blockable-damage-data-');
@@ -758,7 +791,7 @@ describe('Claude plugin dispatcher', () => {
     );
   });
 
-  it('does not execute an unlisted file from an otherwise verified plugin cache', () => {
+  it('detects an unlisted file in a self-sealed plugin cache', () => {
     const projectDirectory = temporary('safeword-plugin-unlisted-project-');
     const pluginData = temporary('safeword-plugin-unlisted-data-');
     const configDirectory = temporary('safeword-plugin-unlisted-config-');
@@ -766,7 +799,7 @@ describe('Claude plugin dispatcher', () => {
     cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
     const unlistedPath = nodePath.join(pluginRoot, 'skills/unlisted/SKILL.md');
     mkdirSync(nodePath.dirname(unlistedPath), { recursive: true });
-    writeFileSync(unlistedPath, 'untrusted cache addition\n');
+    writeFileSync(unlistedPath, 'unexpected cache addition\n');
 
     const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'unlisted', {
       pluginRoot,
@@ -955,7 +988,7 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
-  it('matches aggregate tool hooks against the Claude tool name', () => {
+  it('matches aggregate tool hooks with the host matcher regex', () => {
     const projectDirectory = temporary('safeword-plugin-tool-matcher-project-');
     const pluginData = temporary('safeword-plugin-tool-matcher-data-');
     const configDirectory = temporary('safeword-plugin-tool-matcher-config-');
@@ -968,7 +1001,7 @@ describe('Claude plugin dispatcher', () => {
     };
     eventGroups.groups.PreToolUse = [
       {
-        matcher: 'Bash',
+        matcher: 'Bash|Shell',
         hooks: [
           {
             type: 'command',
@@ -1108,6 +1141,7 @@ describe('Claude plugin dispatcher', () => {
     expect(result.status, result.stderr).toBe(2);
     expect(result.stdout).toBe('');
     expect(result.stderr).toContain('sibling hook failed; later checks did not run');
+    expect(result.stderr).toContain('earlier denial');
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 

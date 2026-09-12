@@ -44,7 +44,9 @@ function checkboxStates(text: string): CheckboxState[] {
       continue;
     }
     const heading = fenced ? undefined : /^(#{1,6})\s+(.+)$/u.exec(line);
-    if (heading !== undefined) scenario = heading[1]?.length === 1 ? undefined : heading[2]?.trim();
+    if (heading !== undefined && heading !== null) {
+      scenario = heading[1]?.length === 1 ? undefined : heading[2]?.trim();
+    }
     const parsed = parseCheckboxAnnotation(line);
     if (parsed === null) continue;
     states.push({ ...parsed, scenario });
@@ -87,21 +89,14 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
   const unmatched: CheckboxState[] = [];
   const transitions: CheckboxTransition[] = [];
 
-  for (const scenario of new Set(oldStates.map(state => state.scenario))) {
-    const priorCheckedRed = oldStates.filter(
-      state => state.scenario === scenario && state.step === 'RED' && state.checked,
-    ).length;
-    const nextCheckedRed = newStates.filter(
-      state => state.scenario === scenario && state.step === 'RED' && state.checked,
-    ).length;
-    if (nextCheckedRed < priorCheckedRed) {
-      transitions.push({
-        step: 'RED',
-        annotation: '',
-        scenario,
-        historicalEvidenceRemoved: true,
-      });
-    }
+  const priorCheckedRed = oldStates.filter(state => state.step === 'RED' && state.checked).length;
+  const nextCheckedRed = newStates.filter(state => state.step === 'RED' && state.checked).length;
+  if (nextCheckedRed < priorCheckedRed) {
+    transitions.push({
+      step: 'RED',
+      annotation: '',
+      historicalEvidenceRemoved: true,
+    });
   }
 
   const consumeOld = (
