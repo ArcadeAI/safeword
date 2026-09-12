@@ -53,3 +53,12 @@
   with resolvable Markdown links and moved the `K3EBHB` delegation out of the
   conflict column, preserving the same design while making its trace
   machine-verifiable.
+- Exact-byte review `8603d9b3-a164-4590-9420-0688865f3d07` independently
+  approved the final Implementation Plan through the branch-built review
+  boundary. The canonical helper records the approval as an explicit bootstrap
+  skip because installed Safeword 0.83.1 cannot authenticate branch-added
+  review target metadata without trusting the code under review.
+- Entered implementation with a second explicit bootstrap skip for Execution
+  Planning. This ticket creates the first canonical Execution Plan contract and
+  `plan-execution` review kind, so later epic tickets must use the shipped gate;
+  this ticket cannot use a gate that does not exist yet.

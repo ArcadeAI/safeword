@@ -2,12 +2,19 @@
 id: 6XW8H7
 slug: split-large-contributions-into-reviewable-prs
 type: feature
-phase: plan-execution
+phase: implement
 status: in_progress
 blocked_on: [82T411]
+phase_skips:
+  - "define-behavior: legacy provenance compatibility only; behavior was completed and remains anchored in spec.md"
+  - "scenario-gate: legacy provenance compatibility only; scenarios were independently approved and remain anchored in the feature file"
+  - "plan-implementation: legacy provenance compatibility only; the exact Implementation Plan was independently approved in review 8603d9b3-a164-4590-9420-0688865f3d07"
+  - "plan-execution: bootstrap ticket creates the first canonical Execution Planning contract and plan-execution review kind; later epic tickets must use the shipped gate"
 phase_anchors:
   - define-behavior: .project/tickets/6XW8H7-split-large-contributions-into-reviewable-prs/spec.md
   - scenario-gate: features/split-large-contributions-into-reviewable-prs.feature
+  - plan-implementation: .project/tickets/6XW8H7-split-large-contributions-into-reviewable-prs/impl-plan.md
+  - implement: .project/tickets/6XW8H7-split-large-contributions-into-reviewable-prs/impl-plan.md
 scope:
   - make PR slicing an explicit Execution Plan outcome for large contributions
   - give each planned PR a coherent purpose, boundary, prerequisites, proof, and completion signal
