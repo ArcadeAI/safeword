@@ -448,6 +448,39 @@ Then('the handoff is rejected as empty', function (this: SafewordWorld) {
 Then(
   'the contract is accepted at the canonical version with exactly these five roles in any order for each of Next and Need: concrete choice, recommendation, controlling reason, material tradeoff or consequences, and exact reply, plus a separate concise no-decision action form',
   function (this: SafewordWorld) {
-    assert.deepEqual(stateFor(this).contractValidation, { valid: true });
+    const state = stateFor(this);
+    assert.deepEqual(state.contractValidation, { valid: true });
+    assert.ok(state.contract && typeof state.contract === 'object');
+
+    const contract = state.contract as {
+      version?: unknown;
+      decision?: { Next?: unknown; Need?: unknown };
+      action?: { role?: unknown; optionalReasonPrefix?: unknown };
+    };
+    const expectedRoles = [
+      'concrete choice',
+      'recommendation',
+      'controlling reason',
+      'material tradeoff or consequences',
+      'exact reply',
+    ];
+    const roleNames = (value: unknown): string[] =>
+      Array.isArray(value)
+        ? value
+            .map(entry =>
+              entry && typeof entry === 'object' && 'name' in entry
+                ? String((entry as { name: unknown }).name)
+                : '',
+            )
+            .sort()
+        : [];
+
+    assert.equal(contract.version, 'terminal-handoff/v1');
+    assert.deepEqual(roleNames(contract.decision?.Next), [...expectedRoles].sort());
+    assert.deepEqual(roleNames(contract.decision?.Need), [...expectedRoles].sort());
+    assert.deepEqual(contract.action, {
+      role: 'Action',
+      optionalReasonPrefix: 'Required because',
+    });
   },
 );
