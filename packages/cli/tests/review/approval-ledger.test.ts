@@ -8,6 +8,7 @@ import { appendDesignDecision, currentDesignDecision } from '../../src/review/ap
 
 const roots: string[] = [];
 const originalTimeout = process.env.SAFEWORD_APPROVAL_LOCK_TIMEOUT_MS;
+const originalStaleFence = process.env.SAFEWORD_APPROVAL_TEST_STALE_FENCE;
 
 function ledgerPath(): string {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-approval-ledger-'));
@@ -28,6 +29,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { force: true, recursive: true });
   if (originalTimeout === undefined) delete process.env.SAFEWORD_APPROVAL_LOCK_TIMEOUT_MS;
   else process.env.SAFEWORD_APPROVAL_LOCK_TIMEOUT_MS = originalTimeout;
+  if (originalStaleFence === undefined) delete process.env.SAFEWORD_APPROVAL_TEST_STALE_FENCE;
+  else process.env.SAFEWORD_APPROVAL_TEST_STALE_FENCE = originalStaleFence;
 });
 
 describe('approval ledger recovery matrix', () => {
@@ -78,6 +81,17 @@ describe('approval ledger recovery matrix', () => {
 
     expect(append(path, 'approved')).toEqual({ status: 'pending' });
     expect(currentDesignDecision(path, 'TICKET', 'plan-digest')).toBeUndefined();
+  });
+
+  it('does not commit after its fencing generation becomes stale', () => {
+    const path = ledgerPath();
+    expect(append(path, 'approved')).toEqual({ status: 'written' });
+    const before = readFileSync(path, 'utf8');
+    process.env.SAFEWORD_APPROVAL_TEST_STALE_FENCE = '1';
+
+    expect(append(path, 'declined')).toEqual({ status: 'pending' });
+    expect(readFileSync(path, 'utf8')).toBe(before);
+    expect(currentDesignDecision(path, 'TICKET', 'plan-digest')).toBe('approved');
   });
 
   it('fails closed when the highest append position has conflicting decisions', () => {
