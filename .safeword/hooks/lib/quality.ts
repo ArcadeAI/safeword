@@ -146,6 +146,8 @@ export type TerminalHandoffRequirement =
   | (typeof TERMINAL_HANDOFF_DECISION_REQUIREMENTS)[number]
   | 'one concrete action'
   | 'one essential reason'
+  | 'concise action form'
+  | 'no extra context'
   | 'plain-language meaning';
 
 export interface DecisionBriefCompliance {
@@ -232,6 +234,77 @@ function missingDecisionRequirements(terminalValue: string): TerminalHandoffRequ
   });
   if (unexplainedTerm) missing.push('plain-language meaning');
   return missing;
+}
+
+const IMPERATIVE_VERBS = new Set([
+  'add',
+  'apply',
+  'build',
+  'check',
+  'commit',
+  'create',
+  'deploy',
+  'document',
+  'fix',
+  'open',
+  'publish',
+  'review',
+  'run',
+  'send',
+  'ship',
+  'test',
+  'update',
+  'verify',
+]);
+const NON_SPECIFIC_OBJECT = new Set([
+  'a',
+  'an',
+  'it',
+  'that',
+  'the',
+  'thing',
+  'this',
+  'them',
+  'those',
+  'work',
+]);
+
+function actionIsConcrete(value: string): boolean {
+  const words = value
+    .replaceAll(/[`*_.,;:!?()[\]{}]/gu, ' ')
+    .toLowerCase()
+    .split(/\s+/u)
+    .filter(Boolean);
+  const [verb, ...objectWords] = words;
+  return (
+    verb !== undefined &&
+    IMPERATIVE_VERBS.has(verb) &&
+    objectWords.some(word => !NON_SPECIFIC_OBJECT.has(word))
+  );
+}
+
+function missingActionRequirements(terminalValue: string): TerminalHandoffRequirement[] {
+  const { clauses, leadingText } = parseTerminalRoleClauses(terminalValue);
+  const requirements: TerminalHandoffRequirement[] = [];
+  const actions = clauses.filter(clause => clause.role === 'Action');
+  const reasons = clauses.filter(clause => clause.role === 'Reason');
+  const decisionRoles = clauses.filter(clause => clause.role in DECISION_ROLE_REQUIREMENT);
+
+  const actionValue = actions[0]?.value ?? '';
+  if (actions.length !== 1 || !actionIsConcrete(actionValue)) {
+    requirements.push('one concrete action');
+  }
+  if (
+    reasons.length > 1 ||
+    (reasons.length === 1 && !/^Required because\s+\S[\s\S]*[.!]?$/u.test(reasons[0]?.value ?? ''))
+  ) {
+    requirements.push('one essential reason');
+  }
+  if (decisionRoles.length > 0) requirements.push('concise action form');
+  if (leadingText !== '' || /[.!?]\s+\S/u.test(actionValue)) {
+    requirements.push('no extra context');
+  }
+  return requirements;
 }
 
 /** Public test contract: all explicitly counted passes remain below this fixed factor. */
@@ -550,7 +623,8 @@ export function evaluateDecisionBriefCompliance(
     const requirements = missingDecisionRequirements(terminalValue);
     return requirements.length > 0 ? result(false, undefined, requirements) : result(true);
   }
-  return result(true);
+  const requirements = missingActionRequirements(terminalValue);
+  return requirements.length > 0 ? result(false, undefined, requirements) : result(true);
 }
 
 /** Whether a reply already ends in the canonical phase-neutral decision brief. */

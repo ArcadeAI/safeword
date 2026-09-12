@@ -360,5 +360,5 @@ Then('the action handoff is rejected as missing the decision form', function (th
 
 Then('the action handoff is rejected as unnecessarily verbose', function (this: SafewordWorld) {
   assert.equal(stateFor(this).evaluation?.compliant, false);
-  assert.ok(stateFor(this).evaluation?.requirements?.includes('one concrete action'));
+  assert.ok(stateFor(this).evaluation?.requirements?.includes('no extra context'));
 });
