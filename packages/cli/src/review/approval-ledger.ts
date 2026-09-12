@@ -98,7 +98,7 @@ function decisionEvents(ledger: string): DecisionEvent[] {
     .filter((event): event is DecisionEvent => event !== undefined);
 }
 
-function idempotencyKey(identity: DecisionIdentity): string {
+function idempotencyKey(identity: DecisionIdentity, supersedesPosition: number): string {
   return createHash('sha256')
     .update(
       JSON.stringify([
@@ -106,9 +106,30 @@ function idempotencyKey(identity: DecisionIdentity): string {
         identity.planDigest,
         identity.decision,
         identity.authorityRef,
+        supersedesPosition,
       ]),
     )
     .digest('hex');
+}
+
+function matchingDecisionState(
+  events: readonly DecisionEvent[],
+  ticket: string,
+  planDigest: string,
+): { readonly current?: DecisionEvent; readonly highestPosition: number } {
+  const matching = events.filter(
+    event => event.ticket === ticket && event.planDigest === planDigest,
+  );
+  const highestPosition = Math.max(0, ...matching.map(event => event.appendPosition));
+  const current = matching.filter(event => event.appendPosition === highestPosition);
+  return { current: current.length === 1 ? current[0] : undefined, highestPosition };
+}
+
+function matchesCurrentIdentity(
+  current: DecisionEvent | undefined,
+  identity: DecisionIdentity,
+): boolean {
+  return current?.decision === identity.decision && current.authorityRef === identity.authorityRef;
 }
 
 function processIsAlive(pid: number): boolean | undefined {
@@ -256,8 +277,9 @@ export function appendDesignDecision(
   try {
     const ledger = existsSync(ledgerPath) ? readFileSync(ledgerPath, 'utf8') : '';
     const events = decisionEvents(ledger);
-    const key = idempotencyKey(identity);
-    if (events.some(event => event.idempotencyKey === key)) return { status: 'existing' };
+    const matching = matchingDecisionState(events, identity.ticket, identity.planDigest);
+    if (matchesCurrentIdentity(matching.current, identity)) return { status: 'existing' };
+    const key = idempotencyKey(identity, matching.highestPosition);
     const currentGeneration = readGeneration(fencePath, events);
     if (currentGeneration === undefined) return { status: 'pending' };
     const generation = currentGeneration + 1;
@@ -302,16 +324,11 @@ export function currentDesignDecision(
   planDigest: string,
 ): DesignDecision | undefined {
   if (!existsSync(ledgerPath)) return undefined;
-  let matching: DecisionEvent[];
+  let events: DecisionEvent[];
   try {
-    matching = decisionEvents(readFileSync(ledgerPath, 'utf8')).filter(
-      event => event.ticket === ticket && event.planDigest === planDigest,
-    );
+    events = decisionEvents(readFileSync(ledgerPath, 'utf8'));
   } catch {
     return undefined;
   }
-  if (matching.length === 0) return undefined;
-  const highestPosition = Math.max(...matching.map(event => event.appendPosition));
-  const current = matching.filter(event => event.appendPosition === highestPosition);
-  return current.length === 1 ? current[0]?.decision : undefined;
+  return matchingDecisionState(events, ticket, planDigest).current?.decision;
 }
