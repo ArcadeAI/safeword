@@ -139,8 +139,16 @@ describe('Execution Plan output schema', () => {
 
   it('parses the record only under the internal plan-execution kind', () => {
     const encoded = JSON.stringify(approval());
+    const denialWithoutRecord = {
+      ...baseOutput,
+      verdict: 'request_changes' as const,
+      findings: [{ severity: 'error' as const, message: 'Rollback ownership is missing.' }],
+    };
 
     expect(parseReviewerOutput('claude', encoded, 'plan-execution')).toEqual(approval());
+    expect(
+      parseReviewerOutput('claude', JSON.stringify(denialWithoutRecord), 'plan-execution'),
+    ).toEqual(denialWithoutRecord);
     expect(() => parseReviewerOutput('claude', encoded, 'quality-review')).toThrow(
       'invalid reviewer output',
     );
@@ -172,6 +180,13 @@ describe('Execution Plan output validation', () => {
     expect(validateExecutionPlanOutput(output)).toEqual({
       kind: 'denied',
       output: { ...output, execution_plan_record: nullRecord },
+    });
+
+    const denialWithoutRecord = { ...output };
+    delete denialWithoutRecord.execution_plan_record;
+    expect(validateExecutionPlanOutput(denialWithoutRecord)).toEqual({
+      kind: 'denied',
+      output: { ...denialWithoutRecord, execution_plan_record: nullRecord },
     });
   });
 
@@ -254,6 +269,10 @@ describe('Execution Plan output validation', () => {
     ],
     ['missing obligations', approval(mutateRecord(record => (record.obligation_owners = [])))],
     [
+      'non-array obligations',
+      approval(mutateRecord(record => (record.obligation_owners = 'invalid'))),
+    ],
+    [
       'blank obligation',
       approval(
         mutateRecord(record => {
@@ -305,6 +324,10 @@ describe('Execution Plan output validation', () => {
       ),
     ],
     ['missing decisions', approval(mutateRecord(record => (record.decision_statuses = [])))],
+    [
+      'non-array decisions',
+      approval(mutateRecord(record => (record.decision_statuses = nullRecord))),
+    ],
     [
       'blank decision',
       approval(

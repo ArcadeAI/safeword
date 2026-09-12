@@ -649,6 +649,42 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('"plan_contract"');
     expect(prompt).toContain('Slicing decision');
 
+    const deniedWithoutRecord = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        '.project/tickets/T1-feature/execution-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/behavior.feature',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          ...environment,
+          SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: '',
+          SAFEWORD_REVIEW_FAKE_FINDING: 'Rollback ownership is missing.',
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+        },
+      },
+    );
+    expect(deniedWithoutRecord.exitCode, deniedWithoutRecord.stdout).toBe(2);
+    expect(JSON.parse(deniedWithoutRecord.stdout)).toMatchObject({
+      data: {
+        status: 'changes_requested',
+        reviewer_output: {
+          verdict: 'request_changes',
+          execution_plan_record: JSON.parse('null'),
+        },
+      },
+    });
+
     const rejected = await runCli(
       [
         'review',
@@ -675,7 +711,61 @@ describe('cross-agent review public-command wiring', () => {
         },
       ],
     });
-    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude', 'claude']);
+  });
+
+  it('fails closed before dispatch when no configured route has current admission', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), '# Execution Plan\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        crossAgentReviewRoutes: {
+          codex: [{ reviewer: 'claude', model: 'sonnet' }],
+        },
+      }),
+    );
+    const bin = installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        '.project/tickets/T1-feature/execution-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/behavior.feature',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
+      data: { status: 'blocked', review_kind: 'plan-execution', review_routes: [] },
+    });
+    expect(existsSync(reviewLog)).toBe(false);
   });
 
   it('reviews the ticket plan when a divergent host-private copy exists', async () => {

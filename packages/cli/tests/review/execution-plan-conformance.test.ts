@@ -93,6 +93,18 @@ describe('Execution Plan semantic conformance admission', () => {
       'a duplicate case',
       [...passingResults('claude', 'opus'), ...passingResults('claude', 'opus').slice(0, 1)],
     ],
+    [
+      'a non-boolean pass result',
+      passingResults('claude', 'opus').map((result, index) =>
+        index === 0 ? { ...result, passed: 'yes' as unknown as true } : result,
+      ),
+    ],
+    [
+      'an unknown reviewer',
+      passingResults('claude', 'opus').map((result, index) =>
+        index === 0 ? { ...result, reviewer: 'other' as unknown as 'claude' } : result,
+      ),
+    ],
   ])('refuses to write evidence from %s', (_label, results) => {
     expect(() => buildExecutionPlanAdmissionEvidence(results)).toThrow(
       'complete passing Execution Plan conformance matrix',
