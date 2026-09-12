@@ -250,7 +250,7 @@ family.
 
 - [x] RED 0eb25d232
 - [x] GREEN fce53f366
-- [ ] REFACTOR
+- [x] REFACTOR skip: one ownership clause and one ordered conflict classifier keep Product, design, and execution responsibilities distinct
 
 ### Scenario: Measurement applicability is explicit
 
