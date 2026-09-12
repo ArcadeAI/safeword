@@ -70,6 +70,8 @@ function verifyProvenance(
 
 function independentReviewResult(input: {
   readonly author: ReviewAuthor;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
   readonly reviewer: ReviewAgent;
   readonly output: ReviewerOutput;
   readonly model?: string;
@@ -104,6 +106,8 @@ function independentReviewResult(input: {
     data: {
       command: 'review run',
       status: input.output.verdict === 'approve' ? 'approved' : 'changes_requested',
+      review_kind: input.kind,
+      review_targets: input.targets,
       author_agent: input.author,
       assigned_reviewer: input.reviewer,
       actual_reviewer: input.output.reviewer_agent,
@@ -743,6 +747,8 @@ async function runRankedRoutes(
     if (route.independence === 'cross-agent') {
       const result = independentReviewResult({
         author,
+        kind: input.kind,
+        targets: input.targets,
         reviewer: route.reviewer,
         output: assessment.output,
         model: route.model,
@@ -1329,6 +1335,8 @@ async function runAlternateModelRoute(
 
   const result = independentReviewResult({
     author: input.author,
+    kind: input.kind,
+    targets: input.targets,
     reviewer: input.reviewer,
     output,
     model,
@@ -1399,6 +1407,8 @@ async function runIndependentFallback(
     kind: 'completed',
     result: independentReviewResult({
       author: input.author,
+      kind: input.kind,
+      targets: input.targets,
       reviewer: input.reviewer,
       output: assessment.output,
       preferredReviewer: input.preferredReviewer,
@@ -1754,6 +1764,8 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
 
   return independentReviewResult({
     author: routes.author,
+    kind: input.kind,
+    targets: input.targets,
     reviewer,
     output,
     model: completedModel,

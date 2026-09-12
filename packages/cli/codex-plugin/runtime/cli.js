@@ -2523,6 +2523,17 @@ function suggestionForFailure(failure, label) {
   }
   return;
 }
+function planArchitectureRecoveryLines(data, messages) {
+  if (data.review_kind !== "plan-implementation")
+    return;
+  const architectureBlocker = messages.find((message) => /shared-contract choice.+durable architecture (?:record|link)/iu.test(message));
+  if (architectureBlocker === undefined)
+    return;
+  return [
+    "The shared-contract choice needs a durable architecture record.",
+    "Recovery: Add the durable architecture link before resubmitting."
+  ];
+}
 function reviewResultLines(result, options) {
   if (!isRecord(result.data) || result.data.command !== "review run")
     return;
@@ -2530,7 +2541,8 @@ function reviewResultLines(result, options) {
     return;
   const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
   messages.push(...result.errors.map((error2) => error2.message));
-  const lines = [reviewCoverageLine(result.data, result.state), ...messages];
+  const plainRecovery = planArchitectureRecoveryLines(result.data, messages) ?? [];
+  const lines = [...plainRecovery, reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
     if (suggestion !== undefined)
@@ -34348,6 +34360,8 @@ function independentReviewResult(input) {
     data: {
       command: "review run",
       status: input.output.verdict === "approve" ? "approved" : "changes_requested",
+      review_kind: input.kind,
+      review_targets: input.targets,
       author_agent: input.author,
       assigned_reviewer: input.reviewer,
       actual_reviewer: input.output.reviewer_agent,
@@ -34759,6 +34773,8 @@ async function runRankedRoutes(input, author, policy, routes) {
     if (route.independence === "cross-agent") {
       const result = independentReviewResult({
         author,
+        kind: input.kind,
+        targets: input.targets,
         reviewer: route.reviewer,
         output: assessment.output,
         model: route.model
@@ -35150,6 +35166,8 @@ async function runAlternateModelRoute(input) {
   const output = assessment.output;
   const result = independentReviewResult({
     author: input.author,
+    kind: input.kind,
+    targets: input.targets,
     reviewer: input.reviewer,
     output,
     model,
@@ -35196,6 +35214,8 @@ async function runIndependentFallback(input) {
     kind: "completed",
     result: independentReviewResult({
       author: input.author,
+      kind: input.kind,
+      targets: input.targets,
       reviewer: input.reviewer,
       output: assessment.output,
       preferredReviewer: input.preferredReviewer,
@@ -35459,6 +35479,8 @@ async function runReview(input) {
   const output = provenance.output;
   return independentReviewResult({
     author: routes.author,
+    kind: input.kind,
+    targets: input.targets,
     reviewer,
     output,
     model: completedModel,

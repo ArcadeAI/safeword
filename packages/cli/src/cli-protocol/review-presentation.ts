@@ -185,6 +185,21 @@ function suggestionForFailure(failure: unknown, label: string): string | undefin
   return undefined;
 }
 
+function planArchitectureRecoveryLines(
+  data: Record<string, unknown>,
+  messages: readonly string[],
+): string[] | undefined {
+  if (data.review_kind !== 'plan-implementation') return undefined;
+  const architectureBlocker = messages.find(message =>
+    /shared-contract choice.+durable architecture (?:record|link)/iu.test(message),
+  );
+  if (architectureBlocker === undefined) return undefined;
+  return [
+    'The shared-contract choice needs a durable architecture record.',
+    'Recovery: Add the durable architecture link before resubmitting.',
+  ];
+}
+
 export function reviewResultLines(
   result: CliResult,
   options: { verbose?: boolean },
@@ -195,7 +210,8 @@ export function reviewResultLines(
     .filter(finding => !REPLACED_REVIEW_FINDINGS.has(finding.code))
     .map(finding => finding.message);
   messages.push(...result.errors.map(error => error.message));
-  const lines = [reviewCoverageLine(result.data, result.state), ...messages];
+  const plainRecovery = planArchitectureRecoveryLines(result.data, messages) ?? [];
+  const lines = [...plainRecovery, reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
     if (suggestion !== undefined) lines.push(suggestion);
