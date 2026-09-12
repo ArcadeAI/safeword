@@ -20,9 +20,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A complete Need decision can be acted on without earlier prose
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: symmetric decision parser was already driven red by the observed Next omission
+- [x] GREEN b7edcc9d4
+- [x] REFACTOR skip: Next and Need already share one decision-role parser
 
 ### Scenario: The observed Need paragraph cannot borrow its recommendation from earlier prose
 
