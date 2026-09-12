@@ -200,7 +200,7 @@ release prerequisite by itself.
 ### Scenario: Omitting one accepted persona blocks approach approval
 
 - [x] RED ed13f8d63
-- [ ] GREEN
+- [x] GREEN 7de8f700c
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R15 — Review receipts expose decision reviewability and concrete recovery
