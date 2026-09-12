@@ -528,8 +528,7 @@ function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(child => stableJson(child)).join(',')}]`;
   if (typeof value !== 'object' || value === null) return JSON.stringify(value) ?? 'undefined';
   return `{${Object.entries(value)
-    // eslint-disable-next-line unicorn/no-array-sort -- bundled dispatcher targets Node 18.
-    .sort(([left], [right]) => left.localeCompare(right))
+    .toSorted(([left], [right]) => left.localeCompare(right))
     .map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`)
     .join(',')}}`;
 }

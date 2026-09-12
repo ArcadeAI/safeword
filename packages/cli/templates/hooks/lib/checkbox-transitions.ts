@@ -15,6 +15,7 @@ export interface CheckboxTransition {
   step: string;
   annotation: string;
   scenario?: string;
+  evidenceMode?: 'live' | 'manual';
 }
 
 export interface TransitionHookInput {
@@ -40,7 +41,18 @@ function checkboxStates(text: string): CheckboxState[] {
     if (parsed === null) continue;
     states.push({ ...parsed, scenario });
   }
-  return states;
+  const evidenceModeByScenario = new Map<string | undefined, 'live' | 'manual'>();
+  for (const state of states) {
+    if (state.step !== 'RED' || !state.checked) continue;
+    const mode = /^skip:\s*(manual|live)\b/iu.exec(state.annotation)?.[1]?.toLowerCase();
+    if (mode === 'manual' || mode === 'live') evidenceModeByScenario.set(state.scenario, mode);
+  }
+  return states.map(state => ({
+    ...state,
+    ...(evidenceModeByScenario.has(state.scenario) && {
+      evidenceMode: evidenceModeByScenario.get(state.scenario),
+    }),
+  }));
 }
 
 function findTransitions(oldText: string, newText: string): CheckboxTransition[] {

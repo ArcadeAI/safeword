@@ -278,6 +278,21 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
+    it.each(['manual', 'live'])('uses the %s evidence path named by the scenario RED row', mode => {
+      const setup = setupProject(
+        `### Scenario: example\n\n- [x] RED skip: ${mode} — see timestamped work log\n- [ ] GREEN\n- [ ] REFACTOR\n`,
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN skip: evidence passed',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookAllow(result);
+    });
+
     it('blocks an annotated GREEN transition when the receipt gate process fails', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',

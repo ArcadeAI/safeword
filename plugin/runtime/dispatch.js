@@ -5713,7 +5713,7 @@ function stableJson(value) {
   if (Array.isArray(value)) return `[${value.map(child => stableJson(child)).join(',')}]`;
   if (typeof value !== 'object' || value === null) return JSON.stringify(value) ?? 'undefined';
   return `{${Object.entries(value)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .toSorted(([left], [right]) => left.localeCompare(right))
     .map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`)
     .join(',')}}`;
 }

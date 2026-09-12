@@ -39,6 +39,20 @@ function expectPublishedCommandShape(command: Record<string, unknown> | undefine
   expect(command?.fixture).toEqual(expect.objectContaining({ argv: expect.any(Array) }));
 }
 
+function publishedCapabilitiesData(): {
+  commands: Record<string, unknown>[];
+  machine_output: { canonical_option: string; schema_version: number };
+} {
+  const envelope = JSON.parse(renderJsonResult(createCapabilitiesResult())) as Record<
+    string,
+    unknown
+  >;
+  return envelope.data as {
+    commands: Record<string, unknown>[];
+    machine_output: { canonical_option: string; schema_version: number };
+  };
+}
+
 describe('CLI command catalog', () => {
   it('declares the optional network used to inspect configured reviewer catalogues', () => {
     expect(commandCatalog.find(command => command.name === 'status')?.networkPolicy).toBe(
@@ -201,14 +215,7 @@ describe('CLI command catalog', () => {
   });
 
   it('publishes complete capabilities without hidden helpers', () => {
-    const envelope = JSON.parse(renderJsonResult(createCapabilitiesResult())) as Record<
-      string,
-      unknown
-    >;
-    const data = envelope.data as {
-      commands: Record<string, unknown>[];
-      machine_output: { canonical_option: string; schema_version: number };
-    };
+    const data = publishedCapabilitiesData();
 
     expect(data.machine_output).toEqual(
       expect.objectContaining({ canonical_option: '--json', schema_version: 1 }),
@@ -241,6 +248,11 @@ describe('CLI command catalog', () => {
           replacement: 'project architecture --from-index --stage-output',
           retention: 'indefinite',
         },
+        {
+          route: 'architecture --stage',
+          replacement: 'architecture --from-index --stage-output',
+          retention: 'indefinite',
+        },
       ]),
     );
 
@@ -260,7 +272,6 @@ describe('CLI command catalog', () => {
       expect.objectContaining({ flags: '--scope <scope>', default_value: 'project' }),
     ]);
     expect(codexInstall?.options).toEqual([]);
-
     const remove = data.commands.find(command => command.name === 'remove');
     expect(remove?.options).toEqual(
       expect.arrayContaining([
@@ -283,6 +294,15 @@ describe('CLI command catalog', () => {
           description: 'Compute an offline tracker plan',
         },
       ]),
+    );
+  });
+
+  it('does not publish narrowed compatibility commands as full aliases', () => {
+    const install = publishedCapabilitiesData().commands.find(
+      command => command.name === 'install',
+    );
+    expect(install?.aliases).not.toEqual(
+      expect.arrayContaining(['claude install', 'codex install']),
     );
   });
 

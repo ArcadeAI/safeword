@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { normalizePluginCliBundle } from '../../scripts/lib/build-plugin-cli-bundle.js';
 import {
   assertClaudePluginAssetReferences,
+  CLAUDE_DISPATCHER_NODE_TARGET,
   generateClaudePluginAssets,
 } from '../../src/claude-plugin/catalogue.js';
 import { assertNativePluginRuntimeAuthority } from '../../src/plugin-runtime-authority.js';
@@ -56,17 +57,8 @@ describe('Claude plugin catalogue generation', () => {
     expect(packagedHandbook?.content).not.toMatch(/\.safeword\/(?:guides|scripts)\//u);
   });
 
-  it('keeps the complete dispatcher bundle compatible with its declared Node 18 target', () => {
-    const assets = generateClaudePluginAssets({
-      cliBundle: 'console.log("stub cli bundle");',
-      sourceRoot: nodePath.join(packageRoot, 'src'),
-      templatesRoot: nodePath.join(packageRoot, 'templates'),
-      version: '0.0.0-test',
-    });
-
-    expect(
-      assets.find(asset => asset.relativePath === 'runtime/dispatch.js')?.content,
-    ).not.toContain('.toSorted(');
+  it('targets the oldest Node major the package declares as supported', () => {
+    expect(CLAUDE_DISPATCHER_NODE_TARGET).toBe('node22');
   });
 
   it('qualifies collision-prone workflows while preserving public skill references', () => {

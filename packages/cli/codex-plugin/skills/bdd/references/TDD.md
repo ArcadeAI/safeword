@@ -167,7 +167,9 @@ authorize GREEN. Follow the exact recovery action and leave GREEN unchecked when
 is unavailable.
 An explicitly tagged `@manual` or `@live` scenario whose RED row records the required
 `skip: manual` or `skip: live` work-log evidence is outside this executable-receipt gate; its
-separate evidence path above controls when GREEN may be recorded.
+separate evidence path above controls when GREEN may be recorded. The write-time hook inspects the
+scenario's RED row in `test-definitions.md` when its GREEN row changes; a source tag by itself does
+not bypass the receipt gate.
 
 ### Checkbox Format Contract
 

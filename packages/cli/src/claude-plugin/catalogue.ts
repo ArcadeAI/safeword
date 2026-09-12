@@ -21,6 +21,8 @@ interface ClaudePluginCatalogueInput {
   readonly version: string;
 }
 
+export const CLAUDE_DISPATCHER_NODE_TARGET = 'node22';
+
 const GENERATED_DIRECTORIES = [
   '.claude-plugin',
   'agents',
@@ -416,7 +418,7 @@ function bundledDispatcher(sourceRoot: string): string {
     bundle: true,
     format: 'esm',
     platform: 'node',
-    target: 'node18',
+    target: CLAUDE_DISPATCHER_NODE_TARGET,
     write: false,
     legalComments: 'none',
     mainFields: ['module', 'main'],

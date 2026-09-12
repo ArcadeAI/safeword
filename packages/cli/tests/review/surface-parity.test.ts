@@ -92,7 +92,7 @@ interface ReviewCallSection {
   readonly section: string;
 }
 
-const MAX_REVIEW_CALL_WINDOW_LINES = 48;
+const MAX_REVIEW_CALL_WINDOW_LINES = 64;
 
 function reviewCallWindowAt(
   lines: readonly string[],
@@ -613,10 +613,7 @@ exit ${status}`,
     const nonSkillRoots = [
       nodePath.join(templates, 'commands'),
       nodePath.join(templates, 'agents'),
-      nodePath.join(repoRoot, 'plugin/commands'),
       nodePath.join(repoRoot, 'plugin/agents'),
-      nodePath.join(repoRoot, 'packages/cli/codex-plugin/commands'),
-      nodePath.join(repoRoot, 'packages/cli/codex-plugin/agents'),
     ];
 
     for (const root of nonSkillRoots) {

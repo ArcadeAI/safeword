@@ -898,7 +898,7 @@ if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 't
         'The text after "skip:" must not be empty or whitespace-only. A real reason is the audit trail.',
       );
     }
-    if (transition.step === 'GREEN') {
+    if (transition.step === 'GREEN' && transition.evidenceMode === undefined) {
       const scenario = transition.scenario;
       if (scenario === undefined) {
         deny(
