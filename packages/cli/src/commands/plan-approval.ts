@@ -27,6 +27,15 @@ import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 
 type ApprovalStatus = 'approved' | 'declined' | 'not-required' | 'pending';
 
+function interruptApprovalForTest(boundary: 'after-decision' | 'before-decision'): void {
+  if (
+    process.env.NODE_ENV === 'test' &&
+    process.env.SAFEWORD_APPROVAL_TEST_INTERRUPT === boundary
+  ) {
+    process.exit(86);
+  }
+}
+
 interface ApprovalContext {
   readonly cwd: string;
   readonly ticketId: string;
@@ -204,6 +213,7 @@ function settleInteractiveDecision(
   returnedToPlanning = false,
 ): CliResult {
   const status = accepted ? 'approved' : 'declined';
+  interruptApprovalForTest('before-decision');
   const appended = appendDesignDecision(context.ledgerPath, {
     authorityRef: 'interactive-cli',
     decision: status,
@@ -218,6 +228,7 @@ function settleInteractiveDecision(
       'Human design authority could not be recorded safely; approval remains pending.',
     );
   }
+  interruptApprovalForTest('after-decision');
   if (accepted) advanceToExecutionPlanning(context);
   const planPath = nodePath.relative(context.cwd, context.planPath);
   return result(
