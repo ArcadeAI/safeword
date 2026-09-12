@@ -191,9 +191,12 @@ records as context around the one `impl-plan.md` work artifact.
   block approval and name the conflicting data owner when they contradict.
   Migration commands are execution mechanics and cannot replace data decisions;
   name them for removal to Execution Planning.
-- **Personas and surfaces:** Verify the design fulfills each persona's JTBD and
-  flag any omitted surface. Every affected surface needs credible proof or an
-  explicit justified skip.
+- **Personas and surfaces:** Resolve every accepted Product Plan persona, then
+  verify the design covers that persona's consequential trust, operation,
+  approval, and recovery needs. Each applicable need requires a named design
+  consequence and an explicit confidence limit. Block approval when an accepted
+  persona or consequence is omitted, and name the uncovered persona and need.
+  Every affected surface needs credible proof or an explicit justified skip.
 - **Deviations and change triggers:** Intentional conflicts belong in Known
   deviations with a reason. Assessment triggers must name evidence that would
   justify revisiting a load-bearing choice.
