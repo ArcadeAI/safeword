@@ -508,7 +508,11 @@ function reviewerOutputKeys(kind: ReviewKind): Set<string> {
 }
 
 function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewKind): boolean {
-  return kind !== 'plan-execution' || Object.hasOwn(value, 'execution_plan_record');
+  return (
+    kind !== 'plan-execution' ||
+    value.verdict === 'request_changes' ||
+    Object.hasOwn(value, 'execution_plan_record')
+  );
 }
 
 function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): boolean {

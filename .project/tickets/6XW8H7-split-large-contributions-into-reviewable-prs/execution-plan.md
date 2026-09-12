@@ -113,8 +113,10 @@ working.
   every authoritative case; evidence carries the exact identity, packaged
   contract digest, and authoritative fixture-corpus digest. Selection
   recomputes and compares both digests. The generated-file check proves the
-  packaged manifest came from the complete-matrix writer; normal source review
-  remains the trust boundary, so this design adds no separate signing system.
+  packaged manifest is internally consistent and digest-current. Normal source
+  review verifies that its identities came from complete-matrix writer inputs
+  and remains the trust boundary, so this design adds no separate signing
+  system.
   For an explicitly admitted runtime-default identity, this proves the current
   contract/corpus pair, not that a vendor will never change the model behind its
   default. Keep the public CLI kind disabled. Do not change general quality,

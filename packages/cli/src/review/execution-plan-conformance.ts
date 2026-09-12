@@ -390,9 +390,21 @@ function identityKey(result: Pick<ExecutionPlanConformanceResult, 'reviewer' | '
   return `${result.reviewer}\0${result.model ?? '<runtime-default>'}`;
 }
 
+function isValidConformanceResult(result: ExecutionPlanConformanceResult): boolean {
+  return (
+    (result.reviewer === 'claude' || result.reviewer === 'codex') &&
+    typeof result.passed === 'boolean' &&
+    result.passed &&
+    typeof result.case_id === 'string' &&
+    result.case_id.trim() !== '' &&
+    (result.model === undefined || (typeof result.model === 'string' && result.model.trim() !== ''))
+  );
+}
+
 export function buildExecutionPlanAdmissionEvidence(
   results: readonly ExecutionPlanConformanceResult[],
 ): ExecutionPlanAdmissionEvidence {
+  if (results.some(result => !isValidConformanceResult(result))) throw incompleteMatrixError();
   const expected = EXECUTION_PLAN_CONFORMANCE_CASES.map(testCase => testCase.id);
   const grouped = new Map<string, ExecutionPlanConformanceResult[]>();
   for (const result of results) {
@@ -406,7 +418,6 @@ export function buildExecutionPlanAdmissionEvidence(
     if (first === undefined) throw incompleteMatrixError();
     const actual = group.map(result => result.case_id);
     if (
-      group.some(result => !result.passed) ||
       actual.length !== expected.length ||
       new Set(actual).size !== actual.length ||
       expected.some(caseId => !actual.includes(caseId))

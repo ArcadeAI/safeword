@@ -126,7 +126,9 @@ function hasValidRecordHeader(value: Record<string, unknown>): boolean {
     decisionIsValid &&
     isNonblank(value.rationale) &&
     Array.isArray(value.slices) &&
-    value.slices.every(isValidSlice)
+    value.slices.every(isValidSlice) &&
+    Array.isArray(value.obligation_owners) &&
+    Array.isArray(value.decision_statuses)
   );
 }
 

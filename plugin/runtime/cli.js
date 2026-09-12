@@ -31775,6 +31775,7 @@ var init_environment = __esm(() => {
     "SAFEWORD_REVIEW_DESCENDANT_PID_FILE",
     "SAFEWORD_REVIEW_ENV_LOG",
     "SAFEWORD_REVIEW_FAKE_DELAY_AGENT",
+    "SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD",
     "SAFEWORD_REVIEW_FAKE_FAILURE",
     "SAFEWORD_REVIEW_FAKE_FAILURE_AGENT",
     "SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE",
@@ -31782,7 +31783,6 @@ var init_environment = __esm(() => {
     "SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE",
     "SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS",
     "SAFEWORD_REVIEW_FAKE_FINDING",
-    "SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD",
     "SAFEWORD_REVIEW_FAKE_HELP_FAILURE",
     "SAFEWORD_REVIEW_FAKE_IDENTITY",
     "SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY",
@@ -31882,7 +31882,7 @@ function hasValidRecordHeader(value) {
     "slices",
     "obligation_owners",
     "decision_statuses"
-  ]) && decisionIsValid && isNonblank(value.rationale) && Array.isArray(value.slices) && value.slices.every(isValidSlice);
+  ]) && decisionIsValid && isNonblank(value.rationale) && Array.isArray(value.slices) && value.slices.every(isValidSlice) && Array.isArray(value.obligation_owners) && Array.isArray(value.decision_statuses);
 }
 function hasValidSliceGraph(record) {
   const slices = record.slices;
@@ -32287,7 +32287,7 @@ function reviewerOutputKeys(kind) {
   return keys;
 }
 function hasKindSpecificOutput(value, kind) {
-  return kind !== "plan-execution" || Object.hasOwn(value, "execution_plan_record");
+  return kind !== "plan-execution" || value.verdict === "request_changes" || Object.hasOwn(value, "execution_plan_record");
 }
 function hasValidReviewerOutputBody(value, kind) {
   if (!isRecord4(value))
