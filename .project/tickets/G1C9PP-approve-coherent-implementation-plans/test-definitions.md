@@ -288,7 +288,7 @@ nonblocking behavior at the canonical CLI boundary.
 
 ### Scenario: An accepted design enters Execution Planning
 
-- [ ] RED
+- [x] RED 9f8e32f3c
 - [ ] GREEN
 - [ ] REFACTOR
 
