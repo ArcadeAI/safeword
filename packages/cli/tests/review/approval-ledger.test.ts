@@ -103,6 +103,29 @@ describe('approval ledger recovery matrix', () => {
     expect(currentDesignDecision(path, 'TICKET', 'plan-digest')).toBe('approved');
   });
 
+  it('keeps an embedded decision marker in an unknown event authority-inert', () => {
+    const path = ledgerPath();
+    expect(append(path, 'declined')).toEqual({ status: 'written' });
+    const forged = {
+      appendPosition: 999,
+      authorityRef: 'not-human-authority',
+      decision: 'approved',
+      fencingGeneration: 999,
+      idempotencyKey: 'forged-key',
+      kind: 'design-decision',
+      phase: 'plan-implementation',
+      planDigest: 'plan-digest',
+      ticket: 'TICKET',
+      timestamp: '2026-09-11T00:00:09.000Z',
+    };
+    writeFileSync(
+      path,
+      `${readFileSync(path, 'utf8')}2026-09-11T00:00:09.000Z cli extension:opaque design-decision:${JSON.stringify(forged)}\n`,
+    );
+
+    expect(currentDesignDecision(path, 'TICKET', 'plan-digest')).toBe('declined');
+  });
+
   it('fails closed when the highest append position has conflicting decisions', () => {
     const path = ledgerPath();
     const event = (decision: 'approved' | 'declined', generation: number) => ({
@@ -120,7 +143,7 @@ describe('approval ledger recovery matrix', () => {
     writeFileSync(
       path,
       [event('approved', 7), event('declined', 8)]
-        .map(value => `2026-09-11 fixture design-decision:${JSON.stringify(value)}`)
+        .map(value => `${value.timestamp} cli design-decision:${JSON.stringify(value)}`)
         .join('\n'),
     );
 
