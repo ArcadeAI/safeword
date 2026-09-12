@@ -129,10 +129,10 @@ The existing transient review-job and project-ledger behavior is unchanged.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Structure enforces; instructions suggest | The installed review packet carries the exact canonical slicing contract and cannot pass with missing or mismatched author/reviewer obligations | `features/split-large-contributions-into-reviewable-prs.feature` installed-contract and rejection scenarios | |
-| Discover decisions before prescribing work | Slicing consumes accepted Implementation Plan decisions, assigns every obligation, and rejects a slice that reopens the approach | `features/split-large-contributions-into-reviewable-prs.feature` R2 and R5 scenarios | |
-| Optimize for the NTB without constraining the TBU | This child emits typed semantic denials; `K3EBHB` owns their single plain-language recovery action without removing technical detail | This child's rejection scenarios prove typed denials; `K3EBHB` scenario and verification evidence prove their recovery projection before epic completion | Recovery rendering is intentionally delegated rather than duplicated here |
-| Correct and safe; then clear; then simple | One new review kind reuses the existing packet and coordinator path; no second checker or repository-host dependency is introduced | `features/split-large-contributions-into-reviewable-prs.feature` CLI wiring and dependency-safety scenarios | |
+| Structure enforces; instructions suggest | The installed review packet carries the exact canonical slicing contract and cannot pass with missing or mismatched author/reviewer obligations | [installed-contract and rejection scenarios](features/split-large-contributions-into-reviewable-prs.feature) | |
+| Discover decisions before prescribing work | Slicing consumes accepted Implementation Plan decisions, assigns every obligation, and rejects a slice that reopens the approach | [R2 and R5 scenarios](features/split-large-contributions-into-reviewable-prs.feature) | |
+| Optimize for the NTB without constraining the TBU | This child emits typed semantic denials; `K3EBHB` owns their single plain-language recovery action without removing technical detail | [typed denial scenarios](features/split-large-contributions-into-reviewable-prs.feature); [delegated recovery scenarios](features/make-planning-gates-understandable-and-scope-safe.feature) | |
+| Correct and safe; then clear; then simple | One new review kind reuses the existing packet and coordinator path; no second checker or repository-host dependency is introduced | [CLI wiring and dependency-safety scenarios](features/split-large-contributions-into-reviewable-prs.feature) | |
 
 Architecture applicability: this feature adds the slicing obligations of the
 shared Execution Planning contract. It honors `ARCHITECTURE.md` → “Separate

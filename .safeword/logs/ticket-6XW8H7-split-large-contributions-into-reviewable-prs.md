@@ -48,3 +48,8 @@
   `5F5ZZA` versus `G1C9PP` invalidation ownership, made byte/digest comparison
   explicit, and recorded why only representative omission permutations spend
   live-review tokens.
+- The branch-built `ticket approve-plan` gate rejected prose-only Design
+  alignment evidence even after semantic approval. Replaced every proof cell
+  with resolvable Markdown links and moved the `K3EBHB` delegation out of the
+  conflict column, preserving the same design while making its trace
+  machine-verifiable.
