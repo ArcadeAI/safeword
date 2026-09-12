@@ -97,3 +97,15 @@
   rollback, cites the open command-specific `data` slot in the v1 CLI schema,
   distributes live proof across Claude and Codex strict-output routes, and
   rejects vacuous non-null approval records.
+- Arcade's Linear Technical Writing Guide and Product and Implementation Plan
+  Writing Guide moved test permutations, commands, and build sequencing out of
+  the human design path and into Execution Planning. The corrected plan keeps
+  one reviewer-output validation contract, human-readable release gates, named
+  ownership links, and current approval state.
+- Cross-agent plan review `8456fc86-f095-4fea-9937-cd1cfdf6929f` approved the
+  exact current bytes with full ticket, scenario, principle, persona, surface,
+  architecture, and parent context. Project version 0.83.10 has no installed
+  distribution CLI for receipt verification, so the canonical bootstrap skip
+  records the review while the source-built approval boundary advances with
+  human design approval not required. Current plan digest:
+  `18029b477cdb041921f0179decbf103faa37bad68344e3d4d722ea06d1915f13`.
