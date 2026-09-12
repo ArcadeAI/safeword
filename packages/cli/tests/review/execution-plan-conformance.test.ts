@@ -1,0 +1,151 @@
+import { describe, expect, it } from 'vitest';
+
+/* eslint-disable import-x/no-unresolved -- RED: Slice 3 adds this production boundary. */
+import {
+  buildExecutionPlanAdmissionEvidence,
+  EXECUTION_PLAN_CONFORMANCE_CASES,
+  executionPlanConformanceDigests,
+  type ExecutionPlanConformanceResult,
+  filterExecutionPlanRoutes,
+  renderExecutionPlanAdmissionEvidence,
+} from '../../src/review/execution-plan-conformance.js';
+/* eslint-enable import-x/no-unresolved */
+import type { ReviewRoute } from '../../src/review/policy.js';
+
+const EXPECTED_CASE_IDS = [
+  'one-coherent-change',
+  'several-ordered-changes',
+  'omitted-slicing-decision',
+  'complete-slice-record',
+  'missing-purpose',
+  'missing-boundary',
+  'missing-prerequisites',
+  'missing-proof',
+  'missing-completion-signal',
+  'two-independent-purposes',
+  'unresolved-authorization-decision',
+  'ordered-schema-before-reader',
+  'unsafe-intermediate-merge',
+  'many-mechanical-edits',
+  'few-files-two-outcomes',
+  'line-count-only-rationale',
+  'all-obligations-assigned',
+  'all-decisions-unchanged',
+  'missing-behavior-obligation',
+  'missing-migration-obligation',
+  'missing-rollout-obligation',
+  'missing-rollback-obligation',
+  'missing-documentation-obligation',
+  'missing-affected-surface-obligation',
+  'reopened-authorization-decision',
+] as const;
+
+function passingResults(
+  reviewer: 'claude' | 'codex',
+  model?: string,
+): ExecutionPlanConformanceResult[] {
+  return EXPECTED_CASE_IDS.map(caseId => ({
+    case_id: caseId,
+    reviewer,
+    ...(model !== undefined && { model }),
+    passed: true,
+  }));
+}
+
+const routes: ReviewRoute[] = [
+  { reviewer: 'claude', model: 'opus', independence: 'cross-agent' },
+  { reviewer: 'claude', independence: 'cross-agent' },
+  { reviewer: 'codex', model: 'gpt-5.6-sol', independence: 'cross-agent' },
+  { reviewer: 'codex', independence: 'degraded' },
+];
+
+describe('Execution Plan semantic conformance admission', () => {
+  it('keeps every authoritative scenario example as its own case', () => {
+    expect(EXECUTION_PLAN_CONFORMANCE_CASES.map(testCase => testCase.id)).toEqual(
+      EXPECTED_CASE_IDS,
+    );
+  });
+
+  it('writes evidence only after every case passes for each exact identity', () => {
+    const results = [...passingResults('claude', 'opus'), ...passingResults('codex')];
+    const evidence = buildExecutionPlanAdmissionEvidence(results);
+
+    expect(evidence).toEqual({
+      schema_version: 1,
+      ...executionPlanConformanceDigests(),
+      identities: [
+        { reviewer: 'claude', model: 'opus', case_ids: EXPECTED_CASE_IDS },
+        { reviewer: 'codex', case_ids: EXPECTED_CASE_IDS },
+      ],
+    });
+    expect(renderExecutionPlanAdmissionEvidence(results)).toContain(
+      'EXECUTION_PLAN_ADMISSION_EVIDENCE',
+    );
+  });
+
+  it.each([
+    ['a missing case', passingResults('claude', 'opus').slice(1)],
+    [
+      'a failing case',
+      passingResults('claude', 'opus').map((result, index) =>
+        index === 0 ? { ...result, passed: false } : result,
+      ),
+    ],
+    [
+      'a duplicate case',
+      [...passingResults('claude', 'opus'), passingResults('claude', 'opus')[0]],
+    ],
+  ])('refuses to write evidence from %s', (_label, results) => {
+    expect(() => buildExecutionPlanAdmissionEvidence(results)).toThrow(
+      'complete passing Execution Plan conformance matrix',
+    );
+  });
+
+  it('admits exact models and explicit runtime defaults without conflating them', () => {
+    const evidence = buildExecutionPlanAdmissionEvidence([
+      ...passingResults('claude', 'opus'),
+      ...passingResults('codex'),
+    ]);
+
+    expect(filterExecutionPlanRoutes('plan-execution', routes, evidence)).toEqual([
+      routes[0],
+      routes[3],
+    ]);
+  });
+
+  it('preserves admitted degraded labeling and deterministically exhausts an empty set', () => {
+    const admittedDefault = buildExecutionPlanAdmissionEvidence(passingResults('codex'));
+    expect(filterExecutionPlanRoutes('plan-execution', routes, admittedDefault)).toEqual([
+      routes[3],
+    ]);
+
+    const admittedOtherModel = buildExecutionPlanAdmissionEvidence(
+      passingResults('codex', 'gpt-6-astra'),
+    );
+    expect(filterExecutionPlanRoutes('plan-execution', routes, admittedOtherModel)).toEqual([]);
+  });
+
+  it('rejects evidence bound to any other contract or fixture corpus bytes', () => {
+    const evidence = buildExecutionPlanAdmissionEvidence(passingResults('claude', 'opus'));
+
+    expect(
+      filterExecutionPlanRoutes('plan-execution', routes, {
+        ...evidence,
+        contract_sha256: '0'.repeat(64),
+      }),
+    ).toEqual([]);
+    expect(
+      filterExecutionPlanRoutes('plan-execution', routes, {
+        ...evidence,
+        corpus_sha256: 'f'.repeat(64),
+      }),
+    ).toEqual([]);
+  });
+
+  it.each(['quality-review', 'scenario-gate', 'plan-implementation', 'executable-red'] as const)(
+    'leaves %s routes unchanged',
+    kind => {
+      expect(filterExecutionPlanRoutes(kind, routes, undefined)).toBe(routes);
+    },
+  );
+});
