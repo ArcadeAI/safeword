@@ -31230,7 +31230,10 @@ records as context around the one \`impl-plan.md\` work artifact.
   the measurement origin, method, validity safeguards, and failure behavior.
   Block approval when the Product-owned target or population is changed. Exact
   instrumentation commands belong in Execution Planning. Block unresolved
-  safeguards and name the missing validity decision.
+  safeguards and name the missing validity decision. When the Product Plan
+  makes no quantitative promise, require an explicit Measurement applicability
+  decision and accept only \`skip: <reason>\`. Block a missing decision and a bare
+  skip.
 - **Deviations and change triggers:** Intentional conflicts belong in Known
   deviations with a reason. Assessment triggers must name evidence that would
   justify revisiting a load-bearing choice.
