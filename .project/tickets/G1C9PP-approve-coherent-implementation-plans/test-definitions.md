@@ -316,7 +316,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 ### Scenario: An interrupted approval resumes according to durable authority
 
-- [ ] RED
+- [x] RED e707a8f87
 - [ ] GREEN
 - [ ] REFACTOR
 
