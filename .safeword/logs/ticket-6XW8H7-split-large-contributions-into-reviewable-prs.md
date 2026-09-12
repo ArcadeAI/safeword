@@ -109,3 +109,13 @@
   records the review while the source-built approval boundary advances with
   human design approval not required. Current plan digest:
   `18029b477cdb041921f0179decbf103faa37bad68344e3d4d722ea06d1915f13`.
+- Execution Planning split implementation into four dependency-ordered,
+  independently supported PRs: canonical contract, typed judgment, semantic
+  conformance/admission, and auditable CLI activation. Review
+  `a83af767-fbd2-4aa8-be5e-8859191fdc62` found no blocking defect. Its useful
+  warnings narrowed proof claims, assigned the architecture update and every
+  deferred owner, required generated parity and per-slice full tests, and made
+  conformance evidence a writer-produced generated manifest whose current
+  contract and corpus digests are checked at admission. The explicit bootstrap
+  phase skip permits implementation because this ticket creates the first
+  `plan-execution` gate.
