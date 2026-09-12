@@ -503,6 +503,7 @@ if (
   // was already denied above.
   if (specExists) {
     const specContent = readFileSync(specFile, 'utf8');
+    const ticketId = frontmatterScalar(meta, 'id');
     const isContractedChild =
       frontmatterScalar(meta, 'product_plan_contract') === 'v1' &&
       ['parent', 'parent_job', 'milestone'].every(
@@ -513,8 +514,13 @@ if (
     // Rules. Applying the standalone JTBD/criteria gates would force copied
     // prose or a fake skip marker into the deliberately delta-only child spec.
     if (isContractedChild) {
+      if (ticketId === undefined) {
+        deny(
+          'spec.md criteria gate: contracted children require one scalar ticket id.',
+          'Add a scalar `id` field to ticket.md before defining child-owned lineage Rules.',
+        );
+      }
       const parentJob = frontmatterScalar(meta, 'parent_job')!;
-      const ticketId = frontmatterScalar(meta, 'id')!;
       const escapePattern = (value: string): string =>
         value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const lineageRule = new RegExp(
@@ -694,10 +700,9 @@ if (isCanonicalTicketEdit || isCanonicalSpecEdit) {
 // ---------------------------------------------------------------------------
 
 if (isCanonicalTicketEdit) {
-  // Only judge writes whose proposed content is reconstructable from the
-  // payload (Write content, Edit old/new, MultiEdit edits). Payload shapes
-  // carrying none of those (e.g. NotebookEdit, adapter probes) pass — the
-  // gate polices content it can see, matching the sibling gates' posture.
+  // Only run phase provenance when the proposed content is reconstructable.
+  // Later lineage gates deliberately fail closed for canonical ticket edits
+  // whose payload cannot be reconstructed.
   const toolInput = input.tool_input;
   if (hasReconstructableEdit(toolInput)) {
     const context = canonicalTicketEditContext();

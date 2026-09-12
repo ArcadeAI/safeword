@@ -373,6 +373,20 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'retroactively relabel');
     });
 
+    it('allows a new manual RED record beside older executable RED evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] RED',
+        '- [x] RED skip: manual — see timestamped work log',
+      );
+      expectHookAllow(result);
+    });
+
     it('blocks removing previously checked RED evidence', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
@@ -384,7 +398,44 @@ describe('write-time annotation gate', () => {
         '- [x] RED abc1234',
         '- [ ] RED abc1234',
       );
-      expectHookDeny(result, 'historical evidence');
+      expectHookDeny(result, 'RED row that already carries historical evidence');
+    });
+
+    it('blocks moving checked RED evidence to another scenario', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: alpha',
+          '',
+          '- [x] RED skip: manual — see timestamped work log',
+          '',
+          '### Scenario: beta',
+          '',
+          '- [ ] RED',
+          '- [ ] GREEN',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        [
+          '### Scenario: alpha',
+          '',
+          '- [x] RED skip: manual — see timestamped work log',
+          '',
+          '### Scenario: beta',
+          '',
+          '- [ ] RED',
+        ].join('\n'),
+        [
+          '### Scenario: alpha',
+          '',
+          '### Scenario: beta',
+          '',
+          '- [x] RED skip: manual — see timestamped work log',
+        ].join('\n'),
+      );
+      expectHookDeny(result, 'RED row that already carries historical evidence');
     });
 
     it('blocks swapping historical RED evidence onto a newly checked row', () => {
@@ -398,7 +449,7 @@ describe('write-time annotation gate', () => {
         '- [x] RED abc1234\n- [ ] RED',
         '- [ ] RED abc1234\n- [x] RED',
       );
-      expectHookDeny(result, 'historical evidence');
+      expectHookDeny(result, 'RED row that already carries historical evidence');
     });
 
     it('blocks rewriting the annotation on historical RED evidence', () => {
@@ -441,7 +492,7 @@ describe('write-time annotation gate', () => {
         '- [x] GREEN def5678\n- [ ] GREEN',
         '- [ ] GREEN def5678\n- [x] GREEN 9876fed',
       );
-      expectHookDeny(result, 'historical evidence');
+      expectHookDeny(result, 'GREEN row that already carries historical evidence');
     });
 
     it('blocks ledger edits attempted through NotebookEdit', () => {
@@ -602,7 +653,7 @@ describe('write-time annotation gate', () => {
         ],
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: approved') },
       );
-      expectHookDeny(result, 'could not identify the active scenario');
+      expectHookDeny(result, 'historical evidence');
     });
 
     it('blocks checked GREEN credit restored after an unrecognized-step rename', () => {

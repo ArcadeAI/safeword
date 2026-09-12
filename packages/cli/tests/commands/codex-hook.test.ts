@@ -964,7 +964,7 @@ command = "npx --yes safeword hook codex pre-tool-use"
     );
     writeFileSync(
       nodePath.join(packageDirectory, 'templates/hooks/codex/pre-tool-quality.ts'),
-      `process.stdout.write(JSON.stringify({ hookSpecificOutput: { permissionDecision: 'deny' } }));\n`,
+      `process.stdout.write(JSON.stringify({ hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Exact packaged denial' } }));\n`,
     );
 
     const result = spawnSync(
@@ -987,7 +987,7 @@ command = "npx --yes safeword hook codex pre-tool-use"
     );
 
     expect(result.status, result.stderr).toBe(2);
-    expect(result.stderr).toContain('unsupported output in exit-code mode');
+    expect(result.stderr).toContain('Exact packaged denial');
   });
 
   it('keeps packaged OpenCode hooks authoritative when legacy project hooks exist', () => {
@@ -1008,7 +1008,7 @@ command = "npx --yes safeword hook codex pre-tool-use"
     );
     writeFileSync(
       nodePath.join(packageDirectory, 'templates/hooks/codex/pre-tool-quality.ts'),
-      `process.stdout.write(JSON.stringify({ hookSpecificOutput: { permissionDecision: 'deny' } }));\n`,
+      `process.stdout.write(JSON.stringify({ hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Authoritative packaged denial' } }));\n`,
     );
 
     const result = spawnSync(
@@ -1031,7 +1031,7 @@ command = "npx --yes safeword hook codex pre-tool-use"
     );
 
     expect(result.status, result.stderr).toBe(2);
-    expect(result.stderr).toContain('unsupported output in exit-code mode');
+    expect(result.stderr).toContain('Authoritative packaged denial');
     expect(result.stdout).not.toContain('project hook executed');
   });
 

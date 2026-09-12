@@ -493,6 +493,21 @@ function snapshotEmbeddedOpenCodePreToolHook(
   return { directory, hookPath };
 }
 
+function requiredSourceRewrite(
+  source: string,
+  expected: string,
+  replacement: string,
+  path: string,
+): string {
+  const index = source.indexOf(expected);
+  if (index === -1) {
+    throw new Error(
+      `OpenCode hook rewrite contract drifted: ${path} no longer contains ${expected}`,
+    );
+  }
+  return source.slice(0, index) + replacement + source.slice(index + expected.length);
+}
+
 function rewriteSnapshotImportsForNode(directory: string): void {
   const entries = readdirSync(directory, { withFileTypes: true });
   for (const entry of entries) {
@@ -503,21 +518,40 @@ function rewriteSnapshotImportsForNode(directory: string): void {
     }
     if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
     const source = readFileSync(path, 'utf8');
-    const rewritten = source
-      .replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, '$1$2.ts$3')
-      .replace(
+    let rewritten = source.replaceAll(
+      /(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu,
+      '$1$2.ts$3',
+    );
+    if (path.endsWith(nodePath.join('hooks', 'codex', 'pre-tool-quality.ts'))) {
+      rewritten = requiredSourceRewrite(
+        rewritten,
         'return JSON.parse(await Bun.stdin.text()) as CodexHookInput;',
         "const raw = (await import('node:fs')).readFileSync(0, 'utf8');\n    return JSON.parse(raw) as CodexHookInput;",
-      )
-      .replace(
+        path,
+      );
+      rewritten = requiredSourceRewrite(
+        rewritten,
+        "SAFEWORD_AGENT_RUNTIME: 'codex',",
+        "SAFEWORD_AGENT_RUNTIME: 'opencode',",
+        path,
+      );
+    }
+    if (path.endsWith(nodePath.join('hooks', 'codex', 'pre-tool-quality-helpers.ts'))) {
+      rewritten = requiredSourceRewrite(
+        rewritten,
         "return spawnSync('bun', [claudeHookPath], {",
         'return spawnSync(process.execPath, [claudeHookPath], {',
-      )
-      .replace("SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',")
-      .replace(
+        path,
+      );
+    }
+    if (path.endsWith(nodePath.join('hooks', 'pre-tool-quality.ts'))) {
+      rewritten = requiredSourceRewrite(
+        rewritten,
         'input = await Bun.stdin.json();',
         "const raw = (await import('node:fs')).readFileSync(0, 'utf8');\n  input = JSON.parse(raw) as HookInput;",
+        path,
       );
+    }
     if (rewritten !== source) writeFileSync(path, rewritten, 'utf8');
   }
 }
@@ -580,6 +614,16 @@ function emitPackagedPreToolResult(result: HookProcessResult): boolean {
   if (result.error || result.status !== 0) denyForPackagedHookFailure(result);
   if (result.stdout.trim() === '') return false;
   if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+    try {
+      const output = JSON.parse(result.stdout) as Partial<DenialOutput>;
+      const reason = output.hookSpecificOutput?.permissionDecisionReason;
+      if (output.hookSpecificOutput?.permissionDecision === 'deny' && reason) {
+        process.stderr.write(`${reason}\n`);
+        process.exit(2);
+      }
+    } catch {
+      // Fall through to the unsupported-output denial below.
+    }
     process.stderr.write(
       'Safeword packaged PreToolUse hook returned unsupported output in exit-code mode.\n',
     );

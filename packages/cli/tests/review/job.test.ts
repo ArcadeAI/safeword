@@ -473,7 +473,7 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
-  it('reuses one approved receipt across Scenario Outline rows with identical proof inputs', async () => {
+  it('deduplicates identical executable-RED review requests', async () => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
       'reviewer_output: {',

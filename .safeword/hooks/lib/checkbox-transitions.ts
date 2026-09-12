@@ -50,25 +50,22 @@ function checkboxStates(text: string): CheckboxState[] {
     }
     const parsed = parseCheckboxAnnotation(line);
     if (parsed === null) continue;
-    states.push({ ...parsed, scenario });
-  }
-  const evidenceModeByScenario = new Map<string | undefined, 'live' | 'manual'>();
-  for (const state of states) {
-    if (state.step !== 'RED' || !state.checked) continue;
-    const match = /^skip:\s*(manual|live)(?:\s*(?:—|:)\s*(.+)|$)/iu.exec(state.annotation);
+    const match =
+      parsed.step === 'RED' && parsed.checked
+        ? /^skip:\s*(manual|live)(?:\s*(?:—|:)\s*(.+)|$)/iu.exec(parsed.annotation)
+        : null;
     const reference = match?.[2]?.trim() ?? '';
     const hasDurableReference =
       /\b(?:work log|transcript|recording|screenshot|receipt|artifact)\b/iu.test(reference) ||
       /(?:^|\s)[\w./-]+\.(?:md|txt|log|png|jpe?g|webm|mp4)(?:\s|$)/iu.test(reference);
     const mode = hasDurableReference ? match?.[1]?.toLowerCase() : undefined;
-    if (mode === 'manual' || mode === 'live') evidenceModeByScenario.set(state.scenario, mode);
+    states.push({
+      ...parsed,
+      scenario,
+      ...((mode === 'manual' || mode === 'live') && { evidenceMode: mode }),
+    });
   }
-  return states.map(state => ({
-    ...state,
-    ...(evidenceModeByScenario.has(state.scenario) && {
-      evidenceMode: evidenceModeByScenario.get(state.scenario),
-    }),
-  }));
+  return states;
 }
 
 function findTransitions(oldText: string, newText: string): CheckboxTransition[] {
@@ -142,12 +139,13 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
         !preservedHistoricalRows.has(index) &&
         newState.step === oldState.step &&
         newState.checked &&
-        newState.annotation === oldState.annotation,
+        newState.annotation === oldState.annotation &&
+        sameScenario(oldState.scenario, newState.scenario),
     );
     if (preservedIndex >= 0) preservedHistoricalRows.add(preservedIndex);
     else {
       transitions.push({
-        step: 'RED',
+        step: oldState.step,
         annotation: '',
         scenario: oldState.scenario,
         historicalEvidenceRemoved: true,
@@ -159,12 +157,14 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
     state: CheckboxState,
     checked: boolean,
     exactScenario: boolean,
+    exactAnnotation = false,
   ): CheckboxState | undefined => {
     const index = oldStates.findIndex(
       (old, candidate) =>
         !usedOld.has(candidate) &&
         old.checked === checked &&
         old.step === state.step &&
+        (!exactAnnotation || old.annotation === state.annotation) &&
         (!exactScenario || sameScenario(old.scenario, state.scenario)),
     );
     if (index < 0) return undefined;
@@ -173,7 +173,7 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
   };
 
   for (const state of newStates.filter(candidate => candidate.checked)) {
-    const prior = consumeOld(state, true, true);
+    const prior = consumeOld(state, true, true, true) ?? consumeOld(state, true, true);
     if (prior === undefined) unmatched.push(state);
     else if (
       state.step === 'RED' &&
@@ -194,10 +194,9 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
   for (const state of scenarioChanged) {
     const movedChecked = consumeOld(state, true, false);
     if (movedChecked !== undefined) {
-      // Existing GREEN credit cannot silently move to a different scenario;
-      // its receipt was approved for the original binding.
-      if (state.step === 'GREEN')
-        transitions.push(withPriorEvidenceMode({ ...state, scenario: undefined }));
+      // Historical RED and GREEN credit cannot silently move to a different
+      // scenario; its evidence was recorded for the original binding.
+      transitions.push(withPriorEvidenceMode({ ...state, scenario: undefined }));
       continue;
     }
     // A checked recognized row with no old counterpart is still new credit.

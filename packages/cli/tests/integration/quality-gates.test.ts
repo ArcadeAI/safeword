@@ -30,10 +30,11 @@ import {
 
 /* eslint-disable unicorn/no-null -- State file uses JSON null values by design; re-enabled at EOF */
 
-// Absolute paths to hook scripts in safeword source tree
-const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const POST_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-quality.ts');
-const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
+// Exercise the source templates directly; generated/install mirrors are checked
+// separately by schema and parity tests.
+const PACKAGE_ROOT = nodePath.resolve(import.meta.dirname, '../..');
+const POST_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/post-tool-quality.ts');
+const PRE_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/pre-tool-quality.ts');
 
 /** Get per-session state file path */
 function stateFilePath(sessionId = 'test-session'): string {
@@ -1963,7 +1964,7 @@ describe('Quality Gates', () => {
         learningsNudgesPending: [learningPath],
       });
 
-      const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
+      const PROMPT_QUESTIONS = nodePath.join(PACKAGE_ROOT, 'templates/hooks/prompt-questions.ts');
 
       const result = spawnSync('bun', [PROMPT_QUESTIONS], {
         input: JSON.stringify({ session_id: 'test-session' }),
@@ -1993,7 +1994,7 @@ describe('Quality Gates', () => {
         gate: null,
       });
 
-      const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
+      const PROMPT_QUESTIONS = nodePath.join(PACKAGE_ROOT, 'templates/hooks/prompt-questions.ts');
 
       const result = spawnSync('bun', [PROMPT_QUESTIONS], {
         input: JSON.stringify({ session_id: 'test-session' }),
