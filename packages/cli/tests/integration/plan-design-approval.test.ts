@@ -8,7 +8,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -87,7 +87,7 @@ interface Fixture {
 
 const fixtures: string[] = [];
 
-function fixture(designApprovalGate: boolean): Fixture {
+function fixture(designApprovalGate: boolean, reviewed = true): Fixture {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plan-approval-'));
   fixtures.push(root);
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', TICKET_FOLDER);
@@ -121,7 +121,9 @@ function fixture(designApprovalGate: boolean): Fixture {
   const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(PLAN));
   writeFileSync(
     ledgerPath,
-    `2026-09-11T00:00:00.000Z fixture review:${scope} author:claude reviewer:codex independence:cross-agent review-id:${REVIEW_ID}\n`,
+    reviewed
+      ? `2026-09-11T00:00:00.000Z fixture review:${scope} author:claude reviewer:codex independence:cross-agent review-id:${REVIEW_ID}\n`
+      : '',
   );
   return { root, ticketDirectory, ticketPath, ledgerPath };
 }
@@ -136,7 +138,11 @@ function approvalEvents(path: string): string[] {
     .filter(line => line.includes(' design-decision:'));
 }
 
-function runApprovalInPty(project: Fixture, response: 'y' | 'n') {
+function runApprovalInPty(
+  project: Fixture,
+  response: 'y' | 'n',
+  environment: Readonly<Record<string, string>> = {},
+) {
   return spawnSync(
     'python3',
     [
@@ -151,8 +157,39 @@ function runApprovalInPty(project: Fixture, response: 'y' | 'n') {
       'approve-plan',
       TICKET_ID,
     ],
-    { cwd: project.root, encoding: 'utf8', env: { ...process.env, NODE_ENV: 'test' } },
+    {
+      cwd: project.root,
+      encoding: 'utf8',
+      env: { ...process.env, NODE_ENV: 'test', ...environment },
+    },
   );
+}
+
+function installBlockingReviewer(): string {
+  const trustedRoot = nodePath.resolve(import.meta.dirname, '..', '..', '.test-tmp', 'reviewers');
+  mkdirSync(trustedRoot, { recursive: true, mode: 0o700 });
+  chmodSync(trustedRoot, 0o700);
+  const root = mkdtempSync(nodePath.join(trustedRoot, 'safeword-plan-blocked-reviewer-'));
+  fixtures.push(root);
+  const bin = nodePath.join(root, 'bin');
+  const executable = nodePath.join(bin, 'claude');
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(
+    executable,
+    String.raw`#!/bin/sh
+set -eu
+if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then printf 'claude 1.0.0\n'; exit 0; fi
+case "$*" in
+  *--help*) printf '%s\n' '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model'; exit 0 ;;
+esac
+payload=$(/bin/cat)
+dispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan is blocked","findings":[{"severity":"error","message":"Authorization boundary is missing."}]}\n' "$dispatch_id"
+`,
+    { mode: 0o755 },
+  );
+  chmodSync(executable, 0o755);
+  return bin;
 }
 
 afterEach(() => {
@@ -238,5 +275,34 @@ describe('an accepted design enters Execution Planning', () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toContain(`"planDigest":"${digest}"`);
     expect(events[0]).toContain('"decision":"approved"');
+  });
+});
+
+describe('a review-blocked design is never presented for human approval', () => {
+  it('returns the current semantic finding before crossing the prompt boundary', async () => {
+    const project = fixture(true, false);
+    const bin = installBlockingReviewer();
+    const keyRoot = nodePath.join(project.root, 'review-integrity');
+    const environment = {
+      PATH: `${bin}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+      SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
+      SAFEWORD_REVIEW_KEY_ROOT: keyRoot,
+    };
+    const target = `.project/tickets/${TICKET_FOLDER}/impl-plan.md`;
+    const reviewed = await runCli(
+      ['--json', '--no-input', 'review', 'run', 'plan-implementation', target],
+      { cwd: project.root, env: environment },
+    );
+    expect(reviewed.exitCode, reviewed.stdout).toBe(2);
+
+    const result = runApprovalInPty(project, 'n', environment);
+
+    expect(result.status).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(result.stdout).toContain('Authorization boundary is missing.');
+    expect(result.stdout).not.toContain('Approve this reviewed Implementation Plan?');
+    expect(approvalEvents(project.ledgerPath)).toEqual([]);
   });
 });
