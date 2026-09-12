@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A complete Next decision can be acted on without earlier prose
 
-- [x] RED b2b101d04
+- [x] RED 5ba92f469
 - [ ] GREEN
 - [ ] REFACTOR
 
