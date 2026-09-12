@@ -66098,7 +66098,7 @@ var exports_plan_approval = {};
 __export(exports_plan_approval, {
   approvePlanResult: () => approvePlanResult
 });
-import { createHash as createHash37 } from "crypto";
+import { createHash as createHash37, randomUUID as randomUUID15 } from "crypto";
 import {
   appendFileSync as appendFileSync3,
   existsSync as existsSync57,
@@ -66133,7 +66133,6 @@ function readContext2(cwd, ticketId) {
     ticketId,
     ticketDirectory,
     ticketPath,
-    ticket: readFileSync77(ticketPath, "utf8"),
     planPath,
     plan,
     ledgerPath: nodePath121.join(resolveNamespaceRoot(cwd), "skill-invocations.log"),
@@ -66186,19 +66185,20 @@ function appendReceipt(context, status) {
 `);
 }
 function replaceTicketPhase(context, from, to) {
-  const phase = readFrontmatterScalar(context.ticket, "phase");
+  const ticket = readFileSync77(context.ticketPath, "utf8");
+  const phase = readFrontmatterScalar(ticket, "phase");
   if (phase === to)
     return false;
   if (phase !== from)
     throw new Error(`Ticket is in ${String(phase)}, not ${from}.`);
-  const updated = from === "plan-implementation" ? context.ticket.replace(/^phase:\s*plan-implementation\s*$/mu, "phase: plan-execution") : context.ticket.replace(/^phase:\s*plan-execution\s*$/mu, "phase: plan-implementation");
-  const temporary = `${context.ticketPath}.tmp`;
+  const updated = from === "plan-implementation" ? ticket.replace(/^phase:\s*plan-implementation\s*$/mu, "phase: plan-execution") : ticket.replace(/^phase:\s*plan-execution\s*$/mu, "phase: plan-implementation");
+  const temporary = `${context.ticketPath}.${process18.pid}.${randomUUID15()}.tmp`;
   writeFileSync29(temporary, updated);
   renameSync15(temporary, context.ticketPath);
   return true;
 }
 function advanceToExecutionPlanning(context) {
-  replaceTicketPhase(context, "plan-implementation", "plan-execution");
+  return replaceTicketPhase(context, "plan-implementation", "plan-execution");
 }
 function result(context, status, changedFiles, finding2, findingSeverity = "warning") {
   let state = changedFiles.length > 0 ? "changed" : "healthy";
@@ -66239,6 +66239,12 @@ async function askForApproval(plan) {
     prompt.close();
   }
 }
+function settledDecisionChanges(context, ledgerTarget, appended, ticketChanged) {
+  return [
+    ...appended === "written" ? [ledgerTarget] : [],
+    ...ticketChanged ? [nodePath121.relative(context.cwd, context.ticketPath)] : []
+  ];
+}
 function settleInteractiveDecision(context, accepted, ledgerTarget, returnedToPlanning = false) {
   const status = accepted ? "approved" : "declined";
   interruptApprovalForTest("before-decision");
@@ -66252,13 +66258,9 @@ function settleInteractiveDecision(context, accepted, ledgerTarget, returnedToPl
     return result(context, "pending", returnedToPlanning ? [nodePath121.relative(context.cwd, context.ticketPath)] : [], "Human design authority could not be recorded safely; approval remains pending.");
   }
   interruptApprovalForTest("after-decision");
-  if (accepted)
-    advanceToExecutionPlanning(context);
+  const advanced = accepted && advanceToExecutionPlanning(context);
   const planPath = nodePath121.relative(context.cwd, context.planPath);
-  return result(context, status, [
-    ledgerTarget,
-    ...accepted || returnedToPlanning ? [nodePath121.relative(context.cwd, context.ticketPath)] : []
-  ], accepted ? `Approved approach: ${planPath} at ${context.digest}.` : `Declined approach: ${planPath}. It remains in Implementation Planning for repair.`, accepted ? "info" : "warning");
+  return result(context, status, settledDecisionChanges(context, ledgerTarget, appended.status, advanced || returnedToPlanning), accepted ? `Approved approach: ${planPath} at ${context.digest}.` : `Declined approach: ${planPath}. It remains in Implementation Planning for repair.`, accepted ? "info" : "warning");
 }
 async function approve(context, noInput) {
   const review = currentReview(context);
@@ -66269,11 +66271,8 @@ async function approve(context, noInput) {
   const ticketTarget = nodePath121.relative(context.cwd, context.ticketPath);
   if (!designApprovalEnabled(context.cwd)) {
     appendReceipt(context, "not-required");
-    advanceToExecutionPlanning(context);
-    return result(context, "not-required", [
-      ledgerTarget,
-      nodePath121.relative(context.cwd, context.ticketPath)
-    ]);
+    const advanced = advanceToExecutionPlanning(context);
+    return result(context, "not-required", [ledgerTarget, ...advanced ? [ticketTarget] : []]);
   }
   if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) === "approved") {
     const advanced = replaceTicketPhase(context, "plan-implementation", "plan-execution");
