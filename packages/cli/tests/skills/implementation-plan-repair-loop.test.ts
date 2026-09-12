@@ -40,4 +40,11 @@ describe('Implementation Plan repair loop', () => {
     expect(planningSkill).toContain('Repeat without a fixed retry cap');
     expect(planningSkill).toContain('current exact bytes receive an approving receipt');
   });
+
+  it('routes phase exit through the digest-bound approval command into Execution Planning', () => {
+    expect(planningSkill).toContain('safeword ticket approve-plan <ticket-id>');
+    expect(planningSkill).toContain('Never replace this command with conversational approval');
+    expect(planningSkill).toContain('`phase: plan-execution`');
+    expect(planningSkill).not.toContain('**Update frontmatter:** `phase: implement`');
+  });
 });
