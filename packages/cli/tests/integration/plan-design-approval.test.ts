@@ -138,6 +138,14 @@ function approvalEvents(path: string): string[] {
     .filter(line => line.includes(' design-decision:'));
 }
 
+function appendCurrentReview(project: Fixture, plan: string): void {
+  const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(plan));
+  writeFileSync(
+    project.ledgerPath,
+    `${readFileSync(project.ledgerPath, 'utf8')}2026-09-11T00:01:00.000Z fixture review:${scope} author:claude reviewer:codex independence:cross-agent review-id:${REVIEW_ID}\n`,
+  );
+}
+
 function runApprovalInPty(
   project: Fixture,
   response: 'y' | 'n',
@@ -304,5 +312,39 @@ describe('a review-blocked design is never presented for human approval', () => 
     expect(result.stdout).toContain('Authorization boundary is missing.');
     expect(result.stdout).not.toContain('Approve this reviewed Implementation Plan?');
     expect(approvalEvents(project.ledgerPath)).toEqual([]);
+  });
+});
+
+describe('human design authority follows approach currency', () => {
+  it('reuses approval for unchanged approach bytes without prompting again', () => {
+    const project = fixture(true);
+    expect(runApprovalInPty(project, 'y').status).toBe(0);
+
+    const resumed = runApprovalInPty(project, 'n');
+
+    expect(resumed.status).toBe(0);
+    expect(resumed.stdout).not.toContain('Approve this reviewed Implementation Plan?');
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(approvalEvents(project.ledgerPath)).toHaveLength(1);
+  });
+
+  it('requires a new decision after the approach bytes change', () => {
+    const project = fixture(true);
+    expect(runApprovalInPty(project, 'y').status).toBe(0);
+    const changedPlan = `${PLAN}\nA newly decided authorization boundary.\n`;
+    writeFileSync(nodePath.join(project.ticketDirectory, 'impl-plan.md'), changedPlan);
+    appendCurrentReview(project, changedPlan);
+
+    const resumed = runApprovalInPty(project, 'n');
+
+    expect(resumed.status).toBe(0);
+    expect(resumed.stdout).toContain('Approve this reviewed Implementation Plan?');
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    const events = approvalEvents(project.ledgerPath);
+    expect(events).toHaveLength(2);
+    expect(events[1]).toContain(
+      `"planDigest":"${createHash('sha256').update(changedPlan).digest('hex')}"`,
+    );
+    expect(events[1]).toContain('"decision":"declined"');
   });
 });
