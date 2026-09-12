@@ -17,6 +17,7 @@ export interface CheckboxTransition {
   scenario?: string;
   evidenceMode?: 'live' | 'manual';
   evidenceModeChanged?: boolean;
+  historicalEvidenceRemoved?: boolean;
 }
 
 export interface TransitionHookInput {
@@ -36,8 +37,14 @@ interface CheckboxState extends CheckboxTransition {
 function checkboxStates(text: string): CheckboxState[] {
   const states: CheckboxState[] = [];
   let scenario: string | undefined;
+  let fenced = false;
   for (const line of text.split('\n')) {
-    if (/^#{2,6}\s/.test(line)) scenario = line.replace(/^#{2,6}\s+/, '').trim();
+    if (/^\s*```/u.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+    const heading = fenced ? undefined : /^(#{1,6})\s+(.+)$/u.exec(line);
+    if (heading !== undefined) scenario = heading[1]?.length === 1 ? undefined : heading[2]?.trim();
     const parsed = parseCheckboxAnnotation(line);
     if (parsed === null) continue;
     states.push({ ...parsed, scenario });
@@ -45,9 +52,12 @@ function checkboxStates(text: string): CheckboxState[] {
   const evidenceModeByScenario = new Map<string | undefined, 'live' | 'manual'>();
   for (const state of states) {
     if (state.step !== 'RED' || !state.checked) continue;
-    const mode = /^skip:\s*(manual|live)(?:\s*(?:—|:)\s*|$)/iu
-      .exec(state.annotation)?.[1]
-      ?.toLowerCase();
+    const match = /^skip:\s*(manual|live)(?:\s*(?:—|:)\s*(.+)|$)/iu.exec(state.annotation);
+    const reference = match?.[2]?.trim() ?? '';
+    const hasDurableReference =
+      /\b(?:work log|transcript|recording|screenshot|receipt|artifact)\b/iu.test(reference) ||
+      /(?:^|\s)[\w./-]+\.(?:md|txt|log|png|jpe?g|webm|mp4)(?:\s|$)/iu.test(reference);
+    const mode = hasDurableReference ? match?.[1]?.toLowerCase() : undefined;
     if (mode === 'manual' || mode === 'live') evidenceModeByScenario.set(state.scenario, mode);
   }
   return states.map(state => ({
@@ -61,13 +71,38 @@ function checkboxStates(text: string): CheckboxState[] {
 function findTransitions(oldText: string, newText: string): CheckboxTransition[] {
   const oldStates = checkboxStates(oldText);
   const newStates = checkboxStates(newText);
-  const scenarioCounts = new Map<string | undefined, number>();
-  for (const state of newStates) {
-    scenarioCounts.set(state.scenario, (scenarioCounts.get(state.scenario) ?? 0) + 1);
+  const scenarioHeadingCounts = new Map<string, number>();
+  let fenced = false;
+  for (const line of newText.split('\n')) {
+    if (/^\s*```/u.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+    const heading = fenced ? undefined : /^#{2,6}\s+(.+)$/u.exec(line)?.[1]?.trim();
+    if (heading !== undefined) {
+      scenarioHeadingCounts.set(heading, (scenarioHeadingCounts.get(heading) ?? 0) + 1);
+    }
   }
   const usedOld = new Set<number>();
   const unmatched: CheckboxState[] = [];
   const transitions: CheckboxTransition[] = [];
+
+  for (const scenario of new Set(oldStates.map(state => state.scenario))) {
+    const priorCheckedRed = oldStates.filter(
+      state => state.scenario === scenario && state.step === 'RED' && state.checked,
+    ).length;
+    const nextCheckedRed = newStates.filter(
+      state => state.scenario === scenario && state.step === 'RED' && state.checked,
+    ).length;
+    if (nextCheckedRed < priorCheckedRed) {
+      transitions.push({
+        step: 'RED',
+        annotation: '',
+        scenario,
+        historicalEvidenceRemoved: true,
+      });
+    }
+  }
 
   const consumeOld = (
     state: CheckboxState,
@@ -121,13 +156,26 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
     transitions.push(movedUnchecked === undefined ? state : { ...state, scenario: undefined });
   }
 
-  return transitions.map(({ step, annotation, scenario, evidenceMode, evidenceModeChanged }) => ({
-    step,
-    annotation,
-    scenario: (scenarioCounts.get(scenario) ?? 0) > 3 ? undefined : scenario,
-    evidenceMode,
-    evidenceModeChanged,
-  }));
+  return transitions.map(
+    ({
+      step,
+      annotation,
+      scenario,
+      evidenceMode,
+      evidenceModeChanged,
+      historicalEvidenceRemoved,
+    }) => ({
+      step,
+      annotation,
+      scenario:
+        scenario !== undefined && (scenarioHeadingCounts.get(scenario) ?? 0) > 1
+          ? undefined
+          : scenario,
+      evidenceMode,
+      evidenceModeChanged,
+      historicalEvidenceRemoved,
+    }),
+  );
 }
 
 function applyUniqueEdit(current: string, oldText: string, newText: string): string | undefined {

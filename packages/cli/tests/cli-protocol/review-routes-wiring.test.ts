@@ -289,7 +289,26 @@ describe('review routes CLI wiring', () => {
 
     const listed = await invoke(root, ['review', 'routes', 'list', '--author', 'claude']);
     expect(listed).toMatchObject({
-      data: { config_key: 'crossAgentReviewRoutes' },
+      data: {
+        config_key: 'crossAgentReviewRoutes',
+        project_config_path: nodePath.join('.safeword', 'config.json'),
+      },
+    });
+  });
+
+  it('fails the complete author listing when any configured author entry is malformed', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+    mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(root, '.safeword', 'config.json'),
+      JSON.stringify({ crossAgentReviewRoutes: { claude: [] } }),
+    );
+
+    const result = await invoke(root, ['review', 'routes', 'list']);
+    expect(result).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_ROUTE_CONFIG_INVALID', retryable: false }],
     });
   });
 
@@ -302,7 +321,7 @@ describe('review routes CLI wiring', () => {
 
     expect(result).toMatchObject({
       state: 'failed',
-      errors: [{ code: 'REVIEW_ROUTE_CONFIG_READ_FAILED', retryable: true }],
+      errors: [{ code: 'REVIEW_ROUTE_CONFIG_READ_FAILED', retryable: false }],
       data: { command: 'review routes list' },
     });
   });

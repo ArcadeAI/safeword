@@ -102,14 +102,16 @@ function requireExecutableRedAttestation(
 
 interface ReviewPacketExecution {
   readonly attestation?: RedExecutionAttestation;
-  readonly allowMissing?: boolean;
+  readonly allowMissingExecutableRedAttestation?: boolean;
 }
 
 function checkedExecutionAttestation(
   kind: ReviewKind,
   execution: ReviewPacketExecution,
 ): RedExecutionAttestation | undefined {
-  if (execution.allowMissing !== true) requireExecutableRedAttestation(kind, execution.attestation);
+  if (kind !== 'executable-red' || execution.allowMissingExecutableRedAttestation !== true) {
+    requireExecutableRedAttestation(kind, execution.attestation);
+  }
   return execution.attestation;
 }
 

@@ -41,11 +41,11 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
       ],
     });
   }
+  if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   const targets = Array.isArray(rawTargets)
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
   const context = reviewContext(invocation.options.context);
-  if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   const execution = redExecutionRequest(rawKind, invocation.options);
   if (execution instanceof Error) return invalidOperand('review run', execution.message);
   return startReviewInBackground(invocation, rawKind, targets, context, execution);
@@ -78,7 +78,7 @@ function reviewRoutesFailure(command: string, error: unknown): CliResult {
   const message = error instanceof Error ? error.message : 'Review route configuration is invalid.';
   const invalid =
     error instanceof ReviewRouteConfigError || error instanceof ReviewUserConfigPathError;
-  const readFailure = error instanceof ReviewConfigReadError;
+  const readFailure = error instanceof ReviewConfigReadError || command === 'review routes list';
   let code = 'REVIEW_ROUTE_CONFIG_WRITE_FAILED';
   if (invalid) code = 'REVIEW_ROUTE_CONFIG_INVALID';
   else if (readFailure) code = 'REVIEW_ROUTE_CONFIG_READ_FAILED';
@@ -88,7 +88,7 @@ function reviewRoutesFailure(command: string, error: unknown): CliResult {
       {
         code,
         message,
-        retryable: !invalid,
+        retryable: !invalid && !readFailure,
       },
     ],
     data: { command },
@@ -209,7 +209,7 @@ export async function reviewRoutesListHandler(invocation: CommandInvocation): Pr
     data: {
       command: 'review routes list',
       config_key: REVIEW_ROUTE_CONFIG_KEY,
-      config_path: projectConfig,
+      project_config_path: projectConfig,
       authors: listed,
       ...(single !== undefined && {
         author: single.author,

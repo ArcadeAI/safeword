@@ -168,7 +168,7 @@ function fingerprint(
   // rename could make an old receipt appear to cover a different scenario.
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
-    allowMissing: true,
+    allowMissingExecutableRedAttestation: true,
   });
   try {
     const hash = createHash('sha256');

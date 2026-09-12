@@ -180,7 +180,7 @@ function assertNoProjectFrameworkReferences(assets: readonly GeneratedClaudePlug
       )
     )
       continue;
-    if (!/^(?:agents|resources|runtime|skills)\//u.test(asset.relativePath)) continue;
+    if (!/^(?:agents|hooks|resources|runtime|skills)\//u.test(asset.relativePath)) continue;
     const dependency = PROJECT_FRAMEWORK_REFERENCE.exec(asset.content)?.[0];
     if (dependency === undefined) continue;
     throw new Error(
@@ -364,6 +364,11 @@ function assertEventGroupManifestCoverage(hookManifest: string, eventGroups: str
   for (const [event, entries] of hookEntries) {
     if (JSON.stringify(entries).includes('--event-group') && !groupNames.has(event)) {
       throw new Error(`Claude plugin manifest references a missing event group: ${event}`);
+    }
+  }
+  for (const event of groupNames) {
+    if (!JSON.stringify(manifest.hooks?.[event]).includes('--event-group')) {
+      throw new Error(`Claude plugin event group is not referenced by its manifest: ${event}`);
     }
   }
 }
