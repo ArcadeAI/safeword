@@ -19,13 +19,13 @@ import {
   reviewScope,
 } from '../../templates/hooks/lib/review-ledger.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { appendDesignDecision, currentDesignDecision } from '../review/approval-ledger.js';
 import { reviewJobStatus } from '../review/job.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 
 type ApprovalStatus = 'approved' | 'declined' | 'not-required' | 'pending';
-type DesignDecision = 'approved' | 'declined';
 
 interface ApprovalContext {
   readonly cwd: string;
@@ -125,53 +125,6 @@ function appendReceipt(context: ApprovalContext, status: ApprovalStatus): void {
   );
 }
 
-function appendDecision(context: ApprovalContext, decision: 'approved' | 'declined'): void {
-  appendFileSync(
-    context.ledgerPath,
-    `${new Date().toISOString()} cli design-decision:${JSON.stringify({
-      kind: 'design-decision',
-      ticket: context.ticketId,
-      phase: 'plan-implementation',
-      planDigest: context.digest,
-      decision,
-      authorityRef: 'interactive-cli',
-    })}\n`,
-  );
-}
-
-function parseDecisionEvent(line: string): Record<string, unknown> | undefined {
-  const marker = ' design-decision:';
-  const offset = line.indexOf(marker);
-  if (offset === -1) return undefined;
-  try {
-    return JSON.parse(line.slice(offset + marker.length)) as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-}
-
-function matchesCurrentPlan(event: Record<string, unknown>, context: ApprovalContext): boolean {
-  return (
-    event.kind === 'design-decision' &&
-    event.ticket === context.ticketId &&
-    event.phase === 'plan-implementation' &&
-    event.planDigest === context.digest &&
-    (event.decision === 'approved' || event.decision === 'declined')
-  );
-}
-
-function currentDesignDecision(context: ApprovalContext): DesignDecision | undefined {
-  if (!existsSync(context.ledgerPath)) return undefined;
-  let current: DesignDecision | undefined;
-  for (const line of readFileSync(context.ledgerPath, 'utf8').split('\n')) {
-    const event = parseDecisionEvent(line);
-    if (event !== undefined && matchesCurrentPlan(event, context)) {
-      current = event.decision as DesignDecision;
-    }
-  }
-  return current;
-}
-
 function replaceTicketPhase(
   context: ApprovalContext,
   from: 'plan-execution' | 'plan-implementation',
@@ -251,8 +204,20 @@ function settleInteractiveDecision(
   returnedToPlanning = false,
 ): CliResult {
   const status = accepted ? 'approved' : 'declined';
-  appendDecision(context, status);
-  appendReceipt(context, status);
+  const appended = appendDesignDecision(context.ledgerPath, {
+    authorityRef: 'interactive-cli',
+    decision: status,
+    planDigest: context.digest,
+    ticket: context.ticketId,
+  });
+  if (appended.status === 'pending') {
+    return result(
+      context,
+      'pending',
+      returnedToPlanning ? [nodePath.relative(context.cwd, context.ticketPath)] : [],
+      'Human design authority could not be recorded safely; approval remains pending.',
+    );
+  }
   if (accepted) advanceToExecutionPlanning(context);
   const planPath = nodePath.relative(context.cwd, context.planPath);
   return result(
@@ -288,7 +253,7 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
     ]);
   }
 
-  if (currentDesignDecision(context) === 'approved') {
+  if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) === 'approved') {
     const advanced = replaceTicketPhase(context, 'plan-implementation', 'plan-execution');
     return result(
       context,
