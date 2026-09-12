@@ -62,3 +62,38 @@
   Planning. This ticket creates the first canonical Execution Plan contract and
   `plan-execution` review kind, so later epic tickets must use the shipped gate;
   this ticket cannot use a gate that does not exist yet.
+- Executable-RED review `6ca37eec-7fe8-41d4-b8a6-ef0040f50243` confirmed the
+  CLI fails at the intended missing `plan-execution` kind, then rejected the
+  proposed positive proof because free-text summary substrings could echo the
+  input without proving the slicing judgment. Returned to Implementation
+  Planning before production changes.
+- Figure-it-out compared exact summary labels, informational findings, and an
+  optional structured review record. Chose `execution_plan_record`: existing
+  review kinds keep their result shape, while an approved Execution Plan must
+  expose its slicing decision, rationale, complete slices, dependency safety,
+  obligation owners, and unchanged decisions as machine-checkable fields.
+  Premortem: adding conditional provider schemas could split Claude and Codex
+  compatibility. Fresh OpenAI documentation confirmed strict output requires
+  every declared field, so the design now selects a `plan-execution`-specific
+  schema with a required nullable field while leaving existing review-kind
+  schemas byte-for-byte unchanged. A denial may return null; Safeword requires
+  a complete non-null record before accepting approval.
+- Independent plan review `3e6f266d-91af-46de-9d15-301e05f6f0bb` caught an
+  undecided authority boundary. Resolved it from the parent contract: current
+  Execution Plan approval authorizes only entry to implementation, never
+  implementation, verification, release, or merge claims, and the epic has no
+  second human approval. The typed record is retained in the existing
+  integrity-checked review job cited by its stamp; `7CAMAD` owns the coding
+  consumer and `5F5ZZA` owns currency and invalidation.
+- Independent review `b1634a46-d3fb-455e-aba8-69668ca804e9` approved the
+  corrected approach. Applied its useful non-blocking cleanup before stamping:
+  named the reviewer-agent result versus unchanged top-level CLI envelope,
+  made local review-job retention and fail-closed removal explicit, recorded
+  compliance as inapplicable, removed duplicate fixture bookkeeping, and added
+  a reassessment trigger for generic rather than specifically named denials.
+- Exact-byte review `486a11a7-51a1-47f5-bfb6-9e4056405afb` approved the
+  shortened plan. Its final useful warnings made the implementation boundary
+  sharper without adding scope: the plan now records local file access and
+  rollback, cites the open command-specific `data` slot in the v1 CLI schema,
+  distributes live proof across Claude and Codex strict-output routes, and
+  rejects vacuous non-null approval records.
