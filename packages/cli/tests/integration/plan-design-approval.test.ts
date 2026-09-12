@@ -179,7 +179,11 @@ function runApprovalInPty(
   );
 }
 
-function runApprovalInPtyAsync(project: Fixture, ticketId: string): Promise<number | null> {
+function runApprovalInPtyAsync(
+  project: Fixture,
+  ticketId: string,
+  environment: Readonly<Record<string, string>> = {},
+): Promise<number | null> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       'python3',
@@ -195,7 +199,7 @@ function runApprovalInPtyAsync(project: Fixture, ticketId: string): Promise<numb
         'approve-plan',
         ticketId,
       ],
-      { cwd: project.root, env: { ...process.env, NODE_ENV: 'test' } },
+      { cwd: project.root, env: { ...process.env, NODE_ENV: 'test', ...environment } },
     );
     child.once('error', reject);
     child.once('close', resolve);
@@ -468,5 +472,26 @@ describe('an interrupted approval resumes according to durable authority', () =>
     expect(resumed.stdout).not.toContain('Approve this reviewed Implementation Plan?');
     expect(phase(project.ticketPath)).toBe('plan-execution');
     expect(approvalEvents(project.ledgerPath)).toHaveLength(1);
+  });
+});
+
+describe('retrying the same design approval does not duplicate authority', () => {
+  it('keeps one event when two installed CLI invocations submit the same decision', async () => {
+    const project = fixture(true);
+
+    const statuses = await Promise.all([
+      runApprovalInPtyAsync(project, TICKET_ID),
+      runApprovalInPtyAsync(project, TICKET_ID),
+    ]);
+
+    expect(statuses).toEqual([0, 0]);
+    const decisions = decisionPayloads(project.ledgerPath);
+    expect(decisions).toHaveLength(1);
+    expect(decisions[0]).toMatchObject({
+      appendPosition: 1,
+      decision: 'approved',
+      fencingGeneration: 1,
+      ticket: TICKET_ID,
+    });
   });
 });
