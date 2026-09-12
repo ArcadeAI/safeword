@@ -46,14 +46,17 @@ describe('project record-skill-invocation', () => {
     expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
   });
 
-  it('does not enroll a repository as a side effect of workflow logging', async () => {
+  it('asks to set up an unenrolled repository before workflow logging needs state', async () => {
     const cwd = createTemporaryDirectory();
 
     const result = await runRecordSkillInvocation(cwd, 'verify', 'session-1');
 
-    expect(result.state).toBe('healthy');
-    expect(result.findings.map(finding => finding.code)).toEqual(['PROJECT_NOT_ENROLLED']);
-    expect(result.nextActions).toEqual([]);
+    expect(result.state).toBe('action_required');
+    expect(result.findings.map(finding => finding.code)).toEqual(['ENROLLMENT_CHOICE_REQUIRED']);
+    expect(result.findings[0]?.message).toMatch(/set up this project/iu);
+    expect(result.nextActions).toEqual([
+      { command: 'safeword install', mutates: true, requiresHuman: true },
+    ]);
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
     expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
   });
