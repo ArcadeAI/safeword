@@ -24,6 +24,45 @@ const stateFor = (world: SafewordWorld): HandoffState => {
   return state;
 };
 
+const decisionValues = {
+  Choice: 'release to beta or stable',
+  Recommendation: 'choose beta',
+  Reason: 'beta limits exposure while telemetry is verified',
+  Impact: 'beta delays stable by one day; stable increases rollback risk',
+  Reply: '`beta` or `stable`',
+} as const;
+
+const displayToRole = {
+  'concrete choice': 'Choice',
+  recommendation: 'Recommendation',
+  'controlling reason': 'Reason',
+  'material tradeoff or consequences': 'Impact',
+  'exact reply': 'Reply',
+} as const;
+
+function decisionTerminal(
+  overrides: Partial<Record<keyof typeof decisionValues, string>> = {},
+): string {
+  return Object.entries({ ...decisionValues, ...overrides })
+    .map(([role, value]) => `${role}: ${value}.`)
+    .join(' ');
+}
+
+function decisionReply(paragraph: 'Next' | 'Need', terminal: string): string {
+  return paragraph === 'Need'
+    ? [
+        '**BLOCKED** — The release channel requires a human choice.',
+        '**Tried:** Verified both channels are available.',
+        `**Need:** ${terminal}`,
+      ].join('\n\n')
+    : [
+        '**CONFIDENT** — The release channel requires a human choice.',
+        '**Decided:** Keep the release scoped to one channel.',
+        '**Open:** human: choose the release channel.',
+        `**Next:** ${terminal}`,
+      ].join('\n\n');
+}
+
 Given(
   'a long work update ending in a Next decision that requires a human choice, with every decision role in plain language',
   function (this: SafewordWorld) {
@@ -58,6 +97,67 @@ Given(
       '**Tried:** Verified both release channels are available.',
       '**Need:** Choice: release to beta or stable. Recommendation: choose beta. Reason: beta limits exposure while telemetry is verified. Impact: beta delays the stable release by one day; stable reaches everyone immediately with greater rollback risk. Reply: `beta` or `stable`.',
     ].join('\n\n');
+  },
+);
+
+Given(
+  'a blocked reply whose earlier prose states a complete recommendation and whose Need paragraph says only to confirm the target',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = [
+      `Earlier recommendation: ${decisionTerminal()}`,
+      '**BLOCKED** — The release channel requires a human choice.',
+      '**Tried:** Verified both channels are available.',
+      '**Need:** Confirm the target.',
+    ].join('\n\n');
+  },
+);
+
+Given(
+  'a decision paragraph with a necessary unfamiliar term explicitly marked but no plain-language meaning',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = decisionReply('Next', `${decisionTerminal()} Term: canary = TBD.`);
+  },
+);
+
+Given(
+  'a decision paragraph with a necessary unfamiliar term explicitly marked and explained inline in familiar language',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = decisionReply(
+      'Next',
+      `${decisionTerminal()} Term: canary = a release shown to a small group first.`,
+    );
+  },
+);
+
+Given(
+  /^a (Next|Need) decision paragraph complete except for (.+)$/u,
+  function (this: SafewordWorld, paragraph: 'Next' | 'Need', role: keyof typeof displayToRole) {
+    const omitted = displayToRole[role];
+    const terminal = Object.entries(decisionValues)
+      .filter(([name]) => name !== omitted)
+      .map(([name, value]) => `${name}: ${value}.`)
+      .join(' ');
+    stateFor(this).reply = decisionReply(paragraph, terminal);
+  },
+);
+
+Given(
+  /^a (Next|Need) decision paragraph with every role label present but (.+) contains only a back-reference or placeholder$/u,
+  function (this: SafewordWorld, paragraph: 'Next' | 'Need', role: keyof typeof displayToRole) {
+    stateFor(this).reply = decisionReply(
+      paragraph,
+      decisionTerminal({ [displayToRole[role]]: 'as above' }),
+    );
+  },
+);
+
+Given(
+  'a Next decision paragraph with every decision role but two unrelated human choices',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = decisionReply(
+      'Next',
+      `${decisionTerminal()} Choice: also choose whether to replace the database.`,
+    );
   },
 );
 
@@ -98,4 +198,44 @@ Then(
 Then('the blocked handoff is accepted as self-contained', function (this: SafewordWorld) {
   assert.equal(stateFor(this).evaluation?.compliant, true);
   assert.equal(stateFor(this).evaluation?.form, 'decision');
+});
+
+Then('the blocked handoff is rejected as incomplete', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, false);
+  assert.deepEqual(stateFor(this).evaluation?.requirements, [
+    'concrete choice',
+    'recommendation',
+    'controlling reason',
+    'material tradeoff or consequences',
+    'exact reply',
+  ]);
+});
+
+Then(
+  'the decision handoff is rejected with the unexplained term named',
+  function (this: SafewordWorld) {
+    assert.equal(stateFor(this).evaluation?.compliant, false);
+    assert.ok(stateFor(this).evaluation?.requirements?.includes('plain-language meaning'));
+  },
+);
+
+Then(
+  /^the decision handoff is rejected with (concrete choice|recommendation|controlling reason|material tradeoff or consequences|exact reply) named$/u,
+  function (this: SafewordWorld, role: string) {
+    assert.equal(stateFor(this).evaluation?.compliant, false);
+    assert.ok(stateFor(this).evaluation?.requirements?.includes(role));
+  },
+);
+
+Then(
+  /^the decision handoff is rejected with (concrete choice|recommendation|controlling reason|material tradeoff or consequences|exact reply) named as content-free$/u,
+  function (this: SafewordWorld, role: string) {
+    assert.equal(stateFor(this).evaluation?.compliant, false);
+    assert.ok(stateFor(this).evaluation?.requirements?.includes(role));
+  },
+);
+
+Then('the decision handoff is rejected as not one concrete choice', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, false);
+  assert.ok(stateFor(this).evaluation?.requirements?.includes('concrete choice'));
 });
