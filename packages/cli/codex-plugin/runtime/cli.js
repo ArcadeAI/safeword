@@ -2523,7 +2523,7 @@ function suggestionForFailure(failure, label) {
   }
   return;
 }
-function planArchitectureRecoveryLines(data, messages) {
+function planArchitectureReceiptLines(data, messages) {
   if (data.review_kind !== "plan-implementation")
     return;
   const architectureBlocker = messages.find((message) => /shared-contract choice.+durable architecture (?:record|link)/iu.test(message));
@@ -2546,8 +2546,8 @@ function reviewResultLines(result, options) {
     return;
   const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
   messages.push(...result.errors.map((error2) => error2.message));
-  const plainRecovery = planArchitectureRecoveryLines(result.data, messages) ?? [];
-  const lines = [...plainRecovery, reviewCoverageLine(result.data, result.state), ...messages];
+  const planReceipt = planArchitectureReceiptLines(result.data, messages) ?? [];
+  const lines = [...planReceipt, reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
     if (suggestion !== undefined)
