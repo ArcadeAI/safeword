@@ -187,7 +187,7 @@ with fixture-minted authority. Sibling `5F5ZZA` owns authentic host-user-event
 provenance and the end-to-end positive proof; this scenario cannot satisfy that
 release prerequisite by itself.
 
-- [ ] RED
+- [x] RED 8adbd9581
 - [ ] GREEN
 - [ ] REFACTOR
 
