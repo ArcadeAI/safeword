@@ -282,7 +282,7 @@ nonblocking behavior at the canonical CLI boundary.
 
 ### Scenario: A declined design returns to Implementation Planning
 
-- [ ] RED
+- [x] RED afd16b0b2
 - [ ] GREEN
 - [ ] REFACTOR
 
