@@ -208,7 +208,7 @@ release prerequisite by itself.
 ### Scenario: The receipt records the focused-review judgment
 
 - [x] RED 4168e473a
-- [ ] GREEN
+- [x] GREEN e9582618c
 - [ ] REFACTOR
 
 ### Scenario: A blocked receipt gives a Non-Technical Builder a concrete recovery
