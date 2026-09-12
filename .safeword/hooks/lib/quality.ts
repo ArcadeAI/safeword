@@ -134,6 +134,20 @@ export const TERMINAL_HANDOFF_CONTRACT_VERSION = 'terminal-handoff/v1';
 
 export type TerminalHandoffForm = 'decision' | 'action' | 'outside';
 
+export const TERMINAL_HANDOFF_DECISION_REQUIREMENTS = [
+  'concrete choice',
+  'recommendation',
+  'controlling reason',
+  'material tradeoff or consequences',
+  'exact reply',
+] as const;
+
+export type TerminalHandoffRequirement =
+  | (typeof TERMINAL_HANDOFF_DECISION_REQUIREMENTS)[number]
+  | 'one concrete action'
+  | 'one essential reason'
+  | 'plain-language meaning';
+
 export interface DecisionBriefCompliance {
   compliant: boolean;
   contractVersion: typeof TERMINAL_HANDOFF_CONTRACT_VERSION;
@@ -142,6 +156,8 @@ export interface DecisionBriefCompliance {
   examinedCharacters: number;
   /** First structural reason a noncompliant reply cannot satisfy the grammar. */
   violation?: DecisionBriefViolation;
+  /** Stable reader-facing requirements that the terminal paragraph did not satisfy. */
+  requirements?: TerminalHandoffRequirement[];
 }
 
 export type DecisionBriefVerdict = keyof DecisionBriefGrammar['variants'];
@@ -164,7 +180,58 @@ function determineTerminalHandoffForm(
   const openParagraph = paragraphsAfterVerdict.find(
     paragraph => LABEL.exec(paragraph.text)?.[1] === 'Open',
   );
-  return /^\*\*Open:\*\*\s+human:/iu.test(openParagraph?.text ?? '') ? 'decision' : 'action';
+  return /^\*\*Open:\*\*\s+none\.?\s*$/iu.test(openParagraph?.text ?? '') ? 'action' : 'decision';
+}
+
+const TERMINAL_ROLE = /(?:^|\s)(Choice|Recommendation|Reason|Impact|Reply|Action|Term):\s*/giu;
+const CONTENT_FREE =
+  /^(?:tbd|todo|same|same as above|as above|see (?:the )?analysis|see above|described earlier|unknown|n\/?a|it|this|that|the work)[.!]?$/iu;
+const DECISION_ROLE_REQUIREMENT = {
+  Choice: 'concrete choice',
+  Recommendation: 'recommendation',
+  Reason: 'controlling reason',
+  Impact: 'material tradeoff or consequences',
+  Reply: 'exact reply',
+} as const;
+
+interface TerminalRoleClause {
+  role: string;
+  value: string;
+}
+
+function parseTerminalRoleClauses(value: string): {
+  clauses: TerminalRoleClause[];
+  leadingText: string;
+} {
+  const matches = [...value.matchAll(TERMINAL_ROLE)];
+  return {
+    leadingText: value.slice(0, matches[0]?.index ?? value.length).trim(),
+    clauses: matches.map((match, index) => ({
+      role: match[1] ?? '',
+      value: value.slice((match.index ?? 0) + match[0].length, matches[index + 1]?.index).trim(),
+    })),
+  };
+}
+
+function valueHasContent(value: string): boolean {
+  const normalized = value.replaceAll(/[`*_]/gu, '').trim().toLowerCase();
+  return normalized.length > 0 && !CONTENT_FREE.test(normalized);
+}
+
+function missingDecisionRequirements(terminalValue: string): TerminalHandoffRequirement[] {
+  const { clauses, leadingText } = parseTerminalRoleClauses(terminalValue);
+  const missing = Object.entries(DECISION_ROLE_REQUIREMENT).flatMap(([role, requirement]) => {
+    const matching = clauses.filter(clause => clause.role === role);
+    return matching.length === 1 && valueHasContent(matching[0]?.value ?? '') ? [] : [requirement];
+  });
+  if (leadingText !== '' && missing.length === 0) return ['concrete choice'];
+  const unexplainedTerm = clauses.find(clause => {
+    if (clause.role !== 'Term') return false;
+    const [term, meaning, ...extra] = clause.value.split('=');
+    return extra.length > 0 || !valueHasContent(term ?? '') || !valueHasContent(meaning ?? '');
+  });
+  if (unexplainedTerm) missing.push('plain-language meaning');
+  return missing;
 }
 
 /** Public test contract: all explicitly counted passes remain below this fixed factor. */
@@ -411,12 +478,14 @@ export function evaluateDecisionBriefCompliance(
   const result = (
     compliant: boolean,
     violation?: DecisionBriefViolation,
+    requirements?: TerminalHandoffRequirement[],
   ): DecisionBriefCompliance => ({
     compliant,
     contractVersion: TERMINAL_HANDOFF_CONTRACT_VERSION,
     form,
     examinedCharacters,
     ...(violation ? { violation } : {}),
+    ...(requirements && requirements.length > 0 ? { requirements } : {}),
   });
   const paragraphs = scan.paragraphs;
   const verdicts = paragraphs.flatMap((paragraph, index) => {
@@ -468,7 +537,20 @@ export function evaluateDecisionBriefCompliance(
     sequence =>
       labels.length === sequence.length && labels.every((label, i) => label === sequence[i]),
   );
-  return compliant ? result(true) : result(false, { kind: 'label-sequence', verdict });
+  if (!compliant) return result(false, { kind: 'label-sequence', verdict });
+  if (grammar !== DECISION_BRIEF_GRAMMAR) return result(true);
+
+  const terminalParagraph = paragraphs.at(-1)?.text ?? '';
+  const terminalLabel = grammar.variants[verdict].terminalLabel;
+  const terminalValue = terminalParagraph.replace(
+    new RegExp(`^\\*\\*${terminalLabel}:\\*\\*\\s*`, 'u'),
+    '',
+  );
+  if (form === 'decision') {
+    const requirements = missingDecisionRequirements(terminalValue);
+    return requirements.length > 0 ? result(false, undefined, requirements) : result(true);
+  }
+  return result(true);
 }
 
 /** Whether a reply already ends in the canonical phase-neutral decision brief. */
