@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   appendFileSync,
   existsSync,
@@ -41,7 +41,6 @@ interface ApprovalContext {
   readonly ticketId: string;
   readonly ticketDirectory: string;
   readonly ticketPath: string;
-  readonly ticket: string;
   readonly planPath: string;
   readonly plan: string;
   readonly ledgerPath: string;
@@ -66,7 +65,6 @@ function readContext(cwd: string, ticketId: string): ApprovalContext {
     ticketId,
     ticketDirectory,
     ticketPath,
-    ticket: readFileSync(ticketPath, 'utf8'),
     planPath,
     plan,
     ledgerPath: nodePath.join(resolveNamespaceRoot(cwd), 'skill-invocations.log'),
@@ -139,21 +137,22 @@ function replaceTicketPhase(
   from: 'plan-execution' | 'plan-implementation',
   to: 'plan-execution' | 'plan-implementation',
 ): boolean {
-  const phase = readFrontmatterScalar(context.ticket, 'phase');
+  const ticket = readFileSync(context.ticketPath, 'utf8');
+  const phase = readFrontmatterScalar(ticket, 'phase');
   if (phase === to) return false;
   if (phase !== from) throw new Error(`Ticket is in ${String(phase)}, not ${from}.`);
   const updated =
     from === 'plan-implementation'
-      ? context.ticket.replace(/^phase:\s*plan-implementation\s*$/mu, 'phase: plan-execution')
-      : context.ticket.replace(/^phase:\s*plan-execution\s*$/mu, 'phase: plan-implementation');
-  const temporary = `${context.ticketPath}.tmp`;
+      ? ticket.replace(/^phase:\s*plan-implementation\s*$/mu, 'phase: plan-execution')
+      : ticket.replace(/^phase:\s*plan-execution\s*$/mu, 'phase: plan-implementation');
+  const temporary = `${context.ticketPath}.${process.pid}.${randomUUID()}.tmp`;
   writeFileSync(temporary, updated);
   renameSync(temporary, context.ticketPath);
   return true;
 }
 
-function advanceToExecutionPlanning(context: ApprovalContext): void {
-  replaceTicketPhase(context, 'plan-implementation', 'plan-execution');
+function advanceToExecutionPlanning(context: ApprovalContext): boolean {
+  return replaceTicketPhase(context, 'plan-implementation', 'plan-execution');
 }
 
 function result(
@@ -206,6 +205,18 @@ async function askForApproval(plan: string): Promise<boolean> {
   }
 }
 
+function settledDecisionChanges(
+  context: ApprovalContext,
+  ledgerTarget: string,
+  appended: 'existing' | 'written',
+  ticketChanged: boolean,
+): string[] {
+  return [
+    ...(appended === 'written' ? [ledgerTarget] : []),
+    ...(ticketChanged ? [nodePath.relative(context.cwd, context.ticketPath)] : []),
+  ];
+}
+
 function settleInteractiveDecision(
   context: ApprovalContext,
   accepted: boolean,
@@ -229,17 +240,12 @@ function settleInteractiveDecision(
     );
   }
   interruptApprovalForTest('after-decision');
-  if (accepted) advanceToExecutionPlanning(context);
+  const advanced = accepted && advanceToExecutionPlanning(context);
   const planPath = nodePath.relative(context.cwd, context.planPath);
   return result(
     context,
     status,
-    [
-      ledgerTarget,
-      ...(accepted || returnedToPlanning
-        ? [nodePath.relative(context.cwd, context.ticketPath)]
-        : []),
-    ],
+    settledDecisionChanges(context, ledgerTarget, appended.status, advanced || returnedToPlanning),
     accepted
       ? `Approved approach: ${planPath} at ${context.digest}.`
       : `Declined approach: ${planPath}. It remains in Implementation Planning for repair.`,
@@ -257,11 +263,8 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
   const ticketTarget = nodePath.relative(context.cwd, context.ticketPath);
   if (!designApprovalEnabled(context.cwd)) {
     appendReceipt(context, 'not-required');
-    advanceToExecutionPlanning(context);
-    return result(context, 'not-required', [
-      ledgerTarget,
-      nodePath.relative(context.cwd, context.ticketPath),
-    ]);
+    const advanced = advanceToExecutionPlanning(context);
+    return result(context, 'not-required', [ledgerTarget, ...(advanced ? [ticketTarget] : [])]);
   }
 
   if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) === 'approved') {
