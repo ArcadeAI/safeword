@@ -199,7 +199,7 @@ release prerequisite by itself.
 
 ### Scenario: Omitting one accepted persona blocks approach approval
 
-- [ ] RED
+- [x] RED ed13f8d63
 - [ ] GREEN
 - [ ] REFACTOR
 
