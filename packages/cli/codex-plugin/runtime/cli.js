@@ -33864,8 +33864,9 @@ function parseCheckboxAnnotation(line) {
   if (!match)
     return null;
   const [, mark = "", step = "", rest = ""] = match;
+  const normalizedStep = step.toLowerCase() === "cross-scenario" ? "cross-scenario" : step.toUpperCase();
   return {
-    step,
+    step: normalizedStep,
     checked: mark.toLowerCase() === "x",
     annotation: rest.trim()
   };
@@ -33887,7 +33888,7 @@ function isValidSha(value) {
 }
 var CHECKBOX_LINE, SKIP_PREFIX, SHA_PATTERN;
 var init_parse_annotation = __esm(() => {
-  CHECKBOX_LINE = /^\s*- \[([ xX])\] (RED|GREEN|REFACTOR|cross-scenario)\b\s*(.*)$/;
+  CHECKBOX_LINE = /^\s*- \[([ xX])\] (RED|GREEN|REFACTOR|cross-scenario)\b\s*(.*)$/i;
   SKIP_PREFIX = /^skip:(.*)$/i;
   SHA_PATTERN = /^[0-9a-f]{7,40}$/i;
 });

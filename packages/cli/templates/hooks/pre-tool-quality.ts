@@ -206,7 +206,7 @@ function crossAgentReviewPolicy() {
   );
 }
 
-function safewordCliCommand(): [string, ...string[]] | undefined {
+function safewordCliCommand(): [string, ...string[]] | 'project-writable' | undefined {
   const explicitCli = process.env.SAFEWORD_PLUGIN_CLI?.trim();
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
   const pluginCli =
@@ -226,7 +226,7 @@ function safewordCliCommand(): [string, ...string[]] | undefined {
         !relative.startsWith(`..${nodePath.sep}`) &&
         !nodePath.isAbsolute(relative));
     if (insideProject) {
-      return undefined;
+      return 'project-writable';
     }
     return ['bun', candidate];
   } catch {
@@ -238,6 +238,9 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
   const commandParts = safewordCliCommand();
   if (commandParts === undefined) {
     return 'Safeword could not find its local CLI. Reinstall the Safeword plugin or set SAFEWORD_PLUGIN_CLI to the bundled runtime path.';
+  }
+  if (commandParts === 'project-writable') {
+    return 'Safeword refused the configured CLI because its resolved path is inside the project and can be changed by project code. Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.';
   }
   const [executable, ...prefix] = commandParts;
   const command = [executable, ...prefix].join(' ');
@@ -957,6 +960,18 @@ if (
     deny(
       'Cannot retroactively relabel an already-checked RED as manual or live evidence.',
       'Leave the historical RED annotation unchanged. Reopen the scenario with a new unchecked RED row and record the manual/live evidence there.',
+    );
+  }
+  const independentlyGatedGreens = transitions.filter(
+    transition =>
+      transition.step === 'GREEN' &&
+      transition.evidenceMode === undefined &&
+      transition.historicalEvidenceRemoved !== true,
+  );
+  if (independentlyGatedGreens.length > 1) {
+    deny(
+      'Cannot mark more than one independently reviewed GREEN row in one tool call.',
+      'Split the edit so each GREEN transition receives one bounded executable-RED receipt check. This prevents a multi-replacement edit from outliving the host hook timeout.',
     );
   }
   for (const transition of transitions) {
