@@ -76,10 +76,16 @@ function designApprovalEnabled(cwd: string): boolean {
   const path = nodePath.join(cwd, '.safeword', 'config.json');
   if (!existsSync(path)) return false;
   try {
-    const config = JSON.parse(readFileSync(path, 'utf8')) as { designApprovalGate?: unknown };
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      throw new Error('configuration root must be an object');
+    }
+    const config = parsed as { designApprovalGate?: unknown };
     return config.designApprovalGate === true;
   } catch {
-    return false;
+    throw new Error(
+      'Could not determine whether human design approval is required because .safeword/config.json is unreadable or invalid. Repair the configuration before approving the plan.',
+    );
   }
 }
 
