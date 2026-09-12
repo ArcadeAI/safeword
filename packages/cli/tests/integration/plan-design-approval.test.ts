@@ -520,3 +520,22 @@ describe('approval-ledger contention fails closed without changing authority', (
     expect(approvalEvents(project.ledgerPath)).toEqual([]);
   });
 });
+
+describe('a design decision preserves compatible approval-ledger extensions', () => {
+  it('keeps earlier known authority and opaque event bytes while appending approval', () => {
+    const project = fixture(true);
+    const unknown = '2026-09-11T00:03:00.000Z extension:{"opaque":"value  with  spaces"}';
+    const before = `${readFileSync(project.ledgerPath, 'utf8')}${unknown}`;
+    writeFileSync(project.ledgerPath, before);
+
+    const result = runApprovalInPty(project, 'y');
+
+    expect(result.status).toBe(0);
+    const after = readFileSync(project.ledgerPath, 'utf8');
+    expect(after.startsWith(before)).toBe(true);
+    expect(after.slice(0, before.length)).toBe(before);
+    expect(after).toContain(unknown);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(decisionPayloads(project.ledgerPath)).toHaveLength(1);
+  });
+});
