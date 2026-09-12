@@ -48,7 +48,9 @@ import {
 } from '../packages/cli/tests/fixtures/plan-focused-reviewability.ts';
 import {
   type PersonaConsequenceFixture,
+  type PersonaInventoryFixture,
   reviewPersonaConsequences,
+  reviewPersonaInventory,
 } from '../packages/cli/tests/fixtures/plan-persona-consequences.ts';
 import type { ReviewerOutput } from '../packages/cli/src/review/contract.ts';
 import { reviewPlanOfRecord } from '../packages/cli/tests/fixtures/plan-single-record.ts';
@@ -170,6 +172,8 @@ interface PlanWorld extends SafewordWorld {
   };
   personaConsequence?: PersonaConsequenceFixture;
   personaConsequenceReview?: ReviewerOutput;
+  personaInventory?: PersonaInventoryFixture[];
+  personaInventoryReview?: ReviewerOutput;
 }
 
 const EVIDENCE_REFERENCE = 'https://spec.commonmark.org/0.31.2/';
@@ -1044,6 +1048,26 @@ Given(
 );
 
 Given(
+  "the accepted Product Plan includes a Technical Builder with an authorization-trust need and a Non-Technical Builder with a safe-recovery need, while the Implementation Plan covers only the Technical Builder's consequence",
+  function (this: PlanWorld) {
+    this.personaInventory = [
+      {
+        persona: 'Technical Builder',
+        need: 'authorization-trust',
+        designConsequence: 'authorization-trust',
+        covered: true,
+      },
+      {
+        persona: 'Non-Technical Builder',
+        need: 'safe-recovery',
+        designConsequence: 'safe-recovery',
+        covered: false,
+      },
+    ];
+  },
+);
+
+Given(
   /^real project configuration resolves its durable architecture location as (.+)$/u,
   function (this: PlanWorld, architectureLocation: string) {
     createProject(this);
@@ -1286,6 +1310,10 @@ When('its focused decision review is completed', function (this: PlanWorld) {
 
 When('the Implementation Plan is reviewed', function (this: PlanWorld) {
   const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  if (this.personaInventory !== undefined) {
+    this.personaInventoryReview = reviewPersonaInventory(contract, this.personaInventory);
+    return;
+  }
   if (this.personaConsequence !== undefined) {
     this.personaConsequenceReview = reviewPersonaConsequences(contract, this.personaConsequence);
     return;
@@ -1731,6 +1759,17 @@ Then(
       this.personaConsequenceReview?.findings.map(finding => finding.message).join('\n') ?? '',
       new RegExp(`uncovered ${need} need`, 'iu'),
     );
+  },
+);
+
+Then(
+  'approval is blocked with the omitted Non-Technical Builder and safe-recovery consequence named',
+  function (this: PlanWorld) {
+    assert.equal(this.personaInventoryReview?.verdict, 'request_changes');
+    const findings =
+      this.personaInventoryReview?.findings.map(finding => finding.message).join('\n') ?? '';
+    assert.match(findings, /omits Non-Technical Builder/iu);
+    assert.match(findings, /safe-recovery consequence/iu);
   },
 );
 
