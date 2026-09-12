@@ -28,3 +28,11 @@
   requires per-Rule clause-deletion mutations plus one live positive/defect
   matrix covering all R1–R5 categories, binds proof to each RED/GREEN slice,
   and records the narrow review-coordinator architecture extension.
+- Review `9e2e1303-e4b9-4b03-b3a1-a5e0f32ee44a` correctly distinguished verdict
+  proof from record-content proof. The plan now uses two live positive plans and
+  a defect matrix with field-omission and unresolved-design as separate cases;
+  it inspects the positive eligibility, obligation-owner, unchanged-decision,
+  and per-slice proof record. The live lane is opt-in operationally but mandatory
+  for this child's completion. A fresh `ticket reconcile-parent 6XW8H7` check
+  returned healthy, so the historical digest note does not represent current
+  parent drift.

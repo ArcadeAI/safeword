@@ -18,25 +18,29 @@ The riskiest assumption is that Execution Plan review can judge conceptual
 slice boundaries without falling back to line-count rules or inventing a design
 decision. The proof therefore has two layers: deterministic tests prove that the
 installed CLI sends the exact packaged contract and handles its typed result,
-while an opt-in live-model smoke sends a positive plan and a compact defect
-matrix through that same CLI boundary. The positive plan contains one large
-coherent mechanical change. The negative matrix contains an omitted slicing
-decision, an incomplete and unresolved-design slice, an unsafe dependency, a
-threshold-only justification, an unassigned obligation, and a rewritten
-accepted decision. The smoke must approve the positive plan and return typed
-blocking findings for every negative category. Separate contract-derived tests
-remove each R1–R5 clause in turn and must fail, so a scripted reviewer cannot
-hide weakened canonical instructions.
+while a live-model smoke sends three plans through that same CLI boundary. One
+positive plan contains one large coherent mechanical change; another contains
+two independently valuable concerns with separate proof. The negative matrix
+contains distinct cases for an omitted slicing decision, a field omission, a
+formally complete slice with an unresolved authorization boundary, an unsafe
+dependency, a threshold-only justification, an unassigned obligation, and a
+rewritten accepted decision. The smoke must approve both positive plans and its
+review summary must record slice eligibility, each obligation owner, and that
+accepted decisions remain unchanged. The negative review must return one typed
+blocking finding per category, including a finding that names the unresolved
+authorization decision rather than merely noticing the field omission.
+Separate contract-derived tests remove each R1–R5 clause in turn and must fail,
+so a scripted reviewer cannot hide weakened canonical instructions.
 
 Proof strategy:
 
 | Behavior | Real boundary | Primary proof | Confidence limit |
 | --- | --- | --- | --- |
-| R1 makes and justifies the one-versus-many slicing decision | Packaged author/reviewer contract through the installed CLI route | Exact-contract integration, R1 clause-deletion mutation, and live positive/omitted-decision cases | Proves that one-slice plans explain why another split adds no review value and that omission is denied; it does not estimate universal review effort |
-| R2 requires a complete, single-purpose slice with no invented design | Semantic reviewer consuming the accepted approach and proposed slices | Field-omission, two-purpose, and formally-complete-but-undecided-design fixtures; R2 clause-deletion mutation; corresponding live negative categories | Deterministic proof establishes contract presence and routing; live proof establishes representative semantic application, not every possible design ambiguity |
+| R1 makes and justifies the one-versus-many slicing decision | Packaged author/reviewer contract through the installed CLI route | Exact-contract integration, R1 clause-deletion mutation, live one-slice and two-slice positive records, and an omitted-decision denial | Proves that one-slice plans explain why another split adds no review value, two-slice plans name both proofs, and omission is denied; it does not estimate universal review effort |
+| R2 requires a complete, single-purpose slice with no invented design | Semantic reviewer consuming the accepted approach and proposed slices | Field-omission, two-purpose, and separately formally-complete-but-undecided-design fixtures; R2 clause-deletion mutation; live eligible-slice record and distinct negative findings | Deterministic proof establishes contract presence and routing; live proof inspects the positive eligibility record and requires the unresolved-design finding to name the authorization decision |
 | R3 orders dependencies and keeps every intermediate merge supported | Semantic reviewer over schema-before-reader and unsafe-successor examples | R3 clause-deletion mutation plus live unsafe-dependency finding | Proves the explicit dependency distinction, not repository-host merge behavior |
-| R4 judges conceptual scope and proof rather than size alone | Semantic reviewer over large-mechanical, small-multi-purpose, and threshold-only examples | R4 clause-deletion mutation plus live coherent-positive and threshold-only/two-purpose negatives | Line and file counts may remain advisory signals; they cannot establish reviewability |
-| R5 assigns every accepted obligation without rewriting the approach | Reviewer packet containing the current Implementation Plan and proposed slice map | Obligation-omission and changed-decision fixtures, R5 clause-deletion mutation, and matching live findings | Proves preservation in the bounded packet; `5F5ZZA` owns stale-context invalidation across plan reviews |
+| R4 judges conceptual scope and proof rather than size alone | Semantic reviewer over large-mechanical, small-multi-purpose, and threshold-only examples | R4 clause-deletion mutation, live one-concern and two-concern positive records with named proof, and threshold-only denial | Line and file counts may remain advisory signals; they cannot establish reviewability |
+| R5 assigns every accepted obligation without rewriting the approach | Reviewer packet containing the current Implementation Plan and proposed slice map | Obligation-omission and changed-decision fixtures, R5 clause-deletion mutation, live positive summary containing the obligation-to-slice map and unchanged-decision record, and matching live denials | Proves recorded preservation in the bounded packet; `5F5ZZA` owns stale-context invalidation across plan reviews |
 | New Execution Plan review entry point | Real CLI, real packet builder and coordinator, deterministic substitute only for the external reviewer process | Wiring integration | Proves local CLI wiring; installed agent-host delivery remains a `YCFFNC` prerequisite |
 
 Build order begins with RED proof for the canonical Execution Planning
@@ -44,9 +48,12 @@ skill/template, whose marked review section is the one author/reviewer contract,
 then implements that contract and extractor. A second RED step proves the
 Execution Plan review kind before extending the shared packet and coordinator
 path. Contract-derived semantic fixtures and clause-deletion mutations stay in
-the same RED/GREEN slice as each R1–R5 obligation. The opt-in live-model matrix
-then checks the assembled boundary, and generated host assets refresh last. The
-contract slice is load-bearing: if author and reviewer bytes or obligations
+the same RED/GREEN slice as each R1–R5 obligation. The live-model lane then
+checks the assembled boundary, and generated host assets refresh last. Its
+environment flag remains opt-in so ordinary test runs do not spend tokens, but
+a passing live result is mandatory completion evidence for this child; an
+unavailable reviewer blocks completion rather than becoming a claimed pass.
+The contract slice is load-bearing: if author and reviewer bytes or obligations
 diverge, no later work proceeds.
 
 Affected surfaces:
