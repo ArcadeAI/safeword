@@ -246,6 +246,13 @@ Given(
   },
 );
 
+Given(
+  'an answer with no structured verdict and no observable current-turn work',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = 'Yes — that setting is already enabled.';
+  },
+);
+
 When(
   'the shared deterministic terminal-handoff evaluator checks the reply',
   function (this: SafewordWorld) {
@@ -362,3 +369,13 @@ Then('the action handoff is rejected as unnecessarily verbose', function (this: 
   assert.equal(stateFor(this).evaluation?.compliant, false);
   assert.ok(stateFor(this).evaluation?.requirements?.includes('no extra context'));
 });
+
+Then(
+  'the answer passes unchanged as outside the terminal-handoff contract',
+  function (this: SafewordWorld) {
+    const evaluation = stateFor(this).evaluation;
+    assert.equal(evaluation?.compliant, true);
+    assert.equal(evaluation?.form, 'outside');
+    assert.equal(evaluation?.violation, undefined);
+  },
+);
