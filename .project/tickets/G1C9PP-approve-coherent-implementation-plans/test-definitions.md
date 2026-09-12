@@ -340,15 +340,15 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 ### Scenario: A completed Execution Plan does not trigger a second design approval
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: unchanged-byte approval reuse was driven RED in c3b190c73; b03418ede pins the same authority rule with a completed Execution Plan fixture at the sibling-owned downstream boundary
+- [x] GREEN 13d2085d3
+- [x] REFACTOR skip: Execution Plan presence does not create a second human-authority state machine
 
 ### Scenario: A completed Execution Plan cannot preserve stale design approval
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: changed-byte invalidation was driven RED in c3b190c73; b03418ede pins it with a completed Execution Plan fixture without taking over sibling 7CAMAD's plan-content gate
+- [x] GREEN 13d2085d3
+- [x] REFACTOR skip: downstream implementation entry consumes the same exact-plan authority result rather than duplicating its parser
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R20 — An incomplete or incorrect plan returns to decision discovery with the full current set of blocking defects and is corrected and re-reviewed on its new exact bytes until complete and correct or honestly waiting on an external decision
 
