@@ -102,6 +102,7 @@ function requireExecutableRedAttestation(
 
 interface ReviewPacketExecution {
   readonly attestation?: RedExecutionAttestation;
+  /** Fingerprint preparation only: no review is dispatched from this packet. */
   readonly allowMissingExecutableRedAttestation?: boolean;
 }
 

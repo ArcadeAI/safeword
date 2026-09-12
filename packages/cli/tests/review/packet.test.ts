@@ -67,6 +67,17 @@ describe('review packet containment and change accounting', () => {
     );
   });
 
+  it('allows fingerprint-only packet preparation before execution evidence exists', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'proof.md'), 'pending failing behavior\n');
+
+    const prepared = prepareReviewPacket(root, 'executable-red', ['proof.md'], [], {
+      allowMissingExecutableRedAttestation: true,
+    });
+    expect(prepared.packet.execution_attestation).toBeUndefined();
+    prepared.cleanup();
+  });
+
   it('includes executable RED evidence and rejects it on other review kinds', () => {
     const root = temporaryDirectory();
     writeFileSync(nodePath.join(root, 'proof.md'), 'failing proof\n');

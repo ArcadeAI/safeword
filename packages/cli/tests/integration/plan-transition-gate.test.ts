@@ -651,7 +651,7 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     expectHookDeny(runExactEdit(specFile, marker, '$&'), 'last inspiration-contract');
   });
 
-  it('accepts a completed canonical implementation-plan template through the real gate', () => {
+  it('accepts a completed canonical implementation-plan template in the evaluator', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
     writeFileSync(
       nodePath.join(ticketDirectory, 'spec.md'),

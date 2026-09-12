@@ -370,6 +370,49 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'historical evidence');
     });
 
+    it('blocks swapping historical RED evidence onto a newly checked row', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED abc1234\n- [ ] RED',
+        '- [ ] RED abc1234\n- [x] RED',
+      );
+      expectHookDeny(result, 'historical evidence');
+    });
+
+    it('blocks rewriting the annotation on historical RED evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED abc1234',
+        '- [x] RED def5678',
+      );
+      expectHookDeny(result, 'historical evidence');
+    });
+
+    it('does not let a new manual RED row exempt GREEN in the same edit', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] RED\n- [ ] GREEN',
+        '- [x] RED skip: manual — see timestamped work log\n- [x] GREEN skip: observed',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
     it('blocks ledger edits attempted through NotebookEdit', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
@@ -394,6 +437,21 @@ describe('write-time annotation gate', () => {
         { SAFEWORD_PLUGIN_CLI: unavailableGate },
       );
       expectHookDeny(result, 'could not produce a valid result');
+    });
+
+    it('reports a missing local Safeword CLI without attempting a package fetch', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: '' },
+      );
+      expectHookDeny(result, 'could not find its local CLI');
     });
 
     it('allows an annotated GREEN transition when the exact receipt gate approves it', () => {
@@ -531,7 +589,7 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
-    it('blocks existing GREEN credit moved beneath a different scenario heading', () => {
+    it('allows a rename-only edit after GREEN has been checked', () => {
       const setup = setupProject(
         '### Scenario: original\n\n- [x] RED abc1234\n- [x] GREEN def5678\n- [ ] REFACTOR\n',
       );
@@ -541,11 +599,8 @@ describe('write-time annotation gate', () => {
         setup.testDefinitionsPath,
         '### Scenario: original',
         '### Scenario: approved elsewhere',
-        {
-          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: approved elsewhere'),
-        },
       );
-      expectHookDeny(result, 'could not identify the active scenario');
+      expectHookAllow(result);
     });
 
     it('binds a local Edit to its exact scenario when several GREEN rows remain open', () => {

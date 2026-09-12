@@ -18,7 +18,7 @@ import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/cl
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
-import { collectNewTransitions } from './lib/checkbox-transitions.ts';
+import { applyUniqueEdit, collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
@@ -205,9 +205,9 @@ function crossAgentReviewPolicy() {
   );
 }
 
-function safewordCliCommand(): [string, ...string[]] {
+function safewordCliCommand(): [string, ...string[]] | undefined {
   const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-  if (pluginCli !== undefined) return ['bun', pluginCli];
+  if (pluginCli !== undefined && pluginCli.trim() !== '') return ['bun', pluginCli];
   const installedCli = nodePath.join(
     projectDirectory,
     'node_modules',
@@ -218,11 +218,15 @@ function safewordCliCommand(): [string, ...string[]] {
   if (existsSync(installedCli)) return ['bun', installedCli];
   const sourceCli = nodePath.join(projectDirectory, 'packages', 'cli', 'src', 'cli.ts');
   if (existsSync(sourceCli)) return ['bun', sourceCli];
-  return ['bunx', 'safeword'];
+  return undefined;
 }
 
 function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
-  const [executable, ...prefix] = safewordCliCommand();
+  const commandParts = safewordCliCommand();
+  if (commandParts === undefined) {
+    return 'Safeword could not find its local CLI. Reinstall the Safeword plugin or set SAFEWORD_PLUGIN_CLI to the bundled runtime path.';
+  }
+  const [executable, ...prefix] = commandParts;
   const command = [executable, ...prefix].join(' ');
   const checked = spawnSync(
     executable,
@@ -406,7 +410,7 @@ if (!EDIT_TOOLS.includes(tool)) {
 // ---------------------------------------------------------------------------
 
 if (
-  editedFile.endsWith('test-definitions.md') &&
+  nodePath.basename(editedFile) === 'test-definitions.md' &&
   isNamespacePath(editedFile, 'tickets/') &&
   !existsSync(editedFile) // Only gate creation, not edits to existing files
 ) {
@@ -566,16 +570,6 @@ if (
   }
 }
 
-// Reconstruct the file content an Edit/Write/MultiEdit would produce, so a gate
-// can compare it against the on-disk content. Write/NotebookEdit carry the full
-// new content; Edit/MultiEdit carry replacement regions applied to the prior text.
-function literalEdit(current: string, oldText: string, newText: string): string | undefined {
-  if (oldText === '') return undefined;
-  const index = current.indexOf(oldText);
-  if (index < 0 || current.indexOf(oldText, index + oldText.length) >= 0) return undefined;
-  return current.slice(0, index) + newText + current.slice(index + oldText.length);
-}
-
 function nextContentAfterEdit(
   toolInput: HookInput['tool_input'],
   priorContent: string,
@@ -584,14 +578,14 @@ function nextContentAfterEdit(
   if (toolInput?.edits) {
     let current = priorContent;
     for (const edit of toolInput.edits) {
-      const next = literalEdit(current, edit.old_string ?? '', edit.new_string ?? '');
+      const next = applyUniqueEdit(current, edit.old_string ?? '', edit.new_string ?? '');
       if (next === undefined) return undefined;
       current = next;
     }
     return current;
   }
   if (toolInput?.old_string !== undefined) {
-    return literalEdit(priorContent, toolInput.old_string, toolInput.new_string ?? '');
+    return applyUniqueEdit(priorContent, toolInput.old_string, toolInput.new_string ?? '');
   }
   return undefined;
 }
@@ -944,7 +938,7 @@ if (
         'The text after "skip:" must not be empty or whitespace-only. A real reason is the audit trail.',
       );
     }
-    if (transition.step === 'GREEN' && transition.evidenceMode === undefined) {
+    if (transition.step === 'GREEN') {
       const scenario = transition.scenario;
       if (scenario === undefined) {
         deny(
@@ -952,6 +946,7 @@ if (
           'Leave GREEN unchecked. If a heading was renamed or duplicated, revert that edit; then restore one standard Scenario heading with RED/GREEN/REFACTOR rows and retry.',
         );
       }
+      if (transition.evidenceMode !== undefined) continue;
       const ledger = nodePath.relative(projectDirectory, editedFile);
       const gateDenial = executableRedGateDenial(scenario, ledger);
       if (gateDenial !== undefined) {

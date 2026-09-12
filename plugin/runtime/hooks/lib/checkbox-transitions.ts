@@ -73,6 +73,49 @@ function checkboxStates(text: string): CheckboxState[] {
 function findTransitions(oldText: string, newText: string): CheckboxTransition[] {
   const oldStates = checkboxStates(oldText);
   const newStates = checkboxStates(newText);
+  const scenarioSignature = (states: readonly CheckboxState[], scenario: string): string =>
+    JSON.stringify(
+      states
+        .filter(state => state.scenario === scenario)
+        .map(({ step, annotation, checked }) => ({ step, annotation, checked })),
+    );
+  const oldScenarios = new Set(
+    oldStates.flatMap(state => (state.scenario === undefined ? [] : [state.scenario])),
+  );
+  const newScenarios = new Set(
+    newStates.flatMap(state => (state.scenario === undefined ? [] : [state.scenario])),
+  );
+  const oldOnlyScenarios = [...oldScenarios].filter(scenario => !newScenarios.has(scenario));
+  const newOnlyScenarios = [...newScenarios].filter(scenario => !oldScenarios.has(scenario));
+  const renamedScenarioOrigins = new Map<string, string>();
+  for (const newScenario of newOnlyScenarios) {
+    const signature = scenarioSignature(newStates, newScenario);
+    const oldMatches = oldOnlyScenarios.filter(
+      oldScenario => scenarioSignature(oldStates, oldScenario) === signature,
+    );
+    const newMatches = newOnlyScenarios.filter(
+      candidate => scenarioSignature(newStates, candidate) === signature,
+    );
+    if (oldMatches.length === 1 && newMatches.length === 1) {
+      renamedScenarioOrigins.set(newScenario, oldMatches[0] as string);
+    }
+  }
+  const sameScenario = (
+    oldScenario: string | undefined,
+    newScenario: string | undefined,
+  ): boolean =>
+    oldScenario === newScenario ||
+    (newScenario !== undefined && renamedScenarioOrigins.get(newScenario) === oldScenario);
+  const priorEvidenceModeByScenario = new Map<string | undefined, 'live' | 'manual'>();
+  for (const state of oldStates) {
+    if (state.step === 'RED' && state.checked && state.evidenceMode !== undefined) {
+      priorEvidenceModeByScenario.set(state.scenario, state.evidenceMode);
+    }
+  }
+  const withPriorEvidenceMode = (state: CheckboxState): CheckboxState => ({
+    ...state,
+    evidenceMode: priorEvidenceModeByScenario.get(state.scenario),
+  });
   const scenarioHeadingCounts = new Map<string, number>();
   let fenced = false;
   for (const line of newText.split('\n')) {
@@ -89,14 +132,27 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
   const unmatched: CheckboxState[] = [];
   const transitions: CheckboxTransition[] = [];
 
-  const priorCheckedRed = oldStates.filter(state => state.step === 'RED' && state.checked).length;
-  const nextCheckedRed = newStates.filter(state => state.step === 'RED' && state.checked).length;
-  if (nextCheckedRed < priorCheckedRed) {
-    transitions.push({
-      step: 'RED',
-      annotation: '',
-      historicalEvidenceRemoved: true,
-    });
+  const preservedCheckedRed = new Set<number>();
+  for (const oldState of oldStates.filter(
+    state => state.step === 'RED' && state.checked && state.annotation !== '',
+  )) {
+    const preservedIndex = newStates.findIndex(
+      (newState, index) =>
+        !preservedCheckedRed.has(index) &&
+        newState.step === 'RED' &&
+        newState.checked &&
+        newState.annotation === oldState.annotation &&
+        sameScenario(oldState.scenario, newState.scenario),
+    );
+    if (preservedIndex >= 0) preservedCheckedRed.add(preservedIndex);
+    else {
+      transitions.push({
+        step: 'RED',
+        annotation: '',
+        scenario: oldState.scenario,
+        historicalEvidenceRemoved: true,
+      });
+    }
   }
 
   const consumeOld = (
@@ -109,7 +165,7 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
         !usedOld.has(candidate) &&
         old.checked === checked &&
         old.step === state.step &&
-        (!exactScenario || old.scenario === state.scenario),
+        (!exactScenario || sameScenario(old.scenario, state.scenario)),
     );
     if (index < 0) return undefined;
     usedOld.add(index);
@@ -130,7 +186,8 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
 
   const scenarioChanged: CheckboxState[] = [];
   for (const state of unmatched) {
-    if (consumeOld(state, false, true) !== undefined) transitions.push(state);
+    if (consumeOld(state, false, true) !== undefined)
+      transitions.push(withPriorEvidenceMode(state));
     else scenarioChanged.push(state);
   }
 
@@ -139,7 +196,8 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
     if (movedChecked !== undefined) {
       // Existing GREEN credit cannot silently move to a different scenario;
       // its receipt was approved for the original binding.
-      if (state.step === 'GREEN') transitions.push({ ...state, scenario: undefined });
+      if (state.step === 'GREEN')
+        transitions.push(withPriorEvidenceMode({ ...state, scenario: undefined }));
       continue;
     }
     // A checked recognized row with no old counterpart is still new credit.
@@ -148,7 +206,11 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
     // Moving an unchecked row under another scenario while checking it must not
     // let the edit choose an already-approved scenario. Withhold the binding so
     // the executable-RED gate denies the combined boundary change.
-    transitions.push(movedUnchecked === undefined ? state : { ...state, scenario: undefined });
+    transitions.push(
+      withPriorEvidenceMode(
+        movedUnchecked === undefined ? state : { ...state, scenario: undefined },
+      ),
+    );
   }
 
   return transitions.map(
@@ -173,7 +235,11 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
   );
 }
 
-function applyUniqueEdit(current: string, oldText: string, newText: string): string | undefined {
+export function applyUniqueEdit(
+  current: string,
+  oldText: string,
+  newText: string,
+): string | undefined {
   if (oldText === '') return undefined;
   const matchIndex = current.indexOf(oldText);
   if (matchIndex < 0 || current.indexOf(oldText, matchIndex + 1) >= 0) return undefined;
