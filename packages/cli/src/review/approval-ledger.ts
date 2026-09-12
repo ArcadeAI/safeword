@@ -48,6 +48,13 @@ const LOCK_TIMEOUT_MS = 2000;
 const LOCK_LEASE_MS = 10_000;
 const waiter = new Int32Array(new SharedArrayBuffer(4));
 
+function lockTimeoutMs(): number {
+  const configured = Number(process.env.SAFEWORD_APPROVAL_LOCK_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured >= 1 && configured <= 30_000
+    ? configured
+    : LOCK_TIMEOUT_MS;
+}
+
 function decisionMarker(line: string): number {
   return line.indexOf(' design-decision:');
 }
@@ -170,7 +177,7 @@ function tryReclaim(lockPath: string, owner: LockOwner | undefined): void {
 }
 
 function acquireLock(lockPath: string): LockOwner | undefined {
-  const deadline = Date.now() + LOCK_TIMEOUT_MS;
+  const deadline = Date.now() + lockTimeoutMs();
   while (Date.now() <= deadline) {
     const owner: LockOwner = {
       leaseExpiresAt: Date.now() + LOCK_LEASE_MS,
