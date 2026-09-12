@@ -26,39 +26,39 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The observed Need paragraph cannot borrow its recommendation from earlier prose
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: shared terminal-only parser was driven red by the observed Next omission
+- [x] GREEN 386846062
+- [x] REFACTOR skip: Need and Next share the same terminal-only parser
 
 ### Scenario: An unexplained necessary term makes a decision incomplete
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: marked-term branch was added within the reviewed semantic parser slice
+- [x] GREEN 386846062
+- [x] REFACTOR skip: term validation is one bounded clause check
 
 ### Scenario: An explained necessary term remains usable in a decision
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: paired marked-term rejection supplied the discriminating failure
+- [x] GREEN 386846062
+- [x] REFACTOR skip: accepted and rejected terms share one parser branch
 
 ### Scenario: Each required decision role is independently enforced for Next and Need
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: observed omission drove all five missing roles red together
+- [x] GREEN 386846062
+- [x] REFACTOR skip: roles are table-driven through one requirement map
 
 ### Scenario: Present decision roles cannot use content-free back-references
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: content-floor validation is part of the reviewed semantic parser slice
+- [x] GREEN 386846062
+- [x] REFACTOR skip: all roles share one normalized content predicate
 
 ### Scenario: A decision paragraph cannot present two unrelated choices
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: duplicate role cardinality is part of the reviewed semantic parser slice
+- [x] GREEN 386846062
+- [x] REFACTOR skip: cardinality uses the same parsed clause collection
 
 ## Rule: Routine handoffs stay concise
 
