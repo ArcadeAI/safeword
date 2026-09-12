@@ -356,6 +356,12 @@ record invalidation, provenance changes, and context-digest recomputation.
 - [x] GREEN b03466f66
 - [x] REFACTOR skip: timeout validation is isolated at lock acquisition and the pending path already shares the command's fail-closed result
 
+### Scenario: Embedded decision markers remain authority-inert
+
+- [x] RED 8c8a663b9
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A design decision preserves compatible approval-ledger extensions
 
 - [x] RED skip: byte preservation was part of the atomic concurrent-writer design implemented in 426ccbf7e; 2166a951b adds its explicit installed-CLI regression
