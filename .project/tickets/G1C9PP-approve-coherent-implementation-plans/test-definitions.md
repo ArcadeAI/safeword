@@ -289,8 +289,8 @@ nonblocking behavior at the canonical CLI boundary.
 ### Scenario: An accepted design enters Execution Planning
 
 - [x] RED 9f8e32f3c
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 063f17852
+- [x] REFACTOR 063f17852
 
 ### Scenario: A review-blocked design is never presented for human approval
 
