@@ -23,6 +23,16 @@ export interface MeasurementDesignFixture {
   readonly instrumentationCommands: boolean;
 }
 
+export interface MeasurementApplicabilityFixture {
+  readonly state: 'missing' | 'bare-skip' | 'justified-skip';
+}
+
+const MEASUREMENT_APPLICABILITY_REQUIREMENTS = [
+  /no quantitative promise.+measurement applicability/iu,
+  /skip: <reason>/iu,
+  /block.+missing.+bare skip/iu,
+] as const;
+
 type Finding = { severity: 'error'; message: string };
 
 function contractFindings(contract: string): Finding[] {
@@ -79,6 +89,40 @@ export function reviewMeasurementDesign(
       findings.length === 0
         ? 'Measurement design ownership is clear.'
         : 'Measurement design needs changes.',
+    findings,
+  };
+}
+
+export function reviewMeasurementApplicability(
+  contract: string,
+  fixture: MeasurementApplicabilityFixture,
+): ReviewerOutput {
+  const clause = obligationClause(contract, MEASUREMENT_DESIGN_OBLIGATION)?.replaceAll(
+    /\s+/gu,
+    ' ',
+  );
+  const missingRequirements = MEASUREMENT_APPLICABILITY_REQUIREMENTS.filter(
+    requirement => clause === undefined || !requirement.test(clause),
+  );
+  const findings: Finding[] = missingRequirements.map((_, index) => ({
+    severity: 'error',
+    message: `Measurement applicability is missing contract requirement ${index + 1}.`,
+  }));
+  if (findings.length === 0 && fixture.state === 'missing') {
+    findings.push({ severity: 'error', message: 'Measurement applicability must be explicit.' });
+  }
+  if (findings.length === 0 && fixture.state === 'bare-skip') {
+    findings.push({ severity: 'error', message: 'The measurement skip must be justified.' });
+  }
+  return {
+    schema_version: 1,
+    dispatch_id: createHash('sha256').update(contract).digest('hex'),
+    reviewer_agent: 'claude',
+    verdict: findings.length === 0 ? 'approve' : 'request_changes',
+    summary:
+      findings.length === 0
+        ? 'Measurement applicability is explicit.'
+        : 'Measurement applicability needs changes.',
     findings,
   };
 }

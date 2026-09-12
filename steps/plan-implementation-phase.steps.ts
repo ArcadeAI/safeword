@@ -62,7 +62,9 @@ import {
   reviewDecisionDepth,
 } from '../packages/cli/tests/fixtures/plan-decision-depth.ts';
 import {
+  type MeasurementApplicabilityFixture,
   type MeasurementDesignFixture,
+  reviewMeasurementApplicability,
   reviewMeasurementDesign,
 } from '../packages/cli/tests/fixtures/plan-measurement-design.ts';
 import type { ReviewerOutput } from '../packages/cli/src/review/contract.ts';
@@ -193,6 +195,8 @@ interface PlanWorld extends SafewordWorld {
   decisionDepthReview?: ReviewerOutput;
   measurementDesign?: MeasurementDesignFixture;
   measurementDesignReview?: ReviewerOutput;
+  measurementApplicability?: MeasurementApplicabilityFixture;
+  measurementApplicabilityReview?: ReviewerOutput;
 }
 
 const EVIDENCE_REFERENCE = 'https://spec.commonmark.org/0.31.2/';
@@ -1214,6 +1218,20 @@ Given(
 );
 
 Given(
+  /^the Product Plan makes no quantitative promise and the Implementation Plan (.+)$/u,
+  function (this: PlanWorld, applicabilityState: string) {
+    const states: Record<string, MeasurementApplicabilityFixture['state']> = {
+      'records no measurement-design applicability decision': 'missing',
+      'records a bare applicability skip with no reason': 'bare-skip',
+      'records a justified measurement-design applicability skip': 'justified-skip',
+    };
+    const state = states[applicabilityState];
+    assert.ok(state, `unknown measurement applicability state: ${applicabilityState}`);
+    this.measurementApplicability = { state };
+  },
+);
+
+Given(
   /^real project configuration resolves its durable architecture location as (.+)$/u,
   function (this: PlanWorld, architectureLocation: string) {
     createProject(this);
@@ -1468,6 +1486,13 @@ When('its decision review runs', function (this: PlanWorld) {
 
 When('the Implementation Plan is reviewed', function (this: PlanWorld) {
   const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  if (this.measurementApplicability !== undefined) {
+    this.measurementApplicabilityReview = reviewMeasurementApplicability(
+      contract,
+      this.measurementApplicability,
+    );
+    return;
+  }
   if (this.measurementDesign !== undefined) {
     this.measurementDesignReview = reviewMeasurementDesign(contract, this.measurementDesign);
     return;
@@ -2088,10 +2113,11 @@ Then(
 );
 
 Then('measurement design does not block approval', function (this: PlanWorld) {
+  const review = this.measurementApplicabilityReview ?? this.measurementDesignReview;
   assert.equal(
-    this.measurementDesignReview?.verdict,
+    review?.verdict,
     'approve',
-    this.measurementDesignReview?.findings.map(finding => finding.message).join('\n'),
+    review?.findings.map(finding => finding.message).join('\n'),
   );
 });
 
@@ -2111,6 +2137,22 @@ Then('approval is blocked with the missing validity decision named', function (t
   assert.match(
     this.measurementDesignReview?.findings.map(finding => finding.message).join('\n') ?? '',
     /missing validity decision/iu,
+  );
+});
+
+Then('approval is blocked until measurement applicability is explicit', function (this: PlanWorld) {
+  assert.equal(this.measurementApplicabilityReview?.verdict, 'request_changes');
+  assert.match(
+    this.measurementApplicabilityReview?.findings.map(finding => finding.message).join('\n') ?? '',
+    /measurement applicability.+explicit/iu,
+  );
+});
+
+Then('approval is blocked until the measurement skip is justified', function (this: PlanWorld) {
+  assert.equal(this.measurementApplicabilityReview?.verdict, 'request_changes');
+  assert.match(
+    this.measurementApplicabilityReview?.findings.map(finding => finding.message).join('\n') ?? '',
+    /measurement skip.+justified/iu,
   );
 });
 
