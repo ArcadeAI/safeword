@@ -56,6 +56,11 @@ import {
   type PlanStateFixture,
   reviewPlanState,
 } from '../packages/cli/tests/fixtures/plan-state-truthfulness.ts';
+import {
+  decisionDepthFixture,
+  type DecisionDepthFixture,
+  reviewDecisionDepth,
+} from '../packages/cli/tests/fixtures/plan-decision-depth.ts';
 import type { ReviewerOutput } from '../packages/cli/src/review/contract.ts';
 import { reviewPlanOfRecord } from '../packages/cli/tests/fixtures/plan-single-record.ts';
 import { git } from './support/repo-fixtures.ts';
@@ -180,6 +185,8 @@ interface PlanWorld extends SafewordWorld {
   personaInventoryReview?: ReviewerOutput;
   planState?: PlanStateFixture;
   planStateReview?: ReviewerOutput;
+  decisionDepth?: DecisionDepthFixture;
+  decisionDepthReview?: ReviewerOutput;
 }
 
 const EVIDENCE_REFERENCE = 'https://spec.commonmark.org/0.31.2/';
@@ -1159,6 +1166,13 @@ Given(
 );
 
 Given(
+  /^an architecturally significant workflow changes (.+) and the Implementation Plan records (.+)$/u,
+  function (this: PlanWorld, concern: string, decisionDetail: string) {
+    this.decisionDepth = decisionDepthFixture(concern, decisionDetail);
+  },
+);
+
+Given(
   /^real project configuration resolves its durable architecture location as (.+)$/u,
   function (this: PlanWorld, architectureLocation: string) {
     createProject(this);
@@ -1413,6 +1427,10 @@ When('its decision review runs', function (this: PlanWorld) {
 
 When('the Implementation Plan is reviewed', function (this: PlanWorld) {
   const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  if (this.decisionDepth !== undefined) {
+    this.decisionDepthReview = reviewDecisionDepth(contract, this.decisionDepth);
+    return;
+  }
   if (this.planState !== undefined) {
     this.planStateReview = reviewPlanState(contract, this.planState);
     return;
@@ -2001,6 +2019,28 @@ Then('state truthfulness does not block approval', function (this: PlanWorld) {
     this.planStateReview?.findings.map(finding => finding.message).join('\n'),
   );
 });
+
+Then('decision depth does not block approval', function (this: PlanWorld) {
+  assert.equal(
+    this.decisionDepthReview?.verdict,
+    'approve',
+    this.decisionDepthReview?.findings.map(finding => finding.message).join('\n'),
+  );
+});
+
+Then(
+  /^approval is blocked with (the missing evidence model|the missing authority decision|atomicity boundary and retry behavior|the missing lifecycle evidence model|crash boundary, retry behavior, and compatibility policy|cutover boundary, retry behavior, and preserved interoperability evidence) named$/u,
+  function (this: PlanWorld, missing: string) {
+    assert.equal(this.decisionDepthReview?.verdict, 'request_changes');
+    const messages =
+      this.decisionDepthReview?.findings.map(finding => finding.message).join('\n') ?? '';
+    const expected = missing
+      .replace(/^the missing /u, '')
+      .split(/, and | and |, /u)
+      .map(value => value.trim());
+    for (const field of expected) assert.match(messages, new RegExp(field, 'iu'));
+  },
+);
 
 Then(
   /^blocked by the structural check with the missing (evidence reference|applicable version|retrieval date) named$/u,
