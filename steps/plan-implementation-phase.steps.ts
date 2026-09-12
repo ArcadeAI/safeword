@@ -1087,6 +1087,24 @@ Given(
 );
 
 Given(
+  'a failed review addressed to a Non-Technical Builder because a shared-contract choice has no durable architecture link',
+  function (this: PlanWorld) {
+    createProject(this);
+    installProjectHooks(this);
+    seedTicket(this, { phase: 'plan-implementation', spec: true });
+    writeFileSync(ticketArtifact(this, 'impl-plan.md'), VALID_PLAN);
+    this.reviewerBinDirectory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'plan-receipt-'));
+    chmodSync(this.reviewerBinDirectory, 0o700);
+    const reviewer = nodePath.join(this.reviewerBinDirectory, 'claude');
+    writeFileSync(
+      reviewer,
+      `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then\n  echo '${REVIEWER_CAPABILITIES.claude}'\n  exit 0\nfi\npayload=$(/bin/cat)\ndispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"The architecture decision needs attention.","findings":[{"severity":"error","message":"The shared-contract choice needs a resolvable durable architecture record; impl-plan.md has no configured architecture link."}]}\\n' "$dispatch_id"\n`,
+    );
+    chmodSync(reviewer, 0o755);
+  },
+);
+
+Given(
   /^real project configuration resolves its durable architecture location as (.+)$/u,
   function (this: PlanWorld, architectureLocation: string) {
     createProject(this);
@@ -1501,6 +1519,41 @@ When(
   },
 );
 
+When(
+  'the installed Safeword CLI presents the review receipt through real internal collaborators',
+  SUBPROCESS,
+  function (this: PlanWorld) {
+    assert.ok(this.installedCliPath, 'the packaged Safeword CLI was not installed');
+    assert.ok(this.reviewerBinDirectory, 'the deterministic reviewer was not arranged');
+    const result = spawnSync(
+      'bun',
+      [
+        this.installedCliPath,
+        'review',
+        'run',
+        'plan-implementation',
+        '--',
+        nodePath.relative(this.projectDirectory!, ticketArtifact(this, 'impl-plan.md')),
+      ],
+      {
+        cwd: this.projectDirectory,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: this.projectDirectory,
+          NODE_ENV: 'test',
+          PATH: `${this.reviewerBinDirectory}:${process.env.PATH ?? ''}`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+        },
+      },
+    );
+    this.cli = {
+      exitCode: result.status ?? 1,
+      output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim(),
+    };
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Whens — document reads
 // ---------------------------------------------------------------------------
@@ -1822,6 +1875,32 @@ Then(/^the receipt records (.+)$/u, function (this: PlanWorld, receiptResult: st
     /step-by-step coding instructions/iu,
   );
 });
+
+Then(
+  'its first user-visible sentence says the shared-contract choice needs an architecture record and its recovery line tells them to add that link before resubmitting, with neither line containing phase names, review identifiers, contract digests, or internal type names',
+  function (this: PlanWorld) {
+    const lines = this.cli?.output
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+    assert.ok(
+      lines && lines.length >= 2,
+      `installed CLI returned no layered receipt:\n${this.cli?.output}`,
+    );
+    const firstSentence = lines[0] ?? '';
+    const recoveryLine = lines.find(line => /^Recovery:/u.test(line)) ?? '';
+    assert.match(
+      firstSentence,
+      /shared-contract choice needs (?:a durable )?architecture record/iu,
+    );
+    assert.match(recoveryLine, /add.+architecture link.+before resubmitting/iu);
+    const nonTechnicalLines = `${firstSentence}\n${recoveryLine}`;
+    assert.doesNotMatch(
+      nonTechnicalLines,
+      /plan-implementation|plan-execution|review[_ -]?id|dispatch[_ -]?id|sha-?256|digest|ReviewerOutput|CliResult/iu,
+    );
+  },
+);
 
 Then(
   /^blocked by the structural check with the missing (evidence reference|applicable version|retrieval date) named$/u,
