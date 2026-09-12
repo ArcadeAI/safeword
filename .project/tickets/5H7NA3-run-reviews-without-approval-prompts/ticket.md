@@ -155,3 +155,10 @@ receive scheduling headroom; scenarios whose subject is a short timeout set that
   1,499-scenario acceptance pass, then exposed an underfunded review-fixture deadline in the repeated
   acceptance lane. Root cause and ruled-out alternatives are recorded above; fixture budgets were
   separated by intended behavior before restarting verification.
+- 2026-09-12T16:35:00Z Full repository audit: Ran every repository-scope audit block after the clean
+  verification run. Config reconciliation, principle traces, domain references, architecture, docs,
+  learning metadata, and the 20-file test-quality sample are clean. Fixed the Go experiment grader's
+  formatter/linter findings and updated the three low-risk outdated development tools (ESLint, Knip,
+  and lint-staged); lint, typecheck, Go checks, and the dependency audit are green. Knip's remaining
+  archive/experiment/API findings and jscpd's generated-surface clones are the documented repository
+  baseline, not deletions safe to infer from static discovery.
