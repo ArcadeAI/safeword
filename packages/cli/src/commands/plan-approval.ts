@@ -19,6 +19,7 @@ import {
   reviewScope,
 } from '../../templates/hooks/lib/review-ledger.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { reviewJobStatus } from '../review/job.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
@@ -85,7 +86,30 @@ function currentReview(context: ApprovalContext): { ok: true } | { ok: false; re
     hashArtifact(context.plan),
   );
   const ledger = existsSync(context.ledgerPath) ? readFileSync(context.ledgerPath, 'utf8') : '';
-  return gatePhaseAdvance(scope, parseReviewStamps(ledger));
+  const review = gatePhaseAdvance(scope, parseReviewStamps(ledger));
+  if (review.ok) return review;
+  return { ok: false, reason: currentReviewFinding(context) ?? review.reason };
+}
+
+function currentReviewFinding(context: ApprovalContext): string | undefined {
+  const review = reviewJobStatus(context.cwd);
+  const data =
+    typeof review.data === 'object' && review.data !== null && !Array.isArray(review.data)
+      ? (review.data as Record<string, unknown>)
+      : undefined;
+  if (data?.review_kind !== 'plan-implementation' || !Array.isArray(data.review_targets)) {
+    return undefined;
+  }
+  const reviewsCurrentPlan = data.review_targets.some(
+    target =>
+      typeof target === 'string' &&
+      nodePath.resolve(context.cwd, target) === nodePath.resolve(context.planPath),
+  );
+  if (!reviewsCurrentPlan) return undefined;
+  const findings = review.findings.map(finding => finding.message).filter(Boolean);
+  return findings.length > 0
+    ? `Implementation Plan review is blocked: ${findings.join(' ')}`
+    : undefined;
 }
 
 function appendReceipt(context: ApprovalContext, status: ApprovalStatus): void {
