@@ -118,7 +118,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A short conversational answer is outside the terminal-handoff contract
 
-- [ ] RED
+- [x] RED c7b2da4fb
 - [ ] GREEN
 - [ ] REFACTOR
 
