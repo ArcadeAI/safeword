@@ -289,7 +289,7 @@ nonblocking behavior at the canonical CLI boundary.
 ### Scenario: Implementation Planning exits through the canonical approval boundary
 
 - [x] RED f9d832a6c
-- [ ] GREEN
+- [x] GREEN cb285bee7
 - [ ] REFACTOR
 
 ### Scenario: A declined design returns to Implementation Planning
