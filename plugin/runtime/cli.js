@@ -31218,6 +31218,13 @@ records as context around the one \`impl-plan.md\` work artifact.
   approval. When an implementation defect contradicts a proposed decision,
   require the plan to label both states separately. Require an absent behavior
   to remain labeled proposed even when another accepted behavior is implemented.
+- **Significant workflow decision depth:** For durable state, authorization,
+  concurrent state transitions, lifecycle-scheduled deletion, migration, and
+  compatibility, require the applicable state model, transition or change
+  authority, atomicity boundary, retry behavior, and preserved evidence model.
+  Also make each applicable crash boundary, cutover boundary, and compatibility
+  policy explicit. Block approval and name every missing decision for the
+  applicable concern rather than accepting a component label as a design.
 - **Deviations and change triggers:** Intentional conflicts belong in Known
   deviations with a reason. Assessment triggers must name evidence that would
   justify revisiting a load-bearing choice.
