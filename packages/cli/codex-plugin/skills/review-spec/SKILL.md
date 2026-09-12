@@ -68,6 +68,9 @@ limitation naming what went unchecked, and a gate that never read `out_of_scope`
 has not cleared scope. Omit optional paths that do not exist; preserve the path
 and content of optional files that do exist, even when their content is blank.
 Refuse dispatch when `spec.md` is absent, blank, or not the first context file.
+Context identity comes from each supplied path and basename, not a shifting
+optional position: `ticket.md`, parent `spec.md`, dimensions, principles,
+personas, and surfaces remain distinguishable when an optional file is omitted.
 Source checkouts do not guarantee a bare `safeword` on `PATH`:
 
 ```bash
