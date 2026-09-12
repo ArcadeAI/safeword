@@ -23,4 +23,27 @@ describe('terminal handoff contract', () => {
       examinedCharacters: expect.any(Number),
     });
   });
+
+  it('rejects the observed Next omission with every absent decision role named', () => {
+    const reply = [
+      'Verification is available now. I can run it, or I can scaffold the next feature first.',
+      '**CONFIDENT** — The implementation is complete and needs a direction for the next step.',
+      '**Decided:** Keep the current change intact.',
+      '**Open:** Choose whether to verify or scaffold next.',
+      '**Next:** Choose the intended target.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: false,
+      contractVersion: 'terminal-handoff/v1',
+      form: 'decision',
+      requirements: [
+        'concrete choice',
+        'recommendation',
+        'controlling reason',
+        'material tradeoff or consequences',
+        'exact reply',
+      ],
+    });
+  });
 });

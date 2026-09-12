@@ -10,6 +10,7 @@ interface HandoffState {
   evaluation?: ReturnType<typeof evaluateDecisionBriefCompliance> & {
     contractVersion?: string;
     form?: string;
+    requirements?: string[];
   };
 }
 
@@ -36,6 +37,19 @@ Given(
   },
 );
 
+Given(
+  'the observed pre-contract long reply that mixes a verify-or-scaffold choice, a legacy Open value, and an incomplete Next paragraph',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = [
+      'Verification is available now. I can run it, or I can scaffold the next feature first.',
+      '**CONFIDENT** — The implementation is complete and needs a direction for the next step.',
+      '**Decided:** Keep the current change intact.',
+      '**Open:** Choose whether to verify or scaffold next.',
+      '**Next:** Choose the intended target.',
+    ].join('\n\n');
+  },
+);
+
 When(
   'the shared deterministic terminal-handoff evaluator checks the reply',
   function (this: SafewordWorld) {
@@ -53,3 +67,19 @@ Then('the decision handoff is accepted as self-contained', function (this: Safew
     examinedCharacters: stateFor(this).evaluation?.examinedCharacters,
   });
 });
+
+Then(
+  'the decision handoff is rejected with the missing decision roles named',
+  function (this: SafewordWorld) {
+    const evaluation = stateFor(this).evaluation;
+    assert.equal(evaluation?.compliant, false);
+    assert.equal(evaluation?.form, 'decision');
+    assert.deepEqual(evaluation?.requirements, [
+      'concrete choice',
+      'recommendation',
+      'controlling reason',
+      'material tradeoff or consequences',
+      'exact reply',
+    ]);
+  },
+);
