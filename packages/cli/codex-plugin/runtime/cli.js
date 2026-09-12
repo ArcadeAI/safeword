@@ -66021,6 +66021,9 @@ function lockStillOwned(lockPath, fencePath, owner) {
     return false;
   }
 }
+function staleFenceForTest(fencePath, generation) {
+  if (false) {}
+}
 function appendDesignDecision(ledgerPath, identity) {
   mkdirSync22(nodePath120.dirname(ledgerPath), { recursive: true });
   const lockPath = `${ledgerPath}.approval-lock`;
@@ -66042,6 +66045,7 @@ function appendDesignDecision(ledgerPath, identity) {
     const owned = { ...owner, generation };
     writeFileSync28(lockPath, `${JSON.stringify(owned)}
 `, { mode: 384 });
+    staleFenceForTest(fencePath, generation);
     if (!lockStillOwned(lockPath, fencePath, owned))
       return { status: "pending" };
     const appendPosition = Math.max(0, ...events.map((event2) => event2.appendPosition)) + 1;
