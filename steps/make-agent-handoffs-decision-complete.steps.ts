@@ -7,6 +7,7 @@ import type { SafewordWorld } from './world.js';
 
 interface HandoffState {
   reply?: string;
+  substantiveEvidence?: 'current-turn-tool' | 'none';
   evaluation?: ReturnType<typeof evaluateDecisionBriefCompliance> & {
     contractVersion?: string;
     form?: string;
@@ -250,15 +251,42 @@ Given(
   'an answer with no structured verdict and no observable current-turn work',
   function (this: SafewordWorld) {
     stateFor(this).reply = 'Yes — that setting is already enabled.';
+    stateFor(this).substantiveEvidence = 'none';
   },
 );
+
+Given(
+  'a reply carrying a structured verdict, no described current-turn work, and no terminal paragraph',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = '**CONFIDENT** — The change is complete.';
+  },
+);
+
+Given(
+  'a brief reply that reports completed work and ends with no Next or Need paragraph',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = 'Updated the release configuration.';
+    stateFor(this).substantiveEvidence = 'current-turn-tool';
+  },
+);
+
+Given('a work result ending in an empty Next paragraph', function (this: SafewordWorld) {
+  stateFor(this).reply = [
+    '**CONFIDENT** — The change is complete.',
+    '**Decided:** Keep the focused implementation.',
+    '**Open:** none.',
+    '**Next:**',
+  ].join('\n\n');
+});
 
 When(
   'the shared deterministic terminal-handoff evaluator checks the reply',
   function (this: SafewordWorld) {
     const state = stateFor(this);
     assert.ok(state.reply, 'reply fixture was not initialized');
-    state.evaluation = evaluateDecisionBriefCompliance(state.reply);
+    state.evaluation = evaluateDecisionBriefCompliance(state.reply, undefined, {
+      substantiveEvidence: state.substantiveEvidence,
+    });
   },
 );
 
@@ -379,3 +407,15 @@ Then(
     assert.equal(evaluation?.violation, undefined);
   },
 );
+
+Then('the handoff is rejected as missing', function (this: SafewordWorld) {
+  const evaluation = stateFor(this).evaluation;
+  assert.equal(evaluation?.compliant, false);
+  assert.ok(evaluation?.requirements?.includes('terminal paragraph'));
+});
+
+Then('the handoff is rejected as empty', function (this: SafewordWorld) {
+  const evaluation = stateFor(this).evaluation;
+  assert.equal(evaluation?.compliant, false);
+  assert.ok(evaluation?.requirements?.includes('terminal paragraph'));
+});

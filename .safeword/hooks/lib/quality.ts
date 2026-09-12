@@ -133,6 +133,12 @@ export const DECISION_BRIEF_CONTRACT = renderDecisionBriefContract();
 export const TERMINAL_HANDOFF_CONTRACT_VERSION = 'terminal-handoff/v1';
 
 export type TerminalHandoffForm = 'decision' | 'action' | 'outside';
+export type TerminalHandoffSubstantiveEvidence =
+  'structured-verdict' | 'current-turn-tool' | 'current-turn-edit' | 'none';
+
+export interface TerminalHandoffEvaluationOptions {
+  substantiveEvidence?: TerminalHandoffSubstantiveEvidence;
+}
 
 export const TERMINAL_HANDOFF_DECISION_REQUIREMENTS = [
   'concrete choice',
@@ -148,6 +154,7 @@ export type TerminalHandoffRequirement =
   | 'one essential reason'
   | 'concise action form'
   | 'no extra context'
+  | 'terminal paragraph'
   | 'plain-language meaning';
 
 export interface DecisionBriefCompliance {
@@ -288,7 +295,9 @@ function missingActionRequirements(terminalValue: string): TerminalHandoffRequir
   const requirements: TerminalHandoffRequirement[] = [];
   const actions = clauses.filter(clause => clause.role === 'Action');
   const reasons = clauses.filter(clause => clause.role === 'Reason');
-  const decisionRoles = clauses.filter(clause => clause.role in DECISION_ROLE_REQUIREMENT);
+  const decisionRoles = clauses.filter(
+    clause => clause.role !== 'Reason' && clause.role in DECISION_ROLE_REQUIREMENT,
+  );
 
   const actionValue = actions[0]?.value ?? '';
   if (actions.length !== 1 || !actionIsConcrete(actionValue)) {
@@ -544,6 +553,7 @@ function scanTopLevelParagraphs(reply: string): ParagraphScan {
 export function evaluateDecisionBriefCompliance(
   reply: string,
   grammar = DECISION_BRIEF_GRAMMAR,
+  options: TerminalHandoffEvaluationOptions = {},
 ): DecisionBriefCompliance {
   const scan = scanTopLevelParagraphs(reply);
   let examinedCharacters = scan.examinedCharacters;
@@ -568,8 +578,16 @@ export function evaluateDecisionBriefCompliance(
     const verdict = match?.[1];
     return verdict && Object.hasOwn(grammar.variants, verdict) ? [{ index, verdict }] : [];
   });
+  const substantiveEvidence = options.substantiveEvidence ?? 'none';
+  if (verdicts.length === 0 && substantiveEvidence === 'none') {
+    return result(true);
+  }
   if (verdicts.length !== 1) {
-    return result(false, { kind: 'verdict-count', count: verdicts.length });
+    return result(
+      false,
+      { kind: 'verdict-count', count: verdicts.length },
+      verdicts.length === 0 ? ['terminal paragraph'] : undefined,
+    );
   }
 
   const verdictEntry = verdicts[0];
@@ -599,6 +617,7 @@ export function evaluateDecisionBriefCompliance(
   });
   const variant = grammar.variants[verdict as keyof DecisionBriefGrammar['variants']];
   if (!variant) return result(false, { kind: 'verdict-count', count: 0 });
+  const terminalLabel = variant.terminalLabel;
   const sequences = variant.paragraphs.reduce<string[][]>(
     (variants, paragraph) => [
       ...variants.map(sequence => [...sequence, paragraph.label]),
@@ -610,15 +629,21 @@ export function evaluateDecisionBriefCompliance(
     sequence =>
       labels.length === sequence.length && labels.every((label, i) => label === sequence[i]),
   );
-  if (!compliant) return result(false, { kind: 'label-sequence', verdict });
+  if (!compliant) {
+    return result(
+      false,
+      { kind: 'label-sequence', verdict },
+      labels.includes(terminalLabel) ? undefined : ['terminal paragraph'],
+    );
+  }
   if (grammar !== DECISION_BRIEF_GRAMMAR) return result(true);
 
   const terminalParagraph = paragraphs.at(-1)?.text ?? '';
-  const terminalLabel = grammar.variants[verdict].terminalLabel;
   const terminalValue = terminalParagraph.replace(
     new RegExp(`^\\*\\*${terminalLabel}:\\*\\*\\s*`, 'u'),
     '',
   );
+  if (terminalValue.trim() === '') return result(false, undefined, ['terminal paragraph']);
   if (form === 'decision') {
     const requirements = missingDecisionRequirements(terminalValue);
     return requirements.length > 0 ? result(false, undefined, requirements) : result(true);
