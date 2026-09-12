@@ -31212,6 +31212,12 @@ records as context around the one \`impl-plan.md\` work artifact.
   persona or consequence is omitted, and name the uncovered persona, need, and
   design consequence. Every affected surface needs credible proof or an explicit
   justified skip.
+- **Plan-state truthfulness:** Distinguish proposed decisions, implemented facts,
+  available proof, known defects, and pending human authority. Implementation is
+  not proof; proof is not human authority; independent review is not human
+  approval. When an implementation defect contradicts a proposed decision,
+  require the plan to label both states separately. Require an absent behavior
+  to remain labeled proposed even when another accepted behavior is implemented.
 - **Deviations and change triggers:** Intentional conflicts belong in Known
   deviations with a reason. Assessment triggers must name evidence that would
   justify revisiting a load-bearing choice.
