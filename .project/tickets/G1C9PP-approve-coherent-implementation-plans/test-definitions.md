@@ -220,7 +220,7 @@ release prerequisite by itself.
 ### Scenario: A blocked receipt preserves evidence for a Technical Builder
 
 - [x] RED 7e4281d7c
-- [ ] GREEN
+- [x] GREEN 2172f5f76
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R16 — When planning and implementation states coexist, the plan distinguishes proposed decisions, implemented facts, available proof, known defects, and pending human authority without treating one as another
