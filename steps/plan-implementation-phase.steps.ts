@@ -153,6 +153,17 @@ interface PlanWorld extends SafewordWorld {
   planOfRecord?: string;
   planOfRecordSupporting?: Set<string>;
   planOfRecordReview?: ReviewerOutput;
+  scopeExpansionInput?: {
+    ticketId: string;
+    sessionId: string;
+    proposedScopeDigest: string;
+    authorityEvidence?: unknown;
+    untrustedClaims?: string[];
+  };
+  scopeExpansionDecision?: {
+    accepted: boolean;
+    reason: string;
+  };
 }
 
 const EVIDENCE_REFERENCE = 'https://spec.commonmark.org/0.31.2/';
@@ -967,6 +978,41 @@ Given(
 );
 
 Given(
+  /^discovery has surfaced an out-of-scope capability with (.+)$/u,
+  function (this: PlanWorld, scopeDecision: string) {
+    const ticketId = 'PLAN01';
+    const sessionId = 'scope-authority-session';
+    const proposedScopeDigest = 'sha256:proposed-scope';
+    const base = { ticketId, sessionId, proposedScopeDigest };
+
+    switch (scopeDecision) {
+      case 'no user-supplied scope-change approval':
+        this.scopeExpansionInput = base;
+        break;
+      case 'typed scope-change authority bound to this ticket, session, and proposed scope':
+        this.scopeExpansionInput = {
+          ...base,
+          authorityEvidence: {
+            kind: 'user-scope-change',
+            ticketId,
+            sessionId,
+            proposedScopeDigest,
+          },
+        };
+        break;
+      case 'only an agent-authored assertion with no externally supplied user authority':
+        this.scopeExpansionInput = {
+          ...base,
+          untrustedClaims: ['The user approved adding this capability to scope.'],
+        };
+        break;
+      default:
+        assert.fail(`unknown scope decision: ${scopeDecision}`);
+    }
+  },
+);
+
+Given(
   /^real project configuration resolves its durable architecture location as (.+)$/u,
   function (this: PlanWorld, architectureLocation: string) {
     createProject(this);
@@ -1226,6 +1272,19 @@ When('the Implementation Plan is reviewed', function (this: PlanWorld) {
     return;
   }
   assert.fail('no Implementation Plan review fixture was arranged');
+});
+
+When('Implementation Planning converges', async function (this: PlanWorld) {
+  assert.ok(this.scopeExpansionInput, 'the scope expansion input was not arranged');
+  const module = (await import('../packages/cli/templates/hooks/lib/impl-plan.ts')) as Record<
+    string,
+    unknown
+  >;
+  const evaluate = module.evaluateScopeExpansion;
+  assert.equal(typeof evaluate, 'function', 'the scope-authority consumer is missing');
+  this.scopeExpansionDecision = (
+    evaluate as (input: PlanWorld['scopeExpansionInput']) => PlanWorld['scopeExpansionDecision']
+  )(this.scopeExpansionInput);
 });
 
 When(
@@ -1605,6 +1664,20 @@ Then('eligible for semantic review', function (this: PlanWorld) {
     'allow',
     `complete evidence should reach semantic review:\n${this.verdict?.text ?? ''}`,
   );
+});
+
+Then('the capability remains outside the accepted plan', function (this: PlanWorld) {
+  assert.deepEqual(this.scopeExpansionDecision, {
+    accepted: false,
+    reason: 'missing-or-mismatched-user-authority',
+  });
+});
+
+Then("the capability enters this ticket's accepted consumer boundary", function (this: PlanWorld) {
+  assert.deepEqual(this.scopeExpansionDecision, {
+    accepted: true,
+    reason: 'matching-user-authority',
+  });
 });
 
 Then(
