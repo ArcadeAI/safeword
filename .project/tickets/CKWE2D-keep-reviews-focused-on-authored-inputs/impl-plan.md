@@ -21,16 +21,21 @@ reviewer subprocess.
    UTF-8 and retain its immutable digest. For each oversized regular contained
    target, retain only normalized path and metadata: never load, decode, or
    hash its content. Resolve the project `HEAD` commit, then classify oversized
-   canonical targets through `GIT_ATTR_NOSYSTEM=1 git --git-dir
-   <temporary-bare-dir> -c core.attributesFile=<platform-null-device>
-   check-attr --source=<HEAD-commit> -z --stdin linguist-generated`, with the
-   real object database supplied only as Git's alternate object directory,
-   system/global attributes disabled, and NUL-terminated project-relative
+   canonical targets through this fixed environment and argv:
+
+   ```text
+   GIT_ATTR_NOSYSTEM=1 git --git-dir <temporary-bare-dir>
+     -c core.attributesFile=<platform-null-device>
+     check-attr --source=<HEAD-commit> -z --stdin linguist-generated
+   ```
+
+   Supply the real object database only as Git's alternate object directory,
+   with system/global attributes disabled and NUL-terminated project-relative
    paths. Resolve `<platform-null-device>` to `/dev/null` on POSIX and `NUL` on
    Windows. Require a Git version that supports `check-attr --source`; an older
    or incompatible executable fails closed through the typed lookup error.
-   The temporary bare Git directory has
-   no project `info/attributes`; the `--source` tree makes committed
+   The temporary bare Git directory has no project `info/attributes`; the
+   `--source` tree makes committed
    `.gitattributes` immutable policy input. Parse only exact UTF-8 triples
    (`path`, `linguist-generated`, `value`) and retain only literal `true`.
    Compare each bounded eligible snapshot's digest immediately before this
@@ -113,12 +118,12 @@ Vitest-backed scenarios as undefined steps.
 
 ### Recorded Decisions
 
-| Decision                                 | Choice                                                                                                                                                                                                             | Alternatives considered                                                                                                                | Rejected because                                                                                                                                                                                            |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Decision                                 | Choice                                                                                                                                                                                                                                         | Alternatives considered                                                                                                                | Rejected because                                                                                                                                                                                            |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Explicit generated-target classification | Batch oversized canonical paths through an isolated bare Git directory's committed `HEAD` tree, NUL-safe `check-attr`, `GIT_ATTR_NOSYSTEM=1`, and a platform null global-attributes path; only exact committed `true` is eligible for omission | normal project Git invocation; live worktree attributes; filename/extension heuristic; Git argv paths; truncate content; always reject | normal Git inherits `.git/info` and external config; live files can drift mid-preflight; heuristics and truncation hide scope; argv paths mishandle special names; always rejecting leaves #2121 unresolved |
-| Resource-bound oversized classification  | Validate regularity and containment from metadata, then classify an oversized target without loading its bytes                                                                                                     | stream/hash every target; decode a prefix; accept unbounded `readFile`                                                                 | a full stream bounds memory but not I/O; a prefix cannot establish UTF-8 correctness; the withheld target has no packet content to validate                                                                 |
-| Preflight failure boundary               | Typed packet error becomes a failed `review run --json` result before reviewer launch; attribute failure wins, then the first supplied normalized target failure supplies the code                                 | raw thrown error; opaque aggregate error; treat Git failure as unmarked                                                                | raw errors break machine clients; target order is explicit and reproducible; misclassification hides broken repository metadata                                                                             |
-| Reduced-scope projection                 | Add ordered `data.excluded_targets` to every result after packet finalization through one shared projection helper; preflight failures have none                                                                   | free-form finding only; report it only on approval; duplicate route-specific additions                                                 | prose is not stable machine data; route failures also need auditable scope; route copies drift                                                                                                              |
+| Resource-bound oversized classification  | Validate regularity and containment from metadata, then classify an oversized target without loading its bytes                                                                                                                                 | stream/hash every target; decode a prefix; accept unbounded `readFile`                                                                 | a full stream bounds memory but not I/O; a prefix cannot establish UTF-8 correctness; the withheld target has no packet content to validate                                                                 |
+| Preflight failure boundary               | Typed packet error becomes a failed `review run --json` result before reviewer launch; attribute failure wins, then the first supplied normalized target failure supplies the code                                                             | raw thrown error; opaque aggregate error; treat Git failure as unmarked                                                                | raw errors break machine clients; target order is explicit and reproducible; misclassification hides broken repository metadata                                                                             |
+| Reduced-scope projection                 | Add ordered `data.excluded_targets` to every result after packet finalization through one shared projection helper; preflight failures have none                                                                                               | free-form finding only; report it only on approval; duplicate route-specific additions                                                 | prose is not stable machine data; route failures also need auditable scope; route copies drift                                                                                                              |
 
 ## Design alignment
 

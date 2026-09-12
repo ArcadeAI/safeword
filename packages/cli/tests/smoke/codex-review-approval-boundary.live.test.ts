@@ -117,7 +117,9 @@ describe.skipIf(!CAN_RUN)('live smoke: installed Codex review approval boundary'
       ],
       [bun, '-e', 'console.log("unrelated")'],
     ]) {
-      expect(decision(codex, rules, command)).toEqual({ matchedRules: [] });
+      const result = decision(codex, rules, command);
+      expect(result.matchedRules).toEqual([]);
+      expect(result.decision).not.toBe('allow');
     }
   });
 });

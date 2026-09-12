@@ -71,6 +71,30 @@ describe('Claude plugin catalogue generation', () => {
     expect(tdd?.content).not.toContain('/safeword:quality-review');
   });
 
+  it('retains only project-command matcher literals in the shared run-identity parser', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const matcher = assets.find(
+      asset => asset.relativePath === 'runtime/hooks/lib/cursor-run-identity.ts',
+    );
+    const executableFrameworkReferences = matcher?.content
+      .split('\n')
+      .filter(line => line.includes('.safeword/') && !line.trimStart().startsWith('//'));
+
+    expect(matcher?.content).toContain("from './namespace-root.js'");
+    expect(matcher?.content).toContain("from './shell-segments.js'");
+    expect(executableFrameworkReferences).toEqual([
+      "    normalized === '.safeword/hooks/record-skill-invocation.ts' ||",
+      "    normalized.endsWith('/.safeword/hooks/record-skill-invocation.ts')",
+      "    normalized === '.safeword/hooks/write-review-stamp.ts' ||",
+      "    normalized.endsWith('/.safeword/hooks/write-review-stamp.ts')",
+    ]);
+  });
+
   it('passes the shared native runtime-authority release gate', () => {
     const assets = generateClaudePluginAssets({
       cliBundle: 'console.log("stub cli bundle");',

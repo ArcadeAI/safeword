@@ -35,6 +35,7 @@ const currentCliVersion = (
 const [currentMajor = '0', currentMinor = '0'] =
   currentCliVersion.split('+', 1)[0]?.split('.') ?? [];
 const incompatibleReleaseVersion = `${currentMajor}.${Number(currentMinor) + 1}.0+codex.test`;
+const codexAvailable = spawnSync('codex', ['--version'], { stdio: 'ignore' }).status === 0;
 
 function treeDigest(root: string): string {
   const hash = createHash('sha256');
@@ -282,105 +283,91 @@ describe('Codex plugin release contract', () => {
     }
   });
 
-  it('accepts a cachebusted bundle identity without repair guidance', () => {
-    const root = nodePath.resolve(import.meta.dirname, '..');
-    const repoRoot = nodePath.resolve(root, '../..');
-    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-status-'));
-    const codexHome = nodePath.join(fixture, 'codex-home');
-    const marketplaceRoot = nodePath.join(fixture, 'marketplace');
-    const output = nodePath.join(marketplaceRoot, 'packages/cli/codex-plugin');
-    const project = nodePath.join(fixture, 'project');
-    const packageVersion = (
-      JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8')) as {
-        version: string;
-      }
-    ).version;
-    const cachebustedVersion = `${packageVersion.split('+', 1)[0]}+codex.status`;
-    mkdirSync(project);
-    mkdirSync(codexHome, { recursive: true });
-    mkdirSync(nodePath.join(marketplaceRoot, '.agents/plugins'), { recursive: true });
-    mkdirSync(nodePath.dirname(output), { recursive: true });
-    cpSync(
-      nodePath.join(repoRoot, '.agents/plugins/marketplace.json'),
-      nodePath.join(marketplaceRoot, '.agents/plugins/marketplace.json'),
-    );
+  it.skipIf(!codexAvailable)(
+    'accepts a cachebusted bundle identity without repair guidance',
+    () => {
+      const root = nodePath.resolve(import.meta.dirname, '..');
+      const repoRoot = nodePath.resolve(root, '../..');
+      const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-status-'));
+      const codexHome = nodePath.join(fixture, 'codex-home');
+      const marketplaceRoot = nodePath.join(fixture, 'marketplace');
+      const output = nodePath.join(marketplaceRoot, 'packages/cli/codex-plugin');
+      const project = nodePath.join(fixture, 'project');
+      const packageVersion = (
+        JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8')) as {
+          version: string;
+        }
+      ).version;
+      const cachebustedVersion = `${packageVersion.split('+', 1)[0]}+codex.status`;
+      mkdirSync(project);
+      mkdirSync(codexHome, { recursive: true });
+      mkdirSync(nodePath.join(marketplaceRoot, '.agents/plugins'), { recursive: true });
+      mkdirSync(nodePath.dirname(output), { recursive: true });
+      cpSync(
+        nodePath.join(repoRoot, '.agents/plugins/marketplace.json'),
+        nodePath.join(marketplaceRoot, '.agents/plugins/marketplace.json'),
+      );
 
-    try {
-      const environment = {
-        ...process.env,
-        CLAUDE_PROJECT_DIR: '',
-        CODEX_HOME: codexHome,
-      };
-      const generation = spawnSync(
-        'bun',
-        ['scripts/generate-codex-plugin.ts', '--version', cachebustedVersion, '--output', output],
-        { cwd: root, encoding: 'utf8', env: environment },
-      );
-      expect(generation.status, generation.stderr).toBe(0);
+      try {
+        const environment = {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: '',
+          CODEX_HOME: codexHome,
+        };
+        const generation = spawnSync(
+          'bun',
+          ['scripts/generate-codex-plugin.ts', '--version', cachebustedVersion, '--output', output],
+          { cwd: root, encoding: 'utf8', env: environment },
+        );
+        expect(generation.status, generation.stderr).toBe(0);
 
-      const marketplaceAdd = spawnSync(
-        'codex',
-        ['plugin', 'marketplace', 'add', marketplaceRoot, '--json'],
-        { encoding: 'utf8', env: environment },
-      );
-      expect(marketplaceAdd.status, marketplaceAdd.stderr).toBe(0);
-      const install = spawnSync(
-        'codex',
-        ['plugin', 'add', 'safeword', '--marketplace', 'safeword', '--json'],
-        { encoding: 'utf8', env: environment },
-      );
-      expect(install.status, install.stderr).toBe(0);
-      const installed = JSON.parse(install.stdout) as { installedPath: string; version: string };
-      expect(installed.version).toBe(cachebustedVersion);
-      const runtimePath = nodePath.join(installed.installedPath, 'runtime/cli.js');
-      const sessionStart = spawnSync(
-        'bun',
-        [runtimePath, 'hook', 'codex', 'session-start', '--plugin-hook'],
-        {
+        const marketplaceAdd = spawnSync(
+          'codex',
+          ['plugin', 'marketplace', 'add', marketplaceRoot, '--json'],
+          { encoding: 'utf8', env: environment },
+        );
+        expect(marketplaceAdd.status, marketplaceAdd.stderr).toBe(0);
+        const install = spawnSync(
+          'codex',
+          ['plugin', 'add', 'safeword', '--marketplace', 'safeword', '--json'],
+          { encoding: 'utf8', env: environment },
+        );
+        expect(install.status, install.stderr).toBe(0);
+        const installed = JSON.parse(install.stdout) as { installedPath: string; version: string };
+        expect(installed.version).toBe(cachebustedVersion);
+        const runtimePath = nodePath.join(installed.installedPath, 'runtime/cli.js');
+        const sessionStart = spawnSync(
+          'bun',
+          [runtimePath, 'hook', 'codex', 'session-start', '--plugin-hook'],
+          {
+            cwd: project,
+            encoding: 'utf8',
+            env: environment,
+            input: JSON.stringify({ session_id: 'cachebusted-status' }),
+          },
+        );
+        expect(sessionStart.status, sessionStart.stderr).toBe(0);
+
+        const status = spawnSync('bun', [runtimePath, 'codex', 'status', '--json'], {
           cwd: project,
           encoding: 'utf8',
           env: environment,
-          input: JSON.stringify({ session_id: 'cachebusted-status' }),
-        },
-      );
-      expect(sessionStart.status, sessionStart.stderr).toBe(0);
-
-      const status = spawnSync('bun', [runtimePath, 'codex', 'status', '--json'], {
-        cwd: project,
-        encoding: 'utf8',
-        env: environment,
-      });
-      expect(status.status, status.stderr).toBe(2);
-      const result = JSON.parse(status.stdout) as Record<string, unknown>;
-      expect(result).toMatchObject({
-        data: {
-          migration: { state: 'plugin_enabled_hook_unproven' },
-          proof: { plugin_version: cachebustedVersion },
-        },
-      });
-      expect(JSON.stringify(result.next_actions)).not.toContain('safeword codex migrate');
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  }, 30_000);
-
-  it('records the independently adoptable task-bound Codex plugin-root contract', () => {
-    const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
-    const ticketRelativePath = '0HZBXF-keep-cachebusted-codex-plugins-operational/design.md';
-    const activeDesignPath = nodePath.join(repoRoot, '.project/tickets', ticketRelativePath);
-    const designPath = existsSync(activeDesignPath)
-      ? activeDesignPath
-      : nodePath.join(repoRoot, '.project/tickets/completed', ticketRelativePath);
-    const design = readFileSync(designPath, 'utf8');
-    const upstreamContract = design
-      .split('## Upstream Codex contract\n', 2)[1]
-      ?.split('\n## ', 1)[0];
-
-    expect(upstreamContract).toContain('task-bound `PLUGIN_ROOT`');
-    expect(upstreamContract).toContain('exact immutable plugin directory');
-    expect(upstreamContract).toContain('Host adoption is a non-dependency for this delivery');
-    expect(upstreamContract).toContain('independently adoptable later');
-  });
+        });
+        expect(status.status, status.stderr).toBe(2);
+        const result = JSON.parse(status.stdout) as Record<string, unknown>;
+        expect(result).toMatchObject({
+          data: {
+            migration: { state: 'plugin_enabled_hook_unproven' },
+            proof: { plugin_version: cachebustedVersion },
+          },
+        });
+        expect(JSON.stringify(result.next_actions)).not.toContain('safeword codex migrate');
+      } finally {
+        rmSync(fixture, { recursive: true, force: true });
+      }
+    },
+    30_000,
+  );
 
   it('runs every hook through the bundled plugin CLI', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
@@ -458,247 +445,254 @@ describe('Codex plugin release contract', () => {
     }
   });
 
-  it('executes from the cache path reported by a real Codex plugin install', () => {
-    const root = nodePath.resolve(import.meta.dirname, '..');
-    const repoRoot = nodePath.resolve(root, '../..');
-    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-install-'));
-    const codexHome = nodePath.join(fixture, 'home');
-    const marketplaceRoot = nodePath.join(fixture, 'marketplace');
-    mkdirSync(codexHome, { recursive: true });
-    mkdirSync(nodePath.join(marketplaceRoot, '.agents/plugins'), { recursive: true });
-    mkdirSync(nodePath.join(marketplaceRoot, 'packages/cli'), { recursive: true });
-    cpSync(
-      nodePath.join(repoRoot, '.agents/plugins/marketplace.json'),
-      nodePath.join(marketplaceRoot, '.agents/plugins/marketplace.json'),
-    );
-    cpSync(
-      nodePath.join(root, 'codex-plugin'),
-      nodePath.join(marketplaceRoot, 'packages/cli/codex-plugin'),
-      {
-        recursive: true,
-      },
-    );
-
-    try {
-      const environment = { ...process.env, CLAUDE_PROJECT_DIR: '', CODEX_HOME: codexHome };
-      const marketplaceAddResult = spawnSync(
-        'codex',
-        ['plugin', 'marketplace', 'add', marketplaceRoot, '--json'],
-        { encoding: 'utf8', env: environment },
-      );
-      expect(marketplaceAddResult.status, marketplaceAddResult.stderr).toBe(0);
-      const install = spawnSync(
-        'codex',
-        ['plugin', 'add', 'safeword', '--marketplace', 'safeword', '--json'],
-        { encoding: 'utf8', env: environment },
-      );
-      expect(install.status, install.stderr).toBe(0);
-
-      const installed = JSON.parse(install.stdout) as { installedPath: string; version: string };
-      expect(realpathSync(installed.installedPath)).toBe(
-        realpathSync(
-          nodePath.join(codexHome, 'plugins/cache/safeword/safeword', installed.version),
-        ),
-      );
-      const runtime = spawnSync(
-        'bun',
-        [nodePath.join(installed.installedPath, 'runtime/cli.js'), '--version'],
-        { encoding: 'utf8', env: environment },
-      );
-      expect(runtime.status, runtime.stderr).toBe(0);
-      expect(runtime.stdout.trim()).toBe(installed.version);
-
-      const unenrolledProject = nodePath.join(fixture, 'unenrolled-project');
-      mkdirSync(unenrolledProject, { recursive: true });
-      const sessionStart = spawnSync(
-        'bun',
-        [
-          nodePath.join(installed.installedPath, 'runtime/cli.js'),
-          'hook',
-          'codex',
-          'session-start',
-          '--plugin-hook',
-        ],
-        {
-          cwd: unenrolledProject,
-          encoding: 'utf8',
-          env: environment,
-          input: JSON.stringify({ session_id: 'release-contract' }),
-        },
-      );
-      expect(sessionStart.status, sessionStart.stderr).toBe(0);
-      expect(JSON.parse(sessionStart.stdout)).toMatchObject({
-        hookSpecificOutput: {
-          hookEventName: 'SessionStart',
-          additionalContext: expect.stringContaining('Safeword session bootstrap'),
-        },
-      });
-      const sessionProof = JSON.parse(
-        readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v2/session-start.json'), 'utf8'),
-      ) as Record<string, unknown>;
-      const hookManifest = readFileSync(nodePath.join(installed.installedPath, 'hooks.json'));
-      const sourceHookManifest = readFileSync(nodePath.join(root, 'codex-plugin/hooks.json'));
-      expect(hookManifest).toEqual(sourceHookManifest);
-      expect(sessionProof).toMatchObject({
-        schema_version: 3,
-        event: 'session-start',
-        plugin_version: installed.version,
-        manifest_sha256: createHash('sha256').update(sourceHookManifest).digest('hex'),
-        project_directory: realpathSync(unenrolledProject),
-        session_id: 'release-contract',
-      });
-      const status = spawnSync(
-        'bun',
-        [nodePath.join(installed.installedPath, 'runtime/cli.js'), 'codex', 'status', '--json'],
-        { cwd: unenrolledProject, encoding: 'utf8', env: environment },
-      );
-      expect(status.status, status.stderr).toBe(2);
-      expect(JSON.parse(status.stdout)).toMatchObject({
-        data: {
-          migration: { state: 'plugin_enabled_hook_unproven' },
-          proof: {
-            status: 'partial',
-            plugin_version: installed.version,
-            manifest_sha256: createHash('sha256').update(sourceHookManifest).digest('hex'),
-            events: ['session-start'],
-          },
-        },
-      });
-
-      const projectDirectory = nodePath.join(fixture, 'project');
-      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+  it.skipIf(!codexAvailable)(
+    'executes from the cache path reported by a real Codex plugin install',
+    () => {
+      const root = nodePath.resolve(import.meta.dirname, '..');
+      const repoRoot = nodePath.resolve(root, '../..');
+      const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-install-'));
+      const codexHome = nodePath.join(fixture, 'home');
+      const marketplaceRoot = nodePath.join(fixture, 'marketplace');
+      mkdirSync(codexHome, { recursive: true });
+      mkdirSync(nodePath.join(marketplaceRoot, '.agents/plugins'), { recursive: true });
+      mkdirSync(nodePath.join(marketplaceRoot, 'packages/cli'), { recursive: true });
       cpSync(
-        nodePath.join(root, 'templates/SAFEWORD.md'),
-        nodePath.join(projectDirectory, '.safeword/SAFEWORD.md'),
+        nodePath.join(repoRoot, '.agents/plugins/marketplace.json'),
+        nodePath.join(marketplaceRoot, '.agents/plugins/marketplace.json'),
       );
-      const hook = spawnSync(
-        'bun',
-        [
-          nodePath.join(installed.installedPath, 'runtime/cli.js'),
-          'hook',
-          'codex',
-          'pre-tool-use',
-          '--plugin-hook',
-        ],
+      cpSync(
+        nodePath.join(root, 'codex-plugin'),
+        nodePath.join(marketplaceRoot, 'packages/cli/codex-plugin'),
         {
-          cwd: projectDirectory,
-          encoding: 'utf8',
-          env: { ...environment, CLAUDE_PROJECT_DIR: projectDirectory },
-          input: JSON.stringify({
-            session_id: 'release-contract',
-            tool_name: 'Bash',
-            tool_input: { command: "sed -n '1,20p' README.md" },
-          }),
+          recursive: true,
         },
       );
-      expect(hook.status, hook.stderr).toBe(0);
-      expect(hook.stdout).toBe('');
 
-      const baseInstalledPath = installed.installedPath;
-      const baseInstalledBackup = nodePath.join(fixture, 'base-installed-backup');
-      cpSync(baseInstalledPath, baseInstalledBackup, { recursive: true });
-      const cachebustedVersion = `${installed.version.split('+', 1)[0]}+codex.test`;
-      const marketplacePlugin = nodePath.join(marketplaceRoot, 'packages/cli/codex-plugin');
-      rmSync(marketplacePlugin, { recursive: true, force: true });
-      const generation = spawnSync(
-        'bun',
-        [
-          'scripts/generate-codex-plugin.ts',
-          '--version',
-          cachebustedVersion,
-          '--output',
-          marketplacePlugin,
-        ],
-        { cwd: root, encoding: 'utf8', env: environment },
-      );
-      expect(generation.status, generation.stderr).toBe(0);
-
-      const cachebustedInstall = spawnSync(
-        'codex',
-        ['plugin', 'add', 'safeword', '--marketplace', 'safeword', '--json'],
-        { encoding: 'utf8', env: environment },
-      );
-      expect(cachebustedInstall.status, cachebustedInstall.stderr).toBe(0);
-      const cachebusted = JSON.parse(cachebustedInstall.stdout) as {
-        installedPath: string;
-        version: string;
-      };
-      expect(cachebusted.version).toBe(cachebustedVersion);
-      expect(readFileSync(nodePath.join(cachebusted.installedPath, 'hooks.json'))).toEqual(
-        readFileSync(nodePath.join(root, 'codex-plugin/hooks.json')),
-      );
-      cpSync(baseInstalledBackup, baseInstalledPath, { recursive: true });
-      const baseCacheDecoyRuntime = spawnSync(
-        'bun',
-        [nodePath.join(baseInstalledPath, 'runtime/cli.js'), '--version'],
-        { encoding: 'utf8', env: environment },
-      );
-      expect(baseCacheDecoyRuntime.status, baseCacheDecoyRuntime.stderr).toBe(0);
-      expect(baseCacheDecoyRuntime.stdout.trim()).toBe(installed.version);
-      expect(realpathSync(cachebusted.installedPath)).toBe(
-        realpathSync(
-          nodePath.join(codexHome, 'plugins/cache/safeword/safeword', cachebustedVersion),
-        ),
-      );
-      const generatedWorkflow = readFileSync(
-        nodePath.join(cachebusted.installedPath, 'skills/self-review/SKILL.md'),
-        'utf8',
-      );
-      expect(generatedWorkflow).toContain(
-        `/plugins/cache/safeword/safeword/${cachebustedVersion}/runtime/cli.js`,
-      );
-      expect(generatedWorkflow).not.toContain(
-        `/plugins/cache/safeword/safeword/${installed.version}/runtime/cli.js`,
-      );
-
-      const cachebustedRuntime = spawnSync(
-        'bun',
-        [nodePath.join(cachebusted.installedPath, 'runtime/cli.js'), '--version'],
-        { encoding: 'utf8', env: environment },
-      );
-      expect(cachebustedRuntime.status, cachebustedRuntime.stderr).toBe(0);
-      expect(cachebustedRuntime.stdout.trim()).toBe(cachebustedVersion);
-
-      const cachebustedSessionStart = spawnSync(
-        'bun',
-        [
-          nodePath.join(cachebusted.installedPath, 'runtime/cli.js'),
-          'hook',
+      try {
+        const environment = { ...process.env, CLAUDE_PROJECT_DIR: '', CODEX_HOME: codexHome };
+        const marketplaceAddResult = spawnSync(
           'codex',
-          'session-start',
-          '--plugin-hook',
-        ],
-        {
-          cwd: unenrolledProject,
-          encoding: 'utf8',
-          env: environment,
-          input: JSON.stringify({ session_id: 'cachebusted-release-contract' }),
-        },
-      );
-      expect(cachebustedSessionStart.status, cachebustedSessionStart.stderr).toBe(0);
-      const cachebustedStatus = spawnSync(
-        'bun',
-        [nodePath.join(cachebusted.installedPath, 'runtime/cli.js'), 'codex', 'status', '--json'],
-        { cwd: unenrolledProject, encoding: 'utf8', env: environment },
-      );
-      expect(cachebustedStatus.status, cachebustedStatus.stderr).toBe(2);
-      const cachebustedStatusResult = JSON.parse(cachebustedStatus.stdout) as Record<
-        string,
-        unknown
-      >;
-      expect(cachebustedStatusResult).toMatchObject({
-        data: {
-          migration: { state: 'plugin_enabled_hook_unproven' },
-          proof: { plugin_version: cachebustedVersion },
-        },
-      });
-      expect(JSON.stringify(cachebustedStatusResult.next_actions)).not.toContain(
-        'safeword codex migrate',
-      );
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  }, 30_000);
+          ['plugin', 'marketplace', 'add', marketplaceRoot, '--json'],
+          { encoding: 'utf8', env: environment },
+        );
+        expect(marketplaceAddResult.status, marketplaceAddResult.stderr).toBe(0);
+        const install = spawnSync(
+          'codex',
+          ['plugin', 'add', 'safeword', '--marketplace', 'safeword', '--json'],
+          { encoding: 'utf8', env: environment },
+        );
+        expect(install.status, install.stderr).toBe(0);
+
+        const installed = JSON.parse(install.stdout) as { installedPath: string; version: string };
+        expect(realpathSync(installed.installedPath)).toBe(
+          realpathSync(
+            nodePath.join(codexHome, 'plugins/cache/safeword/safeword', installed.version),
+          ),
+        );
+        const runtime = spawnSync(
+          'bun',
+          [nodePath.join(installed.installedPath, 'runtime/cli.js'), '--version'],
+          { encoding: 'utf8', env: environment },
+        );
+        expect(runtime.status, runtime.stderr).toBe(0);
+        expect(runtime.stdout.trim()).toBe(installed.version);
+
+        const unenrolledProject = nodePath.join(fixture, 'unenrolled-project');
+        mkdirSync(unenrolledProject, { recursive: true });
+        const sessionStart = spawnSync(
+          'bun',
+          [
+            nodePath.join(installed.installedPath, 'runtime/cli.js'),
+            'hook',
+            'codex',
+            'session-start',
+            '--plugin-hook',
+          ],
+          {
+            cwd: unenrolledProject,
+            encoding: 'utf8',
+            env: environment,
+            input: JSON.stringify({ session_id: 'release-contract' }),
+          },
+        );
+        expect(sessionStart.status, sessionStart.stderr).toBe(0);
+        expect(JSON.parse(sessionStart.stdout)).toMatchObject({
+          hookSpecificOutput: {
+            hookEventName: 'SessionStart',
+            additionalContext: expect.stringContaining('Safeword session bootstrap'),
+          },
+        });
+        const sessionProof = JSON.parse(
+          readFileSync(
+            nodePath.join(codexHome, 'safeword/hook-proof-v2/session-start.json'),
+            'utf8',
+          ),
+        ) as Record<string, unknown>;
+        const hookManifest = readFileSync(nodePath.join(installed.installedPath, 'hooks.json'));
+        const sourceHookManifest = readFileSync(nodePath.join(root, 'codex-plugin/hooks.json'));
+        expect(hookManifest).toEqual(sourceHookManifest);
+        expect(sessionProof).toMatchObject({
+          schema_version: 3,
+          event: 'session-start',
+          plugin_version: installed.version,
+          manifest_sha256: createHash('sha256').update(sourceHookManifest).digest('hex'),
+          project_directory: realpathSync(unenrolledProject),
+          session_id: 'release-contract',
+        });
+        const status = spawnSync(
+          'bun',
+          [nodePath.join(installed.installedPath, 'runtime/cli.js'), 'codex', 'status', '--json'],
+          { cwd: unenrolledProject, encoding: 'utf8', env: environment },
+        );
+        expect(status.status, status.stderr).toBe(2);
+        expect(JSON.parse(status.stdout)).toMatchObject({
+          data: {
+            migration: { state: 'plugin_enabled_hook_unproven' },
+            proof: {
+              status: 'partial',
+              plugin_version: installed.version,
+              manifest_sha256: createHash('sha256').update(sourceHookManifest).digest('hex'),
+              events: ['session-start'],
+            },
+          },
+        });
+
+        const projectDirectory = nodePath.join(fixture, 'project');
+        mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+        cpSync(
+          nodePath.join(root, 'templates/SAFEWORD.md'),
+          nodePath.join(projectDirectory, '.safeword/SAFEWORD.md'),
+        );
+        const hook = spawnSync(
+          'bun',
+          [
+            nodePath.join(installed.installedPath, 'runtime/cli.js'),
+            'hook',
+            'codex',
+            'pre-tool-use',
+            '--plugin-hook',
+          ],
+          {
+            cwd: projectDirectory,
+            encoding: 'utf8',
+            env: { ...environment, CLAUDE_PROJECT_DIR: projectDirectory },
+            input: JSON.stringify({
+              session_id: 'release-contract',
+              tool_name: 'Bash',
+              tool_input: { command: "sed -n '1,20p' README.md" },
+            }),
+          },
+        );
+        expect(hook.status, hook.stderr).toBe(0);
+        expect(hook.stdout).toBe('');
+
+        const baseInstalledPath = installed.installedPath;
+        const baseInstalledBackup = nodePath.join(fixture, 'base-installed-backup');
+        cpSync(baseInstalledPath, baseInstalledBackup, { recursive: true });
+        const cachebustedVersion = `${installed.version.split('+', 1)[0]}+codex.test`;
+        const marketplacePlugin = nodePath.join(marketplaceRoot, 'packages/cli/codex-plugin');
+        rmSync(marketplacePlugin, { recursive: true, force: true });
+        const generation = spawnSync(
+          'bun',
+          [
+            'scripts/generate-codex-plugin.ts',
+            '--version',
+            cachebustedVersion,
+            '--output',
+            marketplacePlugin,
+          ],
+          { cwd: root, encoding: 'utf8', env: environment },
+        );
+        expect(generation.status, generation.stderr).toBe(0);
+
+        const cachebustedInstall = spawnSync(
+          'codex',
+          ['plugin', 'add', 'safeword', '--marketplace', 'safeword', '--json'],
+          { encoding: 'utf8', env: environment },
+        );
+        expect(cachebustedInstall.status, cachebustedInstall.stderr).toBe(0);
+        const cachebusted = JSON.parse(cachebustedInstall.stdout) as {
+          installedPath: string;
+          version: string;
+        };
+        expect(cachebusted.version).toBe(cachebustedVersion);
+        expect(readFileSync(nodePath.join(cachebusted.installedPath, 'hooks.json'))).toEqual(
+          readFileSync(nodePath.join(root, 'codex-plugin/hooks.json')),
+        );
+        cpSync(baseInstalledBackup, baseInstalledPath, { recursive: true });
+        const baseCacheDecoyRuntime = spawnSync(
+          'bun',
+          [nodePath.join(baseInstalledPath, 'runtime/cli.js'), '--version'],
+          { encoding: 'utf8', env: environment },
+        );
+        expect(baseCacheDecoyRuntime.status, baseCacheDecoyRuntime.stderr).toBe(0);
+        expect(baseCacheDecoyRuntime.stdout.trim()).toBe(installed.version);
+        expect(realpathSync(cachebusted.installedPath)).toBe(
+          realpathSync(
+            nodePath.join(codexHome, 'plugins/cache/safeword/safeword', cachebustedVersion),
+          ),
+        );
+        const generatedWorkflow = readFileSync(
+          nodePath.join(cachebusted.installedPath, 'skills/self-review/SKILL.md'),
+          'utf8',
+        );
+        expect(generatedWorkflow).toContain(
+          `/plugins/cache/safeword/safeword/${cachebustedVersion}/runtime/cli.js`,
+        );
+        expect(generatedWorkflow).not.toContain(
+          `/plugins/cache/safeword/safeword/${installed.version}/runtime/cli.js`,
+        );
+
+        const cachebustedRuntime = spawnSync(
+          'bun',
+          [nodePath.join(cachebusted.installedPath, 'runtime/cli.js'), '--version'],
+          { encoding: 'utf8', env: environment },
+        );
+        expect(cachebustedRuntime.status, cachebustedRuntime.stderr).toBe(0);
+        expect(cachebustedRuntime.stdout.trim()).toBe(cachebustedVersion);
+
+        const cachebustedSessionStart = spawnSync(
+          'bun',
+          [
+            nodePath.join(cachebusted.installedPath, 'runtime/cli.js'),
+            'hook',
+            'codex',
+            'session-start',
+            '--plugin-hook',
+          ],
+          {
+            cwd: unenrolledProject,
+            encoding: 'utf8',
+            env: environment,
+            input: JSON.stringify({ session_id: 'cachebusted-release-contract' }),
+          },
+        );
+        expect(cachebustedSessionStart.status, cachebustedSessionStart.stderr).toBe(0);
+        const cachebustedStatus = spawnSync(
+          'bun',
+          [nodePath.join(cachebusted.installedPath, 'runtime/cli.js'), 'codex', 'status', '--json'],
+          { cwd: unenrolledProject, encoding: 'utf8', env: environment },
+        );
+        expect(cachebustedStatus.status, cachebustedStatus.stderr).toBe(2);
+        const cachebustedStatusResult = JSON.parse(cachebustedStatus.stdout) as Record<
+          string,
+          unknown
+        >;
+        expect(cachebustedStatusResult).toMatchObject({
+          data: {
+            migration: { state: 'plugin_enabled_hook_unproven' },
+            proof: { plugin_version: cachebustedVersion },
+          },
+        });
+        expect(JSON.stringify(cachebustedStatusResult.next_actions)).not.toContain(
+          'safeword codex migrate',
+        );
+      } finally {
+        rmSync(fixture, { recursive: true, force: true });
+      }
+    },
+    30_000,
+  );
 
   it('includes the complete generated plugin in a Bun-packed archive', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');

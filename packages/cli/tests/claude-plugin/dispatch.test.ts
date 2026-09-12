@@ -218,6 +218,39 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
+  it('replaces an inherited CLI override with the verified bundled path', () => {
+    const projectDirectory = temporary('safeword-plugin-project-');
+    const pluginData = temporary('safeword-plugin-data-');
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'));
+    const environment = isolatedClaudeEnvironment(projectDirectory, pluginData);
+    environment.SAFEWORD_PLUGIN_CLI = nodePath.join(temporary('untrusted-cli-'), 'cli.js');
+
+    const result = spawnSync(
+      'bun',
+      [
+        nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'),
+        'UserPromptSubmit',
+        '--',
+        'bun',
+        '-e',
+        'process.stdout.write(process.env.SAFEWORD_PLUGIN_CLI ?? "")',
+      ],
+      {
+        cwd: projectDirectory,
+        env: environment,
+        encoding: 'utf8',
+        input: JSON.stringify({
+          cwd: projectDirectory,
+          hook_event_name: 'UserPromptSubmit',
+          session_id: 'dispatch-cli-override-test',
+        }),
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe(nodePath.join(PLUGIN_ROOT, 'runtime', 'cli.js'));
+  });
+
   it('points the SessionStart context hook at the packaged handbook instead of project-local .safeword', () => {
     const projectDirectory = temporary('safeword-plugin-packaged-context-project-');
     const pluginData = temporary('safeword-plugin-packaged-context-data-');

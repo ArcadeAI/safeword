@@ -109,6 +109,9 @@ function adaptPluginScriptReference(content: string): string {
 }
 
 function adaptPluginRuntime(content: string): string {
+  // SAFEWORD_PLUGIN_CLI is not a caller-selected escape hatch in the packaged
+  // runtime: the verified dispatcher overwrites it with the bundled CLI path
+  // immediately before any child hook runs.
   const adapted = adaptWorkflowReference(content)
     .replaceAll(
       "['bunx', ['safeword@latest',",
@@ -130,6 +133,11 @@ function adaptPluginRuntime(content: string): string {
 
 const PROJECT_FRAMEWORK_REFERENCE =
   /(?:\.\/)?\.safeword\/(?:hooks|guides|scripts|skills|templates)\/[^\s)`'"<>]*/u;
+// This shared parser recognizes project-local command text; rewriting those
+// matcher literals to plugin paths would stop it recognizing Cursor/Codex
+// fallback commands. It has only relative module imports, so retain its text
+// while exempting those non-executable matcher literals from the path check.
+const PROJECT_COMMAND_MATCHER_ASSET = 'runtime/hooks/lib/cursor-run-identity.ts';
 
 function invocationName(asset: GeneratedClaudePluginAsset): string | undefined {
   const skillDirectory = /^skills\/([^/]+)\/SKILL\.md$/u.exec(asset.relativePath)?.[1];
@@ -157,11 +165,9 @@ function assertUniqueInvocations(assets: readonly GeneratedClaudePluginAsset[]):
 function assertNoProjectFrameworkReferences(assets: readonly GeneratedClaudePluginAsset[]): void {
   for (const asset of assets) {
     if (
-      [
-        'runtime/cli.js',
-        'runtime/dispatch.js',
-        'runtime/hooks/lib/cursor-run-identity.ts',
-      ].includes(asset.relativePath)
+      ['runtime/cli.js', 'runtime/dispatch.js', PROJECT_COMMAND_MATCHER_ASSET].includes(
+        asset.relativePath,
+      )
     )
       continue;
     if (!/^(?:agents|commands|resources|runtime|skills)\//u.test(asset.relativePath)) continue;
@@ -321,9 +327,10 @@ function claudeHookAssets(templatesRoot: string): GeneratedClaudePluginAsset[] {
     })
     .map(asset => ({
       ...asset,
-      content: asset.relativePath.endsWith('lib/cursor-run-identity.ts')
-        ? asset.content
-        : adaptPluginRuntime(asset.content),
+      content:
+        asset.relativePath === PROJECT_COMMAND_MATCHER_ASSET
+          ? asset.content
+          : adaptPluginRuntime(asset.content),
     }));
 }
 
