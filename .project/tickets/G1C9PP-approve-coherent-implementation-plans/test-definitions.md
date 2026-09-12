@@ -254,7 +254,7 @@ family.
 
 ### Scenario: Measurement applicability is explicit
 
-- [ ] RED
+- [x] RED af66da714
 - [ ] GREEN
 - [ ] REFACTOR
 
