@@ -290,7 +290,7 @@ nonblocking behavior at the canonical CLI boundary.
 
 - [x] RED 9f8e32f3c
 - [x] GREEN 063f17852
-- [x] REFACTOR 063f17852
+- [x] REFACTOR skip: the GREEN extraction already isolates interactive decision settlement and no additional behavior-preserving change improves this slice
 
 ### Scenario: A review-blocked design is never presented for human approval
 
