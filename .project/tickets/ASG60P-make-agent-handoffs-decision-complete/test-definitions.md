@@ -82,7 +82,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A no-decision handoff cannot carry two reason clauses
 
-- [ ] RED
+- [x] RED 4f557cdb0
 - [ ] GREEN
 - [ ] REFACTOR
 
