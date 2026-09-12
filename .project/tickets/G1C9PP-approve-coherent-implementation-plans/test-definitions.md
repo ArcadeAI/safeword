@@ -194,7 +194,7 @@ release prerequisite by itself.
 ### Scenario: Persona consequence coverage controls approach approval
 
 - [x] RED 63dab8b2c
-- [ ] GREEN
+- [x] GREEN 3d3e3d2c3
 - [ ] REFACTOR
 
 ### Scenario: Omitting one accepted persona blocks approach approval
