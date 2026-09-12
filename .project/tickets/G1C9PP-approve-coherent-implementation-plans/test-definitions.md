@@ -290,7 +290,7 @@ nonblocking behavior at the canonical CLI boundary.
 
 - [x] RED 395dab774
 - [x] GREEN 5532748f1
-- [ ] REFACTOR
+- [x] REFACTOR skip: the GREEN fix centralizes current-byte phase replacement, unique staging, and truthful changed-file projection; remaining review warnings require sibling migration or separately accepted behavior
 
 ### Scenario: A review-blocked design is never presented for human approval
 
