@@ -154,7 +154,7 @@ function invocationName(asset: GeneratedClaudePluginAsset): string | undefined {
   if (skillDirectory !== undefined) {
     return /^---\n[\s\S]*?^name:\s*(\S+)\s*$/mu.exec(asset.content)?.[1] ?? skillDirectory;
   }
-  return undefined;
+  return /^commands\/([^/]+)\.md$/u.exec(asset.relativePath)?.[1];
 }
 
 function assertUniqueInvocations(assets: readonly GeneratedClaudePluginAsset[]): void {

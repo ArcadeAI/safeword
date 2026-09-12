@@ -327,7 +327,7 @@ When('its generated SessionStart entrypoint executes', function (this: NativeCla
     .flatMap(entry => entry.hooks ?? [])
     .map(hook => hook.command)
     .filter((command): command is string => Boolean(command));
-  assert.ok(commands.length > 1, 'generated SessionStart hook commands are missing');
+  assert.equal(commands.length, 1, 'generated grouped SessionStart hook command is missing');
   const input = `${JSON.stringify({
     hook_event_name: 'SessionStart',
     source: 'startup',
@@ -358,7 +358,7 @@ When('its generated SessionStart entrypoint executes', function (this: NativeCla
 });
 
 Then(
-  'Claude receives independently valid SessionStart responses containing every sibling context',
+  'Claude receives one valid SessionStart response containing every sibling context',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     const responses = (this.cacheFixture?.sessionOutputs ?? []).map(output => {
@@ -372,7 +372,7 @@ Then(
         };
       }
     });
-    assert.ok(responses.length > 1);
+    assert.equal(responses.length, 1);
     assert.ok(
       responses.every(response => response.hookSpecificOutput?.hookEventName === 'SessionStart'),
     );
@@ -478,10 +478,10 @@ Given(
 );
 
 Then(
-  'the aggregate event preserves earlier output without writing execution proof',
+  'the aggregate event blocks the prompt without writing execution proof',
   function (this: NativeClaudePluginWorld) {
-    assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
-    assert.match(this.cacheFixture?.result?.output ?? '', /Current time:/u);
+    assert.equal(this.cacheFixture?.result?.status, 2, this.cacheFixture?.result?.output);
+    assert.match(this.cacheFixture?.result?.output ?? '', /blocked prompt submission/u);
     assert.ok(this.cacheFixture);
     assert.equal(
       existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)),

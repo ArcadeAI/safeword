@@ -146,10 +146,10 @@ Feature: Ship Safeword as a native Claude Code plugin
       And execution proof is written beneath CLAUDE_PLUGIN_DATA
       And ticket, configuration, and runtime project state remain beneath the project root
 
-    Scenario: Separate SessionStart hooks return host-safe responses
+    Scenario: Grouped SessionStart hooks return one host-safe response
       Given the installed plugin cache is available without its source checkout or package registry
       When its generated SessionStart entrypoint executes
-      Then Claude receives independently valid SessionStart responses containing every sibling context
+      Then Claude receives one valid SessionStart response containing every sibling context
 
     Scenario: A valid Claude lifecycle lease does not make a verified cache unsafe
       Given the installed plugin cache is available without its source checkout or package registry
@@ -159,10 +159,10 @@ Feature: Ship Safeword as a native Claude Code plugin
       And the exact lifecycle lease remains byte-identical
 
     @rejection
-    Scenario: A failed sibling hook preserves earlier prompt output without event-level plugin proof
+    Scenario: A failed sibling hook blocks the prompt without event-level plugin proof
       Given an intact cached UserPromptSubmit event whose final sibling hook fails
       When a Safeword plugin hook executes
-      Then the aggregate event preserves earlier output without writing execution proof
+      Then the aggregate event blocks the prompt without writing execution proof
       And viable legacy protection remains authoritative
 
     @rejection
