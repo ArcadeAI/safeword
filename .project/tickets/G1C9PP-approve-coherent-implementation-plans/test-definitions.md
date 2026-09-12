@@ -277,8 +277,8 @@ nonblocking behavior at the canonical CLI boundary.
 ### Scenario: Installed CLI human design authority follows configuration
 
 - [x] RED ba24ca98e
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN ffc20b29f
+- [x] REFACTOR skip: the first slice keeps ticket resolution, review admission, prompt, receipt, and phase mutation together until the durability scenarios establish the shared ledger boundary
 
 ### Scenario: A declined design returns to Implementation Planning
 
