@@ -281,6 +281,24 @@ describe('installed CLI human design authority follows configuration', () => {
     expect(approvalEvents(project.ledgerPath)).toEqual([]);
   });
 
+  it('fails closed when the approval configuration is malformed', async () => {
+    const project = fixture(true);
+    writeFileSync(nodePath.join(project.root, '.safeword', 'config.json'), '{not-json\n');
+    const ledgerBefore = readFileSync(project.ledgerPath, 'utf8');
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(readFileSync(project.ledgerPath, 'utf8')).toBe(ledgerBefore);
+    expect(result.stdout).toContain(
+      'Could not determine whether human design approval is required',
+    );
+    expect(result.stdout).not.toContain('human-approval:not-required');
+  });
+
   it('presents the reviewed approach exactly once through a real terminal', () => {
     const project = fixture(true);
 
