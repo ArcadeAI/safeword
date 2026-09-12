@@ -286,6 +286,12 @@ nonblocking behavior at the canonical CLI boundary.
 - [x] GREEN 34cc6a317
 - [x] REFACTOR skip: the narrow parser guard preserves the existing missing-or-disabled semantics while turning only unreadable, malformed, or non-object configuration into an explicit fail-closed result
 
+### Scenario: Implementation Planning exits through the canonical approval boundary
+
+- [x] RED f9d832a6c
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A declined design returns to Implementation Planning
 
 - [x] RED afd16b0b2
