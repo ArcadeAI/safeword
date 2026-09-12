@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 2f81f4a6b
 - [x] GREEN 1c4d56d07
-- [x] REFACTOR 1c4d56d07
+- [x] REFACTOR ee9ce897b
 
 ## Rule: plan-implementability.TBU2.6XW8H7.R2 — Each planned pull request has one coherent purpose, boundary, prerequisite set, proof obligation, and completion signal and can be implemented without inventing a design decision
 
@@ -106,4 +106,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario ee9ce897b
