@@ -23,3 +23,8 @@
   clause is removed. It also names the undecided-design proof case, the
   authoring template's build step, `K3EBHB`'s NTB recovery ownership, and
   `5F5ZZA`'s review-currency ownership.
+- Corrected review `349f3536-7ea6-4824-9825-91ff23515672` found the proof table
+  still left R2, R3, and R5 open to scripted semantic outcomes. The plan now
+  requires per-Rule clause-deletion mutations plus one live positive/defect
+  matrix covering all R1–R5 categories, binds proof to each RED/GREEN slice,
+  and records the narrow review-coordinator architecture extension.
