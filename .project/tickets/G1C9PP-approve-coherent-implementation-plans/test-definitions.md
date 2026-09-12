@@ -310,7 +310,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 ### Scenario: Concurrent design decisions do not overwrite each other
 
-- [ ] RED
+- [x] RED 06724f70c
 - [ ] GREEN
 - [ ] REFACTOR
 
