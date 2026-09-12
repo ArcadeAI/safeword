@@ -295,8 +295,8 @@ nonblocking behavior at the canonical CLI boundary.
 ### Scenario: A review-blocked design is never presented for human approval
 
 - [x] RED c5dad14b1
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 7fe63f37d
+- [x] REFACTOR skip: the narrow current-review lookup reuses the integrity-checked review job boundary without introducing another review record or parser
 
 ### Scenario: Human design authority follows approach currency
 
