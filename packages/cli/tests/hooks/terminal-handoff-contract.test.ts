@@ -5,6 +5,7 @@ import * as quality from '../../templates/hooks/lib/quality.js';
 describe('terminal handoff contract', () => {
   it('accepts one self-contained Next decision under the versioned contract', () => {
     const reply = [
+      'The implementation and focused tests are complete. Production rollout remains intentionally separate.',
       '**CONFIDENT** — The implementation is ready, but the release target needs a human choice.',
       '**Decided:** Keep the release scoped to one channel.',
       '**Open:** human: choose the release channel.',
@@ -15,10 +16,11 @@ describe('terminal handoff contract', () => {
       typeof quality.evaluateDecisionBriefCompliance
     > & { contractVersion?: string; form?: string };
 
-    expect(evaluation).toMatchObject({
+    expect(evaluation).toEqual({
       compliant: true,
       contractVersion: 'terminal-handoff/v1',
       form: 'decision',
+      examinedCharacters: expect.any(Number),
     });
   });
 });
