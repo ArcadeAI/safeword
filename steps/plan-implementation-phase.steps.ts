@@ -61,6 +61,10 @@ import {
   type DecisionDepthFixture,
   reviewDecisionDepth,
 } from '../packages/cli/tests/fixtures/plan-decision-depth.ts';
+import {
+  type MeasurementDesignFixture,
+  reviewMeasurementDesign,
+} from '../packages/cli/tests/fixtures/plan-measurement-design.ts';
 import type { ReviewerOutput } from '../packages/cli/src/review/contract.ts';
 import { reviewPlanOfRecord } from '../packages/cli/tests/fixtures/plan-single-record.ts';
 import { git } from './support/repo-fixtures.ts';
@@ -187,6 +191,8 @@ interface PlanWorld extends SafewordWorld {
   planStateReview?: ReviewerOutput;
   decisionDepth?: DecisionDepthFixture;
   decisionDepthReview?: ReviewerOutput;
+  measurementDesign?: MeasurementDesignFixture;
+  measurementDesignReview?: ReviewerOutput;
 }
 
 const EVIDENCE_REFERENCE = 'https://spec.commonmark.org/0.31.2/';
@@ -1173,6 +1179,41 @@ Given(
 );
 
 Given(
+  /^the Product Plan promises a measurable outcome for a named population and condition and the Implementation Plan (.+)$/u,
+  function (this: PlanWorld, measurementState: string) {
+    const complete = {
+      quantitativePromise: true,
+      changesTarget: false,
+      changesPopulation: false,
+      originDecided: true,
+      methodDecided: true,
+      safeguardsDecided: true,
+      failureBehaviorDecided: true,
+      instrumentationCommands: false,
+    } satisfies MeasurementDesignFixture;
+    switch (measurementState) {
+      case 'decides the origin, method, validity safeguards, and failure behavior':
+        this.measurementDesign = complete;
+        break;
+      case 'changes the promised target':
+        this.measurementDesign = { ...complete, changesTarget: true };
+        break;
+      case 'changes the affected population':
+        this.measurementDesign = { ...complete, changesPopulation: true };
+        break;
+      case 'decides origin, method, validity safeguards, and failure behavior but also lists exact instrumentation commands':
+        this.measurementDesign = { ...complete, instrumentationCommands: true };
+        break;
+      case 'leaves validity safeguards unresolved without listing instrumentation commands':
+        this.measurementDesign = { ...complete, safeguardsDecided: false };
+        break;
+      default:
+        assert.fail(`unknown measurement state: ${measurementState}`);
+    }
+  },
+);
+
+Given(
   /^real project configuration resolves its durable architecture location as (.+)$/u,
   function (this: PlanWorld, architectureLocation: string) {
     createProject(this);
@@ -1427,6 +1468,10 @@ When('its decision review runs', function (this: PlanWorld) {
 
 When('the Implementation Plan is reviewed', function (this: PlanWorld) {
   const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  if (this.measurementDesign !== undefined) {
+    this.measurementDesignReview = reviewMeasurementDesign(contract, this.measurementDesign);
+    return;
+  }
   if (this.decisionDepth !== undefined) {
     this.decisionDepthReview = reviewDecisionDepth(contract, this.decisionDepth);
     return;
@@ -2041,6 +2086,33 @@ Then(
     for (const field of expected) assert.match(messages, new RegExp(field, 'iu'));
   },
 );
+
+Then('measurement design does not block approval', function (this: PlanWorld) {
+  assert.equal(
+    this.measurementDesignReview?.verdict,
+    'approve',
+    this.measurementDesignReview?.findings.map(finding => finding.message).join('\n'),
+  );
+});
+
+Then(
+  /^approval is blocked because (?:the )?(Product-owned target was changed|Product-owned population was changed|instrumentation belongs in Execution Planning)$/u,
+  function (this: PlanWorld, reason: string) {
+    assert.equal(this.measurementDesignReview?.verdict, 'request_changes');
+    assert.match(
+      this.measurementDesignReview?.findings.map(finding => finding.message).join('\n') ?? '',
+      new RegExp(reason, 'iu'),
+    );
+  },
+);
+
+Then('approval is blocked with the missing validity decision named', function (this: PlanWorld) {
+  assert.equal(this.measurementDesignReview?.verdict, 'request_changes');
+  assert.match(
+    this.measurementDesignReview?.findings.map(finding => finding.message).join('\n') ?? '',
+    /missing validity decision/iu,
+  );
+});
 
 Then(
   /^blocked by the structural check with the missing (evidence reference|applicable version|retrieval date) named$/u,
