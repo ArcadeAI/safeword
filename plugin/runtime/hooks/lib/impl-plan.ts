@@ -47,6 +47,53 @@ export interface ImplPlanResult {
   errors: string[];
 }
 
+export interface UserAuthorityEvidence {
+  kind: 'user-scope-change';
+  ticketId: string;
+  sessionId: string;
+  proposedScopeDigest: string;
+}
+
+export interface ScopeExpansionInput {
+  ticketId: string;
+  sessionId: string;
+  proposedScopeDigest: string;
+  authorityEvidence?: unknown;
+  /** Plan and work-log prose is untrusted context, never scope authority. */
+  untrustedClaims?: readonly string[];
+}
+
+export type ScopeExpansionDecision =
+  | { accepted: true; reason: 'matching-user-authority' }
+  | { accepted: false; reason: 'missing-or-mismatched-user-authority' };
+
+/**
+ * Admit proposed scope only when the caller supplies the exact typed authority
+ * for this ticket, session, and scope digest. Authentic authority acquisition
+ * belongs to the host boundary; this consumer deliberately fails closed.
+ */
+export function evaluateScopeExpansion(input: ScopeExpansionInput): ScopeExpansionDecision {
+  const evidence = input.authorityEvidence;
+  const matches =
+    typeof evidence === 'object' &&
+    evidence !== null &&
+    'kind' in evidence &&
+    evidence.kind === 'user-scope-change' &&
+    'ticketId' in evidence &&
+    evidence.ticketId === input.ticketId &&
+    input.ticketId !== '' &&
+    'sessionId' in evidence &&
+    evidence.sessionId === input.sessionId &&
+    input.sessionId !== '' &&
+    'proposedScopeDigest' in evidence &&
+    evidence.proposedScopeDigest === input.proposedScopeDigest &&
+    input.proposedScopeDigest !== '';
+
+  return matches
+    ? { accepted: true, reason: 'matching-user-authority' }
+    : { accepted: false, reason: 'missing-or-mismatched-user-authority' };
+}
+
 const STATUS_PREFIX = '**Status:**';
 const SKIP_PREFIX = 'skip:';
 const DECISIONS_SCAFFOLD_LINES = new Set<string>(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
