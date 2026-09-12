@@ -1018,6 +1018,15 @@ describe('Claude plugin dispatcher', () => {
           },
         ],
       },
+      {
+        matcher: '^Notebook',
+        hooks: [
+          {
+            type: 'command',
+            command: String.raw`printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"notebook regex matched"}}\n'`,
+          },
+        ],
+      },
     ];
     writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
     refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
@@ -1033,6 +1042,30 @@ describe('Claude plugin dispatcher', () => {
         hookEventName: 'PreToolUse',
         permissionDecision: 'allow',
         permissionDecisionReason: 'bash matched',
+      },
+    });
+
+    const regexResult = dispatchEvent(
+      projectDirectory,
+      pluginData,
+      configDirectory,
+      'tool-regex-matcher',
+      {
+        event: 'PreToolUse',
+        hookInput: {
+          source: 'startup',
+          tool_name: 'NotebookEdit',
+          tool_input: { notebook_path: 'notes.ipynb' },
+        },
+        pluginRoot,
+      },
+    );
+    expect(regexResult.status, regexResult.stderr).toBe(0);
+    expect(JSON.parse(regexResult.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'notebook regex matched',
       },
     });
   });

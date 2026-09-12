@@ -5545,9 +5545,18 @@ var TOOL_EVENTS = /* @__PURE__ */ new Set([
   'PreToolUse',
 ]);
 function eventEntryMatches(event, entry, input) {
-  if (entry.matcher === void 0 || entry.matcher === '') return true;
+  if (entry.matcher === void 0 || ['', '*'].includes(entry.matcher)) return true;
   const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
-  return new RegExp(`^(?:${entry.matcher})$`, 'u').test(subject ?? '');
+  if (subject === void 0) return false;
+  const exactMatcherCharacters =
+    event === 'FileChanged' || event === 'StopFailure' ? /^[\w|]+$/u : /^[\w\- ,|]+$/u;
+  if (exactMatcherCharacters.test(entry.matcher)) {
+    return entry.matcher
+      .split(/[|,]/u)
+      .map(candidate => candidate.trim())
+      .includes(subject);
+  }
+  return new RegExp(entry.matcher, 'u').test(subject);
 }
 function readEventEntries(event, eventGroupsContent) {
   const value = JSON.parse(eventGroupsContent.toString('utf8'));

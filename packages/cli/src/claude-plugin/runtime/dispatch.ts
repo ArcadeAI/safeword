@@ -323,11 +323,22 @@ const TOOL_EVENTS = new Set([
 ]);
 
 function eventEntryMatches(event: string, entry: EventGroupEntryV1, input: HookInput): boolean {
-  if (entry.matcher === undefined || entry.matcher === '') return true;
+  if (entry.matcher === undefined || ['', '*'].includes(entry.matcher)) return true;
   const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
-  // Claude's manifest contract defines this field as a regular expression.
+  if (subject === undefined) return false;
+  const exactMatcherCharacters =
+    event === 'FileChanged' || event === 'StopFailure' ? /^[\w|]+$/u : /^[\w\- ,|]+$/u;
+  if (exactMatcherCharacters.test(entry.matcher)) {
+    return entry.matcher
+      .split(/[|,]/u)
+      .map(candidate => candidate.trim())
+      .includes(subject);
+  }
+  // Claude treats matchers containing other characters as unanchored regular
+  // expressions. Keep the host semantics so aggregated plugin hooks select the
+  // same handlers Claude would have selected individually.
   // eslint-disable-next-line security/detect-non-literal-regexp -- matcher is host-owned manifest syntax
-  return new RegExp(`^(?:${entry.matcher})$`, 'u').test(subject ?? '');
+  return new RegExp(entry.matcher, 'u').test(subject);
 }
 
 function readEventEntries(event: string, eventGroupsContent: Buffer): readonly EventGroupEntryV1[] {
