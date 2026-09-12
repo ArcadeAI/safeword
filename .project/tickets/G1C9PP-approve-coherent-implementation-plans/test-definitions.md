@@ -317,8 +317,8 @@ record invalidation, provenance changes, and context-digest recomputation.
 ### Scenario: An interrupted approval resumes according to durable authority
 
 - [x] RED e707a8f87
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN daec96bce
+- [x] REFACTOR skip: the two explicit test-only exit points expose the already-separated durable-event and phase-transition boundaries without changing production behavior
 
 ### Scenario: Retrying the same design approval does not duplicate authority
 
