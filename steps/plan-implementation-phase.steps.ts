@@ -134,6 +134,12 @@ interface HookVerdict {
   text: string;
 }
 
+interface RepairReviewResult {
+  state: string;
+  findings: Array<{ message: string; severity: string }>;
+  data?: { review_id?: string; status?: string };
+}
+
 interface PlanWorld extends SafewordWorld {
   projectDirectory?: string;
   ticketDirectory?: string;
@@ -197,6 +203,11 @@ interface PlanWorld extends SafewordWorld {
   measurementDesignReview?: ReviewerOutput;
   measurementApplicability?: MeasurementApplicabilityFixture;
   measurementApplicabilityReview?: ReviewerOutput;
+  repairReviews?: {
+    first: RepairReviewResult;
+    firstAfterCorrection?: RepairReviewResult;
+    current?: RepairReviewResult;
+  };
 }
 
 const EVIDENCE_REFERENCE = 'https://spec.commonmark.org/0.31.2/';
@@ -480,6 +491,91 @@ function installProjectHooks(world: PlanWorld): void {
       2,
     )}\n`,
   );
+}
+
+function arrangeRepairReviewer(world: PlanWorld, plan: string): void {
+  createProject(world);
+  installProjectHooks(world);
+  seedTicket(world, { phase: 'plan-implementation', spec: true });
+  writeFileSync(ticketArtifact(world, 'impl-plan.md'), plan);
+
+  const trustedRoot = nodePath.join(PROJECT_ROOT, 'packages/cli/.test-tmp/reviewers');
+  mkdirSync(trustedRoot, { recursive: true, mode: 0o700 });
+  world.reviewerBinDirectory = mkdtempSync(nodePath.join(trustedRoot, 'plan-repair-'));
+  chmodSync(world.reviewerBinDirectory, 0o700);
+  const reviewer = nodePath.join(world.reviewerBinDirectory, 'claude');
+  writeFileSync(
+    reviewer,
+    `#!/bin/sh
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  echo '${REVIEWER_CAPABILITIES.claude}'
+  exit 0
+fi
+payload=$(/bin/cat)
+dispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')
+if printf '%s' "$payload" | /usr/bin/grep -q 'REPAIR_COMPLETE'; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Current exact bytes are complete.","findings":[]}\\n' "$dispatch_id"
+elif printf '%s' "$payload" | /usr/bin/grep -q 'REPAIR_EXTERNAL'; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Plan is waiting on its behavior owner.","findings":[{"severity":"error","message":"Pending user decision: choose deny-by-default or cached access. Deny-by-default prevents exposure but reduces availability; cached access preserves availability but can serve stale authority. Resume: ask the user to choose one outcome, record it, then re-run plan review."}]}\\n' "$dispatch_id"
+elif printf '%s' "$payload" | /usr/bin/grep -q 'REPAIR_AUTH_MISSING'; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Authorization remains unresolved.","findings":[{"severity":"error","message":"Authorization boundary is still missing; return to repair and decide where every request is checked."}]}\\n' "$dispatch_id"
+else
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Three current design defects block approval.","findings":[{"severity":"error","message":"Authorization boundary is missing."},{"severity":"error","message":"Persisted resource owner conflicts with its policy-service source of truth."},{"severity":"error","message":"Rollback behavior is undecided."}]}\\n' "$dispatch_id"
+fi
+`,
+  );
+  chmodSync(reviewer, 0o755);
+}
+
+function runRepairReview(world: PlanWorld): RepairReviewResult {
+  assert.ok(world.installedCliPath, 'the packaged Safeword CLI was not installed');
+  assert.ok(world.reviewerBinDirectory, 'the deterministic reviewer was not arranged');
+  const keyRoot = nodePath.join(world.projectDirectory!, 'review-integrity');
+  const result = spawnSync(
+    'bun',
+    [
+      world.installedCliPath,
+      'review',
+      'run',
+      'plan-implementation',
+      '--json',
+      '--',
+      nodePath.relative(world.projectDirectory!, ticketArtifact(world, 'impl-plan.md')),
+    ],
+    {
+      cwd: world.projectDirectory,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: world.projectDirectory,
+        NODE_ENV: 'test',
+        PATH: `${world.reviewerBinDirectory}:${process.env.PATH ?? ''}`,
+        SAFEWORD_AGENT_RUNTIME: 'codex',
+        SAFEWORD_REVIEW_KEY_ROOT: keyRoot,
+      },
+    },
+  );
+  assert.ok(result.status === 0 || result.status === 2, `${result.stdout}\n${result.stderr}`);
+  return JSON.parse(result.stdout) as RepairReviewResult;
+}
+
+function reviewStatus(world: PlanWorld, reviewId: string): RepairReviewResult {
+  const result = spawnSync(
+    'bun',
+    [world.installedCliPath!, 'review', 'status', reviewId, '--json'],
+    {
+      cwd: world.projectDirectory,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: world.projectDirectory,
+        NODE_ENV: 'test',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(world.projectDirectory!, 'review-integrity'),
+      },
+    },
+  );
+  assert.ok(result.status === 0 || result.status === 2, `${result.stdout}\n${result.stderr}`);
+  return JSON.parse(result.stdout) as RepairReviewResult;
 }
 
 function arrangeArchitectureReceipt(world: PlanWorld): void {
@@ -849,6 +945,31 @@ Given('a feature ticket at the plan-implementation phase', function (this: PlanW
   // when the impl-plan stop gate could apply (hooks.test.ts scenario 11b).
   seedTicket(this, { phase: 'plan-implementation', spec: true });
 });
+
+Given(
+  'real project configuration, an Implementation Plan with a missing authorization boundary, an incorrect data owner, and no rollback decision, and deterministic reviewer process results that return those findings then approve the corrected exact bytes',
+  function (this: PlanWorld) {
+    arrangeRepairReviewer(this, `${VALID_PLAN}\n\nREPAIR_INITIAL\n`);
+  },
+);
+
+Given(
+  'a plan defect requires the user who owns scope and behavior to choose between two behaviorally different outcomes and no authorized decision is available',
+  function (this: PlanWorld) {
+    arrangeRepairReviewer(this, `${VALID_PLAN}\n\nREPAIR_EXTERNAL\n`);
+  },
+);
+
+Given(
+  /^a plan has completed one repair round and its current exact bytes (resolve every blocking defect|still omit one required authorization decision)$/u,
+  function (this: PlanWorld, correctionState: string) {
+    const marker =
+      correctionState === 'resolve every blocking defect'
+        ? 'REPAIR_COMPLETE'
+        : 'REPAIR_AUTH_MISSING';
+    arrangeRepairReviewer(this, `${VALID_PLAN}\n\n${marker}\n`);
+  },
+);
 
 Given('no test-definitions.md exists in the ticket folder', function (this: PlanWorld) {
   assert.equal(existsSync(ticketArtifact(this, 'test-definitions.md')), false);
@@ -1672,6 +1793,31 @@ When(
 );
 
 When(
+  'the installed Safeword CLI completes the review and repair loop through real internal collaborators and the controlled reviewer process boundary',
+  SUBPROCESS,
+  function (this: PlanWorld) {
+    const first = runRepairReview(this);
+    const firstId = first.data?.review_id;
+    assert.ok(firstId, 'the first review receipt has no review identity');
+
+    writeFileSync(ticketArtifact(this, 'impl-plan.md'), `${VALID_PLAN}\n\nREPAIR_COMPLETE\n`);
+    const firstAfterCorrection = reviewStatus(this, firstId);
+    const current = runRepairReview(this);
+    this.repairReviews = { first, firstAfterCorrection, current };
+  },
+);
+
+When('the repair loop reaches that defect', SUBPROCESS, function (this: PlanWorld) {
+  const first = runRepairReview(this);
+  this.repairReviews = { first, current: first };
+});
+
+When('those current bytes are reviewed again', SUBPROCESS, function (this: PlanWorld) {
+  const first = runRepairReview(this);
+  this.repairReviews = { first, current: first };
+});
+
+When(
   'the installed Safeword CLI presents the review receipt through real internal collaborators',
   SUBPROCESS,
   function (this: PlanWorld) {
@@ -1781,6 +1927,66 @@ Then(
     );
     assert.equal(this.ticketPhase, 'plan-implementation');
     assert.match(this.verdict?.text ?? '', /Authentication ownership/);
+  },
+);
+
+Then(
+  'the first receipt names all three defects together and the approving receipt binds the corrected bytes rather than the original bytes and records no remaining blocking defect',
+  function (this: PlanWorld) {
+    const reviews = this.repairReviews;
+    assert.ok(reviews?.current, 'the repair loop did not produce both receipts');
+    const firstFindings = reviews.first.findings.map(finding => finding.message).join('\n');
+    assert.match(firstFindings, /Authorization boundary is missing/u);
+    assert.match(firstFindings, /owner conflicts with its policy-service source of truth/u);
+    assert.match(firstFindings, /Rollback behavior is undecided/u);
+    assert.equal(reviews.firstAfterCorrection?.data?.status, 'stale');
+    assert.equal(reviews.current.data?.status, 'approved');
+    assert.equal(
+      reviews.current.findings.some(finding => finding.severity === 'error'),
+      false,
+    );
+    assert.notEqual(reviews.first.data?.review_id, reviews.current.data?.review_id);
+  },
+);
+
+Then(
+  'the plan remains unapproved with the pending decision, its consequences, and the one resume action named',
+  function (this: PlanWorld) {
+    const review = this.repairReviews?.current;
+    assert.ok(review, 'the external-authority review did not run');
+    assert.notEqual(review.data?.status, 'approved');
+    const findings = review.findings.map(finding => finding.message).join('\n');
+    assert.match(findings, /Pending user decision/u);
+    assert.match(findings, /Deny-by-default prevents exposure but reduces availability/u);
+    assert.match(findings, /cached access preserves availability but can serve stale authority/u);
+    assert.match(
+      findings,
+      /Resume: ask the user to choose one outcome, record it, then re-run plan review/u,
+    );
+    assert.equal(this.ticketPhase, 'plan-implementation');
+  },
+);
+
+Then('the plan is eligible to proceed from Implementation Planning', function (this: PlanWorld) {
+  const review = this.repairReviews?.current;
+  assert.equal(review?.data?.status, 'approved');
+  assert.equal(
+    review?.findings.some(finding => finding.severity === 'error'),
+    false,
+  );
+});
+
+Then(
+  'the plan remains blocked on that decision and returns to repair rather than being approved because one repair occurred',
+  function (this: PlanWorld) {
+    const review = this.repairReviews?.current;
+    assert.ok(review, 'the corrected plan was not re-reviewed');
+    assert.notEqual(review.data?.status, 'approved');
+    assert.match(
+      review.findings.map(finding => finding.message).join('\n'),
+      /Authorization boundary is still missing; return to repair/u,
+    );
+    assert.equal(this.ticketPhase, 'plan-implementation');
   },
 );
 
