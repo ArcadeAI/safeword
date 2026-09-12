@@ -2529,9 +2529,14 @@ function planArchitectureRecoveryLines(data, messages) {
   const architectureBlocker = messages.find((message) => /shared-contract choice.+durable architecture (?:record|link)/iu.test(message));
   if (architectureBlocker === undefined)
     return;
+  const targets = Array.isArray(data.review_targets) ? data.review_targets.filter((target) => typeof target === "string") : [];
+  const planTarget2 = targets.find((target) => /(?:^|\/)impl-plan\.md$/u.test(target))?.replaceAll(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, " ");
   return [
     "The shared-contract choice needs a durable architecture record.",
-    "Recovery: Add the durable architecture link before resubmitting."
+    "Recovery: Add the durable architecture link before resubmitting.",
+    "Check: Durable architecture link \u2014 failed.",
+    `Implementation Plan: ${planTarget2 ?? "impl-plan.md"}`,
+    "Obligation: Shared-contract choices require a resolvable durable architecture record."
   ];
 }
 function reviewResultLines(result, options) {
