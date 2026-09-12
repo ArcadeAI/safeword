@@ -767,12 +767,10 @@ function materializeScopedSettings(
             url: marketplace.url,
             ref: marketplace.ref,
           },
-          ...(marketplace.ref === 'stable' && { autoUpdate: true }),
+          autoUpdate: true,
         },
       };
-      if (marketplace.ref === 'stable') {
-        settings.env = { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' };
-      }
+      settings.env = { CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1' };
     }
     const plugin = scopedPlugins.find(entry => entry.id === 'safeword@safeword');
     if (plugin !== undefined) {
@@ -860,7 +858,7 @@ function createExactScopedFixture(world: NativeClaudePluginWorld, scope: 'projec
       name: 'safeword',
       source: 'git',
       url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-      ref: 'stable',
+      ref: OFFICIAL_MARKETPLACE_REF,
     },
   ];
   state.marketplaceDeclarations = [
@@ -868,7 +866,7 @@ function createExactScopedFixture(world: NativeClaudePluginWorld, scope: 'projec
       name: 'safeword',
       source: 'git',
       url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-      ref: 'stable',
+      ref: OFFICIAL_MARKETPLACE_REF,
       scope,
       ...projectIdentity,
     },
@@ -2885,9 +2883,9 @@ Then(
   function (this: NativeClaudePluginWorld, scope: string) {
     if (this.lifecycle === undefined) {
       createExactScopedFixture(this, scope as 'project' | 'user');
-      return;
+    } else {
+      assert.equal(this.lifecycle.result?.status, 2, this.lifecycle.result?.output);
     }
-    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
     assert.ok(this.lifecycle);
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
       marketplaceDeclarations: Record<string, unknown>[];

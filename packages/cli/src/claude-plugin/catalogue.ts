@@ -122,11 +122,14 @@ function adaptPluginRuntime(content: string): string {
   // The bunx fallbacks rewritten below occur in lifecycle hooks launched by
   // the verified dispatcher. It overwrites SAFEWORD_PLUGIN_CLI with the
   // bundled path immediately before launching those child hooks.
+  const bunxFallback = "['bunx', ['safeword@latest',";
+  if (content.includes('safeword@latest') && !content.includes(bunxFallback)) {
+    throw new Error(
+      'Claude plugin runtime adaptation could not find the expected safeword@latest fallback.',
+    );
+  }
   const adapted = adaptWorkflowReference(content)
-    .replaceAll(
-      "['bunx', ['safeword@latest',",
-      "['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli,",
-    )
+    .replaceAll(bunxFallback, "['bun', [process.env.SAFEWORD_PLUGIN_CLI ?? localCli,")
     .replaceAll('`bunx safeword@latest`', 'the bundled plugin CLI');
   if (
     adapted.includes('process.env.SAFEWORD_PLUGIN_CLI ?? localCli') &&

@@ -75,10 +75,11 @@ interface HookInput {
 }
 
 /**
- * Matches `git commit` (any flags / message after) but rejects `git commit-tree`,
- * `git commit-graph`, etc. The trailing (?!-) lookahead is what distinguishes them.
+ * Matches `git commit`, including common global options before the subcommand,
+ * but rejects `git commit-tree`, `git commit-graph`, etc.
  */
-const GIT_COMMIT_COMMAND = /\bgit\s+commit\b(?!-)/;
+const GIT_COMMIT_COMMAND =
+  /\bgit(?:\s+(?:-C\s+(?:"[^"]*"|'[^']*'|\S+)|--no-pager))*\s+commit\b(?!-)/;
 
 /**
  * Heuristic: a path is a test file if it matches *.test.* or *.spec.*, or lives
@@ -100,8 +101,8 @@ function isTestFile(path: string): boolean {
  * (ticket K7N2QM). Degrades to '' when the file or config is absent/unreadable
  * — knownPersonaRefs('') yields an empty set, so unresolved refs are denied.
  */
-function readPersonasForGate(ticketDirectory: string): string {
-  const projectRoot = nodePath.join(ticketDirectory, '..', '..', '..');
+function readPersonasForGate(): string {
+  const projectRoot = projectDirectory;
   const personasPath = resolvePersonasPath(projectRoot);
   return existsSync(personasPath) ? readFileSync(personasPath, 'utf8') : '';
 }
@@ -581,7 +582,7 @@ if (
         );
       }
     } else {
-      const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate(ticketDirectory));
+      const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate());
       if (!jtbdVerdict.ok) {
         deny(
           `spec.md JTBD gate: ${jtbdVerdict.reason}.`,

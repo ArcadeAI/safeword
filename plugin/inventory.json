@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "8c98a605f96acefc99d9dd3f682a1a3ceee4bdcb7bc0c3c30f9b84313766b0b1"
+      "sha256": "09c5ce79cbe9beb5bfa49a306ebda1a92de4fd4976a34c0a28093c6f293138c6"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "ef4774adfccdc1ab5888d30bdc0d26521fd1f3506bdf71b89f8a54d4465ea171"
+      "sha256": "31e786dd387a75c6f6ccd22683d470d49dc4edb5053d5927c0cb53dd3f3fdfb1"
     },
     {
       "path": "runtime/event-groups.json",
@@ -195,7 +195,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "46af5925dd899b61794912ea81e21dc15433f135d632b980c3feedca7d9d9ff0"
+      "sha256": "3f149e94a5eddd2f087d86bd0a05ec2532ae28db3543b8b670c6307252860db5"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -483,7 +483,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "e464648b50f63e39a15cb59289d2f76e13fd2c7b63300d8f8c5d5d1152123031"
+      "sha256": "9803c785e5908b92dd8deb9fa3fb45b5718d585c210e128e68dbbc00639188a6"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",

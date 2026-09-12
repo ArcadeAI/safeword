@@ -29,6 +29,7 @@ import {
 } from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+const SAFEWORD_CLI = nodePath.join(SAFEWORD_ROOT, 'packages/cli/src/cli.ts');
 const PRE_TOOL_QUALITY = nodePath.join(
   SAFEWORD_ROOT,
   'packages/cli/templates/hooks/pre-tool-quality.ts',
@@ -270,7 +271,7 @@ describe('write-time annotation gate', () => {
     for (const directory of gateDirectories.splice(0)) removeTemporaryDirectory(directory);
   });
 
-  it('keeps generated Codex hook copies byte-identical to their source templates', () => {
+  it('keeps the generated Codex quality gate and edited parser copies byte-identical', () => {
     expect(readFileSync(CODEX_PLUGIN_PRE_TOOL_QUALITY, 'utf8')).toBe(
       readFileSync(PRE_TOOL_QUALITY, 'utf8'),
     );
@@ -871,6 +872,22 @@ describe('write-time annotation gate', () => {
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy') },
       );
       expectHookAllow(result);
+    });
+
+    it('invokes the real executable-RED CLI route and parses its blocked envelope', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: SAFEWORD_CLI },
+      );
+
+      expectHookDeny(result, 'No trusted executable RED receipt matches Scenario: example');
     });
 
     it('gates every GREEN transition produced by replace_all', () => {

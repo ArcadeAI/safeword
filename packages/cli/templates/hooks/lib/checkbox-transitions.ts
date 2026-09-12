@@ -160,6 +160,8 @@ function findTransitions(
   const transitions: CheckboxTransition[] = [];
 
   const preservedHistoricalRows = new Set<number>();
+  // cross-scenario is validated as supporting evidence, but it is not a TDD
+  // phase transition and therefore is not immutable completion credit here.
   for (const oldState of oldStates.filter(
     state =>
       ['RED', 'GREEN', 'REFACTOR'].includes(state.step) && state.checked && state.annotation !== '',
