@@ -28,7 +28,10 @@ import {
 /* eslint-disable unicorn/no-null -- State file uses JSON null values by design */
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
+const PRE_TOOL_QUALITY = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/pre-tool-quality.ts',
+);
 
 /** Invoke pre-tool-quality with a Bash(git commit) payload. */
 function runBashCommitHook(cwd: string, command: string, sessionId = 'test-session'): HookResult {

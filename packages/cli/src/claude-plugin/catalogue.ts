@@ -87,20 +87,23 @@ function adaptClaudeSkill(content: string): string {
   // Qualify only known collision-prone/private workflows. Public plugin skills
   // keep their canonical bare references (for example /audit and
   // /quality-review), which Claude resolves within the active plugin catalogue.
-  const adapted = adaptWorkflowReference(content)
-    .replaceAll('`/verify`', '`/safeword:verify`')
-    .replaceAll('`/retro-filer`', '`/safeword:retro-filer`')
-    .replaceAll(
-      '!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && ',
-      '!`',
-    );
-  return stripTrailingWhitespace(
-    adapted.replaceAll(
-      /^!`([^`\n]*)`$/gmu,
-      (_line, command: string) =>
-        `!\`${command.replaceAll('$PROJECT_DIR', '$CLAUDE_PROJECT_DIR')}\``,
-    ),
+  const adapted = stripTrailingWhitespace(
+    adaptWorkflowReference(content)
+      .replaceAll('`/verify`', '`/safeword:verify`')
+      .replaceAll('`/retro-filer`', '`/safeword:retro-filer`')
+      .replaceAll(
+        '!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && ',
+        '!`',
+      ),
   );
+  const result = adapted.replaceAll(
+    /^!`([^`\n]*)`$/gmu,
+    (_line, command: string) => `!\`${command.replaceAll('$PROJECT_DIR', '$CLAUDE_PROJECT_DIR')}\``,
+  );
+  if (/^!`[^`\n]*\$PROJECT_DIR[^`\n]*`$/mu.test(result)) {
+    throw new Error('Claude plugin skill adaptation retained $PROJECT_DIR in an inline command.');
+  }
+  return result;
 }
 
 function adaptPluginScriptReference(content: string): string {
@@ -370,7 +373,7 @@ function assertEventGroupManifestCoverage(hookManifest: string, eventGroups: str
     }
   }
   for (const event of groupNames) {
-    if (!JSON.stringify(manifest.hooks?.[event]).includes('--event-group')) {
+    if (!JSON.stringify(manifest.hooks?.[event] ?? []).includes('--event-group')) {
       throw new Error(`Claude plugin event group is not referenced by its manifest: ${event}`);
     }
   }

@@ -81,6 +81,23 @@ describe('Claude plugin catalogue generation', () => {
     expect(tdd?.content).not.toContain('/safeword:quality-review');
   });
 
+  it('removes project-root compatibility variables from generated inline commands', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const generatedSkills = assets.filter(asset => asset.relativePath.startsWith('skills/'));
+
+    expect(generatedSkills).not.toHaveLength(0);
+    const inlineCommands = generatedSkills.flatMap(asset =>
+      asset.content.split('\n').filter(line => line.startsWith('!`')),
+    );
+    expect(inlineCommands).not.toHaveLength(0);
+    expect(inlineCommands.join('\n')).not.toContain('$PROJECT_DIR');
+  });
+
   it('retains only project-command matcher literals in the shared run-identity parser', () => {
     const assets = generateClaudePluginAssets({
       cliBundle: 'console.log("stub cli bundle");',

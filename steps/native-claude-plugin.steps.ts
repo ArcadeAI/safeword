@@ -41,6 +41,7 @@ interface NativeClaudePluginWorld {
     configRoot?: string;
     codexHome: string;
     codexLogPath: string;
+    claudeLogPath: string;
     statePath: string;
     projectSnapshot: string;
     profileSnapshot: string;
@@ -104,7 +105,7 @@ After(function (this: NativeClaudePluginWorld) {
 
 function filesBeneath(directory: string, prefix = ''): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    const relative = nodePath.join(prefix, entry.name);
+    const relative = nodePath.posix.join(prefix, entry.name);
     const absolute = nodePath.join(directory, entry.name);
     if (entry.isDirectory()) return filesBeneath(absolute, relative);
     return entry.isFile() ? [relative] : [];
@@ -391,9 +392,9 @@ Then(
 Then(
   'every framework import resolves beneath CLAUDE_PLUGIN_ROOT',
   function (this: NativeClaudePluginWorld) {
+    assert.ok(this.cacheFixture);
     assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
     assert.match(this.cacheFixture.result?.output ?? '', /Current time:/u);
-    assert.ok(this.cacheFixture);
     const proof = JSON.parse(
       readFileSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project), 'utf8'),
     ) as { canonical_plugin_root?: string };
@@ -683,6 +684,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const statePath = process.env.FAKE_CLAUDE_STATE;
 const args = process.argv.slice(2);
+if (process.env.FAKE_CLAUDE_LOG) {
+  fs.appendFileSync(process.env.FAKE_CLAUDE_LOG, JSON.stringify(args) + '\\n');
+}
 const read = () => JSON.parse(fs.readFileSync(statePath, 'utf8'));
 const write = value => fs.writeFileSync(statePath, JSON.stringify(value, null, 2) + '\\n');
 const state = read();
@@ -802,6 +806,7 @@ function createLifecycleFixture(
   const fakeBin = nodePath.join(root, 'bin');
   const configRoot = nodePath.join(root, 'claude-config');
   const statePath = nodePath.join(root, 'claude-state.json');
+  const claudeLogPath = nodePath.join(root, 'claude-calls.jsonl');
   mkdirSync(project, { recursive: true });
   mkdirSync(fakeBin, { recursive: true });
   mkdirSync(configRoot, { recursive: true });
@@ -826,6 +831,7 @@ function createLifecycleFixture(
   cpSync(PLUGIN_ROOT, state.installPath, { recursive: true });
   const profileSnapshot = `${JSON.stringify(state, undefined, 2)}\n`;
   writeFileSync(statePath, profileSnapshot);
+  writeFileSync(claudeLogPath, '');
   materializeScopedSettings(project, configRoot, state.marketplaceDeclarations, state.plugins);
   writeFakeClaude(fakeBin);
   world.lifecycle = {
@@ -834,6 +840,7 @@ function createLifecycleFixture(
     configRoot,
     codexHome: codexRuntime.codexHome,
     codexLogPath: codexRuntime.logPath,
+    claudeLogPath,
     statePath,
     projectSnapshot: readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'),
     profileSnapshot,
@@ -1195,6 +1202,7 @@ function runLifecycleCommand(
         CLAUDE_CONFIG_DIR: world.lifecycle.configRoot,
         CODEX_HOME: world.lifecycle.codexHome,
         FAKE_CLAUDE_STATE: world.lifecycle.statePath,
+        FAKE_CLAUDE_LOG: world.lifecycle.claudeLogPath,
         SAFEWORD_CODEX_LOG: world.lifecycle.codexLogPath,
         SAFEWORD_SKIP_INSTALL: '1',
         PATH: `${nodePath.join(world.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
@@ -1211,6 +1219,27 @@ Given(
     createStatusFixture(this, 'valid proof and wholly recognized removable legacy', false);
   },
 );
+
+function assertNoClaudeMutationCalls(
+  lifecycle: NonNullable<NativeClaudePluginWorld['lifecycle']>,
+): void {
+  const calls = readFileSync(lifecycle.claudeLogPath, 'utf8')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map(line => JSON.parse(line) as string[]);
+  const forbidden = calls.filter(args => {
+    const operation = args.join(' ');
+    return (
+      (args[0] === 'plugin' &&
+        args[1] === 'marketplace' &&
+        ['add', 'remove', 'update'].includes(args[2] ?? '')) ||
+      (args[0] === 'plugin' && ['enable', 'install', 'update'].includes(args[1] ?? '')) ||
+      /(?:^|\s)(?:reload|reload-plugins|trust)(?:\s|$)/u.test(operation)
+    );
+  });
+  assert.deepEqual(forbidden, []);
+}
 
 Given(
   'cleanup preconditions fail and a call-recording Claude command adapter is present',
@@ -1256,6 +1285,7 @@ Then(
       existsSync(lifecycleStatePath(configRoot, this.lifecycle.project, 'plugin-mode-v2.json')),
     );
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assertNoClaudeMutationCalls(this.lifecycle);
   },
 );
 
@@ -1269,6 +1299,7 @@ Then(
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assertNoClaudeMutationCalls(this.lifecycle);
   },
 );
 
@@ -1724,6 +1755,7 @@ Then(
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assertNoClaudeMutationCalls(this.lifecycle);
   },
 );
 
@@ -2881,12 +2913,8 @@ When('safeword claude install runs', function (this: NativeClaudePluginWorld) {
 Then(
   /^the exact official Safeword plugin is enabled at (project|user)(?: scope)? for the current project$/u,
   function (this: NativeClaudePluginWorld, scope: string) {
-    if (this.lifecycle === undefined) {
-      createExactScopedFixture(this, scope as 'project' | 'user');
-    } else {
-      assert.equal(this.lifecycle.result?.status, 2, this.lifecycle.result?.output);
-    }
     assert.ok(this.lifecycle);
+    assert.equal(this.lifecycle.result?.status, 2, this.lifecycle.result?.output);
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
       marketplaceDeclarations: Record<string, unknown>[];
       plugins: Record<string, unknown>[];
@@ -2910,6 +2938,13 @@ Then(
           (scope !== 'project' || marketplace.projectPath === this.lifecycle?.project),
       ),
     );
+  },
+);
+
+Given(
+  /^an exact official Safeword plugin is already enabled at (project|user) for the current project$/u,
+  function (this: NativeClaudePluginWorld, scope: string) {
+    createExactScopedFixture(this, scope as 'project' | 'user');
   },
 );
 
@@ -3597,7 +3632,7 @@ Then(
       nodePath.join(this.cacheFixture.plugin, 'hooks/hooks.json'),
       'utf8',
     );
-    assert.match(manifest, /runtime\/dispatch\.ts[^\n]+UserPromptSubmit/u);
+    assert.match(manifest, /runtime\/dispatch\.js[^\n]+UserPromptSubmit/u);
   },
 );
 
