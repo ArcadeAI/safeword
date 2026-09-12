@@ -249,7 +249,7 @@ family.
 ### Scenario: Measurement ownership stays with the phase that owns it
 
 - [x] RED 0eb25d232
-- [ ] GREEN
+- [x] GREEN fce53f366
 - [ ] REFACTOR
 
 ### Scenario: Measurement applicability is explicit
