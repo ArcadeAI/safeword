@@ -465,6 +465,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     {
       promptPolicy: 'confirm',
       networkPolicy: 'declared',
+      fixture: { argv: ['codex', 'migrate', '--offline'], environment: MACHINE_ENVIRONMENT },
       commandOptions: [
         { flags: '--finalize', description: 'Finalize after current plugin-hook proof exists' },
         ...planConfirmationOptions({
@@ -686,7 +687,12 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     },
   }),
   command('review routes list', 'List effective ranked review routes', 'observe', {
-    commandOptions: [{ flags: '--author <author>', description: 'claude, codex, or opencode' }],
+    commandOptions: [
+      {
+        flags: '--author <author>',
+        description: 'claude, codex, or opencode; omit to list every author',
+      },
+    ],
     fixture: {
       argv: ['review', 'routes', 'list', '--author', 'claude'],
       environment: MACHINE_ENVIRONMENT,

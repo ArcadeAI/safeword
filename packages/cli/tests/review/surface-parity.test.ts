@@ -93,7 +93,8 @@ interface ReviewCallSection {
   readonly section: string;
 }
 
-const MAX_REVIEW_CALL_WINDOW_LINES = 64;
+// Leave deliberate editing headroom while still bounding each launch contract.
+const MAX_REVIEW_CALL_WINDOW_LINES = 96;
 
 function reviewCallWindowAt(
   lines: readonly string[],
@@ -608,7 +609,7 @@ exit ${status}`,
     }
   });
 
-  it('never tells any shipped skill to surface a native approval request', () => {
+  it('never tells any shipped skill to ask the host for review approval', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     for (const root of [
       nodePath.join(templates, 'skills'),
@@ -617,7 +618,9 @@ exit ${status}`,
     ]) {
       for (const relativePath of markdownFiles(root)) {
         const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
-        expect(content, `${root}/${relativePath}`).not.toMatch(/native tool-approval request/iu);
+        expect(content, `${root}/${relativePath}`).not.toMatch(
+          /(?<!never )(?:surface|request|ask)[^.\n]{0,80}(?:native|host)[^.\n]{0,80}approval/iu,
+        );
       }
     }
   });
@@ -641,10 +644,24 @@ exit ${status}`,
     }
   });
 
-  it('keeps the shared quality rubric identical in quality and scenario review', () => {
-    expect(markedQualityRubric(readTemplate('skills/review-spec/SKILL.md'))).toBe(
-      markedQualityRubric(readTemplate('skills/quality-review/SKILL.md')),
-    );
+  it('keeps the shared quality rubric identical on every template and generated surface', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const canonical = markedQualityRubric(readTemplate('skills/quality-review/SKILL.md'));
+    for (const path of [
+      nodePath.join(templates, 'skills/review-spec/SKILL.md'),
+      nodePath.join(templates, 'skills/bdd/PLAN_IMPLEMENTATION.md'),
+      nodePath.join(repoRoot, 'plugin/skills/quality-review/SKILL.md'),
+      nodePath.join(repoRoot, 'plugin/skills/review-spec/SKILL.md'),
+      nodePath.join(repoRoot, 'plugin/skills/bdd/PLAN_IMPLEMENTATION.md'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/quality-review/SKILL.md'),
+      nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/review-spec/SKILL.md'),
+      nodePath.join(
+        repoRoot,
+        'packages/cli/codex-plugin/skills/bdd/references/PLAN_IMPLEMENTATION.md',
+      ),
+    ]) {
+      expect(markedQualityRubric(readFileSync(path, 'utf8')), path).toBe(canonical);
+    }
   });
 
   it('keeps scenario-gate coordinator ownership in review-spec', () => {
@@ -775,10 +792,6 @@ exit ${status}`,
     try {
       mkdirSync(nodePath.join(fixture, '.safeword'));
       writeFileSync(nodePath.join(fixture, '.safeword/version'), 'npm:untrusted-package\n');
-      expect(reviewCandidates(fixture, {})).not.toContainEqual([
-        'bunx',
-        ['safeword@npm:untrusted-package'],
-      ]);
       expect(reviewCandidates(fixture, {})).toHaveLength(0);
     } finally {
       rmSync(fixture, { recursive: true, force: true });

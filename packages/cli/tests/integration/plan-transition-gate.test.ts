@@ -132,6 +132,18 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
+  function runExactEdit(filePath: string, oldString: string, newString: string): HookResult {
+    const result = spawnSync('bun', [GATE_PATH], {
+      input: JSON.stringify({
+        tool_name: 'Edit',
+        tool_input: { file_path: filePath, old_string: oldString, new_string: newString },
+      }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+    });
+    return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+  }
+
   function runCodexAdvance(fromPhase: string, toPhase: string): HookResult {
     const result = spawnSync('bun', [CODEX_GATE_PATH], {
       cwd: projectRoot,
@@ -627,6 +639,16 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     );
     expect(transition.permission).toBe('deny');
     expect(transition.user_message).toContain('all three');
+  });
+
+  it('treats replacement tokens literally while guarding the last activation marker', () => {
+    const specFile = nodePath.join(ticketDirectory, 'spec.md');
+    const marker = '<!-- safeword:inspiration-contract:v1 -->';
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(specFile, `# Spec\n${marker}\n`);
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+
+    expectHookDeny(runExactEdit(specFile, marker, '$&'), 'last inspiration-contract');
   });
 
   it('accepts a completed canonical implementation-plan template through the real gate', () => {
