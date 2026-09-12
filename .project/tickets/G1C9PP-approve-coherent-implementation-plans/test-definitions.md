@@ -329,8 +329,8 @@ record invalidation, provenance changes, and context-digest recomputation.
 ### Scenario: Approval-ledger contention fails closed without changing authority
 
 - [x] RED c99a7cf44
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN b03466f66
+- [x] REFACTOR skip: timeout validation is isolated at lock acquisition and the pending path already shares the command's fail-closed result
 
 ### Scenario: A design decision preserves compatible approval-ledger extensions
 
