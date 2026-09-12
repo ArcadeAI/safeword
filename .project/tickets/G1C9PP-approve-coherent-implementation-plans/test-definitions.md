@@ -227,7 +227,7 @@ release prerequisite by itself.
 
 ### Scenario: Plan-state claims remain truthful
 
-- [ ] RED
+- [x] RED 8c1ff90f4
 - [ ] GREEN
 - [ ] REFACTOR
 
