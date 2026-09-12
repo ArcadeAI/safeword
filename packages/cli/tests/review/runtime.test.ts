@@ -13,7 +13,11 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ReviewerOutput } from '../../src/review/contract.js';
+import type {
+  ReviewerOutput,
+  ReviewPacket,
+  UnverifiedReviewerOutput,
+} from '../../src/review/contract.js';
 import { prepareReviewPacket } from '../../src/review/packet.js';
 import {
   inspectReviewRoute,
@@ -22,6 +26,7 @@ import {
   planReviewRubric,
   procGroupHasRunningMember,
   qualityReviewRubric,
+  reconcilePlanContract,
   reviewerArguments,
   reviewTimeoutMilliseconds,
   runBoundMs,
@@ -97,6 +102,42 @@ describe('scenario review rubric', () => {
     expect(rubric).toContain('## Shared implementation-plan judgment standard');
     expect(rubric).toContain('Apply the deletion test');
     expect(rubric).not.toContain('run-review.ts');
+  });
+});
+
+describe('plan contract reconciliation', () => {
+  it('normalizes a contract-mismatch Execution Plan denial to a null record', () => {
+    const packet: ReviewPacket = {
+      schema_version: 1,
+      dispatch_id: 'dispatch-1',
+      kind: 'plan-execution',
+      logical_files: [],
+      plan_contract: {
+        author: { sha256: 'author', obligations: ['Slicing decision'] },
+        reviewer: { sha256: 'reviewer', obligations: ['Slicing decision'] },
+      },
+    };
+    const approved: UnverifiedReviewerOutput = {
+      ...output,
+      execution_plan_record: {
+        slicing_decision: 'one_pull_request',
+        rationale: 'One coherent change.',
+        slices: [],
+        obligation_owners: [],
+        decision_statuses: [],
+      },
+    };
+
+    expect(reconcilePlanContract(packet, approved)).toMatchObject({
+      verdict: 'request_changes',
+      execution_plan_record: JSON.parse('null'),
+      findings: [
+        expect.objectContaining({
+          severity: 'error',
+          message: expect.stringContaining('contract reconciliation'),
+        }),
+      ],
+    });
   });
 });
 

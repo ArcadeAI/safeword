@@ -161,9 +161,9 @@
 - Independent review `e7af4634-7d00-43e2-9a0c-33697239d6ac` found that
   admission hashed only the specialist rubric even though reviewers receive the
   shared severity foundation too, and that eight positive cases collapsed to
-  two distinct inputs. Admission now hashes the exact composed contract, every
-  positive scenario carries a distinct decision-relevant plan, and Claude Opus
-  passed the strengthened final matrix: 25/25 semantic cases in 708.4 seconds.
-  Fresh evidence digests: contract
-  `4cb21f0f955ed138e68265b2c73943cdce3e157177b2aba8dcc0981a3ab65a4a`;
+  two distinct inputs. Admission now hashes the complete packet-independent
+  prompt contract, every positive scenario carries a distinct decision-relevant
+  plan, and Claude Opus passed the strengthened final matrix: 25/25 semantic
+  cases in 708.4 seconds. Fresh evidence digests: contract
+  `8ac42eac14821a9b2b752a892edfc3aa5c1cbbdf1ee0afdd0e173fe5b5b190dc`;
   corpus `4077d5cab2e60bb889b841e9d9300ca6ed0688426374fe28ecf1c8e745cff5d8`.

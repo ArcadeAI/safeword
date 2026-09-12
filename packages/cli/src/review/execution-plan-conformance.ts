@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import type { ReviewAgent, ReviewKind } from './contract.js';
 import { EXECUTION_PLAN_ADMISSION_EVIDENCE } from './execution-plan-admission.generated.js';
-import { executionPlanReviewRubric } from './review-rubric.js';
+import { reviewPromptContract } from './review-rubric.js';
 import type { ReviewRoute } from './route-config.js';
 
 const OBLIGATIONS = [
@@ -482,7 +482,7 @@ export function executionPlanConformanceDigests(): {
   readonly corpus_sha256: string;
 } {
   return {
-    contract_sha256: sha256(executionPlanReviewRubric()),
+    contract_sha256: sha256(reviewPromptContract('plan-execution')),
     corpus_sha256: sha256(JSON.stringify(EXECUTION_PLAN_CONFORMANCE_CASES)),
   };
 }
