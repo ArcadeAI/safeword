@@ -169,7 +169,11 @@ function isMissingFrontmatterField(value: string | string[] | undefined): boolea
   return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
 }
 
-const projectDirectory = realpathSync(process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
+// Keep the host-provided spelling as the session identity: state files are keyed
+// by that exact string. Use the canonical form only for filesystem containment
+// and relative-path comparisons (`/var` and `/private/var` alias on macOS).
+const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const canonicalProjectDirectory = realpathSync(projectDirectory);
 
 // Tier 1 (per-asset) is off unless `.safeword/config.json` sets `reviewGate: true`
 // — it is per-asset, so it has no phase to select on and stays all-or-nothing.
@@ -373,11 +377,9 @@ function canonicalPathForGate(path: string, seen = new Set<string>()): string {
     } catch {
       // The requested path itself may not exist yet.
     }
-    try {
-      return nodePath.join(realpathSync(nodePath.dirname(path)), nodePath.basename(path));
-    } catch {
-      return path;
-    }
+    const parent = nodePath.dirname(path);
+    if (parent === path) return path;
+    return nodePath.join(canonicalPathForGate(parent, seen), nodePath.basename(path));
   }
 }
 const editedFile =
@@ -685,6 +687,14 @@ const isCanonicalTicketEdit =
   nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
 const isCanonicalSpecEdit =
   nodePath.basename(editedFile) === 'spec.md' && isNamespacePath(editedFile, 'tickets/');
+
+// Some hosts report a ticket/spec save without exposing either complete content
+// or an applicable edit delta. There is no proposed state to validate in that
+// case, and these files are otherwise meta paths, so preserve the established
+// permissive behavior instead of manufacturing a transition from missing data.
+if ((isCanonicalTicketEdit || isCanonicalSpecEdit) && !hasReconstructableEdit(input.tool_input)) {
+  process.exit(0);
+}
 
 interface CanonicalTicketEditContext {
   priorContent: string;
@@ -1026,7 +1036,7 @@ if (
       // The completion gate still requires every scenario row to be complete;
       // it does not independently authenticate a user-authored evidence record.
       if (transition.evidenceMode !== undefined) continue;
-      const ledger = nodePath.relative(projectDirectory, editedFile);
+      const ledger = nodePath.relative(canonicalProjectDirectory, editedFile);
       const gateDenial = executableRedGateDenial(scenario, ledger);
       if (gateDenial !== undefined) {
         deny(
@@ -1041,7 +1051,7 @@ if (
 // Never block edits to tooling/meta files — these are not application code.
 // (After artifact prerequisite check, which targets files in .safeword-project/)
 // Project-relative match, NOT a substring of the absolute path — see isMetaPath.
-if (isMetaPath(editedFile, projectDirectory)) {
+if (isMetaPath(editedFile, canonicalProjectDirectory)) {
   process.exit(0);
 }
 

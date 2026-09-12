@@ -66419,30 +66419,35 @@ function requiredSourceRewrite(source, expected, replacement, path8) {
   }
   return source.slice(0, index) + replacement + source.slice(index + expected.length);
 }
-function rewriteSnapshotImportsForNode(directory) {
+function rewriteOpenCodeHookRuntime(relativePath, source, rewritten, path8) {
+  if (relativePath === nodePath129.join("codex", "pre-tool-quality.ts") && source.includes("Bun.stdin")) {
+    return requiredSourceRewrite(rewritten, "return JSON.parse(await Bun.stdin.text()) as CodexHookInput;", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
+    return JSON.parse(raw) as CodexHookInput;`, path8);
+  }
+  if (relativePath === nodePath129.join("codex", "pre-tool-quality-helpers.ts") && source.includes("spawnSync('bun'")) {
+    const nodeSpawn = requiredSourceRewrite(rewritten, "return spawnSync('bun', [claudeHookPath], {", "return spawnSync(process.execPath, [claudeHookPath], {", path8);
+    return requiredSourceRewrite(nodeSpawn, "SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',", path8);
+  }
+  if (relativePath === "pre-tool-quality.ts" && source.includes("Bun.stdin")) {
+    return requiredSourceRewrite(rewritten, "input = await Bun.stdin.json();", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
+  input = JSON.parse(raw) as HookInput;`, path8);
+  }
+  return rewritten;
+}
+function rewriteSnapshotImportsForNode(directory, root = directory) {
   const entries = readdirSync37(directory, { withFileTypes: true });
   for (const entry2 of entries) {
     const path8 = nodePath129.join(directory, entry2.name);
     if (entry2.isDirectory()) {
-      rewriteSnapshotImportsForNode(path8);
+      rewriteSnapshotImportsForNode(path8, root);
       continue;
     }
     if (!entry2.isFile() || !entry2.name.endsWith(".ts"))
       continue;
+    const relativePath = nodePath129.relative(root, path8);
     const source = readFileSync78(path8, "utf8");
-    let rewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3");
-    if (path8.endsWith(nodePath129.join("hooks", "codex", "pre-tool-quality.ts"))) {
-      rewritten = requiredSourceRewrite(rewritten, "return JSON.parse(await Bun.stdin.text()) as CodexHookInput;", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
-    return JSON.parse(raw) as CodexHookInput;`, path8);
-      rewritten = requiredSourceRewrite(rewritten, "SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',", path8);
-    }
-    if (path8.endsWith(nodePath129.join("hooks", "codex", "pre-tool-quality-helpers.ts"))) {
-      rewritten = requiredSourceRewrite(rewritten, "return spawnSync('bun', [claudeHookPath], {", "return spawnSync(process.execPath, [claudeHookPath], {", path8);
-    }
-    if (path8.endsWith(nodePath129.join("hooks", "pre-tool-quality.ts"))) {
-      rewritten = requiredSourceRewrite(rewritten, "input = await Bun.stdin.json();", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
-  input = JSON.parse(raw) as HookInput;`, path8);
-    }
+    const importRewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3");
+    const rewritten = rewriteOpenCodeHookRuntime(relativePath, source, importRewritten, path8);
     if (rewritten !== source)
       writeFileSync30(path8, rewritten, "utf8");
   }

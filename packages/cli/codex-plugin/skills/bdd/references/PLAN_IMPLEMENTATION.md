@@ -162,7 +162,7 @@ findings remain. Return findings through the typed reviewer result contract.
 
 ## Exit: review, then (optionally) the user
 
-1. **Independent review first.** At review time, resolve a review-capable Safeword CLI before running `safeword project review-knowledge --json`; source checkouts do not guarantee a bare `safeword` on `PATH`. Then invoke the coordinator with the current files identified by the resolver:
+1. **Independent review first.** At review time, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.1/runtime/cli.js" project review-knowledge --json`. Resolve a review-capable Safeword CLI, then invoke the coordinator with the current files identified by the resolver:
 
    ```bash
    SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.1/runtime/cli.js" review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md

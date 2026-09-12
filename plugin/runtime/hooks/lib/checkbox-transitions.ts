@@ -202,23 +202,29 @@ function findTransitions(
     return oldStates[index];
   };
 
+  // Preserve every exact historical row before allowing a new row to consume a
+  // generic same-step match. This makes relabel detection independent of row
+  // order when a scenario contains repeated RED/GREEN/REFACTOR steps.
   for (const state of newStates.filter(candidate => candidate.checked)) {
-    const prior = consumeOld(state, true, true, true) ?? consumeOld(state, true, true);
-    if (prior === undefined) unmatched.push(state);
-    else if (
+    if (consumeOld(state, true, true, true) === undefined) unmatched.push(state);
+  }
+
+  const scenarioChanged: CheckboxState[] = [];
+  for (const state of unmatched) {
+    if (consumeOld(state, false, true) !== undefined) {
+      transitions.push(withPriorEvidenceMode(state));
+      continue;
+    }
+    const prior = consumeOld(state, true, true);
+    if (prior === undefined) {
+      scenarioChanged.push(state);
+    } else if (
       state.step === 'RED' &&
       prior.evidenceMode === undefined &&
       state.evidenceMode !== undefined
     ) {
       transitions.push({ ...state, evidenceModeChanged: true });
     }
-  }
-
-  const scenarioChanged: CheckboxState[] = [];
-  for (const state of unmatched) {
-    if (consumeOld(state, false, true) !== undefined)
-      transitions.push(withPriorEvidenceMode(state));
-    else scenarioChanged.push(state);
   }
 
   for (const state of scenarioChanged) {

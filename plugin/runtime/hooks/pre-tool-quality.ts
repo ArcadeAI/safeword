@@ -4,7 +4,7 @@
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -22,7 +22,7 @@ import { applyUniqueEdit, collectNewTransitions } from './lib/checkbox-transitio
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
-import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
+import { classifyAnnotation, isValidSha, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
   AUTHOR_MODEL_ENV,
   detectPhaseAdvance,
@@ -67,6 +67,7 @@ interface HookInput {
     notebook_path?: string;
     old_string?: string;
     new_string?: string;
+    replace_all?: boolean;
     content?: string;
     edits?: Array<{ old_string?: string; new_string?: string }>;
     command?: string;
@@ -168,7 +169,11 @@ function isMissingFrontmatterField(value: string | string[] | undefined): boolea
   return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
 }
 
+// Keep the host-provided spelling as the session identity: state files are keyed
+// by that exact string. Use the canonical form only for filesystem containment
+// and relative-path comparisons (`/var` and `/private/var` alias on macOS).
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const canonicalProjectDirectory = realpathSync(projectDirectory);
 
 // Tier 1 (per-asset) is off unless `.safeword/config.json` sets `reviewGate: true`
 // — it is per-asset, so it has no phase to select on and stays all-or-nothing.
@@ -205,15 +210,27 @@ function crossAgentReviewPolicy() {
   );
 }
 
-function safewordCliCommand(): [string, ...string[]] | undefined {
-  const pluginCli = process.env.SAFEWORD_PLUGIN_CLI;
-  if (pluginCli === undefined || pluginCli.trim() === '') return undefined;
+function safewordCliCommand(): [string, ...string[]] | 'project-writable' | undefined {
+  const explicitCli = process.env.SAFEWORD_PLUGIN_CLI?.trim();
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT?.trim();
+  const pluginCli =
+    explicitCli !== undefined && explicitCli !== ''
+      ? explicitCli
+      : pluginRoot !== undefined && pluginRoot !== ''
+        ? nodePath.join(pluginRoot, 'runtime', 'cli.js')
+        : undefined;
+  if (pluginCli === undefined) return undefined;
   try {
     const candidate = realpathSync(pluginCli);
     const project = realpathSync(projectDirectory);
     const relative = nodePath.relative(project, candidate);
-    if (relative === '' || (!relative.startsWith('..') && !nodePath.isAbsolute(relative))) {
-      return undefined;
+    const insideProject =
+      relative === '' ||
+      (relative !== '..' &&
+        !relative.startsWith(`..${nodePath.sep}`) &&
+        !nodePath.isAbsolute(relative));
+    if (insideProject) {
+      return 'project-writable';
     }
     return ['bun', candidate];
   } catch {
@@ -225,6 +242,9 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
   const commandParts = safewordCliCommand();
   if (commandParts === undefined) {
     return 'Safeword could not find its local CLI. Reinstall the Safeword plugin or set SAFEWORD_PLUGIN_CLI to the bundled runtime path.';
+  }
+  if (commandParts === 'project-writable') {
+    return 'Safeword refused the configured CLI because its resolved path is inside the project and can be changed by project code. Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.';
   }
   const [executable, ...prefix] = commandParts;
   const command = [executable, ...prefix].join(' ');
@@ -342,7 +362,28 @@ try {
 }
 
 const tool = input.tool_name ?? '';
-const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
+const requestedEditedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
+function canonicalPathForGate(path: string, seen = new Set<string>()): string {
+  if (seen.has(path)) return path;
+  seen.add(path);
+  try {
+    return realpathSync(path);
+  } catch {
+    try {
+      if (lstatSync(path).isSymbolicLink()) {
+        const target = readlinkSync(path);
+        return canonicalPathForGate(nodePath.resolve(nodePath.dirname(path), target), seen);
+      }
+    } catch {
+      // The requested path itself may not exist yet.
+    }
+    const parent = nodePath.dirname(path);
+    if (parent === path) return path;
+    return nodePath.join(canonicalPathForGate(parent, seen), nodePath.basename(path));
+  }
+}
+const editedFile =
+  requestedEditedFile === '' ? requestedEditedFile : canonicalPathForGate(requestedEditedFile);
 
 // ---------------------------------------------------------------------------
 // Bash gates:
@@ -597,6 +638,11 @@ function nextContentAfterEdit(
     return current;
   }
   if (toolInput?.old_string !== undefined) {
+    if (toolInput.replace_all === true && toolInput.old_string !== '') {
+      return priorContent.includes(toolInput.old_string)
+        ? priorContent.replaceAll(toolInput.old_string, toolInput.new_string ?? '')
+        : undefined;
+    }
     return applyUniqueEdit(priorContent, toolInput.old_string, toolInput.new_string ?? '');
   }
   return undefined;
@@ -641,6 +687,14 @@ const isCanonicalTicketEdit =
   nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
 const isCanonicalSpecEdit =
   nodePath.basename(editedFile) === 'spec.md' && isNamespacePath(editedFile, 'tickets/');
+
+// Some hosts report a ticket/spec save without exposing either complete content
+// or an applicable edit delta. There is no proposed state to validate in that
+// case, and these files are otherwise meta paths, so preserve the established
+// permissive behavior instead of manufacturing a transition from missing data.
+if ((isCanonicalTicketEdit || isCanonicalSpecEdit) && !hasReconstructableEdit(input.tool_input)) {
+  process.exit(0);
+}
 
 interface CanonicalTicketEditContext {
   priorContent: string;
@@ -930,6 +984,18 @@ if (
       'Leave the historical RED annotation unchanged. Reopen the scenario with a new unchecked RED row and record the manual/live evidence there.',
     );
   }
+  const independentlyGatedGreens = transitions.filter(
+    transition =>
+      transition.step === 'GREEN' &&
+      transition.evidenceMode === undefined &&
+      transition.historicalEvidenceRemoved !== true,
+  );
+  if (independentlyGatedGreens.length > 1) {
+    deny(
+      'Cannot mark more than one independently reviewed GREEN row in one tool call.',
+      'Split the edit so each GREEN transition receives one bounded executable-RED receipt check. This prevents a multi-replacement edit from outliving the host hook timeout.',
+    );
+  }
   for (const transition of transitions) {
     if (transition.historicalEvidenceRemoved === true) {
       deny(
@@ -950,23 +1016,31 @@ if (
         'The text after "skip:" must not be empty or whitespace-only. A real reason is the audit trail.',
       );
     }
+    if (kind.kind === 'sha' && !isValidSha(kind.value)) {
+      deny(
+        `Cannot mark "[x] ${transition.step}" with malformed SHA: ${JSON.stringify(kind.value)}.`,
+        `Use "${transition.step} <7-40 hexadecimal commit SHA>" or "${transition.step} skip: <non-empty reason>".`,
+      );
+    }
     if (transition.step === 'GREEN') {
       const scenario = transition.scenario;
       if (scenario === undefined) {
         deny(
           'Cannot mark GREEN because Safeword could not identify the active scenario for executable RED review.',
-          'Leave GREEN unchecked. If a heading was renamed or duplicated, revert that edit; then restore one standard Scenario heading with RED/GREEN/REFACTOR rows and retry.',
+          'Leave GREEN unchecked. If a heading was renamed or duplicated, revert that edit; then restore one standard level-2 through level-6 Scenario heading with RED/GREEN/REFACTOR rows and retry.',
         );
       }
       // Manual/live is the intentional escape path for behavior that cannot be
       // executable. This is an ordering/audit boundary, not an authenticity
       // check: the durable annotation must exist on disk before this tool call.
+      // The completion gate still requires every scenario row to be complete;
+      // it does not independently authenticate a user-authored evidence record.
       if (transition.evidenceMode !== undefined) continue;
-      const ledger = nodePath.relative(projectDirectory, editedFile);
+      const ledger = nodePath.relative(canonicalProjectDirectory, editedFile);
       const gateDenial = executableRedGateDenial(scenario, ledger);
       if (gateDenial !== undefined) {
         deny(
-          `Cannot mark GREEN without a fresh independent executable RED approval. ${gateDenial}`,
+          `Cannot mark GREEN without either prior manual/live evidence or a fresh independent executable RED approval. ${gateDenial}`,
           `Run the exact \`safeword review run executable-red --scenario ${JSON.stringify(scenario)} --ledger ${JSON.stringify(ledger)} ...\` request for the current proof, wait for independent approval, then retry this GREEN edit.`,
         );
       }
@@ -977,7 +1051,7 @@ if (
 // Never block edits to tooling/meta files — these are not application code.
 // (After artifact prerequisite check, which targets files in .safeword-project/)
 // Project-relative match, NOT a substring of the absolute path — see isMetaPath.
-if (isMetaPath(editedFile, projectDirectory)) {
+if (isMetaPath(editedFile, canonicalProjectDirectory)) {
   process.exit(0);
 }
 

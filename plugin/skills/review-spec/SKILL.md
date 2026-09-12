@@ -31,9 +31,8 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Auto-fire** — the bdd flow invokes this on entering the `scenario-gate` phase.
 - **Manual re-run** — invoke `/review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
-Read the active ticket's `.feature` source first. At review time, resolve a
-review-capable Safeword CLI before running
-`safeword project review-knowledge --json` and read the current
+Read the active ticket's `.feature` source first. At review time, run
+`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/resolve-project-knowledge.ts` and read the current
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
 context. The resolver honors `paths.principles`, `paths.personas`, and
