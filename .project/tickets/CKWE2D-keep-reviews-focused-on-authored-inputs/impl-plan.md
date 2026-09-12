@@ -21,11 +21,15 @@ reviewer subprocess.
    UTF-8 and retain its immutable digest. For each oversized regular contained
    target, retain only normalized path and metadata: never load, decode, or
    hash its content. Resolve the project `HEAD` commit, then classify oversized
-   canonical targets through `git --git-dir <temporary-bare-dir> -c
-   core.attributesFile=/dev/null check-attr --source=<HEAD-commit> -z --stdin
-   linguist-generated`, with the real object database supplied only as Git's
-   alternate object directory, system/global configuration disabled, and
-   NUL-terminated project-relative paths. The temporary bare Git directory has
+   canonical targets through `GIT_ATTR_NOSYSTEM=1 git --git-dir
+   <temporary-bare-dir> -c core.attributesFile=<platform-null-device>
+   check-attr --source=<HEAD-commit> -z --stdin linguist-generated`, with the
+   real object database supplied only as Git's alternate object directory,
+   system/global attributes disabled, and NUL-terminated project-relative
+   paths. Resolve `<platform-null-device>` to `/dev/null` on POSIX and `NUL` on
+   Windows. Require a Git version that supports `check-attr --source`; an older
+   or incompatible executable fails closed through the typed lookup error.
+   The temporary bare Git directory has
    no project `info/attributes`; the `--source` tree makes committed
    `.gitattributes` immutable policy input. Parse only exact UTF-8 triples
    (`path`, `linguist-generated`, `value`) and retain only literal `true`.
@@ -39,8 +43,9 @@ reviewer subprocess.
    A typed packet failure owns every stable public code. Primary proof: focused
    `packet.test.ts` cases using temporary Git repositories and byte buffers for
    the exact tuple grammar, multibyte limits, aliases, special paths, malformed
-   output, external-attribute isolation, committed-tree lookup, timeout and
-   output limits,
+   output, `.git/info`, working-tree, global, and seeded system-attribute
+   isolation (including an assertion that the child receives
+   `GIT_ATTR_NOSYSTEM=1`), committed-tree lookup, timeout and output limits,
    eligible-target lookup avoidance, a sparse target whose content read count
    remains zero, post-lookup target replacement, hard-link path semantics, and
    order-independent error priority.
@@ -108,20 +113,20 @@ Vitest-backed scenarios as undefined steps.
 
 ### Recorded Decisions
 
-| Decision | Choice | Alternatives considered | Rejected because |
-| --- | --- | --- |
-| Explicit generated-target classification | Batch oversized canonical paths through an isolated bare Git directory's committed `HEAD` tree, NUL-safe `check-attr`, and global/system attributes disabled; only exact committed `true` is eligible for omission | normal project Git invocation; live worktree attributes; filename/extension heuristic; Git argv paths; truncate content; always reject | normal Git inherits `.git/info` and external config; live files can drift mid-preflight; heuristics and truncation hide scope; argv paths mishandle special names; always rejecting leaves #2121 unresolved |
-| Resource-bound oversized classification | Validate regularity and containment from metadata, then classify an oversized target without loading its bytes | stream/hash every target; decode a prefix; accept unbounded `readFile` | a full stream bounds memory but not I/O; a prefix cannot establish UTF-8 correctness; the withheld target has no packet content to validate |
-| Preflight failure boundary | Typed packet error becomes a failed `review run --json` result before reviewer launch; attribute failure wins, then the first supplied normalized target failure supplies the code | raw thrown error; opaque aggregate error; treat Git failure as unmarked | raw errors break machine clients; target order is explicit and reproducible; misclassification hides broken repository metadata |
-| Reduced-scope projection | Add ordered `data.excluded_targets` to every result after packet finalization through one shared projection helper; preflight failures have none | free-form finding only; report it only on approval; duplicate route-specific additions | prose is not stable machine data; route failures also need auditable scope; route copies drift |
+| Decision                                 | Choice                                                                                                                                                                                                             | Alternatives considered                                                                                                                | Rejected because                                                                                                                                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Explicit generated-target classification | Batch oversized canonical paths through an isolated bare Git directory's committed `HEAD` tree, NUL-safe `check-attr`, `GIT_ATTR_NOSYSTEM=1`, and a platform null global-attributes path; only exact committed `true` is eligible for omission | normal project Git invocation; live worktree attributes; filename/extension heuristic; Git argv paths; truncate content; always reject | normal Git inherits `.git/info` and external config; live files can drift mid-preflight; heuristics and truncation hide scope; argv paths mishandle special names; always rejecting leaves #2121 unresolved |
+| Resource-bound oversized classification  | Validate regularity and containment from metadata, then classify an oversized target without loading its bytes                                                                                                     | stream/hash every target; decode a prefix; accept unbounded `readFile`                                                                 | a full stream bounds memory but not I/O; a prefix cannot establish UTF-8 correctness; the withheld target has no packet content to validate                                                                 |
+| Preflight failure boundary               | Typed packet error becomes a failed `review run --json` result before reviewer launch; attribute failure wins, then the first supplied normalized target failure supplies the code                                 | raw thrown error; opaque aggregate error; treat Git failure as unmarked                                                                | raw errors break machine clients; target order is explicit and reproducible; misclassification hides broken repository metadata                                                                             |
+| Reduced-scope projection                 | Add ordered `data.excluded_targets` to every result after packet finalization through one shared projection helper; preflight failures have none                                                                   | free-form finding only; report it only on approval; duplicate route-specific additions                                                 | prose is not stable machine data; route failures also need auditable scope; route copies drift                                                                                                              |
 
 ## Design alignment
 
-| Principle | Consequence | Proof | Conflict |
-| --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | A builder gets a clear JSON error or visible reduced scope without manually curating generated output; exact omitted paths preserve technical control | CLI command integration assertions for envelope, exit code, and `excluded_targets` | |
-| Structure enforces; instructions suggest | Packet selection and typed errors make invalid input impossible to review instead of relying on reviewers to notice omissions | packet and command tests prove no reviewer launch on every rejection path | |
-| Correct and safe; then clear; then simple | Reuse the existing packet/coordinator boundary, a direct Git subprocess, and a small result projection rather than heuristics or a new abstraction layer | parser, containment, source-race, and parity regressions | |
+| Principle                                         | Consequence                                                                                                                                              | Proof                                                                   | Conflict |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------- |
+| Optimize for the NTB without constraining the TBU | A builder gets a clear JSON error or visible reduced scope without manually curating generated output; exact omitted paths preserve technical control    | `packages/cli/features/keep-reviews-focused-on-authored-inputs.feature` |          |
+| Structure enforces; instructions suggest          | Packet selection and typed errors make invalid input impossible to review instead of relying on reviewers to notice omissions                            | `packages/cli/tests/review/packet.test.ts`                              |          |
+| Correct and safe; then clear; then simple         | Reuse the existing packet/coordinator boundary, a direct Git subprocess, and a small result projection rather than heuristics or a new abstraction layer | `packages/cli/tests/review/surface-parity.test.ts`                      |          |
 
 Honors the accepted **Host-owned cross-agent adversarial review coordinator** decision in `ARCHITECTURE.md`: the change stays inside `packages/cli/src/review/`, preserves bounded snapshots and typed results, and does not add a host-specific review path. No new ADR is warranted: the policy is reversible, local to the existing coordinator, and follows that recorded architecture.
 
@@ -137,6 +142,7 @@ skip: no deviations planned. Git is a required part of the repository-reviewed w
 ## Assessment triggers
 
 - Git changes the documented `check-attr --stdin -z` tuple protocol or removes a supported local installation path.
+- The supported Git baseline no longer includes `check-attr --source`, requiring a different immutable-tree lookup.
 - Review packets commonly contain generated artifacts that are large but intentionally need review, suggesting explicit per-command inclusion policy rather than a marker-only exception.
 - Another host or a non-Git project becomes a supported review surface, requiring a repository-owned classification source other than `.gitattributes`.
 - Result consumers need the excluded scope outside JSON, such as a structured review receipt or UI surface.

@@ -112,8 +112,11 @@ the user configured and signed in to; that local process may send the bounded ta
 `--context` packet to a remote model provider.
 This review route ships enabled by default; a user who does not want it sets
 `crossAgentReview: off` in `.safeword/config.json`. The coordinator enforces that setting before
-provider dispatch, so do not duplicate its policy check in chat. The enabled route authorizes
-ordinary dispatch, and a cross-vendor second opinion is the point of the gate, so do not invent a
+provider dispatch, so do not duplicate its policy check in chat. For executable scenarios, that
+opt-out also disables the independent receipt required to mark GREEN; those scenarios remain
+incomplete unless the route is re-enabled or the scenario genuinely qualifies for the separate
+manual/live evidence path. The enabled route authorizes ordinary dispatch, and a cross-vendor
+second opinion is the point of the gate, so do not invent a
 disclosure-approval requirement.
 Do not stop and ask the user for consent in chat before running it, even when the packet contains
 private repository files or crosses provider boundaries. Never pass credentials, customer data, or
@@ -122,7 +125,10 @@ Invoke the coordinator first. On Codex, `review run` for `quality-review`, `scen
 `plan-implementation` may use `sandbox_permissions: "require_escalated"` only through a previously
 installed kind-scoped allow rule; never surface a host approval request. Run executable RED
 reviews, `review status`, and every status retry inside the normal workspace sandbox, and
-never escalate them. If the dispatch rule is absent or does not match, report the route as
+never escalate them. Executable RED stays sandboxed because its request contains an exact command
+to execute; in a network-restricted sandbox, its independent-review step may therefore be
+unavailable and GREEN remains blocked. Do not trade that containment for an approval prompt or an
+unsandboxed execution. If the dispatch rule is absent or does not match, report the route as
 unavailable instead of asking the user. **A review you never
 dispatched is not coverage** — say so unprompted, before any
 finding, name what ran in its place, and never let your own pass stand in for the review.

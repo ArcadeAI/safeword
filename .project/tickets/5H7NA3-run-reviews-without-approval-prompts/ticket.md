@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-09-10T23:06:30.082Z
-last_modified: 2026-09-11T23:50:08Z
+last_modified: 2026-09-12T06:03:08Z
 ---
 
 # Run trusted review routes without approval prompts
@@ -98,3 +98,27 @@ last_modified: 2026-09-11T23:50:08Z
   `127.0.0.1` in the Codex sandbox (`EPERM`), and the website build lacks the optional native
   `@bruits/satteri-darwin-arm64` package. These failures are outside this ticket's diff and do not
   contradict the bounded live proof.
+- 2026-09-12T02:41:00Z Full verification rerun: After making Sätteri an explicit website runtime
+  dependency and keeping it external during prerender, the previously blocked lanes completed.
+  Relay, collector, and CLI tests are green (9,972 passed / 17 expected skips), 1,496 acceptance
+  scenarios passed / 3 skipped, the 595-scenario build contract and 45 BDD proof checks passed, and
+  all CLI, service, and nine-page website builds completed. This later rerun supersedes the local
+  limitations recorded at 2026-09-11T23:50:08Z.
+- 2026-09-12T04:05:00Z Independent quality review: Claude Opus review
+  `a18209be-ff36-47b2-a8e0-4f368d172eb0` approved the core design with no blocking findings.
+  Applied every useful nonblocking suggestion: added a real installed-Codex execpolicy tripwire,
+  exercised the rubric generator through its entry point, simplified generated-file reconciliation,
+  narrowed the Sätteri Knip exception, relaxed its compatible version range, and hardened inline-code
+  principle proof parsing.
+- 2026-09-12T05:45:14Z Final verification after review fixes: Refreshed the deterministic Cursor
+  lifecycle fixtures and dogfood parity copies, then completed a clean full run. Both 9,610-test CLI
+  passes, relay 198/1 skipped, collector 153, the full 1,496/3-skipped acceptance execution, the
+  dedicated 595/595 acceptance contract, BDD proof 45/45, all builds and type checks, and every
+  available dependency audit passed. The installed-Codex approval-boundary live tripwire passed 1/1.
+- 2026-09-12T06:03:08Z Final quality-review improvements: Independent Claude Opus review
+  `25a24b1b-100f-49f1-be66-7dbe206fe3f6` approved with no blocking findings. Implemented every
+  suggested cleanup: explicit generator test output, no-op/current reconciliation reporting,
+  stronger full-argv live policy assertions, documented and tested Claude skill namespacing,
+  version-derived fixtures, and two historical Markdown table repairs. The affected contract tests
+  pass 30/30, the installed-Codex live boundary passes 1/1, lint/typecheck are clean, and generated
+  Claude/Codex artifacts are current.

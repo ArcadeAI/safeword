@@ -82,6 +82,9 @@ function adaptWorkflowReference(content: string): string {
  * inline skill commands to use that host contract directly.
  */
 function adaptClaudeSkill(content: string): string {
+  // Qualify only known collision-prone/private workflows. Public plugin skills
+  // keep their canonical bare references (for example /audit and
+  // /quality-review), which Claude resolves within the active plugin catalogue.
   const adapted = adaptWorkflowReference(content)
     .replaceAll('`/verify`', '`/safeword:verify`')
     .replaceAll('`/retro-filer`', '`/safeword:retro-filer`')

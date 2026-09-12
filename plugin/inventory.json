@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "dbf3d01b232f34f71cffedb383691022fbe89eef11bc151100ab1bd0507b1560"
+      "sha256": "88612cec3c2525228ab3e430e9f5b523c2391c4b480e2b64fcf78a7e449548d4"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "9e9983815dfee63794b33680d695729f523e421cd9c25ac23bf3cc7e49bbad78"
+      "sha256": "a8cb94334c60cace287bfc4c305f3509e003298370204ddcaddc2fc07ad0e213"
     },
     {
       "path": "runtime/event-groups.json",
@@ -303,7 +303,7 @@
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
-      "sha256": "773e4e38ea33d2c117c7edce6e74397348d54afcd34a2de00d8546a571f624ae"
+      "sha256": "9b832dd9c81740be0158924e5f5d55a327e5c2412751933d78adebecec7da1ef"
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
@@ -631,7 +631,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "b7851f3fcad765cce99c64aa562ab95c86c399c9f2670901cdb27a1777e3738f"
+      "sha256": "1a4fd4ba4be0f03fb5f95cdaf1e486ca8af9af345cf0bfbbb47f15b3b736de74"
     },
     {
       "path": "skills/bdd/VERIFY.md",

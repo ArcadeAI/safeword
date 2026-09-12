@@ -56,6 +56,21 @@ describe('Claude plugin catalogue generation', () => {
     expect(packagedHandbook?.content).not.toMatch(/\.safeword\/(?:guides|scripts)\//u);
   });
 
+  it('qualifies collision-prone workflows while preserving public skill references', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const tdd = assets.find(asset => asset.relativePath === 'skills/bdd/TDD.md');
+
+    expect(tdd?.content).toContain('run `/safeword:verify`, then `/audit`');
+    expect(tdd?.content).toContain('Run `/quality-review`');
+    expect(tdd?.content).not.toContain('/safeword:audit');
+    expect(tdd?.content).not.toContain('/safeword:quality-review');
+  });
+
   it('passes the shared native runtime-authority release gate', () => {
     const assets = generateClaudePluginAssets({
       cliBundle: 'console.log("stub cli bundle");',

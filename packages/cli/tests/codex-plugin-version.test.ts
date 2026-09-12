@@ -9,6 +9,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -180,7 +181,11 @@ describe('Codex plugin release contract', () => {
     const before = treeDigest(shippedRoot);
     const generation = spawnSync(
       'bun',
-      ['scripts/generate-codex-plugin.ts', '--version', '0.83.1+codex.test'],
+      [
+        'scripts/generate-codex-plugin.ts',
+        '--version',
+        `${currentCliVersion.split('+', 1)[0]}+codex.test`,
+      ],
       { cwd: root, encoding: 'utf8' },
     );
 
@@ -251,7 +256,14 @@ describe('Codex plugin release contract', () => {
       nodePath.join(root, '../../plugin'),
       nodePath.join(root, 'codex-plugin'),
     ];
+    const protectedGeneratedFiles = [
+      'scenario-rubric.generated.ts',
+      'plan-rubric.generated.ts',
+      'quality-rubric.generated.ts',
+      'red-rubric.generated.ts',
+    ].map(file => nodePath.join(root, 'src/review', file));
     const before = protectedTrees.map(treeDigest);
+    const beforeGeneratedMtimes = protectedGeneratedFiles.map(file => statSync(file).mtimeMs);
     try {
       const generation = spawnSync(
         'bun',
@@ -262,6 +274,9 @@ describe('Codex plugin release contract', () => {
       expect(generation.status, generation.stderr).toBe(0);
       expect(treeDigest(output)).not.toBe(treeDigest(nodePath.join(root, 'codex-plugin')));
       expect(protectedTrees.map(treeDigest)).toEqual(before);
+      expect(protectedGeneratedFiles.map(file => statSync(file).mtimeMs)).toEqual(
+        beforeGeneratedMtimes,
+      );
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }

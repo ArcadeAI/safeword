@@ -247,10 +247,10 @@ them.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Collection is silent and bounded by default, while a local CLI opt-out and operator evidence remain available | deadline, opt-out, and operator-read scenarios | |
-| 1. Structure enforces; instructions suggest | Public quarantine is a separate package, process, volume, and credential boundary with no private-filing dependency | package graph and real-collaborator no-call tests | |
-| 3. Add, never replace | Install reconciliation preserves existing UUID, opt-out, and unrelated harness configuration | schema projection and reinstall matrix | |
-| 5. Correct and safe; then clear; then simple | One shared builder and one small SQLite service replace per-harness transports and another managed database | Claude/Codex wiring tests plus live client-to-volume timing proof | |
+| Optimize for the NTB without constraining the TBU | Collection is silent and bounded by default, while a local CLI opt-out and operator evidence remain available | `packages/cli/features/route-local-retros-through-server.feature` | |
+| 1. Structure enforces; instructions suggest | Public quarantine is a separate package, process, volume, and credential boundary with no private-filing dependency | `packages/retro-collector/tests/worker.integration.test.ts` | |
+| 3. Add, never replace | Install reconciliation preserves existing UUID, opt-out, and unrelated harness configuration | `packages/cli/tests/commands/retro.test.ts` | |
+| 5. Correct and safe; then clear; then simple | One shared builder and one small SQLite service replace per-harness transports and another managed database | `packages/retro-collector/tests/public-retro.integration.test.ts` | |
 
 Architecture record honored: `ARCHITECTURE.md` keeps CLI/template ownership in
 `packages/cli`, generated state under `.safeword`, and hosted services in
