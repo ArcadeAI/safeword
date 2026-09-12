@@ -30,6 +30,10 @@ export const FOCUSED_REVIEW_REQUIREMENTS = [
     name: 'removable execution and evidence detail',
     pattern: /step-by-step coding instructions or repeated test evidence/u,
   },
+  {
+    name: 'receipt records focused-reviewability judgment',
+    pattern: /receipt.+reviewability.+pass or failure.+obscuring detail/iu,
+  },
 ] as const;
 
 export interface PlanReviewFixture {
@@ -144,9 +148,7 @@ export function reviewFocusedDecisionPath(
     reviewer_agent: 'claude',
     verdict: findings.length === 0 ? 'approve' : 'request_changes',
     summary:
-      findings.length === 0
-        ? 'The focused decision path is reviewable.'
-        : 'The focused decision path needs changes.',
+      findings.length === 0 ? 'Focused reviewability: pass.' : 'Focused reviewability: failure.',
     findings,
   };
 }

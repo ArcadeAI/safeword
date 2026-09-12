@@ -890,6 +890,25 @@ Given(/^an Implementation Plan with (.+)$/u, function (this: PlanWorld, presenta
   }
 });
 
+Given(/^an Implementation Plan has (.+)$/u, function (this: PlanWorld, presentation: string) {
+  switch (presentation) {
+    case 'a concise decision summary with named decisions and subordinate linked detail':
+      this.focusedPlan = {
+        plan: `${FOCUSED_ARCHITECTURE}\n## Decision-bearing contracts\n\nFailure-posture decision: fail closed when authorization is unavailable.\nConsequence: authorization outages deny resource access instead of risking exposure.\n\nSupporting detail: linked-design.md\n`,
+        linkedDetail:
+          '# Supporting design\n\nFailure posture: deny resource access when current authorization cannot be established.\n',
+      };
+      break;
+    case 'a decision summary buried beneath step-by-step execution detail':
+      this.focusedPlan = {
+        plan: `${FOCUSED_ARCHITECTURE}\n## Approach\n\n1. Create the authorization service.\n2. Wire the gateway.\n${FOCUSED_DECISIONS}`,
+      };
+      break;
+    default:
+      assert.fail(`unknown receipt presentation: ${presentation}`);
+  }
+});
+
 Given(
   'a short Implementation Plan summary with a load-bearing failure-posture decision recorded nowhere in the plan or its linked detail',
   function (this: PlanWorld) {
@@ -1304,6 +1323,12 @@ When('the plan is submitted for semantic review', SUBPROCESS, function (this: Pl
 
 When('its focused decision review is completed', function (this: PlanWorld) {
   assert.ok(this.focusedPlan, 'the focused-review plan fixture was not arranged');
+  const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  this.focusedPlanReview = reviewFocusedDecisionPath(contract, this.focusedPlan);
+});
+
+When('its semantic review reaches a verdict', function (this: PlanWorld) {
+  assert.ok(this.focusedPlan, 'the focused-review receipt fixture was not arranged');
   const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
   this.focusedPlanReview = reviewFocusedDecisionPath(contract, this.focusedPlan);
 });
@@ -1772,6 +1797,31 @@ Then(
     assert.match(findings, /safe-recovery consequence/iu);
   },
 );
+
+Then(/^the receipt records (.+)$/u, function (this: PlanWorld, receiptResult: string) {
+  const review = this.focusedPlanReview;
+  assert.ok(review, 'semantic review did not produce a receipt');
+  if (receiptResult === 'a reviewability pass') {
+    assert.equal(
+      review.verdict,
+      'approve',
+      review.findings.map(finding => finding.message).join('\n'),
+    );
+    assert.match(review.summary, /reviewability: pass/iu);
+    return;
+  }
+  assert.equal(
+    receiptResult,
+    'a reviewability failure naming the obscuring detail',
+    `unknown receipt result: ${receiptResult}`,
+  );
+  assert.equal(review.verdict, 'request_changes');
+  assert.match(review.summary, /reviewability: failure/iu);
+  assert.match(
+    review.findings.map(finding => finding.message).join('\n'),
+    /step-by-step coding instructions/iu,
+  );
+});
 
 Then(
   /^blocked by the structural check with the missing (evidence reference|applicable version|retrieval date) named$/u,
