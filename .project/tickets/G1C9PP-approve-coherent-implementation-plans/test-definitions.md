@@ -256,7 +256,7 @@ family.
 
 - [x] RED af66da714
 - [x] GREEN 7331e04c4
-- [ ] REFACTOR
+- [x] REFACTOR skip: applicability reuses the measurement obligation and distinguishes missing, bare, and justified states directly
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, headless work records pending authority without deadlocking or claiming approval, and the shared decision record preserves authority across concurrent writes, interruption, retry, contention, and compatible extensions
 
