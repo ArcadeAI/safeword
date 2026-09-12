@@ -55,9 +55,8 @@ function lockTimeoutMs(): number {
     : LOCK_TIMEOUT_MS;
 }
 
-function decisionMarker(line: string): number {
-  return line.indexOf(' design-decision:');
-}
+const decisionLinePattern =
+  /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) cli design-decision:(\{.*\})$/u;
 
 function isPositiveInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) > 0;
@@ -81,11 +80,11 @@ function isDecisionEvent(event: DecisionEvent): boolean {
 }
 
 function parseDecisionEvent(line: string): DecisionEvent | undefined {
-  const offset = decisionMarker(line);
-  if (offset === -1) return undefined;
+  const match = decisionLinePattern.exec(line);
+  if (match === null) return undefined;
   try {
-    const event = JSON.parse(line.slice(offset + ' design-decision:'.length)) as DecisionEvent;
-    return isDecisionEvent(event) ? event : undefined;
+    const event = JSON.parse(match[2] ?? '') as DecisionEvent;
+    return isDecisionEvent(event) && event.timestamp === match[1] ? event : undefined;
   } catch {
     return undefined;
   }
