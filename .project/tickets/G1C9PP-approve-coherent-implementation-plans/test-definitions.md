@@ -209,7 +209,7 @@ release prerequisite by itself.
 
 - [x] RED 4168e473a
 - [x] GREEN e9582618c
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing focused-review collaborator now emits the receipt judgment directly with no second projection layer
 
 ### Scenario: A blocked receipt gives a Non-Technical Builder a concrete recovery
 
