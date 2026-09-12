@@ -355,20 +355,20 @@ record invalidation, provenance changes, and context-digest recomputation.
 ### Scenario: Review repairs every known plan defect before execution planning
 
 - [x] RED 8eab8e7f0
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 7c2c24197
+- [x] REFACTOR skip: one shared installed-review fixture proves the full blocker set, exact-byte invalidation, and clean current receipt without duplicating coordinator machinery
 
 ### Scenario: External authority pauses repair without disguising the plan as complete
 
 - [x] RED 8eab8e7f0
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 7c2c24197
+- [x] REFACTOR skip: the same repair contract and reviewer boundary already separate external authority from agent-owned repair with one explicit pending state
 
 ### Scenario: Every corrected plan is re-reviewed until its current bytes are clean
 
 - [x] RED 8eab8e7f0
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 7c2c24197
+- [x] REFACTOR skip: current-byte eligibility and remaining-blocker refusal reuse one review helper and differ only in the reviewer result
 
 ## Feature-level cross-scenario refactor
 
