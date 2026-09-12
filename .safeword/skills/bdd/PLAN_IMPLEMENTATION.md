@@ -281,10 +281,36 @@ receipt controls eligibility for approval and phase advancement.
 
    The shared coordinator prefers the opposite headless agent; its typed verdict, failure classification, and independence level are authoritative. `impl-plan.md` is the work under review; all resolved feature and project artifacts are bounded context. This exit review always runs; when `architectureReviewGate` is enabled, its independent pass must also be stamped before the phase advances. A healthy `REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`, continue other useful work, and run its typed `nextActions` status command until the review is terminal. Never redispatch the same sources merely because that review is still pending. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `/finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when that typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` immediately with the original result and the same accepted targets; return every other result unchanged. Never substitute another surface-private reviewer or hand-written independent evidence. Degraded findings cannot satisfy an enabled `architectureReviewGate`. If the result carries `independence: degraded`, state before any finding that the actual reviewer was not independent; never describe it as independent or cross-agent coverage, and do not stamp or advance. Fix findings, re-resolve the sources, re-review, then stamp the exit with the returned agent provenance (`bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation`) when `architectureReviewGate` is enabled. `--review-id` is the coordinator's `review_id` from the result you are stamping — it is what proves the review ran, so a stamp claiming independence without one is refused. The cited review must also have covered this ticket, and the author, reviewer, and independence you pass are checked against it, so copy them from the result rather than restating them. Add `--model` only when the executed reviewer reports a verifiable model identifier; the coordinator never invents one. Human handoff happens **only after** this review passes — raw planning output is never presented for approval. Exception, any time: information only the user has (intent, priorities, constraints not in code or docs) routes to the user the moment the gap appears — `/elicit`.
 
-2. **`designApprovalGate`** (in `.safeword/config.json`): **absent or off** — the reviewed plan advances autonomously; do not ask. **Enabled** — present the reviewed plan (riskiest assumption, build order, decisions) and wait for user approval before `implement`.
-3. **Sessions without an interactive user** (cloud/headless — Claude Code on the Web, Codex Cloud, Cursor Cloud Agents): an enabled approval gate must not stall the container. Record the auto-decision as pending approval in the ticket work log and surface the reviewed plan in the session's reviewable output (PR description / session summary) — approval lands at PR review. Note: Cursor Cloud Agents run `preToolUse` hooks but not stop hooks, so enforcement rides the transition gate there, not stop-time nudges.
-4. **Update frontmatter:** `phase: implement`. The pre-tool transition gate verifies `impl-plan.md` parses valid with status `planned` — a missing or invalid plan blocks the move with the fix named. A `phase_skips` justification satisfies phase provenance only — a new-flow feature (spec.md present) still needs the valid plan to enter implement.
-5. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); add a narrative line (riskiest assumption, slice count, ADRs emitted) when useful.
+2. **Use the canonical approval boundary.** After the current review passes and
+   any required review stamp is written, run:
+
+   ```bash
+   safeword ticket approve-plan <ticket-id>
+   ```
+
+   Never replace this command with conversational approval or a manual phase
+   edit. It rechecks the exact reviewed plan bytes and the current project
+   configuration. When `designApprovalGate` is absent or off, it records `not
+required` and advances autonomously. When the gate is enabled in an
+   interactive terminal, it presents the exact reviewed plan and records the
+   user's digest-bound approval or decline before changing phase.
+
+3. **Sessions without an interactive user** (cloud/headless — Claude Code on
+   the Web, Codex Cloud, Cursor Cloud Agents): invoke `safeword --no-input
+--json ticket approve-plan <ticket-id>`. An enabled gate records pending
+   authority, leaves the ticket in Implementation Planning, and returns the
+   concrete interactive command for a human to run; it must not stall the
+   container or claim approval. Surface the reviewed plan and pending action in
+   the session's reviewable output (PR description / session summary). Note:
+   Cursor Cloud Agents run `preToolUse` hooks but not stop hooks, so enforcement
+   rides the transition gate there, not stop-time nudges.
+4. **Confirm the command-owned transition:** successful approval or a
+   configuration-derived `not required` result sets `phase: plan-execution`.
+   Declined, pending, invalid, or stale evidence remains in Implementation
+   Planning. Do not edit phase frontmatter yourself.
+5. **Work log:** the approval command records the transition result and exact
+   plan digest; add a short narrative line (riskiest assumption, slice count,
+   ADRs emitted) only when it adds useful context.
 
 **Splitting checkpoint:** the build order is where task counts materialize — run SPLITTING.md's plan-implementation checkpoint before starting TDD (its table owns the split trigger and the children-restart rule).
 
