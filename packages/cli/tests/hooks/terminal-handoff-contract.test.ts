@@ -46,4 +46,18 @@ describe('terminal handoff contract', () => {
       ],
     });
   });
+
+  it('accepts the same complete decision form in Need', () => {
+    const reply = [
+      '**BLOCKED** — The release channel requires a human choice.',
+      '**Tried:** Verified both release channels are available.',
+      '**Need:** Choice: release to beta or stable. Recommendation: choose beta. Reason: beta limits exposure while telemetry is verified. Impact: beta delays the stable release by one day; stable reaches everyone immediately with greater rollback risk. Reply: `beta` or `stable`.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: true,
+      contractVersion: 'terminal-handoff/v1',
+      form: 'decision',
+    });
+  });
 });

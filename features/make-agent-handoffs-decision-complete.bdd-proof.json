@@ -8,6 +8,10 @@
     "The observed Next decision omission is rejected": [
       "packages/cli/tests/hooks/terminal-handoff-contract.test.ts",
       "rejects the observed Next omission with every absent decision role named"
+    ],
+    "A complete Need decision can be acted on without earlier prose": [
+      "packages/cli/tests/hooks/terminal-handoff-contract.test.ts",
+      "accepts the same complete decision form in Need"
     ]
   }
 }

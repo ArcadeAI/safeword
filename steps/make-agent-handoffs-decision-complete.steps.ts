@@ -50,6 +50,17 @@ Given(
   },
 );
 
+Given(
+  'a blocked work update ending in a Need decision that requires a human choice, with every decision role in plain language',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = [
+      '**BLOCKED** — The release channel requires a human choice.',
+      '**Tried:** Verified both release channels are available.',
+      '**Need:** Choice: release to beta or stable. Recommendation: choose beta. Reason: beta limits exposure while telemetry is verified. Impact: beta delays the stable release by one day; stable reaches everyone immediately with greater rollback risk. Reply: `beta` or `stable`.',
+    ].join('\n\n');
+  },
+);
+
 When(
   'the shared deterministic terminal-handoff evaluator checks the reply',
   function (this: SafewordWorld) {
@@ -83,3 +94,8 @@ Then(
     ]);
   },
 );
+
+Then('the blocked handoff is accepted as self-contained', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, true);
+  assert.equal(stateFor(this).evaluation?.form, 'decision');
+});
