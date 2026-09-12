@@ -3989,6 +3989,7 @@ var CLAUDE_ADOPTED_LEGACY_STATE = [
 var CLAUDE_NATIVE_REQUIRED_ASSETS = [
   '.claude-plugin/plugin.json',
   'hooks/hooks.json',
+  'resources/SAFEWORD.md',
   'runtime/cli.js',
   'runtime/dispatch.js',
   'runtime/event-groups.json',
@@ -5442,7 +5443,11 @@ function verifyInventory(pluginRoot, identity) {
   if (inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new Error('Safeword Claude plugin inventory is malformed.');
   }
+  for (const asset of inventory.assets) assertSafeInventoryAsset(asset);
   const inventoryPaths = new Set(inventory.assets.map(asset => asset.path));
+  if (inventoryPaths.size !== inventory.assets.length) {
+    throw new Error('Safeword Claude plugin inventory contains duplicate asset paths.');
+  }
   for (const requiredPath of CLAUDE_NATIVE_REQUIRED_ASSETS) {
     if (!inventoryPaths.has(requiredPath)) {
       throw new Error(
@@ -5542,7 +5547,7 @@ var TOOL_EVENTS = /* @__PURE__ */ new Set([
 function eventEntryMatches(event, entry, input) {
   if (entry.matcher === void 0 || entry.matcher === '') return true;
   const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
-  return entry.matcher.split('|').includes(subject ?? '');
+  return new RegExp(`^(?:${entry.matcher})$`, 'u').test(subject ?? '');
 }
 function readEventEntries(event, eventGroupsContent) {
   const value = JSON.parse(eventGroupsContent.toString('utf8'));
@@ -5617,6 +5622,9 @@ function parseHookOutput(event, target, trimmed) {
   try {
     const parsed = JSON.parse(trimmed);
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      if (event !== 'SessionStart' && event !== 'UserPromptSubmit') {
+        throw new TypeError(`Safeword cannot safely aggregate plain ${event} hook output.`);
+      }
       const output = specificOutput(target, event);
       output.additionalContext = appendUniqueText(output.additionalContext, trimmed);
       return void 0;
@@ -5624,6 +5632,11 @@ function parseHookOutput(event, target, trimmed) {
     return parsed;
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
+    if (event !== 'SessionStart' && event !== 'UserPromptSubmit') {
+      throw new TypeError(`Safeword cannot safely aggregate unparseable ${event} hook output.`, {
+        cause: error,
+      });
+    }
     process.stderr.write(
       `Safeword received unparseable ${event} sibling-hook output; treating it as context, not authorization.
 `,
@@ -5828,7 +5841,7 @@ function runEventHooks(event, hooks, standardInput, response) {
     }
     const result = runFunctionalCommand(['bash', '-c', hook.command], standardInput, true);
     if (result.status !== 0) {
-      return event === 'UserPromptSubmit' ? result.status : 2;
+      return 2;
     }
     mergeHookOutput(event, response, result.stdout);
   }
@@ -5843,8 +5856,10 @@ function runEventGroup(event, eventGroupsContent, hookInput, standardInput) {
     const status = runEventHooks(event, hooks, standardInput, response);
     if (status !== 0) {
       if (event === 'UserPromptSubmit') {
+        const priorReason = typeof response.reason === 'string' ? ` ${response.reason}` : '';
         process.stderr.write(
-          'Safeword blocked prompt submission because a sibling hook failed; later checks did not run.\n',
+          `Safeword blocked prompt submission because a sibling hook failed; later checks did not run.${priorReason}
+`,
         );
         return { postExecutionEligible: false, status: 2, stdout: '' };
       }

@@ -31359,8 +31359,9 @@ function requireExecutableRedAttestation(kind, attestation) {
   }
 }
 function checkedExecutionAttestation(kind, execution) {
-  if (execution.allowMissing !== true)
+  if (kind !== "executable-red" || execution.allowMissingExecutableRedAttestation !== true) {
     requireExecutableRedAttestation(kind, execution.attestation);
+  }
   return execution.attestation;
 }
 function digest2(content) {
@@ -32902,7 +32903,7 @@ function ledgerFingerprintContext(cwd, targets, context, execution) {
 function fingerprint(cwd, kind, targets, context = [], execution) {
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
-    allowMissing: true
+    allowMissingExecutableRedAttestation: true
   });
   try {
     const hash = createHash18("sha256");
@@ -41217,6 +41218,7 @@ var init_inventory2 = __esm(() => {
   CLAUDE_NATIVE_REQUIRED_ASSETS = [
     ".claude-plugin/plugin.json",
     "hooks/hooks.json",
+    "resources/SAFEWORD.md",
     "runtime/cli.js",
     "runtime/dispatch.js",
     "runtime/event-groups.json"
@@ -55021,14 +55023,8 @@ function wrapHookCommands(value, event) {
     key === "command" && typeof child === "string" ? `${PLUGIN_DISPATCH} ${event} -- ${child}` : wrapHookCommands(child, event)
   ]));
 }
-function pluginSessionStartEntries(adapted) {
-  return Array.isArray(adapted.SessionStart) ? adapted.SessionStart.filter((entry) => !JSON.stringify(entry).includes("session-auto-upgrade.ts")) : [];
-}
-function pluginHookEntries(event, entries, adapted) {
-  if (event === "SessionStart") {
-    return wrapHookCommands(pluginSessionStartEntries(adapted), event);
-  }
-  if (event === "UserPromptSubmit") {
+function pluginHookEntries(event, entries) {
+  if (event === "SessionStart" || event === "UserPromptSubmit") {
     return [
       {
         hooks: [
@@ -55048,10 +55044,7 @@ function pluginHooks() {
     ...adapted,
     Setup: [{ matcher: "init", hooks: [{ type: "command", command: "true" }] }]
   };
-  return Object.fromEntries(Object.entries(withSetup).map(([event, entries]) => [
-    event,
-    pluginHookEntries(event, entries, adapted)
-  ]));
+  return Object.fromEntries(Object.entries(withSetup).map(([event, entries]) => [event, pluginHookEntries(event, entries)]));
 }
 function pluginHookManifest() {
   const hooks = pluginHooks();
@@ -70132,10 +70125,10 @@ async function reviewRunHandler(invocation) {
       ]
     });
   }
-  const targets = Array.isArray(rawTargets) ? rawTargets.filter((target) => typeof target === "string") : [];
-  const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")
     return runReviewWorker(invocation);
+  const targets = Array.isArray(rawTargets) ? rawTargets.filter((target) => typeof target === "string") : [];
+  const context = reviewContext(invocation.options.context);
   const execution = redExecutionRequest(rawKind, invocation.options);
   if (execution instanceof Error)
     return invalidOperand("review run", execution.message);
@@ -70157,7 +70150,7 @@ function reviewRouteAuthor(value) {
 function reviewRoutesFailure(command, error2) {
   const message = error2 instanceof Error ? error2.message : "Review route configuration is invalid.";
   const invalid = error2 instanceof ReviewRouteConfigError || error2 instanceof ReviewUserConfigPathError;
-  const readFailure = error2 instanceof ReviewConfigReadError;
+  const readFailure = error2 instanceof ReviewConfigReadError || command === "review routes list";
   let code = "REVIEW_ROUTE_CONFIG_WRITE_FAILED";
   if (invalid)
     code = "REVIEW_ROUTE_CONFIG_INVALID";
@@ -70169,7 +70162,7 @@ function reviewRoutesFailure(command, error2) {
       {
         code,
         message,
-        retryable: !invalid
+        retryable: !invalid && !readFailure
       }
     ],
     data: { command }
@@ -70261,7 +70254,7 @@ async function reviewRoutesListHandler(invocation) {
     data: {
       command: "review routes list",
       config_key: REVIEW_ROUTE_CONFIG_KEY,
-      config_path: projectConfig,
+      project_config_path: projectConfig,
       authors: listed,
       ...single !== undefined && {
         author: single.author,
@@ -71600,6 +71593,7 @@ var CANONICAL_COMMANDS = [
   command("codex migrate", "Deactivate proven legacy Codex hooks after creating a recovery backup", "destructive", {
     promptPolicy: "confirm",
     networkPolicy: "declared",
+    fixture: { argv: ["codex", "migrate", "--offline"], environment: MACHINE_ENVIRONMENT },
     commandOptions: [
       { flags: "--finalize", description: "Finalize after current plugin-hook proof exists" },
       ...planConfirmationOptions({
@@ -71801,7 +71795,12 @@ var CANONICAL_COMMANDS = [
     }
   }),
   command("review routes list", "List effective ranked review routes", "observe", {
-    commandOptions: [{ flags: "--author <author>", description: "claude, codex, or opencode" }],
+    commandOptions: [
+      {
+        flags: "--author <author>",
+        description: "claude, codex, or opencode; omit to list every author"
+      }
+    ],
     fixture: {
       argv: ["review", "routes", "list", "--author", "claude"],
       environment: MACHINE_ENVIRONMENT

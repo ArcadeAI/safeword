@@ -569,18 +569,42 @@ if (
 // Reconstruct the file content an Edit/Write/MultiEdit would produce, so a gate
 // can compare it against the on-disk content. Write/NotebookEdit carry the full
 // new content; Edit/MultiEdit carry replacement regions applied to the prior text.
-function nextContentAfterEdit(toolInput: HookInput['tool_input'], priorContent: string): string {
+function literalEdit(current: string, oldText: string, newText: string): string | undefined {
+  if (oldText === '') return undefined;
+  const index = current.indexOf(oldText);
+  if (index < 0 || current.indexOf(oldText, index + oldText.length) >= 0) return undefined;
+  return current.slice(0, index) + newText + current.slice(index + oldText.length);
+}
+
+function nextContentAfterEdit(
+  toolInput: HookInput['tool_input'],
+  priorContent: string,
+): string | undefined {
   if (toolInput?.content !== undefined) return toolInput.content;
   if (toolInput?.edits) {
-    return toolInput.edits.reduce(
-      (text, edit) => text.replace(edit.old_string ?? '', edit.new_string ?? ''),
-      priorContent,
-    );
+    let current = priorContent;
+    for (const edit of toolInput.edits) {
+      const next = literalEdit(current, edit.old_string ?? '', edit.new_string ?? '');
+      if (next === undefined) return undefined;
+      current = next;
+    }
+    return current;
   }
   if (toolInput?.old_string !== undefined) {
-    return priorContent.replace(toolInput.old_string, toolInput.new_string ?? '');
+    return literalEdit(priorContent, toolInput.old_string, toolInput.new_string ?? '');
   }
-  return priorContent;
+  return undefined;
+}
+
+function requiredNextContent(toolInput: HookInput['tool_input'], priorContent: string): string {
+  const proposed = nextContentAfterEdit(toolInput, priorContent);
+  if (proposed === undefined) {
+    deny(
+      'Safeword could not reconstruct this canonical ticket edit safely.',
+      'Use one exact, non-empty old_string match, or Write the complete file content.',
+    );
+  }
+  return proposed;
 }
 
 function hasReconstructableEdit(toolInput: HookInput['tool_input']): boolean {
@@ -624,7 +648,7 @@ let cachedCanonicalTicketEditContext: CanonicalTicketEditContext | undefined;
 function canonicalTicketEditContext(): CanonicalTicketEditContext {
   if (cachedCanonicalTicketEditContext !== undefined) return cachedCanonicalTicketEditContext;
   const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
+  const proposedContent = requiredNextContent(input.tool_input, priorContent);
   cachedCanonicalTicketEditContext = {
     priorContent,
     proposedContent,
@@ -647,7 +671,7 @@ if (isCanonicalTicketEdit || isCanonicalSpecEdit) {
     const specPath = nodePath.join(ticketDirectory, 'spec.md');
     const currentTicket = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
     const currentSpec = existsSync(specPath) ? readFileSync(specPath, 'utf8') : '';
-    const proposed = nextContentAfterEdit(
+    const proposed = requiredNextContent(
       toolInput,
       isCanonicalTicketEdit ? currentTicket : currentSpec,
     );
@@ -883,7 +907,10 @@ if (isCanonicalTicketEdit) {
 // Pre-existing [x] without annotation is silently allowed (forward-looking).
 // ---------------------------------------------------------------------------
 
-if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (
+  nodePath.basename(editedFile) === 'test-definitions.md' &&
+  isNamespacePath(editedFile, 'tickets/')
+) {
   if (input.tool_name === 'NotebookEdit') {
     deny(
       'Cannot update the markdown R/G/R ledger through NotebookEdit.',
@@ -892,6 +919,12 @@ if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 't
   }
   const transitions = collectNewTransitions(input, editedFile);
   for (const transition of transitions) {
+    if (transition.historicalEvidenceRemoved === true) {
+      deny(
+        'Cannot uncheck or remove a RED row that already carries historical evidence.',
+        'Keep the checked RED row intact and add a new unchecked RED row when reopening the scenario.',
+      );
+    }
     if (transition.evidenceModeChanged === true) {
       deny(
         'Cannot retroactively relabel an already-checked RED as manual or live evidence.',
