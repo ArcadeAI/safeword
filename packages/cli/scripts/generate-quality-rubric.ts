@@ -2,7 +2,11 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { extractQualityReviewRubric } from '../src/review/quality-rubric.js';
-import { isDirectGeneratorInvocation, runGeneratedRubric } from './lib/reconcile-generated-file.js';
+import {
+  type GeneratedFileReconciliation,
+  isDirectGeneratorInvocation,
+  runGeneratedRubric,
+} from './lib/reconcile-generated-file.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const skillPath = nodePath.join(packageRoot, 'templates/skills/quality-review/SKILL.md');
@@ -15,8 +19,8 @@ const output = [
   '',
 ].join('\n');
 
-export function generateQualityRubric(check = false): void {
-  runGeneratedRubric({
+export function generateQualityRubric(check = false): GeneratedFileReconciliation {
+  return runGeneratedRubric({
     check,
     content: output,
     defaultOutputPath,

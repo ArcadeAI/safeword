@@ -19,10 +19,15 @@ import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
 const checkOnly = process.argv.includes('--check');
-generateScenarioRubric(checkOnly);
-generatePlanRubric(checkOnly);
-generateQualityRubric(checkOnly);
-generateRedRubric(checkOnly);
+const rubricResults = [
+  generateScenarioRubric(checkOnly),
+  generatePlanRubric(checkOnly),
+  generateQualityRubric(checkOnly),
+  generateRedRubric(checkOnly),
+];
+if (checkOnly && rubricResults.includes('stale')) {
+  throw new Error('Cannot check the Claude plugin while a generated runtime rubric is stale.');
+}
 const temporaryRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-plugin-'));
 const pluginRoot = temporaryRoot;
 // Testability seam: release-contract scenarios compare canonical generation to

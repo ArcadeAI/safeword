@@ -91,21 +91,26 @@ describe.skipIf(!CAN_RUN)('live smoke: installed Codex review approval boundary'
     // command with the explicit environment required by the installed rule.
     const prefix = ['/usr/bin/env', 'SAFEWORD_REVIEW_PROGRESS=1', bun, runtime, 'review'];
 
-    for (const kind of ['quality-review', 'scenario-gate', 'plan-implementation']) {
-      const result = decision(codex, rules, [
-        ...prefix,
-        'run',
-        kind,
+    const allowedArgumentVariants = [
+      ['--agent-handoff', '--json', '--', 'packages/cli/package.json'],
+      [
         '--agent-handoff',
         '--json',
         '--context',
         'README.md',
         '--',
         'packages/cli/package.json',
-      ]);
-      expect(result.decision).toBe('allow');
-      expect(result.matchedRules).toEqual(expect.any(Array));
-      expect(result.matchedRules?.length).toBeGreaterThan(0);
+        'packages/cli/src/review/contract.ts',
+      ],
+      ['--agent-handoff', '--json', '--quiet', '--', 'packages/cli/package.json'],
+    ];
+    for (const kind of ['quality-review', 'scenario-gate', 'plan-implementation']) {
+      for (const argumentVariant of allowedArgumentVariants) {
+        const result = decision(codex, rules, [...prefix, 'run', kind, ...argumentVariant]);
+        expect(result.decision).toBe('allow');
+        expect(result.matchedRules).toEqual(expect.any(Array));
+        expect(result.matchedRules?.length).toBeGreaterThan(0);
+      }
     }
     for (const command of [
       [...prefix, 'status', 'example-id'],

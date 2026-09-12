@@ -3,13 +3,21 @@ import nodePath from 'node:path';
 
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import type { ReviewAgent, ReviewAuthor } from './contract.js';
-import { parseConfiguredReviewRoutes, type ReviewRoute } from './route-config.js';
+import {
+  parseConfiguredReviewRoutes,
+  type ReviewRoute,
+  ReviewRouteConfigError,
+} from './route-config.js';
 
 export type ReviewRouteScope = 'project' | 'user';
 
 export interface UserConfigEnvironment {
   readonly platform: 'unix' | 'windows';
   readonly env: Readonly<Record<string, string | undefined>>;
+}
+
+export class ReviewUserConfigPathError extends Error {
+  override readonly name = 'ReviewUserConfigPathError';
 }
 
 export function resolveSafewordUserConfigPath(input: UserConfigEnvironment): string | undefined {
@@ -36,7 +44,7 @@ function absolute(value: string | undefined, paths: typeof nodePath.posix): stri
 function currentUserConfigPath(): string {
   const path = optionalCurrentUserConfigPath();
   if (path === undefined)
-    throw new Error('Cannot locate the Safeword user configuration directory.');
+    throw new ReviewUserConfigPathError('Cannot locate the Safeword user configuration directory.');
   return path;
 }
 
@@ -68,10 +76,14 @@ function readConfigFile(path: string): Record<string, unknown> {
   try {
     parsed = JSON.parse(contents);
   } catch {
-    throw new Error(`Invalid Safeword configuration at ${path}: expected valid JSON.`);
+    throw new ReviewRouteConfigError(
+      `Invalid Safeword configuration at ${path}: expected valid JSON.`,
+    );
   }
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new TypeError(`Invalid Safeword configuration at ${path}: expected an object.`);
+    throw new ReviewRouteConfigError(
+      `Invalid Safeword configuration at ${path}: expected an object.`,
+    );
   }
   return parsed as Record<string, unknown>;
 }
@@ -86,7 +98,7 @@ export function setScopedReviewRoutes(
   const config = readConfigFile(path);
   const current = config.crossAgentReviewRoutes;
   if (current !== undefined && (!isRecord(current) || Array.isArray(current))) {
-    throw new Error(
+    throw new ReviewRouteConfigError(
       `Invalid Safeword configuration at ${path}: crossAgentReviewRoutes must be an object.`,
     );
   }
@@ -114,7 +126,7 @@ export function resetScopedReviewRoutes(
   const config = readConfigFile(path);
   const current = config.crossAgentReviewRoutes;
   if (current !== undefined && (!isRecord(current) || Array.isArray(current))) {
-    throw new Error(
+    throw new ReviewRouteConfigError(
       `Invalid Safeword configuration at ${path}: crossAgentReviewRoutes must be an object.`,
     );
   }

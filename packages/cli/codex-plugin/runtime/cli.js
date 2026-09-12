@@ -30981,6 +30981,197 @@ function retryCommand(kind, targets, context = [], execution) {
   return `safeword review run ${kind}${contextOption}${executionOptions} -- ${quoted}`;
 }
 
+// src/review/route-config.ts
+var exports_route_config = {};
+__export(exports_route_config, {
+  parseRouteText: () => parseRouteText,
+  parseConfiguredReviewRoutes: () => parseConfiguredReviewRoutes,
+  ReviewRouteConfigError: () => ReviewRouteConfigError,
+  MODEL_NAME: () => MODEL_NAME
+});
+function parseConfiguredReviewRoutes(config, author, source) {
+  const configured = config.crossAgentReviewRoutes;
+  if (configured === undefined)
+    return;
+  if (!isRecord3(configured) || Array.isArray(configured))
+    throw configError("must be an object", source);
+  const unsupportedAuthor = Object.keys(configured).find((key) => !REVIEW_AGENTS2.has(key));
+  if (unsupportedAuthor !== undefined)
+    throw configError("contains an unsupported author key; use claude, codex, or opencode", source);
+  const values = configured[author];
+  if (values === undefined)
+    return;
+  if (!Array.isArray(values) || values.length === 0)
+    throw configError(`.${author} must be a non-empty array`, source);
+  return values.map((value, index) => parseRoute(value, index, author, source));
+}
+function parseRouteText(value, author) {
+  const separator = value.indexOf("=");
+  return parseRoute({
+    reviewer: separator === -1 ? value : value.slice(0, separator),
+    ...separator !== -1 && { model: value.slice(separator + 1) }
+  }, 0, author);
+}
+function parseRoute(value, index, author, source) {
+  if (!isRecord3(value) || Array.isArray(value))
+    throw configError(`.${author}[${index}] must be an object`, source);
+  const reviewer = value.reviewer;
+  if (typeof reviewer !== "string" || !REVIEW_AGENTS2.has(reviewer))
+    throw configError(`.${author}[${index}].reviewer is unsupported`, source);
+  const model = value.model;
+  if (model !== undefined && (typeof model !== "string" || !MODEL_NAME.test(model)))
+    throw configError(`.${author}[${index}].model is invalid`, source);
+  return {
+    reviewer,
+    ...model !== undefined && { model },
+    independence: reviewer === author ? "degraded" : "cross-agent"
+  };
+}
+function isRecord3(value) {
+  return typeof value === "object" && value !== null;
+}
+function configError(detail, source) {
+  const location = source === undefined ? "" : ` at ${source}`;
+  return new ReviewRouteConfigError(`Invalid crossAgentReviewRoutes configuration${location}: ${detail}`);
+}
+var ReviewRouteConfigError, MODEL_NAME, REVIEW_AGENTS2;
+var init_route_config = __esm(() => {
+  ReviewRouteConfigError = class ReviewRouteConfigError extends Error {
+    name = "ReviewRouteConfigError";
+  };
+  MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
+  REVIEW_AGENTS2 = new Set(["claude", "codex", "opencode"]);
+});
+
+// src/review/preferences.ts
+var exports_preferences = {};
+__export(exports_preferences, {
+  setScopedReviewRoutes: () => setScopedReviewRoutes,
+  scopedConfigPath: () => scopedConfigPath,
+  resolveSafewordUserConfigPath: () => resolveSafewordUserConfigPath,
+  resetScopedReviewRoutes: () => resetScopedReviewRoutes,
+  effectiveConfiguredRoutes: () => effectiveConfiguredRoutes,
+  ReviewUserConfigPathError: () => ReviewUserConfigPathError
+});
+import { existsSync as existsSync14, readFileSync as readFileSync28 } from "fs";
+import nodePath43 from "path";
+function resolveSafewordUserConfigPath(input) {
+  const paths = input.platform === "windows" ? nodePath43.win32 : nodePath43.posix;
+  const xdg = absolute(input.env.XDG_CONFIG_HOME, paths);
+  if (xdg !== undefined)
+    return paths.join(xdg, "safeword", "config.json");
+  if (input.platform === "windows") {
+    const appData = absolute(input.env.APPDATA, paths);
+    if (appData !== undefined)
+      return paths.join(appData, "Safeword", "config.json");
+    const profile = absolute(input.env.USERPROFILE, paths);
+    return profile === undefined ? undefined : paths.join(profile, ".config", "safeword", "config.json");
+  }
+  const home = absolute(input.env.HOME, paths);
+  return home === undefined ? undefined : paths.join(home, ".config", "safeword", "config.json");
+}
+function absolute(value, paths) {
+  const trimmed = value?.trim();
+  return trimmed !== undefined && paths.isAbsolute(trimmed) ? trimmed : undefined;
+}
+function currentUserConfigPath() {
+  const path7 = optionalCurrentUserConfigPath();
+  if (path7 === undefined)
+    throw new ReviewUserConfigPathError("Cannot locate the Safeword user configuration directory.");
+  return path7;
+}
+function optionalCurrentUserConfigPath() {
+  return resolveSafewordUserConfigPath({
+    platform: process.platform === "win32" ? "windows" : "unix",
+    env: process.env
+  });
+}
+function scopedConfigPath(cwd, scope) {
+  return scope === "project" ? nodePath43.join(cwd, ".safeword", "config.json") : currentUserConfigPath();
+}
+function readConfigFile(path7) {
+  if (!existsSync14(path7))
+    return {};
+  let contents;
+  try {
+    contents = readFileSync28(path7, "utf8");
+  } catch (error2) {
+    throw new Error(`Unable to read Safeword configuration at ${path7}: ${error2 instanceof Error ? error2.message : String(error2)}`, { cause: error2 });
+  }
+  let parsed2;
+  try {
+    parsed2 = JSON.parse(contents);
+  } catch {
+    throw new ReviewRouteConfigError(`Invalid Safeword configuration at ${path7}: expected valid JSON.`);
+  }
+  if (parsed2 === null || typeof parsed2 !== "object" || Array.isArray(parsed2)) {
+    throw new ReviewRouteConfigError(`Invalid Safeword configuration at ${path7}: expected an object.`);
+  }
+  return parsed2;
+}
+function setScopedReviewRoutes(cwd, scope, author, routes) {
+  const path7 = scopedConfigPath(cwd, scope);
+  const config = readConfigFile(path7);
+  const current = config.crossAgentReviewRoutes;
+  if (current !== undefined && (!isRecord4(current) || Array.isArray(current))) {
+    throw new ReviewRouteConfigError(`Invalid Safeword configuration at ${path7}: crossAgentReviewRoutes must be an object.`);
+  }
+  const routeMap = current === undefined ? {} : { ...current };
+  routeMap[author] = routes.map((route) => ({
+    reviewer: route.reviewer,
+    ...route.model !== undefined && { model: route.model }
+  }));
+  writeDurableFile(path7, `${JSON.stringify({ ...config, crossAgentReviewRoutes: routeMap }, undefined, 2)}
+`, {
+    mode: scope === "user" ? 384 : 420
+  });
+}
+function resetScopedReviewRoutes(cwd, scope, author) {
+  const path7 = scopedConfigPath(cwd, scope);
+  if (!existsSync14(path7))
+    return false;
+  const config = readConfigFile(path7);
+  const current = config.crossAgentReviewRoutes;
+  if (current !== undefined && (!isRecord4(current) || Array.isArray(current))) {
+    throw new ReviewRouteConfigError(`Invalid Safeword configuration at ${path7}: crossAgentReviewRoutes must be an object.`);
+  }
+  if (current === undefined || !Object.hasOwn(current, author))
+    return false;
+  const routeMap = Object.fromEntries(Object.entries(current).filter(([key]) => key !== author));
+  const next = { ...config };
+  if (Object.keys(routeMap).length === 0)
+    delete next.crossAgentReviewRoutes;
+  else
+    next.crossAgentReviewRoutes = routeMap;
+  writeDurableFile(path7, `${JSON.stringify(next, undefined, 2)}
+`, {
+    mode: scope === "user" ? 384 : 420
+  });
+  return true;
+}
+function effectiveConfiguredRoutes(cwd, author) {
+  if (author !== "claude" && author !== "codex" && author !== "opencode")
+    return;
+  const userPath = optionalCurrentUserConfigPath();
+  const userRoutes = userPath === undefined ? undefined : parseConfiguredReviewRoutes(readConfigFile(userPath), author, userPath);
+  const projectPath = scopedConfigPath(cwd, "project");
+  const projectRoutes = parseConfiguredReviewRoutes(readConfigFile(projectPath), author, projectPath);
+  if (projectRoutes !== undefined)
+    return { source: "project", routes: projectRoutes };
+  return userRoutes === undefined ? undefined : { source: "user", routes: userRoutes };
+}
+function isRecord4(value) {
+  return typeof value === "object" && value !== null;
+}
+var ReviewUserConfigPathError;
+var init_preferences = __esm(() => {
+  init_durable_write();
+  init_route_config();
+  ReviewUserConfigPathError = class ReviewUserConfigPathError extends Error {
+    name = "ReviewUserConfigPathError";
+  };
+});
+
 // src/review/contract.ts
 var exports_contract = {};
 __export(exports_contract, {
@@ -31128,18 +31319,18 @@ import {
   mkdtempSync as mkdtempSync5,
   openSync as openSync4,
   readdirSync as readdirSync8,
-  readFileSync as readFileSync28,
+  readFileSync as readFileSync29,
   realpathSync as realpathSync7,
   rmSync as rmSync7,
   writeFileSync as writeFileSync11
 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
-import nodePath43 from "path";
+import nodePath44 from "path";
 function requireScenarioTicketSpec(kind, contextFiles) {
   if (kind !== "scenario-gate")
     return;
   const ticketSpec = contextFiles[0];
-  if (ticketSpec === undefined || nodePath43.basename(ticketSpec.path) !== "spec.md" || ticketSpec.content.trim() === "") {
+  if (ticketSpec === undefined || nodePath44.basename(ticketSpec.path) !== "spec.md" || ticketSpec.content.trim() === "") {
     throw new ReviewPacketError("Scenario-gate review requires a non-blank spec.md as its first context file");
   }
 }
@@ -31147,7 +31338,7 @@ function requirePlanWorkArtifact(kind, logicalFiles) {
   if (kind !== "plan-implementation")
     return;
   const plan = logicalFiles[0];
-  if (logicalFiles.length !== 1 || plan === undefined || nodePath43.basename(plan.path) !== "impl-plan.md" || plan.content.trim() === "") {
+  if (logicalFiles.length !== 1 || plan === undefined || nodePath44.basename(plan.path) !== "impl-plan.md" || plan.content.trim() === "") {
     throw new ReviewPacketError("Plan-implementation review requires one non-blank impl-plan.md work file; pass supporting evidence with --context");
   }
 }
@@ -31169,7 +31360,7 @@ function digest2(content) {
 }
 function fileDigest(path7) {
   try {
-    return digest2(readFileSync28(path7));
+    return digest2(readFileSync29(path7));
   } catch {
     return;
   }
@@ -31179,7 +31370,7 @@ function sourceFileChanged(file) {
   try {
     descriptor = openSync4(file.source, constants2.O_RDONLY | (constants2.O_NOFOLLOW ?? 0));
     const current = fstatSync2(descriptor);
-    return !current.isFile() || current.dev !== file.device || current.ino !== file.inode || digest2(readFileSync28(descriptor)) !== file.sha256;
+    return !current.isFile() || current.dev !== file.device || current.ino !== file.inode || digest2(readFileSync29(descriptor)) !== file.sha256;
   } catch {
     return true;
   } finally {
@@ -31206,7 +31397,7 @@ function readContainedText(root, source, target, packetBytesRemaining) {
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
       throw new Error(`Review target changed while it was being captured: ${target}`);
     }
-    const bytes = readFileSync28(descriptor);
+    const bytes = readFileSync29(descriptor);
     let content;
     try {
       content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -31219,13 +31410,13 @@ function readContainedText(root, source, target, packetBytesRemaining) {
   }
 }
 function escapes(root, candidate) {
-  const relative = nodePath43.relative(root, candidate);
-  return relative === ".." || relative.startsWith(`..${nodePath43.sep}`) || nodePath43.isAbsolute(relative);
+  const relative = nodePath44.relative(root, candidate);
+  return relative === ".." || relative.startsWith(`..${nodePath44.sep}`) || nodePath44.isAbsolute(relative);
 }
 function snapshotEntries(root, directory = root) {
   return readdirSync8(directory).flatMap((name) => {
-    const path7 = nodePath43.join(directory, name);
-    const relative = nodePath43.relative(root, path7);
+    const path7 = nodePath44.join(directory, name);
+    const relative = nodePath44.relative(root, path7);
     const stats = lstatSync9(path7);
     if (stats.isDirectory())
       return [`directory:${relative}`, ...snapshotEntries(root, path7)];
@@ -31240,7 +31431,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
   }
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync7(cwd);
-  const workspace = mkdtempSync5(nodePath43.join(tmpdir3(), "safeword-review-"));
+  const workspace = mkdtempSync5(nodePath44.join(tmpdir3(), "safeword-review-"));
   const tracked = [];
   const expectedSnapshotEntries = new Set;
   let logicalFiles;
@@ -31248,8 +31439,8 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
   try {
     let packetBytes = 0;
     const captureFiles = (files) => files.map((target) => {
-      const source = nodePath43.resolve(canonicalRoot, target);
-      const relative = nodePath43.relative(canonicalRoot, source);
+      const source = nodePath44.resolve(canonicalRoot, target);
+      const relative = nodePath44.relative(canonicalRoot, source);
       if (escapes(canonicalRoot, source)) {
         throw new Error(`Review target escapes the project: ${target}`);
       }
@@ -31266,13 +31457,13 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
       if (packetBytes > MAX_PACKET_BYTES) {
         throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
       }
-      const snapshot = nodePath43.join(workspace, relative);
-      mkdirSync11(nodePath43.dirname(snapshot), { recursive: true });
+      const snapshot = nodePath44.join(workspace, relative);
+      mkdirSync11(nodePath44.dirname(snapshot), { recursive: true });
       writeFileSync11(snapshot, bytes, { mode: 384 });
-      let parent = nodePath43.dirname(relative);
+      let parent = nodePath44.dirname(relative);
       while (parent !== ".") {
         expectedSnapshotEntries.add(`directory:${parent}`);
-        parent = nodePath43.dirname(parent);
+        parent = nodePath44.dirname(parent);
       }
       expectedSnapshotEntries.add(`file:${relative}`);
       tracked.push({ source, snapshot, sha256: digest2(bytes), device, inode });
@@ -31280,7 +31471,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     });
     const seen = new Set;
     const rejectDuplicate = (target) => {
-      const relative = nodePath43.relative(canonicalRoot, nodePath43.resolve(canonicalRoot, target));
+      const relative = nodePath44.relative(canonicalRoot, nodePath44.resolve(canonicalRoot, target));
       if (seen.has(relative)) {
         throw new Error(`Review packet contains a duplicate file: ${target}`);
       }
@@ -31699,14 +31890,14 @@ import {
   mkdtempSync as mkdtempSync6,
   openSync as openSync5,
   readdirSync as readdirSync9,
-  readFileSync as readFileSync29,
+  readFileSync as readFileSync30,
   realpathSync as realpathSync8,
   renameSync as renameSync6,
   rmSync as rmSync8,
   writeFileSync as writeFileSync12
 } from "fs";
 import { homedir as homedir5, tmpdir as tmpdir4 } from "os";
-import nodePath44 from "path";
+import nodePath45 from "path";
 function configuredClaudeEffort(environment) {
   const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
   if (effort === undefined || effort.trim() === "")
@@ -31783,7 +31974,7 @@ function reviewTimeoutMilliseconds(env2 = process.env) {
   const requested = Number.isFinite(configured) && configured > 0 ? configured : defaultDeadline;
   return Math.min(requested, maximumAttempt);
 }
-function isRecord3(value) {
+function isRecord5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function parseJson(value) {
@@ -31791,10 +31982,10 @@ function parseJson(value) {
 }
 function parseClaudeOutput(stdout) {
   const envelope = parseJson(stdout);
-  if (isRecord3(envelope) && isRecord3(envelope.structured_output)) {
+  if (isRecord5(envelope) && isRecord5(envelope.structured_output)) {
     return envelope.structured_output;
   }
-  if (isRecord3(envelope) && typeof envelope.result === "string") {
+  if (isRecord5(envelope) && typeof envelope.result === "string") {
     return parseJson(envelope.result);
   }
   return envelope;
@@ -31811,27 +32002,27 @@ function ndjsonEvents(stdout) {
 }
 function parseCodexOutput(stdout) {
   const events = ndjsonEvents(stdout);
-  const message = events.findLast((event) => isRecord3(event) && event.type === "item.completed" && isRecord3(event.item) && event.item.type === "agent_message" && typeof event.item.text === "string");
-  if (isRecord3(message) && isRecord3(message.item) && typeof message.item.text === "string") {
+  const message = events.findLast((event) => isRecord5(event) && event.type === "item.completed" && isRecord5(event.item) && event.item.type === "agent_message" && typeof event.item.text === "string");
+  if (isRecord5(message) && isRecord5(message.item) && typeof message.item.text === "string") {
     return parseJson(message.item.text);
   }
   return parseJson(stdout);
 }
 function parseOpenCodeOutput(stdout) {
-  const completed = ndjsonEvents(stdout).filter((event2) => isRecord3(event2) && event2.type === "text" && isRecord3(event2.part) && event2.part.type === "text" && isRecord3(event2.part.time) && typeof event2.part.time.end === "number" && typeof event2.part.text === "string");
+  const completed = ndjsonEvents(stdout).filter((event2) => isRecord5(event2) && event2.type === "text" && isRecord5(event2.part) && event2.part.type === "text" && isRecord5(event2.part.time) && typeof event2.part.time.end === "number" && typeof event2.part.text === "string");
   if (completed.length !== 1)
     throw new Error("invalid reviewer output");
   const [event] = completed;
-  if (!isRecord3(event) || !isRecord3(event.part) || typeof event.part.text !== "string") {
+  if (!isRecord5(event) || !isRecord5(event.part) || typeof event.part.text !== "string") {
     throw new Error("invalid reviewer output");
   }
   return parseJson(event.part.text);
 }
 function reviewerVerdictMatchesFindings(verdict, findings) {
-  return verdict !== "approve" || findings.every((finding) => isRecord3(finding) && finding.severity !== "error");
+  return verdict !== "approve" || findings.every((finding) => isRecord5(finding) && finding.severity !== "error");
 }
 function hasValidReviewerOutputBody(value) {
-  if (!isRecord3(value))
+  if (!isRecord5(value))
     return false;
   const allowedOutputKeys = new Set([
     "schema_version",
@@ -31844,7 +32035,7 @@ function hasValidReviewerOutputBody(value) {
   if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings)) {
     return false;
   }
-  const findingsAreValid = value.findings.every((finding) => isRecord3(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && typeof finding.severity === "string" && ["info", "warning", "error"].includes(finding.severity) && typeof finding.message === "string");
+  const findingsAreValid = value.findings.every((finding) => isRecord5(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && typeof finding.severity === "string" && ["info", "warning", "error"].includes(finding.severity) && typeof finding.message === "string");
   if (!findingsAreValid)
     return false;
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
@@ -31875,8 +32066,8 @@ function reviewPrompt(reviewer, packet) {
 `);
 }
 function inside(root, candidate) {
-  const relative = nodePath44.relative(root, candidate);
-  return relative === "" || !nodePath44.isAbsolute(relative) && !relative.startsWith(`..${nodePath44.sep}`) && relative !== "..";
+  const relative = nodePath45.relative(root, candidate);
+  return relative === "" || !nodePath45.isAbsolute(relative) && !relative.startsWith(`..${nodePath45.sep}`) && relative !== "..";
 }
 function outsideUntrustedRoot(root, candidate) {
   if (inside(root, candidate))
@@ -31903,7 +32094,7 @@ function hasTrustedExecutableAncestry(candidate) {
     const metadata = lstatSync10(current);
     if (!pathMetadataIsTrusted(metadata.mode, metadata.uid, currentUid))
       return false;
-    const parent = nodePath44.dirname(current);
+    const parent = nodePath45.dirname(current);
     if (parent === current)
       return true;
     current = parent;
@@ -31912,7 +32103,7 @@ function hasTrustedExecutableAncestry(candidate) {
 function digestOpenFile(fd) {
   if (!fstatSync3(fd).isFile())
     return;
-  const bytes = readFileSync29(fd);
+  const bytes = readFileSync30(fd);
   return { bytes, digest: createHash17("sha256").update(bytes).digest("hex") };
 }
 function cachedCopyMatchesDigest(copyPath, expectedDigest) {
@@ -31928,7 +32119,7 @@ function cachedCopyMatchesDigest(copyPath, expectedDigest) {
   }
 }
 function preparedTrustedCacheDirectory(untrustedRoot) {
-  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath44.join(homedir5(), ".cache", "safeword-reviewers");
+  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath45.join(homedir5(), ".cache", "safeword-reviewers");
   if (inside(untrustedRoot, cacheDirectory))
     return;
   try {
@@ -31959,7 +32150,7 @@ function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
     const cacheDirectory = preparedTrustedCacheDirectory(untrustedRoot);
     if (cacheDirectory === undefined)
       return;
-    const copyPath = nodePath44.join(cacheDirectory, `${reviewer}.${source.digest}`);
+    const copyPath = nodePath45.join(cacheDirectory, `${reviewer}.${source.digest}`);
     if (cachedCopyMatchesDigest(copyPath, source.digest))
       return copyPath;
     const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
@@ -31983,7 +32174,7 @@ function remainingReviewTime(deadline, reviewer, lastFailure) {
 function executableCandidates(reviewer, untrustedRoot, allowStaging = true) {
   const canonicalUntrustedRoot = realpathSync8(untrustedRoot);
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
-  const candidates = (process.env.PATH ?? "").split(nodePath44.delimiter).filter((directory) => directory !== "" && nodePath44.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath44.join(directory, `${reviewer}${extension}`)));
+  const candidates = (process.env.PATH ?? "").split(nodePath45.delimiter).filter((directory) => directory !== "" && nodePath45.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath45.join(directory, `${reviewer}${extension}`)));
   let rejectedForTrust = false;
   const stageable = [];
   const canonicalCandidates = candidates.flatMap((candidate) => {
@@ -32205,7 +32396,7 @@ function stopWindowsReviewer(child, pid) {
       resolve(stopped);
     };
     const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
-    const taskkill = nodePath44.join(systemRoot, "System32", "taskkill.exe");
+    const taskkill = nodePath45.join(systemRoot, "System32", "taskkill.exe");
     const killer = spawn(taskkill, ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       windowsHide: true
@@ -32270,7 +32461,7 @@ function procGroupHasRunningMember(group) {
       continue;
     let line;
     try {
-      line = readFileSync29(`/proc/${entry}/stat`, "utf8");
+      line = readFileSync30(`/proc/${entry}/stat`, "utf8");
     } catch {
       continue;
     }
@@ -32466,8 +32657,8 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
   }
 }
 function writeContractFile() {
-  const directory = mkdtempSync6(nodePath44.join(tmpdir4(), "safeword-review-contract-"));
-  const path7 = nodePath44.join(directory, "review-result.schema.json");
+  const directory = mkdtempSync6(nodePath45.join(tmpdir4(), "safeword-review-contract-"));
+  const path7 = nodePath45.join(directory, "review-result.schema.json");
   writeFileSync12(path7, REVIEW_OUTPUT_SCHEMA, { mode: 384 });
   return {
     path: path7,
@@ -32595,12 +32786,12 @@ import { spawn as spawn2, spawnSync as spawnSync5 } from "child_process";
 import { createHash as createHash18, createHmac, randomBytes, randomUUID as randomUUID9, timingSafeEqual } from "crypto";
 import {
   closeSync as closeSync6,
-  existsSync as existsSync14,
+  existsSync as existsSync15,
   fstatSync as fstatSync4,
   mkdirSync as mkdirSync13,
   openSync as openSync6,
   readdirSync as readdirSync10,
-  readFileSync as readFileSync30,
+  readFileSync as readFileSync31,
   realpathSync as realpathSync9,
   renameSync as renameSync7,
   statSync as statSync4,
@@ -32609,26 +32800,26 @@ import {
   writeSync
 } from "fs";
 import { homedir as homedir6 } from "os";
-import nodePath45 from "path";
+import nodePath46 from "path";
 function jobsDirectory(cwd) {
-  return nodePath45.join(cwd, ".safeword", "state", "reviews");
+  return nodePath46.join(cwd, ".safeword", "state", "reviews");
 }
 function jobPath(cwd, id) {
   if (!isJobId(id))
     throw new Error("invalid review job id");
-  return nodePath45.join(jobsDirectory(cwd), `${id}.json`);
+  return nodePath46.join(jobsDirectory(cwd), `${id}.json`);
 }
 function integrityKeyPath() {
   const testRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
-  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath45.join(homedir6(), ".local", "state");
-  return nodePath45.join(stateRoot, "safeword", "review-integrity.key");
+  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath46.join(homedir6(), ".local", "state");
+  return nodePath46.join(stateRoot, "safeword", "review-integrity.key");
 }
 function readOrCreateIntegrityKey() {
   const keyPath = integrityKeyPath();
   try {
-    return decodeIntegrityKey(readFileSync30(keyPath, "utf8"));
+    return decodeIntegrityKey(readFileSync31(keyPath, "utf8"));
   } catch {
-    mkdirSync13(nodePath45.dirname(keyPath), { recursive: true, mode: 448 });
+    mkdirSync13(nodePath46.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
     try {
       const descriptor = openSync6(keyPath, "wx", 384);
@@ -32642,7 +32833,7 @@ function readOrCreateIntegrityKey() {
     } catch (error2) {
       if (!isFileExistsError(error2))
         throw error2;
-      return decodeIntegrityKey(readFileSync30(keyPath, "utf8"));
+      return decodeIntegrityKey(readFileSync31(keyPath, "utf8"));
     }
   }
 }
@@ -32678,12 +32869,12 @@ function ledgerFingerprintContext(cwd, targets, context, execution) {
   if (execution === undefined)
     return { context, missing: false };
   const canonicalRoot = realpathSync9.native(cwd);
-  const ledgerPath = nodePath45.resolve(canonicalRoot, execution.ledger);
+  const ledgerPath = nodePath46.resolve(canonicalRoot, execution.ledger);
   if (pathEscapes(canonicalRoot, ledgerPath)) {
     throw new Error(`Executable RED ledger escapes the project: ${execution.ledger}`);
   }
-  const missing = !existsSync14(ledgerPath);
-  const included = [...targets, ...context].some((target) => nodePath45.resolve(canonicalRoot, target) === ledgerPath);
+  const missing = !existsSync15(ledgerPath);
+  const included = [...targets, ...context].some((target) => nodePath46.resolve(canonicalRoot, target) === ledgerPath);
   return {
     context: included || missing ? context : [...context, execution.ledger],
     missing
@@ -32719,8 +32910,8 @@ function fingerprint(cwd, kind, targets, context = [], execution) {
   }
 }
 function pathEscapes(root, candidate) {
-  const relative = nodePath45.relative(root, candidate);
-  return relative === ".." || relative.startsWith(`..${nodePath45.sep}`) || nodePath45.isAbsolute(relative);
+  const relative = nodePath46.relative(root, candidate);
+  return relative === ".." || relative.startsWith(`..${nodePath46.sep}`) || nodePath46.isAbsolute(relative);
 }
 function writeJob(cwd, record) {
   const secured = withRecordIntegrity(cwd, record);
@@ -32776,7 +32967,7 @@ function withFileLock(lock, operation) {
 function recoverStaleLock(lock) {
   try {
     const inspected = statSync4(lock);
-    const owner = Number(readFileSync30(lock, "utf8"));
+    const owner = Number(readFileSync31(lock, "utf8"));
     const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync4(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
     if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld) {
       const current = statSync4(lock);
@@ -32892,7 +33083,7 @@ function hasReviewerIdentity(reviewer) {
   return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex", "opencode"].includes(String(reviewer.reviewer_agent));
 }
 function readJob(cwd, id) {
-  const parsed2 = JSON.parse(readFileSync30(jobPath(cwd, id), "utf8"));
+  const parsed2 = JSON.parse(readFileSync31(jobPath(cwd, id), "utf8"));
   if (!isReviewJobRecord(parsed2) || parsed2.id !== id || !hasValidIntegrity(cwd, parsed2))
     throw new Error("invalid review job record");
   return parsed2;
@@ -33070,7 +33261,7 @@ function processTool(name) {
   if (process.platform !== "win32")
     return `/bin/${name}`;
   const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
-  return name === "powershell.exe" ? nodePath45.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", name) : nodePath45.join(systemRoot, "System32", name);
+  return name === "powershell.exe" ? nodePath46.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", name) : nodePath46.join(systemRoot, "System32", name);
 }
 function configuredCourtesyWait() {
   const raw = process.env.SAFEWORD_REVIEW_FOREGROUND_MS;
@@ -33082,13 +33273,13 @@ function cliEntrypoint() {
   if (configured !== undefined && false)
     ;
   const invoked = process.argv[1];
-  if (invoked !== undefined && /^cli\.(?:js|ts)$/u.test(nodePath45.basename(invoked)))
+  if (invoked !== undefined && /^cli\.(?:js|ts)$/u.test(nodePath46.basename(invoked)))
     return invoked;
-  const bundled = nodePath45.join(import.meta.dirname, "cli.js");
-  if (existsSync14(bundled))
+  const bundled = nodePath46.join(import.meta.dirname, "cli.js");
+  if (existsSync15(bundled))
     return bundled;
-  const developmentBuild = nodePath45.resolve(import.meta.dirname, "../../dist/cli.js");
-  if (existsSync14(developmentBuild))
+  const developmentBuild = nodePath46.resolve(import.meta.dirname, "../../dist/cli.js");
+  if (existsSync15(developmentBuild))
     return developmentBuild;
   throw new Error("Safeword CLI entrypoint is unavailable");
 }
@@ -33152,7 +33343,7 @@ async function startReviewJob(input) {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context, input.execution);
   mkdirSync13(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
-  const reserved = withFileLock(nodePath45.join(jobsDirectory(input.cwd), "start.lock"), () => {
+  const reserved = withFileLock(nodePath46.join(jobsDirectory(input.cwd), "start.lock"), () => {
     const existing = runningJob(input.cwd, input.kind, sourceFingerprint) ?? (input.kind === "executable-red" ? reusableApprovedExecutableRedJob(input.cwd, sourceFingerprint) : undefined);
     if (existing !== undefined)
       return { existing: true, record: existing };
@@ -33347,7 +33538,7 @@ function reviewJobWorkerInput(cwd, id) {
 }
 function latestJobId(cwd) {
   const directory = jobsDirectory(cwd);
-  if (!existsSync14(directory))
+  if (!existsSync15(directory))
     return;
   return readdirSync10(directory).flatMap((name) => {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
@@ -33392,7 +33583,7 @@ function routeProofsFromRecord(record) {
 }
 function readReviewRouteProofs(cwd) {
   const directory = jobsDirectory(cwd);
-  if (!existsSync14(directory) || !existsSync14(integrityKeyPath()))
+  if (!existsSync15(directory) || !existsSync15(integrityKeyPath()))
     return [];
   let entries;
   try {
@@ -33421,7 +33612,7 @@ function readReviewRouteProofs(cwd) {
 }
 function runningJob(cwd, kind, sourceFingerprint) {
   const directory = jobsDirectory(cwd);
-  if (!existsSync14(directory))
+  if (!existsSync15(directory))
     return;
   for (const name of readdirSync10(directory)) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
@@ -33437,7 +33628,7 @@ function runningJob(cwd, kind, sourceFingerprint) {
 }
 function reusableApprovedExecutableRedJob(cwd, sourceFingerprint) {
   const directory = jobsDirectory(cwd);
-  if (!existsSync14(directory))
+  if (!existsSync15(directory))
     return;
   for (const name of readdirSync10(directory)) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
@@ -33480,14 +33671,14 @@ function approvedCrossAgentReceipt(record) {
 }
 function executableRedJobsForScenario(cwd, scenario, ledger) {
   const directory = jobsDirectory(cwd);
-  if (!existsSync14(directory))
+  if (!existsSync15(directory))
     return [];
   return readdirSync10(directory).flatMap((name) => {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       return [];
     try {
       const record = readJob(cwd, name.slice(0, -5));
-      return record.kind === "executable-red" && record.execution?.scenario === scenario && nodePath45.resolve(cwd, record.execution.ledger) === nodePath45.resolve(cwd, ledger) ? [record] : [];
+      return record.kind === "executable-red" && record.execution?.scenario === scenario && nodePath46.resolve(cwd, record.execution.ledger) === nodePath46.resolve(cwd, ledger) ? [record] : [];
     } catch {
       return [];
     }
@@ -33560,7 +33751,7 @@ function reviewJobStatus(cwd, requestedId) {
   try {
     record = readJob(cwd, id);
   } catch {
-    const exists3 = isJobId(id) && existsSync14(jobPath(cwd, id));
+    const exists3 = isJobId(id) && existsSync15(jobPath(cwd, id));
     return createResult({
       state: "failed",
       errors: [
@@ -33645,188 +33836,6 @@ var init_job = __esm(() => {
   init_contract();
   init_packet();
   init_runtime();
-});
-
-// src/review/route-config.ts
-var exports_route_config = {};
-__export(exports_route_config, {
-  parseRouteText: () => parseRouteText,
-  parseConfiguredReviewRoutes: () => parseConfiguredReviewRoutes,
-  MODEL_NAME: () => MODEL_NAME
-});
-function parseConfiguredReviewRoutes(config, author, source) {
-  const configured = config.crossAgentReviewRoutes;
-  if (configured === undefined)
-    return;
-  if (!isRecord4(configured) || Array.isArray(configured))
-    throw configError("must be an object", source);
-  const unsupportedAuthor = Object.keys(configured).find((key) => !REVIEW_AGENTS2.has(key));
-  if (unsupportedAuthor !== undefined)
-    throw configError("contains an unsupported author key; use claude, codex, or opencode", source);
-  const values = configured[author];
-  if (values === undefined)
-    return;
-  if (!Array.isArray(values) || values.length === 0)
-    throw configError(`.${author} must be a non-empty array`, source);
-  return values.map((value, index) => parseRoute(value, index, author, source));
-}
-function parseRouteText(value, author) {
-  const separator = value.indexOf("=");
-  return parseRoute({
-    reviewer: separator === -1 ? value : value.slice(0, separator),
-    ...separator !== -1 && { model: value.slice(separator + 1) }
-  }, 0, author);
-}
-function parseRoute(value, index, author, source) {
-  if (!isRecord4(value) || Array.isArray(value))
-    throw configError(`.${author}[${index}] must be an object`, source);
-  const reviewer = value.reviewer;
-  if (typeof reviewer !== "string" || !REVIEW_AGENTS2.has(reviewer))
-    throw configError(`.${author}[${index}].reviewer is unsupported`, source);
-  const model = value.model;
-  if (model !== undefined && (typeof model !== "string" || !MODEL_NAME.test(model)))
-    throw configError(`.${author}[${index}].model is invalid`, source);
-  return {
-    reviewer,
-    ...model !== undefined && { model },
-    independence: reviewer === author ? "degraded" : "cross-agent"
-  };
-}
-function isRecord4(value) {
-  return typeof value === "object" && value !== null;
-}
-function configError(detail, source) {
-  const location = source === undefined ? "" : ` at ${source}`;
-  return new Error(`Invalid crossAgentReviewRoutes configuration${location}: ${detail}`);
-}
-var MODEL_NAME, REVIEW_AGENTS2;
-var init_route_config = __esm(() => {
-  MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
-  REVIEW_AGENTS2 = new Set(["claude", "codex", "opencode"]);
-});
-
-// src/review/preferences.ts
-var exports_preferences = {};
-__export(exports_preferences, {
-  setScopedReviewRoutes: () => setScopedReviewRoutes,
-  scopedConfigPath: () => scopedConfigPath,
-  resolveSafewordUserConfigPath: () => resolveSafewordUserConfigPath,
-  resetScopedReviewRoutes: () => resetScopedReviewRoutes,
-  effectiveConfiguredRoutes: () => effectiveConfiguredRoutes
-});
-import { existsSync as existsSync15, readFileSync as readFileSync31 } from "fs";
-import nodePath46 from "path";
-function resolveSafewordUserConfigPath(input) {
-  const paths = input.platform === "windows" ? nodePath46.win32 : nodePath46.posix;
-  const xdg = absolute(input.env.XDG_CONFIG_HOME, paths);
-  if (xdg !== undefined)
-    return paths.join(xdg, "safeword", "config.json");
-  if (input.platform === "windows") {
-    const appData = absolute(input.env.APPDATA, paths);
-    if (appData !== undefined)
-      return paths.join(appData, "Safeword", "config.json");
-    const profile = absolute(input.env.USERPROFILE, paths);
-    return profile === undefined ? undefined : paths.join(profile, ".config", "safeword", "config.json");
-  }
-  const home = absolute(input.env.HOME, paths);
-  return home === undefined ? undefined : paths.join(home, ".config", "safeword", "config.json");
-}
-function absolute(value, paths) {
-  const trimmed = value?.trim();
-  return trimmed !== undefined && paths.isAbsolute(trimmed) ? trimmed : undefined;
-}
-function currentUserConfigPath() {
-  const path7 = optionalCurrentUserConfigPath();
-  if (path7 === undefined)
-    throw new Error("Cannot locate the Safeword user configuration directory.");
-  return path7;
-}
-function optionalCurrentUserConfigPath() {
-  return resolveSafewordUserConfigPath({
-    platform: process.platform === "win32" ? "windows" : "unix",
-    env: process.env
-  });
-}
-function scopedConfigPath(cwd, scope) {
-  return scope === "project" ? nodePath46.join(cwd, ".safeword", "config.json") : currentUserConfigPath();
-}
-function readConfigFile(path7) {
-  if (!existsSync15(path7))
-    return {};
-  let contents;
-  try {
-    contents = readFileSync31(path7, "utf8");
-  } catch (error2) {
-    throw new Error(`Unable to read Safeword configuration at ${path7}: ${error2 instanceof Error ? error2.message : String(error2)}`, { cause: error2 });
-  }
-  let parsed2;
-  try {
-    parsed2 = JSON.parse(contents);
-  } catch {
-    throw new Error(`Invalid Safeword configuration at ${path7}: expected valid JSON.`);
-  }
-  if (parsed2 === null || typeof parsed2 !== "object" || Array.isArray(parsed2)) {
-    throw new TypeError(`Invalid Safeword configuration at ${path7}: expected an object.`);
-  }
-  return parsed2;
-}
-function setScopedReviewRoutes(cwd, scope, author, routes) {
-  const path7 = scopedConfigPath(cwd, scope);
-  const config = readConfigFile(path7);
-  const current = config.crossAgentReviewRoutes;
-  if (current !== undefined && (!isRecord5(current) || Array.isArray(current))) {
-    throw new Error(`Invalid Safeword configuration at ${path7}: crossAgentReviewRoutes must be an object.`);
-  }
-  const routeMap = current === undefined ? {} : { ...current };
-  routeMap[author] = routes.map((route) => ({
-    reviewer: route.reviewer,
-    ...route.model !== undefined && { model: route.model }
-  }));
-  writeDurableFile(path7, `${JSON.stringify({ ...config, crossAgentReviewRoutes: routeMap }, undefined, 2)}
-`, {
-    mode: scope === "user" ? 384 : 420
-  });
-}
-function resetScopedReviewRoutes(cwd, scope, author) {
-  const path7 = scopedConfigPath(cwd, scope);
-  if (!existsSync15(path7))
-    return false;
-  const config = readConfigFile(path7);
-  const current = config.crossAgentReviewRoutes;
-  if (current !== undefined && (!isRecord5(current) || Array.isArray(current))) {
-    throw new Error(`Invalid Safeword configuration at ${path7}: crossAgentReviewRoutes must be an object.`);
-  }
-  if (current === undefined || !Object.hasOwn(current, author))
-    return false;
-  const routeMap = Object.fromEntries(Object.entries(current).filter(([key]) => key !== author));
-  const next = { ...config };
-  if (Object.keys(routeMap).length === 0)
-    delete next.crossAgentReviewRoutes;
-  else
-    next.crossAgentReviewRoutes = routeMap;
-  writeDurableFile(path7, `${JSON.stringify(next, undefined, 2)}
-`, {
-    mode: scope === "user" ? 384 : 420
-  });
-  return true;
-}
-function effectiveConfiguredRoutes(cwd, author) {
-  if (author !== "claude" && author !== "codex" && author !== "opencode")
-    return;
-  const userPath = optionalCurrentUserConfigPath();
-  const userRoutes = userPath === undefined ? undefined : parseConfiguredReviewRoutes(readConfigFile(userPath), author, userPath);
-  const projectPath = scopedConfigPath(cwd, "project");
-  const projectRoutes = parseConfiguredReviewRoutes(readConfigFile(projectPath), author, projectPath);
-  if (projectRoutes !== undefined)
-    return { source: "project", routes: projectRoutes };
-  return userRoutes === undefined ? undefined : { source: "user", routes: userRoutes };
-}
-function isRecord5(value) {
-  return typeof value === "object" && value !== null;
-}
-var init_preferences = __esm(() => {
-  init_durable_write();
-  init_route_config();
 });
 
 // templates/hooks/lib/parse-annotation.ts
@@ -70081,6 +70090,8 @@ async function retroReconcileHandler(invocation) {
 }
 
 // src/cli-protocol/review-handlers.ts
+init_preferences();
+init_route_config();
 init_online_required();
 init_result();
 import { existsSync as existsSync16 } from "fs";
@@ -70126,7 +70137,7 @@ function reviewRouteAuthor(value) {
 }
 function reviewRoutesFailure(command, error2) {
   const message = error2 instanceof Error ? error2.message : "Review route configuration is invalid.";
-  const invalid = message.startsWith("Invalid ") || message.startsWith("Cannot locate the Safeword user configuration directory.");
+  const invalid = error2 instanceof ReviewRouteConfigError || error2 instanceof ReviewUserConfigPathError;
   const readFailure = command === "review routes list" && !invalid;
   let code = "REVIEW_ROUTE_CONFIG_WRITE_FAILED";
   if (invalid)
@@ -71789,7 +71800,7 @@ var CANONICAL_COMMANDS = [
     networkPolicy: "declared",
     fixture: { argv: ["review-pr", "invalidate", "--offline"], environment: MACHINE_ENVIRONMENT }
   }),
-  command("review-pr readiness", "Report whether readiness evidence matches the head", "mutate", {
+  command("review-pr readiness", "Publish readiness; verdict is in data.outcome", "mutate", {
     networkPolicy: "declared",
     fixture: { argv: ["review-pr", "readiness", "--offline"], environment: MACHINE_ENVIRONMENT }
   }),

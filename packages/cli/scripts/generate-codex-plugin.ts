@@ -35,15 +35,25 @@ if (
   throw new Error('Custom output must be outside the checked-in Codex plugin directory');
 }
 
-generateScenarioRubric(options.checkOnly);
-generatePlanRubric(options.checkOnly);
-generateQualityRubric(options.checkOnly);
-generateRedRubric(options.checkOnly);
+const rubricResults = [
+  generateScenarioRubric(options.checkOnly),
+  generatePlanRubric(options.checkOnly),
+  generateQualityRubric(options.checkOnly),
+  generateRedRubric(options.checkOnly),
+];
+if (options.checkOnly && rubricResults.includes('stale')) {
+  throw new Error('Cannot check the Codex plugin while a generated runtime rubric is stale.');
+}
 
 async function generatePlugin(
   generatedRoot: string,
   includeAuthoredFiles: boolean,
 ): Promise<number> {
+  const manifestPath = nodePath.join(shippedRoot, '.codex-plugin/plugin.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
+  if (manifest.version !== VERSION) {
+    throw new Error(`Codex plugin manifest does not declare package version ${VERSION}`);
+  }
   const builtVersion = options.effectiveVersion === VERSION ? undefined : options.effectiveVersion;
   // Keep Codex hooks and skill commands independent from bunx's shared mutable
   // package installation. This is the same standalone build shape as the Claude
@@ -96,19 +106,12 @@ async function generatePlugin(
   );
 
   if (includeAuthoredFiles) {
-    const manifestSource = readFileSync(
-      nodePath.join(shippedRoot, '.codex-plugin/plugin.json'),
-      'utf8',
-    );
-    const baseVersionField = `"version": "${VERSION}"`;
-    if (manifestSource.split(baseVersionField).length !== 2) {
-      throw new Error(`Codex plugin manifest does not declare package version ${VERSION}`);
-    }
+    manifest.version = options.effectiveVersion;
     const manifestDirectory = nodePath.join(generatedRoot, '.codex-plugin');
     mkdirSync(manifestDirectory, { recursive: true });
     writeFileSync(
       nodePath.join(manifestDirectory, 'plugin.json'),
-      manifestSource.replaceAll(baseVersionField, () => `"version": "${options.effectiveVersion}"`),
+      `${JSON.stringify(manifest, undefined, 2)}\n`,
     );
     cpSync(nodePath.join(shippedRoot, 'hooks.json'), nodePath.join(generatedRoot, 'hooks.json'));
   }

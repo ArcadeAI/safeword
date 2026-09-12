@@ -62,7 +62,7 @@ export function reconcileGeneratedFile({
 }
 
 /** Reconcile one generated runtime rubric and report its stable CLI result. */
-export function runGeneratedRubric(options: GeneratedRubricOptions): void {
+export function runGeneratedRubric(options: GeneratedRubricOptions): GeneratedFileReconciliation {
   const outputPath = generatedOutputPath(options.defaultOutputPath, options.generatorEntrypoint);
   const reconciliation = reconcileGeneratedFile({
     check: options.check,
@@ -82,4 +82,5 @@ export function runGeneratedRubric(options: GeneratedRubricOptions): void {
   } else {
     console.log(`Generated the ${options.label} runtime rubric.`);
   }
+  return reconciliation;
 }

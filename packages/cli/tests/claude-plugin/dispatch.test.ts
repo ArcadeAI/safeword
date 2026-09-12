@@ -409,6 +409,16 @@ describe('Claude plugin dispatcher', () => {
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
+  it('reports a missing hook event without an uncaught exception', () => {
+    const result = spawnSync('bun', [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js')], {
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('Claude hook event is required');
+    expect(result.stderr).not.toContain('at main');
+  });
+
   it('uses the hook cwd when Claude omits CLAUDE_PROJECT_DIR', () => {
     const projectDirectory = temporary('safeword-plugin-cwd-fallback-project-');
     const pluginData = temporary('safeword-plugin-cwd-fallback-data-');

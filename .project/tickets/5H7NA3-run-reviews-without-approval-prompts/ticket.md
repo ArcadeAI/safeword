@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-09-10T23:06:30.082Z
-last_modified: 2026-09-12T06:03:08Z
+last_modified: 2026-09-12T07:42:53Z
 ---
 
 # Run trusted review routes without approval prompts
@@ -122,3 +122,13 @@ last_modified: 2026-09-12T06:03:08Z
   version-derived fixtures, and two historical Markdown table repairs. The affected contract tests
   pass 30/30, the installed-Codex live boundary passes 1/1, lint/typecheck are clean, and generated
   Claude/Codex artifacts are current.
+- 2026-09-12T07:42:53Z Terminal review and cleanup: Reviews
+  `f34021b4-8b8b-4990-960d-ac61f5f09f07`, `a81690be-65d0-47b7-a338-764d53b6ccb6`,
+  `d5b884a0-65d0-476a-a2d7-a2063f02840a`, and
+  `9d627a5a-0bfb-4f71-9855-282796f68eb1` drove further bounded corrections. Terminal independent
+  review `c62341ad-6aaa-4e69-b833-74d13c134520` approved the result. Its concrete warnings were
+  resolved with typed route-configuration failures, genuinely read-only plugin checks, unconditional
+  Codex manifest-version validation, complete RED-only argument rejection, prompt-denial preservation,
+  malformed dispatcher handling, and live allow-rule coverage for normal argument variants. Focused
+  regressions pass 97/97, review wiring passes 122/122, the installed-Codex boundary passes 1/1,
+  lint/typecheck/format/Markdown checks are clean, and every generated artifact is current.

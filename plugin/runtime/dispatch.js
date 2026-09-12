@@ -5972,11 +5972,11 @@ function startupFailure(event, error) {
 }
 function main() {
   const [event, mode, ...command] = process.argv.slice(2);
-  if (event === void 0) throw new Error('Claude hook event is required.');
   try {
+    if (event === void 0) throw new Error('Claude hook event is required.');
     return mainUnsafe(event, mode, command);
   } catch (error) {
-    return startupFailure(event, error);
+    return startupFailure(event ?? 'unknown', error);
   }
 }
 process.exitCode = main();

@@ -882,11 +882,11 @@ function startupFailure(event: string, error: unknown): number {
 
 function main(): number {
   const [event, mode, ...command] = process.argv.slice(2);
-  if (event === undefined) throw new Error('Claude hook event is required.');
   try {
+    if (event === undefined) throw new Error('Claude hook event is required.');
     return mainUnsafe(event, mode, command);
   } catch (error) {
-    return startupFailure(event, error);
+    return startupFailure(event ?? 'unknown', error);
   }
 }
 

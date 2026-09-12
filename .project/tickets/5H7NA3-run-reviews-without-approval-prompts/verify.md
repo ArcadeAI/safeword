@@ -57,6 +57,19 @@ TypeScript, Astro, dependency, build, and acceptance check completed successfull
 - Post-improvement focused evidence: 30/30 generator, Claude catalogue, and Codex release-contract
   tests pass; installed-Codex approval-boundary live test passes 1/1; root lint/typecheck pass; Claude,
   Codex, rubric, and historical-catalogue generated checks are current.
+- Subsequent independent reviews `f34021b4-8b8b-4990-960d-ac61f5f09f07`,
+  `a81690be-65d0-47b7-a338-764d53b6ccb6`, `d5b884a0-65d0-476a-a2d7-a2063f02840a`, and
+  `9d627a5a-0bfb-4f71-9855-282796f68eb1` supplied additional edge-case findings. Each actionable
+  finding was repaired before the next pass.
+- Terminal independent review `c62341ad-6aaa-4e69-b833-74d13c134520` approved. Its final warnings
+  are closed: route failures use typed errors; aggregate `--check` runs abort on stale rubrics without
+  writing; Codex manifest versions are validated in every mode; ordinary reviews reject every
+  RED-only flag; earlier prompt denials survive later sibling errors; argv-less dispatcher calls fail
+  cleanly; and the live allow-side covers no-context, multi-target, and quiet command variants.
+- Final focused evidence after those repairs: 97/97 contract and generator regressions, 122/122 full
+  review-wiring cases, and 1/1 real installed-Codex approval-boundary test pass. Root lint/typecheck,
+  Prettier, Markdown lint, and `git diff --check` pass. Claude and Codex plugins plus all generated
+  rubrics and the historical catalogue are current at `1.0.0-rc.1`.
 - Remaining audit output is repository baseline rather than a ticket regression: generated and
   historical clone volume, historical research executables, script-string resolution limitations,
   and unused-export candidates that require separate ownership decisions.

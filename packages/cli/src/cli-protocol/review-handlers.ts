@@ -17,6 +17,8 @@ import type {
   RedExecutionRequest,
   ReviewKind,
 } from '../review/contract.js';
+import { ReviewUserConfigPathError } from '../review/preferences.js';
+import { ReviewRouteConfigError } from '../review/route-config.js';
 import type { CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
 import { shellQuote } from './replay-command.js';
@@ -75,8 +77,7 @@ function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | un
 function reviewRoutesFailure(command: string, error: unknown): CliResult {
   const message = error instanceof Error ? error.message : 'Review route configuration is invalid.';
   const invalid =
-    message.startsWith('Invalid ') ||
-    message.startsWith('Cannot locate the Safeword user configuration directory.');
+    error instanceof ReviewRouteConfigError || error instanceof ReviewUserConfigPathError;
   const readFailure = command === 'review routes list' && !invalid;
   let code = 'REVIEW_ROUTE_CONFIG_WRITE_FAILED';
   if (invalid) code = 'REVIEW_ROUTE_CONFIG_INVALID';
