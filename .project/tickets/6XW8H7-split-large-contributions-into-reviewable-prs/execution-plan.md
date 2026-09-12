@@ -1,7 +1,6 @@
 # Execution Plan: Split large contributions into independently reviewable PRs
 
 **Status:** planned
-**Prepared on:** 2026-09-12
 
 ## Pull-request slicing
 
@@ -242,17 +241,17 @@ working.
 
 ## Decision accounting
 
-Every Recorded Decision in `impl-plan.md` remains **unchanged**:
-
-- dependency-ordered, independently safe conceptual slices;
-- one shared coordinator with one canonical Execution Plan contract;
-- exact-identity semantic conformance before route admission;
-- a typed, kind-specific positive judgment;
-- post-schema structural validation with negative tripwires;
-- approval authorizes only entry to implementation;
-- the judgment stays in the integrity-checked review job cited by its stamp;
-- dependency semantics remain repository-host neutral; and
-- this child establishes the shared contract that later epic children extend.
+| Implementation Plan decision | Status |
+| --- | --- |
+| Represent PR slicing as a dependency-ordered set of independently safe conceptual changes | unchanged |
+| Extend the shared semantic review route with one canonical Execution Plan contract | unchanged |
+| Admit only routes with semantic conformance proof | unchanged |
+| Make positive Execution Plan judgment machine-checkable | unchanged |
+| Reject structurally invalid review records | unchanged |
+| Bound Execution Plan approval to coding readiness | unchanged |
+| Retain the machine-checkable judgment with its review receipt | unchanged |
+| Keep dependency semantics host-neutral | unchanged |
+| Stage this child as the slicing portion of the future canonical Execution Plan contract | unchanged |
 
 ## Delivery checklist
 

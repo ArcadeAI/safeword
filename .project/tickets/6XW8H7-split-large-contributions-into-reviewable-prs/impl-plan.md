@@ -1,9 +1,10 @@
-# Impl Plan: Split large contributions into independently reviewable PRs
+# Implementation Plan: Split large contributions into independently reviewable PRs
 
 **Status:** planned
-**Planned on:** 2026-09-11
 
 ## Approach
+
+### Recommended approach
 
 The [approved scenarios](../../../features/split-large-contributions-into-reviewable-prs.feature)
 are the authoritative behavior contract; this plan does not restate them.
@@ -15,12 +16,6 @@ engine. The contract represents a contribution as one or more conceptual
 slices in dependency order. Each slice names one purpose, its boundary,
 prerequisites, proof, and a safe completion state. Repository-host stacking may
 carry that order, but the contract remains host-neutral.
-
-The riskiest assumption is that a semantic reviewer can judge conceptual slice
-boundaries without substituting line counts or inventing design. Live review of
-coherent and incoherent plans samples that judgment across Claude and Codex.
-Deterministic tests separately prove contract dispatch, output validation, and
-CLI wiring; live output is not used to prove parser behavior.
 
 An approved review returns an `execution_plan_record` through the reviewer-agent
 result and CLI `data.reviewer_output`. It records the slicing decision and
@@ -38,6 +33,14 @@ semantic-review judgments, not deterministic-parser claims.
 [Reviewer-output validation](#reviewer-output-validation) defines the structural
 acceptance boundary once.
 
+### Riskiest assumption and proof
+
+A semantic reviewer must judge conceptual slice boundaries without substituting
+line counts or inventing design. Live review of coherent and incoherent plans
+samples that judgment across Claude and Codex. Deterministic tests separately
+prove contract dispatch, output validation, and CLI wiring; live output does not
+prove parser behavior.
+
 ## Release gates
 
 | Gate | What it blocks | Required proof | Confidence limit |
@@ -48,10 +51,7 @@ acceptance boundary once.
 | Existing review compatibility | Provider schema, validation, and stored result | Golden schema comparisons keep every existing review kind byte-for-byte unchanged; table-driven approval and denial cases prove every existing kind retains its prior validator path and persisted result shape without `execution_plan_record` | Covers declared schema, validation, and storage behavior, not undocumented provider behavior |
 | CLI wiring | Completion of this child | With only the external reviewer replaced, the real CLI, packet builder, coordinator, result store, and stamp writer persist and cite a valid approval whose populated output validates against the v1 CLI envelope; exhausted malformed-positive routes persist no approval or stamp; a legible denial or negative assertion ends denied without invoking another route | [Installed workflow migration](../YCFFNC-migrate-planning-guidance-without-disrupting-features/ticket.md) owns agent-host delivery |
 
-Exact test cases, commands, task order, and generated-asset sequencing belong in
-the Execution Plan.
-
-Affected surfaces:
+### Affected surfaces
 
 - Safeword CLI: real-command wiring and semantic contract proof.
 - Claude Code, Claude Code Cloud, OpenAI Codex, Cursor, and Cursor Cloud Agents:
@@ -61,7 +61,7 @@ Affected surfaces:
 - OpenCode: skip: installed workflow migration owns catalogue delivery in M2;
   Desktop remains advisory until native hook dispatch is independently proven.
 
-Decision boundaries:
+### Boundaries, compatibility, and rollback
 
 - Application-level APIs and permissions are not applicable. The reviewer-agent
   result contract and CLI `data.reviewer_output` change as recorded in
@@ -171,9 +171,9 @@ routes persist no approval and write no approval stamp.
 - Product behavior: owned by the approved scenario contract and not duplicated
   here.
 
-### Data applicability
+## Data and retention
 
-Data applicability: this feature does not add application data, but it extends
+This feature does not add application data, but it extends
 the existing review-job result with an optional `execution_plan_record`. The
 record is retained in the integrity-checked local review-job file with no new
 automatic expiry; it remains available until that existing transient workspace
@@ -190,7 +190,7 @@ job record as inert local state until existing workspace-state cleanup removes
 it; it grants no authority. Review currency owns whether changed plan or context
 digests make the cited review non-current.
 
-### Persona consequences
+## Persona consequences
 
 | Persona | Need and design consequence | Confidence limit |
 | --- | --- | --- |
@@ -202,13 +202,15 @@ digests make the cited review non-current.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Structure enforces; instructions suggest | The installed review packet carries the exact canonical slicing contract and cannot pass with missing or mismatched author/reviewer obligations | [installed-contract and rejection scenarios](features/split-large-contributions-into-reviewable-prs.feature) | |
-| Add, never replace | Existing review kinds retain their provider schemas, validator paths, and stored result shapes | [existing review compatibility release gate](.project/tickets/6XW8H7-split-large-contributions-into-reviewable-prs/impl-plan.md#release-gates) | |
-| Discover decisions before prescribing work | Slicing consumes accepted Implementation Plan decisions, assigns every obligation, and rejects a slice that reopens the approach | [R2 and R5 scenarios](features/split-large-contributions-into-reviewable-prs.feature) | |
-| Optimize for the NTB without constraining the TBU | This child emits typed semantic denials; plain-language gate recovery owns one recovery action without removing technical detail | [typed denial scenarios](features/split-large-contributions-into-reviewable-prs.feature); [delegated recovery scenarios](features/make-planning-gates-understandable-and-scope-safe.feature) | |
-| Correct and safe; then clear; then simple | One new review kind reuses the existing packet and coordinator path; no second checker or repository-host dependency is introduced | [CLI wiring and dependency-safety scenarios](features/split-large-contributions-into-reviewable-prs.feature) | |
+| Structure enforces; instructions suggest | The installed review packet carries the exact canonical slicing contract and cannot pass with missing or mismatched author/reviewer obligations | [installed-contract and rejection scenarios](../../../features/split-large-contributions-into-reviewable-prs.feature) | |
+| Add, never replace | Existing review kinds retain their provider schemas, validator paths, and stored result shapes | [existing review compatibility release gate](#release-gates) | |
+| Discover decisions before prescribing work | Slicing consumes accepted Implementation Plan decisions, assigns every obligation, and rejects a slice that reopens the approach | [R2 and R5 scenarios](../../../features/split-large-contributions-into-reviewable-prs.feature) | |
+| Optimize for the NTB without constraining the TBU | This child emits typed semantic denials; plain-language gate recovery owns one recovery action without removing technical detail | [typed denial scenarios](../../../features/split-large-contributions-into-reviewable-prs.feature); [delegated recovery scenarios](../../../features/make-planning-gates-understandable-and-scope-safe.feature) | |
+| Correct and safe; then clear; then simple | One new review kind reuses the existing packet and coordinator path; no second checker or repository-host dependency is introduced | [CLI wiring and dependency-safety scenarios](../../../features/split-large-contributions-into-reviewable-prs.feature) | |
 
-Architecture applicability: this feature adds the slicing obligations of the
+### Architecture applicability
+
+This feature adds the slicing obligations of the
 shared Execution Planning contract. It honors `ARCHITECTURE.md` → “Separate
 Implementation and Execution Planning Gates,” which already decides that
 `execution-plan.md` contains independently reviewable PRs and that each planning

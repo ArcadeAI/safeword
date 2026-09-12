@@ -16,8 +16,8 @@
 > each change can be understood, verified, and merged without reconstructing
 > the entire implementation or inventing a design decision.
 
-K3EBHB owns the plain-language recovery rendering for this child's semantic
-denials; this child owns the slicing judgment and installed contract dispatch.
+K3EBHB owns plain-language recovery for semantic denials. This child owns the
+slicing judgment and installed contract dispatch.
 
 ## Rules
 
