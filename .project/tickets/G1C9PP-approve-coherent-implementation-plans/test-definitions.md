@@ -322,9 +322,9 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 ### Scenario: Retrying the same design approval does not duplicate authority
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retry identity was an inseparable prerequisite of the concurrent-writer GREEN in 426ccbf7e; 2288f66f5 adds the explicit two-invocation regression without inventing a false failure
+- [x] GREEN 426ccbf7e
+- [x] REFACTOR skip: idempotency remains inside the single locked append transaction and needs no parallel retry path
 
 ### Scenario: Approval-ledger contention fails closed without changing authority
 
