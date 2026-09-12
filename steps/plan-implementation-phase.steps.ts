@@ -46,6 +46,10 @@ import {
   type PlanReviewFixture,
   reviewFocusedDecisionPath,
 } from '../packages/cli/tests/fixtures/plan-focused-reviewability.ts';
+import {
+  type PersonaConsequenceFixture,
+  reviewPersonaConsequences,
+} from '../packages/cli/tests/fixtures/plan-persona-consequences.ts';
 import type { ReviewerOutput } from '../packages/cli/src/review/contract.ts';
 import { reviewPlanOfRecord } from '../packages/cli/tests/fixtures/plan-single-record.ts';
 import { git } from './support/repo-fixtures.ts';
@@ -164,6 +168,8 @@ interface PlanWorld extends SafewordWorld {
     accepted: boolean;
     reason: string;
   };
+  personaConsequence?: PersonaConsequenceFixture;
+  personaConsequenceReview?: ReviewerOutput;
 }
 
 const EVIDENCE_REFERENCE = 'https://spec.commonmark.org/0.31.2/';
@@ -1013,6 +1019,31 @@ Given(
 );
 
 Given(
+  /^the accepted Product Plan includes a persona who must (.+) and the Implementation Plan (.+)$/u,
+  function (this: PlanWorld, personaNeed: string, coverageState: string) {
+    const needs: Record<string, PersonaConsequenceFixture['need']> = {
+      'trust the authorization and audit boundary': 'trust',
+      'operate the feature through its supported interface': 'operation',
+      'approve rollout from truthful assurance': 'approval',
+      'recover safely after a refused operation': 'recovery',
+    };
+    const need = needs[personaNeed];
+    assert.ok(need, `unknown persona need: ${personaNeed}`);
+    assert.ok(
+      coverageState === 'records that design consequence and its limit' ||
+        coverageState === 'omits that consequence',
+      `unknown persona coverage state: ${coverageState}`,
+    );
+    this.personaConsequence = {
+      persona: 'accepted feature persona',
+      need,
+      consequenceRecorded: coverageState === 'records that design consequence and its limit',
+      limitRecorded: coverageState === 'records that design consequence and its limit',
+    };
+  },
+);
+
+Given(
   /^real project configuration resolves its durable architecture location as (.+)$/u,
   function (this: PlanWorld, architectureLocation: string) {
     createProject(this);
@@ -1255,6 +1286,10 @@ When('its focused decision review is completed', function (this: PlanWorld) {
 
 When('the Implementation Plan is reviewed', function (this: PlanWorld) {
   const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  if (this.personaConsequence !== undefined) {
+    this.personaConsequenceReview = reviewPersonaConsequences(contract, this.personaConsequence);
+    return;
+  }
   if (this.dataPlan !== undefined) {
     this.dataPlanReview = reviewDataApplicability(contract, this.dataPlan);
     return;
@@ -1679,6 +1714,25 @@ Then("the capability enters this ticket's accepted consumer boundary", function 
     reason: 'matching-user-authority',
   });
 });
+
+Then('persona coverage does not block approval', function (this: PlanWorld) {
+  assert.equal(
+    this.personaConsequenceReview?.verdict,
+    'approve',
+    this.personaConsequenceReview?.findings.map(finding => finding.message).join('\n'),
+  );
+});
+
+Then(
+  /^approval is blocked with the uncovered (trust|operation|approval|recovery) need named$/u,
+  function (this: PlanWorld, need: string) {
+    assert.equal(this.personaConsequenceReview?.verdict, 'request_changes');
+    assert.match(
+      this.personaConsequenceReview?.findings.map(finding => finding.message).join('\n') ?? '',
+      new RegExp(`uncovered ${need} need`, 'iu'),
+    );
+  },
+);
 
 Then(
   /^blocked by the structural check with the missing (evidence reference|applicable version|retrieval date) named$/u,
