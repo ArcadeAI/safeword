@@ -922,8 +922,8 @@ if (
   for (const transition of transitions) {
     if (transition.historicalEvidenceRemoved === true) {
       deny(
-        'Cannot uncheck or remove a RED row that already carries historical evidence.',
-        'Keep the checked RED row intact and add a new unchecked RED row when reopening the scenario.',
+        `Cannot rewrite, uncheck, or remove a ${transition.step} row that already carries historical evidence.`,
+        `Keep the checked ${transition.step} row intact and add a new unchecked ${transition.step} row when reopening the scenario.`,
       );
     }
     if (transition.annotation === '') {
@@ -947,6 +947,9 @@ if (
           'Leave GREEN unchecked. If a heading was renamed or duplicated, revert that edit; then restore one standard Scenario heading with RED/GREEN/REFACTOR rows and retry.',
         );
       }
+      // Manual/live is the intentional escape path for behavior that cannot be
+      // executable. collectNewTransitions only supplies this value from the
+      // prior on-disk row, never from an annotation introduced by this edit.
       if (transition.evidenceMode !== undefined) continue;
       const ledger = nodePath.relative(projectDirectory, editedFile);
       const gateDenial = executableRedGateDenial(scenario, ledger);

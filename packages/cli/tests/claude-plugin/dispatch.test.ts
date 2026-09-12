@@ -510,6 +510,48 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stdout).not.toContain('nativeRan');
   });
 
+  it.each(['project-local', 'user'] as const)(
+    'recognizes exact legacy hook authority in %s settings',
+    settingsScope => {
+      const projectDirectory = temporary(`safeword-plugin-${settingsScope}-project-`);
+      const pluginData = temporary(`safeword-plugin-${settingsScope}-data-`);
+      const configDirectory = temporary(`safeword-plugin-${settingsScope}-config-`);
+      const pluginRoot = nodePath.join(
+        temporary(`safeword-plugin-${settingsScope}-root-`),
+        'plugin',
+      );
+      cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+      promptSettings(projectDirectory, {
+        source: { source: 'github', repo: 'ArcadeAI/safeword' },
+      });
+      const projectSettings = nodePath.join(projectDirectory, '.claude/settings.json');
+      const settings = readFileSync(projectSettings, 'utf8');
+      rmSync(projectSettings);
+      const settingsPath =
+        settingsScope === 'project-local'
+          ? nodePath.join(projectDirectory, '.claude/settings.local.json')
+          : nodePath.join(configDirectory, 'settings.json');
+      mkdirSync(nodePath.dirname(settingsPath), { recursive: true });
+      writeFileSync(settingsPath, settings);
+
+      const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+      const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+        groups: Record<string, unknown>;
+      };
+      eventGroups.groups.UserPromptSubmit = [
+        { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+      ];
+      writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+      refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+      const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, settingsScope, {
+        pluginRoot,
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).not.toContain('nativeRan');
+    },
+  );
+
   it('does not treat partially parsed malformed settings as legacy authority', () => {
     const projectDirectory = temporary('safeword-plugin-malformed-settings-project-');
     const pluginData = temporary('safeword-plugin-malformed-settings-data-');

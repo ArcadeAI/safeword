@@ -462,11 +462,11 @@ describe('Quality Gates', () => {
         gate: 'phase:implement',
       });
 
-      const ticketPath = nodePath.join(
+      const metadataPath = nodePath.join(
         projectDirectory,
-        '.safeword-project/tickets/099-test/ticket.md',
+        '.safeword-project/tickets/099-test/notes.md',
       );
-      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath);
+      const result = runPreToolQuality(projectDirectory, 'Edit', metadataPath);
 
       // Should allow — .safeword-project/ files are exempt from gates
       expect(result.status).toBe(0);
@@ -1135,7 +1135,7 @@ describe('Quality Gates', () => {
       createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'in_progress' });
 
       const metaPaths = [
-        '.safeword-project/tickets/099-test/ticket.md',
+        '.safeword-project/tickets/099-test/notes.md',
         '.claude/skills/bdd/DISCOVERY.md',
         '.safeword/hooks/pre-tool-quality.ts',
         '.cursor/settings.json',
@@ -1329,6 +1329,17 @@ describe('Quality Gates', () => {
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('scope');
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('out_of_scope');
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('done_when');
+    });
+
+    it('9.2a: ignores files whose basename only ends with test-definitions.md', () => {
+      const decoyPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/my-test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', decoyPath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
     });
 
     it('9.2b: denies when scope fields are present but empty lists (9S6600)', () => {
@@ -1603,13 +1614,13 @@ describe('Quality Gates', () => {
     });
 
     it('9.10: non-test-definitions files in .safeword-project/ bypass prerequisite', () => {
-      const ticketPath = nodePath.join(
+      const metadataPath = nodePath.join(
         projectDirectory,
-        '.safeword-project/tickets/099-test/ticket.md',
+        '.safeword-project/tickets/099-test/notes.md',
       );
-      const result = runPreToolQuality(projectDirectory, 'Write', ticketPath);
+      const result = runPreToolQuality(projectDirectory, 'Write', metadataPath);
 
-      // ticket.md is not test-definitions.md — META_PATHS exemption applies
+      // notes.md is not test-definitions.md — META_PATHS exemption applies
       expect(result.status).toBe(0);
       expect(result.stdout).toBe('');
     });

@@ -7,6 +7,7 @@ import {
   readFileSync as readFileSync6,
   realpathSync as realpathSync3,
 } from 'node:fs';
+import { homedir as homedir2 } from 'node:os';
 import nodePath10 from 'node:path';
 
 // ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
@@ -5379,16 +5380,26 @@ function acceptedLegacyHookFile(value, projectRoot) {
   return Object.values(value).some(child => acceptedLegacyHookFile(child, projectRoot));
 }
 function viableLegacyAuthority(event, projectRoot) {
-  const settings = parseSettings(nodePath10.join(projectRoot, '.claude/settings.json'));
-  const hooks = settings?.hooks;
-  if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
-  const entries = hooks[event];
-  return (
-    Array.isArray(entries) &&
-    entries.some(
-      entry => isAcceptedHistoricalHook(event, entry) && acceptedLegacyHookFile(entry, projectRoot),
-    )
-  );
+  const userConfigDirectory =
+    process.env.CLAUDE_CONFIG_DIR ?? nodePath10.join(homedir2(), '.claude');
+  const settingsPaths = /* @__PURE__ */ new Set([
+    nodePath10.join(projectRoot, '.claude/settings.json'),
+    nodePath10.join(projectRoot, '.claude/settings.local.json'),
+    nodePath10.join(userConfigDirectory, 'settings.json'),
+  ]);
+  return [...settingsPaths].some(settingsPath => {
+    const settings = parseSettings(settingsPath);
+    const hooks = settings?.hooks;
+    if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
+    const entries = hooks[event];
+    return (
+      Array.isArray(entries) &&
+      entries.some(
+        entry =>
+          isAcceptedHistoricalHook(event, entry) && acceptedLegacyHookFile(entry, projectRoot),
+      )
+    );
+  });
 }
 function requiredEnvironment(name) {
   const value = process.env[name];

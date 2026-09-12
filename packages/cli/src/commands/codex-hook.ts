@@ -384,6 +384,7 @@ function runHookFile(
       ...process.env,
       CLAUDE_PROJECT_DIR: projectDirectory,
       SAFEWORD_AGENT_RUNTIME: process.env.SAFEWORD_AGENT_RUNTIME ?? 'codex',
+      SAFEWORD_PLUGIN_CLI: process.env.SAFEWORD_PLUGIN_CLI ?? process.argv[1],
       SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath,
     },
     stdio: ['pipe', 'pipe', 'pipe'],

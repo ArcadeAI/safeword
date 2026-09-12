@@ -43,7 +43,8 @@ function checkboxStates(text: string): CheckboxState[] {
       fenced = !fenced;
       continue;
     }
-    const heading = fenced ? undefined : /^(#{1,6})\s+(.+)$/u.exec(line);
+    if (fenced) continue;
+    const heading = /^(#{1,6})\s+(.+)$/u.exec(line);
     if (heading !== undefined && heading !== null) {
       scenario = heading[1]?.length === 1 ? undefined : heading[2]?.trim();
     }
@@ -132,18 +133,18 @@ function findTransitions(oldText: string, newText: string): CheckboxTransition[]
   const unmatched: CheckboxState[] = [];
   const transitions: CheckboxTransition[] = [];
 
-  const preservedCheckedRed = new Set<number>();
+  const preservedHistoricalRows = new Set<number>();
   for (const oldState of oldStates.filter(
-    state => state.step === 'RED' && state.checked && state.annotation !== '',
+    state => ['RED', 'GREEN'].includes(state.step) && state.checked && state.annotation !== '',
   )) {
     const preservedIndex = newStates.findIndex(
       (newState, index) =>
-        !preservedCheckedRed.has(index) &&
-        newState.step === 'RED' &&
+        !preservedHistoricalRows.has(index) &&
+        newState.step === oldState.step &&
         newState.checked &&
         newState.annotation === oldState.annotation,
     );
-    if (preservedIndex >= 0) preservedCheckedRed.add(preservedIndex);
+    if (preservedIndex >= 0) preservedHistoricalRows.add(preservedIndex);
     else {
       transitions.push({
         step: 'RED',
@@ -277,8 +278,12 @@ function transitionsForAppliedEdit(
         state => !state.checked && state.step === transition.step,
       );
       return candidates.length === 1
-        ? { ...transition, scenario: candidates[0]?.scenario }
-        : { ...transition, scenario: undefined };
+        ? {
+            ...transition,
+            scenario: candidates[0]?.scenario,
+            evidenceMode: candidates[0]?.evidenceMode,
+          }
+        : { ...transition, scenario: undefined, evidenceMode: undefined };
     }),
   };
 }

@@ -256,6 +256,20 @@ describe('write-time annotation gate', () => {
       );
       expectHookAllow(result);
     });
+
+    it('ignores checkbox examples inside fenced code blocks', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n```markdown\n- [ ] GREEN\n```\n\n- [ ] RED\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN',
+      );
+      expectHookAllow(result);
+    });
   });
 
   describe('Executable RED GREEN admission', () => {
@@ -297,20 +311,23 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
-    it.each(['manual', 'live'])('uses the %s evidence path named by the scenario RED row', mode => {
-      const setup = setupProject(
-        `### Scenario: example\n\n- [x] RED skip: ${mode} — see timestamped work log\n- [ ] GREEN\n- [ ] REFACTOR\n`,
-      );
-      projectDirectory = setup.cwd;
-      const result = runEditHook(
-        setup.cwd,
-        setup.testDefinitionsPath,
-        '- [ ] GREEN',
-        '- [x] GREEN skip: evidence passed',
-        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
-      );
-      expectHookAllow(result);
-    });
+    it.each(['manual', 'live'])(
+      'allows GREEN when prior %s RED evidence names a durable record',
+      mode => {
+        const setup = setupProject(
+          `### Scenario: example\n\n- [x] RED skip: ${mode} — see timestamped work log\n- [ ] GREEN\n- [ ] REFACTOR\n`,
+        );
+        projectDirectory = setup.cwd;
+        const result = runEditHook(
+          setup.cwd,
+          setup.testDefinitionsPath,
+          '- [ ] GREEN',
+          '- [x] GREEN skip: evidence passed',
+          { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+        );
+        expectHookAllow(result);
+      },
+    );
 
     it('does not treat a word beginning with manual as the manual evidence mode', () => {
       const setup = setupProject(
@@ -411,6 +428,20 @@ describe('write-time annotation gate', () => {
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
       );
       expectHookDeny(result, 'executable RED');
+    });
+
+    it('blocks transplanting checked GREEN credit onto a reopened row', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN def5678\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] GREEN def5678\n- [ ] GREEN',
+        '- [ ] GREEN def5678\n- [x] GREEN 9876fed',
+      );
+      expectHookDeny(result, 'historical evidence');
     });
 
     it('blocks ledger edits attempted through NotebookEdit', () => {
@@ -711,6 +742,37 @@ describe('write-time annotation gate', () => {
       );
 
       expectHookDeny(result, 'could not identify the active scenario');
+    });
+
+    it('does not carry manual evidence across non-contiguous apply_patch context', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: alpha',
+          '',
+          '- [x] RED skip: manual — see timestamped work log',
+          '',
+          '### Scenario: beta',
+          '',
+          '- [x] RED abc1234',
+          '- [ ] GREEN',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const patch = [
+        '*** Begin Patch',
+        `*** Update File: ${setup.testDefinitionsPath}`,
+        '@@',
+        ' - [x] RED skip: manual — see timestamped work log',
+        '@@',
+        '-- [ ] GREEN',
+        '+- [x] GREEN def5678',
+        '*** End Patch',
+      ].join('\n');
+
+      const result = runCodexPatchHook(setup.cwd, patch, gateStub(setup.cwd, 'action_required'));
+
+      expectHookDeny(result, 'executable RED');
     });
 
     it('binds GREEN beneath a level-four scenario heading', () => {

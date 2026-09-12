@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { parse, type ParseError } from 'jsonc-parser';
@@ -124,16 +125,25 @@ function acceptedLegacyHookFile(value: unknown, projectRoot: string): boolean {
 }
 
 function viableLegacyAuthority(event: string, projectRoot: string): boolean {
-  const settings = parseSettings(nodePath.join(projectRoot, '.claude/settings.json'));
-  const hooks = settings?.hooks;
-  if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
-  const entries = (hooks as Record<string, unknown>)[event];
-  return (
-    Array.isArray(entries) &&
-    entries.some(
-      entry => isAcceptedHistoricalHook(event, entry) && acceptedLegacyHookFile(entry, projectRoot),
-    )
-  );
+  const userConfigDirectory = process.env.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
+  const settingsPaths = new Set([
+    nodePath.join(projectRoot, '.claude/settings.json'),
+    nodePath.join(projectRoot, '.claude/settings.local.json'),
+    nodePath.join(userConfigDirectory, 'settings.json'),
+  ]);
+  return [...settingsPaths].some(settingsPath => {
+    const settings = parseSettings(settingsPath);
+    const hooks = settings?.hooks;
+    if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
+    const entries = (hooks as Record<string, unknown>)[event];
+    return (
+      Array.isArray(entries) &&
+      entries.some(
+        entry =>
+          isAcceptedHistoricalHook(event, entry) && acceptedLegacyHookFile(entry, projectRoot),
+      )
+    );
+  });
 }
 
 function requiredEnvironment(name: 'CLAUDE_PLUGIN_DATA' | 'CLAUDE_PLUGIN_ROOT'): string {

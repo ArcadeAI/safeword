@@ -66341,6 +66341,7 @@ function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath =
       ...process22.env,
       CLAUDE_PROJECT_DIR: projectDirectory,
       SAFEWORD_AGENT_RUNTIME: process22.env.SAFEWORD_AGENT_RUNTIME ?? "codex",
+      SAFEWORD_PLUGIN_CLI: process22.env.SAFEWORD_PLUGIN_CLI ?? process22.argv[1],
       SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath
     },
     stdio: ["pipe", "pipe", "pipe"]
