@@ -195,7 +195,7 @@ release prerequisite by itself.
 
 - [x] RED 63dab8b2c
 - [x] GREEN 3d3e3d2c3
-- [ ] REFACTOR
+- [x] REFACTOR skip: one shared persona obligation and one deterministic fixture are already the smallest clear contract
 
 ### Scenario: Omitting one accepted persona blocks approach approval
 
