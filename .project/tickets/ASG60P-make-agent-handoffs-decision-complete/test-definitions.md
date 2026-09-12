@@ -64,21 +64,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A no-decision handoff stays to one action and an essential reason
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: positive action form existed structurally; rejection rows provide discrimination
+- [x] GREEN 4f557cdb0
+- [x] REFACTOR skip: fixture uses the shared action shape
 
 ### Scenario: A concrete no-decision action needs no reason when none is essential
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: optional reason is the absence case of the same action parser
+- [x] GREEN 4f557cdb0
+- [x] REFACTOR skip: no separate no-reason branch is needed
 
 ### Scenario: An essential action reason may repeat earlier context
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: positive reason fixture is paired with multi-reason and stray-prose rejection rows
+- [x] GREEN 4f557cdb0
+- [x] REFACTOR skip: reason syntax is shared across accepted fixtures
 
 ### Scenario: A no-decision handoff cannot carry two reason clauses
 
