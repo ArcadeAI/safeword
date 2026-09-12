@@ -119,26 +119,26 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A short conversational answer is outside the terminal-handoff contract
 
 - [x] RED c7b2da4fb
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 56525889f
+- [x] REFACTOR skip: applicability is a closed evidence check before structure validation
 
 ### Scenario: A verdict alone makes a reply subject to the terminal contract
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: paired ordinary-conversation RED supplied the applicability discriminator
+- [x] GREEN 56525889f
+- [x] REFACTOR skip: top-level verdict is detected by the existing bounded scan
 
 ### Scenario: A brief substantive reply still requires a terminal paragraph
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: current-turn work uses the same reviewed applicability branch
+- [x] GREEN 56525889f
+- [x] REFACTOR skip: host evidence is a closed input value
 
 ### Scenario: A substantive reply with an empty terminal paragraph is rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: missing and empty terminal paragraphs share one requirement
+- [x] GREEN 56525889f
+- [x] REFACTOR skip: empty terminal detection reuses structural labels
 
 ## Rule: One versioned contract defines every handoff kind
 
