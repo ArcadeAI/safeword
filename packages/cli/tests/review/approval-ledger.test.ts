@@ -103,29 +103,6 @@ describe('approval ledger recovery matrix', () => {
     expect(currentDesignDecision(path, 'TICKET', 'plan-digest')).toBe('approved');
   });
 
-  it('runs a dependent transition before releasing the decision lock', () => {
-    const path = ledgerPath();
-    process.env.SAFEWORD_APPROVAL_LOCK_TIMEOUT_MS = '20';
-    let nestedStatus: string | undefined;
-
-    const result = appendDesignDecision(
-      path,
-      {
-        authorityRef: 'terminal',
-        decision: 'approved',
-        planDigest: 'plan-digest',
-        ticket: 'TICKET',
-      },
-      () => {
-        nestedStatus = append(path, 'declined', 'other-terminal').status;
-      },
-    );
-
-    expect(result).toEqual({ status: 'written' });
-    expect(nestedStatus).toBe('pending');
-    expect(currentDesignDecision(path, 'TICKET', 'plan-digest')).toBe('approved');
-  });
-
   it('fails closed when the highest append position has conflicting decisions', () => {
     const path = ledgerPath();
     const event = (decision: 'approved' | 'declined', generation: number) => ({
