@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5ba92f469
 - [x] GREEN 2f8930686
-- [ ] REFACTOR
+- [x] REFACTOR 17d1aa998
 
 ### Scenario: The observed Next decision omission is rejected
 
