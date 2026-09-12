@@ -206,6 +206,13 @@ records as context around the one `impl-plan.md` work artifact.
   approval. When an implementation defect contradicts a proposed decision,
   require the plan to label both states separately. Require an absent behavior
   to remain labeled proposed even when another accepted behavior is implemented.
+- **Complete repair input:** Return the full current set of blocking defects in
+  one receipt. Do not stop at the first error. For every blocker, name the
+  missing or incorrect decision, its accepted decision owner, and the concrete
+  consequence of leaving it unresolved. When the accepted owner is external to
+  the agent, name the viable choices, their materially different consequences,
+  and one action that resumes review. The reviewer may expose the choice but must
+  never choose the missing behavior or expand scope on the owner's behalf.
 - **Significant workflow decision depth:** For durable state, authorization,
   concurrent state transitions, lifecycle-scheduled deletion, migration, and
   compatibility, require the applicable state model, transition or change
@@ -234,6 +241,33 @@ An error requires `request_changes`; approval is valid only when no error
 findings remain. Return findings through the typed reviewer result contract.
 
 <!-- SAFEWORD:PLAN_RUBRIC_END -->
+
+## Repair loop
+
+A `request_changes` receipt is repair input, not the end of Implementation
+Planning:
+
+1. Keep the full current blocker set visible. Classify each finding by the
+   accepted decision owner named in the receipt and resolve all findings from
+   that pass together when their decisions do not conflict.
+2. Repair every blocker owned by the agent within accepted product behavior and
+   ticket scope. Update `impl-plan.md` and any required subordinate design detail
+   or durable architecture record. A reviewer identifies defects; it does not
+   gain authority to change product behavior or scope.
+3. Do not invent or infer a decision reserved for the user or another external
+   authority. If that authority is unavailable, leave the plan unapproved and
+   record the pending decision, the consequences of each viable choice, and one
+   concrete action that resumes the loop. Do not stamp, approve, or advance the
+   plan while authority is pending.
+4. Re-run the independent review against the corrected exact bytes and the
+   freshly resolved context. A clean receipt for earlier bytes never approves a
+   changed plan. If the new receipt finds a remaining or newly exposed blocker,
+   return to step 1. Repeat without a fixed retry cap until the current exact
+   bytes receive an approving receipt or the work is honestly waiting on
+   external authority.
+
+Do not treat “one repair round completed” as a success state. Only the current
+receipt controls eligibility for approval and phase advancement.
 
 ## Exit: review, then (optionally) the user
 
