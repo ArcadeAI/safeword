@@ -162,3 +162,8 @@ receive scheduling headroom; scenarios whose subject is a short timeout set that
   and lint-staged); lint, typecheck, Go checks, and the dependency audit are green. Knip's remaining
   archive/experiment/API findings and jscpd's generated-surface clones are the documented repository
   baseline, not deletions safe to infer from static discovery.
+- 2026-09-12T16:48:00Z Full refactor pass: Re-scouted the complete branch after verification and
+  audit. Extracted the four remaining rubric-generator declarations into one parameterized helper,
+  removing repeated path resolution, source loading, module rendering, and reconciliation wiring
+  without changing their public entry points or output bytes. All four generated rubrics remain
+  current, package typecheck passes, and the focused generator/release contracts pass 35/35.
