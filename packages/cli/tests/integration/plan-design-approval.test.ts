@@ -432,3 +432,41 @@ describe('concurrent design decisions do not overwrite each other', () => {
     expect(new Set(decisions.map(event => event.fencingGeneration)).size).toBe(2);
   });
 });
+
+describe('an interrupted approval resumes according to durable authority', () => {
+  it('requires a new decision when the first invocation exits before durability', () => {
+    const project = fixture(true);
+
+    const interrupted = runApprovalInPty(project, 'y', {
+      SAFEWORD_APPROVAL_TEST_INTERRUPT: 'before-decision',
+    });
+
+    expect(interrupted.status).toBe(86);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(approvalEvents(project.ledgerPath)).toEqual([]);
+
+    const resumed = runApprovalInPty(project, 'y');
+    expect(resumed.status).toBe(0);
+    expect(resumed.stdout).toContain('Approve this reviewed Implementation Plan?');
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(approvalEvents(project.ledgerPath)).toHaveLength(1);
+  });
+
+  it('resumes one durable approval without prompting after the phase write is interrupted', () => {
+    const project = fixture(true);
+
+    const interrupted = runApprovalInPty(project, 'y', {
+      SAFEWORD_APPROVAL_TEST_INTERRUPT: 'after-decision',
+    });
+
+    expect(interrupted.status).toBe(86);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(approvalEvents(project.ledgerPath)).toHaveLength(1);
+
+    const resumed = runApprovalInPty(project, 'n');
+    expect(resumed.status).toBe(0);
+    expect(resumed.stdout).not.toContain('Approve this reviewed Implementation Plan?');
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(approvalEvents(project.ledgerPath)).toHaveLength(1);
+  });
+});
