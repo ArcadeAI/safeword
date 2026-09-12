@@ -329,7 +329,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 ### Scenario: A stale fencing generation cannot commit authority
 
 - [x] RED 9fab905a2
-- [ ] GREEN
+- [x] GREEN cd60ba10e
 - [ ] REFACTOR
 
 ### Scenario: An interrupted approval resumes according to durable authority
