@@ -16,25 +16,29 @@ but Safeword's contract does not depend on one host.
 
 The riskiest assumption is that Execution Plan review can judge conceptual
 slice boundaries without falling back to line-count rules or inventing a design
-decision. The cheapest proof is the installed-review dispatch scenario: a
-deterministic process boundary must receive the exact packaged slicing contract,
-then distinguish one coherent mechanical change from two independently valuable
-concerns.
+decision. The proof therefore has two layers: deterministic tests prove that the
+installed CLI sends the exact packaged contract and handles its typed result,
+while an opt-in live-model smoke sends a matched pair through that same CLI
+boundary—one large coherent mechanical change and one small change with two
+independently valuable concerns. The smoke must approve the former, reject the
+latter, and fail if the contract's conceptual-scope clause is removed.
 
 Proof strategy:
 
 | Behavior | Real boundary | Primary proof | Confidence limit |
 | --- | --- | --- | --- |
-| R1 makes the one-versus-many slicing decision explicit | Packaged Execution Plan contract through the installed CLI review route | Integration | Proves contract delivery and representative semantic outcomes, not a universal estimate of review effort |
-| R2 requires a complete, single-purpose slice with no invented design | Semantic reviewer consuming the accepted approach and proposed slices | Integration with a field-omission and two-purpose matrix | The deterministic reviewer fixture proves the contract discriminates these states; live-model quality remains an independent-review concern |
+| R1 makes the one-versus-many slicing decision explicit | Packaged Execution Plan contract through the installed CLI review route | Integration plus live-model smoke | Deterministic proof covers exact contract delivery; the live matched pair proves one load-bearing semantic distinction, not a universal estimate of review effort |
+| R2 requires a complete, single-purpose slice with no invented design | Semantic reviewer consuming the accepted approach and proposed slices | Integration with field-omission, two-purpose, and formally-complete-but-undecided-design examples | Deterministic proof covers every accepted partition; the live smoke exercises the highest-risk single-purpose distinction |
 | R3 orders dependencies and keeps every intermediate merge supported | Semantic reviewer over schema-before-reader and unsafe-successor examples | Integration | Proves the explicit dependency cases, not repository-host merge behavior |
 | R4 judges conceptual scope and proof rather than size alone | Semantic reviewer over large-mechanical, small-multi-purpose, and threshold-only examples | Integration | Line and file counts may remain advisory signals; they cannot establish reviewability |
-| R5 assigns every accepted obligation without rewriting the approach | Reviewer packet containing the current Implementation Plan and proposed slice map | Integration with obligation-omission and changed-decision matrices | Proves preservation in the bounded packet; sibling review-currency work owns stale-context invalidation |
+| R5 assigns every accepted obligation without rewriting the approach | Reviewer packet containing the current Implementation Plan and proposed slice map | Integration with obligation-omission and changed-decision matrices | Proves preservation in the bounded packet; `5F5ZZA` owns stale-context invalidation across plan reviews |
 | New Execution Plan review entry point | Real CLI, real packet builder and coordinator, deterministic substitute only for the external reviewer process | Wiring integration | Proves local CLI wiring; installed agent-host delivery remains a `YCFFNC` prerequisite |
 
-Build order begins with the canonical slicing contract and its extractor, then
-adds the Execution Plan review kind to the shared packet and coordinator path,
-then adds semantic contract proofs, and finally refreshes generated host assets.
+Build order begins by authoring the canonical Execution Planning skill/template
+whose marked review section is the one author/reviewer contract, then adds its
+extractor. Next it adds the Execution Plan review kind to the shared packet and
+coordinator path, adds deterministic semantic contract proofs plus the opt-in
+live-model discrimination smoke, and finally refreshes generated host assets.
 The contract slice is load-bearing: if author and reviewer bytes or obligations
 diverge, no later work proceeds.
 
@@ -97,6 +101,7 @@ The existing transient review-job and project-ledger behavior is unchanged.
 | --- | --- | --- | --- |
 | Structure enforces; instructions suggest | The installed review packet carries the exact canonical slicing contract and cannot pass with missing or mismatched author/reviewer obligations | `features/split-large-contributions-into-reviewable-prs.feature` installed-contract and rejection scenarios | |
 | Discover decisions before prescribing work | Slicing consumes accepted Implementation Plan decisions, assigns every obligation, and rejects a slice that reopens the approach | `features/split-large-contributions-into-reviewable-prs.feature` R2 and R5 scenarios | |
+| Optimize for the NTB without constraining the TBU | This child emits typed semantic denials; `K3EBHB` owns their single plain-language recovery action without removing technical detail | `K3EBHB` scenario and verification evidence before epic completion | Recovery rendering is intentionally delegated rather than duplicated here |
 | Correct and safe; then clear; then simple | One new review kind reuses the existing packet and coordinator path; no second checker or repository-host dependency is introduced | `features/split-large-contributions-into-reviewable-prs.feature` CLI wiring and dependency-safety scenarios | |
 
 Architecture applicability: this feature adds the slicing obligations of the

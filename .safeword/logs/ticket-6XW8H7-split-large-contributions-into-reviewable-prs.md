@@ -16,3 +16,10 @@
   later slice. Mitigate in the contract by requiring prerequisites, proof, and
   supported intermediate state for every slice rather than adding a size
   heuristic.
+- Independent plan review `1972f10f-293a-4b2f-8aab-1b314aef689f` requested one
+  blocking correction: deterministic fixtures cannot prove that a real model
+  applies the conceptual-scope rule. The plan now requires a matched-pair live
+  smoke through the CLI boundary and fails that smoke when the load-bearing
+  clause is removed. It also names the undecided-design proof case, the
+  authoring template's build step, `K3EBHB`'s NTB recovery ownership, and
+  `5F5ZZA`'s review-currency ownership.
