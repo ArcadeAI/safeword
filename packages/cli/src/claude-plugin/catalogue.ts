@@ -59,6 +59,14 @@ function adaptProjectFrameworkDirectory(
       () => `"\${CLAUDE_PLUGIN_ROOT}"/${pluginDirectory}/`,
     )
     .replaceAll(
+      `"./.safeword/${projectDirectory}/`,
+      () => `"\${CLAUDE_PLUGIN_ROOT}/${pluginDirectory}/`,
+    )
+    .replaceAll(
+      `".safeword/${projectDirectory}/`,
+      () => `"\${CLAUDE_PLUGIN_ROOT}/${pluginDirectory}/`,
+    )
+    .replaceAll(
       `./.safeword/${projectDirectory}/`,
       () => `"\${CLAUDE_PLUGIN_ROOT}"/${pluginDirectory}/`,
     )
@@ -97,10 +105,10 @@ function adaptClaudeSkill(content: string): string {
       ),
   );
   const result = adapted.replaceAll(
-    /^!`([^`\n]*)`$/gmu,
+    /!`([^`\n]*)`/gu,
     (_line, command: string) => `!\`${command.replaceAll('$PROJECT_DIR', '$CLAUDE_PROJECT_DIR')}\``,
   );
-  if (/^!`[^`\n]*\$PROJECT_DIR[^`\n]*`$/mu.test(result)) {
+  if (/!`[^`\n]*\$PROJECT_DIR[^`\n]*`/u.test(result)) {
     throw new Error('Claude plugin skill adaptation retained $PROJECT_DIR in an inline command.');
   }
   return result;

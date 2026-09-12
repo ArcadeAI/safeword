@@ -55,7 +55,9 @@ describe('Claude plugin catalogue generation', () => {
 
     expect(packagedHandbook).toBeDefined();
     expect(packagedHandbook?.content.length).toBeGreaterThan(0);
-    expect(packagedHandbook?.content).not.toMatch(/\.safeword\/(?:guides|scripts)\//u);
+    expect(packagedHandbook?.content).not.toMatch(
+      /\.safeword\/(?:guides|hooks|scripts|skills|templates)\//u,
+    );
   });
 
   it('targets the oldest Node major the package declares as supported', () => {
@@ -92,7 +94,7 @@ describe('Claude plugin catalogue generation', () => {
 
     expect(generatedSkills).not.toHaveLength(0);
     const inlineCommands = generatedSkills.flatMap(asset =>
-      asset.content.split('\n').filter(line => line.startsWith('!`')),
+      asset.content.split('\n').filter(line => line.includes('!`')),
     );
     expect(inlineCommands).not.toHaveLength(0);
     expect(inlineCommands.join('\n')).not.toContain('$PROJECT_DIR');

@@ -80,7 +80,6 @@ const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
 const EXPECTED_VERSION = SAFEWORD_SCHEMA.version;
 const OFFICIAL_MARKETPLACE_REF = EXPECTED_VERSION.includes('-') ? `v${EXPECTED_VERSION}` : 'stable';
 const OFFICIAL_MARKETPLACE_SOURCE = `https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF}`;
-const MARKETPLACE_REGISTRATION_KIND = EXPECTED_VERSION.includes('-') ? 'add' : 'update';
 
 function pluginCachePath(root: string): string {
   return nodePath.join(root, 'cache', 'safeword', EXPECTED_VERSION);
@@ -1015,9 +1014,9 @@ function createStatusFixture(
   writeFileSync(fixture.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
 
   if (stateDescription.includes('malformed proof')) {
-    const path = nodePath.join(
-      configRoot,
-      'plugins/data/safeword-safeword/execution-proof-v1.json',
+    const path = executionProofV2Path(
+      nodePath.join(configRoot, 'plugins/data/safeword-safeword'),
+      fixture.project,
     );
     mkdirSync(nodePath.dirname(path), { recursive: true });
     writeFileSync(path, '{not-json\n');
@@ -1032,8 +1031,11 @@ function createStatusFixture(
     !stateDescription.includes('reported unhealthy')
   ) {
     const overrides: Record<string, unknown> = {};
-    if (stateDescription.includes('stale version or digest')) {
+    if (stateDescription.includes('stale version')) {
       overrides.plugin_version = '0.70.0';
+    }
+    if (stateDescription.includes('wrong hook-manifest digest')) {
+      overrides.hook_manifest_sha256 = 'f'.repeat(64);
     }
     if (stateDescription.includes('different canonical')) {
       overrides.canonical_plugin_root = nodePath.join(fixture.root, 'other-cache');
@@ -1081,33 +1083,7 @@ Given(
 );
 
 When('safeword claude status runs', function (this: NativeClaudePluginWorld) {
-  assert.ok(this.lifecycle);
-  const result = spawnSync(
-    'bun',
-    [
-      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
-      'claude',
-      'status',
-      '--json',
-      '--no-input',
-      '--cwd',
-      this.lifecycle.commandCwd ?? this.lifecycle.project,
-    ],
-    {
-      cwd: REPO_ROOT,
-      env: {
-        ...process.env,
-        CLAUDE_CONFIG_DIR: this.lifecycle.configRoot,
-        FAKE_CLAUDE_STATE: this.lifecycle.statePath,
-        PATH: `${nodePath.join(this.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
-      },
-      encoding: 'utf8',
-    },
-  );
-  this.lifecycle.result = {
-    status: result.status ?? 1,
-    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
-  };
+  this.lifecycle!.result = runLifecycleCommand(this, ['claude', 'status']);
 });
 
 Then(
@@ -1239,6 +1215,21 @@ function assertNoClaudeMutationCalls(
     );
   });
   assert.deepEqual(forbidden, []);
+}
+
+function expectedMarketplaceRegistrationKind(
+  lifecycle: NonNullable<NativeClaudePluginWorld['lifecycle']>,
+  scope: 'project' | 'user',
+): 'add' | 'update' {
+  const state = JSON.parse(lifecycle.profileSnapshot) as {
+    marketplaceDeclarations?: Record<string, unknown>[];
+    marketplaces?: Record<string, unknown>[];
+  };
+  const relevant = [
+    ...(state.marketplaceDeclarations ?? []).filter(entry => entry.scope === scope),
+    ...(state.marketplaces ?? []),
+  ].filter(entry => entry.name === 'safeword');
+  return relevant.some(entry => entry.ref !== OFFICIAL_MARKETPLACE_REF) ? 'update' : 'add';
 }
 
 Given(
@@ -1714,8 +1705,8 @@ Given(
   function (this: NativeClaudePluginWorld, proofState: string) {
     const descriptions: Record<string, string> = {
       missing: 'enabled without execution proof',
-      'bound to a stale plugin version': 'proven with a stale version or digest',
-      'bound to the wrong hook-manifest digest': 'proven with a stale version or digest',
+      'bound to a stale plugin version': 'proven with a stale version',
+      'bound to the wrong hook-manifest digest': 'proven with a wrong hook-manifest digest',
       malformed: 'represented by a malformed proof record',
       'bound to a different canonical cache path':
         'proven from a different canonical installed cache path',
@@ -1835,7 +1826,7 @@ Given(
     this.lifecycle.terminalClassification = resultClassification(this.lifecycle.result.output);
     this.lifecycle.completedSnapshot = JSON.stringify({
       project: snapshotDirectory(this.lifecycle.project),
-      config: snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
+      config: snapshotDirectory(this.lifecycle.configRoot ?? ''),
       profile: readFileSync(this.lifecycle.statePath, 'utf8'),
     });
   },
@@ -1855,7 +1846,7 @@ Then(
     assert.equal(
       JSON.stringify({
         project: snapshotDirectory(this.lifecycle.project),
-        config: snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
+        config: snapshotDirectory(this.lifecycle.configRoot ?? ''),
         profile: readFileSync(this.lifecycle.statePath, 'utf8'),
       }),
       this.lifecycle.completedSnapshot,
@@ -2881,33 +2872,7 @@ When(
 );
 
 When('safeword claude install runs', function (this: NativeClaudePluginWorld) {
-  assert.ok(this.lifecycle);
-  const result = spawnSync(
-    'bun',
-    [
-      nodePath.join(REPO_ROOT, 'packages', 'cli', 'src', 'cli.ts'),
-      'claude',
-      'install',
-      '--json',
-      '--no-input',
-      '--cwd',
-      this.lifecycle.project,
-    ],
-    {
-      cwd: REPO_ROOT,
-      env: {
-        ...process.env,
-        CLAUDE_CONFIG_DIR: this.lifecycle.configRoot,
-        FAKE_CLAUDE_STATE: this.lifecycle.statePath,
-        PATH: `${nodePath.join(this.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
-      },
-      encoding: 'utf8',
-    },
-  );
-  this.lifecycle.result = {
-    status: result.status ?? 1,
-    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
-  };
+  this.lifecycle!.result = runLifecycleCommand(this, ['claude', 'install']);
 });
 
 Then(
@@ -3158,7 +3123,11 @@ Then(
       effects?: { configuration?: unknown[] };
     };
     assert.deepEqual(result.effects?.configuration, [
-      { kind: MARKETPLACE_REGISTRATION_KIND, target: 'safeword', operation: 'project' },
+      {
+        kind: expectedMarketplaceRegistrationKind(this.lifecycle!, 'project'),
+        target: 'safeword',
+        operation: 'project',
+      },
       { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'project' },
       {
         kind: 'enable',
@@ -3194,7 +3163,11 @@ Then(
       completedEffects === 'no mutation'
         ? []
         : [
-            { kind: MARKETPLACE_REGISTRATION_KIND, target: 'safeword', operation: 'user' },
+            {
+              kind: expectedMarketplaceRegistrationKind(this.lifecycle!, 'user'),
+              target: 'safeword',
+              operation: 'user',
+            },
             { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'user' },
             {
               kind: 'enable',
@@ -3558,7 +3531,11 @@ Then(
       effects?: { configuration?: unknown[] };
     };
     assert.deepEqual(result.effects?.configuration, [
-      { kind: 'add', target: 'safeword', operation: 'user' },
+      {
+        kind: expectedMarketplaceRegistrationKind(this.lifecycle!, 'user'),
+        target: 'safeword',
+        operation: 'user',
+      },
       { kind: 'enable', target: 'safeword marketplace auto-update', operation: 'user' },
       {
         kind: 'enable',
