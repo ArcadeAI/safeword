@@ -41,10 +41,7 @@ type Finding = { severity: 'error'; message: string };
 
 const FIELD_PATTERNS: readonly [DecisionField, RegExp][] = [
   ['states', /legal states|transition states|deletion states|supported-version states/iu],
-  [
-    'authority',
-    /transition authority|change authority|authority for every destructive transition/iu,
-  ],
+  ['authority', /\bauthority\b/iu],
   ['atomicity', /atomicity|atomic cutover/iu],
   ['crash', /crash boundary|crash,/iu],
   ['retry', /retry behavior/iu],
@@ -104,9 +101,10 @@ export function decisionDepthFixture(
   decisionDetail: string,
 ): DecisionDepthFixture {
   if (!Object.hasOwn(CONCERN_REQUIREMENTS, concern)) throw new Error(`unknown concern: ${concern}`);
+  const affirmedDetail = decisionDetail.split(/\bbut no\b/iu, 1)[0] ?? '';
   const fields = new Set<DecisionField>();
   for (const [field, pattern] of FIELD_PATTERNS) {
-    if (pattern.test(decisionDetail)) fields.add(field);
+    if (pattern.test(affirmedDetail)) fields.add(field);
   }
   return { concern: concern as Concern, fields };
 }
