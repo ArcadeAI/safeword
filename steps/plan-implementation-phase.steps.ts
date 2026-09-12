@@ -52,6 +52,10 @@ import {
   reviewPersonaConsequences,
   reviewPersonaInventory,
 } from '../packages/cli/tests/fixtures/plan-persona-consequences.ts';
+import {
+  type PlanStateFixture,
+  reviewPlanState,
+} from '../packages/cli/tests/fixtures/plan-state-truthfulness.ts';
 import type { ReviewerOutput } from '../packages/cli/src/review/contract.ts';
 import { reviewPlanOfRecord } from '../packages/cli/tests/fixtures/plan-single-record.ts';
 import { git } from './support/repo-fixtures.ts';
@@ -174,6 +178,8 @@ interface PlanWorld extends SafewordWorld {
   personaConsequenceReview?: ReviewerOutput;
   personaInventory?: PersonaInventoryFixture[];
   personaInventoryReview?: ReviewerOutput;
+  planState?: PlanStateFixture;
+  planStateReview?: ReviewerOutput;
 }
 
 const EVIDENCE_REFERENCE = 'https://spec.commonmark.org/0.31.2/';
@@ -1116,6 +1122,43 @@ Given(
 );
 
 Given(
+  /^an Implementation Plan is written after some implementation exists with (.+) and claims (.+)$/u,
+  function (this: PlanWorld, actualState: string, planClaim: string) {
+    const base: PlanStateFixture = {
+      implementationExists: false,
+      currentBoundaryProof: false,
+      humanReleaseApproval: false,
+      humanDesignApproval: false,
+      independentReviewPassed: false,
+      knownDefectContradictsDecision: false,
+      plannedBehaviorImplemented: false,
+      claim: planClaim,
+    };
+    let actual: Partial<PlanStateFixture>;
+    switch (actualState) {
+      case 'code exists without current-boundary proof':
+        actual = { implementationExists: true };
+        break;
+      case 'current-boundary proof exists but human approval is pending':
+        actual = { implementationExists: true, currentBoundaryProof: true };
+        break;
+      case 'independent semantic review passed but configured human design approval was never requested':
+        actual = { independentReviewPassed: true };
+        break;
+      case 'an implementation defect contradicts the proposed decision':
+        actual = { implementationExists: true, knownDefectContradictsDecision: true };
+        break;
+      case 'existing implementation covers another accepted behavior while this planned behavior is absent':
+        actual = { implementationExists: true, plannedBehaviorImplemented: false };
+        break;
+      default:
+        assert.fail(`unknown actual plan state: ${actualState}`);
+    }
+    this.planState = { ...base, ...actual };
+  },
+);
+
+Given(
   /^real project configuration resolves its durable architecture location as (.+)$/u,
   function (this: PlanWorld, architectureLocation: string) {
     createProject(this);
@@ -1362,8 +1405,18 @@ When('its semantic review reaches a verdict', function (this: PlanWorld) {
   this.focusedPlanReview = reviewFocusedDecisionPath(contract, this.focusedPlan);
 });
 
+When('its decision review runs', function (this: PlanWorld) {
+  assert.ok(this.planState, 'the plan-state fixture was not arranged');
+  const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  this.planStateReview = reviewPlanState(contract, this.planState);
+});
+
 When('the Implementation Plan is reviewed', function (this: PlanWorld) {
   const contract = extractPackagedPlanReviewRubric(readFileSync(CODEX_BDD_PLAN_REFERENCE, 'utf8'));
+  if (this.planState !== undefined) {
+    this.planStateReview = reviewPlanState(contract, this.planState);
+    return;
+  }
   if (this.personaInventory !== undefined) {
     this.personaInventoryReview = reviewPersonaInventory(contract, this.personaInventory);
     return;
@@ -1929,6 +1982,25 @@ Then(
     assert.match(output, /Recovery: add the durable architecture link before resubmitting/iu);
   },
 );
+
+Then(
+  /^approval is blocked because (implementation is presented as proof|proof is presented as human authority|independent review is presented as human authority)$/u,
+  function (this: PlanWorld, reason: string) {
+    assert.equal(this.planStateReview?.verdict, 'request_changes');
+    assert.match(
+      this.planStateReview?.findings.map(finding => finding.message).join('\n') ?? '',
+      new RegExp(reason, 'iu'),
+    );
+  },
+);
+
+Then('state truthfulness does not block approval', function (this: PlanWorld) {
+  assert.equal(
+    this.planStateReview?.verdict,
+    'approve',
+    this.planStateReview?.findings.map(finding => finding.message).join('\n'),
+  );
+});
 
 Then(
   /^blocked by the structural check with the missing (evidence reference|applicable version|retrieval date) named$/u,
