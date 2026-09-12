@@ -73,6 +73,7 @@ interface EventGroupsV1 {
 type HookResponse = Record<string, unknown>;
 
 interface FunctionalCommandResult {
+  readonly postExecutionEligible?: boolean;
   readonly status: number;
   readonly stdout: string;
 }
@@ -762,7 +763,11 @@ function runEventGroup(
       // merged response successfully; without prior output, retain the hook's
       // ordinary nonblocking error status.
       if (event === 'UserPromptSubmit' && Object.keys(response).length > 0) {
-        return { status: 0, stdout: `${JSON.stringify(response)}\n` };
+        return {
+          postExecutionEligible: false,
+          status: 0,
+          stdout: `${JSON.stringify(response)}\n`,
+        };
       }
       return { status, stdout: '' };
     }
@@ -783,7 +788,11 @@ function functionalExecutionFailure(event: string, error: unknown): FunctionalCo
     return { status: 2, stdout: '' };
   }
   const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no combined Safeword hook result was applied.`;
-  return { status: 0, stdout: safeAppendMigrationAdvisory(event, '', advisory) };
+  return {
+    postExecutionEligible: false,
+    status: 0,
+    stdout: safeAppendMigrationAdvisory(event, '', advisory),
+  };
 }
 
 function parseHookInput(standardInput: Buffer): HookInput {
@@ -831,6 +840,25 @@ function exposePackagedSafewordContext(pluginRoot: string): void {
   }
 }
 
+function completeSuccessfulExecution(input: {
+  readonly event: string;
+  readonly pluginRoot: string;
+  readonly identity: PluginIdentityV1;
+  readonly hookInput: HookInput;
+  readonly execution: FunctionalCommandResult;
+}): FunctionalCommandResult {
+  if (input.execution.status !== 0 || input.execution.postExecutionEligible === false) {
+    return input.execution;
+  }
+  return postExecutionLifecycle(
+    input.event,
+    input.pluginRoot,
+    input.identity,
+    input.hookInput,
+    input.execution,
+  );
+}
+
 function mainUnsafe(event: string, mode: string | undefined, command: string[]): number {
   if (mode !== undefined && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
@@ -849,19 +877,22 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === undefined) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
-  let execution = executeConfiguredHooks({
+  const execution = completeSuccessfulExecution({
     event,
-    mode,
-    command,
-    eventGroupsContent,
+    pluginRoot,
+    identity,
     hookInput,
-    projectRoot,
-    standardInput,
+    execution: executeConfiguredHooks({
+      event,
+      mode,
+      command,
+      eventGroupsContent,
+      hookInput,
+      projectRoot,
+      standardInput,
+    }),
   });
-  if (execution.status === 0) {
-    execution = postExecutionLifecycle(event, pluginRoot, identity, hookInput, execution);
-    if (execution.stdout !== '') process.stdout.write(execution.stdout);
-  }
+  if (execution.status === 0 && execution.stdout !== '') process.stdout.write(execution.stdout);
   return execution.status;
 }
 

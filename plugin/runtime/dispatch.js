@@ -5868,6 +5868,7 @@ function runEventGroup(event, eventGroupsContent, hookInput, standardInput) {
     if (status !== 0) {
       if (event === 'UserPromptSubmit' && Object.keys(response).length > 0) {
         return {
+          postExecutionEligible: false,
           status: 0,
           stdout: `${JSON.stringify(response)}
 `,
@@ -5894,7 +5895,11 @@ function functionalExecutionFailure(event, error) {
     return { status: 2, stdout: '' };
   }
   const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no combined Safeword hook result was applied.`;
-  return { status: 0, stdout: safeAppendMigrationAdvisory(event, '', advisory) };
+  return {
+    postExecutionEligible: false,
+    status: 0,
+    stdout: safeAppendMigrationAdvisory(event, '', advisory),
+  };
 }
 function parseHookInput(standardInput) {
   try {
@@ -5926,6 +5931,18 @@ function exposePackagedSafewordContext(pluginRoot) {
     delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
   }
 }
+function completeSuccessfulExecution(input) {
+  if (input.execution.status !== 0 || input.execution.postExecutionEligible === false) {
+    return input.execution;
+  }
+  return postExecutionLifecycle(
+    input.event,
+    input.pluginRoot,
+    input.identity,
+    input.hookInput,
+    input.execution,
+  );
+}
 function mainUnsafe(event, mode, command) {
   if (mode !== void 0 && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
@@ -5942,19 +5959,22 @@ function mainUnsafe(event, mode, command) {
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === void 0) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
-  let execution = executeConfiguredHooks({
+  const execution = completeSuccessfulExecution({
     event,
-    mode,
-    command,
-    eventGroupsContent,
+    pluginRoot,
+    identity,
     hookInput,
-    projectRoot,
-    standardInput,
+    execution: executeConfiguredHooks({
+      event,
+      mode,
+      command,
+      eventGroupsContent,
+      hookInput,
+      projectRoot,
+      standardInput,
+    }),
   });
-  if (execution.status === 0) {
-    execution = postExecutionLifecycle(event, pluginRoot, identity, hookInput, execution);
-    if (execution.stdout !== '') process.stdout.write(execution.stdout);
-  }
+  if (execution.status === 0 && execution.stdout !== '') process.stdout.write(execution.stdout);
   return execution.status;
 }
 function startupFailure(event, error) {

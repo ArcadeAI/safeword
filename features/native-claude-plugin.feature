@@ -159,10 +159,10 @@ Feature: Ship Safeword as a native Claude Code plugin
       And the exact lifecycle lease remains byte-identical
 
     @rejection
-    Scenario: A failed sibling hook prevents event-level plugin proof
+    Scenario: A failed sibling hook preserves earlier prompt output without event-level plugin proof
       Given an intact cached UserPromptSubmit event whose final sibling hook fails
       When a Safeword plugin hook executes
-      Then the aggregate event fails without writing execution proof
+      Then the aggregate event preserves earlier output without writing execution proof
       And viable legacy protection remains authoritative
 
     @rejection

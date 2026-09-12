@@ -478,9 +478,10 @@ Given(
 );
 
 Then(
-  'the aggregate event fails without writing execution proof',
+  'the aggregate event preserves earlier output without writing execution proof',
   function (this: NativeClaudePluginWorld) {
-    assert.notEqual(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    assert.match(this.cacheFixture?.result?.output ?? '', /Current time:/u);
     assert.ok(this.cacheFixture);
     assert.equal(
       existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)),

@@ -1084,6 +1084,7 @@ describe('Claude plugin dispatcher', () => {
       decision: 'block',
       reason: 'earlier denial',
     });
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
   it('preserves legacy delivery when project and user declarations differ', () => {
