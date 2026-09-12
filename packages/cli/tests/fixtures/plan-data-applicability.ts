@@ -34,7 +34,7 @@ export function obligationClause(contract: string, obligation: string): string |
 export function missingDataContractRequirements(clause: string | undefined): string[] {
   if (clause === undefined) return [DATA_OBLIGATION];
   const normalized = clause.slice(clause.indexOf(':**') + ':**'.length).replaceAll(/\s+/gu, ' ');
-  const missing = DATA_FIELDS.filter(
+  const missing: string[] = DATA_FIELDS.filter(
     field => !normalized.toLowerCase().includes(field.toLowerCase()),
   );
   if (!normalized.includes('Data applicability:')) missing.push('Data applicability:');

@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 
@@ -9,7 +9,7 @@ interface Input {
   contractState: string;
 }
 
-const input = JSON.parse(await Bun.stdin.text()) as Input;
+const input = JSON.parse(readFileSync(0, 'utf8')) as Input;
 const project = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-plan-contract-project-'));
 const trustedBin = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-plan-contract-bin-'));
 const priorNodeEnvironment = process.env.NODE_ENV;
