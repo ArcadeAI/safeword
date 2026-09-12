@@ -6,7 +6,7 @@
  * CLI can actually present the reviewed approach to a person.
  */
 
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -138,6 +138,12 @@ function approvalEvents(path: string): string[] {
     .filter(line => line.includes(' design-decision:'));
 }
 
+function decisionPayloads(path: string): Record<string, unknown>[] {
+  return approvalEvents(path).map(line =>
+    JSON.parse(line.slice(line.indexOf(' design-decision:') + ' design-decision:'.length)),
+  ) as Record<string, unknown>[];
+}
+
 function appendCurrentReview(project: Fixture, plan: string): void {
   const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(plan));
   writeFileSync(
@@ -170,6 +176,57 @@ function runApprovalInPty(
       encoding: 'utf8',
       env: { ...process.env, NODE_ENV: 'test', ...environment },
     },
+  );
+}
+
+function runApprovalInPtyAsync(project: Fixture, ticketId: string): Promise<number | null> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      'python3',
+      [
+        '-c',
+        PTY_RUNNER,
+        'y',
+        process.execPath,
+        testCliPath,
+        '--cwd',
+        project.root,
+        'ticket',
+        'approve-plan',
+        ticketId,
+      ],
+      { cwd: project.root, env: { ...process.env, NODE_ENV: 'test' } },
+    );
+    child.once('error', reject);
+    child.once('close', resolve);
+  });
+}
+
+function addReviewedTicket(project: Fixture, ticketId: string, suffix: string): void {
+  const folder = `${ticketId}-review-the-approach`;
+  const directory = nodePath.join(project.root, '.project', 'tickets', folder);
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(
+    nodePath.join(directory, 'ticket.md'),
+    [
+      '---',
+      `id: ${ticketId}`,
+      'type: feature',
+      'phase: plan-implementation',
+      'status: in_progress',
+      '---',
+      '',
+      '# Ticket',
+      '',
+    ].join('\n'),
+  );
+  writeFileSync(nodePath.join(directory, 'spec.md'), '# Product Plan\n');
+  const plan = `${PLAN}\n${suffix}\n`;
+  writeFileSync(nodePath.join(directory, 'impl-plan.md'), plan);
+  const scope = reviewScope(folder, 'impl-plan', hashArtifact(plan));
+  writeFileSync(
+    project.ledgerPath,
+    `${readFileSync(project.ledgerPath, 'utf8')}2026-09-11T00:02:00.000Z fixture review:${scope} author:claude reviewer:codex independence:cross-agent review-id:${REVIEW_ID}\n`,
   );
 }
 
@@ -346,5 +403,32 @@ describe('human design authority follows approach currency', () => {
       `"planDigest":"${createHash('sha256').update(changedPlan).digest('hex')}"`,
     );
     expect(events[1]).toContain('"decision":"declined"');
+  });
+});
+
+describe('concurrent design decisions do not overwrite each other', () => {
+  it('serializes two installed CLI writers in one project ledger', async () => {
+    const project = fixture(true);
+    const secondTicket = 'PLAN43';
+    addReviewedTicket(project, secondTicket, 'A distinct reviewed approach.');
+
+    const statuses = await Promise.all([
+      runApprovalInPtyAsync(project, TICKET_ID),
+      runApprovalInPtyAsync(project, secondTicket),
+    ]);
+
+    expect(statuses).toEqual([0, 0]);
+    const decisions = decisionPayloads(project.ledgerPath);
+    expect(
+      decisions
+        .map(event => event.ticket)
+        .toSorted((left, right) => String(left).localeCompare(String(right))),
+    ).toEqual([TICKET_ID, secondTicket]);
+    expect(
+      decisions
+        .map(event => event.appendPosition)
+        .toSorted((left, right) => Number(left) - Number(right)),
+    ).toEqual([1, 2]);
+    expect(new Set(decisions.map(event => event.fencingGeneration)).size).toBe(2);
   });
 });
