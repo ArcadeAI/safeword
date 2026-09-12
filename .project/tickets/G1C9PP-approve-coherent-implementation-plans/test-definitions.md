@@ -241,7 +241,7 @@ family.
 ### Scenario: Significant workflow decisions are complete at decision depth
 
 - [x] RED c62458a80
-- [ ] GREEN
+- [x] GREEN 6d01a8599
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R18 — Accepted quantitative promises carry a design-level measurement contract without moving Product-owned outcomes or Execution-owned instrumentation into the Implementation Plan
