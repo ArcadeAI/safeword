@@ -11,7 +11,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, symlinkSync } from 'node:fs';
+import { readFileSync, symlinkSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -49,6 +49,14 @@ const CODEX_PLUGIN_CHECKBOX_TRANSITIONS = nodePath.join(
   SAFEWORD_ROOT,
   'packages/cli/codex-plugin/templates/hooks/lib/checkbox-transitions.ts',
 );
+const PARSE_ANNOTATION = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/lib/parse-annotation.ts',
+);
+const CODEX_PLUGIN_PARSE_ANNOTATION = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/codex-plugin/templates/hooks/lib/parse-annotation.ts',
+);
 
 /** Invoke pre-tool-quality with an Edit payload simulating a checkbox transition. */
 function runEditHook(
@@ -66,7 +74,13 @@ function runEditHook(
       tool_input: { file_path: filePath, old_string: oldString, new_string: newString },
     }),
     cwd,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: '', ...environment, CLAUDE_PROJECT_DIR: cwd },
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...environment,
+      CLAUDE_PROJECT_DIR: cwd,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -93,7 +107,13 @@ function runReplaceAllEditHook(
       },
     }),
     cwd,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: '', ...environment, CLAUDE_PROJECT_DIR: cwd },
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...environment,
+      CLAUDE_PROJECT_DIR: cwd,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -114,7 +134,13 @@ function runMultiEditHook(
       tool_input: { file_path: filePath, edits },
     }),
     cwd,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: '', ...environment, CLAUDE_PROJECT_DIR: cwd },
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...environment,
+      CLAUDE_PROJECT_DIR: cwd,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -135,7 +161,13 @@ function runWriteHook(
       tool_input: { file_path: filePath, content },
     }),
     cwd,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: '', ...environment, CLAUDE_PROJECT_DIR: cwd },
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...environment,
+      CLAUDE_PROJECT_DIR: cwd,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -151,7 +183,12 @@ function runNotebookEditHook(cwd: string, filePath: string): HookResult {
       tool_input: { notebook_path: filePath, content: '- [x] GREEN def5678' },
     }),
     cwd,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: '', CLAUDE_PROJECT_DIR: cwd },
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      CLAUDE_PROJECT_DIR: cwd,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -240,6 +277,9 @@ describe('write-time annotation gate', () => {
     expect(readFileSync(CODEX_PLUGIN_CHECKBOX_TRANSITIONS, 'utf8')).toBe(
       readFileSync(CHECKBOX_TRANSITIONS, 'utf8'),
     );
+    expect(readFileSync(CODEX_PLUGIN_PARSE_ANNOTATION, 'utf8')).toBe(
+      readFileSync(PARSE_ANNOTATION, 'utf8'),
+    );
   });
 
   describe('Rule 1: Marking a TDD checkbox requires a SHA or skip reason', () => {
@@ -268,7 +308,7 @@ describe('write-time annotation gate', () => {
         '- [ ] GREEN',
         '- [x] GREEN',
       );
-      expectHookDeny(result, 'GREEN');
+      expectHookDeny(result, 'without an annotation');
     });
 
     it('Scenario 3: skip with non-empty reason passes', () => {
@@ -296,7 +336,7 @@ describe('write-time annotation gate', () => {
         '- [ ] REFACTOR',
         '- [x] REFACTOR skip:',
       );
-      expectHookDeny(result, 'skip');
+      expectHookDeny(result, 'empty skip reason');
     });
 
     it('Scenario 5: skip with whitespace-only reason is blocked at write-time', () => {
@@ -310,7 +350,21 @@ describe('write-time annotation gate', () => {
         '- [ ] REFACTOR',
         '- [x] REFACTOR skip:    ',
       );
-      expectHookDeny(result, 'skip');
+      expectHookDeny(result, 'empty skip reason');
+    });
+
+    it('blocks a malformed SHA annotation at write time', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] RED',
+        '- [x] RED not-a-sha',
+      );
+      expectHookDeny(result, 'malformed SHA');
     });
 
     it('Scenario 6: pre-existing bare [x] is silently allowed on unrelated edits', () => {
@@ -873,6 +927,21 @@ describe('write-time annotation gate', () => {
         SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required'),
       });
       expectHookDeny(result, 'without either prior manual/live evidence');
+    });
+
+    it('canonicalizes a dangling symlink before a whole-file Write', () => {
+      const setup = setupProject('');
+      projectDirectory = setup.cwd;
+      unlinkSync(setup.testDefinitionsPath);
+      const alias = nodePath.join(setup.cwd, 'new-ledger.md');
+      symlinkSync(setup.testDefinitionsPath, alias);
+
+      const result = runWriteHook(
+        setup.cwd,
+        alias,
+        '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN def5678\n',
+      );
+      expectHookDeny(result, 'Ticket frontmatter is missing');
     });
 
     it('blocks a GREEN transition when the replacement inserts a line before the checkbox', () => {

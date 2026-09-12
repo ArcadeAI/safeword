@@ -4,7 +4,7 @@
 // Fires on Edit|Write|MultiEdit|NotebookEdit
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -22,7 +22,7 @@ import { applyUniqueEdit, collectNewTransitions } from './lib/checkbox-transitio
 import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
-import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
+import { classifyAnnotation, isValidSha, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
   AUTHOR_MODEL_ENV,
   detectPhaseAdvance,
@@ -169,7 +169,7 @@ function isMissingFrontmatterField(value: string | string[] | undefined): boolea
   return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
 }
 
-const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDirectory = realpathSync(process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
 
 // Tier 1 (per-asset) is off unless `.safeword/config.json` sets `reviewGate: true`
 // — it is per-asset, so it has no phase to select on and stays all-or-nothing.
@@ -359,17 +359,29 @@ try {
 
 const tool = input.tool_name ?? '';
 const requestedEditedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
-let editedFile = requestedEditedFile;
-if (requestedEditedFile !== '' && existsSync(requestedEditedFile)) {
+function canonicalPathForGate(path: string, seen = new Set<string>()): string {
+  if (seen.has(path)) return path;
+  seen.add(path);
   try {
-    // Existing aliases must be judged by their real target. Otherwise a symlink
-    // with an innocuous basename can bypass canonical ticket-file gates.
-    editedFile = realpathSync(requestedEditedFile);
+    return realpathSync(path);
   } catch {
-    // A later filesystem operation will surface an unreadable path. Preserve the
-    // requested value here rather than making unrelated hook checks fail closed.
+    try {
+      if (lstatSync(path).isSymbolicLink()) {
+        const target = readlinkSync(path);
+        return canonicalPathForGate(nodePath.resolve(nodePath.dirname(path), target), seen);
+      }
+    } catch {
+      // The requested path itself may not exist yet.
+    }
+    try {
+      return nodePath.join(realpathSync(nodePath.dirname(path)), nodePath.basename(path));
+    } catch {
+      return path;
+    }
   }
 }
+const editedFile =
+  requestedEditedFile === '' ? requestedEditedFile : canonicalPathForGate(requestedEditedFile);
 
 // ---------------------------------------------------------------------------
 // Bash gates:
@@ -994,6 +1006,12 @@ if (
         'The text after "skip:" must not be empty or whitespace-only. A real reason is the audit trail.',
       );
     }
+    if (kind.kind === 'sha' && !isValidSha(kind.value)) {
+      deny(
+        `Cannot mark "[x] ${transition.step}" with malformed SHA: ${JSON.stringify(kind.value)}.`,
+        `Use "${transition.step} <7-40 hexadecimal commit SHA>" or "${transition.step} skip: <non-empty reason>".`,
+      );
+    }
     if (transition.step === 'GREEN') {
       const scenario = transition.scenario;
       if (scenario === undefined) {
@@ -1008,7 +1026,7 @@ if (
       // The completion gate still requires every scenario row to be complete;
       // it does not independently authenticate a user-authored evidence record.
       if (transition.evidenceMode !== undefined) continue;
-      const ledger = nodePath.relative(realpathSync(projectDirectory), editedFile);
+      const ledger = nodePath.relative(projectDirectory, editedFile);
       const gateDenial = executableRedGateDenial(scenario, ledger);
       if (gateDenial !== undefined) {
         deny(
