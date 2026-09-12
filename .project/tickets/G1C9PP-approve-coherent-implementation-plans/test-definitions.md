@@ -328,7 +328,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 ### Scenario: Approval-ledger contention fails closed without changing authority
 
-- [ ] RED
+- [x] RED c99a7cf44
 - [ ] GREEN
 - [ ] REFACTOR
 
