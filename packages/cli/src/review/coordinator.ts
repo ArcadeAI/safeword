@@ -12,9 +12,11 @@ import type {
   ReviewPolicy,
   UnverifiedReviewerOutput,
 } from './contract.js';
+import { filterExecutionPlanRoutes } from './execution-plan-conformance.js';
 import { prepareReviewPacket } from './packet.js';
 import type { ReviewRoute } from './policy.js';
 import {
+  builtInReviewRoutes,
   readAlternateReviewerModel,
   readConfiguredReviewRoutes,
   readPrimaryReviewerModel,
@@ -1696,9 +1698,9 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   } catch (error) {
     return invalidRouteConfigResult(error, routes.author, policy);
   }
-  if (configuredRoutes !== undefined) {
-    return runRankedRoutes(input, routes.author, policy, configuredRoutes);
-  }
+  const rankedRoutes = rankedReviewRoutes(input, routes.author, configuredRoutes);
+  if (rankedRoutes !== undefined)
+    return runRankedRoutes(input, routes.author, policy, rankedRoutes);
   const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
@@ -1772,4 +1774,16 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     preferredModel,
     preferredModelFailure,
   });
+}
+
+function rankedReviewRoutes(
+  input: ReviewRunInput,
+  author: ReviewAgent,
+  configured: readonly ReviewRoute[] | undefined,
+): readonly ReviewRoute[] | undefined {
+  if (input.kind !== 'plan-execution') return configured;
+  return filterExecutionPlanRoutes(
+    input.kind,
+    configured ?? builtInReviewRoutes(input.cwd, author),
+  );
 }

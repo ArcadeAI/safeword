@@ -155,7 +155,7 @@ working.
 4. Run the deterministic lane:
    `bun run test tests/review/execution-plan-conformance.test.ts tests/cli-protocol/review-wiring.test.ts`.
 5. Run the mandatory live lane for each proposed admitted identity with
-   `SAFEWORD_RUN_EXECUTION_PLAN_LIVE=1 bun run test tests/smoke/execution-plan.live.test.ts`.
+   `SAFEWORD_RUN_EXECUTION_PLAN_LIVE=1 bun run test:smoke:live tests/smoke/execution-plan.live.test.ts`.
    Save the exact runtime/model identity and fixture/contract digests in the
    completion evidence; do not admit an identity whose full matrix did not pass.
 6. Run the full package test suite before this slice is considered independently

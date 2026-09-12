@@ -23,6 +23,8 @@ import type {
   ReviewKind,
   ReviewPacket,
 } from './contract.js';
+import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
+import { extractExecutionPlanReviewRubric } from './execution-plan-rubric.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { extractPlanReviewRubric } from './plan-rubric.js';
 
@@ -82,6 +84,36 @@ function requirePlanWorkArtifact(
   ) {
     throw new ReviewPacketError(
       'Plan-implementation review requires one non-blank impl-plan.md work file; pass supporting evidence with --context',
+    );
+  }
+}
+
+function requireExecutionPlanWorkArtifact(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly path: string; readonly content: string }[],
+  contextFiles: readonly { readonly path: string; readonly content: string }[],
+): void {
+  if (kind !== 'plan-execution') return;
+  const plan = logicalFiles[0];
+  if (
+    logicalFiles.length !== 1 ||
+    plan === undefined ||
+    nodePath.basename(plan.path) !== 'execution-plan.md' ||
+    plan.content.trim() === ''
+  ) {
+    throw new ReviewPacketError(
+      'Plan-execution review requires one non-blank execution-plan.md work file; pass supporting evidence with --context',
+    );
+  }
+  const implementationPlan = contextFiles.find(
+    file => nodePath.basename(file.path) === 'impl-plan.md' && file.content.trim() !== '',
+  );
+  const scenarios = contextFiles.find(
+    file => nodePath.extname(file.path) === '.feature' && file.content.trim() !== '',
+  );
+  if (implementationPlan === undefined || scenarios === undefined) {
+    throw new ReviewPacketError(
+      'Plan-execution review requires a non-blank impl-plan.md and approved .feature scenarios as context',
     );
   }
 }
@@ -146,15 +178,35 @@ function packagedPlanAuthorRubric(): string {
   }
 }
 
-function currentPlanContract(): PlanContractPair {
-  const authorRubric = packagedPlanAuthorRubric();
+function packagedExecutionPlanAuthorRubric(): string {
+  const root = packageRoot();
+  const contractPath = [
+    nodePath.join(root, 'templates/skills/bdd/PLAN_EXECUTION.md'),
+    nodePath.join(root, 'skills/bdd/PLAN_EXECUTION.md'),
+    nodePath.join(root, 'skills/bdd/references/PLAN_EXECUTION.md'),
+  ].find(candidate => existsSync(candidate));
+  try {
+    if (contractPath === undefined) throw new Error('contract file is absent');
+    return extractExecutionPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+  } catch {
+    throw new ReviewPacketError(
+      'The packaged Execution Planning contract is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.',
+    );
+  }
+}
+
+function currentPlanContract(kind: 'plan-implementation' | 'plan-execution'): PlanContractPair {
+  const authorRubric =
+    kind === 'plan-execution' ? packagedExecutionPlanAuthorRubric() : packagedPlanAuthorRubric();
+  const reviewerRubric =
+    kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_RUBRIC : PLAN_REVIEW_RUBRIC;
   const author = {
     sha256: digest(authorRubric),
     obligations: planObligations(authorRubric),
   };
   const reviewer = {
-    sha256: digest(PLAN_REVIEW_RUBRIC),
-    obligations: planObligations(PLAN_REVIEW_RUBRIC),
+    sha256: digest(reviewerRubric),
+    obligations: planObligations(reviewerRubric),
   };
   return { author, reviewer };
 }
@@ -163,9 +215,8 @@ function packetPlanContract(
   kind: ReviewKind,
   configured: PlanContractPair | undefined,
 ): { readonly plan_contract?: PlanContractPair } {
-  return kind === 'plan-implementation'
-    ? { plan_contract: configured ?? currentPlanContract() }
-    : {};
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
+  return { plan_contract: configured ?? currentPlanContract(kind) };
 }
 
 function fileDigest(path: string): string | undefined {
@@ -326,6 +377,7 @@ function prepareReviewPacketUnsafe(
     contextFiles = captureFiles(context);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
+    requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;

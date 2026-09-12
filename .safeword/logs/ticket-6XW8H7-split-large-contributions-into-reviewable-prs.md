@@ -141,3 +141,20 @@
   reject their own fresh build. Regenerated both bundles and made all rubric
   writers content-aware, with a regression assertion that their mtimes remain
   unchanged. Final proof: 613/613 test files green (9,808 passed, 57 skipped).
+- Slice 3 admits only exact reviewer identities whose writer-produced evidence
+  covers the complete authoritative corpus at the current contract and corpus
+  digests. Claude Opus passed all 25 semantic cases; deterministic conformance,
+  route-filtering, generation, lint, and type checks passed before commit
+  `f6e67f8ad`.
+- Slice 4 activates the public `plan-execution` review kind for one ticket-owned
+  Execution Plan with its Implementation Plan and scenarios as bounded context.
+  The shared coordinator filters configured or built-in routes through current
+  admission evidence, the kind-specific validator distinguishes semantic denial
+  from malformed output, and the existing job/receipt path retains the typed
+  judgment. The complete focused lane passed 442 tests with 2 intentional
+  skips; package lint, typecheck, markdownlint, all 266 parity pairs and 8
+  contracts passed. After correcting the plan's live-test command to use the
+  repository's live Vitest configuration, final packaged bytes passed Claude
+  Opus identity plus all 25/25 semantic cases in 739.7 seconds. Evidence digests:
+  contract `15507633fda621d9b5b6ec117c3e2687c70af27a16ba18600b2d8a18de19aa9e`;
+  corpus `59819df04cc76546ac2a93c3512932040dcf5fe6c8a888b411227ba2f8a4b65b`.

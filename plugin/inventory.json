@@ -143,7 +143,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "280cd274579686a3b48fd8d1173714184f4319b69408d852cbdabcda14dfb469"
+      "sha256": "c81141e46ee4f7f65b6eb94b1f3e76fe9a2dcd38ac7b66ff113bdf3cd62260d3"
     },
     {
       "path": "runtime/dispatch.js",
@@ -383,7 +383,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "f6376b35bc5f4154f8e38653a54e745787e4231346119bf25b1e8f110a280c7a"
+      "sha256": "35f3fa8e5586cab25a0c4a87b39b6f05dd366197d8d8a8dfcddf5c720f4ba6f8"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",

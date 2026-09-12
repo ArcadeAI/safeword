@@ -743,6 +743,18 @@ the 2026-07-09 “plan-implementation: a gated planning phase as the Automation
 on-ramp” decision. It preserves that decision's rationale, project-local
 authority, and content-hash review history.
 
+### Conformance-Gated Execution Plan Review
+
+**Status:** Accepted
+**Date:** 2026-09-12
+
+| Field     | Value                                                                                                                                                                                                                                                                                                                                                                       |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What      | The shared review coordinator accepts `plan-execution` as a public review kind only for one ticket-owned `execution-plan.md`, with that ticket's Implementation Plan and approved scenarios as bounded context. It dispatches only reviewer identities admitted by current digest-bound conformance evidence and retains the typed slicing judgment with the review result. |
+| Why       | Execution Plan approval must prove that accepted design obligations became independently safe, reviewable work; valid JSON or an unproven reviewer route is not evidence of that judgment.                                                                                                                                                                                  |
+| Trade-off | A changed contract, corpus, or reviewer identity withdraws admission until its complete live matrix passes again. This intentionally prefers no approval over stale semantic evidence.                                                                                                                                                                                      |
+| Scope     | This is the narrow review-coordinator extension owned by [6XW8H7](.project/tickets/6XW8H7-split-large-contributions-into-reviewable-prs/ticket.md). The ticket remains authoritative for the detailed contract and proof; phase migration, review-currency invalidation, coding-transition enforcement, and recovery copy remain separately owned.                          |
+
 ### Digest-Bound Planning Decisions in the Shared Review Ledger
 
 **Status:** Accepted

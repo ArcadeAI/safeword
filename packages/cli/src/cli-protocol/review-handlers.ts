@@ -34,7 +34,7 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
         {
           code: 'REVIEW_KIND_INVALID',
           message:
-            'Review kind must be quality-review, scenario-gate, plan-implementation, or executable-red.',
+            'Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, or executable-red.',
           retryable: false,
         },
       ],
@@ -45,8 +45,8 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
     : [];
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
-  if (rawKind === 'plan-implementation') {
-    const targetFailure = invalidImplementationPlanTarget(invocation.cwd, targets);
+  if (rawKind === 'plan-implementation' || rawKind === 'plan-execution') {
+    const targetFailure = invalidPlanningTarget(invocation.cwd, rawKind, targets);
     if (targetFailure !== undefined) return targetFailure;
   }
   const execution = redExecutionRequest(rawKind, invocation.options);
@@ -54,31 +54,22 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
   return startReviewInBackground(invocation, rawKind, targets, context, execution);
 }
 
-function invalidImplementationPlanTarget(
+function invalidPlanningTarget(
   cwd: string,
+  kind: 'plan-implementation' | 'plan-execution',
   targets: readonly string[],
 ): CliResult | undefined {
   // Packet validation owns missing/multiple targets. This boundary adds the
-  // authority rule for the one otherwise-valid impl-plan.md target.
+  // authority rule for the one otherwise-valid planning target.
   if (targets.length !== 1) return undefined;
+
+  const filename = kind === 'plan-execution' ? 'execution-plan.md' : 'impl-plan.md';
+  const label = kind === 'plan-execution' ? 'Execution Plan' : 'Implementation Plan';
 
   const ticketsDirectory = resolveTicketsDirectory(cwd);
   const [rawTarget] = targets;
   if (rawTarget === undefined) return undefined;
-  const target = nodePath.resolve(cwd, rawTarget);
-  const relativeTarget = nodePath.relative(ticketsDirectory, target);
-  const segments = relativeTarget.split(nodePath.sep);
-  const ticketDirectory = segments[0];
-  if (
-    segments.length === 2 &&
-    ticketDirectory !== undefined &&
-    ticketDirectory !== '' &&
-    ticketDirectory !== '.' &&
-    segments[1] === 'impl-plan.md' &&
-    existsSync(nodePath.join(ticketsDirectory, ticketDirectory, 'ticket.md'))
-  ) {
-    return undefined;
-  }
+  if (isTicketOwnedPlanningTarget(cwd, ticketsDirectory, rawTarget, filename)) return undefined;
 
   const ticketsLabel = nodePath.relative(cwd, ticketsDirectory) || ticketsDirectory;
   return createResult({
@@ -86,12 +77,32 @@ function invalidImplementationPlanTarget(
     errors: [
       {
         code: 'REVIEW_PLAN_TARGET_INVALID',
-        message: `Review the ticket-owned Implementation Plan at ${ticketsLabel}/<ticket>/impl-plan.md. Host-private and other non-ticket copies are not authoritative.`,
+        message: `Review the ticket-owned ${label} at ${ticketsLabel}/<ticket>/${filename}. Host-private and other non-ticket copies are not authoritative.`,
         retryable: false,
       },
     ],
-    data: { command: 'review run', status: 'failed', review_kind: 'plan-implementation' },
+    data: { command: 'review run', status: 'failed', review_kind: kind },
   });
+}
+
+function isTicketOwnedPlanningTarget(
+  cwd: string,
+  ticketsDirectory: string,
+  rawTarget: string,
+  filename: string,
+): boolean {
+  const target = nodePath.resolve(cwd, rawTarget);
+  const relativeTarget = nodePath.relative(ticketsDirectory, target);
+  const segments = relativeTarget.split(nodePath.sep);
+  const ticketDirectory = segments[0];
+  return (
+    segments.length === 2 &&
+    ticketDirectory !== undefined &&
+    ticketDirectory !== '' &&
+    ticketDirectory !== '.' &&
+    segments[1] === filename &&
+    existsSync(nodePath.join(ticketsDirectory, ticketDirectory, 'ticket.md'))
+  );
 }
 
 export async function executableRedGateHandler(invocation: CommandInvocation): Promise<CliResult> {

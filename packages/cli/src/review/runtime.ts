@@ -24,8 +24,8 @@ import { warn } from '../utils/output.js';
 import type {
   ReviewAgent,
   ReviewFailure,
+  ReviewKind,
   ReviewPacket,
-  ReviewPacketKind,
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js';
@@ -153,7 +153,7 @@ const EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
 } as const;
 
 /** Select the provider contract without changing any existing review-kind bytes. */
-export function reviewOutputSchema(kind: ReviewPacketKind): string {
+export function reviewOutputSchema(kind: ReviewKind): string {
   return kind === 'plan-execution'
     ? JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE)
     : REVIEW_OUTPUT_SCHEMA;
@@ -211,7 +211,7 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   opencode: ['run', '--format', 'json', '--pure'],
 };
 
-function baseReviewerArguments(reviewer: ReviewAgent, kind: ReviewPacketKind): string[] {
+function baseReviewerArguments(reviewer: ReviewAgent, kind: ReviewKind): string[] {
   const base = [...ARGUMENTS[reviewer]];
   if (reviewer !== 'claude') return base;
   const schemaIndex = base.indexOf('--json-schema') + 1;
@@ -243,7 +243,7 @@ export function reviewerArguments(
   model: string | undefined,
   schemaPath: string | undefined,
   environment: Readonly<Record<string, string | undefined>> = process.env,
-  kind: ReviewPacketKind = 'quality-review',
+  kind: ReviewKind = 'quality-review',
 ): string[] {
   const base = baseReviewerArguments(reviewer, kind);
   const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
@@ -494,7 +494,7 @@ function reviewerVerdictMatchesFindings(verdict: unknown, findings: readonly unk
   );
 }
 
-function reviewerOutputKeys(kind: ReviewPacketKind): Set<string> {
+function reviewerOutputKeys(kind: ReviewKind): Set<string> {
   const keys = new Set([
     'schema_version',
     'dispatch_id',
@@ -507,11 +507,11 @@ function reviewerOutputKeys(kind: ReviewPacketKind): Set<string> {
   return keys;
 }
 
-function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewPacketKind): boolean {
+function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewKind): boolean {
   return kind !== 'plan-execution' || Object.hasOwn(value, 'execution_plan_record');
 }
 
-function hasValidReviewerOutputBody(value: unknown, kind: ReviewPacketKind): boolean {
+function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): boolean {
   if (!isRecord(value)) return false;
   const allowedOutputKeys = reviewerOutputKeys(kind);
   if (
@@ -546,7 +546,7 @@ function hasValidReviewerOutputBody(value: unknown, kind: ReviewPacketKind): boo
 export function parseReviewerOutput(
   reviewer: ReviewAgent,
   stdout: string,
-  kind: ReviewPacketKind = 'quality-review',
+  kind: ReviewKind = 'quality-review',
 ): UnverifiedReviewerOutput {
   let output: unknown;
   if (reviewer === 'claude') output = parseClaudeOutput(stdout);
@@ -576,7 +576,11 @@ function reconcilePlanContract(
   output: UnverifiedReviewerOutput,
 ): UnverifiedReviewerOutput {
   const contract = packet.plan_contract;
-  if (packet.kind !== 'plan-implementation' || contract === undefined) return output;
+  if (
+    (packet.kind !== 'plan-implementation' && packet.kind !== 'plan-execution') ||
+    contract === undefined
+  )
+    return output;
 
   const author = new Set(contract.author.obligations);
   const reviewer = new Set(contract.reviewer.obligations);
@@ -1565,7 +1569,7 @@ interface ContractFile {
   readonly cleanup: () => void;
 }
 
-function writeContractFile(kind: ReviewPacketKind): ContractFile {
+function writeContractFile(kind: ReviewKind): ContractFile {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-contract-'));
   const path = nodePath.join(directory, 'review-result.schema.json');
   writeFileSync(path, reviewOutputSchema(kind), { mode: 0o600 });

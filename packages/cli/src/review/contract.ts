@@ -1,9 +1,7 @@
 export type ReviewAgent = 'claude' | 'codex' | 'opencode';
 export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
 export type ReviewKind =
-  'quality-review' | 'scenario-gate' | 'plan-implementation' | 'executable-red';
-/** Internal packet kind; public command parsing adds plan-execution only at activation. */
-export type ReviewPacketKind = ReviewKind | 'plan-execution';
+  'quality-review' | 'scenario-gate' | 'plan-implementation' | 'plan-execution' | 'executable-red';
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type RedEvidenceClass =
   'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
@@ -131,7 +129,7 @@ export interface PlanContractPair {
 export interface ReviewPacket {
   readonly schema_version: 1;
   readonly dispatch_id: string;
-  readonly kind: ReviewPacketKind;
+  readonly kind: ReviewKind;
   readonly logical_files: readonly {
     readonly path: string;
     readonly content: string;
@@ -151,6 +149,7 @@ const REVIEW_KINDS = new Set<ReviewKind>([
   'quality-review',
   'scenario-gate',
   'plan-implementation',
+  'plan-execution',
   'executable-red',
 ]);
 

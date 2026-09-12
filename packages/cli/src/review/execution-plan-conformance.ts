@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { ReviewAgent, ReviewPacketKind } from './contract.js';
+import type { ReviewAgent, ReviewKind } from './contract.js';
 import { EXECUTION_PLAN_ADMISSION_EVIDENCE } from './execution-plan-admission.generated.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
 import type { ReviewRoute } from './route-config.js';
@@ -465,7 +465,7 @@ function admittedIdentity(
 }
 
 export function filterExecutionPlanRoutes(
-  kind: ReviewPacketKind,
+  kind: ReviewKind,
   routes: readonly ReviewRoute[],
   evidence: ExecutionPlanAdmissionEvidence | undefined = EXECUTION_PLAN_ADMISSION_EVIDENCE,
 ): readonly ReviewRoute[] {

@@ -31018,6 +31018,7 @@ var init_contract = __esm(() => {
     "quality-review",
     "scenario-gate",
     "plan-implementation",
+    "plan-execution",
     "executable-red"
   ]);
 });
@@ -31134,6 +31135,75 @@ var init_policy = __esm(() => {
     destructive: "destructive"
   };
 });
+
+// src/review/execution-plan-rubric.generated.ts
+var EXECUTION_PLAN_REVIEW_RUBRIC = `Review the Execution Plan against the exact approved scenarios and
+Implementation Plan supplied in the bounded packet. Do not substitute a
+reviewer-created baseline, reopen an accepted decision, or infer an obligation
+from outside those sources.
+
+- **Slicing decision:** Require an explicit \`one_pull_request\` or
+  \`multiple_pull_requests\` decision and a nonblank rationale grounded in
+  conceptual cohesion and independent proof. One pull request has exactly one
+  slice; multiple pull requests have at least two. Reject line or file count as
+  the sole justification.
+- **Complete slices:** Require one record per plan slice, in plan order. Every
+  slice has a unique nonblank name, one coherent purpose, a clear boundary, a
+  present prerequisite list, its own proof obligation, a concrete completion
+  signal, and a readable \`relies_on_unmerged_successor\` assertion. Reject a
+  slice with two independently valuable purposes or any implementation choice
+  the approved plan did not settle.
+- **Dependency safety:** Require every prerequisite to name a unique earlier
+  slice. Reject cycles, forward dependencies, missing prerequisites, and any
+  slice that becomes safe only after a later merge. Every intermediate merge
+  must leave the repository in a supported state.
+- **Conceptual reviewability:** Judge boundaries by whether one concern can be
+  understood and proven independently. Many mechanical edits with one outcome
+  may be one slice; a few edits with two independently valuable outcomes may
+  require two. Numeric size signals may prompt inspection but never decide it.
+- **Obligation and decision preservation:** Require at least one obligation-owner
+  entry and cover every accepted behavior, migration, rollout, rollback,
+  documentation, and affected-surface obligation with existing slice names.
+  Require at least one decision-status entry and account for every Recorded
+  Decision, or the explicit no-load-bearing-choice applicability decision, with
+  the readable status \`unchanged\`. Reject an omitted obligation, an unowned
+  slice, or any reopened decision.
+
+For an approval, return \`execution_plan_record\` containing the slicing decision
+and rationale; the complete ordered slices; obligation-owner entries; and
+decision-status entries. Set every slice's \`relies_on_unmerged_successor\` to
+\`false\` and every decision status to \`unchanged\` only when the source evidence
+supports those assertions. For a denial, return the record as null and name
+each blocking slice, field, obligation, dependency, or decision in findings.
+Never approve because the prose merely contains the expected labels.`;
+
+// src/review/execution-plan-rubric.ts
+function extractExecutionPlanReviewRubric(reference) {
+  const starts = reference.split(EXECUTION_PLAN_RUBRIC_START).length - 1;
+  const ends = reference.split(EXECUTION_PLAN_RUBRIC_END).length - 1;
+  if (starts !== 1 || ends !== 1) {
+    throw new Error("PLAN_EXECUTION.md must contain exactly one rubric marker pair");
+  }
+  const start = reference.indexOf(EXECUTION_PLAN_RUBRIC_START) + EXECUTION_PLAN_RUBRIC_START.length;
+  const end = reference.indexOf(EXECUTION_PLAN_RUBRIC_END);
+  if (end <= start)
+    throw new Error("PLAN_EXECUTION.md rubric markers are out of order");
+  const rubric = reference.slice(start, end).trim();
+  if (rubric === "")
+    throw new Error("PLAN_EXECUTION.md rubric is empty");
+  for (const forbidden of [
+    "run-review.ts",
+    "/finish-review",
+    "advance the ticket",
+    "write-review-stamp.ts"
+  ]) {
+    if (rubric.includes(forbidden)) {
+      throw new Error(`PLAN_EXECUTION.md rubric contains host-only instruction: ${forbidden}`);
+    }
+  }
+  return rubric;
+}
+var EXECUTION_PLAN_RUBRIC_START = "<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_START -->", EXECUTION_PLAN_RUBRIC_END = "<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_END -->";
 
 // src/review/plan-rubric.generated.ts
 var PLAN_REVIEW_RUBRIC = `## Shared implementation-plan judgment standard
@@ -31328,6 +31398,19 @@ function requirePlanWorkArtifact(kind, logicalFiles) {
     throw new ReviewPacketError("Plan-implementation review requires one non-blank impl-plan.md work file; pass supporting evidence with --context");
   }
 }
+function requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles) {
+  if (kind !== "plan-execution")
+    return;
+  const plan = logicalFiles[0];
+  if (logicalFiles.length !== 1 || plan === undefined || nodePath43.basename(plan.path) !== "execution-plan.md" || plan.content.trim() === "") {
+    throw new ReviewPacketError("Plan-execution review requires one non-blank execution-plan.md work file; pass supporting evidence with --context");
+  }
+  const implementationPlan = contextFiles.find((file) => nodePath43.basename(file.path) === "impl-plan.md" && file.content.trim() !== "");
+  const scenarios = contextFiles.find((file) => nodePath43.extname(file.path) === ".feature" && file.content.trim() !== "");
+  if (implementationPlan === undefined || scenarios === undefined) {
+    throw new ReviewPacketError("Plan-execution review requires a non-blank impl-plan.md and approved .feature scenarios as context");
+  }
+}
 function requireExecutableRedAttestation(kind, attestation) {
   if (kind === "executable-red" && attestation === undefined) {
     throw new ReviewPacketError("Executable-red review requires a trusted execution attestation");
@@ -31366,20 +31449,38 @@ function packagedPlanAuthorRubric() {
     throw new ReviewPacketError("The packaged decision-quality contract is unavailable, so Safeword cannot author or approve an Implementation Plan. Run `bun run generate:plan-rubric`, rebuild the Safeword package, and retry.");
   }
 }
-function currentPlanContract() {
-  const authorRubric = packagedPlanAuthorRubric();
+function packagedExecutionPlanAuthorRubric() {
+  const root = packageRoot();
+  const contractPath = [
+    nodePath43.join(root, "templates/skills/bdd/PLAN_EXECUTION.md"),
+    nodePath43.join(root, "skills/bdd/PLAN_EXECUTION.md"),
+    nodePath43.join(root, "skills/bdd/references/PLAN_EXECUTION.md")
+  ].find((candidate) => existsSync14(candidate));
+  try {
+    if (contractPath === undefined)
+      throw new Error("contract file is absent");
+    return extractExecutionPlanReviewRubric(readFileSync28(contractPath, "utf8"));
+  } catch {
+    throw new ReviewPacketError("The packaged Execution Planning contract is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.");
+  }
+}
+function currentPlanContract(kind) {
+  const authorRubric = kind === "plan-execution" ? packagedExecutionPlanAuthorRubric() : packagedPlanAuthorRubric();
+  const reviewerRubric = kind === "plan-execution" ? EXECUTION_PLAN_REVIEW_RUBRIC : PLAN_REVIEW_RUBRIC;
   const author = {
     sha256: digest2(authorRubric),
     obligations: planObligations(authorRubric)
   };
   const reviewer = {
-    sha256: digest2(PLAN_REVIEW_RUBRIC),
-    obligations: planObligations(PLAN_REVIEW_RUBRIC)
+    sha256: digest2(reviewerRubric),
+    obligations: planObligations(reviewerRubric)
   };
   return { author, reviewer };
 }
 function packetPlanContract(kind, configured) {
-  return kind === "plan-implementation" ? { plan_contract: configured ?? currentPlanContract() } : {};
+  if (kind !== "plan-implementation" && kind !== "plan-execution")
+    return {};
+  return { plan_contract: configured ?? currentPlanContract(kind) };
 }
 function fileDigest(path7) {
   try {
@@ -31508,6 +31609,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     contextFiles = captureFiles(context);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
+    requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
   } catch (error2) {
     rmSync7(workspace, { recursive: true, force: true });
     throw error2;
@@ -31680,6 +31782,7 @@ var init_environment = __esm(() => {
     "SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE",
     "SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS",
     "SAFEWORD_REVIEW_FAKE_FINDING",
+    "SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD",
     "SAFEWORD_REVIEW_FAKE_HELP_FAILURE",
     "SAFEWORD_REVIEW_FAKE_IDENTITY",
     "SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY",
@@ -31853,47 +31956,6 @@ var NULL_EXECUTION_PLAN_RECORD;
 var init_execution_plan_output = __esm(() => {
   NULL_EXECUTION_PLAN_RECORD = JSON.parse("null");
 });
-
-// src/review/execution-plan-rubric.generated.ts
-var EXECUTION_PLAN_REVIEW_RUBRIC = `Review the Execution Plan against the exact approved scenarios and
-Implementation Plan supplied in the bounded packet. Do not substitute a
-reviewer-created baseline, reopen an accepted decision, or infer an obligation
-from outside those sources.
-
-- **Slicing decision:** Require an explicit \`one_pull_request\` or
-  \`multiple_pull_requests\` decision and a nonblank rationale grounded in
-  conceptual cohesion and independent proof. One pull request has exactly one
-  slice; multiple pull requests have at least two. Reject line or file count as
-  the sole justification.
-- **Complete slices:** Require one record per plan slice, in plan order. Every
-  slice has a unique nonblank name, one coherent purpose, a clear boundary, a
-  present prerequisite list, its own proof obligation, a concrete completion
-  signal, and a readable \`relies_on_unmerged_successor\` assertion. Reject a
-  slice with two independently valuable purposes or any implementation choice
-  the approved plan did not settle.
-- **Dependency safety:** Require every prerequisite to name a unique earlier
-  slice. Reject cycles, forward dependencies, missing prerequisites, and any
-  slice that becomes safe only after a later merge. Every intermediate merge
-  must leave the repository in a supported state.
-- **Conceptual reviewability:** Judge boundaries by whether one concern can be
-  understood and proven independently. Many mechanical edits with one outcome
-  may be one slice; a few edits with two independently valuable outcomes may
-  require two. Numeric size signals may prompt inspection but never decide it.
-- **Obligation and decision preservation:** Require at least one obligation-owner
-  entry and cover every accepted behavior, migration, rollout, rollback,
-  documentation, and affected-surface obligation with existing slice names.
-  Require at least one decision-status entry and account for every Recorded
-  Decision, or the explicit no-load-bearing-choice applicability decision, with
-  the readable status \`unchanged\`. Reject an omitted obligation, an unowned
-  slice, or any reopened decision.
-
-For an approval, return \`execution_plan_record\` containing the slicing decision
-and rationale; the complete ordered slices; obligation-owner entries; and
-decision-status entries. Set every slice's \`relies_on_unmerged_successor\` to
-\`false\` and every decision status to \`unchanged\` only when the source evidence
-supports those assertions. For a denial, return the record as null and name
-each blocking slice, field, obligation, dependency, or decision in findings.
-Never approve because the prose merely contains the expected labels.`;
 
 // src/review/quality-rubric.generated.ts
 var QUALITY_REVIEW_RUBRIC = `## Shared adversarial-review severity foundation
@@ -32266,7 +32328,7 @@ function reviewPrompt(reviewer, packet) {
 }
 function reconcilePlanContract(packet, output) {
   const contract = packet.plan_contract;
-  if (packet.kind !== "plan-implementation" || contract === undefined)
+  if (packet.kind !== "plan-implementation" && packet.kind !== "plan-execution" || contract === undefined)
     return output;
   const author = new Set(contract.author.obligations);
   const reviewer = new Set(contract.reviewer.obligations);
@@ -34733,6 +34795,282 @@ var init_red_execution = __esm(() => {
   MAX_EXCERPT_BYTES = 64 * 1024;
 });
 
+// src/review/execution-plan-admission.generated.ts
+var EXECUTION_PLAN_ADMISSION_EVIDENCE;
+var init_execution_plan_admission_generated = __esm(() => {
+  EXECUTION_PLAN_ADMISSION_EVIDENCE = {
+    schema_version: 1,
+    contract_sha256: "15507633fda621d9b5b6ec117c3e2687c70af27a16ba18600b2d8a18de19aa9e",
+    corpus_sha256: "59819df04cc76546ac2a93c3512932040dcf5fe6c8a888b411227ba2f8a4b65b",
+    identities: [
+      {
+        reviewer: "claude",
+        model: "opus",
+        case_ids: [
+          "one-coherent-change",
+          "several-ordered-changes",
+          "omitted-slicing-decision",
+          "complete-slice-record",
+          "missing-purpose",
+          "missing-boundary",
+          "missing-prerequisites",
+          "missing-proof",
+          "missing-completion-signal",
+          "two-independent-purposes",
+          "unresolved-authorization-decision",
+          "ordered-schema-before-reader",
+          "unsafe-intermediate-merge",
+          "many-mechanical-edits",
+          "few-files-two-outcomes",
+          "line-count-only-rationale",
+          "all-obligations-assigned",
+          "all-decisions-unchanged",
+          "missing-behavior-obligation",
+          "missing-migration-obligation",
+          "missing-rollout-obligation",
+          "missing-rollback-obligation",
+          "missing-documentation-obligation",
+          "missing-affected-surface-obligation",
+          "reopened-authorization-decision"
+        ]
+      }
+    ]
+  };
+});
+
+// src/review/execution-plan-conformance.ts
+import { createHash as createHash21 } from "crypto";
+function slice(input) {
+  return `### ${input.name}
+
+${input.purpose === undefined ? "" : `- Purpose: ${input.purpose}
+`}${input.boundary === undefined ? "" : `- Boundary: ${input.boundary}
+`}${input.prerequisites === undefined ? "" : `- Prerequisites: ${input.prerequisites}
+`}${input.proof === undefined ? "" : `- Proof: ${input.proof}
+`}${input.completion === undefined ? "" : `- Completion signal: ${input.completion}
+`}`;
+}
+function executionPlan(input) {
+  const owners = OBLIGATIONS.filter((obligation) => obligation !== input.omittedObligation).map((obligation, index) => {
+    const owner = index === 0 ? input.slices[0] : input.slices.at(-1);
+    return `- ${obligation}: ${owner?.name ?? "Contract"}`;
+  }).join(`
+`);
+  return `# Execution Plan
+
+## Pull-request slicing
+
+${input.decision === undefined ? "" : `Decision: ${input.decision}.
+`}Rationale: ${input.rationale}
+
+${input.slices.map((item) => slice(item)).join(`
+`)}
+## Obligation ownership
+
+${owners}
+
+## Decision accounting
+
+${input.decisionText ?? DECISIONS.map((decision) => `- ${decision}: unchanged`).join(`
+`)}
+`;
+}
+function approved(id, scenario, plan, slicingDecision, sliceNames) {
+  return {
+    id,
+    scenario,
+    implementation_plan: IMPLEMENTATION_PLAN,
+    execution_plan: plan,
+    expectation: {
+      verdict: "approve",
+      slicing_decision: slicingDecision,
+      slice_names: sliceNames,
+      obligations: OBLIGATIONS,
+      decisions: DECISIONS
+    }
+  };
+}
+function denied(id, scenario, plan, findingTerms) {
+  return {
+    id,
+    scenario,
+    implementation_plan: IMPLEMENTATION_PLAN,
+    execution_plan: plan,
+    expectation: { verdict: "request_changes", finding_terms: findingTerms }
+  };
+}
+function missingFieldCase(id, field, term) {
+  return denied(id, `A planned pull request omits its ${term}; review names ${term} as required.`, executionPlan({
+    decision: "one pull request",
+    rationale: "The contribution claims to be one coherent change.",
+    slices: [{ ...CONTRACT_SLICE, [field]: undefined }]
+  }), [term]);
+}
+function missingObligationCase(id, obligation) {
+  return denied(id, `The accepted ${obligation} has no owning slice; review names the unassigned obligation.`, executionPlan({
+    decision: "one pull request",
+    rationale: "The contribution claims to preserve the accepted approach.",
+    slices: [CONTRACT_SLICE],
+    omittedObligation: obligation
+  }), [obligation]);
+}
+function sha2564(value) {
+  return createHash21("sha256").update(value).digest("hex");
+}
+function executionPlanConformanceDigests() {
+  return {
+    contract_sha256: sha2564(EXECUTION_PLAN_REVIEW_RUBRIC),
+    corpus_sha256: sha2564(JSON.stringify(EXECUTION_PLAN_CONFORMANCE_CASES))
+  };
+}
+function hasCurrentDigests(evidence) {
+  const current = executionPlanConformanceDigests();
+  return evidence.schema_version === 1 && evidence.contract_sha256 === current.contract_sha256 && evidence.corpus_sha256 === current.corpus_sha256;
+}
+function admittedIdentity(route, identities) {
+  const expectedCases = EXECUTION_PLAN_CONFORMANCE_CASES.map((testCase) => testCase.id);
+  return identities.some((identity) => {
+    const sameModel = route.model === undefined ? identity.model === undefined : identity.model === route.model;
+    return identity.reviewer === route.reviewer && sameModel && identity.case_ids.length === expectedCases.length && identity.case_ids.every((caseId, index) => caseId === expectedCases[index]);
+  });
+}
+function filterExecutionPlanRoutes(kind, routes, evidence = EXECUTION_PLAN_ADMISSION_EVIDENCE) {
+  if (kind !== "plan-execution")
+    return routes;
+  if (evidence === undefined || !hasCurrentDigests(evidence))
+    return [];
+  return routes.filter((route) => admittedIdentity(route, evidence.identities));
+}
+var OBLIGATIONS, DECISIONS, IMPLEMENTATION_PLAN, CONTRACT_SLICE, ACTIVATION_SLICE, ONE_PLAN, MULTI_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
+var init_execution_plan_conformance = __esm(() => {
+  init_execution_plan_admission_generated();
+  OBLIGATIONS = [
+    "Accepted behavior",
+    "Migration work",
+    "Rollout work",
+    "Rollback work",
+    "Documentation work",
+    "Affected-surface work"
+  ];
+  DECISIONS = [
+    "One shared authorization service owns permission checks for every transport.",
+    "Host-neutral dependency order keeps every intermediate merge supported."
+  ];
+  IMPLEMENTATION_PLAN = `# Implementation Plan
+
+## Accepted obligations
+
+${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
+`)}
+
+## Recorded decisions
+
+- One shared authorization service owns permission checks for every transport.
+- Host-neutral dependency order keeps every intermediate merge supported.
+`;
+  CONTRACT_SLICE = {
+    name: "Contract",
+    purpose: "Package the canonical Execution Planning contract.",
+    boundary: "Contract template, schema registration, and generated assets.",
+    prerequisites: "none",
+    proof: "Package tests compare every installed contract byte.",
+    completion: "The inert contract ships and the repository remains supported."
+  };
+  ACTIVATION_SLICE = {
+    name: "Activation",
+    purpose: "Activate typed Execution Plan review.",
+    boundary: "Review routing, result retention, and CLI presentation.",
+    prerequisites: "Contract",
+    proof: "A CLI integration test observes a retained typed approval.",
+    completion: "The command is auditable and the repository remains supported."
+  };
+  ONE_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "Every edit delivers one contract and one package test proves the shared outcome.",
+    slices: [CONTRACT_SLICE]
+  });
+  MULTI_PLAN = executionPlan({
+    decision: "multiple pull requests",
+    rationale: "Contract delivery and activation are independently reviewable with separate proof.",
+    slices: [CONTRACT_SLICE, ACTIVATION_SLICE]
+  });
+  EXECUTION_PLAN_CONFORMANCE_CASES = [
+    approved("one-coherent-change", "One coherent change records one pull request.", ONE_PLAN, "one_pull_request", ["Contract"]),
+    approved("several-ordered-changes", "Several independent changes record ordered pull requests.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
+    denied("omitted-slicing-decision", "An omitted slicing decision is denied as undecided.", executionPlan({
+      rationale: "Contract and activation are described but the slicing decision is unspecified.",
+      slices: [CONTRACT_SLICE, ACTIVATION_SLICE]
+    }), ["slicing", "decision"]),
+    approved("complete-slice-record", "A complete slice receives a complete record.", ONE_PLAN, "one_pull_request", ["Contract"]),
+    missingFieldCase("missing-purpose", "purpose", "purpose"),
+    missingFieldCase("missing-boundary", "boundary", "boundary"),
+    missingFieldCase("missing-prerequisites", "prerequisites", "prerequisite"),
+    missingFieldCase("missing-proof", "proof", "proof"),
+    missingFieldCase("missing-completion-signal", "completion", "completion signal"),
+    denied("two-independent-purposes", "One slice with two independently valuable purposes is denied.", executionPlan({
+      decision: "one pull request",
+      rationale: "The author put both outcomes together because they touch review code.",
+      slices: [
+        {
+          ...CONTRACT_SLICE,
+          purpose: "Package the contract and independently activate public CLI routing.",
+          boundary: "Contract generation plus unrelated public command activation.",
+          proof: "Package tests prove the contract; CLI tests separately prove activation."
+        }
+      ]
+    }), ["two", "purpose"]),
+    denied("unresolved-authorization-decision", "A formally complete slice leaving authorization ownership undecided is denied.", executionPlan({
+      decision: "one pull request",
+      rationale: "The slice is mechanically complete.",
+      slices: [
+        {
+          ...CONTRACT_SLICE,
+          boundary: "The implementer will decide whether each transport or one service owns authorization."
+        }
+      ]
+    }), ["authorization"]),
+    approved("ordered-schema-before-reader", "Schema addition precedes reader activation.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
+    denied("unsafe-intermediate-merge", "An earlier merge requiring an unmerged handler is denied with its missing prerequisite.", executionPlan({
+      decision: "multiple pull requests",
+      rationale: "The workflow state and handler are in separate pull requests.",
+      slices: [
+        {
+          ...CONTRACT_SLICE,
+          purpose: "Emit a required state that no merged code can handle.",
+          completion: "The new unsupported state is emitted."
+        },
+        {
+          ...ACTIVATION_SLICE,
+          prerequisites: "none",
+          purpose: "Add the only handler for the required state."
+        }
+      ]
+    }), ["supported", "prerequisite"]),
+    approved("many-mechanical-edits", "Many mechanical edits with one proof remain one concern.", ONE_PLAN, "one_pull_request", ["Contract"]),
+    approved("few-files-two-outcomes", "Few edits with two separately provable outcomes become two concerns.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
+    denied("line-count-only-rationale", "Line count alone cannot justify a review boundary.", executionPlan({
+      decision: "one pull request",
+      rationale: "This is reviewable only because it is below 400 changed lines.",
+      slices: [CONTRACT_SLICE]
+    }), ["conceptual", "proof"]),
+    approved("all-obligations-assigned", "Every accepted obligation has an owner.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
+    approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
+    missingObligationCase("missing-behavior-obligation", "Accepted behavior"),
+    missingObligationCase("missing-migration-obligation", "Migration work"),
+    missingObligationCase("missing-rollout-obligation", "Rollout work"),
+    missingObligationCase("missing-rollback-obligation", "Rollback work"),
+    missingObligationCase("missing-documentation-obligation", "Documentation work"),
+    missingObligationCase("missing-affected-surface-obligation", "Affected-surface work"),
+    denied("reopened-authorization-decision", "A slice cannot move the accepted shared authorization boundary.", executionPlan({
+      decision: "one pull request",
+      rationale: "The slice replaces the accepted authorization design.",
+      slices: [{ ...CONTRACT_SLICE, purpose: "Move authorization into each transport." }],
+      decisionText: `- One shared authorization service owns permission checks for every transport: changed to per-transport checks
+- Host-neutral dependency order keeps every intermediate merge supported: unchanged`
+    }), ["authorization"])
+  ];
+});
+
 // src/review/coordinator.ts
 var exports_coordinator = {};
 __export(exports_coordinator, {
@@ -35831,9 +36169,9 @@ async function runReview(input) {
   } catch (error2) {
     return invalidRouteConfigResult(error2, routes.author, policy);
   }
-  if (configuredRoutes !== undefined) {
-    return runRankedRoutes(input, routes.author, policy, configuredRoutes);
-  }
+  const rankedRoutes = rankedReviewRoutes(input, routes.author, configuredRoutes);
+  if (rankedRoutes !== undefined)
+    return runRankedRoutes(input, routes.author, policy, rankedRoutes);
   const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
   const runDeadline = Date.now() + runBoundMs();
@@ -35899,10 +36237,16 @@ async function runReview(input) {
     preferredModelFailure
   });
 }
+function rankedReviewRoutes(input, author, configured) {
+  if (input.kind !== "plan-execution")
+    return configured;
+  return filterExecutionPlanRoutes(input.kind, configured ?? builtInReviewRoutes(input.cwd, author));
+}
 var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, RUNTIME_WIDE_FAILURES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {
   init_run_identity();
   init_result();
+  init_execution_plan_conformance();
   init_packet();
   init_policy2();
   init_runtime();
@@ -39108,7 +39452,7 @@ function readFrontmatterScalar(content, field) {
 }
 
 // src/utils/product-plan-contract.ts
-import { createHash as createHash21 } from "crypto";
+import { createHash as createHash22 } from "crypto";
 import { existsSync as existsSync27, readdirSync as readdirSync14, readFileSync as readFileSync43 } from "fs";
 import nodePath59 from "path";
 function sectionAfterHeading(content, level, id) {
@@ -39174,7 +39518,7 @@ function canonicalizeContractValue(value) {
 }
 function digestParentContract(values) {
   const canonical = CONTRACT_KEYS.map((key) => [key, canonicalizeContractValue(values[key])]);
-  return createHash21("sha256").update(JSON.stringify(canonical)).digest("hex");
+  return createHash22("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 function resolveTicketDirectory(cwd, ticketId) {
   const root = resolveTicketsDirectory(cwd);
@@ -42234,7 +42578,7 @@ var init_project_root = __esm(() => {
 });
 
 // src/claude-plugin/plugin-data.ts
-import { createHash as createHash22 } from "crypto";
+import { createHash as createHash23 } from "crypto";
 import { homedir as homedir7 } from "os";
 import nodePath65 from "path";
 function claudeConfigDirectory(environment = process.env) {
@@ -42251,7 +42595,7 @@ function claudePluginDataDirectory(environment = process.env) {
   return nodePath65.join(claudeConfigDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.pluginsRoot, claudePluginDataId());
 }
 function claudeProjectDigest(canonicalProjectRoot) {
-  return createHash22("sha256").update(canonicalProjectRoot).digest("hex");
+  return createHash23("sha256").update(canonicalProjectRoot).digest("hex");
 }
 function claudeProofDirectory(environment = process.env) {
   return nodePath65.join(claudePluginDataDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.proofs);
@@ -42266,7 +42610,7 @@ var init_plugin_data = __esm(() => {
 });
 
 // src/claude-plugin/migration-state.ts
-import { createHash as createHash23, randomUUID as randomUUID10 } from "crypto";
+import { createHash as createHash24, randomUUID as randomUUID10 } from "crypto";
 import { cpSync, existsSync as existsSync31, mkdirSync as mkdirSync16, readFileSync as readFileSync47, renameSync as renameSync10, rmSync as rmSync9 } from "fs";
 import nodePath66 from "path";
 function createClaudePluginMode(marker) {
@@ -42277,7 +42621,7 @@ function createClaudePluginMode(marker) {
   };
 }
 function digest3(value) {
-  return createHash23("sha256").update(value).digest("hex");
+  return createHash24("sha256").update(value).digest("hex");
 }
 function relocateLegacyState(from, to, rename2 = renameSync10, copy = (source, destination) => {
   cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
@@ -42364,7 +42708,7 @@ function claudeWatchedSettingsDigest(cwd) {
     nodePath66.join(cwd, ".claude/settings.json"),
     nodePath66.join(configDirectory, "settings.json")
   ];
-  const hash = createHash23("sha256");
+  const hash = createHash24("sha256");
   for (const path7 of paths) {
     hash.update(path7);
     hash.update("\x00");
@@ -44245,9 +44589,9 @@ var init_detect = __esm(() => {
 });
 
 // src/utils/cucumber-template-revisions.ts
-import { createHash as createHash24 } from "crypto";
+import { createHash as createHash25 } from "crypto";
 function isShippedCucumberTemplateRevision(content) {
-  const hash = createHash24("sha256").update(content).digest("hex");
+  const hash = createHash25("sha256").update(content).digest("hex");
   return CUCUMBER_TEMPLATE_REVISION_HASHES.has(hash);
 }
 var CUCUMBER_TEMPLATE_REVISION_HASHES;
@@ -55266,7 +55610,7 @@ __export(exports_profile, {
   claudeInstallRequiresMutation: () => claudeInstallRequiresMutation
 });
 import { spawnSync as spawnSync8 } from "child_process";
-import { createHash as createHash25 } from "crypto";
+import { createHash as createHash26 } from "crypto";
 import {
   closeSync as closeSync8,
   existsSync as existsSync39,
@@ -55677,7 +56021,7 @@ function convergePlugin(cwd, scope, effects) {
   }
 }
 function fileSha256(path8) {
-  return createHash25("sha256").update(readFileSync51(path8)).digest("hex");
+  return createHash26("sha256").update(readFileSync51(path8)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
   if (typeof asset.path !== "string" || nodePath82.isAbsolute(asset.path) || asset.path.split(/[\\/]/u).includes("..") || typeof asset.sha256 !== "string") {
@@ -55689,7 +56033,7 @@ function assertInstalledAsset(installPath, asset) {
   }
 }
 function assertInstalledIdentity(identity, inventory, inventoryContent) {
-  if (identity.schema_version !== 1 || identity.plugin_version !== VERSION || identity.inventory_sha256 !== createHash25("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+  if (identity.schema_version !== 1 || identity.plugin_version !== VERSION || identity.inventory_sha256 !== createHash26("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -55980,7 +56324,7 @@ var init_profile = __esm(() => {
 });
 
 // src/claude-plugin/hook-manifest.ts
-import { createHash as createHash26 } from "crypto";
+import { createHash as createHash27 } from "crypto";
 function adaptHookValue(value) {
   if (typeof value === "string") {
     return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
@@ -56039,7 +56383,7 @@ function pluginHookManifest() {
 `;
 }
 function currentClaudePluginHookManifestSha256() {
-  return createHash26("sha256").update(pluginHookManifest()).digest("hex");
+  return createHash27("sha256").update(pluginHookManifest()).digest("hex");
 }
 var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
 var init_hook_manifest = __esm(() => {
@@ -57234,7 +57578,7 @@ __export(exports_profile2, {
   installOpenCodeProfile: () => installOpenCodeProfile,
   generateOpenCodeProfilePlugin: () => generateOpenCodeProfilePlugin
 });
-import { createHash as createHash27 } from "crypto";
+import { createHash as createHash28 } from "crypto";
 import {
   existsSync as existsSync42,
   lstatSync as lstatSync17,
@@ -57291,8 +57635,8 @@ function observeFile2(path8) {
     return { kind: "collision" };
   }
 }
-function sha2564(value) {
-  return createHash27("sha256").update(value).digest("hex");
+function sha2565(value) {
+  return createHash28("sha256").update(value).digest("hex");
 }
 function packagedDispatcherPath() {
   const moduleDirectory = import.meta.dirname;
@@ -57329,13 +57673,13 @@ function installOpenCodeProfile(root) {
       schema_version: 1,
       safeword_version: VERSION,
       plugin_path: "plugins/safeword.js",
-      plugin_sha256: sha2564(pluginBytes),
+      plugin_sha256: sha2565(pluginBytes),
       runtime_path: process.execPath,
       dispatcher_path: paths.dispatcher,
-      dispatcher_sha256: sha2564(dispatcherBytes),
+      dispatcher_sha256: sha2565(dispatcherBytes),
       assets: catalogueAssets.map((asset) => ({
         path: asset.relativePath,
-        sha256: sha2564(asset.content)
+        sha256: sha2565(asset.content)
       }))
     },
     dispatcherBytes,
@@ -57346,7 +57690,7 @@ function managedDispatcherProblem(paths, identity) {
   const dispatcher = observeFile2(paths.dispatcher);
   if (dispatcher.kind === "absent")
     return;
-  if (identity.dispatcher_path === paths.dispatcher && dispatcher.kind === "file" && sha2564(dispatcher.bytes) === identity.dispatcher_sha256) {
+  if (identity.dispatcher_path === paths.dispatcher && dispatcher.kind === "file" && sha2565(dispatcher.bytes) === identity.dispatcher_sha256) {
     return;
   }
   return humanActionRequired("OPENCODE_DISPATCHER_DRIFT", "The OpenCode dispatcher path is not bound to the managed profile; Safeword preserved it.", `Inspect or move ${paths.dispatcher}, then rerun safeword uninstall --agents=opencode.`);
@@ -57387,7 +57731,7 @@ function hasCurrentProfileError(path8, identity) {
 }
 function hasCurrentDispatcher(identity) {
   const dispatcher = observeFile2(identity.dispatcher_path);
-  return dispatcher.kind === "file" && sha2564(dispatcher.bytes) === identity.dispatcher_sha256;
+  return dispatcher.kind === "file" && sha2565(dispatcher.bytes) === identity.dispatcher_sha256;
 }
 function observeIdentityBindings(plugin, identity, profileRemovable) {
   const unavailable = {
@@ -57397,10 +57741,10 @@ function observeIdentityBindings(plugin, identity, profileRemovable) {
     conformant: false,
     profile_removable: profileRemovable
   };
-  if (plugin.kind !== "file" || sha2564(plugin.bytes) !== identity.plugin_sha256) {
+  if (plugin.kind !== "file" || sha2565(plugin.bytes) !== identity.plugin_sha256) {
     return actionRequired("OPENCODE_PLUGIN_DRIFT", "The Safeword OpenCode plugin does not match its identity.", "safeword install --agents=opencode", unavailable);
   }
-  if (identity.safeword_version !== VERSION || sha2564(plugin.bytes) !== sha2564(generateOpenCodeProfilePlugin())) {
+  if (identity.safeword_version !== VERSION || sha2565(plugin.bytes) !== sha2565(generateOpenCodeProfilePlugin())) {
     return actionRequired("OPENCODE_PROFILE_STALE", "The Safeword OpenCode profile does not match this Safeword version.", "safeword install --agents=opencode", unavailable);
   }
   if (!hasCurrentDispatcher(identity)) {
@@ -57412,7 +57756,7 @@ function catalogueObservationProblem(root, identity, profileRemovable) {
   const assets = identity.assets ?? [];
   for (const asset of assets) {
     const observed = observeFile2(nodePath88.join(root, asset.path));
-    if (observed.kind === "file" && sha2564(observed.bytes) === asset.sha256)
+    if (observed.kind === "file" && sha2565(observed.bytes) === asset.sha256)
       continue;
     const missing = observed.kind === "absent";
     if (!missing) {
@@ -57432,7 +57776,7 @@ function catalogueObservationProblem(root, identity, profileRemovable) {
 function profileIsRemovable(paths, plugin, identity) {
   if (managedDispatcherProblem(paths, identity) !== undefined)
     return false;
-  return plugin.kind === "absent" || plugin.kind === "file" && sha2564(plugin.bytes) === identity.plugin_sha256;
+  return plugin.kind === "absent" || plugin.kind === "file" && sha2565(plugin.bytes) === identity.plugin_sha256;
 }
 function readEvidence(directory, parse5) {
   let names;
@@ -57486,7 +57830,7 @@ function hasPassingConformance(directory, identity, opencodeVersion) {
 function observeProtectionEvidence(paths, identity, input) {
   let expectedProjectSha256;
   try {
-    expectedProjectSha256 = input.projectDirectory === undefined ? undefined : sha2564(realpathSync14(input.projectDirectory));
+    expectedProjectSha256 = input.projectDirectory === undefined ? undefined : sha2565(realpathSync14(input.projectDirectory));
   } catch {
     expectedProjectSha256 = "";
   }
@@ -57598,17 +57942,17 @@ function parsedIdentity(file) {
   }
 }
 function classifyWithoutIdentity(plugin, expectedIdentity) {
-  return plugin.kind === "file" && sha2564(plugin.bytes) === expectedIdentity.plugin_sha256 ? { ownership: "partial", detail: "plugin-only" } : { ownership: "collision" };
+  return plugin.kind === "file" && sha2565(plugin.bytes) === expectedIdentity.plugin_sha256 ? { ownership: "partial", detail: "plugin-only" } : { ownership: "collision" };
 }
 function classifyWithIdentity(plugin, identity, expectedPlugin, expectedIdentity) {
   if (plugin.kind === "absent")
     return { ownership: "partial", detail: "identity-only" };
   if (plugin.kind !== "file")
     return { ownership: "collision" };
-  if (sha2564(plugin.bytes) !== identity.plugin_sha256) {
+  if (sha2565(plugin.bytes) !== identity.plugin_sha256) {
     return { ownership: "managed-drift", detail: "plugin-modified" };
   }
-  const matchesExpected = sha2564(plugin.bytes) === sha2564(expectedPlugin) && sameIdentity(identity, expectedIdentity);
+  const matchesExpected = sha2565(plugin.bytes) === sha2565(expectedPlugin) && sameIdentity(identity, expectedIdentity);
   return { ownership: matchesExpected ? "managed" : "managed-drift" };
 }
 function observeProfile(paths, expectedPlugin, expectedIdentity) {
@@ -57668,7 +58012,7 @@ function retiredCatalogueProblem(input, installed, desiredPaths) {
     if (desiredPaths.has(asset.path))
       continue;
     const observed = observeFile2(nodePath88.join(input.root, asset.path));
-    if (observed.kind === "absent" || observed.kind === "file" && sha2564(observed.bytes) === asset.sha256)
+    if (observed.kind === "absent" || observed.kind === "file" && sha2565(observed.bytes) === asset.sha256)
       continue;
     return humanActionRequired("OPENCODE_MANAGED_ASSET_DRIFT", `The retired OpenCode profile asset ${asset.path} was modified; Safeword preserved it.`, `Move ${nodePath88.join(input.root, asset.path)} aside, then rerun safeword install --agents=opencode.`);
   }
@@ -57710,15 +58054,15 @@ function catalogueAssetRecognized(observed, desired, previousHash) {
     return true;
   if (observed.kind !== "file")
     return false;
-  const observedHash = sha2564(observed.bytes);
-  return observedHash === sha2564(desired) || observedHash === previousHash;
+  const observedHash = sha2565(observed.bytes);
+  return observedHash === sha2565(desired) || observedHash === previousHash;
 }
 function managedAssetProblem(root, identity) {
   const assets = identity.assets ?? [];
   for (const asset of assets) {
     const path8 = nodePath88.join(root, asset.path);
     const observed = observeFile2(path8);
-    if (observed.kind === "absent" || observed.kind === "file" && sha2564(observed.bytes) === asset.sha256)
+    if (observed.kind === "absent" || observed.kind === "file" && sha2565(observed.bytes) === asset.sha256)
       continue;
     return humanActionRequired("OPENCODE_MANAGED_ASSET_DRIFT", `The managed OpenCode asset ${path8} was modified; Safeword preserved the profile.`, `Move ${path8} aside, then rerun safeword uninstall --agents=opencode.`);
   }
@@ -57764,7 +58108,7 @@ function dispatcherInstallProblem(paths, input) {
   const dispatcher = observeFile2(paths.dispatcher);
   if (dispatcher.kind === "absent")
     return;
-  if (dispatcher.kind === "file" && sha2564(dispatcher.bytes) === sha2564(input.dispatcherBytes)) {
+  if (dispatcher.kind === "file" && sha2565(dispatcher.bytes) === sha2565(input.dispatcherBytes)) {
     return;
   }
   const identity = parsedIdentity(observeFile2(paths.identity));
@@ -57775,7 +58119,7 @@ function dispatcherMatchesExpected(paths, input) {
   if (input.operation !== "install" || input.dispatcherBytes === undefined)
     return true;
   const dispatcher = observeFile2(paths.dispatcher);
-  return dispatcher.kind === "file" && sha2564(dispatcher.bytes) === sha2564(input.dispatcherBytes);
+  return dispatcher.kind === "file" && sha2565(dispatcher.bytes) === sha2565(input.dispatcherBytes);
 }
 function catalogueMatchesExpected(input) {
   if (input.operation !== "install")
@@ -57783,7 +58127,7 @@ function catalogueMatchesExpected(input) {
   const assets = input.catalogueAssets ?? [];
   return assets.every((asset) => {
     const observed = observeFile2(nodePath88.join(input.root, asset.relativePath));
-    return observed.kind === "file" && sha2564(observed.bytes) === sha2564(asset.content);
+    return observed.kind === "file" && sha2565(observed.bytes) === sha2565(asset.content);
   });
 }
 function terminalUnlessDispatcherNeedsRepair(paths, input, observation) {
@@ -58216,7 +58560,7 @@ __export(exports_conformance, {
   observeOpenCodeVersion: () => observeOpenCodeVersion
 });
 import { spawnSync as spawnSync10 } from "child_process";
-import { createHash as createHash28 } from "crypto";
+import { createHash as createHash29 } from "crypto";
 import { accessSync as accessSync3, constants as constants4, lstatSync as lstatSync18, readFileSync as readFileSync56, realpathSync as realpathSync15, statSync as statSync7 } from "fs";
 import nodePath90 from "path";
 function resolveExecutable(environment) {
@@ -58270,8 +58614,8 @@ function profileRemediation() {
     data: { command: "conformance", agent: "opencode" }
   });
 }
-function sha2565(value) {
-  return createHash28("sha256").update(value).digest("hex");
+function sha2566(value) {
+  return createHash29("sha256").update(value).digest("hex");
 }
 function installedProfile(environment) {
   const root = resolveOpenCodeConfigRoot({
@@ -58289,7 +58633,7 @@ function installedProfile(environment) {
       return;
     const pluginBytes = readFileSync56(paths.plugin);
     const dispatcherBytes = readFileSync56(identity.dispatcher_path);
-    if (sha2565(pluginBytes) !== identity.plugin_sha256 || sha2565(dispatcherBytes) !== identity.dispatcher_sha256) {
+    if (sha2566(pluginBytes) !== identity.plugin_sha256 || sha2566(dispatcherBytes) !== identity.dispatcher_sha256) {
       return;
     }
     return { dispatcherBytes, identity, pluginBytes, root };
@@ -59205,7 +59549,7 @@ var init_doctor = __esm(() => {
 });
 
 // src/cli-protocol/reconciliation.ts
-import { createHash as createHash29 } from "crypto";
+import { createHash as createHash30 } from "crypto";
 import { lstatSync as lstatSync19, readdirSync as readdirSync29, readFileSync as readFileSync57, readlinkSync as readlinkSync3 } from "fs";
 import nodePath91 from "path";
 function actionTargets(action) {
@@ -59256,7 +59600,7 @@ function hashPath(hash, absolutePath, relativePath, readFile3) {
   }
 }
 function preconditionDigestForPaths(cwd, paths, readFile3 = readFileForDigest) {
-  const hash = createHash29("sha256");
+  const hash = createHash30("sha256");
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
     hashField(hash, "target", target);
@@ -59981,7 +60325,7 @@ To wire the warn-only boundary gate, add under repos:
 
 // src/utils/namespace-migration.ts
 import { execSync } from "child_process";
-import { createHash as createHash30 } from "crypto";
+import { createHash as createHash31 } from "crypto";
 import {
   closeSync as closeSync9,
   constants as fsConstants3,
@@ -60030,7 +60374,7 @@ function validateDirectoryRoot(path8, label) {
 }
 function conflictArchivePath(source, relative) {
   const metadata = lstatSync20(source);
-  const digest4 = createHash30("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync60(source)).digest("hex");
+  const digest4 = createHash31("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync60(source)).digest("hex");
   return nodePath98.join(".safeword", "namespace-migration-conflicts-v1", digest4, relative);
 }
 function plannedNamespaceMigrationFiles(cwd) {
@@ -60742,7 +61086,7 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/lifecycle/project-install.ts
-import { createHash as createHash31 } from "crypto";
+import { createHash as createHash32 } from "crypto";
 import {
   closeSync as closeSync10,
   constants as fsConstants4,
@@ -61043,7 +61387,7 @@ function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, op
     ...effects.files.map((effect) => effect.target),
     ...effects.destructive.map((effect) => effect.target)
   ].filter((target) => !target.includes(" \u2192 "));
-  return createHash31("sha256").update(JSON.stringify([
+  return createHash32("sha256").update(JSON.stringify([
     reconciliationDigest,
     effects,
     JSON.stringify(context, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value),
@@ -62046,7 +62390,7 @@ __export(exports_commands, {
   planLifecycle: () => planLifecycle,
   installLifecycle: () => installLifecycle
 });
-import { createHash as createHash32 } from "crypto";
+import { createHash as createHash33 } from "crypto";
 function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
@@ -62238,7 +62582,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   };
   const integrationSurfaces = observedSurfaces.filter((surface) => selected.has(surface.name));
   const surfaces = [{ name: "project", effects: project.plan.effects }, ...integrationSurfaces];
-  const preconditionDigest2 = createHash32("sha256").update(JSON.stringify([
+  const preconditionDigest2 = createHash33("sha256").update(JSON.stringify([
     project.plan.preconditionDigest,
     agents,
     scope,
@@ -62538,7 +62882,7 @@ __export(exports_cleanup, {
   claudeLegacyMutations: () => claudeLegacyMutations,
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
-import { createHash as createHash33, randomUUID as randomUUID12 } from "crypto";
+import { createHash as createHash34, randomUUID as randomUUID12 } from "crypto";
 import {
   closeSync as closeSync11,
   constants as fsConstants5,
@@ -62557,8 +62901,8 @@ import {
   writeSync as writeSync2
 } from "fs";
 import nodePath105 from "path";
-function sha2566(content) {
-  return createHash33("sha256").update(content).digest("hex");
+function sha2567(content) {
+  return createHash34("sha256").update(content).digest("hex");
 }
 function containsJsonComments(content) {
   let found = false;
@@ -62619,9 +62963,9 @@ function claudeLegacyMutations(cwd) {
   return files2;
 }
 function claudeCleanupPreconditionDigest(cwd, mutations) {
-  return sha2566(JSON.stringify(mutations.map((mutation) => {
+  return sha2567(JSON.stringify(mutations.map((mutation) => {
     const target = assertSafeClaudeCleanupTarget(cwd, mutation.path);
-    return [mutation.path, sha2566(readFileSync65(target)), mutation.content];
+    return [mutation.path, sha2567(readFileSync65(target)), mutation.content];
   })));
 }
 function transactionPath(cwd) {
@@ -62646,10 +62990,10 @@ function entryFor(cwd, mutation) {
   const mode = lstatSync22(path8).mode & 511;
   return {
     path: mutation.path,
-    before_sha256: sha2566(before),
+    before_sha256: sha2567(before),
     before_base64: before.toString("base64"),
     before_mode: mode,
-    after_sha256: after === null ? null : sha2566(after),
+    after_sha256: after === null ? null : sha2567(after),
     after_base64: after === null ? null : after.toString("base64"),
     after_mode: after === null ? null : mode,
     ...after === null && {
@@ -62658,7 +63002,7 @@ function entryFor(cwd, mutation) {
   };
 }
 function observedSha(path8) {
-  return existsSync48(path8) ? sha2566(readFileSync65(path8)) : null;
+  return existsSync48(path8) ? sha2567(readFileSync65(path8)) : null;
 }
 function sameFile(left, right) {
   return left.dev === right.dev && left.ino === right.ino;
@@ -62736,7 +63080,7 @@ function descriptorSha256(descriptor, size) {
       break;
     offset += count;
   }
-  return sha2566(bytes.subarray(0, offset));
+  return sha2567(bytes.subarray(0, offset));
 }
 function writeImage(root, relative, expectedSha256, content, options) {
   const opened = openCleanupTarget(root, relative, fsConstants5.O_RDWR);
@@ -63076,7 +63420,7 @@ function expectedCleanupEntryKeys(entry) {
   ].toSorted((left, right) => left.localeCompare(right));
 }
 function hasValidBeforeImage(entry, before) {
-  return hasExactKeys5(entry, expectedCleanupEntryKeys(entry)) && typeof entry.path === "string" && typeof entry.before_sha256 === "string" && SHA256_PATTERN2.test(entry.before_sha256) && sha2566(before) === entry.before_sha256 && Number.isSafeInteger(entry.before_mode) && entry.before_mode >= 0 && entry.before_mode <= 511;
+  return hasExactKeys5(entry, expectedCleanupEntryKeys(entry)) && typeof entry.path === "string" && typeof entry.before_sha256 === "string" && SHA256_PATTERN2.test(entry.before_sha256) && sha2567(before) === entry.before_sha256 && Number.isSafeInteger(entry.before_mode) && entry.before_mode >= 0 && entry.before_mode <= 511;
 }
 function deterministicAfterImage(path8, before) {
   if (path8 === ".claude/settings.json")
@@ -63087,7 +63431,7 @@ function deterministicAfterImage(path8, before) {
   return;
 }
 function hasExpectedAfterImage(entry, expectedBytes) {
-  const expectedHash = expectedBytes === null ? null : sha2566(expectedBytes);
+  const expectedHash = expectedBytes === null ? null : sha2567(expectedBytes);
   const expectedBase64 = expectedBytes === null ? null : expectedBytes.toString("base64");
   const expectedMode = expectedBytes === null ? null : entry.before_mode;
   return entry.after_sha256 === expectedHash && entry.after_base64 === expectedBase64 && entry.after_mode === expectedMode;
@@ -63595,7 +63939,7 @@ function resolveExecutionMode(input) {
 }
 
 // src/test-execution/remote-workflow-contract.ts
-import { createHash as createHash34 } from "crypto";
+import { createHash as createHash35 } from "crypto";
 function mapping(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
 }
@@ -63739,7 +64083,7 @@ function hasFixedUpload(steps) {
 }
 function resultViolations(steps) {
   const reportRun = stepById(steps, "report")?.run;
-  const reportValid = typeof reportRun === "string" && createHash34("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
+  const reportValid = typeof reportRun === "string" && createHash35("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
   return reportValid && hasFixedUpload(steps) ? [] : ["fixed_result_protocol"];
 }
 function hasSecretsKey(value) {
@@ -63983,7 +64327,7 @@ var init_remote_workflow_fs = __esm(() => {
 });
 
 // src/test-execution/remote-workflow-state.ts
-import { createHash as createHash35 } from "crypto";
+import { createHash as createHash36 } from "crypto";
 import nodePath108 from "path";
 function observationError(error2, path8) {
   const code = filesystemErrorCode(error2);
@@ -63998,7 +64342,7 @@ function normalizeLineEndings2(content) {
 `);
 }
 function workflowDigest(content) {
-  return createHash35("sha256").update(normalizeLineEndings2(content)).digest("hex");
+  return createHash36("sha256").update(normalizeLineEndings2(content)).digest("hex");
 }
 function readOpenedWorkflow(descriptor, filesystem) {
   const metadata = filesystem.fstat(descriptor);
@@ -66171,7 +66515,7 @@ var init_plan_gate = __esm(() => {
 });
 
 // src/review/approval-ledger.ts
-import { createHash as createHash36, randomUUID as randomUUID14 } from "crypto";
+import { createHash as createHash37, randomUUID as randomUUID14 } from "crypto";
 import {
   closeSync as closeSync14,
   constants as constants7,
@@ -66214,7 +66558,7 @@ function decisionEvents(ledger) {
 `).map((line) => parseDecisionEvent(line)).filter((event) => event !== undefined);
 }
 function idempotencyKey(identity, supersedesPosition) {
-  return createHash36("sha256").update(JSON.stringify([
+  return createHash37("sha256").update(JSON.stringify([
     identity.ticket,
     identity.planDigest,
     identity.decision,
@@ -66420,7 +66764,7 @@ var exports_plan_approval = {};
 __export(exports_plan_approval, {
   approvePlanResult: () => approvePlanResult
 });
-import { createHash as createHash37, randomUUID as randomUUID15 } from "crypto";
+import { createHash as createHash38, randomUUID as randomUUID15 } from "crypto";
 import {
   appendFileSync as appendFileSync3,
   existsSync as existsSync57,
@@ -66438,7 +66782,7 @@ function interruptApprovalForTest(boundary) {
   }
 }
 function planDigest(content) {
-  return createHash37("sha256").update(content).digest("hex");
+  return createHash38("sha256").update(content).digest("hex");
 }
 function readContext2(cwd, ticketId) {
   const ticketDirectory = resolveTicketDirectory(cwd, ticketId);
@@ -71978,7 +72322,7 @@ async function reviewRunHandler(invocation) {
       errors: [
         {
           code: "REVIEW_KIND_INVALID",
-          message: "Review kind must be quality-review, scenario-gate, plan-implementation, or executable-red.",
+          message: "Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, or executable-red.",
           retryable: false
         }
       ]
@@ -71988,8 +72332,8 @@ async function reviewRunHandler(invocation) {
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")
     return runReviewWorker(invocation);
-  if (rawKind === "plan-implementation") {
-    const targetFailure = invalidImplementationPlanTarget(invocation.cwd, targets);
+  if (rawKind === "plan-implementation" || rawKind === "plan-execution") {
+    const targetFailure = invalidPlanningTarget(invocation.cwd, rawKind, targets);
     if (targetFailure !== undefined)
       return targetFailure;
   }
@@ -71998,32 +72342,36 @@ async function reviewRunHandler(invocation) {
     return invalidOperand("review run", execution.message);
   return startReviewInBackground(invocation, rawKind, targets, context, execution);
 }
-function invalidImplementationPlanTarget(cwd, targets) {
+function invalidPlanningTarget(cwd, kind, targets) {
   if (targets.length !== 1)
     return;
+  const filename = kind === "plan-execution" ? "execution-plan.md" : "impl-plan.md";
+  const label = kind === "plan-execution" ? "Execution Plan" : "Implementation Plan";
   const ticketsDirectory = resolveTicketsDirectory(cwd);
   const [rawTarget] = targets;
   if (rawTarget === undefined)
     return;
-  const target = nodePath50.resolve(cwd, rawTarget);
-  const relativeTarget = nodePath50.relative(ticketsDirectory, target);
-  const segments = relativeTarget.split(nodePath50.sep);
-  const ticketDirectory = segments[0];
-  if (segments.length === 2 && ticketDirectory !== undefined && ticketDirectory !== "" && ticketDirectory !== "." && segments[1] === "impl-plan.md" && existsSync17(nodePath50.join(ticketsDirectory, ticketDirectory, "ticket.md"))) {
+  if (isTicketOwnedPlanningTarget(cwd, ticketsDirectory, rawTarget, filename))
     return;
-  }
   const ticketsLabel = nodePath50.relative(cwd, ticketsDirectory) || ticketsDirectory;
   return createResult({
     state: "failed",
     errors: [
       {
         code: "REVIEW_PLAN_TARGET_INVALID",
-        message: `Review the ticket-owned Implementation Plan at ${ticketsLabel}/<ticket>/impl-plan.md. Host-private and other non-ticket copies are not authoritative.`,
+        message: `Review the ticket-owned ${label} at ${ticketsLabel}/<ticket>/${filename}. Host-private and other non-ticket copies are not authoritative.`,
         retryable: false
       }
     ],
-    data: { command: "review run", status: "failed", review_kind: "plan-implementation" }
+    data: { command: "review run", status: "failed", review_kind: kind }
   });
+}
+function isTicketOwnedPlanningTarget(cwd, ticketsDirectory, rawTarget, filename) {
+  const target = nodePath50.resolve(cwd, rawTarget);
+  const relativeTarget = nodePath50.relative(ticketsDirectory, target);
+  const segments = relativeTarget.split(nodePath50.sep);
+  const ticketDirectory = segments[0];
+  return segments.length === 2 && ticketDirectory !== undefined && ticketDirectory !== "" && ticketDirectory !== "." && segments[1] === filename && existsSync17(nodePath50.join(ticketsDirectory, ticketDirectory, "ticket.md"));
 }
 async function executableRedGateHandler(invocation) {
   const scenario = invocation.options.scenario;
