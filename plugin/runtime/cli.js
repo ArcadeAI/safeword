@@ -66144,10 +66144,14 @@ function designApprovalEnabled(cwd) {
   if (!existsSync57(path8))
     return false;
   try {
-    const config = JSON.parse(readFileSync77(path8, "utf8"));
+    const parsed2 = JSON.parse(readFileSync77(path8, "utf8"));
+    if (typeof parsed2 !== "object" || parsed2 === null || Array.isArray(parsed2)) {
+      throw new Error("configuration root must be an object");
+    }
+    const config = parsed2;
     return config.designApprovalGate === true;
   } catch {
-    return false;
+    throw new Error("Could not determine whether human design approval is required because .safeword/config.json is unreadable or invalid. Repair the configuration before approving the plan.");
   }
 }
 function currentReview(context) {
