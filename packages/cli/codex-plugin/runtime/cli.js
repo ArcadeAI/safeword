@@ -31225,6 +31225,12 @@ records as context around the one \`impl-plan.md\` work artifact.
   Also make each applicable crash boundary, cutover boundary, and compatibility
   policy explicit. Block approval and name every missing decision for the
   applicable concern rather than accepting a component label as a design.
+- **Measurement design ownership:** The Product Plan owns each promised target,
+  affected population, and measurement condition. The Implementation Plan owns
+  the measurement origin, method, validity safeguards, and failure behavior.
+  Block approval when the Product-owned target or population is changed. Exact
+  instrumentation commands belong in Execution Planning. Block unresolved
+  safeguards and name the missing validity decision.
 - **Deviations and change triggers:** Intentional conflicts belong in Known
   deviations with a reason. Assessment triggers must name evidence that would
   justify revisiting a load-bearing choice.
