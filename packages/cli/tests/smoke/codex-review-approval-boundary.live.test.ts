@@ -11,8 +11,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -59,8 +59,72 @@ function decision(
   return JSON.parse(output) as { decision?: string; matchedRules?: unknown[] };
 }
 
+const ORDINARY_REVIEW_KINDS = ['quality-review', 'scenario-gate', 'plan-implementation'];
+
+function expectOrdinaryDispatchesAllowed(codex: string, rules: string[], prefix: string[]): void {
+  const variants = [
+    ['--agent-handoff', '--json', '--', 'packages/cli/package.json'],
+    [
+      '--agent-handoff',
+      '--json',
+      '--context',
+      'README.md',
+      '--',
+      'packages/cli/package.json',
+      'packages/cli/src/review/contract.ts',
+    ],
+    ['--agent-handoff', '--json', '--quiet', '--', 'packages/cli/package.json'],
+  ];
+  for (const kind of ORDINARY_REVIEW_KINDS) {
+    for (const variant of variants) {
+      const result = decision(codex, rules, [...prefix, 'run', kind, ...variant]);
+      expect(result.decision).toBe('allow');
+      expect(result.matchedRules).toEqual(expect.any(Array));
+      expect(result.matchedRules?.length).toBeGreaterThan(0);
+    }
+  }
+}
+
+function expectRuntimeRejectsExecutionOptions(
+  codex: string,
+  rules: string[],
+  prefix: string[],
+): void {
+  const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-boundary-'));
+  writeFileSync(nodePath.join(fixture, 'review-input.md'), 'bounded review input\n');
+  try {
+    for (const kind of ORDINARY_REVIEW_KINDS) {
+      for (const option of [
+        ['--execute', '["sh","-c","true"]'],
+        ['--proof-cwd', '.'],
+        ['--worker-job-id', 'forged-worker'],
+      ]) {
+        const command = [
+          ...prefix,
+          'run',
+          kind,
+          '--json',
+          '--no-input',
+          '--cwd',
+          fixture,
+          ...option,
+          '--',
+          'review-input.md',
+        ];
+        expect(decision(codex, rules, command).decision).toBe('allow');
+        const rejected = run(command[0] ?? '', command.slice(1));
+        expect(rejected.status, `${rejected.stdout ?? ''}${rejected.stderr ?? ''}`).not.toBe(0);
+        expect(rejected.stdout).toContain('is only valid for executable-red reviews');
+        expect(existsSync(nodePath.join(fixture, '.safeword', 'reviews'))).toBe(false);
+      }
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+}
+
 describe.skipIf(!CAN_RUN)('live smoke: installed Codex review approval boundary', () => {
-  it('allows only non-executing review dispatches for the installed runtime', () => {
+  it('pre-authorizes ordinary dispatch while the runtime rejects execution-only flags', () => {
     const codex = process.env.SMOKE_CODEX_BIN ?? 'codex';
     const bun = requireSuccess(
       run('bun', ['-e', 'console.log(process.execPath)']),
@@ -91,27 +155,10 @@ describe.skipIf(!CAN_RUN)('live smoke: installed Codex review approval boundary'
     // command with the explicit environment required by the installed rule.
     const prefix = ['/usr/bin/env', 'SAFEWORD_REVIEW_PROGRESS=1', bun, runtime, 'review'];
 
-    const allowedArgumentVariants = [
-      ['--agent-handoff', '--json', '--', 'packages/cli/package.json'],
-      [
-        '--agent-handoff',
-        '--json',
-        '--context',
-        'README.md',
-        '--',
-        'packages/cli/package.json',
-        'packages/cli/src/review/contract.ts',
-      ],
-      ['--agent-handoff', '--json', '--quiet', '--', 'packages/cli/package.json'],
-    ];
-    for (const kind of ['quality-review', 'scenario-gate', 'plan-implementation']) {
-      for (const argumentVariant of allowedArgumentVariants) {
-        const result = decision(codex, rules, [...prefix, 'run', kind, ...argumentVariant]);
-        expect(result.decision).toBe('allow');
-        expect(result.matchedRules).toEqual(expect.any(Array));
-        expect(result.matchedRules?.length).toBeGreaterThan(0);
-      }
-    }
+    expectOrdinaryDispatchesAllowed(codex, rules, prefix);
+    // Prefix policy deliberately authorizes the ordinary review family; the
+    // typed runtime owns option-level rejection before any job starts.
+    expectRuntimeRejectsExecutionOptions(codex, rules, prefix);
     for (const command of [
       [...prefix, 'status', 'example-id'],
       [

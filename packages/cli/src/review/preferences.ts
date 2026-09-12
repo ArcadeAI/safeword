@@ -95,6 +95,14 @@ export function setScopedReviewRoutes(
   routes: readonly { readonly reviewer: ReviewAgent; readonly model?: string }[],
 ): void {
   const path = scopedConfigPath(cwd, scope);
+  const validated = parseConfiguredReviewRoutes(
+    { crossAgentReviewRoutes: { [author]: routes } },
+    author,
+    path,
+  );
+  if (validated === undefined) {
+    throw new ReviewRouteConfigError(`Invalid crossAgentReviewRoutes configuration at ${path}.`);
+  }
   const config = readConfigFile(path);
   const current = config.crossAgentReviewRoutes;
   if (current !== undefined && (!isRecord(current) || Array.isArray(current))) {
@@ -103,7 +111,7 @@ export function setScopedReviewRoutes(
     );
   }
   const routeMap = current === undefined ? {} : { ...current };
-  routeMap[author] = routes.map(route => ({
+  routeMap[author] = validated.map(route => ({
     reviewer: route.reviewer,
     ...(route.model !== undefined && { model: route.model }),
   }));

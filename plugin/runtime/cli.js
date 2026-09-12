@@ -31111,13 +31111,17 @@ function readConfigFile(path7) {
 }
 function setScopedReviewRoutes(cwd, scope, author, routes) {
   const path7 = scopedConfigPath(cwd, scope);
+  const validated = parseConfiguredReviewRoutes({ crossAgentReviewRoutes: { [author]: routes } }, author, path7);
+  if (validated === undefined) {
+    throw new ReviewRouteConfigError(`Invalid crossAgentReviewRoutes configuration at ${path7}.`);
+  }
   const config = readConfigFile(path7);
   const current = config.crossAgentReviewRoutes;
   if (current !== undefined && (!isRecord4(current) || Array.isArray(current))) {
     throw new ReviewRouteConfigError(`Invalid Safeword configuration at ${path7}: crossAgentReviewRoutes must be an object.`);
   }
   const routeMap = current === undefined ? {} : { ...current };
-  routeMap[author] = routes.map((route) => ({
+  routeMap[author] = validated.map((route) => ({
     reviewer: route.reviewer,
     ...route.model !== undefined && { model: route.model }
   }));
@@ -70328,7 +70332,7 @@ function redExecutionRequest(kind, options) {
     return new Error("Executable-red review requires --execute with exact argv.");
   const cwd = options.proofCwd ?? ".";
   if (typeof cwd !== "string" || cwd.trim() === "")
-    return new Error("Executable-red review requires a project-contained --proof-cwd.");
+    return new Error("Executable-red review requires a non-empty --proof-cwd; execution validates project containment.");
   const evidenceClass = options.evidenceClass;
   if (typeof evidenceClass !== "string" || !RED_EVIDENCE_CLASSES.has(evidenceClass))
     return new Error("Executable-red review requires a valid --evidence-class.");
@@ -70571,6 +70575,13 @@ async function reviewPrReadinessHandler(invocation) {
     return createResult({
       state: "healthy",
       changed: true,
+      findings: [
+        {
+          code: "PR_READINESS_REPORTED",
+          message: `Published ${outcome.state} readiness verdict: ${outcome.description}`,
+          severity: outcome.state === "success" ? "info" : "warning"
+        }
+      ],
       effects: {
         network: [{ kind: "commit-status", target: "GitHub", operation: "read-write" }]
       },
@@ -72019,6 +72030,15 @@ var commandFamilies = [
   { route: "migrate", description: "Compatibility migration commands", visibility: "hidden" },
   { route: "hook", description: "Run packaged Safeword hooks", visibility: "hidden" }
 ];
+function optionCompatibilityRoutes(definitions) {
+  return definitions.flatMap((definition) => definition.registration.options.flatMap((option) => option.compatibilityReplacement === undefined ? [] : [
+    {
+      route: `${definition.name} ${option.flags}`,
+      replacement: `${definition.name} ${option.compatibilityReplacement}`,
+      retention: "indefinite"
+    }
+  ]));
+}
 var compatibilityRoutes = [
   { route: "bare safeword", replacement: "status", retention: "indefinite" },
   ...ALIASES.map((definition) => ({
@@ -72026,13 +72046,8 @@ var compatibilityRoutes = [
     replacement: definition.compatibility?.replacement ?? definition.aliasFor ?? "",
     retention: "indefinite"
   })),
-  ...CANONICAL_COMMANDS.flatMap((definition) => definition.registration.options.flatMap((option) => option.compatibilityReplacement === undefined ? [] : [
-    {
-      route: `${definition.name} ${option.flags}`,
-      replacement: `${definition.name} ${option.compatibilityReplacement}`,
-      retention: "indefinite"
-    }
-  ]))
+  ...optionCompatibilityRoutes(CANONICAL_COMMANDS),
+  ...optionCompatibilityRoutes(ALIASES)
 ];
 var commandNames = new Set(commandCatalog.map((definition) => definition.name));
 function familyClassification(family) {
@@ -72082,7 +72097,7 @@ function findCommandDefinition(name) {
   return definition;
 }
 function aliasesFor(name) {
-  return ALIASES.filter((definition) => definition.aliasFor === name).map((definition) => definition.name);
+  return ALIASES.filter((definition) => definition.aliasFor === name && definition.compatibility?.replacement === undefined).map((definition) => definition.name);
 }
 function capability(definition) {
   return {

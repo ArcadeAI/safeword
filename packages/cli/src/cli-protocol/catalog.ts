@@ -976,14 +976,10 @@ export interface CompatibilityRoute {
   readonly retention: 'indefinite';
 }
 
-export const compatibilityRoutes: readonly CompatibilityRoute[] = [
-  { route: 'bare safeword', replacement: 'status', retention: 'indefinite' },
-  ...ALIASES.map(definition => ({
-    route: definition.name,
-    replacement: definition.compatibility?.replacement ?? definition.aliasFor ?? '',
-    retention: 'indefinite' as const,
-  })),
-  ...CANONICAL_COMMANDS.flatMap(definition =>
+function optionCompatibilityRoutes(
+  definitions: readonly CommandDefinition[],
+): CompatibilityRoute[] {
+  return definitions.flatMap(definition =>
     definition.registration.options.flatMap(option =>
       option.compatibilityReplacement === undefined
         ? []
@@ -995,7 +991,18 @@ export const compatibilityRoutes: readonly CompatibilityRoute[] = [
             },
           ],
     ),
-  ),
+  );
+}
+
+export const compatibilityRoutes: readonly CompatibilityRoute[] = [
+  { route: 'bare safeword', replacement: 'status', retention: 'indefinite' },
+  ...ALIASES.map(definition => ({
+    route: definition.name,
+    replacement: definition.compatibility?.replacement ?? definition.aliasFor ?? '',
+    retention: 'indefinite' as const,
+  })),
+  ...optionCompatibilityRoutes(CANONICAL_COMMANDS),
+  ...optionCompatibilityRoutes(ALIASES),
 ];
 
 const commandNames = new Set(commandCatalog.map(definition => definition.name));
@@ -1052,9 +1059,10 @@ export function findCommandDefinition(name: string): CommandDefinition {
 }
 
 function aliasesFor(name: string): string[] {
-  return ALIASES.filter(definition => definition.aliasFor === name).map(
-    definition => definition.name,
-  );
+  return ALIASES.filter(
+    definition =>
+      definition.aliasFor === name && definition.compatibility?.replacement === undefined,
+  ).map(definition => definition.name);
 }
 
 function capability(definition: CommandDefinition): Record<string, unknown> {

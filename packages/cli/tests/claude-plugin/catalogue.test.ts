@@ -56,6 +56,19 @@ describe('Claude plugin catalogue generation', () => {
     expect(packagedHandbook?.content).not.toMatch(/\.safeword\/(?:guides|scripts)\//u);
   });
 
+  it('keeps the complete dispatcher bundle compatible with its declared Node 18 target', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+
+    expect(
+      assets.find(asset => asset.relativePath === 'runtime/dispatch.js')?.content,
+    ).not.toContain('.toSorted(');
+  });
+
   it('qualifies collision-prone workflows while preserving public skill references', () => {
     const assets = generateClaudePluginAssets({
       cliBundle: 'console.log("stub cli bundle");',

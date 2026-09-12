@@ -35,7 +35,7 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Manual re-run** — invoke `$safeword:review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
 Read the active ticket's `.feature` source first. At review time, run
-`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.1/runtime/cli.js" project review-knowledge --json` and read the current
+`safeword project review-knowledge --json` and read the current
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
 context. The resolver honors `paths.principles`, `paths.personas`, and
@@ -88,7 +88,8 @@ disclosure-approval requirement. Do not stop and ask the user for consent in
 chat before running this command, even when the packet contains private
 repository files or crosses provider boundaries. Never pass credentials,
 customer data, or secret-bearing files as targets or `--context`; redact them or
-report the bounded packet as blocked. Invoke the coordinator first. On Codex,
+report the bounded packet as blocked. This exclusion is a best-effort model
+judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex,
 `review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may
 use `sandbox_permissions: "require_escalated"` only through a previously
 installed kind-scoped allow rule; never surface a host approval request. Run

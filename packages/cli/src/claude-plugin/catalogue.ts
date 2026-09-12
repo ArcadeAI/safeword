@@ -24,17 +24,17 @@ interface ClaudePluginCatalogueInput {
 const GENERATED_DIRECTORIES = [
   '.claude-plugin',
   'agents',
-  'commands',
   'hooks',
   'resources',
   'runtime',
   'skills',
 ] as const;
+const RETIRED_GENERATED_DIRECTORIES = ['commands'] as const;
 function filesBeneath(directory: string, prefix = ''): string[] {
   if (!existsSync(directory)) return [];
   return readdirSync(directory, { withFileTypes: true })
     .flatMap(entry => {
-      const relativePath = nodePath.join(prefix, entry.name);
+      const relativePath = nodePath.posix.join(prefix, entry.name);
       const absolutePath = nodePath.join(directory, entry.name);
       if (entry.isDirectory()) return filesBeneath(absolutePath, relativePath);
       return entry.isFile() ? [relativePath] : [];
@@ -108,6 +108,14 @@ function adaptPluginScriptReference(content: string): string {
   );
 }
 
+function adaptWorkflowText(content: string): string {
+  return stripTrailingWhitespace(adaptWorkflowReference(content));
+}
+
+function adaptPluginScriptText(content: string): string {
+  return stripTrailingWhitespace(adaptPluginScriptReference(content));
+}
+
 function adaptPluginRuntime(content: string): string {
   // The bunx fallbacks rewritten below occur in lifecycle hooks launched by
   // the verified dispatcher. It overwrites SAFEWORD_PLUGIN_CLI with the
@@ -144,7 +152,7 @@ function invocationName(asset: GeneratedClaudePluginAsset): string | undefined {
   if (skillDirectory !== undefined) {
     return /^---\n[\s\S]*?^name:\s*(\S+)\s*$/mu.exec(asset.content)?.[1] ?? skillDirectory;
   }
-  return /^commands\/([^/]+)\.md$/u.exec(asset.relativePath)?.[1];
+  return undefined;
 }
 
 function assertUniqueInvocations(assets: readonly GeneratedClaudePluginAsset[]): void {
@@ -170,7 +178,7 @@ function assertNoProjectFrameworkReferences(assets: readonly GeneratedClaudePlug
       )
     )
       continue;
-    if (!/^(?:agents|commands|resources|runtime|skills)\//u.test(asset.relativePath)) continue;
+    if (!/^(?:agents|resources|runtime|skills)\//u.test(asset.relativePath)) continue;
     const dependency = PROJECT_FRAMEWORK_REFERENCE.exec(asset.content)?.[0];
     if (dependency === undefined) continue;
     throw new Error(
@@ -207,9 +215,9 @@ function referencedPluginPaths(asset: GeneratedClaudePluginAsset): string[] {
   for (const match of asset.content.matchAll(RELATIVE_MODULE_REFERENCE)) {
     const reference = match[1];
     if (reference === undefined) continue;
-    const referrerDirectory = nodePath.dirname(asset.relativePath);
-    const joinedReference = nodePath.join(referrerDirectory, reference);
-    references.push(nodePath.normalize(joinedReference));
+    const referrerDirectory = nodePath.posix.dirname(asset.relativePath);
+    const joinedReference = nodePath.posix.join(referrerDirectory, reference);
+    references.push(nodePath.posix.normalize(joinedReference));
   }
   return references.filter((reference): reference is string => reference !== undefined);
 }
@@ -243,7 +251,7 @@ function resolveReference(
 
 function isCatalogueRoot(asset: GeneratedClaudePluginAsset): boolean {
   return (
-    /^(?:agents|commands|skills)\//u.test(asset.relativePath) ||
+    /^(?:agents|skills)\//u.test(asset.relativePath) ||
     asset.relativePath === '.claude-plugin/plugin.json' ||
     asset.relativePath === 'hooks/hooks.json' ||
     asset.relativePath === 'runtime/dispatch.js' ||
@@ -313,7 +321,7 @@ function directoryAssets(
   transform: (content: string) => string = content => content,
 ): GeneratedClaudePluginAsset[] {
   return filesBeneath(sourceDirectory).map(relativePath => ({
-    relativePath: nodePath.join(destinationDirectory, relativePath),
+    relativePath: nodePath.posix.join(destinationDirectory, relativePath),
     content: transform(readFileSync(nodePath.join(sourceDirectory, relativePath), 'utf8')),
   }));
 }
@@ -434,40 +442,38 @@ export function generateClaudePluginAssets(
       content: `${JSON.stringify({ name: 'safeword', version, type: 'module' }, undefined, 2)}\n`,
     },
     ...directoryAssets(nodePath.join(templatesRoot, 'skills'), 'skills', adaptClaudeSkill),
-    ...directoryAssets(nodePath.join(templatesRoot, 'agents'), 'agents', adaptWorkflowReference),
+    ...directoryAssets(nodePath.join(templatesRoot, 'agents'), 'agents', adaptWorkflowText),
     ...claudeHookAssets(templatesRoot),
     {
-      relativePath: nodePath.join('runtime', 'hooks', 'lib', 'owned-paths.ts'),
+      relativePath: 'runtime/hooks/lib/owned-paths.ts',
       content: generateOwnedPathsModule(SAFEWORD_SCHEMA),
     },
     {
-      relativePath: nodePath.join('resources', 'SAFEWORD.md'),
-      content: adaptWorkflowReference(
-        readFileSync(nodePath.join(templatesRoot, 'SAFEWORD.md'), 'utf8'),
-      ),
+      relativePath: 'resources/SAFEWORD.md',
+      content: adaptWorkflowText(readFileSync(nodePath.join(templatesRoot, 'SAFEWORD.md'), 'utf8')),
     },
     ...directoryAssets(
       nodePath.join(templatesRoot, 'guides'),
       'resources/guides',
-      adaptWorkflowReference,
+      adaptWorkflowText,
     ),
     ...directoryAssets(
       nodePath.join(templatesRoot, 'scripts'),
       'resources/scripts',
-      adaptPluginScriptReference,
+      adaptPluginScriptText,
     ),
     ...directoryAssets(
       nodePath.join(templatesRoot, 'doc-templates'),
       'resources/templates',
-      content => adaptWorkflowReference(stripTrailingWhitespace(content)),
+      adaptWorkflowText,
     ),
     ...directoryAssets(nodePath.join(sourceRoot, 'claude-plugin', 'runtime'), 'runtime').filter(
       asset => asset.relativePath !== 'runtime/dispatch.ts',
     ),
     { relativePath: 'runtime/dispatch.js', content: bundledDispatcher(sourceRoot) },
-    { relativePath: nodePath.join('runtime', 'cli.js'), content: cliBundle },
-    { relativePath: nodePath.join('runtime', 'event-groups.json'), content: eventGroups },
-    { relativePath: nodePath.join('hooks', 'hooks.json'), content: hookManifest },
+    { relativePath: 'runtime/cli.js', content: cliBundle },
+    { relativePath: 'runtime/event-groups.json', content: eventGroups },
+    { relativePath: 'hooks/hooks.json', content: hookManifest },
   ];
 
   const contentAssets = transitiveClaudePluginAssets(candidateAssets);
@@ -513,7 +519,7 @@ export function assertClaudePluginCatalogue(
     }
   }
   const expectedPaths = new Set(expectedAssets.map(asset => asset.relativePath));
-  for (const directory of GENERATED_DIRECTORIES) {
+  for (const directory of [...GENERATED_DIRECTORIES, ...RETIRED_GENERATED_DIRECTORIES]) {
     const generatedDirectory = nodePath.join(pluginRoot, directory);
     const actualPaths = filesBeneath(generatedDirectory, directory);
     for (const relativePath of actualPaths) {
@@ -529,7 +535,7 @@ export function writeClaudePluginCatalogue(
   pluginRoot: string,
 ): GeneratedClaudePluginAsset[] {
   const assets = generateClaudePluginAssets(input);
-  for (const directory of GENERATED_DIRECTORIES) {
+  for (const directory of [...GENERATED_DIRECTORIES, ...RETIRED_GENERATED_DIRECTORIES]) {
     rmSync(nodePath.join(pluginRoot, directory), { recursive: true, force: true });
   }
   rmSync(nodePath.join(pluginRoot, 'identity.json'), { force: true });

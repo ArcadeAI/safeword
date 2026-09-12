@@ -135,6 +135,17 @@ describe('review route preferences', () => {
     });
   });
 
+  it.each([
+    { label: 'empty routes', routes: [] },
+    { label: 'invalid model', routes: [{ reviewer: 'codex' as const, model: 'bad model' }] },
+  ])('refuses $label before writing scoped preferences', ({ routes }) => {
+    const { cwd, user } = fixture();
+    expect(() => {
+      setScopedReviewRoutes(cwd, 'user', 'claude', routes);
+    }).toThrow('Invalid crossAgentReviewRoutes configuration');
+    expect(existsSync(user)).toBe(false);
+  });
+
   it('refuses to overwrite malformed scoped configuration', () => {
     const { cwd, user } = fixture();
     mkdirSync(nodePath.dirname(user), { recursive: true });

@@ -126,6 +126,7 @@ function dispatchEvent(
     readonly homeDirectory?: string;
     readonly hookInput?: Readonly<Record<string, unknown>>;
     readonly omitProjectDirectory?: boolean;
+    readonly omitPluginData?: boolean;
     readonly pluginRoot?: string;
   },
 ) {
@@ -138,6 +139,7 @@ function dispatchEvent(
     CLAUDE_PROJECT_DIR: projectDirectory,
     HOME: options.homeDirectory ?? temporary('safeword-plugin-empty-home-'),
   };
+  if (options.omitPluginData === true) delete environment.CLAUDE_PLUGIN_DATA;
   if (options.omitProjectDirectory === true) delete environment.CLAUDE_PROJECT_DIR;
   if (configDirectory === undefined) delete environment.CLAUDE_CONFIG_DIR;
   else environment.CLAUDE_CONFIG_DIR = configDirectory;
@@ -313,6 +315,30 @@ describe('Claude plugin dispatcher', () => {
     const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
     expect(
       existsSync(nodePath.join(pluginData, 'execution-proofs-v2', `${projectDigest}.json`)),
+    ).toBe(true);
+  });
+
+  it('records prompt proof without requiring the host plugin-data variable', () => {
+    const projectDirectory = temporary('safeword-plugin-proof-fallback-project-');
+    const pluginData = temporary('safeword-plugin-unused-data-');
+    const configDirectory = temporary('safeword-plugin-proof-fallback-config-');
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'proof-fallback', {
+      event: 'UserPromptSubmit',
+      omitPluginData: true,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).not.toContain('CLAUDE_PLUGIN_DATA is required');
+    const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+    expect(
+      existsSync(
+        nodePath.join(
+          configDirectory,
+          'plugins/data/safeword-safeword/execution-proofs-v2',
+          `${projectDigest}.json`,
+        ),
+      ),
     ).toBe(true);
   });
 
@@ -1083,8 +1109,37 @@ describe('Claude plugin dispatcher', () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       decision: 'block',
       reason: 'earlier denial',
+      hookSpecificOutput: {
+        additionalContext:
+          'Safeword stopped this event group after a sibling hook failed; later checks did not run.',
+      },
     });
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+  });
+
+  it('reports when sibling output is not parseable as authorization JSON', () => {
+    const projectDirectory = temporary('safeword-plugin-unparseable-project-');
+    const pluginData = temporary('safeword-plugin-unparseable-data-');
+    const configDirectory = temporary('safeword-plugin-unparseable-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-unparseable-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf 'noise\n{"decision":"block"}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'unparseable', {
+      pluginRoot,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('unparseable UserPromptSubmit sibling-hook output');
+    expect(result.stdout).toContain('noise');
   });
 
   it('preserves legacy delivery when project and user declarations differ', () => {

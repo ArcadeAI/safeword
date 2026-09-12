@@ -5507,11 +5507,16 @@ function setupRanForSession(pluginData, sessionId, pluginRoot, projectRoot, iden
 }
 function recordExecutionProof(event, pluginRoot, identity, input) {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
-  const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
   if (
     event === 'SessionStart' &&
-    setupRanForSession(pluginData, input.session_id, pluginRoot, projectRoot, identity)
+    setupRanForSession(
+      requiredEnvironment('CLAUDE_PLUGIN_DATA'),
+      input.session_id,
+      pluginRoot,
+      projectRoot,
+      identity,
+    )
   ) {
     return;
   }
@@ -5652,6 +5657,10 @@ function parseHookOutput(event, target, trimmed) {
     return parsed;
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
+    process.stderr.write(
+      `Safeword received unparseable ${event} sibling-hook output; treating it as context, not authorization.
+`,
+    );
     const output = specificOutput(target, event);
     output.additionalContext = appendUniqueText(output.additionalContext, trimmed);
     return void 0;
@@ -5704,7 +5713,7 @@ function stableJson(value) {
   if (Array.isArray(value)) return `[${value.map(child => stableJson(child)).join(',')}]`;
   if (typeof value !== 'object' || value === null) return JSON.stringify(value) ?? 'undefined';
   return `{${Object.entries(value)
-    .toSorted(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`)
     .join(',')}}`;
 }
@@ -5850,7 +5859,7 @@ function runEventHooks(event, hooks, standardInput, response) {
     if (hook.type !== 'command' || typeof hook.command !== 'string') {
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
-    const result = runFunctionalCommand(['bash', '-lc', hook.command], standardInput, true);
+    const result = runFunctionalCommand(['bash', '-c', hook.command], standardInput, true);
     if (result.status !== 0) {
       return event === 'UserPromptSubmit' ? result.status : 2;
     }
@@ -5867,6 +5876,11 @@ function runEventGroup(event, eventGroupsContent, hookInput, standardInput) {
     const status = runEventHooks(event, hooks, standardInput, response);
     if (status !== 0) {
       if (event === 'UserPromptSubmit' && Object.keys(response).length > 0) {
+        const output = specificOutput(response, event);
+        output.additionalContext = appendUniqueText(
+          output.additionalContext,
+          'Safeword stopped this event group after a sibling hook failed; later checks did not run.',
+        );
         return {
           postExecutionEligible: false,
           status: 0,

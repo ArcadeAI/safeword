@@ -14,7 +14,7 @@ Deep review with research to verify a work-product — code, docs, specs, plans,
 
 ## Invocation log
 
-Required before marking done a ticket with **two or more RGR loops**. The line below logs a current-run entry to `skill-invocations.log` under the project namespace root so the done-gate hook can verify /quality-review actually ran; Claude Code expands the `!` line automatically. On Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id, so the fallback runs on all three runtimes without hand-picking one. Hand-writing review notes cannot produce this gate proof.
+Required before marking done a ticket with **two or more RGR loops**. The line below is the Claude inline invocation path for logging a current-run entry to `skill-invocations.log` under the project namespace root. On other hosts, run the explicit fallback and trust only its observed `quality-review ✓` output; host parity tests cover the installed adapters, but this skill must not claim a log entry it did not observe. Hand-writing review notes cannot produce this gate proof.
 
 !`bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
@@ -54,7 +54,7 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 
 ### Project-principle challenge
 
-For a BDD ticket, run `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/resolve-project-knowledge.ts` at the
+For a BDD ticket, run `safeword project review-knowledge --json` at the
 start of each pass and read the current `principles`, `personas`, and `surfaces`
 paths and content it returns (including overrides such as `paths.principles`).
 Do not substitute labels or intake-era content.
@@ -119,7 +119,7 @@ Read the live `Current time:` line from the prompt timestamp hook and use that d
 
 - A generation behind (major version, or guidance overtaken by newer practice) -> WARN (e.g., React 17 when 19 is stable)
 - A small drift behind (minor version, minor staleness) -> NOTE
-- A security vulnerability, or a load-bearing claim with no current source -> CRITICAL
+- A security vulnerability, or a load-bearing claim with no current source -> CRITICAL, subject to the provenance cap in §3
 - Current and well-sourced -> Confirm
 
 ## 3. Verify against primary sources — supersession + authority
@@ -237,7 +237,9 @@ Each pass:
    chat before running this command, even when the packet contains private
    repository files or crosses provider boundaries. Never pass credentials,
    customer data, or secret-bearing files as targets or `--context`; redact them
-   or report the bounded packet as blocked. Invoke the coordinator first. On
+   or report the bounded packet as blocked. This exclusion is a best-effort
+   model judgment, not a claim that the coordinator performed a secret scan.
+   Invoke the coordinator first. On
    Codex, `review run` for `quality-review`, `scenario-gate`, or
    `plan-implementation` may use `sandbox_permissions: "require_escalated"`
    only through a previously installed kind-scoped allow rule; never surface a

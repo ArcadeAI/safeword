@@ -280,11 +280,16 @@ function recordExecutionProof(
   input: HookInput,
 ): void {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
-  const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
   if (
     event === 'SessionStart' &&
-    setupRanForSession(pluginData, input.session_id, pluginRoot, projectRoot, identity)
+    setupRanForSession(
+      requiredEnvironment('CLAUDE_PLUGIN_DATA'),
+      input.session_id,
+      pluginRoot,
+      projectRoot,
+      identity,
+    )
   ) {
     return;
   }
@@ -464,6 +469,9 @@ function parseHookOutput(
     return parsed as HookResponse;
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
+    process.stderr.write(
+      `Safeword received unparseable ${event} sibling-hook output; treating it as context, not authorization.\n`,
+    );
     const output = specificOutput(target, event);
     output.additionalContext = appendUniqueText(output.additionalContext, trimmed);
     return undefined;
@@ -520,7 +528,8 @@ function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(child => stableJson(child)).join(',')}]`;
   if (typeof value !== 'object' || value === null) return JSON.stringify(value) ?? 'undefined';
   return `{${Object.entries(value)
-    .toSorted(([left], [right]) => left.localeCompare(right))
+    // eslint-disable-next-line unicorn/no-array-sort -- bundled dispatcher targets Node 18.
+    .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`)
     .join(',')}}`;
 }
@@ -733,11 +742,10 @@ function runEventHooks(
     if (hook.type !== 'command' || typeof hook.command !== 'string') {
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
-    const result = runFunctionalCommand(['bash', '-lc', hook.command], standardInput, true);
+    const result = runFunctionalCommand(['bash', '-c', hook.command], standardInput, true);
     if (result.status !== 0) {
-      // Claude treats exit 1 as a non-blocking hook error. A blockable event
-      // must therefore fail closed even when an earlier sibling already
-      // produced a denial that would otherwise be discarded by this return.
+      // Preserve Claude's blocking status for tool events. SessionStart is not
+      // blockable, so status 2 there reports failure rather than authorization.
       return event === 'UserPromptSubmit' ? result.status : 2;
     }
     mergeHookOutput(event, response, result.stdout);
@@ -763,6 +771,11 @@ function runEventGroup(
       // merged response successfully; without prior output, retain the hook's
       // ordinary nonblocking error status.
       if (event === 'UserPromptSubmit' && Object.keys(response).length > 0) {
+        const output = specificOutput(response, event);
+        output.additionalContext = appendUniqueText(
+          output.additionalContext,
+          'Safeword stopped this event group after a sibling hook failed; later checks did not run.',
+        );
         return {
           postExecutionEligible: false,
           status: 0,

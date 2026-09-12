@@ -306,7 +306,9 @@ function redExecutionRequest(
     return new Error('Executable-red review requires --execute with exact argv.');
   const cwd = options.proofCwd ?? '.';
   if (typeof cwd !== 'string' || cwd.trim() === '')
-    return new Error('Executable-red review requires a project-contained --proof-cwd.');
+    return new Error(
+      'Executable-red review requires a non-empty --proof-cwd; execution validates project containment.',
+    );
   const evidenceClass = options.evidenceClass;
   if (
     typeof evidenceClass !== 'string' ||
@@ -612,6 +614,13 @@ export async function reviewPrReadinessHandler(invocation: CommandInvocation): P
       // carry the readiness verdict.
       state: 'healthy',
       changed: true,
+      findings: [
+        {
+          code: 'PR_READINESS_REPORTED',
+          message: `Published ${outcome.state} readiness verdict: ${outcome.description}`,
+          severity: outcome.state === 'success' ? 'info' : 'warning',
+        },
+      ],
       effects: {
         network: [{ kind: 'commit-status', target: 'GitHub', operation: 'read-write' }],
       },
