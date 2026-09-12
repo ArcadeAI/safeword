@@ -334,9 +334,9 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 ### Scenario: A design decision preserves compatible approval-ledger extensions
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: byte preservation was part of the atomic concurrent-writer design implemented in 426ccbf7e; 2166a951b adds its explicit installed-CLI regression
+- [x] GREEN 426ccbf7e
+- [x] REFACTOR skip: opaque events remain authority-inert because the writer copies all prior bytes and the reader parses only known decision events
 
 ### Scenario: A completed Execution Plan does not trigger a second design approval
 
