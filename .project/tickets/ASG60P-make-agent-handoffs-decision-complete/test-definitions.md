@@ -83,38 +83,38 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A no-decision handoff cannot carry two reason clauses
 
 - [x] RED 4f557cdb0
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 2e0240f3e
+- [x] REFACTOR skip: action clauses share one parsed cardinality check
 
 ### Scenario: A vague no-decision action is rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: concrete-action predicate was driven by the reviewed action-cardinality slice
+- [x] GREEN 2e0240f3e
+- [x] REFACTOR skip: imperative and object checks are one predicate
 
 ### Scenario: A no-decision handoff cannot present several next actions
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: shared action cardinality failure covers duplicate Action clauses
+- [x] GREEN 2e0240f3e
+- [x] REFACTOR skip: duplicate actions and missing actions share one count check
 
 ### Scenario: A no-decision handoff carrying a decision template is rejected as ceremonial
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: route/form mismatch was part of the reviewed concise-action slice
+- [x] GREEN 2e0240f3e
+- [x] REFACTOR skip: ceremonial roles reuse the parsed clause set
 
 ### Scenario: A human-owned decision cannot be disguised as a no-decision action
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: decision-route parsing was driven red by the observed legacy Open omission
+- [x] GREEN 2e0240f3e
+- [x] REFACTOR skip: declared human routes reuse the decision parser
 
 ### Scenario: A no-decision handoff cannot repeat non-essential context
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: stray-prose rejection was covered in the reviewed concise-action slice
+- [x] GREEN 2e0240f3e
+- [x] REFACTOR skip: extra context is one bounded sentence-boundary check
 
 ### Scenario: A short conversational answer is outside the terminal-handoff contract
 
