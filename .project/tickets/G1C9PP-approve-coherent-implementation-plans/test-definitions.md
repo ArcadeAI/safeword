@@ -359,7 +359,7 @@ record invalidation, provenance changes, and context-digest recomputation.
 ### Scenario: Embedded decision markers remain authority-inert
 
 - [x] RED 8c8a663b9
-- [ ] GREEN
+- [x] GREEN 6bcacef21
 - [ ] REFACTOR
 
 ### Scenario: A design decision preserves compatible approval-ledger extensions

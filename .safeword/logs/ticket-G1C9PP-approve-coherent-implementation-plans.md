@@ -26,3 +26,9 @@
 - GREEN commit `0189cb294` keys retries to the decision they supersede and
   reconciles the ticket phase and result to the newest durable decision. The two
   focused suites pass 28/28; lint, TypeScript, and whitespace checks are clean.
+- Independent review `c0154c6d-a19c-474f-992c-ad58fa33a4f2` found that an
+  unknown ledger line could embed the old unanchored marker and accidentally
+  parse as authority. RED `8c8a663b9` demonstrates the false approval; GREEN
+  `6bcacef21` accepts only the canonical timestamped CLI decision record and
+  binds its outer timestamp to the event timestamp. The paired suites pass
+  29/29.
