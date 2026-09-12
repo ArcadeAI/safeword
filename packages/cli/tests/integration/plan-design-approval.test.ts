@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
 import { runCli, testCliPath } from '../helpers.js';
 
@@ -531,6 +532,34 @@ describe('retrying the same design approval does not duplicate authority', () =>
       decision: 'approved',
       fencingGeneration: 1,
       ticket: TICKET_ID,
+    });
+  });
+
+  it('records a fresh approval after an earlier approval was superseded', () => {
+    const project = fixture(true);
+    const digest = createHash('sha256').update(PLAN).digest('hex');
+    const identity = (decision: 'approved' | 'declined') => ({
+      authorityRef: 'interactive-cli',
+      decision,
+      planDigest: digest,
+      ticket: TICKET_ID,
+    });
+    expect(appendDesignDecision(project.ledgerPath, identity('approved'))).toEqual({
+      status: 'written',
+    });
+    expect(appendDesignDecision(project.ledgerPath, identity('declined'))).toEqual({
+      status: 'written',
+    });
+
+    const result = runApprovalInPty(project, 'y');
+
+    expect(result.status).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(decisionPayloads(project.ledgerPath)).toHaveLength(3);
+    expect(decisionPayloads(project.ledgerPath).at(-1)).toMatchObject({
+      appendPosition: 3,
+      decision: 'approved',
+      planDigest: digest,
     });
   });
 });
