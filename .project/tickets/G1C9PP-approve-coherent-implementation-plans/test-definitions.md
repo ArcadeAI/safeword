@@ -242,7 +242,7 @@ family.
 
 - [x] RED c62458a80
 - [x] GREEN 6d01a8599
-- [ ] REFACTOR
+- [x] REFACTOR skip: one concern-to-required-fields table covers all six families and keeps omissions data-driven
 
 ## Rule: plan-implementability.TBU1.G1C9PP.R18 — Accepted quantitative promises carry a design-level measurement contract without moving Product-owned outcomes or Execution-owned instrumentation into the Implementation Plan
 
