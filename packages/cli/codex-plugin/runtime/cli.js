@@ -31190,8 +31190,9 @@ records as context around the one \`impl-plan.md\` work artifact.
   verify the design covers that persona's consequential trust, operation,
   approval, and recovery needs. Each applicable need requires a named design
   consequence and an explicit confidence limit. Block approval when an accepted
-  persona or consequence is omitted, and name the uncovered persona and need.
-  Every affected surface needs credible proof or an explicit justified skip.
+  persona or consequence is omitted, and name the uncovered persona, need, and
+  design consequence. Every affected surface needs credible proof or an explicit
+  justified skip.
 - **Deviations and change triggers:** Intentional conflicts belong in Known
   deviations with a reason. Assessment triggers must name evidence that would
   justify revisiting a load-bearing choice.
