@@ -3579,11 +3579,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880",
         ".claude/skills/bdd/DISCOVERY.md": "c88ae677ac877afca87745f13403f06e7c2dab86efc7934979d430e03837bf76",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "a708f966e917f315418186cc97250c280ce45b96d6ef309b9a1e3a7c627cb942",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "65adc18b1cdccf5d53ba5aee6b5419bde1e5ac038d176ed8caea541b51c805fc",
         ".claude/skills/bdd/SCENARIOS.md": "d2d262f7b88d47df8d7d6da5cddbf78574252ce3eb1a25f4b978a41c42290cb8",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "83548dfb6274c98bb43a5c27f8e306d00aa92ad7b81c3df5966cd28f925c2cf0",
+        ".claude/skills/bdd/TDD.md": "30f183c0c778db38f638d765e645d3dbfa11cba811730c91f41fd8393c69b6fd",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -3621,7 +3621,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "46ac2910afab0295378918712eb6563265c879621f5549d919a51545a9dd4d3c",
+        ".safeword/hooks/pre-tool-quality.ts": "7980d412469904b4a28ca02cec5ef988d07c42e5642bbe1fb2eb130e46531632",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -65877,9 +65877,6 @@ function lockTimeoutMs() {
   const configured = Number(process.env.SAFEWORD_APPROVAL_LOCK_TIMEOUT_MS);
   return Number.isFinite(configured) && configured >= 1 && configured <= 30000 ? configured : LOCK_TIMEOUT_MS;
 }
-function decisionMarker(line) {
-  return line.indexOf(" design-decision:");
-}
 function isPositiveInteger(value) {
   return Number.isSafeInteger(value) && Number(value) > 0;
 }
@@ -65889,12 +65886,12 @@ function isDecisionEvent(event) {
   return event.kind === "design-decision" && event.phase === "plan-implementation" && decisionIsKnown && identityIsComplete && isPositiveInteger(event.appendPosition) && isPositiveInteger(event.fencingGeneration);
 }
 function parseDecisionEvent(line) {
-  const offset = decisionMarker(line);
-  if (offset === -1)
+  const match = decisionLinePattern.exec(line);
+  if (match === null)
     return;
   try {
-    const event = JSON.parse(line.slice(offset + " design-decision:".length));
-    return isDecisionEvent(event) ? event : undefined;
+    const event = JSON.parse(match[2] ?? "");
+    return isDecisionEvent(event) && event.timestamp === match[1] ? event : undefined;
   } catch {
     return;
   }
@@ -66099,9 +66096,10 @@ function currentDesignDecision(ledgerPath, ticket, planDigest) {
   }
   return matchingDecisionState(events, ticket, planDigest).current?.decision;
 }
-var LOCK_RETRY_MS = 10, LOCK_TIMEOUT_MS = 2000, LOCK_LEASE_MS = 1e4, waiter;
+var LOCK_RETRY_MS = 10, LOCK_TIMEOUT_MS = 2000, LOCK_LEASE_MS = 1e4, waiter, decisionLinePattern;
 var init_approval_ledger = __esm(() => {
   waiter = new Int32Array(new SharedArrayBuffer(4));
+  decisionLinePattern = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) cli design-decision:(\{.*\})$/u;
 });
 
 // src/commands/plan-approval.ts

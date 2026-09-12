@@ -65877,9 +65877,6 @@ function lockTimeoutMs() {
   const configured = Number(process.env.SAFEWORD_APPROVAL_LOCK_TIMEOUT_MS);
   return Number.isFinite(configured) && configured >= 1 && configured <= 30000 ? configured : LOCK_TIMEOUT_MS;
 }
-function decisionMarker(line) {
-  return line.indexOf(" design-decision:");
-}
 function isPositiveInteger(value) {
   return Number.isSafeInteger(value) && Number(value) > 0;
 }
@@ -65889,12 +65886,12 @@ function isDecisionEvent(event) {
   return event.kind === "design-decision" && event.phase === "plan-implementation" && decisionIsKnown && identityIsComplete && isPositiveInteger(event.appendPosition) && isPositiveInteger(event.fencingGeneration);
 }
 function parseDecisionEvent(line) {
-  const offset = decisionMarker(line);
-  if (offset === -1)
+  const match = decisionLinePattern.exec(line);
+  if (match === null)
     return;
   try {
-    const event = JSON.parse(line.slice(offset + " design-decision:".length));
-    return isDecisionEvent(event) ? event : undefined;
+    const event = JSON.parse(match[2] ?? "");
+    return isDecisionEvent(event) && event.timestamp === match[1] ? event : undefined;
   } catch {
     return;
   }
@@ -66099,9 +66096,10 @@ function currentDesignDecision(ledgerPath, ticket, planDigest) {
   }
   return matchingDecisionState(events, ticket, planDigest).current?.decision;
 }
-var LOCK_RETRY_MS = 10, LOCK_TIMEOUT_MS = 2000, LOCK_LEASE_MS = 1e4, waiter;
+var LOCK_RETRY_MS = 10, LOCK_TIMEOUT_MS = 2000, LOCK_LEASE_MS = 1e4, waiter, decisionLinePattern;
 var init_approval_ledger = __esm(() => {
   waiter = new Int32Array(new SharedArrayBuffer(4));
+  decisionLinePattern = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) cli design-decision:(\{.*\})$/u;
 });
 
 // src/commands/plan-approval.ts
