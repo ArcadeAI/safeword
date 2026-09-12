@@ -2,7 +2,7 @@
 id: 6XW8H7
 slug: split-large-contributions-into-reviewable-prs
 type: feature
-phase: plan-implementation
+phase: plan-execution
 status: in_progress
 blocked_on: [82T411]
 phase_anchors:
