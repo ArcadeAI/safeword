@@ -207,7 +207,7 @@ release prerequisite by itself.
 
 ### Scenario: The receipt records the focused-review judgment
 
-- [ ] RED
+- [x] RED 4168e473a
 - [ ] GREEN
 - [ ] REFACTOR
 
