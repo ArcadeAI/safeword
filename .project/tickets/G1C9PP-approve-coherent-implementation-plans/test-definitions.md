@@ -372,4 +372,4 @@ record invalidation, provenance changes, and context-digest recomputation.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario ba15f2434
