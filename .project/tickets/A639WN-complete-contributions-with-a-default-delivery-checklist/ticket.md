@@ -2,7 +2,7 @@
 id: A639WN
 slug: complete-contributions-with-a-default-delivery-checklist
 type: feature
-phase: plan-implementation
+phase: implement
 status: in_progress
 blocked_on: [82T411]
 phase_anchors:
