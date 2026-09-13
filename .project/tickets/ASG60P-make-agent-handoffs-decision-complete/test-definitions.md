@@ -213,7 +213,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Held-out decision-route paraphrases follow the declared route
 
 - [x] RED 6c495df09
-- [ ] GREEN
+- [x] GREEN a7f03cab0
 - [ ] REFACTOR
 
 ### Scenario: Held-out marked-term paraphrases require an inline meaning
