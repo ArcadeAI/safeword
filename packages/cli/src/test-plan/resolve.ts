@@ -288,15 +288,7 @@ function resolveJs(
     const command = pm === 'yarn' ? 'yarn npm audit' : `${pm} audit`;
     return entry('javascript', projectDirectory, command, pm, isAvailable(pm));
   }
-  const directScript = JS_DIRECT_SCRIPT[kind];
-  if (directScript !== undefined) {
-    const command = scripts[directScript];
-    return command
-      ? entry('javascript', projectDirectory, `${pm} run ${directScript}`, pm, isAvailable(pm))
-      : undefined;
-  }
-  const pickScript = kind === 'verify' ? pickVerifyScript : pickTestScript;
-  const script = pickScript(scripts);
+  const script = selectedJsScript(scripts, kind);
   return script
     ? entry('javascript', projectDirectory, `${pm} run ${script}`, pm, isAvailable(pm))
     : undefined;
