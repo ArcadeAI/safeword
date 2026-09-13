@@ -33,7 +33,7 @@ import {
 } from '../helpers';
 
 const IS_RUFF_AVAILABLE = isRuffInstalled();
-const SAFEWORD_PYTHON_TOOLS = 'ruff\nmypy\ndeadcode\n';
+const SAFEWORD_PYTHON_TOOLS = 'ruff\nmypy\ndeadcode\npip-audit\n';
 
 describe('E2E: Python Golden Path', () => {
   let projectDirectory: string;

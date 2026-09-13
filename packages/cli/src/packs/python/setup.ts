@@ -153,7 +153,7 @@ export function detectSolePackage(cwd: string): string | undefined {
 }
 
 type PythonPackageManager = 'uv' | 'poetry' | 'pipenv' | 'pip';
-export type PythonTool = 'ruff' | 'mypy' | 'deadcode' | 'import-linter';
+export type PythonTool = 'ruff' | 'mypy' | 'deadcode' | 'pip-audit' | 'import-linter';
 
 const PYTHON_DEPENDENCY_SEPARATORS = new Set(['[', '<', '>', '=', '!', '~', ';', '@']);
 
@@ -507,14 +507,13 @@ function pythonInstallInvocation(
  * @returns true if installation succeeded, false otherwise
  */
 /**
- * The Python tools safeword installs: ruff, mypy, deadcode, plus import-linter
- * when safeword would scaffold a config for it (layers OR an unambiguous single
- * package — the hasImportLinterScaffoldTarget predicate). Single source so
- * `setup` and `upgrade` install the same set; they had drifted (upgrade shipped
- * only ruff + mypy).
+ * The Python tools safeword installs: ruff, mypy, deadcode, and pip-audit, plus
+ * import-linter when safeword would scaffold a config for it (layers OR an
+ * unambiguous single package — the hasImportLinterScaffoldTarget predicate).
+ * Single source so setup, upgrade, health, and verification cannot drift.
  */
 export function getPythonTools(includeImportLinter: boolean): PythonTool[] {
-  const tools: PythonTool[] = ['ruff', 'mypy', 'deadcode'];
+  const tools: PythonTool[] = ['ruff', 'mypy', 'deadcode', 'pip-audit'];
   if (includeImportLinter) tools.push('import-linter');
   return tools;
 }

@@ -44,12 +44,18 @@ afterEach(() => {
 // =============================================================================
 
 describe('getPythonTools', () => {
-  it('installs ruff, mypy, and deadcode by default', () => {
-    expect(getPythonTools(false)).toEqual(['ruff', 'mypy', 'deadcode']);
+  it('installs verification and audit tools by default', () => {
+    expect(getPythonTools(false)).toEqual(['ruff', 'mypy', 'deadcode', 'pip-audit']);
   });
 
   it('adds import-linter when a config would be scaffolded', () => {
-    expect(getPythonTools(true)).toEqual(['ruff', 'mypy', 'deadcode', 'import-linter']);
+    expect(getPythonTools(true)).toEqual([
+      'ruff',
+      'mypy',
+      'deadcode',
+      'pip-audit',
+      'import-linter',
+    ]);
   });
 
   it('returns only required Python tools that the project has not declared', () => {
@@ -62,7 +68,10 @@ dependencies = ["ruff>=0.8.0", "mypy"]
 `,
     );
 
-    expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual(['deadcode']);
+    expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([
+      'deadcode',
+      'pip-audit',
+    ]);
   });
 
   it('recognizes tools in multiline dependency arrays with PEP 508 extras and comments', () => {
@@ -76,6 +85,7 @@ dependencies = [
   # The ] in this comment does not close the dependency list.
   "mypy",
   "deadcode",
+  "pip-audit",
 ]
 `,
     );
@@ -87,7 +97,7 @@ dependencies = [
     writeTestFile(
       context.projectDirectory,
       'requirements.txt',
-      ['ruff>=0.8.0', 'mypy', 'deadcode==1.0.0'].join('\n'),
+      ['ruff>=0.8.0', 'mypy', 'deadcode==1.0.0', 'pip-audit'].join('\n'),
     );
 
     expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([]);
@@ -110,6 +120,7 @@ extend = "ruff"
       'ruff',
       'mypy',
       'deadcode',
+      'pip-audit',
     ]);
   });
 
@@ -121,6 +132,7 @@ extend = "ruff"
         'ruff; python_version >= "3.10"',
         'mypy @ git+https://github.com/python/mypy.git',
         'deadcode==1.0.0',
+        'pip-audit',
       ].join('\n'),
     );
 
@@ -133,7 +145,7 @@ extend = "ruff"
       'pyproject.toml',
       `[project]
 name = "test"
-dependencies = ["ruff", "mypy", "deadcode", "import_linter"]
+dependencies = ["ruff", "mypy", "deadcode", "pip-audit", "import_linter"]
 `,
     ],
     [
@@ -143,10 +155,11 @@ dependencies = ["ruff", "mypy", "deadcode", "import_linter"]
 ruff = "*"
 mypy = "*"
 deadcode = "*"
+pip-audit = "*"
 "import.linter" = "*"
 `,
     ],
-    ['requirements', 'requirements.txt', 'ruff\nmypy\ndeadcode\nimport_linter\n'],
+    ['requirements', 'requirements.txt', 'ruff\nmypy\ndeadcode\npip-audit\nimport_linter\n'],
   ])('normalizes equivalent import-linter names in %s declarations', (_format, path, content) => {
     writeTestFile(context.projectDirectory, path, content);
     writeTestFile(context.projectDirectory, 'src/test/__init__.py', '');
@@ -159,7 +172,7 @@ deadcode = "*"
     writeTestFile(
       context.projectDirectory,
       'requirements-dev.txt',
-      'ruff\nmypy\ndeadcode\nimport-linter\n',
+      'ruff\nmypy\ndeadcode\npip-audit\nimport-linter\n',
     );
     writeTestFile(context.projectDirectory, 'src/test/__init__.py', '');
 
@@ -180,6 +193,7 @@ deadcode = "*"
         'ruff',
         'mypy',
         'deadcode',
+        'pip-audit',
       ]);
     } finally {
       removeTemporaryDirectory(externalDirectory);
@@ -192,7 +206,7 @@ deadcode = "*"
       'pyproject.toml',
       `[project]
 name = "test"
-dependencies = ["ruff", "mypy", "deadcode"]
+dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
 `,
     );
     writeTestFile(context.projectDirectory, 'src/test/__init__.py', '');
@@ -209,7 +223,7 @@ describe('repository Python projects', () => {
     writeTestFile(
       context.projectDirectory,
       'apps/api/pyproject.toml',
-      '[project]\nname="api"\ndependencies=["ruff", "mypy", "deadcode"]\n',
+      '[project]\nname="api"\ndependencies=["ruff", "mypy", "deadcode", "pip-audit"]\n',
     );
 
     expect(findPythonProjectDirectories(context.projectDirectory)).toEqual([
@@ -222,7 +236,7 @@ describe('repository Python projects', () => {
     writeTestFile(
       context.projectDirectory,
       'apps/api/pyproject.toml',
-      '[project]\nname="api"\ndependencies=["ruff", "mypy", "deadcode"]\n',
+      '[project]\nname="api"\ndependencies=["ruff", "mypy", "deadcode", "pip-audit"]\n',
     );
     writeTestFile(context.projectDirectory, 'services/worker/requirements.txt', 'ruff\n');
     writeTestFile(context.projectDirectory, 'vendor/example/requirements.txt', 'ruff\n');
@@ -230,7 +244,7 @@ describe('repository Python projects', () => {
     expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([
       {
         directory: nodePath.join(context.projectDirectory, 'services/worker'),
-        tools: ['mypy', 'deadcode'],
+        tools: ['mypy', 'deadcode', 'pip-audit'],
       },
     ]);
   });
@@ -244,8 +258,11 @@ describe('repository Python projects', () => {
   });
 
   it.each([
-    ['setup.py', 'setup(name="legacy", extras_require={"dev": ["ruff", "mypy", "deadcode"]})\n'],
-    ['setup.cfg', '[options.extras_require]\ndev =\n  ruff\n  mypy\n  deadcode\n'],
+    [
+      'setup.py',
+      'setup(name="legacy", extras_require={"dev": ["ruff", "mypy", "deadcode", "pip-audit"]})\n',
+    ],
+    ['setup.cfg', '[options.extras_require]\ndev =\n  ruff\n  mypy\n  deadcode\n  pip-audit\n'],
   ])('reads tool declarations from legacy %s projects', (manifest, content) => {
     writeTestFile(context.projectDirectory, `services/legacy/${manifest}`, content);
 

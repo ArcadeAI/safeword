@@ -399,7 +399,7 @@ dev = ["ruff>=0.8.0"]
       });
 
       // Ruff alone is not the full Safeword Python tool contract.
-      expect(result.stdout).toContain('Install Python tools: pip install mypy deadcode');
+      expect(result.stdout).toContain('Install Python tools: pip install mypy deadcode pip-audit');
       expect(result.stdout).not.toContain('Python tools installed');
     },
     TIMEOUT_SETUP,
@@ -439,7 +439,7 @@ dev = ["ruff>=0.8.0"]
       expect(result.exitCode).toBe(2);
       expect(existsSync(log)).toBe(true);
       expect(readFileSync(log, 'utf8')).toContain(
-        `${nodePath.join(state.projectDirectory, 'apps/worker')}|add --dev ruff mypy deadcode`,
+        `${nodePath.join(state.projectDirectory, 'apps/worker')}|add --dev ruff mypy deadcode pip-audit`,
       );
       expect(result.stdout).toContain('pip install');
       expect(result.stdout).toContain('Configuration is healthy');
