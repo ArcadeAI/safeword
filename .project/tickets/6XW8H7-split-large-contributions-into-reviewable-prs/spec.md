@@ -43,7 +43,9 @@ Affected:
 - Claude Code — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 - Claude Code Cloud — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 - OpenAI Codex — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
-- OpenCode — skip: M1 defines the catalogue contract; YCFFNC in M2 owns catalogue delivery, while Desktop remains advisory until native hook dispatch is independently proven
+- OpenCode — skip: M1 defines the slicing contract; YCFFNC in M2 owns
+  catalogue delivery, while OpenCode Desktop remains advisory until native
+  hook dispatch is independently proven
 - Cursor — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 - Cursor Cloud Agents — skip: M1 defines the slicing contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 

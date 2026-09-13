@@ -173,10 +173,10 @@ working.
   present `data.reviewer_output.execution_plan_record`; bind approval stamps to
   the review job. Activation and retention are indivisible here: exposing an
   approval that cannot retain and authenticate what it covered would create an
-  unsafe intermediate authority state. Append the accepted narrow
-  `plan-execution` extension to the existing review-coordinator decision in
-  `ARCHITECTURE.md`, linking this ticket rather than restating its detailed
-  contract. Do not implement the later coding-transition consumer owned by
+  unsafe intermediate authority state. Confirm the accepted
+  “Conformance-Gated Execution Plan Review” entry in `ARCHITECTURE.md` still
+  links this ticket; do not append a duplicate decision. Do not implement the
+  later coding-transition consumer owned by
   7CAMAD, review-currency invalidation owned by 5F5ZZA, or human-facing recovery
   copy owned by K3EBHB.
 - **Prerequisites:** PR 3.
@@ -218,18 +218,18 @@ working.
 
 ## Obligation ownership
 
-| Accepted obligation | Owning PRs |
-| --- | --- |
-| Explicit one-versus-many decision and rationale | PR 1, PR 3, PR 4 |
-| Complete coherent slice fields without invented design | PR 1, PR 2, PR 3, PR 4 |
-| Explicit dependency order and safe intermediate state | PR 2, PR 3, PR 4 |
-| Conceptual scope and independent proof instead of size thresholds | PR 1, PR 3, PR 4 |
-| Preserve accepted behaviors and affected surfaces | PR 3, PR 4 |
-| Preserve migration boundary and release/rollback behavior | PR 4 |
-| Canonical contract/template documentation | PR 1 |
-| Public CLI documentation and review-coordinator architecture extension | PR 4 |
-| Existing review-kind compatibility | PR 2, PR 3, PR 4 |
-| CLI dispatch, retained approval record, and stamp integrity | PR 4 |
+| Accepted obligation                                                    | Owning PRs             |
+| ---------------------------------------------------------------------- | ---------------------- |
+| Explicit one-versus-many decision and rationale                        | PR 1, PR 3, PR 4       |
+| Complete coherent slice fields without invented design                 | PR 1, PR 2, PR 3, PR 4 |
+| Explicit dependency order and safe intermediate state                  | PR 2, PR 3, PR 4       |
+| Conceptual scope and independent proof instead of size thresholds      | PR 1, PR 3, PR 4       |
+| Preserve accepted behaviors and affected surfaces                      | PR 3, PR 4             |
+| Preserve migration boundary and release/rollback behavior              | PR 4                   |
+| Canonical contract/template documentation                              | PR 1                   |
+| Public CLI documentation and review-coordinator architecture extension | PR 4                   |
+| Existing review-kind compatibility                                     | PR 2, PR 3, PR 4       |
+| CLI dispatch, retained approval record, and stamp integrity            | PR 4                   |
 
 ## Deferred scope ownership
 
@@ -243,22 +243,23 @@ working.
 
 ## Decision accounting
 
-| Implementation Plan decision | Status |
-| --- | --- |
+| Implementation Plan decision                                                              | Status    |
+| ----------------------------------------------------------------------------------------- | --------- |
 | Represent PR slicing as a dependency-ordered set of independently safe conceptual changes | unchanged |
-| Extend the shared semantic review route with one canonical Execution Plan contract | unchanged |
-| Admit only routes with semantic conformance proof | unchanged |
-| Make positive Execution Plan judgment machine-checkable | unchanged |
-| Reject structurally invalid review records | unchanged |
-| Bound Execution Plan approval to coding readiness | unchanged |
-| Retain the machine-checkable judgment with its review receipt | unchanged |
-| Keep dependency semantics host-neutral | unchanged |
-| Stage this child as the slicing portion of the future canonical Execution Plan contract | unchanged |
+| Extend the shared semantic review route with one canonical Execution Plan contract        | unchanged |
+| Admit only routes with semantic conformance proof                                         | unchanged |
+| Make positive Execution Plan judgment machine-checkable                                   | unchanged |
+| Reject structurally invalid review records                                                | unchanged |
+| Bound Execution Plan approval to coding readiness                                         | unchanged |
+| Retain the machine-checkable judgment with its review receipt                             | unchanged |
+| Keep dependency semantics host-neutral                                                    | unchanged |
+| Stage this child as the slicing portion of the future canonical Execution Plan contract   | unchanged |
 
 ## Delivery checklist
 
 - Tests: targeted RED/GREEN evidence per slice, final full suite, and mandatory
-  live Claude/Codex conformance on final packaged bytes.
+  live conformance on final packaged bytes for every identity proposed for
+  admission.
 - Monitoring: not applicable; this is a local CLI gate with typed failures and
   no production service. Review-job failures remain visible through existing
   CLI status and findings.
@@ -266,7 +267,8 @@ working.
   workflow migration before the epic releases.
 - Documentation: PR 1 owns the canonical contract/template; PR 4 updates CLI
   command help or schema descriptions where the new public kind appears and
-  appends the narrow accepted review-coordinator decision to `ARCHITECTURE.md`.
+  confirms the accepted review-coordinator decision remains correctly linked in
+  `ARCHITECTURE.md`.
 - Rollout: merge in dependency order and release only with the enclosing epic.
 - Rollback: remove the unreleased kind and contract as one epic rollback; old
   job records become inert and grant no authority.
