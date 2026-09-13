@@ -46,7 +46,7 @@ describe('project record-skill-invocation', () => {
     expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
   });
 
-  it('asks to set up an unenrolled repository before workflow logging needs state', async () => {
+  it('does not enroll a repository as a side effect of workflow logging', async () => {
     const cwd = createTemporaryDirectory();
 
     const result = await runRecordSkillInvocation(cwd, 'verify', 'session-1');
