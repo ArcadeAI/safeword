@@ -188,7 +188,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The long blocked corpus cannot hide decision roles before Need
 
-- [ ] RED
+- [x] RED 6c495df09
 - [ ] GREEN
 - [ ] REFACTOR
 
