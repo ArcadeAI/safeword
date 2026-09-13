@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -26,6 +36,8 @@ interface QuietEnrollmentWorld extends SafewordWorld {
   entryPoint?: string;
   proofBoundary?: string;
   observedAccesses?: AccessEvent[];
+  beforeSnapshot?: string;
+  afterSnapshot?: string;
 }
 
 const SURFACE_ARTIFACTS: Readonly<Record<string, string>> = {
@@ -49,6 +61,28 @@ function observedEvents(path: string): AccessEvent[] {
     .map(line => JSON.parse(line) as AccessEvent);
 }
 
+function filesystemSnapshot(roots: readonly string[]): string {
+  const entries: string[] = [];
+  const visit = (root: string, path: string): void => {
+    const metadata = lstatSync(path);
+    const relative = nodePath.relative(root, path) || '.';
+    if (metadata.isDirectory()) {
+      entries.push(`${root}:${relative}:directory:${metadata.mode & 0o777}`);
+      const children = readdirSync(path).toSorted((left, right) => left.localeCompare(right));
+      for (const child of children) {
+        visit(root, nodePath.join(path, child));
+      }
+      return;
+    }
+    const digest = metadata.isFile()
+      ? createHash('sha256').update(readFileSync(path)).digest('hex')
+      : 'not-a-file';
+    entries.push(`${root}:${relative}:entry:${metadata.mode & 0o777}:${digest}`);
+  };
+  for (const root of roots) visit(root, root);
+  return entries.join('\n');
+}
+
 After(function (this: QuietEnrollmentWorld) {
   if (this.fixtureRoot !== undefined) rmSync(this.fixtureRoot, { recursive: true, force: true });
 });
@@ -58,10 +92,14 @@ Given(
   function (this: QuietEnrollmentWorld) {
     const fixtureRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-context-boundary-'));
     this.fixtureRoot = fixtureRoot;
-    this.projectRoot = nodePath.join(fixtureRoot, 'parent', 'project');
-    this.userDataRoot = nodePath.join(fixtureRoot, 'user-data');
+    const projectRoot = nodePath.join(fixtureRoot, 'parent', 'project');
+    const userDataRoot = nodePath.join(fixtureRoot, 'user-data');
     this.observerLog = nodePath.join(fixtureRoot, 'access.ndjson');
-    mkdirSync(this.projectRoot, { recursive: true });
+    mkdirSync(projectRoot, { recursive: true });
+    mkdirSync(userDataRoot, { recursive: true });
+    this.projectRoot = realpathSync(projectRoot);
+    this.userDataRoot = realpathSync(userDataRoot);
+    this.beforeSnapshot = filesystemSnapshot([this.projectRoot, this.userDataRoot]);
     writeFileSync(
       nodePath.join(fixtureRoot, 'observe-filesystem.mjs'),
       [
@@ -119,9 +157,7 @@ When(
     const result = spawnSync(
       process.execPath,
       [
-        '--import',
-        'tsx',
-        nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
+        nodePath.join(REPO_ROOT, 'packages/cli/dist/cli.js'),
         'project',
         'record-skill-invocation',
         '--cwd',
@@ -137,12 +173,14 @@ When(
           ...process.env,
           NODE_OPTIONS: `--import=${preload}`,
           SAFEWORD_TEST_ACCESS_LOG: observerLog,
+          SAFEWORD_HOST_INTERACTIVE: '1',
           XDG_DATA_HOME: userDataRoot,
         },
       },
     );
     this.result = { stdout: result.stdout, stderr: result.stderr, exitCode: result.status ?? 1 };
     this.observedAccesses = observedEvents(observerLog);
+    this.afterSnapshot = filesystemSnapshot([projectRoot, userDataRoot]);
   },
 );
 
@@ -169,14 +207,14 @@ Then(
       'v1',
       createHash('sha256').update(projectRoot).digest('hex'),
     );
-    const relevant = (this.observedAccesses ?? []).filter(
-      event => event.path.startsWith(projectRoot) || event.path.startsWith(userDataRoot),
-    );
     const choiceIndex = (this.observedAccesses ?? []).findIndex(
       event => event.operation === 'choice',
     );
     assert.notEqual(choiceIndex, -1, 'the observer did not record the enrollment choice');
     const beforeChoice = (this.observedAccesses ?? []).slice(0, choiceIndex);
+    const relevantBeforeChoice = beforeChoice.filter(
+      event => event.path.startsWith(projectRoot) || event.path.startsWith(userDataRoot),
+    );
     const currentMarker = nodePath.join(projectRoot, '.safeword', 'SAFEWORD.md');
     const ancestorMarker = nodePath.join(nodePath.dirname(projectRoot), '.safeword', 'SAFEWORD.md');
     const globalMarker = nodePath.join(expectedPartition, 'partition.json');
@@ -193,17 +231,19 @@ Then(
       'an ancestor repository marker was not checked before offering setup',
     );
     assert.equal(
-      beforeChoice.some(event => event.operation === 'write'),
+      relevantBeforeChoice.some(event => event.operation === 'write'),
       false,
       'Safeword-owned state was mutated before the enrollment choice',
     );
+    assert.equal(
+      required(this.afterSnapshot, 'after filesystem snapshot'),
+      required(this.beforeSnapshot, 'before filesystem snapshot'),
+      'the observed repository or user-data filesystem changed before the choice returned',
+    );
     const allowedChecks = new Set([currentMarker, ancestorMarker, globalMarker]);
     assert.equal(
-      relevant.some(
-        event =>
-          event.operation !== 'choice' &&
-          beforeChoice.includes(event) &&
-          !allowedChecks.has(event.path),
+      relevantBeforeChoice.some(
+        event => event.operation !== 'choice' && !allowedChecks.has(event.path),
       ),
       false,
       'state outside the enrollment checks was accessed before the enrollment choice',
