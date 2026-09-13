@@ -20,3 +20,11 @@
   Claude release tests, the three corrected Gherkin scenarios (137 steps), package and website
   builds, lint, typecheck, dependency audit, generator drift, and diff audit. The initial relay
   failures were reproduced as sandbox-only; all 199 relay tests passed with socket permissions.
+- [14:24] Added explicit BDD proof for the native resource and damaged-cache recovery contracts.
+  Extracted a normal-suite resource test that copies both bundles outside the checkout before
+  exercising their real CLIs. Fixed generated test plans to suppress exact root-delegated workspace
+  lanes while retaining non-delegated siblings and deceptive command-text cases.
+- [14:58] Final current-head verification passed: 9,955 project tests, 184 focused tests, 74 release
+  tests, 595 BDD scenarios with 11,100 steps, and 45 proof-tag checks. The sandboxed relay run could
+  not exercise local sockets and hung after failures; the unrestricted rerun passed 198 tests with
+  1 skip, confirming an environment failure rather than a product regression.

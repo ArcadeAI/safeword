@@ -319,6 +319,87 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     expect(javascript.map(item => item.command)).toEqual(['pnpm run test', 'yarn run test']);
   });
 
+  it.each([
+    ['verify', 'test', 'vitest'],
+    ['bdd', 'test:bdd', 'cucumber-js'],
+  ] as const)(
+    'does not duplicate a workspace %s lane already delegated by the root script',
+    (kind, scriptName, command) => {
+      const root = makeRepo({
+        'package.json': JSON.stringify({
+          private: true,
+          workspaces: ['packages/*'],
+          scripts: { [scriptName]: `bun run --cwd packages/cli ${scriptName}` },
+        }),
+        'bun.lock': '',
+        'packages/cli/package.json': JSON.stringify({ scripts: { [scriptName]: command } }),
+      });
+
+      const javascript = resolveTestPlan(root, { kind, isToolAvailable: allTools }).filter(
+        item => item.language === 'javascript',
+      );
+
+      expect(javascript).toEqual([
+        expect.objectContaining({ cwd: root, command: `bun run ${scriptName}` }),
+      ]);
+    },
+  );
+
+  it('retains workspace lanes that the selected root script does not delegate', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'bun run --cwd packages/api test' },
+      }),
+      'bun.lock': '',
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'packages/web/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/web']);
+  });
+
+  it('does not infer delegation across a shell-command boundary', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'bun run --cwd packages/api && test -f release-marker' },
+      }),
+      'bun.lock': '',
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
+  it('does not infer delegation from command text passed as an argument', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'echo bun run --cwd packages/api test' },
+      }),
+      'bun.lock': '',
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
   it('does not verify excluded JavaScript workspace members', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({

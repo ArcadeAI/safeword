@@ -6,7 +6,7 @@ phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/4519
 created: 2026-09-13T04:03:46.412Z
-last_modified: 2026-09-13T04:56:41Z
+last_modified: 2026-09-13T21:58:54Z
 ---
 
 # Keep the Claude plugin installable and recoverable
@@ -27,7 +27,7 @@ the plugin is healthy, auto-deleting unexpected cache files, or trusting unverif
 **Done When:**
 
 - [x] A generated Claude plugin and a generated Codex plugin can create a feature ticket and run
-      setup from their bundled CLI without source-repository files.
+      `install` from their bundled CLI without source-repository files.
 - [x] Release checks fail if a native plugin payload no longer satisfies the bundled CLI's
       resource contract.
 - [x] A damaged Claude plugin cache makes PreToolUse ask the user rather than permanently deny the
@@ -37,8 +37,8 @@ the plugin is healthy, auto-deleting unexpected cache files, or trusting unverif
 
 **Tests:**
 
-- [x] Release integration: generated Claude payload runs `ticket new` and `setup` in a clean repo.
-- [x] Release integration: generated Codex payload runs `ticket new` and `setup` in a clean repo.
+- [x] Release integration: generated Claude payload runs `ticket new` and `install` in a clean repo.
+- [x] Release integration: generated Codex payload runs `ticket new` and `install` in a clean repo.
 - [x] Dispatcher: an unlisted asset returns a structured PreToolUse `ask` decision with a repair
       explanation and does not execute configured hooks.
 - [x] Dispatcher: missing or modified required assets use the same recoverable degraded mode.
@@ -67,6 +67,20 @@ failure).
 
 Related issue: https://github.com/ArcadeAI/safeword/issues/4520
 
+### Verification-plan follow-up
+
+The aggregate verifier exposed a separate orchestration defect: the test-plan resolver emitted a
+JavaScript lane for every workspace even when the selected root script explicitly delegated that
+same lane. In this repository that ran the CLI, relay, collector, and BDD proof suites twice and
+made unrelated worktrees compete for the same package-test lock.
+
+The resolver now removes only exact package-manager delegations at shell-command boundaries; it
+does not guess that arbitrary root commands cover a workspace. The root BDD script delegates its
+canonical lane directly to the CLI package, so both verify and BDD plans have one JavaScript
+authority. Ruled out: weakening the global lock (duplicate work would remain), suppressing every
+workspace whenever a root script exists (could hide uncovered packages), and matching command text
+anywhere in a script (an echoed example could falsely suppress a real test lane).
+
 ## Work Log
 
 - 2026-09-13T04:03:46.412Z Started: Created ticket HX3KFQ
@@ -84,3 +98,10 @@ Related issue: https://github.com/ArcadeAI/safeword/issues/4520
   audit and verification record. Independent quality-review routes exhausted; the permitted
   main-thread supplemental review approved with no remaining findings under `prefer`, explicitly
   with no independence.
+- 2026-09-13T21:24:44Z Improved: added post-hoc behavior scenarios and dedicated executable proof
+  for both native resource contracts and damaged-cache recovery; deduplicated exact root-delegated
+  workspace lanes. A fresh-context supplemental review found two proof defects—source-checkout
+  leakage and argument-text command matching—and both mechanisms were corrected with regressions.
+- 2026-09-13T21:58:54Z Verified: final current-head runs passed 9,955 project tests, 184 focused
+  tests, 74 release tests, 595 BDD scenarios with 11,100 steps, and 45 proof-tag checks. Full lint,
+  typecheck, formatting, dependency validation, generated-payload checks, and diff checks passed.

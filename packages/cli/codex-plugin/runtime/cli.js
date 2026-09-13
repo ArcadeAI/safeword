@@ -63645,6 +63645,51 @@ function pickTestScript(scripts) {
 function pickVerifyScript(scripts) {
   return firstScript(scripts, ["test:ci", "test", "test:done"]);
 }
+function selectedJsScript(scripts, kind) {
+  if (kind === "deps")
+    return;
+  const directScript = JS_DIRECT_SCRIPT[kind];
+  if (directScript !== undefined) {
+    return Object.hasOwn(scripts, directScript) ? directScript : undefined;
+  }
+  return kind === "verify" ? pickVerifyScript(scripts) : pickTestScript(scripts);
+}
+function unquoteShellToken(token) {
+  if (token.length >= 2 && (token.startsWith('"') && token.endsWith('"') || token.startsWith("'") && token.endsWith("'"))) {
+    return token.slice(1, -1);
+  }
+  return token;
+}
+function startsShellCommand(tokens, index) {
+  let cursor2 = index - 1;
+  while (cursor2 >= 0 && SHELL_ASSIGNMENT.test(tokens[cursor2] ?? ""))
+    cursor2 -= 1;
+  return cursor2 < 0 || SHELL_COMMAND_BOUNDARIES.has(tokens[cursor2] ?? "");
+}
+function scriptDelegatesToWorkspace(body, relativeDirectory, script) {
+  const tokens = body.match(/&&|\|\||[;|\n]|"(?:[^"\\]|\\.)*"|'[^']*'|[^\s;&|]+/gu)?.map((token) => unquoteShellToken(token)) ?? [];
+  const patterns = [relativeDirectory, `./${relativeDirectory}`].flatMap((target) => [
+    ["bun", "run", "--cwd", target, script],
+    ["bun", "--cwd", target, "run", script],
+    ["npm", "--prefix", target, "run", script],
+    ["pnpm", "--dir", target, "run", script],
+    ["pnpm", "-C", target, "run", script],
+    ["yarn", "--cwd", target, script],
+    ["yarn", "--cwd", target, "run", script]
+  ]);
+  return patterns.some((pattern) => tokens.some((_, index) => startsShellCommand(tokens, index) && pattern.every((token, offset) => tokens[index + offset] === token)));
+}
+function rootScriptDelegatesToWorkspace(root, directory, kind) {
+  const rootScripts = readRootScripts(root);
+  const workspaceScripts = readRootScripts(directory);
+  if (!rootScripts || !workspaceScripts)
+    return false;
+  const rootScript = selectedJsScript(rootScripts, kind);
+  const workspaceScript = selectedJsScript(workspaceScripts, kind);
+  if (!rootScript || !workspaceScript)
+    return false;
+  return scriptDelegatesToWorkspace(rootScripts[rootScript] ?? "", nodePath110.relative(root, directory), workspaceScript);
+}
 function configContains(index, file, marker) {
   const dir = index.get(file);
   if (dir === undefined)
@@ -63806,7 +63851,7 @@ function resolveTestPlan(root, options = {}) {
   const installedPacks2 = readInstalledPacks(root);
   const globalIndex = indexFilesInTree(root, TREE_MANIFESTS);
   const declaredJavascriptPatterns = getWorkspacePatterns(root);
-  const javascript = javascriptProjectDirectories(root).map((directory) => resolveJs(directory, directManifestIndex(directory), kind, isAvailable, directory !== root && declaredJavascriptPatterns.some((pattern) => !pattern.startsWith("!") && matchesWorkspacePattern(nodePath110.relative(root, directory), pattern)) ? root : directory));
+  const javascript = javascriptProjectDirectories(root).filter((directory) => directory === root || !rootScriptDelegatesToWorkspace(root, directory, kind)).map((directory) => resolveJs(directory, directManifestIndex(directory), kind, isAvailable, directory !== root && declaredJavascriptPatterns.some((pattern) => !pattern.startsWith("!") && matchesWorkspacePattern(nodePath110.relative(root, directory), pattern)) ? root : directory));
   const pythonDirectories = directoriesWithAnyManifest(root, pythonProjectMarkers(kind));
   const python = pythonDirectories.map((directory) => resolvePython(directory, pythonProjectIndex(directory, root), kind, isAvailable, new Set(pythonDirectories.filter((candidate) => {
     const relative = nodePath110.relative(directory, candidate);
@@ -63820,7 +63865,7 @@ function resolveTestPlan(root, options = {}) {
   const sql = directoriesWithAnyManifest(root, SQL_PROJECT_MARKERS).map((directory) => resolveSql(directory, directManifestIndex(directory), kind, isAvailable));
   return [...javascript, ...python, ...go, ...rust, ...sql].filter((planEntry) => planEntry !== undefined && isLanguageEnabled(planEntry.language, installedPacks2));
 }
-var PYTHON_MANIFESTS, SQL_PROJECT_MARKERS, MYPY_MARKER_FILES, PYRIGHT_MARKER_FILES, BEHAVE_MARKER_FILES, TREE_MANIFESTS, PYTHON_SKIP_KINDS, GO_SKIP_KINDS, JS_DIRECT_SCRIPT;
+var PYTHON_MANIFESTS, SQL_PROJECT_MARKERS, MYPY_MARKER_FILES, PYRIGHT_MARKER_FILES, BEHAVE_MARKER_FILES, TREE_MANIFESTS, PYTHON_SKIP_KINDS, GO_SKIP_KINDS, JS_DIRECT_SCRIPT, SHELL_COMMAND_BOUNDARIES, SHELL_ASSIGNMENT;
 var init_resolve = __esm(() => {
   init_dist();
   init_setup();
@@ -63853,6 +63898,9 @@ var init_resolve = __esm(() => {
     typecheck: "typecheck",
     build: "build"
   };
+  SHELL_COMMAND_BOUNDARIES = new Set(["&&", "||", ";", "|", `
+`]);
+  SHELL_ASSIGNMENT = /^[A-Za-z_]\w*=.*/u;
 });
 
 // src/commands/test-execution.ts

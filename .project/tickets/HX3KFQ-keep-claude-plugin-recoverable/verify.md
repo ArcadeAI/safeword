@@ -2,24 +2,24 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✅ 9,993 passed, 14 skipped across the current CLI, retro-relay, and retro-collector suites; 56/56 focused plugin tests and 12/12 Claude release-contract tests pass
+**Test Suite:** ✅ Final current-head run: 9,955 passed, 58 skipped across CLI, retro-relay, and retro-collector; affected-suite run: 184/184 passed; release run: 74/74 passed across 12 files
 **Gherkin:** ✅ Generated verify lane: 1,496 passed, 3 skipped (68,731 steps passed, 4 skipped); dedicated BDD lane: 595/595 scenarios and 11,100/11,100 steps passed; proof tags: 45/45
 **Build:** ✅ CLI, retro packages, and website build successfully
 **Lint:** ✅ ESLint, Prettier, Gherkin lint, and TypeScript checks pass
-**Scenarios:** ⚠️ No ticket-specific `.feature` scenarios were authored; the changed step definitions only preserve existing native-surface review scenarios
-**Refactor:** ✅ No change warranted — canonical template duplication is deliberate package data required by the standalone runtime contract, and the dispatcher change remains at its existing integrity boundary
+**Scenarios:** ✅ Two post-hoc regression scenarios now bind the native resource and damaged-cache recovery contracts to named executable proof; they improve future protection but do not recreate pre-implementation discovery evidence
+**Refactor:** ✅ The duplicated Claude release proof was extracted into one normal-suite native resource contract shared by release verification; exact root-delegated workspace lanes are now represented once in generated plans
 **PR Scope:** ✅ Diff matches the packaging and damaged-cache recovery ticket
 **Dep Drift:** ✅ No dependency changes; all package audits report no known vulnerabilities
 **Parent Epic:** N/A
 **Reconcile:** ✅ Generated Claude and Codex payload checks pass
 **Experience:** ⏭️ N/A — internal plugin packaging and recovery plumbing
 **Surface Evidence:** ✅ Both bundled CLIs execute real commands; damaged-cache behavior is proven for prompt, PreToolUse, SessionStart, PostToolUse, and Stop paths
-**Evidence limits:** ⚠️ The independent quality-review coordinator exhausted Claude Opus, Claude Sonnet, OpenCode, and Codex fallback routes. The final supplemental review is main-thread and non-independent. The aggregate verifier also encountered global test-lock contention on duplicate generated lanes; every unique command completed successfully, including the identical proof test and a final full CLI run with an extended lock budget.
+**Evidence limits:** ⚠️ Independent quality-review routes exhausted. A same-agent fresh-context fallback found two concrete defects that were fixed, but it is not independent coverage. Historical BDD discovery and RED-first provenance remain unrecoverable. Cross-worktree lock contention can still queue a lane, but generated plans no longer schedule duplicate workspace suites. Retro-relay's socket tests require an environment that permits local port/process-lock behavior; their unrestricted rerun passed 198 tests with 1 skip.
 
 ## BDD and TDD Quality Assessment
 
-- **BDD process: inadequate.** The ticket was sized as a task even though it crossed two user-visible failure flows and several production files, so behavior discovery and ticket-owned scenarios were skipped. The project-wide Gherkin corpus is strong regression evidence, but it cannot recover the missing discovery record. Retroactively adding scenarios now would be ceremony rather than evidence, so none were manufactured.
-- **TDD test design: strong after review.** The release tests run real bundled CLIs in clean temporary repositories and assert observable `ticket new` and `install` output. Dispatcher tests damage real copied payloads, cover missing/modified/unlisted assets, assert Claude's structured `ask` response, and prove no execution-proof side effect. Lifecycle tests now prove non-blocking warnings and no execution for SessionStart, PostToolUse, and Stop.
+- **BDD process: historically inadequate; regression contract now strong.** Behavior discovery and ticket-owned scenarios were skipped before implementation, so that provenance cannot be recovered. Two post-hoc scenarios now make the shipped resource and recoverability promises explicit and bind them to normal-suite executable proof. They are useful regression protection, not evidence that BDD drove the original design.
+- **TDD test design: strong after review.** The native resource contract copies each complete plugin outside the source checkout, runs real bundled CLIs, and asserts observable `ticket new` and `install` results. Dispatcher tests damage real copied payloads, cover missing/modified/unlisted assets, assert Claude's structured `ask` response, and prove no execution-proof side effect. Lifecycle tests prove non-blocking warnings and no execution for SessionStart, PostToolUse, and Stop. Resolver tests cover exact delegation, non-delegated siblings, shell boundaries, and deceptive argument text.
 - **TDD provenance: incomplete.** The implementation and its first regression tests landed together in `2fda7dde6`; there is no durable RED-before-GREEN commit or machine receipt. The earlier reproduction established the failure interactively, but the repository history cannot independently prove test-first sequencing.
 
 ## Quality Review
@@ -28,31 +28,41 @@ The review checked the current Claude hook contract and plugin packaging constra
 
 The first terminal pass found one proof gap: non-prompt damaged-cache lifecycle behavior was changed but not directly tested. Added SessionStart, PostToolUse, and Stop cases and reran the focused and full CLI suites.
 
-> Supplemental feedback came from the main agent in the same thread. It used
-> live worktree content; source integrity was not revalidated.
+The follow-up coordinator again exhausted all independent routes. Its permitted fresh-context
+same-agent fallback requested changes for two release-relevant proof gaps: plugin tests still lived
+under the source checkout, and delegation tokens could match inside another command's arguments.
+Both were corrected. The executable resource proof now copies bundles to an unrelated temporary
+root, and command matching requires a shell command boundary; a deceptive `echo bun run ...` case
+pins the latter. Focused and release verification pass after both fixes. This supplemental feedback
+is not independent review evidence, and the fallback was not rerun after the corrections.
+
+> Supplemental feedback came from a fresh context of the same agent. It used
+> live worktree content; source integrity was not revalidated. Host-mandated
+> project context may have loaded; this is not packet-only isolation.
 
 - Coordinator: `REVIEW_ROUTES_EXHAUSTED`
-- Assurance: main-thread, live-worktree supplemental review
+- Assurance: fresh-context, live-worktree same-agent supplemental review
 - Independence: `none`
-- Policy: `prefer complete`
-- State: `approved`
-- Verdict: `approve`
-- Summary: The generators now ship the canonical runtime resources, damaged caches never execute unverified hooks, and executable/security-focused tests cover both payloads and every affected lifecycle branch.
-- Findings: none remaining
+- Policy: `prefer`
+- State: independent routes exhausted; requested changes implemented and objectively verified
+- Verdict: no post-fix independent verdict available
+- Findings: both supplemental findings fixed; no unresolved known finding
 
 ## Audit Detail
 
 - Diff-scoped architecture audit: no dependency violations across 13 modules and 5 dependencies; generated package-data trees are intentionally excluded from import-root analysis.
 - Dead code and duplication: no ticket-scoped finding. The large generated template copies are required payload contents, not source-level duplication to abstract away.
 - Documentation: the executable resource contract is recorded in `ARCHITECTURE.md`; no contradictory impacted claim was found in configured documentation.
-- Test harness note: the generated verify plan schedules package suites already covered by the root suite, which caused cross-worktree lock contention and a red aggregate exit despite no assertion failure in those lanes. This is an evidence-orchestration limitation, not a product failure in HX3KFQ.
+- Test harness: generated verify and BDD plans suppress only workspace lanes explicitly delegated by
+  their selected root script. On this repository the plans now contain one JavaScript authority,
+  while the independent Go lane remains present.
 
 ## Affected Surfaces
 
 | Affected surface | Proof | Result |
 | --- | --- | --- |
-| Claude bundled CLI resources | `claude-plugin-release.release.test.ts` | `ticket new` and `install` pass from the checked-in payload; installed handbook exists |
-| Codex bundled CLI resources | `codex-plugin-version.test.ts` | Generated payload contains key resource classes; `ticket new` and `install` pass |
+| Claude bundled CLI resources | `plugin-resource-contract.test.ts` | An isolated copy runs `ticket new` and `install`; installed handbook exists |
+| Codex bundled CLI resources | `plugin-resource-contract.test.ts` and `codex-plugin-version.test.ts` | An isolated copy runs `ticket new` and `install`; generated payload contains key resource classes |
 | Claude damaged-cache PreToolUse | `claude-plugin/dispatch.test.ts` | Missing, modified, and unlisted assets return structured `ask`; no unverified result or proof is written |
 | Other Claude lifecycle events | `claude-plugin/dispatch.test.ts` | SessionStart, PostToolUse, and Stop warn, return success, execute nothing, and write no proof |
 | Native plugin generation | Generator drift and release-contract checks | Checked-in Claude and Codex payloads match their generators |

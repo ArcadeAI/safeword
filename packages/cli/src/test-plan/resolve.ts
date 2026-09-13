@@ -320,6 +320,85 @@ function pickVerifyScript(scripts: Record<string, string>): string | undefined {
   return firstScript(scripts, ['test:ci', 'test', 'test:done']);
 }
 
+/** Return the package script selected for a JavaScript plan kind, when one exists. */
+function selectedJsScript(scripts: Record<string, string>, kind: PlanKind): string | undefined {
+  if (kind === 'deps') return undefined;
+  const directScript = JS_DIRECT_SCRIPT[kind];
+  if (directScript !== undefined) {
+    return Object.hasOwn(scripts, directScript) ? directScript : undefined;
+  }
+  return kind === 'verify' ? pickVerifyScript(scripts) : pickTestScript(scripts);
+}
+
+/** Strip the simple quoting accepted around package paths in package.json scripts. */
+function unquoteShellToken(token: string): string {
+  if (
+    token.length >= 2 &&
+    ((token.startsWith('"') && token.endsWith('"')) ||
+      (token.startsWith("'") && token.endsWith("'")))
+  ) {
+    return token.slice(1, -1);
+  }
+  return token;
+}
+
+const SHELL_COMMAND_BOUNDARIES = new Set(['&&', '||', ';', '|', '\n']);
+const SHELL_ASSIGNMENT = /^[A-Za-z_]\w*=.*/u;
+
+/** True when a token starts a shell command, optionally after environment assignments. */
+function startsShellCommand(tokens: readonly string[], index: number): boolean {
+  let cursor = index - 1;
+  while (cursor >= 0 && SHELL_ASSIGNMENT.test(tokens[cursor] ?? '')) cursor -= 1;
+  return cursor < 0 || SHELL_COMMAND_BOUNDARIES.has(tokens[cursor] ?? '');
+}
+
+/**
+ * True only for an explicit package-manager delegation to this workspace lane.
+ * This deliberately avoids guessing whether arbitrary shell commands happen to
+ * cover a child package; only an exact cwd + script invocation is deduplicated.
+ */
+function scriptDelegatesToWorkspace(
+  body: string,
+  relativeDirectory: string,
+  script: string,
+): boolean {
+  const tokens =
+    body
+      .match(/&&|\|\||[;|\n]|"(?:[^"\\]|\\.)*"|'[^']*'|[^\s;&|]+/gu)
+      ?.map(token => unquoteShellToken(token)) ?? [];
+  const patterns = [relativeDirectory, `./${relativeDirectory}`].flatMap(target => [
+    ['bun', 'run', '--cwd', target, script],
+    ['bun', '--cwd', target, 'run', script],
+    ['npm', '--prefix', target, 'run', script],
+    ['pnpm', '--dir', target, 'run', script],
+    ['pnpm', '-C', target, 'run', script],
+    ['yarn', '--cwd', target, script],
+    ['yarn', '--cwd', target, 'run', script],
+  ]);
+
+  return patterns.some(pattern =>
+    tokens.some(
+      (_, index) =>
+        startsShellCommand(tokens, index) &&
+        pattern.every((token, offset) => tokens[index + offset] === token),
+    ),
+  );
+}
+
+function rootScriptDelegatesToWorkspace(root: string, directory: string, kind: PlanKind): boolean {
+  const rootScripts = readRootScripts(root);
+  const workspaceScripts = readRootScripts(directory);
+  if (!rootScripts || !workspaceScripts) return false;
+  const rootScript = selectedJsScript(rootScripts, kind);
+  const workspaceScript = selectedJsScript(workspaceScripts, kind);
+  if (!rootScript || !workspaceScript) return false;
+  return scriptDelegatesToWorkspace(
+    rootScripts[rootScript] ?? '',
+    nodePath.relative(root, directory),
+    workspaceScript,
+  );
+}
+
 /** True when an indexed `file` contains `marker`. */
 function configContains(index: ManifestIndex, file: string, marker: string): boolean {
   const dir = index.get(file);
@@ -627,22 +706,26 @@ export function resolveTestPlan(root: string, options: ResolveOptions = {}): Pla
   const installedPacks = readInstalledPacks(root);
   const globalIndex = indexFilesInTree(root, TREE_MANIFESTS);
   const declaredJavascriptPatterns = getWorkspacePatterns(root);
-  const javascript = javascriptProjectDirectories(root).map(directory =>
-    resolveJs(
-      directory,
-      directManifestIndex(directory),
-      kind,
-      isAvailable,
-      directory !== root &&
-        declaredJavascriptPatterns.some(
-          pattern =>
-            !pattern.startsWith('!') &&
-            matchesWorkspacePattern(nodePath.relative(root, directory), pattern),
-        )
-        ? root
-        : directory,
-    ),
-  );
+  const javascript = javascriptProjectDirectories(root)
+    .filter(
+      directory => directory === root || !rootScriptDelegatesToWorkspace(root, directory, kind),
+    )
+    .map(directory =>
+      resolveJs(
+        directory,
+        directManifestIndex(directory),
+        kind,
+        isAvailable,
+        directory !== root &&
+          declaredJavascriptPatterns.some(
+            pattern =>
+              !pattern.startsWith('!') &&
+              matchesWorkspacePattern(nodePath.relative(root, directory), pattern),
+          )
+          ? root
+          : directory,
+      ),
+    );
   const pythonDirectories = directoriesWithAnyManifest(root, pythonProjectMarkers(kind));
   const python = pythonDirectories.map(directory =>
     resolvePython(
