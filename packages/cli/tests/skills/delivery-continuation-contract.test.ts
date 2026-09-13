@@ -78,4 +78,10 @@ describe('installed delivery continuation contract', () => {
       expect(directive.toLowerCase()).not.toContain(following.toLowerCase());
     },
   );
+
+  it.each(tddCopies)('%s closes the whole ticket after the final scenario', path => {
+    expect(read(path)).toContain(
+      'After the final scenario, continue in order through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure without asking whether to proceed.',
+    );
+  });
 });
