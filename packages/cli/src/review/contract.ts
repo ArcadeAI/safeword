@@ -1,7 +1,12 @@
 export type ReviewAgent = 'claude' | 'codex' | 'opencode';
 export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
 export type ReviewKind =
-  'quality-review' | 'scenario-gate' | 'plan-implementation' | 'plan-execution' | 'executable-red';
+  | 'quality-review'
+  | 'scenario-gate'
+  | 'plan-implementation'
+  | 'plan-execution'
+  | 'delivery-compatibility'
+  | 'executable-red';
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type RedEvidenceClass =
   'pure-contract' | 'simulated-host' | 'local-live-host' | 'external-live-host';
@@ -191,6 +196,7 @@ const REVIEW_KINDS = new Set<ReviewKind>([
   'scenario-gate',
   'plan-implementation',
   'plan-execution',
+  'delivery-compatibility',
   'executable-red',
 ]);
 

@@ -1,4 +1,5 @@
 import type { ReviewKind } from './contract.js';
+import { DELIVERY_COMPATIBILITY_REVIEW_RUBRIC } from './delivery-compatibility-rubric.generated.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { QUALITY_REVIEW_RUBRIC } from './quality-rubric.generated.js';
@@ -30,10 +31,15 @@ export function executionPlanReviewRubric(): string {
   return composeReviewRubric(EXECUTION_PLAN_REVIEW_RUBRIC);
 }
 
+export function deliveryCompatibilityReviewRubric(): string {
+  return composeReviewRubric(DELIVERY_COMPATIBILITY_REVIEW_RUBRIC);
+}
+
 export function reviewRubric(kind: ReviewKind): string {
   if (kind === 'scenario-gate') return scenarioReviewRubric();
   if (kind === 'plan-implementation') return planReviewRubric();
   if (kind === 'plan-execution') return executionPlanReviewRubric();
+  if (kind === 'delivery-compatibility') return deliveryCompatibilityReviewRubric();
   if (kind === 'executable-red') return composeReviewRubric(EXECUTABLE_RED_REVIEW_RUBRIC);
   return qualityReviewRubric();
 }

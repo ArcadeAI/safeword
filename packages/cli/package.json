@@ -55,6 +55,7 @@
     "generate:scenario-rubric": "bun scripts/generate-scenario-rubric.ts",
     "generate:plan-rubric": "bun scripts/generate-plan-rubric.ts",
     "generate:execution-plan-rubric": "bun scripts/generate-execution-plan-rubric.ts",
+    "generate:delivery-compatibility-rubric": "bun scripts/generate-delivery-compatibility-rubric.ts",
     "generate:execution-plan-admission": "bun scripts/generate-execution-plan-admission.ts",
     "generate:quality-rubric": "bun scripts/generate-quality-rubric.ts",
     "generate:red-rubric": "bun scripts/generate-red-rubric.ts",

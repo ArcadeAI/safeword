@@ -196,10 +196,13 @@ describe('Execution Plan semantic conformance admission', () => {
     ).toEqual([]);
   });
 
-  it.each(['quality-review', 'scenario-gate', 'plan-implementation', 'executable-red'] as const)(
-    'leaves %s routes unchanged',
-    kind => {
-      expect(filterExecutionPlanRoutes(kind, routes)).toBe(routes);
-    },
-  );
+  it.each([
+    'quality-review',
+    'scenario-gate',
+    'plan-implementation',
+    'delivery-compatibility',
+    'executable-red',
+  ] as const)('leaves %s routes unchanged', kind => {
+    expect(filterExecutionPlanRoutes(kind, routes)).toBe(routes);
+  });
 });

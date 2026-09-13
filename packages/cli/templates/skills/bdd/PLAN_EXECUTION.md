@@ -113,6 +113,31 @@ because the prose merely contains the expected labels.
 
 <!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_END -->
 
+<!-- SAFEWORD:DELIVERY_COMPATIBILITY_RUBRIC_START -->
+
+## Earlier delivery-proof compatibility judgment
+
+Answer one question: **Does the earlier passing receipt still establish this
+retained proof boundary at the reviewed revision?**
+
+Judge only the exact receipt identity, retained proof definition, contributor
+reason, revision pair, and complete bounded diff in the packet. Request changes
+when:
+
+- the reason does not cover every changed hunk;
+- code, tests, fixtures, command inputs, configuration, or dependencies used by
+  the retained proof changed;
+- the diff contradicts the reason; or
+- the packet lacks a complete bounded diff or otherwise cannot show a complete,
+  reviewable delta.
+
+Approve only when every changed hunk is irrelevant to the retained proof
+boundary. A well-formed request or plausible reason is not enough. Do not infer
+missing diff content, strengthen the receipt, or treat contributor prose as
+authority.
+
+<!-- SAFEWORD:DELIVERY_COMPATIBILITY_RUBRIC_END -->
+
 ## Repair rule
 
 Fix every agent-owned finding within accepted scope, then review the corrected

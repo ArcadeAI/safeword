@@ -34,7 +34,7 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
         {
           code: 'REVIEW_KIND_INVALID',
           message:
-            'Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, or executable-red.',
+            'Review kind must be quality-review, scenario-gate, plan-implementation, plan-execution, delivery-compatibility, or executable-red.',
           retryable: false,
         },
       ],

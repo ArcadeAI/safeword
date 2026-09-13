@@ -34,6 +34,7 @@ import { validateExecutionPlanOutput } from './execution-plan-output.js';
 import { reviewerPromptInstructions } from './review-rubric.js';
 
 export {
+  deliveryCompatibilityReviewRubric,
   executionPlanReviewRubric,
   planReviewRubric,
   qualityReviewRubric,

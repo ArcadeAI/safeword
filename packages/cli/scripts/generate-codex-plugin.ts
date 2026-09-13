@@ -34,6 +34,7 @@ if (
 await import('./generate-scenario-rubric.js');
 await import('./generate-plan-rubric.js');
 await import('./generate-execution-plan-rubric.js');
+await import('./generate-delivery-compatibility-rubric.js');
 await import('./generate-quality-rubric.js');
 await import('./generate-red-rubric.js');
 await import('./generate-red-rubric.js');
