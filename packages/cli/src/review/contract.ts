@@ -177,6 +177,8 @@ export interface ReviewPacket {
   }[];
   /** Exact author/reviewer planning obligations carried through semantic review. */
   readonly plan_contract?: PlanContractPair;
+  /** Trusted normalized definition the plan-execution reviewer must retain exactly. */
+  readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;
   /** Trusted process evidence, present only for executable RED review. */
   readonly execution_attestation?: RedExecutionAttestation;
 }

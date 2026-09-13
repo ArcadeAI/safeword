@@ -12,6 +12,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { DELIVERY_CHECKLIST_CATEGORIES } from '../../src/execution-plan/delivery-checklist.js';
 import { prepareReviewPacket } from '../../src/review/packet.js';
 
 const temporaryDirectories: string[] = [];
@@ -20,6 +21,35 @@ function temporaryDirectory(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-packet-test-'));
   temporaryDirectories.push(directory);
   return directory;
+}
+
+function executionPlanWithDeliveryContract(): string {
+  const proofs = DELIVERY_CHECKLIST_CATEGORIES.map(
+    (_, index) =>
+      `| proof-${index + 1} | command | integration | boundary ${index + 1} | real_boundary | current_required | {"type":"command","cwd":".","argv":["node","--version"]} |`,
+  );
+  const items = DELIVERY_CHECKLIST_CATEGORIES.map(
+    (category, index) =>
+      `| item-${index + 1} | ${category} | Complete ${category} | contributor | proof-${index + 1} | open | missing | | |`,
+  );
+  return [
+    '# Execution Plan',
+    '',
+    '## Proof specifications',
+    '',
+    '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    ...proofs,
+    '',
+    '## Delivery checklist',
+    '',
+    '<!-- safeword:delivery-checklist:v1 -->',
+    '',
+    '| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    ...items,
+    '',
+  ].join('\n');
 }
 
 afterEach(() => {
@@ -73,7 +103,9 @@ describe('review packet containment and change accounting', () => {
 
   it('seals one Execution Plan with its canonical contract and required design context', () => {
     const root = temporaryDirectory();
-    writeFileSync(nodePath.join(root, 'execution-plan.md'), '# Execution Plan\n');
+    mkdirSync(nodePath.join(root, '.safeword'));
+    writeFileSync(nodePath.join(root, '.safeword', 'config.json'), '{"designApprovalGate":true}\n');
+    writeFileSync(nodePath.join(root, 'execution-plan.md'), executionPlanWithDeliveryContract());
     writeFileSync(nodePath.join(root, 'impl-plan.md'), '# Implementation Plan\n');
     writeFileSync(nodePath.join(root, 'behavior.feature'), 'Feature: planned behavior\n');
 
@@ -93,6 +125,17 @@ describe('review packet containment and change accounting', () => {
         prepared.packet.plan_contract?.reviewer,
       );
       expect(prepared.packet.plan_contract?.author.obligations).toContain('Slicing decision');
+      expect(prepared.packet.execution_plan_delivery_definition).toMatchObject({
+        schema_version: 1,
+        design_approval_gate: true,
+        proof_specifications: [{ proof_id: 'proof-1' }],
+        checklist_items: [{ id: 'item-1', required_proof: 'proof-1' }],
+      });
+      writeFileSync(
+        nodePath.join(root, '.safeword', 'config.json'),
+        '{"designApprovalGate":false}\n',
+      );
+      expect(prepared.sourceChanged()).toBe(true);
     } finally {
       prepared.cleanup();
     }
