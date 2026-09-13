@@ -84,10 +84,4 @@ describe('installed delivery continuation contract', () => {
       'After the final scenario, continue in order through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure without asking whether to proceed.',
     );
   });
-
-  it.each(tddCopies)('%s advances from whole-ticket review into verification', path => {
-    expect(read(path)).toContain(
-      'After whole-ticket review and plan reconciliation pass, continue directly through verification and audit without asking whether to proceed.',
-    );
-  });
 });

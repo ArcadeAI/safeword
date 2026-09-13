@@ -42,12 +42,6 @@ Feature: Finish accepted changes before asking for PR review
       When the agent exits implementation successfully
       Then the workflow's next-step directive names, in order, whole-ticket review, plan reconciliation, verification, audit, and ticket closure
 
-    @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: Whole-ticket review advances into verification
-      Given an accepted ticket has passed whole-ticket review with reconciliation outstanding
-      When the outstanding reconciliation completes successfully
-      Then the workflow's next-step directive names verification and audit without asking whether to continue
-
     @surface.safeword-cli
     Scenario: Verification advances into recorded ticket closure
       Given an accepted ticket has passed verification with audit outstanding

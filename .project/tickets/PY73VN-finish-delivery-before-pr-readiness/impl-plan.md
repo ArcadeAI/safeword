@@ -112,7 +112,7 @@ Build in four slices:
    hard gate. Regenerate the Codex plugin and
    reconcile the dogfood install after canonical template changes.
 
-The 25 accepted scenario headings collapse into those four actor-boundary proof groups
+The 24 accepted scenario headings collapse into those four actor-boundary proof groups
 rather than 25 duplicate implementations: slice 1 covers R3 state and command
 partitions, slice 2 covers the host/install matrix, slice 3 covers R2's
 verification/closure outcomes and R4's dependency/recovery partitions, and
