@@ -34,4 +34,12 @@ describe('installed delivery continuation contract', () => {
       'After GREEN, continue through refactor and then start the next incomplete scenario without asking whether to proceed.',
     );
   });
+
+  it.each(tddCopies)('%s keeps an unsuccessful TDD step at its failing evidence', path => {
+    const content = read(path);
+
+    expect(content).toContain(
+      'An unsuccessful TDD step stays at the failing step with its evidence: a RED proof that passes does not advance to implementation, and a GREEN proof with a required check failing does not advance to refactor.',
+    );
+  });
 });
