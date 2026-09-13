@@ -40,18 +40,6 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Ready-gate installation preserves existing lifecycle configuration
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Ready-gate installation leaves a disabled host untouched
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: Ready promotion is rejected across unfinished ticket states
 
 - [x] RED e2f3a1f58

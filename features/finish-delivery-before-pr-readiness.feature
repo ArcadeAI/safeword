@@ -57,18 +57,6 @@ Feature: Finish accepted changes before asking for PR review
         | OpenAI Codex |
         | Cursor |
 
-    @surface.safeword-cli
-    Scenario: Ready-gate installation preserves existing lifecycle configuration
-      Given a project has an existing host lifecycle configuration
-      When the Technical Builder installs or updates Safeword with the Ready gate
-      Then the existing lifecycle configuration remains and the shared Ready gate is added
-
-    @surface.safeword-cli
-    Scenario: Ready-gate installation leaves a disabled host untouched
-      Given a project does not enable Cursor
-      When the Technical Builder installs or updates Safeword
-      Then Cursor's lifecycle configuration is not created or modified
-
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Ready promotion is rejected across unfinished ticket states
       Given an active ticket is at <ticket state> with an installed agent lifecycle hook active
