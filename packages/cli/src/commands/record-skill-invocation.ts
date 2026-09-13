@@ -1,9 +1,9 @@
 /** Record current-run workflow proof without requiring project-local helpers. */
 
 import { ENROLLMENT_CHOICE_MESSAGE } from '../../templates/hooks/lib/enrollment-boundary.js';
-import { hasSafewordProjectMarker } from '../../templates/hooks/lib/namespace-root.js';
 import { recordSkillInvocation } from '../../templates/hooks/record-skill-invocation.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { resolveProjectContext } from '../project-context/resolver.js';
 
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
 
@@ -11,6 +11,7 @@ export function runRecordSkillInvocation(
   cwd: string,
   skillName: string | undefined,
   sessionId: string | undefined,
+  options: { readonly interactive?: boolean } = {},
 ): Promise<CliResult> {
   if (skillName === undefined || !SKILL_NAME_PATTERN.test(skillName)) {
     return Promise.resolve(
@@ -27,7 +28,8 @@ export function runRecordSkillInvocation(
     );
   }
 
-  if (!hasSafewordProjectMarker(cwd)) {
+  const resolution = resolveProjectContext(cwd);
+  if (resolution.kind !== 'ready' || resolution.context.authority !== 'local') {
     return Promise.resolve(
       createResult({
         state: 'action_required',
@@ -38,7 +40,10 @@ export function runRecordSkillInvocation(
             severity: 'info',
           },
         ],
-        nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: true }],
+        nextActions:
+          options.interactive === false
+            ? []
+            : [{ command: 'safeword install', mutates: true, requiresHuman: true }],
       }),
     );
   }

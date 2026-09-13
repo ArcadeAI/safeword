@@ -39,6 +39,7 @@
     "pretest:bdd": "tsup",
     "test:bdd": "bun run test:bdd:acceptance && bun run test:bdd:proof",
     "test:bdd:acceptance": "NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @proof.vitest and not @manual and not @live'",
+    "test:bdd:quiet-enrollment": "bun run build && NODE_OPTIONS='--import tsx' cucumber-js --profile quietEnrollmentRed --name '^Every supported surface asks before project state is accessed$'",
     "test:bdd:proof": "node scripts/run-vitest-with-build-lock.mjs tests/bdd-proof-tags.test.ts",
     "test:bdd:live": "NODE_OPTIONS='--import tsx' cucumber-js --tags '@live and not @manual'",
     "test:done": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts",

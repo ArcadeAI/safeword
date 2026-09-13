@@ -110,12 +110,12 @@ Given(
         'const originalWriteSync = fs.writeSync.bind(fs);',
         'const originalCloseSync = fs.closeSync.bind(fs);',
         String.raw`const record = (operation, value) => { if (!log) return; const path = value instanceof URL ? value.pathname : Buffer.isBuffer(value) ? value.toString() : value; if (typeof path !== 'string') return; const descriptor = originalOpenSync(log, 'a'); try { originalWriteSync(descriptor, JSON.stringify({ operation, path }) + '\n'); } finally { originalCloseSync(descriptor); } };`,
-        'const patchSync = (name, operation) => { const original = fs[name].bind(fs); fs[name] = (...args) => { record(operation, args[0]); return original(...args); }; };',
-        "for (const name of ['accessSync', 'existsSync', 'lstatSync', 'openSync', 'readFileSync', 'readdirSync', 'realpathSync', 'statSync']) patchSync(name, name === 'existsSync' ? 'exists' : 'read');",
-        "for (const name of ['appendFileSync', 'chmodSync', 'copyFileSync', 'mkdirSync', 'renameSync', 'rmSync', 'rmdirSync', 'unlinkSync', 'writeFileSync']) patchSync(name, 'write');",
-        'const patchPromise = (name, operation) => { const original = fs.promises[name].bind(fs.promises); fs.promises[name] = async (...args) => { record(operation, args[0]); return original(...args); }; };',
-        "for (const name of ['access', 'lstat', 'open', 'readFile', 'readdir', 'realpath', 'stat']) patchPromise(name, 'read');",
-        "for (const name of ['appendFile', 'chmod', 'copyFile', 'mkdir', 'rename', 'rm', 'rmdir', 'unlink', 'writeFile']) patchPromise(name, 'write');",
+        "const patchSync = (name, operation) => { if (typeof fs[name] !== 'function') return; const original = fs[name].bind(fs); fs[name] = (...args) => { record(operation, args[0]); return original(...args); }; };",
+        "for (const name of ['access', 'accessSync', 'createReadStream', 'existsSync', 'glob', 'lstat', 'lstatSync', 'open', 'openSync', 'opendir', 'readFile', 'readFileSync', 'readdir', 'readdirSync', 'realpath', 'realpathSync', 'stat', 'statSync']) patchSync(name, name === 'existsSync' ? 'exists' : 'read');",
+        "for (const name of ['appendFile', 'appendFileSync', 'chmod', 'chmodSync', 'copyFile', 'copyFileSync', 'cp', 'createWriteStream', 'mkdir', 'mkdirSync', 'rename', 'renameSync', 'rm', 'rmSync', 'rmdir', 'rmdirSync', 'unlink', 'unlinkSync', 'writeFile', 'writeFileSync']) patchSync(name, 'write');",
+        "const patchPromise = (name, operation) => { if (typeof fs.promises[name] !== 'function') return; const original = fs.promises[name].bind(fs.promises); fs.promises[name] = async (...args) => { record(operation, args[0]); return original(...args); }; };",
+        "for (const name of ['access', 'glob', 'lstat', 'open', 'opendir', 'readFile', 'readdir', 'realpath', 'stat']) patchPromise(name, 'read');",
+        "for (const name of ['appendFile', 'chmod', 'copyFile', 'cp', 'mkdir', 'rename', 'rm', 'rmdir', 'unlink', 'writeFile']) patchPromise(name, 'write');",
         'const originalStdoutWrite = process.stdout.write.bind(process.stdout);',
         "process.stdout.write = (chunk, ...args) => { const output = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk); if (output.includes('ENROLLMENT_CHOICE_REQUIRED')) record('choice', 'ENROLLMENT_CHOICE_REQUIRED'); return originalStdoutWrite(chunk, ...args); };",
         'syncBuiltinESMExports();',
@@ -211,13 +211,31 @@ Then(
       event => event.operation === 'choice',
     );
     assert.notEqual(choiceIndex, -1, 'the observer did not record the enrollment choice');
-    const beforeChoice = (this.observedAccesses ?? []).slice(0, choiceIndex);
-    const relevantBeforeChoice = beforeChoice.filter(
-      event => event.path.startsWith(projectRoot) || event.path.startsWith(userDataRoot),
+    assert.equal(
+      (this.observedAccesses ?? []).filter(event => event.operation === 'choice').length,
+      1,
+      'the observer recorded more than one enrollment choice',
     );
+    const beforeChoice = (this.observedAccesses ?? []).slice(0, choiceIndex);
     const currentMarker = nodePath.join(projectRoot, '.safeword', 'SAFEWORD.md');
-    const ancestorMarker = nodePath.join(nodePath.dirname(projectRoot), '.safeword', 'SAFEWORD.md');
+    const ancestorMarkers: string[] = [];
+    let ancestor = nodePath.dirname(projectRoot);
+    while (true) {
+      ancestorMarkers.push(nodePath.join(ancestor, '.safeword', 'SAFEWORD.md'));
+      const parent = nodePath.dirname(ancestor);
+      if (parent === ancestor) break;
+      ancestor = parent;
+    }
     const globalMarker = nodePath.join(expectedPartition, 'partition.json');
+    const safewordSegment = `${nodePath.sep}.safeword${nodePath.sep}`;
+    const projectSegment = `${nodePath.sep}.project${nodePath.sep}`;
+    const relevantBeforeChoice = beforeChoice.filter(
+      event =>
+        event.path === projectRoot ||
+        event.path.startsWith(userDataRoot) ||
+        event.path.includes(safewordSegment) ||
+        event.path.includes(projectSegment),
+    );
     assert.ok(
       beforeChoice.some(event => event.path === currentMarker),
       'the current repository marker was not checked',
@@ -226,10 +244,12 @@ Then(
       beforeChoice.some(event => event.path === globalMarker),
       'the exact checkout-global partition was not checked before offering setup',
     );
-    assert.ok(
-      beforeChoice.some(event => event.path === ancestorMarker),
-      'an ancestor repository marker was not checked before offering setup',
-    );
+    for (const ancestorMarker of ancestorMarkers) {
+      assert.ok(
+        beforeChoice.some(event => event.path === ancestorMarker),
+        `ancestor repository marker was not checked before offering setup: ${ancestorMarker}`,
+      );
+    }
     assert.equal(
       relevantBeforeChoice.some(event => event.operation === 'write'),
       false,
@@ -240,13 +260,14 @@ Then(
       required(this.beforeSnapshot, 'before filesystem snapshot'),
       'the observed repository or user-data filesystem changed before the choice returned',
     );
-    const allowedChecks = new Set([currentMarker, ancestorMarker, globalMarker]);
+    const allowedChecks = new Set([projectRoot, currentMarker, ...ancestorMarkers, globalMarker]);
+    const unexpectedAccesses = relevantBeforeChoice.filter(
+      event => event.operation !== 'choice' && !allowedChecks.has(event.path),
+    );
     assert.equal(
-      relevantBeforeChoice.some(
-        event => event.operation !== 'choice' && !allowedChecks.has(event.path),
-      ),
-      false,
-      'state outside the enrollment checks was accessed before the enrollment choice',
+      unexpectedAccesses.length,
+      0,
+      `state outside the enrollment checks was accessed before the enrollment choice: ${JSON.stringify(unexpectedAccesses)}`,
     );
   },
 );

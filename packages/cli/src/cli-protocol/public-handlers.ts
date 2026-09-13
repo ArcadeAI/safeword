@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import { architectureHandler } from './architecture-handlers.js';
@@ -361,6 +362,11 @@ async function recordSkillInvocationHandler(invocation: CommandInvocation): Prom
     invocation.cwd,
     typeof skill === 'string' ? skill : undefined,
     typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined,
+    {
+      interactive:
+        !invocation.noInput &&
+        (process.env.SAFEWORD_HOST_INTERACTIVE === '1' || process.stdin.isTTY),
+    },
   );
 }
 
