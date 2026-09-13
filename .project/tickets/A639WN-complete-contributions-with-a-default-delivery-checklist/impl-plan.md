@@ -52,7 +52,7 @@ revision currency address that separate risk.
 | --- | --- | --- |
 | Checklist shape | Integration tests parse a generated Execution Plan, remove each required category, and mutate every stable field. | Structure cannot prove semantic relevance. |
 | Scenario and approach coverage | Plan-execution conformance accepts obligations derived from the accepted ticket and rejects a generic checklist. | Model sampling is not deterministic across future reviewer versions. |
-| Retained proof invocation | A real child process runs retained project-contained arguments and rejects caller substitutions and escaping paths. | A receipt does not prove mutable test code remains honest. |
+| Retained proof invocation | A real child process runs retained project-contained arguments and rejects caller substitutions and escaping paths. | Safeword supplies the reviewed values unchanged, but PATH can resolve a bare executable differently; a receipt does not prove mutable test code remains honest. |
 | Review identity | Integration tests prove ordinary progress preserves plan approval while any stable-definition change requires re-review. | 5F5ZZA owns invalidation outside this checklist definition. |
 | Evidence currency | Git-backed integration tests cover current, earlier, partial, mismatched, dirty, and compatible-earlier evidence. | Ignored files remain outside the contribution snapshot. |
 | Compatibility judgment | Semantic conformance approves an unrelated documentation delta and rejects changes to the retained proof boundary. | A semantic reviewer can still make a judgment error. |
@@ -60,7 +60,7 @@ revision currency address that separate risk.
 | Failure recovery | A type-level exhaustive map and integration test require one concrete action for every repairable refusal code. | The map cannot prove that a future action is the best operational advice. |
 | PR slicing | Deterministic admission validates the retained one-versus-many record; semantic review judges its rationale. | Structure cannot decide whether a slice is coherent. |
 | Readiness and authority | Real CLI tests exercise all readiness states and prove contributor text cannot create approval or merge authority. | Generic human dependencies remain pending without an authoritative recorder. |
-| First-execution prerequisite | A real helper process denies missing approvals or checklist admission in fixed order and never turns a phase denial into an allow. | 7CAMAD and YCFFNC own live composition and installed dispatch. |
+| First-execution prerequisite | A real helper process denies missing approvals or checklist admission in fixed order and never turns a phase denial into an allow. | This does not satisfy R1's CLI-surface scenarios; 7CAMAD and YCFFNC own live composition and installed dispatch. |
 | Feature-only placement | Feature fixtures use `execution-plan.md`; task and patch fixtures receive no feature artifact. | 3EG00H owns the later small-work contract. |
 | Documentation parity | Schema, parity, catalogue, machine-contract, and generated-rubric tests keep canonical and host-facing contracts aligned. | YCFFNC owns installed-host activation. |
 
@@ -74,7 +74,8 @@ revision currency address that separate risk.
 2. **Make the checklist usable.** Extend plan-execution review, the shared
    ledger, the canonical template and guidance, and two public CLI operations:
    read readiness and record one proof. Add compatible-earlier review and
-   regenerate host mirrors.
+   regenerate host mirrors. Ship the full-diff egress disclosure with the proof
+   command.
 3. **Expose the prerequisite helper.** Add the private evaluator and fixed
    recovery results that 7CAMAD can compose with the first-execution boundary.
 
@@ -214,6 +215,9 @@ only ordinary contributor progress. Reviewed `not_applicable` reasons, human
 dependencies, proof definitions, PR slicing, configuration, and `Status` remain
 stable content.
 
+`Status` changes only during explicit Execution Plan reconciliation and
+requires a new plan-execution review; ordinary phase progress does not mutate it.
+
 **Alternative considered:** Complete every review-backed item atomically, or
 move reviewed identity into a third artifact.
 
@@ -252,7 +256,7 @@ Both operations use the typed v1 CLI envelope. The response contract is:
 Every repairable failure has one stable code and one concrete recovery action;
 the [Execution Plan](./execution-plan.md#tasks-and-tests) owns the exhaustive
 code-to-recovery test. Readiness never exits 0 because merge authorization
-remains separate.
+remains separate; `healthy` is deliberately unreachable for this projection.
 
 Compatibility review maps each terminal condition explicitly:
 
@@ -264,6 +268,8 @@ Compatibility review maps each terminal condition explicitly:
 | Every configured route is exhausted | `compatibility_review_unavailable` | Run the retained proof again at the current revision. |
 | Cross-agent review is disabled | `compatibility_review_disabled` | Run the retained proof again at the current revision. |
 | Accepted review no longer matches the request or revision | `compatibility_review_stale` | Repeat compatibility review for the current request or rerun the retained proof. |
+| Diff is incomplete, binary, or oversized | `compatibility_diff_unavailable` | Run the retained proof again at the current revision. |
+| Existing egress scanning detects a secret | `compatibility_sensitive_content` | Run the retained proof again at the current revision. |
 
 One exported closed `DeliveryChecklistRepairCode` union owns every repairable
 code. A total `Record<DeliveryChecklistRepairCode, RecoveryAction>` owns the
@@ -349,6 +355,8 @@ An earlier receipt for a `current_required` proof is
 `partial_or_structural`, not reusable. Only an accepted compatibility review
 for a `compatible_earlier_allowed` proof yields
 `reusable_earlier_revision`.
+For an earlier partial receipt, readiness reports both the evidence class and
+its producing revision so the two gaps remain visible.
 Proof Specifications classified `partial_or_structural` are supporting
 evidence only and cannot be a checklist item's Required proof.
 
@@ -368,6 +376,11 @@ tests, fixtures, command inputs, configuration, or dependencies used by the
 proof, or when the reason does not cover the whole diff. The acceptance remains
 current only while its reviewed revision stays an ancestor and no later change
 exists outside the same delivery-progress normalization.
+
+Before dispatch, the generated request passes through Safeword's existing
+secret-detection boundary. A detected secret refuses egress. The structural
+check does not identify every form of customer-sensitive content, so the
+authoring prohibition remains in force for anything the detector cannot know.
 
 #### Atomicity, retries, and trust
 
@@ -407,6 +420,11 @@ approach order. Each denial names the stopped boundary and one recovery action.
 Tickets without that persisted marker are legacy-exempt. 7CAMAD writes the
 marker before a ticket advances from plan-execution and supplies the live
 composition; this child supplies and directly proves only the helper.
+
+The three R1 `@surface.safeword-cli` ledger rows must not use helper-only proof.
+They remain unchecked until 7CAMAD composes the helper and YCFFNC supplies the
+installed CLI dispatch proof. A639WN may finish its other scenarios but cannot
+enter `done` until those real-boundary proofs land.
 
 ### Data applicability
 
@@ -461,7 +479,9 @@ with another retained plan section and
 [Digest-Bound Planning Decisions in the Shared Review Ledger](../../../ARCHITECTURE.md#digest-bound-planning-decisions-in-the-shared-review-ledger)
 with new event kinds that use the same digest-binding and unknown-event rules.
 Neither changes or contradicts the accepted decisions, so their current records
-remain authoritative and no superseding record is required.
+remain authoritative and no superseding record is required. The existing
+`A639WN extension` paragraphs in those records are this ticket's
+decision-bearing architecture record.
 
 ## Known deviations
 
@@ -472,7 +492,8 @@ remain authoritative and no superseding record is required.
   `current_required` item incomplete until its proof runs again at the final
   revision. Final receipts do not prove when earlier recording occurred. Add a
   one-shot task-boundary signal only if contributors routinely defer all
-  recording to the end.
+  recording to the end. Final reruns are expected under the current currency
+  rule; intermediate receipts provide progress visibility, not saved execution.
 - **Add, never replace:** This replaces the unreleased seven-line provisional
   checklist because it cannot express ownership, evidence currency, or partial
   progress. Preserving both would create two contracts.
@@ -481,12 +502,14 @@ remain authoritative and no superseding record is required.
   contributor self-report from dismissing accepted work.
 - **Sibling activation boundary:** This child proves the shared prerequisite
   helper, not installed first-edit behavior. R1 remains incomplete at epic level
-  until 7CAMAD composes the helper and YCFFNC ships host dispatch.
+  until 7CAMAD composes the helper and YCFFNC ships host dispatch. The matching
+  R1 ledger rows stay unchecked, so A639WN cannot close early.
 - **Generic human dependencies:** Only the existing digest-bound design approval
   has an authoritative satisfaction source. Every other human dependency stays
   pending.
-- **Secret handling:** Prohibiting secrets in plan and review content remains an
-  authoring and trust-boundary rule, not a probabilistic content scanner.
+- **Secret handling:** Compatibility requests reuse Safeword's existing
+  structural secret detector before egress. Prohibiting undetectable customer
+  data and other sensitive context remains an authoring and trust-boundary rule.
 - **Compatibility-review egress:** The generated request can contain the full
   bounded contribution diff, not only files named by the Proof Specification.
   Supplying both earlier-reuse options is the explicit request to use the

@@ -151,7 +151,9 @@ on a later slice.
    `delivery-compatibility:v1` event binding every request field plus the request
    digest and source review ID before updating the checklist row. Reject an
    oversized or unrepresentable diff with a concrete instruction to rerun the
-   retained proof.
+   retained proof. Pass every generated request through Safeword's existing
+   secret detector before dispatch and return
+   `compatibility_sensitive_content` without egress when it finds a secret.
    Give the dedicated reviewer the exact judgment contract from the
    Implementation Plan in a generated rubric. Add
    `packages/cli/tests/review/delivery-compatibility-conformance.test.ts` and
@@ -173,7 +175,10 @@ on a later slice.
    `compatibility_review_authentication_required`, exhausted routes to
    `compatibility_review_unavailable`, and disabled cross-agent review to
    `compatibility_review_disabled`. Each result keeps the item open and returns
-   the single recovery action defined by the Implementation Plan.
+   the single recovery action defined by the Implementation Plan. Drive every
+   terminal condition through the coordinator boundary and assert its exact
+   emitted code, including `compatibility_diff_unavailable` and
+   `compatibility_sensitive_content`.
 8. RED: Add `packages/cli/tests/integration/delivery-checklist-cli.test.ts` for
    `contributor_work_incomplete`, `contributor_work_complete`,
    `ready_for_human_review`, and
@@ -265,7 +270,8 @@ on a later slice.
 - **Completion signal:** Given `plan-execution` provenance, the shared helper
   refuses execution until accepted scenarios, the accepted approach, and the
   Delivery Checklist exist; it permits admitted and legacy-exempt inputs.
-  7CAMAD remains responsible for live first-edit composition.
+  7CAMAD remains responsible for live first-edit composition. Helper-only proof
+  does not complete A639WN's three R1 CLI-surface scenarios.
 - **Relies on an unmerged successor:** no
 
 ### Tasks and tests
@@ -316,8 +322,8 @@ on a later slice.
 
 | Accepted obligation                                                 | Owning PRs                                                                                                                                                                |
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1 checklist-admission prerequisite helper                          | PR 3                                                                                                                                                                      |
-| R1 missing-scenarios and accepted-approach recovery from the helper | PR 3                                                                                                                                                                      |
+| R1 checklist-admission prerequisite helper                          | PR 3 builds the helper; scenario completion waits for 7CAMAD composition and YCFFNC installed dispatch                                                                     |
+| R1 missing-scenarios and accepted-approach recovery from the helper | PR 3 builds the helper; scenario completion waits for 7CAMAD composition and YCFFNC installed dispatch                                                                     |
 | R2 all eleven default categories and omission denial                | PR 1, PR 2                                                                                                                                                                |
 | R3 complete, not-applicable, and pending-human dispositions         | PR 1, PR 2                                                                                                                                                                |
 | R3 contributor-work owner enforcement and partial progress          | PR 2                                                                                                                                                                      |
