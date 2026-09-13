@@ -158,7 +158,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5453fed07
 - [x] GREEN 8b487b2e6
-- [ ] REFACTOR
+- [x] REFACTOR skip: contract validation stays in one bounded requirement collector
 
 ### Scenario: A contract without a no-decision action form is invalid
 
