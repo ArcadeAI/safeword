@@ -5826,7 +5826,7 @@ function postExecutionLifecycle(event, pluginRoot, identity, hookInput, executio
   } catch {}
   return automaticMigration(event, identity, execution, hookInput.session_id, hookInput.cwd);
 }
-function verifiedIdentity(event, pluginRoot) {
+function verifyPlugin(event, pluginRoot) {
   try {
     const identity = readIdentity(pluginRoot);
     verifyManifest(pluginRoot, identity);
@@ -5835,14 +5835,17 @@ function verifiedIdentity(event, pluginRoot) {
     if (eventGroupsContent === void 0) {
       throw new Error('Safeword Claude plugin verified event groups are unavailable.');
     }
-    return { eventGroupsContent, identity };
+    return { kind: 'verified', eventGroupsContent, identity };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     const advisory = `Safeword detected a damaged native plugin cache: ${detail} No Safeword hook result was applied.`;
     if (event === 'PreToolUse') {
       const recovery = `${advisory} Approve only a repair or diagnostic action; run \`safeword claude status\` to get the exact repair action.`;
-      process.stdout.write(
-        `${JSON.stringify({
+      return {
+        kind: 'damaged',
+        status: 0,
+        stderr: '',
+        stdout: `${JSON.stringify({
           hookSpecificOutput: {
             hookEventName: event,
             permissionDecision: 'ask',
@@ -5851,20 +5854,34 @@ function verifiedIdentity(event, pluginRoot) {
           },
         })}
 `,
-      );
-      return void 0;
+      };
     }
     if (event !== 'UserPromptSubmit') {
-      process.stderr.write(`${advisory}
-`);
-      return void 0;
+      return {
+        kind: 'damaged',
+        status: 0,
+        stderr: `${advisory}
+`,
+        stdout: '',
+      };
     }
     const promptAdvisory = `${advisory} The prompt was not blocked.`;
     try {
-      process.stdout.write(safeAppendMigrationAdvisory(event, '', promptAdvisory));
-    } catch {}
-    return void 0;
+      return {
+        kind: 'damaged',
+        status: 0,
+        stderr: '',
+        stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
+      };
+    } catch {
+      return { kind: 'damaged', status: 0, stderr: '', stdout: '' };
+    }
   }
+}
+function emitDamagedPlugin(response) {
+  if (response.stdout !== '') process.stdout.write(response.stdout);
+  if (response.stderr !== '') process.stderr.write(response.stderr);
+  return response.status;
 }
 function runEventHooks(event, hooks, standardInput, response) {
   for (const hook of hooks) {
@@ -5949,9 +5966,9 @@ function mainUnsafe(event, mode, command) {
   const standardInput = readFileSync6(0);
   const hookInput = parseHookInput(standardInput);
   const projectRoot = canonicalClaudeProjectRoot(hookInput.cwd ?? process.cwd());
-  const verifiedPlugin = verifiedIdentity(event, pluginRoot);
-  if (verifiedPlugin === void 0) return 0;
-  const { eventGroupsContent, identity } = verifiedPlugin;
+  const verification = verifyPlugin(event, pluginRoot);
+  if (verification.kind === 'damaged') return emitDamagedPlugin(verification);
+  const { eventGroupsContent, identity } = verification;
   let execution = executeConfiguredHooks({
     event,
     mode,

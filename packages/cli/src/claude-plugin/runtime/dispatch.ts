@@ -78,9 +78,19 @@ interface FunctionalCommandResult {
 }
 
 interface VerifiedPlugin {
+  readonly kind: 'verified';
   readonly eventGroupsContent: Buffer;
   readonly identity: PluginIdentityV1;
 }
+
+interface DamagedPlugin {
+  readonly kind: 'damaged';
+  readonly status: 0;
+  readonly stderr: string;
+  readonly stdout: string;
+}
+
+type PluginVerification = VerifiedPlugin | DamagedPlugin;
 
 function parseSettings(path: string): Record<string, unknown> | undefined {
   if (!existsSync(path)) return undefined;
@@ -700,7 +710,7 @@ function postExecutionLifecycle(
   return automaticMigration(event, identity, execution, hookInput.session_id, hookInput.cwd);
 }
 
-function verifiedIdentity(event: string, pluginRoot: string): VerifiedPlugin | undefined {
+function verifyPlugin(event: string, pluginRoot: string): PluginVerification {
   try {
     const identity = readIdentity(pluginRoot);
     verifyManifest(pluginRoot, identity);
@@ -709,14 +719,17 @@ function verifiedIdentity(event: string, pluginRoot: string): VerifiedPlugin | u
     if (eventGroupsContent === undefined) {
       throw new Error('Safeword Claude plugin verified event groups are unavailable.');
     }
-    return { eventGroupsContent, identity };
+    return { kind: 'verified', eventGroupsContent, identity };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     const advisory = `Safeword detected a damaged native plugin cache: ${detail} No Safeword hook result was applied.`;
     if (event === 'PreToolUse') {
       const recovery = `${advisory} Approve only a repair or diagnostic action; run \`safeword claude status\` to get the exact repair action.`;
-      process.stdout.write(
-        `${JSON.stringify({
+      return {
+        kind: 'damaged',
+        status: 0,
+        stderr: '',
+        stdout: `${JSON.stringify({
           hookSpecificOutput: {
             hookEventName: event,
             permissionDecision: 'ask',
@@ -724,21 +737,30 @@ function verifiedIdentity(event: string, pluginRoot: string): VerifiedPlugin | u
             additionalContext: recovery,
           },
         })}\n`,
-      );
-      return undefined;
+      };
     }
     if (event !== 'UserPromptSubmit') {
-      process.stderr.write(`${advisory}\n`);
-      return undefined;
+      return { kind: 'damaged', status: 0, stderr: `${advisory}\n`, stdout: '' };
     }
     const promptAdvisory = `${advisory} The prompt was not blocked.`;
     try {
-      process.stdout.write(safeAppendMigrationAdvisory(event, '', promptAdvisory));
+      return {
+        kind: 'damaged',
+        status: 0,
+        stderr: '',
+        stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
+      };
     } catch {
       // Integrity failure still must not block the submitted prompt.
+      return { kind: 'damaged', status: 0, stderr: '', stdout: '' };
     }
-    return undefined;
   }
+}
+
+function emitDamagedPlugin(response: DamagedPlugin): number {
+  if (response.stdout !== '') process.stdout.write(response.stdout);
+  if (response.stderr !== '') process.stderr.write(response.stderr);
+  return response.status;
 }
 
 function runEventHooks(
@@ -852,9 +874,9 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   const standardInput = readFileSync(0);
   const hookInput = parseHookInput(standardInput);
   const projectRoot = canonicalClaudeProjectRoot(hookInput.cwd ?? process.cwd());
-  const verifiedPlugin = verifiedIdentity(event, pluginRoot);
-  if (verifiedPlugin === undefined) return 0;
-  const { eventGroupsContent, identity } = verifiedPlugin;
+  const verification = verifyPlugin(event, pluginRoot);
+  if (verification.kind === 'damaged') return emitDamagedPlugin(verification);
+  const { eventGroupsContent, identity } = verification;
   let execution = executeConfiguredHooks({
     event,
     mode,
