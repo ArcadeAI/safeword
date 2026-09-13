@@ -19,8 +19,49 @@ repository-audit, and audit-driven refactor repairs
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ⏭️ N/A — not persona-facing
 **Surface Evidence:** ✅ 2/2 affected surfaces have recorded proof
-**Evidence limits:** ⚠️ Go, mypy, pip-audit, and govulncheck were unavailable; every available Bun,
-TypeScript, Astro, dependency, build, and acceptance check completed successfully
+**Evidence limits:** ⚠️ The current Codex sandbox cannot bind the relay's loopback ports or write the
+default npm cache, so the root aggregate suite retains environment-only failures in those lanes. The
+current delta is covered by focused tests and the dedicated CLI acceptance suite. The external
+quality-review coordinator exhausted its routes; supplemental same-thread review is recorded as
+non-independent evidence.
+
+## Current Rerun — 2026-09-13
+
+- Full build and typecheck lanes pass for the root, CLI, relay, collector, website, and Go modules;
+  `mypy .` passes with no issues.
+- Dependency audits are available and green: all five Bun audits, `pip-audit`, and `govulncheck`
+  report no known vulnerabilities.
+- CLI BDD acceptance passes 595/595 scenarios and 11,100/11,100 steps. The combined BDD proof and
+  focused Python/generated-plugin regression run passes 190 tests with one intentional
+  environment-dependent skip.
+- The root acceptance run completed 1,499 scenarios: 1,468 passed, 3 skipped, and 28 failed. Twenty-
+  three failures require loopback binding or the default npm cache, both denied by the Codex sandbox.
+  The other five exposed stale generated plugin artifacts and non-hermetic reconciliation fixtures;
+  both defects were fixed, then the affected four scenarios passed with 182/182 steps.
+- Regenerated Claude and Codex plugin runtimes now ship `pip-audit`; both generator freshness checks,
+  lint, TypeScript, Gherkin lint, formatting, and `git diff --check` pass.
+- Repository-scope audit completed. Config, principles, domain references, architecture, docs, and
+  learning checks are clean. Knip/dependency-cruiser findings remain the documented archive,
+  experiment, generated-surface, and public-API baseline; no safe deletion was inferred. The only
+  available package update is an already-compatible `@types/node` patch, so no manifest churn was
+  added.
+- BDD/TDD quality assessment found declarative scenarios, discriminating behavioral assertions, no
+  `.only`, and no new weak truthiness/defined/no-throw assertions. The opt-in skip is the intentional
+  live Codex boundary test. A real-time wait remains only where the behavior under test is a shared
+  deadline across independent review IDs.
+- Refactor scout found no justified production refactor in the latest Python-tool delta: the tool
+  contract is already single-sourced and package-manager handling is parameterized. Rewriting it
+  would add churn without reducing duplication or risk.
+- Quality-review job `ae8feb49-b92d-4ee5-be52-64c18b0f7549` exhausted Claude Opus, Claude Sonnet,
+  OpenCode, and Codex fallback routes without findings. The required degraded fallback produced no
+  blocking finding, but it is not independent coverage.
+- The installed dogfood marketplace was corrected from a stale worktree to this worktree. Concurrent
+  dogfood installs alternated the shared cache between `1.0.0-rc.1` and `1.0.0-rc.3`, so the local
+  execpolicy now keeps separate narrow allow rules for both immutable runtimes. Both ordinary review
+  prefixes match `allow`; executable RED and `review status` match no allow rule. Arcade/Bosslevel
+  remains `default_tools_approval_mode = "approve"` with no broad sandbox-network override.
+- A final Codex restart is required to record the new plugin's `session-start` hook. Four other hook
+  events already have current proof.
 
 ## Focused Evidence
 
