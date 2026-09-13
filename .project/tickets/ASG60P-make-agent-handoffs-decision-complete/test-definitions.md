@@ -182,7 +182,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The long decision corpus accepts the self-contained rewrite
 
-- [ ] RED
+- [x] RED skip: the pre-feature evaluator already accepted the compatible self-contained rewrite; the paired omission scenario supplies the discriminating failure
 - [ ] GREEN
 - [ ] REFACTOR
 
