@@ -74,9 +74,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The feature checklist contract cannot impose feature artifacts on smaller work
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 54af6fdf5
+- [x] GREEN 240ccec06
+- [x] REFACTOR skip: one explicit feature-type applicability predicate is the smallest boundary
 
 ## Rule: plan-implementability.TBU2.A639WN.R5 — Large feature contributions use the reviewable pull-request slicing contract from child 6XW8H7, while a contribution small enough for one coherent review records that decision without artificial decomposition
 
