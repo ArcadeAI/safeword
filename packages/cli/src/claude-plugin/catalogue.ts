@@ -21,6 +21,15 @@ interface ClaudePluginCatalogueInput {
   readonly version: string;
 }
 
+const CANONICAL_TEMPLATE_ROOT = 'templates';
+
+function isCanonicalTemplateAsset(relativePath: string): boolean {
+  return (
+    relativePath === CANONICAL_TEMPLATE_ROOT ||
+    relativePath.startsWith(`${CANONICAL_TEMPLATE_ROOT}/`)
+  );
+}
+
 const GENERATED_DIRECTORIES = [
   '.claude-plugin',
   'agents',
@@ -29,7 +38,7 @@ const GENERATED_DIRECTORIES = [
   'resources',
   'runtime',
   'skills',
-  'templates',
+  CANONICAL_TEMPLATE_ROOT,
 ] as const;
 function filesBeneath(directory: string, prefix = ''): string[] {
   if (!existsSync(directory)) return [];
@@ -190,7 +199,7 @@ function stripReferencePunctuation(value: string | undefined): string | undefine
 
 function referencedPluginPaths(asset: GeneratedClaudePluginAsset): string[] {
   if (
-    asset.relativePath.startsWith('templates/') ||
+    isCanonicalTemplateAsset(asset.relativePath) ||
     asset.relativePath === 'runtime/cli.js' ||
     asset.relativePath === 'runtime/dispatch.js'
   ) {
@@ -239,7 +248,8 @@ function resolveReference(
 
 function isCatalogueRoot(asset: GeneratedClaudePluginAsset): boolean {
   return (
-    /^(?:agents|commands|skills|templates)\//u.test(asset.relativePath) ||
+    /^(?:agents|commands|skills)\//u.test(asset.relativePath) ||
+    isCanonicalTemplateAsset(asset.relativePath) ||
     asset.relativePath === '.claude-plugin/plugin.json' ||
     asset.relativePath === 'hooks/hooks.json' ||
     asset.relativePath === 'runtime/dispatch.js' ||
@@ -435,7 +445,7 @@ export function generateClaudePluginAssets(
     // Keep this canonical tree separate from the host-adapted resources below:
     // resources feed native Claude workflows, while templates feed CLI commands
     // such as setup, ticket new, reconciliation, and remote-test planning.
-    ...directoryAssets(templatesRoot, 'templates'),
+    ...directoryAssets(templatesRoot, CANONICAL_TEMPLATE_ROOT),
     {
       relativePath: nodePath.join('runtime', 'hooks', 'lib', 'owned-paths.ts'),
       content: generateOwnedPathsModule(SAFEWORD_SCHEMA),
