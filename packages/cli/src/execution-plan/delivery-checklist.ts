@@ -1,4 +1,13 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+  closeSync,
+  constants,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 
 import type { ExecutionPlanDeliveryDefinition } from '../review/contract.js';
 
@@ -84,6 +93,13 @@ export type DeliveryPlanContractResult =
       readonly items: readonly DeliveryChecklistItem[];
       readonly specifications: readonly DeliveryProofSpecification[];
     };
+
+export type DeliveryChecklistUpdateResult =
+  { readonly ok: true } | { readonly ok: false; readonly code: string; readonly message: string };
+type DeliveryChecklistUpdateFailure = Extract<
+  DeliveryChecklistUpdateResult,
+  { readonly ok: false }
+>;
 
 export interface DeliveryStableChecklistItem {
   readonly id: string;
@@ -713,4 +729,162 @@ export function createExecutionPlanDeliveryDefinition(
       reviewed_detail: item.reviewedDisposition?.detail ?? JSON_NULL,
     })),
   };
+}
+
+function checklistRowIndex(lines: readonly string[], itemId: string): number | undefined {
+  const markerIndex = lines.findIndex(line => line.trim() === MARKER);
+  if (markerIndex === -1) return undefined;
+  const start = tableStart(lines, markerIndex);
+  if (start === -1) return undefined;
+  for (let index = start + 2; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line === undefined || line.trim() === '' || !line.trimStart().startsWith('|')) break;
+    if (parseItem(splitRow(line) ?? [])?.id === itemId) return index;
+  }
+  return undefined;
+}
+
+function updateFailure(code: string, message: string): DeliveryChecklistUpdateFailure {
+  return { ok: false, code, message };
+}
+
+interface DeliveryChecklistUpdateInput {
+  readonly path: string;
+  readonly expectedContent: string;
+  readonly itemId: string;
+  readonly proofId: string;
+  readonly receiptId: string;
+  readonly revision: string;
+  readonly evidenceClass: Extract<
+    DeliveryEvidenceClass,
+    'current_revision_real_boundary' | 'reusable_earlier_revision'
+  >;
+  readonly compatibilityReason?: string;
+}
+
+function validateChecklistUpdate(
+  input: DeliveryChecklistUpdateInput,
+): DeliveryChecklistUpdateResult {
+  const contract = parseDeliveryPlanContract(input.expectedContent);
+  if (!contract.ok) return updateFailure(contract.code, contract.message);
+  const item = contract.items.find(candidate => candidate.id === input.itemId);
+  if (item === undefined) {
+    return updateFailure(
+      'unknown_checklist_item',
+      `Delivery Checklist item ${input.itemId} was not found.`,
+    );
+  }
+  if (item.owner !== 'contributor') {
+    return updateFailure(
+      'human_owned_item',
+      `Delivery Checklist item ${input.itemId} is human-owned.`,
+    );
+  }
+  if (item.requiredProof !== input.proofId) {
+    return updateFailure(
+      'proof_id_mismatch',
+      `Delivery Checklist item ${input.itemId} requires proof ${item.requiredProof}.`,
+    );
+  }
+  if (!/^[a-f\d]{40,64}$/u.test(input.revision) || input.receiptId.trim() === '') {
+    return updateFailure('invalid_delivery_receipt', 'The delivery receipt identity is invalid.');
+  }
+  if (
+    input.evidenceClass === 'reusable_earlier_revision' &&
+    (input.compatibilityReason === undefined || input.compatibilityReason.trim() === '')
+  ) {
+    return updateFailure(
+      'compatible_reason_required',
+      'Reusable earlier-revision evidence requires a compatibility reason.',
+    );
+  }
+  return { ok: true };
+}
+
+function deliveryEvidence(input: DeliveryChecklistUpdateInput): string | undefined {
+  const reason = input.compatibilityReason?.trim();
+  const compatibility = reason === undefined ? '' : `; compatible:${reason}`;
+  const evidence = `receipt:${input.receiptId}${compatibility}`;
+  return /[\r\n|]/u.test(evidence) ? undefined : evidence;
+}
+
+function updatedChecklistContent(
+  input: DeliveryChecklistUpdateInput,
+): DeliveryChecklistUpdateFailure | { readonly ok: true; readonly content: string } {
+  const lines = input.expectedContent.split('\n');
+  const rowIndex = checklistRowIndex(lines, input.itemId);
+  const row = rowIndex === undefined ? undefined : lines[rowIndex];
+  const pipes = row === undefined ? [] : unescapedPipeOffsets(row);
+  if (rowIndex === undefined || row === undefined || pipes.length !== HEADERS.length + 1) {
+    return updateFailure('invalid_delivery_checklist', 'The Delivery Checklist row is invalid.');
+  }
+  const stableEnd = pipes[5];
+  const finalPipe = pipes[9];
+  if (stableEnd === undefined || finalPipe === undefined) {
+    return updateFailure('invalid_delivery_checklist', 'The Delivery Checklist row is invalid.');
+  }
+  const evidence = deliveryEvidence(input);
+  if (evidence === undefined) {
+    return updateFailure('invalid_delivery_receipt', 'The delivery receipt locator is invalid.');
+  }
+  lines[rowIndex] =
+    `${row.slice(0, stableEnd + 1)} complete | ${input.evidenceClass} | ${input.revision} | ${evidence} ${row.slice(finalPipe)}`;
+  return { ok: true, content: lines.join('\n') };
+}
+
+function safeUnlink(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch {
+    // Cleanup is best effort; an abandoned lock is surfaced on a later retry.
+  }
+}
+
+function replaceExactPlanSnapshot(
+  input: DeliveryChecklistUpdateInput,
+  updated: string,
+): DeliveryChecklistUpdateResult {
+  const lockPath = `${input.path}.delivery-lock`;
+  let descriptor: number;
+  try {
+    descriptor = openSync(
+      lockPath,
+      constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
+      0o600,
+    );
+  } catch {
+    return updateFailure(
+      'delivery_update_pending',
+      'Another Delivery Checklist update is in progress.',
+    );
+  }
+  const temporary = `${input.path}.${randomUUID()}.tmp`;
+  try {
+    closeSync(descriptor);
+    if (readFileSync(input.path, 'utf8') !== input.expectedContent) {
+      return updateFailure(
+        'execution_plan_changed',
+        'execution-plan.md changed while proof was being recorded; retry with the retained receipt.',
+      );
+    }
+    writeFileSync(temporary, updated);
+    renameSync(temporary, input.path);
+    return { ok: true };
+  } catch {
+    return updateFailure('delivery_update_failed', 'Safeword could not update execution-plan.md.');
+  } finally {
+    safeUnlink(temporary);
+    safeUnlink(lockPath);
+  }
+}
+
+/** Replace only one checklist row's mutable progress cells from an exact plan snapshot. */
+export function updateDeliveryChecklistFile(
+  input: DeliveryChecklistUpdateInput,
+): DeliveryChecklistUpdateResult {
+  const validation = validateChecklistUpdate(input);
+  if (!validation.ok) return validation;
+  const updated = updatedChecklistContent(input);
+  if (!updated.ok) return updated;
+  return replaceExactPlanSnapshot(input, updated.content);
 }
