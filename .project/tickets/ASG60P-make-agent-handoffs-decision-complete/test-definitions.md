@@ -172,7 +172,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6c495df09
 - [x] GREEN 56525889f
-- [ ] REFACTOR
+- [x] REFACTOR skip: one table-driven oracle already exercises the shared evaluator without scenario-specific branches
 
 ### Scenario: The long decision corpus rejects the observed omission
 
