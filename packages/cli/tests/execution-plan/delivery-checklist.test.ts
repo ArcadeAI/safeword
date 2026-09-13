@@ -90,6 +90,40 @@ describe('Delivery Checklist contract', () => {
       message: 'Delivery Checklist item item-4 is contributor-owned and cannot be pending_human.',
     });
   });
+
+  it.each([
+    {
+      name: 'complete without a receipt',
+      row: '| item-4 | testing | Complete testing | contributor | proof-4 | complete | missing | | |',
+      code: 'invalid_delivery_checklist',
+      message: 'Delivery Checklist item item-4 has invalid fields for complete.',
+    },
+    {
+      name: 'not applicable without a reason',
+      row: '| item-4 | testing | Complete testing | contributor | proof-4 | not_applicable | missing | | |',
+      code: 'invalid_delivery_checklist',
+      message: 'Delivery Checklist item item-4 has invalid fields for not_applicable.',
+    },
+    {
+      name: 'human work left open',
+      row: '| item-4 | testing | Complete testing | human | | open | missing | | |',
+      code: 'invalid_owner_disposition',
+      message: 'Delivery Checklist item item-4 is human-owned and cannot be open.',
+    },
+    {
+      name: 'human dependency with a proof claim',
+      row: '| item-4 | testing | Complete testing | human | proof-4 | pending_human | missing | | security-team |',
+      code: 'invalid_delivery_checklist',
+      message: 'Delivery Checklist item item-4 has invalid fields for pending_human.',
+    },
+  ])('rejects $name', ({ row, code, message }) => {
+    const content = completeChecklist().replace(
+      '| item-4 | testing | Complete testing | contributor | proof-4 | open | missing | | |',
+      () => row,
+    );
+
+    expect(parseDeliveryChecklist(content)).toEqual({ ok: false, code, message });
+  });
 });
 
 describe('Proof specifications contract', () => {
