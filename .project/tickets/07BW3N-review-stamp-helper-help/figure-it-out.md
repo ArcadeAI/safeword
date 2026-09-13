@@ -57,7 +57,8 @@ after the help branch.
 > Recommend **parser-aware help mode** because it is the only option that fixes
 > the direct helper while preserving value-token semantics. Raw pre-scan was
 > close on size but loses on correctness when a help-looking token is a value.
-> Cite: GNU Coreutils common options and Bun's argument-parsing guide.
+> Cite: [GNU Coreutils common options](https://www.gnu.org/software/coreutils/manual/html_node/Common-options.html)
+> and [Bun's argument-parsing guide](https://bun.sh/guides/process/argv).
 >
 > **Premortem:** assume this failed in six months—the likely cause is a new
 > value-taking option whose value is accidentally reinterpreted as help; keep

@@ -24,3 +24,14 @@
 - [21:55] Regenerated Claude and Codex distributions with the pinned Bun 1.3.14.
   The CLI contract check now passes all build, runtime, help, fixture,
   documentation, plugin, and release-contract checks.
+- [21:57] Re-ran focused integration after generation: 32/32 pass. Re-ran the
+  three acceptance scenarios that caught generated-plugin drift: 3/3 scenarios
+  and 135/135 steps pass.
+- [22:30] Closed the environment evidence limits with approved local-socket and
+  network access. Full CLI: 578/578 files, 9,595 passed, 57 skipped. Full BDD:
+  1,496 passed scenarios and 68,731 passed steps, with 3 scenarios and 4 steps
+  skipped, plus 45/45 proof tests.
+- [22:30] Regenerated and verified the intentional Cursor lifecycle snapshots
+  caused by the managed helper change (13/13 contract tests). The website build
+  passes after materializing its exact lockfile-pinned optional native binding.
+  Bun audits for all workspaces, pip-audit, and govulncheck are clean.

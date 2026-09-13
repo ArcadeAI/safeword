@@ -65,3 +65,12 @@ artifact.
   assets needed regeneration after the canonical helper changed.
 - 2026-09-13T04:55:00.000Z Green: regenerated both plugin distributions with
   pinned Bun 1.3.14; the complete CLI contract check passes.
+- 2026-09-13T04:57:00.000Z Verified: affected integration tests pass 32/32 and
+  the three generated-plugin acceptance scenarios pass 3/3 (135/135 steps).
+- 2026-09-13T05:30:28.000Z Verified: the complete CLI suite passes 9,595 tests
+  across 578 files (57 skipped); the full acceptance lane passes 1,496
+  scenarios and 68,731 steps (3 scenarios and 4 steps skipped), plus 45/45
+  proof tests.
+- 2026-09-13T05:30:28.000Z Verified: all builds and typechecks pass after
+  materializing the lockfile-pinned optional website binding; Bun, Python, and
+  Go dependency scans report no known vulnerabilities.
