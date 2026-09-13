@@ -156,7 +156,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An asymmetric decision contract is invalid
 
-- [x] RED 2fd7cde09
+- [x] RED 5453fed07
 - [ ] GREEN
 - [ ] REFACTOR
 
