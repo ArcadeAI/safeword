@@ -198,6 +198,39 @@ function admitPlanExecutionFixture(
   writeFileSync(path, `${JSON.stringify({ ...completed, integrity })}\n`);
 }
 
+function rejectAdmittedScenarioReview(root: string): void {
+  const ledger = readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8');
+  const reviewId = /phase@scenario-gate[^\n]*review-id:(\S+)/.exec(ledger)?.[1];
+  if (reviewId === undefined) throw new Error('scenario-gate review id missing');
+  const path = nodePath.join(root, '.safeword', 'state', 'reviews', `${reviewId}.json`);
+  const record = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+  const { integrity: _integrity, ...unsigned } = record;
+  const result = { ...(unsigned.result as Record<string, unknown>) };
+  const data = { ...(result.data as Record<string, unknown>) };
+  result.data = {
+    ...data,
+    status: 'changes_requested',
+    reviewer_output: {
+      ...(data.reviewer_output as Record<string, unknown>),
+      verdict: 'request_changes',
+    },
+  };
+  const changed = { ...unsigned, result };
+  const key = Buffer.from(
+    readFileSync(
+      nodePath.join(root, '.review-keys', 'safeword', 'review-integrity.key'),
+      'utf8',
+    ).trim(),
+    'hex',
+  );
+  const integrity = createHmac('sha256', key)
+    .update(realpathSync.native(root))
+    .update('\0')
+    .update(JSON.stringify(changed))
+    .digest('hex');
+  writeFileSync(path, `${JSON.stringify({ ...changed, integrity })}\n`);
+}
+
 function admittedReviewId(
   root: string,
   reviewKind: PlanningReviewKind,
@@ -398,6 +431,37 @@ describe('delivery execution prerequisite', () => {
       'safeword review run scenario-gate --context .project/tickets/ABC123-feature/spec.md -- features/feature.feature',
       'safeword review run plan-implementation --context features/feature.feature --context .project/tickets/ABC123-feature/spec.md -- .project/tickets/ABC123-feature/impl-plan.md',
       'safeword review run plan-execution --context .project/tickets/ABC123-feature/impl-plan.md --context features/feature.feature -- .project/tickets/ABC123-feature/execution-plan.md',
+    ]);
+    expect(result.data?.prerequisite_status).toBeUndefined();
+  });
+
+  it('denies an authenticated scenario review that requested changes', async () => {
+    const root = featureFixture();
+    await admitThroughInstalledCli(root);
+    rejectAdmittedScenarioReview(root);
+
+    const invoked = await runCli(
+      ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+    const result = JSON.parse(invoked.stdout) as {
+      state: string;
+      findings: { code: string }[];
+      next_actions: { command: string }[];
+      data?: { prerequisite_status?: string };
+    };
+
+    expect(invoked.exitCode).toBe(2);
+    expect(result.state).toBe('action_required');
+    expect(result.findings.map(finding => finding.code)).toEqual(['missing_accepted_scenarios']);
+    expect(result.next_actions.map(action => action.command)).toEqual([
+      'safeword review run scenario-gate --context .project/tickets/ABC123-feature/spec.md -- features/feature.feature',
     ]);
     expect(result.data?.prerequisite_status).toBeUndefined();
   });
