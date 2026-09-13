@@ -75,7 +75,8 @@ on a later slice.
 
 ### Tasks and tests
 
-1. RED: Extend `packages/cli/tests/review/execution-plan-output.test.ts` and
+1. RED: Extend `packages/cli/tests/review/execution-plan-output.test.ts`,
+   `packages/cli/tests/review/job.test.ts`, and
    `packages/cli/tests/cli-protocol/review-wiring.test.ts` so an approving
    plan-execution result must retain scenario-and-approach coverage, the exact
    ordered proof specs and stable checklist definition, reviewed applicability,
@@ -83,9 +84,11 @@ on a later slice.
    record. Prove that changing any stable plan byte invalidates review while
    changing only contributor progress does not.
 2. GREEN: Extend the plan-execution reviewer schema, validator, persistence,
-   conformance corpus, and generated rubric/admission assets. Preserve the
-   current slicing contract and reject omitted categories or a contributor
-   Required proof that is not reviewed as `real_boundary`.
+   conformance corpus, generated rubric/admission assets, and durable review-job
+   fingerprint. Bind review jobs to the normalized plan digest and retained
+   delivery definition rather than mutable checklist progress. Preserve the current
+   slicing contract and reject omitted categories or a contributor Required proof
+   that is not reviewed as `real_boundary`.
 3. GREEN: In the same change that activates those admission rules, replace the
    provisional Execution Plan checklist template with the reviewed
    proof-specification and versioned checklist sections. Update the canonical
