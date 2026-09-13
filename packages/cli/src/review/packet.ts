@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import {
-  createDeliveryStableDefinition,
+  createExecutionPlanDeliveryDefinition,
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
 import type {
@@ -36,7 +36,6 @@ import { extractPlanReviewRubric } from './plan-rubric.js';
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
 const MAX_PACKET_BYTES = 1024 * 1024;
-const JSON_NULL = JSON.parse('null') as null;
 
 export interface PreparedReviewPacket {
   readonly packet: ReviewPacket;
@@ -150,29 +149,7 @@ function retainedDeliveryDefinition(
   if (plan === undefined) return undefined;
   const parsed = parseDeliveryPlanContract(plan.content);
   if (!parsed.ok) throw new ReviewPacketError(`Plan-execution review refused: ${parsed.message}`);
-  const stable = createDeliveryStableDefinition(parsed, designApprovalGate(root));
-  return {
-    schema_version: stable.schemaVersion,
-    design_approval_gate: stable.designApprovalGate,
-    proof_specifications: stable.specifications.map(specification => ({
-      proof_id: specification.id,
-      method: specification.method,
-      scope: specification.scope,
-      boundary_exercised: specification.boundary,
-      qualifies_as: specification.qualifiesAs,
-      currency: specification.currency,
-      invocation: specification.invocation,
-    })),
-    checklist_items: stable.items.map(item => ({
-      id: item.id,
-      category: item.category,
-      obligation: item.obligation,
-      owner: item.owner,
-      required_proof: item.requiredProof,
-      reviewed_disposition: item.reviewedDisposition?.disposition ?? JSON_NULL,
-      reviewed_detail: item.reviewedDisposition?.detail ?? JSON_NULL,
-    })),
-  };
+  return createExecutionPlanDeliveryDefinition(parsed, designApprovalGate(root));
 }
 
 function designApprovalConfigChanged(

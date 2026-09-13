@@ -1,3 +1,5 @@
+import type { ExecutionPlanDeliveryDefinition } from '../review/contract.js';
+
 export const DELIVERY_CHECKLIST_CATEGORIES = [
   'outcome and scope',
   'resolved decisions',
@@ -630,5 +632,36 @@ export function createDeliveryStableDefinition(
       cloneProofSpecification(specification),
     ),
     items: plan.items.map(item => stableChecklistItem(item)),
+  };
+}
+
+const JSON_NULL = JSON.parse('null') as null;
+
+export function createExecutionPlanDeliveryDefinition(
+  plan: Extract<DeliveryPlanContractResult, { readonly ok: true }>,
+  designApprovalGate: boolean,
+): ExecutionPlanDeliveryDefinition {
+  const stable = createDeliveryStableDefinition(plan, designApprovalGate);
+  return {
+    schema_version: stable.schemaVersion,
+    design_approval_gate: stable.designApprovalGate,
+    proof_specifications: stable.specifications.map(specification => ({
+      proof_id: specification.id,
+      method: specification.method,
+      scope: specification.scope,
+      boundary_exercised: specification.boundary,
+      qualifies_as: specification.qualifiesAs,
+      currency: specification.currency,
+      invocation: specification.invocation,
+    })),
+    checklist_items: stable.items.map(item => ({
+      id: item.id,
+      category: item.category,
+      obligation: item.obligation,
+      owner: item.owner,
+      required_proof: item.requiredProof,
+      reviewed_disposition: item.reviewedDisposition?.disposition ?? JSON_NULL,
+      reviewed_detail: item.reviewedDisposition?.detail ?? JSON_NULL,
+    })),
   };
 }
