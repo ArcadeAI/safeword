@@ -20,6 +20,7 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
 import { warn } from '../utils/output.js';
 import type {
   ReviewAgent,
@@ -71,7 +72,98 @@ const REVIEW_OUTPUT_SCHEMA_SHAPE = {
   additionalProperties: false,
 } as const;
 
+const JSON_NULL = JSON.parse('null') as null;
 const REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
+
+const EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    proof_id: { type: 'string' },
+    method: { type: 'string', enum: ['command', 'review_receipt'] },
+    scope: { type: 'string', enum: ['unit', 'integration', 'E2E', 'eval'] },
+    boundary_exercised: { type: 'string' },
+    qualifies_as: { type: 'string', enum: ['real_boundary', 'partial_or_structural'] },
+    currency: {
+      type: 'string',
+      enum: ['current_required', 'compatible_earlier_allowed'],
+    },
+    invocation: {
+      oneOf: [
+        {
+          type: 'object',
+          properties: {
+            type: { type: 'string', enum: ['command'] },
+            cwd: { type: 'string' },
+            argv: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['type', 'cwd', 'argv'],
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          properties: {
+            type: { type: 'string', enum: ['review_receipt'] },
+            kind: { type: 'string' },
+            targets: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['type', 'kind', 'targets'],
+          additionalProperties: false,
+        },
+      ],
+    },
+  },
+  required: [
+    'proof_id',
+    'method',
+    'scope',
+    'boundary_exercised',
+    'qualifies_as',
+    'currency',
+    'invocation',
+  ],
+  additionalProperties: false,
+} as const;
+
+const EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    category: { type: 'string', enum: DELIVERY_CHECKLIST_CATEGORIES },
+    obligation: { type: 'string' },
+    owner: { type: 'string', enum: ['contributor', 'human'] },
+    required_proof: { type: 'string' },
+    reviewed_disposition: {
+      type: ['string', 'null'],
+      enum: ['not_applicable', 'pending_human', JSON_NULL],
+    },
+    reviewed_detail: { type: ['string', 'null'] },
+  },
+  required: [
+    'id',
+    'category',
+    'obligation',
+    'owner',
+    'required_proof',
+    'reviewed_disposition',
+    'reviewed_detail',
+  ],
+  additionalProperties: false,
+} as const;
+
+const EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA = {
+  type: 'object',
+  properties: {
+    schema_version: { type: 'integer', enum: [1] },
+    design_approval_gate: { type: 'boolean' },
+    proof_specifications: {
+      type: 'array',
+      items: EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA,
+    },
+    checklist_items: { type: 'array', items: EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA },
+  },
+  required: ['schema_version', 'design_approval_gate', 'proof_specifications', 'checklist_items'],
+  additionalProperties: false,
+} as const;
 
 const EXECUTION_PLAN_RECORD_SCHEMA = {
   anyOf: [
@@ -133,6 +225,9 @@ const EXECUTION_PLAN_RECORD_SCHEMA = {
             additionalProperties: false,
           },
         },
+        accepted_scenarios_covered: { type: 'boolean', enum: [true] },
+        accepted_approach_preserved: { type: 'boolean', enum: [true] },
+        delivery_definition: EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA,
       },
       required: [
         'slicing_decision',
@@ -140,6 +235,9 @@ const EXECUTION_PLAN_RECORD_SCHEMA = {
         'slices',
         'obligation_owners',
         'decision_statuses',
+        'accepted_scenarios_covered',
+        'accepted_approach_preserved',
+        'delivery_definition',
       ],
       additionalProperties: false,
     },
@@ -305,7 +403,7 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 // JSON uses null to distinguish a legible denial from a malformed omitted record.
-const NULL_EXECUTION_PLAN_RECORD = JSON.parse('null') as null;
+const NULL_EXECUTION_PLAN_RECORD = JSON_NULL;
 
 export class ReviewRuntimeError extends Error {
   constructor(

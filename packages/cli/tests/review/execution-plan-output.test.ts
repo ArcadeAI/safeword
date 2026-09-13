@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { DELIVERY_CHECKLIST_CATEGORIES } from '../../src/execution-plan/delivery-checklist.js';
 import type { ExecutionPlanRecord, UnverifiedReviewerOutput } from '../../src/review/contract.js';
 import { validateExecutionPlanOutput } from '../../src/review/execution-plan-output.js';
 import {
@@ -74,17 +75,15 @@ function validRecord(): ExecutionPlanRecord {
           },
         },
       ],
-      checklist_items: [
-        {
-          id: 'testing',
-          category: 'testing',
-          obligation: 'Prove the review contract.',
-          owner: 'contributor',
-          required_proof: 'contract-tests',
-          reviewed_disposition: nullRecord,
-          reviewed_detail: nullRecord,
-        },
-      ],
+      checklist_items: DELIVERY_CHECKLIST_CATEGORIES.map((category, index) => ({
+        id: `item-${index + 1}`,
+        category,
+        obligation: `Complete ${category}.`,
+        owner: 'contributor',
+        required_proof: 'contract-tests',
+        reviewed_disposition: nullRecord,
+        reviewed_detail: nullRecord,
+      })),
     },
   };
 }
