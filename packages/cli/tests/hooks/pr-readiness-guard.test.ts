@@ -18,6 +18,7 @@ describe('classifyPrReadinessCommand', () => {
     ['cd packages/cli && gh pr ready', 'compound command'],
     ['gh pr create --title change', 'ready-by-default creation'],
     ['command gh pr create --fill', 'command prefix'],
+    ['gh pr create --draft --fill && gh pr ready', 'Ready wins across chained segments'],
   ])('classifies %s as Ready-making (%s)', (command, _shape) => {
     expect(classifyPrReadinessCommand(command)).toBe('ready');
   });
