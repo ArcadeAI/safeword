@@ -178,7 +178,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6c495df09
 - [x] GREEN a7f03cab0
-- [ ] REFACTOR
+- [x] REFACTOR skip: the long corpus reuses the same terminal-only decision-role parser as the focused omission proof
 
 ### Scenario: The long decision corpus accepts the self-contained rewrite
 
