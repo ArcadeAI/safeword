@@ -723,6 +723,35 @@ describe('Claude plugin dispatcher', () => {
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
+  it.each(['SessionStart', 'PostToolUse', 'Stop'])(
+    'warns without executing %s hooks when the plugin cache is damaged',
+    event => {
+      const projectDirectory = temporary('safeword-plugin-lifecycle-damage-project-');
+      const pluginData = temporary('safeword-plugin-lifecycle-damage-data-');
+      const configDirectory = temporary('safeword-plugin-lifecycle-damage-config-');
+      const pluginRoot = nodePath.join(
+        temporary('safeword-plugin-lifecycle-damage-root-'),
+        'plugin',
+      );
+      cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+      writeFileSync(nodePath.join(pluginRoot, 'runtime/event-groups.json'), '{"modified":true}\n');
+
+      const result = dispatchEvent(
+        projectDirectory,
+        pluginData,
+        configDirectory,
+        `lifecycle-damage-${event}`,
+        { event, pluginRoot },
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain('damaged native plugin cache');
+      expect(result.stderr).toContain('No Safeword hook result was applied');
+      expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+    },
+  );
+
   it('keeps repair available when an otherwise verified cache has an unlisted asset', () => {
     const projectDirectory = temporary('safeword-plugin-unlisted-repair-project-');
     const pluginData = temporary('safeword-plugin-unlisted-repair-data-');
