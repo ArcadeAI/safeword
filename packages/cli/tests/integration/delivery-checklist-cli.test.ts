@@ -222,7 +222,16 @@ function compatibilityReviewResult(input: {
         : [{ code: input.finding, message: input.finding, severity: 'warning' }],
     effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
     errors: [],
-    recovery: [],
+    recovery:
+      input.finding === 'REVIEW_AUTHENTICATION_REQUIRED'
+        ? [
+            {
+              command: 'claude auth login',
+              description: 'Sign in to Claude, then retry.',
+              requiresHuman: true,
+            },
+          ]
+        : [],
     nextActions: [],
     data: {
       command: 'review run',
@@ -572,20 +581,39 @@ describe('Delivery Checklist CLI service', () => {
   });
 
   it.each([
-    ['changes_requested', undefined, 'cross-agent', 'compatibility_review_denied'],
+    [
+      'changes_requested',
+      undefined,
+      'cross-agent',
+      'compatibility_review_denied',
+      "safeword ticket record-delivery-proof 'ABC123' 'item-4' 'proof'",
+    ],
     [
       'blocked',
       'REVIEW_AUTHENTICATION_REQUIRED',
       'none',
       'compatibility_review_authentication_required',
+      'claude auth login',
     ],
-    ['blocked', 'REVIEW_ROUTES_EXHAUSTED', 'none', 'compatibility_review_unavailable'],
-    ['existing_route', 'REVIEW_NOT_REQUESTED', 'none', 'compatibility_review_disabled'],
-    ['approved', undefined, 'degraded', 'compatibility_review_stale'],
+    [
+      'blocked',
+      'REVIEW_ROUTES_EXHAUSTED',
+      'none',
+      'compatibility_review_unavailable',
+      "safeword ticket record-delivery-proof 'ABC123' 'item-4' 'proof'",
+    ],
+    [
+      'existing_route',
+      'REVIEW_NOT_REQUESTED',
+      'none',
+      'compatibility_review_disabled',
+      "safeword ticket record-delivery-proof 'ABC123' 'item-4' 'proof'",
+    ],
+    ['approved', undefined, 'degraded', 'compatibility_review_stale', '--confirm-egress'],
   ])(
-    'maps review outcome %s/%s to %s compatibility recovery',
-    async (status, finding, independence, expectedCode) => {
-      const { root, receipt } = await earlierProofFixture();
+    'maps review outcome %s/%s to its compatibility recovery',
+    async (status, finding, independence, expectedCode, expectedAction) => {
+      const { root, planPath, receipt } = await earlierProofFixture();
       review.compatibilityResult = compatibilityReviewResult({
         status,
         independence,
@@ -608,7 +636,13 @@ describe('Delivery Checklist CLI service', () => {
         state: 'action_required',
         findings: [{ code: expectedCode }],
       });
-      expect(result.nextActions).toHaveLength(1);
+      expect(result.nextActions).toEqual([
+        expect.objectContaining({ command: expect.stringContaining(expectedAction) }),
+      ]);
+      expect(readFileSync(planPath, 'utf8')).not.toContain('reusable_earlier_revision');
+      expect(
+        readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8'),
+      ).not.toContain('delivery-compatibility:v1:');
     },
   );
 

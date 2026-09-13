@@ -724,6 +724,90 @@ function compatibilityPendingResult(input: {
   });
 }
 
+type CompatibilityReviewFailureCode =
+  | 'compatibility_review_authentication_required'
+  | 'compatibility_review_denied'
+  | 'compatibility_review_disabled'
+  | 'compatibility_review_stale'
+  | 'compatibility_review_unavailable';
+
+function compatibilityReviewFailure(input: {
+  readonly code: CompatibilityReviewFailureCode;
+  readonly message: string;
+  readonly command: string;
+  readonly requiresHuman?: boolean;
+}): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [{ code: input.code, message: input.message, severity: 'warning' }],
+    effects: { network: [{ kind: 'review', target: 'configured external reviewer' }] },
+    nextActions: [
+      {
+        command: input.command,
+        mutates: !input.requiresHuman,
+        requiresHuman: input.requiresHuman ?? false,
+      },
+    ],
+    data: { command: 'ticket record-delivery-proof' },
+  });
+}
+
+function reviewFindingCodes(result: CliResult): Set<string> {
+  return new Set(result.findings.map(finding => finding.code));
+}
+
+function currentProofCommand(ticketId: string, itemId: string, proofId: string): string {
+  return ['safeword ticket record-delivery-proof', ticketId, itemId, proofId]
+    .map((part, index) => (index === 0 ? part : shellQuote(part)))
+    .join(' ');
+}
+
+function mappedCompatibilityReviewFailure(input: {
+  readonly review: CliResult;
+  readonly retry: string;
+  readonly rerun: string;
+}): CliResult {
+  const data = input.review.data as Record<string, unknown> | undefined;
+  const findings = reviewFindingCodes(input.review);
+  if (data?.status === 'changes_requested') {
+    return compatibilityReviewFailure({
+      code: 'compatibility_review_denied',
+      message:
+        'The independent reviewer found that the earlier proof no longer establishes this boundary.',
+      command: input.rerun,
+    });
+  }
+  if (findings.has('REVIEW_AUTHENTICATION_REQUIRED')) {
+    const authentication = input.review.recovery[0];
+    return compatibilityReviewFailure({
+      code: 'compatibility_review_authentication_required',
+      message: 'The independent compatibility reviewer needs authentication.',
+      command: authentication?.command ?? input.retry,
+      requiresHuman: true,
+    });
+  }
+  if (findings.has('REVIEW_NOT_REQUESTED')) {
+    return compatibilityReviewFailure({
+      code: 'compatibility_review_disabled',
+      message: 'Independent compatibility review is disabled; rerun the retained proof instead.',
+      command: input.rerun,
+    });
+  }
+  if (findings.has('REVIEW_ROUTES_EXHAUSTED') || findings.has('REVIEW_INDEPENDENCE_REQUIRED')) {
+    return compatibilityReviewFailure({
+      code: 'compatibility_review_unavailable',
+      message:
+        'No independent compatibility reviewer is available; rerun the retained proof instead.',
+      command: input.rerun,
+    });
+  }
+  return compatibilityReviewFailure({
+    code: 'compatibility_review_stale',
+    message: 'The compatibility review did not match the exact current request.',
+    command: input.retry,
+  });
+}
+
 function approvedCompatibilityReview(
   result: CliResult,
   cwd: string,
@@ -900,6 +984,7 @@ export async function reuseEarlierDeliveryProof(input: {
     return proofFailure(request.code, request.message, ticketId, itemId, proofId);
   }
   const retry = compatibilityRetryCommand({ ticketId, itemId, proofId, receipt, reason });
+  const rerun = currentProofCommand(ticketId, itemId, proofId);
   const review = await startReviewJob({
     cwd,
     kind: 'delivery-compatibility',
@@ -926,11 +1011,5 @@ export async function reuseEarlierDeliveryProof(input: {
       sourceReviewId,
     });
   }
-  return proofFailure(
-    'compatibility_review_stale',
-    'The compatibility review did not produce a current independent approval.',
-    ticketId,
-    itemId,
-    proofId,
-  );
+  return mappedCompatibilityReviewFailure({ review, retry, rerun });
 }
