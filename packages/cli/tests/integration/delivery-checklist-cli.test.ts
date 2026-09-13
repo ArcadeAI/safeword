@@ -25,7 +25,14 @@ vi.mock('../../src/review/job.js', () => ({
   reviewJobStatus: () => review.result,
   startReviewJob: (input: unknown) => {
     review.starts.push(input);
-    return Promise.resolve(review.compatibilityResult);
+    const result = review.compatibilityResult;
+    if (result === undefined) return Promise.resolve(result);
+    const request = input as { targets: string[] };
+    const data = result.data as Record<string, unknown> | undefined;
+    return Promise.resolve({
+      ...result,
+      data: data === undefined ? data : { ...data, review_targets: request.targets },
+    });
   },
 }));
 
@@ -433,5 +440,78 @@ describe('Delivery Checklist CLI service', () => {
     expect(request).toContain(reason);
     expect(request).toContain('diff --git a/documentation.md b/documentation.md');
     expect(readFileSync(planPath, 'utf8')).not.toContain('reusable_earlier_revision');
+  });
+
+  it('records an approved compatibility review before reusing earlier proof', async () => {
+    const { root, planPath } = fixture({
+      plan: executionPlan('compatible_earlier_allowed'),
+    });
+    const recorded = await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof');
+    const receipt = (recorded.data as { receipt_id?: string }).receipt_id;
+    expect(receipt).toEqual(expect.any(String));
+    git(root, ['add', '.project']);
+    git(root, ['commit', '--quiet', '-m', 'record proof']);
+    writeFileSync(nodePath.join(root, 'documentation.md'), '# Later documentation\n');
+    git(root, ['add', 'documentation.md']);
+    git(root, ['commit', '--quiet', '-m', 'document behavior']);
+    review.compatibilityResult = {
+      schemaVersion: 1,
+      ok: true,
+      state: 'healthy',
+      changed: false,
+      findings: [],
+      effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
+      errors: [],
+      recovery: [],
+      nextActions: [],
+      data: {
+        command: 'review run',
+        status: 'approved',
+        review_id: 'compatibility-review-1',
+        review_kind: 'delivery-compatibility',
+        author_agent: 'codex',
+        assigned_reviewer: 'claude',
+        actual_reviewer: 'claude',
+        independence: 'cross-agent',
+        reviewer_output: {
+          schema_version: 1,
+          dispatch_id: 'dispatch-compatibility-1',
+          reviewer_agent: 'claude',
+          verdict: 'approve',
+          summary: 'Documentation-only delta is compatible.',
+          findings: [],
+        },
+      },
+    };
+
+    const result = await publicHandler('ticket record-delivery-proof')({
+      cwd: root,
+      noInput: true,
+      offline: false,
+      operands: ['ABC123', 'item-4', 'proof'],
+      options: {
+        receipt,
+        compatibleReason: 'The later commit changes documentation only.',
+        confirmEgress: true,
+      },
+    });
+
+    expect(result).toMatchObject({
+      state: 'changed',
+      data: { item_id: 'item-4', receipt_id: receipt },
+    });
+    expect(readFileSync(planPath, 'utf8')).toContain(
+      `| item-4 | testing | Deliver testing. | contributor | proof | complete | reusable_earlier_revision |`,
+    );
+    expect(readFileSync(planPath, 'utf8')).toContain(
+      `receipt:${receipt}; compatible:The later commit changes documentation only.`,
+    );
+    expect(
+      readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8'),
+    ).toContain('delivery-compatibility:v1:');
+    expect(
+      (observeDeliveryChecklist(root, 'ABC123').data as { open_contributor_items: string[] })
+        .open_contributor_items,
+    ).not.toContain('item-4');
   });
 });
