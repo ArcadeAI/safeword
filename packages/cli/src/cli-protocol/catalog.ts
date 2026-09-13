@@ -581,6 +581,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         flags: '--compatible-reason <reason>',
         description: 'Explain why the earlier proof remains compatible',
       },
+      {
+        flags: '--confirm-egress',
+        description: 'Confirm sending the complete contribution diff to the configured reviewer',
+      },
     ],
     fixture: {
       argv: ['ticket', 'record-delivery-proof', 'fixture', 'item', 'proof'],

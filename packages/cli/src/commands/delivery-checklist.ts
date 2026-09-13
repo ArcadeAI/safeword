@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { parseReviewStamps } from '../../templates/hooks/lib/review-ledger.js';
+import { shellQuote } from '../cli-protocol/replay-command.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
   createExecutionPlanDeliveryDefinition,
@@ -617,4 +618,104 @@ export async function recordDeliveryProof(
   );
   if (updateFailureResult !== undefined) return updateFailureResult;
   return successfulProofResult(context, itemId, proofId, appended.receiptId, subject.revision);
+}
+
+function compatibilityConfirmationResult(input: {
+  readonly ticketId: string;
+  readonly itemId: string;
+  readonly proofId: string;
+  readonly receipt: string;
+  readonly reason: string;
+}): CliResult {
+  const command = [
+    'safeword ticket record-delivery-proof',
+    shellQuote(input.ticketId),
+    shellQuote(input.itemId),
+    shellQuote(input.proofId),
+    '--receipt',
+    shellQuote(input.receipt),
+    '--compatible-reason',
+    shellQuote(input.reason),
+    '--confirm-egress',
+  ].join(' ');
+  const message =
+    'The complete contribution diff will leave this machine for the configured external reviewer. Confirm egress to continue.';
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'compatibility_review_confirmation_required',
+        message,
+        severity: 'warning',
+      },
+    ],
+    recovery: [{ command, description: message, requiresHuman: true }],
+    nextActions: [{ command, mutates: true, requiresHuman: true }],
+    data: { command: 'ticket record-delivery-proof' },
+  });
+}
+
+export function reuseEarlierDeliveryProof(input: {
+  readonly cwd: string;
+  readonly ticketId: string;
+  readonly itemId: string;
+  readonly proofId: string;
+  readonly receipt: string;
+  readonly reason: string;
+  readonly confirmEgress: boolean;
+}): Promise<CliResult> {
+  const { confirmEgress, cwd, itemId, proofId, reason, receipt, ticketId } = input;
+  const command = 'ticket record-delivery-proof';
+  const loaded = loadDeliveryContext(cwd, ticketId, command);
+  if (!loaded.ok) return loaded.result;
+  const context = loaded.context;
+  const selected = specificationFor(context, itemId, proofId);
+  if ('schemaVersion' in selected) return selected;
+  if (selected.proof.currency !== 'compatible_earlier_allowed') {
+    return proofFailure(
+      'proof_requires_current_revision',
+      `Proof ${proofId} must run at the current revision.`,
+      ticketId,
+      itemId,
+      proofId,
+    );
+  }
+  const retained = receiptMatchesItem(context, selected.item, receipt);
+  if (retained === undefined) {
+    return proofFailure(
+      'proof_receipt_mismatch',
+      `Receipt ${receipt} does not prove item ${itemId} with proof ${proofId}.`,
+      ticketId,
+      itemId,
+      proofId,
+    );
+  }
+  const currency = currentDeliveryProofSubject({
+    projectRoot: cwd,
+    executionPlanPath: context.planPath,
+    reviewLedgerPath: context.ledgerPath,
+    producingRevision: retained.producingRevision,
+  });
+  if (!currency.ok) {
+    return proofFailure(currency.code, currency.message, ticketId, itemId, proofId);
+  }
+  if (currency.current) {
+    return proofFailure(
+      'proof_receipt_current',
+      `Receipt ${receipt} already proves the current contribution revision.`,
+      ticketId,
+      itemId,
+      proofId,
+    );
+  }
+  if (!confirmEgress) {
+    return compatibilityConfirmationResult({ ticketId, itemId, proofId, receipt, reason });
+  }
+  return proofFailure(
+    'compatibility_review_stale',
+    'Earlier-revision proof requires a current independent compatibility review.',
+    ticketId,
+    itemId,
+    proofId,
+  );
 }

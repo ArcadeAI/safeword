@@ -378,17 +378,16 @@ async function recordDeliveryProofHandler(invocation: CommandInvocation): Promis
     );
   }
   if (invocation.offline) return onlineRequired('ticket record-delivery-proof');
-  if (receipt !== undefined) {
-    return createResult({
-      state: 'action_required',
-      findings: [
-        {
-          code: 'compatibility_review_stale',
-          message: 'Earlier-revision proof requires a current independent compatibility review.',
-          severity: 'warning',
-        },
-      ],
-      data: { command: 'ticket record-delivery-proof' },
+  if (receipt !== undefined && compatibleReason !== undefined) {
+    const { reuseEarlierDeliveryProof } = await import('../commands/delivery-checklist.js');
+    return reuseEarlierDeliveryProof({
+      cwd: invocation.cwd,
+      ticketId: ticket as string,
+      itemId: item as string,
+      proofId: proof as string,
+      receipt,
+      reason: compatibleReason,
+      confirmEgress: invocation.options.confirmEgress === true,
     });
   }
   const { recordDeliveryProof } = await import('../commands/delivery-checklist.js');
