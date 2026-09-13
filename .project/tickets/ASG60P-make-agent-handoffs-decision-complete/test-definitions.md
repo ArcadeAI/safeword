@@ -170,7 +170,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The shared evaluator reproduces the full corpus oracle
 
-- [ ] RED
+- [x] RED 6c495df09
 - [ ] GREEN
 - [ ] REFACTOR
 
