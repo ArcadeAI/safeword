@@ -15,7 +15,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: GREEN advances through refactor to the next incomplete scenario
 
 - [x] RED 95b8df382
-- [ ] GREEN
+- [x] GREEN 1b1bca038
 - [ ] REFACTOR
 
 ### Scenario: An unsuccessful TDD step remains at the failing step
