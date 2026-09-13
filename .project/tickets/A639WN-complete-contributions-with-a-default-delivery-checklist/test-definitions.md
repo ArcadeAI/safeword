@@ -8,19 +8,19 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The installed CLI exposes a satisfied execution prerequisite
 
-- [ ] RED
+- [x] RED 54af6fdf5
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Missing contribution context blocks execution readiness
 
-- [ ] RED
+- [x] RED 54af6fdf5
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Several missing prerequisites are reported in deterministic planning order
 
-- [ ] RED
+- [x] RED 54af6fdf5
 - [ ] GREEN
 - [ ] REFACTOR
 
