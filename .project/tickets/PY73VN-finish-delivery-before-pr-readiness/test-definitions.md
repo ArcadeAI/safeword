@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: RED advances directly into implementation
 
 - [x] RED b2778dec4
-- [ ] GREEN
+- [x] GREEN 2fe761182
 - [ ] REFACTOR
 
 ### Scenario: GREEN advances through refactor to the next incomplete scenario
