@@ -25,6 +25,19 @@ function completeChecklist(categories: readonly string[] = DELIVERY_CHECKLIST_CA
   ].join('\n');
 }
 
+function proofSpecifications(rows: readonly string[]): string {
+  return [
+    '# Execution Plan',
+    '',
+    '## Proof specifications',
+    '',
+    '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    ...rows,
+    '',
+  ].join('\n');
+}
+
 describe('Delivery Checklist contract', () => {
   it('returns every item from a complete checklist in plan order', () => {
     const result = parseDeliveryChecklist(completeChecklist());
@@ -71,17 +84,10 @@ describe('Delivery Checklist contract', () => {
 
 describe('Proof specifications contract', () => {
   it('parses retained command and review-receipt invocations without inventing defaults', () => {
-    const content = [
-      '# Execution Plan',
-      '',
-      '## Proof specifications',
-      '',
-      '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
-      '| --- | --- | --- | --- | --- | --- | --- |',
+    const content = proofSpecifications([
       '| unit-tests | command | unit | checklist parser | partial_or_structural | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |',
       '| plan-review | review_receipt | E2E | accepted execution plan | real_boundary | compatible_earlier_allowed | {"type":"review_receipt","kind":"plan-execution","targets":[".project/tickets/A639WN/execution-plan.md"]} |',
-      '',
-    ].join('\n');
+    ]);
 
     expect(parseProofSpecifications(content)).toEqual({
       ok: true,
@@ -113,6 +119,19 @@ describe('Proof specifications contract', () => {
           },
         },
       ],
+    });
+  });
+
+  it('rejects duplicate Proof IDs instead of making references ambiguous', () => {
+    const content = proofSpecifications([
+      '| same-proof | command | unit | parser | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |',
+      '| same-proof | review_receipt | E2E | plan review | real_boundary | current_required | {"type":"review_receipt","kind":"plan-execution","targets":[".project/ticket.md"]} |',
+    ]);
+
+    expect(parseProofSpecifications(content)).toEqual({
+      ok: false,
+      code: 'duplicate_proof_id',
+      message: 'Proof ID same-proof appears more than once.',
     });
   });
 });
