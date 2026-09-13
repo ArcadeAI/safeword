@@ -230,7 +230,7 @@ describe('Suite 3: Dead Code Detection', () => {
   it('Test 3.1: /audit skill includes deadcode for Python', () => {
     // Assert: the audit skill contains the deadcode command
     const auditTemplate = readAuditSkillTemplate();
-    expect(auditTemplate).toMatch(/(?:uvx|pipx run|python\s+-m)\s+deadcode\b/u);
+    expect(auditTemplate).toMatch(/&&\s+deadcode\s+\.\s+--exclude\b/u);
     // Should detect Python projects
     expect(auditTemplate).toMatch(/pyproject\.toml|requirements\.txt/);
   });

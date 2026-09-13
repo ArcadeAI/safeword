@@ -10,7 +10,14 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  type Dirent,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
@@ -280,31 +287,6 @@ function hasPythonDependencyName(names: readonly string[], dependency: PythonToo
   return names.some(name => normalizePythonDistributionName(name) === normalizedDependency);
 }
 
-function containsPyprojectPythonDependency(content: string, dependency: PythonTool): boolean {
-  const document = parseTomlTable(content);
-  if (document === undefined) return false;
-
-  return (
-    hasPythonDependencyName(poetryDependencyNames(document), dependency) ||
-    pyprojectDependencySpecs(document).some(specification =>
-      startsPythonDependency(specification, dependency),
-    )
-  );
-}
-
-function containsPipfilePythonDependency(content: string, dependency: PythonTool): boolean {
-  const document = parseTomlTable(content);
-  if (document === undefined) return false;
-
-  return hasPythonDependencyName(
-    [
-      ...Object.keys(asTomlTable(document.packages) ?? {}),
-      ...Object.keys(asTomlTable(document['dev-packages']) ?? {}),
-    ],
-    dependency,
-  );
-}
-
 function splitPythonSpecifications(value: string): string[] {
   return value
     .split(',')
@@ -517,6 +499,7 @@ function containsRequirementsPythonDependency(
   requirementsPath: string,
   dependency: PythonTool,
   visited: Set<string> = new Set<string>(),
+  contentCache: Map<string, string | undefined> = new Map<string, string | undefined>(),
 ): boolean {
   const resolvedRequirementsPath = nodePath.resolve(requirementsPath);
   if (
@@ -527,7 +510,11 @@ function containsRequirementsPythonDependency(
   }
   visited.add(resolvedRequirementsPath);
 
-  const content = readFileSafe(resolvedRequirementsPath);
+  let content = contentCache.get(resolvedRequirementsPath);
+  if (!contentCache.has(resolvedRequirementsPath)) {
+    content = readFileSafe(resolvedRequirementsPath);
+    contentCache.set(resolvedRequirementsPath, content);
+  }
   if (content === undefined) return false;
 
   return content.split('\n').some(line => {
@@ -538,12 +525,18 @@ function containsRequirementsPythonDependency(
     const include = requirementsIncludePath(line);
     if (include === undefined || nodePath.isAbsolute(include)) return false;
     const includePath = nodePath.resolve(nodePath.dirname(resolvedRequirementsPath), include);
-    return containsRequirementsPythonDependency(projectDirectory, includePath, dependency, visited);
+    return containsRequirementsPythonDependency(
+      projectDirectory,
+      includePath,
+      dependency,
+      visited,
+      contentCache,
+    );
   });
 }
 
 function pythonRequirementPaths(cwd: string): string[] {
-  let rootEntries;
+  let rootEntries: Dirent[];
   try {
     rootEntries = readdirSync(cwd, { withFileTypes: true });
   } catch {
@@ -554,7 +547,7 @@ function pythonRequirementPaths(cwd: string): string[] {
     .map(entry => nodePath.join(cwd, entry.name));
   const requirementsDirectory = nodePath.join(cwd, 'requirements');
   if (!isDirectory(requirementsDirectory)) return direct;
-  let requirementEntries;
+  let requirementEntries: Dirent[];
   try {
     requirementEntries = readdirSync(requirementsDirectory, { withFileTypes: true });
   } catch {
@@ -566,27 +559,68 @@ function pythonRequirementPaths(cwd: string): string[] {
   return [...direct, ...nested];
 }
 
-function hasPythonDependency(cwd: string, dependency: PythonTool): boolean {
+interface PythonDependencySources {
+  readonly pyprojectNames: readonly string[];
+  readonly pyprojectSpecifications: readonly string[];
+  readonly pipfileNames: readonly string[];
+  readonly requirementPaths: readonly string[];
+  readonly setupPySpecifications: readonly string[];
+  readonly setupConfigSpecifications: readonly string[];
+  readonly requirementContentCache: Map<string, string | undefined>;
+}
+
+function readPythonDependencySources(cwd: string): PythonDependencySources {
   const pyprojectContent = readFileSafe(nodePath.join(cwd, 'pyproject.toml'));
   const pipfileContent = readFileSafe(nodePath.join(cwd, 'Pipfile'));
   const setupPy = readFileSafe(nodePath.join(cwd, 'setup.py'));
   const setupConfig = readFileSafe(nodePath.join(cwd, 'setup.cfg'));
+  const pyproject = parseTomlTable(pyprojectContent ?? '');
+  const pipfile = parseTomlTable(pipfileContent ?? '');
 
+  return {
+    pyprojectNames: pyproject === undefined ? [] : poetryDependencyNames(pyproject),
+    pyprojectSpecifications: pyproject === undefined ? [] : pyprojectDependencySpecs(pyproject),
+    pipfileNames:
+      pipfile === undefined
+        ? []
+        : [
+            ...Object.keys(asTomlTable(pipfile.packages) ?? {}),
+            ...Object.keys(asTomlTable(pipfile['dev-packages']) ?? {}),
+          ],
+    requirementPaths: pythonRequirementPaths(cwd),
+    setupPySpecifications: setupPy === undefined ? [] : setupPyDependencySpecs(setupPy),
+    setupConfigSpecifications:
+      setupConfig === undefined ? [] : setupConfigDependencySpecs(setupConfig),
+    requirementContentCache: new Map<string, string | undefined>(),
+  };
+}
+
+function hasPythonDependency(
+  cwd: string,
+  dependency: PythonTool,
+  sources: PythonDependencySources = readPythonDependencySources(cwd),
+): boolean {
   return (
-    (pyprojectContent !== undefined &&
-      containsPyprojectPythonDependency(pyprojectContent, dependency)) ||
-    (pipfileContent !== undefined && containsPipfilePythonDependency(pipfileContent, dependency)) ||
-    pythonRequirementPaths(cwd).some(path =>
-      containsRequirementsPythonDependency(cwd, path, dependency),
+    hasPythonDependencyName(sources.pyprojectNames, dependency) ||
+    sources.pyprojectSpecifications.some(specification =>
+      startsPythonDependency(specification, dependency),
     ) ||
-    (setupPy !== undefined &&
-      setupPyDependencySpecs(setupPy).some(specification =>
-        startsPythonDependency(specification, dependency),
-      )) ||
-    (setupConfig !== undefined &&
-      setupConfigDependencySpecs(setupConfig).some(specification =>
-        startsPythonDependency(specification, dependency),
-      ))
+    hasPythonDependencyName(sources.pipfileNames, dependency) ||
+    sources.requirementPaths.some(path =>
+      containsRequirementsPythonDependency(
+        cwd,
+        path,
+        dependency,
+        new Set<string>(),
+        sources.requirementContentCache,
+      ),
+    ) ||
+    sources.setupPySpecifications.some(specification =>
+      startsPythonDependency(specification, dependency),
+    ) ||
+    sources.setupConfigSpecifications.some(specification =>
+      startsPythonDependency(specification, dependency),
+    )
   );
 }
 
@@ -734,8 +768,16 @@ export function getMissingPythonToolDependencies(
 ): PythonTool[] {
   const workspaceRoot = uvLockDirectory(cwd, repoRoot);
   const declarationDirectories = new Set([cwd, workspaceRoot].filter(Boolean) as string[]);
+  const sources = new Map(
+    [...declarationDirectories].map(directory => [
+      directory,
+      readPythonDependencySources(directory),
+    ]),
+  );
   return getPythonTools(includeImportLinter).filter(tool =>
-    [...declarationDirectories].every(directory => !hasPythonDependency(directory, tool)),
+    [...declarationDirectories].every(
+      directory => !hasPythonDependency(directory, tool, sources.get(directory)),
+    ),
   );
 }
 
@@ -747,6 +789,7 @@ export function getMissingPythonToolDependencies(
  * package-manager checks read the files that actually govern that project.
  */
 export function findPythonProjectDirectories(cwd: string): string[] {
+  const root = nodePath.resolve(cwd);
   const requirementsDirectories = findAllFilesMatchingInTree(
     cwd,
     (filename, directory) =>
@@ -759,7 +802,7 @@ export function findPythonProjectDirectories(cwd: string): string[] {
       if (nodePath.basename(directory) !== 'requirements') return false;
       const owner = nodePath.dirname(directory);
       return (
-        owner === nodePath.resolve(cwd) ||
+        owner === root ||
         ['pyproject.toml', 'Pipfile', 'setup.py', 'setup.cfg'].some(name =>
           exists(nodePath.join(owner, name)),
         )

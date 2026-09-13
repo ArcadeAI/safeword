@@ -17,6 +17,7 @@ import {
   getPythonTools,
   hasRuffDependency,
   installPythonDependencies,
+  installPythonDependencyBatch,
 } from '../../src/packs/python/setup.js';
 import {
   createPythonProject,
@@ -234,6 +235,23 @@ dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
 });
 
 describe('repository Python projects', () => {
+  it('ignores documentation requirements folders without a Python project marker', () => {
+    writeTestFile(context.projectDirectory, 'docs/requirements/product.txt', 'product notes\n');
+
+    expect(findPythonProjectDirectories(context.projectDirectory)).toEqual([]);
+  });
+
+  it('does not crash when requirements is a regular file', () => {
+    writeTestFile(context.projectDirectory, 'requirements', 'not a directory\n');
+
+    expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([
+      'ruff',
+      'mypy',
+      'deadcode',
+      'pip-audit',
+    ]);
+  });
+
   it('checks declarations in nested projects instead of inventing a root Python project', () => {
     writeTestFile(context.projectDirectory, 'package.json', '{"private":true}\n');
     writeTestFile(
@@ -551,6 +569,23 @@ describe('installPythonDependencies', () => {
     createPythonProject(context.projectDirectory, { manager: 'pip' });
 
     expect(installPythonDependencies(context.projectDirectory, ['ruff'])).toBe(false);
+  });
+
+  it('does not invoke uv lock when batch installation is skipped', () => {
+    createPythonProject(context.projectDirectory, { manager: 'uv' });
+    const originalSkipInstall = process.env.SAFEWORD_SKIP_INSTALL;
+    process.env.SAFEWORD_SKIP_INSTALL = '1';
+    try {
+      expect(
+        installPythonDependencyBatch(
+          [{ directory: context.projectDirectory, tools: ['ruff'] }],
+          context.projectDirectory,
+        ),
+      ).toEqual([true]);
+    } finally {
+      if (originalSkipInstall === undefined) delete process.env.SAFEWORD_SKIP_INSTALL;
+      else process.env.SAFEWORD_SKIP_INSTALL = originalSkipInstall;
+    }
   });
 
   const IS_POETRY_AVAILABLE = isPoetryInstalled();

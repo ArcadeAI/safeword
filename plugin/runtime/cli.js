@@ -678,7 +678,7 @@ function findAllFilesMatchingInTree(cwd, predicate, maxDepth = 10) {
       continue;
     }
     for (const entry of entries) {
-      if (entry.isFile() && predicate(entry.name)) {
+      if (entry.isFile() && predicate(entry.name, item.directory)) {
         found.push(nodePath4.join(item.directory, entry.name));
       } else if (item.depth < maxDepth && isScannableSubdirectory(entry)) {
         queue.push({ directory: nodePath4.join(item.directory, entry.name), depth: item.depth + 1 });
@@ -13302,7 +13302,13 @@ var init_workspace_pattern = () => {};
 
 // src/packs/python/setup.ts
 import { execFileSync as execFileSync2 } from "child_process";
-import { readdirSync as readdirSync5, readFileSync as readFileSync8, realpathSync as realpathSync3, unlinkSync, writeFileSync as writeFileSync5 } from "fs";
+import {
+  readdirSync as readdirSync5,
+  readFileSync as readFileSync8,
+  realpathSync as realpathSync3,
+  unlinkSync,
+  writeFileSync as writeFileSync5
+} from "fs";
 import nodePath16 from "path";
 function hasAnyLayerPattern(cwd, patterns) {
   for (const pattern of patterns) {
@@ -13428,21 +13434,6 @@ function hasPythonDependencyName(names, dependency) {
   const normalizedDependency = normalizePythonDistributionName(dependency);
   return names.some((name) => normalizePythonDistributionName(name) === normalizedDependency);
 }
-function containsPyprojectPythonDependency(content, dependency) {
-  const document2 = parseTomlTable(content);
-  if (document2 === undefined)
-    return false;
-  return hasPythonDependencyName(poetryDependencyNames(document2), dependency) || pyprojectDependencySpecs(document2).some((specification) => startsPythonDependency(specification, dependency));
-}
-function containsPipfilePythonDependency(content, dependency) {
-  const document2 = parseTomlTable(content);
-  if (document2 === undefined)
-    return false;
-  return hasPythonDependencyName([
-    ...Object.keys(asTomlTable(document2.packages) ?? {}),
-    ...Object.keys(asTomlTable(document2["dev-packages"]) ?? {})
-  ], dependency);
-}
 function splitPythonSpecifications(value) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
@@ -13545,11 +13536,7 @@ function consumePythonProtectedCharacter(state, character) {
   return false;
 }
 function updatePythonBrackets(state, character, index) {
-  const closingBracket = new Map([
-    ["[", "]"],
-    ["{", "}"],
-    ["(", ")"]
-  ]).get(character);
+  const closingBracket = PYTHON_CLOSING_BRACKETS.get(character);
   if (closingBracket !== undefined) {
     state.expressionStart ??= index;
     state.brackets.push(closingBracket);
@@ -13633,13 +13620,17 @@ function isRealPathWithinDirectory(candidate, directory) {
     return false;
   }
 }
-function containsRequirementsPythonDependency(projectDirectory, requirementsPath, dependency, visited = new Set) {
+function containsRequirementsPythonDependency(projectDirectory, requirementsPath, dependency, visited = new Set, contentCache = new Map) {
   const resolvedRequirementsPath = nodePath16.resolve(requirementsPath);
   if (!isRealPathWithinDirectory(resolvedRequirementsPath, projectDirectory) || visited.has(resolvedRequirementsPath)) {
     return false;
   }
   visited.add(resolvedRequirementsPath);
-  const content = readFileSafe(resolvedRequirementsPath);
+  let content = contentCache.get(resolvedRequirementsPath);
+  if (!contentCache.has(resolvedRequirementsPath)) {
+    content = readFileSafe(resolvedRequirementsPath);
+    contentCache.set(resolvedRequirementsPath, content);
+  }
   if (content === undefined)
     return false;
   return content.split(`
@@ -13653,23 +13644,51 @@ function containsRequirementsPythonDependency(projectDirectory, requirementsPath
     if (include === undefined || nodePath16.isAbsolute(include))
       return false;
     const includePath = nodePath16.resolve(nodePath16.dirname(resolvedRequirementsPath), include);
-    return containsRequirementsPythonDependency(projectDirectory, includePath, dependency, visited);
+    return containsRequirementsPythonDependency(projectDirectory, includePath, dependency, visited, contentCache);
   });
 }
 function pythonRequirementPaths(cwd) {
-  const direct = readdirSync5(cwd, { withFileTypes: true }).filter((entry) => entry.isFile() && isRootRequirementsFile(entry.name)).map((entry) => nodePath16.join(cwd, entry.name));
+  let rootEntries;
+  try {
+    rootEntries = readdirSync5(cwd, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const direct = rootEntries.filter((entry) => entry.isFile() && isRootRequirementsFile(entry.name)).map((entry) => nodePath16.join(cwd, entry.name));
   const requirementsDirectory = nodePath16.join(cwd, "requirements");
-  if (!exists(requirementsDirectory))
+  if (!isDirectory(requirementsDirectory))
     return direct;
-  const nested = readdirSync5(requirementsDirectory, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".txt")).map((entry) => nodePath16.join(requirementsDirectory, entry.name));
+  let requirementEntries;
+  try {
+    requirementEntries = readdirSync5(requirementsDirectory, { withFileTypes: true });
+  } catch {
+    return direct;
+  }
+  const nested = requirementEntries.filter((entry) => entry.isFile() && entry.name.endsWith(".txt")).map((entry) => nodePath16.join(requirementsDirectory, entry.name));
   return [...direct, ...nested];
 }
-function hasPythonDependency(cwd, dependency) {
+function readPythonDependencySources(cwd) {
   const pyprojectContent = readFileSafe(nodePath16.join(cwd, "pyproject.toml"));
   const pipfileContent = readFileSafe(nodePath16.join(cwd, "Pipfile"));
   const setupPy = readFileSafe(nodePath16.join(cwd, "setup.py"));
   const setupConfig = readFileSafe(nodePath16.join(cwd, "setup.cfg"));
-  return pyprojectContent !== undefined && containsPyprojectPythonDependency(pyprojectContent, dependency) || pipfileContent !== undefined && containsPipfilePythonDependency(pipfileContent, dependency) || pythonRequirementPaths(cwd).some((path2) => containsRequirementsPythonDependency(cwd, path2, dependency)) || setupPy !== undefined && setupPyDependencySpecs(setupPy).some((specification) => startsPythonDependency(specification, dependency)) || setupConfig !== undefined && setupConfigDependencySpecs(setupConfig).some((specification) => startsPythonDependency(specification, dependency));
+  const pyproject = parseTomlTable(pyprojectContent ?? "");
+  const pipfile = parseTomlTable(pipfileContent ?? "");
+  return {
+    pyprojectNames: pyproject === undefined ? [] : poetryDependencyNames(pyproject),
+    pyprojectSpecifications: pyproject === undefined ? [] : pyprojectDependencySpecs(pyproject),
+    pipfileNames: pipfile === undefined ? [] : [
+      ...Object.keys(asTomlTable(pipfile.packages) ?? {}),
+      ...Object.keys(asTomlTable(pipfile["dev-packages"]) ?? {})
+    ],
+    requirementPaths: pythonRequirementPaths(cwd),
+    setupPySpecifications: setupPy === undefined ? [] : setupPyDependencySpecs(setupPy),
+    setupConfigSpecifications: setupConfig === undefined ? [] : setupConfigDependencySpecs(setupConfig),
+    requirementContentCache: new Map
+  };
+}
+function hasPythonDependency(cwd, dependency, sources = readPythonDependencySources(cwd)) {
+  return hasPythonDependencyName(sources.pyprojectNames, dependency) || sources.pyprojectSpecifications.some((specification) => startsPythonDependency(specification, dependency)) || hasPythonDependencyName(sources.pipfileNames, dependency) || sources.requirementPaths.some((path2) => containsRequirementsPythonDependency(cwd, path2, dependency, new Set, sources.requirementContentCache)) || sources.setupPySpecifications.some((specification) => startsPythonDependency(specification, dependency)) || sources.setupConfigSpecifications.some((specification) => startsPythonDependency(specification, dependency));
 }
 function detectPythonPackageManager(cwd, repoRoot = cwd) {
   const root = nodePath16.resolve(repoRoot);
@@ -13755,12 +13774,22 @@ function getPythonTools(includeImportLinter) {
 function getMissingPythonToolDependencies(cwd, includeImportLinter, repoRoot = cwd) {
   const workspaceRoot = uvLockDirectory(cwd, repoRoot);
   const declarationDirectories = new Set([cwd, workspaceRoot].filter(Boolean));
-  return getPythonTools(includeImportLinter).filter((tool) => [...declarationDirectories].every((directory) => !hasPythonDependency(directory, tool)));
+  const sources = new Map([...declarationDirectories].map((directory) => [
+    directory,
+    readPythonDependencySources(directory)
+  ]));
+  return getPythonTools(includeImportLinter).filter((tool) => [...declarationDirectories].every((directory) => !hasPythonDependency(directory, tool, sources.get(directory))));
 }
 function findPythonProjectDirectories(cwd) {
-  const requirementsDirectories = findAllFilesMatchingInTree(cwd, (filename) => isRootRequirementsFile(filename) || filename.endsWith(".txt")).filter((path2) => {
+  const root = nodePath16.resolve(cwd);
+  const requirementsDirectories = findAllFilesMatchingInTree(cwd, (filename, directory) => isRootRequirementsFile(filename) || nodePath16.basename(directory) === "requirements" && filename.endsWith(".txt")).filter((path2) => {
     const directory = nodePath16.dirname(path2);
-    return isRootRequirementsFile(nodePath16.basename(path2)) || nodePath16.basename(directory) === "requirements";
+    if (isRootRequirementsFile(nodePath16.basename(path2)))
+      return true;
+    if (nodePath16.basename(directory) !== "requirements")
+      return false;
+    const owner = nodePath16.dirname(directory);
+    return owner === root || ["pyproject.toml", "Pipfile", "setup.py", "setup.cfg"].some((name) => exists(nodePath16.join(owner, name)));
   }).map((path2) => {
     const directory = nodePath16.dirname(path2);
     return nodePath16.basename(directory) === "requirements" ? nodePath16.dirname(directory) : directory;
@@ -13897,6 +13926,8 @@ function failUvResults(results, targets) {
     results[index] = false;
 }
 function installPythonDependencyBatch(gaps, repoRoot) {
+  if (process.env.SAFEWORD_SKIP_INSTALL)
+    return gaps.map(() => true);
   const targets = uvBatchTargets(gaps, repoRoot);
   const snapshots = snapshotPythonFiles(targets);
   const results = gaps.map((gap) => installPythonDependenciesForBatch(gap.directory, gap.tools, repoRoot));
@@ -13910,7 +13941,7 @@ function installPythonDependencyBatch(gaps, repoRoot) {
 function setupPythonTooling() {
   return { files: [] };
 }
-var PYTHON_LAYERS, NON_PACKAGE_DIRS, PYTHON_DEPENDENCY_SEPARATORS;
+var PYTHON_LAYERS, NON_PACKAGE_DIRS, PYTHON_DEPENDENCY_SEPARATORS, PYTHON_CLOSING_BRACKETS;
 var init_setup = __esm(() => {
   init_dist();
   init_fs();
@@ -13931,6 +13962,11 @@ var init_setup = __esm(() => {
     "venv"
   ]);
   PYTHON_DEPENDENCY_SEPARATORS = new Set(["[", "<", ">", "=", "!", "~", ";", "@"]);
+  PYTHON_CLOSING_BRACKETS = new Map([
+    ["[", "]"],
+    ["{", "}"],
+    ["(", ")"]
+  ]);
 });
 
 // src/packs/python/files.ts
@@ -64832,13 +64868,18 @@ function unavailablePlanMessage(entry2, kind) {
 function renderShellPlan(entries, kind = "test") {
   if (entries.length === 0)
     return "";
-  const lines = [];
+  const lanes = [];
   for (const entry2 of entries) {
     const unavailableMessage = shellQuote5(unavailablePlanMessage(entry2, kind));
-    lines.push(entry2.available ? `( cd ${shellQuote5(entry2.cwd)} && ${entry2.command} )` : String.raw`( printf '%s\n' ${unavailableMessage} >&2; false )`);
+    lanes.push(entry2.available ? `( cd ${shellQuote5(entry2.cwd)} && ${entry2.command} )` : String.raw`( printf '%s\n' ${unavailableMessage} >&2; false )`);
   }
-  return `${lines.join(` &&
+  const guardedLanes = lanes.map((lane) => `  ${lane} || { safeword_lane_status=$?; [ "$safeword_plan_status" -ne 0 ] || safeword_plan_status=$safeword_lane_status; }`);
+  return `(
+  safeword_plan_status=0
+${guardedLanes.join(`
 `)}
+  exit "$safeword_plan_status"
+)
 `;
 }
 var PLAN_LANE_NAMES, PLAN_LANGUAGE_NAMES;
@@ -64866,6 +64907,14 @@ __export(exports_test_plan, {
   observeTestPlan: () => observeTestPlan
 });
 import nodePath114 from "path";
+function parseFormat(value) {
+  if (value === undefined)
+    return "human";
+  if (typeof value !== "string")
+    return;
+  const validFormats = new Set(Object.keys(TEST_PLAN_FORMATS));
+  return validFormats.has(value) ? value : undefined;
+}
 function rawTestPlanPresentation(format2, plan, kind) {
   if (format2 === "json")
     return { kind: "raw", body: JSON.stringify(plan) };
@@ -64889,14 +64938,14 @@ function observeTestPlan(cwd, dir, options) {
     }));
   }
   const kind = kindValue ?? "test";
-  const formatValue = typeof options.format === "string" ? options.format : "human";
-  if (!["human", "json", "sh"].includes(formatValue)) {
+  const formatValue = parseFormat(options.format);
+  if (formatValue === undefined) {
     return Promise.resolve(createResult({
       state: "failed",
       errors: [
         {
           code: "TEST_PLAN_FORMAT_INVALID",
-          message: `Unknown test-plan format "${formatValue}".`,
+          message: typeof options.format === "string" ? `Unknown test-plan format "${options.format}".` : "Test-plan format must be a string.",
           retryable: false
         }
       ]
@@ -64923,10 +64972,16 @@ function observeTestPlan(cwd, dir, options) {
     data: { command: "project test-plan", kind, plan }
   }));
 }
+var TEST_PLAN_FORMATS;
 var init_test_plan = __esm(() => {
   init_result();
   init_render();
   init_resolve();
+  TEST_PLAN_FORMATS = {
+    human: true,
+    json: true,
+    sh: true
+  };
 });
 
 // src/commands/namespace-root.ts

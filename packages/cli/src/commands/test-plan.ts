@@ -18,6 +18,13 @@ const TEST_PLAN_FORMATS: Readonly<Record<Format, true>> = {
   sh: true,
 };
 
+function parseFormat(value: unknown): Format | undefined {
+  if (value === undefined) return 'human';
+  if (typeof value !== 'string') return undefined;
+  const validFormats = new Set<string>(Object.keys(TEST_PLAN_FORMATS));
+  return validFormats.has(value) ? (value as Format) : undefined;
+}
+
 function rawTestPlanPresentation(
   format: Format,
   plan: ReturnType<typeof resolveTestPlan>,
@@ -50,15 +57,18 @@ export function observeTestPlan(
     );
   }
   const kind = (kindValue ?? 'test') as PlanKind;
-  const formatValue = options.format ?? 'human';
-  if (typeof formatValue !== 'string' || !(formatValue in TEST_PLAN_FORMATS)) {
+  const formatValue = parseFormat(options.format);
+  if (formatValue === undefined) {
     return Promise.resolve(
       createResult({
         state: 'failed',
         errors: [
           {
             code: 'TEST_PLAN_FORMAT_INVALID',
-            message: `Unknown test-plan format "${String(formatValue)}".`,
+            message:
+              typeof options.format === 'string'
+                ? `Unknown test-plan format "${options.format}".`
+                : 'Test-plan format must be a string.',
             retryable: false,
           },
         ],
@@ -85,7 +95,7 @@ export function observeTestPlan(
     createResult({
       state: findings.length === 0 ? 'healthy' : 'action_required',
       findings,
-      presentation: rawTestPlanPresentation(formatValue as Format, plan, kind),
+      presentation: rawTestPlanPresentation(formatValue, plan, kind),
       // Compatibility aliases normalize to the canonical command in machine
       // output, matching the deprecation metadata emitted by the CLI layer.
       data: { command: 'project test-plan', kind, plan },
