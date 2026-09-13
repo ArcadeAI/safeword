@@ -60,6 +60,29 @@ last_modified: 2026-09-12T15:51:15Z
 
 ## Root Cause
 
+### Independent reviewer routes still require a named egress recipient
+
+The installed allow rule matches the Safeword command, but that command does not identify the
+external recipient in its visible arguments. Codex's approval boundary therefore cannot bind the
+rule to the actual disclosure. On 2026-09-13 it rejected a bounded `quality-review` launch before
+Safeword ran, stating that the transcript had not explicitly authorized sending the source file to
+the specific destination. When the same reviewer CLIs were run inside the ordinary workspace
+sandbox, Claude waited without receiving an API response and Codex reported network-resolution
+failures; Codex also attempted to write its profile state database. Those exits explain the later
+`process_failed` route evidence, but they are consequences of launching networked reviewers without
+an approved egress boundary, not reviewer verdicts.
+
+Confirmed: both installed CLIs advertise every required headless-review flag, so CLI capability
+drift is ruled out. Both installed profiles report authenticated, so missing login is ruled out.
+Giving Codex a private writable temporary profile removed the state-database error and reached its
+network attempt, ruling out the database write as the primary route failure. The Arcade/Bosslevel
+MCP catalog was also queried for a bounded AI code-review tool and has none; its closest GitHub tool
+can only submit a review already produced elsewhere. A capability-gap report was filed with the
+gateway. The surviving cause is the mismatch between a version-scoped command allow rule and the
+host's recipient-specific disclosure policy. A durable fix must name the actual provider and obtain
+one standing authorization for that provider, or use a Bosslevel-native reviewer when one exists;
+Safeword instructions cannot override the host's disclosure decision.
+
 The closing verification exposed an acceptance-fixture timing defect. Successful fake reviewers
 and deliberately non-responsive reviewers shared the same five-second total attempt budget, even
 though capability probing and review execution consume that budget together. Under the accumulated
@@ -167,3 +190,9 @@ receive scheduling headroom; scenarios whose subject is a short timeout set that
   removing repeated path resolution, source loading, module rendering, and reconciliation wiring
   without changing their public entry points or output bytes. All four generated rubrics remain
   current, package typecheck passes, and the focused generator/release contracts pass 35/35.
+- 2026-09-13T20:57:38Z Standing authorization verified: After the user explicitly authorized
+  bounded, secret-screened Safeword packets to Claude through Anthropic and fallback Codex through
+  OpenAI, quality review `8b23287b-d7d6-4dbd-bbe5-a5fd0f8d9f99` crossed the host boundary without
+  a user approval prompt and returned an independent Claude Opus verdict. The same review found one
+  blocking legacy Python-manifest false positive plus bounded cleanup opportunities; all actionable
+  findings entered the review-fix loop.

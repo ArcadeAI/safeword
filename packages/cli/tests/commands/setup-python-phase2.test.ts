@@ -528,8 +528,8 @@ dev = ["ruff>=0.8.0"]
     'finalizes a uv consumer after its local dependency changes later in setup',
     async () => {
       createSafewordBasePackageJson(state.projectDirectory);
-      const consumer = nodePath.join(state.projectDirectory, 'apps/consumer');
-      const dependency = nodePath.join(state.projectDirectory, 'libs/shared');
+      const dependency = nodePath.join(state.projectDirectory, 'apps/a-shared');
+      const consumer = nodePath.join(state.projectDirectory, 'apps/z-consumer');
       createPythonProject(consumer, { manager: 'uv' });
       createPythonProject(dependency, { manager: 'uv' });
       initGitRepo(state.projectDirectory);
@@ -572,6 +572,64 @@ exit 1
 
       expect(readTestFile(consumer, 'uv.lock')).toContain('finalized');
       expect(readTestFile(dependency, 'uv.lock')).toContain('finalized');
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
+    'finalizes one shared uv workspace lock after member installs',
+    async () => {
+      createSafewordBasePackageJson(state.projectDirectory);
+      writeTestFile(
+        state.projectDirectory,
+        'pyproject.toml',
+        '[tool.uv.workspace]\nmembers = ["apps/*", "libs/*"]\n',
+      );
+      writeTestFile(state.projectDirectory, 'uv.lock', 'version = 1\nrevision = 2\n');
+      writeTestFile(
+        state.projectDirectory,
+        'apps/consumer/pyproject.toml',
+        '[project]\nname = "consumer"\nversion = "0.1.0"\n',
+      );
+      writeTestFile(
+        state.projectDirectory,
+        'libs/shared/pyproject.toml',
+        '[project]\nname = "shared"\nversion = "0.1.0"\n',
+      );
+      initGitRepo(state.projectDirectory);
+      const bin = nodePath.join(state.projectDirectory, 'bin');
+      const uv = nodePath.join(bin, 'uv');
+      writeTestFile(
+        state.projectDirectory,
+        'bin/uv',
+        `#!/bin/sh
+if [ "$1" = "add" ]; then
+  printf '\ndependencies = ["deadcode"]\n' >> pyproject.toml
+  exit 0
+fi
+if [ "$1" = "lock" ] && [ "$2" = "--check" ]; then
+  exit 0
+fi
+if [ "$1" = "lock" ]; then
+  printf '\nfinalized\n' >> "$SAFEWORD_ROOT_UV_LOCK"
+  exit 0
+fi
+exit 1
+`,
+      );
+      chmodSync(uv, 0o755);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_ROOT_UV_LOCK: nodePath.join(state.projectDirectory, 'uv.lock'),
+          SAFEWORD_SKIP_INSTALL: '',
+        },
+      });
+
+      expect(readTestFile(state.projectDirectory, 'uv.lock')).toContain('finalized');
     },
     TIMEOUT_SETUP,
   );

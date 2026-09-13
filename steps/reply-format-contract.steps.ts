@@ -519,7 +519,9 @@ Given(/^every hard gate other than (.+) allows Stop$/u, function (_gate: string)
 Given(
   /^the (dependency|test|phase artifact|architecture review|done) gate has a failing verdict$/u,
   function (this: SafewordWorld, gate: string) {
-    getReplyFormatState(this).projectDirectory = buildGateProject(gate);
+    const state = getReplyFormatState(this);
+    rmSync(state.projectDirectory, { recursive: true, force: true });
+    state.projectDirectory = buildGateProject(gate);
   },
 );
 
@@ -698,7 +700,8 @@ Then('SessionStart emits shape B', function (this: SafewordWorld) {
 Then('Stop accepts shape B and rejects the former shape A', function (this: SafewordWorld) {
   const state = stateFor(this);
   assert.equal(state.currentStopOutput?.trim(), '');
-  const former = JSON.parse(state.formerStopOutput ?? '{}') as { decision?: string };
+  assert.ok(state.formerStopOutput?.trim(), 'former reply should be rejected with a verdict');
+  const former = JSON.parse(state.formerStopOutput) as { decision?: string };
   assert.equal(former.decision, 'block');
 });
 
@@ -781,16 +784,23 @@ Given(
 
 When('the Claude plugin generation and worktree diff gate runs', function (this: SafewordWorld) {
   const state = stateFor(this);
+  const baseline = spawnSync('git', ['diff', '--binary', '--', 'plugin'], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  });
+  assert.equal(baseline.status, 0, baseline.stderr || baseline.stdout);
   const generated = spawnSync('bun', ['run', '--cwd', 'packages/cli', 'generate:claude-plugin'], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
     timeout: 60_000,
   });
   assert.equal(generated.status, 0, generated.stderr || generated.stdout);
-  state.validatorExit =
-    spawnSync('git', ['diff', '--quiet', '--', 'plugin'], {
-      cwd: REPO_ROOT,
-    }).status ?? 0;
+  const changed = spawnSync('git', ['diff', '--binary', '--', 'plugin'], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  });
+  assert.equal(changed.status, 0, changed.stderr || changed.stdout);
+  state.validatorExit = changed.stdout === baseline.stdout ? 0 : 1;
   writeFileSync(QUALITY_TEMPLATE, state.originalSource ?? '');
   state.originalSource = undefined;
   const restored = spawnSync('bun', ['run', '--cwd', 'packages/cli', 'generate:claude-plugin'], {

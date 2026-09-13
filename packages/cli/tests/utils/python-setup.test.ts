@@ -260,11 +260,70 @@ describe('repository Python projects', () => {
   it.each([
     [
       'setup.py',
-      'setup(name="legacy", extras_require={"dev": ["ruff", "mypy", "deadcode", "pip-audit"]})\n',
+      'setup(name="legacy", extras_require={"dev": ["ruff>=0.8", "mypy @ git+https://github.com/python/mypy.git#egg=mypy", "deadcode==1.0", "pip-audit~=2.0"]})\n',
     ],
-    ['setup.cfg', '[options.extras_require]\ndev =\n  ruff\n  mypy\n  deadcode\n  pip-audit\n'],
+    [
+      'setup.cfg',
+      '[options.extras_require]\ndev =\n  ruff>=0.8\n  mypy; python_version >= "3.10"\n  deadcode==1.0\n  pip-audit~=2.0\n',
+    ],
   ])('reads tool declarations from legacy %s projects', (manifest, content) => {
     writeTestFile(context.projectDirectory, `services/legacy/${manifest}`, content);
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([]);
+  });
+
+  it('does not treat setup.cfg tool configuration as a dependency declaration', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'services/legacy/setup.cfg',
+      '[mypy]\nstrict = True\n\n[ruff]\nline-length = 100\n',
+    );
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([
+      {
+        directory: nodePath.join(context.projectDirectory, 'services/legacy'),
+        tools: ['ruff', 'mypy', 'deadcode', 'pip-audit'],
+      },
+    ]);
+  });
+
+  it('does not treat setup.py comments as dependency declarations', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'services/legacy/setup.py',
+      '# Run ruff and mypy before committing.\nfrom setuptools import setup\nsetup(name="legacy")\n',
+    );
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([
+      {
+        directory: nodePath.join(context.projectDirectory, 'services/legacy'),
+        tools: ['ruff', 'mypy', 'deadcode', 'pip-audit'],
+      },
+    ]);
+  });
+
+  it('reads pinned install_requires declarations from setup.cfg', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'services/legacy/setup.cfg',
+      '[options]\ninstall_requires =\n  ruff>=0.8\n  mypy; python_version >= "3.10"\n  deadcode==1.0\n  pip-audit~=2.0\n',
+    );
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([]);
+  });
+
+  it('inherits Python tool declarations from an owning uv workspace root', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'pyproject.toml',
+      '[tool.uv.workspace]\nmembers=["apps/*"]\n\n[dependency-groups]\ndev=["ruff", "mypy", "deadcode", "pip-audit"]\n',
+    );
+    writeTestFile(context.projectDirectory, 'uv.lock', 'version = 1\n');
+    writeTestFile(
+      context.projectDirectory,
+      'apps/api/pyproject.toml',
+      '[project]\nname="api"\nversion="0.1.0"\n',
+    );
 
     expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([]);
   });
@@ -301,6 +360,16 @@ name = "test"
     );
 
     expect(detectPythonPackageManager(context.projectDirectory)).toBe('poetry');
+  });
+
+  it('does not detect poetry from a commented section header', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'pyproject.toml',
+      '[project]\nname = "test"\n\n# [tool.poetry]\n',
+    );
+
+    expect(detectPythonPackageManager(context.projectDirectory)).toBe('pip');
   });
 
   it('detects pipenv from Pipfile', () => {
@@ -346,6 +415,12 @@ name = "test"
         context.projectDirectory,
       ),
     ).toBe('pip');
+  });
+
+  it('terminates at pip when the requested project is outside the supplied root', () => {
+    const impossibleRoot = nodePath.join(context.projectDirectory, 'nested-root');
+
+    expect(detectPythonPackageManager(context.projectDirectory, impossibleRoot)).toBe('pip');
   });
 });
 

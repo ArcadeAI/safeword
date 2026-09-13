@@ -44,7 +44,7 @@ export function observeTestPlan(
   options: Readonly<Record<string, unknown>>,
 ): Promise<CliResult> {
   const kindValue = typeof options.kind === 'string' ? options.kind : undefined;
-  const validKinds = new Set(['test', 'build', 'verify', 'typecheck', 'deps', 'bdd']);
+  const validKinds = new Set<string>(Object.keys(LANE_NAMES));
   if (kindValue !== undefined && !validKinds.has(kindValue)) {
     return Promise.resolve(
       createResult({
@@ -96,6 +96,8 @@ export function observeTestPlan(
       state: 'healthy',
       findings,
       presentation: rawTestPlanPresentation(formatValue as Format, plan),
+      // Compatibility aliases normalize to the canonical command in machine
+      // output, matching the deprecation metadata emitted by the CLI layer.
       data: { command: 'project test-plan', kind, plan },
     }),
   );

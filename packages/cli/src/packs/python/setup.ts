@@ -282,6 +282,144 @@ function containsPipfilePythonDependency(content: string, dependency: PythonTool
   );
 }
 
+function splitPythonSpecifications(value: string): string[] {
+  return value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+interface SetupConfigAssignment {
+  readonly key: string;
+  readonly value: string;
+}
+
+function setupConfigAssignment(line: string): SetupConfigAssignment | undefined {
+  if (line.trimStart() !== line) return undefined;
+  const separator = line.indexOf('=');
+  if (separator === -1) return undefined;
+  const key = line.slice(0, separator).trim();
+  if (!/^[\w.-]+$/u.test(key)) return undefined;
+  return { key: key.toLowerCase(), value: line.slice(separator + 1) };
+}
+
+function setupConfigExtrasSpecs(body: string): string[] {
+  return body.split('\n').flatMap(line => {
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith(';')) return [];
+    const assignment = setupConfigAssignment(line);
+    return splitPythonSpecifications(assignment?.value ?? trimmed);
+  });
+}
+
+function setupConfigOptionsSpecs(body: string): string[] {
+  const dependencyKeys = new Set(['install_requires', 'setup_requires', 'tests_require']);
+  const specifications: string[] = [];
+  let active = false;
+  for (const line of body.split('\n')) {
+    const assignment = setupConfigAssignment(line);
+    if (assignment !== undefined) {
+      active = dependencyKeys.has(assignment.key);
+      if (active) specifications.push(...splitPythonSpecifications(assignment.value));
+    } else if (active && line.trimStart() !== line) {
+      specifications.push(...splitPythonSpecifications(line));
+    }
+  }
+  return specifications;
+}
+
+function setupConfigDependencySpecs(content: string): string[] {
+  return content.split(/(?=^\[)/mu).flatMap(block => {
+    const headerEnd = block.indexOf(']');
+    if (!block.startsWith('[') || headerEnd === -1) return [];
+    const section = block.slice(1, headerEnd).trim().toLowerCase();
+    const body = block.slice(headerEnd + 1).trimStart();
+    if (section === 'options.extras_require') return setupConfigExtrasSpecs(body);
+    return section === 'options' ? setupConfigOptionsSpecs(body) : [];
+  });
+}
+
+function isPythonCodePosition(content: string, position: number): boolean {
+  const lineStart = content.lastIndexOf('\n', position - 1) + 1;
+  let quote: string | undefined;
+  let escaped = false;
+  for (let index = lineStart; index < position; index += 1) {
+    const character = content[index];
+    if (quote !== undefined) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) quote = undefined;
+    } else if (character === '#' || character === undefined) {
+      return false;
+    } else if (character === "'" || character === '"') {
+      quote = character;
+    }
+  }
+  return quote === undefined;
+}
+
+function pythonAssignedExpression(content: string, start: number): string | undefined {
+  const bracketPairs = new Map([
+    ['[', ']'],
+    ['{', '}'],
+    ['(', ')'],
+  ]);
+  const brackets: string[] = [];
+  let quote: string | undefined;
+  let escaped = false;
+  let comment = false;
+  let expressionStart: number | undefined;
+
+  for (let index = start; index < content.length; index += 1) {
+    const character = content[index];
+    if (character === undefined) break;
+    if (comment) {
+      if (character === '\n') comment = false;
+      continue;
+    }
+    if (quote !== undefined) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) quote = undefined;
+      continue;
+    }
+    if (character === '#') {
+      comment = true;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    const closingBracket = bracketPairs.get(character);
+    if (closingBracket !== undefined) {
+      expressionStart ??= index;
+      brackets.push(closingBracket);
+      continue;
+    }
+    if (brackets.at(-1) !== character) continue;
+    brackets.pop();
+    if (brackets.length === 0 && expressionStart !== undefined) {
+      return content.slice(expressionStart, index + 1);
+    }
+  }
+  return undefined;
+}
+
+function setupPyDependencySpecs(content: string): string[] {
+  const specifications: string[] = [];
+  const assignment = /\b(?:install_requires|setup_requires|tests_require|extras_require)\s*=/gu;
+  for (const match of content.matchAll(assignment)) {
+    if (match.index === undefined || !isPythonCodePosition(content, match.index)) continue;
+    const expression = pythonAssignedExpression(content, match.index + match[0].length);
+    if (expression === undefined) continue;
+    for (const stringMatch of expression.matchAll(/(['"])(.*?)\1/gsu)) {
+      if (stringMatch[2] !== undefined) specifications.push(stringMatch[2]);
+    }
+  }
+  return specifications;
+}
+
 function shortRequirementsInclude(declaration: string): string | undefined {
   if (!declaration.startsWith('-r')) return undefined;
   return declaration.slice(2).trim() || undefined;
@@ -359,20 +497,22 @@ function containsRequirementsPythonDependency(
 function hasPythonDependency(cwd: string, dependency: PythonTool): boolean {
   const pyprojectContent = readFileSafe(nodePath.join(cwd, 'pyproject.toml'));
   const pipfileContent = readFileSafe(nodePath.join(cwd, 'Pipfile'));
-  const legacyContent = ['setup.py', 'setup.cfg']
-    .map(filename => readFileSafe(nodePath.join(cwd, filename)))
-    .filter((content): content is string => content !== undefined);
+  const setupPy = readFileSafe(nodePath.join(cwd, 'setup.py'));
+  const setupConfig = readFileSafe(nodePath.join(cwd, 'setup.cfg'));
 
   return (
     (pyprojectContent !== undefined &&
       containsPyprojectPythonDependency(pyprojectContent, dependency)) ||
     (pipfileContent !== undefined && containsPipfilePythonDependency(pipfileContent, dependency)) ||
     containsRequirementsPythonDependency(cwd, nodePath.join(cwd, 'requirements.txt'), dependency) ||
-    legacyContent.some(content =>
-      content
-        .split(/[\s'",[\]()]+/u)
-        .some(declaration => startsPythonDependency(declaration, dependency)),
-    )
+    (setupPy !== undefined &&
+      setupPyDependencySpecs(setupPy).some(specification =>
+        startsPythonDependency(specification, dependency),
+      )) ||
+    (setupConfig !== undefined &&
+      setupConfigDependencySpecs(setupConfig).some(specification =>
+        startsPythonDependency(specification, dependency),
+      ))
   );
 }
 
@@ -394,15 +534,16 @@ export function detectPythonPackageManager(
   const root = nodePath.resolve(repoRoot);
   let directory = nodePath.resolve(cwd);
   const projectDirectory = directory;
-  const relative = nodePath.relative(root, directory);
-  if (relative.startsWith(`..${nodePath.sep}`) || nodePath.isAbsolute(relative)) directory = root;
+  if (!isPathWithinDirectory(directory, root)) directory = root;
 
   while (true) {
     const manager = detectPythonPackageManagerAt(directory);
     if (manager && directory === projectDirectory) return manager;
     if (manager === 'uv' && pythonWorkspaceOwns(directory, projectDirectory)) return manager;
     if (directory === root) return 'pip';
-    directory = nodePath.dirname(directory);
+    const parent = nodePath.dirname(directory);
+    if (parent === directory) return 'pip';
+    directory = parent;
   }
 }
 
@@ -421,9 +562,10 @@ export function pythonWorkspaceOwns(repoRoot: string, projectDirectory: string):
 
 function detectPythonPackageManagerAt(directory: string): PythonPackageManager | undefined {
   if (exists(nodePath.join(directory, 'uv.lock'))) return 'uv';
+  const pyproject = parseTomlTable(readFileSafe(nodePath.join(directory, 'pyproject.toml')) ?? '');
   if (
     exists(nodePath.join(directory, 'poetry.lock')) ||
-    readFileSafe(nodePath.join(directory, 'pyproject.toml'))?.includes('[tool.poetry]')
+    (pyproject !== undefined && tomlTableAt(pyproject, ['tool', 'poetry']) !== undefined)
   ) {
     return 'poetry';
   }
@@ -443,7 +585,9 @@ function uvLockDirectory(cwd: string, repoRoot: string): string | undefined {
       return directory;
     }
     if (directory === root) return undefined;
-    directory = nodePath.dirname(directory);
+    const parent = nodePath.dirname(directory);
+    if (parent === directory) return undefined;
+    directory = parent;
   }
 }
 
@@ -458,28 +602,13 @@ export function getPythonInstallCommand(
   tools: string[] = ['ruff'],
   repoRoot: string = cwd,
 ): string {
-  const pm = detectPythonPackageManager(cwd, repoRoot);
-  const toolList = tools.join(' ');
-
-  switch (pm) {
-    case 'uv': {
-      return `uv add --dev ${toolList}`;
-    }
-    case 'poetry': {
-      return `poetry add --group dev ${toolList}`;
-    }
-    case 'pipenv': {
-      return `pipenv install --dev ${toolList}`;
-    }
-    case 'pip': {
-      return `pip install ${toolList}`;
-    }
-  }
+  const invocation = pythonInstallInvocation(cwd, tools, repoRoot);
+  return [invocation.command, ...invocation.arguments].join(' ');
 }
 
 function pythonInstallInvocation(
   cwd: string,
-  tools: readonly PythonTool[],
+  tools: readonly string[],
   repoRoot: string,
 ): { command: string; arguments: string[] } {
   switch (detectPythonPackageManager(cwd, repoRoot)) {
@@ -527,8 +656,13 @@ export function getPythonTools(includeImportLinter: boolean): PythonTool[] {
 export function getMissingPythonToolDependencies(
   cwd: string,
   includeImportLinter: boolean,
+  repoRoot: string = cwd,
 ): PythonTool[] {
-  return getPythonTools(includeImportLinter).filter(tool => !hasPythonDependency(cwd, tool));
+  const workspaceRoot = uvLockDirectory(cwd, repoRoot);
+  const declarationDirectories = new Set([cwd, workspaceRoot].filter(Boolean) as string[]);
+  return getPythonTools(includeImportLinter).filter(tool =>
+    [...declarationDirectories].every(directory => !hasPythonDependency(directory, tool)),
+  );
 }
 
 /**
@@ -567,7 +701,7 @@ export function getPythonToolDependencyGaps(
   includeImportLinter: (directory: string) => boolean,
 ): PythonToolDependencyGap[] {
   return findPythonProjectDirectories(cwd).flatMap(directory => {
-    const tools = getMissingPythonToolDependencies(directory, includeImportLinter(directory));
+    const tools = getMissingPythonToolDependencies(directory, includeImportLinter(directory), cwd);
     return tools.length === 0 ? [] : [{ directory, tools }];
   });
 }
@@ -576,6 +710,7 @@ function installUvDependencies(
   cwd: string,
   tools: readonly PythonTool[],
   repoRoot: string,
+  verifyLock: boolean,
 ): boolean {
   const manifestPath = nodePath.join(cwd, 'pyproject.toml');
   const lockDirectory = uvLockDirectory(cwd, repoRoot);
@@ -589,7 +724,7 @@ function installUvDependencies(
       stdio: 'pipe',
       timeout: 60_000,
     });
-    if (lockDirectory) {
+    if (lockDirectory && verifyLock) {
       execFileSync('uv', ['lock', '--check'], {
         cwd: lockDirectory,
         stdio: 'pipe',
@@ -616,7 +751,7 @@ export function installPythonDependencies(
   // pip projects need manual install due to PEP 668
   const pm = detectPythonPackageManager(cwd, repoRoot);
   if (pm === 'pip') return false;
-  if (pm === 'uv') return installUvDependencies(cwd, tools, repoRoot);
+  if (pm === 'uv') return installUvDependencies(cwd, tools, repoRoot, true);
 
   try {
     const invocation = pythonInstallInvocation(cwd, tools, repoRoot);
@@ -629,6 +764,17 @@ export function installPythonDependencies(
   } catch {
     return false;
   }
+}
+
+function installPythonDependenciesForBatch(
+  cwd: string,
+  tools: readonly PythonTool[],
+  repoRoot: string,
+): boolean {
+  if (tools.length === 0 || process.env.SAFEWORD_SKIP_INSTALL) return true;
+  return detectPythonPackageManager(cwd, repoRoot) === 'uv'
+    ? installUvDependencies(cwd, tools, repoRoot, false)
+    : installPythonDependencies(cwd, tools, repoRoot);
 }
 
 function restorePythonFiles(snapshots: ReadonlyMap<string, Buffer | undefined>): void {
@@ -649,7 +795,7 @@ function uvBatchTargets(
   repoRoot: string,
 ): UvBatchTarget[] {
   return gaps.flatMap((gap, index) => {
-    if (detectPythonPackageManagerAt(gap.directory) !== 'uv') return [];
+    if (detectPythonPackageManager(gap.directory, repoRoot) !== 'uv') return [];
     const lockDirectory = uvLockDirectory(gap.directory, repoRoot) ?? gap.directory;
     return [
       {
@@ -701,7 +847,9 @@ export function installPythonDependencyBatch(
 ): boolean[] {
   const targets = uvBatchTargets(gaps, repoRoot);
   const snapshots = snapshotPythonFiles(targets);
-  const results = gaps.map(gap => installPythonDependencies(gap.directory, gap.tools, repoRoot));
+  const results = gaps.map(gap =>
+    installPythonDependenciesForBatch(gap.directory, gap.tools, repoRoot),
+  );
   const installFailed = targets.some(({ index }) => !results.at(index));
   if (!installFailed && finalizeUvLocks(targets)) return results;
   restorePythonFiles(snapshots);

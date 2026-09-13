@@ -166,6 +166,8 @@ describe('safeword test-plan', () => {
     // A nested Go module under a dir named with $(...). Eval must NOT run it.
     const root = makeRepo({ 'm$(touch INJECTED)d/go.mod': 'module x\n' });
     const sh = await renderSh(root);
+    expect(sh).toContain('m$(touch INJECTED)d');
+    expect(sh).toContain('go test');
     const { code } = evalScript(sh, root);
     // cd may fail (the literal dir name won't match a shell-expanded one), but
     // the injection must not have fired.
