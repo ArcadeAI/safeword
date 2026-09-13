@@ -196,7 +196,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the pre-feature evaluator already accepted the compatible self-contained Need rewrite; the paired hidden-role scenario supplies the discriminating failure
 - [x] GREEN 386846062
-- [ ] REFACTOR
+- [x] REFACTOR skip: the positive Need corpus row shares the same symmetric terminal-only parser
 
 ### Scenario: The long no-decision corpus retains one concise action
 
