@@ -18,6 +18,13 @@ const tddCopies = [
   'packages/cli/codex-plugin/skills/bdd/references/TDD.md',
 ];
 
+const prReadinessCopies = [
+  'packages/cli/templates/skills/pr-readiness/SKILL.md',
+  '.safeword/skills/pr-readiness/SKILL.md',
+  '.claude/skills/pr-readiness/SKILL.md',
+  'packages/cli/codex-plugin/skills/pr-readiness/SKILL.md',
+];
+
 const unsuccessfulSteps = [
   {
     outcome: 'RED proof passes',
@@ -82,6 +89,12 @@ describe('installed delivery continuation contract', () => {
   it.each(tddCopies)('%s closes the whole ticket after the final scenario', path => {
     expect(read(path)).toContain(
       'After the final scenario, continue in order through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure without asking whether to proceed.',
+    );
+  });
+
+  it.each(prReadinessCopies)('%s returns from Draft evidence to delivery', path => {
+    expect(read(path)).toContain(
+      'After creating a Draft pull request for evidence, return directly to the next unfinished delivery step instead of reporting the change ready for review.',
     );
   });
 });
