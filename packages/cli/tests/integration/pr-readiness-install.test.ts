@@ -148,8 +148,6 @@ function runInstalledReadyHook(
     CLAUDE_PROJECT_DIR: project,
     CLAUDE_PLUGIN_ROOT: claudePluginRoot,
     CODEX_HOME: codexHome,
-    // Codex's plugin-hook protocol renders denials as JSON for the host adapter.
-    SAFEWORD_CODEX_DENY_MODE: 'json',
   };
   let command: string[];
   let input: object;
