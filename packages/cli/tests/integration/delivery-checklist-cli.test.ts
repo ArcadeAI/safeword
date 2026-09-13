@@ -6,6 +6,7 @@ import nodePath from 'node:path';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import type { CliResult } from '../../src/cli-protocol/result.js';
 import {
   createExecutionPlanDeliveryDefinition,
@@ -41,7 +42,9 @@ function git(cwd: string, arguments_: readonly string[]): string {
   return execFileSync('git', arguments_, { cwd, encoding: 'utf8' }).trim();
 }
 
-function executionPlan(): string {
+function executionPlan(
+  currency: 'current_required' | 'compatible_earlier_allowed' = 'current_required',
+): string {
   const rows = CATEGORIES.map(
     (category, index) =>
       `| item-${index + 1} | ${category} | Deliver ${category}. | contributor | proof | open | missing |  |  |`,
@@ -53,7 +56,7 @@ function executionPlan(): string {
     '',
     '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
     '| --- | --- | --- | --- | --- | --- | --- |',
-    `| proof | command | integration | retained child process | real_boundary | current_required | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"-e","process.exit(0)"]} |`,
+    `| proof | command | integration | retained child process | real_boundary | ${currency} | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"-e","process.exit(0)"]} |`,
     '',
     '## Delivery checklist',
     '',
@@ -280,5 +283,42 @@ describe('Delivery Checklist CLI service', () => {
       state: 'action_required',
       data: { readiness_state: 'human_approval_satisfied_merge_pending' },
     });
+  });
+
+  it('discloses full-diff egress before reviewing an earlier proof', async () => {
+    const { root, planPath } = fixture({
+      plan: executionPlan('compatible_earlier_allowed'),
+    });
+    const recorded = await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof');
+    const receipt = (recorded.data as { receipt_id?: string }).receipt_id;
+    expect(receipt).toEqual(expect.any(String));
+    git(root, ['add', '.project']);
+    git(root, ['commit', '--quiet', '-m', 'record proof']);
+    writeFileSync(nodePath.join(root, 'documentation.md'), '# Later documentation\n');
+    git(root, ['add', 'documentation.md']);
+    git(root, ['commit', '--quiet', '-m', 'document behavior']);
+
+    const result = await publicHandler('ticket record-delivery-proof')({
+      cwd: root,
+      noInput: true,
+      offline: false,
+      operands: ['ABC123', 'item-4', 'proof'],
+      options: {
+        receipt,
+        compatibleReason: 'The later commit changes documentation only.',
+      },
+    });
+
+    expect(result.findings[0]).toMatchObject({
+      code: 'compatibility_review_confirmation_required',
+      message: expect.stringContaining('complete contribution diff will leave this machine'),
+    });
+    expect(result.nextActions).toEqual([
+      expect.objectContaining({
+        command: expect.stringContaining('--confirm-egress'),
+        requiresHuman: true,
+      }),
+    ]);
+    expect(readFileSync(planPath, 'utf8')).toContain(`receipt:${receipt}`);
   });
 });
