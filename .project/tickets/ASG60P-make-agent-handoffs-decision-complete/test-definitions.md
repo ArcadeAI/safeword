@@ -239,7 +239,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Each installed native terminal boundary corrects every incomplete long-form corpus case once
 
 - [x] RED b7e6c40c1
-- [ ] GREEN
+- [x] GREEN 3b015e5bc
 - [ ] REFACTOR
 
 ### Scenario: Each installed native terminal boundary corrects a vague no-decision action once
