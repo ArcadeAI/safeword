@@ -84,7 +84,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e3a24a8fc
 - [x] GREEN bb3565467
-- [ ] REFACTOR
+- [x] REFACTOR e4ea44f24
 
 ### Scenario: A large contribution cannot leave PR slicing unresolved
 
