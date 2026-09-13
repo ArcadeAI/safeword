@@ -97,7 +97,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Ready-by-default creation is rejected before verified done
 
 - [x] RED 514440a98
-- [ ] GREEN
+- [x] GREEN 7ad6e09a0
 - [ ] REFACTOR
 
 ### Scenario: Ready denial gives a Non-Technical Builder a plain next action
