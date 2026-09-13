@@ -571,6 +571,15 @@ describe('delivery execution prerequisite', () => {
   it('returns the reviewed PR-slicing outcome when its checklist item is completed', async () => {
     const root = featureFixture();
     await admitThroughInstalledCli(root);
+    const reviewEnvironment = {
+      NODE_ENV: 'test',
+      SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+    };
+    const prerequisite = await runCli(
+      ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+      { cwd: root, env: reviewEnvironment },
+    );
+    expect(prerequisite.exitCode, prerequisite.stdout).toBe(0);
     execFileSync('git', ['init', '--quiet'], { cwd: root });
     execFileSync('git', ['config', 'user.email', 'proof@example.com'], { cwd: root });
     execFileSync('git', ['config', 'user.name', 'Proof Test'], { cwd: root });
@@ -579,18 +588,24 @@ describe('delivery execution prerequisite', () => {
 
     const invoked = await runCli(
       ['ticket', 'record-delivery-proof', 'ABC123', 'item-3', 'proof', '--json', '--cwd', root],
-      {
-        cwd: root,
-        env: {
-          NODE_ENV: 'test',
-          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
-        },
-      },
+      { cwd: root, env: reviewEnvironment },
     );
     const result = JSON.parse(invoked.stdout) as { data?: Record<string, unknown> };
 
     expect(invoked.exitCode, invoked.stdout).toBe(0);
-    expect(result.data?.pull_request_slicing).toEqual({
+    expect(
+      readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8'),
+    ).toContain('delivery-proof:v1:');
+    expect(
+      readFileSync(
+        nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'execution-plan.md'),
+        'utf8',
+      ),
+    ).toMatch(/^\| item-3 \|.*\| complete \| current_revision_real_boundary \|/mu);
+    expect(
+      result.data?.pull_request_slicing,
+      'completed checklist response must include pull_request_slicing',
+    ).toEqual({
       decision: 'one_pull_request',
       rationale: 'One coherent contribution.',
       slices: [
