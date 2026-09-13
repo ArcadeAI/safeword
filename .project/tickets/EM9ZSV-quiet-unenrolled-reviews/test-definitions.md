@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6137bffd9
 - [x] GREEN 62036f7f4
-- [ ] REFACTOR
+- [x] REFACTOR skip: resolver responsibilities are already separated and no further structural change improves this slice
 
 ### Scenario Outline: Every state-access mechanism asks before project state is accessed
 
