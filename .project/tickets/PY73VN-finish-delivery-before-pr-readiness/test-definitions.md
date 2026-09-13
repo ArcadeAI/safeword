@@ -21,7 +21,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An unsuccessful TDD step remains at the failing step
 
 - [x] RED db7842358
-- [ ] GREEN
+- [x] GREEN 3bb26177e
 - [ ] REFACTOR
 
 ## Rule: prodigy-flow.TBU1.PY73VN.R2 — Completed scenarios trigger whole-ticket closeout
