@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED db7842358
 - [x] GREEN 3bb26177e
-- [ ] REFACTOR
+- [x] REFACTOR skip: explicit outcome rows are the smallest clear failure contract
 
 ## Rule: prodigy-flow.TBU1.PY73VN.R2 — Completed scenarios trigger whole-ticket closeout
 
