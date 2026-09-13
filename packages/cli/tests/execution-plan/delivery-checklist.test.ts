@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DELIVERY_CHECKLIST_CATEGORIES,
   parseDeliveryChecklist,
+  parseDeliveryPlanContract,
   parseProofSpecifications,
 } from '../../src/execution-plan/delivery-checklist.js';
 
@@ -36,6 +37,16 @@ function proofSpecifications(rows: readonly string[]): string {
     ...rows,
     '',
   ].join('\n');
+}
+
+function completeDeliveryPlan(
+  qualification: 'real_boundary' | 'partial_or_structural' = 'real_boundary',
+): string {
+  const proofs = DELIVERY_CHECKLIST_CATEGORIES.map(
+    (_, index) =>
+      `| proof-${index + 1} | command | integration | boundary ${index + 1} | ${index === 3 ? qualification : 'real_boundary'} | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |`,
+  );
+  return `${proofSpecifications(proofs)}\n${completeChecklist()}`;
 }
 
 describe('Delivery Checklist contract', () => {
@@ -176,6 +187,17 @@ describe('Proof specifications contract', () => {
       ok: false,
       code: 'duplicate_proof_id',
       message: 'Proof ID same-proof appears more than once.',
+    });
+  });
+});
+
+describe('Delivery Plan contract', () => {
+  it('rejects a contributor obligation whose required proof is not a real-boundary proof', () => {
+    expect(parseDeliveryPlanContract(completeDeliveryPlan('partial_or_structural'))).toEqual({
+      ok: false,
+      code: 'required_proof_not_real_boundary',
+      message:
+        'Delivery Checklist item item-4 requires proof-4, which is not a real-boundary proof.',
     });
   });
 });
