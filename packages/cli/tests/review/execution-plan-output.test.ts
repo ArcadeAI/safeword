@@ -125,6 +125,29 @@ function recordEntry(
 }
 
 describe('Execution Plan output schema', () => {
+  it('admits a reviewed contributor not-applicable item without a proof claim', () => {
+    const record = structuredClone(validRecord());
+    const item = record.delivery_definition.checklist_items[0];
+    if (item === undefined) throw new Error('Missing checklist fixture item');
+    const updated: ExecutionPlanRecord = {
+      ...record,
+      delivery_definition: {
+        ...record.delivery_definition,
+        checklist_items: [
+          {
+            ...item,
+            required_proof: '',
+            reviewed_disposition: 'not_applicable',
+            reviewed_detail: 'No applicable runtime boundary.',
+          },
+          ...record.delivery_definition.checklist_items.slice(1),
+        ],
+      },
+    };
+
+    expect(validateExecutionPlanOutput(approval(updated))).toMatchObject({ kind: 'approved' });
+  });
+
   it('keeps every existing review-kind schema byte-for-byte unchanged', () => {
     const baseline = reviewOutputSchema('quality-review');
 
