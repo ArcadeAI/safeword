@@ -36,7 +36,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED c2c4cdbe5
 - [x] GREEN c1b07cec5
-- [ ] REFACTOR
+- [x] REFACTOR skip: canonical-order validation is already a single direct pass
 
 ## Rule: plan-implementability.TBU2.A639WN.R3 — Safeword carries the checklist through feature execution rather than using it only as an end-of-work audit, and each category is completed with evidence, marked not applicable with a concrete reason, or recorded as an explicit human-owned dependency
 
