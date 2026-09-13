@@ -98,7 +98,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 514440a98
 - [x] GREEN 7ad6e09a0
-- [ ] REFACTOR
+- [x] REFACTOR skip: shared classifier and evaluator are already isolated behind thin host adapters
 
 ### Scenario: Ready denial gives a Non-Technical Builder a plain next action
 
