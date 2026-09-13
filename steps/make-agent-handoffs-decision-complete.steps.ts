@@ -149,6 +149,15 @@ const requiredDecisionRoles = [
   'exact reply',
 ];
 
+function decisionContractFixture() {
+  const roles = requiredDecisionRoles.map(name => ({ name }));
+  return {
+    version: 'terminal-handoff/v1',
+    decision: { Next: roles, Need: roles },
+    action: { role: 'Action', optionalReasonPrefix: 'Required because' },
+  };
+}
+
 function fixedCorpus(): NonNullable<HandoffState['corpus']> {
   return [
     {
@@ -542,11 +551,12 @@ Given('a terminal-handoff contract with no version', function (this: SafewordWor
 Given(
   'a terminal-handoff contract whose Need form requires fewer decision roles than Next',
   function (this: SafewordWorld) {
+    const contract = decisionContractFixture();
     stateFor(this).contract = {
-      ...quality.TERMINAL_HANDOFF_CONTRACT,
+      ...contract,
       decision: {
-        ...quality.TERMINAL_HANDOFF_CONTRACT.decision,
-        Need: quality.TERMINAL_HANDOFF_CONTRACT.decision.Need.slice(1),
+        ...contract.decision,
+        Need: contract.decision.Need.slice(1),
       },
     };
   },
@@ -555,7 +565,7 @@ Given(
 Given(
   'a versioned symmetric decision contract with no no-decision action form',
   function (this: SafewordWorld) {
-    const { action: _action, ...contract } = quality.TERMINAL_HANDOFF_CONTRACT;
+    const { action: _action, ...contract } = decisionContractFixture();
     stateFor(this).contract = contract;
   },
 );
