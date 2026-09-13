@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b2778dec4
 - [x] GREEN 2fe761182
-- [ ] REFACTOR
+- [x] REFACTOR skip: one canonical transition sentence is already the smallest shared contract
 
 ### Scenario: GREEN advances through refactor to the next incomplete scenario
 
