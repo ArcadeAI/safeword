@@ -40,7 +40,7 @@ Feature: Finish accepted changes before asking for PR review
     Scenario: Final scenario advances through verified ticket closure on every installed host
       Given every scenario in an accepted feature is complete with Safeword's installed lifecycle hook active
       When the agent exits implementation successfully
-      Then the workflow's next-step directive names, in order, whole-ticket review, plan reconciliation, verification, audit, and ticket closure
+      Then the workflow's next-step directive names, in order, whole-ticket review, plan reconciliation, verification, audit, and ticket closure without asking whether to continue
 
     @surface.safeword-cli
     Scenario: Verification advances into recorded ticket closure
