@@ -162,7 +162,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A contract without a no-decision action form is invalid
 
-- [ ] RED
+- [x] RED 5453fed07
 - [ ] GREEN
 - [ ] REFACTOR
 
