@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import {
   chmodSync,
@@ -565,6 +566,40 @@ describe('delivery execution prerequisite', () => {
     expect(result.next_actions.map(action => action.command)).toEqual([
       'safeword ticket approve-plan ABC123',
     ]);
+  });
+
+  it('returns the reviewed PR-slicing outcome when its checklist item is completed', async () => {
+    const root = featureFixture();
+    await admitThroughInstalledCli(root);
+    execFileSync('git', ['init', '--quiet'], { cwd: root });
+    execFileSync('git', ['config', 'user.email', 'proof@example.com'], { cwd: root });
+    execFileSync('git', ['config', 'user.name', 'Proof Test'], { cwd: root });
+    execFileSync('git', ['add', '.'], { cwd: root });
+    execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root });
+
+    const invoked = await runCli(
+      ['ticket', 'record-delivery-proof', 'ABC123', 'item-3', 'proof', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+    const result = JSON.parse(invoked.stdout) as { data?: Record<string, unknown> };
+
+    expect(invoked.exitCode, invoked.stdout).toBe(0);
+    expect(result.data?.pull_request_slicing).toEqual({
+      decision: 'one_pull_request',
+      rationale: 'One coherent contribution.',
+      slices: [
+        {
+          name: 'Contribution',
+          prerequisites: [],
+        },
+      ],
+    });
   });
 
   it.each(['task', 'patch'] as const)('keeps %s work outside the feature contract', async type => {
