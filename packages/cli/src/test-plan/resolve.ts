@@ -20,6 +20,7 @@ import process from 'node:process';
 
 import { parse } from 'smol-toml';
 
+import { commandWords, splitShellSegments } from '../../templates/hooks/lib/shell-segments.js';
 import { pythonWorkspaceOwns } from '../packs/python/setup.js';
 import { findAllInTree, findFileMatchingInTree, indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
@@ -322,28 +323,6 @@ function selectedJsScript(scripts: Record<string, string>, kind: PlanKind): stri
   return kind === 'verify' ? pickVerifyScript(scripts) : pickTestScript(scripts);
 }
 
-/** Strip the simple quoting accepted around package paths in package.json scripts. */
-function unquoteShellToken(token: string): string {
-  if (
-    token.length >= 2 &&
-    ((token.startsWith('"') && token.endsWith('"')) ||
-      (token.startsWith("'") && token.endsWith("'")))
-  ) {
-    return token.slice(1, -1);
-  }
-  return token;
-}
-
-const SHELL_COMMAND_BOUNDARIES = new Set(['&&', '||', ';', '|', '\n']);
-const SHELL_ASSIGNMENT = /^[A-Za-z_]\w*=.*/u;
-
-/** True when a token starts a shell command, optionally after environment assignments. */
-function startsShellCommand(tokens: readonly string[], index: number): boolean {
-  let cursor = index - 1;
-  while (cursor >= 0 && SHELL_ASSIGNMENT.test(tokens[cursor] ?? '')) cursor -= 1;
-  return cursor < 0 || SHELL_COMMAND_BOUNDARIES.has(tokens[cursor] ?? '');
-}
-
 /**
  * True only for an explicit package-manager delegation to this workspace lane.
  * This deliberately avoids guessing whether arbitrary shell commands happen to
@@ -354,10 +333,6 @@ function scriptDelegatesToWorkspace(
   relativeDirectory: string,
   script: string,
 ): boolean {
-  const tokens =
-    body
-      .match(/&&|\|\||[;|\n]|"(?:[^"\\]|\\.)*"|'[^']*'|[^\s;&|]+/gu)
-      ?.map(token => unquoteShellToken(token)) ?? [];
   const patterns = [relativeDirectory, `./${relativeDirectory}`].flatMap(target => [
     ['bun', 'run', '--cwd', target, script],
     ['bun', '--cwd', target, 'run', script],
@@ -368,13 +343,10 @@ function scriptDelegatesToWorkspace(
     ['yarn', '--cwd', target, 'run', script],
   ]);
 
-  return patterns.some(pattern =>
-    tokens.some(
-      (_, index) =>
-        startsShellCommand(tokens, index) &&
-        pattern.every((token, offset) => tokens[index + offset] === token),
-    ),
-  );
+  return splitShellSegments(body).some(segment => {
+    const words = commandWords(segment);
+    return patterns.some(pattern => pattern.every((token, index) => words[index] === token));
+  });
 }
 
 function rootScriptDelegatesToWorkspace(root: string, directory: string, kind: PlanKind): boolean {

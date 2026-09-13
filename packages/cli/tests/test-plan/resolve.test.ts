@@ -400,6 +400,28 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     ).toEqual(['', 'packages/api']);
   });
 
+  it.each([
+    ['a quoted workspace path', 'bun run --cwd "packages/api" test'],
+    ['an environment prefix', 'NODE_ENV=test bun run --cwd packages/api test'],
+    ['a package-manager launcher', 'corepack pnpm --dir packages/api run test'],
+  ])('recognizes workspace delegation through %s', (_case, rootScript) => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: rootScript },
+      }),
+      'bun.lock': '',
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['']);
+  });
+
   it('does not verify excluded JavaScript workspace members', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({
