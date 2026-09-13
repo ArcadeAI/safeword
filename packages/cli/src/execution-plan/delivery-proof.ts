@@ -1,7 +1,10 @@
+import { executeNoShellCommand } from '../review/red-execution.js';
 import type {
   DeliveryCommandInvocation,
   DeliveryProofSpecification,
 } from './delivery-checklist.js';
+
+const DELIVERY_PROOF_TIMEOUT_MS = 120_000;
 
 interface DeliveryCommandProofSpecification extends DeliveryProofSpecification {
   readonly method: 'command';
@@ -20,9 +23,14 @@ export interface DeliveryProofExecutionResult {
   readonly stderr: { readonly bytes: number; readonly sha256: string };
 }
 
-export function executeDeliveryCommandProof(_input: {
+export async function executeDeliveryCommandProof(input: {
   readonly projectRoot: string;
   readonly specification: DeliveryCommandProofSpecification;
 }): Promise<DeliveryProofExecutionResult> {
-  return Promise.reject(new Error('Delivery proof execution is not implemented.'));
+  return executeNoShellCommand({
+    projectRoot: input.projectRoot,
+    argv: input.specification.invocation.argv,
+    cwd: input.specification.invocation.cwd,
+    timeoutMs: DELIVERY_PROOF_TIMEOUT_MS,
+  });
 }
