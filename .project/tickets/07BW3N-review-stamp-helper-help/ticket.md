@@ -2,10 +2,10 @@
 id: 07BW3N
 slug: review-stamp-helper-help
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-09-13T04:15:52.685Z
-last_modified: 2026-09-13T04:15:52.685Z
+last_modified: 2026-09-13T14:10:34.506Z
 ---
 
 # Show review-stamp help without artifact lookup
@@ -74,3 +74,5 @@ artifact.
 - 2026-09-13T05:30:28.000Z Verified: all builds and typechecks pass after
   materializing the lockfile-pinned optional website binding; Bun, Python, and
   Go dependency scans report no known vulnerabilities.
+- 2026-09-13T14:10:34.506Z Complete: user confirmed the verified resolution;
+  marked the ticket done.

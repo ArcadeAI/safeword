@@ -35,3 +35,5 @@
   caused by the managed helper change (13/13 contract tests). The website build
   passes after materializing its exact lockfile-pinned optional native binding.
   Bun audits for all workspaces, pip-audit, and govulncheck are clean.
+- [07:10] User confirmed the verified result. Advanced ticket 07BW3N from
+  verify/in_progress to done/done.
