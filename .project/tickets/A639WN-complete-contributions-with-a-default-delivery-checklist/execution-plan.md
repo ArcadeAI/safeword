@@ -88,7 +88,9 @@ on a later slice.
    fingerprint. Bind review jobs to the normalized plan digest and retained
    delivery definition rather than mutable checklist progress. Preserve the current
    slicing contract and reject omitted categories or a contributor Required proof
-   that is not reviewed as `real_boundary`.
+   that is not reviewed as `real_boundary`. Reject a testing category backed
+   only by review receipts; at least one contributor testing item must require a
+   real-boundary command proof.
 3. GREEN: In the same change that activates those admission rules, replace the
    provisional Execution Plan checklist template with the reviewed
    proof-specification and versioned checklist sections. Update the canonical
