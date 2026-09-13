@@ -88,6 +88,8 @@ If no E2E infrastructure exists, build skeleton first: thinnest slice proving ar
 
 Pick first unchecked scenario from test-definitions. Cycle through RED (failing test, commit) → GREEN (minimal code to pass, commit) → REFACTOR (if needed, commit).
 
+After an approved RED, continue directly into implementation without asking whether to proceed.
+
 ### Trusted executable RED review
 
 Before production implementation begins for a new or changed primary proof, self-check the proof
