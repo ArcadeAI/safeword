@@ -206,7 +206,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The long no-decision corpus rejects a vague action
 
-- [ ] RED
+- [x] RED 6c495df09
 - [ ] GREEN
 - [ ] REFACTOR
 
