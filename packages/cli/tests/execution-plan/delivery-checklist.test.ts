@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createDeliveryStableDefinition,
   DELIVERY_CHECKLIST_CATEGORIES,
   parseDeliveryChecklist,
   parseDeliveryPlanContract,
@@ -214,5 +215,58 @@ describe('Delivery Plan contract', () => {
       code: 'invalid_proof_specifications',
       message: 'Proof specifications must appear before the Delivery Checklist.',
     });
+  });
+
+  it('snapshots stable planning identity while excluding mutable progress', () => {
+    const content = completeDeliveryPlan()
+      .replace(
+        '| item-4 | testing | Complete testing | contributor | proof-4 | open | missing | | |',
+        '| item-4 | testing | Complete testing | contributor | proof-4 | not_applicable | missing | | no runtime boundary |',
+      )
+      .replace(
+        '| item-10 | ownership and human dependencies | Complete ownership and human dependencies | contributor | proof-10 | open | missing | | |',
+        '| item-10 | ownership and human dependencies | Approve the design | human | | pending_human | missing | | design-approval |',
+      );
+    const parsed = parseDeliveryPlanContract(content);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error(parsed.message);
+
+    const definition = createDeliveryStableDefinition(parsed, true);
+
+    expect(definition).toMatchObject({
+      schemaVersion: 1,
+      designApprovalGate: true,
+      specifications: parsed.specifications,
+      items: [
+        {},
+        {},
+        {},
+        {
+          id: 'item-4',
+          owner: 'contributor',
+          requiredProof: 'proof-4',
+          reviewedDisposition: {
+            disposition: 'not_applicable',
+            detail: 'no runtime boundary',
+          },
+        },
+        {},
+        {},
+        {},
+        {},
+        {},
+        {
+          id: 'item-10',
+          owner: 'human',
+          requiredProof: '',
+          reviewedDisposition: {
+            disposition: 'pending_human',
+            detail: 'design-approval',
+          },
+        },
+        {},
+      ],
+    });
+    expect(JSON.stringify(definition)).not.toContain('current_revision_real_boundary');
   });
 });
