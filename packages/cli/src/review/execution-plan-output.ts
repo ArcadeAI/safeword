@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
 import type {
   ExecutionPlanDeliveryDefinition,
@@ -378,7 +380,7 @@ function isValidExecutionPlanRecord(value: unknown): value is ExecutionPlanRecor
 /** Classify one already parsed plan-execution result without interpreting plan prose. */
 export function validateExecutionPlanOutput(
   output: UnverifiedReviewerOutput,
-  _expectedDefinition?: ExecutionPlanDeliveryDefinition,
+  expectedDefinition?: ExecutionPlanDeliveryDefinition,
 ): ValidatedExecutionPlanOutput {
   if (output.verdict === 'request_changes') return deniedOutput(output);
 
@@ -388,5 +390,11 @@ export function validateExecutionPlanOutput(
     if (tripwires.length > 0) return deniedOutput(output, tripwires);
   }
   if (!isValidExecutionPlanRecord(candidate)) return { kind: 'invalid_output' };
+  if (
+    expectedDefinition !== undefined &&
+    !isDeepStrictEqual(candidate.delivery_definition, expectedDefinition)
+  ) {
+    return { kind: 'invalid_output' };
+  }
   return { kind: 'approved', output: { ...output, execution_plan_record: candidate } };
 }

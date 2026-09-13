@@ -1512,7 +1512,10 @@ async function runCandidate(
                 resolve(parsed);
                 return;
               }
-              const validation = validateExecutionPlanOutput(parsed);
+              const validation = validateExecutionPlanOutput(
+                parsed,
+                packet.execution_plan_delivery_definition,
+              );
               if (validation.kind === 'invalid_output') throw new Error('invalid reviewer output');
               resolve(validation.output);
             } catch {
