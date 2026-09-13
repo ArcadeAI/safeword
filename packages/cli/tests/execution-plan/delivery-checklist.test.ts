@@ -53,4 +53,17 @@ describe('Delivery Checklist contract', () => {
       missingCategories: ['testing', 'documentation'],
     });
   });
+
+  it('keeps contributor-controlled work open when it is labeled pending human', () => {
+    const content = completeChecklist().replace(
+      '| item-4 | testing | Complete testing | contributor | proof-4 | open | missing | | |',
+      '| item-4 | testing | Complete testing | contributor | proof-4 | pending_human | missing | | security-team |',
+    );
+
+    expect(parseDeliveryChecklist(content)).toEqual({
+      ok: false,
+      code: 'invalid_owner_disposition',
+      message: 'Delivery Checklist item item-4 is contributor-owned and cannot be pending_human.',
+    });
+  });
 });
