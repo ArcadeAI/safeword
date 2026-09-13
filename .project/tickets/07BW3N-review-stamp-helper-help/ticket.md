@@ -81,3 +81,9 @@ artifact.
   coordinator exhausted all reviewer routes, so the required fallback completed
   a non-independent approval with one out-of-scope, non-blocking help-ordering
   edge documented in verify.md.
+- 2026-09-13T19:53:19.000Z Independent quality review: corrected the review
+  dispatch boundary and obtained real Claude coverage. The first pass found a
+  non-discriminating proof around the one-shot Codex/Cursor identity bridge;
+  added lifecycle coverage for both hosts and confirmed both tests fail under
+  the proposed ordering mutation. Independent re-review approved the finished
+  change with no release-blocking findings; focused integration passes 34/34.

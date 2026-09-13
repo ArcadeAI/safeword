@@ -3,7 +3,7 @@
 ## Verify Checklist
 
 **Test Suite:** ✅ 9,595/9,652 CLI tests pass across 578/578 files; 57 are
-skipped. The affected helper integration tests pass 32/32, and the lifecycle
+skipped. The affected helper integration tests pass 34/34, and the lifecycle
 contract passes 13/13 after regenerating the intentional Cursor tree hashes.
 
 **Gherkin:** ✅ Acceptance lane passes 1,496 scenarios and 68,731 steps; 3
@@ -37,7 +37,7 @@ workspaces, pip-audit, and govulncheck report no known vulnerabilities.
 
 | Affected surface | Proof | Result |
 | --- | --- | --- |
-| Canonical helper | `bun run test tests/integration/review-stamp.test.ts` | 32/32 pass |
+| Canonical helper | `bun run test tests/integration/review-stamp.test.ts` | 34/34 pass |
 | Installed `.safeword` mirror | Pre-commit parity contract | Current |
 | Generated Claude plugin | `bun run check:cli-contract` | Pass |
 | Generated Codex plugin | `bun run check:cli-contract` | Pass |
@@ -51,16 +51,21 @@ outside the printed audit scope.
 
 ## Post-close quality assessment
 
-**Quality Review:** ✅ Approved by the Safeword fallback review. Independent
-routes exhausted without a verdict, so the completed assessment is explicitly
-non-independent (`independence: none`). One non-blocking edge remains: a help
-flag followed by a malformed value-taking option can fail during parsing before
-usage is emitted; that combination is outside issue #4521's direct invocation.
+**Quality Review:** ✅ Approved with independent Claude coverage in review
+`d8bdee46-7dfa-4b76-ae8b-0dc2c59a2533`. The first independent pass
+(`c1648e99-ac61-4586-aa76-205b9e497732`) found that the help proof did not
+demonstrate preservation of the destructive one-shot Codex/Cursor identity
+bridge. Cursor and Codex lifecycle tests now cover that contract, and the
+independent re-review found no release-relevant failure. A help flag followed by
+a malformed value-taking option can still fail during parsing before usage is
+emitted; that combination remains outside issue #4521's direct invocation.
 
 **TDD Test Quality:** ✅ Behavioral and discriminating. The regression ran RED
 before implementation; the tests execute the real helper subprocess, cover both
 help aliases, assert successful usage with no runtime identity or stamp write,
-and protect `-h` when consumed as an option value. Fresh rerun: 32/32 pass.
+protect `-h` when consumed as an option value, and prove help preserves both
+host identity bridges. The new tests fail under the reviewer's exact ordering
+mutation and pass after restoring the implementation. Fresh rerun: 34/34 pass.
 
 **BDD Test Quality:** ✅ No new Gherkin scenario warranted for this single-path
 internal parser fix. Existing acceptance scenarios exercise generated-plugin
