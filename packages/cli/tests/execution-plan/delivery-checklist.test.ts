@@ -200,4 +200,19 @@ describe('Delivery Plan contract', () => {
         'Delivery Checklist item item-4 requires proof-4, which is not a real-boundary proof.',
     });
   });
+
+  it('requires proof specifications to appear before the checklist they define', () => {
+    const content = `${completeChecklist()}\n${proofSpecifications(
+      DELIVERY_CHECKLIST_CATEGORIES.map(
+        (_, index) =>
+          `| proof-${index + 1} | command | integration | boundary ${index + 1} | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |`,
+      ),
+    )}`;
+
+    expect(parseDeliveryPlanContract(content)).toEqual({
+      ok: false,
+      code: 'invalid_proof_specifications',
+      message: 'Proof specifications must appear before the Delivery Checklist.',
+    });
+  });
 });
