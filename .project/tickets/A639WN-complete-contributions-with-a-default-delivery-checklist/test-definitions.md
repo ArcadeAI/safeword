@@ -30,7 +30,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b95affd4f
 - [x] GREEN 06add9684
-- [ ] REFACTOR
+- [x] REFACTOR skip: parser boundaries are already separated by responsibility
 
 ### Scenario: A silently omitted default category prevents checklist completion
 
