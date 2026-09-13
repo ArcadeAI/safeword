@@ -120,7 +120,7 @@ describe('terminal handoff contract', () => {
     const correction = quality.renderDecisionBriefCorrection(evaluation, 'Evidence stays intact.');
 
     expect(correction).toContain('terminal-handoff/v1');
-    expect(correction).toContain('Missing: one concrete action.');
+    expect(correction).toContain('Missing: one concrete action, no extra context.');
     expect(correction).toContain('**Next:** Action: <imperative + specific object>.');
     expect(correction).toContain('Reason: Required because <essential reason>.');
     expect(correction).not.toContain('Choice:');

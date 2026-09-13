@@ -8,12 +8,21 @@ import {
   DECISION_BRIEF_CONTRACT,
   DECISION_BRIEF_GRAMMAR,
   DECISION_BRIEF_MAX_WORK_FACTOR,
-  evaluateDecisionBriefCompliance,
+  evaluateDecisionBriefCompliance as evaluateTerminalHandoffCompliance,
   GENERIC_REVIEW_EVIDENCE,
   renderDecisionBriefContract,
   renderDecisionBriefCorrection,
 } from '../../templates/hooks/lib/quality.js';
 import { createDecisionBriefContextResponse } from '../../templates/hooks/session-reply-format.js';
+
+// This legacy suite isolates the Markdown/label parser. Semantic terminal-role
+// behavior is covered by terminal-handoff-contract.test.ts against the canonical
+// grammar; a cloned grammar intentionally selects the parser-only compatibility path.
+const STRUCTURAL_GRAMMAR = structuredClone(DECISION_BRIEF_GRAMMAR);
+const evaluateDecisionBriefCompliance = (reply: string) =>
+  evaluateTerminalHandoffCompliance(reply, STRUCTURAL_GRAMMAR, {
+    substantiveEvidence: 'structured-verdict',
+  });
 
 describe('proactive decision-brief contract', () => {
   it.each(['startup', 'resume', 'clear', 'compact', 'fork'])(
@@ -74,8 +83,16 @@ describe('proactive decision-brief contract', () => {
 
     expect(renderDecisionBriefContract(changed)).toContain('**Risks:**');
     expect(renderDecisionBriefContract(changed)).not.toContain('**Open:**');
-    expect(evaluateDecisionBriefCompliance(changedReply, changed).compliant).toBe(true);
-    expect(evaluateDecisionBriefCompliance(brief(CONFIDENT), changed).compliant).toBe(false);
+    expect(
+      evaluateTerminalHandoffCompliance(changedReply, changed, {
+        substantiveEvidence: 'structured-verdict',
+      }).compliant,
+    ).toBe(true);
+    expect(
+      evaluateTerminalHandoffCompliance(brief(CONFIDENT), changed, {
+        substantiveEvidence: 'structured-verdict',
+      }).compliant,
+    ).toBe(false);
   });
 });
 
@@ -122,7 +139,12 @@ describe('terminal decision-brief parser', () => {
 
   it('uses a self-contained generic correction when no classified violation is available', () => {
     const correction = renderDecisionBriefCorrection(
-      { compliant: false, examinedCharacters: 0 },
+      {
+        compliant: false,
+        contractVersion: 'terminal-handoff/v1',
+        form: 'outside',
+        examinedCharacters: 0,
+      },
       GENERIC_REVIEW_EVIDENCE,
     );
 

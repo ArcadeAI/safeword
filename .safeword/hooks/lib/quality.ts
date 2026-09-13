@@ -306,10 +306,14 @@ function valueHasContent(value: string): boolean {
 
 function missingDecisionRequirements(terminalValue: string): TerminalHandoffRequirement[] {
   const { clauses, leadingText } = parseTerminalRoleClauses(terminalValue);
-  const missing = Object.entries(DECISION_ROLE_REQUIREMENT).flatMap(([role, requirement]) => {
-    const matching = clauses.filter(clause => clause.role === role);
-    return matching.length === 1 && valueHasContent(matching[0]?.value ?? '') ? [] : [requirement];
-  });
+  const missing: TerminalHandoffRequirement[] = Object.entries(DECISION_ROLE_REQUIREMENT).flatMap(
+    ([role, requirement]) => {
+      const matching = clauses.filter(clause => clause.role === role);
+      return matching.length === 1 && valueHasContent(matching[0]?.value ?? '')
+        ? []
+        : [requirement];
+    },
+  );
   if (leadingText !== '' && missing.length === 0) return ['concrete choice'];
   const unexplainedTerm = clauses.find(clause => {
     if (clause.role !== 'Term') return false;
@@ -799,6 +803,19 @@ export function renderDecisionBriefCorrection(
   evidence: string,
   grammar = DECISION_BRIEF_GRAMMAR,
 ): string {
+  if (!evaluation.violation && evaluation.requirements && evaluation.requirements.length > 0) {
+    const header = `${evaluation.contractVersion} correction. Missing: ${evaluation.requirements.join(', ')}.`;
+    const actionShape = `**Next:** Action: <imperative + specific object>. Reason: Required because <essential reason>.`;
+    const decisionShape = `**Next:** Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>.\n\nFor BLOCKED, use the same five roles after **Need:**.`;
+    const termShape = evaluation.requirements.includes('plain-language meaning')
+      ? '\n\nWrite each necessary marked term as `Term: name = plain-language meaning`.'
+      : '';
+
+    return `${header} Preserve the useful content and rewrite only the terminal paragraph in this exact ${evaluation.form} form:\n\n${
+      evaluation.form === 'action' ? actionShape : decisionShape
+    }${termShape}\n\n${evidence}`;
+  }
+
   const { problem, verdicts } = describeDecisionBriefViolation(evaluation.violation, grammar);
 
   const choice =
@@ -812,7 +829,7 @@ export function renderDecisionBriefCorrection(
           .map(verdict => renderDecisionBriefShapes(grammar, [verdict]))
           .join('\n\nOr, only if human input is required:\n\n');
 
-  return `${problem} ${choice}
+  return `${evaluation.contractVersion} correction. ${problem} ${choice}
 
 ${shapes}
 

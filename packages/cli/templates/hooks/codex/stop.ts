@@ -26,6 +26,8 @@ import { evaluateDoneEvidence } from '../lib/done-gate.ts';
 import { updateTicketStatus } from '../lib/hierarchy.ts';
 import { resolveNamespaceRoot } from '../lib/namespace-root.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
+import { isTerminalHandoffCorrectionEnabled } from '../lib/review-ledger.ts';
+import { evaluateDecisionBriefCompliance, renderDecisionBriefCorrection } from '../lib/quality.ts';
 import { recordRetroDebugEvent } from '../lib/retro-debug.ts';
 import { decideRetroFilingGate, formatCodexFilingDispatch } from '../lib/retro-filing-gate.ts';
 import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
@@ -235,6 +237,22 @@ async function main(): Promise<string> {
   const completion = completeSessionDoneTicket(projectDirectory, input);
   if (completion.blockReason) {
     return JSON.stringify({ decision: 'block', reason: completion.blockReason });
+  }
+
+  const configPath = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  const rawConfig = existsSync(configPath) ? await Bun.file(configPath).text() : undefined;
+  if (isTerminalHandoffCorrectionEnabled(rawConfig)) {
+    try {
+      const evaluation = evaluateDecisionBriefCompliance(input.last_assistant_message ?? '');
+      if (!evaluation.compliant) {
+        return JSON.stringify({
+          decision: 'block',
+          reason: renderDecisionBriefCorrection(evaluation, 'Keep verified evidence intact.'),
+        });
+      }
+    } catch {
+      // A correction evaluator failure must never trap the host at Stop.
+    }
   }
 
   // A successful completion uses the advisory captured before status changed;
