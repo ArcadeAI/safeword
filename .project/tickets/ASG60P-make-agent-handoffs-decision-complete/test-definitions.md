@@ -164,7 +164,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5453fed07
 - [x] GREEN 8b487b2e6
-- [ ] REFACTOR
+- [x] REFACTOR skip: action-form validation shares the contract requirement collector
 
 ## Rule: Long-form corpus binds semantic classifications
 
