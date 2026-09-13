@@ -217,12 +217,10 @@ shipping rather than inventing a fallback field.
 
 | Principle / architecture decision | Consequence | Proof |
 | --- | --- | --- |
-| Optimize for the Non-Technical Builder without constraining the Technical Builder | Human decisions carry five familiar-language role labels with inline term meanings; routine work carries one action and optional essential reason. | Independently reviewed NTB1.R1 scenarios plus renderer snapshots that contain no unexplained Safeword vocabulary |
-| Structure enforces; instructions suggest | The renderer and evaluator share one grammar, and native Stop adapters correct a missing role once. | SWM1.R1 and SWM1.R3 |
-| Fire at boundaries, not every turn | Full evaluation runs only on substantive native terminal events, never on every prompt. | Short-conversation and native-boundary no-op scenarios |
-| Correct and safe, then clear and simple | Existing hard gates and continuation priorities stay ahead of presentation repair; diagnostic text names only the failed contract roles. | Host precedence regression tests and correction snapshots |
-| Reconciliation over copy | Canonical templates remain authoritative; generators and setup produce delivered copies. | SWM1.R4 plus setup/generation parity tests |
-| Cross-agent Stop delivery | Each host retains its native output schema while consuming the same contract result. | Registered-command subprocess outlines |
+| Optimize for the NTB without constraining the TBU | Human decisions carry five familiar-language role labels with inline term meanings; routine work carries one action and optional essential reason. | `features/make-agent-handoffs-decision-complete.feature` |
+| Structure enforces; instructions suggest | The renderer and evaluator share one grammar, and native Stop adapters correct a missing role once. | `packages/cli/tests/hooks/terminal-handoff-contract.test.ts` |
+| Fire at boundaries, not every turn | Full evaluation runs only on substantive native terminal events, never on every prompt. | `features/make-agent-handoffs-decision-complete.feature` |
+| Correct and safe; then clear; then simple | Existing hard gates and continuation priorities stay ahead of presentation repair; diagnostic text names only the failed contract roles. | `packages/cli/tests/hooks/terminal-handoff-contract.test.ts` |
 
 The feature adds a project-wide cross-host terminal contract, so
 `ARCHITECTURE.md` will gain an accepted **Versioned Terminal Handoff Contract**
