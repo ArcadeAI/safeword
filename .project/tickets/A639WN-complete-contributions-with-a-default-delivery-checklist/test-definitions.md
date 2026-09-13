@@ -21,8 +21,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Several missing prerequisites are reported in deterministic planning order
 
 - [x] RED 54af6fdf5
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 240ccec06
+- [x] REFACTOR dec938ae9
 
 ## Rule: plan-implementability.TBU2.A639WN.R2 — The feature Delivery Checklist covers outcome and scope, resolved decisions, dependency and pull-request decomposition, testing, data and compatibility, monitoring and failure signals, security and privacy, rollout and rollback, documentation, ownership and human dependencies, and concrete completion evidence
 
