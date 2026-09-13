@@ -38,7 +38,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a7fb4bbd3
 - [x] GREEN 6bb92a6a6
-- [ ] REFACTOR
+- [x] REFACTOR skip: generated Claude payload is the single-source template output and adds no handwritten duplication
 
 ### Scenario: Ready promotion is rejected across unfinished ticket states
 
