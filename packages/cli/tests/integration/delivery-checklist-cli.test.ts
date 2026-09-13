@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -297,6 +297,7 @@ describe('Delivery Checklist CLI service', () => {
     writeFileSync(nodePath.join(root, 'documentation.md'), '# Later documentation\n');
     git(root, ['add', 'documentation.md']);
     git(root, ['commit', '--quiet', '-m', 'document behavior']);
+    const planBeforeConfirmation = readFileSync(planPath, 'utf8');
 
     const result = await publicHandler('ticket record-delivery-proof')({
       cwd: root,
@@ -309,6 +310,11 @@ describe('Delivery Checklist CLI service', () => {
       },
     });
 
+    expect(result).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      effects: { network: [] },
+    });
     expect(result.findings[0]).toMatchObject({
       code: 'compatibility_review_confirmation_required',
       message: expect.stringContaining('complete contribution diff will leave this machine'),
@@ -319,6 +325,12 @@ describe('Delivery Checklist CLI service', () => {
         requiresHuman: true,
       }),
     ]);
-    expect(readFileSync(planPath, 'utf8')).toContain(`receipt:${receipt}`);
+    expect(existsSync(nodePath.join(root, '.safeword', 'state', 'reviews'))).toBe(false);
+    expect(readFileSync(planPath, 'utf8')).toBe(planBeforeConfirmation);
+    expect(planBeforeConfirmation).toContain(
+      `| item-4 | testing | Deliver testing. | contributor | proof | complete | current_revision_real_boundary |`,
+    );
+    expect(planBeforeConfirmation).not.toContain('reusable_earlier_revision');
+    expect(planBeforeConfirmation).not.toContain('; compatible:');
   });
 });
