@@ -1457,6 +1457,7 @@ async function runRemainingRoutes(
         targets: input.targets,
         context: input.context,
         progress: input.progress,
+        executionAttestation: input.executionAttestation,
         author: input.author,
         reviewer: input.assignedReviewer,
         preferredModel: input.preferredModel,

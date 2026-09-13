@@ -228,3 +228,18 @@ last_modified: 2026-09-13T20:19:38.000Z
   the configured `prefer` policy, the prescribed main-thread fallback approved
   the frozen plan with no findings. Logged the non-independent skip explicitly
   and advanced to implement.
+
+## Root Cause
+
+The first executable-RED review exposed a coordinator defect in the alternate-model route.
+After the primary reviewer failed, `runRemainingRoutes` rebuilt the input for
+`runAlternateModelRoute` field by field but omitted `executionAttestation`. Executable-RED packet
+construction therefore failed closed with `Executable-red review requires a trusted execution
+attestation` before the alternate reviewer could run.
+
+The attached diagnostic stack confirmed the missing value enters at
+`runAlternateModelRoute`; the persisted background-job record contains the complete execution
+request, and a direct `executeRedProof` run returned a matched, non-timeout exit-1 attestation.
+Those checks rule out missing persistence, a passing proof, a timeout, and an expected-failure
+mismatch. Normal review coverage did not catch the defect because non-executable review kinds do
+not require an attestation.
