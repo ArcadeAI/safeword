@@ -48,8 +48,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Contributor-controlled work cannot be dismissed as a human handoff
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED b8e731844
+- [x] GREEN db08befa5
 - [ ] REFACTOR
 
 ### Scenario: In-flight checklist state reflects partial execution progress
