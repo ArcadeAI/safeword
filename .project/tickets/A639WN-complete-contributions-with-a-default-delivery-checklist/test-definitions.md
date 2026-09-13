@@ -70,7 +70,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 4c2ccc16f
 - [x] GREEN eadc5e773
-- [ ] REFACTOR
+- [x] REFACTOR 9d9fc74c6
 
 ### Scenario: The feature checklist contract cannot impose feature artifacts on smaller work
 
