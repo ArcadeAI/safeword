@@ -26,10 +26,20 @@ Scaffold `execution-plan.md` next to `ticket.md` from
 5. Account for every Recorded Decision in `impl-plan.md` as `unchanged`. If a
    decision changed or a new decision is needed, return to Implementation
    Planning, update and review that plan, then resume here.
-6. Add exact RED/GREEN/REFACTOR tasks, targeted commands, generated-asset order,
-   and the contribution delivery checklist: tests, monitoring, migration,
-   documentation, rollout, rollback, and ownership. Use `skip: <reason>` only
-   when a checklist concern is genuinely inapplicable.
+6. Add exact RED/GREEN/REFACTOR tasks, targeted commands, and generated-asset
+   order. Then define each retained proof in `## Proof specifications`. A
+   command proof names project-contained `cwd` and `argv`; a review proof names
+   its review kind and project-contained targets. Mark a proof `real_boundary`
+   only when it exercises the boundary named in the row. Use
+   `partial_or_structural` honestly for narrower support; it cannot be a
+   contributor item's required proof.
+7. Complete the versioned Delivery Checklist in the template. Keep every
+   default category, use stable unique IDs, and make each obligation concrete.
+   Contributor items reference a real-boundary Proof ID. A genuinely irrelevant
+   item is `not_applicable` with a concrete reviewed reason. Human-owned work is
+   `pending_human` with a named dependency and no Required proof. Reflect the
+   live `designApprovalGate`: retain design approval as `pending_human` when
+   enabled and reviewed `not_applicable` when disabled.
 
 ## Shared author/reviewer contract
 
@@ -69,14 +79,34 @@ from outside those sources.
   Decision, or the explicit no-load-bearing-choice applicability decision, with
   the readable status `unchanged`. Reject an omitted obligation, an unowned
   slice, or any reopened decision.
+- **Scenario and approach coverage:** Judge whether the checklist obligations
+  cover every accepted scenario and preserve the accepted Implementation Plan
+  approach. Reject a complete-looking generic checklist that is unrelated to
+  the supplied behavior or loses an accepted boundary, risk, rollout, or
+  decision.
+- **Proof quality:** Require the exact Proof specifications table before the
+  Delivery Checklist. Judge whether each method can exercise its named boundary
+  and whether its currency policy is defensible. Every contributor Required
+  proof must resolve to a unique proof classified `real_boundary`; partial or
+  structural support cannot satisfy completion.
+- **Checklist completeness and applicability:** Require the versioned checklist,
+  unique stable IDs, every default category, honest owners and dispositions,
+  and concrete reviewed reasons or dependencies. Treat the packet's
+  `execution_plan_delivery_definition` as the exact normalized definition to
+  retain after those semantic judgments; do not rewrite, omit, or strengthen
+  it.
 
 For an approval, return `execution_plan_record` containing the slicing decision
 and rationale; the complete ordered slices; obligation-owner entries; and
-decision-status entries. Set every slice's `relies_on_unmerged_successor` to
-`false` and every decision status to `unchanged` only when the source evidence
-supports those assertions. For a denial, return the record as null and name
-each blocking slice, field, obligation, dependency, or decision in findings.
-Never approve because the prose merely contains the expected labels.
+decision-status entries; `accepted_scenarios_covered: true`;
+`accepted_approach_preserved: true`; and `delivery_definition` copied exactly
+from the packet's trusted `execution_plan_delivery_definition`. Set every
+slice's `relies_on_unmerged_successor` to `false` and every decision status to
+`unchanged` only when the source evidence supports those assertions. Set the
+coverage booleans to true only after judging the supplied scenarios and
+approach. For a denial, return the record as null and name each blocking slice,
+field, obligation, dependency, proof, or decision in findings. Never approve
+because the prose merely contains the expected labels.
 
 <!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_END -->
 

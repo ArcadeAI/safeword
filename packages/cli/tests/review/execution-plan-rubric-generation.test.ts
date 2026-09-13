@@ -34,6 +34,9 @@ describe('Execution Plan contract generation', () => {
       'Dependency safety',
       'Conceptual reviewability',
       'Obligation and decision preservation',
+      'Scenario and approach coverage',
+      'Proof quality',
+      'Checklist completeness and applicability',
     ]) {
       expect(rubric).toContain(`- **${obligation}:**`);
     }
@@ -55,5 +58,9 @@ describe('Execution Plan contract generation', () => {
     }
     expect(artifact).toContain('## Obligation ownership');
     expect(artifact).toContain('## Decision accounting');
+    expect(artifact).toContain('## Proof specifications');
+    expect(artifact).toContain('<!-- safeword:delivery-checklist:v1 -->');
+    expect(artifact).toContain('| Proof ID');
+    expect(artifact).toContain('| ID');
   });
 });
