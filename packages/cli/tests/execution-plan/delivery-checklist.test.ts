@@ -5,8 +5,8 @@ import {
   parseDeliveryChecklist,
 } from '../../src/execution-plan/delivery-checklist.js';
 
-function completeChecklist(): string {
-  const rows = DELIVERY_CHECKLIST_CATEGORIES.map(
+function completeChecklist(categories: readonly string[] = DELIVERY_CHECKLIST_CATEGORIES): string {
+  const rows = categories.map(
     (category, index) =>
       `| item-${index + 1} | ${category} | Complete ${category} | contributor | proof-${index + 1} | open | missing | | |`,
   );
@@ -37,6 +37,20 @@ describe('Delivery Checklist contract', () => {
         disposition: 'open',
         evidenceClass: 'missing',
       })),
+    });
+  });
+
+  it('names every missing default category in canonical order', () => {
+    const omitted = new Set(['testing', 'documentation']);
+    const content = completeChecklist(
+      DELIVERY_CHECKLIST_CATEGORIES.filter(category => !omitted.has(category)),
+    );
+
+    expect(parseDeliveryChecklist(content)).toEqual({
+      ok: false,
+      code: 'missing_categories',
+      message: 'Delivery Checklist is missing categories: testing, documentation.',
+      missingCategories: ['testing', 'documentation'],
     });
   });
 });
