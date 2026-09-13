@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -50,6 +50,7 @@ describe('Claude plugin release contract', () => {
         { cwd: project, encoding: 'utf8' },
       );
       expect(install.status, `${install.stdout}${install.stderr}`).toBe(0);
+      expect(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md'))).toBe(true);
     } finally {
       rmSync(project, { recursive: true, force: true });
     }

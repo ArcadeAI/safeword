@@ -693,6 +693,34 @@ describe('Claude plugin dispatcher', () => {
         additionalContext: expect.stringContaining('No Safeword hook result was applied'),
       },
     });
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+  });
+
+  it('asks for user approval when a listed plugin asset was modified', () => {
+    const projectDirectory = temporary('safeword-plugin-modified-repair-project-');
+    const pluginData = temporary('safeword-plugin-modified-repair-data-');
+    const configDirectory = temporary('safeword-plugin-modified-repair-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-modified-repair-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    writeFileSync(nodePath.join(pluginRoot, 'runtime/event-groups.json'), '{"modified":true}\n');
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'modified-repair', {
+      event: 'PreToolUse',
+      pluginRoot,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'ask',
+        permissionDecisionReason: expect.stringContaining(
+          'asset failed integrity validation: runtime/event-groups.json',
+        ),
+        additionalContext: expect.stringContaining('No Safeword hook result was applied'),
+      },
+    });
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
   it('keeps repair available when an otherwise verified cache has an unlisted asset', () => {
@@ -722,6 +750,7 @@ describe('Claude plugin dispatcher', () => {
         additionalContext: expect.stringContaining('Approve only a repair or diagnostic action'),
       },
     });
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
   it('does not execute an unlisted file from an otherwise verified plugin cache', () => {
