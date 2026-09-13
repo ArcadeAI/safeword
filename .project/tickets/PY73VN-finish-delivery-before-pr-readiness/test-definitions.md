@@ -96,7 +96,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Ready-by-default creation is rejected before verified done
 
-- [ ] RED
+- [x] RED 514440a98
 - [ ] GREEN
 - [ ] REFACTOR
 
