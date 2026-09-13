@@ -259,26 +259,53 @@ async function admitThroughInstalledCli(
     'plan-execution',
   ],
   designApprovalGate = false,
+  slicingDecision: 'one_pull_request' | 'multiple_pull_requests' = 'one_pull_request',
 ): Promise<void> {
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
   const plan = executionPlan();
   const parsed = parseDeliveryPlanContract(plan);
   if (!parsed.ok) throw new Error(parsed.message);
+  const slices =
+    slicingDecision === 'one_pull_request'
+      ? [
+          {
+            name: 'Contribution',
+            purpose: 'Deliver the contribution.',
+            boundary: 'Public prerequisite.',
+            prerequisites: [] as string[],
+            proof: 'Integration test.',
+            completion_signal: 'The prerequisite is observable.',
+            relies_on_unmerged_successor: false,
+          },
+        ]
+      : [
+          {
+            name: 'Foundation',
+            purpose: 'Deliver the prerequisite.',
+            boundary: 'Shared contract.',
+            prerequisites: [] as string[],
+            proof: 'Contract test.',
+            completion_signal: 'The contract is independently usable.',
+            relies_on_unmerged_successor: false,
+          },
+          {
+            name: 'Contribution',
+            purpose: 'Deliver the contribution.',
+            boundary: 'Public prerequisite.',
+            prerequisites: ['Foundation'],
+            proof: 'Integration test.',
+            completion_signal: 'The prerequisite is observable.',
+            relies_on_unmerged_successor: false,
+          },
+        ];
   const record = {
-    slicing_decision: 'one_pull_request',
-    rationale: 'One coherent contribution.',
-    slices: [
-      {
-        name: 'Contribution',
-        purpose: 'Deliver the contribution.',
-        boundary: 'Public prerequisite.',
-        prerequisites: [],
-        proof: 'Integration test.',
-        completion_signal: 'The prerequisite is observable.',
-        relies_on_unmerged_successor: false,
-      },
-    ],
-    obligation_owners: [{ obligation: 'Contribution', slices: ['Contribution'] }],
+    slicing_decision: slicingDecision,
+    rationale:
+      slicingDecision === 'one_pull_request'
+        ? 'One coherent contribution.'
+        : 'Two independently provable dependency-ordered changes.',
+    slices,
+    obligation_owners: [{ obligation: 'Contribution', slices: slices.map(slice => slice.name) }],
     decision_statuses: [{ decision: 'Use the accepted plans', status: 'unchanged' }],
     accepted_scenarios_covered: true,
     accepted_approach_preserved: true,
@@ -568,54 +595,66 @@ describe('delivery execution prerequisite', () => {
     ]);
   });
 
-  it('returns the reviewed PR-slicing outcome when its checklist item is completed', async () => {
-    const root = featureFixture();
-    await admitThroughInstalledCli(root);
-    const reviewEnvironment = {
-      NODE_ENV: 'test',
-      SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
-    };
-    const prerequisite = await runCli(
-      ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
-      { cwd: root, env: reviewEnvironment },
-    );
-    expect(prerequisite.exitCode, prerequisite.stdout).toBe(0);
-    execFileSync('git', ['init', '--quiet'], { cwd: root });
-    execFileSync('git', ['config', 'user.email', 'proof@example.com'], { cwd: root });
-    execFileSync('git', ['config', 'user.name', 'Proof Test'], { cwd: root });
-    execFileSync('git', ['add', '.'], { cwd: root });
-    execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root });
-
-    const invoked = await runCli(
-      ['ticket', 'record-delivery-proof', 'ABC123', 'item-3', 'proof', '--json', '--cwd', root],
-      { cwd: root, env: reviewEnvironment },
-    );
-    const result = JSON.parse(invoked.stdout) as { data?: Record<string, unknown> };
-
-    expect(invoked.exitCode, invoked.stdout).toBe(0);
-    expect(
-      readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8'),
-    ).toContain('delivery-proof:v1:');
-    expect(
-      readFileSync(
-        nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'execution-plan.md'),
-        'utf8',
-      ),
-    ).toMatch(/^\| item-3 \|.*\| complete \| current_revision_real_boundary \|/mu);
-    expect(
-      result.data?.pull_request_slicing,
-      'completed checklist response must include pull_request_slicing',
-    ).toEqual({
-      decision: 'one_pull_request',
-      rationale: 'One coherent contribution.',
-      slices: [
-        {
-          name: 'Contribution',
-          prerequisites: [],
-        },
+  it.each([
+    [
+      'one_pull_request',
+      'One coherent contribution.',
+      [{ name: 'Contribution', prerequisites: [] }],
+    ],
+    [
+      'multiple_pull_requests',
+      'Two independently provable dependency-ordered changes.',
+      [
+        { name: 'Foundation', prerequisites: [] },
+        { name: 'Contribution', prerequisites: ['Foundation'] },
       ],
-    });
-  });
+    ],
+  ] as const)(
+    'returns the reviewed %s slicing outcome when its checklist item is completed',
+    async (decision, rationale, expectedSlices) => {
+      const root = featureFixture();
+      await admitThroughInstalledCli(root, undefined, false, decision);
+      const reviewEnvironment = {
+        NODE_ENV: 'test',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+      };
+      const prerequisite = await runCli(
+        ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+        { cwd: root, env: reviewEnvironment },
+      );
+      expect(prerequisite.exitCode, prerequisite.stdout).toBe(0);
+      execFileSync('git', ['init', '--quiet'], { cwd: root });
+      execFileSync('git', ['config', 'user.email', 'proof@example.com'], { cwd: root });
+      execFileSync('git', ['config', 'user.name', 'Proof Test'], { cwd: root });
+      execFileSync('git', ['add', '.'], { cwd: root });
+      execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root });
+
+      const invoked = await runCli(
+        ['ticket', 'record-delivery-proof', 'ABC123', 'item-3', 'proof', '--json', '--cwd', root],
+        { cwd: root, env: reviewEnvironment },
+      );
+      const result = JSON.parse(invoked.stdout) as { data?: Record<string, unknown> };
+
+      expect(invoked.exitCode, invoked.stdout).toBe(0);
+      expect(
+        readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8'),
+      ).toContain('delivery-proof:v1:');
+      expect(
+        readFileSync(
+          nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'execution-plan.md'),
+          'utf8',
+        ),
+      ).toMatch(/^\| item-3 \|.*\| complete \| current_revision_real_boundary \|/mu);
+      expect(
+        result.data?.pull_request_slicing,
+        'completed checklist response must include pull_request_slicing',
+      ).toEqual({
+        decision,
+        rationale,
+        slices: expectedSlices,
+      });
+    },
+  );
 
   it.each(['task', 'patch'] as const)('keeps %s work outside the feature contract', async type => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-prerequisite-small-'));
