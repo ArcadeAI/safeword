@@ -566,6 +566,18 @@ function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
 }
 
 /** The canonical schema is plugin-only for Codex. */
+const TERMINAL_HANDOFF_CONTRACT_MARKERS = [
+  "TERMINAL_HANDOFF_CONTRACT_VERSION = 'terminal-handoff/v1'",
+  "'concrete choice'",
+  "'recommendation'",
+  "'controlling reason'",
+  "'material tradeoff or consequences'",
+  "'exact reply'",
+  "role: 'Action'",
+  "optionalReasonPrefix: 'Required because'",
+  'evaluateDecisionBriefCompliance',
+] as const;
+
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
   codexMigration: CODEX_MIGRATION_SCHEMA,
@@ -1594,7 +1606,17 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         'renderDecisionBriefCorrection',
         'evaluateDecisionBriefCompliance',
         'getQualityEvidence',
+        ...TERMINAL_HANDOFF_CONTRACT_MARKERS,
       ],
+    },
+    'plugin/runtime/hooks/lib/quality.ts': {
+      requires: [...TERMINAL_HANDOFF_CONTRACT_MARKERS],
+    },
+    'packages/cli/codex-plugin/templates/hooks/lib/quality.ts': {
+      requires: [...TERMINAL_HANDOFF_CONTRACT_MARKERS],
+    },
+    '.safeword/hooks/lib/quality.ts': {
+      requires: [...TERMINAL_HANDOFF_CONTRACT_MARKERS],
     },
     'packages/cli/templates/doc-templates/test-definitions-feature.md': {
       // Canonical test-definitions.md format. Rule grouping (Gherkin 6+

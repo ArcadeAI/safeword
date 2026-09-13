@@ -561,6 +561,119 @@ Given(
 );
 
 Given(
+  'the shared rule-based terminal-handoff evaluator and the fixed corpus with contract-derived recorded verdicts and missing-role sets',
+  function (this: SafewordWorld) {
+    stateFor(this).corpus = fixedCorpus();
+  },
+);
+
+Given(
+  'the shared terminal-handoff evaluator and the observed Claude Code transcript whose Next omits decision roles',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = incompleteCorpusReply('observed decision omission');
+  },
+);
+
+Given(
+  'the shared terminal-handoff evaluator and the long decision transcript with the self-contained rewrite',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = corpusReply('self-contained Next rewrite');
+  },
+);
+
+Given(
+  'the shared terminal-handoff evaluator and the observed OpenAI Codex transcript with a vague Need and complete earlier prose',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = incompleteCorpusReply('vague blocked Need');
+  },
+);
+
+Given(
+  'the shared terminal-handoff evaluator and the long blocked transcript with the self-contained Need rewrite',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = corpusReply('self-contained Need rewrite');
+  },
+);
+
+Given(
+  'the shared terminal-handoff evaluator and the long no-decision transcript',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = corpusReply('concise no-decision action');
+  },
+);
+
+Given(
+  'the shared terminal-handoff evaluator and the long no-decision transcript ending only with an instruction to continue',
+  function (this: SafewordWorld) {
+    stateFor(this).reply = corpusReply('vague no-decision action');
+  },
+);
+
+Given(
+  /^a fixed held-out reply not present in the transcript corpus with (.+)$/u,
+  function (this: SafewordWorld, fixture: string) {
+    const replies: Record<string, string> = {
+      'one human-owned choice declared in the decision form': decisionReply(
+        'Next',
+        decisionTerminal({ Choice: 'ship the patch now or wait for the maintenance window' }),
+      ),
+      'the same choice disguised as an action': actionReply(
+        'Action: Ship the selected patch.',
+        'human: choose now or the maintenance window',
+      ),
+      'one marked unfamiliar necessary term explained inline': decisionReply(
+        'Next',
+        `${decisionTerminal()} Term: soak = observe the release without changing it for one hour.`,
+      ),
+      'the same marked necessary term left without a meaning': decisionReply(
+        'Next',
+        `${decisionTerminal()} Term: soak = TBD.`,
+      ),
+      'one concrete action with a Required because reason': actionReply(
+        'Action: Run the release smoke tests. Reason: Required because deployment waits for them.',
+      ),
+      'one concrete action with explanation outside the Required because clause': actionReply(
+        'Action: Run the release smoke tests. Deployment waits for them.',
+      ),
+      'one imperative action with a specific object': actionReply(
+        'Action: Publish the release candidate.',
+      ),
+      'an imperative action with no specific object': actionReply('Action: Continue.'),
+    };
+    assert.ok(replies[fixture], `unknown held-out fixture ${fixture}`);
+    stateFor(this).reply = replies[fixture];
+  },
+);
+
+Given(
+  'the canonical template, generated Claude plugin, generated Codex plugin, Cursor delivery, customer installed, and dogfood installed terminal-handoff contract copies',
+  function (this: SafewordWorld) {
+    stateFor(this).corpus = fixedCorpus();
+  },
+);
+
+Given(
+  /^the declared contract version is fixed and the (.+) terminal-handoff copy has version drift$/u,
+  function (this: SafewordWorld, copy: string) {
+    prepareParityFailure(this, copy, 'version');
+  },
+);
+
+Given(
+  'the required terminal-handoff copy set omits the generated Codex plugin copy',
+  function (this: SafewordWorld) {
+    prepareParityFailure(this, 'generated Codex plugin', 'missing');
+  },
+);
+
+Given(
+  /^the (.+) terminal-handoff copy carries the canonical version but omits the material tradeoff or consequences role$/u,
+  function (this: SafewordWorld, copy: string) {
+    prepareParityFailure(this, copy, 'role');
+  },
+);
+
+Given(
   /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and the (.+) from the long-form corpus in its native Stop payload$/,
   function (this: SafewordWorld, host: string, corpusCase: string) {
     prepareNativeStop(this, host, corpusReply(corpusCase));
@@ -660,6 +773,36 @@ When(
     ).validateTerminalHandoffContract;
     assert.equal(typeof validator, 'function', 'terminal-handoff contract validator is available');
     stateFor(this).contractValidation = validator(stateFor(this).contract);
+  },
+);
+
+When('the evaluator checks every corpus reply', function (this: SafewordWorld) {
+  const state = stateFor(this);
+  state.corpusEvaluations = (state.corpus ?? []).map(({ reply }) =>
+    evaluateDecisionBriefCompliance(reply),
+  );
+});
+
+When(
+  /^the evaluator checks the terminal (handoff|action)$/u,
+  function (this: SafewordWorld, _form: string) {
+    const state = stateFor(this);
+    assert.ok(state.reply);
+    state.evaluation = evaluateDecisionBriefCompliance(state.reply);
+  },
+);
+
+When(
+  /^the release gate runs "bun scripts\/parity-check\.ts --mode=all"(?: against the fixed transcript corpus)?$/u,
+  function (this: SafewordWorld) {
+    const state = stateFor(this);
+    if (state.parityResult) return;
+    const result = spawnSync('bun', ['scripts/parity-check.ts', '--mode=all'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    state.nativeOutput = result.stdout;
   },
 );
 
@@ -888,6 +1031,122 @@ Then(
       valid: false,
       requirements: ['no-decision action form'],
     });
+  },
+);
+
+Then(
+  'every evaluation of each reply matches its recorded verdict and recorded missing-role set',
+  function (this: SafewordWorld) {
+    const state = stateFor(this);
+    assert.equal(state.corpusEvaluations?.length, state.corpus?.length);
+    state.corpus?.forEach(({ expected }, index) => {
+      const actual = state.corpusEvaluations?.[index];
+      assert.equal(actual?.compliant, expected.compliant);
+      assert.equal(actual?.form, expected.form);
+      assert.deepEqual(actual?.requirements, expected.requirements);
+    });
+  },
+);
+
+Then(
+  'the corpus case is rejected with the decision roles named as missing despite their presence in earlier prose',
+  function (this: SafewordWorld) {
+    assert.equal(stateFor(this).evaluation?.compliant, false);
+    assert.deepEqual(stateFor(this).evaluation?.requirements, requiredDecisionRoles);
+  },
+);
+
+Then('the corpus case is accepted', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, true);
+});
+
+Then('the corpus case is accepted as a concise handoff', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, true);
+  assert.equal(stateFor(this).evaluation?.form, 'action');
+});
+
+Then('the corpus case is rejected as not concrete', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, false);
+  assert.ok(stateFor(this).evaluation?.requirements?.includes('one concrete action'));
+});
+
+Then('the held-out reply is accepted', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, true);
+});
+
+Then('the held-out reply is rejected as missing the decision form', function (this: SafewordWorld) {
+  assert.equal(stateFor(this).evaluation?.compliant, false);
+  assert.equal(stateFor(this).evaluation?.form, 'decision');
+});
+
+Then(
+  'the held-out reply is rejected with the unexplained term named',
+  function (this: SafewordWorld) {
+    assert.ok(stateFor(this).evaluation?.requirements?.includes('plain-language meaning'));
+  },
+);
+
+Then('the held-out reply is rejected as unnecessarily verbose', function (this: SafewordWorld) {
+  assert.ok(stateFor(this).evaluation?.requirements?.includes('no extra context'));
+});
+
+Then('the held-out reply is rejected as not concrete', function (this: SafewordWorld) {
+  assert.ok(stateFor(this).evaluation?.requirements?.includes('one concrete action'));
+});
+
+Then(
+  'every copy exposes the canonical version and exactly the canonical five-role set in any order for each of Next and Need',
+  function (this: SafewordWorld) {
+    assert.match(stateFor(this).nativeOutput ?? '', /contracts in sync/u);
+    const canonical = readFileSync(deliveredQualityCopies[0], 'utf8');
+    for (const copy of deliveredQualityCopies.slice(1)) {
+      assert.equal(
+        readFileSync(copy, 'utf8'),
+        canonical,
+        `${copy} drifted from canonical quality.ts`,
+      );
+    }
+  },
+);
+
+Then(
+  "every copy produces the corpus's recorded verdict and recorded missing-role set for every reply",
+  function (this: SafewordWorld) {
+    const state = stateFor(this);
+    assert.match(state.nativeOutput ?? '', /contracts in sync/u);
+    for (const { reply, expected } of state.corpus ?? []) {
+      const actual = evaluateDecisionBriefCompliance(reply);
+      assert.equal(actual.compliant, expected.compliant);
+      assert.equal(actual.form, expected.form);
+      assert.deepEqual(actual.requirements, expected.requirements);
+    }
+  },
+);
+
+Then(
+  /^parity fails and names the (.+) copy and its (version drift|missing decision role)$/u,
+  function (this: SafewordWorld, _copy: string, _failure: string) {
+    const state = stateFor(this);
+    assert.ok((state.parityResult?.failures.length ?? 0) > 0);
+    assert.ok(
+      state.parityResult?.failures.some(failure =>
+        failure.message.includes(state.parityTarget ?? ''),
+      ),
+    );
+    if (state.parityRoot) rmSync(state.parityRoot, { recursive: true, force: true });
+  },
+);
+
+Then(
+  'parity fails and names the missing generated Codex plugin copy',
+  function (this: SafewordWorld) {
+    const state = stateFor(this);
+    assert.ok(
+      state.parityResult?.failures.some(failure =>
+        failure.message.includes(state.parityTarget ?? ''),
+      ),
+    );
+    if (state.parityRoot) rmSync(state.parityRoot, { recursive: true, force: true });
   },
 );
 
