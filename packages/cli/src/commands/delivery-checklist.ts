@@ -149,6 +149,45 @@ function admittedPlanReview(input: {
   return undefined;
 }
 
+function loadExecutionPlan(
+  cwd: string,
+  planPath: string,
+  command: string,
+):
+  | {
+      readonly ok: true;
+      readonly plan: string;
+      readonly parsed: Extract<ReturnType<typeof parseDeliveryPlanContract>, { readonly ok: true }>;
+    }
+  | { readonly ok: false; readonly result: CliResult } {
+  const relativePlanPath = nodePath.relative(cwd, planPath);
+  let plan: string;
+  try {
+    plan = readFileSync(planPath, 'utf8');
+  } catch {
+    return {
+      ok: false,
+      result: findingResult(
+        command,
+        'execution_plan_unreadable',
+        `Could not read ${relativePlanPath}. Repair the named Execution Plan before updating its Delivery Checklist.`,
+        `Repair ${relativePlanPath} and rerun plan-execution review.`,
+      ),
+    };
+  }
+  const parsed = parseDeliveryPlanContract(plan);
+  if (parsed.ok) return { ok: true, plan, parsed };
+  return {
+    ok: false,
+    result: findingResult(
+      command,
+      parsed.code,
+      parsed.message,
+      `Repair ${relativePlanPath} and rerun plan-execution review.`,
+    ),
+  };
+}
+
 function loadDeliveryContext(
   cwd: string,
   ticketId: string,
@@ -190,19 +229,9 @@ function loadDeliveryContext(
       ),
     };
   }
-  const plan = readFileSync(planPath, 'utf8');
-  const parsed = parseDeliveryPlanContract(plan);
-  if (!parsed.ok) {
-    return {
-      ok: false,
-      result: findingResult(
-        command,
-        parsed.code,
-        parsed.message,
-        `Repair ${nodePath.relative(cwd, planPath)} and rerun plan-execution review.`,
-      ),
-    };
-  }
+  const loadedPlan = loadExecutionPlan(cwd, planPath, command);
+  if (!loadedPlan.ok) return loadedPlan;
+  const { plan, parsed } = loadedPlan;
   const designApprovalGate = designApprovalEnabled(cwd);
   if (designApprovalGate === undefined) {
     return {
