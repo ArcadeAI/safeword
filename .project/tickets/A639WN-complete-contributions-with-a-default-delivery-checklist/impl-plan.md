@@ -251,14 +251,24 @@ reusable completion evidence.
 accept the concrete compatibility reason against the producing and current
 revisions. Its acceptance binds the ticket, item, delivery receipt, reason
 digest, and revision pair. Same-agent or degraded review cannot complete the
-item.
+item. `record-delivery-proof` owns that review workflow: it writes a
+deterministic Markdown request under
+`.safeword/state/reviews/requests/delivery-compatibility-<request-digest>.md`,
+containing those exact bindings, the retained proof definition, and the bounded
+Git diff from the producing revision to the reviewed revision. The existing
+`quality-review` route reviews that file. A retry finds the matching
+integrity-protected job from the request bytes; callers never supply a review
+ID. An accepted cross-agent result is retained in the shared ledger as
+`delivery-compatibility:v1` before the checklist row changes. The request is
+transient review input; the ledger event is the durable authority.
 
 **Alternative considered:** Trust the contributor's reason; re-review the whole
 Execution Plan; or create a dedicated compatibility review kind.
 
 **Rejected because:** Contributor self-report is not authority over semantic
-compatibility. Whole-plan review adds unrelated churn, while a new review kind
-duplicates the existing independent work-product judgment contract.
+compatibility. Whole-plan review adds unrelated churn, a caller-supplied review
+ID moves identity matching onto the user, and a new review kind duplicates the
+existing independent work-product judgment contract.
 
 **Evidence reference:** [independent quality-review coordinator](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/src/review/coordinator.ts) and [review evidence principles](../../../PRINCIPLES.md#1-structure-enforces-instructions-suggest)
 
@@ -461,9 +471,18 @@ subject to the Proof ID's declared policy.
   declares `compatible_earlier_allowed` and an independent `quality-review`
   route accepts that reason
   against the producing and current revisions. A same-agent or otherwise
-  degraded review cannot satisfy the item. The accepted review record binds the
-  ticket, item ID, delivery receipt ID, reason digest, producing revision, and
-  the revision reviewed for compatibility. The acceptance remains current
+  degraded review cannot satisfy the item. On the first call, the command
+  creates or reuses the deterministic transient request described in the
+  recorded decision and starts or reports its matching review job. The request
+  includes the exact bounded Git diff; an oversized or unrepresentable diff
+  refuses reuse and tells the contributor to run the retained proof again. On a
+  retry, the command accepts only an integrity-protected job whose kind, target,
+  source fingerprint, reviewer identity, and cross-agent approval match the
+  request, then atomically appends a `delivery-compatibility:v1` event to the
+  shared ledger. That event binds the ticket, item ID, delivery receipt ID,
+  Proof ID, definition digest, reason digest, producing revision, revision
+  reviewed for compatibility, request digest, and source review ID. The
+  acceptance remains current
   across later commits only when that reviewed revision remains an ancestor and
   Git reports no committed or working-tree change outside this ticket's
   authenticated Execution Plan and the exact shared review ledger. Any other
@@ -642,7 +661,10 @@ and its evidence lifecycle, but not application or customer data.
 - **Purpose:** retain contributor obligations, ownership, dispositions, and
   proof currency in the feature's existing execution artifact.
 - **Store and model:** one versioned Markdown section in `execution-plan.md`,
-  parsed into checklist categories and items; no cache or second ledger.
+  parsed into checklist categories and items; `delivery-proof:v1` and
+  `delivery-compatibility:v1` events share the existing review ledger. A
+  deterministic ignored request file is transient reviewer input, not a second
+  authority or durable checklist store.
 - **Schema and relationships:** every default category owns one or more unique
   items; items reference a contribution revision and, when applicable, an
   existing human authority dependency.
@@ -657,7 +679,8 @@ and its evidence lifecycle, but not application or customer data.
   the current project-file trust boundary; 5F5ZZA owns authenticated host-user
   provenance.
 - **Identity and integrity:** checklist version marker, unique item IDs, closed enums,
-  cross-field validation, revision binding, and stable-field review digests
+  cross-field validation, revision binding, stable-field review digests,
+  integrity-protected review jobs, and exact compatibility-event bindings
   prevent ambiguous or silently promoted state.
 - **Cross-system flow:** no external flow in M1. YCFFNC later installs the same
   contract across hosts. The existing human design-approval ledger supplies a
