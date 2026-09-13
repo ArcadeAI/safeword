@@ -25,7 +25,7 @@ vi.mock('../../src/review/job.js', () => ({
   reviewJobStatus: () => review.result,
   startReviewJob: (input: unknown) => {
     review.starts.push(input);
-    return review.compatibilityResult;
+    return Promise.resolve(review.compatibilityResult);
   },
 }));
 

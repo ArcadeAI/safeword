@@ -663,7 +663,7 @@ export function reuseEarlierDeliveryProof(input: {
   readonly receipt: string;
   readonly reason: string;
   readonly confirmEgress: boolean;
-}): Promise<CliResult> {
+}): CliResult {
   const { confirmEgress, cwd, itemId, proofId, reason, receipt, ticketId } = input;
   const command = 'ticket record-delivery-proof';
   const loaded = loadDeliveryContext(cwd, ticketId, command);
