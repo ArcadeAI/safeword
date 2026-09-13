@@ -208,7 +208,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6c495df09
 - [x] GREEN 2e0240f3e
-- [ ] REFACTOR
+- [x] REFACTOR skip: vague and concrete action cases share one imperative-and-object predicate
 
 ### Scenario: Held-out decision-route paraphrases follow the declared route
 
