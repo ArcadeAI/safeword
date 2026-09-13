@@ -32,6 +32,39 @@ interface DecisionEvent extends DecisionIdentity {
   readonly timestamp: string;
 }
 
+interface PositionedLedgerEvent {
+  readonly appendPosition: number;
+  readonly fencingGeneration: number;
+}
+
+interface DeliveryProofStream {
+  readonly bytes: number;
+  readonly sha256: string;
+}
+
+export interface DeliveryProofIdentity {
+  readonly ticket: string;
+  readonly itemId: string;
+  readonly proofId: string;
+  readonly method: 'command' | 'review_receipt';
+  readonly scope: 'unit' | 'integration' | 'E2E' | 'eval';
+  readonly boundary: string;
+  readonly qualification: 'real_boundary' | 'partial_or_structural';
+  readonly producingRevision: string;
+  readonly invocationDigest: string;
+  readonly outcome: 'passed';
+  readonly stdout?: DeliveryProofStream;
+  readonly stderr?: DeliveryProofStream;
+  readonly sourceReviewId?: string;
+}
+
+export interface DeliveryProofEvent extends DeliveryProofIdentity, PositionedLedgerEvent {
+  readonly id: string;
+  readonly idempotencyKey: string;
+  readonly kind: 'delivery-proof:v1';
+  readonly timestamp: string;
+}
+
 interface LockOwner {
   readonly generation?: number;
   readonly leaseExpiresAt: number;
@@ -41,6 +74,11 @@ interface LockOwner {
 
 export interface AppendDecisionResult {
   readonly status: 'existing' | 'pending' | 'written';
+}
+
+export interface AppendDeliveryProofResult {
+  readonly status: 'existing' | 'pending' | 'written';
+  readonly receiptId?: string;
 }
 
 const LOCK_RETRY_MS = 10;
@@ -57,6 +95,16 @@ function lockTimeoutMs(): number {
 
 const decisionLinePattern =
   /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) cli design-decision:(\{.*\})$/u;
+const deliveryProofLinePattern =
+  /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) cli delivery-proof:v1:(\{.*\})$/u;
+
+function isSha256(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-f\d]{64}$/u.test(value);
+}
+
+function isNonblankString(value: unknown): value is string {
+  return typeof value === 'string' && value !== '';
+}
 
 function isPositiveInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) > 0;
@@ -97,7 +145,82 @@ function decisionEvents(ledger: string): DecisionEvent[] {
     .filter((event): event is DecisionEvent => event !== undefined);
 }
 
-function idempotencyKey(identity: DecisionIdentity, supersedesPosition: number): string {
+function validProofStream(value: DeliveryProofStream | undefined): boolean {
+  return (
+    value !== undefined &&
+    Number.isSafeInteger(value.bytes) &&
+    value.bytes >= 0 &&
+    isSha256(value.sha256)
+  );
+}
+
+function isDeliveryIdentityComplete(event: DeliveryProofEvent): boolean {
+  return (
+    [
+      event.id,
+      event.ticket,
+      event.itemId,
+      event.proofId,
+      event.boundary,
+      event.producingRevision,
+    ].every(isNonblankString) &&
+    isSha256(event.invocationDigest) &&
+    isSha256(event.idempotencyKey)
+  );
+}
+
+function isDeliveryEvidenceValid(event: DeliveryProofEvent): boolean {
+  if (event.method === 'command') {
+    return (
+      validProofStream(event.stdout) &&
+      validProofStream(event.stderr) &&
+      event.sourceReviewId === undefined
+    );
+  }
+  return (
+    event.method === 'review_receipt' &&
+    isNonblankString(event.sourceReviewId) &&
+    event.stdout === undefined &&
+    event.stderr === undefined
+  );
+}
+
+function isDeliveryProofEvent(event: DeliveryProofEvent): boolean {
+  return (
+    event.kind === 'delivery-proof:v1' &&
+    event.outcome === 'passed' &&
+    ['unit', 'integration', 'E2E', 'eval'].includes(event.scope) &&
+    ['real_boundary', 'partial_or_structural'].includes(event.qualification) &&
+    isDeliveryIdentityComplete(event) &&
+    isDeliveryEvidenceValid(event) &&
+    isPositiveInteger(event.appendPosition) &&
+    isPositiveInteger(event.fencingGeneration)
+  );
+}
+
+function parseDeliveryProofEvent(line: string): DeliveryProofEvent | undefined {
+  const match = deliveryProofLinePattern.exec(line);
+  if (match === null) return undefined;
+  try {
+    const event = JSON.parse(match[2] ?? '') as DeliveryProofEvent;
+    return isDeliveryProofEvent(event) && event.timestamp === match[1] ? event : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function deliveryProofEvents(ledger: string): DeliveryProofEvent[] {
+  return ledger
+    .split('\n')
+    .map(line => parseDeliveryProofEvent(line))
+    .filter((event): event is DeliveryProofEvent => event !== undefined);
+}
+
+function positionedEvents(ledger: string): PositionedLedgerEvent[] {
+  return [...decisionEvents(ledger), ...deliveryProofEvents(ledger)];
+}
+
+function decisionIdempotencyKey(identity: DecisionIdentity, supersedesPosition: number): string {
   return createHash('sha256')
     .update(
       JSON.stringify([
@@ -109,6 +232,10 @@ function idempotencyKey(identity: DecisionIdentity, supersedesPosition: number):
       ]),
     )
     .digest('hex');
+}
+
+function deliveryIdempotencyKey(identity: DeliveryProofIdentity): string {
+  return createHash('sha256').update(JSON.stringify(identity)).digest('hex');
 }
 
 function matchingDecisionState(
@@ -227,7 +354,10 @@ function releaseLock(lockPath: string, owner: LockOwner): void {
   }
 }
 
-function readGeneration(fencePath: string, events: readonly DecisionEvent[]): number | undefined {
+function readGeneration(
+  fencePath: string,
+  events: readonly PositionedLedgerEvent[],
+): number | undefined {
   const highestEventGeneration = Math.max(0, ...events.map(event => event.fencingGeneration));
   if (!existsSync(fencePath)) return highestEventGeneration === 0 ? 0 : undefined;
   try {
@@ -276,10 +406,11 @@ export function appendDesignDecision(
   try {
     const ledger = existsSync(ledgerPath) ? readFileSync(ledgerPath, 'utf8') : '';
     const events = decisionEvents(ledger);
+    const positioned = positionedEvents(ledger);
     const matching = matchingDecisionState(events, identity.ticket, identity.planDigest);
     if (matchesCurrentIdentity(matching.current, identity)) return { status: 'existing' };
-    const key = idempotencyKey(identity, matching.highestPosition);
-    const currentGeneration = readGeneration(fencePath, events);
+    const key = decisionIdempotencyKey(identity, matching.highestPosition);
+    const currentGeneration = readGeneration(fencePath, positioned);
     if (currentGeneration === undefined) return { status: 'pending' };
     const generation = currentGeneration + 1;
     publishGeneration(fencePath, generation, owner.token);
@@ -287,7 +418,7 @@ export function appendDesignDecision(
     writeFileSync(lockPath, `${JSON.stringify(owned)}\n`, { mode: 0o600 });
     staleFenceForTest(fencePath, generation);
     if (!lockStillOwned(lockPath, fencePath, owned)) return { status: 'pending' };
-    const appendPosition = Math.max(0, ...events.map(event => event.appendPosition)) + 1;
+    const appendPosition = Math.max(0, ...positioned.map(event => event.appendPosition)) + 1;
     const timestamp = new Date().toISOString();
     const event: DecisionEvent = {
       ...identity,
@@ -314,6 +445,69 @@ export function appendDesignDecision(
     return { status: 'pending' };
   } finally {
     releaseLock(lockPath, owner);
+  }
+}
+
+export function appendDeliveryProof(
+  ledgerPath: string,
+  identity: DeliveryProofIdentity,
+): AppendDeliveryProofResult {
+  mkdirSync(nodePath.dirname(ledgerPath), { recursive: true });
+  const lockPath = `${ledgerPath}.approval-lock`;
+  const fencePath = `${ledgerPath}.approval-fence`;
+  const owner = acquireLock(lockPath);
+  if (owner === undefined) return { status: 'pending' };
+  try {
+    const ledger = existsSync(ledgerPath) ? readFileSync(ledgerPath, 'utf8') : '';
+    const proofs = deliveryProofEvents(ledger);
+    const key = deliveryIdempotencyKey(identity);
+    const existing = proofs.find(event => event.idempotencyKey === key);
+    if (existing !== undefined) return { status: 'existing', receiptId: existing.id };
+    const positioned = positionedEvents(ledger);
+    const currentGeneration = readGeneration(fencePath, positioned);
+    if (currentGeneration === undefined) return { status: 'pending' };
+    const generation = currentGeneration + 1;
+    publishGeneration(fencePath, generation, owner.token);
+    const owned: LockOwner = { ...owner, generation };
+    writeFileSync(lockPath, `${JSON.stringify(owned)}\n`, { mode: 0o600 });
+    staleFenceForTest(fencePath, generation);
+    if (!lockStillOwned(lockPath, fencePath, owned)) return { status: 'pending' };
+    const timestamp = new Date().toISOString();
+    const event: DeliveryProofEvent = {
+      ...identity,
+      id: randomUUID(),
+      appendPosition: Math.max(0, ...positioned.map(item => item.appendPosition)) + 1,
+      fencingGeneration: generation,
+      idempotencyKey: key,
+      kind: 'delivery-proof:v1',
+      timestamp,
+    };
+    const separator = ledger === '' || ledger.endsWith('\n') ? '' : '\n';
+    atomicReplace(
+      ledgerPath,
+      `${ledger}${separator}${timestamp} cli delivery-proof:v1:${JSON.stringify(event)}\n`,
+      owner.token,
+    );
+    return { status: 'written', receiptId: event.id };
+  } catch {
+    return { status: 'pending' };
+  } finally {
+    releaseLock(lockPath, owner);
+  }
+}
+
+export function readDeliveryProof(
+  ledgerPath: string,
+  receiptId: string,
+): DeliveryProofEvent | undefined {
+  if (!existsSync(ledgerPath) || receiptId === '') return undefined;
+  try {
+    const matches = deliveryProofEvents(readFileSync(ledgerPath, 'utf8')).filter(
+      event => event.id === receiptId,
+    );
+    return matches.length === 1 ? matches[0] : undefined;
+  } catch {
+    return undefined;
   }
 }
 
