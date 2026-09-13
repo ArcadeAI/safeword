@@ -1,4 +1,8 @@
 import { strict as assert } from 'node:assert';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
@@ -11,6 +15,10 @@ interface HandoffState {
   substantiveEvidence?: 'current-turn-tool' | 'none';
   contract?: unknown;
   contractValidation?: { valid: boolean; requirements?: string[] };
+  nativeHost?: string;
+  nativeProject?: string;
+  nativePayload?: Record<string, unknown>;
+  nativeOutput?: string;
   evaluation?: ReturnType<typeof evaluateDecisionBriefCompliance> & {
     contractVersion?: string;
     form?: string;
@@ -74,6 +82,32 @@ function actionReply(terminal: string, open = 'none'): string {
     `**Open:** ${open}.`,
     `**Next:** ${terminal}`,
   ].join('\n\n');
+}
+
+function incompleteCorpusReply(corpusCase: string): string {
+  if (corpusCase === 'vague blocked Need') {
+    return [
+      '**BLOCKED** — The release channel requires a human choice.',
+      '**Tried:** Verified both release channels are available.',
+      '**Need:** Choose the intended target.',
+    ].join('\n\n');
+  }
+  if (corpusCase === 'unexplained marked term') {
+    return decisionReply('Next', `${decisionTerminal()} Term: RPO.`);
+  }
+  return [
+    '**CONFIDENT** — The implementation is complete and needs a direction.',
+    '**Decided:** Keep the current change intact.',
+    '**Open:** human: choose the next target.',
+    '**Next:** Choose the intended target.',
+  ].join('\n\n');
+}
+
+function nativeHookPath(host: string): string {
+  const hooks = nodePath.join(process.cwd(), 'packages/cli/templates/hooks');
+  if (host === 'Claude Code') return nodePath.join(hooks, 'stop-quality.ts');
+  if (host === 'OpenAI Codex') return nodePath.join(hooks, 'codex/stop.ts');
+  return nodePath.join(hooks, 'cursor/stop.ts');
 }
 
 Given(
@@ -314,6 +348,39 @@ Given(
   },
 );
 
+Given(
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and the (.+) from the long-form corpus in its native Stop payload$/,
+  function (this: SafewordWorld, host: string, corpusCase: string) {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-handoff-'));
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    const reply = incompleteCorpusReply(corpusCase);
+    const transcriptPath = nodePath.join(project, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      `${JSON.stringify({ role: 'assistant', message: { role: 'assistant', content: reply } })}\n`,
+    );
+    const state = stateFor(this);
+    state.nativeHost = host;
+    state.nativeProject = project;
+    state.reply = reply;
+    state.nativePayload =
+      host === 'Cursor'
+        ? {
+            workspace_roots: [project],
+            conversation_id: 'handoff-session',
+            generation_id: 'generation-1',
+            status: 'completed',
+            transcript_path: transcriptPath,
+          }
+        : {
+            cwd: project,
+            session_id: 'handoff-session',
+            transcript_path: transcriptPath,
+            last_assistant_message: reply,
+          };
+  },
+);
+
 When(
   'the shared deterministic terminal-handoff evaluator checks the reply',
   function (this: SafewordWorld) {
@@ -338,6 +405,24 @@ When(
     ).validateTerminalHandoffContract;
     assert.equal(typeof validator, 'function', 'terminal-handoff contract validator is available');
     stateFor(this).contractValidation = validator(stateFor(this).contract);
+  },
+);
+
+When(
+  'the registered Stop hook command is invoked for the first time',
+  function (this: SafewordWorld) {
+    const state = stateFor(this);
+    assert.ok(state.nativeHost && state.nativeProject && state.nativePayload);
+    const result = spawnSync('bun', [nativeHookPath(state.nativeHost)], {
+      cwd: state.nativeProject,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: state.nativeProject },
+      input: JSON.stringify(state.nativePayload),
+      encoding: 'utf8',
+      timeout: 20_000,
+    });
+    rmSync(state.nativeProject, { recursive: true, force: true });
+    assert.equal(result.status, 0, result.stderr);
+    state.nativeOutput = result.stdout.trim();
   },
 );
 
@@ -535,5 +620,30 @@ Then(
       valid: false,
       requirements: ['no-decision action form'],
     });
+  },
+);
+
+Then(
+  /^the process emits one correction carrying the shared contract version and naming the missing requirements in the (decision block reason|followup message) shape$/,
+  function (this: SafewordWorld, continuation: string) {
+    const state = stateFor(this);
+    assert.ok(state.nativeOutput, 'native Stop hook emitted no correction');
+    const output = JSON.parse(state.nativeOutput) as {
+      decision?: string;
+      reason?: string;
+      followup_message?: string;
+    };
+    const correction =
+      continuation === 'followup message'
+        ? output.followup_message
+        : output.decision === 'block'
+          ? output.reason
+          : undefined;
+    assert.ok(correction, `unexpected native continuation: ${state.nativeOutput}`);
+    assert.match(correction, /terminal-handoff\/v1/u);
+    for (const requirement of evaluateDecisionBriefCompliance(state.reply ?? '').requirements ??
+      []) {
+      assert.ok(correction.includes(requirement), `correction omitted ${requirement}`);
+    }
   },
 );
