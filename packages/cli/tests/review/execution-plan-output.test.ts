@@ -54,6 +54,38 @@ function validRecord(): ExecutionPlanRecord {
       { obligation: 'Auditable activation', slices: ['Activation'] },
     ],
     decision_statuses: [{ decision: 'Use one shared coordinator', status: 'unchanged' }],
+    accepted_scenarios_covered: true,
+    accepted_approach_preserved: true,
+    delivery_definition: {
+      schema_version: 1,
+      design_approval_gate: false,
+      proof_specifications: [
+        {
+          proof_id: 'contract-tests',
+          method: 'command',
+          scope: 'integration',
+          boundary_exercised: 'review output contract',
+          qualifies_as: 'real_boundary',
+          currency: 'current_required',
+          invocation: {
+            type: 'command',
+            cwd: 'packages/cli',
+            argv: ['bun', 'run', 'test'],
+          },
+        },
+      ],
+      checklist_items: [
+        {
+          id: 'testing',
+          category: 'testing',
+          obligation: 'Prove the review contract.',
+          owner: 'contributor',
+          required_proof: 'contract-tests',
+          reviewed_disposition: nullRecord,
+          reviewed_detail: nullRecord,
+        },
+      ],
+    },
   };
 }
 
@@ -121,6 +153,16 @@ describe('Execution Plan output schema', () => {
     expect(shape.required).toContain('execution_plan_record');
     expect(shape.properties.execution_plan_record?.anyOf).toEqual(
       expect.arrayContaining([expect.objectContaining({ type: 'null' })]),
+    );
+    const record = shape.properties.execution_plan_record?.anyOf?.find(
+      branch => (branch as { type?: string }).type === 'object',
+    ) as { required?: string[] };
+    expect(record.required).toEqual(
+      expect.arrayContaining([
+        'accepted_scenarios_covered',
+        'accepted_approach_preserved',
+        'delivery_definition',
+      ]),
     );
     expect(reviewOutputSchema('plan-execution')).not.toBe(reviewOutputSchema('quality-review'));
   });
