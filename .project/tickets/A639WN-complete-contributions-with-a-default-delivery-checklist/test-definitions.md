@@ -34,8 +34,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A silently omitted default category prevents checklist completion
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED c2c4cdbe5
+- [x] GREEN c1b07cec5
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.A639WN.R3 — Safeword carries the checklist through feature execution rather than using it only as an end-of-work audit, and each category is completed with evidence, marked not applicable with a concrete reason, or recorded as an explicit human-owned dependency
