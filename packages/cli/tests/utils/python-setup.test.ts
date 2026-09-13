@@ -103,6 +103,22 @@ dependencies = [
     expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([]);
   });
 
+  it.each(['requirements-dev.txt', 'dev-requirements.txt', 'requirements/dev.txt'])(
+    'recognizes required Python tools declared in %s',
+    path => {
+      writeTestFile(
+        context.projectDirectory,
+        path,
+        ['ruff>=0.8.0', 'mypy', 'deadcode==1.0.0', 'pip-audit'].join('\n'),
+      );
+
+      expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([]);
+      expect(findPythonProjectDirectories(context.projectDirectory)).toEqual([
+        context.projectDirectory,
+      ]);
+    },
+  );
+
   it('does not treat descriptive or tool-config strings as Python dependency declarations', () => {
     writeTestFile(
       context.projectDirectory,
@@ -292,6 +308,21 @@ describe('repository Python projects', () => {
       context.projectDirectory,
       'services/legacy/setup.py',
       '# Run ruff and mypy before committing.\nfrom setuptools import setup\nsetup(name="legacy")\n',
+    );
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([
+      {
+        directory: nodePath.join(context.projectDirectory, 'services/legacy'),
+        tools: ['ruff', 'mypy', 'deadcode', 'pip-audit'],
+      },
+    ]);
+  });
+
+  it('does not treat setup.py multiline examples as dependency declarations', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'services/legacy/setup.py',
+      '"""\nExample only:\n    setup(install_requires=["ruff", "mypy"])\n"""\nfrom setuptools import setup\nsetup(name="legacy")\n',
     );
 
     expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([

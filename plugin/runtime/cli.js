@@ -13549,9 +13549,10 @@ function pythonAssignedExpression(content, start) {
 }
 function setupPyDependencySpecs(content) {
   const specifications = [];
+  const codeWithoutMultilineStrings = content.replaceAll(/'''[\s\S]*?(?:'''|$)|"""[\s\S]*?(?:"""|$)/gu, (value) => " ".repeat(value.length));
   const assignment = /\b(?:install_requires|setup_requires|tests_require|extras_require)\s*=/gu;
-  for (const match of content.matchAll(assignment)) {
-    if (match.index === undefined || !isPythonCodePosition(content, match.index))
+  for (const match of codeWithoutMultilineStrings.matchAll(assignment)) {
+    if (match.index === undefined || !isPythonCodePosition(codeWithoutMultilineStrings, match.index))
       continue;
     const expression = pythonAssignedExpression(content, match.index + match[0].length);
     if (expression === undefined)
@@ -64782,7 +64783,8 @@ function renderShellPlan(entries) {
     return "";
   const lines = ["set -e"];
   for (const entry2 of entries) {
-    lines.push(entry2.available ? `( cd ${shellQuote5(entry2.cwd)} && ${entry2.command} )` : `echo "\u23ED\uFE0F Skipped \u2014 ${entry2.runner} not installed"`);
+    const unavailableMessage = shellQuote5(`Safeword test-plan: ${entry2.language} runner ${entry2.runner} is not installed.`);
+    lines.push(entry2.available ? `( cd ${shellQuote5(entry2.cwd)} && ${entry2.command} )` : String.raw`( printf '%s\n' ${unavailableMessage} >&2; false )`);
   }
   return `${lines.join(`
 `)}

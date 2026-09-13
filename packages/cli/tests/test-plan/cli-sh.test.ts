@@ -1,5 +1,5 @@
-import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -38,6 +38,15 @@ async function renderSh(
   return result.stdout;
 }
 
+async function renderUnavailableSh(root: string, kind: 'typecheck' | 'deps'): Promise<string> {
+  const result = await runCli(['test-plan', '--kind', kind, '--format', 'sh'], {
+    cwd: root,
+    env: { SAFEWORD_FAKE_TOOLS: 'only:go' },
+  });
+  expect(result.exitCode).toBe(0);
+  return result.stdout;
+}
+
 async function renderJson(
   root: string,
   kind: 'typecheck' | 'deps',
@@ -52,19 +61,21 @@ async function renderJson(
 }
 
 /** Eval a rendered script in bash; return { stdout, code }. */
-function evalScript(script: string, cwd: string): { stdout: string; code: number } {
-  try {
-    const stdout = execSync('bash', {
-      input: script,
-      cwd,
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    return { stdout, code: 0 };
-  } catch (error) {
-    const err = error as { stdout?: string; status?: number };
-    return { stdout: err.stdout ?? '', code: err.status ?? 1 };
-  }
+function evalScript(
+  script: string,
+  cwd: string,
+  options: { conditional?: boolean; path?: string } = {},
+): { stdout: string; stderr: string; code: number } {
+  const arguments_ = options.conditional
+    ? ['-c', 'if eval "$1"; then exit 0; else exit 23; fi', 'safeword-test', script]
+    : [];
+  const result = spawnSync('bash', arguments_, {
+    input: options.conditional ? undefined : script,
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: options.path ?? process.env.PATH },
+  });
+  return { stdout: result.stdout, stderr: result.stderr, code: result.status ?? 1 };
 }
 
 describe('safeword test-plan', () => {
@@ -108,7 +119,7 @@ describe('safeword test-plan', () => {
     );
 
     expect(output).toMatchObject({
-      state: 'healthy',
+      state: 'action_required',
       findings: [
         {
           code: 'TEST_PLAN_RUNNER_UNAVAILABLE',
@@ -137,6 +148,49 @@ describe('safeword test-plan', () => {
         },
       ],
     });
+  });
+
+  it('renders an unavailable dependency runner as a visible failing shell lane', async () => {
+    const root = makeRepo({ 'requirements.txt': 'requests==2.32.0\n' });
+    const sh = await renderUnavailableSh(root, 'deps');
+
+    expect(sh).toContain('Python dependency lane skipped: pip-audit is not installed.');
+    expect(sh).not.toContain('set -e');
+    const evaluation = evalScript(sh, root);
+    expect(evaluation.code).not.toBe(0);
+    expect(evaluation.stderr).toBe('Python dependency lane skipped: pip-audit is not installed.\n');
+  });
+
+  it('cannot mask an unavailable lane with a later passing lane in a conditional eval', async () => {
+    const root = makeRepo({
+      'requirements.txt': 'requests==2.32.0\n',
+      'service/go.mod': 'module example.com/service\n',
+      'bin/go': '#!/bin/sh\necho RAN_GO\n',
+    });
+    chmodSync(nodePath.join(root, 'bin/go'), 0o755);
+    const sh = await renderUnavailableSh(root, 'deps');
+    const evaluation = evalScript(sh, root, {
+      conditional: true,
+      path: `${nodePath.join(root, 'bin')}:${process.env.PATH ?? ''}`,
+    });
+
+    expect(evaluation.code).toBe(23);
+    expect(evaluation.stdout).not.toContain('RAN_GO');
+    expect(evaluation.stderr).toContain(
+      'Python dependency lane skipped: pip-audit is not installed.',
+    );
+  });
+
+  it.each([
+    ['--kind', 'unknown', 'TEST_PLAN_KIND_INVALID'],
+    ['--format', 'unknown', 'TEST_PLAN_FORMAT_INVALID'],
+  ])('rejects invalid %s values through the public CLI', async (flag, value, code) => {
+    const result = await runCli(['project', 'test-plan', flag, value, '--json'], {
+      cwd: makeRepo({ 'package.json': '{"private":true}\n' }),
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ errors: [{ code }] });
   });
 
   it('renders --kind deps for uv projects as uv audit', async () => {
@@ -169,14 +223,20 @@ describe('safeword test-plan', () => {
     expect(sh).toContain('m$(touch INJECTED)d');
     expect(sh).toContain('go test');
     const { code } = evalScript(sh, root);
-    // cd may fail (the literal dir name won't match a shell-expanded one), but
-    // the injection must not have fired.
+    // The quoted literal directory must resolve without evaluating its name.
     expect(existsSync(nodePath.join(root, 'INJECTED'))).toBe(false);
-    expect(typeof code).toBe('number');
+    expect(code).toBe(0);
   });
 
   it('eval of an empty plan is a clean no-op (exit zero)', async () => {
     const root = makeRepo({ 'README.md': '# hi\n' });
+    const sh = await renderSh(root);
+    expect(sh).toBe('');
+    expect(evalScript(sh, root).code).toBe(0);
+  });
+
+  it('treats a detected JavaScript manifest without a suite as an explicit empty plan', async () => {
+    const root = makeRepo({ 'package.json': '{"private":true}\n' });
     const sh = await renderSh(root);
     expect(sh).toBe('');
     expect(evalScript(sh, root).code).toBe(0);

@@ -7,34 +7,18 @@
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { renderShellPlan } from '../test-plan/render.js';
-import { type Language, type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
+import { PLAN_LANE_NAMES, renderShellPlan, unavailablePlanMessage } from '../test-plan/render.js';
+import { type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
 
 type Format = 'human' | 'json' | 'sh';
-
-const LANE_NAMES: Readonly<Record<PlanKind, string>> = {
-  test: 'test',
-  build: 'build',
-  verify: 'verification',
-  typecheck: 'typecheck',
-  deps: 'dependency',
-  bdd: 'acceptance',
-};
-
-const LANGUAGE_NAMES: Readonly<Record<Language, string>> = {
-  javascript: 'JavaScript',
-  python: 'Python',
-  go: 'Go',
-  rust: 'Rust',
-  sql: 'SQL',
-};
 
 function rawTestPlanPresentation(
   format: Format,
   plan: ReturnType<typeof resolveTestPlan>,
+  kind: PlanKind,
 ): CliResult['presentation'] {
   if (format === 'json') return { kind: 'raw', body: JSON.stringify(plan) };
-  if (format === 'sh') return { kind: 'raw', body: renderShellPlan(plan) };
+  if (format === 'sh') return { kind: 'raw', body: renderShellPlan(plan, kind) };
   return undefined;
 }
 
@@ -44,7 +28,7 @@ export function observeTestPlan(
   options: Readonly<Record<string, unknown>>,
 ): Promise<CliResult> {
   const kindValue = typeof options.kind === 'string' ? options.kind : undefined;
-  const validKinds = new Set<string>(Object.keys(LANE_NAMES));
+  const validKinds = new Set<string>(Object.keys(PLAN_LANE_NAMES));
   if (kindValue !== undefined && !validKinds.has(kindValue)) {
     return Promise.resolve(
       createResult({
@@ -81,7 +65,7 @@ export function observeTestPlan(
     .filter(entry => !entry.available)
     .map(entry => ({
       code: 'TEST_PLAN_RUNNER_UNAVAILABLE',
-      message: `${LANGUAGE_NAMES[entry.language]} ${LANE_NAMES[kind]} lane skipped: ${entry.runner} is not installed.`,
+      message: unavailablePlanMessage(entry, kind),
       severity: 'warning' as const,
       metadata: {
         kind,
@@ -93,9 +77,9 @@ export function observeTestPlan(
     }));
   return Promise.resolve(
     createResult({
-      state: 'healthy',
+      state: findings.length === 0 ? 'healthy' : 'action_required',
       findings,
-      presentation: rawTestPlanPresentation(formatValue as Format, plan),
+      presentation: rawTestPlanPresentation(formatValue as Format, plan, kind),
       // Compatibility aliases normalize to the canonical command in machine
       // output, matching the deprecation metadata emitted by the CLI layer.
       data: { command: 'project test-plan', kind, plan },

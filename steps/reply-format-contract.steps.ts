@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -19,6 +20,8 @@ import {
   DECISION_BRIEF_MAX_WORK_FACTOR,
   evaluateDecisionBriefCompliance,
 } from '../packages/cli/templates/hooks/lib/quality.js';
+import { runParity } from '../packages/cli/src/parity.js';
+import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
 import {
   buildReplyFormatProject,
   ensureReplyFormatState,
@@ -32,7 +35,6 @@ const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const PROMPT_QUESTIONS = nodePath.join(REPO_ROOT, '.safeword/hooks/prompt-questions.ts');
 const SAFEWORD_CLI = nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts');
 const QUALITY_TEMPLATE = nodePath.join(REPO_ROOT, 'packages/cli/templates/hooks/lib/quality.ts');
-const QUALITY_DOGFOOD = nodePath.join(REPO_ROOT, '.safeword/hooks/lib/quality.ts');
 const PROJECT_HANDBOOK_BOOTSTRAP = [
   'Safeword session bootstrap:',
   'Before non-trivial work, read `.safeword/SAFEWORD.md` and the applicable guide in `.safeword/guides/`.',
@@ -89,8 +91,8 @@ interface ContractState {
   formerStopOutput?: string;
   currentStopOutput?: string;
   validatorExit?: number;
-  originalSource?: string;
-  originalDogfood?: string;
+  validatorOutput?: string;
+  cleanupDirectories?: string[];
 }
 
 const states = new WeakMap<SafewordWorld, ContractState>();
@@ -259,16 +261,10 @@ function buildTypecheckProject(): string {
 
 After(function (this: SafewordWorld) {
   const state = states.get(this);
-  const directory = state?.projectDirectory;
-  if (directory) rmSync(directory, { recursive: true, force: true });
-  if (state?.originalSource !== undefined) {
-    writeFileSync(QUALITY_TEMPLATE, state.originalSource);
-    spawnSync('bun', ['run', '--cwd', 'packages/cli', 'generate:claude-plugin'], {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-    });
+  const directories = new Set([state?.projectDirectory, ...(state?.cleanupDirectories ?? [])]);
+  for (const directory of directories) {
+    if (directory) rmSync(directory, { recursive: true, force: true });
   }
-  if (state?.originalDogfood !== undefined) writeFileSync(QUALITY_DOGFOOD, state.originalDogfood);
   states.delete(this);
 });
 
@@ -301,7 +297,16 @@ interface SessionGroupResult {
   emitted: string[];
 }
 
-function runLegacySessionGroup(boundary: string): SessionGroupResult {
+function runLegacySessionGroup(boundary: string): SessionGroupResult & { directory: string } {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-legacy-session-'));
+  cpSync(nodePath.join(REPO_ROOT, '.safeword'), nodePath.join(directory, '.safeword'), {
+    recursive: true,
+  });
+  mkdirSync(nodePath.join(directory, 'scripts'), { recursive: true });
+  cpSync(
+    nodePath.join(REPO_ROOT, 'scripts/session-node24.sh'),
+    nodePath.join(directory, 'scripts/session-node24.sh'),
+  );
   const settings = JSON.parse(
     readFileSync(nodePath.join(REPO_ROOT, '.claude/settings.json'), 'utf8'),
   ) as {
@@ -313,16 +318,16 @@ function runLegacySessionGroup(boundary: string): SessionGroupResult {
     };
   };
   const source = boundary === 'compaction' ? 'compact' : boundary;
-  const input = JSON.stringify({ hook_event_name: 'SessionStart', source, cwd: REPO_ROOT });
+  const input = JSON.stringify({ hook_event_name: 'SessionStart', source, cwd: directory });
   const contexts: string[] = [];
   for (const entry of settings.hooks.SessionStart) {
     if (entry.matcher && entry.matcher !== source) continue;
     for (const hook of entry.hooks) {
       const result = spawnSync('bash', ['-lc', hook.command], {
-        cwd: REPO_ROOT,
+        cwd: directory,
         env: {
           ...process.env,
-          CLAUDE_PROJECT_DIR: REPO_ROOT,
+          CLAUDE_PROJECT_DIR: directory,
           SAFEWORD_NO_AUTO_UPGRADE: '1',
         },
         input,
@@ -334,7 +339,7 @@ function runLegacySessionGroup(boundary: string): SessionGroupResult {
       if (context) contexts.push(context);
     }
   }
-  return { combined: contexts.join('\n\n'), emitted: contexts };
+  return { combined: contexts.join('\n\n'), emitted: contexts, directory };
 }
 
 function runPluginSessionGroup(boundary: string): SessionGroupResult & { directory: string } {
@@ -388,6 +393,7 @@ function runSessionContext(world: SafewordWorld): void {
   const plugin = runPluginSessionGroup(boundary);
   const legacy = runLegacySessionGroup(boundary);
   state.projectDirectory = plugin.directory;
+  state.cleanupDirectories = [legacy.directory];
   state.sessionContexts = [legacy.combined, plugin.combined];
   state.contractOutputs = [...legacy.emitted, ...plugin.emitted].filter(context =>
     context.includes(DECISION_BRIEF_CONTRACT),
@@ -414,6 +420,7 @@ Then(
 );
 
 Then('the contract appears exactly once', function (this: SafewordWorld) {
+  assert.ok((stateFor(this).contractOutputs?.length ?? 0) > 0);
   assert.ok(
     stateFor(this).sessionContexts?.every(
       context => context.split(DECISION_BRIEF_CONTRACT).length === 2,
@@ -448,7 +455,7 @@ Then(
 );
 
 Given(
-  /^a feature is in the active (RED|GREEN|REFACTOR) step$/u,
+  /^a feature has most recently completed the (RED|GREEN|REFACTOR) step$/u,
   function (this: SafewordWorld, step: string) {
     stateFor(this).projectDirectory = buildPromptProject(step.toLowerCase());
   },
@@ -512,10 +519,6 @@ Given("Claude's final reply is structurally compliant", function (this: Safeword
   });
 });
 
-Given(/^every hard gate other than (.+) allows Stop$/u, function (_gate: string) {
-  // The focused fixture below activates only the named gate.
-});
-
 Given(
   /^the (dependency|test|phase artifact|architecture review|done) gate has a failing verdict$/u,
   function (this: SafewordWorld, gate: string) {
@@ -552,10 +555,6 @@ Given('every hard gate allows Stop', function (this: SafewordWorld) {
   ensureReplyFormatState(this);
 });
 
-Given('every hard and advisory gate allows Stop', function () {
-  // The compliant first-Stop fixture has no competing gate state.
-});
-
 Given('typecheck has actionable advice', function (this: SafewordWorld) {
   const state = ensureReplyFormatState(this);
   rmSync(state.projectDirectory, { recursive: true, force: true });
@@ -585,7 +584,7 @@ Then(
 );
 
 Given(
-  'the canonical contract changes from distinct shape A to distinct shape B before installation',
+  'an installed contract is changed from distinct shape A to distinct shape B',
   function (this: SafewordWorld) {
     const state = stateFor(this);
     const projectDirectory = buildReplyFormatProject();
@@ -773,68 +772,69 @@ Then('the installed hook is restored from the canonical template', function (thi
   );
 });
 
-Given(
-  'the canonical source changed while the committed plugin remains stale',
-  function (this: SafewordWorld) {
-    const state = stateFor(this);
-    state.originalSource = readFileSync(QUALITY_TEMPLATE, 'utf8');
-    writeFileSync(QUALITY_TEMPLATE, `${state.originalSource}\n// plugin drift fixture\n`);
-  },
-);
+Given('a copied Claude plugin differs from canonical generation', function (this: SafewordWorld) {
+  const state = stateFor(this);
+  state.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plugin-drift-'));
+  const copiedPlugin = nodePath.join(state.projectDirectory, 'plugin');
+  cpSync(nodePath.join(REPO_ROOT, 'plugin'), copiedPlugin, { recursive: true });
+  const runtime = nodePath.join(copiedPlugin, 'runtime/cli.js');
+  writeFileSync(runtime, `${readFileSync(runtime, 'utf8')}\n// drift fixture\n`);
+});
 
 When('the Claude plugin generation and worktree diff gate runs', function (this: SafewordWorld) {
   const state = stateFor(this);
-  const baseline = spawnSync('git', ['diff', '--binary', '--', 'plugin'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-  });
-  assert.equal(baseline.status, 0, baseline.stderr || baseline.stdout);
-  const generated = spawnSync('bun', ['run', '--cwd', 'packages/cli', 'generate:claude-plugin'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-    timeout: 60_000,
-  });
-  assert.equal(generated.status, 0, generated.stderr || generated.stdout);
-  const changed = spawnSync('git', ['diff', '--binary', '--', 'plugin'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-  });
-  assert.equal(changed.status, 0, changed.stderr || changed.stdout);
-  state.validatorExit = changed.stdout === baseline.stdout ? 0 : 1;
-  writeFileSync(QUALITY_TEMPLATE, state.originalSource ?? '');
-  state.originalSource = undefined;
-  const restored = spawnSync('bun', ['run', '--cwd', 'packages/cli', 'generate:claude-plugin'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-    timeout: 60_000,
-  });
-  assert.equal(restored.status, 0, restored.stderr || restored.stdout);
+  assert.ok(state.projectDirectory);
+  const result = spawnSync(
+    'bun',
+    ['run', '--cwd', 'packages/cli', 'generate:claude-plugin', '--check'],
+    {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: 60_000,
+      env: {
+        ...process.env,
+        SAFEWORD_CLAUDE_GENERATED_PLUGIN_ROOT: nodePath.join(state.projectDirectory, 'plugin'),
+      },
+    },
+  );
+  state.validatorExit = result.status ?? 1;
+  state.validatorOutput = `${result.stdout}${result.stderr}`;
 });
 
-Then('the committed plugin is rejected as drifted from its source', function (this: SafewordWorld) {
-  assert.equal(stateFor(this).validatorExit, 1);
+Then('the copied plugin is rejected as drifted from its source', function (this: SafewordWorld) {
+  const state = stateFor(this);
+  assert.equal(state.validatorExit, 1);
+  assert.match(state.validatorOutput ?? '', /Generated Claude plugin is stale/u);
 });
 
 Given('a dogfood copy differs from its canonical template', function (this: SafewordWorld) {
   const state = stateFor(this);
-  state.originalDogfood = readFileSync(QUALITY_DOGFOOD, 'utf8');
-  writeFileSync(QUALITY_DOGFOOD, `${state.originalDogfood}\n// parity drift fixture\n`);
+  state.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-parity-drift-'));
+  const dogfoodCopy = nodePath.join(state.projectDirectory, '.safeword/hooks/lib/quality.ts');
+  mkdirSync(nodePath.dirname(dogfoodCopy), { recursive: true });
+  writeFileSync(dogfoodCopy, `${readFileSync(QUALITY_TEMPLATE, 'utf8')}\n// drift fixture\n`);
 });
 
 When('the template parity check runs', function (this: SafewordWorld) {
   const state = stateFor(this);
-  state.validatorExit =
-    spawnSync('bun', ['scripts/parity-check.ts'], {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-      timeout: 60_000,
-    }).status ?? 0;
-  writeFileSync(QUALITY_DOGFOOD, state.originalDogfood ?? '');
-  state.originalDogfood = undefined;
+  assert.ok(state.projectDirectory);
+  const result = runParity({
+    schema: SAFEWORD_SCHEMA,
+    mode: 'all',
+    rootDirectory: state.projectDirectory,
+    templatesDirectory: nodePath.join(REPO_ROOT, 'packages/cli/templates'),
+  });
+  state.validatorExit = result.failures.length === 0 ? 0 : 1;
+  state.validatorOutput = result.failures.map(failure => failure.message).join('\n');
 });
 
 Then('the dogfood copy fails with a pair-drift finding', function (this: SafewordWorld) {
-  assert.equal(stateFor(this).validatorExit, 1);
+  const state = stateFor(this);
+  assert.equal(state.validatorExit, 1);
+  assert.match(
+    state.validatorOutput ?? '',
+    /\[PAIR\] Drift: \.safeword\/hooks\/lib\/quality\.ts ≠ hooks\/lib\/quality\.ts/u,
+  );
 });
 
 Given(/^the final reply uses the (.+) shape$/u, function (this: SafewordWorld, shape: string) {
@@ -994,10 +994,14 @@ Then(
     const state = stateFor(this);
     assert.ok(state.replies && state.evaluations);
     state.evaluations.forEach((result, index) => {
-      assert.ok(
-        result.examinedCharacters <=
-          (state.replies?.[index].length ?? 0) * DECISION_BRIEF_MAX_WORK_FACTOR,
-      );
+      const replyLength = state.replies?.[index].length ?? 0;
+      assert.ok(result.examinedCharacters >= replyLength);
+      assert.ok(result.examinedCharacters <= replyLength * DECISION_BRIEF_MAX_WORK_FACTOR);
+      if (index > 0) {
+        assert.ok(
+          result.examinedCharacters > (state.evaluations?.[index - 1].examinedCharacters ?? 0),
+        );
+      }
     });
   },
 );

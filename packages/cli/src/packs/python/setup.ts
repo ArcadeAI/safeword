@@ -15,7 +15,7 @@ import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
 
-import { exists, findAllInTree, readFileSafe } from '../../utils/fs.js';
+import { exists, findAllFilesMatchingInTree, findAllInTree, readFileSafe } from '../../utils/fs.js';
 import { matchesWorkspacePattern } from '../../utils/workspace-pattern.js';
 import type { SetupResult } from '../types.js';
 
@@ -156,6 +156,7 @@ type PythonPackageManager = 'uv' | 'poetry' | 'pipenv' | 'pip';
 export type PythonTool = 'ruff' | 'mypy' | 'deadcode' | 'pip-audit' | 'import-linter';
 
 const PYTHON_DEPENDENCY_SEPARATORS = new Set(['[', '<', '>', '=', '!', '~', ';', '@']);
+const ROOT_REQUIREMENTS_PATTERN = /^(?:requirements(?:[-_.][\w.-]+)?|[\w.-]+-requirements)\.txt$/u;
 
 function normalizePythonDistributionName(value: string): string {
   return value
@@ -429,9 +430,17 @@ function pythonAssignedExpression(content: string, start: number): string | unde
 
 function setupPyDependencySpecs(content: string): string[] {
   const specifications: string[] = [];
+  const codeWithoutMultilineStrings = content.replaceAll(
+    /'''[\s\S]*?(?:'''|$)|"""[\s\S]*?(?:"""|$)/gu,
+    value => ' '.repeat(value.length),
+  );
   const assignment = /\b(?:install_requires|setup_requires|tests_require|extras_require)\s*=/gu;
-  for (const match of content.matchAll(assignment)) {
-    if (match.index === undefined || !isPythonCodePosition(content, match.index)) continue;
+  for (const match of codeWithoutMultilineStrings.matchAll(assignment)) {
+    if (
+      match.index === undefined ||
+      !isPythonCodePosition(codeWithoutMultilineStrings, match.index)
+    )
+      continue;
     const expression = pythonAssignedExpression(content, match.index + match[0].length);
     if (expression === undefined) continue;
     for (const stringMatch of expression.matchAll(/(['"])(.*?)\1/gsu)) {
@@ -515,6 +524,18 @@ function containsRequirementsPythonDependency(
   });
 }
 
+function pythonRequirementPaths(cwd: string): string[] {
+  const direct = readdirSync(cwd, { withFileTypes: true })
+    .filter(entry => entry.isFile() && ROOT_REQUIREMENTS_PATTERN.test(entry.name))
+    .map(entry => nodePath.join(cwd, entry.name));
+  const requirementsDirectory = nodePath.join(cwd, 'requirements');
+  if (!exists(requirementsDirectory)) return direct;
+  const nested = readdirSync(requirementsDirectory, { withFileTypes: true })
+    .filter(entry => entry.isFile() && entry.name.endsWith('.txt'))
+    .map(entry => nodePath.join(requirementsDirectory, entry.name));
+  return [...direct, ...nested];
+}
+
 function hasPythonDependency(cwd: string, dependency: PythonTool): boolean {
   const pyprojectContent = readFileSafe(nodePath.join(cwd, 'pyproject.toml'));
   const pipfileContent = readFileSafe(nodePath.join(cwd, 'Pipfile'));
@@ -525,7 +546,9 @@ function hasPythonDependency(cwd: string, dependency: PythonTool): boolean {
     (pyprojectContent !== undefined &&
       containsPyprojectPythonDependency(pyprojectContent, dependency)) ||
     (pipfileContent !== undefined && containsPipfilePythonDependency(pipfileContent, dependency)) ||
-    containsRequirementsPythonDependency(cwd, nodePath.join(cwd, 'requirements.txt'), dependency) ||
+    pythonRequirementPaths(cwd).some(path =>
+      containsRequirementsPythonDependency(cwd, path, dependency),
+    ) ||
     (setupPy !== undefined &&
       setupPyDependencySpecs(setupPy).some(specification =>
         startsPythonDependency(specification, dependency),
@@ -694,9 +717,15 @@ export function getMissingPythonToolDependencies(
  * package-manager checks read the files that actually govern that project.
  */
 export function findPythonProjectDirectories(cwd: string): string[] {
+  const requirementsDirectories = findAllFilesMatchingInTree(cwd, filename =>
+    ROOT_REQUIREMENTS_PATTERN.test(filename),
+  ).map(path => {
+    const directory = nodePath.dirname(path);
+    return nodePath.basename(directory) === 'requirements' ? nodePath.dirname(directory) : directory;
+  });
   const directories = new Set([
     ...findAllInTree(cwd, 'pyproject.toml'),
-    ...findAllInTree(cwd, 'requirements.txt'),
+    ...requirementsDirectories,
     ...findAllInTree(cwd, 'Pipfile'),
     ...findAllInTree(cwd, 'setup.py'),
     ...findAllInTree(cwd, 'setup.cfg'),
@@ -735,9 +764,9 @@ function installUvDependencies(
 ): boolean {
   const manifestPath = nodePath.join(cwd, 'pyproject.toml');
   const lockDirectory = uvLockDirectory(cwd, repoRoot);
-  const lockPath = lockDirectory && nodePath.join(lockDirectory, 'uv.lock');
+  const lockPath = nodePath.join(lockDirectory ?? cwd, 'uv.lock');
   const manifestBefore = exists(manifestPath) ? readFileSync(manifestPath) : undefined;
-  const lockBefore = lockPath ? readFileSync(lockPath) : undefined;
+  const lockBefore = exists(lockPath) ? readFileSync(lockPath) : undefined;
 
   try {
     execFileSync('uv', ['add', '--dev', ...tools], {
@@ -762,12 +791,13 @@ function installUvDependencies(
 function restoreUvInstall(
   manifestPath: string,
   manifestBefore: Buffer | undefined,
-  lockPath: string | undefined,
+  lockPath: string,
   lockBefore: Buffer | undefined,
 ): void {
   if (manifestBefore) writeFileSync(manifestPath, manifestBefore);
   else if (exists(manifestPath)) unlinkSync(manifestPath);
-  if (lockPath && lockBefore) writeFileSync(lockPath, lockBefore);
+  if (lockBefore) writeFileSync(lockPath, lockBefore);
+  else if (exists(lockPath)) unlinkSync(lockPath);
 }
 
 export function installPythonDependencies(

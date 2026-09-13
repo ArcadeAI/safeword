@@ -196,3 +196,16 @@ receive scheduling headroom; scenarios whose subject is a short timeout set that
   a user approval prompt and returned an independent Claude Opus verdict. The same review found one
   blocking legacy Python-manifest false positive plus bounded cleanup opportunities; all actionable
   findings entered the review-fix loop.
+- 2026-09-13T22:05:00Z Review-fix verification: Independent review
+  `07c5e9de-4f26-4d17-b1ff-a608d76795d8` caught pinned `setup.cfg` continuations and uv batch-order
+  gaps. Replaced substring parsing with declaration-aware legacy parsing, inherited uv workspace
+  declarations, deferred shared-lock validation until all installs settle, and strengthened the
+  shell/BDD fixtures. Focused Python and shell tests pass 77/77 with one opt-in skip; the decision
+  brief feature passes 87/87 scenarios; lint, Gherkin lint, and typecheck are clean.
+- 2026-09-13T22:32:00Z Independent quality loop: Review
+  `c3dc1249-cf58-4c03-9f5f-11d0a1587915` identified one remaining false-green shell lane and six
+  test-quality weaknesses. Unavailable shell runners now fail visibly, multiline setup.py examples
+  cannot masquerade as dependencies, Ruff inheritance is asserted, TDD wording matches its ledger,
+  linear-work instrumentation has a floor and monotonic check, and acceptance fixtures mutate only
+  temporary copies. Focused regressions pass 99/99 with one opt-in skip, the feature passes 87/87
+  scenarios (3,984/3,984 steps), both generated plugins are current, and lint/typecheck are clean.

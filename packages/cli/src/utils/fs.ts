@@ -293,6 +293,34 @@ export function findAllInTree(cwd: string, filename: string, maxDepth = 10): str
   return found;
 }
 
+/** Every matching file path in a bounded tree walk, using the standard exclusions. */
+export function findAllFilesMatchingInTree(
+  cwd: string,
+  predicate: (filename: string) => boolean,
+  maxDepth = 10,
+): string[] {
+  const found: string[] = [];
+  const queue: { directory: string; depth: number }[] = [{ directory: cwd, depth: 0 }];
+  for (let head = 0; head < queue.length; head += 1) {
+    const item = queue[head];
+    if (item === undefined) break;
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(item.directory, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (entry.isFile() && predicate(entry.name)) {
+        found.push(nodePath.join(item.directory, entry.name));
+      } else if (item.depth < maxDepth && isScannableSubdirectory(entry)) {
+        queue.push({ directory: nodePath.join(item.directory, entry.name), depth: item.depth + 1 });
+      }
+    }
+  }
+  return found;
+}
+
 /**
  * Create directory recursively
  * @param path

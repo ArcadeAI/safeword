@@ -153,6 +153,9 @@ testpaths = ["tests"]
 
       // .safeword/ruff.toml should still be created (for hooks)
       expect(fileExists(state.projectDirectory, '.safeword/ruff.toml')).toBe(true);
+      expect(readTestFile(state.projectDirectory, '.safeword/ruff.toml')).toContain(
+        'extend = "../pyproject.toml"',
+      );
 
       // Original pyproject.toml content preserved
       const pyprojectContent = readPyprojectToml(state.projectDirectory);
