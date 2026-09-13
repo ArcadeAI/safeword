@@ -20,6 +20,32 @@ export type DeliveryEvidenceClass =
   | 'reusable_earlier_revision'
   | 'partial_or_structural'
   | 'missing';
+export type DeliveryProofMethod = 'command' | 'review_receipt';
+export type DeliveryProofScope = 'unit' | 'integration' | 'E2E' | 'eval';
+export type DeliveryProofQualification = 'real_boundary' | 'partial_or_structural';
+export type DeliveryProofCurrency = 'current_required' | 'compatible_earlier_allowed';
+
+export interface DeliveryCommandInvocation {
+  readonly type: 'command';
+  readonly cwd: string;
+  readonly argv: readonly string[];
+}
+
+export interface DeliveryReviewInvocation {
+  readonly type: 'review_receipt';
+  readonly kind: string;
+  readonly targets: readonly string[];
+}
+
+export interface DeliveryProofSpecification {
+  readonly id: string;
+  readonly method: DeliveryProofMethod;
+  readonly scope: DeliveryProofScope;
+  readonly boundary: string;
+  readonly qualifiesAs: DeliveryProofQualification;
+  readonly currency: DeliveryProofCurrency;
+  readonly invocation: DeliveryCommandInvocation | DeliveryReviewInvocation;
+}
 
 export interface DeliveryChecklistItem {
   readonly id: string;
@@ -42,6 +68,10 @@ export type DeliveryChecklistResult =
       readonly missingCategories?: readonly DeliveryChecklistCategory[];
     };
 
+export type DeliveryProofSpecificationsResult =
+  | { readonly ok: true; readonly specifications: readonly DeliveryProofSpecification[] }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
 const MARKER = '<!-- safeword:delivery-checklist:v1 -->';
 const HEADERS = [
   'ID',
@@ -53,6 +83,15 @@ const HEADERS = [
   'Evidence class',
   'Revision',
   'Evidence, reason, or dependency',
+] as const;
+const PROOF_HEADERS = [
+  'Proof ID',
+  'Method',
+  'Scope',
+  'Boundary exercised',
+  'Qualifies as',
+  'Currency',
+  'Invocation',
 ] as const;
 const OWNERS = new Set<DeliveryChecklistOwner>(['contributor', 'human']);
 const DISPOSITIONS = new Set<DeliveryChecklistDisposition>([
@@ -66,6 +105,16 @@ const EVIDENCE_CLASSES = new Set<DeliveryEvidenceClass>([
   'reusable_earlier_revision',
   'partial_or_structural',
   'missing',
+]);
+const PROOF_METHODS = new Set<DeliveryProofMethod>(['command', 'review_receipt']);
+const PROOF_SCOPES = new Set<DeliveryProofScope>(['unit', 'integration', 'E2E', 'eval']);
+const PROOF_QUALIFICATIONS = new Set<DeliveryProofQualification>([
+  'real_boundary',
+  'partial_or_structural',
+]);
+const PROOF_CURRENCIES = new Set<DeliveryProofCurrency>([
+  'current_required',
+  'compatible_earlier_allowed',
 ]);
 
 function invalid(code: string, message: string): DeliveryChecklistResult {
@@ -97,7 +146,108 @@ function splitRow(line: string): string[] | undefined {
 }
 
 function isSeparator(cells: readonly string[]): boolean {
-  return cells.length === HEADERS.length && cells.every(cell => /^:?-{3,}:?$/u.test(cell));
+  return cells.every(cell => /^:?-{3,}:?$/u.test(cell));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isProjectContainedPath(value: string): boolean {
+  if (value === '' || value.startsWith('/') || value.startsWith('\\')) return false;
+  if (/^[A-Za-z]:[\\/]/u.test(value) || value.includes('\0')) return false;
+  return !value.split(/[\\/]/u).includes('..');
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  return (
+    Object.keys(value).length === keys.length &&
+    keys.every(key => Object.prototype.hasOwnProperty.call(value, key))
+  );
+}
+
+function parseJsonRecord(source: string): Record<string, unknown> | undefined {
+  try {
+    const value: unknown = JSON.parse(source);
+    return isRecord(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseCommandInvocation(
+  value: Record<string, unknown>,
+): DeliveryCommandInvocation | undefined {
+  if (!hasOnlyKeys(value, ['type', 'cwd', 'argv']) || value.type !== 'command') return undefined;
+  if (typeof value.cwd !== 'string' || !isProjectContainedPath(value.cwd)) return undefined;
+  if (
+    !Array.isArray(value.argv) ||
+    value.argv.length === 0 ||
+    value.argv.some(argument => typeof argument !== 'string' || argument === '')
+  ) {
+    return undefined;
+  }
+  return { type: 'command', cwd: value.cwd, argv: value.argv as string[] };
+}
+
+function parseReviewInvocation(
+  value: Record<string, unknown>,
+): DeliveryReviewInvocation | undefined {
+  if (!hasOnlyKeys(value, ['type', 'kind', 'targets'])) return undefined;
+  if (value.type !== 'review_receipt') return undefined;
+  if (typeof value.kind !== 'string' || value.kind === '') return undefined;
+  if (
+    !Array.isArray(value.targets) ||
+    value.targets.length === 0 ||
+    value.targets.some(target => !(typeof target === 'string' && isProjectContainedPath(target)))
+  ) {
+    return undefined;
+  }
+  return { type: 'review_receipt', kind: value.kind, targets: value.targets as string[] };
+}
+
+function parseInvocation(
+  method: DeliveryProofMethod,
+  source: string,
+): DeliveryCommandInvocation | DeliveryReviewInvocation | undefined {
+  const value = parseJsonRecord(source);
+  if (value === undefined) return undefined;
+  return method === 'command' ? parseCommandInvocation(value) : parseReviewInvocation(value);
+}
+
+function parseProofSpecification(cells: readonly string[]): DeliveryProofSpecification | undefined {
+  if (cells.length !== PROOF_HEADERS.length) return undefined;
+  const [id, method, scope, boundary, qualifiesAs, currency, invocationSource] = cells as [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
+  if (
+    id === '' ||
+    boundary === '' ||
+    !PROOF_METHODS.has(method as DeliveryProofMethod) ||
+    !PROOF_SCOPES.has(scope as DeliveryProofScope) ||
+    !PROOF_QUALIFICATIONS.has(qualifiesAs as DeliveryProofQualification) ||
+    !PROOF_CURRENCIES.has(currency as DeliveryProofCurrency)
+  ) {
+    return undefined;
+  }
+  const typedMethod = method as DeliveryProofMethod;
+  const invocation = parseInvocation(typedMethod, invocationSource);
+  if (invocation === undefined) return undefined;
+  return {
+    id,
+    method: typedMethod,
+    scope: scope as DeliveryProofScope,
+    boundary,
+    qualifiesAs: qualifiesAs as DeliveryProofQualification,
+    currency: currency as DeliveryProofCurrency,
+    invocation,
+  };
 }
 
 function parseItem(cells: readonly string[]): DeliveryChecklistItem | undefined {
@@ -144,9 +294,20 @@ function validHeader(lines: readonly string[], start: number): boolean {
   const header = splitRow(lines[start] ?? '');
   const separator = splitRow(lines[start + 1] ?? '');
   return (
-    header !== undefined &&
+    header?.length === HEADERS.length &&
     header.every((value, index) => value === HEADERS[index]) &&
-    separator !== undefined &&
+    separator?.length === HEADERS.length &&
+    isSeparator(separator)
+  );
+}
+
+function validProofHeader(lines: readonly string[], start: number): boolean {
+  const header = splitRow(lines[start] ?? '');
+  const separator = splitRow(lines[start + 1] ?? '');
+  return (
+    header?.length === PROOF_HEADERS.length &&
+    header.every((value, index) => value === PROOF_HEADERS[index]) &&
+    separator?.length === PROOF_HEADERS.length &&
     isSeparator(separator)
   );
 }
@@ -206,4 +367,46 @@ export function parseDeliveryChecklist(content: string): DeliveryChecklistResult
     return invalid('invalid_delivery_checklist', 'The Delivery Checklist table header is invalid.');
   }
   return parseItems(lines, start);
+}
+
+export function parseProofSpecifications(content: string): DeliveryProofSpecificationsResult {
+  const lines = content.split(/\r?\n/u);
+  const headingIndex = lines.findIndex(line => line.trim() === '## Proof specifications');
+  if (headingIndex === -1) {
+    return {
+      ok: false,
+      code: 'missing_proof_specifications',
+      message: 'execution-plan.md is missing Proof specifications.',
+    };
+  }
+  const start = tableStart(lines, headingIndex);
+  if (start === -1 || !validProofHeader(lines, start)) {
+    return {
+      ok: false,
+      code: 'invalid_proof_specifications',
+      message: 'The Proof specifications table header is invalid.',
+    };
+  }
+  const specifications: DeliveryProofSpecification[] = [];
+  const candidates = lines.slice(start + 2);
+  for (const [index, line] of candidates.entries()) {
+    if (line.trim() === '' || !line.trimStart().startsWith('|')) break;
+    const specification = parseProofSpecification(splitRow(line) ?? []);
+    if (specification === undefined) {
+      return {
+        ok: false,
+        code: 'invalid_proof_specifications',
+        message: `Proof specifications row ${index + 1} is invalid.`,
+      };
+    }
+    specifications.push(specification);
+  }
+  if (specifications.length === 0) {
+    return {
+      ok: false,
+      code: 'invalid_proof_specifications',
+      message: 'Proof specifications has no rows.',
+    };
+  }
+  return { ok: true, specifications };
 }
