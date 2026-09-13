@@ -190,7 +190,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6c495df09
 - [x] GREEN 386846062
-- [ ] REFACTOR
+- [x] REFACTOR skip: blocked and confident routes already share the same terminal-only decision-role parser
 
 ### Scenario: The long blocked corpus accepts the self-contained Need rewrite
 
