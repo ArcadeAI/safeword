@@ -1,12 +1,17 @@
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { RedExecutionAttestation } from '../../src/review/contract.js';
 import { runReview } from '../../src/review/coordinator.js';
 import { createTemporaryDirectory } from '../helpers.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+} from '../review-fixtures.js';
 
+afterAll(cleanupTrustedReviewerDirectories);
 afterEach(() => vi.unstubAllEnvs());
 
 function attestation(): RedExecutionAttestation {
@@ -42,10 +47,10 @@ function attestation(): RedExecutionAttestation {
 describe('executable RED alternate-model review', () => {
   it('keeps the trusted execution attestation after the primary model fails', async () => {
     const directory = createTemporaryDirectory();
-    const bin = nodePath.join(directory, 'bin');
+    const bin = nodePath.join(createTrustedReviewerDirectory('safeword-alt-red-'), 'bin');
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(bin);
+    mkdirSync(bin, { recursive: true });
     writeFileSync(
       nodePath.join(directory, '.safeword/config.json'),
       JSON.stringify({
