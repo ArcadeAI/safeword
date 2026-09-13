@@ -20,7 +20,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An unsuccessful TDD step remains at the failing step
 
-- [ ] RED
+- [x] RED b698dd566
 - [ ] GREEN
 - [ ] REFACTOR
 
