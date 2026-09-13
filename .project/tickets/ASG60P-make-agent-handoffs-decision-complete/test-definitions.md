@@ -171,7 +171,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: The shared evaluator reproduces the full corpus oracle
 
 - [x] RED 6c495df09
-- [x] GREEN 6c495df09
+- [x] GREEN 56525889f
 - [ ] REFACTOR
 
 ### Scenario: The long decision corpus rejects the observed omission
