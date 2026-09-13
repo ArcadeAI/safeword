@@ -2,5 +2,5 @@
   "schema_version": 1,
   "plugin_version": "1.0.0-rc.3",
   "hook_manifest_sha256": "ea53d65130d73a4a438d8e9040a17462db52fa3c23e2a0331ed87268543644f4",
-  "inventory_sha256": "1d65b2c8438e41da2f8c3b36f425134ca212d35aa7f627193223c5b0633c24fa"
+  "inventory_sha256": "f5216af44a1155750aab1612baed254452ad2b15627b799a7d4e86f7da82d989"
 }
