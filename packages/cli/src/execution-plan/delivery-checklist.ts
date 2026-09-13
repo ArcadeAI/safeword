@@ -285,6 +285,101 @@ function parseItem(cells: readonly string[]): DeliveryChecklistItem | undefined 
   };
 }
 
+function ownerDispositionDefect(item: DeliveryChecklistItem): DeliveryChecklistResult | undefined {
+  if (item.owner === 'contributor' && item.disposition === 'pending_human') {
+    return invalid(
+      'invalid_owner_disposition',
+      `Delivery Checklist item ${item.id} is contributor-owned and cannot be pending_human.`,
+    );
+  }
+  if (item.owner === 'human' && ['open', 'complete'].includes(item.disposition)) {
+    return invalid(
+      'invalid_owner_disposition',
+      `Delivery Checklist item ${item.id} is human-owned and cannot be ${item.disposition}.`,
+    );
+  }
+  return undefined;
+}
+
+function isReceiptLocator(value: string): boolean {
+  const [receipt, compatibility, extra] = value.split('; compatible:', 3);
+  const identifier = receipt?.startsWith('receipt:') ? receipt.slice('receipt:'.length) : '';
+  if (
+    extra !== undefined ||
+    identifier === '' ||
+    identifier.includes(';') ||
+    /\s/u.test(identifier)
+  ) {
+    return false;
+  }
+  return compatibility?.trim() !== '';
+}
+
+function hasMissingEvidence(item: DeliveryChecklistItem): boolean {
+  return item.evidenceClass === 'missing' && item.revision === '';
+}
+
+function hasContributorProof(item: DeliveryChecklistItem): boolean {
+  return item.owner === 'contributor' && item.requiredProof !== '';
+}
+
+function openFieldsAreValid(item: DeliveryChecklistItem): boolean {
+  if (!hasContributorProof(item)) return false;
+  if (item.evidence === '') return hasMissingEvidence(item);
+  return isReceiptLocator(item.evidence) && item.revision !== '';
+}
+
+function completeFieldsAreValid(item: DeliveryChecklistItem): boolean {
+  return (
+    hasContributorProof(item) &&
+    isReceiptLocator(item.evidence) &&
+    item.revision !== '' &&
+    ['current_revision_real_boundary', 'reusable_earlier_revision'].includes(item.evidenceClass)
+  );
+}
+
+function notApplicableFieldsAreValid(item: DeliveryChecklistItem): boolean {
+  const ownerProofIsValid =
+    hasContributorProof(item) || (item.owner === 'human' && item.requiredProof === '');
+  return item.evidence !== '' && hasMissingEvidence(item) && ownerProofIsValid;
+}
+
+function pendingHumanFieldsAreValid(item: DeliveryChecklistItem): boolean {
+  return (
+    item.owner === 'human' &&
+    item.requiredProof === '' &&
+    item.evidence !== '' &&
+    hasMissingEvidence(item)
+  );
+}
+
+function dispositionFieldsAreValid(item: DeliveryChecklistItem): boolean {
+  switch (item.disposition) {
+    case 'open': {
+      return openFieldsAreValid(item);
+    }
+    case 'complete': {
+      return completeFieldsAreValid(item);
+    }
+    case 'not_applicable': {
+      return notApplicableFieldsAreValid(item);
+    }
+    case 'pending_human': {
+      return pendingHumanFieldsAreValid(item);
+    }
+  }
+}
+
+function dispositionDefect(item: DeliveryChecklistItem): DeliveryChecklistResult | undefined {
+  const ownership = ownerDispositionDefect(item);
+  if (ownership !== undefined) return ownership;
+  if (dispositionFieldsAreValid(item)) return undefined;
+  return invalid(
+    'invalid_delivery_checklist',
+    `Delivery Checklist item ${item.id} has invalid fields for ${item.disposition}.`,
+  );
+}
+
 function tableStart(lines: readonly string[], markerIndex: number): number {
   const relative = lines.slice(markerIndex + 1).findIndex(line => line.trim() !== '');
   return relative === -1 ? -1 : markerIndex + relative + 1;
@@ -331,20 +426,13 @@ function parseItems(lines: readonly string[], start: number): DeliveryChecklistR
         `Delivery Checklist ID ${item.id} appears more than once.`,
       );
     }
+    const disposition = dispositionDefect(item);
+    if (disposition !== undefined) return disposition;
     identifiers.add(item.id);
     items.push(item);
   }
   if (items.length === 0) {
     return invalid('invalid_delivery_checklist', 'The Delivery Checklist has no items.');
-  }
-  const invalidHandoff = items.find(
-    item => item.owner === 'contributor' && item.disposition === 'pending_human',
-  );
-  if (invalidHandoff !== undefined) {
-    return invalid(
-      'invalid_owner_disposition',
-      `Delivery Checklist item ${invalidHandoff.id} is contributor-owned and cannot be pending_human.`,
-    );
   }
   const present = new Set(items.map(item => item.category));
   const missingCategories = DELIVERY_CHECKLIST_CATEGORIES.filter(
