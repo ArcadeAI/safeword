@@ -776,9 +776,7 @@ export async function startReviewJob(input: {
   const reserved = withFileLock(nodePath.join(jobsDirectory(input.cwd), 'start.lock'), () => {
     const existing =
       runningJob(input.cwd, input.kind, sourceFingerprint) ??
-      (input.kind === 'executable-red'
-        ? reusableApprovedExecutableRedJob(input.cwd, sourceFingerprint)
-        : undefined);
+      reusableApprovedJob(input.cwd, input.kind, sourceFingerprint);
     if (existing !== undefined) return { existing: true as const, record: existing };
     const now = new Date().toISOString();
     const record: ReviewJobRecord = {
@@ -1134,6 +1132,43 @@ function reusableApprovedExecutableRedJob(
         return record;
     } catch {
       // Invalid receipts cannot cover a new proof request.
+    }
+  }
+  return undefined;
+}
+
+function reusableApprovedJob(
+  cwd: string,
+  kind: ReviewKind,
+  sourceFingerprint: string,
+): ReviewJobRecord | undefined {
+  if (kind === 'executable-red') return reusableApprovedExecutableRedJob(cwd, sourceFingerprint);
+  if (kind === 'delivery-compatibility')
+    return reusableApprovedCompatibilityJob(cwd, sourceFingerprint);
+  return undefined;
+}
+
+function reusableApprovedCompatibilityJob(
+  cwd: string,
+  sourceFingerprint: string,
+): ReviewJobRecord | undefined {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory)) return undefined;
+  for (const name of readdirSync(directory)) {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name)) continue;
+    try {
+      const record = readJob(cwd, name.slice(0, -5));
+      const data = record.result?.data as Record<string, unknown> | undefined;
+      if (
+        record.kind === 'delivery-compatibility' &&
+        record.source_fingerprint === sourceFingerprint &&
+        record.state === 'completed' &&
+        hasIndependentApproval(data)
+      ) {
+        return record;
+      }
+    } catch {
+      // Invalid receipts cannot cover a new compatibility request.
     }
   }
   return undefined;

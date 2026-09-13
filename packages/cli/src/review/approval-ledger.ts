@@ -670,6 +670,31 @@ export function readDeliveryCompatibility(
   }
 }
 
+/** Read accepted compatibility events bound to one retained proof and contributor reason. */
+export function readDeliveryCompatibilities(
+  ledgerPath: string,
+  identity: Omit<
+    DeliveryCompatibilityIdentity,
+    'requestDigest' | 'reviewedRevision' | 'sourceReviewId'
+  >,
+): readonly DeliveryCompatibilityEvent[] {
+  if (!existsSync(ledgerPath)) return [];
+  try {
+    return deliveryCompatibilityEvents(readFileSync(ledgerPath, 'utf8')).filter(
+      event =>
+        event.ticket === identity.ticket &&
+        event.itemId === identity.itemId &&
+        event.proofId === identity.proofId &&
+        event.definitionDigest === identity.definitionDigest &&
+        event.deliveryReceiptId === identity.deliveryReceiptId &&
+        event.reasonDigest === identity.reasonDigest &&
+        event.producingRevision === identity.producingRevision,
+    );
+  } catch {
+    return [];
+  }
+}
+
 export function currentDesignDecision(
   ledgerPath: string,
   ticket: string,

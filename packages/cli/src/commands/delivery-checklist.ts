@@ -20,8 +20,10 @@ import {
   executeDeliveryCommandProof,
 } from '../execution-plan/delivery-proof.js';
 import {
+  appendDeliveryCompatibility,
   appendDeliveryProof,
   currentDesignDecision,
+  readDeliveryCompatibilities,
   readDeliveryProof,
 } from '../review/approval-ledger.js';
 import type {
@@ -308,7 +310,34 @@ function contributorItemSatisfied(context: DeliveryContext, item: DeliveryCheckl
     reviewLedgerPath: context.ledgerPath,
     producingRevision: event.producingRevision,
   });
-  return currency.ok && currency.current;
+  if (!currency.ok) return false;
+  if (currency.current) return true;
+  if (
+    item.evidenceClass !== 'reusable_earlier_revision' ||
+    item.revision !== event.producingRevision
+  )
+    return false;
+  const marker = '; compatible:';
+  const reasonAt = item.evidence.indexOf(marker);
+  if (reasonAt === -1) return false;
+  const reasonDigest = sha256(item.evidence.slice(reasonAt + marker.length));
+  return readDeliveryCompatibilities(context.ledgerPath, {
+    ticket: context.ticketId,
+    itemId: item.id,
+    proofId: item.requiredProof,
+    definitionDigest: context.definitionDigest,
+    deliveryReceiptId: event.id,
+    reasonDigest,
+    producingRevision: event.producingRevision,
+  }).some(compatibility => {
+    const accepted = currentDeliveryProofSubject({
+      projectRoot: context.cwd,
+      executionPlanPath: context.planPath,
+      reviewLedgerPath: context.ledgerPath,
+      producingRevision: compatibility.reviewedRevision,
+    });
+    return accepted.ok && accepted.current;
+  });
 }
 
 function designApprovalSatisfied(context: DeliveryContext, item: DeliveryChecklistItem): boolean {
@@ -695,6 +724,98 @@ function compatibilityPendingResult(input: {
   });
 }
 
+function approvedCompatibilityReview(
+  result: CliResult,
+  cwd: string,
+  requestPath: string,
+): string | undefined {
+  if (typeof result.data !== 'object' || result.data === null) return undefined;
+  const data = result.data as Record<string, unknown>;
+  const output = data.reviewer_output as Record<string, unknown> | undefined;
+  const targets = data.review_targets;
+  const author = data.author_agent;
+  const reviewer = data.actual_reviewer;
+  const reviewId = typeof data.review_id === 'string' ? data.review_id : undefined;
+  const target = Array.isArray(targets) && targets.length === 1 ? targets[0] : undefined;
+  const approved = [
+    data.status === 'approved',
+    data.review_kind === 'delivery-compatibility',
+    data.independence === 'cross-agent',
+    typeof author === 'string',
+    typeof reviewer === 'string',
+    author !== reviewer,
+    data.assigned_reviewer === reviewer,
+    output?.verdict === 'approve',
+    output?.reviewer_agent === reviewer,
+    typeof target === 'string' && nodePath.resolve(cwd, target) === requestPath,
+    reviewId !== undefined,
+  ].every(Boolean);
+  return approved ? reviewId : undefined;
+}
+
+function acceptedCompatibilityResult(input: {
+  readonly context: DeliveryContext;
+  readonly selected: {
+    readonly item: DeliveryChecklistItem;
+    readonly proof: DeliveryProofSpecification;
+  };
+  readonly retained: NonNullable<ReturnType<typeof readDeliveryProof>>;
+  readonly request: Extract<
+    Awaited<ReturnType<typeof createDeliveryCompatibilityRequest>>,
+    { ok: true }
+  >;
+  readonly reason: string;
+  readonly sourceReviewId: string;
+}): CliResult {
+  const { context, reason, request, retained, selected, sourceReviewId } = input;
+  const appended = appendDeliveryCompatibility(context.ledgerPath, {
+    ticket: context.ticketId,
+    itemId: selected.item.id,
+    proofId: selected.proof.id,
+    definitionDigest: context.definitionDigest,
+    deliveryReceiptId: retained.id,
+    reasonDigest: request.reasonDigest,
+    producingRevision: retained.producingRevision,
+    reviewedRevision: request.reviewedRevision,
+    requestDigest: request.requestDigest,
+    sourceReviewId,
+  });
+  if (appended.status === 'pending') return ledgerWriteFailure();
+  const updated = updateDeliveryChecklistFile({
+    path: context.planPath,
+    expectedContent: context.plan,
+    itemId: selected.item.id,
+    proofId: selected.proof.id,
+    receiptId: retained.id,
+    revision: retained.producingRevision,
+    evidenceClass: 'reusable_earlier_revision',
+    compatibilityReason: reason,
+  });
+  if (!updated.ok) {
+    return proofFailure(
+      updated.code === 'execution_plan_changed' ? 'checklist_write_conflict' : updated.code,
+      `${updated.message} Compatibility acceptance remains available.`,
+      context.ticketId,
+      selected.item.id,
+      selected.proof.id,
+    );
+  }
+  const result = successfulProofResult(
+    context,
+    selected.item.id,
+    selected.proof.id,
+    retained.id,
+    retained.producingRevision,
+  );
+  return {
+    ...result,
+    effects: {
+      ...result.effects,
+      network: [{ kind: 'review', target: 'configured external reviewer' }],
+    },
+  };
+}
+
 // eslint-disable-next-line complexity -- Each guarded exit preserves one typed contributor recovery at this trust boundary.
 export async function reuseEarlierDeliveryProof(input: {
   readonly cwd: string;
@@ -792,6 +913,17 @@ export async function reuseEarlierDeliveryProof(input: {
     return compatibilityPendingResult({
       retry,
       ...(typeof data.review_id === 'string' && { reviewId: data.review_id }),
+    });
+  }
+  const sourceReviewId = approvedCompatibilityReview(review, cwd, request.path);
+  if (sourceReviewId !== undefined) {
+    return acceptedCompatibilityResult({
+      context,
+      selected,
+      retained,
+      request,
+      reason,
+      sourceReviewId,
     });
   }
   return proofFailure(
