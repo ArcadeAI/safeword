@@ -1,10 +1,14 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
-const readRaw = (path: string): string => readFileSync(nodePath.join(repoRoot, path), 'utf8');
+const readRaw = (path: string): string => {
+  const fullPath = nodePath.join(repoRoot, path);
+  expect(existsSync(fullPath), `missing installed guidance: ${path}`).toBe(true);
+  return readFileSync(fullPath, 'utf8');
+};
 const read = (path: string): string => readRaw(path).replaceAll(/\s+/gu, ' ');
 
 const tddCopies = [
@@ -55,13 +59,13 @@ describe('installed delivery continuation contract', () => {
     ({ path, outcome, current, evidence, following }) => {
       const row = readRaw(path)
         .split('\n')
-        .find(line => line.startsWith(`| ${outcome} |`));
+        .find(line => line.split('|', 2)[1]?.trim() === outcome);
 
       expect(row, `missing unhealthy-step directive for ${outcome}`).toBeDefined();
       const directive = row?.split('|', 3)[2] ?? '';
       expect(directive).toContain(current);
       expect(directive).toContain(evidence);
-      expect(directive).not.toContain(following);
+      expect(directive.toLocaleLowerCase()).not.toContain(following.toLocaleLowerCase());
     },
   );
 });
