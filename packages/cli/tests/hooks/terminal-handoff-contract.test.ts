@@ -2,27 +2,49 @@ import { describe, expect, it } from 'vitest';
 
 import * as quality from '../../templates/hooks/lib/quality.js';
 
+const decisionRoles = [
+  'concrete choice',
+  'recommendation',
+  'controlling reason',
+  'material tradeoff or consequences',
+  'exact reply',
+].map(name => ({ name }));
+
+function contractFixture() {
+  return {
+    version: 'terminal-handoff/v1',
+    decision: { Next: decisionRoles, Need: decisionRoles },
+    action: { role: 'Action', optionalReasonPrefix: 'Required because' },
+  };
+}
+
 describe('terminal handoff contract', () => {
-  it('rejects incompatible contract shapes with stable requirements', () => {
+  it('rejects an unversioned contract', () => {
     expect(quality.validateTerminalHandoffContract({})).toEqual({
       valid: false,
       requirements: ['version', 'symmetric decision roles', 'no-decision action form'],
     });
+  });
+
+  it('rejects an asymmetric decision contract', () => {
+    const contract = contractFixture();
     expect(
       quality.validateTerminalHandoffContract({
-        ...quality.TERMINAL_HANDOFF_CONTRACT,
+        ...contract,
         decision: {
-          ...quality.TERMINAL_HANDOFF_CONTRACT.decision,
-          Need: quality.TERMINAL_HANDOFF_CONTRACT.decision.Need.slice(1),
+          ...contract.decision,
+          Need: contract.decision.Need.slice(1),
         },
       }),
     ).toEqual({ valid: false, requirements: ['symmetric decision roles'] });
-    expect(
-      quality.validateTerminalHandoffContract({
-        version: quality.TERMINAL_HANDOFF_CONTRACT.version,
-        decision: quality.TERMINAL_HANDOFF_CONTRACT.decision,
-      }),
-    ).toEqual({ valid: false, requirements: ['no-decision action form'] });
+  });
+
+  it('rejects a contract without a no-decision action form', () => {
+    const { action: _action, ...contract } = contractFixture();
+    expect(quality.validateTerminalHandoffContract(contract)).toEqual({
+      valid: false,
+      requirements: ['no-decision action form'],
+    });
   });
 
   it('accepts one self-contained Next decision under the versioned contract', () => {
