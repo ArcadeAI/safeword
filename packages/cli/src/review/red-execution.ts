@@ -131,6 +131,8 @@ export async function executeNoShellCommand(input: {
   readonly expectedOutput?: string;
 }): Promise<NoShellExecutionResult> {
   const cwd = containedWorkingDirectory(input.projectRoot, input.cwd);
+  const executable = input.argv[0];
+  if (executable === undefined) throw new Error('Proof argv must name an executable');
   const started = Date.now();
   const stdout = new StreamEvidence(input.expectedOutput);
   const stderr = new StreamEvidence(input.expectedOutput);
@@ -141,7 +143,7 @@ export async function executeNoShellCommand(input: {
     timedOut: boolean;
   }>((resolve, reject) => {
     let timedOut = false;
-    const child = spawn(input.argv[0], input.argv.slice(1), {
+    const child = spawn(executable, input.argv.slice(1), {
       cwd,
       detached: process.platform !== 'win32',
       env: environment,
