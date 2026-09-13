@@ -182,6 +182,24 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expectHookAllow(runGate());
   });
 
+  it.each(['-h', '--help'])('%s prints usage without requiring operational state', helpFlag => {
+    const result = runStampWithoutRuntimeIdentity(helpFlag);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Usage:');
+    expect(result.stdout).toContain('--phase <phase>');
+    expect(result.stdout).toContain('--ticket <folder>');
+    expect(result.stdout).toContain('-h, --help');
+    expect(readLog()).toBe('');
+  });
+
+  it('does not reinterpret a value consumed by --skip as a help flag', () => {
+    const result = runStamp('spec', '--skip', '-h');
+
+    expect(result.status).toBe(0);
+    expect(readLog()).toContain('skip:-h');
+  });
+
   it('writes a content-bound scope matching the gate (folder + spec + hash)', () => {
     runStamp('spec');
     expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
