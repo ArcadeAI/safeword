@@ -774,8 +774,11 @@ events. Each event binds an independent compatibility judgment to the exact
 delivery receipt, reason, retained definition, revision pair, request digest,
 and source review. The deterministic request under
 `.safeword/state/reviews/requests/` is ignored transient reviewer input; only
-the ledger event is durable authority. Compatibility evidence grants neither
-human approval nor merge authority.
+the ledger event is durable authority. A dedicated `delivery-compatibility`
+review kind reuses the shared coordinator, integrity, routing, and verdict
+machinery but owns the narrow semantic question of whether the earlier receipt
+still proves its retained boundary across the supplied complete diff.
+Compatibility evidence grants neither human approval nor merge authority.
 
 ### Frozen Transcript Fixture Testing
 

@@ -127,7 +127,7 @@ on a later slice.
    Markdown row only if the complete plan snapshot is unchanged; preserve an
    already-written receipt across a retry.
 7. GREEN: For `compatible_earlier_allowed`, retain an independent
-   `quality-review` acceptance. Generate a deterministic ignored Markdown
+   `delivery-compatibility` acceptance. Generate a deterministic ignored Markdown
    request under `.safeword/state/reviews/requests/` containing the exact
    ticket, item, Proof ID, retained definition digest, delivery receipt, reason
    digest, producing revision, reviewed revision, and bounded Git diff. Start or
@@ -138,6 +138,11 @@ on a later slice.
    digest and source review ID before updating the checklist row. Reject an
    oversized or unrepresentable diff with a concrete instruction to rerun the
    retained proof.
+   Give the dedicated reviewer the exact judgment contract from the
+   Implementation Plan. Add semantic conformance cases that approve a supported
+   documentation-only delta and reject a plausible compatibility reason when
+   the diff changes tested source, test/fixture, command input, configuration,
+   or dependency material to the retained boundary.
    Preserve the acceptance across a later plan-and-ledger-only commit by the
    same ancestor-and-no-difference-outside-those-paths rule used for delivery receipts;
    return `compatibility_review_stale` for any other revision change, mismatch,
