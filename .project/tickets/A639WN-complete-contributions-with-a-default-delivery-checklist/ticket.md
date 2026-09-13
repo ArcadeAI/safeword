@@ -72,3 +72,15 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 - 2026-09-09T15:58:00.000Z Define behavior: Derived seven bounded dimensions and twelve representative scenarios covering checklist timing, default categories, honest dispositions, proportional artifacts, PR slicing, readiness authority, and local-host parity. Strengthened the patch boundary against a vacuous no-op and entered scenario review.
 
 - 2026-09-09T16:18:00.000Z Scenario refinement: A real implementation-plan review showed that evidence can be valid but stale, partial, or structural. Added an explicit evidence-currency contract so the checklist cannot silently upgrade earlier-revision or partial proof into current complete proof.
+
+## Root Cause
+
+The readiness fixture made every contributor item `not_applicable`, including
+testing. The later accepted contract requires at least one contributor-owned
+real-boundary command proof for testing, so the fixture no longer described a
+valid admitted plan. The validator was behaving correctly; the fixture now
+records the retained testing proof before asserting each readiness state.
+
+Ruled out: a readiness projection defect, because plan parsing rejected the
+fixture before projection; an over-broad validator rule, because the approved
+Implementation and Execution Plans explicitly require executable testing proof.

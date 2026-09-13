@@ -72,6 +72,7 @@ function settledPlan(finalOwner: 'contributor' | 'generic-human' | 'design-appro
     .split('\n')
     .map(line => {
       if (!/^\| item-\d+ \|/u.test(line)) return line;
+      if (line.startsWith('| item-4 |')) return line;
       if (line.startsWith('| item-11 |') && finalOwner !== 'contributor') {
         const dependency =
           finalOwner === 'design-approval'
@@ -237,14 +238,20 @@ describe('Delivery Checklist CLI service', () => {
     });
   });
 
-  it('distinguishes contributor completion, pending human work, and satisfied design approval', () => {
+  it('distinguishes contributor completion, pending human work, and satisfied design approval', async () => {
     const contributor = fixture({ plan: settledPlan('contributor') });
+    expect(await recordDeliveryProof(contributor.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
+      state: 'changed',
+    });
     expect(observeDeliveryChecklist(contributor.root, 'ABC123')).toMatchObject({
       state: 'action_required',
       data: { readiness_state: 'contributor_work_complete' },
     });
 
     const pending = fixture({ plan: settledPlan('generic-human') });
+    expect(await recordDeliveryProof(pending.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
+      state: 'changed',
+    });
     expect(observeDeliveryChecklist(pending.root, 'ABC123')).toMatchObject({
       state: 'action_required',
       data: {
@@ -256,6 +263,9 @@ describe('Delivery Checklist CLI service', () => {
     const approved = fixture({
       plan: settledPlan('design-approval'),
       designApprovalGate: true,
+    });
+    expect(await recordDeliveryProof(approved.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
+      state: 'changed',
     });
     const digest = createHash('sha256').update('# Implementation Plan\n').digest('hex');
     expect(
