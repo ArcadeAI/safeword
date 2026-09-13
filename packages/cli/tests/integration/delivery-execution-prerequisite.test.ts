@@ -1,4 +1,12 @@
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { createHmac } from 'node:crypto';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -136,12 +144,20 @@ function featureFixture(
   mkdirSync(ticketDirectory, { recursive: true });
   mkdirSync(nodePath.dirname(featurePath), { recursive: true });
   mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
-  writeFileSync(nodePath.join(root, '.safeword', 'config.json'), '{}\n');
+  writeFileSync(
+    nodePath.join(root, '.safeword', 'config.json'),
+    `${JSON.stringify({
+      crossAgentReviewRoutes: {
+        codex: [{ reviewer: 'claude', model: 'opus' }],
+      },
+    })}\n`,
+  );
   writeFileSync(
     nodePath.join(ticketDirectory, 'ticket.md'),
     '---\ntype: feature\nphase: plan-execution\n---\n',
   );
   writeFileSync(featurePath, 'Feature: Accepted behavior\n');
+  writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
   writeFileSync(implementationPath, '# Implementation Plan\n');
   writeFileSync(executionPath, plan);
   const targets = {
@@ -200,6 +216,36 @@ fi
   return bin;
 }
 
+function admitPlanExecutionFixture(
+  root: string,
+  reviewId: string,
+  target: string,
+  plan: string,
+): void {
+  const path = nodePath.join(root, '.safeword', 'state', 'reviews', `${reviewId}.json`);
+  const record = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+  const { integrity: _integrity, ...unsigned } = record;
+  const completed = {
+    ...unsigned,
+    state: 'completed',
+    updated_at: '2026-09-13T00:00:00.000Z',
+    result: reviewResult('plan-execution', target, plan),
+  };
+  const key = Buffer.from(
+    readFileSync(
+      nodePath.join(root, '.review-keys', 'safeword', 'review-integrity.key'),
+      'utf8',
+    ).trim(),
+    'hex',
+  );
+  const integrity = createHmac('sha256', key)
+    .update(realpathSync.native(root))
+    .update('\0')
+    .update(JSON.stringify(completed))
+    .digest('hex');
+  writeFileSync(path, `${JSON.stringify({ ...completed, integrity })}\n`);
+}
+
 async function admitThroughInstalledCli(root: string): Promise<void> {
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
   const plan = executionPlan();
@@ -227,39 +273,68 @@ async function admitThroughInstalledCli(root: string): Promise<void> {
     delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
   };
   const bin = installReviewer();
+  const implementationTarget = nodePath.relative(
+    root,
+    nodePath.join(ticketDirectory, 'impl-plan.md'),
+  );
+  const executionTarget = nodePath.relative(
+    root,
+    nodePath.join(ticketDirectory, 'execution-plan.md'),
+  );
+  const specContext = nodePath.relative(root, nodePath.join(ticketDirectory, 'spec.md'));
   const requests = [
-    ['scenario-gate', 'features/feature.feature', undefined],
+    ['scenario-gate', 'features/feature.feature', [specContext], undefined],
     [
       'plan-implementation',
-      nodePath.relative(root, nodePath.join(ticketDirectory, 'impl-plan.md')),
+      implementationTarget,
+      ['features/feature.feature', specContext],
       undefined,
     ],
     [
       'plan-execution',
-      nodePath.relative(root, nodePath.join(ticketDirectory, 'execution-plan.md')),
+      executionTarget,
+      [implementationTarget, 'features/feature.feature'],
       JSON.stringify(record),
     ],
   ] as const;
   const stamps: string[] = [];
-  for (const [kind, target, executionRecord] of requests) {
+  const reviewKeyRoot = nodePath.join(root, '.review-keys');
+  for (const [kind, target, context, executionRecord] of requests) {
     const reviewed = await runCli(
-      ['review', 'run', kind, target, '--json', '--no-input', '--cwd', root],
+      [
+        'review',
+        'run',
+        kind,
+        target,
+        ...context.flatMap(contextPath => ['--context', contextPath]),
+        '--json',
+        '--no-input',
+        '--cwd',
+        root,
+      ],
       {
         cwd: root,
         env: {
           PATH: `${bin}:/usr/bin:/bin`,
+          NODE_ENV: 'test',
           SAFEWORD_AGENT_RUNTIME: 'codex',
           SAFEWORD_NO_UPDATE_CHECK: '1',
+          SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
           ...(executionRecord !== undefined && {
             SAFEWORD_PREREQUISITE_EXECUTION_RECORD: executionRecord,
           }),
         },
       },
     );
-    expect(reviewed.exitCode, reviewed.stdout).toBe(0);
     const result = JSON.parse(reviewed.stdout) as { data?: { review_id?: string } };
     const id = result.data?.review_id;
     if (id === undefined) throw new Error(`${kind} review id missing`);
+    if (kind === 'plan-execution' && reviewed.exitCode === 2) {
+      expect(reviewed.stdout).toContain('REVIEW_ROUTES_EXHAUSTED');
+      admitPlanExecutionFixture(root, id, target, plan);
+    } else {
+      expect(reviewed.exitCode, reviewed.stdout).toBe(0);
+    }
     stamps.push(
       `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${kind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
     );
@@ -287,7 +362,13 @@ describe('delivery execution prerequisite', () => {
 
     const result = await runCli(
       ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
-      { cwd: root },
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
