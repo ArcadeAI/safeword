@@ -37,6 +37,7 @@ import {
   countCompletedToolUsesCodex,
   countToolUsesCodex,
   decideRetroRun,
+  hasCompletedToolUseInCurrentCodexTurn,
   type OffsetState,
   resolveCodexSessionId,
   type RetroTriggerInput,
@@ -49,6 +50,16 @@ interface CodexStopInput extends RetroTriggerInput {
   cwd?: string;
   stop_hook_active?: boolean;
   last_assistant_message?: string | null;
+}
+
+async function hasCurrentTurnToolEvidence(input: CodexStopInput): Promise<boolean> {
+  if (!input.transcript_path) return false;
+  try {
+    const transcript = await Bun.file(input.transcript_path).text();
+    return hasCompletedToolUseInCurrentCodexTurn(transcript, input.turn_id);
+  } catch {
+    return false;
+  }
 }
 
 // Codex Stop requires valid JSON output; `{}` is the valid "no continuation" response.
@@ -243,7 +254,15 @@ async function main(): Promise<string> {
   const rawConfig = existsSync(configPath) ? await Bun.file(configPath).text() : undefined;
   if (isTerminalHandoffCorrectionEnabled(rawConfig)) {
     try {
-      const evaluation = evaluateDecisionBriefCompliance(input.last_assistant_message ?? '');
+      const evaluation = evaluateDecisionBriefCompliance(
+        input.last_assistant_message ?? '',
+        undefined,
+        {
+          substantiveEvidence: (await hasCurrentTurnToolEvidence(input))
+            ? 'current-turn-tool'
+            : 'none',
+        },
+      );
       if (!evaluation.compliant) {
         return JSON.stringify({
           decision: 'block',

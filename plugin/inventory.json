@@ -371,7 +371,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
-      "sha256": "06ab82594a5464c0d74f2e2c778e2aafdefc8404fcc61fd5418f38f48e500761"
+      "sha256": "90b533fdbf9ca6e6af8603488a483750e858696b9f540b5ec1bde98d2906368f"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -579,7 +579,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "ae824a18cabb609347f83ddfb2643936c831a5cef5485bae568721bd7e4017db"
+      "sha256": "e4909fd659a8f991c3a995149abd6b6c4708cb1d1d24416e15274c6226864972"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",

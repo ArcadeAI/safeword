@@ -164,6 +164,9 @@ if (input.status !== 'completed') {
   process.exit(0);
 }
 
+const markerFile = cursorEditedMarkerPath(input);
+const hasCurrentTurnEdit = await Bun.file(markerFile).exists();
+
 // Cursor exposes a bounded resubmission count rather than stop_hook_active.
 // Correct only the original completed response; the continuation may stop freely.
 if ((input.loop_count ?? 0) === 0) {
@@ -173,7 +176,9 @@ if ((input.loop_count ?? 0) === 0) {
       .catch(() => undefined);
     if (isTerminalHandoffCorrectionEnabled(rawConfig)) {
       const reply = await readLastAssistantMessage(input.transcript_path);
-      const evaluation = evaluateDecisionBriefCompliance(reply);
+      const evaluation = evaluateDecisionBriefCompliance(reply, undefined, {
+        substantiveEvidence: hasCurrentTurnEdit ? 'current-turn-edit' : 'none',
+      });
       if (!evaluation.compliant) {
         console.log(
           JSON.stringify({
@@ -195,9 +200,8 @@ if ((input.loop_count ?? 0) === 0) {
 
 // Check if any file edits occurred in this session by looking for marker file
 const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
-const markerFile = cursorEditedMarkerPath(input);
 
-if (await Bun.file(markerFile).exists()) {
+if (hasCurrentTurnEdit) {
   // Clean up marker (best-effort; missing file or perm issue is non-fatal)
   await unlink(markerFile).catch(error => {
     if (process.env.DEBUG) console.error('[cursor/stop] marker cleanup failed:', error);

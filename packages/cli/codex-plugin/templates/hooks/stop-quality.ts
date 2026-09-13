@@ -412,6 +412,11 @@ checkArchitectureReviewGate(ticketInfo);
 // recent window can be attributed to this turn. A byte-truncated tail retains
 // the prior bounded fallback. The done phase always falls through to its gate.
 const editsToReview = detectEditsToReview(lines);
+const currentTurnEditEvidence = detectToolUseInCurrentUserTurn(
+  lines,
+  name => name !== undefined && EDIT_TOOLS.has(name),
+);
+const currentTurnToolEvidence = detectToolUseInCurrentUserTurn(lines, () => true);
 
 // Default-on native contract correction is independent of the optional
 // judgment-based Stop review. Existing artifact gates above retain precedence;
@@ -423,7 +428,12 @@ const stopReviewConfig = existsSync(stopReviewConfigPath)
 if (!stopHookActive && isTerminalHandoffCorrectionEnabled(stopReviewConfig)) {
   try {
     const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText, undefined, {
-      substantiveEvidence: editsToReview ? 'current-turn-edit' : 'none',
+      substantiveEvidence:
+        currentTurnEditEvidence === true
+          ? 'current-turn-edit'
+          : currentTurnToolEvidence === true
+            ? 'current-turn-tool'
+            : 'none',
     });
     if (!decisionBriefEvaluation.compliant) {
       softBlock(
@@ -528,7 +538,18 @@ async function readBoundedTranscriptLines(
 function detectEditToolsUsedInCurrentUserTurn(
   transcriptLines: string[],
 ): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
-  let foundEdit = false;
+  return detectToolUseInCurrentUserTurn(
+    transcriptLines,
+    name => name !== undefined && EDIT_TOOLS.has(name),
+  );
+}
+
+/** Attribute matching tool use only to the user turn that currently ends the transcript. */
+function detectToolUseInCurrentUserTurn(
+  transcriptLines: string[],
+  matches: (name: string | undefined) => boolean,
+): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
+  let foundTool = false;
   const firstRecord = Math.max(0, transcriptLines.length - MAX_CURRENT_TURN_SCAN_RECORDS);
   for (let i = transcriptLines.length - 1; i >= firstRecord; i--) {
     // An unparseable line is skipped, not a boundary: preserve the legacy
@@ -536,9 +557,11 @@ function detectEditToolsUsedInCurrentUserTurn(
     const message = parseTranscriptLine(transcriptLines[i]);
     if (message === undefined) continue;
     const precedingMessage = i > 0 ? parseTranscriptLine(transcriptLines[i - 1]) : undefined;
-    if (startsNewTurn(message, precedingMessage)) return foundEdit;
+    if (startsNewTurn(message, precedingMessage)) return foundTool;
     if (isAssistantMessage(message)) {
-      foundEdit ||= containsEditToolUse(normalizeContentItems(message.message?.content));
+      foundTool ||= normalizeContentItems(message.message?.content).some(
+        item => item.type === 'tool_use' && matches(item.name),
+      );
     }
   }
   if (firstRecord > 0) return CURRENT_TURN_BOUNDARY_EXHAUSTED;
