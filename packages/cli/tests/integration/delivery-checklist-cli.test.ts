@@ -189,6 +189,62 @@ function fixture(options: { plan?: string; designApprovalGate?: boolean } = {}):
   return { root, planPath };
 }
 
+async function earlierProofFixture(change: string | Buffer = '# Later documentation\n'): Promise<{
+  readonly root: string;
+  readonly planPath: string;
+  readonly receipt: string;
+}> {
+  const created = fixture({ plan: executionPlan('compatible_earlier_allowed') });
+  const recorded = await recordDeliveryProof(created.root, 'ABC123', 'item-4', 'proof');
+  const receipt = (recorded.data as { receipt_id?: string }).receipt_id;
+  if (receipt === undefined) throw new Error('delivery receipt missing');
+  git(created.root, ['add', '.project']);
+  git(created.root, ['commit', '--quiet', '-m', 'record proof']);
+  writeFileSync(nodePath.join(created.root, 'later-change'), change);
+  git(created.root, ['add', 'later-change']);
+  git(created.root, ['commit', '--quiet', '-m', 'later change']);
+  return { ...created, receipt };
+}
+
+function compatibilityReviewResult(input: {
+  readonly status: string;
+  readonly finding?: string;
+  readonly independence?: string;
+}): CliResult {
+  return {
+    schemaVersion: 1,
+    ok: true,
+    state: 'action_required',
+    changed: false,
+    findings:
+      input.finding === undefined
+        ? []
+        : [{ code: input.finding, message: input.finding, severity: 'warning' }],
+    effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
+    errors: [],
+    recovery: [],
+    nextActions: [],
+    data: {
+      command: 'review run',
+      status: input.status,
+      review_id: 'compatibility-review-1',
+      review_kind: 'delivery-compatibility',
+      author_agent: 'codex',
+      assigned_reviewer: 'claude',
+      actual_reviewer: 'claude',
+      independence: input.independence ?? 'cross-agent',
+      reviewer_output: {
+        schema_version: 1,
+        dispatch_id: 'dispatch-compatibility-1',
+        reviewer_agent: 'claude',
+        verdict: input.status === 'approved' ? 'approve' : 'request_changes',
+        summary: input.status,
+        findings: [],
+      },
+    },
+  };
+}
+
 describe('Delivery Checklist CLI service', () => {
   beforeEach(() => {
     review.result = undefined;
@@ -513,5 +569,72 @@ describe('Delivery Checklist CLI service', () => {
       (observeDeliveryChecklist(root, 'ABC123').data as { open_contributor_items: string[] })
         .open_contributor_items,
     ).not.toContain('item-4');
+  });
+
+  it.each([
+    ['changes_requested', undefined, 'cross-agent', 'compatibility_review_denied'],
+    [
+      'blocked',
+      'REVIEW_AUTHENTICATION_REQUIRED',
+      'none',
+      'compatibility_review_authentication_required',
+    ],
+    ['blocked', 'REVIEW_ROUTES_EXHAUSTED', 'none', 'compatibility_review_unavailable'],
+    ['existing_route', 'REVIEW_NOT_REQUESTED', 'none', 'compatibility_review_disabled'],
+    ['approved', undefined, 'degraded', 'compatibility_review_stale'],
+  ])(
+    'maps review outcome %s/%s to %s compatibility recovery',
+    async (status, finding, independence, expectedCode) => {
+      const { root, receipt } = await earlierProofFixture();
+      review.compatibilityResult = compatibilityReviewResult({
+        status,
+        independence,
+        ...(finding !== undefined && { finding }),
+      });
+
+      const result = await publicHandler('ticket record-delivery-proof')({
+        cwd: root,
+        noInput: true,
+        offline: false,
+        operands: ['ABC123', 'item-4', 'proof'],
+        options: {
+          receipt,
+          compatibleReason: 'The later commit changes documentation only.',
+          confirmEgress: true,
+        },
+      });
+
+      expect(result).toMatchObject({
+        state: 'action_required',
+        findings: [{ code: expectedCode }],
+      });
+      expect(result.nextActions).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    ['secret', `token ghp_${'a'.repeat(36)}\n`, 'compatibility_sensitive_content'],
+    ['binary', Buffer.from([0, 1, 2, 3]), 'compatibility_diff_unavailable'],
+  ])('refuses a %s compatibility diff without egress', async (_name, change, expectedCode) => {
+    const { root, receipt } = await earlierProofFixture(change);
+
+    const result = await publicHandler('ticket record-delivery-proof')({
+      cwd: root,
+      noInput: true,
+      offline: false,
+      operands: ['ABC123', 'item-4', 'proof'],
+      options: {
+        receipt,
+        compatibleReason: 'The later commit is unrelated.',
+        confirmEgress: true,
+      },
+    });
+
+    expect(result).toMatchObject({
+      state: 'action_required',
+      findings: [{ code: expectedCode }],
+      effects: { network: [] },
+    });
+    expect(review.starts).toEqual([]);
   });
 });
