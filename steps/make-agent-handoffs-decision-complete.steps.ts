@@ -288,6 +288,32 @@ Given('the canonical terminal-handoff contract', function (this: SafewordWorld) 
   ).TERMINAL_HANDOFF_CONTRACT;
 });
 
+Given('a terminal-handoff contract with no version', function (this: SafewordWorld) {
+  const { version: _version, ...contract } = quality.TERMINAL_HANDOFF_CONTRACT;
+  stateFor(this).contract = contract;
+});
+
+Given(
+  'a terminal-handoff contract whose Need form requires fewer decision roles than Next',
+  function (this: SafewordWorld) {
+    stateFor(this).contract = {
+      ...quality.TERMINAL_HANDOFF_CONTRACT,
+      decision: {
+        ...quality.TERMINAL_HANDOFF_CONTRACT.decision,
+        Need: quality.TERMINAL_HANDOFF_CONTRACT.decision.Need.slice(1),
+      },
+    };
+  },
+);
+
+Given(
+  'a versioned symmetric decision contract with no no-decision action form',
+  function (this: SafewordWorld) {
+    const { action: _action, ...contract } = quality.TERMINAL_HANDOFF_CONTRACT;
+    stateFor(this).contract = contract;
+  },
+);
+
 When(
   'the shared deterministic terminal-handoff evaluator checks the reply',
   function (this: SafewordWorld) {
@@ -481,6 +507,33 @@ Then(
     assert.deepEqual(contract.action, {
       role: 'Action',
       optionalReasonPrefix: 'Required because',
+    });
+  },
+);
+
+Then('the contract is rejected with the missing version named', function (this: SafewordWorld) {
+  assert.deepEqual(stateFor(this).contractValidation, {
+    valid: false,
+    requirements: ['version'],
+  });
+});
+
+Then(
+  'the contract is rejected with the asymmetric role requirement named',
+  function (this: SafewordWorld) {
+    assert.deepEqual(stateFor(this).contractValidation, {
+      valid: false,
+      requirements: ['symmetric decision roles'],
+    });
+  },
+);
+
+Then(
+  'the contract is rejected with the missing no-decision form named',
+  function (this: SafewordWorld) {
+    assert.deepEqual(stateFor(this).contractValidation, {
+      valid: false,
+      requirements: ['no-decision action form'],
     });
   },
 );
