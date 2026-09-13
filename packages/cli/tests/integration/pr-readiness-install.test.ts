@@ -103,11 +103,9 @@ async function installHost(
 
   const fresh = await installLifecycle(invocation(project, agent), adapters);
   expect(fresh.errors).toEqual([]);
-  const update = await installLifecycle(invocation(project, agent), adapters);
-  expect(update.errors).toEqual([]);
 }
 
-function writeUnfinishedTicket(project: string): void {
+function writeUnfinishedTicket(project: string, host: Host): void {
   writeTestFile(
     project,
     '.project/tickets/PY73VN-finish-delivery-before-pr-readiness/ticket.md',
@@ -123,17 +121,16 @@ function writeUnfinishedTicket(project: string): void {
       '# Finish accepted changes before asking for PR review',
     ].join('\n'),
   );
-  for (const stateFile of [
-    'quality-state-install-proof.json',
-    'quality-state-codex-install-proof.json',
-    'quality-state-cursor-install-proof.json',
-  ]) {
-    writeTestFile(
-      project,
-      nodePath.join('.project', stateFile),
-      JSON.stringify({ activeTicket: 'PY73VN' }),
-    );
-  }
+  const stateFile = {
+    'Claude Code': 'quality-state-install-proof.json',
+    'OpenAI Codex': 'quality-state-codex-install-proof.json',
+    Cursor: 'quality-state-cursor-install-proof.json',
+  }[host];
+  writeTestFile(
+    project,
+    nodePath.join('.project', stateFile),
+    JSON.stringify({ activeTicket: 'PY73VN' }),
+  );
   const commit = spawnSync('git', ['add', '.'], { cwd: project });
   expect(commit.status, commit.stderr.toString()).toBe(0);
   const committed = spawnSync('git', ['commit', '--no-verify', '-m', 'fixture'], { cwd: project });
@@ -151,6 +148,7 @@ function runInstalledReadyHook(
     CLAUDE_PROJECT_DIR: project,
     CLAUDE_PLUGIN_ROOT: claudePluginRoot,
     CODEX_HOME: codexHome,
+    // Codex's plugin-hook protocol renders denials as JSON for the host adapter.
     SAFEWORD_CODEX_DENY_MODE: 'json',
   };
   let command: string[];
@@ -235,22 +233,33 @@ afterEach(() => {
 });
 
 describe('installed pull-request readiness gate', () => {
-  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
-    'fresh and update installs deny Ready promotion on %s',
-    async host => {
+  const installCases = (['Claude Code', 'OpenAI Codex', 'Cursor'] as const).flatMap(host =>
+    (['fresh', 'update'] as const).map(phase => ({ host, phase })),
+  );
+
+  it.each(installCases)(
+    '$phase install denies Ready promotion on $host',
+    async ({ host, phase }) => {
       const { claudePluginRoot, codexHome, project } = createFixture();
       await installHost(host, project, codexHome, claudePluginRoot);
-      writeUnfinishedTicket(project);
+      if (phase === 'update') {
+        await installHost(host, project, codexHome, claudePluginRoot);
+      }
+      writeUnfinishedTicket(project, host);
 
       const output = runInstalledReadyHook(host, project, codexHome, claudePluginRoot);
 
       if (host === 'Cursor') {
         expect((output as CursorHookOutput).permission).toBe('deny');
+        expect((output as CursorHookOutput).user_message).toContain('PY73VN');
         expect((output as CursorHookOutput).user_message).toContain(
           'complete the current scenario',
         );
       } else {
         expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).toBe('deny');
+        expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecisionReason).toContain(
+          'PY73VN',
+        );
         expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecisionReason).toContain(
           'complete the current scenario',
         );
