@@ -55,17 +55,17 @@ separately prove the Markdown representation stays readable and fail-closed.
 
 | Behavior | Primary proof and real boundary | Confidence limit |
 | --- | --- | --- |
-| Checklist prerequisite helper | Integration: after the ordinary phase gate allows an edit, the CLI-owned pre-tool helper runs in a real process against an `implement` feature with `plan-execution` provenance, returns the checklist-specific denial code while its admitted checklist is absent or stale, and raises no checklist-originated objection after admission; an already-`implement` legacy fixture is exempt, while a legacy ticket returned through `plan-execution` loses the exemption | Does not prove live first-edit composition or installed-host dispatch; 7CAMAD and YCFFNC own those conjuncts |
+| Checklist prerequisite helper | Integration: after the ordinary phase gate allows an edit, the CLI-owned pre-tool helper runs in a real process against an `implement` feature with `plan-execution` provenance, returns `checklist_review_required` when the checklist or admitted review is absent and `stable_definition_changed` when an admitted definition drifts, then raises no checklist-originated objection after admission; an already-`implement` legacy fixture is exempt, while a legacy ticket returned through `plan-execution` loses the exemption | Does not prove live first-edit composition or installed-host dispatch; 7CAMAD and YCFFNC own those conjuncts |
 | Missing execution prerequisites | Integration: after the ordinary phase gate allows an edit, the same first-execution helper runs against an `implement` feature with `plan-execution` provenance. Repeated invocations return `missing_accepted_scenarios`, `missing_accepted_approach`, or both in stable scenarios-before-approach order before evaluating checklist admission; exact human-output assertions require a plain-language reason, the stopped boundary, and one concrete action for each code | Proves the shared CLI helper and its provenance parameter; 7CAMAD owns producing and persisting the provenance field and composing the live boundary |
 | Default categories and typed shape | Unit mutation tests plus real plan-execution admission cases remove each category and require every omission in canonical order; a generated Execution Plan is parsed through the same validator with all eleven categories under both `designApprovalGate` settings | Structure cannot prove that an obligation is semantically applicable |
 | Scenario and approach coverage | Semantic plan-execution conformance cases accept obligations derived from the ticket's accepted scenarios and approach and reject a structurally valid checklist containing unrelated generic obligations | Model sampling cannot guarantee every future reviewer version reasons identically |
 | Honest dispositions and in-flight updates | Integration: edit and re-read a real Execution Plan; an unreadable-file refusal names `execution-plan.md`, the structural defect, and one repair action without generating a replacement. A contributor item marked `pending_human` returns `invalid_owner_disposition` and projects the retained item as open contributor work; a human item changed from its reviewed dependency to `open` returns `stable_definition_changed`. The genuinely-irrelevant R3 case proves refusal then acceptance after re-review. A partial-progress fixture makes the proof recorder update test evidence, report the next open item immediately, and leave readiness naming monitoring and documentation as the remaining obligations | Does not prove concurrent editors will avoid ordinary source-control conflicts |
-| Contributor obligations cannot be escaped | Integration: direct-file mutations of owner, item set, proof spec, or reviewed applicability make both readiness and the first-execution consumer return `stable_definition_changed`; changing live `designApprovalGate` in either direction produces the same refusal until re-review | 5F5ZZA later owns currency for other plan context, not this definition check |
+| Contributor obligations cannot be escaped | Integration: direct-file mutations of owner, item set, proof spec, or reviewed applicability make both readiness and the first-execution consumer return `stable_definition_changed`; changing live `designApprovalGate` in either direction produces the same refusal until re-review | The shared ledger has concurrency integrity, not authenticated authorship; 5F5ZZA owns authenticated host-user provenance |
 | Feature-only placement | Integration: the real ticket resolver accepts the feature-local Execution Plan and creates no checklist artifact; task and patch fixtures remain untouched | 3EG00H owns the later proportional small-work contract |
 | PR-slicing structure | Deterministic integration cases reject an absent, stale, or shape-incompatible plan-execution review record and reject `one_pull_request` without a nonblank rationale; a current multi-slice record closes the decomposition item with every retained slice referenced | Structure cannot judge whether the recorded slicing decision is correct |
 | PR-slicing judgment | Semantic plan-execution conformance cases consume 6XW8H7's one-versus-many record and judge whether its rationale matches the plan | Model sampling cannot guarantee every future reviewer version reasons identically |
-| Contributor readiness and authority | Integration: the public `ticket delivery-checklist` CLI leaf reports open contributor work, `contributor_work_complete` with both proven and reviewed-not-applicable shapes and no applicable human dependency, `ready_for_human_review`, and `human_approval_satisfied_merge_pending` in fixed human text and the v1 machine envelope. The last state requires a ledger approval whose digest matches the live Implementation Plan; mutations prove editable text cannot produce it, editing the approved plan returns to `ready_for_human_review`, and Execution Plan re-review refreshes the dependency digest before a new matching human approval can satisfy it | Other kinds of human dependency remain pending; this model never grants merge authority |
-| Evidence currency | Integration exercises both retained methods from a clean proof subject: a command proof runs only its reviewed argv, while a plan review proof resolves only under the normalized plan identity decision. Recording refuses pre- or post-proof changes outside this ticket's Execution Plan. A later commit preserves current evidence only when the producing HEAD remains an ancestor and Git reports no change outside that plan; stable plan changes still fail the independent normalized-plan check. Admission rejects a contributor item's required Proof ID unless its reviewed `Qualifies as` is `real_boundary`. A same-item receipt for a different real-boundary Proof ID remains open as supporting evidence. An earlier receipt plus a compatibility reason accepted by an independent `quality-review` route completes only the exact required `compatible_earlier_allowed` Proof ID as `reusable_earlier_revision`; the acceptance binds ticket, item, receipt, reason digest, and both subject revisions. Missing, denied, degraded, unrelated, reason-stale, dirty-subject, or source-changed evidence leaves it open. A narrower receipt remains partial; a combined earlier-revision and narrower-scope receipt reports both gaps; foreign-ticket, foreign-item, caller-substituted, failed, stale, or stronger-claim evidence cannot complete an item; concurrent appends preserve proof and approval events | Review judges whether a method is capable of exercising its named boundary; the receipt proves which invocation ran against which clean contribution snapshot, not that mutable target code still tests that boundary honestly |
+| Contributor readiness and authority | Integration: the public `ticket delivery-checklist` CLI leaf reports each readiness value in `data.readiness_state`, including proven and reviewed-not-applicable contributor work, pending human work, and a satisfied design approval. A gate-enabled fixture keeps `ready_for_human_review` when another human dependency remains. Editing the approved Implementation Plan returns to human review, and Execution Plan re-review refreshes the dependency digest before a new matching approval can satisfy it | Generic human dependencies remain pending until an authoritative source exists |
+| Evidence currency | Integration exercises both retained methods from a clean proof subject: a command proof runs only its reviewed argv, while a plan review proof resolves only under the normalized plan identity decision. Recording refuses pre- or post-proof changes outside this ticket's Execution Plan and the shared review ledger. Two sequential proof recordings remain current. A later commit preserves command evidence only when the producing HEAD remains an ancestor and Git reports no change outside those paths; plan-review evidence remains current while its normalized identity and delivery definition match. Admission rejects a contributor item's required Proof ID unless its reviewed `Qualifies as` is `real_boundary`. A same-item receipt for a different real-boundary Proof ID remains open as supporting evidence. An earlier command receipt plus a compatibility reason accepted by an independent `quality-review` route completes only the exact required `compatible_earlier_allowed` Proof ID as `reusable_earlier_revision`; the acceptance binds ticket, item, receipt, reason digest, and both subject revisions. Missing, denied, degraded, unrelated, reason-stale, dirty-subject, or source-changed evidence leaves it open. A narrower receipt remains partial; a combined earlier-revision and narrower-scope receipt reports both gaps; foreign-ticket, foreign-item, caller-substituted, failed, stale, or stronger-claim evidence cannot complete an item; concurrent appends preserve proof and approval events | Review judges whether a method is capable of exercising its named boundary; the receipt proves which invocation ran against which clean contribution snapshot, not that mutable target code still tests that boundary honestly |
 | Template and host-mirror parity | Schema, parity, rubric-generation, catalogue, and machine-contract tests prove the canonical template, Execution Planning guidance, command discovery and effects, and generated host mirrors change together | Proves repository-owned generated artifacts; YCFFNC owns installed-host activation and dispatch |
 
 Affected host delivery uses the exact skip dispositions in the accepted Product
@@ -99,15 +99,16 @@ Safeword CLI is also covered by the real plan-execution review boundary.
    current digest-bound design approval can satisfy the supported human
    approval, and no checklist transition grants merge authority. This step
    extends the first proof across persistent command and review receipts.
-5. Wire the public plan-execution path to require the checklist and retain its
-   semantic judgment. Add ordered fixed recovery for missing scenarios and
-   accepted approach to the shared prerequisite helper. Invoke the shipped
+5. Add ordered fixed recovery for missing scenarios and accepted approach to
+   the shared prerequisite helper. Invoke the shipped
    guard library in a real process with a synthetic first-edit request and
    prove it composes the helper. This child defines only the helper's provenance
    parameter; 7CAMAD produces and persists that field and owns live-boundary
    composition. The helper can ship independently, but cannot be activated on
    real tickets until 7CAMAD supplies the field. It may deny but never authorize
-   execution on its own. Regenerate host mirrors and public CLI documentation.
+   execution on its own. The public plan-execution admission path, templates,
+   generated host mirrors, and public CLI documentation ship with steps 2-3;
+   this final step adds only the private execution prerequisite.
 
 ## Decisions
 
@@ -183,18 +184,20 @@ attestation worker provides stronger, cheaper evidence.
 boundaries; no external data or executable source is reused.
 
 **Decision:** Bind current proof to a clean contribution revision while allowing
-the plan-only commit that persists its receipt.
+the plan-and-ledger-only commit that persists its receipt.
 
 **Choice:** Before and after proof, the working tree must have no tracked,
-staged, or untracked changes outside this ticket's `execution-plan.md`.
+staged, or non-ignored untracked changes outside this ticket's
+`execution-plan.md` and the shared `.project/skill-invocations.log` review
+ledger.
 The receipt retains the producing HEAD. It remains
 `current_revision_real_boundary` only while that commit is an ancestor of the
 current HEAD and Git reports no committed or working-tree difference outside
-the exact Execution Plan path. That file is safe to exclude from revision
-comparison because its complete normalized identity and stable delivery
-definition are checked independently. A source change makes the receipt
-earlier-revision evidence; committing only the receipt and progress cells does
-not create an impossible self-reference.
+those two exact paths. The Execution Plan is checked by its normalized identity
+and stable delivery definition; the ledger is reparsed and the exact referenced
+event must remain valid. Git-ignored files are outside the proof subject. A
+source change makes the receipt earlier-revision evidence; committing only the
+ledger append and progress cells does not create an impossible self-reference.
 
 **Alternative considered:** Bind to exact HEAD; keep evidence current across all
 commits; store progress outside the Execution Plan; or hash a second bespoke
@@ -304,7 +307,8 @@ no new dependency, license, redistribution, or external-service boundary.
 `ticket record-delivery-proof` is the mutating leaf that runs one plan-declared
 command or resolves one plan-declared review receipt, appends a passing delivery
 receipt, and updates that item's mutable progress fields. It accepts the checklist item ID
-and retained Proof ID. Safeword proposes `not_applicable` and `pending_human` as
+and retained Proof ID. To reuse an earlier receipt, it also accepts the paired
+`--receipt <id>` and `--compatible-reason <reason>` options. Safeword proposes `not_applicable` and `pending_human` as
 Execution Plan edits that require review before they affect readiness. No third
 public update command exists.
 The catalogue marks the readiness leaf local-only and declares that
@@ -318,23 +322,25 @@ action. The CLI contract check and real-process wiring tests cover both leaves.
 dirty proof subject, a nonzero proof command, and offline recording are
 `action_required`/exit 2;
 `missing_accepted_scenarios`,
-`missing_accepted_approach`, `missing_categories`,
+`missing_accepted_approach`, `checklist_review_required`, `missing_categories`,
 `required_proof_not_real_boundary`, `checklist_write_conflict`,
 `compatibility_review_stale`, `missing_slicing_decision`, `invalid_owner_disposition`, and
-`evidence_claim_mismatch` are also
+`evidence_claim_mismatch` and `invalid_execution_plan` are also
 `action_required`/exit 2 because they are expected repairable workflow states;
 `stable_definition_changed` is `action_required`/exit 2 with
 re-review as its recovery. `ready_for_human_review` and
 `human_approval_satisfied_merge_pending`, and `contributor_work_complete` are
 `action_required`/exit 2 because merge authorization remains a separate human
 boundary even when the checklist itself has no remaining dependency. A retained
-proof is `changed`/exit 0; malformed plans,
-invalid proof specs, unreadable ledgers, and unsafe writes are `failed`/exit 1.
+proof is `changed`/exit 0; unreadable ledgers and unsafe writes are
+`failed`/exit 1. Invalid command arguments are `failed`/exit 1 before work
+begins.
 Real-process CLI tests assert both the envelope status and process exit for all
 four readiness states.
 
 The Execution Plan contains one `## Proof specifications` table before the
-checklist with exact columns
+checklist. The marker `<!-- safeword:proof-specifications:v1 -->` precedes the
+table with exact columns
 `Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation`.
 Method is `command` or `review_receipt`; Scope is `unit`, `integration`, `E2E`,
 or `eval`; Qualifies as is `real_boundary` or `partial_or_structural`; Currency
@@ -345,8 +351,10 @@ nonempty project-contained `targets`. Commands execute directly without a
 shell. A review receipt must come from an admitted reviewer route. A
 `plan-execution` receipt uses the normalized plan identity defined in the
 Recorded Decision above; its live normalized digest and exact retained delivery
-definition must match before the receipt is admissible. Repository HEAD
-determines the resulting evidence class for both methods. Proof IDs are unique. Plan-execution
+definition must match before the receipt is admissible. Its currency follows
+that logical plan identity, not repository HEAD. Command receipt currency uses
+the clean contribution revision. Other review receipts use their reviewed
+target identity. Proof IDs are unique. Plan-execution
 semantic review judges whether each method can exercise its claimed boundary
 and whether earlier proof can remain compatible. The retained typed judgment
 binds the full ordered proof-spec set. Checklist `Required proof` cells
@@ -424,8 +432,10 @@ subject to the Proof ID's declared policy.
   `evidence_claim_mismatch` and leaves the row unchanged. The
   evaluator derives Revision and Evidence class from
   the event; contributor-authored prose or asserted table values cannot
-  override them. A disagreement returns `evidence_claim_mismatch` and leaves
-  the row unchanged for repair. After the ledger append, the recorder rereads
+  override them. `evidence_claim_mismatch` is reserved for a locator whose
+  ticket, item, or Proof ID cannot satisfy the live row. A naturally staled
+  cached Revision or Evidence class is ignored in favor of the derived value
+  and keeps the item in `contributor_work_incomplete`. After the ledger append, the recorder rereads
   `execution-plan.md` and writes the derived locator, revision, and class by
   atomic replace only when the complete file still matches its pre-proof
   snapshot. Concurrent edits return `checklist_write_conflict` without changing
@@ -433,46 +443,76 @@ subject to the Proof ID's declared policy.
   item, Proof ID, revision, and retained definition, so a retry reuses the
   receipt and completes the row write without executing a command twice.
   Every successful row update returns the next open obligation in the same
-  response, carrying the checklist through execution without a per-TDD-step
-  reminder hook.
+  response. At each clean implementation-task boundary that makes a proof
+  available, the contributor records that proof and checks readiness before the
+  next task. This boundary also applies to a one-pull-request plan and carries
+  the checklist through execution without a per-TDD-step reminder hook.
 - Reusing an earlier-revision receipt uses
   `receipt:<id>; compatible:<nonblank reason>` in the final column. The
-  contributor may propose this mutable assertion only when the retained
-  required Proof ID declares `compatible_earlier_allowed`; it satisfies the
-  item only after an independent `quality-review` route accepts that reason
+  contributor invokes `record-delivery-proof` with both reuse options; the
+  command writes the locator and reason only when the retained required Proof ID
+  declares `compatible_earlier_allowed` and an independent `quality-review`
+  route accepts that reason
   against the producing and current revisions. A same-agent or otherwise
   degraded review cannot satisfy the item. The accepted review record binds the
   ticket, item ID, delivery receipt ID, reason digest, producing revision, and
-  current revision; any mismatch or later reason edit returns
+  the revision reviewed for compatibility. The acceptance remains current
+  across later commits only when that reviewed revision remains an ancestor and
+  Git reports no committed or working-tree change outside this ticket's
+  authenticated Execution Plan and the exact shared review ledger. Any other
+  revision change, receipt mismatch, or later reason edit returns
   `compatibility_review_stale` and leaves the item open. The class remains
   `reusable_earlier_revision`, the source review ID and earlier producing
   revision stay visible, and a missing or denied review leaves the item open. A
   `current_required` item remains open on any earlier receipt regardless of
-  contributor text or review result.
+  contributor text or review result. Without the reuse options, the command
+  executes or resolves the retained proof again to produce current evidence.
+  Supplying only one reuse option is an invalid invocation and changes nothing.
 - `not_applicable` requires an empty `Required proof` and a concrete reason. It
   is admissible only when that disposition and reason were present in the
   reviewed Execution Plan; changing an approved item to `not_applicable`
-  requires a new Execution Plan review.
+  requires a new Execution Plan review. Its Evidence class is `missing` and its
+  Revision is empty because it makes no evidence claim.
 - `pending_human` requires `owner: human`, an empty `Required proof`, and a
   named dependency retained by plan-execution review. A human-owned item may
   otherwise be only reviewed `not_applicable`; `open` and `complete` are
-  `invalid_owner_disposition`.
+  `invalid_owner_disposition`. Its Evidence class is `missing` and its Revision
+  is empty because a dependency is not contributor proof.
 - A contributor-owned item marked `pending_human` returns
   `invalid_owner_disposition`; recovery projects the retained owner and names
-  the item as open contributor work without rewriting the row.
+  the item as open contributor work without rewriting the row. This is a
+  non-readiness outcome: `data.readiness_state` is absent and
+  `findings[].code` carries the defect.
+- Stable-definition comparison runs before mutable progress validation after
+  admission. Therefore a reviewed human-owned `pending_human` row edited to
+  `open` or `complete` returns `stable_definition_changed` and requires a new
+  Execution Plan review; it never reaches `invalid_owner_disposition`.
+  `invalid_owner_disposition` covers a human-owned `open` or `complete` row at
+  admission, plus a contributor-owned row changed to `pending_human` after
+  admission. The admission-time human case projects the retained human owner
+  and named dependency and tells the contributor to restore `pending_human` or
+  obtain a reviewed `not_applicable` disposition. The contributor case names
+  the item as open contributor work and tells the contributor to restore an
+  allowed contributor disposition. Neither case exposes
+  `data.readiness_state`.
 - Partial, structural, or missing evidence cannot satisfy an item; an
   earlier-revision receipt satisfies only a retained
   `compatible_earlier_allowed` Proof ID with an explicit reason.
-- Evidence remains `current_revision_real_boundary` across commits that change
-  only this ticket's authenticated Execution Plan. Any other committed or
-  working-tree change makes it earlier-revision evidence; it may become reusable
-  only through an explicit compatible-proof assertion and retains the producing
-  revision. Proof recording refuses a dirty subject before execution and
-  refuses to append a receipt if the command dirties anything outside the plan.
+- Command evidence remains `current_revision_real_boundary` across commits that change
+  only this ticket's authenticated Execution Plan and the shared review ledger.
+  Any other committed or working-tree change makes it earlier-revision evidence;
+  it may become reusable only through an explicit compatible-proof assertion
+  and retains the producing revision. Proof recording refuses a dirty subject
+  before execution and refuses to append a receipt if the command dirties
+  anything outside those two exact paths. The ledger writer serializes its own
+  append through the existing lease and fencing protocol; concurrent typed
+  appends survive. Ledger-only mutations are intentionally outside the Git
+  proof subject under the current same-user trust boundary. Recording two proofs
+  in sequence leaves both current.
   The evaluator obtains the current and producing revisions from the CLI's Git
   boundary primitives and ledger receipt, never from the editable checklist
   row. It requires the producing revision to remain an ancestor and Git to
-  report no difference outside the exact plan path. A receipt for the item's
+  report no difference outside the exact plan and ledger paths. A receipt for the item's
   Required proof ID under that clean-subject comparison derives
   `current_revision_real_boundary` only when the retained proof spec's reviewed
   `Qualifies as` value is `real_boundary`;
@@ -483,14 +523,23 @@ subject to the Proof ID's declared policy.
   stale-revision gap and the narrower-proof gap.
 
 The readiness projection has four successful parse states:
+The v1 envelope exposes the distinct value in `data.readiness_state`.
 `contributor_work_incomplete` names every open contributor item in plan order
 and separately identifies the first next action;
-`contributor_work_complete` separately counts proven and reviewed-not-applicable
-contributor obligations, states that no contributor work or human dependency
+`contributor_work_complete` separately counts proven contributor obligations
+and every reviewed-not-applicable item by owner, states that no contributor work or human dependency
 remains, and keeps merge authorization pending;
 `ready_for_human_review` names every human-owned dependency after contributor
 work is proven; and `human_approval_satisfied_merge_pending` names a human
 approval satisfied while stating that merge authorization is still pending.
+`contributor_work_incomplete` outranks every other readiness state. After all
+contributor work is proven, an unresolved human dependency keeps the state at
+`ready_for_human_review`; `human_approval_satisfied_merge_pending` requires the
+design approval satisfied and no other human-owned dependency pending. Once a
+retained design-approval dependency has been satisfied, that state outranks
+`contributor_work_complete`; the latter is reserved for plans whose reviewed
+definition contains no pending human dependency, including the gate-disabled
+`not_applicable` path.
 That third state is supported only for a human design-approval dependency whose
 stable definition names the ticket and exact Implementation Plan digest. The
 projection hashes the live `impl-plan.md`; the live digest, dependency digest,
@@ -503,8 +552,7 @@ corresponding Execution Plan re-review replaces the retained human dependency
 identifier with that new digest before the new approval can satisfy it; the old
 dependency and approval remain historical ledger evidence only.
 Contributor-editable checklist or pull-request-body text cannot create that
-decision. Other dependency kinds remain pending. The projection has no input
-or transition that grants merge authority.
+decision. Other dependency kinds remain pending.
 
 When `designApprovalGate` is off, generation records the design-approval item
 as reviewed `not_applicable` with the configuration reason; it never creates an
@@ -531,16 +579,22 @@ replace protocol. Concurrent receipt and approval appends must both survive;
 loss of the lock or fence fails without changing checklist state.
 
 The first-execution prerequisite runs after the existing phase-access check for
-test or application edits. It is active in `implement` for feature tickets
-whose phase provenance includes the new `plan-execution` transition. It returns
-`missing_accepted_scenarios` unless 7CAMAD's provenance contains a current,
+test or application edits. A private process adapter consumes the host's
+first-edit JSON on stdin, emits one typed hook decision, and exits 0 for no
+checklist objection, 2 for a checklist denial, or 1 for malformed input. It is
+not a public catalogue leaf. It is active in `implement` for feature tickets
+whose phase provenance includes the new `plan-execution` transition. It reports
+`missing_accepted_scenarios` when 7CAMAD's provenance lacks a current,
 achieved-assurance `scenario-gate` approval bound to the ticket and feature
-source. It then returns `missing_accepted_approach` unless that provenance
-contains a current, achieved-assurance `plan-implementation` approval bound to
+source, and reports `missing_accepted_approach` when that provenance lacks a
+current, achieved-assurance `plan-implementation` approval bound to
 the ticket, Implementation Plan, and accepted scenarios. A present artifact or
-unapproved receipt is not acceptance. Only after both approvals exist does it
-evaluate checklist admission and return the checklist-specific missing-or-stale
-code. Each denial
+unapproved receipt is not acceptance. When both are missing, one response
+returns both findings in scenarios-before-approach order. Only after neither
+finding remains does it evaluate checklist admission. It returns
+`checklist_review_required` when the versioned checklist or an admitted review
+is absent, and `stable_definition_changed` when a previously admitted stable
+definition no longer matches. Each denial
 uses fixed plain language naming why the edit stopped and one concrete recovery
 action. It raises no checklist-originated
 objection after admission and cannot authorize an edit the phase gate denied.
@@ -600,7 +654,11 @@ and its evidence lifecycle, but not application or customer data.
   throughout execution, retain with the ticket, and age evidence when the
   contribution revision changes. Ticket cleanup owns deletion.
 - **Migration and backfill:** new-flow feature tickets receive the section when
-  their Execution Plan is created. Tickets already at `implement` or `verify`
+  their Execution Plan is created. On the next `plan-execution` entry, authoring
+  guidance inserts the current proof and checklist sections into an existing
+  unreviewed plan that lacks them while preserving its decisions and slices.
+  A wholly absent section returns `checklist_review_required`; a present but
+  malformed section fails without automatic repair. Tickets already at `implement` or `verify`
   when the phase activates are not retroactively blocked; returning to
   `plan-execution` subjects them to the checklist prerequisite.
 - **Compliance:** checklist text may name code and proof, but must not contain
@@ -630,7 +688,7 @@ integrity attributes, not a product metric.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Structure enforces; instructions suggest | Closed fields and cross-field rules enforce observable state while semantic review judges whether obligations and evidence are truthful | Proof strategy — Default categories and typed shape; Contributor obligations cannot be escaped | |
+| Structure enforces; instructions suggest | Closed fields and cross-field rules enforce observable state while semantic review judges whether obligations and evidence are truthful | Proof strategy — Default categories and typed shape; Contributor obligations cannot be escaped | explicit-conflict |
 | Add, never replace | The checklist extends `execution-plan.md` and the existing review route; it adds no artifact or authority ledger | Proof strategy — Feature-only placement | explicit-conflict |
 | Discover decisions before prescribing work | Resolved decisions and the accepted one-versus-many PR-slicing decision become stable checklist obligations rather than being reopened or replaced by execution tasks | Proof strategy — Scenario and approach coverage; PR-slicing structure and judgment | |
 | Fire at boundaries, not every turn | Validation runs when the plan is reviewed, checklist state is updated, readiness is reported, or the first execution edit is attempted | Proof strategy — Checklist prerequisite helper; Honest dispositions and in-flight updates | |
@@ -647,12 +705,19 @@ authority. Product Rule R4 and the current Execution Plan template place the
 checklist in that artifact. This child amends **Conformance-Gated Execution Plan
 Review**, whose retained typed judgment stores the stable checklist definition
 and normalized plan digest. It also honors **Digest-Bound Planning Decisions in
-the Shared Review Ledger**, which names `delivery-proof:v1` as derived evidence
-that grants neither human approval nor merge authority.
+the Shared Review Ledger**, which owns the `delivery-proof:v1` evidence event.
 5F5ZZA later governs semantic invalidation and authenticated user provenance.
 No new architecture record is needed.
 
 ## Known deviations
+
+The first-edit prerequisite and final readiness result are structural. Recording
+proof at each clean implementation-task boundary is instruction-backed because
+Safeword has no host-neutral task-transition event, and this plan rejects a
+per-TDD-step hook as disproportionate noise. Final receipts cannot prove when
+the contributor recorded them. If contributors repeatedly defer all recording
+to the end, add a one-shot task-boundary signal before claiming stronger R3
+enforcement.
 
 This child defines and directly proves the shared R1 prerequisite helper, but
 does not claim the installed end-to-end first-execution behavior. 7CAMAD owns
@@ -683,8 +748,7 @@ The `human_approval_satisfied_merge_pending` state currently recognizes only
 the existing digest-bound human Implementation Plan approval. Other human
 dependencies stay pending even if their owner records a decision elsewhere,
 because this child has no equally authoritative generic approval source.
-Safeword therefore understates those approvals rather than trusting checklist
-or pull-request-body text; it never overstates merge authority.
+Safeword therefore leaves those dependencies pending.
 
 An obligation discovered to be genuinely irrelevant after approval cannot be
 marked `not_applicable` as ordinary progress. The contributor must add the
@@ -708,6 +772,13 @@ unreviewed obligation dismissal presented as complete.
   installed skill; the README does not enumerate phase artifact fields.
 
 ## Assessment triggers
+
+- The proof-recording leaf is enabled outside a trusted same-user checkout
+  before 5F5ZZA supplies authenticated host-user provenance: stop rollout or
+  add an authority check before executing repository-declared argv.
+- `designApprovalGate` is disabled after a ticket has entered execution: treat
+  the configuration edit as a project-policy decision and require the authority
+  that owned the enabled gate before accepting a new plan review.
 
 - People or agents repeatedly produce malformed but visually plausible
   checklist sections: replace the line parser only if a more robust

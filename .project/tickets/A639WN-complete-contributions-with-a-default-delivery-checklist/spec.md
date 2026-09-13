@@ -27,7 +27,7 @@
 
 #### plan-implementability.TBU2.A639WN.R3 — Safeword carries the checklist through feature execution rather than using it only as an end-of-work audit, and each category is completed with evidence, marked not applicable with a concrete reason, or recorded as an explicit human-owned dependency
 
-#### plan-implementability.TBU2.A639WN.R4 — The feature checklist lives in the Execution Plan; the TBU3 small-work contract separately owns proportionate task and patch checklist behavior without creating feature artifacts
+#### plan-implementability.TBU2.A639WN.R4 — The feature checklist lives in the Execution Plan; the 3EG00H TBU3 small-work contract separately owns proportionate task and patch checklist behavior without creating feature artifacts
 
 #### plan-implementability.TBU2.A639WN.R5 — Large feature contributions use the reviewable pull-request slicing contract from child 6XW8H7, while a contribution small enough for one coherent review records that decision without artificial decomposition
 
@@ -44,7 +44,7 @@ Affected:
 - Claude Code — skip: M1 defines the checklist contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 - Claude Code Cloud — skip: M1 defines the checklist contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 - OpenAI Codex — skip: M1 defines the checklist contract; YCFFNC in M2 owns installed delivery and real-boundary proof
-- OpenCode — skip: M1 defines the catalogue contract; YCFFNC in M2 owns catalogue delivery, while Desktop enforcement remains advisory until native hook support exists
+- OpenCode — skip: M1 defines the checklist contract; YCFFNC in M2 owns catalogue delivery and real-boundary proof, while Desktop enforcement remains advisory until native hook support exists
 - Cursor — skip: M1 defines the checklist contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 - Cursor Cloud Agents — skip: M1 defines the checklist contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 - Safeword CLI — installs and checks the shared default workflow contract
