@@ -18,6 +18,7 @@ import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createResult } from '../../src/cli-protocol/result.js';
+import { DELIVERY_CHECKLIST_CATEGORIES } from '../../src/execution-plan/delivery-checklist.js';
 import type { RedExecutionRequest } from '../../src/review/contract.js';
 import {
   cancelReviewJob,
@@ -96,6 +97,45 @@ function project(): string {
     '### Scenario: exact actor boundary\n\n- [x] RED abc1234\n- [ ] GREEN\n',
   );
   return directory;
+}
+
+function executionPlanWithDeliveryContract(): string {
+  const proofs = DELIVERY_CHECKLIST_CATEGORIES.map(
+    (_, index) =>
+      `| proof-${index + 1} | command | integration | boundary ${index + 1} | real_boundary | current_required | {"type":"command","cwd":".","argv":["node","--version"]} |`,
+  );
+  const items = DELIVERY_CHECKLIST_CATEGORIES.map(
+    (category, index) =>
+      `| item-${index + 1} | ${category} | Complete ${category} | contributor | proof-${index + 1} | open | missing | | |`,
+  );
+  return [
+    '# Execution Plan',
+    '',
+    '## Proof specifications',
+    '',
+    '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    ...proofs,
+    '',
+    '## Delivery checklist',
+    '',
+    '<!-- safeword:delivery-checklist:v1 -->',
+    '',
+    '| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    ...items,
+    '',
+  ].join('\n');
+}
+
+function executionPlanProject(): string {
+  const cwd = project();
+  mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), '{"designApprovalGate":false}\n');
+  writeFileSync(nodePath.join(cwd, 'execution-plan.md'), executionPlanWithDeliveryContract());
+  writeFileSync(nodePath.join(cwd, 'impl-plan.md'), '# Implementation Plan\n');
+  writeFileSync(nodePath.join(cwd, 'behavior.feature'), 'Feature: planned behavior\n');
+  return cwd;
 }
 
 function disableCrossAgentReview(cwd: string): void {
@@ -1499,6 +1539,68 @@ describe('durable review jobs', () => {
 
     expect(result.state).toBe('healthy');
     expect(result.findings[0]?.message).toBe('Independent review complete.');
+  });
+
+  it('keeps a completed Execution Plan review while ordinary checklist progress changes', async () => {
+    const cwd = executionPlanProject();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({
+      cwd,
+      kind: 'plan-execution',
+      targets: ['execution-plan.md'],
+      context: ['impl-plan.md', 'behavior.feature'],
+    });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    await vi.waitFor(() => {
+      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as { state: string };
+      expect(record.state).toBe('completed');
+    });
+    const planPath = nodePath.join(cwd, 'execution-plan.md');
+    writeFileSync(
+      planPath,
+      readFileSync(planPath, 'utf8').replace(
+        '| open | missing | | |',
+        '| complete | current_revision_real_boundary | abc1234 | receipt:proof-1 |',
+      ),
+    );
+
+    const result = reviewJobStatus(cwd, id);
+
+    expect(result.state).toBe('healthy');
+    expect(result.findings[0]?.message).toBe('Independent review complete.');
+  });
+
+  it('makes a completed Execution Plan review stale when a checklist obligation changes', async () => {
+    const cwd = executionPlanProject();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({
+      cwd,
+      kind: 'plan-execution',
+      targets: ['execution-plan.md'],
+      context: ['impl-plan.md', 'behavior.feature'],
+    });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    await vi.waitFor(() => {
+      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as { state: string };
+      expect(record.state).toBe('completed');
+    });
+    const planPath = nodePath.join(cwd, 'execution-plan.md');
+    writeFileSync(
+      planPath,
+      readFileSync(planPath, 'utf8').replace(
+        'Complete outcome and scope',
+        'Complete the revised outcome and scope',
+      ),
+    );
+
+    const result = reviewJobStatus(cwd, id);
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings[0]?.code).toBe('REVIEW_STALE');
   });
 
   it('treats a deleted reviewed source as stale and offers a fresh review', async () => {

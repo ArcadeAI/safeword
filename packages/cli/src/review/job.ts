@@ -175,6 +175,13 @@ function fingerprint(
     hash.update(`kind\0${kind}\0`);
     if (execution !== undefined) hash.update(`execution\0${JSON.stringify(execution)}\0`);
     if (ledger.missing) hash.update('ledger\0missing\0');
+    const executionPlanFingerprint =
+      kind === 'plan-execution'
+        ? JSON.stringify({
+            delivery_definition: prepared.packet.execution_plan_delivery_definition,
+            normalized_digest: prepared.packet.execution_plan_normalized_digest,
+          })
+        : undefined;
     for (const [section, files] of [
       ['targets', prepared.packet.logical_files],
       ['context', prepared.packet.context_files ?? []],
@@ -183,7 +190,11 @@ function fingerprint(
       for (const file of files) {
         hash.update(file.path);
         hash.update('\0');
-        hash.update(file.content);
+        hash.update(
+          section === 'targets' && executionPlanFingerprint !== undefined
+            ? executionPlanFingerprint
+            : file.content,
+        );
         hash.update('\0');
       }
     }
