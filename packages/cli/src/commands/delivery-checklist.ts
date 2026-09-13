@@ -13,6 +13,7 @@ import {
   parseDeliveryPlanContract,
   updateDeliveryChecklistFile,
 } from '../execution-plan/delivery-checklist.js';
+import { createDeliveryCompatibilityRequest } from '../execution-plan/delivery-compatibility.js';
 import {
   captureDeliveryProofSubject,
   currentDeliveryProofSubject,
@@ -28,7 +29,7 @@ import type {
   UnverifiedReviewerOutput,
 } from '../review/contract.js';
 import { validateExecutionPlanOutput } from '../review/execution-plan-output.js';
-import { reviewJobStatus } from '../review/job.js';
+import { reviewJobStatus, startReviewJob } from '../review/job.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
@@ -655,7 +656,47 @@ function compatibilityConfirmationResult(input: {
   });
 }
 
-export function reuseEarlierDeliveryProof(input: {
+function compatibilityRetryCommand(input: {
+  readonly ticketId: string;
+  readonly itemId: string;
+  readonly proofId: string;
+  readonly receipt: string;
+  readonly reason: string;
+}): string {
+  return [
+    'safeword ticket record-delivery-proof',
+    shellQuote(input.ticketId),
+    shellQuote(input.itemId),
+    shellQuote(input.proofId),
+    '--receipt',
+    shellQuote(input.receipt),
+    '--compatible-reason',
+    shellQuote(input.reason),
+    '--confirm-egress',
+  ].join(' ');
+}
+
+function compatibilityPendingResult(input: {
+  readonly retry: string;
+  readonly reviewId?: string;
+}): CliResult {
+  const message = 'The independent compatibility review is still running; retry this command.';
+  return createResult({
+    state: 'action_required',
+    findings: [{ code: 'compatibility_review_pending', message, severity: 'warning' }],
+    effects: {
+      network: [{ kind: 'review', target: 'configured external reviewer' }],
+    },
+    nextActions: [{ command: input.retry, mutates: true, requiresHuman: false }],
+    data: {
+      command: 'ticket record-delivery-proof',
+      ...(input.reviewId !== undefined && { review_id: input.reviewId }),
+    },
+  });
+}
+
+// eslint-disable-next-line complexity -- Each guarded exit preserves one typed contributor recovery at this trust boundary.
+export async function reuseEarlierDeliveryProof(input: {
   readonly cwd: string;
   readonly ticketId: string;
   readonly itemId: string;
@@ -663,7 +704,7 @@ export function reuseEarlierDeliveryProof(input: {
   readonly receipt: string;
   readonly reason: string;
   readonly confirmEgress: boolean;
-}): CliResult {
+}): Promise<CliResult> {
   const { confirmEgress, cwd, itemId, proofId, reason, receipt, ticketId } = input;
   const command = 'ticket record-delivery-proof';
   const loaded = loadDeliveryContext(cwd, ticketId, command);
@@ -708,12 +749,54 @@ export function reuseEarlierDeliveryProof(input: {
       proofId,
     );
   }
+  if (reason.trim() === '' || /[\r\n|]/u.test(reason)) {
+    return proofFailure(
+      'compatible_reason_invalid',
+      'The compatibility reason must be one non-empty Markdown-table-safe line.',
+      ticketId,
+      itemId,
+      proofId,
+    );
+  }
   if (!confirmEgress) {
     return compatibilityConfirmationResult({ ticketId, itemId, proofId, receipt, reason });
   }
+  const request = await createDeliveryCompatibilityRequest({
+    projectRoot: cwd,
+    executionPlanPath: context.planPath,
+    reviewLedgerPath: context.ledgerPath,
+    ticket: ticketId,
+    itemId,
+    proofId,
+    definition: context.definition,
+    definitionDigest: context.definitionDigest,
+    deliveryReceiptId: receipt,
+    reason,
+    producingRevision: retained.producingRevision,
+    reviewedRevision: currency.revision,
+  });
+  if (!request.ok) {
+    return proofFailure(request.code, request.message, ticketId, itemId, proofId);
+  }
+  const retry = compatibilityRetryCommand({ ticketId, itemId, proofId, receipt, reason });
+  const review = await startReviewJob({
+    cwd,
+    kind: 'delivery-compatibility',
+    targets: [request.relativePath],
+  });
+  const data =
+    typeof review.data === 'object' && review.data !== null
+      ? (review.data as Record<string, unknown>)
+      : undefined;
+  if (data?.status === 'pending') {
+    return compatibilityPendingResult({
+      retry,
+      ...(typeof data.review_id === 'string' && { reviewId: data.review_id }),
+    });
+  }
   return proofFailure(
     'compatibility_review_stale',
-    'Earlier-revision proof requires a current independent compatibility review.',
+    'The compatibility review did not produce a current independent approval.',
     ticketId,
     itemId,
     proofId,

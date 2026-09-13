@@ -115,6 +115,7 @@ function fixture(options: { plan?: string; designApprovalGate?: boolean } = {}):
   writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\ntype: feature\n---\n');
   writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
   writeFileSync(planPath, options.plan ?? executionPlan());
+  writeFileSync(nodePath.join(root, '.gitignore'), '.safeword/state/\n');
   writeFileSync(
     nodePath.join(root, '.project', 'skill-invocations.log'),
     '2026-09-12T00:00:00.000Z fixture review:ABC123-feature:phase@plan-execution author:codex reviewer:claude independence:cross-agent review-id:review-1\n',
@@ -307,6 +308,7 @@ describe('Delivery Checklist CLI service', () => {
     writeFileSync(nodePath.join(root, 'documentation.md'), '# Later documentation\n');
     git(root, ['add', 'documentation.md']);
     git(root, ['commit', '--quiet', '-m', 'document behavior']);
+    const reason = 'The later commit changes documentation only.';
     const planBeforeConfirmation = readFileSync(planPath, 'utf8');
 
     const result = await publicHandler('ticket record-delivery-proof')({
@@ -316,7 +318,7 @@ describe('Delivery Checklist CLI service', () => {
       operands: ['ABC123', 'item-4', 'proof'],
       options: {
         receipt,
-        compatibleReason: 'The later commit changes documentation only.',
+        compatibleReason: reason,
       },
     });
 
@@ -349,13 +351,28 @@ describe('Delivery Checklist CLI service', () => {
       plan: executionPlan('compatible_earlier_allowed'),
     });
     const recorded = await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof');
-    const receipt = (recorded.data as { receipt_id?: string }).receipt_id;
+    const proofData = recorded.data as {
+      receipt_id?: string;
+      producing_revision?: string;
+    };
+    const receipt = proofData.receipt_id;
+    const producingRevision = proofData.producing_revision;
     expect(receipt).toEqual(expect.any(String));
+    expect(producingRevision).toEqual(expect.any(String));
     git(root, ['add', '.project']);
     git(root, ['commit', '--quiet', '-m', 'record proof']);
     writeFileSync(nodePath.join(root, 'documentation.md'), '# Later documentation\n');
     git(root, ['add', 'documentation.md']);
     git(root, ['commit', '--quiet', '-m', 'document behavior']);
+    const reviewedRevision = git(root, ['rev-parse', 'HEAD']);
+    const currentPlan = readFileSync(planPath, 'utf8');
+    const parsed = parseDeliveryPlanContract(currentPlan);
+    if (!parsed.ok) throw new Error(parsed.message);
+    const reason = 'The later commit changes documentation only.';
+    const definitionDigest = createHash('sha256')
+      .update(JSON.stringify(createExecutionPlanDeliveryDefinition(parsed, false)))
+      .digest('hex');
+    const reasonDigest = createHash('sha256').update(reason).digest('hex');
     review.compatibilityResult = {
       schemaVersion: 1,
       ok: true,
@@ -376,7 +393,7 @@ describe('Delivery Checklist CLI service', () => {
       operands: ['ABC123', 'item-4', 'proof'],
       options: {
         receipt,
-        compatibleReason: 'The later commit changes documentation only.',
+        compatibleReason: reason,
         confirmEgress: true,
       },
     });
@@ -388,7 +405,12 @@ describe('Delivery Checklist CLI service', () => {
         network: [{ kind: 'review', target: 'configured external reviewer' }],
       },
     });
-    expect(result.nextActions).toHaveLength(1);
+    expect(result.nextActions).toEqual([
+      expect.objectContaining({
+        command: expect.stringContaining('--confirm-egress'),
+        requiresHuman: false,
+      }),
+    ]);
     expect(review.starts).toEqual([
       expect.objectContaining({
         cwd: root,
@@ -402,8 +424,13 @@ describe('Delivery Checklist CLI service', () => {
     const request = readFileSync(nodePath.join(root, target), 'utf8');
     expect(request).toContain('Ticket: `ABC123`');
     expect(request).toContain('Checklist item: `item-4`');
+    expect(request).toContain('Proof ID: `proof`');
+    expect(request).toContain(`Retained definition digest: \`${definitionDigest}\``);
     expect(request).toContain(`Delivery receipt: \`${receipt}\``);
-    expect(request).toContain('The later commit changes documentation only.');
+    expect(request).toContain(`Reason digest: \`${reasonDigest}\``);
+    expect(request).toContain(`Producing revision: \`${producingRevision}\``);
+    expect(request).toContain(`Reviewed revision: \`${reviewedRevision}\``);
+    expect(request).toContain(reason);
     expect(request).toContain('diff --git a/documentation.md b/documentation.md');
     expect(readFileSync(planPath, 'utf8')).not.toContain('reusable_earlier_revision');
   });
