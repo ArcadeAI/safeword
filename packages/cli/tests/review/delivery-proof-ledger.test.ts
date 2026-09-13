@@ -25,6 +25,7 @@ function proofIdentity() {
     boundary: 'public delivery CLI',
     qualification: 'real_boundary' as const,
     producingRevision: 'a'.repeat(40),
+    definitionDigest: 'e'.repeat(64),
     invocationDigest: 'b'.repeat(64),
     outcome: 'passed' as const,
     stdout: { bytes: 0, sha256: 'c'.repeat(64) },
@@ -70,5 +71,23 @@ describe('delivery proof ledger', () => {
       Number(match[1]),
     );
     expect(positions).toEqual([1, 2]);
+  });
+
+  it('reuses a receipt across repeated output while separating reviewed definitions', () => {
+    const path = ledgerPath();
+    const identity = proofIdentity();
+    const first = appendDeliveryProof(path, identity);
+    const retry = appendDeliveryProof(path, {
+      ...identity,
+      stdout: { bytes: 1, sha256: 'f'.repeat(64) },
+    });
+    const changedDefinition = appendDeliveryProof(path, {
+      ...identity,
+      definitionDigest: '0'.repeat(64),
+    });
+
+    expect(retry).toEqual({ status: 'existing', receiptId: first.receiptId });
+    expect(changedDefinition).toMatchObject({ status: 'written', receiptId: expect.any(String) });
+    expect(changedDefinition.receiptId).not.toBe(first.receiptId);
   });
 });

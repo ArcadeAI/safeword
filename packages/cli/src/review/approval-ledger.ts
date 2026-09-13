@@ -51,6 +51,7 @@ export interface DeliveryProofIdentity {
   readonly boundary: string;
   readonly qualification: 'real_boundary' | 'partial_or_structural';
   readonly producingRevision: string;
+  readonly definitionDigest: string;
   readonly invocationDigest: string;
   readonly outcome: 'passed';
   readonly stdout?: DeliveryProofStream;
@@ -164,6 +165,7 @@ function isDeliveryIdentityComplete(event: DeliveryProofEvent): boolean {
       event.boundary,
       event.producingRevision,
     ].every(isNonblankString) &&
+    isSha256(event.definitionDigest) &&
     isSha256(event.invocationDigest) &&
     isSha256(event.idempotencyKey)
   );
@@ -235,7 +237,17 @@ function decisionIdempotencyKey(identity: DecisionIdentity, supersedesPosition: 
 }
 
 function deliveryIdempotencyKey(identity: DeliveryProofIdentity): string {
-  return createHash('sha256').update(JSON.stringify(identity)).digest('hex');
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        identity.ticket,
+        identity.itemId,
+        identity.proofId,
+        identity.producingRevision,
+        identity.definitionDigest,
+      ]),
+    )
+    .digest('hex');
 }
 
 function matchingDecisionState(
