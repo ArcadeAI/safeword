@@ -565,6 +565,28 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
+  command('ticket delivery-checklist', 'Report feature delivery readiness', 'observe', {
+    syntax: 'delivery-checklist <ticketId>',
+    fixture: {
+      argv: ['ticket', 'delivery-checklist', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('ticket record-delivery-proof', 'Run and retain one reviewed delivery proof', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'record-delivery-proof <ticketId> <itemId> <proofId>',
+    commandOptions: [
+      { flags: '--receipt <id>', description: 'Reuse an earlier delivery-proof receipt' },
+      {
+        flags: '--compatible-reason <reason>',
+        description: 'Explain why the earlier proof remains compatible',
+      },
+    ],
+    fixture: {
+      argv: ['ticket', 'record-delivery-proof', 'fixture', 'item', 'proof'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
   command('review run', 'Run an independent adversarial review', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'run <kind> <targets...>',

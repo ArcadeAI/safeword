@@ -50,6 +50,12 @@ function unavailable(message: string): Extract<DeliveryProofSubject, { readonly 
   return { ok: false, code: 'proof_subject_unavailable', message };
 }
 
+function reviewLedgerPathspecs(projectRoot: string, ledgerPath: string): string[] | undefined {
+  const paths = [ledgerPath, `${ledgerPath}.approval-lock`, `${ledgerPath}.approval-fence`];
+  const exclusions = paths.map(path => excludedPathspec(projectRoot, path));
+  return exclusions.every(exclusion => exclusion !== undefined) ? exclusions : undefined;
+}
+
 /** Capture a committed proof subject while ignoring only this ticket's Execution Plan. */
 export function captureDeliveryProofSubject(input: {
   readonly projectRoot: string;
@@ -57,7 +63,7 @@ export function captureDeliveryProofSubject(input: {
   readonly reviewLedgerPath: string;
 }): DeliveryProofSubject {
   const excludedPlan = excludedPathspec(input.projectRoot, input.executionPlanPath);
-  const excludedLedger = excludedPathspec(input.projectRoot, input.reviewLedgerPath);
+  const excludedLedger = reviewLedgerPathspecs(input.projectRoot, input.reviewLedgerPath);
   if (excludedPlan === undefined || excludedLedger === undefined) {
     return unavailable('Execution Plan or review ledger path is outside the project.');
   }
@@ -71,7 +77,7 @@ export function captureDeliveryProofSubject(input: {
     '--',
     '.',
     excludedPlan,
-    excludedLedger,
+    ...excludedLedger,
   ]);
   if (status.status !== 0) return unavailable('Safeword could not inspect the contribution state.');
   if (status.stdout !== '') {
@@ -94,7 +100,7 @@ export function currentDeliveryProofSubject(input: {
   const captured = captureDeliveryProofSubject(input);
   if (!captured.ok) return captured;
   const excludedPlan = excludedPathspec(input.projectRoot, input.executionPlanPath);
-  const excludedLedger = excludedPathspec(input.projectRoot, input.reviewLedgerPath);
+  const excludedLedger = reviewLedgerPathspecs(input.projectRoot, input.reviewLedgerPath);
   if (excludedPlan === undefined || excludedLedger === undefined) {
     return unavailable('Execution Plan or review ledger path is outside the project.');
   }
@@ -116,7 +122,7 @@ export function currentDeliveryProofSubject(input: {
     '--',
     '.',
     excludedPlan,
-    excludedLedger,
+    ...excludedLedger,
   ]);
   if (difference.status !== 0 && difference.status !== 1) {
     return unavailable('Safeword could not compare the contribution contents.');

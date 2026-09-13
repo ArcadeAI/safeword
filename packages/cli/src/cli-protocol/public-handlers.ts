@@ -352,6 +352,49 @@ async function ticketApprovePlanHandler(invocation: CommandInvocation): Promise<
   return approvePlanResult(invocation.cwd, ticket, { noInput: invocation.noInput });
 }
 
+async function deliveryChecklistHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket delivery-checklist', 'ticket id must be non-empty text.');
+  }
+  const { observeDeliveryChecklist } = await import('../commands/delivery-checklist.js');
+  return observeDeliveryChecklist(invocation.cwd, ticket);
+}
+
+async function recordDeliveryProofHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const [ticket, item, proof] = invocation.operands;
+  if ([ticket, item, proof].some(value => typeof value !== 'string' || value === '')) {
+    return invalidOperand(
+      'ticket record-delivery-proof',
+      'ticket id, checklist item id, and proof id must be non-empty text.',
+    );
+  }
+  const receipt = stringOption(invocation.options, 'receipt');
+  const compatibleReason = stringOption(invocation.options, 'compatibleReason');
+  if ((receipt === undefined) !== (compatibleReason === undefined)) {
+    return invalidOperand(
+      'ticket record-delivery-proof',
+      '--receipt and --compatible-reason must be supplied together.',
+    );
+  }
+  if (invocation.offline) return onlineRequired('ticket record-delivery-proof');
+  if (receipt !== undefined) {
+    return createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'compatibility_review_stale',
+          message: 'Earlier-revision proof requires a current independent compatibility review.',
+          severity: 'warning',
+        },
+      ],
+      data: { command: 'ticket record-delivery-proof' },
+    });
+  }
+  const { recordDeliveryProof } = await import('../commands/delivery-checklist.js');
+  return recordDeliveryProof(invocation.cwd, ticket as string, item as string, proof as string);
+}
+
 async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeReviewKnowledge } = await import('../commands/review-knowledge.js');
   return observeReviewKnowledge(invocation.cwd);
@@ -489,6 +532,8 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket new': ticketNewHandler,
   'ticket reconcile-parent': ticketReconcileParentHandler,
   'ticket approve-plan': ticketApprovePlanHandler,
+  'ticket delivery-checklist': deliveryChecklistHandler,
+  'ticket record-delivery-proof': recordDeliveryProofHandler,
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,
   'review status': reviewStatusHandler,

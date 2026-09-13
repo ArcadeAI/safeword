@@ -83,6 +83,10 @@ describe('Delivery command proof', () => {
       nodePath.join(projectRoot, '.project', 'skill-invocations.log'),
       'initial review evidence\nnew delivery receipt\n',
     );
+    writeFileSync(
+      nodePath.join(projectRoot, '.project', 'skill-invocations.log.approval-fence'),
+      '2\n',
+    );
 
     expect(
       captureDeliveryProofSubject({
