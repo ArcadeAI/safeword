@@ -128,6 +128,12 @@ describe('Delivery Checklist contract', () => {
       code: 'invalid_delivery_checklist',
       message: 'Delivery Checklist item item-4 has invalid fields for pending_human.',
     },
+    {
+      name: 'an open item with a compatibility assertion',
+      row: '| item-4 | testing | Complete testing | contributor | proof-4 | open | reusable_earlier_revision | old-revision | receipt:r1; compatible: unchanged |',
+      code: 'invalid_delivery_checklist',
+      message: 'Delivery Checklist item item-4 has invalid fields for open.',
+    },
   ])('rejects $name', ({ row, code, message }) => {
     const content = completeChecklist().replace(
       '| item-4 | testing | Complete testing | contributor | proof-4 | open | missing | | |',
