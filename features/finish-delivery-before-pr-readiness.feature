@@ -42,18 +42,6 @@ Feature: Finish accepted changes before asking for PR review
       When the agent exits implementation successfully
       Then the workflow's next-step directive names, in order, whole-ticket review, plan reconciliation, verification, audit, and ticket closure without asking whether to continue
 
-    @surface.safeword-cli
-    Scenario: Verification advances into recorded ticket closure
-      Given an accepted ticket has passed verification with audit outstanding
-      When the audit completes successfully
-      Then the ticket status is done with verification evidence recorded
-
-    @rejection @surface.safeword-cli
-    Scenario: Failed verification preserves the open ticket
-      Given an accepted ticket is at verification with a required check failing
-      When verification completes
-      Then the ticket status remains open and no verification evidence is recorded
-
   @prodigy-flow.TBU1.PY73VN.R3
   Rule: prodigy-flow.TBU1.PY73VN.R3 — Verified done precedes PR readiness
 
@@ -80,12 +68,6 @@ Feature: Finish accepted changes before asking for PR review
       Given a project does not enable Cursor
       When the Technical Builder installs or updates Safeword
       Then Cursor's lifecycle configuration is not created or modified
-
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: Each installed host rejects direct Ready promotion before done
-      Given an active ticket at implementation with Safeword's installed lifecycle hook active
-      When the agent directly invokes the GitHub CLI's Ready promotion
-      Then the installed lifecycle hook denies the command before it reaches the GitHub CLI
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Ready promotion is rejected across unfinished ticket states

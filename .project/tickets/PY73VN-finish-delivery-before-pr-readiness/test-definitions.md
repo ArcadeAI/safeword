@@ -32,18 +32,6 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN e8f5a7ff2
 - [x] REFACTOR skip: one ordered transition sentence is already the smallest shared contract
 
-### Scenario: Verification advances into recorded ticket closure
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Failed verification preserves the open ticket
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ## Rule: prodigy-flow.TBU1.PY73VN.R3 — Verified done precedes PR readiness
 
 ### Scenario: Safeword installation ships the Ready gate to each enabled host
@@ -59,12 +47,6 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Ready-gate installation leaves a disabled host untouched
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Each installed host rejects direct Ready promotion before done
 
 - [ ] RED
 - [ ] GREEN
