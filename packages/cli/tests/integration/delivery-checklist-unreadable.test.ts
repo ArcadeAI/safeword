@@ -26,7 +26,7 @@ describe('unreadable Delivery Checklist plan', () => {
       recovery: { command: string }[];
     };
 
-    expect(invoked.exitCode).toBe(2);
+    expect(invoked.exitCode, invoked.stdout).toBe(2);
     expect(result.state).toBe('action_required');
     expect(result.findings).toEqual([
       {
