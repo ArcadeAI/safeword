@@ -168,6 +168,15 @@ function parseItems(lines: readonly string[], start: number): DeliveryChecklistR
   if (items.length === 0) {
     return invalid('invalid_delivery_checklist', 'The Delivery Checklist has no items.');
   }
+  const invalidHandoff = items.find(
+    item => item.owner === 'contributor' && item.disposition === 'pending_human',
+  );
+  if (invalidHandoff !== undefined) {
+    return invalid(
+      'invalid_owner_disposition',
+      `Delivery Checklist item ${invalidHandoff.id} is contributor-owned and cannot be pending_human.`,
+    );
+  }
   const present = new Set(items.map(item => item.category));
   const missingCategories = DELIVERY_CHECKLIST_CATEGORIES.filter(
     category => !present.has(category),
