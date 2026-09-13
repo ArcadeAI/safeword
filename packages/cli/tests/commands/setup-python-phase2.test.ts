@@ -230,7 +230,7 @@ describe('Suite 3: Dead Code Detection', () => {
   it('Test 3.1: /audit skill includes deadcode for Python', () => {
     // Assert: the audit skill contains the deadcode command
     const auditTemplate = readAuditSkillTemplate();
-    expect(auditTemplate).toContain('deadcode');
+    expect(auditTemplate).toMatch(/(?:uvx|pipx run|python\s+-m)\s+deadcode\b/u);
     // Should detect Python projects
     expect(auditTemplate).toMatch(/pyproject\.toml|requirements\.txt/);
   });
@@ -244,7 +244,7 @@ describe('Suite 4: Copy/Paste Detection', () => {
   it('Test 4.1: /audit skill includes jscpd', () => {
     // Assert: the audit skill contains the jscpd command
     const auditTemplate = readAuditSkillTemplate();
-    expect(auditTemplate).toContain('jscpd');
+    expect(auditTemplate).toMatch(/(?:bunx|npx)\s+jscpd\b/u);
   });
 
   it('Test 4.2: jscpd does not use removed --gitignore flag (removed in jscpd v3+)', () => {

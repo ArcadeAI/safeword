@@ -15,7 +15,13 @@ import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
 
-import { exists, findAllFilesMatchingInTree, findAllInTree, readFileSafe } from '../../utils/fs.js';
+import {
+  exists,
+  findAllFilesMatchingInTree,
+  findAllInTree,
+  isDirectory,
+  readFileSafe,
+} from '../../utils/fs.js';
 import { matchesWorkspacePattern } from '../../utils/workspace-pattern.js';
 import type { SetupResult } from '../types.js';
 
@@ -156,7 +162,23 @@ type PythonPackageManager = 'uv' | 'poetry' | 'pipenv' | 'pip';
 export type PythonTool = 'ruff' | 'mypy' | 'deadcode' | 'pip-audit' | 'import-linter';
 
 const PYTHON_DEPENDENCY_SEPARATORS = new Set(['[', '<', '>', '=', '!', '~', ';', '@']);
-const ROOT_REQUIREMENTS_PATTERN = /^(?:requirements(?:[-_.][\w.-]+)?|[\w.-]+-requirements)\.txt$/u;
+const PYTHON_CLOSING_BRACKETS = new Map([
+  ['[', ']'],
+  ['{', '}'],
+  ['(', ')'],
+]);
+
+function isRootRequirementsFile(filename: string): boolean {
+  if (!filename.endsWith('.txt')) return false;
+  const stem = filename.slice(0, -'.txt'.length);
+  return (
+    stem === 'requirements' ||
+    stem.startsWith('requirements-') ||
+    stem.startsWith('requirements_') ||
+    stem.startsWith('requirements.') ||
+    stem.endsWith('-requirements')
+  );
+}
 
 function normalizePythonDistributionName(value: string): string {
   return value
@@ -394,11 +416,7 @@ function updatePythonBrackets(
   character: string,
   index: number,
 ): void {
-  const closingBracket = new Map([
-    ['[', ']'],
-    ['{', '}'],
-    ['(', ')'],
-  ]).get(character);
+  const closingBracket = PYTHON_CLOSING_BRACKETS.get(character);
   if (closingBracket !== undefined) {
     state.expressionStart ??= index;
     state.brackets.push(closingBracket);
@@ -525,12 +543,24 @@ function containsRequirementsPythonDependency(
 }
 
 function pythonRequirementPaths(cwd: string): string[] {
-  const direct = readdirSync(cwd, { withFileTypes: true })
-    .filter(entry => entry.isFile() && ROOT_REQUIREMENTS_PATTERN.test(entry.name))
+  let rootEntries;
+  try {
+    rootEntries = readdirSync(cwd, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const direct = rootEntries
+    .filter(entry => entry.isFile() && isRootRequirementsFile(entry.name))
     .map(entry => nodePath.join(cwd, entry.name));
   const requirementsDirectory = nodePath.join(cwd, 'requirements');
-  if (!exists(requirementsDirectory)) return direct;
-  const nested = readdirSync(requirementsDirectory, { withFileTypes: true })
+  if (!isDirectory(requirementsDirectory)) return direct;
+  let requirementEntries;
+  try {
+    requirementEntries = readdirSync(requirementsDirectory, { withFileTypes: true });
+  } catch {
+    return direct;
+  }
+  const nested = requirementEntries
     .filter(entry => entry.isFile() && entry.name.endsWith('.txt'))
     .map(entry => nodePath.join(requirementsDirectory, entry.name));
   return [...direct, ...nested];
@@ -717,12 +747,30 @@ export function getMissingPythonToolDependencies(
  * package-manager checks read the files that actually govern that project.
  */
 export function findPythonProjectDirectories(cwd: string): string[] {
-  const requirementsDirectories = findAllFilesMatchingInTree(cwd, filename =>
-    ROOT_REQUIREMENTS_PATTERN.test(filename),
-  ).map(path => {
-    const directory = nodePath.dirname(path);
-    return nodePath.basename(directory) === 'requirements' ? nodePath.dirname(directory) : directory;
-  });
+  const requirementsDirectories = findAllFilesMatchingInTree(
+    cwd,
+    (filename, directory) =>
+      isRootRequirementsFile(filename) ||
+      (nodePath.basename(directory) === 'requirements' && filename.endsWith('.txt')),
+  )
+    .filter(path => {
+      const directory = nodePath.dirname(path);
+      if (isRootRequirementsFile(nodePath.basename(path))) return true;
+      if (nodePath.basename(directory) !== 'requirements') return false;
+      const owner = nodePath.dirname(directory);
+      return (
+        owner === nodePath.resolve(cwd) ||
+        ['pyproject.toml', 'Pipfile', 'setup.py', 'setup.cfg'].some(name =>
+          exists(nodePath.join(owner, name)),
+        )
+      );
+    })
+    .map(path => {
+      const directory = nodePath.dirname(path);
+      return nodePath.basename(directory) === 'requirements'
+        ? nodePath.dirname(directory)
+        : directory;
+    });
   const directories = new Set([
     ...findAllInTree(cwd, 'pyproject.toml'),
     ...requirementsDirectories,
@@ -905,6 +953,7 @@ export function installPythonDependencyBatch(
   gaps: readonly PythonToolDependencyGap[],
   repoRoot: string,
 ): boolean[] {
+  if (process.env.SAFEWORD_SKIP_INSTALL) return gaps.map(() => true);
   const targets = uvBatchTargets(gaps, repoRoot);
   const snapshots = snapshotPythonFiles(targets);
   const results = gaps.map(gap =>

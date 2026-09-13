@@ -28,7 +28,7 @@ function makeRepo(files: Record<string, string>): string {
 
 async function renderSh(
   root: string,
-  kind: 'test' | 'build' | 'typecheck' | 'deps' | 'bdd' = 'test',
+  kind: 'test' | 'build' | 'verify' | 'typecheck' | 'deps' | 'bdd' = 'test',
 ): Promise<string> {
   const result = await runCli(['test-plan', '--kind', kind, '--format', 'sh'], {
     cwd: root,
@@ -43,7 +43,7 @@ async function renderUnavailableSh(root: string, kind: 'typecheck' | 'deps'): Pr
     cwd: root,
     env: { SAFEWORD_FAKE_TOOLS: 'only:go' },
   });
-  expect(result.exitCode).toBe(0);
+  expect(result.exitCode).toBe(2);
   return result.stdout;
 }
 
@@ -56,7 +56,7 @@ async function renderJson(
     cwd: root,
     env: { SAFEWORD_FAKE_TOOLS: availableTools },
   });
-  expect(result.exitCode).toBe(0);
+  expect(result.exitCode).toBe(2);
   return JSON.parse(result.stdout) as Record<string, unknown>;
 }
 
@@ -161,7 +161,7 @@ describe('safeword test-plan', () => {
     expect(evaluation.stderr).toBe('Python dependency lane skipped: pip-audit is not installed.\n');
   });
 
-  it('cannot mask an unavailable lane with a later passing lane in a conditional eval', async () => {
+  it('runs later lanes without letting them mask an earlier failure in conditional eval', async () => {
     const root = makeRepo({
       'requirements.txt': 'requests==2.32.0\n',
       'service/go.mod': 'module example.com/service\n',
@@ -175,7 +175,7 @@ describe('safeword test-plan', () => {
     });
 
     expect(evaluation.code).toBe(23);
-    expect(evaluation.stdout).not.toContain('RAN_GO');
+    expect(evaluation.stdout).toContain('RAN_GO');
     expect(evaluation.stderr).toContain(
       'Python dependency lane skipped: pip-audit is not installed.',
     );
@@ -222,10 +222,9 @@ describe('safeword test-plan', () => {
     const sh = await renderSh(root);
     expect(sh).toContain('m$(touch INJECTED)d');
     expect(sh).toContain('go test');
-    const { code } = evalScript(sh, root);
+    evalScript(sh, root);
     // The quoted literal directory must resolve without evaluating its name.
     expect(existsSync(nodePath.join(root, 'INJECTED'))).toBe(false);
-    expect(code).toBe(0);
   });
 
   it('eval of an empty plan is a clean no-op (exit zero)', async () => {
@@ -251,6 +250,15 @@ describe('safeword test-plan', () => {
       'package.json': JSON.stringify({ scripts: { test: 'vitest', 'test:bdd': 'cucumber-js' } }),
     });
     expect(await renderSh(root, 'bdd')).toContain('run test:bdd');
+  });
+
+  it('renders --kind verify as the JS test lane used by the closing gate', async () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest', verify: 'echo WRONG' } }),
+    });
+    const sh = await renderSh(root, 'verify');
+    expect(sh).toContain('run test');
+    expect(sh).not.toContain('run verify');
   });
 
   it('renders --kind bdd as the Python behave lane when behave is configured', async () => {

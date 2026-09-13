@@ -232,8 +232,8 @@ function scanTreeForMatch(
 /**
  * Index multiple files in a single tree walk — the multi-file analogue of
  * `findInTree`. Returns a Map from each requested filename to the directory of
- * its **shallowest** occurrence (root-first, level-order — same ordering as
- * `findInTree`), omitting names not found. One traversal regardless of how many
+ * its **shallowest** occurrence (root-first, level-order, unlike `findInTree`'s
+ * depth-first traversal), omitting names not found. One traversal regardless of how many
  * filenames are requested, so callers that probe many manifests stay O(one walk)
  * even on large/deep monorepos. Stops early once every name is located.
  */
@@ -296,13 +296,15 @@ export function findAllInTree(cwd: string, filename: string, maxDepth = 10): str
 /** Every matching file path in a bounded tree walk, using the standard exclusions. */
 export function findAllFilesMatchingInTree(
   cwd: string,
-  predicate: (filename: string) => boolean,
+  predicate: (filename: string, directory: string) => boolean,
   maxDepth = 10,
 ): string[] {
   const found: string[] = [];
   const queue: { directory: string; depth: number }[] = [{ directory: cwd, depth: 0 }];
-  for (let head = 0; head < queue.length; head += 1) {
+  let head = 0;
+  while (head < queue.length) {
     const item = queue[head];
+    head += 1;
     if (item === undefined) break;
     let entries: Dirent[];
     try {
@@ -311,7 +313,7 @@ export function findAllFilesMatchingInTree(
       continue;
     }
     for (const entry of entries) {
-      if (entry.isFile() && predicate(entry.name)) {
+      if (entry.isFile() && predicate(entry.name, item.directory)) {
         found.push(nodePath.join(item.directory, entry.name));
       } else if (item.depth < maxDepth && isScannableSubdirectory(entry)) {
         queue.push({ directory: nodePath.join(item.directory, entry.name), depth: item.depth + 1 });

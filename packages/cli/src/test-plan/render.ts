@@ -1,9 +1,10 @@
 /**
- * Render a test/build plan as an eval-able shell script for bash consumers
- * (e.g. the /verify skill: `eval "$(safeword project test-plan --format sh)"`).
+ * Render a test/build plan as an eval-able shell script for bash consumers.
+ * The /verify skill first captures the generator output and checks its exit
+ * status, then evaluates this script only when generation succeeded.
  *
- * - lanes joined with `&&`, so failure cannot be masked in conditional eval
- *   contexts and the script never leaks `errexit` into the caller's shell.
+ * - every lane runs, while a subshell-scoped accumulator preserves the first
+ *   failure even in conditional eval contexts without leaking shell state.
  * - one `( cd "<cwd>" && <command> )` per available entry (cd-scoped so nested
  *   modules run in their own directory).
  * - one failing subshell per unavailable entry, so a missing toolchain is visible
@@ -47,16 +48,20 @@ export function unavailablePlanMessage(entry: PlanEntry, kind: PlanKind): string
 
 export function renderShellPlan(entries: PlanEntry[], kind: PlanKind = 'test'): string {
   if (entries.length === 0) return '';
-  const lines: string[] = [];
+  const lanes: string[] = [];
   for (const entry of entries) {
     // `entry.cwd` is data → single-quoted. `entry.command` is safeword's own
     // trusted output (and may legitimately contain `$(go list …)`) → left as-is.
     const unavailableMessage = shellQuote(unavailablePlanMessage(entry, kind));
-    lines.push(
+    lanes.push(
       entry.available
         ? `( cd ${shellQuote(entry.cwd)} && ${entry.command} )`
         : String.raw`( printf '%s\n' ${unavailableMessage} >&2; false )`,
     );
   }
-  return `${lines.join(' &&\n')}\n`;
+  const guardedLanes = lanes.map(
+    lane =>
+      `  ${lane} || { safeword_lane_status=$?; [ "$safeword_plan_status" -ne 0 ] || safeword_plan_status=$safeword_lane_status; }`,
+  );
+  return `(\n  safeword_plan_status=0\n${guardedLanes.join('\n')}\n  exit "$safeword_plan_status"\n)\n`;
 }

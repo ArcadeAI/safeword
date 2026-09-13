@@ -968,9 +968,16 @@ Then('every evaluation rejects the reply', function (this: SafewordWorld) {
 Given(
   'equivalent adversarial replies of one, two, and four megabytes',
   function (this: SafewordWorld) {
-    stateFor(this).replies = [1, 2, 4].map(
-      megabytes => `${'x'.repeat(megabytes * 1024 * 1024)}\n\n${ignoredBriefs['fenced code']}`,
-    );
+    const structuredNoise = [
+      '**Label:** value',
+      '> quoted **CONFIDENT**',
+      '<section>',
+      '<!-- unterminated',
+    ].join('\n');
+    stateFor(this).replies = [1, 2, 4].map(megabytes => {
+      const targetLength = megabytes * 1024 * 1024;
+      return `${structuredNoise.repeat(Math.ceil(targetLength / structuredNoise.length)).slice(0, targetLength)}\n\n${ignoredBriefs['fenced code']}`;
+    });
   },
 );
 

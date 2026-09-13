@@ -12,6 +12,12 @@ import { type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
 
 type Format = 'human' | 'json' | 'sh';
 
+const TEST_PLAN_FORMATS: Readonly<Record<Format, true>> = {
+  human: true,
+  json: true,
+  sh: true,
+};
+
 function rawTestPlanPresentation(
   format: Format,
   plan: ReturnType<typeof resolveTestPlan>,
@@ -44,15 +50,15 @@ export function observeTestPlan(
     );
   }
   const kind = (kindValue ?? 'test') as PlanKind;
-  const formatValue = typeof options.format === 'string' ? options.format : 'human';
-  if (!['human', 'json', 'sh'].includes(formatValue)) {
+  const formatValue = options.format ?? 'human';
+  if (typeof formatValue !== 'string' || !(formatValue in TEST_PLAN_FORMATS)) {
     return Promise.resolve(
       createResult({
         state: 'failed',
         errors: [
           {
             code: 'TEST_PLAN_FORMAT_INVALID',
-            message: `Unknown test-plan format "${formatValue}".`,
+            message: `Unknown test-plan format "${String(formatValue)}".`,
             retryable: false,
           },
         ],
