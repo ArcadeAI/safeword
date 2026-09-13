@@ -4,14 +4,29 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
-const read = (path: string): string =>
-  readFileSync(nodePath.join(repoRoot, path), 'utf8').replaceAll(/\s+/gu, ' ');
+const readRaw = (path: string): string => readFileSync(nodePath.join(repoRoot, path), 'utf8');
+const read = (path: string): string => readRaw(path).replaceAll(/\s+/gu, ' ');
 
 const tddCopies = [
   'packages/cli/templates/skills/bdd/TDD.md',
   '.safeword/skills/bdd/TDD.md',
   '.claude/skills/bdd/TDD.md',
   'packages/cli/codex-plugin/skills/bdd/references/TDD.md',
+];
+
+const unsuccessfulSteps = [
+  {
+    outcome: 'RED proof passes',
+    current: 'RED',
+    evidence: 'proof passed',
+    following: 'implementation',
+  },
+  {
+    outcome: 'GREEN check fails',
+    current: 'GREEN',
+    evidence: 'check failed',
+    following: 'refactor',
+  },
 ];
 
 describe('installed delivery continuation contract', () => {
@@ -35,11 +50,18 @@ describe('installed delivery continuation contract', () => {
     );
   });
 
-  it.each(tddCopies)('%s keeps an unsuccessful TDD step at its failing evidence', path => {
-    const content = read(path);
+  it.each(tddCopies.flatMap(path => unsuccessfulSteps.map(step => ({ path, ...step }))))(
+    '$path keeps $outcome at its failing evidence',
+    ({ path, outcome, current, evidence, following }) => {
+      const row = readRaw(path)
+        .split('\n')
+        .find(line => line.startsWith(`| ${outcome} |`));
 
-    expect(content).toContain(
-      'An unsuccessful TDD step stays at the failing step with its evidence: a RED proof that passes does not advance to implementation, and a GREEN proof with a required check failing does not advance to refactor.',
-    );
-  });
+      expect(row, `missing unhealthy-step directive for ${outcome}`).toBeDefined();
+      const directive = row?.split('|', 3)[2] ?? '';
+      expect(directive).toContain(current);
+      expect(directive).toContain(evidence);
+      expect(directive).not.toContain(following);
+    },
+  );
 });
