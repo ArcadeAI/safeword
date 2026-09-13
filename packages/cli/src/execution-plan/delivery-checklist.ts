@@ -537,6 +537,16 @@ export function parseDeliveryPlanContract(content: string): DeliveryPlanContract
   if (!proofs.ok) return proofs;
   const checklist = parseDeliveryChecklist(content);
   if (!checklist.ok) return checklist;
+  const lines = content.split(/\r?\n/u);
+  const proofHeading = lines.findIndex(line => line.trim() === '## Proof specifications');
+  const checklistMarker = lines.findIndex(line => line.trim() === MARKER);
+  if (proofHeading > checklistMarker) {
+    return {
+      ok: false,
+      code: 'invalid_proof_specifications',
+      message: 'Proof specifications must appear before the Delivery Checklist.',
+    };
+  }
   const specificationsById = new Map(
     proofs.specifications.map(specification => [specification.id, specification]),
   );
