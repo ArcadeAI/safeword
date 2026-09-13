@@ -91,6 +91,13 @@ Pick first unchecked scenario from test-definitions. Cycle through RED (failing 
 After an approved RED, continue directly into implementation without asking whether to proceed.
 After GREEN, continue through refactor and then start the next incomplete scenario without asking whether to proceed.
 
+An unsuccessful TDD step stays at the failing step and reports its evidence:
+
+| Unhealthy outcome | Next-step directive                                                         | Do not advance to |
+| ----------------- | --------------------------------------------------------------------------- | ----------------- |
+| RED proof passes  | `RED — failing evidence: proof passed instead of exposing missing behavior` | `implementation`  |
+| GREEN check fails | `GREEN — failing evidence: required check failed`                           | `refactor`        |
+
 ### Trusted executable RED review
 
 Before production implementation begins for a new or changed primary proof, self-check the proof
