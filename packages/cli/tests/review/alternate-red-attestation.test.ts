@@ -33,7 +33,8 @@ function attestation(): RedExecutionAttestation {
     started_at: '2026-09-13T00:00:00.000Z',
     finished_at: '2026-09-13T00:00:01.000Z',
     duration_ms: 1000,
-    termination: { exit_code: 1, signal: undefined, timed_out: false },
+    // eslint-disable-next-line unicorn/no-null -- persisted process termination uses JSON null.
+    termination: { exit_code: 1, signal: null, timed_out: false },
     stdout: { excerpt: '', bytes: 0, sha256: 'c'.repeat(64), truncated: false },
     stderr: {
       excerpt: 'missing behavior\n',
