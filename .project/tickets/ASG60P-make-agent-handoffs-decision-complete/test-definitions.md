@@ -194,7 +194,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The long blocked corpus accepts the self-contained Need rewrite
 
-- [ ] RED
+- [x] RED skip: the pre-feature evaluator already accepted the compatible self-contained Need rewrite; the paired hidden-role scenario supplies the discriminating failure
 - [ ] GREEN
 - [ ] REFACTOR
 
