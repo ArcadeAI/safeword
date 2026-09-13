@@ -373,9 +373,7 @@ function completeFieldsAreValid(item: DeliveryChecklistItem): boolean {
 }
 
 function notApplicableFieldsAreValid(item: DeliveryChecklistItem): boolean {
-  const ownerProofIsValid =
-    hasContributorProof(item) || (item.owner === 'human' && item.requiredProof === '');
-  return item.evidence !== '' && hasMissingEvidence(item) && ownerProofIsValid;
+  return item.requiredProof === '' && item.evidence !== '' && hasMissingEvidence(item);
 }
 
 function pendingHumanFieldsAreValid(item: DeliveryChecklistItem): boolean {
@@ -576,7 +574,7 @@ export function parseDeliveryPlanContract(content: string): DeliveryPlanContract
     proofs.specifications.map(specification => [specification.id, specification]),
   );
   const unsupported = checklist.items.find(item => {
-    if (item.owner !== 'contributor') return false;
+    if (item.owner !== 'contributor' || item.disposition === 'not_applicable') return false;
     return specificationsById.get(item.requiredProof)?.qualifiesAs !== 'real_boundary';
   });
   if (unsupported !== undefined) {

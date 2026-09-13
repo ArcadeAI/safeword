@@ -112,7 +112,13 @@ describe('Delivery Checklist contract', () => {
     },
     {
       name: 'not applicable without a reason',
-      row: '| item-4 | testing | Complete testing | contributor | proof-4 | not_applicable | missing | | |',
+      row: '| item-4 | testing | Complete testing | contributor | | not_applicable | missing | | |',
+      code: 'invalid_delivery_checklist',
+      message: 'Delivery Checklist item item-4 has invalid fields for not_applicable.',
+    },
+    {
+      name: 'not applicable with a proof claim',
+      row: '| item-4 | testing | Complete testing | contributor | proof-4 | not_applicable | missing | | no runtime boundary |',
       code: 'invalid_delivery_checklist',
       message: 'Delivery Checklist item item-4 has invalid fields for not_applicable.',
     },
@@ -227,7 +233,7 @@ describe('Delivery Plan contract', () => {
     const content = completeDeliveryPlan()
       .replace(
         '| item-4 | testing | Complete testing | contributor | proof-4 | open | missing | | |',
-        '| item-4 | testing | Complete testing | contributor | proof-4 | not_applicable | missing | | no runtime boundary |',
+        '| item-4 | testing | Complete testing | contributor | | not_applicable | missing | | no runtime boundary |',
       )
       .replace(
         '| item-10 | ownership and human dependencies | Complete ownership and human dependencies | contributor | proof-10 | open | missing | | |',
@@ -250,7 +256,7 @@ describe('Delivery Plan contract', () => {
         {
           id: 'item-4',
           owner: 'contributor',
-          requiredProof: 'proof-4',
+          requiredProof: '',
           reviewedDisposition: {
             disposition: 'not_applicable',
             detail: 'no runtime boundary',
