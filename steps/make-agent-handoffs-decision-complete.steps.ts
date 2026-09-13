@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -8,6 +8,7 @@ import { Given, Then, When } from '@cucumber/cucumber';
 
 import * as quality from '../packages/cli/templates/hooks/lib/quality.js';
 import { evaluateDecisionBriefCompliance } from '../packages/cli/templates/hooks/lib/quality.js';
+import { runParity, type ParityResult } from '../packages/cli/src/parity.js';
 import type { SafewordWorld } from './world.js';
 
 interface HandoffState {
@@ -17,8 +18,18 @@ interface HandoffState {
   contractValidation?: { valid: boolean; requirements?: string[] };
   nativeHost?: string;
   nativeProject?: string;
-  nativePayload?: Record<string, unknown>;
+  nativePayload?: unknown;
   nativeOutput?: string;
+  nativeOutputs?: string[];
+  nativeExpectedRequirements?: string[];
+  corpus?: Array<{
+    reply: string;
+    expected: { compliant: boolean; form: string; requirements?: string[] };
+  }>;
+  corpusEvaluations?: Array<ReturnType<typeof evaluateDecisionBriefCompliance>>;
+  parityResult?: ParityResult;
+  parityRoot?: string;
+  parityTarget?: string;
   evaluation?: ReturnType<typeof evaluateDecisionBriefCompliance> & {
     contractVersion?: string;
     form?: string;
@@ -103,11 +114,212 @@ function incompleteCorpusReply(corpusCase: string): string {
   ].join('\n\n');
 }
 
-function nativeHookPath(host: string): string {
-  const hooks = nodePath.join(process.cwd(), 'packages/cli/templates/hooks');
+function corpusReply(corpusCase: string): string {
+  if (corpusCase === 'self-contained Next rewrite') {
+    return decisionReply('Next', decisionTerminal());
+  }
+  if (corpusCase === 'self-contained Need rewrite') {
+    return decisionReply('Need', decisionTerminal());
+  }
+  if (corpusCase === 'concise no-decision action') {
+    return actionReply('Action: Run the focused terminal-handoff tests.');
+  }
+  if (corpusCase === 'vague no-decision action') return actionReply('Continue.');
+  if (corpusCase === 'short conversational reply') return 'Happy to help.';
+  return incompleteCorpusReply(corpusCase);
+}
+
+function corpusRequirements(corpusCase: string): string[] {
+  if (corpusCase === 'unexplained marked term') return ['plain-language meaning'];
+  if (corpusCase === 'vague no-decision action') return ['one concrete action'];
+  return [
+    'concrete choice',
+    'recommendation',
+    'controlling reason',
+    'material tradeoff or consequences',
+    'exact reply',
+  ];
+}
+
+const requiredDecisionRoles = [
+  'concrete choice',
+  'recommendation',
+  'controlling reason',
+  'material tradeoff or consequences',
+  'exact reply',
+];
+
+function fixedCorpus(): NonNullable<HandoffState['corpus']> {
+  return [
+    {
+      reply: incompleteCorpusReply('observed decision omission'),
+      expected: { compliant: false, form: 'decision', requirements: requiredDecisionRoles },
+    },
+    {
+      reply: corpusReply('self-contained Next rewrite'),
+      expected: { compliant: true, form: 'decision' },
+    },
+    {
+      reply: incompleteCorpusReply('vague blocked Need'),
+      expected: { compliant: false, form: 'decision', requirements: requiredDecisionRoles },
+    },
+    {
+      reply: corpusReply('self-contained Need rewrite'),
+      expected: { compliant: true, form: 'decision' },
+    },
+    {
+      reply: corpusReply('concise no-decision action'),
+      expected: { compliant: true, form: 'action' },
+    },
+    {
+      reply: corpusReply('vague no-decision action'),
+      expected: {
+        compliant: false,
+        form: 'action',
+        requirements: ['one concrete action', 'no extra context'],
+      },
+    },
+    {
+      reply: incompleteCorpusReply('unexplained marked term'),
+      expected: { compliant: false, form: 'decision', requirements: ['plain-language meaning'] },
+    },
+  ];
+}
+
+const deliveredQualityCopies = [
+  'packages/cli/templates/hooks/lib/quality.ts',
+  'plugin/runtime/hooks/lib/quality.ts',
+  'packages/cli/codex-plugin/templates/hooks/lib/quality.ts',
+  '.safeword/hooks/lib/quality.ts',
+] as const;
+
+const parityCopyPath: Record<string, string> = {
+  'canonical template': 'packages/cli/templates/hooks/lib/quality.ts',
+  'generated Claude plugin': 'plugin/runtime/hooks/lib/quality.ts',
+  'generated Codex plugin': 'packages/cli/codex-plugin/templates/hooks/lib/quality.ts',
+  'Cursor delivery': '.safeword/hooks/lib/quality.ts',
+  'customer installed': 'customer/.safeword/hooks/lib/quality.ts',
+  'dogfood installed': '.safeword/hooks/lib/quality.ts',
+};
+
+function prepareParityFailure(
+  world: SafewordWorld,
+  label: string,
+  kind: 'missing' | 'role' | 'version',
+) {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-handoff-parity-'));
+  const target = parityCopyPath[label];
+  assert.ok(target, `unknown parity copy ${label}`);
+  const targetPath = nodePath.join(root, target);
+  if (kind !== 'missing') {
+    mkdirSync(nodePath.dirname(targetPath), { recursive: true });
+    const version = kind === 'version' ? 'terminal-handoff/v0' : 'terminal-handoff/v1';
+    const impact = kind === 'role' ? '' : 'material tradeoff or consequences';
+    writeFileSync(
+      targetPath,
+      `${version}\nconcrete choice\nrecommendation\ncontrolling reason\n${impact}\nexact reply\n`,
+    );
+  }
+  const templates = nodePath.join(root, 'templates');
+  mkdirSync(templates, { recursive: true });
+  const state = stateFor(world);
+  state.parityRoot = root;
+  state.parityTarget = target;
+  state.parityResult = runParity({
+    rootDirectory: root,
+    templatesDirectory: templates,
+    mode: 'all',
+    schema: {
+      ownedFiles: {},
+      contracts: {
+        [target]: {
+          requires: [
+            'terminal-handoff/v1',
+            'concrete choice',
+            'recommendation',
+            'controlling reason',
+            'material tradeoff or consequences',
+            'exact reply',
+          ],
+        },
+      },
+    },
+  });
+}
+
+function nativeHookPath(host: string, project: string): string {
+  const hooks = nodePath.join(project, '.safeword/hooks');
   if (host === 'Claude Code') return nodePath.join(hooks, 'stop-quality.ts');
   if (host === 'OpenAI Codex') return nodePath.join(hooks, 'codex/stop.ts');
   return nodePath.join(hooks, 'cursor/stop.ts');
+}
+
+function prepareNativeStop(world: SafewordWorld, host: string, reply: string): void {
+  const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-handoff-'));
+  mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+  cpSync(
+    nodePath.join(process.cwd(), 'packages/cli/templates/hooks'),
+    nodePath.join(project, '.safeword/hooks'),
+    {
+      recursive: true,
+    },
+  );
+  const transcriptPath = nodePath.join(project, 'transcript.jsonl');
+  writeFileSync(
+    transcriptPath,
+    `${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: reply }] } })}\n`,
+  );
+  const state = stateFor(world);
+  state.nativeHost = host;
+  state.nativeProject = project;
+  state.reply = reply;
+  state.nativeOutputs = [];
+  state.nativePayload =
+    host === 'Cursor'
+      ? {
+          workspace_roots: [project],
+          conversation_id: 'handoff-session',
+          generation_id: 'generation-1',
+          status: 'completed',
+          transcript_path: transcriptPath,
+          loop_count: 0,
+        }
+      : {
+          cwd: project,
+          session_id: 'handoff-session',
+          transcript_path: transcriptPath,
+          last_assistant_message: reply,
+        };
+}
+
+function setNativeReply(state: HandoffState, reply: string): void {
+  assert.ok(state.nativePayload && typeof state.nativePayload === 'object');
+  const payload = state.nativePayload as Record<string, unknown>;
+  const transcriptPath = String(payload.transcript_path);
+  writeFileSync(
+    transcriptPath,
+    `${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: reply }] } })}\n`,
+  );
+  state.reply = reply;
+  if (state.nativeHost !== 'Cursor') payload.last_assistant_message = reply;
+}
+
+function invokeNativeStop(state: HandoffState, payload = state.nativePayload): string {
+  assert.ok(state.nativeHost && state.nativeProject && payload !== undefined);
+  const result = spawnSync('bun', [nativeHookPath(state.nativeHost, state.nativeProject)], {
+    cwd: state.nativeProject,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: state.nativeProject },
+    input: typeof payload === 'string' ? payload : JSON.stringify(payload),
+    encoding: 'utf8',
+    timeout: 20_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
+function cleanNativeStop(state: HandoffState): void {
+  if (state.nativeProject) rmSync(state.nativeProject, { recursive: true, force: true });
+  state.nativeProject = undefined;
 }
 
 Given(
@@ -351,33 +563,76 @@ Given(
 Given(
   /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and the (.+) from the long-form corpus in its native Stop payload$/,
   function (this: SafewordWorld, host: string, corpusCase: string) {
-    const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-handoff-'));
-    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
-    const reply = incompleteCorpusReply(corpusCase);
-    const transcriptPath = nodePath.join(project, 'transcript.jsonl');
-    writeFileSync(
-      transcriptPath,
-      `${JSON.stringify({ role: 'assistant', message: { role: 'assistant', content: reply } })}\n`,
-    );
+    prepareNativeStop(this, host, corpusReply(corpusCase));
+    stateFor(this).nativeExpectedRequirements = corpusRequirements(corpusCase);
+  },
+);
+
+Given(
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and a still-incomplete handoff in its native Stop payload$/,
+  function (this: SafewordWorld, host: string) {
+    prepareNativeStop(this, host, incompleteCorpusReply('observed decision omission'));
+  },
+);
+
+Given(
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and an unreadable native Stop payload$/,
+  function (this: SafewordWorld, host: string) {
+    prepareNativeStop(this, host, '');
+    stateFor(this).nativePayload = '{not-json';
+  },
+);
+
+Given(
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and a short conversational reply in its native Stop payload$/,
+  function (this: SafewordWorld, host: string) {
+    prepareNativeStop(this, host, corpusReply('short conversational reply'));
+  },
+);
+
+Given(
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and an incomplete handoff in a fresh session after an earlier session emitted a correction$/,
+  function (this: SafewordWorld, host: string) {
+    prepareNativeStop(this, host, incompleteCorpusReply('observed decision omission'));
     const state = stateFor(this);
-    state.nativeHost = host;
-    state.nativeProject = project;
-    state.reply = reply;
-    state.nativePayload =
-      host === 'Cursor'
-        ? {
-            workspace_roots: [project],
-            conversation_id: 'handoff-session',
-            generation_id: 'generation-1',
-            status: 'completed',
-            transcript_path: transcriptPath,
-          }
-        : {
-            cwd: project,
-            session_id: 'handoff-session',
-            transcript_path: transcriptPath,
-            last_assistant_message: reply,
-          };
+    const earlier = invokeNativeStop(state);
+    assert.match(earlier, /terminal-handoff\/v1/u);
+    const payload = state.nativePayload as Record<string, unknown>;
+    if (host === 'Cursor') payload.conversation_id = 'fresh-session';
+    else payload.session_id = 'fresh-session';
+  },
+);
+
+Given(
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor), an earlier corrected handoff, and an intervening compliant Stop in the same session$/,
+  function (this: SafewordWorld, host: string) {
+    prepareNativeStop(this, host, incompleteCorpusReply('observed decision omission'));
+    const state = stateFor(this);
+    assert.match(invokeNativeStop(state), /terminal-handoff\/v1/u);
+    setNativeReply(state, corpusReply('concise no-decision action'));
+    assert.doesNotMatch(invokeNativeStop(state), /terminal-handoff\/v1/u);
+    setNativeReply(state, incompleteCorpusReply('observed decision omission'));
+  },
+);
+
+Given(
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and a terminal-handoff evaluation that fails to complete$/,
+  function (this: SafewordWorld, host: string) {
+    prepareNativeStop(this, host, incompleteCorpusReply('observed decision omission'));
+    const qualityPath = nodePath.join(
+      stateFor(this).nativeProject ?? '',
+      '.safeword/hooks/lib/quality.ts',
+    );
+    const source = readFileSync(qualityPath, 'utf8');
+    const needle = `): DecisionBriefCompliance {\n  const scan = scanTopLevelParagraphs(reply);`;
+    assert.ok(source.includes(needle), 'evaluation seam fixture no longer matches quality.ts');
+    writeFileSync(
+      qualityPath,
+      source.replace(
+        needle,
+        `): DecisionBriefCompliance {\n  throw new Error('simulated terminal-handoff evaluation failure');\n  const scan = scanTopLevelParagraphs(reply);`,
+      ),
+    );
   },
 );
 
@@ -409,20 +664,33 @@ When(
 );
 
 When(
-  'the registered Stop hook command is invoked for the first time',
+  /^the registered Stop hook command is invoked(?: for the first time)?$/,
   function (this: SafewordWorld) {
     const state = stateFor(this);
-    assert.ok(state.nativeHost && state.nativeProject && state.nativePayload);
-    const result = spawnSync('bun', [nativeHookPath(state.nativeHost)], {
-      cwd: state.nativeProject,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: state.nativeProject },
-      input: JSON.stringify(state.nativePayload),
-      encoding: 'utf8',
-      timeout: 20_000,
+    state.nativeOutput = invokeNativeStop(state);
+    state.nativeOutputs?.push(state.nativeOutput);
+  },
+);
+
+When(
+  'the registered Stop hook command is invoked twice in succession for the same session',
+  function (this: SafewordWorld) {
+    const state = stateFor(this);
+    const first = invokeNativeStop(state);
+    const payload = state.nativePayload as Record<string, unknown>;
+    const second = invokeNativeStop(state, {
+      ...payload,
+      ...(state.nativeHost === 'Cursor' ? { loop_count: 1 } : { stop_hook_active: true }),
     });
-    rmSync(state.nativeProject, { recursive: true, force: true });
-    assert.equal(result.status, 0, result.stderr);
-    state.nativeOutput = result.stdout.trim();
+    state.nativeOutputs = [first, second];
+  },
+);
+
+When(
+  'a later incomplete handoff reaches the registered Stop hook command',
+  function (this: SafewordWorld) {
+    const state = stateFor(this);
+    state.nativeOutput = invokeNativeStop(state);
   },
 );
 
@@ -641,9 +909,61 @@ Then(
           : undefined;
     assert.ok(correction, `unexpected native continuation: ${state.nativeOutput}`);
     assert.match(correction, /terminal-handoff\/v1/u);
-    for (const requirement of evaluateDecisionBriefCompliance(state.reply ?? '').requirements ??
-      []) {
+    for (const requirement of state.nativeExpectedRequirements ?? []) {
       assert.ok(correction.includes(requirement), `correction omitted ${requirement}`);
     }
+    cleanNativeStop(state);
+  },
+);
+
+Then(
+  /^the process emits one terminal-handoff correction for the (fresh session|later handoff)$/,
+  function (this: SafewordWorld, _scope: string) {
+    const state = stateFor(this);
+    assert.match(state.nativeOutput ?? '', /terminal-handoff\/v1/u);
+    cleanNativeStop(state);
+  },
+);
+
+Then(
+  /^the process emits one correction carrying the shared contract version and naming the concrete-action requirement in the (decision block reason|followup message) shape$/,
+  function (this: SafewordWorld, continuation: string) {
+    const state = stateFor(this);
+    const output = JSON.parse(state.nativeOutput ?? '{}') as {
+      decision?: string;
+      reason?: string;
+      followup_message?: string;
+    };
+    const correction =
+      continuation === 'followup message' ? output.followup_message : output.reason;
+    assert.ok(correction);
+    assert.match(correction, /terminal-handoff\/v1/u);
+    assert.match(correction, /one concrete action/u);
+    cleanNativeStop(state);
+  },
+);
+
+Then(
+  /^the process exits successfully with(?:out| no) (?:a )?terminal-handoff correction$/,
+  function (this: SafewordWorld) {
+    const state = stateFor(this);
+    const output = state.nativeOutput
+      ? (JSON.parse(state.nativeOutput) as Record<string, unknown>)
+      : {};
+    assert.equal(output.decision, undefined);
+    assert.equal(output.followup_message, undefined);
+    cleanNativeStop(state);
+  },
+);
+
+Then(
+  'exactly one terminal-handoff correction is emitted across both invocations',
+  function (this: SafewordWorld) {
+    const state = stateFor(this);
+    const corrections = (state.nativeOutputs ?? []).filter(output =>
+      output.includes('terminal-handoff/v1'),
+    );
+    assert.equal(corrections.length, 1);
+    cleanNativeStop(state);
   },
 );
