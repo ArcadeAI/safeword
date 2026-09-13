@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Every supported surface asks before project state is accessed
 
 - [x] RED 6137bffd9
-- [ ] GREEN
+- [x] GREEN 62036f7f4
 - [ ] REFACTOR
 
 ### Scenario Outline: Every state-access mechanism asks before project state is accessed
