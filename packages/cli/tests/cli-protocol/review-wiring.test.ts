@@ -297,6 +297,53 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
+  it('dispatches delivery compatibility through the real review command', async () => {
+    const directory = createTemporaryDirectory();
+    const request = nodePath.join(directory, 'compatibility-request.md');
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    writeFileSync(request, '# Delivery compatibility request\n\nComplete bounded diff.\n');
+    const bin = installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'delivery-compatibility',
+        'compatibility-request.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        status: 'approved',
+        review_kind: 'delivery-compatibility',
+        assigned_reviewer: 'claude',
+      },
+    });
+    expect(readFileSync(promptLog, 'utf8')).toContain(
+      'Does the earlier passing receipt still establish this',
+    );
+    expect(readFileSync(promptLog, 'utf8')).toContain('Complete bounded diff.');
+    expect(readFileSync(reviewLog, 'utf8').trim()).toBe('claude');
+  });
+
   it('persists malformed detached reviewer output as a terminal blocked result', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
