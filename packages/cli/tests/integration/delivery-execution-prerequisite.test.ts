@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -12,6 +12,8 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
+import { runCli } from '../helpers.js';
+import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
 const reviews = vi.hoisted(() => new Map<string, CliResult>());
 
@@ -167,6 +169,104 @@ function legacyFeatureFixture(phase: 'implement' | 'verify'): string {
   return root;
 }
 
+function installReviewer(): string {
+  const bin = nodePath.join(
+    createTrustedReviewerDirectory('safeword-prerequisite-reviewer-'),
+    'bin',
+  );
+  mkdirSync(bin, { recursive: true });
+  const executable = nodePath.join(bin, 'claude');
+  writeFileSync(
+    executable,
+    String.raw`#!/bin/sh
+set -eu
+if [ "${'$'}{1:-}" = "--version" ]; then printf 'claude 1.0.0\n'; exit 0; fi
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  printf '%s\n' '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model'
+  exit 0
+fi
+payload=$(cat)
+dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+record=$(printenv SAFEWORD_PREREQUISITE_EXECUTION_RECORD || true)
+if [ -n "$record" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[],"execution_plan_record":%s}\n' "$dispatch_id" "$record"
+else
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
+fi
+`,
+    { mode: 0o755 },
+  );
+  chmodSync(executable, 0o755);
+  return bin;
+}
+
+async function admitThroughInstalledCli(root: string): Promise<void> {
+  const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
+  const plan = executionPlan();
+  const parsed = parseDeliveryPlanContract(plan);
+  if (!parsed.ok) throw new Error(parsed.message);
+  const record = {
+    slicing_decision: 'one_pull_request',
+    rationale: 'One coherent contribution.',
+    slices: [
+      {
+        name: 'Contribution',
+        purpose: 'Deliver the contribution.',
+        boundary: 'Public prerequisite.',
+        prerequisites: [],
+        proof: 'Integration test.',
+        completion_signal: 'The prerequisite is observable.',
+        relies_on_unmerged_successor: false,
+      },
+    ],
+    obligation_owners: [{ obligation: 'Contribution', slices: ['Contribution'] }],
+    decision_statuses: [{ decision: 'Use the accepted plans', status: 'unchanged' }],
+    accepted_scenarios_covered: true,
+    accepted_approach_preserved: true,
+    normalized_plan_digest: normalizedExecutionPlanDigest(plan),
+    delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
+  };
+  const bin = installReviewer();
+  const requests = [
+    ['scenario-gate', 'features/feature.feature', undefined],
+    [
+      'plan-implementation',
+      nodePath.relative(root, nodePath.join(ticketDirectory, 'impl-plan.md')),
+      undefined,
+    ],
+    [
+      'plan-execution',
+      nodePath.relative(root, nodePath.join(ticketDirectory, 'execution-plan.md')),
+      JSON.stringify(record),
+    ],
+  ] as const;
+  const stamps: string[] = [];
+  for (const [kind, target, executionRecord] of requests) {
+    const reviewed = await runCli(
+      ['review', 'run', kind, target, '--json', '--no-input', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          ...(executionRecord !== undefined && {
+            SAFEWORD_PREREQUISITE_EXECUTION_RECORD: executionRecord,
+          }),
+        },
+      },
+    );
+    expect(reviewed.exitCode, reviewed.stdout).toBe(0);
+    const result = JSON.parse(reviewed.stdout) as { data?: { review_id?: string } };
+    const id = result.data?.review_id;
+    if (id === undefined) throw new Error(`${kind} review id missing`);
+    stamps.push(
+      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${kind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
+    );
+  }
+  writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${stamps.join('\n')}\n`);
+}
+
 describe('delivery execution prerequisite', () => {
   beforeEach(() => {
     reviews.clear();
@@ -178,6 +278,22 @@ describe('delivery execution prerequisite', () => {
       effectClass: 'observe',
       networkPolicy: 'never',
       syntax: 'execution-prerequisite <ticketId>',
+    });
+  });
+
+  it('runs through the installed CLI with integrity-checked admitted reviews', async () => {
+    const root = featureFixture([]);
+    await admitThroughInstalledCli(root);
+
+    const result = await runCli(
+      ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+      { cwd: root },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: { prerequisite_status: 'satisfied', grants_authority: false },
     });
   });
 
