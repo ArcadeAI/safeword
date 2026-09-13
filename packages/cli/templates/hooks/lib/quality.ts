@@ -108,6 +108,9 @@ export function renderReplyFormatReminder(grammar = DECISION_BRIEF_GRAMMAR): str
 /** Full pre-response pointer, used outside intentionally quiet TDD steps. */
 export const REPLY_FORMAT_REMINDER = renderReplyFormatReminder();
 
+/** Stable identity shared by prompt rendering, evaluation, and host corrections. */
+export const TERMINAL_HANDOFF_CONTRACT_VERSION = 'terminal-handoff/v1';
+
 export function renderDecisionBriefContract(grammar = DECISION_BRIEF_GRAMMAR): string {
   const endings = Object.entries(grammar.variants)
     .map(([verdict, variant]) => `**${variant.terminalLabel}:** for ${verdict}`)
@@ -118,7 +121,7 @@ export function renderDecisionBriefContract(grammar = DECISION_BRIEF_GRAMMAR): s
 
 End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the verdict line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
-Next must stand alone. Write for a reader who sees only this paragraph. When a decision is required, name the choice, your recommendation, the reason that controls it, the material tradeoff, and exactly what the user should reply. Use specific nouns, verbs, paths, commands, amounts, and consequences. Include a detail only if it could change the decision or action. Stop once the reader can decide or act without scrolling. If no decision is required, state only the next action and any essential reason.
+Next or Need must stand alone under ${TERMINAL_HANDOFF_CONTRACT_VERSION}. Write for a reader who sees only this paragraph. When a decision is required, use exactly: Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>. Use specific nouns, verbs, paths, commands, amounts, and consequences. Write each necessary marked term as Term: <name> = <plain-language meaning>. Include a detail only if it could change the decision or action. Stop once the reader can decide or act without scrolling. If no decision is required, use exactly: Action: <imperative + specific object>. Optionally add only: Reason: Required because <essential reason>.
 
 Implementation choices are yours. BLOCKED is for spec/scope/value decisions that need human input. Multiple unknowns: resolve the small ones, BLOCK on the largest.
 
@@ -128,9 +131,6 @@ ${shapes}
 }
 
 export const DECISION_BRIEF_CONTRACT = renderDecisionBriefContract();
-
-/** Stable identity shared by prompt rendering, evaluation, and host corrections. */
-export const TERMINAL_HANDOFF_CONTRACT_VERSION = 'terminal-handoff/v1';
 
 export type TerminalHandoffForm = 'decision' | 'action' | 'outside';
 export type TerminalHandoffSubstantiveEvidence =

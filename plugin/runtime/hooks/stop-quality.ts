@@ -22,6 +22,7 @@ import {
   AUTHOR_MODEL_ENV,
   hashArtifact,
   isArchitectureReviewGateEnabled,
+  isTerminalHandoffCorrectionEnabled,
   isStopQualityReviewEnabled,
   isCrossModelReviewRequired,
   isSatisfyingCoordinatorReviewStamp,
@@ -411,6 +412,29 @@ checkArchitectureReviewGate(ticketInfo);
 // recent window can be attributed to this turn. A byte-truncated tail retains
 // the prior bounded fallback. The done phase always falls through to its gate.
 const editsToReview = detectEditsToReview(lines);
+
+// Default-on native contract correction is independent of the optional
+// judgment-based Stop review. Existing artifact gates above retain precedence;
+// stop_hook_active makes the correction one-shot.
+const stopReviewConfigPath = `${projectDir}/.safeword/config.json`;
+const stopReviewConfig = existsSync(stopReviewConfigPath)
+  ? readFileSync(stopReviewConfigPath, 'utf8')
+  : undefined;
+if (!stopHookActive && isTerminalHandoffCorrectionEnabled(stopReviewConfig)) {
+  try {
+    const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText, undefined, {
+      substantiveEvidence: editsToReview ? 'current-turn-edit' : 'none',
+    });
+    if (!decisionBriefEvaluation.compliant) {
+      softBlock(
+        renderDecisionBriefCorrection(decisionBriefEvaluation, 'Keep verified evidence intact.'),
+      );
+    }
+  } catch {
+    // A correction evaluator failure must never trap the host at Stop.
+  }
+}
+
 if (!editsToReview && currentPhase !== 'done') {
   process.exit(0);
 }
@@ -893,12 +917,7 @@ if (typecheckAdvice.advice !== null) {
 // decision-brief ending contract: measured across 13 concurrent sessions
 // (~220 turn-ends) they produced one intervention, a reply reformat, and never
 // a code change.
-const stopReviewConfigPath = `${projectDir}/.safeword/config.json`;
-if (
-  !isStopQualityReviewEnabled(
-    existsSync(stopReviewConfigPath) ? readFileSync(stopReviewConfigPath, 'utf8') : undefined,
-  )
-) {
+if (!isStopQualityReviewEnabled(stopReviewConfig)) {
   process.exit(0);
 }
 
