@@ -202,7 +202,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6c495df09
 - [x] GREEN 2e0240f3e
-- [ ] REFACTOR
+- [x] REFACTOR skip: concise action classification reuses the shared route parser and action predicate
 
 ### Scenario: The long no-decision corpus rejects a vague action
 
