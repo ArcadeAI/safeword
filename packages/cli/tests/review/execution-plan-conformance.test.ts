@@ -18,6 +18,8 @@ const EXPECTED_CASE_IDS = [
   'several-ordered-changes',
   'omitted-slicing-decision',
   'complete-slice-record',
+  'generic-checklist',
+  'proof-does-not-exercise-boundary',
   'missing-purpose',
   'missing-boundary',
   'missing-prerequisites',

@@ -4,6 +4,10 @@ import process from 'node:process';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import {
+  createExecutionPlanDeliveryDefinition,
+  parseDeliveryPlanContract,
+} from '../../src/execution-plan/delivery-checklist.js';
 import type { ReviewAgent, ReviewerOutput, ReviewPacket } from '../../src/review/contract.js';
 import {
   EXECUTION_PLAN_CONFORMANCE_CASES,
@@ -24,6 +28,9 @@ const results: ExecutionPlanConformanceResult[] = [];
 function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent): ReviewPacket {
   const identity =
     model === undefined ? `${assigned} runtime default` : `${assigned} model ${model}`;
+  const parsed = parseDeliveryPlanContract(testCase.execution_plan);
+  if (!parsed.ok) throw new Error(`Invalid conformance fixture: ${parsed.message}`);
+  const definition = createExecutionPlanDeliveryDefinition(parsed, false);
   return {
     schema_version: 1,
     dispatch_id: randomUUID(),
@@ -37,6 +44,7 @@ function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent
         content: `Assigned reviewer: ${identity}.`,
       },
     ],
+    execution_plan_delivery_definition: definition,
   };
 }
 
@@ -50,6 +58,8 @@ function assertApproval(testCase: ExecutionPlanConformanceCase, output: Reviewer
   expect(output.verdict).toBe('approve');
   const record = recordOf(output);
   expect(record.slicing_decision).toBe(testCase.expectation.slicing_decision);
+  expect(record.accepted_scenarios_covered).toBe(true);
+  expect(record.accepted_approach_preserved).toBe(true);
   expect(record.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
   const expectedObligations = testCase.expectation.obligations ?? [];
   for (const obligation of expectedObligations) {

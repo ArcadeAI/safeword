@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
 import type { ReviewAgent, ReviewKind } from './contract.js';
 import { EXECUTION_PLAN_ADMISSION_EVIDENCE } from './execution-plan-admission.generated.js';
 import { reviewPromptContract } from './review-rubric.js';
@@ -74,6 +75,8 @@ function executionPlan(input: {
   readonly slices: readonly SliceInput[];
   readonly omittedObligation?: (typeof OBLIGATIONS)[number];
   readonly decisionText?: string;
+  readonly unrelatedChecklist?: boolean;
+  readonly unrealProof?: boolean;
 }): string {
   const owners = OBLIGATIONS.filter(obligation => obligation !== input.omittedObligation)
     .map((obligation, index) => {
@@ -95,7 +98,52 @@ ${owners}
 ## Decision accounting
 
 ${input.decisionText ?? DECISIONS.map(decision => `- ${decision}: unchanged`).join('\n')}
+
+${deliveryContract(input.unrelatedChecklist === true, input.unrealProof === true)}
 `;
+}
+
+const CHECKLIST_OBLIGATIONS = [
+  'Deliver Accepted behavior.',
+  'Preserve both recorded implementation decisions.',
+  'Keep slice dependencies and pull-request boundaries supported.',
+  'Prove Accepted behavior at the named boundary.',
+  'Complete Migration work.',
+  'Expose failure signals for Affected-surface work.',
+  'Protect the Affected-surface work boundary.',
+  'Complete Rollout work and Rollback work.',
+  'Complete Documentation work.',
+  'Assign every accepted obligation to an owner.',
+  'Retain concrete completion evidence for all accepted obligations.',
+] as const;
+
+function deliveryContract(unrelated: boolean, unrealProof: boolean): string {
+  const boundary = unrealProof
+    ? 'Customer authorization across both live transports.'
+    : 'Accepted behavior and every migration, rollout, rollback, documentation, and affected-surface obligation.';
+  const argv = unrealProof
+    ? ['node', '--version']
+    : ['bun', 'run', 'test:execution-plan-conformance'];
+  const invocation = JSON.stringify({ type: 'command', cwd: '.', argv });
+  const items = DELIVERY_CHECKLIST_CATEGORIES.map((category, index) => {
+    const obligation = unrelated
+      ? 'Complete the standard delivery work.'
+      : CHECKLIST_OBLIGATIONS[index];
+    return `| item-${index + 1} | ${category} | ${obligation} | contributor | complete-delivery | open | missing | | |`;
+  }).join('\n');
+  return `## Proof specifications
+
+| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |
+| --- | --- | --- | --- | --- | --- | --- |
+| complete-delivery | command | E2E | ${boundary} | real_boundary | current_required | ${invocation} |
+
+## Delivery checklist
+
+<!-- safeword:delivery-checklist:v1 -->
+
+| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+${items}`;
 }
 
 export interface ExecutionPlanConformanceExpectation {
@@ -328,6 +376,28 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     COMPLETE_RECORD_PLAN,
     'one_pull_request',
     ['Typed review result'],
+  ),
+  denied(
+    'generic-checklist',
+    'A structurally complete checklist unrelated to the accepted scenarios and approach is denied.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: 'The contribution claims one coherent outcome.',
+      slices: [CONTRACT_SLICE],
+      unrelatedChecklist: true,
+    }),
+    ['checklist', 'accepted'],
+  ),
+  denied(
+    'proof-does-not-exercise-boundary',
+    'A command that cannot exercise its claimed real boundary is denied.',
+    executionPlan({
+      decision: 'one pull request',
+      rationale: 'The contribution claims one coherent outcome.',
+      slices: [CONTRACT_SLICE],
+      unrealProof: true,
+    }),
+    ['proof', 'boundary'],
   ),
   missingFieldCase('missing-purpose', 'purpose', 'purpose'),
   missingFieldCase('missing-boundary', 'boundary', 'boundary'),
