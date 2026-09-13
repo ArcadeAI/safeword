@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "8043c037f1631e44f263b7eed61f26568e3dc986cd316b7c4b28c32d3084c0ec"
+      "sha256": "4f80d02f855aadf6790db337b0a9e78eee4330a0df246c2799efddd75815e725"
     },
     {
       "path": "runtime/dispatch.js",
@@ -302,6 +302,10 @@
       "sha256": "e33a81f3cbf144076fb3dfc3960b5e3660780317a82e74ac815f54165db00ff3"
     },
     {
+      "path": "runtime/hooks/lib/pr-readiness-guard.ts",
+      "sha256": "d7d1b682612ec788b1b44e1eb4e8731c0e519e906f10440df2b28c620d16870a"
+    },
+    {
       "path": "runtime/hooks/lib/principle-trace.ts",
       "sha256": "773e4e38ea33d2c117c7edce6e74397348d54afcd34a2de00d8546a571f624ae"
     },
@@ -323,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality-state.ts",
-      "sha256": "fb6ddddca86d33991b184419f2e54e9b49dbe84d03a5ef53a73e95c76e99b774"
+      "sha256": "02965ee0035bfeeeccfb7981a4cca959c72a489af422dc3b80c20b156f140825"
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
@@ -451,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "f5a8268809244c3c32fbeda75a028e6b6ae2218da6b75f11ed58acfaedbcef3d"
+      "sha256": "3723b9306f0c8dd1de2508f057fbed01df74a442025625f02016d5b5b2da6c5a"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -483,7 +487,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "51a199ae233bac9926728dbbfe88c73a0d080286f9d247618c7a81b65de27b9d"
+      "sha256": "7c0e500bdc7de16cba4f0be5b06b32fc3205b5059b644028096765c8dcad1a32"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -631,7 +635,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "b078611ccbdf044f19833b78325cc46311a36e06bd1598822c555a4bc9af85b9"
+      "sha256": "666b80e27d646732850796a593a3267438ad9247c9c976415a01ab9b4ba5d5f0"
     },
     {
       "path": "skills/bdd/VERIFY.md",

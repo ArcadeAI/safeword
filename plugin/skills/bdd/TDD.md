@@ -88,6 +88,16 @@ If no E2E infrastructure exists, build skeleton first: thinnest slice proving ar
 
 Pick first unchecked scenario from test-definitions. Cycle through RED (failing test, commit) → GREEN (minimal code to pass, commit) → REFACTOR (if needed, commit).
 
+After an approved RED, continue directly into implementation without asking whether to proceed.
+After GREEN, continue through refactor and then start the next incomplete scenario without asking whether to proceed.
+
+An unsuccessful TDD step stays at the failing step and reports its evidence:
+
+| Unhealthy outcome | Next-step directive                                                         | Do not advance to |
+| ----------------- | --------------------------------------------------------------------------- | ----------------- |
+| RED proof passes  | `RED — failing evidence: proof passed instead of exposing missing behavior` | `implementation`  |
+| GREEN check fails | `GREEN — failing evidence: required check failed`                           | `refactor`        |
+
 ### Trusted executable RED review
 
 Before production implementation begins for a new or changed primary proof, self-check the proof
@@ -231,6 +241,8 @@ catch cross-module regressions.
 Assess: duplication, unclear naming, excessive length? If yes, refactor (small changes directly, structural changes via `/refactor`). If no, proceed to next scenario.
 
 ## Implement exit: whole-ticket quality review + refactor
+
+After the final scenario, continue in order through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure without asking whether to proceed.
 
 All scenarios green → before reconciling the plan, do one pass over the **whole ticket** (not a single loop). Skip it only when the ticket has a single RGR loop — there's nothing to cross.
 
