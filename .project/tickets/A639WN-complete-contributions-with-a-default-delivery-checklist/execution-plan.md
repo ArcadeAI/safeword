@@ -215,22 +215,33 @@ activates the prerequisite check only after the complete contract exists.
 - Expose readiness and proof recording as separate public ticket leaves while reusing the executable-attestation worker and review ledger: unchanged
 - Require independent quality review before earlier proof becomes reusable completion evidence: unchanged
 
+## Proof specifications
+
+| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |
+| --- | --- | --- | --- | --- | --- | --- |
+| checklist-contract | command | integration | Delivery Plan proof and checklist parsing and validation | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/execution-plan/delivery-checklist.test.ts"]} |
+| proof-worker | command | integration | Direct no-shell proof process and executable-RED compatibility | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/execution-plan/delivery-proof.test.ts","tests/review/red-execution.test.ts"]} |
+| review-contract | command | integration | Plan-execution schema, trusted packet definition, and generated rubric | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/review/execution-plan-output.test.ts","tests/review/packet.test.ts","tests/review/execution-plan-rubric-generation.test.ts"]} |
+| delivery-cli | command | E2E | Public proof ledger, checklist update, and readiness commands | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/delivery-proof-ledger.test.ts","tests/integration/delivery-checklist-cli.test.ts","tests/integration/delivery-checklist-update.test.ts"]} |
+| first-execution | command | E2E | Feature first-edit prerequisite and task/patch non-activation | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/hooks.test.ts","tests/hooks/plan-gate.test.ts","tests/cli-protocol/catalog.test.ts","tests/cli-protocol/machine-contract.test.ts"]} |
+| full-verification | command | E2E | Complete repository regression suite | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |
+| plan-review | review_receipt | E2E | Accepted scenarios, implementation approach, slicing, and delivery definition | real_boundary | compatible_earlier_allowed | {"type":"review_receipt","kind":"plan-execution","targets":[".project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/execution-plan.md"]} |
+
 ## Delivery checklist
 
-- Tests: Each PR has targeted RED/GREEN proof above; PR 3 runs all A639WN tests,
-  typecheck, and one final full suite before completion.
-- Monitoring: CLI outcomes expose typed refusal codes and fixed exit statuses;
-  runtime performance monitoring is `skip: local CLI workflow adds no service or production telemetry boundary`.
-- Migration: Preserve already-implementing tickets through the documented
-  provenance exemption; returning through `plan-execution` opts into the new
-  checklist contract.
-- Documentation: Update the Execution Plan template, canonical Execution
-  Planning guidance, public command discovery, and generated host mirrors.
-- Rollout: Land inert contracts, then explicit public operations, then boundary
-  composition. YCFFNC owns installed-host activation.
-- Rollback: Remove boundary composition first; retain unknown
-  `delivery-proof:v1` events as authority-inert ledger history, then remove
-  unused public leaves and contracts if activation is withdrawn.
-- Ownership: A639WN owns the checklist, evidence, readiness, and shared
-  prerequisite contracts. 7CAMAD, 5F5ZZA, YCFFNC, 3EG00H, and K3EBHB own the
-  explicitly deferred integration work listed above.
+<!-- safeword:delivery-checklist:v1 -->
+
+| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| outcome-scope | outcome and scope | Deliver the accepted default contribution checklist behavior without expanding deferred sibling scope. | contributor | full-verification | open | missing | | |
+| resolved-decisions | resolved decisions | Preserve every accepted Implementation Plan decision and return any changed decision for re-review. | contributor | plan-review | open | missing | | |
+| pr-decomposition | dependency and pull-request decomposition | Keep all three slices independently reviewable, proven, and safe without an unmerged successor. | contributor | plan-review | open | missing | | |
+| testing | testing | Pass the contract, process, review, CLI, hook, typecheck, parity, and final regression proofs named by this plan. | contributor | full-verification | open | missing | | |
+| data-compatibility | data and compatibility | Preserve unknown review-ledger events, atomically append delivery proofs, and reject stable-definition drift. | contributor | delivery-cli | open | missing | | |
+| monitoring | monitoring and failure signals | Expose typed refusal codes, fixed exit states, and one concrete recovery action for each contributor-repairable failure. | contributor | delivery-cli | open | missing | | |
+| security-privacy | security and privacy | Execute only retained project-contained proof invocations without a shell, TTY, review secrets, or caller argv substitution. | contributor | proof-worker | open | missing | | |
+| rollout-rollback | rollout and rollback | Land inert contracts before explicit commands and activate the feature-only first-edit prerequisite with a removable composition point. | contributor | first-execution | open | missing | | |
+| documentation | documentation | Ship the canonical template, Execution Planning guidance, command discovery, recovery copy, and generated host mirrors together. | contributor | review-contract | open | missing | | |
+| ownership | ownership and human dependencies | Keep A639WN ownership local and preserve the named 7CAMAD, 5F5ZZA, YCFFNC, 3EG00H, and K3EBHB boundaries. | contributor | review-contract | open | missing | | |
+| design-approval | ownership and human dependencies | Obtain human design approval for this Implementation Plan. | human | | not_applicable | missing | | Project configuration has designApprovalGate disabled. |
+| completion-evidence | completion evidence | Finish every contributor obligation with retained real-boundary evidence and report human and merge authority separately. | contributor | full-verification | open | missing | | |
