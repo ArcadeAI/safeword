@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DELIVERY_CHECKLIST_CATEGORIES,
   parseDeliveryChecklist,
+  parseProofSpecifications,
 } from '../../src/execution-plan/delivery-checklist.js';
 
 function completeChecklist(categories: readonly string[] = DELIVERY_CHECKLIST_CATEGORIES): string {
@@ -64,6 +65,54 @@ describe('Delivery Checklist contract', () => {
       ok: false,
       code: 'invalid_owner_disposition',
       message: 'Delivery Checklist item item-4 is contributor-owned and cannot be pending_human.',
+    });
+  });
+});
+
+describe('Proof specifications contract', () => {
+  it('parses retained command and review-receipt invocations without inventing defaults', () => {
+    const content = [
+      '# Execution Plan',
+      '',
+      '## Proof specifications',
+      '',
+      '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
+      '| --- | --- | --- | --- | --- | --- | --- |',
+      '| unit-tests | command | unit | checklist parser | partial_or_structural | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |',
+      '| plan-review | review_receipt | E2E | accepted execution plan | real_boundary | compatible_earlier_allowed | {"type":"review_receipt","kind":"plan-execution","targets":[".project/tickets/A639WN/execution-plan.md"]} |',
+      '',
+    ].join('\n');
+
+    expect(parseProofSpecifications(content)).toEqual({
+      ok: true,
+      specifications: [
+        {
+          id: 'unit-tests',
+          method: 'command',
+          scope: 'unit',
+          boundary: 'checklist parser',
+          qualifiesAs: 'partial_or_structural',
+          currency: 'current_required',
+          invocation: {
+            type: 'command',
+            cwd: 'packages/cli',
+            argv: ['bun', 'run', 'test'],
+          },
+        },
+        {
+          id: 'plan-review',
+          method: 'review_receipt',
+          scope: 'E2E',
+          boundary: 'accepted execution plan',
+          qualifiesAs: 'real_boundary',
+          currency: 'compatible_earlier_allowed',
+          invocation: {
+            type: 'review_receipt',
+            kind: 'plan-execution',
+            targets: ['.project/tickets/A639WN/execution-plan.md'],
+          },
+        },
+      ],
     });
   });
 });
