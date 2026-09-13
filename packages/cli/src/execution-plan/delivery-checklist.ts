@@ -35,7 +35,12 @@ export interface DeliveryChecklistItem {
 
 export type DeliveryChecklistResult =
   | { readonly ok: true; readonly items: readonly DeliveryChecklistItem[] }
-  | { readonly ok: false; readonly code: string; readonly message: string };
+  | {
+      readonly ok: false;
+      readonly code: string;
+      readonly message: string;
+      readonly missingCategories?: readonly DeliveryChecklistCategory[];
+    };
 
 const MARKER = '<!-- safeword:delivery-checklist:v1 -->';
 const HEADERS = [
@@ -160,9 +165,22 @@ function parseItems(lines: readonly string[], start: number): DeliveryChecklistR
     }
     items.push(item);
   }
-  return items.length === 0
-    ? invalid('invalid_delivery_checklist', 'The Delivery Checklist has no items.')
-    : { ok: true, items };
+  if (items.length === 0) {
+    return invalid('invalid_delivery_checklist', 'The Delivery Checklist has no items.');
+  }
+  const present = new Set(items.map(item => item.category));
+  const missingCategories = DELIVERY_CHECKLIST_CATEGORIES.filter(
+    category => !present.has(category),
+  );
+  if (missingCategories.length > 0) {
+    return {
+      ok: false,
+      code: 'missing_categories',
+      message: `Delivery Checklist is missing categories: ${missingCategories.join(', ')}.`,
+      missingCategories,
+    };
+  }
+  return { ok: true, items };
 }
 
 export function parseDeliveryChecklist(content: string): DeliveryChecklistResult {
