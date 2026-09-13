@@ -54,9 +54,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: In-flight checklist state reflects partial execution progress
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2b0bed8ad
+- [x] GREEN 4ef8c0a40
+- [x] REFACTOR skip: validation, row rendering, and exact-snapshot replacement are separate seams
 
 ### Scenario: An unreadable Execution Plan blocks checklist updates
 
