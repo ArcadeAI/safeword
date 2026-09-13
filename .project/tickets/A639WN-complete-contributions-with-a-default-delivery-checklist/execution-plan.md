@@ -1,19 +1,14 @@
 # Execution Plan: Complete contributions with a default Delivery Checklist
 
 **Status:** planned
-**Prepared on:** 2026-09-12
 
 ## Pull-request slicing
 
 **Decision:** multiple pull requests
 
-**Rationale:** The contribution has three independently valuable and provable
-outcomes: an inert checklist and proof contract, user-reachable evidence and
-readiness operations, and execution-boundary activation. Keeping those outcomes
-separate lets a reviewer validate the trust model before any gate consumes it.
-Each merge is supported on its own: PR 1 is unused contract code, PR 2 adds
-explicit CLI operations without changing execution authorization, and PR 3
-activates the prerequisite check only after the complete contract exists.
+**Rationale:** Separate the inert contract, public operations, and prerequisite
+helper so each merge has one independently provable outcome and no merge relies
+on a later slice.
 
 ## PR 1 — Define trustworthy checklist and proof contracts
 
@@ -36,8 +31,8 @@ activates the prerequisite check only after the complete contract exists.
 
 1. RED: Add `packages/cli/tests/execution-plan/delivery-checklist.test.ts`
    cases for the eleven ordered categories, unique IDs, disposition-specific
-   fields, owner/proof constraints, missing categories, and full-definition
-   owner/row/proof mutations. Run:
+   fields, empty proof on reviewed `not_applicable`, owner/proof constraints,
+   missing categories, and full-definition owner/row/proof mutations. Run:
    `node ./node_modules/vitest/vitest.mjs run tests/execution-plan/delivery-checklist.test.ts`.
 2. GREEN: Add the typed proof-specification and Delivery Checklist parser and
    validator under `packages/cli/src/execution-plan/`. Return typed defects;
@@ -80,7 +75,9 @@ activates the prerequisite check only after the complete contract exists.
    `packages/cli/tests/cli-protocol/review-wiring.test.ts` so an approving
    plan-execution result must retain scenario-and-approach coverage, the exact
    ordered proof specs and stable checklist definition, reviewed applicability,
-   `designApprovalGate`, and the existing slicing record.
+   `designApprovalGate`, the normalized plan digest, and the existing slicing
+   record. Prove that changing any stable plan byte invalidates review while
+   changing only contributor progress does not.
 2. GREEN: Extend the plan-execution reviewer schema, validator, persistence,
    conformance corpus, and generated rubric/admission assets. Preserve the
    current slicing contract and reject omitted categories or a contributor
@@ -88,9 +85,10 @@ activates the prerequisite check only after the complete contract exists.
 3. GREEN: In the same change that activates those admission rules, replace the
    provisional Execution Plan checklist template with the reviewed
    proof-specification and versioned checklist sections. Update the canonical
-   Execution Planning guidance, regenerate every host mirror from canonical
-   sources, and run schema and parity tests. The repository must never enforce
-   a plan shape its own template cannot produce.
+   Execution Planning guidance, remove the non-actionable preparation date,
+   regenerate every host mirror from canonical sources, and run schema and
+   parity tests. The repository must never enforce a plan shape its own template
+   cannot produce.
 4. MIGRATE: Before any later slice can activate the first-execution consumer,
    update this ticket's own in-flight `execution-plan.md` to the new versioned
    checklist shape and obtain a fresh plan-execution review. Preserve the
@@ -101,71 +99,99 @@ activates the prerequisite check only after the complete contract exists.
    proof, same-item supporting proof, partial-plus-earlier combined gaps,
    compatible-earlier independent review, stale compatibility reasons,
    idempotent retry, write conflict, and concurrent proof/approval appends.
+   Prove recording refuses a dirty proof subject before execution and any
+   command-created source change after execution; a plan-only evidence commit
+   keeps the receipt current, while any other commit or working-tree change
+   makes it earlier-revision evidence.
 6. GREEN: Append `delivery-proof:v1` only after a successful retained command or
-   admitted current review. Bind the event to ticket, item, Proof ID, method,
-   reviewed boundary, revision, invocation, output, outcome, and idempotency key.
-   Atomically update the Markdown row only if the complete plan snapshot is
-   unchanged; preserve an already-written receipt across a retry.
-7. RED: Add `packages/cli/tests/integration/delivery-checklist-cli.test.ts` for
+   admitted review whose normalized plan identity still matches. Bind the event
+   to ticket, item, Proof ID, method, reviewed boundary, producing revision,
+   invocation, output, outcome, and idempotency key. Require a clean proof
+   subject outside this ticket's Execution Plan before and after execution.
+   Derive current evidence only while the producing revision remains an ancestor
+   and Git reports no other difference; validate the independently normalized
+   plan identity rather than ignoring its stable content. Atomically update the
+   Markdown row only if the complete plan snapshot is unchanged; preserve an
+   already-written receipt across a retry.
+7. GREEN: For `compatible_earlier_allowed`, retain an independent
+   `quality-review` acceptance that binds ticket, item, delivery receipt, reason
+   digest, producing revision, and current revision. Return
+   `compatibility_review_stale` for any mismatch or later reason edit.
+8. RED: Add `packages/cli/tests/integration/delivery-checklist-cli.test.ts` for
    `contributor_work_incomplete`, `contributor_work_complete`,
    `ready_for_human_review`, and
    `human_approval_satisfied_merge_pending`; prove contributor-editable text
-   cannot manufacture approval or merge authority.
-8. GREEN: Add `ticket delivery-checklist` and
+   cannot manufacture approval or merge authority. Assert the envelope status
+   and process exit for every state: all four exit 2 because contributor work,
+   a human dependency, or separate merge authorization remains. Prove an
+   Implementation Plan edit
+   returns to human review, and only Execution Plan re-review with the new digest
+   lets a new matching approval satisfy the dependency. Cover `review_required`
+   and `missing_execution_plan` mappings. Exercise the real ticket resolver,
+   prove features use only `execution-plan.md`, and prove task and patch fixtures
+   gain no feature artifact.
+9. GREEN: Add `ticket delivery-checklist` and
    `ticket record-delivery-proof` to the typed catalogue and public handlers.
    Use the standard v1 envelope and fixed state/exit mapping from the approved
-   Implementation Plan. After a successful proof, return the next open
-   obligation without introducing a per-TDD-step hook.
-9. RED/GREEN: Add `packages/cli/tests/integration/delivery-checklist-update.test.ts`
+   Implementation Plan. Declare the readiness leaf local-only and the proof
+   leaf's inherited network effect; prove `--offline` refuses proof recording,
+   stdin is closed, no TTY or confirmation prompt is inherited, and a successful
+   proof returns the next open obligation without a per-TDD-step hook.
+10. RED/GREEN: Add `packages/cli/tests/integration/delivery-checklist-update.test.ts`
    for reviewed `not_applicable`, human `pending_human`, contributor owner
    rejection, unreadable plan refusal, partial progress, `designApprovalGate`
    drift, and every stable-definition mutation through every public consumer.
-10. REFACTOR: Centralize stable-definition comparison and ledger decoding; keep
-   human-readable rendering at the CLI edge and avoid a JSON/YAML mirror.
-11. Run:
-   `node ./node_modules/vitest/vitest.mjs run tests/review/execution-plan-output.test.ts tests/cli-protocol/review-wiring.test.ts tests/integration/delivery-proof-ledger.test.ts tests/integration/delivery-checklist-cli.test.ts tests/integration/delivery-checklist-update.test.ts`.
+11. REFACTOR: Centralize stable-definition and normalized-plan comparison plus
+    ledger decoding; keep human-readable rendering at the CLI edge and avoid a
+    JSON/YAML mirror.
 12. Run:
-    `node ./node_modules/vitest/vitest.mjs run tests/schema.test.ts tests/parity.test.ts tests/review/execution-plan-rubric-generation.test.ts`.
-13. Run: `bun run typecheck`.
+   `node ./node_modules/vitest/vitest.mjs run tests/review/execution-plan-output.test.ts tests/cli-protocol/review-wiring.test.ts tests/integration/delivery-proof-ledger.test.ts tests/integration/delivery-checklist-cli.test.ts tests/integration/delivery-checklist-update.test.ts`.
+13. Run:
+    `node ./node_modules/vitest/vitest.mjs run tests/schema.test.ts tests/parity.test.ts tests/review/execution-plan-rubric-generation.test.ts tests/cli-protocol/catalog.test.ts tests/cli-protocol/machine-contract.test.ts`.
+14. Run: `bun run typecheck`.
 
-## PR 3 — Require the admitted checklist before feature execution
+## PR 3 — Expose the admitted-checklist execution prerequisite
 
-- **Purpose:** Compose the checklist with the first execution boundary and ship
-  the canonical authoring and recovery guidance.
-- **Boundary:** Include the shared prerequisite evaluator, source-level pre-tool
-  composition, public CLI recovery documentation, and direct process proof.
-  Exclude templates and generated contract mirrors, which ship with PR 2;
-  installed-host parity and lifecycle rollout, which YCFFNC owns; and the
-  broader phase-provenance contract, which 7CAMAD owns.
+- **Purpose:** Provide the checklist prerequisite helper that 7CAMAD composes
+  with the live first-execution boundary, and ship its recovery guidance.
+- **Boundary:** Include the shared prerequisite evaluator, public CLI recovery
+  documentation, and direct process proof. Exclude templates and generated
+  contract mirrors, which ship with PR 2; source-level composition and the
+  broader phase-provenance contract, which 7CAMAD owns; and installed-host
+  parity and lifecycle rollout, which YCFFNC owns.
 - **Prerequisites:** Record proof and report contributor readiness
 - **Proof:** A real helper process denies missing accepted scenarios, accepted
   approach, and checklist admission in deterministic order, permits a current
   admitted checklist, leaves task and patch edits untouched, exempts legacy
   tickets, and never authorizes an edit the phase gate denied. Machine-contract
-  and targeted hook tests prove the activated boundary and recovery output.
-- **Completion signal:** The shared CLI-owned boundary refuses new-flow feature
-  execution until the accepted prerequisites and Delivery Checklist exist;
-  legacy work stays unblocked and all packaged derivatives are current.
+  and targeted hook tests prove the helper boundary and recovery output.
+- **Completion signal:** Given `plan-execution` provenance, the shared helper
+  refuses execution until accepted scenarios, the accepted approach, and the
+  Delivery Checklist exist; it permits admitted and legacy-exempt inputs.
+  7CAMAD remains responsible for live first-edit composition.
 - **Relies on an unmerged successor:** no
 
 ### Tasks and tests
 
 1. RED: Add focused cases to the hook integration suite for missing scenarios,
-   missing approach, both missing in stable order, missing or stale checklist,
-   admitted checklist, task and patch non-activation, legacy exemption, and a
-   legacy ticket returned through `plan-execution`.
-2. GREEN: Add one shared prerequisite evaluator after the existing phase-access
-   check. It may deny a permitted application/test edit but may never turn a
-   denied edit into an allow. Use the phase-provenance input defined by 7CAMAD.
+   present-but-unapproved scenarios, missing approach,
+   present-but-unapproved approach, both missing in stable order, missing or
+   stale checklist, admitted checklist, task and patch non-activation, legacy
+   exemption, and a legacy ticket returned through `plan-execution`.
+2. GREEN: Add one shared prerequisite evaluator whose parameter accepts the
+   phase provenance 7CAMAD will produce and persist before calling it after the
+   existing phase-access check. It may deny a permitted application/test edit
+   but may never turn a denied edit into an allow. Do not add live source-level
+   composition in this ticket.
 3. RED/GREEN: Invoke the shared evaluator in a real process with a synthetic
    first-edit request. Assert each refusal names the reason, stopped boundary,
    and one concrete repair action; assert there is no checklist-originated
    objection after admission.
 4. GREEN: Update public CLI recovery documentation and command discovery for
-   the active prerequisite boundary. Do not duplicate the authoring contract
+   the prerequisite helper. Do not duplicate the authoring contract
    already shipped by PR 2.
-5. REFACTOR: Keep host adapters thin around the shared evaluator; do not add a
-   second prerequisite implementation.
+5. REFACTOR: Keep the helper independent of host adapters; do not add a second
+   prerequisite implementation.
 6. Run:
    `node ./node_modules/vitest/vitest.mjs run tests/integration/hooks.test.ts tests/hooks/plan-gate.test.ts tests/cli-protocol/catalog.test.ts tests/cli-protocol/machine-contract.test.ts`.
 7. Run: `bun run typecheck`.
@@ -176,8 +202,8 @@ activates the prerequisite check only after the complete contract exists.
 
 | Accepted obligation | Owning PRs |
 | --- | --- |
-| R1 checklist admission before execution | PR 3 |
-| R1 missing scenarios and approach recovery | PR 3 |
+| R1 checklist-admission prerequisite helper | PR 3 |
+| R1 missing-scenarios and accepted-approach recovery from the helper | PR 3 |
 | R2 all eleven default categories and omission denial | PR 1, PR 2 |
 | R3 complete, not-applicable, and pending-human dispositions | PR 1, PR 2 |
 | R3 contributor-work owner enforcement and partial progress | PR 2 |
@@ -190,8 +216,8 @@ activates the prerequisite check only after the complete contract exists.
 | R7 earlier partial evidence keeps both gaps open | PR 2 |
 | Safeword CLI shared workflow contract | PR 2, PR 3 |
 | Canonical authoring, command, and recovery documentation | PR 2, PR 3 |
-| Architecture record for retained checklist and proof evidence | completed before this plan; verified in PR 1 |
-| Migration | PR 3 — new-flow activation only; existing implement/verify tickets remain exempt |
+| Architecture record for retained checklist and proof evidence | PR 1 verifies the existing record; no slice creates a second record |
+| Migration | PR 2 — tickets still in `plan-execution` adopt the new sections at their next review; PR 3 keeps existing implement/verify tickets exempt |
 | Rollout | PR 3 — source-level activation remains behind 7CAMAD provenance and YCFFNC host rollout |
 | Rollback | PR 3 — remove the prerequisite composition; unknown ledger events remain inert and readable |
 
@@ -211,20 +237,23 @@ activates the prerequisite check only after the complete contract exists.
 - Use one typed, human-readable Delivery Checklist section as the only checklist source of truth: unchanged
 - Separate stable checklist obligations from mutable progress: unchanged
 - Derive readiness from checklist state without granting authority: unchanged
-- Bind current proof to repository HEAD until narrower relevance can be proven safely: unchanged
+- Bind current proof to a clean contribution revision while allowing the plan-only commit that persists its receipt: unchanged
 - Expose readiness and proof recording as separate public ticket leaves while reusing the executable-attestation worker and review ledger: unchanged
 - Require independent quality review before earlier proof becomes reusable completion evidence: unchanged
+- Keep plan review identity stable across evidence progress: unchanged
 
 ## Proof specifications
 
 | Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |
 | --- | --- | --- | --- | --- | --- | --- |
-| checklist-contract | command | integration | Delivery Plan proof and checklist parsing and validation | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/execution-plan/delivery-checklist.test.ts"]} |
+| checklist-contract | command | integration | Execution Plan proof and checklist parsing and validation | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/execution-plan/delivery-checklist.test.ts"]} |
 | proof-worker | command | integration | Direct no-shell proof process and executable-RED compatibility | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/execution-plan/delivery-proof.test.ts","tests/review/red-execution.test.ts"]} |
 | review-contract | command | integration | Plan-execution schema, trusted packet definition, and generated rubric | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/review/execution-plan-output.test.ts","tests/review/packet.test.ts","tests/review/execution-plan-rubric-generation.test.ts"]} |
 | delivery-cli | command | E2E | Public proof ledger, checklist update, and readiness commands | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/delivery-proof-ledger.test.ts","tests/integration/delivery-checklist-cli.test.ts","tests/integration/delivery-checklist-update.test.ts"]} |
-| first-execution | command | E2E | Feature first-edit prerequisite and task/patch non-activation | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/hooks.test.ts","tests/hooks/plan-gate.test.ts","tests/cli-protocol/catalog.test.ts","tests/cli-protocol/machine-contract.test.ts"]} |
-| full-verification | command | E2E | Complete repository regression suite | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |
+| failure-signals | command | E2E | Public readiness and prerequisite-helper refusal codes, ordering, and recovery actions | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/delivery-checklist-cli.test.ts","tests/integration/hooks.test.ts","tests/hooks/plan-gate.test.ts"]} |
+| documentation-contract | command | integration | Execution Plan template, guidance, CLI discovery and effects, and generated host mirrors | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/schema.test.ts","tests/parity.test.ts","tests/review/execution-plan-rubric-generation.test.ts","tests/cli-protocol/catalog.test.ts","tests/cli-protocol/machine-contract.test.ts"]} |
+| first-execution | command | E2E | Prerequisite helper admission, legacy exemption, and task/patch non-activation | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/hooks.test.ts","tests/hooks/plan-gate.test.ts","tests/cli-protocol/catalog.test.ts","tests/cli-protocol/machine-contract.test.ts"]} |
+| full-verification | command | E2E | Complete CLI-package Vitest regression suite | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |
 | plan-review | review_receipt | E2E | Accepted scenarios, implementation approach, slicing, and delivery definition | real_boundary | compatible_earlier_allowed | {"type":"review_receipt","kind":"plan-execution","targets":[".project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/execution-plan.md"]} |
 
 ## Delivery checklist
@@ -238,10 +267,10 @@ activates the prerequisite check only after the complete contract exists.
 | pr-decomposition | dependency and pull-request decomposition | Keep all three slices independently reviewable, proven, and safe without an unmerged successor. | contributor | plan-review | open | missing | | |
 | testing | testing | Pass the contract, process, review, CLI, hook, typecheck, parity, and final regression proofs named by this plan. | contributor | full-verification | open | missing | | |
 | data-compatibility | data and compatibility | Preserve unknown review-ledger events, atomically append delivery proofs, and reject stable-definition drift. | contributor | delivery-cli | open | missing | | |
-| monitoring | monitoring and failure signals | Expose typed refusal codes, fixed exit states, and one concrete recovery action for each contributor-repairable failure. | contributor | delivery-cli | open | missing | | |
+| monitoring | monitoring and failure signals | Expose typed refusal codes, fixed exit states, and one concrete recovery action for each contributor-repairable failure. | contributor | failure-signals | open | missing | | |
 | security-privacy | security and privacy | Execute only retained project-contained proof invocations without a shell, TTY, review secrets, or caller argv substitution. | contributor | proof-worker | open | missing | | |
-| rollout-rollback | rollout and rollback | Land inert contracts before explicit commands and activate the feature-only first-edit prerequisite with a removable composition point. | contributor | first-execution | open | missing | | |
-| documentation | documentation | Ship the canonical template, Execution Planning guidance, command discovery, recovery copy, and generated host mirrors together. | contributor | review-contract | open | missing | | |
-| ownership | ownership and human dependencies | Keep A639WN ownership local and preserve the named 7CAMAD, 5F5ZZA, YCFFNC, 3EG00H, and K3EBHB boundaries. | contributor | review-contract | open | missing | | |
+| rollout-rollback | rollout and rollback | Keep checklist enforcement behind one removable prerequisite helper and preserve the reviewed legacy exemption. | contributor | first-execution | open | missing | | |
+| documentation | documentation | Ship the canonical template, Execution Planning guidance, command discovery, recovery copy, and generated host mirrors together. | contributor | documentation-contract | open | missing | | |
+| ownership | ownership and human dependencies | Keep A639WN ownership local and preserve the named 7CAMAD, 5F5ZZA, YCFFNC, 3EG00H, and K3EBHB boundaries. | contributor | plan-review | open | missing | | |
 | design-approval | ownership and human dependencies | Obtain human design approval for this Implementation Plan. | human | | not_applicable | missing | | Project configuration has designApprovalGate disabled. |
 | completion-evidence | completion evidence | Finish every contributor obligation with retained real-boundary evidence and report human and merge authority separately. | contributor | full-verification | open | missing | | |
