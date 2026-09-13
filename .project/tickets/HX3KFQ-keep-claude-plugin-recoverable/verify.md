@@ -2,19 +2,19 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✅ Final current-head run: 9,955 passed, 58 skipped across CLI, retro-relay, and retro-collector; affected-suite run: 184/184 passed; release run: 74/74 passed across 12 files
-**Gherkin:** ✅ Generated verify lane: 1,496 passed, 3 skipped (68,731 steps passed, 4 skipped); dedicated BDD lane: 595/595 scenarios and 11,100/11,100 steps passed; proof tags: 45/45
+**Test Suite:** ✅ Final current-head run: 10,002 passed and 14 skipped across CLI, retro-relay, and retro-collector (CLI: 9,651 passed/13 skipped; relay: 198 passed/1 skipped; collector: 153 passed)
+**Gherkin:** ✅ Dedicated BDD lane: 595/595 scenarios and 11,100/11,100 steps passed; proof tags: 45/45
 **Build:** ✅ CLI, retro packages, and website build successfully
 **Lint:** ✅ ESLint, Prettier, Gherkin lint, and TypeScript checks pass
 **Scenarios:** ✅ Two post-hoc regression scenarios now bind the native resource and damaged-cache recovery contracts to named executable proof; they improve future protection but do not recreate pre-implementation discovery evidence
-**Refactor:** ✅ The duplicated Claude release proof was extracted into one normal-suite native resource contract shared by release verification; exact root-delegated workspace lanes are now represented once in generated plans
+**Refactor:** ✅ Script selection and shell tokenization now use shared authorities; the CLI build precondition is pinned in the BDD command contract; the canonical template boundary has one name; damaged-cache verification is separated from protocol output
 **PR Scope:** ✅ Diff matches the packaging and damaged-cache recovery ticket
 **Dep Drift:** ✅ No dependency changes; all package audits report no known vulnerabilities
 **Parent Epic:** N/A
 **Reconcile:** ✅ Generated Claude and Codex payload checks pass
 **Experience:** ⏭️ N/A — internal plugin packaging and recovery plumbing
 **Surface Evidence:** ✅ Both bundled CLIs execute real commands; damaged-cache behavior is proven for prompt, PreToolUse, SessionStart, PostToolUse, and Stop paths
-**Evidence limits:** ⚠️ Independent quality-review routes exhausted. A same-agent fresh-context fallback found two concrete defects that were fixed, but it is not independent coverage. Historical BDD discovery and RED-first provenance remain unrecoverable. Cross-worktree lock contention can still queue a lane, but generated plans no longer schedule duplicate workspace suites. Retro-relay's socket tests require an environment that permits local port/process-lock behavior; their unrestricted rerun passed 198 tests with 1 skip.
+**Evidence limits:** ⚠️ The final independent quality-review dispatch was rejected by the environment's outbound-data policy, so the post-refactor source-backed pass is not independent coverage. Remote GitHub verification was also unavailable because publishing the unpushed branch was not authorized. Historical BDD discovery and RED-first provenance remain unrecoverable. The exact final verifier encountered another worktree's package-test lock only for its standalone proof-tag invocation; that same test had passed in the full suite and its dedicated retry passed 45/45 after the lock cleared. Retro-relay's socket tests require local port/process-lock permissions; their unrestricted run passed 198 tests with 1 skip.
 
 ## BDD and TDD Quality Assessment
 
@@ -48,14 +48,24 @@ is not independent review evidence, and the fallback was not rerun after the cor
 - Verdict: no post-fix independent verdict available
 - Findings: both supplemental findings fixed; no unresolved known finding
 
+The final post-refactor coordinator dispatch was blocked before execution by the environment's
+outbound-data policy. A local review therefore checked the final implementation against current
+primary sources but cannot be represented as an independent verdict. Claude's current plugin
+reference confirms that marketplace plugins are copied into a versioned cache and cannot reference
+files outside their plugin directory. Claude's current hook reference confirms that an exit-0
+`PreToolUse` response may return `hookSpecificOutput.permissionDecision: "ask"`; Bun's current
+runtime reference confirms `--cwd` changes the process working directory. No new error-level issue
+was found in that local pass.
+
 ## Audit Detail
 
-- Diff-scoped architecture audit: no dependency violations across 13 modules and 5 dependencies; generated package-data trees are intentionally excluded from import-root analysis.
+- Full repository architecture audit: 1,260 modules and 4,632 dependencies produced no errors and one pre-existing orphan warning for `.project/tickets/CWGYH0-pr-review-eval/power-analysis.ts`; generated package-data trees are intentionally excluded from import-root analysis.
 - Dead code and duplication: no ticket-scoped finding. The large generated template copies are required payload contents, not source-level duplication to abstract away.
 - Documentation: the executable resource contract is recorded in `ARCHITECTURE.md`; no contradictory impacted claim was found in configured documentation.
 - Test harness: generated verify and BDD plans suppress only workspace lanes explicitly delegated by
   their selected root script. On this repository the plans now contain one JavaScript authority,
   while the independent Go lane remains present.
+- Repository baseline (non-blocking and out of ticket scope): Knip reports historical ticket/eval artifacts, two unresolved generator-script imports, unused exports/types, and one stale ignore hint; jscpd reports 28.83% duplication dominated by generated mirrors; the Go experiment checker has formatting/documentation warnings; six development dependencies have newer minor releases. No audit item is caused by or blocks this ticket.
 
 ## Affected Surfaces
 

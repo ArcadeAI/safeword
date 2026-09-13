@@ -28,3 +28,12 @@
   tests, 595 BDD scenarios with 11,100 steps, and 45 proof-tag checks. The sandboxed relay run could
   not exercise local sockets and hung after failures; the unrestricted rerun passed 198 tests with
   1 skip, confirming an environment failure rather than a product regression.
+- [16:31] Completed the requested full repository audit and refactor pass. Consolidated test script
+  selection, reused the shared shell tokenizer, restored and pinned the CLI build before BDD,
+  centralized the canonical template payload boundary, and separated damaged-cache verification
+  from protocol output. Each refactor passed focused tests and was committed independently.
+- [16:31] Final verification passed 10,002 tests with 14 skips, 595 BDD scenarios with 11,100 steps,
+  45 proof-tag checks, every package/site build and typecheck, Gherkin/ESLint, and five dependency
+  audits. The dedicated proof lane initially could not start while another worktree held the shared
+  lock; its retry passed. Independent quality review and remote GitHub verification were attempted
+  but blocked by outbound/push policy; the source-backed local review found no error-level issue.
