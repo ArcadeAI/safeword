@@ -233,10 +233,14 @@ function hasValidChecklistItemBase(value: Record<string, unknown>): boolean {
 }
 
 function contributorDefinitionIsValid(value: Record<string, unknown>): boolean {
-  const reviewedIsValid =
-    (value.reviewed_disposition === null && value.reviewed_detail === null) ||
-    (value.reviewed_disposition === 'not_applicable' && isNonblank(value.reviewed_detail));
-  return isNonblank(value.required_proof) && reviewedIsValid;
+  if (value.reviewed_disposition === 'not_applicable') {
+    return value.required_proof === '' && isNonblank(value.reviewed_detail);
+  }
+  return (
+    value.reviewed_disposition === null &&
+    value.reviewed_detail === null &&
+    isNonblank(value.required_proof)
+  );
 }
 
 function humanDefinitionIsValid(value: Record<string, unknown>): boolean {
@@ -303,7 +307,10 @@ function contributorProofsAreReal(definition: ExecutionPlanDeliveryDefinition): 
       .map(proof => proof.proof_id),
   );
   return definition.checklist_items.every(
-    item => item.owner !== 'contributor' || realProofs.has(item.required_proof),
+    item =>
+      item.owner !== 'contributor' ||
+      item.reviewed_disposition === 'not_applicable' ||
+      realProofs.has(item.required_proof),
   );
 }
 
