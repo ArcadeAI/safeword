@@ -1,34 +1,23 @@
-import { createHmac } from 'node:crypto';
-import {
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { findCommandDefinition } from '../../src/cli-protocol/catalog.js';
-import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
-import type { CliResult } from '../../src/cli-protocol/result.js';
 import {
   createExecutionPlanDeliveryDefinition,
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
 import { runCli } from '../helpers.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
 
-const reviews = vi.hoisted(() => new Map<string, CliResult>());
-const reviewerDirectories = new Set<string>();
-
-vi.mock('../../src/review/job.js', () => ({
-  reviewJobStatus: (_cwd: string, id: string) => reviews.get(id),
-}));
+type PlanningReviewKind = 'scenario-gate' | 'plan-implementation' | 'plan-execution';
 
 const CATEGORIES = [
   'outcome and scope',
@@ -69,73 +58,7 @@ function executionPlan(): string {
   ].join('\n');
 }
 
-function reviewResult(
-  kind: 'scenario-gate' | 'plan-implementation' | 'plan-execution',
-  target: string,
-  plan?: string,
-): CliResult {
-  let executionPlanRecord: Record<string, unknown> | undefined;
-  if (kind === 'plan-execution' && plan !== undefined) {
-    const parsed = parseDeliveryPlanContract(plan);
-    if (!parsed.ok) throw new Error(parsed.message);
-    executionPlanRecord = {
-      slicing_decision: 'one_pull_request',
-      rationale: 'One coherent contribution.',
-      slices: [
-        {
-          name: 'Contribution',
-          purpose: 'Deliver the contribution.',
-          boundary: 'Public prerequisite.',
-          prerequisites: [],
-          proof: 'Integration test.',
-          completion_signal: 'The prerequisite is observable.',
-          relies_on_unmerged_successor: false,
-        },
-      ],
-      obligation_owners: [{ obligation: 'Contribution', slices: ['Contribution'] }],
-      decision_statuses: [{ decision: 'Use the accepted plans', status: 'unchanged' }],
-      accepted_scenarios_covered: true,
-      accepted_approach_preserved: true,
-      normalized_plan_digest: normalizedExecutionPlanDigest(plan),
-      delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
-    };
-  }
-  return {
-    schemaVersion: 1,
-    ok: true,
-    state: 'healthy',
-    changed: false,
-    findings: [],
-    effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
-    errors: [],
-    recovery: [],
-    nextActions: [],
-    data: {
-      command: 'review status',
-      status: 'approved',
-      review_kind: kind,
-      review_targets: [target],
-      author_agent: 'codex',
-      actual_reviewer: 'claude',
-      independence: 'cross-agent',
-      reviewer_output: {
-        schema_version: 1,
-        dispatch_id: `${kind}-dispatch`,
-        reviewer_agent: 'claude',
-        verdict: 'approve',
-        summary: 'approved',
-        findings: [],
-        ...(executionPlanRecord !== undefined && {
-          execution_plan_record: executionPlanRecord,
-        }),
-      },
-    },
-  };
-}
-
-function featureFixture(
-  admitted: readonly ('scenario-gate' | 'plan-implementation' | 'plan-execution')[],
-): string {
+function featureFixture(designApprovalGate = false): string {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-prerequisite-'));
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
   const featurePath = nodePath.join(root, 'features', 'feature.feature');
@@ -148,6 +71,7 @@ function featureFixture(
   writeFileSync(
     nodePath.join(root, '.safeword', 'config.json'),
     `${JSON.stringify({
+      designApprovalGate,
       crossAgentReviewRoutes: {
         codex: [{ reviewer: 'claude', model: 'opus' }],
       },
@@ -161,17 +85,7 @@ function featureFixture(
   writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
   writeFileSync(implementationPath, '# Implementation Plan\n');
   writeFileSync(executionPath, plan);
-  const targets = {
-    'scenario-gate': nodePath.relative(root, featurePath),
-    'plan-implementation': nodePath.relative(root, implementationPath),
-    'plan-execution': nodePath.relative(root, executionPath),
-  } as const;
-  const lines = admitted.map(kind => {
-    const id = `${kind}-review`;
-    reviews.set(id, reviewResult(kind, targets[kind], plan));
-    return `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${kind} author:codex reviewer:claude independence:cross-agent review-id:${id}`;
-  });
-  writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${lines.join('\n')}\n`);
+  writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), '');
   return root;
 }
 
@@ -187,14 +101,7 @@ function legacyFeatureFixture(phase: 'implement' | 'verify'): string {
 }
 
 function installReviewer(): string {
-  const reviewerRoot = nodePath.resolve(
-    import.meta.dirname,
-    '../../../../.safeword/state/test-reviewers',
-  );
-  mkdirSync(reviewerRoot, { recursive: true, mode: 0o700 });
-  chmodSync(reviewerRoot, 0o700);
-  const directory = mkdtempSync(nodePath.join(reviewerRoot, 'prerequisite-'));
-  reviewerDirectories.add(directory);
+  const directory = createTrustedReviewerDirectory('safeword-prerequisite-');
   const bin = nodePath.join(directory, 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, 'claude');
@@ -204,7 +111,7 @@ function installReviewer(): string {
 set -eu
 if [ "${'$'}{1:-}" = "--version" ]; then printf 'claude 1.0.0\n'; exit 0; fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model'
+  printf '%s\n' '${REVIEWER_CAPABILITIES.claude}'
   exit 0
 fi
 payload=$(cat)
@@ -222,37 +129,15 @@ fi
   return bin;
 }
 
-function admitPlanExecutionFixture(
+async function admitThroughInstalledCli(
   root: string,
-  reviewId: string,
-  target: string,
-  plan: string,
-): void {
-  const path = nodePath.join(root, '.safeword', 'state', 'reviews', `${reviewId}.json`);
-  const record = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-  const { integrity: _integrity, ...unsigned } = record;
-  const completed = {
-    ...unsigned,
-    state: 'completed',
-    updated_at: '2026-09-13T00:00:00.000Z',
-    result: reviewResult('plan-execution', target, plan),
-  };
-  const key = Buffer.from(
-    readFileSync(
-      nodePath.join(root, '.review-keys', 'safeword', 'review-integrity.key'),
-      'utf8',
-    ).trim(),
-    'hex',
-  );
-  const integrity = createHmac('sha256', key)
-    .update(realpathSync.native(root))
-    .update('\0')
-    .update(JSON.stringify(completed))
-    .digest('hex');
-  writeFileSync(path, `${JSON.stringify({ ...completed, integrity })}\n`);
-}
-
-async function admitThroughInstalledCli(root: string): Promise<void> {
+  admitted: readonly PlanningReviewKind[] = [
+    'scenario-gate',
+    'plan-implementation',
+    'plan-execution',
+  ],
+  designApprovalGate = false,
+): Promise<void> {
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
   const plan = executionPlan();
   const parsed = parseDeliveryPlanContract(plan);
@@ -276,7 +161,7 @@ async function admitThroughInstalledCli(root: string): Promise<void> {
     accepted_scenarios_covered: true,
     accepted_approach_preserved: true,
     normalized_plan_digest: normalizedExecutionPlanDigest(plan),
-    delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
+    delivery_definition: createExecutionPlanDeliveryDefinition(parsed, designApprovalGate),
   };
   const bin = installReviewer();
   const implementationTarget = nodePath.relative(
@@ -305,12 +190,13 @@ async function admitThroughInstalledCli(root: string): Promise<void> {
   ] as const;
   const stamps: string[] = [];
   const reviewKeyRoot = nodePath.join(root, '.review-keys');
-  for (const [kind, target, context, executionRecord] of requests) {
+  for (const [reviewKind, target, context, executionRecord] of requests) {
+    if (!admitted.includes(reviewKind)) continue;
     const reviewed = await runCli(
       [
         'review',
         'run',
-        kind,
+        reviewKind,
         target,
         ...context.flatMap(contextPath => ['--context', contextPath]),
         '--json',
@@ -334,29 +220,18 @@ async function admitThroughInstalledCli(root: string): Promise<void> {
     );
     const result = JSON.parse(reviewed.stdout) as { data?: { review_id?: string } };
     const id = result.data?.review_id;
-    if (id === undefined) throw new Error(`${kind} review id missing`);
-    if (kind === 'plan-execution' && reviewed.exitCode === 2) {
-      expect(reviewed.stdout).toContain('REVIEW_ROUTES_EXHAUSTED');
-      admitPlanExecutionFixture(root, id, target, plan);
-    } else {
-      expect(reviewed.exitCode, reviewed.stdout).toBe(0);
-    }
+    if (id === undefined) throw new Error(`${reviewKind} review id missing`);
+    expect(reviewed.exitCode, reviewed.stdout).toBe(0);
     stamps.push(
-      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${kind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
+      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
     );
   }
   writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${stamps.join('\n')}\n`);
 }
 
 describe('delivery execution prerequisite', () => {
-  beforeEach(() => {
-    reviews.clear();
-  });
-
   afterEach(() => {
-    for (const directory of reviewerDirectories)
-      rmSync(directory, { recursive: true, force: true });
-    reviewerDirectories.clear();
+    cleanupTrustedReviewerDirectories();
   });
 
   it('is registered as a public observe-only CLI command', () => {
@@ -364,12 +239,12 @@ describe('delivery execution prerequisite', () => {
       name: 'ticket execution-prerequisite',
       effectClass: 'observe',
       networkPolicy: 'never',
-      syntax: 'execution-prerequisite <ticketId>',
+      registration: expect.objectContaining({ syntax: 'execution-prerequisite <ticketId>' }),
     });
   });
 
   it('runs through the installed CLI with integrity-checked admitted reviews', async () => {
-    const root = featureFixture([]);
+    const root = featureFixture();
     await admitThroughInstalledCli(root);
 
     const result = await runCli(
@@ -384,82 +259,145 @@ describe('delivery execution prerequisite', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'healthy',
-      data: { prerequisite_status: 'satisfied', grants_authority: false },
+    const output = JSON.parse(result.stdout) as Record<string, unknown>;
+    expect(output.data).toEqual({
+      command: 'ticket execution-prerequisite',
+      prerequisite_status: 'satisfied',
+      grants_authority: false,
     });
-  });
-
-  it('returns a satisfied deny-only verdict for all three admitted planning contracts', async () => {
-    const root = featureFixture(['scenario-gate', 'plan-implementation', 'plan-execution']);
-
-    const result = await publicHandler('ticket execution-prerequisite')({
-      cwd: root,
-      noInput: true,
-      offline: false,
-      operands: ['ABC123'],
-      options: {},
-    });
-
-    expect(result).toMatchObject({
-      state: 'healthy',
-      data: {
-        command: 'ticket execution-prerequisite',
-        prerequisite_status: 'satisfied',
-        grants_authority: false,
-      },
+    expect(output).toMatchObject({ state: 'healthy', next_actions: [] });
+    expect(output.effects).toEqual({
+      files: [],
+      packages: [],
+      configuration: [],
+      network: [],
+      destructive: [],
     });
   });
 
   it('reports every missing prerequisite once in deterministic planning order', async () => {
-    const root = featureFixture([]);
+    const root = featureFixture();
 
-    const result = await publicHandler('ticket execution-prerequisite')({
-      cwd: root,
-      noInput: true,
-      offline: false,
-      operands: ['ABC123'],
-      options: {},
-    });
+    const invoked = await runCli(
+      ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+    const result = JSON.parse(invoked.stdout) as {
+      state: string;
+      findings: { code: string; message: string }[];
+      next_actions: { command: string }[];
+      data?: { prerequisite_status?: string };
+    };
 
+    expect(invoked.exitCode).toBe(2);
     expect(result).toMatchObject({ state: 'action_required' });
     expect(result.findings.map(finding => finding.code)).toEqual([
       'missing_accepted_scenarios',
       'missing_accepted_approach',
       'missing_admitted_delivery_checklist',
     ]);
-    expect(result.nextActions).toHaveLength(3);
+    expect(result.findings.map(finding => finding.message)).toEqual([
+      'Accepted scenarios are required before execution.',
+      'An accepted implementation approach is required before execution.',
+      'An admitted Delivery Checklist is required before execution.',
+    ]);
+    expect(result.next_actions.map(action => action.command)).toEqual([
+      'safeword review run scenario-gate --context .project/tickets/ABC123-feature/spec.md -- features/feature.feature',
+      'safeword review run plan-implementation --context features/feature.feature --context .project/tickets/ABC123-feature/spec.md -- .project/tickets/ABC123-feature/impl-plan.md',
+      'safeword review run plan-execution --context .project/tickets/ABC123-feature/impl-plan.md --context features/feature.feature -- .project/tickets/ABC123-feature/execution-plan.md',
+    ]);
+    expect(result.data?.prerequisite_status).toBeUndefined();
   });
 
   it.each([
-    ['accepted scenarios', ['plan-implementation', 'plan-execution'], 'missing_accepted_scenarios'],
+    [
+      'accepted scenarios',
+      ['plan-implementation', 'plan-execution'],
+      'missing_accepted_scenarios',
+      'Accepted scenarios are required before execution.',
+      'safeword review run scenario-gate --context .project/tickets/ABC123-feature/spec.md -- features/feature.feature',
+    ],
     [
       'accepted implementation approach',
       ['scenario-gate', 'plan-execution'],
       'missing_accepted_approach',
+      'An accepted implementation approach is required before execution.',
+      'safeword review run plan-implementation --context features/feature.feature --context .project/tickets/ABC123-feature/spec.md -- .project/tickets/ABC123-feature/impl-plan.md',
     ],
     [
       'admitted Delivery Checklist',
       ['scenario-gate', 'plan-implementation'],
       'missing_admitted_delivery_checklist',
+      'An admitted Delivery Checklist is required before execution.',
+      'safeword review run plan-execution --context .project/tickets/ABC123-feature/impl-plan.md --context features/feature.feature -- .project/tickets/ABC123-feature/execution-plan.md',
     ],
   ] as const)(
     'denies only the missing %s prerequisite with one repair',
-    async (_label, admitted, expectedCode) => {
-      const root = featureFixture(admitted);
+    async (_label, admitted, expectedCode, expectedMessage, expectedCommand) => {
+      const root = featureFixture();
+      await admitThroughInstalledCli(root, admitted);
 
-      const result = await publicHandler('ticket execution-prerequisite')({
-        cwd: root,
-        noInput: true,
-        offline: false,
-        operands: ['ABC123'],
-        options: {},
-      });
+      const invoked = await runCli(
+        ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+        {
+          cwd: root,
+          env: {
+            NODE_ENV: 'test',
+            SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+          },
+        },
+      );
+      const result = JSON.parse(invoked.stdout) as {
+        state: string;
+        findings: { code: string; message: string }[];
+        next_actions: { command: string }[];
+        data?: { prerequisite_status?: string };
+      };
 
+      expect(invoked.exitCode).toBe(2);
+      expect(result.state).toBe('action_required');
       expect(result.findings.map(finding => finding.code)).toEqual([expectedCode]);
-      expect(result.nextActions).toHaveLength(1);
+      expect(result.findings[0]?.message).toBe(expectedMessage);
+      expect(result.next_actions.map(action => action.command)).toEqual([expectedCommand]);
+      expect(result.data?.prerequisite_status).toBeUndefined();
     },
   );
+
+  it('requires configured human design approval as part of the accepted approach', async () => {
+    const root = featureFixture(true);
+    await admitThroughInstalledCli(
+      root,
+      ['scenario-gate', 'plan-implementation', 'plan-execution'],
+      true,
+    );
+
+    const invoked = await runCli(
+      ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+    const result = JSON.parse(invoked.stdout) as {
+      findings: { code: string }[];
+      next_actions: { command: string }[];
+    };
+
+    expect(invoked.exitCode).toBe(2);
+    expect(result.findings.map(finding => finding.code)).toEqual(['missing_accepted_approach']);
+    expect(result.next_actions.map(action => action.command)).toEqual([
+      'safeword ticket approve-plan ABC123',
+    ]);
+  });
 
   it.each(['task', 'patch'] as const)('keeps %s work outside the feature contract', async type => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-prerequisite-small-'));
@@ -467,14 +405,13 @@ describe('delivery execution prerequisite', () => {
     mkdirSync(ticketDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), `---\ntype: ${type}\n---\n`);
 
-    const result = await publicHandler('ticket execution-prerequisite')({
-      cwd: root,
-      noInput: true,
-      offline: false,
-      operands: ['ABC123'],
-      options: {},
-    });
+    const invoked = await runCli(
+      ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+      { cwd: root, env: { NODE_ENV: 'test' } },
+    );
+    const result = JSON.parse(invoked.stdout) as Record<string, unknown>;
 
+    expect(invoked.exitCode).toBe(0);
     expect(result).toMatchObject({
       state: 'healthy',
       data: { prerequisite_status: 'not_applicable', grants_authority: false },
@@ -486,14 +423,13 @@ describe('delivery execution prerequisite', () => {
     async phase => {
       const root = legacyFeatureFixture(phase);
 
-      const result = await publicHandler('ticket execution-prerequisite')({
-        cwd: root,
-        noInput: true,
-        offline: false,
-        operands: ['ABC123'],
-        options: {},
-      });
+      const invoked = await runCli(
+        ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+        { cwd: root, env: { NODE_ENV: 'test' } },
+      );
+      const result = JSON.parse(invoked.stdout) as Record<string, unknown>;
 
+      expect(invoked.exitCode).toBe(0);
       expect(result).toMatchObject({
         state: 'healthy',
         data: { prerequisite_status: 'not_applicable', grants_authority: false },
