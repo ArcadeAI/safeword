@@ -48,3 +48,30 @@ Audit passed for the `origin/main…HEAD` diff: no dependency violations, config
 drift, broken references, documentation drift, or test-quality findings. The
 principle checker reported only pre-existing findings in unchanged tickets,
 outside the printed audit scope.
+
+## Post-close quality assessment
+
+**Quality Review:** ✅ Approved by the Safeword fallback review. Independent
+routes exhausted without a verdict, so the completed assessment is explicitly
+non-independent (`independence: none`). One non-blocking edge remains: a help
+flag followed by a malformed value-taking option can fail during parsing before
+usage is emitted; that combination is outside issue #4521's direct invocation.
+
+**TDD Test Quality:** ✅ Behavioral and discriminating. The regression ran RED
+before implementation; the tests execute the real helper subprocess, cover both
+help aliases, assert successful usage with no runtime identity or stamp write,
+and protect `-h` when consumed as an option value. Fresh rerun: 32/32 pass.
+
+**BDD Test Quality:** ✅ No new Gherkin scenario warranted for this single-path
+internal parser fix. Existing acceptance scenarios exercise generated-plugin
+and release-contract parity; the helper behavior is proven at the stronger,
+faster integration boundary.
+
+**Refactor Assessment:** ✅ No change warranted. The change reuses the existing
+sequential parser and adds one early informational exit. Extracting another
+parser/help abstraction would add indirection; generated delivery copies are
+reconciled artifacts, not duplicated source intent.
+
+**Current Sources:** [GNU `--help` guidance](https://www.gnu.org/prep/standards/html_node/_002d_002dhelp.html)
+and [Bun argument parsing](https://bun.sh/guides/process/argv), checked
+2026-09-13.
