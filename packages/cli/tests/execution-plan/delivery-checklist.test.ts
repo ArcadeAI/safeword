@@ -68,6 +68,16 @@ describe('Delivery Checklist contract', () => {
     });
   });
 
+  it('rejects duplicate checklist IDs instead of merging separate obligations', () => {
+    const content = completeChecklist().replace('| item-2 |', '| item-1 |');
+
+    expect(parseDeliveryChecklist(content)).toEqual({
+      ok: false,
+      code: 'duplicate_checklist_id',
+      message: 'Delivery Checklist ID item-1 appears more than once.',
+    });
+  });
+
   it('keeps contributor-controlled work open when it is labeled pending human', () => {
     const content = completeChecklist().replace(
       '| item-4 | testing | Complete testing | contributor | proof-4 | open | missing | | |',
