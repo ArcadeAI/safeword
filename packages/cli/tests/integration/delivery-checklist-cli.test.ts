@@ -15,10 +15,18 @@ import {
 } from '../../src/execution-plan/delivery-checklist.js';
 import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 
-const review = vi.hoisted(() => ({ result: undefined as CliResult | undefined }));
+const review = vi.hoisted(() => ({
+  result: undefined as CliResult | undefined,
+  compatibilityResult: undefined as CliResult | undefined,
+  starts: [] as unknown[],
+}));
 
 vi.mock('../../src/review/job.js', () => ({
   reviewJobStatus: () => review.result,
+  startReviewJob: (input: unknown) => {
+    review.starts.push(input);
+    return review.compatibilityResult;
+  },
 }));
 
 const { observeDeliveryChecklist, recordDeliveryProof } =
@@ -176,6 +184,8 @@ function fixture(options: { plan?: string; designApprovalGate?: boolean } = {}):
 describe('Delivery Checklist CLI service', () => {
   beforeEach(() => {
     review.result = undefined;
+    review.compatibilityResult = undefined;
+    review.starts = [];
   });
 
   it('records retained proof and immediately reports the next open obligation', async () => {
@@ -332,5 +342,69 @@ describe('Delivery Checklist CLI service', () => {
     );
     expect(planBeforeConfirmation).not.toContain('reusable_earlier_revision');
     expect(planBeforeConfirmation).not.toContain('; compatible:');
+  });
+
+  it('dispatches the exact earlier-proof request only after egress confirmation', async () => {
+    const { root, planPath } = fixture({
+      plan: executionPlan('compatible_earlier_allowed'),
+    });
+    const recorded = await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof');
+    const receipt = (recorded.data as { receipt_id?: string }).receipt_id;
+    expect(receipt).toEqual(expect.any(String));
+    git(root, ['add', '.project']);
+    git(root, ['commit', '--quiet', '-m', 'record proof']);
+    writeFileSync(nodePath.join(root, 'documentation.md'), '# Later documentation\n');
+    git(root, ['add', 'documentation.md']);
+    git(root, ['commit', '--quiet', '-m', 'document behavior']);
+    review.compatibilityResult = {
+      schemaVersion: 1,
+      ok: true,
+      state: 'action_required',
+      changed: false,
+      findings: [],
+      effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
+      errors: [],
+      recovery: [],
+      nextActions: [],
+      data: { command: 'review run', status: 'pending', review_id: 'compatibility-review-1' },
+    };
+
+    const result = await publicHandler('ticket record-delivery-proof')({
+      cwd: root,
+      noInput: true,
+      offline: false,
+      operands: ['ABC123', 'item-4', 'proof'],
+      options: {
+        receipt,
+        compatibleReason: 'The later commit changes documentation only.',
+        confirmEgress: true,
+      },
+    });
+
+    expect(result).toMatchObject({
+      state: 'action_required',
+      findings: [{ code: 'compatibility_review_pending' }],
+      effects: {
+        network: [{ kind: 'review', target: 'configured external reviewer' }],
+      },
+    });
+    expect(result.nextActions).toHaveLength(1);
+    expect(review.starts).toEqual([
+      expect.objectContaining({
+        cwd: root,
+        kind: 'delivery-compatibility',
+        targets: [expect.stringMatching(/^\.safeword\/state\/reviews\/requests\/.+\.md$/u)],
+      }),
+    ]);
+    const target = (review.starts[0] as { targets: string[] }).targets[0];
+    expect(target).toEqual(expect.any(String));
+    if (target === undefined) throw new Error('compatibility request target missing');
+    const request = readFileSync(nodePath.join(root, target), 'utf8');
+    expect(request).toContain('Ticket: `ABC123`');
+    expect(request).toContain('Checklist item: `item-4`');
+    expect(request).toContain(`Delivery receipt: \`${receipt}\``);
+    expect(request).toContain('The later commit changes documentation only.');
+    expect(request).toContain('diff --git a/documentation.md b/documentation.md');
+    expect(readFileSync(planPath, 'utf8')).not.toContain('reusable_earlier_revision');
   });
 });
