@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -20,9 +20,12 @@ function committedProject(): { projectRoot: string; revision: string } {
   git(projectRoot, ['init', '--quiet']);
   git(projectRoot, ['config', 'user.email', 'proof@example.com']);
   git(projectRoot, ['config', 'user.name', 'Proof Test']);
+  const ledgerPath = nodePath.join(projectRoot, '.project', 'skill-invocations.log');
+  mkdirSync(nodePath.dirname(ledgerPath), { recursive: true });
   writeFileSync(nodePath.join(projectRoot, 'source.ts'), 'export const value = 1;\n');
   writeFileSync(nodePath.join(projectRoot, 'execution-plan.md'), '# Execution Plan\n');
-  git(projectRoot, ['add', 'source.ts', 'execution-plan.md']);
+  writeFileSync(ledgerPath, 'initial review evidence\n');
+  git(projectRoot, ['add', 'source.ts', 'execution-plan.md', '.project/skill-invocations.log']);
   git(projectRoot, ['commit', '--quiet', '-m', 'initial']);
   return { projectRoot, revision: git(projectRoot, ['rev-parse', 'HEAD']) };
 }
@@ -76,14 +79,26 @@ describe('Delivery command proof', () => {
   it('requires a clean contribution subject but permits Execution Plan progress', () => {
     const { projectRoot, revision } = committedProject();
     writeFileSync(nodePath.join(projectRoot, 'execution-plan.md'), '# Execution Plan\nprogress\n');
+    writeFileSync(
+      nodePath.join(projectRoot, '.project', 'skill-invocations.log'),
+      'initial review evidence\nnew delivery receipt\n',
+    );
 
     expect(
-      captureDeliveryProofSubject({ projectRoot, executionPlanPath: 'execution-plan.md' }),
+      captureDeliveryProofSubject({
+        projectRoot,
+        executionPlanPath: 'execution-plan.md',
+        reviewLedgerPath: '.project/skill-invocations.log',
+      }),
     ).toEqual({ ok: true, revision });
 
     writeFileSync(nodePath.join(projectRoot, 'source.ts'), 'export const value = 2;\n');
     expect(
-      captureDeliveryProofSubject({ projectRoot, executionPlanPath: 'execution-plan.md' }),
+      captureDeliveryProofSubject({
+        projectRoot,
+        executionPlanPath: 'execution-plan.md',
+        reviewLedgerPath: '.project/skill-invocations.log',
+      }),
     ).toMatchObject({ ok: false, code: 'proof_subject_dirty' });
   });
 
@@ -97,6 +112,7 @@ describe('Delivery command proof', () => {
       currentDeliveryProofSubject({
         projectRoot,
         executionPlanPath: 'execution-plan.md',
+        reviewLedgerPath: '.project/skill-invocations.log',
         producingRevision: revision,
       }),
     ).toMatchObject({ ok: true, current: true });
@@ -108,6 +124,7 @@ describe('Delivery command proof', () => {
       currentDeliveryProofSubject({
         projectRoot,
         executionPlanPath: 'execution-plan.md',
+        reviewLedgerPath: '.project/skill-invocations.log',
         producingRevision: revision,
       }),
     ).toMatchObject({ ok: true, current: false });

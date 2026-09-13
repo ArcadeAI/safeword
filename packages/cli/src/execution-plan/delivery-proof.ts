@@ -33,8 +33,8 @@ function git(
   return { status: result.status, stdout: result.stdout };
 }
 
-function executionPlanPathspec(projectRoot: string, executionPlanPath: string): string | undefined {
-  const relative = nodePath.relative(projectRoot, nodePath.resolve(projectRoot, executionPlanPath));
+function excludedPathspec(projectRoot: string, path: string): string | undefined {
+  const relative = nodePath.relative(projectRoot, nodePath.resolve(projectRoot, path));
   if (
     relative === '' ||
     nodePath.isAbsolute(relative) ||
@@ -54,9 +54,13 @@ function unavailable(message: string): Extract<DeliveryProofSubject, { readonly 
 export function captureDeliveryProofSubject(input: {
   readonly projectRoot: string;
   readonly executionPlanPath: string;
+  readonly reviewLedgerPath: string;
 }): DeliveryProofSubject {
-  const excludedPlan = executionPlanPathspec(input.projectRoot, input.executionPlanPath);
-  if (excludedPlan === undefined) return unavailable('Execution Plan path is outside the project.');
+  const excludedPlan = excludedPathspec(input.projectRoot, input.executionPlanPath);
+  const excludedLedger = excludedPathspec(input.projectRoot, input.reviewLedgerPath);
+  if (excludedPlan === undefined || excludedLedger === undefined) {
+    return unavailable('Execution Plan or review ledger path is outside the project.');
+  }
   const head = git(input.projectRoot, ['rev-parse', '--verify', 'HEAD^{commit}']);
   if (head.status !== 0) return unavailable('The contribution has no readable committed revision.');
   const status = git(input.projectRoot, [
@@ -67,6 +71,7 @@ export function captureDeliveryProofSubject(input: {
     '--',
     '.',
     excludedPlan,
+    excludedLedger,
   ]);
   if (status.status !== 0) return unavailable('Safeword could not inspect the contribution state.');
   if (status.stdout !== '') {
@@ -83,12 +88,16 @@ export function captureDeliveryProofSubject(input: {
 export function currentDeliveryProofSubject(input: {
   readonly projectRoot: string;
   readonly executionPlanPath: string;
+  readonly reviewLedgerPath: string;
   readonly producingRevision: string;
 }): CurrentDeliveryProofSubject {
   const captured = captureDeliveryProofSubject(input);
   if (!captured.ok) return captured;
-  const excludedPlan = executionPlanPathspec(input.projectRoot, input.executionPlanPath);
-  if (excludedPlan === undefined) return unavailable('Execution Plan path is outside the project.');
+  const excludedPlan = excludedPathspec(input.projectRoot, input.executionPlanPath);
+  const excludedLedger = excludedPathspec(input.projectRoot, input.reviewLedgerPath);
+  if (excludedPlan === undefined || excludedLedger === undefined) {
+    return unavailable('Execution Plan or review ledger path is outside the project.');
+  }
   const ancestor = git(input.projectRoot, [
     'merge-base',
     '--is-ancestor',
@@ -107,6 +116,7 @@ export function currentDeliveryProofSubject(input: {
     '--',
     '.',
     excludedPlan,
+    excludedLedger,
   ]);
   if (difference.status !== 0 && difference.status !== 1) {
     return unavailable('Safeword could not compare the contribution contents.');
