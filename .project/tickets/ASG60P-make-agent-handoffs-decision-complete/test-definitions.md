@@ -176,7 +176,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The long decision corpus rejects the observed omission
 
-- [ ] RED
+- [x] RED 6c495df09
 - [ ] GREEN
 - [ ] REFACTOR
 
