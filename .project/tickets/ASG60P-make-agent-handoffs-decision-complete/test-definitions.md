@@ -146,7 +146,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 2fd7cde09
 - [x] GREEN 8b487b2e6
-- [ ] REFACTOR
+- [x] REFACTOR 6c495df09 — consolidated the version and role markers used by delivered-copy parity
 
 ### Scenario: An unversioned contract is invalid
 
