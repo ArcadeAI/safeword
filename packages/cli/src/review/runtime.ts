@@ -227,6 +227,7 @@ const EXECUTION_PLAN_RECORD_SCHEMA = {
         },
         accepted_scenarios_covered: { type: 'boolean', enum: [true] },
         accepted_approach_preserved: { type: 'boolean', enum: [true] },
+        normalized_plan_digest: { type: 'string', pattern: '^[a-f0-9]{64}$' },
         delivery_definition: EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA,
       },
       required: [
@@ -237,6 +238,7 @@ const EXECUTION_PLAN_RECORD_SCHEMA = {
         'decision_statuses',
         'accepted_scenarios_covered',
         'accepted_approach_preserved',
+        'normalized_plan_digest',
         'delivery_definition',
       ],
       additionalProperties: false,
@@ -1515,6 +1517,7 @@ async function runCandidate(
               const validation = validateExecutionPlanOutput(
                 parsed,
                 packet.execution_plan_delivery_definition,
+                packet.execution_plan_normalized_digest,
               );
               if (validation.kind === 'invalid_output') throw new Error('invalid reviewer output');
               resolve(validation.output);

@@ -57,6 +57,7 @@ function validRecord(): ExecutionPlanRecord {
     decision_statuses: [{ decision: 'Use one shared coordinator', status: 'unchanged' }],
     accepted_scenarios_covered: true,
     accepted_approach_preserved: true,
+    normalized_plan_digest: 'a'.repeat(64),
     delivery_definition: {
       schema_version: 1,
       design_approval_gate: false,
@@ -160,6 +161,7 @@ describe('Execution Plan output schema', () => {
       expect.arrayContaining([
         'accepted_scenarios_covered',
         'accepted_approach_preserved',
+        'normalized_plan_digest',
         'delivery_definition',
       ]),
     );
@@ -224,6 +226,15 @@ describe('Execution Plan output validation', () => {
     );
 
     expect(validateExecutionPlanOutput(output, expected)).toEqual({ kind: 'invalid_output' });
+  });
+
+  it('refuses a reviewer digest that differs from the trusted normalized plan identity', () => {
+    const output = approval();
+    const expected = validRecord().delivery_definition;
+
+    expect(validateExecutionPlanOutput(output, expected, 'b'.repeat(64))).toEqual({
+      kind: 'invalid_output',
+    });
   });
 
   it('normalizes every legible denial to a null record', () => {

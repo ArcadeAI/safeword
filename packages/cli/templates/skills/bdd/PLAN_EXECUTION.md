@@ -94,13 +94,16 @@ from outside those sources.
   and concrete reviewed reasons or dependencies. Treat the packet's
   `execution_plan_delivery_definition` as the exact normalized definition to
   retain after those semantic judgments; do not rewrite, omit, or strengthen
-  it.
+  it. Copy `execution_plan_normalized_digest` exactly so any plan change outside
+  ordinary checklist progress invalidates the retained review.
 
 For an approval, return `execution_plan_record` containing the slicing decision
 and rationale; the complete ordered slices; obligation-owner entries; and
 decision-status entries; `accepted_scenarios_covered: true`;
 `accepted_approach_preserved: true`; and `delivery_definition` copied exactly
-from the packet's trusted `execution_plan_delivery_definition`. Set every
+from the packet's trusted `execution_plan_delivery_definition`. Set
+`normalized_plan_digest` to the packet's exact
+`execution_plan_normalized_digest`. Set every
 slice's `relies_on_unmerged_successor` to `false` and every decision status to
 `unchanged` only when the source evidence supports those assertions. Set the
 coverage booleans to true only after judging the supplied scenarios and

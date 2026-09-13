@@ -135,6 +135,7 @@ describe('review packet containment and change accounting', () => {
           expect.objectContaining({ id: 'item-1', required_proof: 'proof-1' }),
         ]),
       });
+      expect(prepared.packet.execution_plan_normalized_digest).toMatch(/^[a-f0-9]{64}$/u);
       writeFileSync(
         nodePath.join(root, '.safeword', 'config.json'),
         '{"designApprovalGate":false}\n',

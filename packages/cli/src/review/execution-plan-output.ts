@@ -41,6 +41,10 @@ function isNonblank(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
 }
 
+function isSha256(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
+}
+
 function uniqueNonblankStrings(value: unknown, allowEmpty: boolean): value is string[] {
   if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) return false;
   if (!value.every(isNonblank)) return false;
@@ -132,6 +136,7 @@ function hasValidRecordHeader(value: Record<string, unknown>): boolean {
       'decision_statuses',
       'accepted_scenarios_covered',
       'accepted_approach_preserved',
+      'normalized_plan_digest',
       'delivery_definition',
     ]) &&
     decisionIsValid &&
@@ -140,6 +145,7 @@ function hasValidRecordHeader(value: Record<string, unknown>): boolean {
     value.slices.every(isValidSlice) &&
     Array.isArray(value.obligation_owners) &&
     Array.isArray(value.decision_statuses) &&
+    isSha256(value.normalized_plan_digest) &&
     hasValidPlanJudgmentHeader(value)
   );
 }
@@ -381,6 +387,7 @@ function isValidExecutionPlanRecord(value: unknown): value is ExecutionPlanRecor
 export function validateExecutionPlanOutput(
   output: UnverifiedReviewerOutput,
   expectedDefinition?: ExecutionPlanDeliveryDefinition,
+  expectedNormalizedPlanDigest?: string,
 ): ValidatedExecutionPlanOutput {
   if (output.verdict === 'request_changes') return deniedOutput(output);
 
@@ -393,6 +400,12 @@ export function validateExecutionPlanOutput(
   if (
     expectedDefinition !== undefined &&
     !isDeepStrictEqual(candidate.delivery_definition, expectedDefinition)
+  ) {
+    return { kind: 'invalid_output' };
+  }
+  if (
+    expectedNormalizedPlanDigest !== undefined &&
+    candidate.normalized_plan_digest !== expectedNormalizedPlanDigest
   ) {
     return { kind: 'invalid_output' };
   }

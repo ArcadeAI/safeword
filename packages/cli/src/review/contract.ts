@@ -129,6 +129,7 @@ export interface ExecutionPlanRecord {
   readonly decision_statuses: readonly ExecutionPlanDecisionStatus[];
   readonly accepted_scenarios_covered: true;
   readonly accepted_approach_preserved: true;
+  readonly normalized_plan_digest: string;
   readonly delivery_definition: ExecutionPlanDeliveryDefinition;
 }
 
@@ -179,6 +180,8 @@ export interface ReviewPacket {
   readonly plan_contract?: PlanContractPair;
   /** Trusted normalized definition the plan-execution reviewer must retain exactly. */
   readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;
+  /** Trusted digest of the whole Execution Plan with ordinary progress normalized out. */
+  readonly execution_plan_normalized_digest?: string;
   /** Trusted process evidence, present only for executable RED review. */
   readonly execution_attestation?: RedExecutionAttestation;
 }

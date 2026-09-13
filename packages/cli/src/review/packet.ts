@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 
 import {
   createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
 import type {
@@ -169,6 +170,16 @@ function packetDeliveryDefinition(definition: ExecutionPlanDeliveryDefinition | 
   readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;
 } {
   return definition === undefined ? {} : { execution_plan_delivery_definition: definition };
+}
+
+function packetNormalizedPlanDigest(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly content: string }[],
+): { readonly execution_plan_normalized_digest?: string } {
+  const plan = logicalFiles[0];
+  return kind === 'plan-execution' && plan !== undefined
+    ? { execution_plan_normalized_digest: normalizedExecutionPlanDigest(plan.content) }
+    : {};
 }
 
 function requireExecutableRedAttestation(
@@ -445,6 +456,7 @@ function prepareReviewPacketUnsafe(
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
     ...packetPlanContract(kind, execution.planContract),
     ...packetDeliveryDefinition(deliveryDefinition),
+    ...packetNormalizedPlanDigest(kind, logicalFiles),
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
   };
   if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {

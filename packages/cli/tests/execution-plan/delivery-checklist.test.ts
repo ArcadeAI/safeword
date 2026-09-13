@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createDeliveryStableDefinition,
   DELIVERY_CHECKLIST_CATEGORIES,
+  normalizedExecutionPlanDigest,
   parseDeliveryChecklist,
   parseDeliveryPlanContract,
   parseProofSpecifications,
@@ -280,5 +281,26 @@ describe('Delivery Plan contract', () => {
       ],
     });
     expect(JSON.stringify(definition)).not.toContain('current_revision_real_boundary');
+  });
+
+  it('normalizes only ordinary checklist progress out of the complete plan identity', () => {
+    const reviewed = completeDeliveryPlan().replace(
+      '| item-4 | testing | Complete testing | contributor | proof-4 | open | missing | | |',
+      '| item-4 | testing | Complete testing | contributor | | not_applicable | missing | | no runtime boundary |',
+    );
+    const progressed = reviewed.replace(
+      '| item-5 | data and compatibility | Complete data and compatibility | contributor | proof-5 | open | missing | | |',
+      '| item-5 | data and compatibility | Complete data and compatibility | contributor | proof-5 | complete | current_revision_real_boundary | abc123 | receipt:r1 |',
+    );
+
+    expect(normalizedExecutionPlanDigest(progressed)).toBe(normalizedExecutionPlanDigest(reviewed));
+    expect(
+      normalizedExecutionPlanDigest(
+        reviewed.replace('Complete data and compatibility', 'Preserve compatible data'),
+      ),
+    ).not.toBe(normalizedExecutionPlanDigest(reviewed));
+    expect(
+      normalizedExecutionPlanDigest(reviewed.replace('no runtime boundary', 'different reason')),
+    ).not.toBe(normalizedExecutionPlanDigest(reviewed));
   });
 });
