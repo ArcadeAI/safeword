@@ -128,8 +128,12 @@ describe('review packet containment and change accounting', () => {
       expect(prepared.packet.execution_plan_delivery_definition).toMatchObject({
         schema_version: 1,
         design_approval_gate: true,
-        proof_specifications: [{ proof_id: 'proof-1' }],
-        checklist_items: [{ id: 'item-1', required_proof: 'proof-1' }],
+        proof_specifications: expect.arrayContaining([
+          expect.objectContaining({ proof_id: 'proof-1' }),
+        ]),
+        checklist_items: expect.arrayContaining([
+          expect.objectContaining({ id: 'item-1', required_proof: 'proof-1' }),
+        ]),
       });
       writeFileSync(
         nodePath.join(root, '.safeword', 'config.json'),

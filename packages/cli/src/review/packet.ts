@@ -17,7 +17,12 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import {
+  createDeliveryStableDefinition,
+  parseDeliveryPlanContract,
+} from '../execution-plan/delivery-checklist.js';
 import type {
+  ExecutionPlanDeliveryDefinition,
   PlanContractPair,
   RedExecutionAttestation,
   ReviewKind,
@@ -31,6 +36,7 @@ import { extractPlanReviewRubric } from './plan-rubric.js';
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
 const MAX_PACKET_BYTES = 1024 * 1024;
+const JSON_NULL = JSON.parse('null') as null;
 
 export interface PreparedReviewPacket {
   readonly packet: ReviewPacket;
@@ -116,6 +122,76 @@ function requireExecutionPlanWorkArtifact(
       'Plan-execution review requires a non-blank impl-plan.md and approved .feature scenarios as context',
     );
   }
+}
+
+function designApprovalGate(root: string): boolean {
+  const configPath = nodePath.join(root, '.safeword', 'config.json');
+  if (!existsSync(configPath)) return false;
+  try {
+    const value: unknown = JSON.parse(readFileSync(configPath, 'utf8'));
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      throw new Error('configuration root is not an object');
+    }
+    return (value as { readonly designApprovalGate?: unknown }).designApprovalGate === true;
+  } catch {
+    throw new ReviewPacketError(
+      'Plan-execution review cannot read designApprovalGate from .safeword/config.json.',
+    );
+  }
+}
+
+function retainedDeliveryDefinition(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly content: string }[],
+  root: string,
+): ExecutionPlanDeliveryDefinition | undefined {
+  if (kind !== 'plan-execution') return undefined;
+  const plan = logicalFiles[0];
+  if (plan === undefined) return undefined;
+  const parsed = parseDeliveryPlanContract(plan.content);
+  if (!parsed.ok) throw new ReviewPacketError(`Plan-execution review refused: ${parsed.message}`);
+  const stable = createDeliveryStableDefinition(parsed, designApprovalGate(root));
+  return {
+    schema_version: stable.schemaVersion,
+    design_approval_gate: stable.designApprovalGate,
+    proof_specifications: stable.specifications.map(specification => ({
+      proof_id: specification.id,
+      method: specification.method,
+      scope: specification.scope,
+      boundary_exercised: specification.boundary,
+      qualifies_as: specification.qualifiesAs,
+      currency: specification.currency,
+      invocation: specification.invocation,
+    })),
+    checklist_items: stable.items.map(item => ({
+      id: item.id,
+      category: item.category,
+      obligation: item.obligation,
+      owner: item.owner,
+      required_proof: item.requiredProof,
+      reviewed_disposition: item.reviewedDisposition?.disposition ?? JSON_NULL,
+      reviewed_detail: item.reviewedDisposition?.detail ?? JSON_NULL,
+    })),
+  };
+}
+
+function designApprovalConfigChanged(
+  kind: ReviewKind,
+  root: string,
+  retained: ExecutionPlanDeliveryDefinition | undefined,
+): boolean {
+  if (kind !== 'plan-execution' || retained === undefined) return false;
+  try {
+    return designApprovalGate(root) !== retained.design_approval_gate;
+  } catch {
+    return true;
+  }
+}
+
+function packetDeliveryDefinition(definition: ExecutionPlanDeliveryDefinition | undefined): {
+  readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;
+} {
+  return definition === undefined ? {} : { execution_plan_delivery_definition: definition };
 }
 
 function requireExecutableRedAttestation(
@@ -322,6 +398,7 @@ function prepareReviewPacketUnsafe(
   const expectedSnapshotEntries = new Set<string>();
   let logicalFiles: { path: string; content: string }[];
   let contextFiles: { path: string; content: string }[];
+  let deliveryDefinition: ExecutionPlanDeliveryDefinition | undefined;
   try {
     let packetBytes = 0;
     const captureFiles = (files: readonly string[]): { path: string; content: string }[] =>
@@ -378,6 +455,7 @@ function prepareReviewPacketUnsafe(
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
+    deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;
@@ -389,6 +467,7 @@ function prepareReviewPacketUnsafe(
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
     ...packetPlanContract(kind, execution.planContract),
+    ...packetDeliveryDefinition(deliveryDefinition),
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
   };
   if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {
@@ -399,7 +478,9 @@ function prepareReviewPacketUnsafe(
     packet,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some(file => sourceFileChanged(file)),
+    sourceChanged: () =>
+      tracked.some(file => sourceFileChanged(file)) ||
+      designApprovalConfigChanged(kind, canonicalRoot, deliveryDefinition),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
       try {
