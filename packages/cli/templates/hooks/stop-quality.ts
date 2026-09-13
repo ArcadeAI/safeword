@@ -417,33 +417,17 @@ const currentTurnEditEvidence = detectToolUseInCurrentUserTurn(
   name => name !== undefined && EDIT_TOOLS.has(name),
 );
 const currentTurnToolEvidence = detectToolUseInCurrentUserTurn(lines, () => true);
+const terminalHandoffEvidence =
+  currentTurnEditEvidence === true || editsToReview
+    ? 'current-turn-edit'
+    : currentTurnToolEvidence === true
+      ? 'current-turn-tool'
+      : 'none';
 
-// Default-on native contract correction is independent of the optional
-// judgment-based Stop review. Existing artifact gates above retain precedence;
-// stop_hook_active makes the correction one-shot.
 const stopReviewConfigPath = `${projectDir}/.safeword/config.json`;
 const stopReviewConfig = existsSync(stopReviewConfigPath)
   ? readFileSync(stopReviewConfigPath, 'utf8')
   : undefined;
-if (!stopHookActive && isTerminalHandoffCorrectionEnabled(stopReviewConfig)) {
-  try {
-    const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText, undefined, {
-      substantiveEvidence:
-        currentTurnEditEvidence === true
-          ? 'current-turn-edit'
-          : currentTurnToolEvidence === true
-            ? 'current-turn-tool'
-            : 'none',
-    });
-    if (!decisionBriefEvaluation.compliant) {
-      softBlock(
-        renderDecisionBriefCorrection(decisionBriefEvaluation, 'Keep verified evidence intact.'),
-      );
-    }
-  } catch {
-    // A correction evaluator failure must never trap the host at Stop.
-  }
-}
 
 if (!editsToReview && currentPhase !== 'done') {
   process.exit(0);
@@ -932,6 +916,25 @@ if (typecheckAdvice.advice !== null) {
   );
 }
 
+// Default-on native contract correction is independent of the optional
+// judgment-based Stop review. Established evidence, done, navigation, and
+// typecheck gates above retain precedence; stop_hook_active was already handled
+// by the one-shot loop guard.
+if (isTerminalHandoffCorrectionEnabled(stopReviewConfig)) {
+  try {
+    const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText, undefined, {
+      substantiveEvidence: terminalHandoffEvidence,
+    });
+    if (!decisionBriefEvaluation.compliant) {
+      softBlock(
+        renderDecisionBriefCorrection(decisionBriefEvaluation, 'Keep verified evidence intact.'),
+      );
+    }
+  } catch {
+    // A correction evaluator failure must never trap the host at Stop.
+  }
+}
+
 // Stop-time quality review (KHL52X): OFF unless `stopQualityReview: true`.
 // Everything ABOVE this line still runs — the done gate, the impl-plan,
 // architecture and cumulative-artifact gates, hierarchy navigation, and the
@@ -999,7 +1002,9 @@ const disqual = getDisqualificationMessage({
 if (disqual) {
   softBlock(`${getQualityMessage(currentPhase, tddStep)}\n\n${disqual}`);
 }
-const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText);
+const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText, undefined, {
+  substantiveEvidence: terminalHandoffEvidence,
+});
 if (decisionBriefEvaluation.compliant) {
   process.exit(0);
 }

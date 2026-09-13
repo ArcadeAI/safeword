@@ -79,7 +79,10 @@ const state: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeEach(() => {
   state.projectDirectory = createTemporaryDirectory();
-  writeGateConfig(state.projectDirectory, { stopQualityReview: true });
+  writeGateConfig(state.projectDirectory, {
+    stopQualityReview: true,
+    terminalHandoffCorrection: false,
+  });
   // Hook only requires .safeword/ to exist (checked with existsSync)
   mkdirSync(nodePath.join(state.projectDirectory, '.safeword'), { recursive: true });
 });

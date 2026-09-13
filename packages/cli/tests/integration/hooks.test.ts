@@ -68,7 +68,10 @@ beforeAll(async () => {
   });
   // After setup: setup owns config.json creation, and a pre-seeded one fails the
   // run. These cases assert the Stop-time review fires, which is opt-in now.
-  writeGateConfig(shared.projectDirectory, { stopQualityReview: true });
+  writeGateConfig(shared.projectDirectory, {
+    stopQualityReview: true,
+    terminalHandoffCorrection: false,
+  });
 });
 
 afterAll(() => {

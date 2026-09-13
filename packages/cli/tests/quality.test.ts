@@ -131,7 +131,7 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
 
     it('template collapses Next to one action when no decision is required', () => {
       expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(
-        /if no decision is required, state only the next action/,
+        /if no decision is required, use exactly: action: <imperative \+ specific object>/,
       );
     });
 

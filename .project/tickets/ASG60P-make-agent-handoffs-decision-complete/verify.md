@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ❌ 15 failures in the retro-relay startup/port-lock suite; the run stopped making progress and was interrupted after 90 seconds. Focused handoff tests pass 182/182.
-**Gherkin:** ✅ Acceptance lane passes for `features/make-agent-handoffs-decision-complete.feature` (113 scenarios, 5,085 steps)
+**Test Suite:** ✅ 9,952 tests pass across the repository (CLI 9,601; retro-relay 198; retro-collector 153), with 58 skipped
+**Gherkin:** ✅ Full native acceptance lane passes (595 scenarios, 11,100 steps), including all 113 scenarios and 5,085 steps in `features/make-agent-handoffs-decision-complete.feature`
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Typecheck:** ✅ Clean
@@ -15,7 +15,7 @@
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction — Walked the NTB through an incomplete decision handoff; worst step = the agent's automatic one-shot rewrite; new user steps vs before = 0
 **Surface Evidence:** ✅ 4/4 affected surfaces have recorded proof
-**Evidence limits:** ⚠️ Full-suite retro-relay host tests failed around startup/port locks and then hung; the ticket cannot be marked done while its receipt-gated scenario ledger remains incomplete
+**Evidence limits:** ⚠️ The ticket cannot be marked done while its receipt-gated historical scenario ledger remains incomplete
 
 Audit passed — diff-scoped dependency boundaries, parity, principle-trace integrity, changed tests, and generated-copy alignment were checked with no issue-specific error finding.
 
