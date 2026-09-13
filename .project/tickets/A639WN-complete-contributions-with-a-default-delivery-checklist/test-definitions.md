@@ -69,7 +69,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: The feature Delivery Checklist lives in the Execution Plan
 
 - [x] RED 4c2ccc16f
-- [ ] GREEN
+- [x] GREEN eadc5e773
 - [ ] REFACTOR
 
 ### Scenario: The feature checklist contract cannot impose feature artifacts on smaller work
