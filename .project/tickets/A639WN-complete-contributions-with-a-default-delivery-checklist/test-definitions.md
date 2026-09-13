@@ -42,9 +42,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An applicable item records an honest disposition
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 13d6a8be5
+- [x] GREEN 07e0054a7
+- [x] REFACTOR skip: disposition-specific checks are already small named predicates
 
 ### Scenario: Contributor-controlled work cannot be dismissed as a human handoff
 
