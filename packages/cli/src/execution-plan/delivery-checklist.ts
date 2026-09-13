@@ -72,6 +72,15 @@ export type DeliveryProofSpecificationsResult =
   | { readonly ok: true; readonly specifications: readonly DeliveryProofSpecification[] }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
+export type DeliveryPlanContractResult =
+  | Extract<DeliveryChecklistResult, { readonly ok: false }>
+  | Extract<DeliveryProofSpecificationsResult, { readonly ok: false }>
+  | {
+      readonly ok: true;
+      readonly items: readonly DeliveryChecklistItem[];
+      readonly specifications: readonly DeliveryProofSpecification[];
+    };
+
 const MARKER = '<!-- safeword:delivery-checklist:v1 -->';
 const HEADERS = [
   'ID',
@@ -521,4 +530,30 @@ export function parseProofSpecifications(content: string): DeliveryProofSpecific
     };
   }
   return parseProofRows(lines, start);
+}
+
+export function parseDeliveryPlanContract(content: string): DeliveryPlanContractResult {
+  const proofs = parseProofSpecifications(content);
+  if (!proofs.ok) return proofs;
+  const checklist = parseDeliveryChecklist(content);
+  if (!checklist.ok) return checklist;
+  const specificationsById = new Map(
+    proofs.specifications.map(specification => [specification.id, specification]),
+  );
+  const unsupported = checklist.items.find(item => {
+    if (item.owner !== 'contributor') return false;
+    return specificationsById.get(item.requiredProof)?.qualifiesAs !== 'real_boundary';
+  });
+  if (unsupported !== undefined) {
+    return {
+      ok: false,
+      code: 'required_proof_not_real_boundary',
+      message: `Delivery Checklist item ${unsupported.id} requires ${unsupported.requiredProof}, which is not a real-boundary proof.`,
+    };
+  }
+  return {
+    ok: true,
+    items: checklist.items,
+    specifications: proofs.specifications,
+  };
 }
