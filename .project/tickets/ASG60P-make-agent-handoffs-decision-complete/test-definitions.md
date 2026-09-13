@@ -214,7 +214,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6c495df09
 - [x] GREEN a7f03cab0
-- [ ] REFACTOR
+- [x] REFACTOR 17d1aa998
 
 ### Scenario: Held-out marked-term paraphrases require an inline meaning
 
