@@ -91,6 +91,28 @@ describe('terminal handoff contract', () => {
     });
   });
 
+  it('distinguishes an explained marked term from an unexplained one', () => {
+    const terminal =
+      'Choice: release to beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable; stable increases rollback risk. Reply: `beta` or `stable`.';
+    const reply = (term: string) =>
+      [
+        '**CONFIDENT** — The release channel requires a human choice.',
+        '**Decided:** Keep the release scoped to one channel.',
+        '**Open:** human: choose the release channel.',
+        `**Next:** ${terminal} ${term}`,
+      ].join('\n\n');
+
+    expect(
+      quality.evaluateDecisionBriefCompliance(
+        reply('Term: soak = observe the release without changing it for one hour.'),
+      ),
+    ).toMatchObject({ compliant: true });
+    expect(quality.evaluateDecisionBriefCompliance(reply('Term: soak = TBD.'))).toMatchObject({
+      compliant: false,
+      requirements: ['plain-language meaning'],
+    });
+  });
+
   it('accepts the same complete decision form in Need', () => {
     const reply = [
       '**BLOCKED** — The release channel requires a human choice.',
