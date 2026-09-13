@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 
 import { detectInspirationArtifactWrite, detectLedgerWrite } from '../lib/bash-ledger-writes.js';
 import { detectBroadProcessKill } from '../lib/process-kill-guard.js';
+import { classifyPrReadinessCommand } from '../lib/pr-readiness-guard.js';
 import nodePath from 'node:path';
 
 import { commandWordIndex, parseShellWords, splitShellSegments } from '../lib/shell-segments.js';
@@ -258,6 +259,7 @@ export function requiresFailClosedShellGate(params: { command: string }): boolea
   if (detectInspirationArtifactWrite(command) !== undefined) return true;
   if (detectLedgerWrite(command) !== undefined) return true;
   if (detectBroadProcessKill(command) !== undefined) return true;
+  if (classifyPrReadinessCommand(command) === 'ready') return true;
   return splitShellSegments(command).some(segment => isGitCommitSegment(parseShellWords(segment)));
 }
 

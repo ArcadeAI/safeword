@@ -23,6 +23,7 @@ import { parseFrontmatter } from './lib/hierarchy.ts';
 import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { hasInspirationActivationCandidate } from './lib/inspiration.ts';
 import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
+import { classifyPrReadinessCommand, evaluatePrReadiness } from './lib/pr-readiness-guard.ts';
 import {
   AUTHOR_MODEL_ENV,
   detectPhaseAdvance,
@@ -353,6 +354,10 @@ const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_pat
 
 if (tool === 'Bash') {
   const command = input.tool_input?.command ?? '';
+  if (classifyPrReadinessCommand(command) === 'ready') {
+    const readiness = evaluatePrReadiness(projectDirectory, input.session_id);
+    if (!readiness.ok) deny(readiness.reason ?? 'This change is not finished.');
+  }
   const ledgerWrite = detectLedgerWrite(command);
   if (ledgerWrite) {
     deny(
