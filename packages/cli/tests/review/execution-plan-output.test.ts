@@ -210,6 +210,22 @@ describe('Execution Plan output validation', () => {
     expect(validateExecutionPlanOutput(output)).toEqual({ kind: 'approved', output });
   });
 
+  it('refuses a reviewer definition that differs from the trusted packet definition', () => {
+    const expected = validRecord().delivery_definition;
+    const output = approval(
+      mutateRecord(record => {
+        const definition = record.delivery_definition as {
+          proof_specifications: Record<string, unknown>[];
+        };
+        const proof = definition.proof_specifications[0];
+        if (proof === undefined) throw new Error('Missing proof fixture');
+        proof.boundary_exercised = 'a different boundary';
+      }),
+    );
+
+    expect(validateExecutionPlanOutput(output, expected)).toEqual({ kind: 'invalid_output' });
+  });
+
   it('normalizes every legible denial to a null record', () => {
     const output: UnverifiedReviewerOutput = {
       ...baseOutput,

@@ -378,6 +378,7 @@ function isValidExecutionPlanRecord(value: unknown): value is ExecutionPlanRecor
 /** Classify one already parsed plan-execution result without interpreting plan prose. */
 export function validateExecutionPlanOutput(
   output: UnverifiedReviewerOutput,
+  _expectedDefinition?: ExecutionPlanDeliveryDefinition,
 ): ValidatedExecutionPlanOutput {
   if (output.verdict === 'request_changes') return deniedOutput(output);
 
