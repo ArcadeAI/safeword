@@ -354,7 +354,11 @@ function hasContributorProof(item: DeliveryChecklistItem): boolean {
 function openFieldsAreValid(item: DeliveryChecklistItem): boolean {
   if (!hasContributorProof(item)) return false;
   if (item.evidence === '') return hasMissingEvidence(item);
-  return isReceiptLocator(item.evidence) && item.revision !== '';
+  return (
+    !item.evidence.includes('; compatible:') &&
+    isReceiptLocator(item.evidence) &&
+    item.revision !== ''
+  );
 }
 
 function completeFieldsAreValid(item: DeliveryChecklistItem): boolean {
