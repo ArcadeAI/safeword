@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b8e731844
 - [x] GREEN db08befa5
-- [ ] REFACTOR
+- [x] REFACTOR skip: one direct owner-disposition guard is the smallest clear rule
 
 ### Scenario: In-flight checklist state reflects partial execution progress
 
