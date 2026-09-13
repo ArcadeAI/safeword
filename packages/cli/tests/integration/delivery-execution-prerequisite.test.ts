@@ -5,12 +5,13 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { findCommandDefinition } from '../../src/cli-protocol/catalog.js';
 import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
@@ -21,9 +22,9 @@ import {
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
 import { runCli } from '../helpers.js';
-import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
 const reviews = vi.hoisted(() => new Map<string, CliResult>());
+const reviewerDirectories = new Set<string>();
 
 vi.mock('../../src/review/job.js', () => ({
   reviewJobStatus: (_cwd: string, id: string) => reviews.get(id),
@@ -186,10 +187,15 @@ function legacyFeatureFixture(phase: 'implement' | 'verify'): string {
 }
 
 function installReviewer(): string {
-  const bin = nodePath.join(
-    createTrustedReviewerDirectory('safeword-prerequisite-reviewer-'),
-    'bin',
+  const reviewerRoot = nodePath.resolve(
+    import.meta.dirname,
+    '../../../../.safeword/state/test-reviewers',
   );
+  mkdirSync(reviewerRoot, { recursive: true, mode: 0o700 });
+  chmodSync(reviewerRoot, 0o700);
+  const directory = mkdtempSync(nodePath.join(reviewerRoot, 'prerequisite-'));
+  reviewerDirectories.add(directory);
+  const bin = nodePath.join(directory, 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, 'claude');
   writeFileSync(
@@ -345,6 +351,12 @@ async function admitThroughInstalledCli(root: string): Promise<void> {
 describe('delivery execution prerequisite', () => {
   beforeEach(() => {
     reviews.clear();
+  });
+
+  afterEach(() => {
+    for (const directory of reviewerDirectories)
+      rmSync(directory, { recursive: true, force: true });
+    reviewerDirectories.clear();
   });
 
   it('is registered as a public observe-only CLI command', () => {
