@@ -88,6 +88,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Verified closure advances to PR-readiness classification without automatic promotion
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: prodigy-flow.TBU1.PY73VN.R4 — Genuine boundaries interrupt resumably
 
 ### Scenario: A locally repairable missing dependency is restored without asking to continue

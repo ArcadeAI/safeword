@@ -116,6 +116,12 @@ Feature: Finish accepted changes before asking for PR review
       When an agent directly invokes the GitHub CLI's Ready promotion
       Then the installed lifecycle hook allows the command to reach the GitHub CLI as Ready promotion
 
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: Verified closure advances to PR-readiness classification without automatic promotion
+      Given the closeout chain completed and the ticket is verified done
+      When the agent completes recorded ticket closure
+      Then the workflow's next-step directive names PR-readiness classification and requests the builder's Ready authorization without invoking the GitHub CLI
+
   @prodigy-flow.TBU1.PY73VN.R4
   Rule: prodigy-flow.TBU1.PY73VN.R4 — Genuine boundaries interrupt resumably
 
