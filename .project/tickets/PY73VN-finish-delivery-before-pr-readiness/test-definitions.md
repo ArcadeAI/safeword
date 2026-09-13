@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: RED advances directly into implementation
 
-- [ ] RED
+- [x] RED b2778dec4
 - [ ] GREEN
 - [ ] REFACTOR
 
