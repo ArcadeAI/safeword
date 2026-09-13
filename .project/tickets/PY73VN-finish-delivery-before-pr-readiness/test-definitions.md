@@ -36,8 +36,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Safeword installation ships the Ready gate to each enabled host
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED a7fb4bbd3
+- [x] GREEN 6bb92a6a6
 - [ ] REFACTOR
 
 ### Scenario: Ready promotion is rejected across unfinished ticket states
