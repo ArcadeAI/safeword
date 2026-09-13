@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 95b8df382
 - [x] GREEN 1b1bca038
-- [ ] REFACTOR
+- [x] REFACTOR skip: adjacent transition sentences already form the smallest canonical contract
 
 ### Scenario: An unsuccessful TDD step remains at the failing step
 
