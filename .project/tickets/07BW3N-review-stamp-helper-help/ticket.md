@@ -61,3 +61,7 @@ artifact.
   fix because it distinguishes top-level flags from values consumed by options.
 - 2026-09-13T04:31:00.000Z Green: review-stamp integration suite passes 32/32;
   manual no-identity help smoke and TypeScript typecheck also pass.
+- 2026-09-13T04:53:00.000Z Verification found: generated Claude and Codex plugin
+  assets needed regeneration after the canonical helper changed.
+- 2026-09-13T04:55:00.000Z Green: regenerated both plugin distributions with
+  pinned Bun 1.3.14; the complete CLI contract check passes.

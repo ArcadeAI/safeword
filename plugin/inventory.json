@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "0b04df8e2d51a603ee76f2c268c16b212a97c1e52c2a71eb2bb0dbeda6c86aba"
+      "sha256": "a0d6e63d0bbb8cbc8e223f07ce74db1340257a4af9eb94a554eb9d5cbc4a8f52"
     },
     {
       "path": "skills/audit/SKILL.md",

@@ -19,3 +19,8 @@
 - [21:31] GREEN confirmed after the shared test lock cleared: 32/32 review-stamp
   integration tests pass. Manual no-identity help smoke and TypeScript typecheck
   also pass.
+- [21:52] Full verification exposed one in-scope miss: generated Claude plugin
+  validation failed because the bundled helper still had the old parser.
+- [21:55] Regenerated Claude and Codex distributions with the pinned Bun 1.3.14.
+  The CLI contract check now passes all build, runtime, help, fixture,
+  documentation, plugin, and release-contract checks.
