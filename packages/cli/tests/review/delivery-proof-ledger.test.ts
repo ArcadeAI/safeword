@@ -5,8 +5,10 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  appendDeliveryCompatibility,
   appendDeliveryProof,
   appendDesignDecision,
+  readDeliveryCompatibility,
   readDeliveryProof,
 } from '../../src/review/approval-ledger.js';
 
@@ -30,6 +32,21 @@ function proofIdentity() {
     outcome: 'passed' as const,
     stdout: { bytes: 0, sha256: 'c'.repeat(64) },
     stderr: { bytes: 0, sha256: 'd'.repeat(64) },
+  };
+}
+
+function compatibilityIdentity() {
+  return {
+    ticket: 'A639WN',
+    itemId: 'testing',
+    proofId: 'delivery-cli',
+    definitionDigest: 'e'.repeat(64),
+    deliveryReceiptId: 'delivery-receipt',
+    reasonDigest: '1'.repeat(64),
+    producingRevision: 'a'.repeat(40),
+    reviewedRevision: 'b'.repeat(40),
+    requestDigest: '2'.repeat(64),
+    sourceReviewId: 'review-id',
   };
 }
 
@@ -89,5 +106,45 @@ describe('delivery proof ledger', () => {
     expect(retry).toEqual({ status: 'existing', receiptId: first.receiptId });
     expect(changedDefinition).toMatchObject({ status: 'written', receiptId: expect.any(String) });
     expect(changedDefinition.receiptId).not.toBe(first.receiptId);
+  });
+
+  it('retains one idempotent compatibility acceptance with exact bindings', () => {
+    const path = ledgerPath();
+    const identity = compatibilityIdentity();
+    const first = appendDeliveryCompatibility(path, identity);
+    const retry = appendDeliveryCompatibility(path, identity);
+
+    expect(first).toEqual({ status: 'written' });
+    expect(retry).toEqual({ status: 'existing' });
+    expect(readDeliveryCompatibility(path, identity)).toMatchObject({
+      kind: 'delivery-compatibility:v1',
+      ...identity,
+    });
+    expect(
+      readDeliveryCompatibility(path, { ...identity, reasonDigest: '3'.repeat(64) }),
+    ).toBeUndefined();
+  });
+
+  it('shares one ordered ledger across approvals, proofs, and compatibility acceptance', () => {
+    const path = ledgerPath();
+
+    expect(
+      appendDesignDecision(path, {
+        ticket: 'A639WN',
+        planDigest: 'plan-digest',
+        decision: 'approved',
+        authorityRef: 'human:test',
+      }),
+    ).toEqual({ status: 'written' });
+    expect(appendDeliveryProof(path, proofIdentity())).toMatchObject({ status: 'written' });
+    expect(appendDeliveryCompatibility(path, compatibilityIdentity())).toEqual({
+      status: 'written',
+    });
+
+    const positions = Array.from(
+      readFileSync(path, 'utf8').matchAll(/"appendPosition":(\d+)/gu),
+      match => Number(match[1]),
+    );
+    expect(positions).toEqual([1, 2, 3]);
   });
 });

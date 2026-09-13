@@ -66,6 +66,26 @@ export interface DeliveryProofEvent extends DeliveryProofIdentity, PositionedLed
   readonly timestamp: string;
 }
 
+export interface DeliveryCompatibilityIdentity {
+  readonly ticket: string;
+  readonly itemId: string;
+  readonly proofId: string;
+  readonly definitionDigest: string;
+  readonly deliveryReceiptId: string;
+  readonly reasonDigest: string;
+  readonly producingRevision: string;
+  readonly reviewedRevision: string;
+  readonly requestDigest: string;
+  readonly sourceReviewId: string;
+}
+
+export type DeliveryCompatibilityEvent = DeliveryCompatibilityIdentity &
+  PositionedLedgerEvent & {
+    readonly idempotencyKey: string;
+    readonly kind: 'delivery-compatibility:v1';
+    readonly timestamp: string;
+  };
+
 interface LockOwner {
   readonly generation?: number;
   readonly leaseExpiresAt: number;
@@ -73,14 +93,16 @@ interface LockOwner {
   readonly token: string;
 }
 
-export interface AppendDecisionResult {
-  readonly status: 'existing' | 'pending' | 'written';
-}
+type AppendStatus = 'existing' | 'pending' | 'written';
+
+export type AppendDecisionResult = { readonly status: AppendStatus };
 
 export interface AppendDeliveryProofResult {
   readonly status: 'existing' | 'pending' | 'written';
   readonly receiptId?: string;
 }
+
+export type AppendDeliveryCompatibilityResult = { readonly status: AppendStatus };
 
 const LOCK_RETRY_MS = 10;
 const LOCK_TIMEOUT_MS = 2000;
@@ -98,6 +120,8 @@ const decisionLinePattern =
   /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) cli design-decision:(\{.*\})$/u;
 const deliveryProofLinePattern =
   /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) cli delivery-proof:v1:(\{.*\})$/u;
+const deliveryCompatibilityLinePattern =
+  /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) cli delivery-compatibility:v1:(\{.*\})$/u;
 
 function isSha256(value: unknown): value is string {
   return typeof value === 'string' && /^[a-f\d]{64}$/u.test(value);
@@ -218,8 +242,50 @@ function deliveryProofEvents(ledger: string): DeliveryProofEvent[] {
     .filter((event): event is DeliveryProofEvent => event !== undefined);
 }
 
+function isDeliveryCompatibilityEvent(event: DeliveryCompatibilityEvent): boolean {
+  return (
+    event.kind === 'delivery-compatibility:v1' &&
+    [
+      event.ticket,
+      event.itemId,
+      event.proofId,
+      event.deliveryReceiptId,
+      event.producingRevision,
+      event.reviewedRevision,
+      event.sourceReviewId,
+    ].every(isNonblankString) &&
+    [event.definitionDigest, event.reasonDigest, event.requestDigest, event.idempotencyKey].every(
+      isSha256,
+    ) &&
+    isPositiveInteger(event.appendPosition) &&
+    isPositiveInteger(event.fencingGeneration)
+  );
+}
+
+function parseDeliveryCompatibilityEvent(line: string): DeliveryCompatibilityEvent | undefined {
+  const match = deliveryCompatibilityLinePattern.exec(line);
+  if (match === null) return undefined;
+  try {
+    const event = JSON.parse(match[2] ?? '') as DeliveryCompatibilityEvent;
+    return isDeliveryCompatibilityEvent(event) && event.timestamp === match[1] ? event : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function deliveryCompatibilityEvents(ledger: string): DeliveryCompatibilityEvent[] {
+  return ledger
+    .split('\n')
+    .map(line => parseDeliveryCompatibilityEvent(line))
+    .filter((event): event is DeliveryCompatibilityEvent => event !== undefined);
+}
+
 function positionedEvents(ledger: string): PositionedLedgerEvent[] {
-  return [...decisionEvents(ledger), ...deliveryProofEvents(ledger)];
+  return [
+    ...decisionEvents(ledger),
+    ...deliveryProofEvents(ledger),
+    ...deliveryCompatibilityEvents(ledger),
+  ];
 }
 
 function decisionIdempotencyKey(identity: DecisionIdentity, supersedesPosition: number): string {
@@ -245,6 +311,25 @@ function deliveryIdempotencyKey(identity: DeliveryProofIdentity): string {
         identity.proofId,
         identity.producingRevision,
         identity.definitionDigest,
+      ]),
+    )
+    .digest('hex');
+}
+
+function deliveryCompatibilityIdempotencyKey(identity: DeliveryCompatibilityIdentity): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        identity.ticket,
+        identity.itemId,
+        identity.proofId,
+        identity.definitionDigest,
+        identity.deliveryReceiptId,
+        identity.reasonDigest,
+        identity.producingRevision,
+        identity.reviewedRevision,
+        identity.requestDigest,
+        identity.sourceReviewId,
       ]),
     )
     .digest('hex');
@@ -516,6 +601,68 @@ export function readDeliveryProof(
   try {
     const matches = deliveryProofEvents(readFileSync(ledgerPath, 'utf8')).filter(
       event => event.id === receiptId,
+    );
+    return matches.length === 1 ? matches[0] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function appendDeliveryCompatibility(
+  ledgerPath: string,
+  identity: DeliveryCompatibilityIdentity,
+): AppendDeliveryCompatibilityResult {
+  mkdirSync(nodePath.dirname(ledgerPath), { recursive: true });
+  const lockPath = `${ledgerPath}.approval-lock`;
+  const fencePath = `${ledgerPath}.approval-fence`;
+  const owner = acquireLock(lockPath);
+  if (owner === undefined) return { status: 'pending' };
+  try {
+    const ledger = existsSync(ledgerPath) ? readFileSync(ledgerPath, 'utf8') : '';
+    const events = deliveryCompatibilityEvents(ledger);
+    const key = deliveryCompatibilityIdempotencyKey(identity);
+    if (events.some(event => event.idempotencyKey === key)) return { status: 'existing' };
+    const positioned = positionedEvents(ledger);
+    const currentGeneration = readGeneration(fencePath, positioned);
+    if (currentGeneration === undefined) return { status: 'pending' };
+    const generation = currentGeneration + 1;
+    publishGeneration(fencePath, generation, owner.token);
+    const owned: LockOwner = { ...owner, generation };
+    writeFileSync(lockPath, `${JSON.stringify(owned)}\n`, { mode: 0o600 });
+    staleFenceForTest(fencePath, generation);
+    if (!lockStillOwned(lockPath, fencePath, owned)) return { status: 'pending' };
+    const timestamp = new Date().toISOString();
+    const event: DeliveryCompatibilityEvent = {
+      ...identity,
+      appendPosition: Math.max(0, ...positioned.map(item => item.appendPosition)) + 1,
+      fencingGeneration: generation,
+      idempotencyKey: key,
+      kind: 'delivery-compatibility:v1',
+      timestamp,
+    };
+    const separator = ledger === '' || ledger.endsWith('\n') ? '' : '\n';
+    atomicReplace(
+      ledgerPath,
+      `${ledger}${separator}${timestamp} cli delivery-compatibility:v1:${JSON.stringify(event)}\n`,
+      owner.token,
+    );
+    return { status: 'written' };
+  } catch {
+    return { status: 'pending' };
+  } finally {
+    releaseLock(lockPath, owner);
+  }
+}
+
+export function readDeliveryCompatibility(
+  ledgerPath: string,
+  identity: DeliveryCompatibilityIdentity,
+): DeliveryCompatibilityEvent | undefined {
+  if (!existsSync(ledgerPath)) return undefined;
+  try {
+    const key = deliveryCompatibilityIdempotencyKey(identity);
+    const matches = deliveryCompatibilityEvents(readFileSync(ledgerPath, 'utf8')).filter(
+      event => event.idempotencyKey === key,
     );
     return matches.length === 1 ? matches[0] : undefined;
   } catch {
