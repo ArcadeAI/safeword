@@ -60,7 +60,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An unreadable Execution Plan blocks checklist updates
 
-- [ ] RED
+- [x] RED d00277c4d
 - [ ] GREEN
 - [ ] REFACTOR
 
