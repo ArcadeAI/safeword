@@ -20,11 +20,11 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
-import { runCli, testCliPath } from '../helpers.js';
+import { assertTestCliFresh, runCli, testCliPath } from '../helpers.js';
 
 const TICKET_ID = 'PLAN42';
 const TICKET_FOLDER = `${TICKET_ID}-review-the-approach`;
@@ -282,6 +282,8 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
 afterEach(() => {
   for (const root of fixtures.splice(0)) rmSync(root, { recursive: true, force: true });
 });
+
+beforeAll(assertTestCliFresh);
 
 describe('installed CLI human design authority follows configuration', () => {
   it('advances non-interactively and records not-required when the gate is disabled', async () => {
