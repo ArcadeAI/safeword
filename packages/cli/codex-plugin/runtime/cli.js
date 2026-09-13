@@ -13563,7 +13563,7 @@ function pythonInstallInvocation(cwd, tools, repoRoot) {
   }
 }
 function getPythonTools(includeImportLinter) {
-  const tools = ["ruff", "mypy", "deadcode"];
+  const tools = ["ruff", "mypy", "deadcode", "pip-audit"];
   if (includeImportLinter)
     tools.push("import-linter");
   return tools;
@@ -64679,15 +64679,44 @@ function observeTestPlan(cwd, dir, options) {
   }
   const root = dir === undefined ? cwd : nodePath114.resolve(cwd, dir);
   const plan = resolveTestPlan(root, { kind });
+  const findings = plan.filter((entry2) => !entry2.available).map((entry2) => ({
+    code: "TEST_PLAN_RUNNER_UNAVAILABLE",
+    message: `${LANGUAGE_NAMES[entry2.language]} ${LANE_NAMES[kind]} lane skipped: ${entry2.runner} is not installed.`,
+    severity: "warning",
+    metadata: {
+      kind,
+      language: entry2.language,
+      runner: entry2.runner,
+      command: entry2.command,
+      cwd: entry2.cwd
+    }
+  }));
   return Promise.resolve(createResult({
     state: "healthy",
+    findings,
     presentation: rawTestPlanPresentation(formatValue, plan),
     data: { command: "project test-plan", kind, plan }
   }));
 }
+var LANE_NAMES, LANGUAGE_NAMES;
 var init_test_plan = __esm(() => {
   init_result();
   init_resolve();
+  LANE_NAMES = {
+    test: "test",
+    build: "build",
+    verify: "verification",
+    typecheck: "typecheck",
+    deps: "dependency",
+    bdd: "acceptance"
+  };
+  LANGUAGE_NAMES = {
+    javascript: "JavaScript",
+    python: "Python",
+    go: "Go",
+    rust: "Rust",
+    sql: "SQL"
+  };
 });
 
 // src/commands/namespace-root.ts
