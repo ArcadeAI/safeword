@@ -358,49 +358,70 @@ function isPythonCodePosition(content: string, position: number): boolean {
   return quote === undefined;
 }
 
-function pythonAssignedExpression(content: string, start: number): string | undefined {
-  const bracketPairs = new Map([
+interface PythonExpressionState {
+  readonly brackets: string[];
+  quote: string | undefined;
+  escaped: boolean;
+  comment: boolean;
+  expressionStart: number | undefined;
+}
+
+function consumePythonProtectedCharacter(state: PythonExpressionState, character: string): boolean {
+  if (state.comment) {
+    if (character === '\n') state.comment = false;
+    return true;
+  }
+  if (state.quote !== undefined) {
+    if (state.escaped) state.escaped = false;
+    else if (character === '\\') state.escaped = true;
+    else if (character === state.quote) state.quote = undefined;
+    return true;
+  }
+  if (character === '#') {
+    state.comment = true;
+    return true;
+  }
+  if (character === "'" || character === '"') {
+    state.quote = character;
+    return true;
+  }
+  return false;
+}
+
+function updatePythonBrackets(
+  state: PythonExpressionState,
+  character: string,
+  index: number,
+): void {
+  const closingBracket = new Map([
     ['[', ']'],
     ['{', '}'],
     ['(', ')'],
-  ]);
-  const brackets: string[] = [];
-  let quote: string | undefined;
-  let escaped = false;
-  let comment = false;
-  let expressionStart: number | undefined;
+  ]).get(character);
+  if (closingBracket !== undefined) {
+    state.expressionStart ??= index;
+    state.brackets.push(closingBracket);
+  } else if (state.brackets.at(-1) === character) {
+    state.brackets.pop();
+  }
+}
+
+function pythonAssignedExpression(content: string, start: number): string | undefined {
+  const state: PythonExpressionState = {
+    brackets: [],
+    quote: undefined,
+    escaped: false,
+    comment: false,
+    expressionStart: undefined,
+  };
 
   for (let index = start; index < content.length; index += 1) {
     const character = content[index];
     if (character === undefined) break;
-    if (comment) {
-      if (character === '\n') comment = false;
-      continue;
-    }
-    if (quote !== undefined) {
-      if (escaped) escaped = false;
-      else if (character === '\\') escaped = true;
-      else if (character === quote) quote = undefined;
-      continue;
-    }
-    if (character === '#') {
-      comment = true;
-      continue;
-    }
-    if (character === "'" || character === '"') {
-      quote = character;
-      continue;
-    }
-    const closingBracket = bracketPairs.get(character);
-    if (closingBracket !== undefined) {
-      expressionStart ??= index;
-      brackets.push(closingBracket);
-      continue;
-    }
-    if (brackets.at(-1) !== character) continue;
-    brackets.pop();
-    if (brackets.length === 0 && expressionStart !== undefined) {
-      return content.slice(expressionStart, index + 1);
+    if (consumePythonProtectedCharacter(state, character)) continue;
+    updatePythonBrackets(state, character, index);
+    if (state.brackets.length === 0 && state.expressionStart !== undefined) {
+      return content.slice(state.expressionStart, index + 1);
     }
   }
   return undefined;
@@ -733,11 +754,20 @@ function installUvDependencies(
     }
     return true;
   } catch {
-    if (manifestBefore) writeFileSync(manifestPath, manifestBefore);
-    else if (exists(manifestPath)) unlinkSync(manifestPath);
-    if (lockPath && lockBefore) writeFileSync(lockPath, lockBefore);
+    restoreUvInstall(manifestPath, manifestBefore, lockPath, lockBefore);
     return false;
   }
+}
+
+function restoreUvInstall(
+  manifestPath: string,
+  manifestBefore: Buffer | undefined,
+  lockPath: string | undefined,
+  lockBefore: Buffer | undefined,
+): void {
+  if (manifestBefore) writeFileSync(manifestPath, manifestBefore);
+  else if (exists(manifestPath)) unlinkSync(manifestPath);
+  if (lockPath && lockBefore) writeFileSync(lockPath, lockBefore);
 }
 
 export function installPythonDependencies(
