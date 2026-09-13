@@ -15,8 +15,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Missing contribution context blocks execution readiness
 
 - [x] RED 54af6fdf5
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 240ccec06
+- [x] REFACTOR dec938ae9
 
 ### Scenario: Several missing prerequisites are reported in deterministic planning order
 
