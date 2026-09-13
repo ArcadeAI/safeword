@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { findCommandDefinition } from '../../src/cli-protocol/catalog.js';
 import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import type { CliResult } from '../../src/cli-protocol/result.js';
 import {
@@ -155,9 +156,29 @@ function featureFixture(
   return root;
 }
 
+function legacyFeatureFixture(phase: 'implement' | 'verify'): string {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-prerequisite-legacy-'));
+  const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-legacy');
+  mkdirSync(ticketDirectory, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticketDirectory, 'ticket.md'),
+    `---\ntype: feature\nphase: ${phase}\n---\n`,
+  );
+  return root;
+}
+
 describe('delivery execution prerequisite', () => {
   beforeEach(() => {
     reviews.clear();
+  });
+
+  it('is registered as a public observe-only CLI command', () => {
+    expect(findCommandDefinition('ticket execution-prerequisite')).toMatchObject({
+      name: 'ticket execution-prerequisite',
+      effectClass: 'observe',
+      networkPolicy: 'never',
+      syntax: 'execution-prerequisite <ticketId>',
+    });
   });
 
   it('returns a satisfied deny-only verdict for all three admitted planning contracts', async () => {
@@ -201,6 +222,36 @@ describe('delivery execution prerequisite', () => {
     expect(result.nextActions).toHaveLength(3);
   });
 
+  it.each([
+    ['accepted scenarios', ['plan-implementation', 'plan-execution'], 'missing_accepted_scenarios'],
+    [
+      'accepted implementation approach',
+      ['scenario-gate', 'plan-execution'],
+      'missing_accepted_approach',
+    ],
+    [
+      'admitted Delivery Checklist',
+      ['scenario-gate', 'plan-implementation'],
+      'missing_admitted_delivery_checklist',
+    ],
+  ] as const)(
+    'denies only the missing %s prerequisite with one repair',
+    async (_label, admitted, expectedCode) => {
+      const root = featureFixture(admitted);
+
+      const result = await publicHandler('ticket execution-prerequisite')({
+        cwd: root,
+        noInput: true,
+        offline: false,
+        operands: ['ABC123'],
+        options: {},
+      });
+
+      expect(result.findings.map(finding => finding.code)).toEqual([expectedCode]);
+      expect(result.nextActions).toHaveLength(1);
+    },
+  );
+
   it.each(['task', 'patch'] as const)('keeps %s work outside the feature contract', async type => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-prerequisite-small-'));
     const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-small');
@@ -220,4 +271,24 @@ describe('delivery execution prerequisite', () => {
       data: { prerequisite_status: 'not_applicable', grants_authority: false },
     });
   });
+
+  it.each(['implement', 'verify'] as const)(
+    'keeps a legacy feature already in %s outside the new prerequisite',
+    async phase => {
+      const root = legacyFeatureFixture(phase);
+
+      const result = await publicHandler('ticket execution-prerequisite')({
+        cwd: root,
+        noInput: true,
+        offline: false,
+        operands: ['ABC123'],
+        options: {},
+      });
+
+      expect(result).toMatchObject({
+        state: 'healthy',
+        data: { prerequisite_status: 'not_applicable', grants_authority: false },
+      });
+    },
+  );
 });
