@@ -28,6 +28,7 @@ import {
 } from '../review/approval-ledger.js';
 import type {
   ExecutionPlanDeliveryDefinition,
+  ExecutionPlanRecord,
   UnverifiedReviewerOutput,
 } from '../review/contract.js';
 import { validateExecutionPlanOutput } from '../review/execution-plan-output.js';
@@ -54,6 +55,7 @@ interface DeliveryContext {
   readonly definition: ExecutionPlanDeliveryDefinition;
   readonly definitionDigest: string;
   readonly admittedReviewId: string;
+  readonly executionPlanRecord: ExecutionPlanRecord;
 }
 
 type DeliveryContextResult =
@@ -103,7 +105,7 @@ function approvedReviewOutput(
   planPath: string,
   definition: ExecutionPlanDeliveryDefinition,
   digest: string,
-): UnverifiedReviewerOutput | undefined {
+): ExecutionPlanRecord | undefined {
   const data = healthyReviewData(cwd, reviewId);
   if (data === undefined) return undefined;
   if (data.status !== 'approved' || data.review_kind !== 'plan-execution') return undefined;
@@ -115,9 +117,8 @@ function approvedReviewOutput(
   if (!coversPlan) return undefined;
   if (typeof data.reviewer_output !== 'object' || data.reviewer_output === null) return undefined;
   const output = data.reviewer_output as UnverifiedReviewerOutput;
-  return validateExecutionPlanOutput(output, definition, digest).kind === 'approved'
-    ? output
-    : undefined;
+  const validated = validateExecutionPlanOutput(output, definition, digest);
+  return validated.kind === 'approved' ? validated.output.execution_plan_record : undefined;
 }
 
 function admittedPlanReview(input: {
@@ -127,24 +128,24 @@ function admittedPlanReview(input: {
   readonly ledger: string;
   readonly definition: ExecutionPlanDeliveryDefinition;
   readonly digest: string;
-}): string | undefined {
+}): { readonly reviewId: string; readonly record: ExecutionPlanRecord } | undefined {
   const scope = `${nodePath.basename(input.ticketDirectory)}:phase@plan-execution`;
   const candidates = parseReviewStamps(input.ledger)
     .filter(stamp => stamp.scope === scope && stamp.skipReason === undefined)
     .toReversed();
   for (const stamp of candidates) {
-    if (
-      stamp.reviewId !== undefined &&
-      approvedReviewOutput(
-        input.cwd,
-        stamp.reviewId,
-        input.planPath,
-        input.definition,
-        input.digest,
-      ) !== undefined
-    ) {
-      return stamp.reviewId;
+    if (stamp.reviewId === undefined) {
+      continue;
     }
+
+    const record = approvedReviewOutput(
+      input.cwd,
+      stamp.reviewId,
+      input.planPath,
+      input.definition,
+      input.digest,
+    );
+    if (record !== undefined) return { reviewId: stamp.reviewId, record };
   }
   return undefined;
 }
@@ -271,7 +272,7 @@ function loadDeliveryContext(
       }),
     };
   }
-  const admittedReviewId = admittedPlanReview({
+  const admittedReview = admittedPlanReview({
     cwd,
     ticketDirectory,
     planPath,
@@ -279,7 +280,7 @@ function loadDeliveryContext(
     definition,
     digest,
   });
-  if (admittedReviewId === undefined) {
+  if (admittedReview === undefined) {
     return {
       ok: false,
       result: findingResult(
@@ -303,7 +304,8 @@ function loadDeliveryContext(
       specifications: parsed.specifications,
       definition,
       definitionDigest: sha256(JSON.stringify(definition)),
-      admittedReviewId,
+      admittedReviewId: admittedReview.reviewId,
+      executionPlanRecord: admittedReview.record,
     },
   };
 }
@@ -559,6 +561,7 @@ function successfulProofResult(
   revision: string,
 ): CliResult {
   const refreshed = parseDeliveryPlanContract(readFileSync(context.planPath, 'utf8'));
+  const completedItem = context.items.find(item => item.id === itemId);
   const next = refreshed.ok
     ? refreshed.items.find(item => item.owner === 'contributor' && item.disposition === 'open')
     : undefined;
@@ -578,6 +581,16 @@ function successfulProofResult(
       proof_id: proofId,
       receipt_id: receipt,
       producing_revision: revision,
+      ...(completedItem?.category === 'dependency and pull-request decomposition' && {
+        pull_request_slicing: {
+          decision: context.executionPlanRecord.slicing_decision,
+          rationale: context.executionPlanRecord.rationale,
+          slices: context.executionPlanRecord.slices.map(slice => ({
+            name: slice.name,
+            prerequisites: slice.prerequisites,
+          })),
+        },
+      }),
       ...(next !== undefined && { next_open_obligation: next.obligation }),
     },
   });
