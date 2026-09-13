@@ -176,8 +176,10 @@ on a later slice.
     for reviewed `not_applicable`, human `pending_human`, contributor owner
     rejection, unreadable plan refusal, partial progress, `designApprovalGate`
     drift, empty Revision plus `missing` Evidence class for non-evidence
-    dispositions, and every stable-definition mutation through every public
-    consumer. Across the CLI, ledger, and update suites, assert one
+    dispositions. Through every public consumer, mutate item ID, Category,
+    Obligation, Owner, Required proof, item insertion/removal, every
+    proof-specification field, reviewed applicability, and
+    `designApprovalGate`. Across the CLI, ledger, and update suites, assert one
     concrete recovery action for every contributor-repairable checklist code.
     Add `packages/cli/tests/integration/delivery-checklist-recovery.test.ts` as
     the exhaustive code-to-recovery-action contract.
