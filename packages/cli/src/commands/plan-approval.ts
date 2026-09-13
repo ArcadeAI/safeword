@@ -160,23 +160,50 @@ function replaceTicketPhase(
   return true;
 }
 
-function advanceToExecutionPlanning(context: ApprovalContext): boolean {
-  return replaceTicketPhase(context, 'plan-implementation', 'plan-execution');
+function scaffoldExecutionPlan(context: ApprovalContext): string | undefined {
+  const planPath = nodePath.join(context.ticketDirectory, 'execution-plan.md');
+  if (existsSync(planPath)) return undefined;
+
+  const templatePath = nodePath.join(
+    context.cwd,
+    '.safeword',
+    'templates',
+    'execution-plan-template.md',
+  );
+  if (!existsSync(templatePath)) {
+    throw new Error(
+      'The installed Execution Plan template is missing. Repair the Safeword installation before approving the plan.',
+    );
+  }
+  writeFileSync(planPath, readFileSync(templatePath, 'utf8'), { flag: 'wx' });
+  return nodePath.relative(context.cwd, planPath);
+}
+
+function advanceToExecutionPlanning(context: ApprovalContext): string[] {
+  const planTarget = scaffoldExecutionPlan(context);
+  const ticketChanged = replaceTicketPhase(context, 'plan-implementation', 'plan-execution');
+  return [
+    ...(planTarget === undefined ? [] : [planTarget]),
+    ...(ticketChanged ? [nodePath.relative(context.cwd, context.ticketPath)] : []),
+  ];
 }
 
 function reconcilePhaseWithCurrentDecision(
   context: ApprovalContext,
-): { readonly decision: 'approved' | 'declined'; readonly ticketChanged: boolean } | undefined {
-  let ticketChanged = false;
+):
+  | { readonly decision: 'approved' | 'declined'; readonly changedFiles: readonly string[] }
+  | undefined {
+  const changedFiles = new Set<string>();
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const decision = currentDesignDecision(context.ledgerPath, context.ticketId, context.digest);
     if (decision === undefined) return undefined;
-    ticketChanged =
-      (decision === 'approved'
-        ? advanceToExecutionPlanning(context)
-        : replaceTicketPhase(context, 'plan-execution', 'plan-implementation')) || ticketChanged;
+    if (decision === 'approved') {
+      for (const target of advanceToExecutionPlanning(context)) changedFiles.add(target);
+    } else if (replaceTicketPhase(context, 'plan-execution', 'plan-implementation')) {
+      changedFiles.add(nodePath.relative(context.cwd, context.ticketPath));
+    }
     if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) === decision) {
-      return { decision, ticketChanged };
+      return { decision, changedFiles: [...changedFiles] };
     }
   }
   return undefined;
@@ -233,15 +260,11 @@ async function askForApproval(plan: string): Promise<boolean> {
 }
 
 function settledDecisionChanges(
-  context: ApprovalContext,
   ledgerTarget: string,
   appended: 'existing' | 'written',
-  ticketChanged: boolean,
+  changedFiles: readonly string[],
 ): string[] {
-  return [
-    ...(appended === 'written' ? [ledgerTarget] : []),
-    ...(ticketChanged ? [nodePath.relative(context.cwd, context.ticketPath)] : []),
-  ];
+  return [...new Set([...(appended === 'written' ? [ledgerTarget] : []), ...changedFiles])];
 }
 
 function settleInteractiveDecision(
@@ -272,7 +295,11 @@ function settleInteractiveDecision(
     return result(
       context,
       'pending',
-      settledDecisionChanges(context, ledgerTarget, appended.status, returnedToPlanning),
+      settledDecisionChanges(
+        ledgerTarget,
+        appended.status,
+        returnedToPlanning ? [nodePath.relative(context.cwd, context.ticketPath)] : [],
+      ),
       'The current human design decision changed while the ticket phase was being reconciled; approval remains pending.',
     );
   }
@@ -281,12 +308,10 @@ function settleInteractiveDecision(
   return result(
     context,
     status,
-    settledDecisionChanges(
-      context,
-      ledgerTarget,
-      appended.status,
-      reconciled.ticketChanged || returnedToPlanning,
-    ),
+    settledDecisionChanges(ledgerTarget, appended.status, [
+      ...reconciled.changedFiles,
+      ...(returnedToPlanning ? [nodePath.relative(context.cwd, context.ticketPath)] : []),
+    ]),
     status === 'approved'
       ? `Approved approach: ${planPath} at ${context.digest}.`
       : `Declined approach: ${planPath}. It remains in Implementation Planning for repair.`,
@@ -294,10 +319,7 @@ function settleInteractiveDecision(
   );
 }
 
-function currentApprovalResult(
-  context: ApprovalContext,
-  ticketTarget: string,
-): CliResult | undefined {
+function currentApprovalResult(context: ApprovalContext): CliResult | undefined {
   if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) !== 'approved') {
     return undefined;
   }
@@ -306,14 +328,14 @@ function currentApprovalResult(
     return result(
       context,
       'pending',
-      reconciled?.ticketChanged ? [ticketTarget] : [],
+      reconciled?.changedFiles ?? [],
       'The current human design decision changed while the ticket phase was being reconciled; approval remains pending.',
     );
   }
   return result(
     context,
     'approved',
-    reconciled.ticketChanged ? [ticketTarget] : [],
+    reconciled.changedFiles,
     `Existing approval remains current for ${nodePath.relative(context.cwd, context.planPath)} at ${context.digest}.`,
     'info',
   );
@@ -330,10 +352,10 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
   if (!designApprovalEnabled(context.cwd)) {
     appendReceipt(context, 'not-required');
     const advanced = advanceToExecutionPlanning(context);
-    return result(context, 'not-required', [ledgerTarget, ...(advanced ? [ticketTarget] : [])]);
+    return result(context, 'not-required', [ledgerTarget, ...advanced]);
   }
 
-  const existingApproval = currentApprovalResult(context, ticketTarget);
+  const existingApproval = currentApprovalResult(context);
   if (existingApproval !== undefined) return existingApproval;
 
   const returnedToPlanning = replaceTicketPhase(context, 'plan-execution', 'plan-implementation');
