@@ -61,8 +61,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An unreadable Execution Plan blocks checklist updates
 
 - [x] RED d00277c4d
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN f97d5efa9
+- [x] REFACTOR skip: plan reading and parsing were extracted into one focused helper during GREEN
 
 ## Rule: plan-implementability.TBU2.A639WN.R4 — The feature checklist lives in the Execution Plan; the 3EG00H TBU3 small-work contract separately owns proportionate task and patch checklist behavior without creating feature artifacts
 
