@@ -690,7 +690,7 @@ describe('Claude plugin dispatcher', () => {
         permissionDecisionReason: expect.stringContaining(
           'inventory is missing required asset: runtime/event-groups.json',
         ),
-        additionalContext: expect.stringContaining('no Safeword hook result was applied'),
+        additionalContext: expect.stringContaining('No Safeword hook result was applied'),
       },
     });
   });
@@ -719,7 +719,7 @@ describe('Claude plugin dispatcher', () => {
         permissionDecisionReason: expect.stringContaining(
           'contains an unlisted asset: resources/templates/unlisted.md',
         ),
-        additionalContext: expect.stringContaining('approve only a repair or diagnostic action'),
+        additionalContext: expect.stringContaining('Approve only a repair or diagnostic action'),
       },
     });
   });

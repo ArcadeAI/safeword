@@ -2,11 +2,11 @@
 id: HX3KFQ
 slug: keep-claude-plugin-recoverable
 type: task
-phase: intake
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/4519
 created: 2026-09-13T04:03:46.412Z
-last_modified: 2026-09-13T04:03:46.412Z
+last_modified: 2026-09-13T04:56:41Z
 ---
 
 # Keep the Claude plugin installable and recoverable
@@ -26,23 +26,23 @@ the plugin is healthy, auto-deleting unexpected cache files, or trusting unverif
 
 **Done When:**
 
-- [ ] A generated Claude plugin and a generated Codex plugin can create a feature ticket and run
+- [x] A generated Claude plugin and a generated Codex plugin can create a feature ticket and run
       setup from their bundled CLI without source-repository files.
-- [ ] Release checks fail if a native plugin payload no longer satisfies the bundled CLI's
+- [x] Release checks fail if a native plugin payload no longer satisfies the bundled CLI's
       resource contract.
-- [ ] A damaged Claude plugin cache makes PreToolUse ask the user rather than permanently deny the
+- [x] A damaged Claude plugin cache makes PreToolUse ask the user rather than permanently deny the
       tool, while healthy caches retain current decisions.
-- [ ] Missing, modified, and unlisted assets remain visible as integrity failures and no unverified
+- [x] Missing, modified, and unlisted assets remain visible as integrity failures and no unverified
       Safeword hook executes.
 
 **Tests:**
 
-- [ ] Release integration: generated Claude payload runs `ticket new` and `setup` in a clean repo.
-- [ ] Release integration: generated Codex payload runs `ticket new` and `setup` in a clean repo.
-- [ ] Dispatcher: an unlisted asset returns a structured PreToolUse `ask` decision with a repair
+- [x] Release integration: generated Claude payload runs `ticket new` and `setup` in a clean repo.
+- [x] Release integration: generated Codex payload runs `ticket new` and `setup` in a clean repo.
+- [x] Dispatcher: an unlisted asset returns a structured PreToolUse `ask` decision with a repair
       explanation and does not execute configured hooks.
-- [ ] Dispatcher: missing or modified required assets use the same recoverable degraded mode.
-- [ ] Dispatcher: UserPromptSubmit remains advisory and healthy PreToolUse behavior is unchanged.
+- [x] Dispatcher: missing or modified required assets use the same recoverable degraded mode.
+- [x] Dispatcher: UserPromptSubmit remains advisory and healthy PreToolUse behavior is unchanged.
 
 ## Root Cause
 
@@ -75,3 +75,7 @@ Related issue: https://github.com/ArcadeAI/safeword/issues/4520
 - 2026-09-13T04:18:00Z Decided: package the canonical flat template tree in both native plugins
   and add executable payload checks. Degrade integrity-failed PreToolUse to an explicit user prompt,
   never execution of unverified hooks.
+- 2026-09-13T04:56:41Z Verified: both generated payloads execute `ticket new` and `install`;
+  integrity failures use explicit `ask`; focused, release, build, lint, typecheck, audit, and
+  generator-drift checks pass. The three full-lane Gherkin regressions caused by treating canonical
+  package data as native skills pass after narrowing those assertions to native surfaces.

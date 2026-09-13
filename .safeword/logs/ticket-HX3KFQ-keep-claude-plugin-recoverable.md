@@ -16,3 +16,7 @@
 - [04:18] Chose canonical template packaging plus executable release checks. For cache damage,
   chose `permissionDecision: ask`: official Claude hook semantics preserve explicit user approval,
   while the dispatcher still refuses to execute unverified Safeword hooks.
+- [04:56] Verification passed: 9,989 non-skipped project tests, 52 focused contract tests, 12
+  Claude release tests, the three corrected Gherkin scenarios (137 steps), package and website
+  builds, lint, typecheck, dependency audit, generator drift, and diff audit. The initial relay
+  failures were reproduced as sandbox-only; all 199 relay tests passed with socket permissions.

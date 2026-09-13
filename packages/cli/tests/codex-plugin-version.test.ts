@@ -136,6 +136,13 @@ describe('Codex plugin release contract', () => {
         );
         expect(ticket.status, `${ticket.stdout}${ticket.stderr}`).toBe(0);
         expect(ticket.stdout).toContain('Changed: yes');
+        const install = spawnSync(
+          'bun',
+          [runtimePath, 'install', '--agents=none', '--no-input', '--offline'],
+          { cwd: project, encoding: 'utf8' },
+        );
+        expect(install.status, `${install.stdout}${install.stderr}`).toBe(0);
+        expect(existsSync(nodePath.join(project, '.safeword/SAFEWORD.md'))).toBe(true);
         const sessionStart = spawnSync(
           'bun',
           [runtimePath, 'hook', 'codex', 'session-start', '--plugin-hook'],

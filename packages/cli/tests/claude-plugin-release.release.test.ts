@@ -37,6 +37,19 @@ describe('Claude plugin release contract', () => {
 
       expect(result.status, `${result.stdout}${result.stderr}`).toBe(0);
       expect(result.stdout).toContain('Changed: yes');
+
+      const install = spawnSync(
+        'bun',
+        [
+          nodePath.join(REPO_ROOT, 'plugin/runtime/cli.js'),
+          'install',
+          '--agents=none',
+          '--no-input',
+          '--offline',
+        ],
+        { cwd: project, encoding: 'utf8' },
+      );
+      expect(install.status, `${install.stdout}${install.stderr}`).toBe(0);
     } finally {
       rmSync(project, { recursive: true, force: true });
     }
