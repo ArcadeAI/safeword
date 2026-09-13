@@ -152,7 +152,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: uncommittable historical proof — pre-contract Vitest failed because the validator export did not exist
 - [x] GREEN 8b487b2e6
-- [ ] REFACTOR
+- [x] REFACTOR skip: validator requirements already use a dedicated contract-validation result type
 
 ### Scenario: An asymmetric decision contract is invalid
 
