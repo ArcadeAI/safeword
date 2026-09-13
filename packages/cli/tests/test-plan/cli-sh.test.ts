@@ -38,6 +38,19 @@ async function renderSh(
   return result.stdout;
 }
 
+async function renderJson(
+  root: string,
+  kind: 'typecheck' | 'deps',
+  availableTools: string,
+): Promise<Record<string, unknown>> {
+  const result = await runCli(['project', 'test-plan', '--kind', kind, '--json'], {
+    cwd: root,
+    env: { SAFEWORD_FAKE_TOOLS: availableTools },
+  });
+  expect(result.exitCode).toBe(0);
+  return JSON.parse(result.stdout) as Record<string, unknown>;
+}
+
 /** Eval a rendered script in bash; return { stdout, code }. */
 function evalScript(script: string, cwd: string): { stdout: string; code: number } {
   try {
@@ -54,7 +67,7 @@ function evalScript(script: string, cwd: string): { stdout: string; code: number
   }
 }
 
-describe('safeword test-plan --format sh', () => {
+describe('safeword test-plan', () => {
   it('renders a Go repo as a runnable go test command', async () => {
     const sh = await renderSh(makeRepo({ 'go.mod': 'module x\n' }));
     expect(sh).toContain('go test ./...');
@@ -82,6 +95,48 @@ describe('safeword test-plan --format sh', () => {
   it('renders --kind deps for Go as a pinned govulncheck scan', async () => {
     const sh = await renderSh(makeRepo({ 'go.mod': 'module x\n' }), 'deps');
     expect(sh).toContain('go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...');
+  });
+
+  it('reports the exact unavailable Python dependency scanner without blaming Go', async () => {
+    const output = await renderJson(
+      makeRepo({
+        'requirements.txt': 'requests==2.32.0\n',
+        'checker/go.mod': 'module x\n',
+      }),
+      'deps',
+      'only:go',
+    );
+
+    expect(output).toMatchObject({
+      state: 'healthy',
+      findings: [
+        {
+          code: 'TEST_PLAN_RUNNER_UNAVAILABLE',
+          severity: 'warning',
+          message: 'Python dependency lane skipped: pip-audit is not installed.',
+          metadata: { kind: 'deps', language: 'python', runner: 'pip-audit' },
+        },
+      ],
+    });
+  });
+
+  it('reports configured Python typechecking as an evidence gap when mypy is missing', async () => {
+    const output = await renderJson(
+      makeRepo({ 'mypy.ini': '[mypy]\nstrict = True\n' }),
+      'typecheck',
+      'only:python3',
+    );
+
+    expect(output).toMatchObject({
+      findings: [
+        {
+          code: 'TEST_PLAN_RUNNER_UNAVAILABLE',
+          severity: 'warning',
+          message: 'Python typecheck lane skipped: mypy is not installed.',
+          metadata: { kind: 'typecheck', language: 'python', runner: 'mypy' },
+        },
+      ],
+    });
   });
 
   it('renders --kind deps for uv projects as uv audit', async () => {

@@ -8,9 +8,26 @@ import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { renderShellPlan } from '../test-plan/render.js';
-import { type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
+import { type Language, type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
 
 type Format = 'human' | 'json' | 'sh';
+
+const LANE_NAMES: Readonly<Record<PlanKind, string>> = {
+  test: 'test',
+  build: 'build',
+  verify: 'verification',
+  typecheck: 'typecheck',
+  deps: 'dependency',
+  bdd: 'acceptance',
+};
+
+const LANGUAGE_NAMES: Readonly<Record<Language, string>> = {
+  javascript: 'JavaScript',
+  python: 'Python',
+  go: 'Go',
+  rust: 'Rust',
+  sql: 'SQL',
+};
 
 function rawTestPlanPresentation(
   format: Format,
@@ -60,9 +77,24 @@ export function observeTestPlan(
   }
   const root = dir === undefined ? cwd : nodePath.resolve(cwd, dir);
   const plan = resolveTestPlan(root, { kind });
+  const findings = plan
+    .filter(entry => !entry.available)
+    .map(entry => ({
+      code: 'TEST_PLAN_RUNNER_UNAVAILABLE',
+      message: `${LANGUAGE_NAMES[entry.language]} ${LANE_NAMES[kind]} lane skipped: ${entry.runner} is not installed.`,
+      severity: 'warning' as const,
+      metadata: {
+        kind,
+        language: entry.language,
+        runner: entry.runner,
+        command: entry.command,
+        cwd: entry.cwd,
+      },
+    }));
   return Promise.resolve(
     createResult({
       state: 'healthy',
+      findings,
       presentation: rawTestPlanPresentation(formatValue as Format, plan),
       data: { command: 'project test-plan', kind, plan },
     }),
