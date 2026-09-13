@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { findCommandDefinition } from '../../src/cli-protocol/catalog.js';
 import type { CliResult } from '../../src/cli-protocol/result.js';
@@ -20,7 +20,7 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
-import { runCli } from '../helpers.js';
+import { assertTestCliFresh, runCli } from '../helpers.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -315,6 +315,8 @@ async function admitThroughInstalledCli(
 }
 
 describe('delivery execution prerequisite', () => {
+  beforeAll(assertTestCliFresh);
+
   afterEach(() => {
     cleanupTrustedReviewerDirectories();
   });
