@@ -144,7 +144,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The canonical contract validates symmetric decision and action forms
 
-- [x] RED 5453fed07
+- [x] RED 2fd7cde09
 - [x] GREEN 8b487b2e6
 - [x] REFACTOR 6c495df09
 
