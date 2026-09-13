@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -12,7 +13,7 @@ const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PACKAGE_ROOT = nodePath.join(REPO_ROOT, 'packages/cli');
 
 interface AccessEvent {
-  operation: 'exists' | 'read';
+  operation: 'choice' | 'exists' | 'read' | 'write';
   path: string;
 }
 
@@ -33,14 +34,6 @@ const SURFACE_ARTIFACTS: Readonly<Record<string, string>> = {
   OpenCode: 'packages/cli/src/opencode/plugin.ts',
   Cursor: 'packages/cli/templates/cursor/rules/bdd-core.mdc',
   'Safeword CLI': 'packages/cli/dist/cli.js',
-};
-
-const SURFACE_RUNTIMES: Readonly<Record<string, string>> = {
-  'Claude Code': 'packages/cli/src/cli.ts',
-  'OpenAI Codex': 'packages/cli/src/cli.ts',
-  OpenCode: 'packages/cli/src/cli.ts',
-  Cursor: 'packages/cli/src/cli.ts',
-  'Safeword CLI': 'packages/cli/src/cli.ts',
 };
 
 function required(value: string | undefined, label: string): string {
@@ -75,12 +68,18 @@ Given(
         "import fs from 'node:fs';",
         "import { syncBuiltinESMExports } from 'node:module';",
         'const log = process.env.SAFEWORD_TEST_ACCESS_LOG;',
-        'const originalAppendFileSync = fs.appendFileSync.bind(fs);',
-        'const originalExistsSync = fs.existsSync.bind(fs);',
-        'const originalReadFileSync = fs.readFileSync.bind(fs);',
-        String.raw`const record = (operation, value) => { if (log && typeof value === 'string') originalAppendFileSync(log, JSON.stringify({ operation, path: value }) + '\n'); };`,
-        "fs.existsSync = value => { record('exists', value); return originalExistsSync(value); };",
-        "fs.readFileSync = (...args) => { record('read', args[0]); return originalReadFileSync(...args); };",
+        'const originalOpenSync = fs.openSync.bind(fs);',
+        'const originalWriteSync = fs.writeSync.bind(fs);',
+        'const originalCloseSync = fs.closeSync.bind(fs);',
+        String.raw`const record = (operation, value) => { if (!log) return; const path = value instanceof URL ? value.pathname : Buffer.isBuffer(value) ? value.toString() : value; if (typeof path !== 'string') return; const descriptor = originalOpenSync(log, 'a'); try { originalWriteSync(descriptor, JSON.stringify({ operation, path }) + '\n'); } finally { originalCloseSync(descriptor); } };`,
+        'const patchSync = (name, operation) => { const original = fs[name].bind(fs); fs[name] = (...args) => { record(operation, args[0]); return original(...args); }; };',
+        "for (const name of ['accessSync', 'existsSync', 'lstatSync', 'openSync', 'readFileSync', 'readdirSync', 'realpathSync', 'statSync']) patchSync(name, name === 'existsSync' ? 'exists' : 'read');",
+        "for (const name of ['appendFileSync', 'chmodSync', 'copyFileSync', 'mkdirSync', 'renameSync', 'rmSync', 'rmdirSync', 'unlinkSync', 'writeFileSync']) patchSync(name, 'write');",
+        'const patchPromise = (name, operation) => { const original = fs.promises[name].bind(fs.promises); fs.promises[name] = async (...args) => { record(operation, args[0]); return original(...args); }; };',
+        "for (const name of ['access', 'lstat', 'open', 'readFile', 'readdir', 'realpath', 'stat']) patchPromise(name, 'read');",
+        "for (const name of ['appendFile', 'chmod', 'copyFile', 'mkdir', 'rename', 'rm', 'rmdir', 'unlink', 'writeFile']) patchPromise(name, 'write');",
+        'const originalStdoutWrite = process.stdout.write.bind(process.stdout);',
+        "process.stdout.write = (chunk, ...args) => { const output = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk); if (output.includes('ENROLLMENT_CHOICE_REQUIRED')) record('choice', 'ENROLLMENT_CHOICE_REQUIRED'); return originalStdoutWrite(chunk, ...args); };",
         'syncBuiltinESMExports();',
       ].join('\n'),
     );
@@ -97,10 +96,8 @@ Given(
   ) {
     const artifact = SURFACE_ARTIFACTS[surface];
     assert.ok(artifact, `unsupported surface ${surface}`);
-    assert.equal(
-      proofBoundary === 'a real command process' || existsSync(nodePath.join(REPO_ROOT, artifact)),
-      true,
-    );
+    const artifactPath = nodePath.join(REPO_ROOT, artifact);
+    assert.ok(existsSync(artifactPath), `${surface} artifact is missing: ${artifactPath}`);
     this.entryPoint = entryPoint;
     this.surface = surface;
     this.proofBoundary = proofBoundary;
@@ -111,7 +108,7 @@ When(
   'that entry point is exercised until it first needs Safeword project state',
   function (this: QuietEnrollmentWorld) {
     const surface = required(this.surface, 'surface');
-    const runtime = required(SURFACE_RUNTIMES[surface], `${surface} runtime`);
+    assert.equal(surface, 'Safeword CLI', `${surface} installed-artifact harness is not wired yet`);
     const projectRoot = required(this.projectRoot, 'project root');
     const userDataRoot = required(this.userDataRoot, 'user data root');
     const observerLog = required(this.observerLog, 'observer log');
@@ -124,7 +121,7 @@ When(
       [
         '--import',
         'tsx',
-        nodePath.join(REPO_ROOT, runtime),
+        nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
         'project',
         'record-skill-invocation',
         '--cwd',
@@ -165,21 +162,51 @@ Then(
 
     const projectRoot = required(this.projectRoot, 'project root');
     const userDataRoot = required(this.userDataRoot, 'user data root');
+    const expectedPartition = nodePath.join(
+      userDataRoot,
+      'safeword',
+      'project-contexts',
+      'v1',
+      createHash('sha256').update(projectRoot).digest('hex'),
+    );
     const relevant = (this.observedAccesses ?? []).filter(
       event => event.path.startsWith(projectRoot) || event.path.startsWith(userDataRoot),
     );
+    const choiceIndex = (this.observedAccesses ?? []).findIndex(
+      event => event.operation === 'choice',
+    );
+    assert.notEqual(choiceIndex, -1, 'the observer did not record the enrollment choice');
+    const beforeChoice = (this.observedAccesses ?? []).slice(0, choiceIndex);
+    const currentMarker = nodePath.join(projectRoot, '.safeword', 'SAFEWORD.md');
+    const ancestorMarker = nodePath.join(nodePath.dirname(projectRoot), '.safeword', 'SAFEWORD.md');
+    const globalMarker = nodePath.join(expectedPartition, 'partition.json');
     assert.ok(
-      relevant.some(event => event.path === nodePath.join(projectRoot, '.safeword/SAFEWORD.md')),
+      beforeChoice.some(event => event.path === currentMarker),
       'the current repository marker was not checked',
     );
     assert.ok(
-      relevant.some(event => event.path.startsWith(userDataRoot)),
+      beforeChoice.some(event => event.path === globalMarker),
       'the exact checkout-global partition was not checked before offering setup',
     );
+    assert.ok(
+      beforeChoice.some(event => event.path === ancestorMarker),
+      'an ancestor repository marker was not checked before offering setup',
+    );
     assert.equal(
-      relevant.some(event => event.operation === 'read' && event.path.includes('.project')),
+      beforeChoice.some(event => event.operation === 'write'),
       false,
-      'project state was read before the enrollment choice',
+      'Safeword-owned state was mutated before the enrollment choice',
+    );
+    const allowedChecks = new Set([currentMarker, ancestorMarker, globalMarker]);
+    assert.equal(
+      relevant.some(
+        event =>
+          event.operation !== 'choice' &&
+          beforeChoice.includes(event) &&
+          !allowedChecks.has(event.path),
+      ),
+      false,
+      'state outside the enrollment checks was accessed before the enrollment choice',
     );
   },
 );

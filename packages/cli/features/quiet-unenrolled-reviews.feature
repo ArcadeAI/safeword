@@ -13,12 +13,16 @@ Feature: Point-of-need Safeword enrollment
       When that entry point is exercised until it first needs Safeword project state
       Then exactly one plain-language setup choice appears after only read-only checks of the current marker, ancestor markers, and checkout-global partition and before the independent observer records any Safeword-owned write or any other state read
 
-      Examples:
+      @wip
+      Examples: Agent surfaces awaiting installed-artifact harnesses
         | surface      | entry point                                                                | proof boundary                                           |
         | Claude Code  | a generated .claude/skills workflow invoked through Claude Code            | an installed-artifact invocation                         |
         | OpenAI Codex | a packaged plugin skill invoked through OpenAI Codex                        | an installed-artifact invocation                         |
         | OpenCode     | the profile-level plugins/safeword.js through the supported CLI/TUI        | an installed-artifact invocation                         |
         | Cursor       | an installed .cursor/rules workflow invoked through Cursor agent mode      | an installed-artifact invocation                         |
+
+      Examples: Public CLI process
+        | surface      | entry point                                    | proof boundary         |
         | Safeword CLI | a public non-lifecycle safeword project command                             | a real command process                                   |
 
     Scenario Outline: Every state-access mechanism asks before project state is accessed
