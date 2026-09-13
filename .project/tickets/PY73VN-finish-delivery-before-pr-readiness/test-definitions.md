@@ -30,7 +30,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e3dcb6589
 - [x] GREEN e8f5a7ff2
-- [ ] REFACTOR
+- [x] REFACTOR skip: one ordered transition sentence is already the smallest shared contract
 
 ### Scenario: Whole-ticket review advances into verification
 
