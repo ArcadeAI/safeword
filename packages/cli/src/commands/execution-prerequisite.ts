@@ -103,25 +103,12 @@ function designApprovalRequired(cwd: string): boolean {
   }
 }
 
-function implementationApproachAccepted(input: {
+function designDecisionAccepted(input: {
   readonly cwd: string;
-  readonly ledger: string;
   readonly ledgerPath: string;
   readonly ticketId: string;
-  readonly ticketFolder: string;
   readonly implementationPath: string;
 }): boolean {
-  if (
-    !reviewApproved(
-      input.cwd,
-      input.ledger,
-      input.ticketFolder,
-      'plan-implementation',
-      input.implementationPath,
-    )
-  ) {
-    return false;
-  }
   if (!designApprovalRequired(input.cwd)) return true;
   if (!existsSync(input.implementationPath)) return false;
   const digest = createHash('sha256')
@@ -217,7 +204,7 @@ function approachPrerequisite(context: PrerequisiteContext): MissingPrerequisite
     'plan-implementation',
     context.implementationPath,
   );
-  if (implementationApproachAccepted(context)) return undefined;
+  if (reviewed && designDecisionAccepted(context)) return undefined;
   return {
     code: 'missing_accepted_approach',
     message: 'An accepted implementation approach is required before execution.',
