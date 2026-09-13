@@ -1,7 +1,6 @@
 # Implementation Plan: Complete contributions with a default Delivery Checklist
 
 **Status:** planned
-**Planned on:** 2026-09-13
 
 ## Approach
 
@@ -24,10 +23,9 @@ and their proof:
    verdict from the same evaluator that 7CAMAD later composes into coding
    authorization. YCFFNC later connects that composed gate to agent hosts.
 
-This child owns the checklist, proof, and public prerequisite contracts.
-The accepted PR-slicing contract from 6XW8H7 must be present in the merge
-branch before A639WN merges; A639WN extends that contract rather than defining
-a competing slicing format.
+This child owns the checklist, proof, and public prerequisite contracts and
+consumes 6XW8H7's accepted PR-slicing contract without defining a competing
+format.
 7CAMAD owns coding authorization and phase provenance; 5F5ZZA owns
 authenticated host-user provenance and broader plan invalidation; YCFFNC owns
 installed-host delivery; 3EG00H owns proportional task and patch behavior; and
@@ -65,24 +63,11 @@ revision currency address that separate risk.
 | Feature-only placement | Feature fixtures use `execution-plan.md`; task and patch fixtures receive no feature artifact. | 3EG00H owns the later small-work contract. |
 | Documentation parity | Schema, parity, catalogue, machine-contract, and generated-rubric tests keep canonical and host-facing contracts aligned. | YCFFNC owns installed-host activation. |
 
-### Build order
+### Execution boundary
 
-1. **Define trustworthy contracts.** Add the typed Proof Specification and
-   Delivery Checklist model, strict parser, stable-definition projection,
-   evidence derivation, and retained no-shell proof worker. The checklist
-   modules remain unreachable from production; executable-RED uses the
-   extracted seam through a behavior-preserving compatibility wrapper.
-2. **Make the checklist usable.** Extend plan-execution review, the shared
-   ledger, the canonical template and guidance, and two public CLI operations:
-   read readiness and record one proof. Add compatible-earlier review and
-   regenerate host mirrors. Ship the full-diff egress disclosure with the proof
-   command.
-3. **Expose the execution prerequisite.** Add the public deny-only operation,
-   its shared evaluator, fixed recovery results, and public command reference.
-   7CAMAD later composes the evaluator into coding authorization.
-
-The authoritative task order, test files, commands, and three independently
-reviewable PR boundaries live in [execution-plan.md](./execution-plan.md).
+[execution-plan.md](./execution-plan.md) owns task order, test files, commands,
+current proof, and independently reviewable pull-request slices. This plan owns
+the design those tasks must preserve.
 
 ## Decisions
 
@@ -199,11 +184,13 @@ revision. Only a cross-agent approval over the exact request can create a
 `delivery-compatibility:v1` ledger event.
 
 **Alternative considered:** Trust contributor prose, re-review the whole
-Execution Plan, use generic quality review, or accept a caller-supplied review
-ID.
+Execution Plan, use generic quality review, accept a caller-supplied review ID,
+or send only files named by the Proof Specification.
 
-**Rejected because:** None asks and authenticates the exact question: whether
-the earlier receipt still proves this retained boundary now.
+**Rejected because:** The first four do not ask and authenticate whether the
+earlier receipt still proves this retained boundary now. A named-file-only diff
+can omit a changed dependency, configuration value, fixture, or caller that
+invalidates the proof, allowing a false compatibility approval.
 
 **Evidence reference:** [review coordinator](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/src/review/coordinator.ts) and [review evidence principle](../../../PRINCIPLES.md#1-structure-enforces-instructions-suggest)
 
@@ -505,13 +492,13 @@ attributes, not product metrics.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Structure enforces; instructions suggest | Closed state and authenticated receipts enforce final readiness; recording cadence remains instructional. | [Readiness and authority](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) | explicit-conflict |
-| Add, never replace | The checklist extends the existing Execution Plan and ledger; it replaces only the unreleased provisional checklist shape. | [Atomic progress](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) | explicit-conflict |
-| Discover decisions before prescribing work | Accepted decisions and PR slicing become reviewed obligations before tasks begin. | [Scenario coverage and PR slicing](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) |  |
-| Fire at boundaries, not every turn | Validation runs at plan review, proof recording, readiness, and the execution prerequisite. | [Execution prerequisite and atomic progress](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) |  |
-| Optimize for the NTB without constraining the TBU | Plain readiness leads; external full-diff review requires point-of-use disclosure and confirmation; detailed proof identity remains available. Applicability changes require re-review. | [Readiness and authority](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) | explicit-conflict |
-| Contribute, then converge | Every refusal names the observed state and one recovery action. | [Failure recovery](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) |  |
-| Correct and safe; then clear; then simple | One typed Markdown source reuses existing Git, review, ledger, and CLI boundaries. | [Evidence currency and feature placement](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) |  |
+| Structure enforces; instructions suggest | Closed state and authenticated receipts enforce final readiness; recording cadence remains instructional. | [Proof strategy](#proof-strategy) | explicit-conflict |
+| Add, never replace | The checklist extends the existing Execution Plan and ledger; it replaces only the unreleased provisional checklist shape. | [Proof strategy](#proof-strategy) | explicit-conflict |
+| Discover decisions before prescribing work | Accepted decisions and PR slicing become reviewed obligations before tasks begin. | [Proof strategy](#proof-strategy) |  |
+| Fire at boundaries, not every turn | Validation runs at plan review, proof recording, readiness, and the execution prerequisite. | [Proof strategy](#proof-strategy) |  |
+| Optimize for the NTB without constraining the TBU | Plain readiness leads; external full-diff review requires point-of-use disclosure and confirmation; detailed proof identity remains available. Applicability changes require re-review. | [Proof strategy](#proof-strategy) | explicit-conflict |
+| Contribute, then converge | Every refusal names the observed state and one recovery action. | [Proof strategy](#proof-strategy) |  |
+| Correct and safe; then clear; then simple | One typed Markdown source reuses existing Git, review, ledger, and CLI boundaries. | [Proof strategy](#proof-strategy) |  |
 
 Architecture applicability: this shared workflow-contract extension honors
 [Separate Implementation and Execution Planning Gates](../../../ARCHITECTURE.md#separate-implementation-and-execution-planning-gates)
@@ -589,17 +576,13 @@ authoritative for checklist contents and runtime use. The Digest-Bound record's
   host-user provenance exists: stop rollout or add that authority check.
 - Evidence-only progress invalidates plan approval: fix stable/mutable
   normalization before activation.
-- Contributors repeatedly defer all proof recording: consider one task-boundary
-  signal.
 - Applicability changes routinely force re-review: add a separately reviewed
   applicability lane without making contributor prose authoritative.
-- Routine unrelated commits repeatedly stale proof: narrow revision currency
-  only with evidence that the affected boundary can be identified safely.
 - A proof target changes while retained invocation stays fixed: require renewed
   semantic review of that proof definition.
-- Malformed but plausible Markdown becomes common: replace the parser only if a
-  more robust human-readable format avoids a second source of truth.
 - A new default category or human authority source becomes necessary: extend the
   phase contract instead of accepting project-local drift.
 - Source control is no longer enough for concurrent checklist edits: reassess
   the single-artifact model before adding another store.
+
+— OpenAI Codex
