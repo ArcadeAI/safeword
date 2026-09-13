@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -11,6 +12,7 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
+import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 
 const review = vi.hoisted(() => ({ result: undefined as CliResult | undefined }));
 
@@ -64,16 +66,43 @@ function executionPlan(): string {
   ].join('\n');
 }
 
-function fixture(): { root: string; planPath: string } {
+function settledPlan(finalOwner: 'contributor' | 'generic-human' | 'design-approval'): string {
+  const implementationDigest = createHash('sha256').update('# Implementation Plan\n').digest('hex');
+  return executionPlan()
+    .split('\n')
+    .map(line => {
+      if (!/^\| item-\d+ \|/u.test(line)) return line;
+      if (line.startsWith('| item-11 |') && finalOwner !== 'contributor') {
+        const dependency =
+          finalOwner === 'design-approval'
+            ? `design-approval:ABC123:${implementationDigest}`
+            : 'security-review';
+        return `| item-11 | completion evidence | Deliver completion evidence. | human |  | pending_human | missing |  | ${dependency} |`;
+      }
+      return line.replace(
+        /\| contributor \| proof \| open \| missing \| {2}\| {2}\|$/u,
+        '| contributor |  | not_applicable | missing |  | No applicable delivery work. |',
+      );
+    })
+    .join('\n');
+}
+
+function fixture(options: { plan?: string; designApprovalGate?: boolean } = {}): {
+  root: string;
+  planPath: string;
+} {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-delivery-cli-'));
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
   const planPath = nodePath.join(ticketDirectory, 'execution-plan.md');
   mkdirSync(ticketDirectory, { recursive: true });
   mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
-  writeFileSync(nodePath.join(root, '.safeword', 'config.json'), '{}\n');
+  writeFileSync(
+    nodePath.join(root, '.safeword', 'config.json'),
+    `${JSON.stringify({ designApprovalGate: options.designApprovalGate === true })}\n`,
+  );
   writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\ntype: feature\n---\n');
   writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
-  writeFileSync(planPath, executionPlan());
+  writeFileSync(planPath, options.plan ?? executionPlan());
   writeFileSync(
     nodePath.join(root, '.project', 'skill-invocations.log'),
     '2026-09-12T00:00:00.000Z fixture review:ABC123-feature:phase@plan-execution author:codex reviewer:claude independence:cross-agent review-id:review-1\n',
@@ -87,7 +116,10 @@ function fixture(): { root: string; planPath: string } {
   const content = readFileSync(planPath, 'utf8');
   const parsed = parseDeliveryPlanContract(content);
   if (!parsed.ok) throw new Error(parsed.message);
-  const definition = createExecutionPlanDeliveryDefinition(parsed, false);
+  const definition = createExecutionPlanDeliveryDefinition(
+    parsed,
+    options.designApprovalGate === true,
+  );
   review.result = {
     schemaVersion: 1,
     ok: true,
@@ -202,6 +234,41 @@ describe('Delivery Checklist CLI service', () => {
       state: 'action_required',
       findings: [{ code: 'review_required' }],
       data: { command: 'ticket delivery-checklist' },
+    });
+  });
+
+  it('distinguishes contributor completion, pending human work, and satisfied design approval', () => {
+    const contributor = fixture({ plan: settledPlan('contributor') });
+    expect(observeDeliveryChecklist(contributor.root, 'ABC123')).toMatchObject({
+      state: 'action_required',
+      data: { readiness_state: 'contributor_work_complete' },
+    });
+
+    const pending = fixture({ plan: settledPlan('generic-human') });
+    expect(observeDeliveryChecklist(pending.root, 'ABC123')).toMatchObject({
+      state: 'action_required',
+      data: {
+        readiness_state: 'ready_for_human_review',
+        pending_human_items: ['item-11'],
+      },
+    });
+
+    const approved = fixture({
+      plan: settledPlan('design-approval'),
+      designApprovalGate: true,
+    });
+    const digest = createHash('sha256').update('# Implementation Plan\n').digest('hex');
+    expect(
+      appendDesignDecision(nodePath.join(approved.root, '.project', 'skill-invocations.log'), {
+        ticket: 'ABC123',
+        planDigest: digest,
+        decision: 'approved',
+        authorityRef: 'human:test',
+      }),
+    ).toEqual({ status: 'written' });
+    expect(observeDeliveryChecklist(approved.root, 'ABC123')).toMatchObject({
+      state: 'action_required',
+      data: { readiness_state: 'human_approval_satisfied_merge_pending' },
     });
   });
 });
