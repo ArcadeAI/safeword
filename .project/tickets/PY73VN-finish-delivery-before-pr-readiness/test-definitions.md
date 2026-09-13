@@ -28,7 +28,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Final scenario advances through verified ticket closure on every installed host
 
-- [ ] RED
+- [x] RED e3dcb6589
 - [ ] GREEN
 - [ ] REFACTOR
 
