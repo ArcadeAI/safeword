@@ -599,7 +599,12 @@ Given(
         '--cwd',
         projectDirectory,
       ],
-      { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60_000 },
+      {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        timeout: 60_000,
+        env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1' },
+      },
     );
     assert.equal(setup.status, 0, setup.stderr || setup.stdout);
     const installedGrammar = nodePath.join(projectDirectory, '.safeword/hooks/lib/quality.ts');
@@ -716,7 +721,12 @@ Given('an installed hook differs from its canonical template', function (this: S
       '--cwd',
       state.projectDirectory,
     ],
-    { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60_000 },
+    {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: 60_000,
+      env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1' },
+    },
   );
   assert.equal(setup.status, 0, setup.stderr || setup.stdout);
   const installed = nodePath.join(state.projectDirectory, '.safeword/hooks/lib/quality.ts');
@@ -738,7 +748,12 @@ When('the setup reconciliation runs', function (this: SafewordWorld) {
       '--cwd',
       state.projectDirectory,
     ],
-    { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60_000 },
+    {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: 60_000,
+      env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1' },
+    },
   );
   state.validatorExit = result.status ?? 1;
 });
