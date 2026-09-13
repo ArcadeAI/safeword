@@ -22,7 +22,7 @@ describe('unreadable Delivery Checklist plan', () => {
     );
     const result = JSON.parse(invoked.stdout) as {
       state: string;
-      findings: { code: string; message: string }[];
+      findings: { code: string; message: string; severity: string }[];
       recovery: { command: string }[];
     };
 
@@ -33,6 +33,7 @@ describe('unreadable Delivery Checklist plan', () => {
         code: 'execution_plan_unreadable',
         message:
           'Could not read .project/tickets/ABC123-feature/execution-plan.md. Repair the named Execution Plan before updating its Delivery Checklist.',
+        severity: 'warning',
       },
     ]);
     expect(result.recovery.map(action => action.command)).toEqual([
