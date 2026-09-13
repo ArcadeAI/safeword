@@ -142,7 +142,7 @@ Feature: Finish accepted changes before asking for PR review
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: Ready promotion is allowed after verified done
-      Given a ticket is done with verification evidence with Safeword's installed lifecycle hook active
+      Given the Technical Builder asked to mark the pull request ready and the ticket is done with verification evidence with Safeword's installed lifecycle hook active
       When an agent directly invokes the GitHub CLI's Ready promotion
       Then the installed lifecycle hook allows the command to reach the GitHub CLI as Ready promotion
 
@@ -203,3 +203,4 @@ Feature: Finish accepted changes before asking for PR review
   # skip: GitHub CLI transport failures retain the CLI's existing non-zero output and do not change ticket state.
   # skip: OpenCode lifecycle enforcement is deferred because this ticket's accepted affected surfaces are Claude Code, OpenAI Codex, and Cursor.
   # skip: enforcement matches the named gh pr argv shapes only; a Ready mutation issued through gh api, REST, or GraphQL is not denied by this ticket's gate and is deferred beyond its local command boundary.
+  # skip: the inherited parent Killer Demo is proven at the parent level because it spans intake through hosted review; this child proves only its post-GREEN delivery slice.

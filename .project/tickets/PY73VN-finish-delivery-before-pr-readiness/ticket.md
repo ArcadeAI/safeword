@@ -13,6 +13,7 @@ out_of_scope:
   - Automatic pull-request creation, Ready promotion, approval, or merge without explicit user authority.
   - Blocking Draft pull requests used to obtain CI, AI review, or narrow human evidence.
   - Enforcing readiness actions performed outside supported local agent hooks, including the GitHub web UI and cloud-agent environments.
+  - Ready mutations issued through `gh api`, direct REST, or GraphQL rather than the first-class `gh pr` Ready commands named by this ticket.
 done_when:
   - Shipped BDD guidance has one uninterrupted post-GREEN delivery chain through verified done and PR-readiness classification.
   - The PR-readiness workflow routes unfinished tickets back to their next delivery step instead of treating Draft as a terminal result.
