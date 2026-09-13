@@ -1,6 +1,7 @@
 /** Integration proof for the local Ready boundary (ticket PY73VN). */
 
-import { spawnSync } from 'node:child_process';
+import { execFileSync, execSync, spawnSync } from 'node:child_process';
+import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -27,6 +28,18 @@ const CURSOR_BEFORE_SHELL = nodePath.join(
   REPO_ROOT,
   'packages/cli/templates/hooks/cursor/before-shell-execution.ts',
 );
+const POST_TOOL_QUALITY = nodePath.join(
+  REPO_ROOT,
+  'packages/cli/templates/hooks/post-tool-quality.ts',
+);
+const CODEX_POST_TOOL_QUALITY = nodePath.join(
+  REPO_ROOT,
+  'packages/cli/templates/hooks/codex/post-tool-quality.ts',
+);
+const CURSOR_POST_TOOL_QUALITY = nodePath.join(
+  REPO_ROOT,
+  'packages/cli/templates/hooks/cursor/post-tool-quality.ts',
+);
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
@@ -38,6 +51,7 @@ function unfinishedProject(): string {
   temporaryDirectories.push(directory);
   initGitRepo(directory);
   writeTestFile(directory, '.safeword/version', '0.83.1\n');
+  writeTestFile(directory, '.safeword/SAFEWORD.md', '# Safeword\n');
   writeTestFile(
     directory,
     '.project/tickets/PY73VN-finish-delivery-before-pr-readiness/ticket.md',
@@ -68,7 +82,55 @@ function unfinishedProject(): string {
     '.project/quality-state-cursor-cursor-test.json',
     JSON.stringify({ activeTicket: 'PY73VN' }),
   );
+  execFileSync('git', ['add', '.'], { cwd: directory, stdio: 'ignore' });
+  execFileSync('git', ['commit', '-m', 'fixture'], { cwd: directory, stdio: 'ignore' });
   return directory;
+}
+
+const TICKET_PATH = '.project/tickets/PY73VN-finish-delivery-before-pr-readiness/ticket.md';
+const VERIFY_PATH = '.project/tickets/PY73VN-finish-delivery-before-pr-readiness/verify.md';
+
+function writeTicket(directory: string, phase: string, status: string): void {
+  writeTestFile(
+    directory,
+    TICKET_PATH,
+    [
+      '---',
+      'id: PY73VN',
+      'slug: finish-delivery-before-pr-readiness',
+      'type: feature',
+      `phase: ${phase}`,
+      `status: ${status}`,
+      '---',
+      '',
+      '# Finish accepted changes before asking for PR review',
+    ].join('\n'),
+  );
+}
+
+function writeCurrentHeadReceipt(directory: string): void {
+  try {
+    execFileSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd: directory, stdio: 'ignore' });
+  } catch {
+    execFileSync('git', ['add', '.'], { cwd: directory, stdio: 'ignore' });
+    execFileSync('git', ['commit', '-m', 'fixture'], { cwd: directory, stdio: 'ignore' });
+  }
+  const head = execSync('git rev-parse HEAD', { cwd: directory, encoding: 'utf8' }).trim();
+  writeTestFile(
+    directory,
+    '.project/readiness-ticket.json',
+    JSON.stringify({ schema_version: 1, ticket_id: 'PY73VN', head_sha: head }),
+  );
+}
+
+function clearSessionBindings(directory: string): void {
+  for (const state of [
+    'quality-state-claude-test.json',
+    'quality-state-codex-codex-test.json',
+    'quality-state-cursor-cursor-test.json',
+  ]) {
+    rmSync(nodePath.join(directory, '.project', state), { force: true });
+  }
 }
 
 interface ClaudeHookOutput {
@@ -90,6 +152,11 @@ const HOST_HOOKS: Record<Host, string> = {
   'OpenAI Codex': CODEX_PRE_TOOL_QUALITY,
   Cursor: CURSOR_BEFORE_SHELL,
 };
+const HOST_POST_HOOKS: Record<Host, string> = {
+  'Claude Code': POST_TOOL_QUALITY,
+  'OpenAI Codex': CODEX_POST_TOOL_QUALITY,
+  Cursor: CURSOR_POST_TOOL_QUALITY,
+};
 
 function runHostShellHook(
   host: Host,
@@ -110,9 +177,15 @@ function runHostShellHook(
           tool_name: 'Bash',
           tool_input: { command },
         };
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: directory,
+    SAFEWORD_CODEX_DENY_MODE: 'json',
+  };
+  delete environment.SAFEWORD_PLUGIN_CLI;
   const result = spawnSync('bun', [hook], {
     cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    env: environment,
     input: JSON.stringify(input),
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
@@ -122,6 +195,55 @@ function runHostShellHook(
   return result.stdout.trim() === ''
     ? {}
     : (JSON.parse(result.stdout) as ClaudeHookOutput | CursorHookOutput);
+}
+
+function runHostPostTool(host: Host, directory: string): void {
+  const filePath = nodePath.join(directory, TICKET_PATH);
+  const hook = HOST_POST_HOOKS[host];
+  const input =
+    host === 'Cursor'
+      ? {
+          conversation_id: 'cursor-test',
+          workspace_roots: [directory],
+          tool_name: 'Write',
+          tool_input: { file_path: filePath },
+        }
+      : {
+          session_id: host === 'Claude Code' ? 'claude-test' : 'codex-test',
+          tool_name: 'Edit',
+          tool_input: { file_path: filePath },
+        };
+  const result = spawnSync('bun', [hook], {
+    cwd: directory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    input: JSON.stringify(input),
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  const stateFile = {
+    'Claude Code': 'quality-state-claude-test.json',
+    'OpenAI Codex': 'quality-state-codex-codex-test.json',
+    Cursor: 'quality-state-cursor-cursor-test.json',
+  }[host];
+  const state = JSON.parse(
+    readFileSync(nodePath.join(directory, '.project', stateFile), 'utf8'),
+  ) as { activeTicket?: string | null };
+  expect(state.activeTicket).toBeNull();
+}
+
+function denialReason(host: Host, output: ClaudeHookOutput | CursorHookOutput): string {
+  return host === 'Cursor'
+    ? ((output as CursorHookOutput).user_message ?? '')
+    : ((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecisionReason ?? '');
+}
+
+function expectDenied(host: Host, output: ClaudeHookOutput | CursorHookOutput): void {
+  if (host === 'Cursor') {
+    expect((output as CursorHookOutput).permission).toBe('deny');
+    return;
+  }
+  expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).toBe('deny');
 }
 
 describe('pull-request readiness delivery gate', () => {
@@ -146,6 +268,99 @@ describe('pull-request readiness delivery gate', () => {
       expect(decision?.permissionDecisionReason).toContain('PY73VN');
       expect(decision?.permissionDecisionReason).toContain('implementation');
       expect(decision?.permissionDecisionReason).toContain('complete the current scenario');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'denies Ready promotion while verified closure remains open on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'in_progress');
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('ticket closure');
+      expect(denialReason(host, output)).toContain('close the verified ticket');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'denies a done ticket without verification after the real auto-clear on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      runHostPostTool(host, directory);
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('verification evidence');
+      expect(denialReason(host, output)).toContain('run verification');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'fails closed when verification evidence cannot be read on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      mkdirSync(nodePath.join(directory, VERIFY_PATH));
+      writeCurrentHeadReceipt(directory);
+      runHostPostTool(host, directory);
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('verification evidence cannot be read');
+      expect(denialReason(host, output)).toContain('restore');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'allows Ready promotion from a fresh session at the verified done HEAD on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      writeCurrentHeadReceipt(directory);
+      clearSessionBindings(directory);
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      if (host === 'Cursor') {
+        expect((output as CursorHookOutput).permission).toBe('allow');
+      } else {
+        expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).not.toBe(
+          'deny',
+        );
+      }
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'asks for ticket-state repair when the active ticket cannot be parsed on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTestFile(directory, TICKET_PATH, 'not valid ticket frontmatter\n');
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('repair the ticket state');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'asks for a delivery ticket when no active or completed ticket can be resolved on %s',
+    host => {
+      const directory = unfinishedProject();
+      clearSessionBindings(directory);
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('Open or resume the delivery ticket');
     },
   );
 
