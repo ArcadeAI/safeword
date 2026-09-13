@@ -148,6 +148,83 @@ export const TERMINAL_HANDOFF_DECISION_REQUIREMENTS = [
   'exact reply',
 ] as const;
 
+export interface TerminalHandoffContract {
+  version: typeof TERMINAL_HANDOFF_CONTRACT_VERSION;
+  decision: {
+    Next: readonly { name: (typeof TERMINAL_HANDOFF_DECISION_REQUIREMENTS)[number] }[];
+    Need: readonly { name: (typeof TERMINAL_HANDOFF_DECISION_REQUIREMENTS)[number] }[];
+  };
+  action: {
+    role: 'Action';
+    optionalReasonPrefix: 'Required because';
+  };
+}
+
+const decisionContractRoles = TERMINAL_HANDOFF_DECISION_REQUIREMENTS.map(name => ({ name }));
+
+/** Canonical machine-readable contract shared by prompts, evaluators, and host adapters. */
+export const TERMINAL_HANDOFF_CONTRACT: TerminalHandoffContract = {
+  version: TERMINAL_HANDOFF_CONTRACT_VERSION,
+  decision: {
+    Next: decisionContractRoles,
+    Need: decisionContractRoles,
+  },
+  action: {
+    role: 'Action',
+    optionalReasonPrefix: 'Required because',
+  },
+};
+
+export interface TerminalHandoffContractValidation {
+  valid: boolean;
+  requirements?: ('version' | 'symmetric decision roles' | 'no-decision action form')[];
+}
+
+function contractRoleNames(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const names = value.map(entry =>
+    entry && typeof entry === 'object' && 'name' in entry
+      ? (entry as { name?: unknown }).name
+      : undefined,
+  );
+  return names.every((name): name is string => typeof name === 'string') ? names : undefined;
+}
+
+/** Validate contract compatibility before a host relies on its correction syntax. */
+export function validateTerminalHandoffContract(
+  contract: unknown,
+): TerminalHandoffContractValidation {
+  const requirements: NonNullable<TerminalHandoffContractValidation['requirements']> = [];
+  const candidate =
+    contract && typeof contract === 'object' ? (contract as Record<string, unknown>) : {};
+  if (candidate.version !== TERMINAL_HANDOFF_CONTRACT_VERSION) requirements.push('version');
+
+  const decision =
+    candidate.decision && typeof candidate.decision === 'object'
+      ? (candidate.decision as Record<string, unknown>)
+      : {};
+  const nextRoles = contractRoleNames(decision.Next);
+  const needRoles = contractRoleNames(decision.Need);
+  const expected = [...TERMINAL_HANDOFF_DECISION_REQUIREMENTS].sort();
+  const hasExactRoles = (roles: string[] | undefined): boolean =>
+    roles !== undefined &&
+    roles.length === expected.length &&
+    [...roles].sort().every((role, index) => role === expected[index]);
+  if (!hasExactRoles(nextRoles) || !hasExactRoles(needRoles)) {
+    requirements.push('symmetric decision roles');
+  }
+
+  const action =
+    candidate.action && typeof candidate.action === 'object'
+      ? (candidate.action as Record<string, unknown>)
+      : {};
+  if (action.role !== 'Action' || action.optionalReasonPrefix !== 'Required because') {
+    requirements.push('no-decision action form');
+  }
+
+  return requirements.length === 0 ? { valid: true } : { valid: false, requirements };
+}
+
 export type TerminalHandoffRequirement =
   | (typeof TERMINAL_HANDOFF_DECISION_REQUIREMENTS)[number]
   | 'one concrete action'
