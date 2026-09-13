@@ -26,4 +26,12 @@ describe('installed delivery continuation contract', () => {
   it('routes Cursor TDD guidance to the canonical installed contract', () => {
     expect(read('.cursor/rules/bdd-tdd.mdc')).toContain('@.safeword/skills/bdd/TDD.md');
   });
+
+  it.each(tddCopies)('%s advances from GREEN through refactor to the next scenario', path => {
+    const content = read(path);
+
+    expect(content).toContain(
+      'After GREEN, continue through refactor and then start the next incomplete scenario without asking whether to proceed.',
+    );
+  });
 });
