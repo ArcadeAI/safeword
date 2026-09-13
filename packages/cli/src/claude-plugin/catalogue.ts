@@ -29,6 +29,7 @@ const GENERATED_DIRECTORIES = [
   'resources',
   'runtime',
   'skills',
+  'templates',
 ] as const;
 function filesBeneath(directory: string, prefix = ''): string[] {
   if (!existsSync(directory)) return [];
@@ -188,7 +189,11 @@ function stripReferencePunctuation(value: string | undefined): string | undefine
 }
 
 function referencedPluginPaths(asset: GeneratedClaudePluginAsset): string[] {
-  if (asset.relativePath === 'runtime/cli.js' || asset.relativePath === 'runtime/dispatch.js') {
+  if (
+    asset.relativePath.startsWith('templates/') ||
+    asset.relativePath === 'runtime/cli.js' ||
+    asset.relativePath === 'runtime/dispatch.js'
+  ) {
     return [];
   }
   const references = asset.content
@@ -234,7 +239,7 @@ function resolveReference(
 
 function isCatalogueRoot(asset: GeneratedClaudePluginAsset): boolean {
   return (
-    /^(?:agents|commands|skills)\//u.test(asset.relativePath) ||
+    /^(?:agents|commands|skills|templates)\//u.test(asset.relativePath) ||
     asset.relativePath === '.claude-plugin/plugin.json' ||
     asset.relativePath === 'hooks/hooks.json' ||
     asset.relativePath === 'runtime/dispatch.js' ||
@@ -426,6 +431,11 @@ export function generateClaudePluginAssets(
     ...directoryAssets(nodePath.join(templatesRoot, 'skills'), 'skills', adaptClaudeSkill),
     ...directoryAssets(nodePath.join(templatesRoot, 'agents'), 'agents', adaptWorkflowReference),
     ...claudeHookAssets(templatesRoot),
+    // The standalone CLI retains the npm package's flat templates/ contract.
+    // Keep this canonical tree separate from the host-adapted resources below:
+    // resources feed native Claude workflows, while templates feed CLI commands
+    // such as setup, ticket new, reconciliation, and remote-test planning.
+    ...directoryAssets(templatesRoot, 'templates'),
     {
       relativePath: nodePath.join('runtime', 'hooks', 'lib', 'owned-paths.ts'),
       content: generateOwnedPathsModule(SAFEWORD_SCHEMA),

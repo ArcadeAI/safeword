@@ -661,7 +661,7 @@ describe('Claude plugin dispatcher', () => {
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
-  it('returns Claude blocking status when a blockable hook has a damaged cache', () => {
+  it('asks for user approval when a blockable hook has a damaged cache', () => {
     const projectDirectory = temporary('safeword-plugin-blockable-damage-project-');
     const pluginData = temporary('safeword-plugin-blockable-damage-data-');
     const configDirectory = temporary('safeword-plugin-blockable-damage-config-');
@@ -682,11 +682,46 @@ describe('Claude plugin dispatcher', () => {
       'blockable-damage',
       { event: 'PreToolUse', pluginRoot },
     );
-    expect(result.status).toBe(2);
-    expect(result.stderr).toContain('could not safely start its PreToolUse hook');
-    expect(result.stderr).toContain(
-      'inventory is missing required asset: runtime/event-groups.json',
-    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'ask',
+        permissionDecisionReason: expect.stringContaining(
+          'inventory is missing required asset: runtime/event-groups.json',
+        ),
+        additionalContext: expect.stringContaining('no Safeword hook result was applied'),
+      },
+    });
+  });
+
+  it('keeps repair available when an otherwise verified cache has an unlisted asset', () => {
+    const projectDirectory = temporary('safeword-plugin-unlisted-repair-project-');
+    const pluginData = temporary('safeword-plugin-unlisted-repair-data-');
+    const configDirectory = temporary('safeword-plugin-unlisted-repair-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-unlisted-repair-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const unlistedPath = nodePath.join(pluginRoot, 'resources/templates/unlisted.md');
+    mkdirSync(nodePath.dirname(unlistedPath), { recursive: true });
+    writeFileSync(unlistedPath, 'unexpected cache addition\n');
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'unlisted-repair', {
+      event: 'PreToolUse',
+      pluginRoot,
+      hookInput: { tool_name: 'Bash', tool_input: { command: 'claude plugin update' } },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'ask',
+        permissionDecisionReason: expect.stringContaining(
+          'contains an unlisted asset: resources/templates/unlisted.md',
+        ),
+        additionalContext: expect.stringContaining('approve only a repair or diagnostic action'),
+      },
+    });
   });
 
   it('does not execute an unlisted file from an otherwise verified plugin cache', () => {

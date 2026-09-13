@@ -711,10 +711,29 @@ function verifiedIdentity(event: string, pluginRoot: string): VerifiedPlugin | u
     }
     return { eventGroupsContent, identity };
   } catch (error) {
-    if (event !== 'UserPromptSubmit') throw error;
-    const advisory = `Safeword detected a damaged native plugin cache: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no native Safeword hook result was applied.`;
+    const detail = error instanceof Error ? error.message : String(error);
+    const advisory = `Safeword detected a damaged native plugin cache: ${detail} No Safeword hook result was applied.`;
+    if (event === 'PreToolUse') {
+      const recovery = `${advisory} Approve only a repair or diagnostic action; run \`safeword claude status\` to get the exact repair action.`;
+      process.stdout.write(
+        `${JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: event,
+            permissionDecision: 'ask',
+            permissionDecisionReason: recovery,
+            additionalContext: recovery,
+          },
+        })}\n`,
+      );
+      return undefined;
+    }
+    if (event !== 'UserPromptSubmit') {
+      process.stderr.write(`${advisory}\n`);
+      return undefined;
+    }
+    const promptAdvisory = `${advisory} The prompt was not blocked.`;
     try {
-      process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
+      process.stdout.write(safeAppendMigrationAdvisory(event, '', promptAdvisory));
     } catch {
       // Integrity failure still must not block the submitted prompt.
     }

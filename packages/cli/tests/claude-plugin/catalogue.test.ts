@@ -56,6 +56,26 @@ describe('Claude plugin catalogue generation', () => {
     expect(packagedHandbook?.content).not.toMatch(/\.safeword\/(?:guides|scripts)\//u);
   });
 
+  it('packages the canonical template root consumed by the standalone CLI', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const paths = new Set(assets.map(asset => asset.relativePath));
+
+    for (const relativePath of [
+      'templates/SAFEWORD.md',
+      'templates/spec-template.md',
+      'templates/skills/bdd/SKILL.md',
+      'templates/hooks/pre-tool-quality.ts',
+      'templates/workflows/remote-tests.yml',
+    ]) {
+      expect(paths).toContain(relativePath);
+    }
+  });
+
   it('passes the shared native runtime-authority release gate', () => {
     const assets = generateClaudePluginAssets({
       cliBundle: 'console.log("stub cli bundle");',

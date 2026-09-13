@@ -82,15 +82,11 @@ async function generatePlugin(
     readFileSync(handbookSource, 'utf8'),
     knownSkillNames,
   );
-  mkdirSync(templatesDirectory, { recursive: true });
+  // runtime/cli.js is the same standalone bundle shipped by npm and expects
+  // the canonical flat templates/ tree. Native skills remain separately
+  // adapted at plugin root; this copy exists for CLI resource consumers.
+  cpSync(nodePath.join(packageRoot, 'templates'), templatesDirectory, { recursive: true });
   writeFileSync(nodePath.join(templatesDirectory, 'SAFEWORD.md'), handbook);
-  cpSync(
-    nodePath.join(packageRoot, 'templates/hooks'),
-    nodePath.join(templatesDirectory, 'hooks'),
-    {
-      recursive: true,
-    },
-  );
 
   if (includeAuthoredFiles) {
     const manifestSource = readFileSync(

@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -18,6 +19,28 @@ describe('Claude plugin release contract', () => {
     );
     expect(result.status).toBe(0);
   }, 30_000);
+
+  it('runs template-backed commands from the committed standalone plugin', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-resource-contract-'));
+    try {
+      const result = spawnSync(
+        'bun',
+        [
+          nodePath.join(REPO_ROOT, 'plugin/runtime/cli.js'),
+          'ticket',
+          'new',
+          'plugin-resource-proof',
+          '--type=feature',
+        ],
+        { cwd: project, encoding: 'utf8' },
+      );
+
+      expect(result.status, `${result.stdout}${result.stderr}`).toBe(0);
+      expect(result.stdout).toContain('Changed: yes');
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
 
   it('documents the real-host upgrade gate in the maintainer release path', () => {
     const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');

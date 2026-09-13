@@ -116,9 +116,26 @@ describe('Codex plugin release contract', () => {
         expect(runtime.status, runtime.stderr).toBe(0);
         expect(runtime.stdout.trim()).toBe(effectiveVersion);
 
+        for (const relativePath of [
+          'templates/SAFEWORD.md',
+          'templates/spec-template.md',
+          'templates/skills/bdd/SKILL.md',
+          'templates/hooks/pre-tool-quality.ts',
+          'templates/workflows/remote-tests.yml',
+        ]) {
+          expect(existsSync(nodePath.join(output, relativePath))).toBe(true);
+        }
+
         const codexHome = nodePath.join(fixture, 'codex-home');
         const project = nodePath.join(fixture, 'project');
         mkdirSync(project);
+        const ticket = spawnSync(
+          'bun',
+          [runtimePath, 'ticket', 'new', 'plugin-resource-proof', '--type=feature'],
+          { cwd: project, encoding: 'utf8' },
+        );
+        expect(ticket.status, `${ticket.stdout}${ticket.stderr}`).toBe(0);
+        expect(ticket.stdout).toContain('Changed: yes');
         const sessionStart = spawnSync(
           'bun',
           [runtimePath, 'hook', 'codex', 'session-start', '--plugin-hook'],
