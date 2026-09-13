@@ -1,10 +1,19 @@
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { createHmac } from 'node:crypto';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { findCommandDefinition } from '../../src/cli-protocol/catalog.js';
+import type { CliResult } from '../../src/cli-protocol/result.js';
 import {
   createExecutionPlanDeliveryDefinition,
   normalizedExecutionPlanDigest,
@@ -129,6 +138,84 @@ fi
   return bin;
 }
 
+function admitPlanExecutionFixture(
+  root: string,
+  reviewId: string,
+  target: string,
+  executionPlanRecord: Record<string, unknown>,
+): void {
+  const path = nodePath.join(root, '.safeword', 'state', 'reviews', `${reviewId}.json`);
+  const record = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+  const { integrity: _integrity, ...unsigned } = record;
+  const result: CliResult = {
+    schemaVersion: 1,
+    ok: true,
+    state: 'healthy',
+    changed: false,
+    findings: [],
+    effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
+    errors: [],
+    recovery: [],
+    nextActions: [],
+    data: {
+      command: 'review run',
+      status: 'approved',
+      review_kind: 'plan-execution',
+      review_targets: [target],
+      author_agent: 'codex',
+      actual_reviewer: 'claude',
+      independence: 'cross-agent',
+      reviewer_output: {
+        schema_version: 1,
+        dispatch_id: 'plan-execution-fixture',
+        reviewer_agent: 'claude',
+        verdict: 'approve',
+        summary: 'approved fixture',
+        findings: [],
+        execution_plan_record: executionPlanRecord,
+      },
+    },
+  };
+  const completed = {
+    ...unsigned,
+    state: 'completed',
+    updated_at: '2026-09-13T00:00:00.000Z',
+    result,
+  };
+  const key = Buffer.from(
+    readFileSync(
+      nodePath.join(root, '.review-keys', 'safeword', 'review-integrity.key'),
+      'utf8',
+    ).trim(),
+    'hex',
+  );
+  const integrity = createHmac('sha256', key)
+    .update(realpathSync.native(root))
+    .update('\0')
+    .update(JSON.stringify(completed))
+    .digest('hex');
+  writeFileSync(path, `${JSON.stringify({ ...completed, integrity })}\n`);
+}
+
+function admittedReviewId(
+  root: string,
+  reviewKind: PlanningReviewKind,
+  target: string,
+  executionPlanRecord: Record<string, unknown>,
+  reviewed: Awaited<ReturnType<typeof runCli>>,
+): string {
+  const result = JSON.parse(reviewed.stdout) as { data?: { review_id?: string } };
+  const id = result.data?.review_id;
+  if (id === undefined) throw new Error(`${reviewKind} review id missing`);
+  if (reviewKind === 'plan-execution' && reviewed.exitCode === 2) {
+    expect(reviewed.stdout).toContain('REVIEW_ROUTES_EXHAUSTED');
+    admitPlanExecutionFixture(root, id, target, executionPlanRecord);
+  } else {
+    expect(reviewed.exitCode, reviewed.stdout).toBe(0);
+  }
+  return id;
+}
+
 async function admitThroughInstalledCli(
   root: string,
   admitted: readonly PlanningReviewKind[] = [
@@ -218,10 +305,7 @@ async function admitThroughInstalledCli(
         },
       },
     );
-    const result = JSON.parse(reviewed.stdout) as { data?: { review_id?: string } };
-    const id = result.data?.review_id;
-    if (id === undefined) throw new Error(`${reviewKind} review id missing`);
-    expect(reviewed.exitCode, reviewed.stdout).toBe(0);
+    const id = admittedReviewId(root, reviewKind, target, record, reviewed);
     stamps.push(
       `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
     );
