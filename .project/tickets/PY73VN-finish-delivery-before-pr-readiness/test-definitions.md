@@ -78,7 +78,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Ready promotion is rejected across unfinished ticket states
 
-- [ ] RED
+- [x] RED — `e2f3a1f58`
 - [ ] GREEN
 - [ ] REFACTOR
 
