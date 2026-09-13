@@ -57,15 +57,25 @@ describe('installed delivery continuation contract', () => {
   it.each(tddCopies.flatMap(path => unsuccessfulSteps.map(step => ({ path, ...step }))))(
     '$path keeps $outcome at its failing evidence',
     ({ path, outcome, current, evidence, following }) => {
-      const row = readRaw(path)
+      const section =
+        readRaw(path)
+          .split(
+            'An unsuccessful TDD step stays at the failing step and reports its evidence:',
+            2,
+          )[1]
+          ?.split('### Trusted executable RED review', 1)[0] ?? '';
+      const rows = section
         .split('\n')
-        .find(line => line.split('|', 2)[1]?.trim() === outcome);
+        .filter(line => line.startsWith('|'))
+        .filter(line => line.split('|', 2)[1]?.trim() === outcome);
 
-      expect(row, `missing unhealthy-step directive for ${outcome}`).toBeDefined();
-      const directive = row?.split('|', 3)[2] ?? '';
+      expect(rows, `missing unhealthy-step directive for ${outcome}`).toHaveLength(1);
+      const cells = rows[0]?.split('|').map(cell => cell.trim()) ?? [];
+      expect(cells).toHaveLength(5);
+      const directive = cells[2] ?? '';
       expect(directive).toContain(current);
       expect(directive).toContain(evidence);
-      expect(directive.toLocaleLowerCase()).not.toContain(following.toLocaleLowerCase());
+      expect(directive.toLowerCase()).not.toContain(following.toLowerCase());
     },
   );
 });
