@@ -151,7 +151,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An unversioned contract is invalid
 
 - [x] RED skip: uncommittable historical proof — pre-contract Vitest failed because the validator export did not exist
-- [ ] GREEN
+- [x] GREEN 8b487b2e6
 - [ ] REFACTOR
 
 ### Scenario: An asymmetric decision contract is invalid
