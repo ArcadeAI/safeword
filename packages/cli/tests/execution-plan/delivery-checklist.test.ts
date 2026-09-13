@@ -215,6 +215,20 @@ describe('Delivery Plan contract', () => {
     });
   });
 
+  it('requires an executable real-boundary proof for contributor testing', () => {
+    const content = completeDeliveryPlan().replace(
+      '| proof-4 | command | integration | boundary 4 | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |',
+      '| proof-4 | review_receipt | integration | boundary 4 | real_boundary | current_required | {"type":"review_receipt","kind":"plan-execution","targets":[".project/ticket.md"]} |',
+    );
+
+    expect(parseDeliveryPlanContract(content)).toEqual({
+      ok: false,
+      code: 'testing_proof_not_executable',
+      message:
+        'The Delivery Checklist testing category needs a contributor-owned real-boundary command proof.',
+    });
+  });
+
   it('requires proof specifications to appear before the checklist they define', () => {
     const content = `${completeChecklist()}\n${proofSpecifications(
       DELIVERY_CHECKLIST_CATEGORIES.map(
@@ -239,6 +253,10 @@ describe('Delivery Plan contract', () => {
       .replace(
         '| item-10 | ownership and human dependencies | Complete ownership and human dependencies | contributor | proof-10 | open | missing | | |',
         '| item-10 | ownership and human dependencies | Approve the design | human | | pending_human | missing | | design-approval |',
+      )
+      .replace(
+        '| item-11 | completion evidence | Complete completion evidence | contributor | proof-11 | open | missing | | |',
+        '| item-11 | completion evidence | Complete completion evidence | contributor | proof-11 | open | missing | | |\n| testing-runtime | testing | Exercise the runtime | contributor | proof-11 | open | missing | | |',
       );
     const parsed = parseDeliveryPlanContract(content);
     expect(parsed.ok).toBe(true);
@@ -277,6 +295,7 @@ describe('Delivery Plan contract', () => {
             detail: 'design-approval',
           },
         },
+        {},
         {},
       ],
     });

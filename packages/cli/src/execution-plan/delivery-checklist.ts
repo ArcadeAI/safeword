@@ -651,6 +651,25 @@ export function parseDeliveryPlanContract(content: string): DeliveryPlanContract
       message: `Delivery Checklist item ${unsupported.id} requires ${unsupported.requiredProof}, which is not a real-boundary proof.`,
     };
   }
+  const hasExecutableTestingProof = checklist.items.some(item => {
+    if (
+      item.category !== 'testing' ||
+      item.owner !== 'contributor' ||
+      item.disposition === 'not_applicable'
+    ) {
+      return false;
+    }
+    const proof = specificationsById.get(item.requiredProof);
+    return proof?.method === 'command' && proof.qualifiesAs === 'real_boundary';
+  });
+  if (!hasExecutableTestingProof) {
+    return {
+      ok: false,
+      code: 'testing_proof_not_executable',
+      message:
+        'The Delivery Checklist testing category needs a contributor-owned real-boundary command proof.',
+    };
+  }
   return {
     ok: true,
     items: checklist.items,
