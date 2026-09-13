@@ -361,6 +361,15 @@ async function deliveryChecklistHandler(invocation: CommandInvocation): Promise<
   return observeDeliveryChecklist(invocation.cwd, ticket);
 }
 
+async function executionPrerequisiteHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket execution-prerequisite', 'ticket id must be non-empty text.');
+  }
+  const { evaluateExecutionPrerequisite } = await import('../commands/execution-prerequisite.js');
+  return evaluateExecutionPrerequisite(invocation.cwd, ticket);
+}
+
 async function recordDeliveryProofHandler(invocation: CommandInvocation): Promise<CliResult> {
   const [ticket, item, proof] = invocation.operands;
   if ([ticket, item, proof].some(value => typeof value !== 'string' || value === '')) {
@@ -532,6 +541,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket reconcile-parent': ticketReconcileParentHandler,
   'ticket approve-plan': ticketApprovePlanHandler,
   'ticket delivery-checklist': deliveryChecklistHandler,
+  'ticket execution-prerequisite': executionPrerequisiteHandler,
   'ticket record-delivery-proof': recordDeliveryProofHandler,
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,

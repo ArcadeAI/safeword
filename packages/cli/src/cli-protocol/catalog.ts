@@ -572,6 +572,18 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command(
+    'ticket execution-prerequisite',
+    'Check whether feature execution planning is admitted',
+    'observe',
+    {
+      syntax: 'execution-prerequisite <ticketId>',
+      fixture: {
+        argv: ['ticket', 'execution-prerequisite', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('ticket record-delivery-proof', 'Run and retain one reviewed delivery proof', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'record-delivery-proof <ticketId> <itemId> <proofId>',

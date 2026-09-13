@@ -69,6 +69,11 @@ function integrityKeyPath(): string {
   return nodePath.join(stateRoot, 'safeword', 'review-integrity.key');
 }
 
+/** Whether review jobs can be authenticated without creating observe-time state. */
+export function reviewIntegrityKeyExists(): boolean {
+  return existsSync(integrityKeyPath());
+}
+
 function readOrCreateIntegrityKey(): Buffer {
   const keyPath = integrityKeyPath();
   try {

@@ -279,6 +279,11 @@ function loadDeliveryContext(
   };
 }
 
+/** Whether the ticket's current Execution Plan has a valid admitted checklist. */
+export function hasAdmittedDeliveryChecklist(cwd: string, ticketId: string): boolean {
+  return loadDeliveryContext(cwd, ticketId, 'ticket execution-prerequisite').ok;
+}
+
 function receiptId(item: DeliveryChecklistItem): string | undefined {
   const locator = item.evidence.split('; compatible:', 1)[0];
   return locator?.startsWith('receipt:') ? locator.slice('receipt:'.length) : undefined;

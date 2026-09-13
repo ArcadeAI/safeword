@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -67,7 +68,7 @@ function executionPlan(): string {
   ].join('\n');
 }
 
-function featureFixture(designApprovalGate = false): string {
+function featureFixture(designApprovalGate = false, phase = 'plan-execution'): string {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-prerequisite-'));
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
   const featurePath = nodePath.join(root, 'features', 'feature.feature');
@@ -88,7 +89,7 @@ function featureFixture(designApprovalGate = false): string {
   );
   writeFileSync(
     nodePath.join(ticketDirectory, 'ticket.md'),
-    '---\ntype: feature\nphase: plan-execution\n---\n',
+    `---\ntype: feature\nphase: ${phase}\n---\n`,
   );
   writeFileSync(featurePath, 'Feature: Accepted behavior\n');
   writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
@@ -399,6 +400,23 @@ describe('delivery execution prerequisite', () => {
     expect(result.data?.prerequisite_status).toBeUndefined();
   });
 
+  it('denies an earlier-phase feature that has not completed planning', async () => {
+    const root = featureFixture(false, 'define-behavior');
+
+    const invoked = await runCli(
+      ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+      { cwd: root, env: { NODE_ENV: 'test' } },
+    );
+    const result = JSON.parse(invoked.stdout) as { findings: { code: string }[] };
+
+    expect(invoked.exitCode).toBe(2);
+    expect(result.findings.map(finding => finding.code)).toEqual([
+      'missing_accepted_scenarios',
+      'missing_accepted_approach',
+      'missing_admitted_delivery_checklist',
+    ]);
+  });
+
   it.each([
     [
       'accepted scenarios',
@@ -500,6 +518,15 @@ describe('delivery execution prerequisite', () => {
       state: 'healthy',
       data: { prerequisite_status: 'not_applicable', grants_authority: false },
     });
+    expect(result.effects).toEqual({
+      files: [],
+      packages: [],
+      configuration: [],
+      network: [],
+      destructive: [],
+    });
+    expect(existsSync(nodePath.join(ticketDirectory, 'impl-plan.md'))).toBe(false);
+    expect(existsSync(nodePath.join(ticketDirectory, 'execution-plan.md'))).toBe(false);
   });
 
   it.each(['implement', 'verify'] as const)(
