@@ -1,5 +1,5 @@
 /**
- * Human design-approval boundary for G1C9PP R19.
+ * Design-approval and Execution Planning boundary for G1C9PP R19 and A639WN R4.
  *
  * The interactive row deliberately crosses a real pseudo-terminal. Calling an
  * injected prompt would prove only handler composition, not that an installed
@@ -10,6 +10,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -99,6 +100,13 @@ interface Fixture {
 }
 
 const fixtures: string[] = [];
+
+function projectFiles(directory: string, root = directory): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const path = nodePath.join(directory, entry.name);
+    return entry.isDirectory() ? projectFiles(path, root) : [nodePath.relative(root, path)];
+  });
+}
 
 function fixture(designApprovalGate: boolean, reviewed = true): Fixture {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plan-approval-'));
@@ -303,21 +311,22 @@ describe('installed CLI human design authority follows configuration', () => {
 
   it('creates the feature checklist only inside the canonical Execution Plan', async () => {
     const project = fixture(false);
+    const filesBefore = projectFiles(project.root);
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
       cwd: project.root,
     });
 
     expect(result.exitCode, result.stdout).toBe(0);
-    const executionPlan = readFileSync(
-      nodePath.join(project.ticketDirectory, 'execution-plan.md'),
-      'utf8',
-    );
+    const planPath = nodePath.join(project.ticketDirectory, 'execution-plan.md');
+    expect(existsSync(planPath), 'approve-plan must scaffold execution-plan.md').toBe(true);
+    const executionPlan = readFileSync(planPath, 'utf8');
     expect(executionPlan).toContain('<!-- safeword:delivery-checklist:v1 -->');
-    expect(executionPlan).toContain('| completion-evidence    | completion evidence');
-    expect(
-      readdirSync(project.ticketDirectory).toSorted((left, right) => left.localeCompare(right)),
-    ).toEqual(['execution-plan.md', 'impl-plan.md', 'spec.md', 'ticket.md']);
+    expect(executionPlan).toMatch(/^\|\s*completion-evidence\s*\|\s*completion evidence\s*\|/mu);
+    const createdFiles = projectFiles(project.root).filter(path => !filesBefore.includes(path));
+    expect(createdFiles).toEqual([
+      nodePath.join('.project', 'tickets', TICKET_FOLDER, 'execution-plan.md'),
+    ]);
   });
 
   it('fails closed when the approval configuration is malformed', async () => {
@@ -394,6 +403,9 @@ describe('an accepted design enters Execution Planning', () => {
 
     expect(result.status).toBe(0);
     expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(
+      readFileSync(nodePath.join(project.ticketDirectory, 'execution-plan.md'), 'utf8'),
+    ).toContain('<!-- safeword:delivery-checklist:v1 -->');
     expect(result.stdout).toContain(
       `Approved approach: .project/tickets/${TICKET_FOLDER}/impl-plan.md at ${digest}`,
     );
