@@ -369,6 +369,43 @@ export function parseDeliveryChecklist(content: string): DeliveryChecklistResult
   return parseItems(lines, start);
 }
 
+function parseProofRows(
+  lines: readonly string[],
+  start: number,
+): DeliveryProofSpecificationsResult {
+  const specifications: DeliveryProofSpecification[] = [];
+  const identifiers = new Set<string>();
+  const candidates = lines.slice(start + 2);
+  for (const [index, line] of candidates.entries()) {
+    if (line.trim() === '' || !line.trimStart().startsWith('|')) break;
+    const specification = parseProofSpecification(splitRow(line) ?? []);
+    if (specification === undefined) {
+      return {
+        ok: false,
+        code: 'invalid_proof_specifications',
+        message: `Proof specifications row ${index + 1} is invalid.`,
+      };
+    }
+    if (identifiers.has(specification.id)) {
+      return {
+        ok: false,
+        code: 'duplicate_proof_id',
+        message: `Proof ID ${specification.id} appears more than once.`,
+      };
+    }
+    identifiers.add(specification.id);
+    specifications.push(specification);
+  }
+  if (specifications.length === 0) {
+    return {
+      ok: false,
+      code: 'invalid_proof_specifications',
+      message: 'Proof specifications has no rows.',
+    };
+  }
+  return { ok: true, specifications };
+}
+
 export function parseProofSpecifications(content: string): DeliveryProofSpecificationsResult {
   const lines = content.split(/\r?\n/u);
   const headingIndex = lines.findIndex(line => line.trim() === '## Proof specifications');
@@ -387,26 +424,5 @@ export function parseProofSpecifications(content: string): DeliveryProofSpecific
       message: 'The Proof specifications table header is invalid.',
     };
   }
-  const specifications: DeliveryProofSpecification[] = [];
-  const candidates = lines.slice(start + 2);
-  for (const [index, line] of candidates.entries()) {
-    if (line.trim() === '' || !line.trimStart().startsWith('|')) break;
-    const specification = parseProofSpecification(splitRow(line) ?? []);
-    if (specification === undefined) {
-      return {
-        ok: false,
-        code: 'invalid_proof_specifications',
-        message: `Proof specifications row ${index + 1} is invalid.`,
-      };
-    }
-    specifications.push(specification);
-  }
-  if (specifications.length === 0) {
-    return {
-      ok: false,
-      code: 'invalid_proof_specifications',
-      message: 'Proof specifications has no rows.',
-    };
-  }
-  return { ok: true, specifications };
+  return parseProofRows(lines, start);
 }
