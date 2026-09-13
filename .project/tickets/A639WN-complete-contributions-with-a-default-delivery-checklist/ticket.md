@@ -9,7 +9,7 @@ phase_anchors:
   - define-behavior: .project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/spec.md
   - scenario-gate: features/complete-contributions-with-a-default-delivery-checklist.feature
 scope:
-  - create one visible Safeword-default delivery checklist before contribution execution begins
+  - expose one public deny-only CLI prerequisite that requires accepted scenarios, an accepted implementation approach, and one visible Safeword-default delivery checklist
   - carry the complete feature checklist in the Execution Plan while the TBU3 small-work contract owns proportionate task and patch behavior
   - cover outcome and scope, resolved decisions, dependency and PR decomposition, testing, data and compatibility, monitoring and failure signals, security and privacy, rollout and rollback, documentation, ownership and human dependencies, and concrete evidence
   - work through every applicable contributor obligation and distinguish contributor completion from pending human authority
@@ -20,7 +20,7 @@ out_of_scope:
   - creating a third planning document beside the Implementation Plan and Execution Plan
   - approving or merging a contribution on behalf of an authorized human
 done_when:
-  - Safeword produces the checklist before execution rather than discovering delivery gaps after coding
+  - the public CLI prerequisite denies execution readiness until accepted scenarios, an accepted implementation approach, and the admitted checklist exist
   - every checklist category is completed with evidence, marked not applicable with a concrete reason, or recorded as an explicit human-owned dependency
   - features carry the checklist in the Execution Plan without creating a third feature-planning artifact
   - Safeword never reports merge approval when it has established only contributor or review readiness
@@ -31,7 +31,7 @@ parent_job: plan-implementability.TBU2
 milestone: M1
 depends_on: [6XW8H7]
 created: 2026-09-09T15:39:34.084Z
-last_modified: 2026-09-10T02:36:18.000Z
+last_modified: 2026-09-13T08:38:35.000Z
 parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b689c03c8a3
 ---
 
@@ -42,6 +42,12 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-13T08:38:35.000Z Scenario gate: Independent Claude Opus review `870a2999-bca6-45a8-b923-897a6567dafe` approved all 16 scenarios with cross-agent provenance and no blocking findings. The revised R1 proves all three prerequisite states at the public CLI boundary; no build-only kill-risk remains.
+
+- 2026-09-13T08:24:58.000Z Define behavior: Reconciled the execution-prerequisite dimension and three R1 scenarios to the public deny-only CLI boundary. The scenarios distinguish satisfied, missing-context, and deterministic multi-finding outcomes without granting coding or merge authority; downstream 7CAMAD retains live coding authorization.
+
+- 2026-09-13T00:01:00.000Z Ownership correction: Reopened behavior definition after plan review found that A639WN's accepted R1 required installed first-execution authorization while its M1 scope only built a private helper. A639WN now owns a public deny-only CLI prerequisite; downstream 7CAMAD composes it into coding authorization, preserving the dependency direction and leaving installed agent-host delivery with YCFFNC.
 
 - 2026-09-10T02:36:18.000Z Scenario gate approved: Independent Claude Opus review `3749d8f6-3659-419c-8a35-e62a462b8ee0` approved the 16-scenario Delivery Checklist contract with cross-agent independence. Advanced to Implementation Plan drafting; no plan anchor exists yet.
 

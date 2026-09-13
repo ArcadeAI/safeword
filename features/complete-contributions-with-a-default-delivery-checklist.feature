@@ -2,60 +2,58 @@ Feature: Complete contributions with a default delivery checklist
   Safeword creates a proportionate checklist before execution and carries it to evidence-backed contributor readiness.
 
   @plan-implementability.TBU2.A639WN.R1
-  Rule: plan-implementability.TBU2.A639WN.R1 — Feature execution begins only after Safeword has created one visible default Delivery Checklist from accepted scenarios and an accepted implementation approach
+  Rule: plan-implementability.TBU2.A639WN.R1 — The Safeword CLI exposes a deny-only execution prerequisite that requires accepted scenarios, an accepted implementation approach, and one visible default Delivery Checklist
 
     @surface.safeword-cli
-    Scenario: The installed CLI workflow creates the checklist before execution
+    Scenario: The installed CLI exposes a satisfied execution prerequisite
       Given a behavior-changing feature has accepted scenarios and an accepted implementation approach
-      When Safeword authorizes its first execution step through the installed CLI workflow
-      Then the contribution's existing execution artifact already contains the default Delivery Checklist
+      And the contribution's existing Execution Plan contains an admitted default Delivery Checklist
+      When Safeword checks the execution prerequisite through the installed CLI
+      Then the CLI returns only a satisfied prerequisite verdict and no coding or merge authorization
 
     @surface.safeword-cli @rejection
-    Scenario Outline: Missing contribution context blocks execution
+    Scenario Outline: Missing contribution context blocks execution readiness
       Given the installed CLI workflow has a behavior-changing feature missing <required_context>
-      When its first execution step is requested through the installed CLI workflow
-      Then execution is denied in plain language with the reason progress stopped and one concrete action to supply <required_context>
+      When Safeword checks the execution prerequisite through the installed CLI
+      Then the prerequisite is denied in plain language with the reason progress stopped and one concrete action to supply <required_context>
 
       Examples:
         | required_context |
         | accepted scenarios |
         | an accepted implementation approach |
+        | an admitted default Delivery Checklist |
 
     @surface.safeword-cli @rejection
     Scenario: Several missing prerequisites are reported in deterministic planning order
-      Given the installed CLI workflow has a behavior-changing feature missing accepted scenarios and an accepted implementation approach
-      When its first execution step is requested repeatedly through the installed CLI workflow
-      Then every denial first names accepted scenarios and the action to supply them before naming an accepted implementation approach
+      Given the installed CLI workflow has a behavior-changing feature missing accepted scenarios, an accepted implementation approach, and an admitted default Delivery Checklist
+      When Safeword checks the execution prerequisite through the installed CLI
+      Then the denial lists accepted scenarios, the accepted implementation approach, and the admitted default Delivery Checklist in that order with one concrete action for each
 
-  @plan-implementability.TBU2.A639WN.R2
+  @plan-implementability.TBU2.A639WN.R2 @surface.safeword-cli
   Rule: plan-implementability.TBU2.A639WN.R2 — The feature Delivery Checklist covers outcome and scope, resolved decisions, dependency and pull-request decomposition, testing, data and compatibility, monitoring and failure signals, security and privacy, rollout and rollback, documentation, ownership and human dependencies, and concrete completion evidence
 
     Scenario: A complete checklist exposes every default obligation category
       Given a contribution is ready to begin execution
-      When Safeword presents its Delivery Checklist
+      When Safeword presents its Delivery Checklist through the installed CLI
       Then the checklist covers outcome and scope, resolved decisions, dependency and pull-request decomposition, testing, data and compatibility, monitoring and failure signals, security and privacy, rollout and rollback, documentation, ownership and human dependencies, and concrete completion evidence
 
     @rejection
     Scenario Outline: A silently omitted default category prevents checklist completion
       Given a Delivery Checklist omits <category>
-      When Safeword evaluates checklist completeness
-      Then completion is denied with the missing <category> category named
+      When Safeword evaluates checklist completeness through the installed CLI
+      Then completion is denied with the missing <category> category named and one concrete action to add it
 
       Examples:
         | category |
         | testing |
-        | data and compatibility |
-        | monitoring and failure signals |
-        | security and privacy |
-        | rollout and rollback |
-        | documentation |
+        | concrete completion evidence |
 
-  @plan-implementability.TBU2.A639WN.R3
+  @plan-implementability.TBU2.A639WN.R3 @surface.safeword-cli
   Rule: plan-implementability.TBU2.A639WN.R3 — Safeword carries the checklist through feature execution rather than using it only as an end-of-work audit, and each category is completed with evidence, marked not applicable with a concrete reason, or recorded as an explicit human-owned dependency
 
     Scenario Outline: An applicable item records an honest disposition
       Given a checklist item is <item_state>
-      When Safeword updates the Delivery Checklist
+      When Safeword updates the Delivery Checklist through the installed CLI
       Then the item <recorded_disposition>
 
       Examples:
@@ -67,45 +65,45 @@ Feature: Complete contributions with a default delivery checklist
     @rejection
     Scenario: Contributor-controlled work cannot be dismissed as a human handoff
       Given an applicable test obligation can be completed by the contributor
-      When it is marked as a human-owned dependency instead of being completed
-      Then the human-owned disposition is rejected and the test obligation remains recorded as open contributor-controlled work
+      When it is marked through the installed CLI as a human-owned dependency instead of being completed
+      Then the human-owned disposition is rejected, the test obligation remains open, and the response tells the contributor to complete it
 
     Scenario: In-flight checklist state reflects partial execution progress
       Given feature execution has completed its test obligation while monitoring and documentation remain open
-      When Safeword updates delivery state before execution ends
+      When Safeword updates delivery state through the installed CLI before execution ends
       Then the Delivery Checklist records the test evidence and names monitoring and documentation as the next open obligations
 
     @rejection
     Scenario: An unreadable Execution Plan blocks checklist updates
       Given feature execution has begun and its Execution Plan cannot be read
-      When Safeword attempts to update the Delivery Checklist
-      Then the update is blocked with the Execution Plan named as the artifact to repair and no replacement checklist is silently regenerated
+      When Safeword attempts to update the Delivery Checklist through the installed CLI
+      Then the update is blocked with one concrete action to repair the named Execution Plan and no replacement checklist is silently regenerated
 
-  @plan-implementability.TBU2.A639WN.R4
-  Rule: plan-implementability.TBU2.A639WN.R4 — The feature checklist lives in the Execution Plan; the TBU3 small-work contract separately owns proportionate task and patch checklist behavior without creating feature artifacts
+  @plan-implementability.TBU2.A639WN.R4 @surface.safeword-cli
+  Rule: plan-implementability.TBU2.A639WN.R4 — The feature checklist lives in the Execution Plan; the 3EG00H TBU3 small-work contract separately owns proportionate task and patch checklist behavior without creating feature artifacts
 
     Scenario: The feature Delivery Checklist lives in the Execution Plan
       Given a behavior-changing feature has an accepted implementation approach
-      When Safeword creates its Delivery Checklist
+      When Safeword creates its Delivery Checklist through the installed CLI
       Then the checklist is recorded only in the feature Execution Plan and no separate checklist artifact is created
 
     @rejection
     Scenario Outline: The feature checklist contract cannot impose feature artifacts on smaller work
       Given a contribution is classified as <small_work_type> under the TBU3 small-work contract
-      When the feature Delivery Checklist contract is evaluated
-      Then it defers checklist placement to TBU3 and creates no feature Implementation Plan or Execution Plan
+      When the feature Delivery Checklist contract is evaluated through the installed CLI
+      Then the contribution remains recorded as 3EG00H-owned small work and no feature Implementation Plan or Execution Plan is created
 
       Examples:
         | small_work_type |
         | task |
         | patch |
 
-  @plan-implementability.TBU2.A639WN.R5
+  @plan-implementability.TBU2.A639WN.R5 @surface.safeword-cli
   Rule: plan-implementability.TBU2.A639WN.R5 — Large feature contributions use the reviewable pull-request slicing contract from child 6XW8H7, while a contribution small enough for one coherent review records that decision without artificial decomposition
 
     Scenario Outline: The checklist records the appropriate PR-slicing outcome
       Given a contribution contains <change_shape>
-      When Safeword completes its work-decomposition checklist item
+      When Safeword completes its work-decomposition checklist item through the installed CLI
       Then the checklist <slicing_outcome>
 
       Examples:
@@ -116,15 +114,15 @@ Feature: Complete contributions with a default delivery checklist
     @rejection
     Scenario: A large contribution cannot leave PR slicing unresolved
       Given a contribution contains several independently provable changes and its checklist has no pull-request slicing decision
-      When Safeword updates its work-decomposition checklist item
-      Then the item remains open with the missing pull-request slicing decision named
+      When Safeword updates its work-decomposition checklist item through the installed CLI
+      Then the item remains open with the missing pull-request slicing decision named and one concrete action to record it
 
-  @plan-implementability.TBU2.A639WN.R6
+  @plan-implementability.TBU2.A639WN.R6 @surface.safeword-cli
   Rule: plan-implementability.TBU2.A639WN.R6 — Safeword reports contributor readiness only when every contributor-controlled obligation is completed and proven, reports pending human approvals or ownership as unresolved dependencies, and never treats readiness evidence as human approval or merge authority
 
     Scenario Outline: Readiness reports the next owning boundary without inventing authority
       Given <remaining_state>
-      When Safeword reports the contribution's state
+      When Safeword reports the contribution's state through the installed CLI
       Then <readiness_result>
 
       Examples:
@@ -133,12 +131,12 @@ Feature: Complete contributions with a default delivery checklist
         | every contributor-controlled item is proven and required human approval is pending | it reports ready for human review with the pending approval named |
         | required human approval is recorded but merge authority has not been granted | it reports the approval satisfied while keeping merge authorization pending |
 
-  @plan-implementability.TBU2.A639WN.R7
+  @plan-implementability.TBU2.A639WN.R7 @surface.safeword-cli
   Rule: plan-implementability.TBU2.A639WN.R7 — This child defines the canonical Delivery Checklist evidence-currency taxonomy—current-revision real-boundary proof, reusable earlier-revision proof, partial or structural proof, and missing proof—and never silently upgrades one class into another
 
     Scenario Outline: Evidence class controls the claim Safeword may make
       Given a checklist obligation has <evidence_state>
-      When Safeword records its delivery evidence
+      When Safeword records its delivery evidence through the installed CLI
       Then the checklist <evidence_result>
 
       Examples:
@@ -151,5 +149,5 @@ Feature: Complete contributions with a default delivery checklist
     @rejection
     Scenario: Earlier or partial evidence cannot silently become current complete proof
       Given a required real-boundary obligation has only partial evidence from an earlier revision
-      When Safeword records its delivery evidence
+      When Safeword records its delivery evidence through the installed CLI
       Then the evidence remains classified as earlier-revision partial proof with both gaps named and the real-boundary obligation open

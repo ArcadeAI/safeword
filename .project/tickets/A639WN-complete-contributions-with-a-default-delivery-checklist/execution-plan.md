@@ -6,8 +6,8 @@
 
 **Decision:** multiple pull requests
 
-**Rationale:** Separate the inert contract, public operations, and prerequisite
-helper so each merge has one independently provable outcome and no merge relies
+**Rationale:** Separate the inert contract, delivery operations, and public
+execution prerequisite so each merge has one independently provable outcome and no merge relies
 on a later slice.
 
 ## PR 1 — Define trustworthy checklist and proof contracts
@@ -44,8 +44,9 @@ on a later slice.
    `argv` directly, reject a `cwd` or review target outside the project,
    close stdin, inherit no TTY, and cannot accept a caller substitute. Treat
    argv as opaque reviewed input; bare executables may resolve through PATH.
-   Run the same stdin, TTY, caller-substitution, and termination assertions
-   through the executable-RED compatibility wrapper.
+   Run the same stdin, TTY, caller-substitution, timeout, descendant-
+   termination, and internal-review environment-scrubbing assertions through
+   the executable-RED compatibility wrapper.
 4. GREEN: Extract the narrow reusable no-shell execution seam from the existing
    executable-RED worker without changing executable-RED behavior. Return the
    observed termination and output hashes; do not write a receipt yet.
@@ -93,17 +94,18 @@ on a later slice.
    conformance corpus, generated rubric/admission assets, and durable review-job
    fingerprint. Bind review jobs to the normalized plan digest and retained
    delivery definition rather than mutable checklist progress. Preserve the current
-   slicing contract and reject omitted categories or a contributor Required proof
-   that is not reviewed as `real_boundary`. Reject a testing category backed
+   slicing contract and reject omitted categories, invalid owner/disposition
+   pairs, or a contributor Required proof that is not reviewed as
+   `real_boundary`. Reject a testing category backed
    only by review receipts; at least one contributor testing item must require a
    real-boundary command proof.
 3. GREEN: In the same change that activates those admission rules, replace the
    provisional Execution Plan checklist template with the reviewed
    proof-specification and versioned checklist sections. Update the canonical
    Execution Planning guidance and the existing Conformance-Gated Execution
-   Plan Review architecture record, remove the non-actionable preparation date,
-   teach plan-execution authoring to insert the current sections into an
-   existing unreviewed plan that lacks them while preserving decisions and slices,
+   Plan Review architecture record. Make the existing `ticket approve-plan`
+   transition scaffold the sections or
+   insert them into an existing unreviewed plan while preserving decisions and slices,
    regenerate every host mirror from canonical sources, and run schema and
    parity tests. The repository must never enforce a plan shape its own template
    cannot produce. Prove an absent section is repairable and a present malformed
@@ -117,6 +119,9 @@ on a later slice.
    compatible-earlier independent review, stale compatibility reasons,
    idempotent retry, write conflict, unknown-event preservation, and concurrent
    proof/approval appends.
+   Prove crashes before receipt append record nothing; after receipt append,
+   prove retry updates only an unchanged plan and returns conflict recovery for
+   a changed plan without rerunning the proof.
    Include an untracked, non-ignored source file and prove it demotes an existing
    receipt; an ignored file does not.
    Prove recording refuses a dirty proof subject before execution and any
@@ -127,19 +132,22 @@ on a later slice.
    changes in this ticket's `ticket.md`; prove that authored scope or acceptance
    changes still stale every command receipt.
 6. GREEN: Append `delivery-proof:v1` only after a successful retained command or
-   admitted review whose normalized plan identity still matches. Bind the event
+   the ticket's current `plan-execution` review whose normalized plan identity
+   still matches; reject every other review kind. Bind the event
    to ticket, item, Proof ID, method, reviewed boundary, producing revision,
-   invocation, output, outcome, and idempotency key. Require a clean proof
-   subject outside this ticket's Execution Plan and the exact shared review
-   ledger before and after execution.
+   invocation, output, outcome, pre-proof Execution Plan snapshot digest, and
+   idempotency key. Update the existing Digest-Bound Planning Decisions
+   architecture record with that binding and the complete delivery-progress
+   normalization. Require a clean proof subject outside this ticket's Execution
+   Plan and the exact shared review ledger before and after execution.
    Derive current evidence only while the producing revision remains an ancestor,
    `git diff` reports no later committed change, and
    `git status --porcelain=v1 --untracked-files=all` reports no tracked or
    untracked non-ignored change outside the shared delivery-progress
    normalization; validate the independently normalized
    plan identity rather than ignoring its stable content. Atomically update the
-   Markdown row only if the complete plan snapshot is unchanged; preserve an
-   already-written receipt across a retry.
+   Markdown row only if its complete plan matches the receipt's pre-proof
+   snapshot digest; preserve an already-written receipt across a retry.
 7. GREEN: For `compatible_earlier_allowed`, retain an independent
    `delivery-compatibility` acceptance. Generate a deterministic ignored Markdown
    request under `.safeword/state/reviews/requests/` containing the exact
@@ -154,8 +162,12 @@ on a later slice.
    retained proof. Pass every generated request through Safeword's existing
    secret detector before dispatch and return
    `compatibility_sensitive_content` without egress when it finds a secret.
+   Immediately before dispatch, show a plain-language disclosure that the
+   complete bounded diff will leave the machine and require explicit user
+   confirmation; cancellation sends nothing and leaves the item open.
    Give the dedicated reviewer the exact judgment contract from the
-   Implementation Plan in a generated rubric. Add
+   Implementation Plan in a generated rubric. Extend the existing Digest-Bound
+   architecture record with the complete-diff egress boundary. Add
    `packages/cli/tests/review/delivery-compatibility-conformance.test.ts` and
    `packages/cli/tests/review/delivery-compatibility-rubric-generation.test.ts`.
    Extend `packages/cli/tests/cli-protocol/review-wiring.test.ts` to prove the
@@ -252,56 +264,43 @@ on a later slice.
     implementation-task boundary that produces a proof, record it before the
     next task; this rule also applies to one-pull-request plans.
 
-## PR 3 — Expose the admitted-checklist execution prerequisite
+## PR 3 — Expose the execution prerequisite through the CLI
 
-- **Purpose:** Provide the checklist prerequisite helper that 7CAMAD composes
-  with the live first-execution boundary, and ship its recovery guidance.
-- **Boundary:** Include the shared prerequisite evaluator, its typed recovery
-  output, and direct process proof. Exclude public CLI documentation, templates, and generated
-  contract mirrors, which ship with PR 2; source-level composition and the
-  broader phase-provenance contract, which 7CAMAD owns; and installed-host
-  parity and lifecycle rollout, which YCFFNC owns.
+- **Purpose:** Ship the public deny-only prerequisite and its shared evaluator
+  for downstream coding authorization.
+- **Boundary:** Include the catalogue entry, public handler, shared evaluator,
+  typed recovery, command documentation, and installed-CLI proof. Exclude
+  coding authorization, which 7CAMAD owns, and agent-host dispatch, which YCFFNC owns.
 - **Prerequisites:** Record proof and report contributor readiness
-- **Proof:** A real helper process denies missing accepted scenarios, accepted
-  approach, and checklist admission in deterministic order, permits a current
-  admitted checklist, leaves task and patch edits untouched, exempts legacy
-  tickets, and never authorizes an edit the phase gate denied. Targeted hook
-  tests prove the helper boundary and recovery output.
-- **Completion signal:** Given `plan-execution` provenance, the shared helper
-  refuses execution until accepted scenarios, the accepted approach, and the
-  Delivery Checklist exist; it permits admitted and legacy-exempt inputs.
-  7CAMAD remains responsible for live first-edit composition. Helper-only proof
-  does not complete A639WN's three R1 CLI-surface scenarios.
+- **Proof:** The installed CLI denies each missing review or checklist
+  admission, reports all missing prerequisites in deterministic order, returns
+  a satisfied verdict without authority, and treats non-contracted work as not applicable.
+- **Completion signal:** `ticket execution-prerequisite` proves all three R1
+  CLI scenarios. 7CAMAD remains responsible for coding authorization.
 - **Relies on an unmerged successor:** no
 
 ### Tasks and tests
 
-1. RED: Add focused cases to the hook integration suite for missing scenarios,
-   present-but-unapproved scenarios, missing approach,
-   present-but-unapproved approach, both findings in stable aggregate order, missing or
-   stale checklist, admitted checklist, task and patch non-activation, legacy
-   exemption, and a legacy ticket returned through `plan-execution`.
-2. GREEN: Add one shared prerequisite evaluator whose parameter accepts the
-   phase provenance 7CAMAD will produce and persist before calling it after the
-   existing phase-access check. The provenance contains the persisted
-   `executionPlanContractVersion: 1` marker written by 7CAMAD before phase
-   advance; its absence is the computable legacy exemption. It may deny a
-   permitted application/test edit
-   but may never turn a denied edit into an allow. Do not add live source-level
-   composition in this ticket. Its return type is
-   `ChecklistDenial | undefined`; it cannot represent an allow decision.
-3. RED/GREEN: Invoke the shared evaluator in a real process with a synthetic
-   first-edit request. Assert each refusal names the reason, stopped boundary,
-   and one concrete repair action; assert there is no checklist-originated
-   objection after admission.
-4. GREEN: Add the helper's fixed recovery messages and extend
+1. RED: Add `packages/cli/tests/integration/delivery-execution-prerequisite.test.ts`
+   cases for each missing prerequisite, all three missing in stable order, a
+   satisfied contracted feature, task and patch work, legacy tickets, and
+   already-running `implement` or `verify` features. Require
+   `data.prerequisite_status` to distinguish `satisfied` from `not_applicable`
+   even though both exit 0.
+2. GREEN: Add one shared deny-only evaluator that verifies the current
+   scenario-gate review, plan-implementation review plus configured design
+   approval, and plan-execution checklist admission in that order. Return only
+   a typed prerequisite verdict; do not add coding authorization.
+3. GREEN: Add `ticket execution-prerequisite` to the catalogue and public
+   handler, then document its success, refusal, and authority boundary.
+4. GREEN: Extend
    `packages/cli/tests/integration/delivery-checklist-recovery.test.ts` with
-   `missing_accepted_scenarios` and `missing_accepted_approach`. Do not add a
-   catalogue entry or public documentation for this internal library seam.
-5. REFACTOR: Keep the helper independent of host adapters; do not add a second
-   prerequisite implementation.
+   `missing_accepted_scenarios`, `missing_accepted_approach`, and
+   `missing_admitted_delivery_checklist`.
+5. REFACTOR: Keep the evaluator independent of host adapters so 7CAMAD can
+   consume it without a second prerequisite implementation.
 6. Run:
-   `node ./node_modules/vitest/vitest.mjs run tests/integration/hooks.test.ts tests/hooks/plan-gate.test.ts`.
+   `node ./node_modules/vitest/vitest.mjs run tests/integration/delivery-execution-prerequisite.test.ts tests/integration/delivery-checklist-recovery.test.ts tests/cli-protocol/catalog.test.ts tests/cli-protocol/machine-contract.test.ts`.
 7. Run: `bun run typecheck`.
 8. Record each proof when its implementation task first makes it available; a
    later source edit retains that receipt as earlier-revision evidence. At the
@@ -313,7 +312,8 @@ on a later slice.
    `type-safety` (`typecheck`), `category-contract`
    (`checklist-contract`), `data-compatibility` (`delivery-cli`),
    `monitoring` (`failure-signals`),
-   `security-privacy` (`proof-worker`), `rollout-rollback` (`first-execution`),
+   `security-privacy` (`proof-worker`), `rollout-rollback`
+   (`execution-prerequisite`),
    `documentation` (`documentation-contract`), `ownership` (`plan-review`), and
    `completion-evidence` (`delivery-cli`). Then inspect final checklist
    readiness.
@@ -322,13 +322,13 @@ on a later slice.
 
 | Accepted obligation                                                 | Owning PRs                                                                                                                                                                |
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1 checklist-admission prerequisite helper                          | PR 3 builds the helper; scenario completion waits for 7CAMAD composition and YCFFNC installed dispatch                                                                     |
-| R1 missing-scenarios and accepted-approach recovery from the helper | PR 3 builds the helper; scenario completion waits for 7CAMAD composition and YCFFNC installed dispatch                                                                     |
+| R1 satisfied execution prerequisite and authority boundary          | PR 3                                                                                                                                                                        |
+| R1 missing prerequisite recovery and deterministic ordering         | PR 3                                                                                                                                                                        |
 | R2 all eleven default categories and omission denial                | PR 1, PR 2                                                                                                                                                                |
 | R3 complete, not-applicable, and pending-human dispositions         | PR 1, PR 2                                                                                                                                                                |
 | R3 contributor-work owner enforcement and partial progress          | PR 2                                                                                                                                                                      |
 | R3 unreadable Execution Plan refusal without regeneration           | PR 1, PR 2                                                                                                                                                                |
-| R3 in-flight recording timing                                       | instruction-backed at clean task boundaries; later source edits retain earlier receipts but require final reruns for `current_required` completion, and final receipts do not prove timing, so this row alone cannot close the epic conjunct |
+| R3 in-flight recording timing                                       | PR 2 and PR 3 carry the clean-boundary instructions; later edits require final reruns for `current_required`, and final receipts do not prove timing                              |
 | R4 checklist lives only in the feature Execution Plan               | PR 2, PR 3                                                                                                                                                                |
 | R4 task and patch work receive no feature artifacts                 | PR 2, PR 3                                                                                                                                                                |
 | R5 one-versus-many slicing outcome and unresolved denial            | PR 2                                                                                                                                                                      |
@@ -336,17 +336,16 @@ on a later slice.
 | R7 current, reusable-earlier, partial, and missing evidence         | PR 1, PR 2                                                                                                                                                                |
 | R7 earlier partial evidence keeps both gaps open                    | PR 2                                                                                                                                                                      |
 | Safeword CLI shared workflow contract                               | PR 2, PR 3                                                                                                                                                                |
-| Canonical authoring, command, and recovery documentation            | PR 2; PR 3 adds only private helper recovery text                                                                                                                         |
+| Canonical authoring, command, and recovery documentation            | PR 2, PR 3                                                                                                                                                                  |
 | Architecture record for retained checklist and proof evidence       | PR 2 updates the existing record; no slice creates a second record                                                                                                        |
-| Migration                                                           | PR 2 inserts sections into unreviewed plans; 7CAMAD owns contract-version provenance and the re-entry rule for already-reviewed plans; PR 3 treats absent version markers as legacy-exempt |
-| Rollout                                                             | PR 3 — source-level activation remains behind 7CAMAD provenance and YCFFNC host rollout                                                                                   |
-| Rollback                                                            | PR 2 removes template and admission activation; PR 3 removes the unused prerequisite-helper export; unknown ledger events remain inert and readable                       |
+| Migration                                                           | PR 2 inserts sections into unreviewed plans; PR 3 returns not applicable for tickets outside the contracted feature flow; YCFFNC owns re-entry for already-running work    |
+| Rollout                                                             | PR 3 exposes the CLI prerequisite; 7CAMAD and YCFFNC own later coding-gate and host activation                                                                              |
+| Rollback                                                            | PR 2 removes template and admission activation; PR 3 removes the public prerequisite command; unknown ledger events remain inert and readable                              |
 
 ## Deferred scope ownership
 
 - 6XW8H7 owns the accepted PR-slicing contract that A639WN consumes.
-- 7CAMAD owns the complete current-plan authorization boundary and phase
-  provenance used by the first-execution consumer.
+- 7CAMAD owns coding authorization and consumes A639WN's prerequisite evaluator.
 - 5F5ZZA owns invalidation for other plan context and authenticated host-user
   provenance.
 - YCFFNC owns installed-host delivery, parity, activation, rollback, and the
@@ -360,7 +359,7 @@ on a later slice.
 - Separate reviewed obligations from delivery progress: unchanged
 - Derive readiness without granting authority: unchanged
 - Bind command proof to a clean contribution snapshot: unchanged
-- Expose separate readiness and proof-recording operations: unchanged
+- Separate execution prerequisite, readiness, and proof recording: unchanged
 - Require independent judgment before reusing earlier proof: unchanged
 - Keep plan approval current across evidence progress: unchanged
 
@@ -375,7 +374,7 @@ on a later slice.
 | delivery-cli           | command        | E2E         | Public proof ledger, checklist update, and readiness commands                                                                                                                | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/delivery-proof-ledger.test.ts","tests/integration/delivery-checklist-cli.test.ts","tests/integration/delivery-checklist-update.test.ts"]}                               |
 | failure-signals        | command        | E2E         | Closed typed checklist refusal-code and recovery-action mapping                                                                                                               | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/delivery-checklist-recovery.test.ts"]}                                                                                                                                  |
 | documentation-contract | command        | integration | Execution Plan template, guidance, CLI discovery and effects, public command reference, and generated host mirrors                                                           | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/schema.test.ts","tests/parity.test.ts","tests/review/execution-plan-rubric-generation.test.ts","tests/cli-protocol/catalog.test.ts","tests/cli-protocol/machine-contract.test.ts","tests/cli-protocol/cli-documentation-contract.test.ts"]} |
-| first-execution        | command        | E2E         | Prerequisite helper admission, legacy exemption, and task/patch non-activation                                                                                               | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/hooks.test.ts","tests/hooks/plan-gate.test.ts"]}                                                                                                                        |
+| execution-prerequisite | command        | E2E         | Public CLI prerequisite admission, deterministic recovery, satisfied authority boundary, and non-applicable work                                                             | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/delivery-execution-prerequisite.test.ts","tests/integration/delivery-checklist-recovery.test.ts","tests/cli-protocol/catalog.test.ts","tests/cli-protocol/machine-contract.test.ts"]}                            |
 | full-verification      | command        | E2E         | Complete CLI-package Vitest regression suite                                                                                                                                 | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]}                                                                                                                                                                                                                       |
 | typecheck              | command        | integration | TypeScript type correctness for the final contribution                                                                                                                       | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","typecheck"]}                                                                                                                                                                                                                  |
 | plan-review            | review_receipt | E2E         | Accepted outcome and deferred scope, resolved decisions and re-review rules, three independent PR slices, sibling ownership boundaries, and the complete delivery definition | real_boundary | current_required | {"type":"review_receipt","kind":"plan-execution","targets":[".project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/execution-plan.md"]}                                                                                                                        |
@@ -397,7 +396,7 @@ on a later slice.
 | data-compatibility  | data and compatibility                    | Preserve unknown review-ledger events, atomically append delivery proofs, and reject stable-definition drift.                                      | contributor | delivery-cli           | open           | missing        |          |                                                        |
 | monitoring          | monitoring and failure signals            | Expose typed refusal codes, fixed exit states, and one concrete recovery action for every contributor-repairable checklist failure.                | contributor | failure-signals        | open           | missing        |          |                                                        |
 | security-privacy    | security and privacy                      | Run retained proof argv from a project-contained working directory without Safeword interposing a shell, TTY, or caller substitution, and reject review targets outside the project. | contributor | proof-worker           | open           | missing        |          |                                                        |
-| rollout-rollback    | rollout and rollback                      | Keep checklist enforcement behind one removable prerequisite helper and preserve the reviewed legacy exemption.                                    | contributor | first-execution        | open           | missing        |          |                                                        |
+| rollout-rollback    | rollout and rollback                      | Keep the CLI prerequisite removable and leave coding-gate and host activation to 7CAMAD and YCFFNC.                                                | contributor | execution-prerequisite | open           | missing        |          |                                                        |
 | documentation       | documentation                             | Ship the canonical template, Execution Planning guidance, command discovery, recovery copy, and generated host mirrors together.                   | contributor | documentation-contract | open           | missing        |          |                                                        |
 | ownership           | ownership and human dependencies          | Record A639WN ownership and the 7CAMAD, 5F5ZZA, YCFFNC, 3EG00H, and K3EBHB boundaries in the approved Execution Plan.                              | contributor | plan-review            | open           | missing        |          |                                                        |
 | design-approval     | ownership and human dependencies          | Obtain human design approval for this Implementation Plan.                                                                                         | human       |                        | not_applicable | missing        |          | Project configuration has designApprovalGate disabled. |

@@ -4,15 +4,15 @@ Feature source: `features/complete-contributions-with-a-default-delivery-checkli
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: plan-implementability.TBU2.A639WN.R1 — Feature execution begins only after Safeword has created one visible default Delivery Checklist from accepted scenarios and an accepted implementation approach
+## Rule: plan-implementability.TBU2.A639WN.R1 — The Safeword CLI exposes a deny-only execution prerequisite that requires accepted scenarios, an accepted implementation approach, and one visible default Delivery Checklist
 
-### Scenario: The installed CLI workflow creates the checklist before execution
+### Scenario: The installed CLI exposes a satisfied execution prerequisite
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Missing contribution context blocks execution
+### Scenario: Missing contribution context blocks execution readiness
 
 - [ ] RED
 - [ ] GREEN
@@ -64,7 +64,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU2.A639WN.R4 — The feature checklist lives in the Execution Plan; the TBU3 small-work contract separately owns proportionate task and patch checklist behavior without creating feature artifacts
+## Rule: plan-implementability.TBU2.A639WN.R4 — The feature checklist lives in the Execution Plan; the 3EG00H TBU3 small-work contract separately owns proportionate task and patch checklist behavior without creating feature artifacts
 
 ### Scenario: The feature Delivery Checklist lives in the Execution Plan
 

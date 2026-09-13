@@ -1,7 +1,7 @@
 # Implementation Plan: Complete contributions with a default Delivery Checklist
 
 **Status:** planned
-**Planned on:** 2026-09-12
+**Planned on:** 2026-09-13
 
 ## Approach
 
@@ -20,15 +20,15 @@ and their proof:
    existing review ledger and updates only the checklist's progress fields.
 4. Readiness is derived from the reviewed definition and ledger-validated
    receipts. Checklist text cannot grant approval or merge authority.
-5. A private prerequisite helper lets 7CAMAD stop a feature's first execution
-   edit when accepted scenarios, an accepted approach, or an admitted checklist
-   is missing. YCFFNC later connects that helper to installed hosts.
+5. The public `ticket execution-prerequisite` command returns a deny-only
+   verdict from the same evaluator that 7CAMAD later composes into coding
+   authorization. YCFFNC later connects that composed gate to agent hosts.
 
-This child owns the checklist, proof, and prerequisite-helper contracts.
+This child owns the checklist, proof, and public prerequisite contracts.
 The accepted PR-slicing contract from 6XW8H7 must be present in the merge
 branch before A639WN merges; A639WN extends that contract rather than defining
 a competing slicing format.
-7CAMAD owns phase provenance and live first-edit composition; 5F5ZZA owns
+7CAMAD owns coding authorization and phase provenance; 5F5ZZA owns
 authenticated host-user provenance and broader plan invalidation; YCFFNC owns
 installed-host delivery; 3EG00H owns proportional task and patch behavior; and
 K3EBHB owns final cross-host recovery language.
@@ -53,14 +53,15 @@ revision currency address that separate risk.
 | Checklist shape | Integration tests parse a generated Execution Plan, remove each required category, and mutate every stable field. | Structure cannot prove semantic relevance. |
 | Scenario and approach coverage | Plan-execution conformance accepts obligations derived from the accepted ticket and rejects a generic checklist. | Model sampling is not deterministic across future reviewer versions. |
 | Retained proof invocation | A real child process runs retained project-contained arguments and rejects caller substitutions and escaping paths. | Safeword supplies the reviewed values unchanged, but PATH can resolve a bare executable differently; a receipt does not prove mutable test code remains honest. |
+| executable-RED compatibility | Existing real-process regressions re-prove literal failure matching, timeout and descendant termination, and internal-review environment scrubbing through the compatibility wrapper. | These tests protect the shipped RED contract, not the new checklist semantics. |
 | Review identity | Integration tests prove ordinary progress preserves plan approval while any stable-definition change requires re-review. | 5F5ZZA owns invalidation outside this checklist definition. |
 | Evidence currency | Git-backed integration tests cover current, earlier, partial, mismatched, dirty, and compatible-earlier evidence. | Ignored files remain outside the contribution snapshot. |
 | Compatibility judgment | Semantic conformance approves an unrelated documentation delta and rejects changes to the retained proof boundary. | A semantic reviewer can still make a judgment error. |
-| Atomic progress | Integration tests race checklist edits and ledger appends; both fail closed or preserve every accepted event. | Normal source-control conflicts remain possible. |
+| Atomic progress | Deterministic crash and injected-conflict tests prove retry uses the saved plan digest, never reruns accepted proof, and preserves every ledger event; racing is supplementary. | Normal source-control conflicts remain possible. |
 | Failure recovery | A type-level exhaustive map and integration test require one concrete action for every repairable refusal code. | The map cannot prove that a future action is the best operational advice. |
 | PR slicing | Deterministic admission validates the retained one-versus-many record; semantic review judges its rationale. | Structure cannot decide whether a slice is coherent. |
 | Readiness and authority | Real CLI tests exercise all readiness states and prove contributor text cannot create approval or merge authority. | Generic human dependencies remain pending without an authoritative recorder. |
-| First-execution prerequisite | A real helper process denies missing approvals or checklist admission in fixed order and never turns a phase denial into an allow. | This does not satisfy R1's CLI-surface scenarios; 7CAMAD and YCFFNC own live composition and installed dispatch. |
+| Execution prerequisite | Real installed-CLI tests deny missing accepted scenarios, accepted approach, or checklist admission in fixed order and return only a prerequisite verdict. | 7CAMAD owns coding authorization; YCFFNC owns agent-host dispatch. |
 | Feature-only placement | Feature fixtures use `execution-plan.md`; task and patch fixtures receive no feature artifact. | 3EG00H owns the later small-work contract. |
 | Documentation parity | Schema, parity, catalogue, machine-contract, and generated-rubric tests keep canonical and host-facing contracts aligned. | YCFFNC owns installed-host activation. |
 
@@ -76,8 +77,9 @@ revision currency address that separate risk.
    read readiness and record one proof. Add compatible-earlier review and
    regenerate host mirrors. Ship the full-diff egress disclosure with the proof
    command.
-3. **Expose the prerequisite helper.** Add the private evaluator and fixed
-   recovery results that 7CAMAD can compose with the first-execution boundary.
+3. **Expose the execution prerequisite.** Add the public deny-only operation,
+   its shared evaluator, fixed recovery results, and public command reference.
+   7CAMAD later composes the evaluator into coding authorization.
 
 The authoritative task order, test files, commands, and three independently
 reviewable PR boundaries live in [execution-plan.md](./execution-plan.md).
@@ -99,7 +101,7 @@ competing authority and a synchronization boundary.
 
 **Evidence reference:** [Execution Plan template](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/templates/doc-templates/execution-plan-template.md) and [readiness parser pattern](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/src/pr-review/readiness.ts)
 
-**Retrieval date:** 2026-09-12
+**Retrieval date:** 2026-09-13
 
 **Applicable version:** Safeword 0.83.1 plus this unreleased branch; no new
 dependency, license, redistribution, or external-service boundary.
@@ -118,7 +120,7 @@ lets a contributor remove or weaken an approved obligation.
 
 **Evidence reference:** [Conformance-Gated Execution Plan Review](../../../ARCHITECTURE.md#conformance-gated-execution-plan-review)
 
-**Retrieval date:** 2026-09-12
+**Retrieval date:** 2026-09-13
 
 **Applicable version:** The accepted #4200 planning architecture; no external
 data or dependency boundary.
@@ -138,7 +140,7 @@ silently convert contributor work into human risk.
 
 **Evidence reference:** [approval ledger](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/src/review/approval-ledger.ts) and [interactive approval boundary](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/src/commands/plan-approval.ts)
 
-**Retrieval date:** 2026-09-12
+**Retrieval date:** 2026-09-13
 
 **Applicable version:** Safeword 0.83.1 plus the accepted #4200 authority
 boundaries.
@@ -162,20 +164,21 @@ commit, or a second working-tree manifest.
 Blanket currency upgrades changed code. A second manifest duplicates Git and
 creates another normalization contract.
 
-**Evidence reference:** [git diff](https://git-scm.com/docs/git-diff) and [Git data model](https://git-scm.com/docs/gitdatamodel)
+**Evidence reference:** [git diff](https://git-scm.com/docs/git-diff) and
+[Git glossary](https://git-scm.com/docs/gitglossary)
 
-**Retrieval date:** 2026-09-12
+**Retrieval date:** 2026-09-13
 
 **Applicable version:** Current Git revision semantics and this unreleased
 checklist model.
 
-**Decision:** Expose separate readiness and proof-recording operations.
+**Decision:** Separate execution prerequisite, readiness, and proof recording.
 
-**Choice:** One read-only CLI leaf projects state; one mutating leaf runs or
-resolves a retained proof and records the result. Both use the existing typed
-catalogue and response envelope.
+**Choice:** One read-only CLI leaf reports the execution prerequisite, another
+projects delivery readiness, and one mutating leaf records retained proof. All
+three use the existing typed catalogue and response envelope.
 
-**Alternative considered:** Hide both inside hooks, combine them into one
+**Alternative considered:** Hide them inside hooks, combine them into one
 modeful command, reuse executable-RED unchanged, or create another proof store.
 
 **Rejected because:** Hooks are not a user-reachable boundary; a modeful leaf
@@ -184,7 +187,7 @@ contract; another store creates competing authority.
 
 **Evidence reference:** [typed CLI catalogue](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/src/cli-protocol/catalog.ts), [no-shell worker](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/src/review/red-execution.ts), and [shared ledger](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/src/review/approval-ledger.ts)
 
-**Retrieval date:** 2026-09-12
+**Retrieval date:** 2026-09-13
 
 **Applicable version:** Safeword 0.83.1 plus this unreleased command surface.
 
@@ -204,7 +207,7 @@ the earlier receipt still proves this retained boundary now.
 
 **Evidence reference:** [review coordinator](https://github.com/ArcadeAI/safeword/blob/8a87b38f5df4a66a0c33c526d351ae326c730025/packages/cli/src/review/coordinator.ts) and [review evidence principle](../../../PRINCIPLES.md#1-structure-enforces-instructions-suggest)
 
-**Retrieval date:** 2026-09-12
+**Retrieval date:** 2026-09-13
 
 **Applicable version:** Safeword 0.83.1 plus this unreleased review kind.
 
@@ -226,9 +229,21 @@ third artifact violates the single-plan source of truth.
 
 **Evidence reference:** [Conformance-Gated Execution Plan Review](../../../ARCHITECTURE.md#conformance-gated-execution-plan-review)
 
-**Retrieval date:** 2026-09-12
+**Retrieval date:** 2026-09-13
 
 **Applicable version:** The accepted #4200 plan-execution contract.
+
+#### Reversibility and boundaries
+
+| Decision | Reversal | Dependency, license, and security boundary |
+| --- | --- | --- |
+| Checklist source | Stop generating and requiring the section; retained Markdown stays inert. | Project-local Markdown; no new dependency or license. |
+| Stable definition | Remove admission before release; retained review data stays inert. | Existing local reviewer and ledger only. |
+| Readiness authority | Remove the projections without changing human authority. | Existing approval paths remain authoritative. |
+| Git snapshot | Stop accepting command receipts; retain their audit history. | Existing Git CLI; ignored files remain outside proof. |
+| Public operations | Remove their catalogue entries and handlers. | Same-user local execution; no OS sandbox is claimed. |
+| Compatibility review | Disable earlier-proof reuse; retained events grant nothing. | Explicit full-diff egress to the configured reviewer after secret scanning. |
+| Plan currency | Revert to full-plan invalidation before release. | Existing project-local review ledger. |
 
 ### State and validation contract
 
@@ -236,40 +251,41 @@ third artifact violates the single-plan source of truth.
 
 | Operation | Effect | Successful result |
 | --- | --- | --- |
-| `ticket delivery-checklist` | Read and validate the admitted checklist; execute nothing. | One readiness state and at most one next action. |
-| `ticket record-delivery-proof` | Run or resolve one retained Proof ID, append a passing receipt, then atomically update one row. | The recorded proof and next open obligation. |
+| `ticket delivery-checklist` | Read and validate the admitted checklist; execute nothing. | One readiness state, every open obligation, and at most one next action. |
+| `ticket record-delivery-proof` | Run or resolve one retained Proof ID, append a passing receipt, then atomically update one row. | The recorded proof, every remaining open obligation, and at most one next action. |
+| `ticket execution-prerequisite` | Check accepted scenarios, the accepted approach, and checklist admission; execute nothing and grant no authority. | One satisfied prerequisite verdict. |
 
 `record-delivery-proof` accepts an item ID and retained Proof ID. Earlier proof
 reuse also requires both `--receipt` and `--compatible-reason`; supplying only
 one is invalid. The command executes retained arguments directly, closes stdin,
 inherits no TTY, and is unavailable under `--offline` because the child command
-may use the network. Neither operation prompts for confirmation.
+may use the network. Ordinary local proof recording does not prompt. Before an
+earlier-proof compatibility request leaves the machine, the command displays a
+plain-language full-diff disclosure and requires explicit confirmation.
 
 Both operations use the typed v1 CLI envelope. The response contract is:
 
+`ticket execution-prerequisite` returns `data.prerequisite_status` as the closed
+set `satisfied` or `not_applicable`; refusal uses `action_required` with the
+ordered missing prerequisites. Exit 0 alone never means admission.
+
 | Status and exit | Outcomes |
 | --- | --- |
+| `healthy`, 0 | The execution prerequisite is satisfied or not applicable; no authority is granted. |
 | `changed`, 0 | A retained proof passed and was recorded, or an accepted compatibility review reused an earlier receipt. |
 | `action_required`, 2 | Every readiness state; missing or invalid plans and approvals; dirty proof subjects; failed or offline proof commands; missing categories or slicing; invalid owner, proof, or evidence claims; stable-definition or write conflicts; and stale compatibility review. |
 | `failed`, 1 | Invalid arguments, unreadable ledgers, and unsafe writes. |
 
 Every repairable failure has one stable code and one concrete recovery action;
 the [Execution Plan](./execution-plan.md#tasks-and-tests) owns the exhaustive
-code-to-recovery test. Readiness never exits 0 because merge authorization
-remains separate; `healthy` is deliberately unreachable for this projection.
+code-to-recovery test. Delivery readiness never exits 0 because merge
+authorization remains separate.
 
-Compatibility review maps each terminal condition explicitly:
-
-| Condition | Code | Recovery action |
-| --- | --- | --- |
-| Review still running | `compatibility_review_pending` | Retry the same proof-recording command after the named review finishes. |
-| Reviewer rejects compatibility | `compatibility_review_denied` | Run the retained proof again at the current revision. |
-| Reviewer authentication is missing | `compatibility_review_authentication_required` | Run the coordinator's exact authentication recovery command, then retry. |
-| Every configured route is exhausted | `compatibility_review_unavailable` | Run the retained proof again at the current revision. |
-| Cross-agent review is disabled | `compatibility_review_disabled` | Run the retained proof again at the current revision. |
-| Accepted review no longer matches the request or revision | `compatibility_review_stale` | Repeat compatibility review for the current request or rerun the retained proof. |
-| Diff is incomplete, binary, or oversized | `compatibility_diff_unavailable` | Run the retained proof again at the current revision. |
-| Existing egress scanning detects a secret | `compatibility_sensitive_content` | Run the retained proof again at the current revision. |
+Compatibility outcomes are closed. A pending review says when to retry;
+missing authentication gives the coordinator's recovery command; stale review
+repeats review for the current request; every denial, exhausted or disabled
+route, unusable diff, or sensitive-content refusal reruns the retained proof at
+the current revision. The Execution Plan owns the exhaustive code mapping.
 
 One exported closed `DeliveryChecklistRepairCode` union owns every repairable
 code. A total `Record<DeliveryChecklistRepairCode, RecoveryAction>` owns the
@@ -282,16 +298,23 @@ test iterates that record instead of maintaining a second case list.
 Each Proof Specification defines a unique Proof ID, method (`command` or
 `review_receipt`), proof scope, exercised boundary, qualifying class, currency
 policy, and typed invocation. Command working directories and review targets
-must remain inside the project. At least one contributor-owned testing item must
-use a command reviewed as real-boundary proof.
+must remain inside the project. Command timeout, descendant termination, and
+internal-review environment scrubbing are fixed worker policy, not authorable
+Proof Specification fields. Admission requires at least one contributor-owned
+testing item to use a command reviewed as real-boundary proof, even when another
+testing item is reviewed as not applicable.
+
+In M1, `review_receipt` admits only the ticket's current `plan-execution`
+review. Compatibility review authorizes reuse of an earlier command receipt; it
+is not itself a checklist Proof Specification.
 
 Qualifying class is the closed set `real_boundary` and
 `partial_or_structural`. Deterministic admission validates the closed value and
 references; plan-execution review judges whether the named method can actually
 exercise the claimed boundary.
 
-Each checklist item has stable planning fields—ID, category, obligation, owner,
-and required Proof ID—and mutable progress fields—disposition, evidence class,
+Each checklist item has stable planning fields—ID, category, obligation, owner
+(`contributor` or `human`), and required Proof ID—and mutable progress fields—disposition, evidence class,
 revision, and evidence locator. Reviewed `not_applicable` reasons and human
 `pending_human` dependencies are stable applicability decisions, not ordinary
 progress. The parser rejects unknown values, malformed rows, missing categories,
@@ -314,8 +337,12 @@ documentation; ownership and human dependencies; and completion evidence.
 | --- | --- |
 | `open` | Contributor-owned; may retain supporting evidence but remains incomplete. |
 | `complete` | Contributor-owned; requires current real-boundary evidence for the exact Proof ID, or accepted reusable-earlier evidence when that proof's policy permits it. Row text without a ledger-validated receipt is incomplete. |
-| `not_applicable` | Contributor or human; requires a concrete reason already admitted by plan-execution review and makes no evidence claim. |
+| `not_applicable` | Contributor or human; requires a concrete reason already admitted by plan-execution review, has an empty Required proof, and makes no evidence claim. |
 | `pending_human` | Human-owned; requires a named dependency already admitted by plan-execution review, has an empty Required proof, and makes no contributor-proof claim. |
+
+`open` and `complete` require owner `contributor`; `pending_human` requires
+owner `human`; `not_applicable` accepts either owner because review, not the
+owner value, admits irrelevance.
 
 The projection first checks whether any contributor obligation remains open,
 then chooses among these states from the reviewed human dependencies and their
@@ -341,9 +368,10 @@ definition in either direction.
 #### Evidence currency and compatibility
 
 A `delivery-proof:v1` receipt binds the ticket, item, Proof ID, reviewed method,
-scope and boundary, producing revision, invocation, outcome, and output hashes
-or source review. The evaluator derives evidence class and revision from the
-receipt; editable row text cannot strengthen either value. A foreign,
+scope and boundary, producing revision, invocation, outcome, the pre-proof
+Execution Plan snapshot digest, and output hashes or source review. The
+evaluator derives evidence class and revision from the receipt; editable row
+text cannot strengthen either value. A foreign,
 mismatched, partial, or missing receipt leaves the item open. A failed proof
 attempt writes no receipt and also leaves the item open.
 
@@ -392,6 +420,12 @@ its pre-proof snapshot. A conflicting edit leaves the receipt available for an
 idempotent retry and never runs the same command twice for the same ticket,
 item, Proof ID, revision, and reviewed definition.
 
+A crash before receipt append records no progress. A crash after receipt append
+but before checklist update leaves that receipt reusable: retry compares the
+current Execution Plan with the receipt's pre-proof snapshot digest and updates
+the row only on an exact match. Otherwise it returns the conflict recovery
+without rerunning the proof.
+
 This is a same-user project-file trust boundary, not an OS sandbox. The
 project-containment rule applies to the working directory and review targets;
 retained argv is opaque reviewed input, and a bare executable may resolve
@@ -405,26 +439,34 @@ for M1.
 Credentials, customer data, and secret-bearing evidence are prohibited from
 checklist and review-request content.
 
-#### First-execution prerequisite
+#### Execution prerequisite
 
-The private helper runs after the existing phase-access check and may only add a
-denial. For a feature whose phase provenance carries
-`executionPlanContractVersion: 1`, it checks in order:
+`ticket execution-prerequisite` exposes a deny-only verdict through the typed
+CLI envelope. It checks a contracted feature in this order:
 
-1. current accepted scenario-gate approval;
-2. current accepted Implementation Plan approval; and
-3. current checklist admission and stable definition.
+1. the current scenario-gate review;
+2. the current plan-implementation review and any configured design approval;
+   and
+3. the current plan-execution review that admits the checklist definition.
 
-One response reports both missing planning approvals in scenarios-before-
-approach order. Each denial names the stopped boundary and one recovery action.
-Tickets without that persisted marker are legacy-exempt. 7CAMAD writes the
-marker before a ticket advances from plan-execution and supplies the live
-composition; this child supplies and directly proves only the helper.
+One response reports every missing prerequisite in that order. Each denial
+names the stopped boundary and one recovery action. A satisfied response carries
+no coding, approval, or merge grant. Tickets outside the contracted feature flow
+return a typed not-applicable result.
 
-The three R1 `@surface.safeword-cli` ledger rows must not use helper-only proof.
-They remain unchecked until 7CAMAD composes the helper and YCFFNC supplies the
-installed CLI dispatch proof. A639WN may finish its other scenarios but cannot
-enter `done` until those real-boundary proofs land.
+An existing feature already in `implement` or `verify` also returns not
+applicable until it re-enters Execution Planning. 7CAMAD must preserve that
+migration exemption when it composes this evaluator into coding authorization.
+
+A639WN proves these outcomes through the installed CLI. 7CAMAD consumes the
+same evaluator after its phase-access check and remains the sole owner of coding
+authorization. YCFFNC owns agent-host dispatch.
+
+The existing `ticket approve-plan` transition into `plan-execution` scaffolds
+the current Proof Specifications and Delivery Checklist sections from the
+canonical template. For an existing unreviewed Execution Plan it inserts only
+missing sections while preserving decisions and slices; it refuses a malformed
+or partially present section instead of rewriting it.
 
 ### Data applicability
 
@@ -434,10 +476,10 @@ review-ledger contracts, not application or customer data.
 | Concern | Decision |
 | --- | --- |
 | Purpose | Retain delivery obligations, ownership, disposition, proof identity, and evidence currency. |
-| Store and model | `execution-plan.md` owns checklist state; the existing review ledger owns authenticated proof and compatibility events; ignored request files are transient reviewer input. |
+| Store and model | `execution-plan.md` owns obligations and contributor-entered progress; the existing review ledger owns authenticated proof, derived Evidence class and Revision, and compatibility events; ignored request files are transient reviewer input. |
 | Relationships | Stable checklist items reference retained Proof IDs; receipts bind one ticket, item, proof, and revision. |
-| Source of truth | The Execution Plan owns obligations and progress. Review records authenticate stable identity; ledger events authenticate evidence and approvals. |
-| Ownership and access | Contributors update contributor progress. Only existing human authority paths can satisfy human dependencies. Checklist state cannot approve or merge. |
+| Source of truth | The Execution Plan owns obligations and dispositions. Review records authenticate stable identity; ledger events are authoritative for Evidence class, Revision, proof, and approvals. Their checklist columns are non-authoritative projections. |
+| Ownership and access | Contributors update dispositions and evidence references, not evidence strength or authority. Only existing human authority paths can satisfy human dependencies. Checklist state cannot approve or merge. |
 | Identity and integrity | Version markers, closed enums, stable digests, Git ancestry, exact event bindings, atomic writes, and reviewer provenance fail closed. |
 | Cross-system flow | None in M1. YCFFNC later installs the same contract across hosts. |
 | Lifecycle and retention | Create before plan approval, update during execution, and retain checklist state plus compatibility requests with the ticket until ticket cleanup. |
@@ -455,21 +497,21 @@ attributes, not product metrics.
 
 | Persona | Consequence | Confidence limit |
 | --- | --- | --- |
-| Technical Builder | Sees every obligation, evidence class, revision, and next action in one execution artifact. | Earlier evidence still needs explicit semantic judgment. |
-| Non-Technical Builder | Gets plain readiness language separating contributor work, human dependency, approval, and merge authority. | K3EBHB owns final wording across installed hosts. |
-| Safeword Maintainer | Maintains one closed parser and one generated phase contract instead of a mirrored sidecar. | Strict Markdown is a versioned compatibility surface. |
+| Technical Builder | Operates from every obligation and proof state, gets one repair action, and sees that contributor completion grants no approval or merge authority. | Earlier evidence still needs independent semantic judgment. |
+| Non-Technical Builder | Gets plain readiness, all open obligations, one next action, an explicit human handoff, and a point-of-use full-diff disclosure with confirmation before external review. | The user can authorize egress but cannot audit code content; structural secret scanning remains imperfect, and K3EBHB owns final wording across installed hosts. |
+| Safeword Maintainer | Maintains one closed parser, one generated phase contract, total failure recovery, and a removable rollout boundary. | Strict Markdown is a versioned compatibility surface. |
 
 ## Design alignment
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Structure enforces; instructions suggest | Closed state and authenticated receipts enforce final readiness; recording cadence remains instructional. | Proof strategy — Readiness and authority | explicit-conflict |
-| Add, never replace | The checklist extends the existing Execution Plan and ledger; it replaces only the unreleased provisional checklist shape. | Proof strategy — Atomic progress | explicit-conflict |
-| Discover decisions before prescribing work | Accepted decisions and PR slicing become reviewed obligations before tasks begin. | Proof strategy — Scenario and approach coverage; PR slicing |  |
-| Fire at boundaries, not every turn | Validation runs at plan review, proof recording, readiness, and first execution. | Proof strategy — First-execution prerequisite; Atomic progress |  |
-| Optimize for the NTB without constraining the TBU | Plain readiness leads; detailed proof identity remains available. Applicability changes require re-review. | Proof strategy — Readiness and authority | explicit-conflict |
-| Contribute, then converge | Every refusal names the observed state and one recovery action. | Proof strategy — Failure recovery |  |
-| Correct and safe; then clear; then simple | One typed Markdown source reuses existing Git, review, ledger, and CLI boundaries. | Proof strategy — Evidence currency; Feature-only placement |  |
+| Structure enforces; instructions suggest | Closed state and authenticated receipts enforce final readiness; recording cadence remains instructional. | [Readiness and authority](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) | explicit-conflict |
+| Add, never replace | The checklist extends the existing Execution Plan and ledger; it replaces only the unreleased provisional checklist shape. | [Atomic progress](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) | explicit-conflict |
+| Discover decisions before prescribing work | Accepted decisions and PR slicing become reviewed obligations before tasks begin. | [Scenario coverage and PR slicing](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) |  |
+| Fire at boundaries, not every turn | Validation runs at plan review, proof recording, readiness, and the execution prerequisite. | [Execution prerequisite and atomic progress](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) |  |
+| Optimize for the NTB without constraining the TBU | Plain readiness leads; external full-diff review requires point-of-use disclosure and confirmation; detailed proof identity remains available. Applicability changes require re-review. | [Readiness and authority](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) | explicit-conflict |
+| Contribute, then converge | Every refusal names the observed state and one recovery action. | [Failure recovery](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) |  |
+| Correct and safe; then clear; then simple | One typed Markdown source reuses existing Git, review, ledger, and CLI boundaries. | [Evidence currency and feature placement](.project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/impl-plan.md#proof-strategy) |  |
 
 Architecture applicability: this shared workflow-contract extension honors
 [Separate Implementation and Execution Planning Gates](../../../ARCHITECTURE.md#separate-implementation-and-execution-planning-gates)
@@ -478,10 +520,11 @@ It extends [Conformance-Gated Execution Plan Review](../../../ARCHITECTURE.md#co
 with another retained plan section and
 [Digest-Bound Planning Decisions in the Shared Review Ledger](../../../ARCHITECTURE.md#digest-bound-planning-decisions-in-the-shared-review-ledger)
 with new event kinds that use the same digest-binding and unknown-event rules.
-Neither changes or contradicts the accepted decisions, so their current records
-remain authoritative and no superseding record is required. The existing
-`A639WN extension` paragraphs in those records are this ticket's
-decision-bearing architecture record.
+These extend rather than supersede the accepted decisions, so the current
+records remain authoritative after amendment. The Conformance-
+Gated record owns the 6XW8H7 review-coordinator contract; this ticket remains
+authoritative for checklist contents and runtime use. The Digest-Bound record's
+`A639WN extension` owns the new compatibility event and review-kind boundary.
 
 ## Known deviations
 
@@ -500,10 +543,9 @@ decision-bearing architecture record.
 - **Optimize for the NTB without constraining the TBU:** Changing an obligation
   to `not_applicable` requires plan-execution re-review. The extra friction keeps
   contributor self-report from dismissing accepted work.
-- **Sibling activation boundary:** This child proves the shared prerequisite
-  helper, not installed first-edit behavior. R1 remains incomplete at epic level
-  until 7CAMAD composes the helper and YCFFNC ships host dispatch. The matching
-  R1 ledger rows stay unchecked, so A639WN cannot close early.
+- **Sibling activation boundary:** This child proves the installed CLI
+  prerequisite, not coding authorization or agent-host dispatch. 7CAMAD and
+  YCFFNC retain those downstream boundaries.
 - **Generic human dependencies:** Only the existing digest-bound design approval
   has an authoritative satisfaction source. Every other human dependency stays
   pending.
@@ -529,14 +571,16 @@ decision-bearing architecture record.
 
 ## Doc impact
 
-- Update the public CLI reference with readiness states, evidence classes, and
-  the authority boundary. State that explicit earlier-proof reuse sends the
+- Update the public CLI reference with prerequisite and readiness states,
+  evidence classes, and the authority boundary. State that explicit earlier-proof reuse sends the
   complete bounded contribution diff—not only Proof Specification paths—to the
   configured external reviewer.
 - Update canonical Execution Planning guidance and the template; regenerate
   Claude, Cursor, Codex, and OpenCode mirrors.
-- Extend the current architecture records only with non-decision-bearing
-  description of the retained checklist and ledger event kinds.
+- Extend the existing Digest-Bound record with the pre-proof plan-snapshot
+  binding, complete delivery-progress normalization, and explicit full-diff
+  reviewer egress. Describe the retained checklist in the Conformance-Gated
+  record; do not create another architecture record.
 - README: skip: the README does not enumerate planning artifact fields.
 
 ## Assessment triggers

@@ -2,7 +2,8 @@
 
 | Dimension | Partitions and boundaries |
 | --- | --- |
-| Checklist timing | present before execution; absent at first execution; added only after coding |
+| Execution prerequisite | satisfied when accepted scenarios, an accepted approach, and an admitted checklist exist; denied when any prerequisite is missing; never grants coding or merge authority |
+| Cross-child composition | skip: 7CAMAD owns composition of the prerequisite verdict into coding authorization |
 | Planning prerequisites | accepted scenarios missing; accepted implementation approach missing; both missing with deterministic ordering |
 | Default coverage | every default category represented; one category silently omitted |
 | Item disposition | completed with evidence; not applicable with reason; human-owned dependency; contributor-controlled work mislabeled as handoff |
