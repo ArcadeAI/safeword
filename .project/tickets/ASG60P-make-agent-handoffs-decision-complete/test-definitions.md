@@ -163,7 +163,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A contract without a no-decision action form is invalid
 
 - [x] RED 5453fed07
-- [ ] GREEN
+- [x] GREEN 8b487b2e6
 - [ ] REFACTOR
 
 ## Rule: Long-form corpus binds semantic classifications
