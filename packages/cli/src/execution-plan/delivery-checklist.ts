@@ -81,6 +81,25 @@ export type DeliveryPlanContractResult =
       readonly specifications: readonly DeliveryProofSpecification[];
     };
 
+export interface DeliveryStableChecklistItem {
+  readonly id: string;
+  readonly category: DeliveryChecklistCategory;
+  readonly obligation: string;
+  readonly owner: DeliveryChecklistOwner;
+  readonly requiredProof: string;
+  readonly reviewedDisposition?: {
+    readonly disposition: 'not_applicable' | 'pending_human';
+    readonly detail: string;
+  };
+}
+
+export interface DeliveryStableDefinition {
+  readonly schemaVersion: 1;
+  readonly designApprovalGate: boolean;
+  readonly specifications: readonly DeliveryProofSpecification[];
+  readonly items: readonly DeliveryStableChecklistItem[];
+}
+
 const MARKER = '<!-- safeword:delivery-checklist:v1 -->';
 const HEADERS = [
   'ID',
@@ -565,5 +584,47 @@ export function parseDeliveryPlanContract(content: string): DeliveryPlanContract
     ok: true,
     items: checklist.items,
     specifications: proofs.specifications,
+  };
+}
+
+function cloneProofSpecification(
+  specification: DeliveryProofSpecification,
+): DeliveryProofSpecification {
+  const invocation =
+    specification.invocation.type === 'command'
+      ? { ...specification.invocation, argv: [...specification.invocation.argv] }
+      : { ...specification.invocation, targets: [...specification.invocation.targets] };
+  return { ...specification, invocation };
+}
+
+function stableChecklistItem(item: DeliveryChecklistItem): DeliveryStableChecklistItem {
+  const stable = {
+    id: item.id,
+    category: item.category,
+    obligation: item.obligation,
+    owner: item.owner,
+    requiredProof: item.requiredProof,
+  };
+  if (item.disposition !== 'not_applicable' && item.disposition !== 'pending_human') return stable;
+  return {
+    ...stable,
+    reviewedDisposition: {
+      disposition: item.disposition,
+      detail: item.evidence,
+    },
+  };
+}
+
+export function createDeliveryStableDefinition(
+  plan: Extract<DeliveryPlanContractResult, { readonly ok: true }>,
+  designApprovalGate: boolean,
+): DeliveryStableDefinition {
+  return {
+    schemaVersion: 1,
+    designApprovalGate,
+    specifications: plan.specifications.map(specification =>
+      cloneProofSpecification(specification),
+    ),
+    items: plan.items.map(item => stableChecklistItem(item)),
   };
 }
