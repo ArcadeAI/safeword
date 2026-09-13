@@ -174,6 +174,26 @@ describe('Execution Plan semantic conformance admission', () => {
     ).toEqual([]);
   });
 
+  it('rejects a crafted OpenCode identity that the evidence builder cannot produce', () => {
+    const evidence = buildExecutionPlanAdmissionEvidence(passingResults('claude', 'opus'));
+    const opencodeRoute: ReviewRoute = {
+      reviewer: 'opencode',
+      independence: 'cross-agent',
+    };
+
+    expect(
+      filterExecutionPlanRoutes('plan-execution', [opencodeRoute], {
+        ...evidence,
+        identities: [
+          {
+            reviewer: 'opencode',
+            case_ids: EXPECTED_CASE_IDS,
+          },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
   it.each(['quality-review', 'scenario-gate', 'plan-implementation', 'executable-red'] as const)(
     'leaves %s routes unchanged',
     kind => {

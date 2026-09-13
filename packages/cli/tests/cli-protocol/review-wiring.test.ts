@@ -518,6 +518,8 @@ describe('cross-agent review public-command wiring', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Project plan\n');
     writeFileSync(nodePath.join(privateDirectory, 'impl-plan.md'), '# Host-private plan\n');
     writeFileSync(nodePath.join(notesDirectory, 'impl-plan.md'), '# Unowned plan\n');
+    writeFileSync(nodePath.join(directory, '.project', 'ticket.md'), '---\nid: parent\n---\n');
+    writeFileSync(nodePath.join(directory, '.project', 'impl-plan.md'), '# Parent escape plan\n');
     const bin = installFakeReviewer(directory, 'claude');
     const environment = {
       PATH: `${bin}:/usr/bin:/bin`,
@@ -546,7 +548,11 @@ describe('cross-agent review public-command wiring', () => {
     });
 
     rmSync(nodePath.join(ticketDirectory, 'impl-plan.md'));
-    for (const target of ['.claude/plans/impl-plan.md', 'notes/impl-plan.md']) {
+    for (const target of [
+      '.claude/plans/impl-plan.md',
+      'notes/impl-plan.md',
+      '.project/impl-plan.md',
+    ]) {
       const rejected = await runCli(
         [
           'review',
@@ -648,6 +654,10 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('"kind":"plan-execution"');
     expect(prompt).toContain('"plan_contract"');
     expect(prompt).toContain('Slicing decision');
+    expect(prompt).toMatch(/Reject line or file count as\s+the sole justification/);
+    expect(prompt).toContain('# Execution Plan');
+    expect(prompt).toContain('# Implementation Plan');
+    expect(prompt).toContain('Feature: behavior');
 
     const deniedWithoutRecord = await runCli(
       [

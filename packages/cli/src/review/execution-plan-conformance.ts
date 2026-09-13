@@ -568,6 +568,7 @@ function admittedIdentity(
     const sameModel =
       route.model === undefined ? identity.model === undefined : identity.model === route.model;
     return (
+      (identity.reviewer === 'claude' || identity.reviewer === 'codex') &&
       identity.reviewer === route.reviewer &&
       sameModel &&
       identity.case_ids.length === expectedCases.length &&

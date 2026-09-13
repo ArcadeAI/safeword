@@ -100,6 +100,7 @@ function isTicketOwnedPlanningTarget(
     ticketDirectory !== undefined &&
     ticketDirectory !== '' &&
     ticketDirectory !== '.' &&
+    ticketDirectory !== '..' &&
     segments[1] === filename &&
     existsSync(nodePath.join(ticketsDirectory, ticketDirectory, 'ticket.md'))
   );
