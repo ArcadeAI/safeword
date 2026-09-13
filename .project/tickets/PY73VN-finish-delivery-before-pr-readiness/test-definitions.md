@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: GREEN advances through refactor to the next incomplete scenario
 
-- [ ] RED
+- [x] RED 95b8df382
 - [ ] GREEN
 - [ ] REFACTOR
 
