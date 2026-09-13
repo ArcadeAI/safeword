@@ -8,7 +8,15 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -21,6 +29,10 @@ import { runCli, testCliPath } from '../helpers.js';
 const TICKET_ID = 'PLAN42';
 const TICKET_FOLDER = `${TICKET_ID}-review-the-approach`;
 const REVIEW_ID = '42000000-0000-4000-8000-000000000019';
+const EXECUTION_PLAN_TEMPLATE = readFileSync(
+  nodePath.resolve(__dirname, '../../templates/doc-templates/execution-plan-template.md'),
+  'utf8',
+);
 
 const PLAN = [
   '# Impl Plan: Review the approach',
@@ -95,6 +107,7 @@ function fixture(designApprovalGate: boolean, reviewed = true): Fixture {
   const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
   const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
   mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+  mkdirSync(nodePath.join(root, '.safeword', 'templates'), { recursive: true });
   mkdirSync(ticketDirectory, { recursive: true });
   writeFileSync(
     nodePath.join(root, '.safeword', 'config.json'),
@@ -119,6 +132,10 @@ function fixture(designApprovalGate: boolean, reviewed = true): Fixture {
   );
   writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
   writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), PLAN);
+  writeFileSync(
+    nodePath.join(root, '.safeword', 'templates', 'execution-plan-template.md'),
+    EXECUTION_PLAN_TEMPLATE,
+  );
   const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(PLAN));
   writeFileSync(
     ledgerPath,
@@ -280,6 +297,25 @@ describe('installed CLI human design authority follows configuration', () => {
     expect(payload.data).toMatchObject({ approval_status: 'not-required' });
     expect(readFileSync(project.ledgerPath, 'utf8')).toContain('human-approval:not-required');
     expect(approvalEvents(project.ledgerPath)).toEqual([]);
+  });
+
+  it('creates the feature checklist only inside the canonical Execution Plan', async () => {
+    const project = fixture(false);
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+    });
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const executionPlan = readFileSync(
+      nodePath.join(project.ticketDirectory, 'execution-plan.md'),
+      'utf8',
+    );
+    expect(executionPlan).toContain('<!-- safeword:delivery-checklist:v1 -->');
+    expect(executionPlan).toContain('| completion-evidence    | completion evidence');
+    expect(
+      readdirSync(project.ticketDirectory).toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(['execution-plan.md', 'impl-plan.md', 'spec.md', 'ticket.md']);
   });
 
   it('fails closed when the approval configuration is malformed', async () => {
