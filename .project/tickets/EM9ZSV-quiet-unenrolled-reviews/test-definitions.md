@@ -1,14 +1,14 @@
-# Test Definitions: Point-of-need Safeword enrollment
+# Test Definitions: Point-of-need Safeword project context
 
 Feature source: `packages/cli/features/quiet-unenrolled-reviews.feature`
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: quiet-unenrolled-reviews.NTB1.R1 — State dependency triggers one enrollment choice
+## Rule: quiet-unenrolled-reviews.NTB1.R1 — State dependency resolves the nearest usable project context
 
 ### Scenario Outline: Every supported surface asks before project state is accessed
 
-- [x] RED 644ecd37b
+- [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -84,7 +84,31 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: quiet-unenrolled-reviews.NTB1.R2 — Enrollment requires explicit consent
+### Scenario: Enrolled context inside the same repository is reused automatically
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An enrolled containing project is offered before current-repository setup
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Existing checkout-specific global state wins over a containing project
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An enrolled current repository wins over an enrolled ancestor
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: quiet-unenrolled-reviews.NTB1.R2 — Repository enrollment requires explicit consent
 
 ### Scenario: Accepting setup enters the bounded canonical install plan
 
@@ -116,6 +140,24 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An interrupted enrollment choice authorizes no repository change
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An abandoned interactive choice authorizes no repository change
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Cancelling setup authorization applies no repository plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Agent-originated acceptance does not substitute for builder consent
 
 - [ ] RED
@@ -140,27 +182,15 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Enrollment honors a configured custom namespace root
+## Rule: quiet-unenrolled-reviews.NTB1.R3 — Global storage is the automatic fallback
+
+### Scenario: Declining local setup continues automatic BDD in global storage
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: quiet-unenrolled-reviews.NTB1.R3 — The initiating workflow resolves after the choice
-
-### Scenario: Accepted enrollment runs the canonical installer and resumes a real workflow
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Declining required state stops automatic BDD before artifacts
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Declining optional proof preserves a no-ticket review
+### Scenario: Declining local setup records no-ticket review proof globally
 
 - [ ] RED
 - [ ] GREEN
@@ -172,19 +202,91 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A later independent operation may offer enrollment again
+### Scenario: A later independent operation reuses global state without asking again
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A decline at an optional need also covers a later required need
+### Scenario: Silence continues the initiating workflow globally
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: quiet-unenrolled-reviews.NTB1.R4 — Resume follows the proven installation outcome
+### Scenario: Prompt interruption continues the initiating workflow globally
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An abandoned interactive choice continues globally
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Optional project state uses the same automatic global fallback
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Selecting global storage under a containing project preserves both repositories
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Unrelated checkouts cannot observe each other's global project data
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Linked worktrees share global project knowledge
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Linked worktrees isolate mutable execution state
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A non-Git directory reuses its canonical-path global partition
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Global storage is private to the current user
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Unavailable global storage never falls back to repository writes
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: quiet-unenrolled-reviews.NTB1.R4 — The initiating workflow resumes once from the selected context
+
+### Scenario: Accepted enrollment runs the canonical installer and resumes a real workflow
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Choosing an enrolled containing project resumes from it
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Sufficient concurrent enrollment prevents duplicate installation
 
@@ -192,7 +294,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Insufficient concurrent enrollment reports recovery without resuming
+### Scenario: Insufficient concurrent enrollment falls back without duplicate installation
 
 - [ ] RED
 - [ ] GREEN
@@ -204,7 +306,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An unmet setup requirement prevents resume
+### Scenario: An unmet local setup requirement resumes globally
 
 - [ ] RED
 - [ ] GREEN
@@ -216,7 +318,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Cancelling installation prevents resume
+### Scenario: Cancelling installation resumes globally
 
 - [ ] RED
 - [ ] GREEN
@@ -255,6 +357,74 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Missing managed setup in an enrolled repository does not restart enrollment
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: quiet-unenrolled-reviews.NTB1.R6 — Local installation shadows a durable global fallback
+
+### Scenario: A later install plan includes existing global project data
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Successful installation verifies the local overlay without retiring global data
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Hydration conflicts are surfaced without silent overwrite
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Compatible local and global data hydrates without conflict or rewrite
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Cancelling hydration preserves global authority
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Failed hydration preserves global data and authority
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Installing without global data keeps the ordinary plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A missing local overlay falls back to preserved global data
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Local changes do not update the preserved global snapshot
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Unreadable global data blocks local overlay activation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Enrollment honors a configured custom namespace root
 
 - [ ] RED
 - [ ] GREEN

@@ -1,192 +1,221 @@
-# Design: Point-of-need Safeword enrollment
+# Design: Point-of-need Safeword project contexts
 
-**Guide**: `.safeword/guides/design-doc-guide.md`
-**Template**: `.safeword/templates/design-doc-template.md`
-
-**Related**: Feature Spec: `spec.md` | Test Definitions: `test-definitions.md`
+**Guide:** `.safeword/guides/design-doc-guide.md`
+**Related:** `spec.md`, `dimensions.md`, `test-definitions.md`
 
 ## Architecture
 
-Safeword will add one side-effect-free enrollment decision core in the CLI package. It receives a declared project-state dependency, checks only the enrollment marker, and returns a typed outcome: ready, choice required, or enrolled-but-incomplete. It never prompts, writes, installs, or resumes work.
+Safeword will resolve a logical project context before any stateful workflow reads or writes project data. Resolution is read-only: inspect the current repository marker, enrolled ancestors, and the exact global partition. A current local context wins; an existing checkout-global context wins over an unrelated enrolled ancestor; otherwise an interactive adapter offers the containing project, current-repository setup, and automatic private global storage. Any outcome other than builder-approved local setup selects global storage without a second prompt.
 
-Existing host boundaries adapt that outcome. Generated workflows call the boundary before their first declared state need. Profile-delivered Claude, Codex, and OpenCode hooks, plus installed Cursor hooks, classify tool targets against schema-derived Safeword-owned paths and stop undeclared access before it happens. A shared workflow coordinator presents the plain-language choice, obtains a bounded plan from the existing lifecycle planner, applies that exact plan only after builder approval, rechecks the initiating prerequisite, and permits one continuation.
+Global storage is a real context, not a cache and not a union filesystem. Git projects use a two-level identity derived from canonical paths returned by Git: the common Git directory identifies shared project knowledge and the worktree Git directory identifies mutable execution state. Non-Git directories use their canonical path for both identities. Only hashes appear in storage directory names.
 
 ```text
-workflow or pre-tool hook
-        |
-        v
-state-access catalogue -> enrollment decision core -> ready
-        |                          |
-        |                          +-> choice required -> canonical install plan
-        |                                                   |
-        +-> schema-derived owned paths                      v
-                                             builder approval / decline
-                                                           |
-                                      prerequisite recheck + one continuation
+stateful workflow / owned-path boundary
+                  |
+                  v
+       project-context resolver
+       /       |        |       \
+   local   exact global ancestor  unresolved
+     |          |          |         |
+     |          |       one choice <-+
+     |          |          |
+     +----------+----------+
+                |
+                v
+   ProjectStorageContext
+   workspaceRoot + namespaceRoot + stateRoot
+                |
+       workflow reads / writes
+
+later explicit install
+  global snapshot -> canonical plan -> conflict check -> hydrate + verify
+                                                    -> activation receipt last
 ```
 
 ## Components
 
-### Component 1: Enrollment decision core
+### Component 1: Project identity and private global store
 
-**What**: Classifies a declared state need without accessing project state beyond the enrollment marker.
-**Where**: `packages/cli/src/enrollment/decision.ts`
-**Interface**:
+**What:** Derive stable-within-scope project and worktree identities and map them to owner-private storage outside the repository.
 
-```typescript
-type StateNecessity = 'required' | 'optional';
-
-interface ProjectStateNeed {
-  route: ProjectStateRouteId;
-  host: AgentIntegration | 'safeword-cli';
-  requirement: ProjectStateRequirement;
-  necessity: StateNecessity;
-}
-
-type EnrollmentDecision =
-  | { kind: 'ready' }
-  | { kind: 'choice_required'; prompt: EnrollmentPrompt; install: InstallIntent }
-  | { kind: 'setup_incomplete'; missing: readonly ProjectStateRequirement[] };
-
-function decideEnrollment(cwd: string, need: ProjectStateNeed): EnrollmentDecision;
-```
-
-**Dependencies**: the existing marker resolver, lifecycle integration registry, and pure requirement predicates.
-**Tests**: R1 marker-only access and lifecycle exemptions; R2 no-input/decline; R4 prerequisite outcomes; R5 namespace and enrolled behavior.
-
-### Component 2: State-access catalogue and owned-path classifier
-
-**What**: Declares every packaged state consumer and discovers file-tool accesses to schema-owned paths so parity checks can reject missing or unguarded routes.
-**Where**: `packages/cli/src/enrollment/catalogue.ts`, `packages/cli/src/owned-paths.ts`
-**Interface**:
+**Where:** `packages/cli/src/project-context/identity.ts`, `packages/cli/src/project-context/global-store.ts`
 
 ```typescript
-interface ProjectStateRoute {
-  id: ProjectStateRouteId;
-  requirement: ProjectStateRequirement;
-  necessity: StateNecessity;
-  statelessContinuation: boolean;
+interface ProjectIdentity {
+  kind: 'git' | 'directory';
+  projectKey: string;
+  worktreeKey: string;
 }
 
-function projectStateRoutes(): readonly ProjectStateRoute[];
-function classifySafewordOwnedTarget(cwd: string, target: string): OwnedTarget | undefined;
+interface GlobalProjectPaths {
+  partitionRoot: string;
+  namespaceRoot: string;
+  stateRoot: string;
+}
+
+function resolveProjectIdentity(cwd: string): ProjectIdentity;
+function resolveGlobalProjectPaths(identity: ProjectIdentity): GlobalProjectPaths;
 ```
 
-**Dependencies**: `SAFEWORD_SCHEMA`, configured namespace resolution, CLI catalogue, and generated workflow catalogue.
-**Tests**: R1 positive parity plus unguarded and uncatalogued rejection fixtures; independent filesystem observation for read/write paths.
+For Git, `projectKey` hashes the canonical absolute `git rev-parse --git-common-dir` result and `worktreeKey` hashes the canonical absolute `git rev-parse --absolute-git-dir` result. For non-Git directories both hash the canonical directory. The user data root is `XDG_DATA_HOME/safeword` when valid, `~/.local/share/safeword` on Unix otherwise, and `LOCALAPPDATA/Safeword` on Windows with a user-profile fallback. Directories are created owner-only where the platform supports POSIX modes; files use durable writes and owner-only modes.
 
-### Component 3: Canonical enrollment coordinator
+**Tests:** identity reuse/isolation, linked worktrees, non-Git paths, invalid or unavailable user data roots, path-hash privacy, permissions, and real Git-process wiring.
 
-**What**: Presents the choice, obtains and confirms the existing lifecycle plan, applies only that plan, rechecks required setup, and returns a continuation decision without persisting dismissal state.
-**Where**: `packages/cli/src/enrollment/coordinator.ts`, `packages/cli/src/commands/project-enrollment.ts`, `packages/cli/src/cli-protocol/catalog.ts`
-**Interface**:
+### Component 2: Project-context resolver and route catalogue
+
+**What:** Select one authoritative storage context before state access and prove that every shipped state-access route crosses the boundary.
+
+**Where:** `packages/cli/src/project-context/resolver.ts`, `packages/cli/src/project-context/catalogue.ts`, `packages/cli/src/project-context/types.ts`, with a generated hook-side adapter registered in `packages/cli/src/schema.ts`
+
+```typescript
+interface ProjectStorageContext {
+  authority: 'local' | 'global' | 'containing-project';
+  workspaceRoot: string;
+  namespaceRoot: string;
+  stateRoot: string;
+}
+
+type ContextResolution =
+  | { kind: 'ready'; context: ProjectStorageContext }
+  | { kind: 'choice-required'; choices: readonly ContextChoice[] }
+  | { kind: 'global-unavailable'; recovery: string };
+
+function resolveProjectContext(need: ProjectStateNeed): ContextResolution;
+```
+
+Authority is root-level. An active local namespace never falls through to individual global files; missing local authored knowledge therefore retains today's missing-knowledge behavior. If the local overlay is absent, the preserved global context becomes authoritative as a whole. Existing enrolled projects without a global partition remain active without a new receipt.
+
+**Tests:** all R1/R5 precedence and regression scenarios, positive and negative catalogue parity, independent filesystem observation, configured namespaces, and installed-artifact/real-command entry points.
+
+### Component 3: Enrollment and resume coordinator
+
+**What:** Present the native host choice, validate that acceptance came from builder input, enter the existing lifecycle preview/apply boundary, and resume the initiating operation exactly once from the selected context.
+
+**Where:** `packages/cli/src/project-context/coordinator.ts`, `packages/cli/src/cli-protocol/` handlers, and thin Claude/Codex/OpenCode/Cursor adapters
 
 ```typescript
 interface EnrollmentPorts {
-  choose(prompt: EnrollmentPrompt): Promise<'accept' | 'decline' | 'unanswered'>;
-  approve(plan: CliPlan): Promise<boolean>;
-  install(planId: string, intent: InstallIntent): Promise<CliResult>;
+  choose(choices: readonly ContextChoice[]): Promise<ChoiceResult>;
+  previewLocalInstall(intent: InstallIntent): Promise<CliPlan>;
+  approve(plan: CliPlan): Promise<ApprovalResult>;
+  apply(plan: CliPlan): Promise<CliResult>;
 }
 
-type EnrollmentResolution =
-  | { kind: 'continue_once'; installResult: CliResult }
-  | { kind: 'stateless' }
-  | { kind: 'stopped'; reason: EnrollmentStopReason };
+type EnrollmentOutcome =
+  | { kind: 'resume'; context: ProjectStorageContext; installResult?: CliResult }
+  | { kind: 'stop'; recovery: string };
 ```
 
-**Dependencies**: the current lifecycle plan builder and installer, the standard-library readline prompt already used by tracker setup, and typed CLI result envelopes.
-**Tests**: R2 plan membership/effect confinement and consent outcomes; R3 decline/stateless behavior; R4 concurrency, partial results, cancellation, and duplicate continuation.
+The operation owns an in-memory consume-once resume token. It rechecks the current marker and required setup after the choice to handle concurrent installation. Decline, noninteractive silence, interruption, agent-authored acceptance, and install cancellation all converge on the same global selection. Global-store failure stops plainly and never writes the repository.
 
-### Component 4: Host adapters
+**Tests:** R2–R4 decision tables, host input provenance, bounded effect observation, concurrent drift, partial/failed install results, duplicate resume triggers, and one real pinned Claude flow.
 
-**What**: Translate host events and generated workflow state needs into the shared contract while preserving native host trust and output shapes.
-**Where**: `packages/cli/src/claude-plugin/runtime/dispatch.ts`, `packages/cli/src/commands/codex-hook.ts`, `packages/cli/src/opencode/plugin.ts`, `packages/cli/templates/hooks/cursor/`, and affected workflow templates.
-**Interface**:
+### Component 4: Plan-driven hydration and overlay activation
+
+**What:** Extend the canonical install plan with compatible global data, surface conflicts, verify every planned local record, and activate local authority only after verification.
+
+**Where:** `packages/cli/src/project-context/hydration.ts`, `packages/cli/src/lifecycle/project-install.ts`, `packages/cli/src/reconcile.ts`
 
 ```typescript
-interface EnrollmentHostAdapter {
-  stateNeed(input: HostEvent): ProjectStateNeed | undefined;
-  present(decision: EnrollmentDecision): Promise<EnrollmentResolution>;
-  renderStop(resolution: EnrollmentResolution): HostHookOutput;
+interface OverlayActivationReceipt {
+  schemaVersion: 1;
+  partitionKey: string;
+  snapshotDigest: string;
+}
+
+interface HydrationPlan {
+  effects: readonly PlannedEffect[];
+  conflicts: readonly HydrationConflict[];
+  activationReceipt?: OverlayActivationReceipt;
 }
 ```
 
-**Dependencies**: each host's current profile/project delivery, tool-event contract, and the shared packaged CLI.
-**Tests**: installed-artifact wiring for Claude, Codex, OpenCode, and Cursor; a real command process for the CLI; the scripted real-Claude Killer Demo; and a positive builder-consent proof through every installed agent artifact, not only Claude and Codex.
+Hydration maps global knowledge into the selected local namespace and the current worktree's mutable state into local Safeword state. Identical destinations are no-ops. A differing destination is a named plan conflict and receives no overwrite choice until the builder resolves it. The global snapshot is read-only throughout install; the activation receipt is the final planned local effect and is written only after verification. Cancellation or failure leaves global authoritative and unchanged. Later local writes never update global.
+
+**Tests:** every R6 source/completion/overlay/namespace partition, plan-effect identity, conflict and corruption handling, activation-last ordering, and local/global byte snapshots.
 
 ## Data Model
 
-The decision, plan, and resolution are ephemeral values carried by one initiating operation. Before consent, no repository or profile state is written. Decline and an abandoned prompt remain unrecorded. The approved lifecycle plan identity is the only authorization token; it is recomputed before apply to reject drift. Existing installer effects and recovery stay authoritative.
+```text
+<user-data>/safeword/project-contexts/v1/<projectKey>/
+  partition.json                 # schema and non-secret hash identity metadata
+  knowledge/                     # shared by linked worktrees
+  worktrees/<worktreeKey>/state/ # mutable state isolated per worktree
 
-The operation envelope is host-owned rather than Safeword-persisted. The direct CLI and long-lived OpenCode plugin retain a consume-once continuation in process memory. Claude and Cursor adapters derive the same operation envelope from the stable session/conversation identity plus the host-owned transcript/event context already supplied to the hook; they never create a Safeword state file. The Codex packaged workflow carries the continuation in the current thread/turn context and uses the existing run-identity resolver only to correlate hook input, never to persist a dismissal. A fresh subprocess must reconstruct the prior choice from that host-owned envelope before it can ask again. If a host event lacks both a stable operation identity and current interaction context, required state fails closed with a manual retry; it does not guess consent or create state. The continuation is invalidated after the first success or failure, and a later user operation gets a new host-owned envelope.
+<repository>/.safeword/project-overlay-v1.json
+  schemaVersion
+  partitionKey
+  snapshotDigest
+```
+
+Global content is a preserved pre-install snapshot after local activation. The local namespace and local state are the only write targets while the overlay is active. The activation receipt proves only that the planned snapshot was hydrated and verified; it is not a synchronization cursor.
 
 ## Component Interaction
 
-1. A workflow declares a state need, or a host hook detects a tool target under a schema-owned path.
-2. The catalogue resolves the requirement and necessity; lifecycle commands and stateless operations short-circuit.
-3. The decision core reads only `.safeword/SAFEWORD.md`. Enrolled work proceeds; incomplete enrolled work gets setup recovery, not enrollment.
-4. For an unenrolled repository, the host adapter presents the core's choice. Only a current builder-input event can select accept.
-5. Acceptance previews the existing canonical lifecycle plan for the initiating host and requirement. Plan approval applies the same identity through the existing installer.
-6. The coordinator rechecks the requirement. Sufficient setup consumes the continuation once; decline, cancellation, unmet setup, or handoff failure follows the route's declared stop/stateless outcome.
+1. A catalogued workflow declares a state need, or an installed host boundary identifies a Safeword-owned target.
+2. The resolver performs only current-marker, ancestor-marker, and exact-global checks.
+3. A ready local/global/containing context is returned immediately. Otherwise the host adapter presents one choice when interactive.
+4. Only recorded builder acceptance enters canonical install preview and approval. Every other result creates or reuses global storage.
+5. The coordinator re-resolves after the choice, verifies the initiating requirement, and consumes the resume token once.
+6. A later explicit install adds hydration effects to the ordinary plan. The installer refuses unresolved conflicts, verifies local bytes, writes the activation receipt last, and leaves global bytes untouched.
 
 ## User Flow
 
 1. The builder asks Safeword to build a feature in a new repository.
-2. BDD reaches its first ticket write. Before that write, Safeword asks whether to set up the repository and explains the bounded effect.
-3. If the builder accepts, Safeword shows the canonical plan. Approval applies that plan, verifies ticketing state, and continues the same BDD operation once.
-4. If the builder declines or leaves the choice unanswered, BDD stops before artifacts. A no-ticket review at an optional proof need instead returns its findings without proof logging.
+2. BDD reaches its first ticket write. Safeword asks once whether to set up the repository and explains that the exact changes will be shown first.
+3. Accepting opens the ordinary bounded install plan. Approval installs, hydrates any prior global data, verifies it, and resumes BDD once.
+4. Declining, giving no answer, interrupting, or cancelling creates the private global context and continues BDD there without another prompt.
+5. If a later branch lacks the activated local overlay, Safeword silently uses the preserved global snapshot. When the local overlay is present, all new writes stay local.
+6. If private global storage cannot be used, Safeword stops and names the recovery action; it never substitutes a repository write.
 
 ## Key Decisions
 
-### Decision 1: Pure core plus native adapters
+### Decision 1: Git-native two-level identity
 
-**What**: Centralize policy and plan/apply semantics while keeping event translation in each existing host adapter.
-**Why**: Claude, Codex, Cursor, and OpenCode expose different blocking and approval contracts. The existing integration registry explicitly preserves those native trust boundaries.
-**Trade-off**: Adapter contract tests are required; a single universal hook implementation is not credible.
+**What:** Hash Git's common directory for shared knowledge and its worktree Git directory for mutable state; hash the canonical directory outside Git.
 
-### Decision 2: Ephemeral continuation, durable plan identity
+**Why:** This directly matches Git's own shared/per-worktree boundary and satisfies worktree sharing without a mutable identity registry.
 
-**What**: Persist neither decline nor resume state in Safeword-owned storage. Carry one consume-once continuation in the initiating host's operation envelope: process memory for CLI/OpenCode, host-owned transcript/event context for Claude/Cursor, and current thread/turn context for Codex. Use the existing content-addressed plan identity for mutation authority.
-**Why**: This makes non-consent paths mutation-free and prevents stale plan application without creating a second transaction system.
-**Trade-off**: A crashed host cannot auto-resume; it reports a safe manual retry instead.
+**Trade-off:** Moving or copying a repository may select a new partition. Transparent arbitrary moves are explicitly out of scope; a future relink command can address demonstrated demand.
 
-### Decision 3: Catalogue plus independent path observation
+### Decision 2: Root-level shadowing, not a union overlay
 
-**What**: Validate declared routes statically and prove actual host/file behavior with filesystem observation outside Safeword.
-**Why**: A self-reported access log cannot detect a route that bypasses its own instrumentation.
-**Trade-off**: Acceptance fixtures need isolated repositories and observer snapshots.
+**What:** Exactly one namespace/state pair is authoritative for an operation. An activated local context wins as a whole; otherwise global wins as a whole.
+
+**Why:** Per-file fallback would resurrect stale global values when local files are intentionally absent and would contradict existing missing-authored-knowledge behavior.
+
+**Trade-off:** A partial local tree cannot borrow individual files from global. Installation must hydrate and verify before activation.
+
+### Decision 3: Hydration is part of canonical installation
+
+**What:** Express copy/no-op/conflict/activation as disclosed lifecycle plan effects and preserve global bytes on every outcome.
+
+**Why:** The existing plan identity is already Safeword's repository mutation authority. A second migrator or lazy copy path would evade reviewed effects.
+
+**Trade-off:** Conflicts interrupt installation for an explicit resolution instead of guessing, which is the accepted synchronization-failure boundary.
+
+### Decision 4: No new dependency
+
+**What:** Use Node's crypto, filesystem, path, child-process, and existing durable-write/reconciliation primitives.
+
+**Why:** The installed Node 22/24/26 contract and Git CLI expose every required primitive.
+
+**Trade-off:** Cross-platform user-data path and permission behavior remain Safeword-owned code with focused tests.
 
 ## Implementation Notes
 
-**Constraints**:
+**Constraints:** Generated Codex plugin files are regenerated, never hand-edited. Template additions are registered in schema. Explicit install/status/doctor/plan/uninstall do not recursively prompt. Customer-owned lookalike paths are never adopted. Global directory names disclose no repository paths.
 
-- Pre-tool classification must stay fast and read only the marker plus the proposed tool target.
-- Explicit install, plan, status, doctor, and uninstall never recurse into enrollment.
-- The generated Codex and Claude plugin artifacts are regenerated from templates; generated files are never hand-edited.
-- OpenCode remains profile-delivered and installs only shared project substrate.
-- Cursor coverage applies through its installed project hooks/rules; this feature does not create a new Cursor profile distribution.
+**Error handling:** Invalid Git discovery falls back only when the directory is genuinely non-Git; malformed Git output for a detected repository stops identity resolution. Global directory creation and permission failures return one recovery-oriented result. Hydration symlinks, unreadable sources, drift, and differing destinations fail closed before overlay activation.
 
-**Error Handling**:
+**Gotchas:** The enrollment marker and overlay activation are different facts. A marker can exist after a partial install while global remains authoritative. Existing enrolled repositories with no global partition remain compatible. The global snapshot is not a backup of post-install local work.
 
-- No interactive input returns a typed consent-required stop.
-- Plan drift returns the latest plan without applying the stale one.
-- Partial installation preserves the installer's result and reports only disclosed effects.
-- Failed continuation never replays the initiating action.
-
-**Gotchas**:
-
-- Host hook output schemas differ; adapters must not reuse one host's output verbatim.
-- Shell target extraction is necessarily bounded; catalogue parity and representative real-process tests remain the backstop.
-- Existing 0.83.1 review status output cannot satisfy the current receipt verifier; tests must avoid conflating that compatibility bug with enrollment behavior.
-
-**Open Questions**:
-
-- None blocking. TDD may narrow the exact host event used for positive builder-consent provenance while retaining the saved behavior.
+**Open questions:** skip: no unresolved product or build decision remains.
 
 ## References
 
-- `ARCHITECTURE.md` — Registry-Driven Agent Integrations with Native Trust Boundaries; generated native Claude/Codex plugin decisions.
-- [Claude Code hook decision control](https://code.claude.com/docs/en/hooks-guide)
-- [Cursor hooks](https://cursor.com/docs/hooks)
-- [OpenCode plugins](https://dev.opencode.ai/docs/plugins/)
-- [OpenAI Codex configuration and hooks](https://github.com/openai/codex/blob/main/docs/config.md)
+- [Git worktree shared and per-worktree metadata](https://git-scm.com/docs/git-worktree)
+- [Git rev-parse path discovery](https://git-scm.com/docs/git-rev-parse)
+- [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/)
+- [VS Code workspace and global storage](https://code.visualstudio.com/api/extension-capabilities/common-capabilities)
+- `ARCHITECTURE.md` — registry-native host boundaries, explicit enrollment, and user-private project contexts
