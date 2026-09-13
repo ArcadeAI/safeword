@@ -139,10 +139,14 @@ on a later slice.
    oversized or unrepresentable diff with a concrete instruction to rerun the
    retained proof.
    Give the dedicated reviewer the exact judgment contract from the
-   Implementation Plan. Add semantic conformance cases that approve a supported
-   documentation-only delta and reject a plausible compatibility reason when
-   the diff changes tested source, test/fixture, command input, configuration,
-   or dependency material to the retained boundary.
+   Implementation Plan in a generated rubric. Add
+   `packages/cli/tests/review/delivery-compatibility-conformance.test.ts` and
+   `packages/cli/tests/review/delivery-compatibility-rubric-generation.test.ts`.
+   Semantic conformance approves a supported documentation-only delta and
+   rejects a plausible compatibility reason when the diff changes tested
+   source, test/fixture, command input, configuration, or dependency material
+   to the retained boundary. The generation test keeps the runtime rubric and
+   its canonical source byte-identical.
    Preserve the acceptance across a later plan-and-ledger-only commit by the
    same ancestor-and-no-difference-outside-those-paths rule used for delivery receipts;
    return `compatibility_review_stale` for any other revision change, mismatch,
@@ -194,7 +198,7 @@ on a later slice.
     ledger decoding; keep human-readable rendering at the CLI edge and avoid a
     JSON/YAML mirror.
 12. Run:
-    `node ./node_modules/vitest/vitest.mjs run tests/review/execution-plan-output.test.ts tests/review/packet.test.ts tests/review/execution-plan-conformance.test.ts tests/cli-protocol/review-wiring.test.ts tests/integration/delivery-proof-ledger.test.ts tests/integration/delivery-checklist-cli.test.ts tests/integration/delivery-checklist-update.test.ts tests/integration/delivery-checklist-recovery.test.ts`.
+   `node ./node_modules/vitest/vitest.mjs run tests/review/execution-plan-output.test.ts tests/review/packet.test.ts tests/review/execution-plan-conformance.test.ts tests/review/delivery-compatibility-conformance.test.ts tests/review/delivery-compatibility-rubric-generation.test.ts tests/cli-protocol/review-wiring.test.ts tests/integration/delivery-proof-ledger.test.ts tests/integration/delivery-checklist-cli.test.ts tests/integration/delivery-checklist-update.test.ts tests/integration/delivery-checklist-recovery.test.ts`.
 13. Run:
     `node ./node_modules/vitest/vitest.mjs run tests/schema.test.ts tests/parity.test.ts tests/review/execution-plan-rubric-generation.test.ts tests/cli-protocol/catalog.test.ts tests/cli-protocol/machine-contract.test.ts`.
 14. Run: `bun run typecheck`.
@@ -303,7 +307,7 @@ on a later slice.
 - Derive readiness from checklist state without granting authority: unchanged
 - Bind current proof to a clean contribution revision while allowing the plan-and-ledger-only commit that persists its receipt: unchanged
 - Expose readiness and proof recording as separate public ticket leaves while reusing the executable-attestation worker and review ledger: unchanged
-- Require independent quality review before earlier proof becomes reusable completion evidence: unchanged
+- Require independent `delivery-compatibility` review before earlier proof becomes reusable completion evidence: unchanged
 - Keep plan review identity stable across evidence progress: unchanged
 
 ## Proof specifications
@@ -312,7 +316,7 @@ on a later slice.
 | ---------------------- | -------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | checklist-contract     | command        | integration | Execution Plan proof and checklist parsing and validation                                                                                                                    | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/execution-plan/delivery-checklist.test.ts"]}                                                                                                                                        |
 | proof-worker           | command        | integration | Direct no-shell proof process and executable-RED compatibility                                                                                                               | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/execution-plan/delivery-proof.test.ts","tests/review/red-execution.test.ts"]}                                                                                                       |
-| review-contract        | command        | integration | Plan-execution schema, trusted packet definition, and generated rubric                                                                                                       | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/review/execution-plan-output.test.ts","tests/review/packet.test.ts","tests/review/execution-plan-rubric-generation.test.ts"]}                                                       |
+| review-contract        | command        | integration | Plan-execution schema, trusted packet definition, and generated planning and compatibility rubrics                                                                           | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/review/execution-plan-output.test.ts","tests/review/packet.test.ts","tests/review/execution-plan-rubric-generation.test.ts","tests/review/delivery-compatibility-conformance.test.ts","tests/review/delivery-compatibility-rubric-generation.test.ts"]} |
 | plan-conformance       | command        | eval        | Semantic scenario coverage and one-versus-many slicing judgment                                                                                                              | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/review/execution-plan-conformance.test.ts"]}                                                                                                                                        |
 | delivery-cli           | command        | E2E         | Public proof ledger, checklist update, and readiness commands                                                                                                                | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/delivery-proof-ledger.test.ts","tests/integration/delivery-checklist-cli.test.ts","tests/integration/delivery-checklist-update.test.ts"]}                               |
 | failure-signals        | command        | E2E         | Exhaustive checklist refusal-code and recovery-action mapping                                                                                                                | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["node","./node_modules/vitest/vitest.mjs","run","tests/integration/delivery-checklist-recovery.test.ts"]}                                                                                                                                  |
