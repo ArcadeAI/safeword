@@ -314,6 +314,7 @@ function validProofHeader(lines: readonly string[], start: number): boolean {
 
 function parseItems(lines: readonly string[], start: number): DeliveryChecklistResult {
   const items: DeliveryChecklistItem[] = [];
+  const identifiers = new Set<string>();
   const candidates = lines.slice(start + 2);
   for (const [index, line] of candidates.entries()) {
     if (line.trim() === '' || !line.trimStart().startsWith('|')) break;
@@ -324,6 +325,13 @@ function parseItems(lines: readonly string[], start: number): DeliveryChecklistR
         `Delivery Checklist row ${index + 1} is invalid.`,
       );
     }
+    if (identifiers.has(item.id)) {
+      return invalid(
+        'duplicate_checklist_id',
+        `Delivery Checklist ID ${item.id} appears more than once.`,
+      );
+    }
+    identifiers.add(item.id);
     items.push(item);
   }
   if (items.length === 0) {
