@@ -43,6 +43,10 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-13T19:43:00.000Z R5 implementation: Plan-execution denials now derive unresolved pull-request slicing recovery from the reviewed Execution Plan instead of untrusted reviewer prose. Independent Claude Opus executable-RED review `57fa3fa0-f796-4d4b-8e3c-478594ef42f1` approved the exact scenario proof; focused GREEN and the neighboring admission fixture pass.
+
+- 2026-09-13T19:10:00.000Z Scenario gate re-review: Independent Claude Opus review `c510ccef-90ed-49b9-a030-20bde996ec9c` approved the complete revised scenario contract with no blocking findings. The public CLI boundaries now cover checklist readiness, proof recording, Execution Plan review, and the deny-only execution prerequisite.
+
 - 2026-09-13T08:38:35.000Z Scenario gate: Independent Claude Opus review `870a2999-bca6-45a8-b923-897a6567dafe` approved all 16 scenarios with cross-agent provenance and no blocking findings. The revised R1 proves all three prerequisite states at the public CLI boundary; no build-only kill-risk remains.
 
 - 2026-09-13T08:24:58.000Z Define behavior: Reconciled the execution-prerequisite dimension and three R1 scenarios to the public deny-only CLI boundary. The scenarios distinguish satisfied, missing-context, and deterministic multi-finding outcomes without granting coding or merge authority; downstream 7CAMAD retains live coding authorization.
@@ -88,14 +92,15 @@ Implementation and Execution Plans explicitly require executable testing proof.
 ### Stale Execution Plan reviewer admission
 
 The Execution Plan conformance corpus's live packet omitted the normalized plan
-digest that an approving reviewer must copy exactly. Claude therefore rejected
-all eight positive cases while correctly rejecting all nineteen negative cases.
+digest that an approving reviewer must copy exactly. Its positive fixtures also
+assigned accepted obligations to the wrong slices and reused one omnibus proof
+for unrelated boundaries. Claude correctly refused to approve those plans even
+though the intended slicing decisions were sound.
 
-Confirmed by a bounded diagnostic review of `one-coherent-change`: Claude
-accepted its slicing structure once the digest was present. It retained a
-non-blocking warning that one proof command covers several obligations, but
-accepted byte-exact conformance as a real boundary for this inert contract.
-Ruled out reviewer instability by the consistent nineteen-case negative matrix;
-ruled out invalid PR slicing by Claude's explicit structural approval; ruled out
-a route/configuration failure because the live reviewer returned a schema-valid
-semantic denial.
+Confirmed by repairing the packet identity, assigning each obligation to its
+actual slice, and replacing the omnibus proof with boundary-specific proof. The
+same Claude Opus route then passed all 28 positive and negative conformance
+cases. Ruled out reviewer instability by that complete passing matrix; ruled out
+invalid PR slicing because the repaired cases kept their original slicing
+decisions; ruled out a route/configuration failure because the reviewer always
+returned schema-valid semantic results.

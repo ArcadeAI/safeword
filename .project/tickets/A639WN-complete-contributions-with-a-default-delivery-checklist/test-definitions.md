@@ -94,9 +94,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A large contribution cannot leave PR slicing unresolved
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 3f988cf67
+- [x] GREEN eb813d834
+- [x] REFACTOR skip: plan-derived recovery is already one bounded projection at the review-result edge
 
 ## Rule: plan-implementability.TBU2.A639WN.R6 — Safeword reports contributor readiness only when every contributor-controlled obligation is completed and proven, reports pending human approvals or ownership as unresolved dependencies, and never treats readiness evidence as human approval or merge authority
 
