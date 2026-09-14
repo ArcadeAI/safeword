@@ -262,7 +262,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A prior session's correction never suppresses a fresh session
 
-- [ ] RED
+- [x] RED skip: positive characterization is historically green; a global-session suppression mutant supplies the discriminating RED
 - [ ] GREEN
 - [ ] REFACTOR
 
