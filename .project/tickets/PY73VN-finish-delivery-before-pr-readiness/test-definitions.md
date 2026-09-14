@@ -79,7 +79,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Draft creation returns delivery to the unfinished step
 
 - [x] RED 8cbf6390d
-- [ ] GREEN
+- [x] GREEN f4d5d10a8
 - [ ] REFACTOR
 
 ### Scenario: Ready promotion is allowed after verified done
