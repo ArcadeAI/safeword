@@ -13364,7 +13364,7 @@ function isRootRequirementsFile(filename) {
   if (!filename.endsWith(".txt"))
     return false;
   const stem = filename.slice(0, -".txt".length);
-  return stem === "requirements" || stem.startsWith("requirements-") || stem.startsWith("requirements_") || stem.startsWith("requirements.") || stem.endsWith("-requirements");
+  return stem === "requirements" || stem.startsWith("requirements-") || stem.startsWith("requirements_") || stem.startsWith("requirements.") || stem.endsWith("-requirements") || stem.endsWith("_requirements");
 }
 function normalizePythonDistributionName(value) {
   return value.trim().toLowerCase().replaceAll(/[-_.]+/g, "-");
@@ -13782,12 +13782,11 @@ function getMissingPythonToolDependencies(cwd, includeImportLinter, repoRoot = c
 }
 function findPythonProjectDirectories(cwd) {
   const root = nodePath16.resolve(cwd);
-  const requirementsDirectories = findAllFilesMatchingInTree(cwd, (filename, directory) => isRootRequirementsFile(filename) || nodePath16.basename(directory) === "requirements" && filename.endsWith(".txt")).filter((path2) => {
+  const requirementsDirectories = findAllFilesMatchingInTree(root, (filename, directory) => isRootRequirementsFile(filename) || nodePath16.basename(directory) === "requirements" && filename.endsWith(".txt")).filter((path2) => {
     const directory = nodePath16.dirname(path2);
-    if (isRootRequirementsFile(nodePath16.basename(path2)))
-      return true;
-    if (nodePath16.basename(directory) !== "requirements")
-      return false;
+    if (nodePath16.basename(directory) !== "requirements") {
+      return isRootRequirementsFile(nodePath16.basename(path2));
+    }
     const owner = nodePath16.dirname(directory);
     return owner === root || ["pyproject.toml", "Pipfile", "setup.py", "setup.cfg"].some((name) => exists(nodePath16.join(owner, name)));
   }).map((path2) => {
@@ -13795,13 +13794,13 @@ function findPythonProjectDirectories(cwd) {
     return nodePath16.basename(directory) === "requirements" ? nodePath16.dirname(directory) : directory;
   });
   const directories = new Set([
-    ...findAllInTree(cwd, "pyproject.toml"),
+    ...findAllInTree(root, "pyproject.toml"),
     ...requirementsDirectories,
-    ...findAllInTree(cwd, "Pipfile"),
-    ...findAllInTree(cwd, "setup.py"),
-    ...findAllInTree(cwd, "setup.cfg")
+    ...findAllInTree(root, "Pipfile"),
+    ...findAllInTree(root, "setup.py"),
+    ...findAllInTree(root, "setup.cfg")
   ]);
-  return [...directories].toSorted((left, right) => relativeDepth(cwd, left) - relativeDepth(cwd, right) || left.localeCompare(right));
+  return [...directories].toSorted((left, right) => relativeDepth(root, left) - relativeDepth(root, right) || left.localeCompare(right));
 }
 function relativeDepth(root, path2) {
   return nodePath16.relative(root, path2).split(nodePath16.sep).length;
@@ -63678,7 +63677,7 @@ function allToolsAvailable() {
   return true;
 }
 function defaultIsToolAvailable(tool) {
-  const fake = process17.env.SAFEWORD_FAKE_TOOLS;
+  const fake = process17.env.NODE_ENV === "test" ? process17.env.SAFEWORD_FAKE_TOOLS : undefined;
   if (fake !== undefined)
     return fakeToolProbe(fake)(tool);
   if (process17.platform === "win32") {
@@ -64915,6 +64914,14 @@ function parseFormat(value) {
   const validFormats = new Set(Object.keys(TEST_PLAN_FORMATS));
   return validFormats.has(value) ? value : undefined;
 }
+function parseKind(value) {
+  if (value === undefined)
+    return "test";
+  if (typeof value !== "string")
+    return;
+  const validKinds = new Set(Object.keys(PLAN_LANE_NAMES));
+  return validKinds.has(value) ? value : undefined;
+}
 function rawTestPlanPresentation(format2, plan, kind) {
   if (format2 === "json")
     return { kind: "raw", body: JSON.stringify(plan) };
@@ -64923,21 +64930,19 @@ function rawTestPlanPresentation(format2, plan, kind) {
   return;
 }
 function observeTestPlan(cwd, dir, options) {
-  const kindValue = typeof options.kind === "string" ? options.kind : undefined;
-  const validKinds = new Set(Object.keys(PLAN_LANE_NAMES));
-  if (kindValue !== undefined && !validKinds.has(kindValue)) {
+  const kind = parseKind(options.kind);
+  if (kind === undefined) {
     return Promise.resolve(createResult({
       state: "failed",
       errors: [
         {
           code: "TEST_PLAN_KIND_INVALID",
-          message: `Unknown test-plan kind "${kindValue}".`,
+          message: typeof options.kind === "string" ? `Unknown test-plan kind "${options.kind}".` : "Test-plan kind must be a string.",
           retryable: false
         }
       ]
     }));
   }
-  const kind = kindValue ?? "test";
   const formatValue = parseFormat(options.format);
   if (formatValue === undefined) {
     return Promise.resolve(createResult({
@@ -64966,7 +64971,7 @@ function observeTestPlan(cwd, dir, options) {
     }
   }));
   return Promise.resolve(createResult({
-    state: findings.length === 0 ? "healthy" : "action_required",
+    state: findings.length === 0 || formatValue === "sh" ? "healthy" : "action_required",
     findings,
     presentation: rawTestPlanPresentation(formatValue, plan, kind),
     data: { command: "project test-plan", kind, plan }

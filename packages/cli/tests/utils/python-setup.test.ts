@@ -104,21 +104,23 @@ dependencies = [
     expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([]);
   });
 
-  it.each(['requirements-dev.txt', 'dev-requirements.txt', 'requirements/dev.txt'])(
-    'recognizes required Python tools declared in %s',
-    path => {
-      writeTestFile(
-        context.projectDirectory,
-        path,
-        ['ruff>=0.8.0', 'mypy', 'deadcode==1.0.0', 'pip-audit'].join('\n'),
-      );
+  it.each([
+    'requirements-dev.txt',
+    'dev-requirements.txt',
+    'test_requirements.txt',
+    'requirements/dev.txt',
+  ])('recognizes required Python tools declared in %s', path => {
+    writeTestFile(
+      context.projectDirectory,
+      path,
+      ['ruff>=0.8.0', 'mypy', 'deadcode==1.0.0', 'pip-audit'].join('\n'),
+    );
 
-      expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([]);
-      expect(findPythonProjectDirectories(context.projectDirectory)).toEqual([
-        context.projectDirectory,
-      ]);
-    },
-  );
+    expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([]);
+    expect(findPythonProjectDirectories(context.projectDirectory)).toEqual([
+      context.projectDirectory,
+    ]);
+  });
 
   it('does not treat descriptive or tool-config strings as Python dependency declarations', () => {
     writeTestFile(
@@ -237,8 +239,16 @@ dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
 describe('repository Python projects', () => {
   it('ignores documentation requirements folders without a Python project marker', () => {
     writeTestFile(context.projectDirectory, 'docs/requirements/product.txt', 'product notes\n');
+    writeTestFile(context.projectDirectory, 'guide/requirements/requirements-dev.txt', 'ruff\n');
 
     expect(findPythonProjectDirectories(context.projectDirectory)).toEqual([]);
+  });
+
+  it('discovers a root requirements directory from a relative cwd', () => {
+    writeTestFile(context.projectDirectory, 'requirements/dev.txt', 'ruff\n');
+    const relative = nodePath.relative(process.cwd(), context.projectDirectory);
+
+    expect(findPythonProjectDirectories(relative)).toEqual([context.projectDirectory]);
   });
 
   it('does not crash when requirements is a regular file', () => {
@@ -573,7 +583,19 @@ describe('installPythonDependencies', () => {
 
   it('does not invoke uv lock when batch installation is skipped', () => {
     createPythonProject(context.projectDirectory, { manager: 'uv' });
+    const bin = nodePath.join(context.projectDirectory, 'bin');
+    const log = nodePath.join(context.projectDirectory, 'uv.log');
+    const originalPath = process.env.PATH;
     const originalSkipInstall = process.env.SAFEWORD_SKIP_INSTALL;
+    const originalLog = process.env.SAFEWORD_UV_LOG;
+    writeTestFile(
+      context.projectDirectory,
+      'bin/uv',
+      '#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> "$SAFEWORD_UV_LOG"\n',
+    );
+    chmodSync(nodePath.join(bin, 'uv'), 0o755);
+    process.env.PATH = `${bin}:${originalPath ?? ''}`;
+    process.env.SAFEWORD_UV_LOG = log;
     process.env.SAFEWORD_SKIP_INSTALL = '1';
     try {
       expect(
@@ -582,9 +604,14 @@ describe('installPythonDependencies', () => {
           context.projectDirectory,
         ),
       ).toEqual([true]);
+      expect(existsSync(log)).toBe(false);
     } finally {
+      if (originalPath === undefined) delete process.env.PATH;
+      else process.env.PATH = originalPath;
       if (originalSkipInstall === undefined) delete process.env.SAFEWORD_SKIP_INSTALL;
       else process.env.SAFEWORD_SKIP_INSTALL = originalSkipInstall;
+      if (originalLog === undefined) delete process.env.SAFEWORD_UV_LOG;
+      else process.env.SAFEWORD_UV_LOG = originalLog;
     }
   });
 

@@ -25,6 +25,13 @@ function parseFormat(value: unknown): Format | undefined {
   return validFormats.has(value) ? (value as Format) : undefined;
 }
 
+function parseKind(value: unknown): PlanKind | undefined {
+  if (value === undefined) return 'test';
+  if (typeof value !== 'string') return undefined;
+  const validKinds = new Set<string>(Object.keys(PLAN_LANE_NAMES));
+  return validKinds.has(value) ? (value as PlanKind) : undefined;
+}
+
 function rawTestPlanPresentation(
   format: Format,
   plan: ReturnType<typeof resolveTestPlan>,
@@ -40,23 +47,24 @@ export function observeTestPlan(
   dir: string | undefined,
   options: Readonly<Record<string, unknown>>,
 ): Promise<CliResult> {
-  const kindValue = typeof options.kind === 'string' ? options.kind : undefined;
-  const validKinds = new Set<string>(Object.keys(PLAN_LANE_NAMES));
-  if (kindValue !== undefined && !validKinds.has(kindValue)) {
+  const kind = parseKind(options.kind);
+  if (kind === undefined) {
     return Promise.resolve(
       createResult({
         state: 'failed',
         errors: [
           {
             code: 'TEST_PLAN_KIND_INVALID',
-            message: `Unknown test-plan kind "${kindValue}".`,
+            message:
+              typeof options.kind === 'string'
+                ? `Unknown test-plan kind "${options.kind}".`
+                : 'Test-plan kind must be a string.',
             retryable: false,
           },
         ],
       }),
     );
   }
-  const kind = (kindValue ?? 'test') as PlanKind;
   const formatValue = parseFormat(options.format);
   if (formatValue === undefined) {
     return Promise.resolve(
@@ -93,7 +101,10 @@ export function observeTestPlan(
     }));
   return Promise.resolve(
     createResult({
-      state: findings.length === 0 ? 'healthy' : 'action_required',
+      // Shell output carries its own per-lane failure status. Return it so the
+      // verify consumer can evaluate every available lane; JSON/human callers
+      // still receive action_required immediately for missing runners.
+      state: findings.length === 0 || formatValue === 'sh' ? 'healthy' : 'action_required',
       findings,
       presentation: rawTestPlanPresentation(formatValue, plan, kind),
       // Compatibility aliases normalize to the canonical command in machine

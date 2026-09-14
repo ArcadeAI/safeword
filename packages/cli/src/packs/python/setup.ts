@@ -183,7 +183,8 @@ function isRootRequirementsFile(filename: string): boolean {
     stem.startsWith('requirements-') ||
     stem.startsWith('requirements_') ||
     stem.startsWith('requirements.') ||
-    stem.endsWith('-requirements')
+    stem.endsWith('-requirements') ||
+    stem.endsWith('_requirements')
   );
 }
 
@@ -791,15 +792,16 @@ export function getMissingPythonToolDependencies(
 export function findPythonProjectDirectories(cwd: string): string[] {
   const root = nodePath.resolve(cwd);
   const requirementsDirectories = findAllFilesMatchingInTree(
-    cwd,
+    root,
     (filename, directory) =>
       isRootRequirementsFile(filename) ||
       (nodePath.basename(directory) === 'requirements' && filename.endsWith('.txt')),
   )
     .filter(path => {
       const directory = nodePath.dirname(path);
-      if (isRootRequirementsFile(nodePath.basename(path))) return true;
-      if (nodePath.basename(directory) !== 'requirements') return false;
+      if (nodePath.basename(directory) !== 'requirements') {
+        return isRootRequirementsFile(nodePath.basename(path));
+      }
       const owner = nodePath.dirname(directory);
       return (
         owner === root ||
@@ -815,15 +817,15 @@ export function findPythonProjectDirectories(cwd: string): string[] {
         : directory;
     });
   const directories = new Set([
-    ...findAllInTree(cwd, 'pyproject.toml'),
+    ...findAllInTree(root, 'pyproject.toml'),
     ...requirementsDirectories,
-    ...findAllInTree(cwd, 'Pipfile'),
-    ...findAllInTree(cwd, 'setup.py'),
-    ...findAllInTree(cwd, 'setup.cfg'),
+    ...findAllInTree(root, 'Pipfile'),
+    ...findAllInTree(root, 'setup.py'),
+    ...findAllInTree(root, 'setup.cfg'),
   ]);
   return [...directories].toSorted(
     (left, right) =>
-      relativeDepth(cwd, left) - relativeDepth(cwd, right) || left.localeCompare(right),
+      relativeDepth(root, left) - relativeDepth(root, right) || left.localeCompare(right),
   );
 }
 

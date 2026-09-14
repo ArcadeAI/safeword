@@ -191,7 +191,7 @@ function allToolsAvailable(): boolean {
 }
 
 function defaultIsToolAvailable(tool: string): boolean {
-  const fake = process.env.SAFEWORD_FAKE_TOOLS;
+  const fake = process.env.NODE_ENV === 'test' ? process.env.SAFEWORD_FAKE_TOOLS : undefined;
   if (fake !== undefined) return fakeToolProbe(fake)(tool);
   if (process.platform === 'win32') {
     return spawnSync('where.exe', [tool], { stdio: 'ignore' }).status === 0;

@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { observeTestPlan } from '../../src/commands/test-plan.js';
 import { runCli } from '../helpers.js';
 
 const temporaryDirectories: string[] = [];
@@ -43,7 +44,7 @@ async function renderUnavailableSh(root: string, kind: 'typecheck' | 'deps'): Pr
     cwd: root,
     env: { SAFEWORD_FAKE_TOOLS: 'only:go' },
   });
-  expect(result.exitCode).toBe(2);
+  expect(result.exitCode).toBe(0);
   return result.stdout;
 }
 
@@ -181,6 +182,17 @@ describe('safeword test-plan', () => {
     );
   });
 
+  it('does not leak accumulator variables into the caller shell', async () => {
+    const root = makeRepo({ 'go.mod': 'module example.com/service\n' });
+    const sh = await renderSh(root);
+    const evaluation = evalScript(
+      `${sh}printf '%s|%s\\n' "\${safeword_plan_status-unset}" "\${safeword_lane_status-unset}"`,
+      root,
+    );
+
+    expect(evaluation.stdout).toContain('unset|unset');
+  });
+
   it.each([
     ['--kind', 'unknown', 'TEST_PLAN_KIND_INVALID'],
     ['--format', 'unknown', 'TEST_PLAN_FORMAT_INVALID'],
@@ -191,6 +203,30 @@ describe('safeword test-plan', () => {
 
     expect(result.exitCode).not.toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({ errors: [{ code }] });
+  });
+
+  it('rejects a non-string kind instead of silently running tests', async () => {
+    const result = await observeTestPlan(
+      makeRepo({ 'package.json': '{"scripts":{"test":"vitest"}}' }),
+      undefined,
+      { kind: true },
+    );
+    expect(result).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'TEST_PLAN_KIND_INVALID', message: 'Test-plan kind must be a string.' }],
+    });
+  });
+
+  it('does not interpolate repository-controlled manifest text into commands', async () => {
+    const marker = '$(touch MANIFEST_INJECTED)';
+    const root = makeRepo({
+      'package.json': JSON.stringify({ name: marker, scripts: { test: 'vitest' } }),
+      'service/go.mod': `module ${marker}\n`,
+      'worker/pyproject.toml': `[project]\nname = "${marker}"\n`,
+    });
+
+    const sh = await renderSh(root);
+    expect(sh).not.toContain(marker);
   });
 
   it('renders --kind deps for uv projects as uv audit', async () => {

@@ -127,3 +127,28 @@ non-independent evidence.
 A synthetic `review status` call ran in the normal workspace sandbox. It returned
 `REVIEW_JOB_NOT_FOUND` as expected and reported no file, network, configuration, package, or
 destructive effects.
+
+## Final Independent Review Loop — 2026-09-13
+
+- Standing authorization dispatched each bounded, secret-screened packet without a per-review user
+  prompt. Every subsequent `review status` call ran in the normal workspace sandbox with no
+  escalation.
+- Independent reviews `66b2471c-2241-44a2-a81c-8144a29557a1`,
+  `ad73c8a6-c07b-4961-86a9-79da3b1faab1`, and
+  `a40e98ce-3cdd-4bcd-ab0c-0fb3b489ab69` completed through the external route. The terminal review
+  approved with no blocking defects.
+- All concrete terminal suggestions were applied: shell plans now execute every available language
+  lane while preserving the first failure; `--format sh` reaches that script through the real verify
+  gate; option validation is symmetric; shell accumulator state is scoped; repository-controlled
+  manifest text is excluded from commands; Python discovery handles guarded and underscore-style
+  requirements layouts, relative roots, and unreadable paths; skip-install invokes no package
+  manager; repeated manifest reads/parses are cached; and the verify skill describes missing tools as
+  failures rather than non-fatal skips.
+- Final focused proof: 137/137 tests pass with one intentional Poetry environment skip; the changed
+  behavior contract passes 87/87 scenarios and 3,984/3,984 steps; the complete CLI acceptance lane
+  passes 595/595 scenarios and 11,100/11,100 steps; generated Codex determinism passes 18/18; lint,
+  TypeScript, Gherkin lint, plugin generation, and `git diff --check` are clean.
+- The reviewer suggested a wall-clock parser assertion as an alternative to deterministic
+  instrumentation. It was intentionally not added: the production counter is incremented in each
+  scanning/paragraph pass and is bounded against input length, while wall-clock ratios are retained
+  as a manual benchmark to avoid flaky CI timing gates.
