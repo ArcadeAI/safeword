@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "056b525cd957daf3b10689ea4616d37dd1ed323fa8a7db7f00fd203a4accbb6b"
+      "sha256": "d6df309b4368ee4058960af9be3edb4cd6db9d9a201e73051d44a48bd3527c0b"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -99,7 +99,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "bbe05cc0a4fdd8d63c536153b4ac872ad3db58cd5a1544a77207fcf637e4516d"
+      "sha256": "d96bc312428847de3572732b28658bec5c31d0b2ff0c1d887d5508c414e38678"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "adfadeb6887ca091b623f79682ff183b60eac36dc648b8ae741aedc41ad197ba"
+      "sha256": "f5932459721885cfa6d1f2d5e62b54653af93a16387ae73c9de25599927c9a30"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "31e786dd387a75c6f6ccd22683d470d49dc4edb5053d5927c0cb53dd3f3fdfb1"
+      "sha256": "6f433080ca9fc4a3e1a6ccc5f33bbb319168ab26a435850f1910cd9248327e0d"
     },
     {
       "path": "runtime/event-groups.json",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "0b04df8e2d51a603ee76f2c268c16b212a97c1e52c2a71eb2bb0dbeda6c86aba"
+      "sha256": "a0d6e63d0bbb8cbc8e223f07ce74db1340257a4af9eb94a554eb9d5cbc4a8f52"
     },
     {
       "path": "skills/audit/SKILL.md",

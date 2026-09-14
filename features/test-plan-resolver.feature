@@ -70,7 +70,7 @@ Feature: test-plan resolver
       Given a Python repo with a "uv.lock" and pytest configured
       And the "uv" and "pytest" toolchains are installed
       When I request the test plan
-      Then the "python" entry command is "uv run pytest"
+      Then the "python" entry command is "uv run --locked pytest"
 
     @test-plan-resolver.TB1.AC2
     Scenario: Rust uses nextest when it is installed

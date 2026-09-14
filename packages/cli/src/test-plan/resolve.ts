@@ -382,16 +382,14 @@ function isPythonTestFile(filename: string): boolean {
  */
 function pythonInvocation(
   index: ManifestIndex,
-  isAvailable: ToolProbe,
   binary: string,
   args = '',
-): { command: string; gate: string } {
+): { command: string; runner: string } {
   const suffix = args ? ` ${args}` : '';
-  if (index.has('uv.lock') && isAvailable('uv'))
-    return { command: `uv run ${binary}${suffix}`, gate: 'uv' };
-  if (index.has('poetry.lock') && isAvailable('poetry'))
-    return { command: `poetry run ${binary}${suffix}`, gate: 'poetry' };
-  return { command: `${binary}${suffix}`, gate: binary };
+  if (index.has('uv.lock')) return { command: `uv run --locked ${binary}${suffix}`, runner: 'uv' };
+  if (index.has('poetry.lock'))
+    return { command: `poetry run ${binary}${suffix}`, runner: 'poetry' };
+  return { command: `${binary}${suffix}`, runner: binary };
 }
 
 /**
@@ -405,12 +403,12 @@ function resolvePythonTypecheck(
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
   if (mypyConfigured(index)) {
-    const { command, gate } = pythonInvocation(index, isAvailable, 'mypy', '.');
-    return entry('python', cwd, command, 'mypy', isAvailable(gate));
+    const { command, runner } = pythonInvocation(index, 'mypy', '.');
+    return entry('python', cwd, command, runner, isAvailable(runner));
   }
   if (pyrightConfigured(index)) {
-    const { command, gate } = pythonInvocation(index, isAvailable, 'pyright');
-    return entry('python', cwd, command, 'pyright', isAvailable(gate));
+    const { command, runner } = pythonInvocation(index, 'pyright');
+    return entry('python', cwd, command, runner, isAvailable(runner));
   }
   return undefined;
 }
@@ -422,8 +420,8 @@ function resolvePythonBdd(
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
   if (!behaveConfigured(index)) return undefined;
-  const { command, gate } = pythonInvocation(index, isAvailable, 'behave');
-  return entry('python', cwd, command, 'behave', isAvailable(gate));
+  const { command, runner } = pythonInvocation(index, 'behave');
+  return entry('python', cwd, command, runner, isAvailable(runner));
 }
 
 /** Python unit-test lane (kind: test | verify) — tox, then pytest, then unittest. */
@@ -437,8 +435,8 @@ function resolvePythonTest(
   const hasPythonTests =
     findFileMatchingInTree(cwd, isPythonTestFile, 10, nestedProjects) !== undefined;
   if (pytestConfigured(index) || (hasPythonTests && isAvailable('pytest'))) {
-    const { command, gate } = pythonInvocation(index, isAvailable, 'pytest');
-    return entry('python', cwd, command, 'pytest', isAvailable(gate));
+    const { command, runner } = pythonInvocation(index, 'pytest');
+    return entry('python', cwd, command, runner, isAvailable(runner));
   }
   if (!hasPythonTests) return undefined;
   // Prefer python3 (the only `python` on macOS/modern distros), fall back to python.

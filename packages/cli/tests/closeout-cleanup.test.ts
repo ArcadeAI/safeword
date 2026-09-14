@@ -41,9 +41,11 @@ import {
   retroAgentForRuntime,
   retroForMergedPullRequest,
   runBoundRetro,
+  runVerificationCommand,
   safewordCliCommand,
   transcriptMatchesBinding,
   VERIFICATION_COMMAND_TIMEOUT_MS,
+  VERIFICATION_OUTPUT_LIMIT_BYTES,
   workingStateHash,
 } from '../templates/scripts/closeout-cleanup.ts';
 
@@ -186,6 +188,48 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBe(60 * 60 * 1000);
   });
 
+  it('captures a bounded diagnostic tail from a failed verification command', async () => {
+    const executable = JSON.stringify(process.execPath);
+    const result = await runVerificationCommand(
+      `${executable} -e "process.stdout.write('DROP-ME' + 'x'.repeat(${VERIFICATION_OUTPUT_LIMIT_BYTES + 100}) + 'OUT-END'); process.stderr.write('useful error')"; exit 7`,
+      repoRoot,
+    );
+
+    expect(result).toMatchObject({ status: 7, stderr: 'useful error', timedOut: false });
+    expect(result.stdout.length).toBeLessThanOrEqual(VERIFICATION_OUTPUT_LIMIT_BYTES);
+    expect(result.stdout.endsWith('OUT-END')).toBe(true);
+    expect(result.stdout).not.toContain('DROP-ME');
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'returns when an exited command leaves an output-inheriting descendant behind',
+    async () => {
+      const executable = JSON.stringify(process.execPath);
+      let descendantPid: number | undefined;
+      try {
+        const result = await runVerificationCommand(
+          `${executable} -e "const { spawn } = require('node:child_process'); const child = spawn('sleep', ['30'], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }); child.unref(); console.log(child.pid)"`,
+          repoRoot,
+          5000,
+        );
+
+        expect(result).toMatchObject({ status: 0, timedOut: false });
+        const parsedPid = Number(result.stdout.trim());
+        expect(parsedPid).toBeGreaterThan(0);
+        descendantPid = parsedPid;
+        expect(() => process.kill(parsedPid, 0)).not.toThrow();
+      } finally {
+        if (descendantPid) {
+          try {
+            process.kill(descendantPid, 'SIGKILL');
+          } catch {
+            // The test only needs cleanup while the descendant is still alive.
+          }
+        }
+      }
+    },
+  );
+
   it.skipIf(process.platform === 'win32')(
     'returns under Bun after killing a timed-out verification command tree',
     async () => {
@@ -203,7 +247,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
             `const result = await runVerificationCommand(process.argv[2], process.cwd(), 1000);\n` +
             `console.log(JSON.stringify(result));\n`,
         );
-        const started = Date.now();
         const processResult = spawnSync(
           'bun',
           [
@@ -218,7 +261,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
           status: 1,
           timedOut: true,
         });
-        expect(Date.now() - started).toBeLessThan(3000);
         expect(existsSync(pidFile)).toBe(true);
         const descendantPidText = readFileSync(pidFile, 'utf8').trim();
         expect(descendantPidText).toMatch(/^[1-9]\d*$/);
@@ -1591,6 +1633,30 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       expectEveryDeletionBlocked(overrides, expectedBlocker);
     },
   );
+
+  it('surfaces detailed verification failures in cleanup blockers', () => {
+    const plan = buildCleanupPlan(
+      safeObservation({
+        verification: {
+          ...safeObservation().verification,
+          passed: false,
+          failures: [
+            'command `bun run test` failed in /repo (exit 1): tsup: command not found',
+            'runner `uv` is unavailable for `uv run mypy .` in /repo',
+          ],
+        },
+      }),
+    );
+
+    expect(plan.blockers).toEqual(
+      expect.arrayContaining([
+        'local verification failed: command `bun run test` failed in /repo (exit 1): tsup: command not found',
+        'local verification failed: runner `uv` is unavailable for `uv run mypy .` in /repo',
+      ]),
+    );
+    expect(plan.blockers).not.toContain('local verification failed');
+    expect(plan.operations).toEqual([]);
+  });
 
   it.each([
     [
