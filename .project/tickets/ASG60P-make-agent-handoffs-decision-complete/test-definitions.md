@@ -220,7 +220,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6c495df09
 - [x] GREEN a7f03cab0
-- [ ] REFACTOR
+- [x] REFACTOR skip: marked terms use one bounded requirement check shared by accepted and rejected paraphrases
 
 ### Scenario: Held-out reason paraphrases stay inside one declared clause
 
