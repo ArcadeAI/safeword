@@ -258,7 +258,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b7e6c40c1
 - [x] GREEN c84a9b5f2
-- [ ] REFACTOR
+- [x] REFACTOR skip: the one-shot guard remains the single native loop-suppression predicate
 
 ### Scenario: A prior session's correction never suppresses a fresh session
 
