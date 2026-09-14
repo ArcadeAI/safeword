@@ -603,6 +603,8 @@ describe('delivery execution prerequisite', () => {
     const root = featureFixture();
     const bin = installReviewer();
     const target = '.project/tickets/ABC123-feature/execution-plan.md';
+    const planPath = nodePath.join(root, target);
+    const planBeforeReview = readFileSync(planPath, 'utf8');
     const invoked = await runCli(
       [
         'review',
@@ -621,6 +623,7 @@ describe('delivery execution prerequisite', () => {
       {
         cwd: root,
         env: {
+          NODE_ENV: 'test',
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'codex',
           SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -640,19 +643,16 @@ describe('delivery execution prerequisite', () => {
       result.findings.map(finding => finding.message),
       invoked.stdout,
     ).toContain('Pull-request slicing decision is missing.');
-    expect(result.recovery).toEqual([
-      expect.objectContaining({
-        command: expect.stringContaining(`safeword review run plan-execution ${target}`),
-      }),
-    ]);
     expect(
-      readFileSync(
-        nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'execution-plan.md'),
-        'utf8',
-      ),
-    ).toContain(
+      readFileSync(planPath, 'utf8'),
+      'a rejected slicing decision must not advance checklist progress',
+    ).toBe(planBeforeReview);
+    expect(planBeforeReview).toContain(
       '| item-3 | dependency and pull-request decomposition | Deliver dependency and pull-request decomposition. | contributor | proof | open |',
     );
+    expect(result.recovery, 'the denial must provide one concrete repair action').toHaveLength(1);
+    expect(result.recovery[0]?.command).toContain('safeword review run plan-execution');
+    expect(result.recovery[0]?.command).toContain(target);
   });
 
   it.each([
