@@ -257,7 +257,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Each installed native terminal boundary suppresses a repeated correction
 
 - [x] RED b7e6c40c1
-- [ ] GREEN
+- [x] GREEN c84a9b5f2
 - [ ] REFACTOR
 
 ### Scenario: A prior session's correction never suppresses a fresh session
