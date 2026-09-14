@@ -240,7 +240,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b7e6c40c1
 - [x] GREEN 3b015e5bc
-- [ ] REFACTOR
+- [x] REFACTOR e3ca4f543
 
 ### Scenario: Each installed native terminal boundary corrects a vague no-decision action once
 
