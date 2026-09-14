@@ -800,7 +800,7 @@ describe('cross-agent review public-command wiring', () => {
     const deniedResult = JSON.parse(deniedWithoutRecord.stdout) as {
       data: unknown;
       findings: { message: string }[];
-      recovery: { command: string; description: string }[];
+      recovery: { command: string; description: string; requires_human: boolean }[];
     };
     expect(deniedResult).toMatchObject({
       data: {
@@ -818,10 +818,14 @@ describe('cross-agent review public-command wiring', () => {
     expect(unresolvedPlan).toMatch(
       /\| item-3 \| dependency and pull-request decomposition \|.*\| open \|/u,
     );
+    expect(unresolvedPlan).not.toMatch(/^Decision: (?:one|multiple) pull requests?\.$/mu);
+    expect(acceptedPlan).toMatch(/^Decision: (?:one|multiple) pull requests?\.$/mu);
     expect(deniedResult.recovery, 'the slicing denial must have one repair action').toHaveLength(1);
-    expect(deniedResult.recovery[0]?.description).toBe(
-      'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
-    );
+    expect(deniedResult.recovery[0]).toMatchObject({
+      description:
+        'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
+      requires_human: false,
+    });
     expect(deniedResult.recovery[0]?.command).toContain('safeword review run plan-execution');
     expect(deniedResult.recovery[0]?.command).toContain(
       '.project/tickets/T1-feature/execution-plan.md',
