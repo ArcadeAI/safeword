@@ -723,18 +723,12 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('# Implementation Plan');
     expect(prompt).toContain('Feature: behavior');
 
-    const unresolvedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
-      testCase => testCase.id === 'omitted-slicing-decision',
-    )?.execution_plan;
-    if (unresolvedPlan === undefined) throw new Error('Missing unresolved slicing fixture');
-    writeFileSync(executionPlanPath, unresolvedPlan);
-
-    const deniedWithoutRecord = await runCli(
+    const rejected = await runCli(
       [
         'review',
         'run',
         'plan-execution',
-        '.project/tickets/T1-feature/execution-plan.md',
+        'execution-plan.md',
         '--context',
         '.project/tickets/T1-feature/impl-plan.md',
         '--context',
@@ -744,16 +738,64 @@ describe('cross-agent review public-command wiring', () => {
         '--cwd',
         directory,
       ],
-      {
-        cwd: directory,
-        env: {
-          ...environment,
-          SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: '',
-          SAFEWORD_REVIEW_FAKE_FINDING: 'Pull-request slicing decision is missing.',
-          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
-        },
-      },
+      { cwd: directory, env: environment },
     );
+    expect(rejected.exitCode, rejected.stdout).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toMatchObject({
+      errors: [
+        {
+          code: 'REVIEW_PLAN_TARGET_INVALID',
+          message: expect.stringContaining('.project/tickets/<ticket>/execution-plan.md'),
+        },
+      ],
+    });
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
+  });
+
+  it('guides the author to record an unresolved pull-request slicing decision', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
+    const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
+    const unresolvedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'omitted-slicing-decision',
+    )?.execution_plan;
+    if (unresolvedPlan === undefined) throw new Error('Missing unresolved slicing fixture');
+    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'one-coherent-change',
+    )?.execution_plan;
+    if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
+    writeFileSync(executionPlanPath, unresolvedPlan);
+    const bin = installFakeReviewer(directory, 'claude');
+    const reviewArguments = [
+      'review',
+      'run',
+      'plan-execution',
+      '.project/tickets/T1-feature/execution-plan.md',
+      '--context',
+      '.project/tickets/T1-feature/impl-plan.md',
+      '--context',
+      '.project/tickets/T1-feature/behavior.feature',
+      '--json',
+      '--no-input',
+      '--cwd',
+      directory,
+    ];
+    const environment = {
+      PATH: `${bin}:/usr/bin:/bin`,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_FAKE_FINDING: 'Pull-request slicing decision is missing.',
+      SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+      SAFEWORD_REVIEW_LOG: reviewLog,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+
+    const deniedWithoutRecord = await runCli(reviewArguments, { cwd: directory, env: environment });
+
     expect(deniedWithoutRecord.exitCode, deniedWithoutRecord.stdout).toBe(2);
     const deniedResult = JSON.parse(deniedWithoutRecord.stdout) as {
       data: unknown;
@@ -785,32 +827,21 @@ describe('cross-agent review public-command wiring', () => {
       '.project/tickets/T1-feature/execution-plan.md',
     );
 
-    const rejected = await runCli(
-      [
-        'review',
-        'run',
-        'plan-execution',
-        'execution-plan.md',
-        '--context',
-        '.project/tickets/T1-feature/impl-plan.md',
-        '--context',
-        '.project/tickets/T1-feature/behavior.feature',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      { cwd: directory, env: environment },
-    );
-    expect(rejected.exitCode, rejected.stdout).toBe(1);
-    expect(JSON.parse(rejected.stdout)).toMatchObject({
-      errors: [
-        {
-          code: 'REVIEW_PLAN_TARGET_INVALID',
-          message: expect.stringContaining('.project/tickets/<ticket>/execution-plan.md'),
-        },
-      ],
+    writeFileSync(executionPlanPath, acceptedPlan);
+    const unrelatedDenial = await runCli(reviewArguments, {
+      cwd: directory,
+      env: {
+        ...environment,
+        SAFEWORD_REVIEW_FAKE_FINDING: 'The risk register is incomplete.',
+      },
     });
+    const unrelatedResult = JSON.parse(unrelatedDenial.stdout) as {
+      recovery: { description: string }[];
+    };
+    expect(unrelatedDenial.exitCode, unrelatedDenial.stdout).toBe(2);
+    expect(unrelatedResult.recovery.map(action => action.description)).not.toContain(
+      'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
+    );
     expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude', 'claude']);
   });
 
