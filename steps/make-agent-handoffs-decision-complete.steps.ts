@@ -1198,7 +1198,8 @@ Then(
   /^the process emits one correction carrying the shared contract version and naming the concrete-action requirement in the (decision block reason|followup message) shape$/,
   function (this: SafewordWorld, continuation: string) {
     const state = stateFor(this);
-    const output = JSON.parse(state.nativeOutput ?? '{}') as {
+    assert.ok(state.nativeOutput, 'native Stop hook emitted no concrete-action correction');
+    const output = JSON.parse(state.nativeOutput) as {
       decision?: string;
       reason?: string;
       followup_message?: string;
