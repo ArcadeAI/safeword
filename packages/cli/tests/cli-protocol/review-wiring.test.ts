@@ -275,6 +275,39 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
+  it.each([
+    ['--execute', '["sh","-c","true"]'],
+    ['--scenario', 'Scenario: example'],
+    ['--ledger', 'test-definitions.md'],
+    ['--proof-cwd', '.'],
+    ['--evidence-class', 'pure-contract'],
+    ['--expected-failure', 'expected failure'],
+    ['--execution-timeout', '1000'],
+  ])('rejects executable-RED option %s on a non-executing review kind', async (flag, value) => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+
+    const result = await runCli([
+      'review',
+      'run',
+      'quality-review',
+      flag,
+      value,
+      '--json',
+      '--no-input',
+      '--cwd',
+      directory,
+      '--',
+      'review-input.md',
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      errors: [{ message: `${flag} is only valid for executable-red reviews.` }],
+    });
+    expect(existsSync(nodePath.join(directory, '.safeword', 'state', 'reviews'))).toBe(false);
+  });
+
   it('persists malformed detached reviewer output as a terminal blocked result', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');

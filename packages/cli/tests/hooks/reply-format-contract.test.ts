@@ -47,7 +47,7 @@ describe('proactive decision-brief contract', () => {
     expect(standingEntries).toHaveLength(1);
   });
 
-  it('keeps generated plugin SessionStart outputs at separate host boundaries', () => {
+  it('routes generated plugin SessionStart hooks through one verified dispatcher boundary', () => {
     const manifest = JSON.parse(
       readFileSync(
         nodePath.resolve(import.meta.dirname, '../../../../plugin/hooks/hooks.json'),
@@ -60,9 +60,9 @@ describe('proactive decision-brief contract', () => {
       entry.hooks.map(hook => hook.command),
     );
 
-    expect(commands).toHaveLength(10);
-    expect(commands).not.toContain(expect.stringContaining('--event-group'));
-    expect(commands.filter(command => command.includes('session-reply-format.ts'))).toHaveLength(1);
+    expect(commands).toEqual([
+      'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js SessionStart --event-group',
+    ]);
   });
 
   it('derives rendered wording and validation from one grammar fixture', () => {

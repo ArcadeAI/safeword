@@ -63,7 +63,7 @@ canonical commands below.
 | `review routes reset`                   | mutate      | Reset ranked review routes                                                                                  |
 | `review-pr inspect`                     | mutate      | Inspect bounded pull-request evidence as untrusted data                                                     |
 | `review-pr invalidate`                  | mutate      | Remove an obsolete advisory route                                                                           |
-| `review-pr readiness`                   | mutate      | Report whether readiness evidence matches the head                                                          |
+| `review-pr readiness`                   | mutate      | Publish readiness; verdict is in data.outcome                                                               |
 | `review-pr publish`                     | mutate      | Publish a validated advisory result                                                                         |
 | `retro run`                             | mutate      | Extract and file session findings                                                                           |
 | `retro signals`                         | observe     | Inspect locally captured runtime signals                                                                    |
@@ -293,33 +293,36 @@ compatibility metadata.
 
 {/* safeword:generated-cli-compatibility:start */}
 
-| Retained route                        | Canonical replacement                                   |
-| ------------------------------------- | ------------------------------------------------------- |
-| bare `safeword`                       | `status`                                                |
-| `check`                               | `status`                                                |
-| `claude install`                      | `install --agents=claude (also reconciles the project)` |
-| `codex install`                       | `install --agents=codex (also reconciles the project)`  |
-| `setup`                               | `install`                                               |
-| `upgrade`                             | `install`                                               |
-| `diff`                                | `plan`                                                  |
-| `remove`                              | `uninstall --agents=none`                               |
-| `reset`                               | `uninstall --agents=none`                               |
-| `sync-config`                         | `project sync-config`                                   |
-| `architecture`                        | `project architecture`                                  |
-| `sync-learnings`                      | `project sync-learnings`                                |
-| `sync-tickets`                        | `project sync-tickets`                                  |
-| `codify`                              | `project codify`                                        |
-| `test-plan`                           | `project test-plan`                                     |
-| `lint-gherkin`                        | `project lint-gherkin`                                  |
-| `sync-tracker`                        | `tracker sync`                                          |
-| `connect`                             | `tracker connect`                                       |
-| `self-report`                         | `retro signals`                                         |
-| `retro`                               | `retro run`                                             |
-| `retro-reconcile`                     | `retro reconcile`                                       |
-| `migrate codex-plugin`                | `codex migrate`                                         |
-| `project architecture --stage`        | `project architecture --from-index --stage-output`      |
-| `project architecture --staged`       | `project architecture --from-index`                     |
-| `codex migrate --remove-legacy-hooks` | `codex migrate --finalize`                              |
+| Retained route                               | Canonical replacement                                   |
+| -------------------------------------------- | ------------------------------------------------------- |
+| bare `safeword`                              | `status`                                                |
+| `check`                                      | `status`                                                |
+| `claude install`                             | `install --agents=claude (also reconciles the project)` |
+| `codex install`                              | `install --agents=codex (also reconciles the project)`  |
+| `setup`                                      | `install`                                               |
+| `upgrade`                                    | `install`                                               |
+| `diff`                                       | `plan`                                                  |
+| `remove`                                     | `uninstall --agents=none`                               |
+| `reset`                                      | `uninstall --agents=none`                               |
+| `sync-config`                                | `project sync-config`                                   |
+| `architecture`                               | `project architecture`                                  |
+| `sync-learnings`                             | `project sync-learnings`                                |
+| `sync-tickets`                               | `project sync-tickets`                                  |
+| `codify`                                     | `project codify`                                        |
+| `test-plan`                                  | `project test-plan`                                     |
+| `lint-gherkin`                               | `project lint-gherkin`                                  |
+| `sync-tracker`                               | `tracker sync`                                          |
+| `connect`                                    | `tracker connect`                                       |
+| `self-report`                                | `retro signals`                                         |
+| `retro`                                      | `retro run`                                             |
+| `retro-reconcile`                            | `retro reconcile`                                       |
+| `migrate codex-plugin`                       | `codex migrate`                                         |
+| `project architecture --stage`               | `project architecture --from-index --stage-output`      |
+| `project architecture --staged`              | `project architecture --from-index`                     |
+| `codex migrate --remove-legacy-hooks`        | `codex migrate --finalize`                              |
+| `architecture --stage`                       | `architecture --from-index --stage-output`              |
+| `architecture --staged`                      | `architecture --from-index`                             |
+| `migrate codex-plugin --remove-legacy-hooks` | `migrate codex-plugin --finalize`                       |
 
 {/* safeword:generated-cli-compatibility:end */}
 

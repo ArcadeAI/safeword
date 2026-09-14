@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
@@ -65,15 +65,24 @@ function runPlan(world: TestPlanWorld, kind: 'test' | 'build'): void {
   // Run from the repo root (valid package.json) and point the CLI at the temp
   // repo via the [dir] arg — so a malformed temp package.json can't trip the
   // bun runtime before the CLI's own (catching) resolver reads it.
-  world.cliStdout = execFileSync(
+  const result = spawnSync(
     'bun',
     [cliPath, 'project', 'test-plan', target, '--kind', kind, '--json'],
     {
       cwd: process.cwd(),
       encoding: 'utf8',
-      env: { ...process.env, SAFEWORD_FAKE_TOOLS: world.fakeTools ?? 'all' },
+      env: {
+        ...process.env,
+        NODE_ENV: 'test',
+        SAFEWORD_FAKE_TOOLS: world.fakeTools ?? 'all',
+      },
     },
   );
+  assert.ok(
+    result.status === 0 || result.status === 2,
+    `test-plan CLI exited ${result.status ?? 'without a status'}\n${result.stderr}`,
+  );
+  world.cliStdout = result.stdout;
   const envelope = JSON.parse(world.cliStdout) as { data?: { plan?: PlanEntry[] } };
   world.plan = envelope.data?.plan ?? [];
 }

@@ -49,7 +49,7 @@ describe('relay drain-throughput measurement producer', () => {
         backlogSize: 300,
         overallDeadlineMs: 750,
         requestDeadlineMs: 500,
-        relayLatencyMs: 80,
+        relayLatencyMs: 40,
       },
       sampleSize: 300,
       version: 2,

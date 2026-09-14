@@ -58,7 +58,7 @@ describe('E2E: Mixed Project (TypeScript + Python)', () => {
       `[project]
 name = "mixed-project"
 version = "0.1.0"
-dependencies = ["ruff", "mypy", "deadcode"]
+dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
 `,
     );
 
