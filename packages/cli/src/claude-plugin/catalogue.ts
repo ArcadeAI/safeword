@@ -409,7 +409,7 @@ function bundledDispatcher(sourceRoot: string): string {
     bundle: true,
     format: 'esm',
     platform: 'node',
-    target: 'node18',
+    target: 'node20',
     write: false,
     legalComments: 'none',
     mainFields: ['module', 'main'],

@@ -76,6 +76,7 @@ const PRE_TOOL_QUALITY_HOOK_PATH = 'codex/pre-tool-quality.ts';
 const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
 const TEMPLATE_DIRECTORIES = [
+  nodePath.resolve(MODULE_DIRECTORY, '../resources'),
   nodePath.resolve(MODULE_DIRECTORY, '../templates'),
   nodePath.resolve(MODULE_DIRECTORY, '../../templates'),
 ];

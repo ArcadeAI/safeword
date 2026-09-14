@@ -19,17 +19,17 @@ Each turn, restate what you heard, contribute a perspective/sketch/reframe, and 
 Research before proposing anything significant — and the order is load-bearing:
 
 1. **Frame** the problem and its hard constraints: prior tickets, the data model, non-negotiable framework idioms. Don't read the soft conventions yet.
-2. **Design the ideal.** Run `/figure-it-out` to weigh 2-3 options on correctness, simplicity, and no-bloat, and pick the best architecture _as if the codebase didn't exist_. Computing this first gives the next step a yardstick.
+2. **Design the ideal.** Run `$safeword:figure-it-out` to weigh 2-3 options on correctness, simplicity, and no-bloat, and pick the best architecture _as if the codebase didn't exist_. Computing this first gives the next step a yardstick.
 3. **Survey the existing patterns** in the area you're about to touch — now, not before. Surveying earlier anchors the design to the status quo and quietly shrinks it to match.
 4. **Reconcile.** Conform to the existing pattern by default — deviate only when the ideal is a real improvement, not taste. When your ideal diverges from what exists, record the call: to deviate, name a concrete defect of the existing pattern the ideal fixes, the call-site count you're splitting, a one-line pre-mortem ("assume this was wrong — what broke?"), and the follow-up ticket to uplevel the rest. Reversible and local → a few lines in the ticket; irreversible or cross-cutting (data model, public API) → promote to an ADR. See `./.safeword/guides/architecture-guide.md`.
 
 Depth scales with ambiguity. Clear request → 0 turns. One open question → 1 turn. Vague idea → 2-3 turns of increasingly specific proposals.
 
-**Say where to start.** A user arriving with a half-formed area rather than a request has no way to know how much scoping to do before handing it over — and guessing wrong costs them a whole session. When someone opens with a domain rather than a change ("I want to spec the OneDrive toolkit", "we need something for billing"), name the entry point in one or two lines before producing any artifact: they can hand you a raw area and you'll interrogate it into jobs together, or hand you an already-scoped set of jobs and you'll go straight to Rules. Both work; the difference is where the thinking happens, not whether it gets done. Offer `/elicit` when they want the questions to lead, `/brainstorm` when the option space is still open. Say it once and move — this is orientation, not a gate, and a user who already knows what they want should not have to answer it.
+**Say where to start.** A user arriving with a half-formed area rather than a request has no way to know how much scoping to do before handing it over — and guessing wrong costs them a whole session. When someone opens with a domain rather than a change ("I want to spec the OneDrive toolkit", "we need something for billing"), name the entry point in one or two lines before producing any artifact: they can hand you a raw area and you'll interrogate it into jobs together, or hand you an already-scoped set of jobs and you'll go straight to Rules. Both work; the difference is where the thinking happens, not whether it gets done. Offer `$safeword:elicit` when they want the questions to lead, `$safeword:brainstorm` when the option space is still open. Say it once and move — this is orientation, not a gate, and a user who already knows what they want should not have to answer it.
 
 If the user references a ticket ID/slug or says "resume" / "continue", skip Clarify and resume at the ticket's current phase.
 
-**Replan on resume.** The plan may be stale: a `Resume check: N commit(s)…` line means someone else's commits touched files this ticket references since you last worked on it. This is opt-in: if the user declines or just proceeds, investigate nothing. If the user accepts ("check the plan"), spawn a fresh sub-agent (`isolation: worktree`) to judge whether scope still holds and report back **in chat only** — proposing one of still-good / change-scope / cancel / split / merge, with rationale. If the verdict is change-scope or split, run `/figure-it-out` before proposing a new approach — scope changed because the world changed, which is exactly when re-deciding from memory is most dangerous. Never edit the ticket without explicit approval. If the sub-agent errors or times out, note it in one line and proceed with the work — don't retry in a loop (the heads-up won't re-fire until new commits land).
+**Replan on resume.** The plan may be stale: a `Resume check: N commit(s)…` line means someone else's commits touched files this ticket references since you last worked on it. This is opt-in: if the user declines or just proceeds, investigate nothing. If the user accepts ("check the plan"), spawn a fresh sub-agent (`isolation: worktree`) to judge whether scope still holds and report back **in chat only** — proposing one of still-good / change-scope / cancel / split / merge, with rationale. If the verdict is change-scope or split, run `$safeword:figure-it-out` before proposing a new approach — scope changed because the world changed, which is exactly when re-deciding from memory is most dangerous. Never edit the ticket without explicit approval. If the sub-agent errors or times out, note it in one line and proceed with the work — don't retry in a loop (the heads-up won't re-fire until new commits land).
 
 **Contribution techniques** to weave into proposals (pick the one that fits the gap):
 
@@ -56,7 +56,7 @@ Scale depth by blast radius — reversible, local work proceeds; irreversible or
 - The readiness pointer nudges every turn.
 - The Intake Brief (who asked · cost of inaction · reversibility) is authored for features.
 - The cold-start executability check fires only for one-way-door work.
-- `/elicit`, `/brainstorm`, and `/figure-it-out` get pulled in as the gaps demand (unknown intent · empty option space · options to weigh).
+- `$safeword:elicit`, `$safeword:brainstorm`, and `$safeword:figure-it-out` get pulled in as the gaps demand (unknown intent · empty option space · options to weigh).
 
 **Project principles.** Before choosing scope or design, read the configured
 principles file (`paths.principles`, default `<namespace-root>/principles.md`)
@@ -102,7 +102,7 @@ All no or 1 file                          → patch    (fix directly)
 3+ files OR new state OR multiple flows   → feature  (write scenarios first)
 ```
 
-Fallback: task. User can `/bdd` to override.
+Fallback: task. User can `$safeword:bdd` to override.
 
 Sizing reads the jobs; it never edits them. A job that implies new state or a new flow makes the work **bigger** — that is a signal to split into an epic, never to drop the job so the work fits a smaller box. If you find yourself pruning jobs and the size falls, you sized the proposal instead of the work.
 
@@ -116,9 +116,9 @@ Calibration the rules don't capture:
 
 ### 3. Build
 
-- **patch:** restate what you're fixing, fix it. `/bdd` to override.
-- **task:** restate scope, run TDD (RED → GREEN → REFACTOR). `/bdd` to override.
-- **feature:** include sizing in the proposal ("this touches N components with new state — I'd write scenarios"). Run `/bdd`; skip straight to TDD to override.
+- **patch:** restate what you're fixing, fix it. `$safeword:bdd` to override.
+- **task:** restate scope, run TDD (RED → GREEN → REFACTOR). `$safeword:bdd` to override.
+- **feature:** include sizing in the proposal ("this touches N components with new state — I'd write scenarios"). Run `$safeword:bdd`; skip straight to TDD to override.
 
 ### 4. Verify
 
@@ -126,7 +126,7 @@ Never ask the user to test what you can test yourself. Run the relevant tests af
 
 ### 5. Done
 
-The done gate hard-blocks until `verify.md` exists in the ticket folder. Run `/verify` — it produces the artifact.
+The done gate hard-blocks until `verify.md` exists in the ticket folder. Run `$safeword:verify` — it produces the artifact.
 
 ---
 
@@ -166,7 +166,7 @@ Training data drifts. Memory of "how X worked" is not authority — the current 
 
 **Adding a dependency** (a package not yet in the project) — there's no installed version to read, and the version you recall is stale by definition. Use the live `Current time:` line injected by `prompt-timestamp.ts` when the host provides one; otherwise use the current system date from the session. Then verify the current version for that date before pinning. Prefer the package manager's resolver command (`bun add <pkg>`, `npm install <pkg>`, `uv add`, `cargo add`, `go get <module>@latest`, etc.) or a registry command such as `npm view <pkg> version`, `pip index versions`, `go list -m -versions`, or crates.io. Pin what the registry reports today, never a number from memory.
 
-**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/figure-it-out`. Its core rule: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
+**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `$safeword:figure-it-out`. Its core rule: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
 
 Blog posts, tweets, marketing, and "I remember reading…" don't count for any tier. Treat them as leads, not evidence.
 
@@ -197,7 +197,7 @@ Read the matching guide when its trigger fires:
 
 **Commit frequently.** After each GREEN phase, before and after refactors, when switching tasks. The LOC gate fires near 400 lines — commit to reset it.
 
-**Reviewer-as-customer pull requests.** Keep speculative work on a branch. Open a Draft only for concrete CI, AI review, or a narrow human sanity check. Before writing a PR body, responding to review, or promoting a PR to Ready, run `/pr-readiness`: its seven current-head gates and reviewer-oriented description contract are the single source of truth. Missing evidence keeps the PR Draft. Only create or mark a pull request ready for review when the user explicitly asks; a request to push, publish, or open a pull request does not count.
+**Reviewer-as-customer pull requests.** Keep speculative work on a branch. Open a Draft only for concrete CI, AI review, or a narrow human sanity check. Before writing a PR body, responding to review, or promoting a PR to Ready, run `$safeword:pr-readiness`: its seven current-head gates and reviewer-oriented description contract are the single source of truth. Missing evidence keeps the PR Draft. Only create or mark a pull request ready for review when the user explicitly asks; a request to push, publish, or open a pull request does not count.
 
 **Worktree entry (all hosts).** At session start and after moving roots or creating a worktree, run `pwd && git rev-parse --show-toplevel && git branch --show-current && git rev-parse --short HEAD` before evidence gathering or edits. Do not guess a package directory or probe a speculative path. Work from the reported repository root; use `<namespace-root>/architecture.generated.md` to find monorepo packages when present, otherwise inspect the root once. If the path, repo root, branch, or commit is wrong, stop and fix the workspace before touching files.
 
@@ -216,7 +216,7 @@ Safeword runs hooks each turn to track your phase and TDD step. Four gates hard-
 
 The prompt hook injects your current phase each turn as a reminder.
 
-When a gate blocks, the user can run `/explain` for a plain-English version of the block — what it's asking for and how to clear it. Offer it in one line when the user seems unsure (asks "what?", pastes a block back, or stalls); stay quiet when they're moving fine. Don't make them ask twice to understand a block.
+When a gate blocks, the user can run `$safeword:explain` for a plain-English version of the block — what it's asking for and how to clear it. Offer it in one line when the user seems unsure (asks "what?", pastes a block back, or stalls); stay quiet when they're moving fine. Don't make them ask twice to understand a block.
 
 ---
 

@@ -184,7 +184,16 @@ function assertSafeInventoryAsset(
 function verifyInventoryAsset(pluginRoot: string, asset: Partial<InventoryAssetV1>): Buffer {
   assertSafeInventoryAsset(asset);
   const assetPath = nodePath.join(pluginRoot, asset.path);
-  if (!lstatSync(assetPath).isFile()) {
+  let isFile: boolean;
+  try {
+    isFile = lstatSync(assetPath).isFile();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`Safeword Claude plugin asset is missing: ${asset.path}`, { cause: error });
+    }
+    throw error;
+  }
+  if (!isFile) {
     throw new Error(`Safeword Claude plugin asset is not a regular file: ${asset.path}`);
   }
   const content = readFileSync(assetPath);
@@ -217,7 +226,6 @@ function verifyInventory(pluginRoot: string, identity: PluginIdentityV1): Map<st
   }
   const verifiedAssets = new Map<string, Buffer>();
   for (const asset of inventory.assets) {
-    assertSafeInventoryAsset(asset);
     verifiedAssets.set(asset.path, verifyInventoryAsset(pluginRoot, asset));
   }
   const expectedPaths = new Set([
@@ -779,7 +787,7 @@ function runEventHooks(
     if (hook.type !== 'command' || typeof hook.command !== 'string') {
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
-    const result = runFunctionalCommand(['bash', '-lc', hook.command], standardInput, true);
+    const result = runFunctionalCommand(['bash', '-c', hook.command], standardInput, true);
     if (result.status !== 0) {
       // Claude treats exit 1 as a non-blocking hook error. A blockable event
       // must therefore fail closed even when an earlier sibling already

@@ -666,7 +666,6 @@ export function resolveTestPlan(root: string, options: ResolveOptions = {}): Pla
   const kind = options.kind ?? 'test';
   const isAvailable = options.isToolAvailable ?? defaultIsToolAvailable;
   const installedPacks = readInstalledPacks(root);
-  const globalIndex = indexFilesInTree(root, TREE_MANIFESTS);
   const declaredJavascriptPatterns = getWorkspacePatterns(root);
   const isDeclaredJavascriptWorkspace = (directory: string): boolean =>
     directory !== root &&
@@ -706,8 +705,9 @@ export function resolveTestPlan(root: string, options: ResolveOptions = {}): Pla
       ),
     ),
   );
-  const go = existsSync(nodePath.join(root, 'go.work'))
-    ? [resolveGo(root, globalIndex, kind, isAvailable)]
+  const hasGoWorkspace = existsSync(nodePath.join(root, 'go.work'));
+  const go = hasGoWorkspace
+    ? [resolveGo(root, indexFilesInTree(root, TREE_MANIFESTS), kind, isAvailable)]
     : findAllInTree(root, 'go.mod').map(directory =>
         resolveGo(directory, directManifestIndex(directory), kind, isAvailable),
       );

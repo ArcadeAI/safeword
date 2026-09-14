@@ -64017,7 +64017,6 @@ function resolveTestPlan(root, options = {}) {
   const kind = options.kind ?? "test";
   const isAvailable = options.isToolAvailable ?? defaultIsToolAvailable;
   const installedPacks2 = readInstalledPacks(root);
-  const globalIndex = indexFilesInTree(root, TREE_MANIFESTS);
   const declaredJavascriptPatterns = getWorkspacePatterns(root);
   const isDeclaredJavascriptWorkspace = (directory) => directory !== root && declaredJavascriptPatterns.some((pattern) => !pattern.startsWith("!") && matchesWorkspacePattern(nodePath111.relative(root, directory), pattern));
   const javascript = javascriptProjectDirectories(root).filter((directory) => directory === root || (kind === "deps" ? !isDeclaredJavascriptWorkspace(directory) : !rootScriptDelegatesToWorkspace(root, directory, kind))).map((directory) => resolveJs(directory, kind, isAvailable, isDeclaredJavascriptWorkspace(directory) ? root : directory));
@@ -64026,7 +64025,8 @@ function resolveTestPlan(root, options = {}) {
     const relative = nodePath111.relative(directory, candidate);
     return candidate !== directory && !relative.startsWith(`..${nodePath111.sep}`);
   }))));
-  const go = existsSync48(nodePath111.join(root, "go.work")) ? [resolveGo(root, globalIndex, kind, isAvailable)] : findAllInTree(root, "go.mod").map((directory) => resolveGo(directory, directManifestIndex(directory), kind, isAvailable));
+  const hasGoWorkspace = existsSync48(nodePath111.join(root, "go.work"));
+  const go = hasGoWorkspace ? [resolveGo(root, indexFilesInTree(root, TREE_MANIFESTS), kind, isAvailable)] : findAllInTree(root, "go.mod").map((directory) => resolveGo(directory, directManifestIndex(directory), kind, isAvailable));
   const cargoDirectories = findAllInTree(root, "Cargo.toml");
   const cargoWorkspaceDirectories = cargoDirectories.filter((directory) => readFileSync68(nodePath111.join(directory, "Cargo.toml"), "utf8").includes("[workspace]"));
   const rustDirectories = cargoDirectories.filter((directory) => cargoWorkspaceDirectories.every((workspace) => workspace === directory || !cargoWorkspaceOwns(workspace, directory)));
@@ -67053,6 +67053,7 @@ var init_codex_hook = __esm(() => {
   REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
+    nodePath130.resolve(MODULE_DIRECTORY, "../resources"),
     nodePath130.resolve(MODULE_DIRECTORY, "../templates"),
     nodePath130.resolve(MODULE_DIRECTORY, "../../templates")
   ];

@@ -28,6 +28,16 @@ describe('native plugin resource contract', () => {
         const project = nodePath.join(fixture, 'project');
         cpSync(pluginSource, isolatedPlugin, { recursive: true });
         mkdirSync(project);
+        for (const relativePath of [
+          'doc-templates/impl-plan-template.md',
+          'guides/testing-guide.md',
+          'scripts/cleanup-zombies.sh',
+        ]) {
+          expect(
+            existsSync(nodePath.join(isolatedPlugin, 'templates', relativePath)),
+            `${bundleName} did not package templates/${relativePath}`,
+          ).toBe(true);
+        }
         const runtime = nodePath.join(isolatedPlugin, 'runtime/cli.js');
         const ticket = spawnSync(
           'bun',
@@ -44,7 +54,7 @@ describe('native plugin resource contract', () => {
           ) ?? 'missing-ticket',
         );
         expect(readFileSync(nodePath.join(ticketDirectory, 'spec.md'), 'utf8')).toContain(
-          '# Feature Specification:',
+          '# Product Plan:',
         );
 
         const install = spawnSync(
@@ -56,16 +66,6 @@ describe('native plugin resource contract', () => {
         expect(readFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'))).toEqual(
           readFileSync(nodePath.join(isolatedPlugin, 'templates/SAFEWORD.md')),
         );
-        for (const relativePath of [
-          'doc-templates/impl-plan-template.md',
-          'guides/testing-guide.md',
-          'scripts/cleanup-zombies.sh',
-        ]) {
-          expect(
-            existsSync(nodePath.join(project, '.safeword', relativePath)),
-            `${bundleName} did not install ${relativePath}`,
-          ).toBe(true);
-        }
       } finally {
         rmSync(fixture, { recursive: true, force: true });
       }

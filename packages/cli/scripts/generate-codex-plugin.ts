@@ -35,7 +35,6 @@ await import('./generate-scenario-rubric.js');
 await import('./generate-plan-rubric.js');
 await import('./generate-quality-rubric.js');
 await import('./generate-red-rubric.js');
-await import('./generate-red-rubric.js');
 
 async function generatePlugin(
   generatedRoot: string,
@@ -86,7 +85,9 @@ async function generatePlugin(
   // the canonical flat templates/ tree. Native skills remain separately
   // adapted at plugin root; this copy exists for CLI resource consumers.
   cpSync(nodePath.join(packageRoot, 'templates'), templatesDirectory, { recursive: true });
-  writeFileSync(nodePath.join(templatesDirectory, 'SAFEWORD.md'), handbook);
+  const resourcesDirectory = nodePath.join(generatedRoot, 'resources');
+  mkdirSync(resourcesDirectory, { recursive: true });
+  writeFileSync(nodePath.join(resourcesDirectory, 'SAFEWORD.md'), handbook);
 
   if (includeAuthoredFiles) {
     const manifestSource = readFileSync(
