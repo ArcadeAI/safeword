@@ -127,8 +127,12 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
 fi
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
-record=$(printenv SAFEWORD_PREREQUISITE_EXECUTION_RECORD || true)
-if [ -n "$record" ]; then
+record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
+verdict=$(printenv SAFEWORD_REVIEW_FAKE_VERDICT || true)
+finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
+if [ "$verdict" = "request_changes" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan needs repair","findings":[{"severity":"error","message":"%s"}],"execution_plan_record":null}\n' "$dispatch_id" "$finding"
+elif [ -n "$record" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[],"execution_plan_record":%s}\n' "$dispatch_id" "$record"
 else
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
@@ -362,7 +366,7 @@ async function admitThroughInstalledCli(
           SAFEWORD_NO_UPDATE_CHECK: '1',
           SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
           ...(executionRecord !== undefined && {
-            SAFEWORD_PREREQUISITE_EXECUTION_RECORD: executionRecord,
+            SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: executionRecord,
           }),
         },
       },
@@ -593,6 +597,62 @@ describe('delivery execution prerequisite', () => {
     expect(result.next_actions.map(action => action.command)).toEqual([
       'safeword ticket approve-plan ABC123',
     ]);
+  });
+
+  it('keeps PR decomposition open when the slicing decision is unresolved', async () => {
+    const root = featureFixture();
+    const bin = installReviewer();
+    const target = '.project/tickets/ABC123-feature/execution-plan.md';
+    const invoked = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        target,
+        '--context',
+        '.project/tickets/ABC123-feature/impl-plan.md',
+        '--context',
+        'features/feature.feature',
+        '--json',
+        '--no-input',
+        '--cwd',
+        root,
+      ],
+      {
+        cwd: root,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+          SAFEWORD_REVIEW_FAKE_FINDING: 'Pull-request slicing decision is missing.',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+    const result = JSON.parse(invoked.stdout) as {
+      findings: { message: string }[];
+      recovery: { command: string }[];
+    };
+
+    expect(invoked.exitCode, invoked.stdout).toBe(2);
+    expect(
+      result.findings.map(finding => finding.message),
+      invoked.stdout,
+    ).toContain('Pull-request slicing decision is missing.');
+    expect(result.recovery).toEqual([
+      expect.objectContaining({
+        command: expect.stringContaining(`safeword review run plan-execution ${target}`),
+      }),
+    ]);
+    expect(
+      readFileSync(
+        nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'execution-plan.md'),
+        'utf8',
+      ),
+    ).toContain(
+      '| item-3 | dependency and pull-request decomposition | Deliver dependency and pull-request decomposition. | contributor | proof | open |',
+    );
   });
 
   it.each([
