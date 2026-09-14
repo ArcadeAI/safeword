@@ -252,7 +252,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: pre-feature native hooks already left compliant replies unchanged; the paired incomplete-reply scenarios supply the discriminating failure
 - [x] GREEN a4f35353c
-- [ ] REFACTOR
+- [x] REFACTOR skip: compliant cases share the same native subprocess harness and no scenario-specific branch
 
 ### Scenario: Each installed native terminal boundary suppresses a repeated correction
 
