@@ -83,3 +83,16 @@ Ruled out:
   duplicate, misplaced, or out-of-order top-level fields.
 - Missing prompt specificity alone: the prior contract already names the desired
   decision details, yet the observed sessions omitted them.
+
+### Native correction implementation finding
+
+Hoisting terminal-handoff correction ahead of Claude Code's no-edit early exit
+also put it ahead of the existing `stop_hook_active` one-shot guard. A repeated
+native Stop therefore emits two corrections for Claude Code while Codex and
+Cursor emit one. The focused three-host subprocess scenario confirms the 2/1/1
+split.
+
+Ruled out: shared correction-state failure, because the same scenario passes for
+Codex and Cursor; test-harness state leakage, because each example creates and
+removes an isolated temporary project; and output counting error, because both
+Claude subprocess outputs independently contain `terminal-handoff/v1`.
