@@ -54,7 +54,11 @@ function runShellPlan(world: MigrateConsumersWorld, kind: 'test' | 'build'): str
     {
       cwd: process.cwd(),
       encoding: 'utf8',
-      env: { ...process.env, SAFEWORD_FAKE_TOOLS: world.fakeTools ?? 'all' },
+      env: {
+        ...process.env,
+        NODE_ENV: 'test',
+        SAFEWORD_FAKE_TOOLS: world.fakeTools ?? 'all',
+      },
     },
   );
 }
@@ -154,14 +158,16 @@ Then('the script contains the line {string}', function (this: MigrateConsumersWo
 });
 
 Then(
-  'the script contains no runnable {string} command outside that echo',
+  'the script contains no runnable {string} command outside that diagnostic',
   function (this: MigrateConsumersWorld, cmd: string) {
     const plan = this.shellPlan ?? '';
-    const runnableLines = plan.split('\n').filter(l => !l.includes('echo') && l.includes(cmd));
+    const runnableLines = plan
+      .split('\n')
+      .filter(line => !line.includes('printf') && line.includes(cmd));
     assert.equal(
       runnableLines.length,
       0,
-      `found runnable "${cmd}" outside echo:\n${runnableLines.join('\n')}`,
+      `found runnable "${cmd}" outside diagnostic:\n${runnableLines.join('\n')}`,
     );
   },
 );

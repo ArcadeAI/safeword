@@ -15,12 +15,12 @@ Feature: migrate consumers to test-plan
       Then the script contains "( cd" and "go test ./..."
 
     @migrate-consumers.SM1.AC3
-    Scenario: An unavailable entry becomes a visible skip line, not a command
+    Scenario: An unavailable entry becomes a visible failing lane, not a command
       Given a repo with a "go.mod"
       And the "go" toolchain is not installed
       When I render the test plan as a shell script
-      Then the script contains the line "echo \"⏭️ Skipped — go not installed\""
-      And the script contains no runnable "go test" command outside that echo
+      Then the script contains the line "Go test lane skipped: go is not installed."
+      And the script contains no runnable "go test" command outside that diagnostic
 
     @migrate-consumers.SM1.AC3
     Scenario: Evaluating the script runs the resolved suite
