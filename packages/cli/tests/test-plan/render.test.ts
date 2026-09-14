@@ -32,13 +32,17 @@ describe('renderShellPlan', () => {
     expect(sh).toContain(String.raw`cd '/re'\''po'`);
   });
 
-  it('starts a non-empty script with set -e (fails the eval on a failing suite)', () => {
-    expect(renderShellPlan([entry({})]).startsWith('set -e\n')).toBe(true);
+  it('wraps a non-empty plan in a subshell that preserves the first failing lane', () => {
+    const sh = renderShellPlan([entry({})]);
+    expect(sh).toMatch(/^\(\n {2}safeword_plan_status=0\n/);
+    expect(sh).toContain('exit "$safeword_plan_status"');
   });
 
-  it('renders an unavailable entry as a visible skip echo, not a command', () => {
+  it('renders an unavailable entry as a visible failing lane, not a command', () => {
     const sh = renderShellPlan([entry({ available: false, runner: 'go' })]);
-    expect(sh).toContain('echo "⏭️ Skipped — go not installed"');
+    expect(sh).toContain(
+      String.raw`printf '%s\n' 'Go test lane skipped: go is not installed.' >&2; false`,
+    );
     expect(sh).not.toContain('( cd');
   });
 

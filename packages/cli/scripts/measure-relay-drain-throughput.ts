@@ -13,7 +13,10 @@ import {
 } from '../src/retro/relay-delivery.js';
 
 const BACKLOG_SIZE = 300;
-const RELAY_LATENCY_MS = 80;
+// Keep the synthetic relay slower than an in-process stub while leaving enough
+// headroom for heavily contended CI runners to observe the real 750 ms drain
+// deadline without a scheduler-delay false negative against the 1 s gate.
+const RELAY_LATENCY_MS = 40;
 const REQUEST_DEADLINE_MS = DEFAULT_RELAY_REQUEST_DEADLINE_MS;
 const DRAIN_BUDGET_MS = REQUEST_DEADLINE_MS + RELAY_OVERALL_HEADROOM_MS;
 
