@@ -225,7 +225,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Held-out reason paraphrases stay inside one declared clause
 
 - [x] RED 6c495df09
-- [ ] GREEN
+- [x] GREEN 2e0240f3e
 - [ ] REFACTOR
 
 ### Scenario: Held-out action paraphrases require an imperative and object
