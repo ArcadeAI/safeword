@@ -232,7 +232,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6c495df09
 - [x] GREEN 2e0240f3e
-- [ ] REFACTOR
+- [x] REFACTOR skip: all action paraphrases share one imperative-and-specific-object predicate
 
 ## Rule: Native terminal boundaries correct once
 
