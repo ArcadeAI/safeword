@@ -64,8 +64,10 @@ describe('installed delivery continuation contract', () => {
   it.each(tddCopies.flatMap(path => unsuccessfulSteps.map(step => ({ path, ...step }))))(
     '$path keeps $outcome at its failing evidence',
     ({ path, outcome, current, evidence, following }) => {
+      const content = readRaw(path);
+      expect(content).toContain('### Trusted executable RED review');
       const section =
-        readRaw(path)
+        content
           .split(
             'An unsuccessful TDD step stays at the failing step and reports its evidence:',
             2,
@@ -93,8 +95,22 @@ describe('installed delivery continuation contract', () => {
   });
 
   it.each(prReadinessCopies)('%s returns from Draft evidence to delivery', path => {
-    expect(read(path)).toContain(
+    const content = readRaw(path);
+    expect(content).toContain('## Observe and preserve');
+    expect(content).toContain('## Seven hard Ready-for-Review gates');
+    const draftSection = content
+      .split('## Observe and preserve', 2)[1]
+      ?.split('## Seven hard Ready-for-Review gates', 1)[0]
+      .replaceAll(/\s+/gu, ' ');
+
+    expect(draftSection).toContain(
       'After creating a Draft pull request for evidence, return directly to the next unfinished delivery step instead of reporting the change ready for review.',
+    );
+  });
+
+  it('routes Cursor PR-readiness guidance to the canonical installed contract', () => {
+    expect(read('.cursor/rules/safeword-pr-readiness.mdc')).toContain(
+      '@.safeword/skills/pr-readiness/SKILL.md',
     );
   });
 });
