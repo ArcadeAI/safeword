@@ -77,6 +77,15 @@ describe('Execution Plan semantic conformance admission', () => {
     expect(new Set(approvedInputs).size).toBe(approvedInputs.length);
   });
 
+  it('assigns behavior to the slice that activates it in an ordered plan', () => {
+    const ordered = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'ordered-schema-before-reader',
+    );
+
+    expect(ordered?.execution_plan).toContain('- Accepted behavior: Reader');
+    expect(ordered?.execution_plan).toContain('- Migration work: Schema');
+  });
+
   it('binds admission to the complete static prompt contract dispatched to reviewers', () => {
     const sha256 = (value: string): string => createHash('sha256').update(value).digest('hex');
     const contract = reviewPromptContract('plan-execution');

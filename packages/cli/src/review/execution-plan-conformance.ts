@@ -74,14 +74,16 @@ function executionPlan(input: {
   readonly rationale: string;
   readonly slices: readonly SliceInput[];
   readonly omittedObligation?: (typeof OBLIGATIONS)[number];
+  readonly obligationOwners?: Readonly<Partial<Record<(typeof OBLIGATIONS)[number], string>>>;
   readonly decisionText?: string;
   readonly unrelatedChecklist?: boolean;
   readonly unrealProof?: boolean;
 }): string {
   const owners = OBLIGATIONS.filter(obligation => obligation !== input.omittedObligation)
     .map((obligation, index) => {
-      const owner = index === 0 ? input.slices[0] : input.slices.at(-1);
-      return `- ${obligation}: ${owner?.name ?? 'Contract'}`;
+      const fallbackOwner = index === 0 ? input.slices[0] : input.slices.at(-1);
+      const owner = input.obligationOwners?.[obligation] ?? fallbackOwner?.name ?? 'Contract';
+      return `- ${obligation}: ${owner}`;
     })
     .join('\n');
   return `# Execution Plan
@@ -246,6 +248,10 @@ const ORDERED_SCHEMA_PLAN = executionPlan({
       completion: 'The reader is active and every merge remains supported.',
     },
   ],
+  obligationOwners: {
+    'Accepted behavior': 'Reader',
+    'Migration work': 'Schema',
+  },
 });
 const MECHANICAL_MIRRORS_PLAN = executionPlan({
   decision: 'one pull request',
