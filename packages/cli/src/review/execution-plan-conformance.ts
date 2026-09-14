@@ -18,6 +18,9 @@ const DECISIONS = [
   'One shared authorization service owns permission checks for every transport.',
   'Host-neutral dependency order keeps every intermediate merge supported.',
 ] as const;
+const ACTIVATION_PROOFS =
+  'behavior-boundary, plan-integrity, failure-signals, security-boundary, rollout-rollback, and documentation-contract';
+const ALL_DELIVERY_PROOFS = `data-compatibility, ${ACTIVATION_PROOFS}`;
 
 const IMPLEMENTATION_PLAN = `# Implementation Plan
 
@@ -70,10 +73,11 @@ const CONTRACT_SLICE: SliceInput = {
 const ACTIVATION_SLICE: SliceInput = {
   name: 'Activation',
   purpose: 'Activate typed Execution Plan review.',
-  boundary: 'Review routing, result retention, and CLI presentation.',
+  boundary:
+    'Review routing, result retention, CLI presentation, failure signals, authorization, rollout, rollback, and documentation.',
   prerequisites: 'Contract',
-  proof: 'behavior-boundary: a CLI integration test observes a retained typed approval.',
-  completion: 'The command is auditable and the repository remains supported.',
+  proof: ACTIVATION_PROOFS,
+  completion: 'The accepted behavior and every activation obligation are delivered and supported.',
 };
 
 function executionPlan(input: {
@@ -263,8 +267,19 @@ function denied(
 
 const ONE_PLAN = executionPlan({
   decision: 'one pull request',
-  rationale: 'Every edit delivers one contract and one package test proves the shared outcome.',
-  slices: [CONTRACT_SLICE],
+  rationale:
+    'Contract, activation, and delivery obligations form one independently provable review capability.',
+  slices: [
+    {
+      name: 'Complete delivery',
+      purpose: 'Deliver the complete typed Execution Plan review capability.',
+      boundary:
+        'Contract, CLI behavior, compatibility, failure signals, authorization, rollout, rollback, and documentation.',
+      prerequisites: 'none',
+      proof: ALL_DELIVERY_PROOFS,
+      completion: 'Every accepted obligation is delivered and the repository remains supported.',
+    },
+  ],
 });
 const MULTI_PLAN = executionPlan({
   decision: 'multiple pull requests',
@@ -274,15 +289,17 @@ const MULTI_PLAN = executionPlan({
 });
 const COMPLETE_RECORD_PLAN = executionPlan({
   decision: 'one pull request',
-  rationale: 'One typed review-result change has one proof and one supported completion state.',
+  rationale:
+    'One typed review-result capability has one cohesive boundary and independently verifiable delivery proofs.',
   slices: [
     {
       name: 'Typed review result',
-      purpose: 'Retain one complete typed Execution Plan judgment.',
-      boundary: 'Result type, validation, and persistence for that judgment.',
+      purpose: 'Deliver and retain one complete typed Execution Plan judgment.',
+      boundary:
+        'Result type, validation, persistence, compatibility, failure and security behavior, rollout, rollback, and documentation.',
       prerequisites: 'none',
-      proof: 'behavior-boundary: a result test asserts every retained field.',
-      completion: 'A complete judgment round-trips without activating a command.',
+      proof: ALL_DELIVERY_PROOFS,
+      completion: 'A complete judgment round-trips and every accepted obligation is supported.',
     },
   ],
 });
@@ -302,10 +319,11 @@ const ORDERED_SCHEMA_PLAN = executionPlan({
     {
       name: 'Reader',
       purpose: 'Read and retain schema-valid results.',
-      boundary: 'Reader activation and persistence only.',
+      boundary:
+        'Reader activation, persistence, failure signals, authorization, rollout, rollback, and documentation.',
       prerequisites: 'Schema',
-      proof: 'behavior-boundary: a reader integration test retains a schema-valid result.',
-      completion: 'The reader is active and every merge remains supported.',
+      proof: ACTIVATION_PROOFS,
+      completion: 'The reader and every activation obligation are supported.',
     },
   ],
   obligationOwners: stagedOwners('Schema', 'Reader'),
@@ -313,15 +331,16 @@ const ORDERED_SCHEMA_PLAN = executionPlan({
 const MECHANICAL_MIRRORS_PLAN = executionPlan({
   decision: 'one pull request',
   rationale:
-    'Forty generated and installed file edits mirror one canonical contract and share one parity proof.',
+    'Forty generated and installed edits deliver one canonical contract with one cohesive proof set.',
   slices: [
     {
       name: 'Contract mirrors',
       purpose: 'Publish one canonical contract through every generated mirror.',
-      boundary: 'Canonical source plus forty mechanical generated or installed copies.',
+      boundary:
+        'Canonical source, mechanical mirrors, compatibility, failure and security behavior, rollout, rollback, and documentation.',
       prerequisites: 'none',
-      proof: 'behavior-boundary: one parity test compares every mirror with the canonical source.',
-      completion: 'All mirrors expose the same contract and no runtime behavior changes.',
+      proof: ALL_DELIVERY_PROOFS,
+      completion: 'All mirrors and every accepted delivery obligation are supported.',
     },
   ],
 });
@@ -341,10 +360,11 @@ const FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
     {
       name: 'Public activation',
       purpose: 'Expose the new review command.',
-      boundary: 'One routing file.',
+      boundary:
+        'Public routing, failure signals, authorization, rollout, rollback, and documentation.',
       prerequisites: 'Inert schema',
-      proof: 'behavior-boundary: a CLI test proves public dispatch and retention.',
-      completion: 'The command works and every merge remains supported.',
+      proof: ACTIVATION_PROOFS,
+      completion: 'The command and every activation obligation are supported.',
     },
   ],
   obligationOwners: stagedOwners('Inert schema', 'Public activation'),
@@ -366,13 +386,16 @@ const OBLIGATION_PLAN = executionPlan({
 });
 const UNCHANGED_DECISIONS_PLAN = executionPlan({
   decision: 'one pull request',
-  rationale: 'One activation preserves both accepted decisions exactly as approved.',
+  rationale:
+    'One cohesive activation preserves both accepted decisions and proves every delivery obligation independently.',
   slices: [
     {
       ...ACTIVATION_SLICE,
       name: 'Decision-preserving activation',
       prerequisites: 'none',
-      boundary: 'Activate review while retaining shared authorization and host-neutral ordering.',
+      boundary:
+        'Contract compatibility, review activation, shared authorization, host-neutral ordering, failure signals, rollout, rollback, and documentation.',
+      proof: ALL_DELIVERY_PROOFS,
     },
   ],
 });
@@ -417,7 +440,7 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     'One coherent change records one pull request.',
     ONE_PLAN,
     'one_pull_request',
-    ['Contract'],
+    ['Complete delivery'],
   ),
   approved(
     'several-ordered-changes',
