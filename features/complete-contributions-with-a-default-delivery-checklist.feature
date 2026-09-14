@@ -77,7 +77,7 @@ Feature: Complete contributions with a default delivery checklist
     Scenario: In-flight checklist state reflects partial execution progress
       Given feature execution has completed its test obligation while monitoring and documentation remain open
       When Safeword updates delivery state through the installed CLI before execution ends
-      Then the Delivery Checklist records the test evidence and names monitoring and documentation as the next open obligations
+      Then the Delivery Checklist exposes the recorded test evidence while execution remains in progress and names monitoring and documentation as the next open obligations
 
     @rejection
     Scenario: An unreadable Execution Plan blocks checklist updates
@@ -134,9 +134,17 @@ Feature: Complete contributions with a default delivery checklist
       Examples:
         | remaining_state | readiness_result |
         | a contributor-controlled checklist item is incomplete | it reports contributor work incomplete with that item named |
-        | every contributor-controlled item is marked complete but a required real-boundary proof is only partial or from an incompatible earlier revision | it reports contributor work incomplete with the unproven item and its evidence class named |
+        | every contributor-controlled item is marked complete but a required real-boundary proof is only partial or structural | it reports contributor work incomplete with the unproven item and its evidence class named |
+        | every contributor-controlled item is marked complete but a required proof is from an incompatible earlier revision | it reports contributor work incomplete with the unproven item and its evidence class named |
+        | every contributor-controlled item is proven by compatible reusable earlier-revision evidence and required human approval is pending | it reports ready for human review with the reusable evidence limitation and pending approval named |
         | every contributor-controlled item is proven and required human approval is pending | it reports ready for human review with the pending approval named |
         | required human approval is recorded but merge authority has not been granted | it reports the approval satisfied while keeping merge authorization pending |
+
+    @rejection
+    Scenario: Contributor evidence cannot record human approval
+      Given every contributor-controlled item is proven and required human approval is pending
+      When the contributor records the approval through the installed CLI without the authorized human's authority
+      Then the approval remains pending and readiness still reports ready for human review
 
   @plan-implementability.TBU2.A639WN.R7 @surface.safeword-cli
   Rule: plan-implementability.TBU2.A639WN.R7 — This child defines the canonical Delivery Checklist evidence-currency taxonomy—current-revision real-boundary proof, reusable earlier-revision proof, partial or structural proof, and missing proof—and never silently upgrades one class into another
