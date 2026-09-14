@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
@@ -37,6 +40,45 @@ type ReviewRunInput = {
   readonly executionAttestation?: RedExecutionAttestation;
 };
 
+function planExecutionRecovery(input: {
+  readonly cwd: string;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+  readonly context?: readonly string[];
+  readonly output: ReviewerOutput;
+}): CliResult['recovery'] {
+  if (input.kind !== 'plan-execution' || input.output.verdict !== 'request_changes') return [];
+  const target = input.targets[0];
+  if (target === undefined) return [];
+
+  let plan: string;
+  try {
+    plan = readFileSync(nodePath.resolve(input.cwd, target), 'utf8');
+  } catch {
+    return [];
+  }
+  const slicingSection = plan
+    .split(/^## Pull-request slicing\s*$/imu, 2)[1]
+    ?.split(/^##\s+/mu, 1)[0];
+  if (
+    slicingSection !== undefined &&
+    /^(?:\*\*)?Decision:(?:\*\*)?\s*(?:one pull request|multiple pull requests)\.?\s*$/imu.test(
+      slicingSection,
+    )
+  ) {
+    return [];
+  }
+
+  return [
+    {
+      command: retryCommand(input.kind, input.targets, input.context),
+      description:
+        'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
+      requiresHuman: false,
+    },
+  ];
+}
+
 /**
  * Whether a route can still be funded. Below the minimum a route cannot produce
  * a real review, so it is left unattempted and reported honestly rather than
@@ -71,9 +113,11 @@ function verifyProvenance(
 }
 
 function independentReviewResult(input: {
+  readonly cwd: string;
   readonly author: ReviewAuthor;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly context?: readonly string[];
   readonly reviewer: ReviewAgent;
   readonly output: ReviewerOutput;
   readonly model?: string;
@@ -105,6 +149,7 @@ function independentReviewResult(input: {
         reviewRequest(input.reviewer),
       ],
     },
+    recovery: planExecutionRecovery(input),
     data: {
       command: 'review run',
       status: input.output.verdict === 'approve' ? 'approved' : 'changes_requested',
@@ -748,9 +793,11 @@ async function runRankedRoutes(
     evidence.push({ ...route, status: 'attempted' });
     if (route.independence === 'cross-agent') {
       const result = independentReviewResult({
+        cwd: input.cwd,
         author,
         kind: input.kind,
         targets: input.targets,
+        context: input.context,
         reviewer: route.reviewer,
         output: assessment.output,
         model: route.model,
@@ -1336,9 +1383,11 @@ async function runAlternateModelRoute(
   const output = assessment.output;
 
   const result = independentReviewResult({
+    cwd: input.cwd,
     author: input.author,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
     reviewer: input.reviewer,
     output,
     model,
@@ -1408,9 +1457,11 @@ async function runIndependentFallback(
   return {
     kind: 'completed',
     result: independentReviewResult({
+      cwd: input.cwd,
       author: input.author,
       kind: input.kind,
       targets: input.targets,
+      context: input.context,
       reviewer: input.reviewer,
       output: assessment.output,
       preferredReviewer: input.preferredReviewer,
@@ -1765,9 +1816,11 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const output = provenance.output;
 
   return independentReviewResult({
+    cwd: input.cwd,
     author: routes.author,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
     reviewer,
     output,
     model: completedModel,

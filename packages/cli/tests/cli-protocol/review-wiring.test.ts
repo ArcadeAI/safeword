@@ -867,13 +867,17 @@ describe('cross-agent review public-command wiring', () => {
   });
 
   it('fails closed before dispatch when no configured route has current admission', async () => {
+    const executionPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'one-coherent-change',
+    )?.execution_plan;
+    if (executionPlan === undefined) throw new Error('Missing accepted execution plan fixture');
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
     mkdirSync(ticketDirectory, { recursive: true });
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
-    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), '# Execution Plan\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), executionPlan);
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
     writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
     writeFileSync(
