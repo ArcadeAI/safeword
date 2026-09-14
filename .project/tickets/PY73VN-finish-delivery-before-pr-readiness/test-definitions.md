@@ -80,7 +80,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 8cbf6390d
 - [x] GREEN f4d5d10a8
-- [ ] REFACTOR
+- [x] REFACTOR skip: one canonical directive and generated copies need no structural cleanup
 
 ### Scenario: Ready promotion is allowed after verified done
 
