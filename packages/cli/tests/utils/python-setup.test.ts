@@ -423,6 +423,21 @@ describe('repository Python projects', () => {
     ]);
   });
 
+  it('does not treat an extras_require group name as a dependency', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'services/legacy/setup.py',
+      'from setuptools import setup\nsetup(extras_require={"ruff": ["requests"]})\n',
+    );
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([
+      {
+        directory: nodePath.join(context.projectDirectory, 'services/legacy'),
+        tools: ['ruff', 'mypy', 'deadcode', 'pip-audit'],
+      },
+    ]);
+  });
+
   it('keeps bracket tracking stable around triple-quoted setup.py values', () => {
     writeTestFile(
       context.projectDirectory,
@@ -543,6 +558,27 @@ name = "test"
     expect(
       detectPythonPackageManager(
         nodePath.join(context.projectDirectory, 'services/legacy'),
+        context.projectDirectory,
+      ),
+    ).toBe('pip');
+  });
+
+  it('treats a nested Poetry project as independent unless it declares Poetry itself', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'pyproject.toml',
+      '[tool.poetry]\nname="root"\nversion="0.1.0"\n',
+    );
+    writeTestFile(context.projectDirectory, 'poetry.lock', '');
+    writeTestFile(
+      context.projectDirectory,
+      'apps/api/pyproject.toml',
+      '[project]\nname="api"\nversion="0.1.0"\n',
+    );
+
+    expect(
+      detectPythonPackageManager(
+        nodePath.join(context.projectDirectory, 'apps/api'),
         context.projectDirectory,
       ),
     ).toBe('pip');

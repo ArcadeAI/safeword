@@ -6,9 +6,8 @@
  *   SM1.AC1 — test-runner.ts structural assertions (no hardcoded language commands)
  *   SM1.AC2 — /verify skill structural assertions (section 2 evals project test-plan, no inline language)
  *
- * TB1.AC1 scenarios (stop-hook runner integration) are tagged @wip and deferred — they
- * require running test-runner.ts as a subprocess with a live safeword CLI, which needs
- * a separate integration harness.
+ * TB1.AC1 exercises the real stop-hook runner against temporary projects while pointing
+ * its resolver at the local Safeword CLI source.
  */
 
 import { strict as assert } from 'node:assert';
@@ -20,6 +19,7 @@ import process from 'node:process';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { runTests, type TestResult } from '../.safeword/hooks/lib/test-runner.js';
 import type { SafewordWorld } from './world.js';
 
 interface MigrateConsumersWorld extends SafewordWorld {
@@ -29,7 +29,9 @@ interface MigrateConsumersWorld extends SafewordWorld {
   evalOutput?: string;
   evalExitCode?: number;
   fileContent?: string;
-  verifyContents?: string[];
+  stopHookResult?: TestResult;
+  verifyCommandContent?: string;
+  verifySkillContent?: string;
 }
 
 // ---- helpers ----
@@ -70,16 +72,33 @@ function runShellPlan(world: MigrateConsumersWorld, kind: 'test' | 'build'): str
 function extractSection(content: string, sectionNumber: number): string {
   const lines = content.split('\n');
   let inSection = false;
+  let fenceMarker: '```' | '~~~' | undefined;
+  let sectionHeadingDepth: number | undefined;
   const sectionLines: string[] = [];
   for (const line of lines) {
-    if (/^#{1,4}\s+\d+[\.\s]/.test(line)) {
-      if (inSection) break;
-      const num = Number(line.match(/^#{1,4}\s+(\d+)/)?.[1]);
-      if (num === sectionNumber) inSection = true;
+    const fence = /^\s*(```|~~~)/u.exec(line)?.[1] as '```' | '~~~' | undefined;
+    const heading = fenceMarker === undefined ? /^(#{1,6})\s+/u.exec(line) : null;
+    if (inSection && heading !== null && heading[1]!.length <= (sectionHeadingDepth ?? 0)) break;
+    const numberedHeading =
+      fenceMarker === undefined ? /^(#{1,6})\s+(\d+)[\.\s]/u.exec(line) : null;
+    if (!inSection && numberedHeading !== null) {
+      const num = Number(numberedHeading[2]);
+      if (num === sectionNumber) {
+        inSection = true;
+        sectionHeadingDepth = numberedHeading[1]!.length;
+      }
     }
     if (inSection) sectionLines.push(line);
+    if (fenceMarker === undefined) fenceMarker = fence;
+    else if (line.trimStart().startsWith(fenceMarker)) fenceMarker = undefined;
   }
   return sectionLines.join('\n');
+}
+
+function verifySection(world: MigrateConsumersWorld, sectionNumber: number): string {
+  const section = extractSection(world.verifySkillContent ?? '', sectionNumber);
+  assert.notEqual(section, '', `verify section ${sectionNumber} was not found`);
+  return section;
 }
 
 After(function (this: MigrateConsumersWorld) {
@@ -92,10 +111,11 @@ After(function (this: MigrateConsumersWorld) {
 // SM1.AC3 — shell plan format and eval
 // ============================================================================
 
-Given('the {string} toolchain is installed', function (this: MigrateConsumersWorld, _tool: string) {
-  // SAFEWORD_FAKE_TOOLS=all marks all toolchains (including the named one) as available.
-  // Only set if not already narrowed by a more specific step.
-  this.fakeTools ??= 'all';
+Given('the {string} toolchain is installed', function (this: MigrateConsumersWorld, tool: string) {
+  const installed = this.fakeTools?.startsWith('only:')
+    ? this.fakeTools.slice('only:'.length).split(',').filter(Boolean)
+    : [];
+  this.fakeTools = `only:${[...new Set([...installed, tool])].join(',')}`;
 });
 
 Given(
@@ -161,9 +181,15 @@ Then(
   'the script contains no runnable {string} command outside that diagnostic',
   function (this: MigrateConsumersWorld, cmd: string) {
     const plan = this.shellPlan ?? '';
-    const runnableLines = plan
-      .split('\n')
-      .filter(line => !line.includes('printf') && line.includes(cmd));
+    const escapedCommand = cmd.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const diagnostic = new RegExp(
+      `'[^'\\n]*lane skipped: ${escapedCommand} is not installed\\.'`,
+      'u',
+    );
+    const runnableLines = plan.split('\n').filter(line => {
+      if (!line.includes(cmd)) return false;
+      return line.replace(diagnostic, '').includes(cmd);
+    });
     assert.equal(
       runnableLines.length,
       0,
@@ -191,7 +217,7 @@ Then('no suite command is run', function (this: MigrateConsumersWorld) {
   const plan = this.shellPlan ?? '';
   const commands = plan.split('\n').filter(l => {
     const trimmed = l.trim();
-    return trimmed.length > 0 && trimmed !== 'set -e' && !trimmed.startsWith('#');
+    return trimmed.length > 0 && !trimmed.startsWith('#');
   });
   assert.equal(commands.length, 0, `expected no suite commands but found:\n${commands.join('\n')}`);
 });
@@ -206,10 +232,10 @@ When(/^I read templates\/hooks\/lib\/test-runner\.ts$/, function (this: MigrateC
 });
 
 Then(
-  'it contains no hardcoded {string}, {string}, {string}, or {string} command',
-  function (this: MigrateConsumersWorld, a: string, b: string, c: string, d: string) {
+  'it contains no hardcoded {string}, {string}, or {string} command',
+  function (this: MigrateConsumersWorld, a: string, b: string, c: string) {
     const content = this.fileContent ?? '';
-    for (const cmd of [a, b, c, d]) {
+    for (const cmd of [a, b, c]) {
       assert.ok(!content.includes(cmd), `test-runner.ts contains hardcoded command "${cmd}"`);
     }
   },
@@ -229,71 +255,128 @@ Then(
   'it invokes {string} via the safeword CLI',
   function (this: MigrateConsumersWorld, command: string) {
     const content = this.fileContent ?? '';
+    const [namespace, subcommand] = command.split(' ');
     assert.ok(
-      content.includes(command),
+      namespace !== undefined &&
+        subcommand !== undefined &&
+        content.includes(`'${namespace}', '${subcommand}'`),
       `test-runner.ts does not invoke "${command}" via the safeword CLI`,
     );
   },
 );
 
+Given(
+  'a project whose package.json has a {string} and a {string} script',
+  function (this: MigrateConsumersWorld, first: string, second: string) {
+    const scripts = {
+      [first]: "node -e \"require('fs').writeFileSync('primary.marker', 'ok')\"",
+      [second]: "node -e \"require('fs').writeFileSync('bdd.marker', 'ok')\"",
+    };
+    write(this, 'package-lock.json', '{}\n');
+    write(this, 'package.json', `${JSON.stringify({ scripts }, undefined, 2)}\n`);
+  },
+);
+
+Given(
+  'a project with no test script and no language manifest',
+  function (this: MigrateConsumersWorld) {
+    write(this, 'package-lock.json', '{}\n');
+    write(this, 'package.json', `${JSON.stringify({ scripts: {} }, undefined, 2)}\n`);
+  },
+);
+
+When('the stop-hook test runner runs', function (this: MigrateConsumersWorld) {
+  const previousCli = process.env.SAFEWORD_CLI;
+  const previousFakeTools = process.env.SAFEWORD_FAKE_TOOLS;
+  const previousNodeEnvironment = process.env.NODE_ENV;
+  process.env.SAFEWORD_CLI = nodePath.join(process.cwd(), 'packages/cli/src/cli.ts');
+  process.env.SAFEWORD_FAKE_TOOLS = 'all';
+  process.env.NODE_ENV = 'test';
+  try {
+    this.stopHookResult = runTests(ensureRoot(this));
+  } finally {
+    if (previousCli === undefined) delete process.env.SAFEWORD_CLI;
+    else process.env.SAFEWORD_CLI = previousCli;
+    if (previousFakeTools === undefined) delete process.env.SAFEWORD_FAKE_TOOLS;
+    else process.env.SAFEWORD_FAKE_TOOLS = previousFakeTools;
+    if (previousNodeEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnvironment;
+  }
+});
+
+Then(
+  'both the test script and the acceptance lane are executed',
+  function (this: MigrateConsumersWorld) {
+    const root = ensureRoot(this);
+    assert.equal(this.stopHookResult?.passed, true, this.stopHookResult?.output);
+    assert.equal(this.stopHookResult?.skipped, false);
+    assert.ok(existsSync(nodePath.join(root, 'primary.marker')), 'primary test marker is missing');
+    assert.ok(existsSync(nodePath.join(root, 'bdd.marker')), 'acceptance marker is missing');
+  },
+);
+
+Then('it reports skipped and does not block', function (this: MigrateConsumersWorld) {
+  assert.deepEqual(this.stopHookResult, { passed: true, output: '', skipped: true });
+});
+
 // ============================================================================
 // SM1.AC2 — /verify skill structural check
 // ============================================================================
 
-When('I read the verify skill and the verify command', function (this: MigrateConsumersWorld) {
-  const skillPath = nodePath.join(process.cwd(), '.claude/skills/verify/SKILL.md');
-  const commandPath = nodePath.join(process.cwd(), '.claude/commands/verify.md');
-  const contents: string[] = [];
-  if (existsSync(skillPath)) contents.push(readFileSync(skillPath, 'utf8'));
-  if (existsSync(commandPath)) contents.push(readFileSync(commandPath, 'utf8'));
-  this.verifyContents = contents;
+When('I read the verify source surfaces', function (this: MigrateConsumersWorld) {
+  const skillPath = nodePath.join(process.cwd(), 'packages/cli/templates/skills/verify/SKILL.md');
+  const commandPath = nodePath.join(process.cwd(), 'packages/cli/templates/commands/verify.md');
+  assert.ok(existsSync(skillPath), `verify skill is missing: ${skillPath}`);
+  assert.ok(existsSync(commandPath), `verify command is missing: ${commandPath}`);
+  this.verifySkillContent = readFileSync(skillPath, 'utf8');
+  this.verifyCommandContent = readFileSync(commandPath, 'utf8');
+});
+
+Then('the verify command points to the verify skill', function (this: MigrateConsumersWorld) {
+  assert.match(
+    this.verifyCommandContent ?? '',
+    /\.safeword\/skills\/verify\/SKILL\.md/u,
+    'verify command does not point to the canonical verify skill',
+  );
 });
 
 Then(
-  'section {int} of each evaluates {string}',
+  'section {int} of the verify skill evaluates {string}',
   function (this: MigrateConsumersWorld, section: number, expected: string) {
-    // Check each whitespace-separated token appears in the section (order-independent).
-    // The actual code uses "project test-plan --kind test --format sh", so we verify each
-    // token from "project test-plan --format sh" is present rather than the exact substring.
-    const tokens = expected.split(/\s+/);
-    for (const content of this.verifyContents ?? []) {
-      const sectionText = extractSection(content, section);
-      for (const token of tokens) {
-        assert.ok(
-          sectionText.includes(token),
-          `section ${section} does not contain "${token}" (from "${expected}")\n---\n${sectionText.slice(0, 300)}`,
-        );
-      }
-    }
+    assert.equal(expected, 'project test-plan --format sh');
+    const sectionText = verifySection(this, section);
+    assert.ok(
+      sectionText.includes(
+        'plan="$(run_safeword project test-plan --kind "$plan_kind" --format sh)"',
+      ),
+      `section ${section} does not resolve "${expected}"\n---\n${sectionText.slice(0, 300)}`,
+    );
+    assert.match(sectionText, /bash -c "\$plan"/u);
   },
 );
 
 Then(
-  'section {int} of each contains no inline language test branch \\({string}, {string}, {string}\\)',
+  'section {int} of the verify skill contains no inline language test branch \\({string}, {string}, {string}\\)',
   function (this: MigrateConsumersWorld, section: number, a: string, b: string, c: string) {
-    for (const content of this.verifyContents ?? []) {
-      const sectionText = extractSection(content, section);
-      for (const cmd of [a, b, c]) {
-        assert.ok(
-          !sectionText.includes(cmd),
-          `section ${section} contains inline language test branch "${cmd}"`,
-        );
-      }
+    const sectionText = verifySection(this, section);
+    for (const cmd of [a, b, c]) {
+      assert.ok(
+        !sectionText.includes(cmd),
+        `section ${section} contains inline language test branch "${cmd}"`,
+      );
     }
   },
 );
 
 Then(
-  'section {int} of each contains no inline language build branch \\({string}, {string}\\)',
+  'section {int} of the verify skill contains no inline language build branch \\({string}, {string}\\)',
   function (this: MigrateConsumersWorld, section: number, a: string, b: string) {
-    for (const content of this.verifyContents ?? []) {
-      const sectionText = extractSection(content, section);
-      for (const cmd of [a, b]) {
-        assert.ok(
-          !sectionText.includes(cmd),
-          `section ${section} contains inline language build branch "${cmd}"`,
-        );
-      }
+    const sectionText = verifySection(this, section);
+    for (const cmd of [a, b]) {
+      assert.ok(
+        !sectionText.includes(cmd),
+        `section ${section} contains inline language build branch "${cmd}"`,
+      );
     }
   },
 );

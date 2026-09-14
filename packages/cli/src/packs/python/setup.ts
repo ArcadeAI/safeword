@@ -457,13 +457,44 @@ function pythonAssignedExpression(content: string, start: number): string | unde
   return undefined;
 }
 
+function pythonStringLiterals(expression: string): string[] {
+  return expression
+    .matchAll(/(['"])(.*?)\1/gsu)
+    .map(match => match[2])
+    .filter((value): value is string => value !== undefined)
+    .toArray();
+}
+
+function pythonExtrasDependencySpecs(expression: string): string[] {
+  const specifications: string[] = [];
+  const state: PythonExpressionState = {
+    brackets: [],
+    quote: undefined,
+    escaped: false,
+    comment: false,
+    expressionStart: undefined,
+  };
+  for (let index = 0; index < expression.length; index += 1) {
+    const character = expression[index];
+    if (character === undefined) break;
+    if (consumePythonProtectedCharacter(state, character)) continue;
+    if (character === ':' && state.brackets.length === 1) {
+      const value = pythonAssignedExpression(expression, index + 1);
+      if (value !== undefined) specifications.push(...pythonStringLiterals(value));
+      continue;
+    }
+    updatePythonBrackets(state, character, index);
+  }
+  return specifications;
+}
+
 function setupPyDependencySpecs(content: string): string[] {
   const specifications: string[] = [];
   const codeWithoutMultilineStrings = content.replaceAll(
     /'''[\s\S]*?(?:'''|$)|"""[\s\S]*?(?:"""|$)/gu,
     value => ' '.repeat(value.length),
   );
-  const assignment = /\b(?:install_requires|setup_requires|tests_require|extras_require)\s*=/gu;
+  const assignment = /\b(install_requires|setup_requires|tests_require|extras_require)\s*=/gu;
   for (const match of codeWithoutMultilineStrings.matchAll(assignment)) {
     if (
       match.index === undefined ||
@@ -475,9 +506,11 @@ function setupPyDependencySpecs(content: string): string[] {
       match.index + match[0].length,
     );
     if (expression === undefined) continue;
-    for (const stringMatch of expression.matchAll(/(['"])(.*?)\1/gsu)) {
-      if (stringMatch[2] !== undefined) specifications.push(stringMatch[2]);
-    }
+    specifications.push(
+      ...(match[1] === 'extras_require'
+        ? pythonExtrasDependencySpecs(expression)
+        : pythonStringLiterals(expression)),
+    );
   }
   return specifications;
 }

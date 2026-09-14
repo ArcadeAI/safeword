@@ -2,8 +2,9 @@ Feature: migrate consumers to test-plan
 
   test-runner.ts and /verify must obtain their per-language test/build commands from
   `safeword project test-plan` — one source of truth — instead of each carrying its own
-  language logic. The stop-hook done-gate behavior is preserved (and upgraded):
-  the eval-able plan runs the right suites and still fails when a suite fails.
+  language logic. The eval-able plan used by the stop-hook done gate runs the
+  resolved suites and still fails when a suite fails; the active scenarios below
+  exercise that integration through the real stop-hook runner.
 
   Rule: test-plan --format sh emits an eval-able plan
 
@@ -46,6 +47,7 @@ Feature: migrate consumers to test-plan
     Scenario: A polyglot repo renders every language's command
       Given a repo with a root "test" script and a "pyproject.toml"
       And the repo has a discoverable Python test file
+      And the "bun" toolchain is installed
       And the "pytest" toolchain is installed
       When I render the test plan as a shell script
       Then the script contains "run test"
@@ -63,17 +65,17 @@ Feature: migrate consumers to test-plan
     @migrate-consumers.SM1.AC1
     Scenario: test-runner.ts holds no per-language command strings
       When I read templates/hooks/lib/test-runner.ts
-      Then it contains no hardcoded "cargo test", "go test", "pytest", or "uv run pytest" command
+      Then it contains no hardcoded "cargo test", "go test", or "pytest" command
       And it does not define "nativeTestCommand", "getJsTestCommands", or "pythonTestCommand"
       And it invokes "project test-plan" via the safeword CLI
 
-    @wip @migrate-consumers.TB1.AC1
+    @migrate-consumers.TB1.AC1
     Scenario: A JS project still runs its test script and the acceptance lane
       Given a project whose package.json has a "test" and a "test:bdd" script
       When the stop-hook test runner runs
       Then both the test script and the acceptance lane are executed
 
-    @wip @migrate-consumers.TB1.AC1
+    @migrate-consumers.TB1.AC1
     Scenario: A project with no runnable suite skips without blocking
       Given a project with no test script and no language manifest
       When the stop-hook test runner runs
@@ -83,7 +85,8 @@ Feature: migrate consumers to test-plan
 
     @migrate-consumers.SM1.AC2
     Scenario: verify section 2 evals test-plan for both test and build, with no inline language branches
-      When I read the verify skill and the verify command
-      Then section 2 of each evaluates "project test-plan --format sh"
-      And section 2 of each contains no inline language test branch ("uv run pytest", "go test", "cargo test")
-      And section 2 of each contains no inline language build branch ("go build", "cargo build")
+      When I read the verify source surfaces
+      Then the verify command points to the verify skill
+      And section 2 of the verify skill evaluates "project test-plan --format sh"
+      And section 2 of the verify skill contains no inline language test branch ("uv run pytest", "go test", "cargo test")
+      And section 2 of the verify skill contains no inline language build branch ("go build", "cargo build")
