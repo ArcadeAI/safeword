@@ -246,7 +246,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 48f257797
 - [x] GREEN a4f35353c
-- [ ] REFACTOR
+- [x] REFACTOR skip: the fix already centralizes both Stop paths through one correction helper
 
 ### Scenario: Each installed native terminal boundary leaves every compliant long-form corpus case alone
 
