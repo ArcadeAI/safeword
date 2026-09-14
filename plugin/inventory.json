@@ -139,15 +139,15 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "007805723d56c80ef576a693d47e6d8ced92c5fccbd3c8b00ed9716bb470c43d"
+      "sha256": "a3222811c09a9c4ec04b880e37ff1ad91559570ee418f7a68813fd3ae6bf2e05"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "05aa3ccfac12f8216e8b67c4729f3f9d570f199e62233020642fe5af770ea97e"
+      "sha256": "1ad0ca485728a929c4d807edc8174226e535d2e4b48fefab7f39bfdaaae04d03"
     },
     {
       "path": "runtime/event-groups.json",
-      "sha256": "95bba61fd386c81cb7abb061b67c42a81a5ea1d9c1c87130fc0a9fc35366a0da"
+      "sha256": "64c85fac4ab56ac0080ed976361f47915aba81645ec23e97d43b8bc562a73731"
     },
     {
       "path": "runtime/hooks/audit-principle-trace.ts",

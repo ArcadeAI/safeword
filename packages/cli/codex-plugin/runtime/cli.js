@@ -55140,7 +55140,7 @@ function pluginHookEntries(event, entries, adapted) {
   if (event === "SessionStart") {
     return wrapHookCommands(pluginSessionStartEntries(adapted), event);
   }
-  if (event === "UserPromptSubmit") {
+  if (EVENT_GROUP_EVENTS.has(event)) {
     return [
       {
         hooks: [
@@ -55173,9 +55173,10 @@ function pluginHookManifest() {
 function currentClaudePluginHookManifestSha256() {
   return createHash25("sha256").update(pluginHookManifest()).digest("hex");
 }
-var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
+var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js', EVENT_GROUP_EVENTS;
 var init_hook_manifest = __esm(() => {
   init_config();
+  EVENT_GROUP_EVENTS = new Set(["UserPromptSubmit"]);
 });
 
 // src/claude-plugin/status.ts
@@ -63801,7 +63802,7 @@ function readRootScripts(root) {
     return;
   }
 }
-function resolveJs(projectDirectory, _index, kind, isAvailable, packageManagerDirectory = projectDirectory) {
+function resolveJs(projectDirectory, kind, isAvailable, packageManagerDirectory = projectDirectory) {
   const scripts = readRootScripts(projectDirectory);
   if (!scripts)
     return;
@@ -64018,7 +64019,8 @@ function resolveTestPlan(root, options = {}) {
   const installedPacks2 = readInstalledPacks(root);
   const globalIndex = indexFilesInTree(root, TREE_MANIFESTS);
   const declaredJavascriptPatterns = getWorkspacePatterns(root);
-  const javascript = javascriptProjectDirectories(root).filter((directory) => directory === root || !rootScriptDelegatesToWorkspace(root, directory, kind)).map((directory) => resolveJs(directory, directManifestIndex(directory), kind, isAvailable, directory !== root && declaredJavascriptPatterns.some((pattern) => !pattern.startsWith("!") && matchesWorkspacePattern(nodePath111.relative(root, directory), pattern)) ? root : directory));
+  const isDeclaredJavascriptWorkspace = (directory) => directory !== root && declaredJavascriptPatterns.some((pattern) => !pattern.startsWith("!") && matchesWorkspacePattern(nodePath111.relative(root, directory), pattern));
+  const javascript = javascriptProjectDirectories(root).filter((directory) => directory === root || (kind === "deps" ? !isDeclaredJavascriptWorkspace(directory) : !rootScriptDelegatesToWorkspace(root, directory, kind))).map((directory) => resolveJs(directory, kind, isAvailable, isDeclaredJavascriptWorkspace(directory) ? root : directory));
   const pythonDirectories = directoriesWithAnyManifest(root, pythonProjectMarkers(kind));
   const python = pythonDirectories.map((directory) => resolvePython(directory, pythonProjectIndex(directory, root), kind, isAvailable, new Set(pythonDirectories.filter((candidate) => {
     const relative = nodePath111.relative(directory, candidate);

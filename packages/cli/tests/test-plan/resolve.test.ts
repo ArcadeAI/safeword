@@ -630,6 +630,21 @@ describe('resolveTestPlan — typecheck plan (kind: typecheck, #436)', () => {
 });
 
 describe('resolveTestPlan — deps plan (kind: deps, supply-chain gate)', () => {
+  it('audits a declared JavaScript workspace lockfile once from its root', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ private: true, workspaces: ['packages/*'] }),
+      'bun.lock': '',
+      'packages/cli/package.json': JSON.stringify({ scripts: {} }),
+      'packages/web/package.json': JSON.stringify({ scripts: {} }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['']);
+  });
+
   it('emits the cargo-deny supply-chain check for Rust', () => {
     const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
     const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });

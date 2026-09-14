@@ -125,6 +125,12 @@ describe('Codex plugin release contract', () => {
         ]) {
           expect(existsSync(nodePath.join(output, relativePath))).toBe(true);
         }
+        expect(readFileSync(nodePath.join(output, 'templates/SAFEWORD.md'))).toEqual(
+          readFileSync(nodePath.join(root, 'templates/SAFEWORD.md')),
+        );
+        expect(readFileSync(nodePath.join(output, 'resources/SAFEWORD.md'), 'utf8')).toContain(
+          '$safeword:figure-it-out',
+        );
 
         const codexHome = nodePath.join(fixture, 'codex-home');
         const project = nodePath.join(fixture, 'project');

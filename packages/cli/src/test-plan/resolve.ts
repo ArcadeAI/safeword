@@ -276,12 +276,10 @@ const JS_DIRECT_SCRIPT: Partial<Record<PlanKind, string>> = {
 
 function resolveJs(
   projectDirectory: string,
-  _index: ManifestIndex,
   kind: PlanKind,
   isAvailable: ToolProbe,
   packageManagerDirectory: string = projectDirectory,
 ): PlanEntry | undefined {
-  // JS is detected root-only: subdirectory package.json is too common to treat as a project root.
   const scripts = readRootScripts(projectDirectory);
   if (!scripts) return undefined;
   const pm = detectPackageManager(packageManagerDirectory);
@@ -670,24 +668,27 @@ export function resolveTestPlan(root: string, options: ResolveOptions = {}): Pla
   const installedPacks = readInstalledPacks(root);
   const globalIndex = indexFilesInTree(root, TREE_MANIFESTS);
   const declaredJavascriptPatterns = getWorkspacePatterns(root);
+  const isDeclaredJavascriptWorkspace = (directory: string): boolean =>
+    directory !== root &&
+    declaredJavascriptPatterns.some(
+      pattern =>
+        !pattern.startsWith('!') &&
+        matchesWorkspacePattern(nodePath.relative(root, directory), pattern),
+    );
   const javascript = javascriptProjectDirectories(root)
     .filter(
-      directory => directory === root || !rootScriptDelegatesToWorkspace(root, directory, kind),
+      directory =>
+        directory === root ||
+        (kind === 'deps'
+          ? !isDeclaredJavascriptWorkspace(directory)
+          : !rootScriptDelegatesToWorkspace(root, directory, kind)),
     )
     .map(directory =>
       resolveJs(
         directory,
-        directManifestIndex(directory),
         kind,
         isAvailable,
-        directory !== root &&
-          declaredJavascriptPatterns.some(
-            pattern =>
-              !pattern.startsWith('!') &&
-              matchesWorkspacePattern(nodePath.relative(root, directory), pattern),
-          )
-          ? root
-          : directory,
+        isDeclaredJavascriptWorkspace(directory) ? root : directory,
       ),
     );
   const pythonDirectories = directoriesWithAnyManifest(root, pythonProjectMarkers(kind));

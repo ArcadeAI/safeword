@@ -5507,7 +5507,7 @@ function setupRanForSession(pluginData, sessionId, pluginRoot, projectRoot, iden
 }
 function recordExecutionProof(event, pluginRoot, identity, input) {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
-  const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
+  const pluginData = claudePluginDataDirectory();
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
   if (
     event === 'SessionStart' &&
@@ -5529,7 +5529,7 @@ function recordExecutionProof(event, pluginRoot, identity, input) {
 function recordCacheSmoke(event, pluginRoot, identity, input) {
   if (event !== 'Setup') return;
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
-  writeDurableRecord(requiredEnvironment('CLAUDE_PLUGIN_DATA'), 'cache-smoke-v1.json', {
+  writeDurableRecord(claudePluginDataDirectory(), 'cache-smoke-v1.json', {
     schema_version: 1,
     plugin_version: identity.plugin_version,
     hook_manifest_sha256: identity.hook_manifest_sha256,
@@ -5811,7 +5811,13 @@ function automaticMigration(event, identity, execution, sessionId, hookCwd) {
   }
 }
 function executionProofFailure(event, execution, error) {
-  if (event !== 'UserPromptSubmit') return execution;
+  if (event !== 'UserPromptSubmit') {
+    process.stderr.write(
+      `Safeword could not record native plugin proof during ${event}: ${error instanceof Error ? error.message : String(error)}
+`,
+    );
+    return execution;
+  }
   const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; verify protection with \`safeword claude status\`.`;
   return { ...execution, stdout: safeAppendMigrationAdvisory(event, execution.stdout, advisory) };
 }
@@ -5999,11 +6005,11 @@ function startupFailure(event, error) {
 }
 function main() {
   const [event, mode, ...command] = process.argv.slice(2);
-  if (event === void 0) throw new Error('Claude hook event is required.');
   try {
+    if (event === void 0) throw new Error('Claude hook event is required.');
     return mainUnsafe(event, mode, command);
   } catch (error) {
-    return startupFailure(event, error);
+    return startupFailure(event ?? 'unknown', error);
   }
 }
 process.exitCode = main();

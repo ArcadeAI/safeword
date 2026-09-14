@@ -7,7 +7,7 @@ import { buildSync } from 'esbuild';
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { SETTINGS_HOOKS } from '../templates/config.js';
-import { adaptHookValue, pluginHookManifest, pluginSessionStartEntries } from './hook-manifest.js';
+import { adaptHookValue, pluginEventGroupEvents, pluginHookManifest } from './hook-manifest.js';
 
 export interface GeneratedClaudePluginAsset {
   readonly relativePath: string;
@@ -341,12 +341,8 @@ function claudeHookAssets(templatesRoot: string): GeneratedClaudePluginAsset[] {
 
 function pluginEventGroups(): string {
   const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
-  const sessionStart = pluginSessionStartEntries(adapted);
   const groups = Object.fromEntries(
-    ['SessionStart', 'UserPromptSubmit'].map(event => [
-      event,
-      event === 'SessionStart' ? sessionStart : (adapted[event] ?? []),
-    ]),
+    pluginEventGroupEvents().map(event => [event, adapted[event] ?? []]),
   );
   return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}\n`;
 }

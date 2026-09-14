@@ -31,6 +31,7 @@ import {
 } from '../migration-state.js';
 import {
   claudeConfigDirectory,
+  claudePluginDataDirectory,
   claudeProjectDigest,
   claudeProofDirectory,
 } from '../plugin-data.js';
@@ -289,7 +290,7 @@ function recordExecutionProof(
   input: HookInput,
 ): void {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
-  const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
+  const pluginData = claudePluginDataDirectory();
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
   if (
     event === 'SessionStart' &&
@@ -317,7 +318,7 @@ function recordCacheSmoke(
 ): void {
   if (event !== 'Setup') return;
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
-  writeDurableRecord(requiredEnvironment('CLAUDE_PLUGIN_DATA'), 'cache-smoke-v1.json', {
+  writeDurableRecord(claudePluginDataDirectory(), 'cache-smoke-v1.json', {
     schema_version: 1,
     plugin_version: identity.plugin_version,
     hook_manifest_sha256: identity.hook_manifest_sha256,
@@ -685,7 +686,12 @@ function executionProofFailure(
   execution: FunctionalCommandResult,
   error: unknown,
 ): FunctionalCommandResult {
-  if (event !== 'UserPromptSubmit') return execution;
+  if (event !== 'UserPromptSubmit') {
+    process.stderr.write(
+      `Safeword could not record native plugin proof during ${event}: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
+    return execution;
+  }
   const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; verify protection with \`safeword claude status\`.`;
   return { ...execution, stdout: safeAppendMigrationAdvisory(event, execution.stdout, advisory) };
 }
@@ -910,11 +916,11 @@ function startupFailure(event: string, error: unknown): number {
 
 function main(): number {
   const [event, mode, ...command] = process.argv.slice(2);
-  if (event === undefined) throw new Error('Claude hook event is required.');
   try {
+    if (event === undefined) throw new Error('Claude hook event is required.');
     return mainUnsafe(event, mode, command);
   } catch (error) {
-    return startupFailure(event, error);
+    return startupFailure(event ?? 'unknown', error);
   }
 }
 

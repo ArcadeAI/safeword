@@ -22,6 +22,7 @@ import {
   historicalHookEntry,
 } from '../../src/claude-plugin/historical-ownership.js';
 import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
+import { claudeProofDirectory } from '../../src/claude-plugin/plugin-data.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
 import { blockChildren } from '../helpers/io-failure.js';
@@ -195,13 +196,13 @@ describe('Claude plugin dispatcher', () => {
 
     const result = spawnSync(
       'bun',
-      [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'), 'SessionStart', '--event-group'],
+      [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'), 'UserPromptSubmit', '--event-group'],
       {
         cwd: projectDirectory,
         env: environment,
         encoding: 'utf8',
         input: JSON.stringify({
-          hook_event_name: 'SessionStart',
+          hook_event_name: 'UserPromptSubmit',
           session_id: 'dispatch-environment-test',
         }),
       },
@@ -213,7 +214,7 @@ describe('Claude plugin dispatcher', () => {
     const proofPath = nodePath.join(pluginData, 'execution-proofs-v2', `${projectDigest}.json`);
     expect(existsSync(proofPath)).toBe(true);
     expect(JSON.parse(readFileSync(proofPath, 'utf8'))).toMatchObject({
-      event: 'SessionStart',
+      event: 'UserPromptSubmit',
       session_id: 'dispatch-environment-test',
     });
   });
@@ -273,14 +274,54 @@ describe('Claude plugin dispatcher', () => {
       })}\n`,
     );
 
-    const result = dispatchEvent(projectDirectory, pluginData, undefined, 'shared-session', {
-      event: 'SessionStart',
-    });
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'), 'SessionStart', '--', 'bun', '-e', ''],
+      {
+        cwd: projectDirectory,
+        env: isolatedClaudeEnvironment(projectDirectory, pluginData),
+        encoding: 'utf8',
+        input: JSON.stringify({
+          cwd: projectDirectory,
+          hook_event_name: 'SessionStart',
+          session_id: 'shared-session',
+        }),
+      },
+    );
     expect(result.status, result.stderr).toBe(0);
     const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
     expect(
       existsSync(nodePath.join(pluginData, 'execution-proofs-v2', `${projectDigest}.json`)),
     ).toBe(true);
+  });
+
+  it('records SessionStart proof through the config fallback when plugin data is not exported', () => {
+    const projectDirectory = temporary('safeword-plugin-data-fallback-project-');
+    const pluginData = temporary('safeword-plugin-data-fallback-unused-');
+    const configDirectory = temporary('safeword-plugin-data-fallback-config-');
+    const environment = isolatedClaudeEnvironment(projectDirectory, pluginData);
+    environment.CLAUDE_CONFIG_DIR = configDirectory;
+    delete environment.CLAUDE_PLUGIN_DATA;
+
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'), 'SessionStart', '--', 'bun', '-e', ''],
+      {
+        cwd: projectDirectory,
+        env: environment,
+        encoding: 'utf8',
+        input: JSON.stringify({
+          cwd: projectDirectory,
+          hook_event_name: 'SessionStart',
+          session_id: 'plugin-data-fallback',
+        }),
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+    const proofPath = nodePath.join(claudeProofDirectory(environment), `${projectDigest}.json`);
+    expect(existsSync(proofPath)).toBe(true);
   });
 
   it('automatically contracts a released project through the generated runtime', () => {
@@ -635,6 +676,48 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stdout).toContain('could not record native plugin proof');
   });
 
+  it('reports a SessionStart proof failure without blocking the lifecycle event', () => {
+    const projectDirectory = temporary('safeword-plugin-session-proof-failure-project-');
+    const pluginData = nodePath.join(
+      temporary('safeword-plugin-session-proof-failure-data-'),
+      'not-a-dir',
+    );
+    blockChildren(pluginData);
+
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'), 'SessionStart', '--', 'bun', '-e', ''],
+      {
+        cwd: projectDirectory,
+        env: isolatedClaudeEnvironment(projectDirectory, pluginData),
+        encoding: 'utf8',
+        input: JSON.stringify({
+          cwd: projectDirectory,
+          hook_event_name: 'SessionStart',
+          session_id: 'session-proof-failure',
+        }),
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toContain('could not record native plugin proof');
+  });
+
+  it('reports a missing event argument through the startup failure contract', () => {
+    const result = spawnSync('bun', [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js')], {
+      env: isolatedClaudeEnvironment(
+        temporary('safeword-plugin-missing-event-project-'),
+        temporary('safeword-plugin-missing-event-data-'),
+      ),
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toBe(
+      'Safeword could not safely start its unknown hook: Claude hook event is required.\n',
+    );
+  });
+
   it('does not execute an aggregate manifest omitted from the verified inventory', () => {
     const projectDirectory = temporary('safeword-plugin-inventory-gap-project-');
     const pluginData = temporary('safeword-plugin-inventory-gap-data-');
@@ -720,6 +803,33 @@ describe('Claude plugin dispatcher', () => {
         additionalContext: expect.stringContaining('No Safeword hook result was applied'),
       },
     });
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+  });
+
+  it('asks for user approval with a framed error when a listed plugin asset is missing', () => {
+    const projectDirectory = temporary('safeword-plugin-missing-asset-project-');
+    const pluginData = temporary('safeword-plugin-missing-asset-data-');
+    const configDirectory = temporary('safeword-plugin-missing-asset-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-missing-asset-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    rmSync(nodePath.join(pluginRoot, 'runtime/event-groups.json'));
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'missing-asset', {
+      event: 'PreToolUse',
+      pluginRoot,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'ask',
+        permissionDecisionReason: expect.stringContaining(
+          'plugin asset is missing: runtime/event-groups.json',
+        ),
+      },
+    });
+    expect(result.stdout).not.toContain('ENOENT');
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
@@ -970,6 +1080,47 @@ describe('Claude plugin dispatcher', () => {
       'authorization-conflict',
       { event: 'PreToolUse', pluginRoot },
     );
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+      },
+    });
+  });
+
+  it('does not let login-profile output corrupt an aggregate authorization decision', () => {
+    const projectDirectory = temporary('safeword-plugin-login-profile-project-');
+    const pluginData = temporary('safeword-plugin-login-profile-data-');
+    const configDirectory = temporary('safeword-plugin-login-profile-config-');
+    const homeDirectory = temporary('safeword-plugin-login-profile-home-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-login-profile-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    writeFileSync(nodePath.join(homeDirectory, '.bash_profile'), 'echo profile-noise\n');
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.PreToolUse = [
+      {
+        hooks: [
+          {
+            type: 'command',
+            command: String.raw`printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"}}\n'`,
+          },
+        ],
+      },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'login-profile', {
+      event: 'PreToolUse',
+      homeDirectory,
+      pluginRoot,
+    });
+
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({
       hookSpecificOutput: {

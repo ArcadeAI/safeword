@@ -76,6 +76,30 @@ describe('Claude plugin catalogue generation', () => {
     }
   });
 
+  it('packages event groups for exactly the manifest events dispatched as aggregates', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const contents = new Map(assets.map(asset => [asset.relativePath, asset.content]));
+    const manifest = JSON.parse(contents.get('hooks/hooks.json') ?? '{}') as {
+      hooks?: Record<string, unknown>;
+    };
+    const eventGroups = JSON.parse(contents.get('runtime/event-groups.json') ?? '{}') as {
+      groups?: Record<string, unknown>;
+    };
+    const aggregateEvents = Object.entries(manifest.hooks ?? {})
+      .filter(([, entries]) => JSON.stringify(entries).includes('--event-group'))
+      .map(([event]) => event)
+      .toSorted((left, right) => left.localeCompare(right));
+
+    expect(
+      Object.keys(eventGroups.groups ?? {}).toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(aggregateEvents);
+  });
+
   it('passes the shared native runtime-authority release gate', () => {
     const assets = generateClaudePluginAssets({
       cliBundle: 'console.log("stub cli bundle");',
