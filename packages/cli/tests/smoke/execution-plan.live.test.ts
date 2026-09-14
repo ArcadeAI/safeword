@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import {
   createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
 import type { ReviewAgent, ReviewerOutput, ReviewPacket } from '../../src/review/contract.js';
@@ -45,6 +46,7 @@ function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent
       },
     ],
     execution_plan_delivery_definition: definition,
+    execution_plan_normalized_digest: normalizedExecutionPlanDigest(testCase.execution_plan),
   };
 }
 

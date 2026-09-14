@@ -84,3 +84,18 @@ records the retained testing proof before asserting each readiness state.
 Ruled out: a readiness projection defect, because plan parsing rejected the
 fixture before projection; an over-broad validator rule, because the approved
 Implementation and Execution Plans explicitly require executable testing proof.
+
+### Stale Execution Plan reviewer admission
+
+The Execution Plan conformance corpus's live packet omitted the normalized plan
+digest that an approving reviewer must copy exactly. Claude therefore rejected
+all eight positive cases while correctly rejecting all nineteen negative cases.
+
+Confirmed by a bounded diagnostic review of `one-coherent-change`: Claude
+accepted its slicing structure once the digest was present. It retained a
+non-blocking warning that one proof command covers several obligations, but
+accepted byte-exact conformance as a real boundary for this inert contract.
+Ruled out reviewer instability by the consistent nineteen-case negative matrix;
+ruled out invalid PR slicing by Claude's explicit structural approval; ruled out
+a route/configuration failure because the live reviewer returned a schema-valid
+semantic denial.
