@@ -4,7 +4,7 @@
  * Tests for package manager detection and dependency installation logic.
  */
 
-import { chmodSync, existsSync, symlinkSync } from 'node:fs';
+import { chmodSync, existsSync, realpathSync, symlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -39,6 +39,43 @@ afterEach(() => {
     removeTemporaryDirectory(context.projectDirectory);
   }
 });
+
+function withFakeUv<T>(
+  script: string,
+  action: () => T,
+  options: { failLockCheck?: boolean } = {},
+): { calls: string[]; result: T } {
+  const bin = nodePath.join(context.projectDirectory, 'bin');
+  const log = nodePath.join(context.projectDirectory, 'uv.log');
+  const originalPath = process.env.PATH;
+  const originalLog = process.env.SAFEWORD_UV_LOG;
+  const originalRoot = process.env.SAFEWORD_UV_ROOT;
+  const originalFailCheck = process.env.SAFEWORD_UV_FAIL_CHECK;
+  writeTestFile(context.projectDirectory, 'bin/uv', script);
+  chmodSync(nodePath.join(bin, 'uv'), 0o755);
+  process.env.PATH = `${bin}:${originalPath ?? ''}`;
+  process.env.SAFEWORD_UV_LOG = log;
+  process.env.SAFEWORD_UV_ROOT = context.projectDirectory;
+  if (options.failLockCheck) process.env.SAFEWORD_UV_FAIL_CHECK = '1';
+  else delete process.env.SAFEWORD_UV_FAIL_CHECK;
+
+  try {
+    const result = action();
+    const calls = existsSync(log)
+      ? readTestFile(context.projectDirectory, 'uv.log').trim().split('\n').filter(Boolean)
+      : [];
+    return { calls, result };
+  } finally {
+    if (originalPath === undefined) delete process.env.PATH;
+    else process.env.PATH = originalPath;
+    if (originalLog === undefined) delete process.env.SAFEWORD_UV_LOG;
+    else process.env.SAFEWORD_UV_LOG = originalLog;
+    if (originalRoot === undefined) delete process.env.SAFEWORD_UV_ROOT;
+    else process.env.SAFEWORD_UV_ROOT = originalRoot;
+    if (originalFailCheck === undefined) delete process.env.SAFEWORD_UV_FAIL_CHECK;
+    else process.env.SAFEWORD_UV_FAIL_CHECK = originalFailCheck;
+  }
+}
 
 // =============================================================================
 // Tool set (shared by setup + upgrade — the anti-drift source of truth)
@@ -106,9 +143,11 @@ dependencies = [
 
   it.each([
     'requirements-dev.txt',
+    'requirements-dev.in',
     'dev-requirements.txt',
     'test_requirements.txt',
     'requirements/dev.txt',
+    'requirements/dev.in',
   ])('recognizes required Python tools declared in %s', path => {
     writeTestFile(
       context.projectDirectory,
@@ -237,6 +276,14 @@ dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
 });
 
 describe('repository Python projects', () => {
+  it("treats a flat nested requirements.txt as that directory's pip project manifest", () => {
+    writeTestFile(context.projectDirectory, 'docs/requirements.txt', 'sphinx\n');
+
+    expect(findPythonProjectDirectories(context.projectDirectory)).toEqual([
+      nodePath.join(context.projectDirectory, 'docs'),
+    ]);
+  });
+
   it('ignores documentation requirements folders without a Python project marker', () => {
     writeTestFile(context.projectDirectory, 'docs/requirements/product.txt', 'product notes\n');
     writeTestFile(context.projectDirectory, 'guide/requirements/requirements-dev.txt', 'ruff\n');
@@ -361,6 +408,31 @@ describe('repository Python projects', () => {
     ]);
   });
 
+  it('does not scan a later list when install_requires names a variable', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'services/legacy/setup.py',
+      'from setuptools import setup\nREQUIREMENTS = []\nsetup(install_requires=REQUIREMENTS, classifiers=["ruff", "mypy"])\n',
+    );
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([
+      {
+        directory: nodePath.join(context.projectDirectory, 'services/legacy'),
+        tools: ['ruff', 'mypy', 'deadcode', 'pip-audit'],
+      },
+    ]);
+  });
+
+  it('keeps bracket tracking stable around triple-quoted setup.py values', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'services/legacy/setup.py',
+      'from setuptools import setup\nsetup(install_requires=["ruff", """example ] text""", "mypy", "deadcode", "pip-audit"])\n',
+    );
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([]);
+  });
+
   it('reads pinned install_requires declarations from setup.cfg', () => {
     writeTestFile(
       context.projectDirectory,
@@ -480,6 +552,25 @@ name = "test"
     const impossibleRoot = nodePath.join(context.projectDirectory, 'nested-root');
 
     expect(detectPythonPackageManager(context.projectDirectory, impossibleRoot)).toBe('pip');
+  });
+
+  it('does not inherit a uv lock from outside the supplied repository root', () => {
+    const externalProject = createTemporaryDirectory();
+    try {
+      writeTestFile(
+        context.projectDirectory,
+        'pyproject.toml',
+        '[dependency-groups]\ndev=["ruff", "mypy", "deadcode", "pip-audit"]\n',
+      );
+      writeTestFile(context.projectDirectory, 'uv.lock', 'version = 1\n');
+      writeTestFile(externalProject, 'pyproject.toml', '[project]\nname="external"\n');
+
+      expect(
+        getMissingPythonToolDependencies(externalProject, false, context.projectDirectory),
+      ).toEqual(['ruff', 'mypy', 'deadcode', 'pip-audit']);
+    } finally {
+      removeTemporaryDirectory(externalProject);
+    }
   });
 });
 
@@ -613,6 +704,91 @@ describe('installPythonDependencies', () => {
       if (originalLog === undefined) delete process.env.SAFEWORD_UV_LOG;
       else process.env.SAFEWORD_UV_LOG = originalLog;
     }
+  });
+
+  it('installs every uv workspace gap before finalizing and checking the shared lock', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'pyproject.toml',
+      '[tool.uv.workspace]\nmembers=["apps/*"]\n',
+    );
+    writeTestFile(context.projectDirectory, 'uv.lock', 'version = 1\n');
+    const api = nodePath.join(context.projectDirectory, 'apps/api');
+    const worker = nodePath.join(context.projectDirectory, 'apps/worker');
+    writeTestFile(context.projectDirectory, 'apps/api/pyproject.toml', '[project]\nname="api"\n');
+    writeTestFile(
+      context.projectDirectory,
+      'apps/worker/pyproject.toml',
+      '[project]\nname="worker"\n',
+    );
+
+    const { calls, result } = withFakeUv(
+      '#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> "$SAFEWORD_UV_LOG"\n',
+      () =>
+        installPythonDependencyBatch(
+          [
+            { directory: api, tools: ['ruff'] },
+            { directory: worker, tools: ['mypy'] },
+          ],
+          context.projectDirectory,
+        ),
+    );
+    const physicalRoot = realpathSync(context.projectDirectory);
+
+    expect(result).toEqual([true, true]);
+    expect(calls).toEqual([
+      `${nodePath.join(physicalRoot, 'apps/api')}|add --dev ruff`,
+      `${nodePath.join(physicalRoot, 'apps/worker')}|add --dev mypy`,
+      `${physicalRoot}|lock`,
+      `${physicalRoot}|lock --check`,
+    ]);
+  });
+
+  it('rolls back every uv workspace file when final lock verification fails', () => {
+    const rootManifest = '[tool.uv.workspace]\nmembers=["apps/*"]\n';
+    const rootLock = 'version = 1\n';
+    const apiManifest = '[project]\nname="api"\n';
+    const workerManifest = '[project]\nname="worker"\n';
+    writeTestFile(context.projectDirectory, 'pyproject.toml', rootManifest);
+    writeTestFile(context.projectDirectory, 'uv.lock', rootLock);
+    writeTestFile(context.projectDirectory, 'apps/api/pyproject.toml', apiManifest);
+    writeTestFile(context.projectDirectory, 'apps/worker/pyproject.toml', workerManifest);
+    const api = nodePath.join(context.projectDirectory, 'apps/api');
+    const worker = nodePath.join(context.projectDirectory, 'apps/worker');
+    const script = String.raw`#!/bin/sh
+printf "%s|%s\n" "$PWD" "$*" >> "$SAFEWORD_UV_LOG"
+if [ "$1" = "add" ]; then
+  printf '\n# mutated\n' >> pyproject.toml
+  printf '\n# mutated\n' >> "$SAFEWORD_UV_ROOT/uv.lock"
+fi
+if [ "$1" = "lock" ] && [ "$2" = "--check" ] && [ "$SAFEWORD_UV_FAIL_CHECK" = "1" ]; then
+  exit 9
+fi
+`;
+
+    const { calls, result } = withFakeUv(
+      script,
+      () =>
+        installPythonDependencyBatch(
+          [
+            { directory: api, tools: ['ruff'] },
+            { directory: worker, tools: ['mypy'] },
+          ],
+          context.projectDirectory,
+        ),
+      { failLockCheck: true },
+    );
+    const physicalRoot = realpathSync(context.projectDirectory);
+
+    expect(result).toEqual([false, false]);
+    expect(calls.at(-2)).toBe(`${physicalRoot}|lock`);
+    expect(calls.at(-1)).toBe(`${physicalRoot}|lock --check`);
+    expect(readTestFile(context.projectDirectory, 'pyproject.toml')).toBe(rootManifest);
+    expect(readTestFile(context.projectDirectory, 'uv.lock')).toBe(rootLock);
+    expect(readTestFile(context.projectDirectory, 'apps/api/pyproject.toml')).toBe(apiManifest);
+    expect(readTestFile(context.projectDirectory, 'apps/worker/pyproject.toml')).toBe(
+      workerManifest,
+    );
   });
 
   const IS_POETRY_AVAILABLE = isPoetryInstalled();

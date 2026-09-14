@@ -6,6 +6,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const directories: string[] = [];
+const packageRoot = path.resolve(import.meta.dirname, '../..');
 
 afterEach(() => {
   for (const directory of directories) rmSync(directory, { force: true, recursive: true });
@@ -13,16 +14,17 @@ afterEach(() => {
 });
 
 describe('relay drain-throughput measurement producer', () => {
-  it('writes validator-compatible evidence by measuring the real durable spool', () => {
+  it('writes validator-compatible evidence and clears multiple relay-latency windows', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'relay-drain-measurement-'));
     directories.push(directory);
     const output = path.join(directory, 'drain-throughput.json');
     const result = spawnSync(
       'bun',
-      [path.resolve('scripts/measure-relay-drain-throughput.ts'), '--output', output],
+      [path.join(packageRoot, 'scripts/measure-relay-drain-throughput.ts'), '--output', output],
       {
-        cwd: path.resolve('.'),
+        cwd: packageRoot,
         encoding: 'utf8',
+        timeout: 5000,
       },
     );
 
@@ -55,8 +57,7 @@ describe('relay drain-throughput measurement producer', () => {
       version: 2,
     });
     expect(new Date(artifact.measuredAt).toISOString()).toBe(artifact.measuredAt);
-    expect(artifact.result.acceptedCount).toBeGreaterThanOrEqual(2);
-    expect(artifact.result.durationMs).toBeGreaterThanOrEqual(0);
+    expect(artifact.result.acceptedCount).toBeGreaterThanOrEqual(12);
     expect(artifact.result.durationMs).toBeLessThan(1000);
   });
 });

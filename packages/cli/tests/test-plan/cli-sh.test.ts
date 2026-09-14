@@ -217,6 +217,18 @@ describe('safeword test-plan', () => {
     });
   });
 
+  it('rejects a non-string format instead of silently choosing human output', async () => {
+    const result = await observeTestPlan(
+      makeRepo({ 'package.json': '{"scripts":{"test":"vitest"}}' }),
+      undefined,
+      { format: true },
+    );
+    expect(result).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'TEST_PLAN_FORMAT_INVALID', message: 'Test-plan format must be a string.' }],
+    });
+  });
+
   it('does not interpolate repository-controlled manifest text into commands', async () => {
     const marker = '$(touch MANIFEST_INJECTED)';
     const root = makeRepo({

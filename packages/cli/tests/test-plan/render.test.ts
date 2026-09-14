@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process';
+
 import { describe, expect, it } from 'vitest';
 
 import { renderShellPlan } from '../../src/test-plan/render';
@@ -33,9 +35,14 @@ describe('renderShellPlan', () => {
   });
 
   it('wraps a non-empty plan in a subshell that preserves the first failing lane', () => {
-    const sh = renderShellPlan([entry({})]);
+    const sh = renderShellPlan([
+      entry({ cwd: '/', command: 'exit 3' }),
+      entry({ cwd: '/', command: 'exit 4' }),
+    ]);
+    const evaluation = spawnSync('bash', ['-c', sh]);
     expect(sh).toMatch(/^\(\n {2}safeword_plan_status=0\n/);
     expect(sh).toContain('exit "$safeword_plan_status"');
+    expect(evaluation.status).toBe(3);
   });
 
   it('renders an unavailable entry as a visible failing lane, not a command', () => {

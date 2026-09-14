@@ -176,8 +176,9 @@ const PYTHON_CLOSING_BRACKETS = new Map([
 ]);
 
 function isRootRequirementsFile(filename: string): boolean {
-  if (!filename.endsWith('.txt')) return false;
-  const stem = filename.slice(0, -'.txt'.length);
+  const extension = pythonRequirementsExtension(filename);
+  if (extension === undefined) return false;
+  const stem = filename.slice(0, -extension.length);
   return (
     stem === 'requirements' ||
     stem.startsWith('requirements-') ||
@@ -186,6 +187,12 @@ function isRootRequirementsFile(filename: string): boolean {
     stem.endsWith('-requirements') ||
     stem.endsWith('_requirements')
   );
+}
+
+function pythonRequirementsExtension(filename: string): '.in' | '.txt' | undefined {
+  if (filename.endsWith('.txt')) return '.txt';
+  if (filename.endsWith('.in')) return '.in';
+  return undefined;
 }
 
 function normalizePythonDistributionName(value: string): string {
@@ -408,7 +415,28 @@ function updatePythonBrackets(
   }
 }
 
+function pythonBracketExpressionStart(content: string, start: number): number | undefined {
+  let comment = false;
+  for (let index = start; index < content.length; index += 1) {
+    const character = content[index];
+    if (character === undefined) return undefined;
+    if (comment) {
+      if (character === '\n') comment = false;
+      continue;
+    }
+    if (character === '#') {
+      comment = true;
+      continue;
+    }
+    if (/\s/u.test(character)) continue;
+    return PYTHON_CLOSING_BRACKETS.has(character) ? index : undefined;
+  }
+  return undefined;
+}
+
 function pythonAssignedExpression(content: string, start: number): string | undefined {
+  const expressionStart = pythonBracketExpressionStart(content, start);
+  if (expressionStart === undefined) return undefined;
   const state: PythonExpressionState = {
     brackets: [],
     quote: undefined,
@@ -417,7 +445,7 @@ function pythonAssignedExpression(content: string, start: number): string | unde
     expressionStart: undefined,
   };
 
-  for (let index = start; index < content.length; index += 1) {
+  for (let index = expressionStart; index < content.length; index += 1) {
     const character = content[index];
     if (character === undefined) break;
     if (consumePythonProtectedCharacter(state, character)) continue;
@@ -442,7 +470,10 @@ function setupPyDependencySpecs(content: string): string[] {
       !isPythonCodePosition(codeWithoutMultilineStrings, match.index)
     )
       continue;
-    const expression = pythonAssignedExpression(content, match.index + match[0].length);
+    const expression = pythonAssignedExpression(
+      codeWithoutMultilineStrings,
+      match.index + match[0].length,
+    );
     if (expression === undefined) continue;
     for (const stringMatch of expression.matchAll(/(['"])(.*?)\1/gsu)) {
       if (stringMatch[2] !== undefined) specifications.push(stringMatch[2]);
@@ -555,7 +586,7 @@ function pythonRequirementPaths(cwd: string): string[] {
     return direct;
   }
   const nested = requirementEntries
-    .filter(entry => entry.isFile() && entry.name.endsWith('.txt'))
+    .filter(entry => entry.isFile() && (entry.name.endsWith('.txt') || entry.name.endsWith('.in')))
     .map(entry => nodePath.join(requirementsDirectory, entry.name));
   return [...direct, ...nested];
 }
@@ -684,6 +715,7 @@ function detectPythonPackageManagerAt(directory: string): PythonPackageManager |
 function uvLockDirectory(cwd: string, repoRoot: string): string | undefined {
   const root = nodePath.resolve(repoRoot);
   const projectDirectory = nodePath.resolve(cwd);
+  if (!isPathWithinDirectory(projectDirectory, root)) return undefined;
   let directory = projectDirectory;
 
   while (true) {
@@ -767,8 +799,11 @@ export function getMissingPythonToolDependencies(
   includeImportLinter: boolean,
   repoRoot: string = cwd,
 ): PythonTool[] {
-  const workspaceRoot = uvLockDirectory(cwd, repoRoot);
-  const declarationDirectories = new Set([cwd, workspaceRoot].filter(Boolean) as string[]);
+  const projectDirectory = nodePath.resolve(cwd);
+  const workspaceRoot = uvLockDirectory(projectDirectory, repoRoot);
+  const declarationDirectories = new Set(
+    workspaceRoot === undefined ? [projectDirectory] : [projectDirectory, workspaceRoot],
+  );
   const sources = new Map(
     [...declarationDirectories].map(directory => [
       directory,
@@ -791,11 +826,15 @@ export function getMissingPythonToolDependencies(
  */
 export function findPythonProjectDirectories(cwd: string): string[] {
   const root = nodePath.resolve(cwd);
+  // A flat requirements source is itself a complete pip project manifest, including in a nested
+  // directory. By contrast, files under a requirements/ collection need an owning project marker;
+  // otherwise documentation/support folders would be enrolled merely for carrying a text fixture.
   const requirementsDirectories = findAllFilesMatchingInTree(
     root,
     (filename, directory) =>
       isRootRequirementsFile(filename) ||
-      (nodePath.basename(directory) === 'requirements' && filename.endsWith('.txt')),
+      (nodePath.basename(directory) === 'requirements' &&
+        pythonRequirementsExtension(filename) !== undefined),
   )
     .filter(path => {
       const directory = nodePath.dirname(path);
