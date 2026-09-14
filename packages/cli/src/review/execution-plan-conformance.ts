@@ -40,6 +40,13 @@ interface SliceInput {
   readonly completion?: string;
 }
 
+function stagedOwners(
+  prerequisite: string,
+  activation: string,
+): Readonly<Partial<Record<(typeof OBLIGATIONS)[number], string>>> {
+  return { 'Accepted behavior': activation, 'Migration work': prerequisite };
+}
+
 function slice(input: SliceInput): string {
   return `### ${input.name}
 
@@ -211,6 +218,7 @@ const MULTI_PLAN = executionPlan({
   decision: 'multiple pull requests',
   rationale: 'Contract delivery and activation are independently reviewable with separate proof.',
   slices: [CONTRACT_SLICE, ACTIVATION_SLICE],
+  obligationOwners: stagedOwners('Contract', 'Activation'),
 });
 const COMPLETE_RECORD_PLAN = executionPlan({
   decision: 'one pull request',
@@ -248,10 +256,7 @@ const ORDERED_SCHEMA_PLAN = executionPlan({
       completion: 'The reader is active and every merge remains supported.',
     },
   ],
-  obligationOwners: {
-    'Accepted behavior': 'Reader',
-    'Migration work': 'Schema',
-  },
+  obligationOwners: stagedOwners('Schema', 'Reader'),
 });
 const MECHANICAL_MIRRORS_PLAN = executionPlan({
   decision: 'one pull request',
@@ -290,6 +295,7 @@ const FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
       completion: 'The command works and every merge remains supported.',
     },
   ],
+  obligationOwners: stagedOwners('Inert schema', 'Public activation'),
 });
 const OBLIGATION_PLAN = executionPlan({
   decision: 'multiple pull requests',
@@ -304,6 +310,7 @@ const OBLIGATION_PLAN = executionPlan({
       completion: 'Every accepted obligation has an owner and the repository remains supported.',
     },
   ],
+  obligationOwners: stagedOwners('Contract owner', 'Release owner'),
 });
 const UNCHANGED_DECISIONS_PLAN = executionPlan({
   decision: 'one pull request',

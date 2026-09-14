@@ -77,13 +77,16 @@ describe('Execution Plan semantic conformance admission', () => {
     expect(new Set(approvedInputs).size).toBe(approvedInputs.length);
   });
 
-  it('assigns behavior to the slice that activates it in an ordered plan', () => {
-    const ordered = EXECUTION_PLAN_CONFORMANCE_CASES.find(
-      testCase => testCase.id === 'ordered-schema-before-reader',
-    );
+  it.each([
+    ['several-ordered-changes', 'Contract', 'Activation'],
+    ['ordered-schema-before-reader', 'Schema', 'Reader'],
+    ['few-files-two-outcomes', 'Inert schema', 'Public activation'],
+    ['all-obligations-assigned', 'Contract owner', 'Release owner'],
+  ])('assigns staged obligations honestly in %s', (caseId, prerequisite, activation) => {
+    const ordered = EXECUTION_PLAN_CONFORMANCE_CASES.find(testCase => testCase.id === caseId);
 
-    expect(ordered?.execution_plan).toContain('- Accepted behavior: Reader');
-    expect(ordered?.execution_plan).toContain('- Migration work: Schema');
+    expect(ordered?.execution_plan).toContain(`- Accepted behavior: ${activation}`);
+    expect(ordered?.execution_plan).toContain(`- Migration work: ${prerequisite}`);
   });
 
   it('binds admission to the complete static prompt contract dispatched to reviewers', () => {
