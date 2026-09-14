@@ -9,7 +9,7 @@ phase_anchors:
   - define-behavior: .project/tickets/A639WN-complete-contributions-with-a-default-delivery-checklist/spec.md
   - scenario-gate: features/complete-contributions-with-a-default-delivery-checklist.feature
 scope:
-  - expose one public deny-only CLI prerequisite that requires accepted scenarios, an accepted implementation approach, and one visible Safeword-default delivery checklist
+  - expose public CLI boundaries for the deny-only execution prerequisite, Delivery Checklist readiness, retained proof recording, and Execution Plan review
   - carry the complete feature checklist in the Execution Plan while the TBU3 small-work contract owns proportionate task and patch behavior
   - cover outcome and scope, resolved decisions, dependency and PR decomposition, testing, data and compatibility, monitoring and failure signals, security and privacy, rollout and rollback, documentation, ownership and human dependencies, and concrete evidence
   - work through every applicable contributor obligation and distinguish contributor completion from pending human authority

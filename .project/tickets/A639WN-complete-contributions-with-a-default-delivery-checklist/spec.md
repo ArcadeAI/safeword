@@ -21,7 +21,7 @@
 
 <!-- markdownlint-disable MD001 -->
 
-#### plan-implementability.TBU2.A639WN.R1 — The Safeword CLI exposes a deny-only execution prerequisite that requires accepted scenarios, an accepted implementation approach, and one visible default Delivery Checklist
+#### plan-implementability.TBU2.A639WN.R1 — The Safeword CLI exposes a deny-only execution prerequisite that requires, and reports in planning order, accepted scenarios, an accepted implementation approach, and one visible default Delivery Checklist
 
 #### plan-implementability.TBU2.A639WN.R2 — The feature Delivery Checklist covers outcome and scope, resolved decisions, dependency and pull-request decomposition, testing, data and compatibility, monitoring and failure signals, security and privacy, rollout and rollback, documentation, ownership and human dependencies, and concrete completion evidence
 
@@ -47,7 +47,7 @@ Affected:
 - OpenCode — skip: M1 defines the checklist contract; YCFFNC in M2 owns catalogue delivery and real-boundary proof, while Desktop enforcement remains advisory until native hook support exists
 - Cursor — skip: M1 defines the checklist contract; YCFFNC in M2 owns installed delivery and real-boundary proof
 - Cursor Cloud Agents — skip: M1 defines the checklist contract; YCFFNC in M2 owns installed delivery and real-boundary proof
-- Safeword CLI — exposes and checks the shared deny-only execution prerequisite
+- Safeword CLI — exposes the deny-only execution prerequisite, Delivery Checklist readiness, retained proof recording, and Execution Plan review used by this contract
 
 Unaffected:
 

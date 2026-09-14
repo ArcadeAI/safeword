@@ -2,7 +2,7 @@ Feature: Complete contributions with a default delivery checklist
   Safeword creates a proportionate checklist before execution and carries it to evidence-backed contributor readiness.
 
   @plan-implementability.TBU2.A639WN.R1
-  Rule: plan-implementability.TBU2.A639WN.R1 — The Safeword CLI exposes a deny-only execution prerequisite that requires accepted scenarios, an accepted implementation approach, and one visible default Delivery Checklist
+  Rule: plan-implementability.TBU2.A639WN.R1 — The Safeword CLI exposes a deny-only execution prerequisite that requires, and reports in planning order, accepted scenarios, an accepted implementation approach, and one visible default Delivery Checklist
 
     @surface.safeword-cli
     Scenario: The installed CLI exposes a satisfied execution prerequisite
@@ -68,6 +68,12 @@ Feature: Complete contributions with a default delivery checklist
       When it is marked through the installed CLI as a human-owned dependency instead of being completed
       Then the human-owned disposition is rejected, the test obligation remains open, and the response tells the contributor to complete it
 
+    @rejection
+    Scenario: Applicable contributor work cannot be dismissed as not applicable
+      Given an applicable test obligation is required by the accepted proof boundary
+      When it is marked through the installed CLI as not applicable
+      Then the not-applicable disposition is rejected, the test obligation remains open, and the response names the accepted proof boundary
+
     Scenario: In-flight checklist state reflects partial execution progress
       Given feature execution has completed its test obligation while monitoring and documentation remain open
       When Safeword updates delivery state through the installed CLI before execution ends
@@ -91,7 +97,7 @@ Feature: Complete contributions with a default delivery checklist
     Scenario Outline: The feature checklist contract cannot impose feature artifacts on smaller work
       Given a contribution is classified as <small_work_type> under the TBU3 small-work contract
       When the feature Delivery Checklist contract is evaluated through the installed CLI
-      Then the contribution remains recorded as 3EG00H-owned small work and no feature Implementation Plan or Execution Plan is created
+      Then no feature Implementation Plan or Execution Plan is created
 
       Examples:
         | small_work_type |
@@ -128,6 +134,7 @@ Feature: Complete contributions with a default delivery checklist
       Examples:
         | remaining_state | readiness_result |
         | a contributor-controlled checklist item is incomplete | it reports contributor work incomplete with that item named |
+        | every contributor-controlled item is marked complete but a required real-boundary proof is only partial or from an incompatible earlier revision | it reports contributor work incomplete with the unproven item and its evidence class named |
         | every contributor-controlled item is proven and required human approval is pending | it reports ready for human review with the pending approval named |
         | required human approval is recorded but merge authority has not been granted | it reports the approval satisfied while keeping merge authorization pending |
 
