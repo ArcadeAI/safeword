@@ -264,7 +264,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: positive characterization is historically green; a global-session suppression mutant supplies the discriminating RED
 - [x] GREEN 3b015e5bc
-- [ ] REFACTOR
+- [x] REFACTOR skip: suppression relies only on host-native per-invocation fields and creates no project-global state
 
 ### Scenario: An intervening compliant stop re-arms correction in the same session
 
