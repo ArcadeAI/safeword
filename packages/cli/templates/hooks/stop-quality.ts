@@ -431,7 +431,9 @@ const stopReviewConfig = existsSync(stopReviewConfigPath)
   : undefined;
 
 if (!editsToReview && currentPhase !== 'done') {
-  enforceTerminalHandoffCorrection(stopReviewConfig, combinedText, terminalHandoffEvidence);
+  if (!stopHookActive) {
+    enforceTerminalHandoffCorrection(stopReviewConfig, combinedText, terminalHandoffEvidence);
+  }
   process.exit(0);
 }
 
