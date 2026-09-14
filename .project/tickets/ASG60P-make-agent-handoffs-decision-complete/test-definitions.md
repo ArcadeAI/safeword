@@ -230,7 +230,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Held-out action paraphrases require an imperative and object
 
-- [ ] RED
+- [x] RED 6c495df09
 - [ ] GREEN
 - [ ] REFACTOR
 
