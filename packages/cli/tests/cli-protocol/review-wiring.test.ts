@@ -828,6 +828,19 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     writeFileSync(executionPlanPath, acceptedPlan);
+    const misleadingSlicingDenial = await runCli(reviewArguments, {
+      cwd: directory,
+      env: environment,
+    });
+    const misleadingResult = JSON.parse(misleadingSlicingDenial.stdout) as {
+      recovery: { description: string }[];
+    };
+    expect(misleadingSlicingDenial.exitCode, misleadingSlicingDenial.stdout).toBe(2);
+    expect(misleadingResult.recovery.map(action => action.description)).not.toContain(
+      'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
+    );
+
+    writeFileSync(executionPlanPath, unresolvedPlan);
     const unrelatedDenial = await runCli(reviewArguments, {
       cwd: directory,
       env: {
@@ -839,10 +852,14 @@ describe('cross-agent review public-command wiring', () => {
       recovery: { description: string }[];
     };
     expect(unrelatedDenial.exitCode, unrelatedDenial.stdout).toBe(2);
-    expect(unrelatedResult.recovery.map(action => action.description)).not.toContain(
+    expect(unrelatedResult.recovery.map(action => action.description)).toContain(
       'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
     );
-    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude', 'claude']);
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual([
+      'claude',
+      'claude',
+      'claude',
+    ]);
   });
 
   it('fails closed before dispatch when no configured route has current admission', async () => {
