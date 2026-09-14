@@ -250,7 +250,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Each installed native terminal boundary leaves every compliant long-form corpus case alone
 
-- [ ] RED
+- [x] RED skip: pre-feature native hooks already left compliant replies unchanged; the paired incomplete-reply scenarios supply the discriminating failure
 - [ ] GREEN
 - [ ] REFACTOR
 
