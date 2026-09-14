@@ -114,8 +114,8 @@ Feature: Complete contributions with a default delivery checklist
     @rejection
     Scenario: A large contribution cannot leave PR slicing unresolved
       Given a contribution contains several independently provable changes and its checklist has no pull-request slicing decision
-      When Safeword updates its work-decomposition checklist item through the installed CLI
-      Then the item remains open with the missing pull-request slicing decision named and one concrete action to record it
+      When Safeword reviews the Execution Plan through the installed CLI
+      Then the plan is denied, the item remains open, and the missing pull-request slicing decision is named with one concrete action to record it
 
   @plan-implementability.TBU2.A639WN.R6 @surface.safeword-cli
   Rule: plan-implementability.TBU2.A639WN.R6 — Safeword reports contributor readiness only when every contributor-controlled obligation is completed and proven, reports pending human approvals or ownership as unresolved dependencies, and never treats readiness evidence as human approval or merge authority

@@ -12,6 +12,12 @@ import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import {
+  createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../../src/execution-plan/delivery-checklist.js';
+import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
@@ -637,7 +643,14 @@ describe('cross-agent review public-command wiring', () => {
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
     mkdirSync(ticketDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
-    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), '# Execution Plan\n');
+    const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
+    const acceptedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'one-coherent-change',
+    )?.execution_plan;
+    if (acceptedPlan === undefined) throw new Error('Missing accepted slicing fixture');
+    const acceptedContract = parseDeliveryPlanContract(acceptedPlan);
+    if (!acceptedContract.ok) throw new Error(acceptedContract.message);
+    writeFileSync(executionPlanPath, acceptedPlan);
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
     writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), 'Feature: behavior\n');
     writeFileSync(nodePath.join(directory, 'execution-plan.md'), '# Unowned Execution Plan\n');
@@ -647,17 +660,21 @@ describe('cross-agent review public-command wiring', () => {
       rationale: 'One coherent activation change.',
       slices: [
         {
-          name: 'Activation',
-          purpose: 'Activate the Execution Plan gate.',
-          boundary: 'Public CLI wiring only.',
+          name: 'Complete delivery',
+          purpose: 'Deliver the complete typed Execution Plan review capability.',
+          boundary: 'The complete reviewed delivery boundary.',
           prerequisites: [],
           proof: 'The real CLI integration test passes.',
           completion_signal: 'The command retains an admitted approval.',
           relies_on_unmerged_successor: false,
         },
       ],
-      obligation_owners: [{ obligation: 'Accepted behavior', slices: ['Activation'] }],
+      obligation_owners: [{ obligation: 'Accepted behavior', slices: ['Complete delivery'] }],
       decision_statuses: [{ decision: 'Use one coordinator', status: 'unchanged' }],
+      accepted_scenarios_covered: true,
+      accepted_approach_preserved: true,
+      normalized_plan_digest: normalizedExecutionPlanDigest(acceptedPlan),
+      delivery_definition: createExecutionPlanDeliveryDefinition(acceptedContract, false),
     });
     const environment = {
       PATH: `${bin}:/usr/bin:/bin`,
@@ -706,6 +723,12 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('# Implementation Plan');
     expect(prompt).toContain('Feature: behavior');
 
+    const unresolvedPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      testCase => testCase.id === 'omitted-slicing-decision',
+    )?.execution_plan;
+    if (unresolvedPlan === undefined) throw new Error('Missing unresolved slicing fixture');
+    writeFileSync(executionPlanPath, unresolvedPlan);
+
     const deniedWithoutRecord = await runCli(
       [
         'review',
@@ -726,13 +749,18 @@ describe('cross-agent review public-command wiring', () => {
         env: {
           ...environment,
           SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: '',
-          SAFEWORD_REVIEW_FAKE_FINDING: 'Rollback ownership is missing.',
+          SAFEWORD_REVIEW_FAKE_FINDING: 'Pull-request slicing decision is missing.',
           SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
         },
       },
     );
     expect(deniedWithoutRecord.exitCode, deniedWithoutRecord.stdout).toBe(2);
-    expect(JSON.parse(deniedWithoutRecord.stdout)).toMatchObject({
+    const deniedResult = JSON.parse(deniedWithoutRecord.stdout) as {
+      data: unknown;
+      findings: { message: string }[];
+      recovery: { command: string; description: string }[];
+    };
+    expect(deniedResult).toMatchObject({
       data: {
         status: 'changes_requested',
         reviewer_output: {
@@ -741,6 +769,21 @@ describe('cross-agent review public-command wiring', () => {
         },
       },
     });
+    expect(deniedResult.findings.map(finding => finding.message)).toContain(
+      'Pull-request slicing decision is missing.',
+    );
+    expect(readFileSync(executionPlanPath, 'utf8')).toBe(unresolvedPlan);
+    expect(unresolvedPlan).toMatch(
+      /\| item-3 \| dependency and pull-request decomposition \|.*\| open \|/u,
+    );
+    expect(deniedResult.recovery, 'the slicing denial must have one repair action').toHaveLength(1);
+    expect(deniedResult.recovery[0]?.description).toBe(
+      'Record the missing pull-request slicing decision in the Execution Plan, then run the review again.',
+    );
+    expect(deniedResult.recovery[0]?.command).toContain('safeword review run plan-execution');
+    expect(deniedResult.recovery[0]?.command).toContain(
+      '.project/tickets/T1-feature/execution-plan.md',
+    );
 
     const rejected = await runCli(
       [

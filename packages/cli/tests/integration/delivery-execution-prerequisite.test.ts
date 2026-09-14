@@ -599,62 +599,6 @@ describe('delivery execution prerequisite', () => {
     ]);
   });
 
-  it('keeps PR decomposition open when the slicing decision is unresolved', async () => {
-    const root = featureFixture();
-    const bin = installReviewer();
-    const target = '.project/tickets/ABC123-feature/execution-plan.md';
-    const planPath = nodePath.join(root, target);
-    const planBeforeReview = readFileSync(planPath, 'utf8');
-    const invoked = await runCli(
-      [
-        'review',
-        'run',
-        'plan-execution',
-        target,
-        '--context',
-        '.project/tickets/ABC123-feature/impl-plan.md',
-        '--context',
-        'features/feature.feature',
-        '--json',
-        '--no-input',
-        '--cwd',
-        root,
-      ],
-      {
-        cwd: root,
-        env: {
-          NODE_ENV: 'test',
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'codex',
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
-          SAFEWORD_REVIEW_FAKE_FINDING: 'Pull-request slicing decision is missing.',
-          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
-        },
-      },
-    );
-    const result = JSON.parse(invoked.stdout) as {
-      findings: { message: string }[];
-      recovery: { command: string }[];
-    };
-
-    expect(invoked.exitCode, invoked.stdout).toBe(2);
-    expect(
-      result.findings.map(finding => finding.message),
-      invoked.stdout,
-    ).toContain('Pull-request slicing decision is missing.');
-    expect(
-      readFileSync(planPath, 'utf8'),
-      'a rejected slicing decision must not advance checklist progress',
-    ).toBe(planBeforeReview);
-    expect(planBeforeReview).toContain(
-      '| item-3 | dependency and pull-request decomposition | Deliver dependency and pull-request decomposition. | contributor | proof | open |',
-    );
-    expect(result.recovery, 'the denial must provide one concrete repair action').toHaveLength(1);
-    expect(result.recovery[0]?.command).toContain('safeword review run plan-execution');
-    expect(result.recovery[0]?.command).toContain(target);
-  });
-
   it.each([
     [
       'one_pull_request',
