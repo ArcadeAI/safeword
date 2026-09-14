@@ -226,7 +226,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6c495df09
 - [x] GREEN 2e0240f3e
-- [ ] REFACTOR
+- [x] REFACTOR skip: accepted and rejected reason paraphrases share one clause-count and extra-context check
 
 ### Scenario: Held-out action paraphrases require an imperative and object
 
