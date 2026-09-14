@@ -5880,16 +5880,12 @@ function verifyPlugin(event, pluginRoot) {
       };
     }
     const promptAdvisory = `${advisory} The prompt was not blocked.`;
-    try {
-      return {
-        kind: 'damaged',
-        status: 0,
-        stderr: '',
-        stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
-      };
-    } catch {
-      return { kind: 'damaged', status: 0, stderr: '', stdout: '' };
-    }
+    return {
+      kind: 'damaged',
+      status: 0,
+      stderr: '',
+      stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
+    };
   }
 }
 function emitDamagedPlugin(response) {

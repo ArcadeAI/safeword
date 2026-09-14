@@ -25,7 +25,8 @@ const outputRelativeToShippedRoot =
 if (
   outputRelativeToShippedRoot !== undefined &&
   (outputRelativeToShippedRoot === '' ||
-    (!outputRelativeToShippedRoot.startsWith(`..${nodePath.sep}`) &&
+    (outputRelativeToShippedRoot !== '..' &&
+      !outputRelativeToShippedRoot.startsWith(`..${nodePath.sep}`) &&
       !nodePath.isAbsolute(outputRelativeToShippedRoot)))
 ) {
   throw new Error('Custom output must be outside the checked-in Codex plugin directory');

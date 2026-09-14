@@ -20,7 +20,7 @@ import process from 'node:process';
 
 import { parse } from 'smol-toml';
 
-import { commandWords, splitShellSegments } from '../../templates/hooks/lib/shell-segments.js';
+import { commandWords, parseShellCommandList } from '../../templates/hooks/lib/shell-segments.js';
 import { pythonWorkspaceOwns } from '../packs/python/setup.js';
 import { findAllInTree, findFileMatchingInTree, indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
@@ -341,9 +341,16 @@ function scriptDelegatesToWorkspace(
     ['yarn', '--cwd', target, 'run', script],
   ]);
 
-  return splitShellSegments(body).some(segment => {
-    const words = commandWords(segment);
-    return patterns.some(pattern => pattern.every((token, index) => words[index] === token));
+  const segments = parseShellCommandList(body);
+  return segments.some((segment, index) => {
+    const previousWords = index === 0 ? [] : commandWords(segments[index - 1]?.command ?? '');
+    const priorCommand = previousWords[0];
+    if (priorCommand !== undefined && ['[', '[[', 'test'].includes(priorCommand)) return false;
+
+    const words = commandWords(segment.command);
+    return patterns.some(pattern =>
+      pattern.every((token, tokenIndex) => words[tokenIndex] === token),
+    );
   });
 }
 

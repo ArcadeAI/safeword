@@ -252,6 +252,30 @@ describe('Codex plugin release contract', () => {
     }
   });
 
+  it('treats the plugin parent as outside the checked-in plugin directory', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const packageVersion = (
+      JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8')) as { version: string }
+    ).version;
+    const generation = spawnSync(
+      'bun',
+      [
+        'scripts/generate-codex-plugin.ts',
+        '--version',
+        `${packageVersion.split('+', 1)[0]}+codex.test`,
+        '--output',
+        root,
+      ],
+      { cwd: root, encoding: 'utf8' },
+    );
+
+    expect(generation.status).not.toBe(0);
+    expect(generation.stderr).toContain(`Output already exists: ${root}`);
+    expect(generation.stderr).not.toContain(
+      'Custom output must be outside the checked-in Codex plugin directory',
+    );
+  });
+
   it('keeps default generation deterministic at the package version', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
     const generation = spawnSync('bun', ['scripts/generate-codex-plugin.ts', '--check'], {

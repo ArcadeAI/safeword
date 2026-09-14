@@ -63562,9 +63562,6 @@ function parseShellCommandList(command) {
   pushCommandSegment(segments, current);
   return segments;
 }
-function splitShellSegments(command) {
-  return parseShellCommandList(command).map((segment) => segment.command);
-}
 function pushCommandSegment(segments, segment, operatorAfter) {
   const trimmed = segment.trim();
   if (trimmed.length > 0) {
@@ -63842,9 +63839,14 @@ function scriptDelegatesToWorkspace(body, relativeDirectory, script) {
     ["yarn", "--cwd", target, script],
     ["yarn", "--cwd", target, "run", script]
   ]);
-  return splitShellSegments(body).some((segment) => {
-    const words = commandWords(segment);
-    return patterns.some((pattern) => pattern.every((token, index) => words[index] === token));
+  const segments = parseShellCommandList(body);
+  return segments.some((segment, index) => {
+    const previousWords = index === 0 ? [] : commandWords(segments[index - 1]?.command ?? "");
+    const priorCommand = previousWords[0];
+    if (priorCommand !== undefined && ["[", "[[", "test"].includes(priorCommand))
+      return false;
+    const words = commandWords(segment.command);
+    return patterns.some((pattern) => pattern.every((token, tokenIndex) => words[tokenIndex] === token));
   });
 }
 function rootScriptDelegatesToWorkspace(root, directory, kind) {

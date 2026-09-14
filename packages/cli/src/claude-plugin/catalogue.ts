@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 import { buildSync } from 'esbuild';
 
 import { generateOwnedPathsModule } from '../owned-paths.js';
+import { normalizePluginBundle } from '../plugin-bundle.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { SETTINGS_HOOKS } from '../templates/config.js';
 import { adaptHookValue, pluginEventGroupEvents, pluginHookManifest } from './hook-manifest.js';
@@ -416,7 +417,7 @@ function bundledDispatcher(sourceRoot: string): string {
   });
   const output = result.outputFiles[0]?.text;
   if (output === undefined) throw new Error('Claude plugin dispatcher bundle was not generated.');
-  return output;
+  return normalizePluginBundle(output);
 }
 
 export function generateClaudePluginAssets(

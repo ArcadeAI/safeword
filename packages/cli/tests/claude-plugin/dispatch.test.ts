@@ -868,6 +868,15 @@ describe('Claude plugin dispatcher', () => {
     const configDirectory = temporary('safeword-plugin-unlisted-repair-config-');
     const pluginRoot = nodePath.join(temporary('safeword-plugin-unlisted-repair-root-'), 'plugin');
     cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.PreToolUse = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
     const unlistedPath = nodePath.join(pluginRoot, 'resources/templates/unlisted.md');
     mkdirSync(nodePath.dirname(unlistedPath), { recursive: true });
     writeFileSync(unlistedPath, 'unexpected cache addition\n');
@@ -879,6 +888,7 @@ describe('Claude plugin dispatcher', () => {
     });
 
     expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).not.toContain('nativeRan');
     expect(JSON.parse(result.stdout)).toMatchObject({
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',

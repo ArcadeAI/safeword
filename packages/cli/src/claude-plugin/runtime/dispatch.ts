@@ -757,17 +757,12 @@ function verifyPlugin(event: string, pluginRoot: string): PluginVerification {
       return { kind: 'damaged', status: 0, stderr: `${advisory}\n`, stdout: '' };
     }
     const promptAdvisory = `${advisory} The prompt was not blocked.`;
-    try {
-      return {
-        kind: 'damaged',
-        status: 0,
-        stderr: '',
-        stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
-      };
-    } catch {
-      // Integrity failure still must not block the submitted prompt.
-      return { kind: 'damaged', status: 0, stderr: '', stdout: '' };
-    }
+    return {
+      kind: 'damaged',
+      status: 0,
+      stderr: '',
+      stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
+    };
   }
 }
 

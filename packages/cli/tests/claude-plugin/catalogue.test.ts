@@ -100,6 +100,18 @@ describe('Claude plugin catalogue generation', () => {
     ).toEqual(aggregateEvents);
   });
 
+  it('normalizes install-instance hashes out of the bundled dispatcher', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const dispatcher = assets.find(asset => asset.relativePath === 'runtime/dispatch.js');
+
+    expect(dispatcher?.content).not.toMatch(/\+[\da-f]{16}[/\\]node_modules/iu);
+  });
+
   it('passes the shared native runtime-authority release gate', () => {
     const assets = generateClaudePluginAssets({
       cliBundle: 'console.log("stub cli bundle");',
