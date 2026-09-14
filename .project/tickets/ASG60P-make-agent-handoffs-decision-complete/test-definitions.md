@@ -245,7 +245,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Each installed native terminal boundary corrects a vague no-decision action once
 
 - [x] RED 48f257797
-- [ ] GREEN
+- [x] GREEN a4f35353c
 - [ ] REFACTOR
 
 ### Scenario: Each installed native terminal boundary leaves every compliant long-form corpus case alone
