@@ -123,7 +123,14 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
           ...(model !== undefined && { model }),
           runDeadline: Date.now() + REVIEW_TIMEOUT_MS,
         })) as ReviewerOutput;
-        assertCase(testCase, output, reviewer, packet.dispatch_id);
+        try {
+          assertCase(testCase, output, reviewer, packet.dispatch_id);
+        } catch (error) {
+          process.stderr.write(
+            `Execution Plan reviewer output:\n${JSON.stringify(output, undefined, 2)}\n`,
+          );
+          throw error;
+        }
         passed = true;
       } finally {
         results.push({

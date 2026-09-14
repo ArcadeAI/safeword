@@ -64,7 +64,7 @@ const CONTRACT_SLICE: SliceInput = {
   purpose: 'Package the canonical Execution Planning contract.',
   boundary: 'Contract template, schema registration, and generated assets.',
   prerequisites: 'none',
-  proof: 'Package tests compare every installed contract byte.',
+  proof: 'data-compatibility: package tests compare every installed contract byte.',
   completion: 'The inert contract ships and the repository remains supported.',
 };
 const ACTIVATION_SLICE: SliceInput = {
@@ -72,7 +72,7 @@ const ACTIVATION_SLICE: SliceInput = {
   purpose: 'Activate typed Execution Plan review.',
   boundary: 'Review routing, result retention, and CLI presentation.',
   prerequisites: 'Contract',
-  proof: 'A CLI integration test observes a retained typed approval.',
+  proof: 'behavior-boundary: a CLI integration test observes a retained typed approval.',
   completion: 'The command is auditable and the repository remains supported.',
 };
 
@@ -126,25 +126,77 @@ const CHECKLIST_OBLIGATIONS = [
   'Retain concrete completion evidence for all accepted obligations.',
 ] as const;
 
+const CHECKLIST_PROOFS = [
+  'behavior-boundary',
+  'plan-integrity',
+  'plan-integrity',
+  'behavior-boundary',
+  'data-compatibility',
+  'failure-signals',
+  'security-boundary',
+  'rollout-rollback',
+  'documentation-contract',
+  'plan-integrity',
+  'plan-integrity',
+] as const;
+
+const PROOF_SPECIFICATIONS = [
+  ['behavior-boundary', 'Accepted behavior at the public CLI boundary.', 'test:review-cli'],
+  [
+    'plan-integrity',
+    'Recorded decisions, slice dependencies, obligation ownership, and completion evidence.',
+    'test:execution-plan-conformance',
+  ],
+  [
+    'data-compatibility',
+    'Migration and backward-compatibility boundaries.',
+    'test:schema-compatibility',
+  ],
+  [
+    'failure-signals',
+    'Observable failure signals under injected review failure.',
+    'test:failure-signals',
+  ],
+  [
+    'security-boundary',
+    'Authorization and privacy behavior at the review boundary.',
+    'test:authorization-boundary',
+  ],
+  [
+    'rollout-rollback',
+    'Rollout activation and rollback recovery behavior.',
+    'test:rollout-rollback',
+  ],
+  [
+    'documentation-contract',
+    'Published documentation examples and links.',
+    'test:documentation-contract',
+  ],
+] as const;
+
 function deliveryContract(unrelated: boolean, unrealProof: boolean): string {
-  const boundary = unrealProof
-    ? 'Customer authorization across both live transports.'
-    : 'Accepted behavior and every migration, rollout, rollback, documentation, and affected-surface obligation.';
-  const argv = unrealProof
-    ? ['node', '--version']
-    : ['bun', 'run', 'test:execution-plan-conformance'];
-  const invocation = JSON.stringify({ type: 'command', cwd: '.', argv });
   const items = DELIVERY_CHECKLIST_CATEGORIES.map((category, index) => {
     const obligation = unrelated
       ? 'Complete the standard delivery work.'
       : CHECKLIST_OBLIGATIONS[index];
-    return `| item-${index + 1} | ${category} | ${obligation} | contributor | complete-delivery | open | missing | | |`;
+    const proof = unrealProof ? 'complete-delivery' : CHECKLIST_PROOFS[index];
+    return `| item-${index + 1} | ${category} | ${obligation} | contributor | ${proof} | open | missing | | |`;
   }).join('\n');
+  const proofRows = unrealProof
+    ? `| complete-delivery | command | E2E | Customer authorization across both live transports. | real_boundary | current_required | ${JSON.stringify(
+        { type: 'command', cwd: '.', argv: ['node', '--version'] },
+      )} |`
+    : PROOF_SPECIFICATIONS.map(
+        ([proofId, boundary, script]) =>
+          `| ${proofId} | command | E2E | ${boundary} | real_boundary | current_required | ${JSON.stringify(
+            { type: 'command', cwd: '.', argv: ['bun', 'run', script] },
+          )} |`,
+      ).join('\n');
   return `## Proof specifications
 
 | Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |
 | --- | --- | --- | --- | --- | --- | --- |
-| complete-delivery | command | E2E | ${boundary} | real_boundary | current_required | ${invocation} |
+${proofRows}
 
 ## Delivery checklist
 
@@ -229,7 +281,7 @@ const COMPLETE_RECORD_PLAN = executionPlan({
       purpose: 'Retain one complete typed Execution Plan judgment.',
       boundary: 'Result type, validation, and persistence for that judgment.',
       prerequisites: 'none',
-      proof: 'A result test asserts every retained field.',
+      proof: 'behavior-boundary: a result test asserts every retained field.',
       completion: 'A complete judgment round-trips without activating a command.',
     },
   ],
@@ -244,7 +296,7 @@ const ORDERED_SCHEMA_PLAN = executionPlan({
       purpose: 'Add the inert result schema.',
       boundary: 'Types and schema only; no reader calls it.',
       prerequisites: 'none',
-      proof: 'Schema golden tests pass.',
+      proof: 'data-compatibility: schema golden tests pass.',
       completion: 'The unused schema ships without changing runtime behavior.',
     },
     {
@@ -252,7 +304,7 @@ const ORDERED_SCHEMA_PLAN = executionPlan({
       purpose: 'Read and retain schema-valid results.',
       boundary: 'Reader activation and persistence only.',
       prerequisites: 'Schema',
-      proof: 'A reader integration test retains a schema-valid result.',
+      proof: 'behavior-boundary: a reader integration test retains a schema-valid result.',
       completion: 'The reader is active and every merge remains supported.',
     },
   ],
@@ -268,7 +320,7 @@ const MECHANICAL_MIRRORS_PLAN = executionPlan({
       purpose: 'Publish one canonical contract through every generated mirror.',
       boundary: 'Canonical source plus forty mechanical generated or installed copies.',
       prerequisites: 'none',
-      proof: 'One parity test compares every mirror with the canonical source.',
+      proof: 'behavior-boundary: one parity test compares every mirror with the canonical source.',
       completion: 'All mirrors expose the same contract and no runtime behavior changes.',
     },
   ],
@@ -283,7 +335,7 @@ const FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
       purpose: 'Ship a typed schema without changing public behavior.',
       boundary: 'One schema file.',
       prerequisites: 'none',
-      proof: 'A golden test proves the schema bytes.',
+      proof: 'data-compatibility: a golden test proves the schema bytes.',
       completion: 'The schema is available but unused.',
     },
     {
@@ -291,7 +343,7 @@ const FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
       purpose: 'Expose the new review command.',
       boundary: 'One routing file.',
       prerequisites: 'Inert schema',
-      proof: 'A CLI test proves public dispatch and retention.',
+      proof: 'behavior-boundary: a CLI test proves public dispatch and retention.',
       completion: 'The command works and every merge remains supported.',
     },
   ],

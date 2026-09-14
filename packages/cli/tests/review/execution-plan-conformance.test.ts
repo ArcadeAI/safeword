@@ -89,6 +89,21 @@ describe('Execution Plan semantic conformance admission', () => {
     expect(ordered?.execution_plan).toContain(`- Migration work: ${prerequisite}`);
   });
 
+  it('uses boundary-specific proofs in approved plans', () => {
+    const approvedPlans = EXECUTION_PLAN_CONFORMANCE_CASES.filter(
+      testCase => testCase.expectation.verdict === 'approve',
+    );
+
+    for (const testCase of approvedPlans) {
+      expect(testCase.execution_plan).toContain('| behavior-boundary | command | E2E |');
+      expect(testCase.execution_plan).toContain('| failure-signals | command | E2E |');
+      expect(testCase.execution_plan).toContain('| rollout-rollback | command | E2E |');
+      expect(testCase.execution_plan).not.toContain(
+        'Accepted behavior and every migration, rollout, rollback, documentation, and affected-surface obligation.',
+      );
+    }
+  });
+
   it('binds admission to the complete static prompt contract dispatched to reviewers', () => {
     const sha256 = (value: string): string => createHash('sha256').update(value).digest('hex');
     const contract = reviewPromptContract('plan-execution');
