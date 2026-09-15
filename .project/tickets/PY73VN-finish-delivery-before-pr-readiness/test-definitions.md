@@ -73,7 +73,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Draft creation remains available for evidence before done
 
 - [x] RED skip: preservation scenario was already green before the readiness gate and cannot honestly expose missing behavior
-- [ ] GREEN
+- [x] GREEN 38d18528f
 - [ ] REFACTOR
 
 ### Scenario: Draft creation returns delivery to the unfinished step
