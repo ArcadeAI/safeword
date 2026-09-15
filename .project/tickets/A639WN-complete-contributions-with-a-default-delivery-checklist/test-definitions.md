@@ -56,7 +56,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: live Claude Opus matrix rejected the structurally valid dismissed-applicable-work case
 - [x] RED skip: live — work log: 29-case Claude Opus execution-plan matrix passed with dismissed-applicable-work rejected
-- [ ] GREEN
+- [x] GREEN 5d0652809
 - [ ] REFACTOR
 
 ### Scenario: In-flight checklist state reflects partial execution progress
