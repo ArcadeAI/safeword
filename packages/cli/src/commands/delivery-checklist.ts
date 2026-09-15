@@ -581,12 +581,17 @@ function specificationFor(
     );
   }
   if (item.owner !== 'contributor') {
-    return findingResult(
-      'ticket record-delivery-proof',
-      'human_owned_item',
-      `Delivery Checklist item ${itemId} is human-owned.`,
-      `safeword ticket delivery-checklist ${context.ticketId}`,
-    );
+    const humanCommand = item.evidence.startsWith(`design-approval:${context.ticketId}:`)
+      ? `safeword ticket approve-plan ${context.ticketId}`
+      : `safeword ticket delivery-checklist ${context.ticketId}`;
+    const message = `Delivery Checklist item ${itemId} is human-owned and remains pending.`;
+    return createResult({
+      state: 'action_required',
+      findings: [{ code: 'human_owned_item', message, severity: 'warning' }],
+      recovery: [{ command: humanCommand, description: message, requiresHuman: true }],
+      nextActions: [{ command: humanCommand, mutates: true, requiresHuman: true }],
+      data: { command: 'ticket record-delivery-proof' },
+    });
   }
   const proof = context.specifications.find(candidate => candidate.id === proofId);
   if (proof === undefined) {
