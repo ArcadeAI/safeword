@@ -315,7 +315,9 @@ describe('Delivery Checklist CLI service', () => {
     const currentData = currentReadiness.data as {
       contributor_evidence: { item_id: string; evidence_class: string; limitations: string[] }[];
     };
-    expect(currentReadiness.findings[0]?.message).not.toMatch(/partial|earlier/u);
+    expect(currentReadiness.findings.map(finding => finding.message).join(' ')).not.toMatch(
+      /partial|earlier/u,
+    );
     expect(
       currentData.contributor_evidence.find(evidence => evidence.item_id === 'item-4'),
     ).toMatchObject({
@@ -442,6 +444,12 @@ describe('Delivery Checklist CLI service', () => {
     });
 
     const pending = fixture({ plan: settledPlan('generic-human') });
+    expect(await publicReadiness(pending.root)).toMatchObject({
+      data: {
+        readiness_state: 'contributor_work_incomplete',
+        pending_human_items: ['item-11'],
+      },
+    });
     expect(await recordDeliveryProof(pending.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
       state: 'changed',
     });
@@ -487,6 +495,17 @@ describe('Delivery Checklist CLI service', () => {
             status: 'satisfied',
           },
         ],
+        merge_authorization: 'pending',
+      },
+    });
+    writeFileSync(
+      nodePath.join(approved.root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
+      '# Revised Implementation Plan\n',
+    );
+    expect(await publicReadiness(approved.root)).toMatchObject({
+      data: {
+        readiness_state: 'ready_for_human_review',
+        human_dependencies: [{ item_id: 'item-11', status: 'pending' }],
         merge_authorization: 'pending',
       },
     });
