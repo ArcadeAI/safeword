@@ -90,7 +90,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Verified closure advances to PR-readiness classification without automatic promotion
 
-- [ ] RED
+- [x] RED 0c926e7c2
 - [ ] GREEN
 - [ ] REFACTOR
 
