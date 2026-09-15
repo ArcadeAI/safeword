@@ -656,7 +656,11 @@ describe('Delivery Checklist CLI service', () => {
 
     expect(result).toMatchObject({
       state: 'changed',
-      data: { item_id: 'item-4', receipt_id: receipt },
+      data: {
+        item_id: 'item-4',
+        receipt_id: receipt,
+        evidence_class: 'reusable_earlier_revision',
+      },
     });
     expect(readFileSync(planPath, 'utf8')).toContain(
       `| item-4 | testing | Deliver testing. | contributor | proof | complete | reusable_earlier_revision |`,
