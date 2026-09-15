@@ -516,6 +516,43 @@ describe('Delivery Checklist CLI service', () => {
     });
   });
 
+  it('keeps human approval pending when a contributor records evidence for it', async () => {
+    const { root } = fixture({
+      plan: settledPlan('design-approval'),
+      designApprovalGate: true,
+    });
+    expect(await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof')).toMatchObject({
+      state: 'changed',
+    });
+
+    const attemptedApproval = await publicHandler('ticket record-delivery-proof')({
+      cwd: root,
+      noInput: true,
+      offline: false,
+      operands: ['ABC123', 'item-11', 'proof'],
+      options: {},
+    });
+
+    expect(attemptedApproval).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      findings: [{ code: 'human_owned_item' }],
+      recovery: [
+        {
+          command: 'safeword ticket approve-plan ABC123',
+          requiresHuman: true,
+        },
+      ],
+    });
+    expect(await publicReadiness(root)).toMatchObject({
+      data: {
+        readiness_state: 'ready_for_human_review',
+        human_dependencies: [{ item_id: 'item-11', status: 'pending' }],
+        merge_authorization: 'pending',
+      },
+    });
+  });
+
   it('discloses full-diff egress before reviewing an earlier proof', async () => {
     const { root, planPath } = fixture({
       plan: executionPlan('compatible_earlier_allowed'),
