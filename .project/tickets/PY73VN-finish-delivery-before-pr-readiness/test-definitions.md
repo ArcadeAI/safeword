@@ -92,7 +92,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 0c926e7c2
 - [x] GREEN b76663412
-- [ ] REFACTOR
+- [x] REFACTOR skip: one transition sentence extends the existing ordered closeout chain without duplication
 
 ## Rule: prodigy-flow.TBU1.PY73VN.R4 — Genuine boundaries interrupt resumably
 
