@@ -124,6 +124,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Earlier or partial evidence cannot silently become current complete proof
 
 - [x] RED 54ece7929
+- [x] RED 3147b959b
 - [ ] GREEN
 - [ ] REFACTOR
 
