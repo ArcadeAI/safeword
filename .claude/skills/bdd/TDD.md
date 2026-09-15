@@ -90,6 +90,7 @@ Pick first unchecked scenario from test-definitions. Cycle through RED (failing 
 
 After an approved RED, continue directly into implementation without asking whether to proceed.
 After GREEN, continue through refactor and then start the next incomplete scenario without asking whether to proceed.
+When a required dependency is already authorized by the manifest but missing locally, restore it and rerun the failed check without asking whether to continue.
 
 An unsuccessful TDD step stays at the failing step and reports its evidence:
 
