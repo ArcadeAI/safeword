@@ -106,13 +106,13 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED ef851d2b0
 - [x] RED 549f8b486
 - [x] GREEN f339f9c4d
-- [ ] REFACTOR
+- [x] REFACTOR 31a4b21f9
 
 ### Scenario: Contributor evidence cannot record human approval
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9bd269830
+- [x] GREEN 0ca75dd50
+- [x] REFACTOR 31a4b21f9
 
 ## Rule: plan-implementability.TBU2.A639WN.R7 — This child defines the canonical Delivery Checklist evidence-currency taxonomy—current-revision real-boundary proof, reusable earlier-revision proof, partial or structural proof, and missing proof—and never silently upgrades one class into another
 
@@ -120,15 +120,15 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 1b5e17b99
 - [x] GREEN 67a8de4b4
-- [ ] REFACTOR
+- [x] REFACTOR 31a4b21f9
 
 ### Scenario: Earlier or partial evidence cannot silently become current complete proof
 
 - [x] RED 54ece7929
 - [x] RED 3147b959b
 - [x] GREEN 127ec3624
-- [ ] REFACTOR
+- [x] REFACTOR 31a4b21f9
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 31a4b21f9
