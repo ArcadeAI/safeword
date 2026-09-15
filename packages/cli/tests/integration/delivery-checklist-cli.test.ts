@@ -295,6 +295,23 @@ describe('Delivery Checklist CLI service', () => {
     expect(
       readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8'),
     ).toContain('delivery-proof:v1:');
+    const currentReadiness = await publicHandler('ticket delivery-checklist')({
+      cwd: root,
+      noInput: true,
+      offline: false,
+      operands: ['ABC123'],
+      options: {},
+    });
+    const currentData = currentReadiness.data as {
+      contributor_evidence: { item_id: string; evidence_class: string; limitations: string[] }[];
+    };
+    expect(currentReadiness.findings[0]?.message).not.toMatch(/partial|earlier/u);
+    expect(
+      currentData.contributor_evidence.find(evidence => evidence.item_id === 'item-4'),
+    ).toMatchObject({
+      evidence_class: 'current_revision_real_boundary',
+      limitations: [],
+    });
 
     git(root, ['add', '.project']);
     git(root, ['commit', '--quiet', '-m', 'record proof']);
@@ -347,11 +364,17 @@ describe('Delivery Checklist CLI service', () => {
     git(root, ['add', 'later-change']);
     git(root, ['commit', '--quiet', '-m', 'later change']);
 
-    const readinessResult = observeDeliveryChecklist(root, 'ABC123');
+    const readinessResult = await publicHandler('ticket delivery-checklist')({
+      cwd: root,
+      noInput: true,
+      offline: false,
+      operands: ['ABC123'],
+      options: {},
+    });
     expect(readinessResult).toMatchObject({
       findings: [
         {
-          message: expect.stringMatching(/partial_or_structural.*earlier_revision/u),
+          message: expect.stringMatching(/partial or structural.*earlier revision/u),
         },
       ],
     });
