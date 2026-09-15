@@ -106,3 +106,18 @@ cases. Ruled out reviewer instability by that complete passing matrix; ruled out
 invalid PR slicing because the repaired cases kept their original slicing
 decisions; ruled out a route/configuration failure because the reviewer always
 returned schema-valid semantic results.
+
+### Live RED was sent through the executable-receipt gate
+
+The GREEN edit hook sent every scenario through the executable-RED receipt
+check. It never read the feature source to recognize the documented separate
+evidence path for an explicitly tagged `@manual` or `@live` scenario whose RED
+row records the matching skip mode.
+
+Confirmed by reproducing the denial for the approved live matrix, then passing a
+real-hook regression only after the hook required both the matching feature tag
+and matching RED annotation before bypassing the executable receipt check.
+Ruled out a bad live result because all 29 matrix tests passed through Claude
+Opus; ruled out a stale executable receipt because live scenarios intentionally
+do not use that receipt type; ruled out feature-source lookup failure because
+the regression uses the canonical project-relative source line.
