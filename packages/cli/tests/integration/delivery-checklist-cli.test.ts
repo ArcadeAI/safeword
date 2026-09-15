@@ -316,10 +316,17 @@ describe('Delivery Checklist CLI service', () => {
   it('keeps supporting proof narrow and reports both partial and earlier-revision gaps', async () => {
     const { root, planPath } = fixture({ plan: executionPlanWithSupportingProof() });
 
-    const recorded = await recordDeliveryProof(root, 'ABC123', 'item-4', 'supporting-proof');
+    const recorded = await publicHandler('ticket record-delivery-proof')({
+      cwd: root,
+      noInput: true,
+      offline: false,
+      operands: ['ABC123', 'item-4', 'supporting-proof'],
+      options: {},
+    });
 
     expect(recorded).toMatchObject({
       state: 'changed',
+      findings: [],
       data: {
         item_id: 'item-4',
         proof_id: 'supporting-proof',
