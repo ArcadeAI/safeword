@@ -85,6 +85,10 @@ export interface QualityState {
   locSinceCommit: number;
   lastCommitHash: string;
   activeTicket: string | null;
+  /** Most recently completed ticket, retained after activeTicket auto-clears. */
+  recentCompletedTicket?: string;
+  /** True until the verified close commit receives an exact-HEAD receipt. */
+  readinessReceiptPending?: boolean;
   gate: string | null;
   recentFailures: FailureEntry[];
   incrementedPatterns: string[];

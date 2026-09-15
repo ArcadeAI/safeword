@@ -123,6 +123,11 @@ function writeCurrentHeadReceipt(directory: string): void {
   );
 }
 
+function commitAll(directory: string, message: string): void {
+  execFileSync('git', ['add', '.'], { cwd: directory, stdio: 'ignore' });
+  execFileSync('git', ['commit', '-m', message], { cwd: directory, stdio: 'ignore' });
+}
+
 function clearSessionBindings(directory: string): void {
   for (const state of [
     'quality-state-claude-test.json',
@@ -197,8 +202,8 @@ function runHostShellHook(
     : (JSON.parse(result.stdout) as ClaudeHookOutput | CursorHookOutput);
 }
 
-function runHostPostTool(host: Host, directory: string): void {
-  const filePath = nodePath.join(directory, TICKET_PATH);
+function runHostPostTool(host: Host, directory: string, editedPath = TICKET_PATH): void {
+  const filePath = nodePath.join(directory, editedPath);
   const hook = HOST_POST_HOOKS[host];
   const input =
     host === 'Cursor'
@@ -272,6 +277,20 @@ describe('pull-request readiness delivery gate', () => {
   );
 
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'denies Ready promotion chained after Draft creation on %s',
+    host => {
+      const output = runHostShellHook(
+        host,
+        unfinishedProject(),
+        'gh pr create --draft --fill && gh pr ready',
+      );
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('complete the current scenario');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
     'denies Ready promotion while verified closure remains open on %s',
     host => {
       const directory = unfinishedProject();
@@ -323,7 +342,9 @@ describe('pull-request readiness delivery gate', () => {
       const directory = unfinishedProject();
       writeTicket(directory, 'done', 'done');
       writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
-      writeCurrentHeadReceipt(directory);
+      runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket');
+      runHostPostTool(host, directory);
       clearSessionBindings(directory);
 
       const output = runHostShellHook(host, directory, 'gh pr ready');
@@ -332,6 +353,57 @@ describe('pull-request readiness delivery gate', () => {
         expect((output as CursorHookOutput).permission).toBe('allow');
       } else {
         expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).not.toBe(
+          'deny',
+        );
+      }
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'denies Ready promotion after HEAD advances beyond verified closure on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket');
+      runHostPostTool(host, directory);
+      writeTestFile(directory, 'after-verification.md', 'new bytes\n');
+      commitAll(directory, 'advance head');
+      runHostPostTool(host, directory, 'after-verification.md');
+      clearSessionBindings(directory);
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('current commit');
+      expect(denialReason(host, output)).toContain('run verification again');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'allows Ready after verification refreshes the advanced HEAD without another commit on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket');
+      runHostPostTool(host, directory);
+      writeTestFile(directory, 'after-verification.md', 'new bytes\n');
+      commitAll(directory, 'advance head');
+
+      const stale = runHostShellHook(host, directory, 'gh pr ready');
+      expectDenied(host, stale);
+
+      runHostPostTool(host, directory, VERIFY_PATH);
+      clearSessionBindings(directory);
+      const refreshed = runHostShellHook(host, directory, 'gh pr ready');
+
+      if (host === 'Cursor') {
+        expect((refreshed as CursorHookOutput).permission).toBe('allow');
+      } else {
+        expect((refreshed as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).not.toBe(
           'deny',
         );
       }
@@ -368,6 +440,24 @@ describe('pull-request readiness delivery gate', () => {
     'allows Draft creation for evidence on %s',
     host => {
       const output = runHostShellHook(host, unfinishedProject(), 'gh pr create --draft --fill');
+      if (host === 'Cursor') {
+        expect((output as CursorHookOutput).permission).toBe('allow');
+      } else {
+        expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).not.toBe(
+          'deny',
+        );
+      }
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'allows a chain containing only Draft-producing pull-request commands on %s',
+    host => {
+      const output = runHostShellHook(
+        host,
+        unfinishedProject(),
+        'gh pr ready --undo && gh pr create --draft --fill',
+      );
       if (host === 'Cursor') {
         expect((output as CursorHookOutput).permission).toBe('allow');
       } else {

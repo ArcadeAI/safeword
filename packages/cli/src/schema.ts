@@ -306,6 +306,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'skill-invocations.log',
   're-entry.md',
   'dependency-readiness.json',
+  'readiness-ticket.json',
 ];
 
 /**

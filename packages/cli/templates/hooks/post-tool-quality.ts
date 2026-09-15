@@ -9,6 +9,7 @@ import nodePath from 'node:path';
 
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { ensureTransientStateIgnore } from './lib/project-state.ts';
+import { finalizeReadinessReceipt } from './lib/pr-readiness-guard.ts';
 import { getQualityMessage } from './lib/quality.ts';
 import {
   getStateFilePath,
@@ -141,10 +142,18 @@ if (!currentHead) {
 }
 
 // Check if commit happened (gate clears)
-if (state.lastCommitHash !== currentHead) {
+const headChanged = state.lastCommitHash !== currentHead;
+if (headChanged) {
   state.locSinceCommit = 0;
   state.lastCommitHash = currentHead;
   state.gate = null;
+  if (
+    state.readinessReceiptPending === true &&
+    state.recentCompletedTicket &&
+    finalizeReadinessReceipt(projectDirectory, state.recentCompletedTicket)
+  ) {
+    state.readinessReceiptPending = false;
+  }
 }
 
 // Count LOC
@@ -200,6 +209,7 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
 
     // Track active ticket
     const ticketId = frontmatterField(content, 'id');
+    const wasActiveTicket = ticketId !== undefined && state.activeTicket === ticketId;
     if (ticketId !== undefined) {
       state.activeTicket = ticketId;
     }
@@ -207,6 +217,10 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
     // Auto-clear binding when ticket reaches done or backlog
     const ticketStatus = frontmatterField(content, 'status');
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
+      if (ticketStatus === 'done' && ticketId !== undefined) {
+        state.recentCompletedTicket = ticketId;
+        if (wasActiveTicket) state.readinessReceiptPending = true;
+      }
       state.activeTicket = null;
     }
 
@@ -246,6 +260,17 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
       }
     }
   }
+}
+
+// Re-running verification on an already-closed ticket deliberately refreshes
+// the exact current HEAD without requiring a follow-up commit. A later unrelated
+// commit remains stale because only this explicit verification edit may refresh.
+if (
+  nodePath.basename(editedFile) === 'verify.md' &&
+  state.recentCompletedTicket &&
+  finalizeReadinessReceipt(projectDirectory, state.recentCompletedTicket)
+) {
+  state.readinessReceiptPending = false;
 }
 
 // Novel-claim nudge: append the edited learnings file to the per-session
