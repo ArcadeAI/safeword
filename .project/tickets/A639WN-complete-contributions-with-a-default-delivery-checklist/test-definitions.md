@@ -103,8 +103,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Readiness reports the next owning boundary without inventing authority
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED ef851d2b0
+- [x] RED 549f8b486
+- [x] GREEN f339f9c4d
 - [ ] REFACTOR
 
 ### Scenario: Contributor evidence cannot record human approval
