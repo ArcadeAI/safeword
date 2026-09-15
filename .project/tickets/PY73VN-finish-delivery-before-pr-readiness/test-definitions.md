@@ -56,7 +56,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e2f3a1f58
 - [x] GREEN cfca2afad
-- [ ] REFACTOR
+- [x] REFACTOR skip: ticket resolution and recovery wording remain centralized in the shared evaluator
 
 ### Scenario: Ready-by-default creation is rejected before verified done
 
