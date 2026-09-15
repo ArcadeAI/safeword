@@ -675,7 +675,9 @@ function successfulProofResult(
   revision: string,
 ): CliResult {
   const refreshed = parseDeliveryPlanContract(readFileSync(context.planPath, 'utf8'));
-  const completedItem = context.items.find(item => item.id === itemId);
+  const recordedItem = refreshed.ok
+    ? refreshed.items.find(item => item.id === itemId)
+    : context.items.find(item => item.id === itemId);
   const next = refreshed.ok
     ? refreshed.items.find(item => item.owner === 'contributor' && item.disposition === 'open')
     : undefined;
@@ -695,8 +697,9 @@ function successfulProofResult(
       proof_id: proofId,
       receipt_id: receipt,
       producing_revision: revision,
-      evidence_class: recordedEvidenceClass(context, itemId, proofId),
-      ...(completedItem?.category === 'dependency and pull-request decomposition' && {
+      evidence_class:
+        recordedItem?.evidenceClass ?? recordedEvidenceClass(context, itemId, proofId),
+      ...(recordedItem?.category === 'dependency and pull-request decomposition' && {
         pull_request_slicing: {
           decision: context.executionPlanRecord.slicing_decision,
           rationale: context.executionPlanRecord.rationale,
