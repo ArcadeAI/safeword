@@ -502,6 +502,11 @@ describe('Delivery Checklist CLI service', () => {
       nodePath.join(approved.root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
       '# Revised Implementation Plan\n',
     );
+    git(approved.root, ['add', '.project']);
+    git(approved.root, ['commit', '--quiet', '-m', 'revise implementation plan']);
+    expect(await recordDeliveryProof(approved.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
+      state: 'changed',
+    });
     expect(await publicReadiness(approved.root)).toMatchObject({
       data: {
         readiness_state: 'ready_for_human_review',
