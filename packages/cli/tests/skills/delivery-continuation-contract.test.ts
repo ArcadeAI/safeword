@@ -94,6 +94,15 @@ describe('installed delivery continuation contract', () => {
     );
   });
 
+  it.each(tddCopies)(
+    '%s classifies PR readiness after closure without automatic promotion',
+    path => {
+      expect(read(path)).toContain(
+        "After recorded ticket closure, continue into PR-readiness classification without invoking GitHub CLI Ready promotion, and request the builder's explicit authorization for that state change.",
+      );
+    },
+  );
+
   it.each(prReadinessCopies)('%s returns from Draft evidence to delivery', path => {
     const content = readRaw(path);
     expect(content).toContain('## Observe and preserve');
