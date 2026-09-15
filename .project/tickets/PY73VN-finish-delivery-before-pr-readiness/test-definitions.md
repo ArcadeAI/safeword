@@ -99,7 +99,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A locally repairable missing dependency is restored without asking to continue
 
 - [x] RED 39c65db1d
-- [ ] GREEN
+- [x] GREEN 044f4100b
 - [ ] REFACTOR
 
 ### Scenario: A genuine boundary stops at the blocked step with exact recovery
