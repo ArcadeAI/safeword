@@ -68,7 +68,7 @@ Feature: Complete contributions with a default delivery checklist
       When it is marked through the installed CLI as a human-owned dependency instead of being completed
       Then the human-owned disposition is rejected, the test obligation remains open, and the response tells the contributor to complete it
 
-    @rejection
+    @rejection @live
     Scenario: Applicable contributor work cannot be dismissed as not applicable
       Given an applicable test obligation is required by the accepted proof boundary
       When it is marked through the installed CLI as not applicable

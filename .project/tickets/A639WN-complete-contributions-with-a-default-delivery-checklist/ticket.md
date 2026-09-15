@@ -43,6 +43,8 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-14T04:46:00.000Z R3 live evidence: Claude Opus passed all 29 live Execution Plan semantic-conformance tests, including `dismissed-applicable-work`; `/private/tmp/safeword-execution-plan-applicability-results.json` contains 28 passing case receipts for the exact `claude`/`opus` identity. The paired public CLI regression proves the denial remains actor-visible and preserves the plan bytes.
+
 - 2026-09-13T19:43:00.000Z R5 implementation: Plan-execution denials now derive unresolved pull-request slicing recovery from the reviewed Execution Plan instead of untrusted reviewer prose. Independent Claude Opus executable-RED review `57fa3fa0-f796-4d4b-8e3c-478594ef42f1` approved the exact scenario proof; focused GREEN and the neighboring admission fixture pass.
 
 - 2026-09-13T19:10:00.000Z Scenario gate re-review: Independent Claude Opus review `c510ccef-90ed-49b9-a030-20bde996ec9c` approved the complete revised scenario contract with no blocking findings. The public CLI boundaries now cover checklist readiness, proof recording, Execution Plan review, and the deny-only execution prerequisite.
