@@ -373,9 +373,7 @@ describe('pull-request readiness delivery gate', () => {
       if (host === 'Cursor') {
         expect((output as CursorHookOutput).permission).toBe('allow');
       } else {
-        expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).not.toBe(
-          'deny',
-        );
+        expect(output).toEqual({});
       }
     },
   );
@@ -424,9 +422,7 @@ describe('pull-request readiness delivery gate', () => {
       if (host === 'Cursor') {
         expect((refreshed as CursorHookOutput).permission).toBe('allow');
       } else {
-        expect((refreshed as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).not.toBe(
-          'deny',
-        );
+        expect(refreshed).toEqual({});
       }
     },
   );
@@ -464,9 +460,7 @@ describe('pull-request readiness delivery gate', () => {
       if (host === 'Cursor') {
         expect((output as CursorHookOutput).permission).toBe('allow');
       } else {
-        expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).not.toBe(
-          'deny',
-        );
+        expect(output).toEqual({});
       }
     },
   );
