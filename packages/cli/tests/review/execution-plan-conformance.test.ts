@@ -19,6 +19,7 @@ const EXPECTED_CASE_IDS = [
   'omitted-slicing-decision',
   'complete-slice-record',
   'generic-checklist',
+  'dismissed-applicable-work',
   'proof-does-not-exercise-boundary',
   'missing-purpose',
   'missing-boundary',

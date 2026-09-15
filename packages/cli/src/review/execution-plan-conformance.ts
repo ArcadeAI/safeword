@@ -281,6 +281,18 @@ const ONE_PLAN = executionPlan({
     },
   ],
 });
+const DISMISSED_APPLICABLE_WORK_PLAN = ONE_PLAN.replace(
+  '| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |',
+  '| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor |  | not_applicable | missing | | No runtime proof is needed. |',
+).replace(
+  '| item-11 | completion evidence | Retain concrete completion evidence for all accepted obligations. | contributor | plan-integrity | open | missing | | |',
+  '| item-11 | completion evidence | Retain concrete completion evidence for all accepted obligations. | contributor | plan-integrity | open | missing | | |\n| item-12 | testing | Exercise an unrelated smoke check. | contributor | behavior-boundary | open | missing | | |',
+);
+const APPLICABILITY_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted proof boundaries
+
+- Accepted behavior must be proven through behavior-boundary; this is applicable contributor work.
+`;
 const MULTI_PLAN = executionPlan({
   decision: 'multiple pull requests',
   rationale: 'Contract delivery and activation are independently reviewable with separate proof.',
@@ -476,6 +488,15 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     }),
     ['checklist', 'accepted'],
   ),
+  {
+    ...denied(
+      'dismissed-applicable-work',
+      'Applicable contributor work cannot be dismissed as not applicable.',
+      DISMISSED_APPLICABLE_WORK_PLAN,
+      ['item-4', 'behavior-boundary'],
+    ),
+    implementation_plan: APPLICABILITY_IMPLEMENTATION_PLAN,
+  },
   denied(
     'proof-does-not-exercise-boundary',
     'A command that cannot exercise its claimed real boundary is denied.',
