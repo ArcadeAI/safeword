@@ -139,6 +139,7 @@ function clearSessionBindings(directory: string): void {
 }
 
 interface ClaudeHookOutput {
+  systemMessage?: string;
   hookSpecificOutput?: {
     hookEventName?: string;
     permissionDecision?: string;
@@ -243,6 +244,12 @@ function denialReason(host: Host, output: ClaudeHookOutput | CursorHookOutput): 
     : ((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecisionReason ?? '');
 }
 
+function userVisibleDenial(host: Host, output: ClaudeHookOutput | CursorHookOutput): string {
+  return host === 'Cursor'
+    ? ((output as CursorHookOutput).user_message ?? '')
+    : ((output as ClaudeHookOutput).systemMessage ?? '');
+}
+
 function expectDenied(host: Host, output: ClaudeHookOutput | CursorHookOutput): void {
   if (host === 'Cursor') {
     expect((output as CursorHookOutput).permission).toBe('deny');
@@ -287,6 +294,20 @@ describe('pull-request readiness delivery gate', () => {
 
       expectDenied(host, output);
       expect(denialReason(host, output)).toContain('complete the current scenario');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'gives a non-technical builder a plain visible recovery action on %s',
+    host => {
+      const output = runHostShellHook(host, unfinishedProject(), 'gh pr ready');
+
+      expectDenied(host, output);
+      const message = userVisibleDenial(host, output);
+      expect(message).toContain('This change is not finished');
+      expect(message).toContain('complete the current scenario');
+      expect(message).not.toMatch(/\b(?:RED|GREEN|refactor|reconciliation|audit)\b/iu);
+      expect(message).not.toContain('repair the ticket state');
     },
   );
 
