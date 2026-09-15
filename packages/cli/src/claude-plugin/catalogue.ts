@@ -6,6 +6,7 @@ import { buildSync } from 'esbuild';
 
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { normalizePluginBundle } from '../plugin-bundle.js';
+import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { SETTINGS_HOOKS } from '../templates/config.js';
 import { adaptHookValue, pluginEventGroupEvents, pluginHookManifest } from './hook-manifest.js';
@@ -34,7 +35,6 @@ function isCanonicalTemplateAsset(relativePath: string): boolean {
 const GENERATED_DIRECTORIES = [
   '.claude-plugin',
   'agents',
-  'commands',
   'hooks',
   'resources',
   'runtime',
@@ -249,7 +249,7 @@ function resolveReference(
 
 function isCatalogueRoot(asset: GeneratedClaudePluginAsset): boolean {
   return (
-    /^(?:agents|commands|skills)\//u.test(asset.relativePath) ||
+    /^(?:agents|skills)\//u.test(asset.relativePath) ||
     isCanonicalTemplateAsset(asset.relativePath) ||
     asset.relativePath === '.claude-plugin/plugin.json' ||
     asset.relativePath === 'hooks/hooks.json' ||
@@ -479,6 +479,9 @@ export function generateClaudePluginAssets(
 
   const contentAssets = transitiveClaudePluginAssets(candidateAssets);
   assertClaudePluginAssetReferences(contentAssets);
+  assertNativePluginRuntimeAuthority(
+    contentAssets.filter(asset => /^(?:agents|skills)\//u.test(asset.relativePath)),
+  );
   const inventory = pluginInventory(
     contentAssets.toSorted((left, right) => left.relativePath.localeCompare(right.relativePath)),
   );

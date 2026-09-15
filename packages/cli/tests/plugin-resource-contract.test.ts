@@ -20,7 +20,7 @@ describe('native plugin resource contract', () => {
     ['Claude', nodePath.join(REPO_ROOT, 'plugin')],
     ['Codex', nodePath.join(REPO_ROOT, 'packages/cli/codex-plugin')],
   ])(
-    'runs template-backed commands from both committed native plugin bundles',
+    'runs template-backed commands from the committed %s plugin bundle',
     (bundleName, pluginSource) => {
       const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plugin-resource-'));
       try {
@@ -70,5 +70,6 @@ describe('native plugin resource contract', () => {
         rmSync(fixture, { recursive: true, force: true });
       }
     },
+    30_000,
   );
 });

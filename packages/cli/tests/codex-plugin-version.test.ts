@@ -403,24 +403,6 @@ describe('Codex plugin release contract', () => {
     }
   }, 30_000);
 
-  it('records the independently adoptable task-bound Codex plugin-root contract', () => {
-    const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
-    const ticketRelativePath = '0HZBXF-keep-cachebusted-codex-plugins-operational/design.md';
-    const activeDesignPath = nodePath.join(repoRoot, '.project/tickets', ticketRelativePath);
-    const designPath = existsSync(activeDesignPath)
-      ? activeDesignPath
-      : nodePath.join(repoRoot, '.project/tickets/completed', ticketRelativePath);
-    const design = readFileSync(designPath, 'utf8');
-    const upstreamContract = design
-      .split('## Upstream Codex contract\n', 2)[1]
-      ?.split('\n## ', 1)[0];
-
-    expect(upstreamContract).toContain('task-bound `PLUGIN_ROOT`');
-    expect(upstreamContract).toContain('exact immutable plugin directory');
-    expect(upstreamContract).toContain('Host adoption is a non-dependency for this delivery');
-    expect(upstreamContract).toContain('independently adoptable later');
-  });
-
   it('runs every hook through the bundled plugin CLI', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
     const version = JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8'))

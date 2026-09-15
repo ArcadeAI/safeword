@@ -10,6 +10,11 @@ packages/cli/codex-plugin/** linguist-generated=true
 packages/cli/src/claude-plugin/historical-catalogue.generated.ts linguist-generated=true
 plugin/** linguist-generated=true
 
+# Generated JavaScript may contain semantically significant whitespace inside
+# dependency string literals; source normalization must not rewrite those bytes.
+packages/cli/codex-plugin/runtime/cli.js whitespace=-trailing-space
+plugin/runtime/cli.js whitespace=-trailing-space
+
 # Authored plugin entry points stay visible in review.
 packages/cli/codex-plugin/.codex-plugin/plugin.json -linguist-generated
 packages/cli/codex-plugin/hooks.json -linguist-generated

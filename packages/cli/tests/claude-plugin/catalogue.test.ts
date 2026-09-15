@@ -1,3 +1,5 @@
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -7,7 +9,6 @@ import {
   assertClaudePluginAssetReferences,
   generateClaudePluginAssets,
 } from '../../src/claude-plugin/catalogue.js';
-import { assertNativePluginRuntimeAuthority } from '../../src/plugin-runtime-authority.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 
@@ -28,6 +29,18 @@ describe('Claude plugin catalogue generation', () => {
     );
     expect(normalized).toContain('node_modules/.bun/debug@4.4.3/node_modules/debug/src/index.js');
     expect(normalized).toContain('console.log("bundle");');
+  });
+
+  it('preserves literal trailing whitespace and normalizes nested Bun install paths', () => {
+    const bundle = [
+      'const content = `keep  ',
+      'this tab stays\t`;',
+      '// ../../node_modules/.bun/outer@1.0.0+2b91fc17bf64bdfd/node_modules/.bun/inner@1.0.0+7f1b8241f77f2ecc/node_modules/inner/index.js',
+    ].join('\n');
+
+    expect(normalizePluginCliBundle(bundle)).toBe(
+      bundle.replace('+2b91fc17bf64bdfd', '').replace('+7f1b8241f77f2ecc', ''),
+    );
   });
 
   it('rejects generated assets that retain project-local skill references', () => {
@@ -112,7 +125,7 @@ describe('Claude plugin catalogue generation', () => {
     expect(dispatcher?.content).not.toMatch(/\+[\da-f]{16}[/\\]node_modules/iu);
   });
 
-  it('passes the shared native runtime-authority release gate', () => {
+  it('runs the shared native runtime-authority gate during generation', () => {
     const assets = generateClaudePluginAssets({
       cliBundle: 'console.log("stub cli bundle");',
       sourceRoot: nodePath.join(packageRoot, 'src'),
@@ -120,11 +133,29 @@ describe('Claude plugin catalogue generation', () => {
       version: '0.0.0-test',
     });
 
-    const workflowCatalogue = assets.filter(asset =>
-      /^(?:agents|commands|skills)\//u.test(asset.relativePath),
+    expect(assets.length).toBeGreaterThan(0);
+  });
+
+  it('rejects unavailable native runtime references through the generation collaborator', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-authority-'));
+    const templatesRoot = nodePath.join(fixture, 'templates');
+    cpSync(nodePath.join(packageRoot, 'templates'), templatesRoot, { recursive: true });
+    writeFileSync(
+      nodePath.join(templatesRoot, 'skills/audit/SKILL.md'),
+      'Run `.claude/skills/private-runtime/SKILL.md` from this project.\n',
     );
-    expect(() => {
-      assertNativePluginRuntimeAuthority(workflowCatalogue);
-    }).not.toThrow();
+
+    try {
+      expect(() =>
+        generateClaudePluginAssets({
+          cliBundle: 'console.log("stub cli bundle");',
+          sourceRoot: nodePath.join(packageRoot, 'src'),
+          templatesRoot,
+          version: '0.0.0-test',
+        }),
+      ).toThrow('Native plugin assets reference project-local executable runtime');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 });

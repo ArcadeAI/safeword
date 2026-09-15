@@ -357,6 +357,9 @@ function runFunctionalCommand(
     maxBuffer: 10 * 1024 * 1024,
     stdio: ['pipe', captureOutput ? 'pipe' : 'inherit', 'inherit'],
   });
+  if (result.error !== undefined) {
+    process.stderr.write(`Safeword hook command could not start: ${result.error.message}\n`);
+  }
   return {
     status: result.status ?? 1,
     stdout: captureOutput ? (result.stdout?.toString('utf8') ?? '') : '',

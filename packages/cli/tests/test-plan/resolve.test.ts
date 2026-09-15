@@ -417,6 +417,25 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     ).toEqual(['', 'packages/api']);
   });
 
+  it('retains a workspace lane when the selected script names differ', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'bun run --cwd packages/api test' },
+      }),
+      'packages/api/package.json': JSON.stringify({
+        scripts: { test: 'vitest run', 'test:done': 'vitest run --changed' },
+      }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'test', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
   it.each([
     ['a quoted workspace path', 'bun run --cwd "packages/api" test'],
     ['an environment prefix', 'NODE_ENV=test bun run --cwd packages/api test'],

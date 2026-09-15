@@ -417,6 +417,33 @@ describe('Claude plugin dispatcher', () => {
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
+  it('explains when a configured hook executable cannot start', () => {
+    const projectDirectory = temporary('safeword-plugin-missing-executable-project-');
+    const pluginData = temporary('safeword-plugin-missing-executable-data-');
+    const environment = isolatedClaudeEnvironment(projectDirectory, pluginData);
+    const missingExecutable = nodePath.join(projectDirectory, 'missing-hook-executable');
+
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'), 'PostToolUse', '--', missingExecutable],
+      {
+        cwd: projectDirectory,
+        env: environment,
+        encoding: 'utf8',
+        input: JSON.stringify({
+          cwd: projectDirectory,
+          hook_event_name: 'PostToolUse',
+          session_id: 'missing-executable',
+        }),
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Safeword hook command could not start:');
+    expect(result.stderr).toContain('missing-hook-executable');
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+  });
+
   it('uses the hook cwd when Claude omits CLAUDE_PROJECT_DIR', () => {
     const projectDirectory = temporary('safeword-plugin-cwd-fallback-project-');
     const pluginData = temporary('safeword-plugin-cwd-fallback-data-');
