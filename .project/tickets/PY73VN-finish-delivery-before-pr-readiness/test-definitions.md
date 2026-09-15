@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e4fdb55bb
 - [x] GREEN 47c73c4e2
-- [ ] REFACTOR
+- [x] REFACTOR skip: one compact recovery matrix distinguishes all four boundary types
 
 ### Scenario: A genuine boundary stops at implementation instead of verification
 
