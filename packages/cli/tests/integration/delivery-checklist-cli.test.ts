@@ -1,13 +1,20 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
-import type { CliResult } from '../../src/cli-protocol/result.js';
+import { type CliResult, exitStatusFor } from '../../src/cli-protocol/result.js';
 import {
   createExecutionPlanDeliveryDefinition,
   normalizedExecutionPlanDigest,
@@ -429,12 +436,50 @@ describe('Delivery Checklist CLI service', () => {
     });
   });
 
+  it('names a missing Execution Plan through the public readiness command', async () => {
+    const { root, planPath } = fixture();
+    unlinkSync(planPath);
+
+    const result = await publicReadiness(root);
+
+    expect(result).toMatchObject({
+      state: 'action_required',
+      findings: [{ code: 'missing_execution_plan' }],
+    });
+    expect(exitStatusFor(result)).toBe(2);
+  });
+
+  it('does not trust a hand-written complete checklist row', async () => {
+    const forgedPlan = settledPlan('contributor')
+      .split('\n')
+      .map(line =>
+        line.startsWith('| item-4 |')
+          ? '| item-4 | testing | Deliver testing. | contributor | proof | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:forged |'
+          : line,
+      )
+      .join('\n');
+    const { root } = fixture({ plan: forgedPlan });
+
+    const result = await publicReadiness(root);
+
+    expect(result).toMatchObject({
+      state: 'action_required',
+      data: {
+        readiness_state: 'contributor_work_incomplete',
+        open_contributor_items: ['item-4'],
+        merge_authorization: 'pending',
+      },
+    });
+    expect(exitStatusFor(result)).toBe(2);
+  });
+
   it('distinguishes contributor completion, pending human work, and satisfied design approval', async () => {
     const contributor = fixture({ plan: settledPlan('contributor') });
     expect(await recordDeliveryProof(contributor.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
       state: 'changed',
     });
-    expect(await publicReadiness(contributor.root)).toMatchObject({
+    const contributorReadiness = await publicReadiness(contributor.root);
+    expect(contributorReadiness).toMatchObject({
       state: 'action_required',
       data: {
         readiness_state: 'contributor_work_complete',
@@ -442,14 +487,17 @@ describe('Delivery Checklist CLI service', () => {
         merge_authorization: 'pending',
       },
     });
+    expect(exitStatusFor(contributorReadiness)).toBe(2);
 
     const pending = fixture({ plan: settledPlan('generic-human') });
-    expect(await publicReadiness(pending.root)).toMatchObject({
+    const pendingReadiness = await publicReadiness(pending.root);
+    expect(pendingReadiness).toMatchObject({
       data: {
         readiness_state: 'contributor_work_incomplete',
         pending_human_items: ['item-11'],
       },
     });
+    expect(exitStatusFor(pendingReadiness)).toBe(2);
     expect(await recordDeliveryProof(pending.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
       state: 'changed',
     });
@@ -485,7 +533,8 @@ describe('Delivery Checklist CLI service', () => {
         authorityRef: 'human:test',
       }),
     ).toEqual({ status: 'written' });
-    expect(await publicReadiness(approved.root)).toMatchObject({
+    const approvedReadiness = await publicReadiness(approved.root);
+    expect(approvedReadiness).toMatchObject({
       state: 'action_required',
       data: {
         readiness_state: 'human_approval_satisfied_merge_pending',
@@ -498,6 +547,7 @@ describe('Delivery Checklist CLI service', () => {
         merge_authorization: 'pending',
       },
     });
+    expect(exitStatusFor(approvedReadiness)).toBe(2);
     writeFileSync(
       nodePath.join(approved.root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
       '# Revised Implementation Plan\n',
@@ -507,23 +557,62 @@ describe('Delivery Checklist CLI service', () => {
     expect(await recordDeliveryProof(approved.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
       state: 'changed',
     });
-    expect(await publicReadiness(approved.root)).toMatchObject({
+    const revisedReadiness = await publicReadiness(approved.root);
+    expect(revisedReadiness).toMatchObject({
       data: {
         readiness_state: 'ready_for_human_review',
         human_dependencies: [{ item_id: 'item-11', status: 'pending' }],
         merge_authorization: 'pending',
       },
     });
+    expect(exitStatusFor(revisedReadiness)).toBe(2);
+  });
+
+  it('keeps another human dependency pending after design approval', async () => {
+    const plan = settledPlan('design-approval').replace(
+      '| item-10 | ownership and human dependencies | Deliver ownership and human dependencies. | contributor |  | not_applicable | missing |  | No applicable delivery work. |',
+      '| item-10 | ownership and human dependencies | Complete security review. | human |  | pending_human | missing |  | security-review |',
+    );
+    const { root } = fixture({ plan, designApprovalGate: true });
+    expect(await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof')).toMatchObject({
+      state: 'changed',
+    });
+    const digest = createHash('sha256').update('# Implementation Plan\n').digest('hex');
+    expect(
+      appendDesignDecision(nodePath.join(root, '.project', 'skill-invocations.log'), {
+        ticket: 'ABC123',
+        planDigest: digest,
+        decision: 'approved',
+        authorityRef: 'human:test',
+      }),
+    ).toEqual({ status: 'written' });
+
+    const result = await publicReadiness(root);
+
+    expect(result).toMatchObject({
+      data: {
+        readiness_state: 'ready_for_human_review',
+        human_dependencies: [
+          { item_id: 'item-10', status: 'pending' },
+          { item_id: 'item-11', status: 'satisfied' },
+        ],
+        merge_authorization: 'pending',
+      },
+    });
+    expect(exitStatusFor(result)).toBe(2);
   });
 
   it('keeps human approval pending when a contributor records evidence for it', async () => {
-    const { root } = fixture({
+    const { root, planPath } = fixture({
       plan: settledPlan('design-approval'),
       designApprovalGate: true,
     });
     expect(await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof')).toMatchObject({
       state: 'changed',
     });
+    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+    const ledgerBefore = readFileSync(ledgerPath, 'utf8');
+    const planBefore = readFileSync(planPath, 'utf8');
 
     const attemptedApproval = await publicHandler('ticket record-delivery-proof')({
       cwd: root,
@@ -544,6 +633,8 @@ describe('Delivery Checklist CLI service', () => {
         },
       ],
     });
+    expect(readFileSync(ledgerPath, 'utf8')).toBe(ledgerBefore);
+    expect(readFileSync(planPath, 'utf8')).toBe(planBefore);
     expect(await publicReadiness(root)).toMatchObject({
       data: {
         readiness_state: 'ready_for_human_review',
