@@ -311,6 +311,44 @@ describe('write-time annotation gate', () => {
       expectHookAllow(result);
     });
 
+    it('uses the separate evidence path for a live scenario with a recorded live RED', () => {
+      const setup = setupProject(
+        [
+          'Feature source: `features/example.feature`',
+          '',
+          '### Scenario: live boundary',
+          '',
+          '- [x] RED skip: live — external matrix recorded in the work log',
+          '- [ ] GREEN',
+          '- [ ] REFACTOR',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(
+        setup.cwd,
+        'features/example.feature',
+        [
+          'Feature: Example',
+          '',
+          '  @live',
+          '  Scenario: live boundary',
+          '    Then it works',
+          '',
+        ].join('\n'),
+      );
+
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+
+      expectHookAllow(result);
+    });
+
     it('blocks a GREEN transition when the replacement inserts a line before the checkbox', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
