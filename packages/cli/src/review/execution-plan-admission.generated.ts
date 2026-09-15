@@ -2,7 +2,7 @@
 export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
   schema_version: 1,
   contract_sha256: '1d00eefce049c5101967da7923b60b338865cbf8f600fc1acfaf50a6de4b1852',
-  corpus_sha256: 'bc8a8c19bb8bc43c1249761977066897a54bf8e463a582e15c12cb7411d33623',
+  corpus_sha256: 'a2292b51bf3be96c768ff8f1bcf8e8fc864d966a091ab1d14cafb078dee7231e',
   identities: [
     {
       reviewer: 'claude',
@@ -13,6 +13,7 @@ export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
         'omitted-slicing-decision',
         'complete-slice-record',
         'generic-checklist',
+        'dismissed-applicable-work',
         'proof-does-not-exercise-boundary',
         'missing-purpose',
         'missing-boundary',

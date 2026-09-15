@@ -866,6 +866,66 @@ describe('cross-agent review public-command wiring', () => {
     ]);
   });
 
+  it('keeps an accepted proof obligation open when the plan calls it not applicable', async () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'dismissed-applicable-work',
+    );
+    if (testCase === undefined) throw new Error('Missing applicable-work conformance fixture');
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), testCase.execution_plan);
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), testCase.implementation_plan);
+    writeFileSync(nodePath.join(ticketDirectory, 'behavior.feature'), testCase.scenario);
+    const bin = installFakeReviewer(directory, 'claude');
+    const finding =
+      'Item item-4 dismisses Accepted behavior required by the behavior-boundary proof.';
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        '.project/tickets/T1-feature/execution-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/impl-plan.md',
+        '--context',
+        '.project/tickets/T1-feature/behavior.feature',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_FAKE_FINDING: finding,
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: expect.arrayContaining([expect.objectContaining({ message: finding })]),
+      data: {
+        status: 'changes_requested',
+        reviewer_output: { verdict: 'request_changes', execution_plan_record: JSON.parse('null') },
+      },
+    });
+    expect(readFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), 'utf8')).toBe(
+      testCase.execution_plan,
+    );
+    expect(readFileSync(reviewLog, 'utf8').trim()).toBe('claude');
+  });
+
   it('fails closed before dispatch when no configured route has current admission', async () => {
     const executionPlan = EXECUTION_PLAN_CONFORMANCE_CASES.find(
       testCase => testCase.id === 'one-coherent-change',
