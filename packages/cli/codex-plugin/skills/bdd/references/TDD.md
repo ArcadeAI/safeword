@@ -94,6 +94,7 @@ When a required dependency is already authorized by the manifest but missing loc
 
 A genuine boundary retains the blocked step and gives its exact recovery action before the evidence:
 
+- At an authority boundary during implementation, stop at implementation without advancing; request the required human decision.
 - At an authority boundary during verification, stop at verification without advancing; request the required human decision, then report the blocking evidence.
 - At a safety boundary during verification, stop at verification without advancing; approve the exact risky operation, then report the blocking evidence.
 - Treat a dependency as a boundary only when a manifest-authorized dependency cannot be restored automatically. At a dependency boundary during verification, stop at verification without advancing; restore the required dependency, then report the blocking evidence.
