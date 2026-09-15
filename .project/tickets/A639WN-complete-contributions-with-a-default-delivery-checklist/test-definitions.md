@@ -118,7 +118,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Evidence class controls the claim Safeword may make
 
 - [x] RED 1b5e17b99
-- [ ] GREEN
+- [x] GREEN 67a8de4b4
 - [ ] REFACTOR
 
 ### Scenario: Earlier or partial evidence cannot silently become current complete proof
