@@ -57,7 +57,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED skip: live Claude Opus matrix rejected the structurally valid dismissed-applicable-work case
 - [x] RED skip: live — work log: 29-case Claude Opus execution-plan matrix passed with dismissed-applicable-work rejected
 - [x] GREEN 5d0652809
-- [ ] REFACTOR
+- [x] REFACTOR skip: the admitted semantic case and public CLI projection already use the existing conformance seams
 
 ### Scenario: In-flight checklist state reflects partial execution progress
 
