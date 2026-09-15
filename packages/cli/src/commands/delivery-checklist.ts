@@ -345,6 +345,13 @@ interface ContributorEvidence {
   readonly satisfied: boolean;
 }
 
+interface HumanDependency {
+  readonly item_id: string;
+  readonly obligation: string;
+  readonly dependency: string;
+  readonly status: 'pending' | 'satisfied';
+}
+
 function earlierRequiredEvidence(
   context: DeliveryContext,
   item: DeliveryChecklistItem,
@@ -460,6 +467,7 @@ function readiness(context: DeliveryContext): {
   readonly openContributorItems: readonly DeliveryChecklistItem[];
   readonly pendingHumanItems: readonly DeliveryChecklistItem[];
   readonly contributorEvidence: readonly ContributorEvidence[];
+  readonly humanDependencies: readonly HumanDependency[];
 } {
   const contributorItems = context.items.filter(item => item.owner === 'contributor');
   const contributorEvidenceItems = contributorItems.map(item => contributorEvidence(context, item));
@@ -472,13 +480,25 @@ function readiness(context: DeliveryContext): {
   const humanItems = context.items.filter(
     item => item.owner === 'human' && item.disposition === 'pending_human',
   );
-  const pendingHumanItems = humanItems.filter(item => !designApprovalSatisfied(context, item));
+  const humanDependencies = humanItems.map(item => ({
+    item_id: item.id,
+    obligation: item.obligation,
+    dependency: item.evidence,
+    status: designApprovalSatisfied(context, item) ? ('satisfied' as const) : ('pending' as const),
+  }));
+  const pendingIds = new Set(
+    humanDependencies
+      .filter(dependency => dependency.status === 'pending')
+      .map(dependency => dependency.item_id),
+  );
+  const pendingHumanItems = humanItems.filter(item => pendingIds.has(item.id));
   if (openContributorItems.length > 0) {
     return {
       state: 'contributor_work_incomplete',
       openContributorItems,
       pendingHumanItems,
       contributorEvidence: contributorEvidenceItems,
+      humanDependencies,
     };
   }
   if (pendingHumanItems.length > 0) {
@@ -487,6 +507,7 @@ function readiness(context: DeliveryContext): {
       openContributorItems,
       pendingHumanItems,
       contributorEvidence: contributorEvidenceItems,
+      humanDependencies,
     };
   }
   return {
@@ -497,6 +518,7 @@ function readiness(context: DeliveryContext): {
     openContributorItems,
     pendingHumanItems,
     contributorEvidence: contributorEvidenceItems,
+    humanDependencies,
   };
 }
 
@@ -537,6 +559,8 @@ export function observeDeliveryChecklist(cwd: string, ticketId: string): CliResu
       open_contributor_items: projected.openContributorItems.map(item => item.id),
       pending_human_items: projected.pendingHumanItems.map(item => item.id),
       contributor_evidence: projected.contributorEvidence,
+      human_dependencies: projected.humanDependencies,
+      merge_authorization: 'pending',
     },
   });
 }
