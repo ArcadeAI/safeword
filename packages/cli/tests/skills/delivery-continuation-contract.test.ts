@@ -103,6 +103,15 @@ describe('installed delivery continuation contract', () => {
     },
   );
 
+  it.each(tddCopies)(
+    '%s restores a manifest-authorized missing dependency without prompting',
+    path => {
+      expect(read(path)).toContain(
+        'When a required dependency is already authorized by the manifest but missing locally, restore it and rerun the failed check without asking whether to continue.',
+      );
+    },
+  );
+
   it.each(prReadinessCopies)('%s returns from Draft evidence to delivery', path => {
     const content = readRaw(path);
     expect(content).toContain('## Observe and preserve');
