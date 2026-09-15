@@ -26,7 +26,7 @@
       "does not change Claude or Cursor artifacts during cachebusted generation"
     ],
     "The host proposal is explicit and independently adoptable": [
-      "packages/cli/tests/codex-plugin-version.test.ts",
+      "packages/cli/tests/codex-plugin-design-contract.test.ts",
       "records the independently adoptable task-bound Codex plugin-root contract"
     ]
   }
