@@ -68,7 +68,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 53a7cec47
 - [x] GREEN 7cdcda727
-- [ ] REFACTOR
+- [x] REFACTOR skip: one optional human-facing channel flag keeps readiness-specific text precise
 
 ### Scenario: Draft creation remains available for evidence before done
 
