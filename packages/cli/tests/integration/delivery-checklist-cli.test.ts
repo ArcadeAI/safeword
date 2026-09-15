@@ -84,6 +84,16 @@ function executionPlan(
   ].join('\n');
 }
 
+function executionPlanWithSupportingProof(): string {
+  const supporting =
+    '| supporting-proof | command | unit | structural checklist shape | partial_or_structural | current_required | {"type":"command","cwd":".","argv":[' +
+    `${JSON.stringify(process.execPath)},"-e","process.exit(0)"]} |`;
+  const plan = executionPlan();
+  const marker = '\n\n## Delivery checklist';
+  const markerAt = plan.indexOf(marker);
+  return `${plan.slice(0, markerAt)}\n${supporting}${plan.slice(markerAt)}`;
+}
+
 function settledPlan(finalOwner: 'contributor' | 'generic-human' | 'design-approval'): string {
   const implementationDigest = createHash('sha256').update('# Implementation Plan\n').digest('hex');
   return executionPlan()
@@ -301,6 +311,52 @@ describe('Delivery Checklist CLI service', () => {
         open_contributor_items: expect.arrayContaining(['item-4']),
       },
     });
+  });
+
+  it('keeps supporting proof narrow and reports both partial and earlier-revision gaps', async () => {
+    const { root, planPath } = fixture({ plan: executionPlanWithSupportingProof() });
+
+    const recorded = await recordDeliveryProof(root, 'ABC123', 'item-4', 'supporting-proof');
+
+    expect(recorded).toMatchObject({
+      state: 'changed',
+      data: {
+        item_id: 'item-4',
+        proof_id: 'supporting-proof',
+        evidence_class: 'partial_or_structural',
+      },
+    });
+    expect(readFileSync(planPath, 'utf8')).toContain(
+      '| item-4 | testing | Deliver testing. | contributor | proof | open | partial_or_structural |',
+    );
+
+    git(root, ['add', '.project']);
+    git(root, ['commit', '--quiet', '-m', 'record supporting proof']);
+    writeFileSync(nodePath.join(root, 'later-change'), 'changed\n');
+    git(root, ['add', 'later-change']);
+    git(root, ['commit', '--quiet', '-m', 'later change']);
+
+    const readinessResult = observeDeliveryChecklist(root, 'ABC123');
+    const readinessData = readinessResult.data as {
+      readiness_state: string;
+      contributor_evidence: {
+        item_id: string;
+        status: string;
+        evidence_class: string;
+        limitations: string[];
+      }[];
+    };
+    expect(readinessData.readiness_state).toBe('contributor_work_incomplete');
+    const testingEvidence = readinessData.contributor_evidence.find(
+      evidence => evidence.item_id === 'item-4',
+    );
+    expect(testingEvidence).toMatchObject({
+      status: 'open',
+      evidence_class: 'partial_or_structural',
+    });
+    expect(testingEvidence?.limitations).toEqual(
+      expect.arrayContaining(['partial_or_structural', 'earlier_revision']),
+    );
   });
 
   it('requires an admitted execution-plan review before projecting readiness', () => {
