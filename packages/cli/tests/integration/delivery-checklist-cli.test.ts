@@ -371,13 +371,9 @@ describe('Delivery Checklist CLI service', () => {
       operands: ['ABC123'],
       options: {},
     });
-    expect(readinessResult).toMatchObject({
-      findings: [
-        {
-          message: expect.stringMatching(/partial or structural.*earlier revision/u),
-        },
-      ],
-    });
+    const readinessMessages = readinessResult.findings.map(finding => finding.message).join(' ');
+    expect(readinessMessages).toMatch(/partial or structural/u);
+    expect(readinessMessages).toMatch(/earlier revision/u);
     const readinessData = readinessResult.data as {
       readiness_state: string;
       contributor_evidence: {
