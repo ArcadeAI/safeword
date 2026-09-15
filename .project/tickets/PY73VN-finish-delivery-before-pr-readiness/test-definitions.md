@@ -49,7 +49,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Unreadable verification evidence fails Ready promotion closed
 
 - [x] RED e2f3a1f58
-- [ ] GREEN
+- [x] GREEN cfca2afad
 - [ ] REFACTOR
 
 ### Scenario: Missing or unresolvable ticket state fails Ready promotion closed
