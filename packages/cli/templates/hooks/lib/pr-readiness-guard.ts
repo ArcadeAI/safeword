@@ -179,7 +179,7 @@ function evaluateTicket(
       `Ticket ${ticketId} is verified, but ticket closure is not recorded at the current commit; close the verified ticket or run verification again.`,
     );
   }
-  return unfinished(`Ticket ${ticketId} is verified, but verified Ready promotion is not enabled.`);
+  return { ok: true };
 }
 
 export function evaluatePrReadiness(
