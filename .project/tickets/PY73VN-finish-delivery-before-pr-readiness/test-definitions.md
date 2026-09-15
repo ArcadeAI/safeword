@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e2f3a1f58
 - [x] GREEN cfca2afad
-- [ ] REFACTOR
+- [x] REFACTOR skip: unreadable evidence is one explicit evaluator branch with no duplicate host logic
 
 ### Scenario: Missing or unresolvable ticket state fails Ready promotion closed
 
