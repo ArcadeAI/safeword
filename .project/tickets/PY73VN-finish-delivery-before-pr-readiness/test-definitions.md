@@ -67,7 +67,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Ready denial gives a Non-Technical Builder a plain next action
 
 - [x] RED 53a7cec47
-- [ ] GREEN
+- [x] GREEN 7cdcda727
 - [ ] REFACTOR
 
 ### Scenario: Draft creation remains available for evidence before done
