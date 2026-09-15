@@ -104,7 +104,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A genuine boundary stops at the blocked step with exact recovery
 
-- [ ] RED
+- [x] RED e4fdb55bb
 - [ ] GREEN
 - [ ] REFACTOR
 
