@@ -84,7 +84,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Ready promotion is allowed after verified done
 
-- [ ] RED
+- [x] RED 2e759cf60
 - [ ] GREEN
 - [ ] REFACTOR
 
