@@ -86,7 +86,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 2e759cf60
 - [x] GREEN cad831b23
-- [ ] REFACTOR
+- [x] REFACTOR skip: the evaluator's single successful terminal return is already minimal
 
 ### Scenario: Verified closure advances to PR-readiness classification without automatic promotion
 
