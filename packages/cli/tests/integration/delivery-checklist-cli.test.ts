@@ -315,6 +315,10 @@ describe('Delivery Checklist CLI service', () => {
 
   it('keeps supporting proof narrow and reports both partial and earlier-revision gaps', async () => {
     const { root, planPath } = fixture({ plan: executionPlanWithSupportingProof() });
+    const parsed = parseDeliveryPlanContract(readFileSync(planPath, 'utf8'));
+    expect(parsed.ok && parsed.specifications.some(proof => proof.id === 'supporting-proof')).toBe(
+      true,
+    );
 
     const recorded = await publicHandler('ticket record-delivery-proof')({
       cwd: root,

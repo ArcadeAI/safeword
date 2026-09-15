@@ -328,52 +328,118 @@ function receiptMatchesItem(
   const event = id === undefined ? undefined : readDeliveryProof(context.ledgerPath, id);
   return event?.ticket === context.ticketId &&
     event.itemId === item.id &&
-    event.proofId === item.requiredProof &&
-    event.definitionDigest === context.definitionDigest &&
-    event.qualification === 'real_boundary'
+    event.definitionDigest === context.definitionDigest
     ? event
     : undefined;
 }
 
-function contributorItemSatisfied(context: DeliveryContext, item: DeliveryChecklistItem): boolean {
-  if (item.disposition === 'not_applicable') return true;
-  if (item.disposition !== 'complete') return false;
+interface ContributorEvidence {
+  readonly item_id: string;
+  readonly status: DeliveryChecklistItem['disposition'];
+  readonly evidence_class:
+    | 'current_revision_real_boundary'
+    | 'reusable_earlier_revision'
+    | 'partial_or_structural'
+    | 'missing';
+  readonly limitations: readonly ('partial_or_structural' | 'earlier_revision' | 'missing')[];
+  readonly satisfied: boolean;
+}
+
+function earlierRequiredEvidence(
+  context: DeliveryContext,
+  item: DeliveryChecklistItem,
+  event: NonNullable<ReturnType<typeof readDeliveryProof>>,
+): ContributorEvidence {
+  const marker = '; compatible:';
+  const reasonAt = item.evidence.indexOf(marker);
+  const reusableCandidate =
+    item.evidenceClass === 'reusable_earlier_revision' &&
+    item.revision === event.producingRevision &&
+    reasonAt !== -1;
+  const reasonDigest = reusableCandidate
+    ? sha256(item.evidence.slice(reasonAt + marker.length))
+    : undefined;
+  const compatible =
+    reasonDigest !== undefined &&
+    readDeliveryCompatibilities(context.ledgerPath, {
+      ticket: context.ticketId,
+      itemId: item.id,
+      proofId: item.requiredProof,
+      definitionDigest: context.definitionDigest,
+      deliveryReceiptId: event.id,
+      reasonDigest,
+      producingRevision: event.producingRevision,
+    }).some(compatibility => {
+      const accepted = currentDeliveryProofSubject({
+        projectRoot: context.cwd,
+        executionPlanPath: context.planPath,
+        reviewLedgerPath: context.ledgerPath,
+        producingRevision: compatibility.reviewedRevision,
+      });
+      return accepted.ok && accepted.current;
+    });
+  return {
+    item_id: item.id,
+    status: item.disposition,
+    evidence_class: compatible ? 'reusable_earlier_revision' : 'partial_or_structural',
+    limitations: ['earlier_revision'],
+    satisfied: compatible && item.disposition === 'complete',
+  };
+}
+
+function contributorEvidence(
+  context: DeliveryContext,
+  item: DeliveryChecklistItem,
+): ContributorEvidence {
+  if (item.disposition === 'not_applicable') {
+    return {
+      item_id: item.id,
+      status: item.disposition,
+      evidence_class: 'missing',
+      limitations: [],
+      satisfied: true,
+    };
+  }
   const event = receiptMatchesItem(context, item, receiptId(item));
-  if (event === undefined) return false;
+  if (event === undefined) {
+    return {
+      item_id: item.id,
+      status: item.disposition,
+      evidence_class: 'missing',
+      limitations: ['missing'],
+      satisfied: false,
+    };
+  }
   const currency = currentDeliveryProofSubject({
     projectRoot: context.cwd,
     executionPlanPath: context.planPath,
     reviewLedgerPath: context.ledgerPath,
     producingRevision: event.producingRevision,
   });
-  if (!currency.ok) return false;
-  if (currency.current) return true;
-  if (
-    item.evidenceClass !== 'reusable_earlier_revision' ||
-    item.revision !== event.producingRevision
-  )
-    return false;
-  const marker = '; compatible:';
-  const reasonAt = item.evidence.indexOf(marker);
-  if (reasonAt === -1) return false;
-  const reasonDigest = sha256(item.evidence.slice(reasonAt + marker.length));
-  return readDeliveryCompatibilities(context.ledgerPath, {
-    ticket: context.ticketId,
-    itemId: item.id,
-    proofId: item.requiredProof,
-    definitionDigest: context.definitionDigest,
-    deliveryReceiptId: event.id,
-    reasonDigest,
-    producingRevision: event.producingRevision,
-  }).some(compatibility => {
-    const accepted = currentDeliveryProofSubject({
-      projectRoot: context.cwd,
-      executionPlanPath: context.planPath,
-      reviewLedgerPath: context.ledgerPath,
-      producingRevision: compatibility.reviewedRevision,
-    });
-    return accepted.ok && accepted.current;
-  });
+  const current = currency.ok && currency.current;
+  const requiredRealBoundary =
+    event.proofId === item.requiredProof && event.qualification === 'real_boundary';
+  if (!requiredRealBoundary) {
+    return {
+      item_id: item.id,
+      status: item.disposition,
+      evidence_class: 'partial_or_structural',
+      limitations: current
+        ? ['partial_or_structural']
+        : ['partial_or_structural', 'earlier_revision'],
+      satisfied: false,
+    };
+  }
+  if (current) {
+    return {
+      item_id: item.id,
+      status: item.disposition,
+      evidence_class: 'current_revision_real_boundary',
+      limitations: [],
+      satisfied: item.disposition === 'complete',
+    };
+  }
+  return earlierRequiredEvidence(context, item, event);
 }
 
 function designApprovalSatisfied(context: DeliveryContext, item: DeliveryChecklistItem): boolean {
@@ -393,20 +459,35 @@ function readiness(context: DeliveryContext): {
   readonly state: ReadinessState;
   readonly openContributorItems: readonly DeliveryChecklistItem[];
   readonly pendingHumanItems: readonly DeliveryChecklistItem[];
+  readonly contributorEvidence: readonly ContributorEvidence[];
 } {
   const contributorItems = context.items.filter(item => item.owner === 'contributor');
-  const openContributorItems = contributorItems.filter(
-    item => !contributorItemSatisfied(context, item),
+  const contributorEvidenceItems = contributorItems.map(item => contributorEvidence(context, item));
+  const openIds = new Set(
+    contributorEvidenceItems
+      .filter(evidence => !evidence.satisfied)
+      .map(evidence => evidence.item_id),
   );
+  const openContributorItems = contributorItems.filter(item => openIds.has(item.id));
   const humanItems = context.items.filter(
     item => item.owner === 'human' && item.disposition === 'pending_human',
   );
   const pendingHumanItems = humanItems.filter(item => !designApprovalSatisfied(context, item));
   if (openContributorItems.length > 0) {
-    return { state: 'contributor_work_incomplete', openContributorItems, pendingHumanItems };
+    return {
+      state: 'contributor_work_incomplete',
+      openContributorItems,
+      pendingHumanItems,
+      contributorEvidence: contributorEvidenceItems,
+    };
   }
   if (pendingHumanItems.length > 0) {
-    return { state: 'ready_for_human_review', openContributorItems, pendingHumanItems };
+    return {
+      state: 'ready_for_human_review',
+      openContributorItems,
+      pendingHumanItems,
+      contributorEvidence: contributorEvidenceItems,
+    };
   }
   return {
     state:
@@ -415,6 +496,7 @@ function readiness(context: DeliveryContext): {
         : 'contributor_work_complete',
     openContributorItems,
     pendingHumanItems,
+    contributorEvidence: contributorEvidenceItems,
   };
 }
 
@@ -441,6 +523,7 @@ export function observeDeliveryChecklist(cwd: string, ticketId: string): CliResu
       readiness_state: projected.state,
       open_contributor_items: projected.openContributorItems.map(item => item.id),
       pending_human_items: projected.pendingHumanItems.map(item => item.id),
+      contributor_evidence: projected.contributorEvidence,
     },
   });
 }
@@ -460,8 +543,26 @@ function specificationFor(
       `safeword ticket delivery-checklist ${context.ticketId}`,
     );
   }
+  if (item.owner !== 'contributor') {
+    return findingResult(
+      'ticket record-delivery-proof',
+      'human_owned_item',
+      `Delivery Checklist item ${itemId} is human-owned.`,
+      `safeword ticket delivery-checklist ${context.ticketId}`,
+    );
+  }
   const proof = context.specifications.find(candidate => candidate.id === proofId);
-  if (proof === undefined || item.requiredProof !== proofId) {
+  if (proof === undefined) {
+    return findingResult(
+      'ticket record-delivery-proof',
+      'unknown_proof',
+      `Delivery proof ${proofId} was not found.`,
+      `safeword ticket record-delivery-proof ${context.ticketId} ${itemId} ${item.requiredProof}`,
+    );
+  }
+  const supportingProof =
+    item.disposition === 'open' && proof.qualifiesAs === 'partial_or_structural';
+  if (item.requiredProof !== proofId && !supportingProof) {
     return findingResult(
       'ticket record-delivery-proof',
       'proof_id_mismatch',
@@ -581,6 +682,7 @@ function successfulProofResult(
       proof_id: proofId,
       receipt_id: receipt,
       producing_revision: revision,
+      evidence_class: recordedEvidenceClass(context, itemId, proofId),
       ...(completedItem?.category === 'dependency and pull-request decomposition' && {
         pull_request_slicing: {
           decision: context.executionPlanRecord.slicing_decision,
@@ -635,7 +737,7 @@ function updatePlanWithReceipt(
     proofId,
     receiptId: receiptIdentifier,
     revision,
-    evidenceClass: 'current_revision_real_boundary',
+    evidenceClass: recordedEvidenceClass(context, itemId, proofId),
   });
   if (updated.ok) return undefined;
   return proofFailure(
@@ -645,6 +747,18 @@ function updatePlanWithReceipt(
     itemId,
     proofId,
   );
+}
+
+function recordedEvidenceClass(
+  context: DeliveryContext,
+  itemId: string,
+  proofId: string,
+): 'current_revision_real_boundary' | 'partial_or_structural' {
+  const item = context.items.find(candidate => candidate.id === itemId);
+  const proof = context.specifications.find(candidate => candidate.id === proofId);
+  return item?.requiredProof === proofId && proof?.qualifiesAs === 'real_boundary'
+    ? 'current_revision_real_boundary'
+    : 'partial_or_structural';
 }
 
 export async function recordDeliveryProof(

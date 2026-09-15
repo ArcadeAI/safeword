@@ -767,6 +767,35 @@ function updateFailure(code: string, message: string): DeliveryChecklistUpdateFa
   return { ok: false, code, message };
 }
 
+function isSupportingProofUpdate(
+  contract: Extract<DeliveryPlanContractResult, { readonly ok: true }>,
+  item: DeliveryChecklistItem,
+  input: DeliveryChecklistUpdateInput,
+): boolean {
+  const proof = contract.specifications.find(candidate => candidate.id === input.proofId);
+  return (
+    input.evidenceClass === 'partial_or_structural' &&
+    proof?.qualifiesAs === 'partial_or_structural' &&
+    item.disposition === 'open'
+  );
+}
+
+function validateReceiptFields(input: DeliveryChecklistUpdateInput): DeliveryChecklistUpdateResult {
+  if (!/^[a-f\d]{40,64}$/u.test(input.revision) || input.receiptId.trim() === '') {
+    return updateFailure('invalid_delivery_receipt', 'The delivery receipt identity is invalid.');
+  }
+  if (
+    input.evidenceClass === 'reusable_earlier_revision' &&
+    (input.compatibilityReason === undefined || input.compatibilityReason.trim() === '')
+  ) {
+    return updateFailure(
+      'compatible_reason_required',
+      'Reusable earlier-revision evidence requires a compatibility reason.',
+    );
+  }
+  return { ok: true };
+}
+
 interface DeliveryChecklistUpdateInput {
   readonly path: string;
   readonly expectedContent: string;
@@ -776,7 +805,7 @@ interface DeliveryChecklistUpdateInput {
   readonly revision: string;
   readonly evidenceClass: Extract<
     DeliveryEvidenceClass,
-    'current_revision_real_boundary' | 'reusable_earlier_revision'
+    'current_revision_real_boundary' | 'reusable_earlier_revision' | 'partial_or_structural'
   >;
   readonly compatibilityReason?: string;
 }
@@ -799,25 +828,13 @@ function validateChecklistUpdate(
       `Delivery Checklist item ${input.itemId} is human-owned.`,
     );
   }
-  if (item.requiredProof !== input.proofId) {
+  if (item.requiredProof !== input.proofId && !isSupportingProofUpdate(contract, item, input)) {
     return updateFailure(
       'proof_id_mismatch',
       `Delivery Checklist item ${input.itemId} requires proof ${item.requiredProof}.`,
     );
   }
-  if (!/^[a-f\d]{40,64}$/u.test(input.revision) || input.receiptId.trim() === '') {
-    return updateFailure('invalid_delivery_receipt', 'The delivery receipt identity is invalid.');
-  }
-  if (
-    input.evidenceClass === 'reusable_earlier_revision' &&
-    (input.compatibilityReason === undefined || input.compatibilityReason.trim() === '')
-  ) {
-    return updateFailure(
-      'compatible_reason_required',
-      'Reusable earlier-revision evidence requires a compatibility reason.',
-    );
-  }
-  return { ok: true };
+  return validateReceiptFields(input);
 }
 
 function deliveryEvidence(input: DeliveryChecklistUpdateInput): string | undefined {
@@ -847,7 +864,7 @@ function updatedChecklistContent(
     return updateFailure('invalid_delivery_receipt', 'The delivery receipt locator is invalid.');
   }
   lines[rowIndex] =
-    `${row.slice(0, stableEnd + 1)} complete | ${input.evidenceClass} | ${input.revision} | ${evidence} ${row.slice(finalPipe)}`;
+    `${row.slice(0, stableEnd + 1)} ${input.evidenceClass === 'partial_or_structural' ? 'open' : 'complete'} | ${input.evidenceClass} | ${input.revision} | ${evidence} ${row.slice(finalPipe)}`;
   return { ok: true, content: lines.join('\n') };
 }
 
