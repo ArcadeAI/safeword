@@ -62,7 +62,6 @@ brand/
 .project/skill-invocations.log
 .project/re-entry.md
 .project/dependency-readiness.json
-.project/readiness-ticket.json
 .safeword-project/quality-state*.json
 .safeword-project/cursor-run-identity.json
 .safeword-project/codex-run-identity.json
@@ -70,7 +69,6 @@ brand/
 .safeword-project/skill-invocations.log
 .safeword-project/re-entry.md
 .safeword-project/dependency-readiness.json
-.safeword-project/readiness-ticket.json
 
 # Go build artifacts from experiments (produced by test runs)
 experiments/**/checker
