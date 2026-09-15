@@ -92,13 +92,6 @@ After an approved RED, continue directly into implementation without asking whet
 After GREEN, continue through refactor and then start the next incomplete scenario without asking whether to proceed.
 When a required dependency is already authorized by the manifest but missing locally, restore it and rerun the failed check without asking whether to continue.
 
-A genuine boundary retains the blocked step and gives its exact recovery action before the evidence:
-
-- At an authority boundary during verification, stop at verification without advancing; request the required human decision, then report the blocking evidence.
-- At a safety boundary during verification, stop at verification without advancing; approve the exact risky operation, then report the blocking evidence.
-- Treat a dependency as a boundary only when a manifest-authorized dependency cannot be restored automatically. At a dependency boundary during verification, stop at verification without advancing; restore the required dependency, then report the blocking evidence.
-- At a scope boundary during verification, stop at verification without advancing; decide the proposed scope change, then report the blocking evidence.
-
 An unsuccessful TDD step stays at the failing step and reports its evidence:
 
 | Unhealthy outcome | Next-step directive                                                         | Do not advance to |
