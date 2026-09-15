@@ -44,7 +44,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e2f3a1f58
 - [x] GREEN cfca2afad
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared evaluator already isolates state partitions behind thin host adapters
 
 ### Scenario: Unreadable verification evidence fails Ready promotion closed
 
