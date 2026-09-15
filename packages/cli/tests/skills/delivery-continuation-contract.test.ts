@@ -134,6 +134,12 @@ describe('installed delivery continuation contract', () => {
     );
   });
 
+  it.each(tddCopies)('%s retains an authority boundary at implementation', path => {
+    expect(read(path)).toContain(
+      'At an authority boundary during implementation, stop at implementation without advancing; request the required human decision.',
+    );
+  });
+
   it.each(prReadinessCopies)('%s returns from Draft evidence to delivery', path => {
     const content = readRaw(path);
     expect(content).toContain('## Observe and preserve');
