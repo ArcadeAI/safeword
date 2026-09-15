@@ -500,12 +500,25 @@ function readiness(context: DeliveryContext): {
   };
 }
 
+function evidenceGapSummary(evidence: readonly ContributorEvidence[]): string {
+  const gaps = evidence.flatMap(item => {
+    const labels = item.limitations
+      .filter(limitation => limitation !== 'missing')
+      .map(limitation =>
+        limitation === 'partial_or_structural' ? 'partial or structural proof' : 'earlier revision',
+      );
+    return labels.length === 0 ? [] : [`${item.item_id}: ${labels.join(', ')}`];
+  });
+  return gaps.length === 0 ? '' : ` Evidence gaps: ${gaps.join('; ')}.`;
+}
+
 export function observeDeliveryChecklist(cwd: string, ticketId: string): CliResult {
   const command = 'ticket delivery-checklist';
   const loaded = loadDeliveryContext(cwd, ticketId, command);
   if (!loaded.ok) return loaded.result;
   const projected = readiness(loaded.context);
   const next = projected.openContributorItems[0] ?? projected.pendingHumanItems[0];
+  const gaps = evidenceGapSummary(projected.contributorEvidence);
   return createResult({
     state: 'action_required',
     findings: [
@@ -514,7 +527,7 @@ export function observeDeliveryChecklist(cwd: string, ticketId: string): CliResu
         message:
           next === undefined
             ? 'The Delivery Checklist is complete; merge authorization remains pending.'
-            : `Next obligation: ${next.obligation}`,
+            : `Next obligation: ${next.obligation}${gaps}`,
         severity: 'warning',
       },
     ],
