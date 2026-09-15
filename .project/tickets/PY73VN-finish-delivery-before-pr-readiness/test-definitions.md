@@ -100,7 +100,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 39c65db1d
 - [x] GREEN 044f4100b
-- [ ] REFACTOR
+- [x] REFACTOR skip: one manifest-authority sentence is the smallest workflow contract
 
 ### Scenario: A genuine boundary stops at the blocked step with exact recovery
 
