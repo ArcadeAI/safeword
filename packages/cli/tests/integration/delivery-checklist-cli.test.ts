@@ -264,6 +264,16 @@ function compatibilityReviewResult(input: {
   };
 }
 
+function publicReadiness(root: string): Promise<CliResult> {
+  return publicHandler('ticket delivery-checklist')({
+    cwd: root,
+    noInput: true,
+    offline: false,
+    operands: ['ABC123'],
+    options: {},
+  });
+}
+
 describe('Delivery Checklist CLI service', () => {
   beforeEach(() => {
     review.result = undefined;
@@ -422,20 +432,32 @@ describe('Delivery Checklist CLI service', () => {
     expect(await recordDeliveryProof(contributor.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
       state: 'changed',
     });
-    expect(observeDeliveryChecklist(contributor.root, 'ABC123')).toMatchObject({
+    expect(await publicReadiness(contributor.root)).toMatchObject({
       state: 'action_required',
-      data: { readiness_state: 'contributor_work_complete' },
+      data: {
+        readiness_state: 'contributor_work_complete',
+        human_dependencies: [],
+        merge_authorization: 'pending',
+      },
     });
 
     const pending = fixture({ plan: settledPlan('generic-human') });
     expect(await recordDeliveryProof(pending.root, 'ABC123', 'item-4', 'proof')).toMatchObject({
       state: 'changed',
     });
-    expect(observeDeliveryChecklist(pending.root, 'ABC123')).toMatchObject({
+    expect(await publicReadiness(pending.root)).toMatchObject({
       state: 'action_required',
       data: {
         readiness_state: 'ready_for_human_review',
         pending_human_items: ['item-11'],
+        human_dependencies: [
+          {
+            item_id: 'item-11',
+            dependency: 'security-review',
+            status: 'pending',
+          },
+        ],
+        merge_authorization: 'pending',
       },
     });
 
@@ -455,9 +477,18 @@ describe('Delivery Checklist CLI service', () => {
         authorityRef: 'human:test',
       }),
     ).toEqual({ status: 'written' });
-    expect(observeDeliveryChecklist(approved.root, 'ABC123')).toMatchObject({
+    expect(await publicReadiness(approved.root)).toMatchObject({
       state: 'action_required',
-      data: { readiness_state: 'human_approval_satisfied_merge_pending' },
+      data: {
+        readiness_state: 'human_approval_satisfied_merge_pending',
+        human_dependencies: [
+          {
+            item_id: 'item-11',
+            status: 'satisfied',
+          },
+        ],
+        merge_authorization: 'pending',
+      },
     });
   });
 
