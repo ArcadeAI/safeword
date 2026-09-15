@@ -55,6 +55,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Applicable contributor work cannot be dismissed as not applicable
 
 - [x] RED skip: live Claude Opus matrix rejected the structurally valid dismissed-applicable-work case
+- [x] RED skip: live — work log: 29-case Claude Opus execution-plan matrix passed with dismissed-applicable-work rejected
 - [ ] GREEN
 - [ ] REFACTOR
 
