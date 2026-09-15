@@ -40,6 +40,13 @@ const unsuccessfulSteps = [
   },
 ];
 
+const verificationBoundaries = [
+  ['authority', 'request the required human decision'],
+  ['safety', 'approve the exact risky operation'],
+  ['dependency', 'restore the required dependency'],
+  ['scope', 'decide the proposed scope change'],
+] as const;
+
 describe('installed delivery continuation contract', () => {
   it.each(tddCopies)('%s advances from approved RED without a routine prompt', path => {
     const content = read(path);
@@ -111,6 +118,21 @@ describe('installed delivery continuation contract', () => {
       );
     },
   );
+
+  it.each(
+    tddCopies.flatMap(path =>
+      verificationBoundaries.map(([boundary, recovery]) => ({
+        path,
+        boundary,
+        recovery,
+      })),
+    ),
+  )('$path stops at verification for a $boundary boundary', ({ path, boundary, recovery }) => {
+    const article = boundary === 'authority' ? 'an' : 'a';
+    expect(read(path)).toContain(
+      `At ${article} ${boundary} boundary during verification, stop at verification without advancing; ${recovery}, then report the blocking evidence.`,
+    );
+  });
 
   it.each(prReadinessCopies)('%s returns from Draft evidence to delivery', path => {
     const content = readRaw(path);
