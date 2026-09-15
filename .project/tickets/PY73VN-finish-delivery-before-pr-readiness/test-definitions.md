@@ -110,7 +110,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A genuine boundary stops at implementation instead of verification
 
-- [ ] RED
+- [x] RED 691edcfff
 - [ ] GREEN
 - [ ] REFACTOR
 
