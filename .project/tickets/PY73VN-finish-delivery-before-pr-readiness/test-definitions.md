@@ -74,7 +74,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: preservation scenario was already green before the readiness gate and cannot honestly expose missing behavior
 - [x] GREEN 38d18528f
-- [ ] REFACTOR
+- [x] REFACTOR skip: the two-branch classifier is the smallest explicit Draft carve-out
 
 ### Scenario: Draft creation returns delivery to the unfinished step
 
