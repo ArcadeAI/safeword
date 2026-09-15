@@ -243,6 +243,7 @@ Assess: duplication, unclear naming, excessive length? If yes, refactor (small c
 ## Implement exit: whole-ticket quality review + refactor
 
 After the final scenario, continue in order through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure without asking whether to proceed.
+After recorded ticket closure, continue into PR-readiness classification without invoking GitHub CLI Ready promotion, and request the builder's explicit authorization for that state change.
 
 All scenarios green → before reconciling the plan, do one pass over the **whole ticket** (not a single loop). Skip it only when the ticket has a single RGR loop — there's nothing to cross.
 
