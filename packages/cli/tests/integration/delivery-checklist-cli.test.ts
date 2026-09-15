@@ -348,6 +348,13 @@ describe('Delivery Checklist CLI service', () => {
     git(root, ['commit', '--quiet', '-m', 'later change']);
 
     const readinessResult = observeDeliveryChecklist(root, 'ABC123');
+    expect(readinessResult).toMatchObject({
+      findings: [
+        {
+          message: expect.stringMatching(/partial_or_structural.*earlier_revision/u),
+        },
+      ],
+    });
     const readinessData = readinessResult.data as {
       readiness_state: string;
       contributor_evidence: {
