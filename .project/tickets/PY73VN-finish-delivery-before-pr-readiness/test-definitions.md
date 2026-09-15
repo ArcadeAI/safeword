@@ -111,7 +111,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A genuine boundary stops at implementation instead of verification
 
 - [x] RED 691edcfff
-- [ ] GREEN
+- [x] GREEN 4eed8f441
 - [ ] REFACTOR
 
 ### Scenario: An unauthorized missing dependency stops for a decision
