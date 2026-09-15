@@ -21,9 +21,7 @@ function classifyArguments(words: string[]): PrReadinessCommand {
   const arguments_ = words.slice(3);
   if (operation === 'ready') return arguments_.includes('--undo') ? 'draft' : 'ready';
   if (operation !== 'create') return 'other';
-  return arguments_.some(argument => argument === '--draft' || argument === '-d')
-    ? 'draft'
-    : 'ready';
+  return 'ready';
 }
 
 export function classifyPrReadinessCommand(command: string): PrReadinessCommand {
