@@ -7,7 +7,7 @@
 - **Parent:** 82T411
 - **Milestone:** M1
 - **Parent job:** plan-implementability.TBU2
-- **Killer Demo:** inherited from the parent spec — G1C9PP owns the plan repair loop, this child owns the accepted-plan-to-first-RED continuation and implementation-time replan, and 3EG00H owns the task-and-patch proportional-flow clause
+- **Killer Demo:** inherited from the parent spec — G1C9PP owns the plan repair loop, this child owns the accepted-plan-to-first-RED continuation and implementation-time replan, 3EG00H owns the task-and-patch proportional-flow clause, and YCFFNC owns the complete feature journey
 
 <!-- Inherited by reference; the child never restates it. To skip demo proof for
      this feature alone, append an em-dash skip clause to the Killer Demo line

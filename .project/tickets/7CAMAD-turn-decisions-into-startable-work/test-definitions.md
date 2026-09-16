@@ -74,7 +74,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A missing project-local plan receipt supports both builder personas
+### Scenario: A missing project-local plan names the project-local artifact to create
 
 - [ ] RED
 - [ ] GREEN
@@ -90,7 +90,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R7 — Structural gates report facts rather than semantic quality
 
-### Scenario: Structure reports facts while semantics controls implementability
+### Scenario: The structural gate reports artifact facts without a semantic verdict
 
 - [ ] RED
 - [ ] GREEN
@@ -188,6 +188,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Replanning reopens proof invalidated by the changed decision
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Implementation cannot continue under a stale affected plan
 
 - [ ] RED
@@ -208,6 +214,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Canonical delivery-contract identity prevents local contract drift
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Partial structural evidence cannot authorize completion
 
 - [ ] RED
@@ -217,6 +229,12 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: plan-implementability.TBU2.7CAMAD.R13 — The Execution Plan carries the feature Delivery Checklist and maps accepted obligations into dependency-ordered tasks and independently reviewable pull-request slices under the sibling checklist and slicing contracts
 
 ### Scenario: The Execution Plan maps delivery obligations into owned review units
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Canonical slicing-contract identity prevents local contract drift
 
 - [ ] RED
 - [ ] GREEN

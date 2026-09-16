@@ -2,10 +2,10 @@
 id: 7CAMAD
 slug: turn-decisions-into-startable-work
 type: feature
-phase: plan-implementation
+phase: plan-execution
 status: in_progress
 phase_skips:
-  - "intake: originally inherited the 2026-09-08 approval of 82T411; that approval is stale after material parent changes, so this child cannot earn another approval or enter implementation until 82T411 receives fresh Product Plan approval"
+  - 'intake: originally inherited the 2026-09-08 approval of 82T411; that approval became stale after material parent changes and was superseded by the fresh Product Plan approval recorded on 2026-09-09T23:46:25.000Z'
   - "define-behavior: partitioned the accepted 82T411 Rule and scenario packet at Safeword's documented split restart point"
 phase_anchors:
   - scenario-gate: features/turn-decisions-into-startable-work.feature
@@ -32,10 +32,9 @@ done_when:
   - a design-changing implementation decision repairs and re-approves both plans before work resumes, while a sequencing-only decision repairs and re-approves only the Execution Plan
 product_plan_contract: v1
 parent: 82T411
-blocked_on: [82T411]
 parent_job: plan-implementability.TBU2
 milestone: M1
-depends_on: [G1C9PP, 6XW8H7, A639WN]
+depends_on: [G1C9PP, 5F5ZZA, 6XW8H7, A639WN]
 created: 2026-09-08T17:36:33.908Z
 last_modified: 2026-09-10T01:57:42.000Z
 parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b689c03c8a3
@@ -48,6 +47,24 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-16T22:30:00.000Z Review integration root cause: The first two
+  plan-execution reviewer processes received zero provider tokens because this
+  new review kind lacked an installed Codex egress rule; a one-word request
+  succeeded immediately outside the restricted sandbox. After egress was
+  restored, Claude returned an approving record that Safeword rejected because
+  PR 1's sibling-ticket entry conditions were copied into the machine field
+  reserved for earlier slices in this plan. Ruled out authentication (`claude
+  auth status` was healthy), plan content and output-schema size (a tiny
+  quality-review request stalled identically in the sandbox), and model choice
+  (both Opus and Sonnet stalled there). Kept sibling contracts as plan-level
+  entry conditions and made PR 1's within-plan prerequisites explicitly empty.
+
+- 2026-09-16T20:42:00.000Z Scenario review correction: Declared 5F5ZZA's provenance verdict as an explicit dependency and added the missing negative replan case so evidence invalidated by a changed decision remains audit history but cannot masquerade as current proof.
+
+- 2026-09-16T20:31:00.000Z Parent prerequisite reconciliation: Confirmed the epic's fresh Product Plan approval recorded at 2026-09-09T23:46:25.000Z superseded this child's historical stale-approval blocker; the current parent-contract digest reconciles cleanly, so removed the obsolete `blocked_on` marker while preserving the audit note.
+
+- 2026-09-16T19:36:00.000Z Scenario correction during planning: Independent Implementation Plan review found that R16's formatting-only example contradicted the accepted exact-byte Implementation Plan approval architecture. Figure-it-out rejected a second semantic-Markdown identity system; replaced that example with the already accepted non-staling boundary for ordinary Delivery Checklist progress. The corrected scenario bytes require fresh independent review before planning resumes.
 
 - 2026-09-10T01:57:42.000Z Scenario gate: Claude Opus independently approved the final 34-scenario packet with cross-agent provenance (review `61c07e08-c577-4438-88d6-2e59829567aa`). The authenticated scenario-gate stamp was written through the same cache-busted distribution bundle that produced the review, and the child advanced to Implementation Planning.
 
