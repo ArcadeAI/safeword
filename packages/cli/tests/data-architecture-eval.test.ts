@@ -143,6 +143,64 @@ describe('data architecture guide evaluation', () => {
     });
   });
 
+  it('rejects a pair recorded with different decoding configurations', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
+        decodingConfiguration: { temperature: 1, topP: 1 },
+      }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Ablation records do not share one evaluation configuration.'],
+    });
+  });
+
+  it('rejects a pair recorded through different response and rubric loaders', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
+        responseFormat: 'different-response-v2',
+        rubricLoader: 'different-rubric-v2',
+      }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Ablation records do not share one evaluation configuration.'],
+    });
+  });
+
+  it('rejects a pair whose record is bound to a different case rubric', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
+        caseRubricSha256: sha256('stale rubric'),
+      }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Ablation records do not match the current case rubric.'],
+    });
+  });
+
   it('rejects a named transform that removes a preserved decision label', () => {
     const labelInsideTransform = [
       '# Data architecture',
@@ -188,6 +246,46 @@ describe('data architecture guide evaluation', () => {
     expect(result).toEqual({
       accepted: false,
       diagnostics: ['Full-guide hash does not match the canonical guide.'],
+    });
+  });
+
+  it('rejects a pair whose ablated-guide hash is stale', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
+        guideSha256: sha256('stale ablated guide'),
+      }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Ablated-guide hash does not match the stored ablation.'],
+    });
+  });
+
+  it('rejects a full-guide control response containing a forbidden proof fact', () => {
+    const forbiddenResponse: EvaluationResponse = {
+      ...fullResponse,
+      proofFactIds: [...fullResponse.proofFactIds, 'proof.generated.sibling-output'],
+    };
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, forbiddenResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Full-guide response does not satisfy the evaluation rubric.'],
     });
   });
 });
