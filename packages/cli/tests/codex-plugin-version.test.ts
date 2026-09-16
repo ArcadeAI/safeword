@@ -10,6 +10,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -21,6 +22,7 @@ import {
   codexPluginHookCommands,
   type CodexPluginHookEntry,
 } from '../src/codex-plugin/hooks.js';
+import { PROJECT_RUNTIME_HELPERS } from '../src/project-runtime-helpers.js';
 import {
   assertPackedCodexPlugin,
   extractPackedCliPackage,
@@ -61,6 +63,71 @@ function filesUnder(root: string, relative = ''): string[] {
 }
 
 describe('Codex plugin release contract', () => {
+  it('packages and executes the cleanup helpers advertised by Codex workflows', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-cleanup-'));
+    const output = nodePath.join(fixture, 'plugin');
+    const project = nodePath.join(fixture, 'project');
+
+    try {
+      const generation = spawnSync(
+        'bun',
+        ['scripts/generate-codex-plugin.ts', '--version', currentCliVersion, '--output', output],
+        { cwd: root, encoding: 'utf8' },
+      );
+      expect(generation.status, generation.stderr).toBe(0);
+      expect(existsSync(nodePath.join(output, 'templates/hooks/lib/closeout-binding.ts'))).toBe(
+        true,
+      );
+      for (const [relativePath] of Object.values(PROJECT_RUNTIME_HELPERS)) {
+        expect(existsSync(nodePath.join(output, relativePath)), relativePath).toBe(true);
+      }
+
+      mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), '# enrolled\n');
+      const runtime = nodePath.join(output, 'runtime/cli.js');
+      const cleanup = spawnSync(
+        'bun',
+        [runtime, 'project', 'runtime', 'cleanup-zombies', '--', '--help'],
+        { cwd: project, encoding: 'utf8' },
+      );
+      expect(cleanup.status, cleanup.stderr).toBe(0);
+      expect(cleanup.stdout).toContain('Cleanup zombie processes for the current project.');
+
+      const stubBin = nodePath.join(fixture, 'bin');
+      mkdirSync(stubBin);
+      for (const command of ['lsof', 'pgrep', 'ps']) {
+        writeFileSync(nodePath.join(stubBin, command), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+      }
+      const preview = spawnSync('bun', [runtime, 'project', 'runtime', 'cleanup-zombies', '--'], {
+        cwd: project,
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${stubBin}:${process.env.PATH ?? ''}` },
+      });
+      expect(preview.status, preview.stderr).toBe(0);
+      expect(preview.stdout).toContain('DRY RUN (default) - no processes will be killed');
+
+      const closeout = spawnSync(
+        'bun',
+        [runtime, '--json', 'project', 'runtime', 'closeout-cleanup', '--'],
+        { cwd: project, encoding: 'utf8' },
+      );
+      expect(closeout.status).toBe(2);
+      expect(JSON.parse(closeout.stdout)).toMatchObject({
+        errors: [
+          {
+            code: 'PROJECT_RUNTIME_FAILED',
+            message: expect.stringContaining(
+              'closeout blocked: repository and a positive numeric --pr are required.',
+            ),
+          },
+        ],
+      });
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it.each(['base', 'cachebusted'])(
     'generates a complete bundle at explicit effective version %s',
     versionKind => {
