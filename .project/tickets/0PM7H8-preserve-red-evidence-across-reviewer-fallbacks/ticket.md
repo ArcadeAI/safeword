@@ -20,6 +20,7 @@ last_modified: 2026-09-16T17:22:23.700Z
 - 2026-09-16T17:22:23.700Z Started: Created ticket 0PM7H8
 - 2026-09-16T17:24:00.000Z Found: The primary Claude route exited with `process_failed`; the built-in fallback then reconstructed `ReviewRunInput` without `executionAttestation`, so executable-RED packet preparation aborted before the alternate route could run.
 - 2026-09-16T17:29:00.000Z Fixed: Propagated `executionAttestation` into the alternate-model route. The new public-command regression passed, all 116 reviewer-routing tests passed, and focused formatting, ESLint, and TypeScript checks passed.
+- 2026-09-16T17:37:00.000Z Verified live: Review `ca962194-e71e-4fb6-93f5-ace4fdd9c0a9` retained the valid attestation across all fallback handling and returned an accurate `REVIEW_ROUTES_EXHAUSTED` result instead of `REVIEW_PACKET_INVALID`. Opus and Sonnet exited in the restricted sandbox, OpenCode was absent, and the Codex fallback was non-independent.
 
 ## Root Cause
 
