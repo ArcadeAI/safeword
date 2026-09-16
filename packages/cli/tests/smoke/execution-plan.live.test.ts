@@ -105,7 +105,8 @@ afterAll(() => {
 describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
   it('requires one explicit reviewer identity and evidence destination', () => {
     expect(['claude', 'codex']).toContain(reviewer);
-    expect(resultsPath).toBeTruthy();
+    expect(resultsPath).toBeTypeOf('string');
+    expect(resultsPath).not.toBe('');
   });
 
   it.each(EXECUTION_PLAN_CONFORMANCE_CASES)(
