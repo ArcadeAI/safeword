@@ -67,6 +67,15 @@ describe('Delivery Checklist contract', () => {
     });
   });
 
+  it('retains missing as the evidence class for an open obligation', () => {
+    const result = parseDeliveryChecklist(completeChecklist());
+
+    expect(result.ok && result.items[0]).toMatchObject({
+      disposition: 'open',
+      evidenceClass: 'missing',
+    });
+  });
+
   it('names every missing default category in canonical order', () => {
     const omitted = new Set(['testing', 'documentation']);
     const content = completeChecklist(
@@ -80,6 +89,22 @@ describe('Delivery Checklist contract', () => {
       missingCategories: ['testing', 'documentation'],
     });
   });
+
+  it.each(['testing', 'completion evidence'] as const)(
+    'names a missing %s default category',
+    category => {
+      const content = completeChecklist(
+        DELIVERY_CHECKLIST_CATEGORIES.filter(candidate => candidate !== category),
+      );
+
+      expect(parseDeliveryChecklist(content)).toEqual({
+        ok: false,
+        code: 'missing_categories',
+        message: `Delivery Checklist is missing categories: ${category}.`,
+        missingCategories: [category],
+      });
+    },
+  );
 
   it('rejects duplicate checklist IDs instead of merging separate obligations', () => {
     const content = completeChecklist().replace('| item-2 |', '| item-1 |');

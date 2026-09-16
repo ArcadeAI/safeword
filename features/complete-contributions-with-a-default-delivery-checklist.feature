@@ -1,5 +1,10 @@
+@proof.vitest
 Feature: Complete contributions with a default delivery checklist
   Safeword creates a proportionate checklist before execution and carries it to evidence-backed contributor readiness.
+
+  # Non-live scenarios in this feature exercise filesystem, Git, installed-CLI,
+  # and review-receipt boundaries already covered by the adjacent Vitest proof
+  # manifest. Cucumber glue would duplicate those integration harnesses.
 
   @plan-implementability.TBU2.A639WN.R1
   Rule: plan-implementability.TBU2.A639WN.R1 — The Safeword CLI exposes a deny-only execution prerequisite that requires, and reports in planning order, accepted scenarios, an accepted implementation approach, and one visible default Delivery Checklist
