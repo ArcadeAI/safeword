@@ -32718,6 +32718,10 @@ function fingerprint(cwd, kind, targets, context = [], execution) {
     prepared.cleanup();
   }
 }
+function executableRedGateFingerprint(cwd, targets, context, execution) {
+  const primaryProof = targets.slice(0, 1);
+  return fingerprint(cwd, "executable-red", primaryProof, context, execution);
+}
 function pathEscapes(root, candidate) {
   const relative = nodePath45.relative(root, candidate);
   return relative === ".." || relative.startsWith(`..${nodePath45.sep}`) || nodePath45.isAbsolute(relative);
@@ -32805,7 +32809,7 @@ function isReviewJobRecord(value) {
 }
 function hasReviewJobIdentity(candidate) {
   const hasStrings = ["id", "source_fingerprint", "started_at", "updated_at"].every((key) => typeof candidate[key] === "string");
-  return candidate.schema_version === 1 && hasStrings && isStringArray(candidate.targets) && isOptional(candidate.context, isStringArray) && (candidate.kind === "executable-red" ? isRedExecutionRequest(candidate.execution) : candidate.execution === undefined) && isOptional(candidate.deadline_at, (value) => typeof value === "string" && Number.isFinite(Date.parse(value))) && isReviewKind(candidate.kind);
+  return candidate.schema_version === 1 && hasStrings && isStringArray(candidate.targets) && isOptional(candidate.context, isStringArray) && isOptional(candidate.gate_fingerprint, (value) => typeof value === "string") && (candidate.kind === "executable-red" ? isRedExecutionRequest(candidate.execution) : candidate.execution === undefined) && isOptional(candidate.deadline_at, (value) => typeof value === "string" && Number.isFinite(Date.parse(value))) && isReviewKind(candidate.kind);
 }
 function isRedExecutionRequest(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value))
@@ -33166,6 +33170,7 @@ async function startReviewJob(input) {
       context,
       execution: input.execution,
       source_fingerprint: sourceFingerprint,
+      gate_fingerprint: input.kind === "executable-red" && input.execution !== undefined ? executableRedGateFingerprint(input.cwd, input.targets, context, input.execution) : undefined,
       started_at: now,
       updated_at: now,
       deadline_at: new Date(Date.now() + reviewWorkerRunBoundMs()).toISOString(),
@@ -33495,6 +33500,9 @@ function executableRedJobsForScenario(cwd, scenario, ledger) {
 }
 function hasCurrentFingerprint(cwd, record) {
   try {
+    if (record.kind === "executable-red" && record.execution !== undefined && record.gate_fingerprint !== undefined) {
+      return executableRedGateFingerprint(cwd, record.targets, record.context ?? [], record.execution) === record.gate_fingerprint;
+    }
     return fingerprint(cwd, record.kind, record.targets, record.context, record.execution) === record.source_fingerprint;
   } catch {
     return false;
@@ -35057,6 +35065,7 @@ async function runRemainingRoutes(input) {
     kind: input.kind,
     targets: input.targets,
     context: input.context,
+    executionAttestation: input.executionAttestation,
     progress: input.progress,
     author: input.author,
     reviewer: input.assignedReviewer,
