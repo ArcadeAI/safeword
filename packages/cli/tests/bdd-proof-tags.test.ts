@@ -491,7 +491,9 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
   ).toBe(true);
   expect(
     Object.keys(manifest.scenarios).toSorted((left, right) => left.localeCompare(right)),
-  ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
+  ).toEqual(
+    proofRoutedScenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)),
+  );
 
   const proofContracts = new Map<
     string,
@@ -579,10 +581,6 @@ function parseFeature(featurePath: string): GherkinDocument {
   return document;
 }
 
-function scenarioNames(featurePath: string): string[] {
-  return scenarioExampleCounts(featurePath).keys().toArray();
-}
-
 function scenarioExampleCounts(featurePath: string): Map<string, number> {
   const feature = parseFeature(featurePath).feature;
   const counts = new Map<string, number>();
@@ -635,6 +633,50 @@ function featureOrNestedHasTag(featurePath: string, tag: string): boolean {
   return featureHasTag(featurePath, tag) || nestedFeatureTags(featurePath, tag).length > 0;
 }
 
+function proofRoutedScenarioNames(featurePath: string): string[] {
+  const feature = parseFeature(featurePath).feature;
+  if (feature === undefined) return [];
+  const featureRouted = feature.tags.some(candidate => candidate.name === '@proof.vitest');
+  return feature.children.flatMap(child => {
+    if (child.scenario !== undefined) {
+      return featureRouted ||
+        child.scenario.tags.some(candidate => candidate.name === '@proof.vitest')
+        ? [child.scenario.name]
+        : [];
+    }
+    if (child.rule === undefined) return [];
+    const ruleRouted = child.rule.tags.some(candidate => candidate.name === '@proof.vitest');
+    return child.rule.children.flatMap(ruleChild => {
+      const scenario = ruleChild.scenario;
+      return scenario !== undefined &&
+        (featureRouted ||
+          ruleRouted ||
+          scenario.tags.some(candidate => candidate.name === '@proof.vitest'))
+        ? [scenario.name]
+        : [];
+    });
+  });
+}
+
+function examplesProofTags(featurePath: string): string[] {
+  const feature = parseFeature(featurePath).feature;
+  if (feature === undefined) return [];
+  const scenarios = feature.children.flatMap(child =>
+    child.scenario === undefined
+      ? (child.rule?.children.flatMap(ruleChild =>
+          ruleChild.scenario === undefined ? [] : [ruleChild.scenario],
+        ) ?? [])
+      : [child.scenario],
+  );
+  return scenarios.flatMap(scenario =>
+    scenario.examples.some(examples =>
+      examples.tags.some(candidate => candidate.name === '@proof.vitest'),
+    )
+      ? [scenario.name]
+      : [],
+  );
+}
+
 describe('BDD proof provenance', () => {
   it('rejects null and incomplete proof manifest shapes', () => {
     // eslint-disable-next-line unicorn/no-null -- JSON manifests can contain null.
@@ -644,15 +686,15 @@ describe('BDD proof provenance', () => {
   });
 
   it('keeps the proof manifest complete', () => {
-    const nestedProofTags = configuredFeatureFiles.flatMap(featurePath =>
-      nestedFeatureTags(featurePath, '@proof.vitest').map(name => ({ featurePath, name })),
+    const examplesTags = configuredFeatureFiles.flatMap(featurePath =>
+      examplesProofTags(featurePath).map(name => ({ featurePath, name })),
     );
     expect(
-      nestedProofTags,
-      '@proof.vitest is a feature-level lane; scenario and Rule tags are ambiguous',
+      examplesTags,
+      '@proof.vitest routes whole scenarios; Examples-level tags are ambiguous',
     ).toEqual([]);
     const taggedFeatures = configuredFeatureFiles
-      .filter(featurePath => featureHasTag(featurePath, '@proof.vitest'))
+      .filter(featurePath => featureOrNestedHasTag(featurePath, '@proof.vitest'))
       .toSorted((left, right) => left.localeCompare(right));
 
     const manifestFeatures = proofManifestPaths()
@@ -695,7 +737,7 @@ describe('BDD proof provenance', () => {
     '%s maps every scenario to a named executable proof',
     manifestPath => {
       const manifest = readProofManifest(manifestPath);
-      expect(featureHasTag(manifest.feature, '@proof.vitest')).toBe(true);
+      expect(featureOrNestedHasTag(manifest.feature, '@proof.vitest')).toBe(true);
       expect(
         featureOrNestedHasTag(manifest.feature, '@wip'),
         `${manifest.feature} cannot combine @proof.vitest with @wip at feature, rule, or scenario scope`,

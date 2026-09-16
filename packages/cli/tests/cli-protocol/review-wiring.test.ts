@@ -558,21 +558,13 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('## Shared implementation-plan judgment standard');
   });
 
-  it('accepts only a ticket-owned Implementation Plan through the public review command', async () => {
+  it('accepts a ticket-owned Implementation Plan through the public review command', async () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
     const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
-    const privateDirectory = nodePath.join(directory, '.claude', 'plans');
-    const notesDirectory = nodePath.join(directory, 'notes');
     mkdirSync(ticketDirectory, { recursive: true });
-    mkdirSync(privateDirectory, { recursive: true });
-    mkdirSync(notesDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Project plan\n');
-    writeFileSync(nodePath.join(privateDirectory, 'impl-plan.md'), '# Host-private plan\n');
-    writeFileSync(nodePath.join(notesDirectory, 'impl-plan.md'), '# Unowned plan\n');
-    writeFileSync(nodePath.join(directory, '.project', 'ticket.md'), '---\nid: parent\n---\n');
-    writeFileSync(nodePath.join(directory, '.project', 'impl-plan.md'), '# Parent escape plan\n');
     const bin = installFakeReviewer(directory, 'claude');
     const environment = {
       PATH: `${bin}:/usr/bin:/bin`,
@@ -599,8 +591,29 @@ describe('cross-agent review public-command wiring', () => {
       state: 'healthy',
       data: { status: 'approved' },
     });
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
+  });
 
-    rmSync(nodePath.join(ticketDirectory, 'impl-plan.md'));
+  it('rejects host-private and other unowned Implementation Plans through the public review command', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'T1-feature');
+    const privateDirectory = nodePath.join(directory, '.claude', 'plans');
+    const notesDirectory = nodePath.join(directory, 'notes');
+    mkdirSync(ticketDirectory, { recursive: true });
+    mkdirSync(privateDirectory, { recursive: true });
+    mkdirSync(notesDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: T1\ntype: feature\n---\n');
+    writeFileSync(nodePath.join(privateDirectory, 'impl-plan.md'), '# Host-private plan\n');
+    writeFileSync(nodePath.join(notesDirectory, 'impl-plan.md'), '# Unowned plan\n');
+    writeFileSync(nodePath.join(directory, '.project', 'ticket.md'), '---\nid: parent\n---\n');
+    writeFileSync(nodePath.join(directory, '.project', 'impl-plan.md'), '# Parent escape plan\n');
+    const environment = {
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_REVIEW_LOG: reviewLog,
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+
     for (const target of [
       '.claude/plans/impl-plan.md',
       'notes/impl-plan.md',
@@ -633,7 +646,7 @@ describe('cross-agent review public-command wiring', () => {
         ],
       });
     }
-    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
+    expect(existsSync(reviewLog)).toBe(false);
   });
 
   it('activates Execution Plan review only for a ticket-owned plan through an admitted route', async () => {

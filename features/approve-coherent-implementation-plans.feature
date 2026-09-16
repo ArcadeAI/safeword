@@ -56,7 +56,7 @@ Feature: Approve coherent Implementation Plans
       When its focused decision review is completed
       Then the plan fails focused reviewability because that decision is absent from the review path
 
-  @plan-implementability.TBU1.G1C9PP.R4
+  @plan-implementability.TBU1.G1C9PP.R4 @proof.vitest
   Rule: plan-implementability.TBU1.G1C9PP.R4 — The Implementation Plan is a project-local reviewed artifact
 
     @surface.safeword-cli
@@ -76,7 +76,7 @@ Feature: Approve coherent Implementation Plans
       When Implementation Planning reaches review through the installed Safeword CLI entry point
       Then the project-local plan is reviewed and the divergent host-private copy is not accepted
 
-  @plan-implementability.TBU1.G1C9PP.R5
+  @plan-implementability.TBU1.G1C9PP.R5 @proof.vitest
   Rule: plan-implementability.TBU1.G1C9PP.R5 — Architecture applicability is explicit
 
     Scenario Outline: Architecture applicability accepts consequences or a justified skip
@@ -110,6 +110,7 @@ Feature: Approve coherent Implementation Plans
         | a regulated backfill with no compliance consequence | approval is blocked with compliance named |
         | no data-contract, ownership, or lifecycle impact | data guidance does not block approval |
 
+    @proof.vitest
     Scenario: Data decisions cannot be replaced by migration commands
       Given an Implementation Plan records every required data decision together with exact migration commands
       When the Implementation Plan is reviewed
@@ -128,11 +129,13 @@ Feature: Approve coherent Implementation Plans
   @plan-implementability.TBU1.G1C9PP.R7
   Rule: plan-implementability.TBU1.G1C9PP.R7 — Significant decisions also enter the durable architecture record
 
+    @proof.vitest
     Scenario: Durable recording routes only significant decisions to the architecture record
       Given an Implementation Plan contains one reversible feature-local choice and one difficult-to-reverse shared-contract choice
       When the decisions' recording destinations are decided
       Then both appear in the plan and only the shared-contract choice is linked to a resolvable durable architecture record
 
+    @proof.vitest
     Scenario: An unrecorded significant decision blocks approval
       Given an Implementation Plan contains a difficult-to-reverse shared-contract choice with no resolvable durable architecture link
       When the plan is reviewed
@@ -155,7 +158,7 @@ Feature: Approve coherent Implementation Plans
         | a project-owned ADR directory | a dated ADR outside that directory | the edit remains blocked because the configured directory grants no access outside it |
         | one project-owned architecture file | an ordinary source path | the edit remains blocked by the planning freeze |
 
-  @plan-implementability.TBU1.G1C9PP.R8
+  @plan-implementability.TBU1.G1C9PP.R8 @proof.vitest
   Rule: plan-implementability.TBU1.G1C9PP.R8 — Architectural significance uses semantic triggers
 
     Scenario Outline: A one-file shared contract is significant while a many-file mechanical edit is not
@@ -183,7 +186,7 @@ Feature: Approve coherent Implementation Plans
         | a linked document that claims independent feature-plan authority | approval is blocked until that authority returns to the Implementation Plan |
         | a linked document that carries a required decision the Implementation Plan does not name | approval is blocked until that required decision returns to the Implementation Plan |
 
-  @plan-implementability.TBU1.G1C9PP.R10
+  @plan-implementability.TBU1.G1C9PP.R10 @proof.vitest
   Rule: plan-implementability.TBU1.G1C9PP.R10 — Implementation planning chooses proof scope and confidence without absorbing execution mechanics or the verification ledger
 
     Scenario Outline: Proof scope excludes execution mechanics
@@ -199,7 +202,7 @@ Feature: Approve coherent Implementation Plans
         | current-head hashes, individual test names, and scenario-by-scenario proof results repeated in the main plan | approval is blocked with the verification ledger detail named for removal from the decision review path |
         | behavior, proof type, and confidence limitation but no real system boundary | approval is blocked with the missing real system boundary named |
 
-  @plan-implementability.TBU1.G1C9PP.R11
+  @plan-implementability.TBU1.G1C9PP.R11 @proof.vitest
   Rule: plan-implementability.TBU1.G1C9PP.R11 — Behavior-shaping decisions cannot leak into execution planning
 
     Scenario Outline: Decision resolution controls its Implementation Plan obligation
@@ -224,7 +227,7 @@ Feature: Approve coherent Implementation Plans
       When the installed Safeword CLI reviews the plan through real internal collaborators and the controlled reviewer process boundary
       Then the receipt names the API contract and rollback behavior without requiring an order
 
-  @plan-implementability.TBU1.G1C9PP.R12
+  @plan-implementability.TBU1.G1C9PP.R12 @proof.vitest
   Rule: plan-implementability.TBU1.G1C9PP.R12 — Load-bearing choices carry alternatives and evidence
 
     Scenario Outline: Decision evidence controls semantic review
@@ -242,6 +245,7 @@ Feature: Approve coherent Implementation Plans
   @plan-implementability.TBU1.G1C9PP.R13
   Rule: plan-implementability.TBU1.G1C9PP.R13 — Decision evidence is structurally present and semantically judged
 
+    @proof.vitest
     Scenario Outline: Evidence fields accept honest applicability without allowing empty decision coverage
       Given an Implementation Plan declares <decision_state>
       When structural and semantic evidence checks run
@@ -394,7 +398,7 @@ Feature: Approve coherent Implementation Plans
         | records a bare applicability skip with no reason | approval is blocked until the measurement skip is justified |
         | records a justified measurement-design applicability skip | measurement design does not block approval |
 
-  @plan-implementability.TBU1.G1C9PP.R19
+  @plan-implementability.TBU1.G1C9PP.R19 @proof.vitest
   Rule: plan-implementability.TBU1.G1C9PP.R19 — The existing optional human design approval binds the exact semantically reviewed Implementation Plan before Execution Planning; unchanged approach bytes reuse that approval, changed approach bytes require a new decision, approval is not duplicated after the Execution Plan, headless work records pending authority without deadlocking or claiming approval, and the shared decision record preserves authority across concurrent writes, interruption, retry, contention, and compatible extensions
 
     @surface.safeword-cli
