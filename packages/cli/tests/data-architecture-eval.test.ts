@@ -55,6 +55,7 @@ function record(guideContent: string, response: EvaluationResponse): AblationRec
 describe('data architecture guide evaluation', () => {
   it('accepts a discriminating independent-proof guide ablation', () => {
     const result = verifyAblationPair({
+      ablationId: 'independent-proof',
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
@@ -64,5 +65,23 @@ describe('data architecture guide evaluation', () => {
     });
 
     expect(result).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it('rejects a stored ablation that was not derived from the canonical guide', () => {
+    const mismatchedAblation = `${ablatedGuide}\nUnexpected retained guidance`;
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: mismatchedAblation,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(mismatchedAblation, ablatedResponse),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Stored ablated guide does not match the independent-proof transform.'],
+    });
   });
 });
