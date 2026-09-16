@@ -3,18 +3,17 @@
  *
  * The per-language test command is resolved by the single source of truth —
  * `safeword project test-plan --kind test --json` — not duplicated here. This hook only
- * EXECUTES the resolved commands (timeout-safe, no zombies) and appends the JS
- * acceptance lane (`test:bdd`), which the resolver does not emit.
+ * EXECUTES the resolved test and acceptance commands (timeout-safe, no zombies).
  *
  * Shipped hooks cannot import safeword code, so we reach the resolver via the
  * CLI (the `safewordCliCommand()` installed→source→bunx pattern, mirroring lint.ts).
+ * Installed projects should keep Safeword locally resolvable; the bunx fallback
+ * needs either a warm package cache or network and fails closed when neither is available.
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
-
-type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun';
 
 type TestCommand = {
   /** Label for output/diagnostics (the runner or script name). */
@@ -27,6 +26,8 @@ type TestCommand = {
   available: boolean;
   /** Human-readable fail-closed diagnostic for an unavailable runner. */
   unavailableReason?: string;
+  /** Resolver lane that owns execution policy such as the longer BDD timeout. */
+  kind: 'test' | 'bdd';
 };
 
 /** One entry of the schema-1 `safeword project test-plan --json` result envelope. */
@@ -36,6 +37,7 @@ interface PlanEntry {
   command: string;
   runner: string;
   available: boolean;
+  unavailableReason?: string;
 }
 
 interface TestPlanEnvelope {
@@ -44,14 +46,6 @@ interface TestPlanEnvelope {
     plan?: PlanEntry[];
   };
 }
-
-const PLAN_LANGUAGE_NAMES: Readonly<Record<string, string>> = {
-  javascript: 'JavaScript',
-  python: 'Python',
-  go: 'Go',
-  rust: 'Rust',
-  sql: 'SQL',
-};
 
 type TestPlanResolution = { ok: true; commands: TestCommand[] } | { ok: false; reason: string };
 
@@ -84,8 +78,8 @@ const TEST_TIMEOUT_MS = 60_000;
 const BDD_TEST_TIMEOUT_MS = 5 * 60_000;
 
 /** Resolve the bounded execution budget for a planned test command. */
-export function timeoutMsForTestCommand(script: string): number {
-  return script === 'test:bdd' ? BDD_TEST_TIMEOUT_MS : TEST_TIMEOUT_MS;
+export function timeoutMsForTestCommand(kind: TestCommand['kind']): number {
+  return kind === 'bdd' ? BDD_TEST_TIMEOUT_MS : TEST_TIMEOUT_MS;
 }
 
 /** Maximum lines of test output to inject into the block reason. */
@@ -95,26 +89,6 @@ const MAX_OUTPUT_LINES = 30;
 const MAX_OUTPUT_CHARS = 3000;
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-
-/**
- * Detect package manager by lockfile presence (bun > pnpm > yarn > npm).
- * Used only for the `test:bdd` acceptance lane (the resolver owns the rest).
- */
-function detectPackageManager(cwd: string): PackageManager {
-  if (existsSync(nodePath.join(cwd, 'bun.lockb')) || existsSync(nodePath.join(cwd, 'bun.lock')))
-    return 'bun';
-  if (existsSync(nodePath.join(cwd, 'pnpm-lock.yaml'))) return 'pnpm';
-  if (existsSync(nodePath.join(cwd, 'yarn.lock'))) return 'yarn';
-  if (existsSync(nodePath.join(cwd, 'package-lock.json'))) return 'npm';
-  if (process.versions.bun) return 'bun';
-  return 'npm';
-}
-
-/** Convert a package.json script name into the detected package manager's run command. */
-function formatRunCommand(script: string, packageManager: PackageManager): string {
-  if (packageManager === 'npm') return script === 'test' ? 'npm test' : `npm run ${script}`;
-  return `${packageManager} run ${script}`;
-}
 
 /**
  * Resolve the safeword CLI invocation. `SAFEWORD_CLI` (a path to cli.js/cli.ts run
@@ -136,14 +110,18 @@ function safewordCliCommand(cwd: string): [string, ...string[]] {
  * visible and fail closed without being executed. Resolver failures remain distinct from a valid
  * empty plan so the completion gate does not penalize projects that genuinely have no tests.
  */
-function resolvePlanCommands(cwd: string): TestPlanResolution {
+function resolvePlanCommands(cwd: string, kind: 'test' | 'bdd'): TestPlanResolution {
   const cli = safewordCliCommand(cwd);
   const result = spawnSync(
     cli[0],
-    [...cli.slice(1), 'project', 'test-plan', '--kind', 'test', '--json', cwd],
-    { encoding: 'utf8', timeout: TEST_TIMEOUT_MS },
+    [...cli.slice(1), 'project', 'test-plan', '--kind', kind, '--json', cwd],
+    {
+      encoding: 'utf8',
+      timeout: TEST_TIMEOUT_MS,
+      env: { ...process.env, SAFEWORD_NO_UPDATE_CHECK: '1' },
+    },
   );
-  if (result.status !== 0 || result.error || !result.stdout) {
+  if (result.error || !result.stdout) {
     const detail = result.stderr?.trim() || result.error?.message || `exited ${result.status}`;
     return { ok: false, reason: `Test plan could not be resolved: ${detail}` };
   }
@@ -152,6 +130,30 @@ function resolvePlanCommands(cwd: string): TestPlanResolution {
     if (envelope.schema_version !== 1 || !Array.isArray(envelope.data?.plan)) {
       return { ok: false, reason: 'Test plan could not be resolved: invalid response.' };
     }
+    const invalidEntry = envelope.data.plan.find(
+      entry =>
+        typeof entry.command !== 'string' ||
+        entry.command.trim().length === 0 ||
+        typeof entry.cwd !== 'string' ||
+        entry.cwd.trim().length === 0 ||
+        typeof entry.runner !== 'string' ||
+        entry.runner.trim().length === 0 ||
+        typeof entry.language !== 'string' ||
+        entry.language.trim().length === 0 ||
+        typeof entry.available !== 'boolean',
+    );
+    if (invalidEntry) {
+      return { ok: false, reason: 'Test plan could not be resolved: invalid plan entry.' };
+    }
+    const unavailableWithoutReason = envelope.data.plan.find(
+      entry => !entry.available && !entry.unavailableReason,
+    );
+    if (unavailableWithoutReason) {
+      return {
+        ok: false,
+        reason: 'Test plan could not be resolved: unavailable runner has no diagnostic.',
+      };
+    }
     return {
       ok: true,
       commands: envelope.data.plan.map(entry => ({
@@ -159,9 +161,8 @@ function resolvePlanCommands(cwd: string): TestPlanResolution {
         command: entry.command,
         cwd: entry.cwd,
         available: entry.available,
-        unavailableReason: entry.available
-          ? undefined
-          : `${PLAN_LANGUAGE_NAMES[entry.language] ?? entry.language} test lane skipped: ${entry.runner} is not installed.`,
+        unavailableReason: entry.unavailableReason,
+        kind,
       })),
     };
   } catch (error) {
@@ -170,33 +171,13 @@ function resolvePlanCommands(cwd: string): TestPlanResolution {
   }
 }
 
-/** The JS acceptance lane (`test:bdd`) — consumer-side, not emitted by the resolver. */
-function bddCommand(cwd: string): TestCommand | undefined {
-  try {
-    const pkg = JSON.parse(readFileSync(nodePath.join(cwd, 'package.json'), 'utf8')) as {
-      scripts?: Record<string, string>;
-    };
-    if (pkg.scripts?.['test:bdd']) {
-      return {
-        script: 'test:bdd',
-        command: formatRunCommand('test:bdd', detectPackageManager(cwd)),
-        cwd,
-        available: true,
-      };
-    }
-  } catch {
-    // No package.json — no acceptance lane.
-  }
-  return undefined;
-}
-
-/** Resolved suite (from test-plan) plus the acceptance lane. */
+/** Resolved unit/native and acceptance suites, both owned by test-plan. */
 function getTestCommands(cwd: string): TestPlanResolution {
-  const resolution = resolvePlanCommands(cwd);
-  if (!resolution.ok) return resolution;
-  const bdd = bddCommand(cwd);
-  if (bdd) resolution.commands.push(bdd);
-  return resolution;
+  const tests = resolvePlanCommands(cwd, 'test');
+  if (!tests.ok) return tests;
+  const acceptance = resolvePlanCommands(cwd, 'bdd');
+  if (!acceptance.ok) return acceptance;
+  return { ok: true, commands: [...tests.commands, ...acceptance.commands] };
 }
 
 function formatCommandOutput(testCommand: TestCommand, output: string): string {
@@ -240,7 +221,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
       toolchainMissing: true,
     };
   }
-  const timeoutMs = timeoutMsForTestCommand(testCommand.script);
+  const timeoutMs = timeoutMsForTestCommand(testCommand.kind);
   try {
     const output = execSync(testCommand.command, {
       cwd: testCommand.cwd,
@@ -285,8 +266,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
 /**
  * Run the project's test suite and return the result.
  *
- * - Resolves commands from `safeword project test-plan` (single source of truth) + the
- *   `test:bdd` acceptance lane.
+ * - Resolves unit/native and acceptance commands from `safeword project test-plan`.
  * - Uses execSync for synchronous, timeout-safe execution (no zombie processes).
  * - Returns skipped=true if no runnable command was found (caller should not block).
  */
@@ -304,18 +284,31 @@ export function runTests(cwd: string = projectDir): TestResult {
   if (commands.length === 0) return { passed: true, output: '', skipped: true };
 
   const outputs: string[] = [];
+  const unavailableDiagnostics: string[] = [];
+  let passed = true;
+  let toolchainMissing = false;
 
   for (const testCommand of commands) {
     const result = runSingleTestCommand(testCommand);
     outputs.push(result.output);
-    if (!result.passed)
-      return {
-        passed: false,
-        output: truncateOutput(outputs.join('\n\n')),
-        skipped: false,
-        toolchainMissing: result.toolchainMissing,
-      };
+    if (!testCommand.available) unavailableDiagnostics.push(result.output);
+    passed &&= result.passed;
+    toolchainMissing ||= result.toolchainMissing === true;
   }
 
-  return { passed: true, output: truncateOutput(outputs.join('\n\n')), skipped: false };
+  const truncatedOutput = truncateOutput(outputs.join('\n\n'));
+  const omittedDiagnostics = unavailableDiagnostics.filter(
+    diagnostic => !truncatedOutput.includes(diagnostic),
+  );
+  const output =
+    omittedDiagnostics.length === 0
+      ? truncatedOutput
+      : truncateOutput(`${truncatedOutput}\n\n${omittedDiagnostics.join('\n')}`);
+
+  return {
+    passed,
+    output,
+    skipped: false,
+    ...(toolchainMissing ? { toolchainMissing: true } : {}),
+  };
 }

@@ -45,8 +45,8 @@ afterEach(() => {
 
 describe('runTests (resolves its suite via safeword project test-plan)', () => {
   it('allows the required BDD acceptance lane to use the Stop hook budget', () => {
-    expect(timeoutMsForTestCommand('test:bdd')).toBe(5 * 60_000);
-    expect(timeoutMsForTestCommand('bun')).toBe(60_000);
+    expect(timeoutMsForTestCommand('bdd')).toBe(5 * 60_000);
+    expect(timeoutMsForTestCommand('test')).toBe(60_000);
   });
 
   it('does not leak Codex hook identity into test subprocesses', () => {
@@ -61,7 +61,9 @@ describe('runTests (resolves its suite via safeword project test-plan)', () => {
           'node -e "process.exit(process.env.SAFEWORD_AGENT_RUNTIME || process.env.CODEX_THREAD_ID ? 1 : 0)"',
       });
 
-      expect(runTests(project).passed).toBe(true);
+      const result = runTests(project);
+      expect(result.passed).toBe(true);
+      expect(result.skipped).toBe(false);
     } finally {
       if (originalRuntime === undefined) delete process.env.SAFEWORD_AGENT_RUNTIME;
       else process.env.SAFEWORD_AGENT_RUNTIME = originalRuntime;
@@ -150,6 +152,65 @@ describe('runTests (resolves its suite via safeword project test-plan)', () => {
     }
   });
 
+  it('runs later available suites after an unavailable lane and still blocks', () => {
+    const project = makeProject({});
+    const fakeCli = nodePath.join(project, 'ordered-plan.ts');
+    writeFileSync(
+      fakeCli,
+      `const kind = process.argv[process.argv.indexOf('--kind') + 1];
+const plan = kind === 'bdd'
+  ? [{language:'javascript',cwd:${JSON.stringify(project)},command:'node -e "require(\\'fs\\').writeFileSync(\\'bdd.marker\\', \\'ok\\')"',runner:'node',available:true}]
+  : [
+      {language:'go',cwd:${JSON.stringify(project)},command:'go test ./...',runner:'go',available:false,unavailableReason:'Go test lane skipped: go is not installed.'},
+      {language:'javascript',cwd:${JSON.stringify(project)},command:'node -e "require(\\'fs\\').writeFileSync(\\'later.marker\\', \\'ok\\')"',runner:'node',available:true}
+    ];
+process.stdout.write(JSON.stringify({schema_version:1,data:{plan}}));
+process.exit(kind === 'test' ? 2 : 0);\n`,
+    );
+    const originalCli = process.env.SAFEWORD_CLI;
+    process.env.SAFEWORD_CLI = fakeCli;
+
+    try {
+      const result = runTests(project);
+
+      expect(result.passed).toBe(false);
+      expect(result.skipped).toBe(false);
+      expect(result.toolchainMissing).toBe(true);
+      expect(result.output).toContain('Go test lane skipped: go is not installed.');
+      expect(readFileSync(nodePath.join(project, 'later.marker'), 'utf8')).toBe('ok');
+      expect(readFileSync(nodePath.join(project, 'bdd.marker'), 'utf8')).toBe('ok');
+    } finally {
+      process.env.SAFEWORD_CLI = originalCli;
+    }
+  });
+
+  it('preserves an unavailable-runner diagnostic after verbose later suites are truncated', () => {
+    const project = makeProject({});
+    const fakeCli = nodePath.join(project, 'verbose-plan.ts');
+    writeFileSync(
+      fakeCli,
+      `const kind = process.argv[process.argv.indexOf('--kind') + 1];
+const plan = kind === 'bdd' ? [] : [
+  {language:'go',cwd:${JSON.stringify(project)},command:'go test ./...',runner:'go',available:false,unavailableReason:'Go test lane skipped: go is not installed.'},
+  {language:'javascript',cwd:${JSON.stringify(project)},command:'node -e "for(let i=0;i<80;i++) console.log(\\'later-output-\\'+i)"',runner:'node',available:true}
+];
+process.stdout.write(JSON.stringify({schema_version:1,data:{plan}}));\n`,
+    );
+    const originalCli = process.env.SAFEWORD_CLI;
+    process.env.SAFEWORD_CLI = fakeCli;
+
+    try {
+      const result = runTests(project);
+
+      expect(result.passed).toBe(false);
+      expect(result.toolchainMissing).toBe(true);
+      expect(result.output).toContain('Go test lane skipped: go is not installed.');
+      expect(result.output).toContain('later-output-79');
+    } finally {
+      process.env.SAFEWORD_CLI = originalCli;
+    }
+  });
+
   it('fails closed when the test plan cannot be resolved', () => {
     const project = makeProject({});
     const failingCli = nodePath.join(project, 'failing-cli.ts');
@@ -167,6 +228,46 @@ describe('runTests (resolves its suite via safeword project test-plan)', () => {
       expect(result.passed).toBe(false);
       expect(result.resolutionFailed).toBe(true);
       expect(result.output).toContain('resolver unavailable');
+    } finally {
+      process.env.SAFEWORD_CLI = originalCli;
+    }
+  });
+
+  it('suppresses update chatter for the machine-readable plan subprocess', () => {
+    const project = makeProject({});
+    const fakeCli = nodePath.join(project, 'quiet-cli.ts');
+    writeFileSync(
+      fakeCli,
+      `if (process.env.SAFEWORD_NO_UPDATE_CHECK !== '1') process.stdout.write('update available\\n');
+else process.stdout.write(JSON.stringify({schema_version:1,data:{plan:[]}}));\n`,
+    );
+    const originalCli = process.env.SAFEWORD_CLI;
+    process.env.SAFEWORD_CLI = fakeCli;
+
+    try {
+      expect(runTests(project)).toEqual({ passed: true, output: '', skipped: true });
+    } finally {
+      process.env.SAFEWORD_CLI = originalCli;
+    }
+  });
+
+  it('fails closed when a resolved plan contains an empty command', () => {
+    const project = makeProject({});
+    const invalidCli = nodePath.join(project, 'invalid-cli.ts');
+    writeFileSync(
+      invalidCli,
+      `process.stdout.write(JSON.stringify({schema_version:1,data:{plan:[{language:'go',cwd:${JSON.stringify(project)},command:'',runner:'go',available:true}]}}));\n`,
+    );
+    const originalCli = process.env.SAFEWORD_CLI;
+    process.env.SAFEWORD_CLI = invalidCli;
+
+    try {
+      const result = runTests(project);
+
+      expect(result.passed).toBe(false);
+      expect(result.skipped).toBe(false);
+      expect(result.resolutionFailed).toBe(true);
+      expect(result.output).toContain('invalid plan entry');
     } finally {
       process.env.SAFEWORD_CLI = originalCli;
     }

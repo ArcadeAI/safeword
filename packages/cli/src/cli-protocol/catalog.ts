@@ -311,7 +311,8 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
       {
         flags: '--format <format>',
-        description: 'human, sh, or legacy raw json; use global --json for machine output',
+        description:
+          'human, sh, or legacy raw json; sh must be evaluated to obtain lane status; use global --json for machine output',
         defaultValue: 'human',
       },
     ],

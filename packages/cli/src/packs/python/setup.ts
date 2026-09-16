@@ -316,8 +316,9 @@ interface SetupConfigAssignment {
 
 function setupConfigAssignment(line: string): SetupConfigAssignment | undefined {
   if (line.trimStart() !== line) return undefined;
-  const separator = line.indexOf('=');
-  if (separator === -1) return undefined;
+  const separators = [line.indexOf('='), line.indexOf(':')].filter(index => index >= 0);
+  if (separators.length === 0) return undefined;
+  const separator = Math.min(...separators);
   const key = line.slice(0, separator).trim();
   if (!/^[\w.-]+$/u.test(key)) return undefined;
   return { key: key.toLowerCase(), value: line.slice(separator + 1) };
@@ -337,13 +338,15 @@ function setupConfigOptionsSpecs(body: string): string[] {
   const specifications: string[] = [];
   let active = false;
   for (const line of body.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
     const assignment = setupConfigAssignment(line);
     if (assignment !== undefined) {
       active = dependencyKeys.has(assignment.key);
       if (active) specifications.push(...splitPythonSpecifications(assignment.value));
     } else if (active && line.trimStart() !== line) {
       specifications.push(...splitPythonSpecifications(line));
-    } else if (line.trim() !== '') {
+    } else if (trimmed !== '') {
       active = false;
     }
   }
@@ -1068,6 +1071,7 @@ function finalizeUvLocks(targets: readonly UvBatchTarget[]): boolean {
 }
 
 function failUvResults(results: boolean[], targets: readonly UvBatchTarget[]): void {
+  // Non-uv installs are independent successes; only uv targets share the lock finalization rollback.
   for (const { index } of targets) results[index] = false;
 }
 

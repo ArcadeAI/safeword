@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 describe('relay drain-throughput measurement producer', () => {
-  it('writes validator-compatible evidence and clears multiple relay-latency windows', async () => {
+  it('writes exact validator-compatible evidence bytes', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'relay-drain-measurement-'));
     directories.push(directory);
     const output = path.join(directory, 'drain-throughput.json');
@@ -37,7 +37,8 @@ describe('relay drain-throughput measurement producer', () => {
 
     expect(result.error, `${result.stderr}\n${result.stdout}`).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
-    const artifact = JSON.parse(readFileSync(output, 'utf8')) as {
+    const writtenArtifact = readFileSync(output, 'utf8');
+    const artifact = JSON.parse(writtenArtifact) as {
       measuredAt: string;
       metric: string;
       repository: string;
@@ -65,8 +66,17 @@ describe('relay drain-throughput measurement producer', () => {
       version: 2,
     });
     expect(new Date(artifact.measuredAt).toISOString()).toBe(artifact.measuredAt);
-    expect(artifact.result.acceptedCount).toBeGreaterThanOrEqual(2);
-    expect(artifact.result.durationMs).toBeLessThan(1000);
+    const expectedSequentialCompletions = Math.floor(
+      artifact.result.overallDeadlineMs / artifact.result.relayLatencyMs,
+    );
+    expect(
+      artifact.result.acceptedCount,
+      'the drain measurement must sustain the sequential deadline/latency budget',
+    ).toBeGreaterThanOrEqual(expectedSequentialCompletions - 2);
+    expect(
+      artifact.result.acceptedCount,
+      'the drain measurement must remain bounded by its configured deadline',
+    ).toBeLessThanOrEqual(expectedSequentialCompletions + 1);
 
     const manifest = validRelayReadinessManifest();
     const closedAt = new Date(new Date(artifact.measuredAt).getTime() - 1000).toISOString();
@@ -80,7 +90,7 @@ describe('relay drain-throughput measurement producer', () => {
     for (const [metric, measurement] of Object.entries(manifest.measurements)) {
       const content =
         metric === 'drainThroughput'
-          ? JSON.stringify(artifact)
+          ? writtenArtifact
           : relayReadinessMeasurementContent(manifest, measurement.path);
       measurement.sha256 = createHash('sha256').update(content).digest('hex');
       artifactContent.set(measurement.path, content);

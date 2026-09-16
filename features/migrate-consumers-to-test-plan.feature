@@ -47,6 +47,7 @@ Feature: migrate consumers to test-plan
     @migrate-consumers.SM1.AC3
     Scenario: A polyglot repo renders every language's command
       Given a repo with a root "test" script and a "pyproject.toml"
+      And a repo with a "bun.lock"
       And the repo has a discoverable Python test file
       And the "bun" toolchain is installed
       And the "pytest" toolchain is installed

@@ -3,10 +3,10 @@ id: 5H7NA3
 slug: run-reviews-without-approval-prompts
 type: task
 subtype: bug-investigated
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-09-10T23:06:30.082Z
-last_modified: 2026-09-12T15:51:15Z
+last_modified: 2026-09-16T18:32:00Z
 ---
 
 # Run trusted review routes without approval prompts
@@ -27,6 +27,10 @@ last_modified: 2026-09-12T15:51:15Z
   `quality-review`, `scenario-gate`, and `plan-implementation` dispatches. Their normal arguments
   remain available, while executable RED reviews, `review status`, and arbitrary Bun commands are
   excluded.
+- Verification-driven repairs discovered while closing this delivery: centralize test/build command
+  resolution in `project test-plan`, fail closed without hiding later lanes or missing-runner
+  diagnostics, correctly recognize legacy Python declarations, and preserve exact relay-readiness
+  measurement evidence.
 
 ## Out of Scope
 
@@ -46,6 +50,8 @@ last_modified: 2026-09-12T15:51:15Z
 - A live dispatch against the installed runtime reaches the external reviewer without surfacing a
   user approval request.
 - Focused review parity and generated-plugin checks pass.
+- The verification-driven test-plan, Python declaration, and relay-readiness regressions pass with
+  template/dogfood parity intact.
 
 ## Test Plan
 
@@ -209,3 +215,21 @@ receive scheduling headroom; scenarios whose subject is a short timeout set that
   linear-work instrumentation has a floor and monotonic check, and acceptance fixtures mutate only
   temporary copies. Focused regressions pass 99/99 with one opt-in skip, the feature passes 87/87
   scenarios (3,984/3,984 steps), both generated plugins are current, and lint/typecheck are clean.
+- 2026-09-16T18:04:00Z Closing review fixes: Independent Claude Opus review
+  `c88f5e48-a553-4aca-a8c6-9c227a5c7f19` approved with no error-severity finding. Confirmed the
+  verify resolver-failure and no-duplicate-BDD concerns already have behavioral tests. Fixed the one
+  real parser mismatch so whole-line `setup.cfg` comments preserve dependency continuations, and
+  added a direct done-gate decision test proving an unavailable required runner blocks completion.
+  The parser suite passes 66 tests with one intentional skip; both done-gate decision tests pass.
+- 2026-09-16T18:15:00Z Terminal review fixes: Independent Claude Opus review
+  `f3ea06f2-38cf-4638-8d96-0d81a95bb985` approved with no release-relevant defect. Closed its
+  concrete warnings by supporting `:` in `setup.cfg`, preserving missing-runner diagnostics after
+  output truncation, documenting the fail-closed bunx fallback, and asserting relay throughput
+  against its deadline/latency budget. The expanded focused suite passes 267 tests with one
+  intentional skip; build, typecheck, lint, Gherkin lint, parity, and 13/13 scenarios are green.
+- 2026-09-16T18:24:00Z Final hardening: Independent Claude Opus review
+  `57a0465f-cc78-48e7-bb04-c757a6121de7` approved with no error-severity defect. Bounded preserved
+  diagnostics inside the output cap, disabled update chatter for the JSON resolver subprocess,
+  widened and bounded the relay-throughput assertion, documented mixed-manager rollback intent, and
+  pinned executable JavaScript fixtures to npm. The final focused suite passes 268 tests with one
+  intentional skip; all 13 scenarios and 601 steps plus build/static/parity checks pass.

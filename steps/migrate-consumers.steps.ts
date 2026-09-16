@@ -36,6 +36,8 @@ interface MigrateConsumersWorld extends SafewordWorld {
   verifySkillContent?: string;
 }
 
+const repoRoot = nodePath.resolve(import.meta.dirname, '..');
+
 // ---- helpers ----
 
 function ensureRoot(world: MigrateConsumersWorld): string {
@@ -50,13 +52,13 @@ function write(world: MigrateConsumersWorld, rel: string, content: string): void
 }
 
 function runShellPlan(world: MigrateConsumersWorld, kind: 'test' | 'build'): string {
-  const cliPath = nodePath.join(process.cwd(), 'packages/cli/src/cli.ts');
+  const cliPath = nodePath.join(repoRoot, 'packages/cli/src/cli.ts');
   const target = ensureRoot(world);
   return execFileSync(
     'bun',
     [cliPath, 'project', 'test-plan', target, '--kind', kind, '--format', 'sh'],
     {
-      cwd: process.cwd(),
+      cwd: repoRoot,
       encoding: 'utf8',
       env: {
         ...process.env,
@@ -104,6 +106,7 @@ function extractSection(content: string, sectionNumber: number): string {
 function verifySection(world: MigrateConsumersWorld, sectionNumber: number): string {
   const section = extractSection(world.verifySkillContent ?? '', sectionNumber);
   assert.notEqual(section, '', `verify section ${sectionNumber} was not found`);
+  assert.match(section, new RegExp(`^#{1,6}\\s+${sectionNumber}[.\\s]`, 'u'));
   return section;
 }
 
@@ -118,6 +121,10 @@ After(function (this: MigrateConsumersWorld) {
 // ============================================================================
 
 Given('the {string} toolchain is installed', function (this: MigrateConsumersWorld, tool: string) {
+  assert.ok(
+    !this.fakeTools?.startsWith('none:'),
+    'cannot combine installed and not-installed toolchain fixtures in one scenario',
+  );
   const installed = this.fakeTools?.startsWith('only:')
     ? this.fakeTools.slice('only:'.length).split(',').filter(Boolean)
     : [];
@@ -134,6 +141,7 @@ Given(
 Given(
   'a repo with a root {string} script that prints {string}',
   function (this: MigrateConsumersWorld, scriptName: string, output: string) {
+    write(this, 'package-lock.json', '{}\n');
     write(this, 'package.json', JSON.stringify({ scripts: { [scriptName]: `echo ${output}` } }));
   },
 );
@@ -141,6 +149,7 @@ Given(
 Given(
   'a repo with a root {string} script that exits non-zero',
   function (this: MigrateConsumersWorld, scriptName: string) {
+    write(this, 'package-lock.json', '{}\n');
     write(this, 'package.json', JSON.stringify({ scripts: { [scriptName]: 'exit 1' } }));
   },
 );
@@ -223,9 +232,9 @@ Then('the rendered plan is empty', function (this: MigrateConsumersWorld) {
 // ============================================================================
 
 When(/^I read templates\/hooks\/lib\/test-runner\.ts$/, function (this: MigrateConsumersWorld) {
-  const path = nodePath.join(process.cwd(), 'packages/cli/templates/hooks/lib/test-runner.ts');
+  const path = nodePath.join(repoRoot, 'packages/cli/templates/hooks/lib/test-runner.ts');
   this.fileContent = readFileSync(path, 'utf8');
-  const dogfoodPath = nodePath.join(process.cwd(), '.safeword/hooks/lib/test-runner.ts');
+  const dogfoodPath = nodePath.join(repoRoot, '.safeword/hooks/lib/test-runner.ts');
   assert.equal(
     readFileSync(dogfoodPath, 'utf8'),
     this.fileContent,
@@ -290,7 +299,7 @@ When('the stop-hook test runner runs', function (this: MigrateConsumersWorld) {
   const previousCli = process.env.SAFEWORD_CLI;
   const previousFakeTools = process.env.SAFEWORD_FAKE_TOOLS;
   const previousNodeEnvironment = process.env.NODE_ENV;
-  process.env.SAFEWORD_CLI = nodePath.join(process.cwd(), 'packages/cli/src/cli.ts');
+  process.env.SAFEWORD_CLI = nodePath.join(repoRoot, 'packages/cli/src/cli.ts');
   process.env.SAFEWORD_FAKE_TOOLS = this.fakeTools ?? 'all';
   process.env.NODE_ENV = 'test';
   try {
@@ -340,8 +349,8 @@ Then('it reports skipped and does not block', function (this: MigrateConsumersWo
 // ============================================================================
 
 When('I read the verify source surfaces', function (this: MigrateConsumersWorld) {
-  const skillPath = nodePath.join(process.cwd(), 'packages/cli/templates/skills/verify/SKILL.md');
-  const commandPath = nodePath.join(process.cwd(), 'packages/cli/templates/commands/verify.md');
+  const skillPath = nodePath.join(repoRoot, 'packages/cli/templates/skills/verify/SKILL.md');
+  const commandPath = nodePath.join(repoRoot, 'packages/cli/templates/commands/verify.md');
   assert.ok(existsSync(skillPath), `verify skill is missing: ${skillPath}`);
   assert.ok(existsSync(commandPath), `verify command is missing: ${commandPath}`);
   this.verifySkillContent = readFileSync(skillPath, 'utf8');
@@ -359,6 +368,8 @@ Then('the verify command points to the verify skill', function (this: MigrateCon
 Then(
   'section {int} of the verify skill evaluates {string}',
   function (this: MigrateConsumersWorld, section: number, expected: string) {
+    // This scenario pins ownership and structure. packages/cli/tests/verify-skill.test.ts
+    // separately executes the extracted shell blocks and proves exit-code propagation.
     const [namespace, command, formatFlag, format] = expected.split(' ');
     assert.ok(
       namespace && command && formatFlag && format,

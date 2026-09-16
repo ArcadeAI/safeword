@@ -503,19 +503,24 @@ describe('repository Python projects', () => {
     expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([]);
   });
 
-  it('stops a setup.cfg dependency continuation at a column-zero comment', () => {
+  it('continues a setup.cfg dependency value across whole-line comments', () => {
     writeTestFile(
       context.projectDirectory,
       'services/legacy/setup.cfg',
-      '[options]\ninstall_requires =\n  requests\n# dependency block ended\n  ruff\n',
+      '[options]\ninstall_requires =\n  requests\n# formatter follows\n  ruff\n; typing and audit tools follow\n  mypy\n  deadcode\n  pip-audit\n',
     );
 
-    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([
-      {
-        directory: nodePath.join(context.projectDirectory, 'services/legacy'),
-        tools: ['ruff', 'mypy', 'deadcode', 'pip-audit'],
-      },
-    ]);
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([]);
+  });
+
+  it('reads setup.cfg dependency assignments that use a colon delimiter', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'services/legacy/setup.cfg',
+      '[options]\ninstall_requires:\n  ruff\n  mypy\n  deadcode\n  pip-audit\n',
+    );
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([]);
   });
 
   it('inherits Python tool declarations from an owning uv workspace root', () => {

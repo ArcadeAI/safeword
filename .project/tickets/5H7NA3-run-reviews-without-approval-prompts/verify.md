@@ -2,13 +2,14 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✅ Final full verification green: retro relay 198 passed / 1 skipped, retro collector
-153 passed, and CLI 9,610 passed / 36 skipped in each of two complete passes
-**Gherkin:** ✅ 1,496 acceptance scenarios passed / 3 skipped; dedicated acceptance contract 595/595;
-45/45 BDD proof checks passed
+**Test Suite:** ✅ Full verification green: 9,961 package tests passed / 37 expected skips.
+The final focused current-snapshot run passed 268 tests / 1 intentional skip.
+**Gherkin:** ✅ Full acceptance passed 1,499 scenarios; dedicated CLI acceptance passed 595/595
+scenarios and 11,100/11,100 steps. The final changed-behavior run passed 13/13 scenarios and
+601/601 steps.
 **Build:** ✅ CLI, relay, collector, and nine-page website builds pass
 **Lint:** ✅ Clean
-**Scenarios:** All 0 scenarios marked complete
+**Scenarios:** ✅ 13/13 changed-behavior scenarios complete; 601/601 steps pass
 **Refactor:** ✅ Completed after the repository audit: consolidated generated-file reconciliation,
 fixed numbered-principle trace matching, removed stale Knip configuration, and made the website's
 Sätteri runtime dependency explicit
@@ -18,12 +19,43 @@ repository-audit, and audit-driven refactor repairs
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ⏭️ N/A — not persona-facing
-**Surface Evidence:** ✅ 2/2 affected surfaces have recorded proof
-**Evidence limits:** ⚠️ The current Codex sandbox cannot bind the relay's loopback ports or write the
-default npm cache, so the root aggregate suite retains environment-only failures in those lanes. The
-current delta is covered by focused tests and the dedicated CLI acceptance suite. The external
-quality-review coordinator exhausted its routes; supplemental same-thread review is recorded as
-non-independent evidence.
+**Surface Evidence:** ✅ 6/6 affected surfaces have recorded proof
+**Evidence limits:** ✅ No release-relevant verification gap remains. The exact final local snapshot
+passed focused tests, Gherkin, ESLint, Gherkin lint, TypeScript checks, template/dogfood parity, and
+`git diff --check`. Exact pushed-head GitHub CI remains the final pre-merge gate.
+
+## Final Current-Snapshot Evidence — 2026-09-16
+
+- Focused Vitest: 268 passed / 1 intentional skip across the stop hook, Python setup, test-plan CLI,
+  renderer, relay measurement, verify skill, and CLI protocol suites.
+- Changed-behavior Gherkin: 13/13 scenarios and 601/601 steps passed.
+- Static checks: ESLint, Gherkin lint, CLI/relay/collector TypeScript checks, template/dogfood parity,
+  and `git diff --check` passed.
+- Earlier full verification remains green: 9,961 package tests / 37 expected skips, 1,499 acceptance
+  scenarios, dedicated CLI acceptance 595/595 scenarios and 11,100/11,100 steps, all builds,
+  `mypy`, `pip-audit`, `govulncheck`, and dependency audits.
+- Independent review `10dcf97a-551e-49ad-bfb7-bd1b51acc07b` ran through the installed
+  `1.0.0-rc.3` runtime. Claude Opus returned `approve` with cross-agent independence and no
+  release-relevant defect. Its remaining observations are nonblocking test-maintenance notes.
+- Safeword's dogfood project marker intentionally remains `0.83.1`; the external review itself used
+  the installed immutable `1.0.0-rc.3` runtime. This avoids shipping unrelated version/workflow
+  changes in this pull request.
+- Follow-up review `c88f5e48-a553-4aca-a8c6-9c227a5c7f19` approved with no error-severity
+  defect. Its proof questions were checked directly: `verify-skill.test.ts` already covers failed
+  plan generation and both `verify` and `build`; resolver tests already prove a JavaScript project
+  without `test:bdd` emits no BDD lane. The actionable findings were closed by matching
+  `setup.cfg` whole-line comment behavior to `configparser` and adding a done-gate decision test for
+  unavailable required runners.
+- Terminal review `f3ea06f2-38cf-4638-8d96-0d81a95bb985` also approved with no
+  release-relevant defect. Its concrete warnings were closed: `setup.cfg` accepts `:` delimiters,
+  missing-runner diagnostics survive later verbose output truncation, the bunx fallback requirement
+  is explicit, and relay throughput is checked against the deadline/latency budget while the real
+  readiness validator enforces the duration ceiling.
+- Final hardening review `57a0465f-cc78-48e7-bb04-c757a6121de7` approved with no
+  error-severity defect. Its concrete suggestions were applied: diagnostic preservation remains
+  inside the output cap, machine-readable resolver subprocesses disable update chatter, relay
+  throughput uses a bounded two-sided range with two scheduling slots of headroom, mixed-manager uv
+  rollback intent is explicit, and executable JavaScript fixtures pin npm with `package-lock.json`.
 
 ## Current Rerun — 2026-09-13
 
@@ -121,6 +153,10 @@ non-independent evidence.
 | --- | --- | --- |
 | Codex independent review | Live bounded `quality-review` through installed `0.83.1` runtime after restart | Reached Claude and returned a typed verdict without a user approval prompt |
 | Arcade/Bosslevel MCP | Inspected effective Codex server configuration after restart | `default_tools_approval_mode = "approve"`; no general sandbox network override |
+| Stop-hook test runner | Real `runTests` subprocess and done-gate decision tests | Invalid plans and unavailable runners block; later lanes still run |
+| Verify skill | `verify-skill.test.ts` executes extracted shell helpers | Failed plan generation and earlier lane failures cannot become false green |
+| Test-plan CLI | JSON and shell renderer tests plus changed-behavior scenarios | Diagnostics, quoting, lane order, and first-failure status are preserved |
+| Python and relay support | Focused parser, rollback, and readiness-validator tests | Legacy declarations parse correctly; rollback and relay contracts pass |
 
 ## Status Poll Boundary
 

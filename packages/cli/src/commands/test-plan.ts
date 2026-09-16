@@ -99,6 +99,10 @@ export function observeTestPlan(
         cwd: entry.cwd,
       },
     }));
+  const machinePlan = plan.map(entry => ({
+    ...entry,
+    unavailableReason: entry.available ? undefined : unavailablePlanMessage(entry, kind),
+  }));
   return Promise.resolve(
     createResult({
       // Shell output carries its own per-lane failure status. Return it so the
@@ -106,10 +110,10 @@ export function observeTestPlan(
       // still receive action_required immediately for missing runners.
       state: findings.length === 0 || formatValue === 'sh' ? 'healthy' : 'action_required',
       findings,
-      presentation: rawTestPlanPresentation(formatValue, plan, kind),
+      presentation: rawTestPlanPresentation(formatValue, machinePlan, kind),
       // Compatibility aliases normalize to the canonical command in machine
       // output, matching the deprecation metadata emitted by the CLI layer.
-      data: { command: 'project test-plan', kind, plan },
+      data: { command: 'project test-plan', kind, plan: machinePlan },
     }),
   );
 }

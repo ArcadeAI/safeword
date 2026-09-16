@@ -151,6 +151,37 @@ describe('safeword test-plan', () => {
     });
   });
 
+  it('--format json carries the same unavailable-runner diagnostic as the envelope', async () => {
+    const result = await runCli(['project', 'test-plan', '--kind', 'deps', '--format', 'json'], {
+      cwd: makeRepo({ 'requirements.txt': 'requests==2.32.0\n' }),
+      env: { SAFEWORD_FAKE_TOOLS: 'only:go' },
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject([
+      {
+        available: false,
+        runner: 'pip-audit',
+        unavailableReason: 'Python dependency lane skipped: pip-audit is not installed.',
+      },
+    ]);
+  });
+
+  it('ignores SAFEWORD_FAKE_TOOLS outside the test environment', async () => {
+    const result = await runCli(['project', 'test-plan', '--format', 'json'], {
+      cwd: makeRepo({
+        'bun.lock': '',
+        'package.json': JSON.stringify({ scripts: { test: 'echo real-tool-probe' } }),
+      }),
+      env: { NODE_ENV: 'production', SAFEWORD_FAKE_TOOLS: 'only:go' },
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject([
+      { available: true, language: 'javascript', runner: 'bun' },
+    ]);
+  });
+
   it('renders an unavailable dependency runner as a visible failing shell lane', async () => {
     const root = makeRepo({ 'requirements.txt': 'requests==2.32.0\n' });
     const sh = await renderUnavailableSh(root, 'deps');
@@ -251,6 +282,7 @@ describe('safeword test-plan', () => {
 
   it('eval runs the resolved suite and exits zero on success', async () => {
     const root = makeRepo({
+      'package-lock.json': '{}\n',
       'package.json': JSON.stringify({ scripts: { test: 'echo RAN_SUITE' } }),
     });
     const { stdout, code } = evalScript(await renderSh(root), root);
@@ -259,7 +291,10 @@ describe('safeword test-plan', () => {
   });
 
   it('eval exits non-zero when a suite fails', async () => {
-    const root = makeRepo({ 'package.json': JSON.stringify({ scripts: { test: 'exit 1' } }) });
+    const root = makeRepo({
+      'package-lock.json': '{}\n',
+      'package.json': JSON.stringify({ scripts: { test: 'exit 1' } }),
+    });
     const { code } = evalScript(await renderSh(root), root);
     expect(code).not.toBe(0);
   });
