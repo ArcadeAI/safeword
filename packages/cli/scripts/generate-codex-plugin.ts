@@ -7,6 +7,7 @@ import {
   adaptCodexWorkflowInvocations,
   writeCodexPluginCatalogue,
 } from '../src/codex-plugin/catalogue.js';
+import { PROJECT_RUNTIME_SCRIPT_PATHS } from '../src/project-runtime-helpers.js';
 import { VERSION } from '../src/version.js';
 import { generatePlanRubric } from './generate-plan-rubric.js';
 import { generateQualityRubric } from './generate-quality-rubric.js';
@@ -104,6 +105,11 @@ async function generatePlugin(
       recursive: true,
     },
   );
+  for (const relativePath of PROJECT_RUNTIME_SCRIPT_PATHS) {
+    const destination = nodePath.join(generatedRoot, relativePath);
+    mkdirSync(nodePath.dirname(destination), { recursive: true });
+    cpSync(nodePath.join(packageRoot, relativePath), destination);
+  }
 
   if (includeAuthoredFiles) {
     manifest.version = options.effectiveVersion;

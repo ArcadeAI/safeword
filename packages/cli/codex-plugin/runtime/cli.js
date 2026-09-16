@@ -65615,6 +65615,24 @@ var init_record_skill_invocation2 = __esm(() => {
   SKILL_NAME_PATTERN2 = /^[a-z][a-z0-9-]*$/u;
 });
 
+// src/project-runtime-helpers.ts
+function projectRuntimeHelperDefinition(helper) {
+  if (helper === undefined || !Object.prototype.hasOwnProperty.call(PROJECT_RUNTIME_HELPERS, helper))
+    return;
+  return PROJECT_RUNTIME_HELPERS[helper];
+}
+var PROJECT_RUNTIME_HELPERS, PROJECT_RUNTIME_SCRIPT_PATHS;
+var init_project_runtime_helpers = __esm(() => {
+  PROJECT_RUNTIME_HELPERS = {
+    "audit-principle-trace": ["templates/hooks/audit-principle-trace.ts", "bun"],
+    "cleanup-zombies": ["templates/scripts/cleanup-zombies.sh", "bash"],
+    "closeout-cleanup": ["templates/scripts/closeout-cleanup.ts", "bun"],
+    "resolve-verify-ticket": ["templates/hooks/resolve-verify-ticket.ts", "bun"],
+    "write-review-stamp": ["templates/hooks/write-review-stamp.ts", "bun"]
+  };
+  PROJECT_RUNTIME_SCRIPT_PATHS = Object.values(PROJECT_RUNTIME_HELPERS).map(([relativePath]) => relativePath).filter((relativePath) => relativePath.startsWith("templates/scripts/"));
+});
+
 // src/project-state.ts
 var init_project_state2 = __esm(() => {
   init_project_state();
@@ -65628,21 +65646,6 @@ __export(exports_project_runtime, {
 import { spawnSync as spawnSync15 } from "child_process";
 import { existsSync as existsSync55 } from "fs";
 import nodePath122 from "path";
-function helperDefinition(helper) {
-  switch (helper) {
-    case "audit-principle-trace":
-    case "cleanup-zombies":
-    case "closeout-cleanup":
-    case "resolve-verify-ticket":
-    case "write-review-stamp": {
-      return HELPERS[helper];
-    }
-    case undefined:
-    default: {
-      return;
-    }
-  }
-}
 function completedResult(helper, status, stdout, stderr) {
   const exitCode = status ?? 1;
   if (exitCode !== 0)
@@ -65667,8 +65670,22 @@ function packageRoot() {
   const runtimeDirectory = nodePath122.basename(import.meta.dirname);
   return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath122.dirname(import.meta.dirname) : nodePath122.resolve(import.meta.dirname, "../..");
 }
-function runProjectRuntime(cwd, helper, args) {
-  const definition = helperDefinition(helper);
+function packagedCliPath() {
+  const runtimeDirectory = nodePath122.basename(import.meta.dirname);
+  return nodePath122.join(packageRoot(), runtimeDirectory === "runtime" ? "runtime" : "dist", "cli.js");
+}
+function projectRuntimeEnvironment(projectDirectory) {
+  const environment = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: projectDirectory
+  };
+  const reentrantCli = packagedCliPath();
+  if (existsSync55(reentrantCli))
+    environment.SAFEWORD_PLUGIN_CLI = reentrantCli;
+  return environment;
+}
+function runProjectRuntime(cwd, helper, args, runner = spawnSync15) {
+  const definition = projectRuntimeHelperDefinition(helper);
   if (helper === undefined || definition === undefined)
     return Promise.resolve(createResult({
       state: "failed",
@@ -65708,25 +65725,18 @@ function runProjectRuntime(cwd, helper, args) {
     }));
   if (helper === "write-review-stamp")
     ensureTransientStateIgnore(projectDirectory, "skill-invocations.log");
-  const result = spawnSync15(runtime, [script, ...args], {
+  const result = runner(runtime, [script, ...args], {
     cwd: projectDirectory,
     encoding: "utf8",
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory }
+    env: projectRuntimeEnvironment(projectDirectory)
   });
   return Promise.resolve(completedResult(helper, result.status, result.stdout, result.stderr));
 }
-var HELPERS;
 var init_project_runtime = __esm(() => {
   init_namespace_root2();
   init_result();
+  init_project_runtime_helpers();
   init_project_state2();
-  HELPERS = {
-    "audit-principle-trace": ["templates/hooks/audit-principle-trace.ts", "bun"],
-    "cleanup-zombies": ["templates/scripts/cleanup-zombies.sh", "bash"],
-    "closeout-cleanup": ["templates/scripts/closeout-cleanup.ts", "bun"],
-    "resolve-verify-ticket": ["templates/hooks/resolve-verify-ticket.ts", "bun"],
-    "write-review-stamp": ["templates/hooks/write-review-stamp.ts", "bun"]
-  };
 });
 
 // src/commands/public-retros.ts
