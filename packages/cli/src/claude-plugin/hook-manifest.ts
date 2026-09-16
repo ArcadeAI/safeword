@@ -53,15 +53,8 @@ export function pluginSessionStartEntries(adapted: Record<string, unknown>): unk
     : [];
 }
 
-function pluginHookEntries(
-  event: string,
-  entries: unknown,
-  adapted: Record<string, unknown>,
-): unknown {
-  if (event === 'SessionStart') {
-    return wrapHookCommands(pluginSessionStartEntries(adapted), event);
-  }
-  if (event === 'UserPromptSubmit') {
+function pluginHookEntries(event: string, entries: unknown): unknown {
+  if (event === 'SessionStart' || event === 'UserPromptSubmit') {
     return [
       {
         hooks: [
@@ -83,10 +76,7 @@ function pluginHooks(): Record<string, unknown> {
     Setup: [{ matcher: 'init', hooks: [{ type: 'command', command: 'true' }] }],
   };
   return Object.fromEntries(
-    Object.entries(withSetup).map(([event, entries]) => [
-      event,
-      pluginHookEntries(event, entries, adapted),
-    ]),
+    Object.entries(withSetup).map(([event, entries]) => [event, pluginHookEntries(event, entries)]),
   );
 }
 

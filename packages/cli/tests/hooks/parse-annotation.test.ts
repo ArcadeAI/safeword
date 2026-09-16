@@ -53,6 +53,19 @@ describe('parseCheckboxAnnotation', () => {
         annotation: '',
       });
     });
+
+    it('normalizes mixed-case ledger steps', () => {
+      expect(parseCheckboxAnnotation('- [x] gReEn def5678')).toEqual({
+        step: 'GREEN',
+        checked: true,
+        annotation: 'def5678',
+      });
+      expect(parseCheckboxAnnotation('- [ ] Cross-Scenario')).toEqual({
+        step: 'cross-scenario',
+        checked: false,
+        annotation: '',
+      });
+    });
   });
 
   describe('checked vs unchecked', () => {

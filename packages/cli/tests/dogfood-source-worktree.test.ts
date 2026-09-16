@@ -57,6 +57,7 @@ describe('dogfood source worktree package resolution (470)', () => {
       'deadcode==2.4.1',
       'import-linter==2.14',
       'mypy==2.3.1',
+      'pip-audit==2.10.0',
       'ruff==0.16.5',
     ]);
   });

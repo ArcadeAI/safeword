@@ -45,7 +45,7 @@ describe('E2E: Pure Python Project', () => {
 name = "pure-python-app"
 version = "0.1.0"
 requires-python = ">=3.10"
-dependencies = ["ruff", "mypy", "deadcode", "import-linter"]
+dependencies = ["ruff", "mypy", "deadcode", "pip-audit", "import-linter"]
 `,
     );
     writeTestFile(projectDirectory, 'src/__init__.py', '');
@@ -103,7 +103,7 @@ describe('E2E: mypy Type Error Detection', () => {
   beforeAll(async () => {
     projectDirectory = createTemporaryDirectory();
     createPythonProject(projectDirectory);
-    writeTestFile(projectDirectory, 'requirements.txt', 'ruff\nmypy\ndeadcode\n');
+    writeTestFile(projectDirectory, 'requirements.txt', 'ruff\nmypy\ndeadcode\npip-audit\n');
     initGitRepo(projectDirectory);
     await setupOrThrow(projectDirectory, ['setup'], { timeout: TIMEOUT_SETUP });
   });

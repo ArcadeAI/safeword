@@ -218,10 +218,9 @@ Then(
     assert.ok(this.projectDirectory, 'project directory was not created');
     const cursorHooks = readProjectFile(this.projectDirectory, '.cursor/hooks.json');
     const pluginHooks = readProjectFile(PROJECT_ROOT, 'plugin/hooks/hooks.json');
-    assert.match(
-      pluginHooks,
-      /dispatch\.js SessionStart -- bun [^\n]+session-safeword-context\.ts/u,
-    );
+    const pluginEventGroups = readProjectFile(PROJECT_ROOT, 'plugin/runtime/event-groups.json');
+    assert.match(pluginHooks, /dispatch\.js SessionStart --event-group/u);
+    assert.match(pluginEventGroups, /session-safeword-context\.ts/u);
     assert.match(cursorHooks, /session-safeword-context\.ts/);
   },
 );
@@ -262,7 +261,11 @@ Then('the customer-authored instructions remain', function (this: SafewordMdWorl
 });
 
 Then('Claude plugin SessionStart runs the SAFEWORD context hook', function (this: SafewordMdWorld) {
-  assert.match(this.wiring?.pluginHooks ?? '', /session-safeword-context\.ts/);
+  assert.match(this.wiring?.pluginHooks ?? '', /dispatch\.js SessionStart --event-group/u);
+  assert.match(
+    readProjectFile(PROJECT_ROOT, 'plugin/runtime/event-groups.json'),
+    /session-safeword-context\.ts/u,
+  );
   assert.doesNotMatch(this.wiring?.claudeSettings ?? '', /session-safeword-context\.ts/);
 });
 
@@ -303,10 +306,8 @@ Then(
 Then(
   'the Claude plugin compact matcher runs the SAFEWORD compact context hook',
   function (this: SafewordMdWorld) {
-    assert.match(
-      this.wiring?.pluginHooks ?? '',
-      /"matcher": "compact"[\s\S]*session-compact-context\.ts/u,
-    );
+    const pluginEventGroups = readProjectFile(PROJECT_ROOT, 'plugin/runtime/event-groups.json');
+    assert.match(pluginEventGroups, /"matcher": "compact"[\s\S]*session-compact-context\.ts/u);
     assert.doesNotMatch(this.wiring?.claudeSettings ?? '', /session-compact-context\.ts/);
   },
 );

@@ -43,9 +43,49 @@ describe('checkPrincipleTrace', () => {
     expect(checkPrincipleTrace(directory, PLAN)).toEqual([]);
   });
 
+  it('treats a trace-row number as presentation rather than principle identity', () => {
+    const directory = project();
+    const plan = PLAN.replace('Delight the user', '1. Delight the user');
+
+    expect(checkPrincipleTrace(directory, plan)).toEqual([]);
+  });
+
+  it('matches a numbered conflict row to its recorded unnumbered deviation', () => {
+    const directory = project();
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      () => '| 1. Delight the user | Recovery stays in context | verify.md | explicit-conflict |',
+    ).replace('None.', () => 'Delight the user is traded away here for the reasons below.');
+
+    expect(checkPrincipleTrace(directory, plan)).toEqual([]);
+  });
+
+  it('ignores a non-trace table in the design-alignment section', () => {
+    const plan = PLAN.replace(
+      '| Delight the user | Recovery stays in context | verify.md | |',
+      () =>
+        [
+          '| Delight the user | Recovery stays in context | verify.md | |',
+          '',
+          '| Record | Honored |',
+          '| --- | --- |',
+          '| ADR-001 | The boundary stays local |',
+        ].join('\n'),
+    );
+
+    expect(checkPrincipleTrace(project(), plan)).toEqual([]);
+  });
+
   it('resolves a proof reference on its file, leaving the #fragment unjudged', () => {
     const directory = project();
     const plan = PLAN.replace('verify.md', 'verify.md#no-such-anchor');
+
+    expect(checkPrincipleTrace(directory, plan)).toEqual([]);
+  });
+
+  it('resolves an inline-code proof path embedded in prose', () => {
+    const directory = project();
+    const plan = PLAN.replace('verify.md', 'unit test in `verify.md`');
 
     expect(checkPrincipleTrace(directory, plan)).toEqual([]);
   });
@@ -102,17 +142,13 @@ describe('checkPrincipleTrace', () => {
     ]);
   });
 
-  it('does not drop a trace row followed by a delimiter-shaped body row', () => {
+  it('does not treat the header of a malformed following table as a trace row', () => {
     const plan = PLAN.replace(
       '| Delight the user | Recovery stays in context | verify.md | |',
       '| Invented principle | Recovery stays in context | missing.md | bogus |\n| - | - | - | - |\n| Delight the user | Recovery stays in context | verify.md | |',
     );
 
-    expect(checkPrincipleTrace(project(), plan)).toEqual([
-      '[E010] Broken principle trace: missing source principle: Invented principle',
-      '[E010] Broken principle trace: dead evidence reference: Invented principle',
-      '[E010] Broken principle trace: unsupported conflict marker: Invented principle',
-    ]);
+    expect(checkPrincipleTrace(project(), plan)).toEqual([]);
   });
 
   it('reports a row that carries claims but no principle name', () => {

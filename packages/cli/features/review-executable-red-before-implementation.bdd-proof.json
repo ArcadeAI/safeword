@@ -39,7 +39,7 @@
     ],
     "Scenario Outline rows share one proof implementation": [
       "packages/cli/tests/review/job.test.ts",
-      "reuses one approved receipt across Scenario Outline rows with identical proof inputs"
+      "deduplicates identical executable-RED review requests"
     ],
     "Similar scenarios use materially different proof implementations": [
       "packages/cli/tests/review/job.test.ts",
@@ -56,7 +56,7 @@
     "Proof identity determines receipt reuse": [
       [
         "packages/cli/tests/review/job.test.ts",
-        "reuses one approved receipt across Scenario Outline rows with identical proof inputs"
+        "deduplicates identical executable-RED review requests"
       ],
       [
         "packages/cli/tests/review/job.test.ts",

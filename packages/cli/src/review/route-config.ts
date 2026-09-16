@@ -6,6 +6,10 @@ export interface ReviewRoute {
   readonly independence: 'cross-agent' | 'degraded';
 }
 
+export class ReviewRouteConfigError extends Error {
+  override readonly name = 'ReviewRouteConfigError';
+}
+
 /**
  * An accepted model value: 1-200 characters of ASCII letters, digits, dot,
  * underscore, colon, slash or hyphen, never leading with a hyphen. Real model
@@ -77,5 +81,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function configError(detail: string, source?: string): Error {
   const location = source === undefined ? '' : ` at ${source}`;
-  return new Error(`Invalid crossAgentReviewRoutes configuration${location}: ${detail}`);
+  return new ReviewRouteConfigError(
+    `Invalid crossAgentReviewRoutes configuration${location}: ${detail}`,
+  );
 }

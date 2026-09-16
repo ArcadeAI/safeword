@@ -153,6 +153,9 @@ testpaths = ["tests"]
 
       // .safeword/ruff.toml should still be created (for hooks)
       expect(fileExists(state.projectDirectory, '.safeword/ruff.toml')).toBe(true);
+      expect(readTestFile(state.projectDirectory, '.safeword/ruff.toml')).toContain(
+        'extend = "../pyproject.toml"',
+      );
 
       // Original pyproject.toml content preserved
       const pyprojectContent = readPyprojectToml(state.projectDirectory);
@@ -227,7 +230,7 @@ describe('Suite 3: Dead Code Detection', () => {
   it('Test 3.1: /audit skill includes deadcode for Python', () => {
     // Assert: the audit skill contains the deadcode command
     const auditTemplate = readAuditSkillTemplate();
-    expect(auditTemplate).toContain('deadcode');
+    expect(auditTemplate).toMatch(/&&\s+deadcode\s+\.\s+--exclude\b/u);
     // Should detect Python projects
     expect(auditTemplate).toMatch(/pyproject\.toml|requirements\.txt/);
   });
@@ -241,7 +244,7 @@ describe('Suite 4: Copy/Paste Detection', () => {
   it('Test 4.1: /audit skill includes jscpd', () => {
     // Assert: the audit skill contains the jscpd command
     const auditTemplate = readAuditSkillTemplate();
-    expect(auditTemplate).toContain('jscpd');
+    expect(auditTemplate).toMatch(/(?:bunx|npx)\s+jscpd\b/u);
   });
 
   it('Test 4.2: jscpd does not use removed --gitignore flag (removed in jscpd v3+)', () => {
@@ -399,7 +402,7 @@ dev = ["ruff>=0.8.0"]
       });
 
       // Ruff alone is not the full Safeword Python tool contract.
-      expect(result.stdout).toContain('Install Python tools: pip install mypy deadcode');
+      expect(result.stdout).toContain('Install Python tools: pip install mypy deadcode pip-audit');
       expect(result.stdout).not.toContain('Python tools installed');
     },
     TIMEOUT_SETUP,
@@ -439,7 +442,7 @@ dev = ["ruff>=0.8.0"]
       expect(result.exitCode).toBe(2);
       expect(existsSync(log)).toBe(true);
       expect(readFileSync(log, 'utf8')).toContain(
-        `${nodePath.join(state.projectDirectory, 'apps/worker')}|add --dev ruff mypy deadcode`,
+        `${nodePath.join(state.projectDirectory, 'apps/worker')}|add --dev ruff mypy deadcode pip-audit`,
       );
       expect(result.stdout).toContain('pip install');
       expect(result.stdout).toContain('Configuration is healthy');
@@ -528,8 +531,8 @@ dev = ["ruff>=0.8.0"]
     'finalizes a uv consumer after its local dependency changes later in setup',
     async () => {
       createSafewordBasePackageJson(state.projectDirectory);
-      const consumer = nodePath.join(state.projectDirectory, 'apps/consumer');
-      const dependency = nodePath.join(state.projectDirectory, 'libs/shared');
+      const dependency = nodePath.join(state.projectDirectory, 'apps/a-shared');
+      const consumer = nodePath.join(state.projectDirectory, 'apps/z-consumer');
       createPythonProject(consumer, { manager: 'uv' });
       createPythonProject(dependency, { manager: 'uv' });
       initGitRepo(state.projectDirectory);
@@ -572,6 +575,64 @@ exit 1
 
       expect(readTestFile(consumer, 'uv.lock')).toContain('finalized');
       expect(readTestFile(dependency, 'uv.lock')).toContain('finalized');
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
+    'finalizes one shared uv workspace lock after member installs',
+    async () => {
+      createSafewordBasePackageJson(state.projectDirectory);
+      writeTestFile(
+        state.projectDirectory,
+        'pyproject.toml',
+        '[tool.uv.workspace]\nmembers = ["apps/*", "libs/*"]\n',
+      );
+      writeTestFile(state.projectDirectory, 'uv.lock', 'version = 1\nrevision = 2\n');
+      writeTestFile(
+        state.projectDirectory,
+        'apps/consumer/pyproject.toml',
+        '[project]\nname = "consumer"\nversion = "0.1.0"\n',
+      );
+      writeTestFile(
+        state.projectDirectory,
+        'libs/shared/pyproject.toml',
+        '[project]\nname = "shared"\nversion = "0.1.0"\n',
+      );
+      initGitRepo(state.projectDirectory);
+      const bin = nodePath.join(state.projectDirectory, 'bin');
+      const uv = nodePath.join(bin, 'uv');
+      writeTestFile(
+        state.projectDirectory,
+        'bin/uv',
+        `#!/bin/sh
+if [ "$1" = "add" ]; then
+  printf '\ndependencies = ["deadcode"]\n' >> pyproject.toml
+  exit 0
+fi
+if [ "$1" = "lock" ] && [ "$2" = "--check" ]; then
+  exit 0
+fi
+if [ "$1" = "lock" ]; then
+  printf '\nfinalized\n' >> "$SAFEWORD_ROOT_UV_LOCK"
+  exit 0
+fi
+exit 1
+`,
+      );
+      chmodSync(uv, 0o755);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_ROOT_UV_LOCK: nodePath.join(state.projectDirectory, 'uv.lock'),
+          SAFEWORD_SKIP_INSTALL: '',
+        },
+      });
+
+      expect(readTestFile(state.projectDirectory, 'uv.lock')).toContain('finalized');
     },
     TIMEOUT_SETUP,
   );
