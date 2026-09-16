@@ -23,6 +23,10 @@ type TestCommand = {
   command: string;
   /** Directory to run the command in (the resolved entry's cwd). */
   cwd: string;
+  /** False when the plan is visible but its required runner is unavailable. */
+  available: boolean;
+  /** Human-readable fail-closed diagnostic for an unavailable runner. */
+  unavailableReason?: string;
 };
 
 /** One entry of the schema-1 `safeword project test-plan --json` result envelope. */
@@ -40,6 +44,14 @@ interface TestPlanEnvelope {
     plan?: PlanEntry[];
   };
 }
+
+const PLAN_LANGUAGE_NAMES: Readonly<Record<string, string>> = {
+  javascript: 'JavaScript',
+  python: 'Python',
+  go: 'Go',
+  rust: 'Rust',
+  sql: 'SQL',
+};
 
 type TestPlanResolution = { ok: true; commands: TestCommand[] } | { ok: false; reason: string };
 
@@ -120,9 +132,9 @@ function safewordCliCommand(cwd: string): [string, ...string[]] {
 }
 
 /**
- * Ask `safeword project test-plan` for the project's test commands and keep the runnable
- * (available) ones. Resolver failures remain distinct from a valid empty plan so the
- * completion gate can fail closed without penalizing projects that genuinely have no tests.
+ * Ask `safeword project test-plan` for the project's test commands. Unavailable entries remain
+ * visible and fail closed without being executed. Resolver failures remain distinct from a valid
+ * empty plan so the completion gate does not penalize projects that genuinely have no tests.
  */
 function resolvePlanCommands(cwd: string): TestPlanResolution {
   const cli = safewordCliCommand(cwd);
@@ -142,9 +154,15 @@ function resolvePlanCommands(cwd: string): TestPlanResolution {
     }
     return {
       ok: true,
-      commands: envelope.data.plan
-        .filter(entry => entry.available)
-        .map(entry => ({ script: entry.runner, command: entry.command, cwd: entry.cwd })),
+      commands: envelope.data.plan.map(entry => ({
+        script: entry.runner,
+        command: entry.command,
+        cwd: entry.cwd,
+        available: entry.available,
+        unavailableReason: entry.available
+          ? undefined
+          : `${PLAN_LANGUAGE_NAMES[entry.language] ?? entry.language} test lane skipped: ${entry.runner} is not installed.`,
+      })),
     };
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'invalid JSON';
@@ -163,6 +181,7 @@ function bddCommand(cwd: string): TestCommand | undefined {
         script: 'test:bdd',
         command: formatRunCommand('test:bdd', detectPackageManager(cwd)),
         cwd,
+        available: true,
       };
     }
   } catch {
@@ -214,6 +233,13 @@ function runSingleTestCommand(testCommand: TestCommand): {
   output: string;
   toolchainMissing?: boolean;
 } {
+  if (!testCommand.available) {
+    return {
+      passed: false,
+      output: testCommand.unavailableReason ?? `${testCommand.script} is not installed.`,
+      toolchainMissing: true,
+    };
+  }
   const timeoutMs = timeoutMsForTestCommand(testCommand.script);
   try {
     const output = execSync(testCommand.command, {

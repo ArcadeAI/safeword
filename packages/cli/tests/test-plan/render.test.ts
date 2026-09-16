@@ -2,8 +2,8 @@ import { spawnSync } from 'node:child_process';
 
 import { describe, expect, it } from 'vitest';
 
-import { renderShellPlan } from '../../src/test-plan/render';
-import type { PlanEntry } from '../../src/test-plan/resolve';
+import { renderShellPlan } from '../../src/test-plan/render.js';
+import type { PlanEntry } from '../../src/test-plan/resolve.js';
 
 function entry(over: Partial<PlanEntry>): PlanEntry {
   return {

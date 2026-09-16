@@ -130,6 +130,26 @@ describe('runTests (resolves its suite via safeword project test-plan)', () => {
     expect(result).toEqual({ passed: true, output: '', skipped: true });
   });
 
+  it('fails closed when a required test runner is unavailable', () => {
+    const project = makeProject({});
+    writeFileSync(nodePath.join(project, 'go.mod'), 'module example.com/unavailable\n');
+    const originalFakeTools = process.env.SAFEWORD_FAKE_TOOLS;
+    process.env.SAFEWORD_FAKE_TOOLS = 'only:bun';
+
+    try {
+      const result = runTests(project);
+
+      expect(result.passed).toBe(false);
+      expect(result.skipped).toBe(false);
+      expect(result.resolutionFailed).not.toBe(true);
+      expect(result.toolchainMissing).toBe(true);
+      expect(result.output).toContain('Go test lane skipped: go is not installed.');
+    } finally {
+      if (originalFakeTools === undefined) delete process.env.SAFEWORD_FAKE_TOOLS;
+      else process.env.SAFEWORD_FAKE_TOOLS = originalFakeTools;
+    }
+  });
+
   it('fails closed when the test plan cannot be resolved', () => {
     const project = makeProject({});
     const failingCli = nodePath.join(project, 'failing-cli.ts');

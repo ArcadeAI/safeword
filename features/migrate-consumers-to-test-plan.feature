@@ -2,9 +2,9 @@ Feature: migrate consumers to test-plan
 
   test-runner.ts and /verify must obtain their per-language test/build commands from
   `safeword project test-plan` — one source of truth — instead of each carrying its own
-  language logic. The eval-able plan used by the stop-hook done gate runs the
-  resolved suites and still fails when a suite fails; the active scenarios below
-  exercise that integration through the real stop-hook runner.
+  language logic. The shell plan and stop-hook runner both consume the resolved
+  plan, execute available suites, and fail closed when a suite or required runner
+  is unavailable; the active scenarios below exercise both consumers.
 
   Rule: test-plan --format sh emits an eval-able plan
 
@@ -19,9 +19,10 @@ Feature: migrate consumers to test-plan
     Scenario: An unavailable entry becomes a visible failing lane, not a command
       Given a repo with a "go.mod"
       And the "go" toolchain is not installed
-      When I render the test plan as a shell script
+      When I eval the rendered shell script
       Then the script contains the line "Go test lane skipped: go is not installed."
       And the script contains no runnable "go test" command outside that diagnostic
+      And the eval exits non-zero
 
     @migrate-consumers.SM1.AC3
     Scenario: Evaluating the script runs the resolved suite
@@ -41,7 +42,7 @@ Feature: migrate consumers to test-plan
       Given a repo with no recognized language manifest and no test script
       When I eval the rendered shell script
       Then the eval exits zero
-      And no suite command is run
+      And the rendered plan is empty
 
     @migrate-consumers.SM1.AC3
     Scenario: A polyglot repo renders every language's command
@@ -63,7 +64,7 @@ Feature: migrate consumers to test-plan
   Rule: the stop hook resolves its suite via test-plan (no per-language strings)
 
     @migrate-consumers.SM1.AC1
-    Scenario: test-runner.ts holds no per-language command strings
+    Scenario: test-runner.ts holds no native-language test commands
       When I read templates/hooks/lib/test-runner.ts
       Then it contains no hardcoded "cargo test", "go test", or "pytest" command
       And it does not define "nativeTestCommand", "getJsTestCommands", or "pythonTestCommand"
@@ -74,6 +75,19 @@ Feature: migrate consumers to test-plan
       Given a project whose package.json has a "test" and a "test:bdd" script
       When the stop-hook test runner runs
       Then both the test script and the acceptance lane are executed
+
+    @migrate-consumers.TB1.AC1
+    Scenario: A failing JS suite still blocks the stop hook
+      Given a repo with a root "test" script that exits non-zero
+      When the stop-hook test runner runs
+      Then the stop-hook reports the failing suite and blocks
+
+    @migrate-consumers.TB1.AC1
+    Scenario: An unavailable required runner blocks the stop hook
+      Given a repo with a "go.mod"
+      And the "go" toolchain is not installed
+      When the stop-hook test runner runs
+      Then the stop-hook reports the missing runner and blocks
 
     @migrate-consumers.TB1.AC1
     Scenario: A project with no runnable suite skips without blocking

@@ -6,7 +6,10 @@
  *
  * This file contains:
  * - Layer detection for architecture boundaries
- * - Package manager detection for install guidance
+ * - Python package and project discovery
+ * - Dependency parsing across modern and legacy manifests
+ * - Package-manager selection and dependency installation
+ * - Atomic uv workspace updates with rollback
  */
 
 import { execFileSync } from 'node:child_process';
@@ -46,13 +49,6 @@ const PYTHON_LAYERS: Record<string, string[]> = {
 };
 
 /**
- * Detect Python layers in a project directory.
- * Looks for common Python layer directory patterns.
- *
- * @param cwd - Project root directory
- * @returns Array of detected layer names in dependency order (domain first)
- */
-/**
  * Whether any of the given layer patterns exists under `cwd` (either at
  * `src/{pattern}` or `{pattern}`).
  */
@@ -61,13 +57,20 @@ function hasAnyLayerPattern(cwd: string, patterns: readonly string[]): boolean {
     // Check common locations: src/{pattern}, {pattern}
     const srcPath = nodePath.join(cwd, 'src', pattern);
     const rootPath = nodePath.join(cwd, pattern);
-    if (exists(srcPath) || exists(rootPath)) {
+    if (isDirectory(srcPath) || isDirectory(rootPath)) {
       return true;
     }
   }
   return false;
 }
 
+/**
+ * Detect Python layers in a project directory.
+ * Looks for common Python layer directory patterns.
+ *
+ * @param cwd - Project root directory
+ * @returns Array of detected layer names in dependency order (domain first)
+ */
 export function detectPythonLayers(cwd: string): string[] {
   const detected: string[] = [];
 
@@ -93,12 +96,16 @@ export function detectRootPackage(cwd: string): string {
   const content = readFileSafe(pyprojectPath);
 
   if (content) {
-    // Try to extract name from [project] section
-    // Using simple pattern to avoid regex backtracking
-    const nameMatch = /^name\s*=\s*"([^"]+)"/m.exec(content);
-    if (nameMatch?.[1]) {
+    const document = parseTomlTable(content);
+    const projectName = asTomlTable(document?.project)?.name;
+    const poetryName =
+      document === undefined ? undefined : tomlTableAt(document, ['tool', 'poetry'])?.name;
+    let packageName: string | undefined;
+    if (typeof projectName === 'string') packageName = projectName;
+    else if (typeof poetryName === 'string') packageName = poetryName;
+    if (packageName !== undefined) {
       // Convert kebab-case to snake_case for Python imports
-      return nameMatch[1].replaceAll('-', '_');
+      return packageName.replaceAll('-', '_');
     }
   }
 
@@ -336,6 +343,8 @@ function setupConfigOptionsSpecs(body: string): string[] {
       if (active) specifications.push(...splitPythonSpecifications(assignment.value));
     } else if (active && line.trimStart() !== line) {
       specifications.push(...splitPythonSpecifications(line));
+    } else if (line.trim() !== '') {
+      active = false;
     }
   }
   return specifications;
@@ -927,11 +936,18 @@ function installUvDependencies(
   repoRoot: string,
   verifyLock: boolean,
 ): boolean {
-  const manifestPath = nodePath.join(cwd, 'pyproject.toml');
   const lockDirectory = uvLockDirectory(cwd, repoRoot);
-  const lockPath = nodePath.join(lockDirectory ?? cwd, 'uv.lock');
-  const manifestBefore = exists(manifestPath) ? readFileSync(manifestPath) : undefined;
-  const lockBefore = exists(lockPath) ? readFileSync(lockPath) : undefined;
+  const targets = [
+    nodePath.join(cwd, 'pyproject.toml'),
+    nodePath.join(lockDirectory ?? cwd, 'pyproject.toml'),
+    nodePath.join(lockDirectory ?? cwd, 'uv.lock'),
+  ];
+  let snapshots: Map<string, Buffer | undefined>;
+  try {
+    snapshots = snapshotPythonPaths(targets);
+  } catch {
+    return false;
+  }
 
   try {
     execFileSync('uv', ['add', '--dev', ...tools], {
@@ -948,21 +964,9 @@ function installUvDependencies(
     }
     return true;
   } catch {
-    restoreUvInstall(manifestPath, manifestBefore, lockPath, lockBefore);
+    restorePythonFiles(snapshots);
     return false;
   }
-}
-
-function restoreUvInstall(
-  manifestPath: string,
-  manifestBefore: Buffer | undefined,
-  lockPath: string,
-  lockBefore: Buffer | undefined,
-): void {
-  if (manifestBefore) writeFileSync(manifestPath, manifestBefore);
-  else if (exists(manifestPath)) unlinkSync(manifestPath);
-  if (lockBefore) writeFileSync(lockPath, lockBefore);
-  else if (exists(lockPath)) unlinkSync(lockPath);
 }
 
 export function installPythonDependencies(
@@ -1028,6 +1032,7 @@ function uvBatchTargets(
         lockDirectory,
         paths: [
           nodePath.join(gap.directory, 'pyproject.toml'),
+          nodePath.join(lockDirectory, 'pyproject.toml'),
           nodePath.join(lockDirectory, 'uv.lock'),
         ],
       },
@@ -1035,13 +1040,14 @@ function uvBatchTargets(
   });
 }
 
-function snapshotPythonFiles(targets: readonly UvBatchTarget[]): Map<string, Buffer | undefined> {
+function snapshotPythonPaths(paths: readonly string[]): Map<string, Buffer | undefined> {
   return new Map(
-    [...new Set(targets.flatMap(target => target.paths))].map(path => [
-      path,
-      exists(path) ? readFileSync(path) : undefined,
-    ]),
+    [...new Set(paths)].map(path => [path, exists(path) ? readFileSync(path) : undefined]),
   );
+}
+
+function snapshotPythonFiles(targets: readonly UvBatchTarget[]): Map<string, Buffer | undefined> {
+  return snapshotPythonPaths(targets.flatMap(target => target.paths));
 }
 
 function finalizeUvLocks(targets: readonly UvBatchTarget[]): boolean {
@@ -1072,7 +1078,12 @@ export function installPythonDependencyBatch(
 ): boolean[] {
   if (process.env.SAFEWORD_SKIP_INSTALL) return gaps.map(() => true);
   const targets = uvBatchTargets(gaps, repoRoot);
-  const snapshots = snapshotPythonFiles(targets);
+  let snapshots: Map<string, Buffer | undefined>;
+  try {
+    snapshots = snapshotPythonFiles(targets);
+  } catch {
+    return gaps.map(() => false);
+  }
   const results = gaps.map(gap =>
     installPythonDependenciesForBatch(gap.directory, gap.tools, repoRoot),
   );

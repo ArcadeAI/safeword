@@ -31,7 +31,7 @@ async function renderSh(
   root: string,
   kind: 'test' | 'build' | 'verify' | 'typecheck' | 'deps' | 'bdd' = 'test',
 ): Promise<string> {
-  const result = await runCli(['test-plan', '--kind', kind, '--format', 'sh'], {
+  const result = await runCli(['project', 'test-plan', '--kind', kind, '--format', 'sh'], {
     cwd: root,
     env: { SAFEWORD_FAKE_TOOLS: 'all' },
   });
@@ -40,7 +40,7 @@ async function renderSh(
 }
 
 async function renderUnavailableSh(root: string, kind: 'typecheck' | 'deps'): Promise<string> {
-  const result = await runCli(['test-plan', '--kind', kind, '--format', 'sh'], {
+  const result = await runCli(['project', 'test-plan', '--kind', kind, '--format', 'sh'], {
     cwd: root,
     env: { SAFEWORD_FAKE_TOOLS: 'only:go' },
   });

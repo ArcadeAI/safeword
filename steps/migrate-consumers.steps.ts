@@ -8,6 +8,8 @@
  *
  * TB1.AC1 exercises the real stop-hook runner against temporary projects while pointing
  * its resolver at the local Safeword CLI source.
+ * Shared repository/toolchain fixtures live in test-plan-resolver.steps.ts; Cucumber loads
+ * both files into the same SafewordWorld for this feature.
  */
 
 import { strict as assert } from 'node:assert';
@@ -19,7 +21,7 @@ import process from 'node:process';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
-import { runTests, type TestResult } from '../.safeword/hooks/lib/test-runner.js';
+import { runTests, type TestResult } from '../packages/cli/templates/hooks/lib/test-runner.js';
 import type { SafewordWorld } from './world.js';
 
 interface MigrateConsumersWorld extends SafewordWorld {
@@ -72,11 +74,11 @@ function runShellPlan(world: MigrateConsumersWorld, kind: 'test' | 'build'): str
 function extractSection(content: string, sectionNumber: number): string {
   const lines = content.split('\n');
   let inSection = false;
-  let fenceMarker: '```' | '~~~' | undefined;
+  let fenceMarker: string | undefined;
   let sectionHeadingDepth: number | undefined;
   const sectionLines: string[] = [];
   for (const line of lines) {
-    const fence = /^\s*(```|~~~)/u.exec(line)?.[1] as '```' | '~~~' | undefined;
+    const fence = /^\s*(`{3,}|~{3,})/u.exec(line)?.[1];
     const heading = fenceMarker === undefined ? /^(#{1,6})\s+/u.exec(line) : null;
     if (inSection && heading !== null && heading[1]!.length <= (sectionHeadingDepth ?? 0)) break;
     const numberedHeading =
@@ -90,7 +92,11 @@ function extractSection(content: string, sectionNumber: number): string {
     }
     if (inSection) sectionLines.push(line);
     if (fenceMarker === undefined) fenceMarker = fence;
-    else if (line.trimStart().startsWith(fenceMarker)) fenceMarker = undefined;
+    else {
+      const markerCharacter = fenceMarker[0];
+      const closingFence = new RegExp(`^\\s*${markerCharacter}{${fenceMarker.length},}\\s*$`, 'u');
+      if (closingFence.test(line)) fenceMarker = undefined;
+    }
   }
   return sectionLines.join('\n');
 }
@@ -181,15 +187,10 @@ Then(
   'the script contains no runnable {string} command outside that diagnostic',
   function (this: MigrateConsumersWorld, cmd: string) {
     const plan = this.shellPlan ?? '';
-    const escapedCommand = cmd.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const diagnostic = new RegExp(
-      `'[^'\\n]*lane skipped: ${escapedCommand} is not installed\\.'`,
-      'u',
-    );
-    const runnableLines = plan.split('\n').filter(line => {
-      if (!line.includes(cmd)) return false;
-      return line.replace(diagnostic, '').includes(cmd);
-    });
+    const runnableLines = plan
+      .split('\n')
+      .map(line => line.replace(/'[^']*'/gu, ''))
+      .filter(line => line.includes(cmd));
     assert.equal(
       runnableLines.length,
       0,
@@ -213,13 +214,8 @@ Then('the eval exits non-zero', function (this: MigrateConsumersWorld) {
   assert.notEqual(this.evalExitCode, 0, 'expected eval to exit non-zero but it exited 0');
 });
 
-Then('no suite command is run', function (this: MigrateConsumersWorld) {
-  const plan = this.shellPlan ?? '';
-  const commands = plan.split('\n').filter(l => {
-    const trimmed = l.trim();
-    return trimmed.length > 0 && !trimmed.startsWith('#');
-  });
-  assert.equal(commands.length, 0, `expected no suite commands but found:\n${commands.join('\n')}`);
+Then('the rendered plan is empty', function (this: MigrateConsumersWorld) {
+  assert.equal(this.shellPlan, '');
 });
 
 // ============================================================================
@@ -229,6 +225,12 @@ Then('no suite command is run', function (this: MigrateConsumersWorld) {
 When(/^I read templates\/hooks\/lib\/test-runner\.ts$/, function (this: MigrateConsumersWorld) {
   const path = nodePath.join(process.cwd(), 'packages/cli/templates/hooks/lib/test-runner.ts');
   this.fileContent = readFileSync(path, 'utf8');
+  const dogfoodPath = nodePath.join(process.cwd(), '.safeword/hooks/lib/test-runner.ts');
+  assert.equal(
+    readFileSync(dogfoodPath, 'utf8'),
+    this.fileContent,
+    'dogfood and template test runners differ',
+  );
 });
 
 Then(
@@ -280,8 +282,7 @@ Given(
 Given(
   'a project with no test script and no language manifest',
   function (this: MigrateConsumersWorld) {
-    write(this, 'package-lock.json', '{}\n');
-    write(this, 'package.json', `${JSON.stringify({ scripts: {} }, undefined, 2)}\n`);
+    ensureRoot(this);
   },
 );
 
@@ -290,7 +291,7 @@ When('the stop-hook test runner runs', function (this: MigrateConsumersWorld) {
   const previousFakeTools = process.env.SAFEWORD_FAKE_TOOLS;
   const previousNodeEnvironment = process.env.NODE_ENV;
   process.env.SAFEWORD_CLI = nodePath.join(process.cwd(), 'packages/cli/src/cli.ts');
-  process.env.SAFEWORD_FAKE_TOOLS = 'all';
+  process.env.SAFEWORD_FAKE_TOOLS = this.fakeTools ?? 'all';
   process.env.NODE_ENV = 'test';
   try {
     this.stopHookResult = runTests(ensureRoot(this));
@@ -314,6 +315,21 @@ Then(
     assert.ok(existsSync(nodePath.join(root, 'bdd.marker')), 'acceptance marker is missing');
   },
 );
+
+Then('the stop-hook reports the failing suite and blocks', function (this: MigrateConsumersWorld) {
+  assert.equal(this.stopHookResult?.passed, false, this.stopHookResult?.output);
+  assert.equal(this.stopHookResult?.skipped, false);
+  assert.notEqual(this.stopHookResult?.resolutionFailed, true, this.stopHookResult?.output);
+  assert.match(this.stopHookResult?.output ?? '', /\$ (?:bun|npm|pnpm|yarn).*test/iu);
+});
+
+Then('the stop-hook reports the missing runner and blocks', function (this: MigrateConsumersWorld) {
+  assert.equal(this.stopHookResult?.passed, false, this.stopHookResult?.output);
+  assert.equal(this.stopHookResult?.skipped, false);
+  assert.notEqual(this.stopHookResult?.resolutionFailed, true, this.stopHookResult?.output);
+  assert.equal(this.stopHookResult?.toolchainMissing, true, this.stopHookResult?.output);
+  assert.match(this.stopHookResult?.output ?? '', /Go test lane skipped: go is not installed\./u);
+});
 
 Then('it reports skipped and does not block', function (this: MigrateConsumersWorld) {
   assert.deepEqual(this.stopHookResult, { passed: true, output: '', skipped: true });
@@ -343,15 +359,21 @@ Then('the verify command points to the verify skill', function (this: MigrateCon
 Then(
   'section {int} of the verify skill evaluates {string}',
   function (this: MigrateConsumersWorld, section: number, expected: string) {
-    assert.equal(expected, 'project test-plan --format sh');
+    const [namespace, command, formatFlag, format] = expected.split(' ');
+    assert.ok(
+      namespace && command && formatFlag && format,
+      `invalid expected command: ${expected}`,
+    );
     const sectionText = verifySection(this, section);
     assert.ok(
       sectionText.includes(
-        'plan="$(run_safeword project test-plan --kind "$plan_kind" --format sh)"',
+        `plan="$(run_safeword ${namespace} ${command} --kind "$plan_kind" ${formatFlag} ${format})"`,
       ),
       `section ${section} does not resolve "${expected}"\n---\n${sectionText.slice(0, 300)}`,
     );
-    assert.match(sectionText, /bash -c "\$plan"/u);
+    assert.match(sectionText, /\n {2}bash -c "\$plan"\n\}/u);
+    assert.match(sectionText, /if \[ "\$rc" -ne 0 \]; then[\s\S]*return "\$rc"/u);
+    assert.match(sectionText, /exit "\$verification_status"/u);
   },
 );
 
