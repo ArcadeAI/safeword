@@ -121,3 +121,16 @@ Ruled out a bad live result because all 29 matrix tests passed through Claude
 Opus; ruled out a stale executable receipt because live scenarios intentionally
 do not use that receipt type; ruled out feature-source lookup failure because
 the regression uses the canonical project-relative source line.
+
+### Generated compatibility rubric was not formatter-stable
+
+The compatibility-rubric generator compared its unformatted JSON-string source
+with the checked-in TypeScript file after Prettier had changed the quote style.
+The exported rubric was byte-equal to the canonical contract, but both the
+generator's `--check` mode and its generation test treated the harmless source
+format difference as stale output.
+
+Confirmed by comparing the canonical and exported rubric text, then reproducing
+the stale result with `generate:delivery-compatibility-rubric --check`. Ruled
+out stale rubric content because the values were equal; ruled out extraction
+failure because the canonical markers produced the expected complete block.

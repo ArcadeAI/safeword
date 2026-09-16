@@ -3,6 +3,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { DELIVERY_COMPATIBILITY_REVIEW_RUBRIC } from '../../src/review/delivery-compatibility-rubric.generated.js';
+
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const skillPath = nodePath.join(packageRoot, 'templates/skills/bdd/PLAN_EXECUTION.md');
 const generatedPath = nodePath.join(
@@ -24,9 +26,8 @@ describe('delivery compatibility rubric generation', () => {
     const end = skill.indexOf(endMarker);
     const rubric = skill.slice(start, end).trim();
     const readableRubric = rubric.replaceAll('*', '').replaceAll(/\s+/gu, ' ');
-    const generated = readFileSync(generatedPath, 'utf8');
 
-    expect(generated).toContain(JSON.stringify(rubric));
+    expect(DELIVERY_COMPATIBILITY_REVIEW_RUBRIC).toBe(rubric);
     for (const requirement of [
       'Does the earlier passing receipt still establish this retained proof boundary at the reviewed revision?',
       'every changed hunk',
