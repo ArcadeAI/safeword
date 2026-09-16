@@ -4,6 +4,12 @@ import nodePath from 'node:path';
 
 import { parseReviewStamps } from '../../templates/hooks/lib/review-ledger.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { admittedExecutionPlanReview } from '../execution-plan/delivery-admission.js';
+import {
+  createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../execution-plan/delivery-checklist.js';
 import { currentDesignDecision } from '../review/approval-ledger.js';
 import type { ReviewKind } from '../review/contract.js';
 import { reviewIntegrityKeyExists, reviewJobStatus } from '../review/job.js';
@@ -11,7 +17,6 @@ import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { findFeatureSourcePath } from '../utils/feature-source.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
-import { hasAdmittedDeliveryChecklist } from './delivery-checklist.js';
 
 type ExecutionPrerequisiteStatus = 'satisfied' | 'not_applicable';
 
@@ -216,11 +221,24 @@ function approachPrerequisite(context: PrerequisiteContext): MissingPrerequisite
 }
 
 function checklistPrerequisite(context: PrerequisiteContext): MissingPrerequisite | undefined {
-  if (
-    existsSync(context.executionPath) &&
-    hasAdmittedDeliveryChecklist(context.cwd, context.ticketId)
-  ) {
-    return undefined;
+  if (existsSync(context.executionPath)) {
+    const plan = readFileSync(context.executionPath, 'utf8');
+    const parsed = parseDeliveryPlanContract(plan);
+    if (parsed.ok) {
+      const definition = createExecutionPlanDeliveryDefinition(
+        parsed,
+        designApprovalRequired(context.cwd),
+      );
+      const review = admittedExecutionPlanReview({
+        cwd: context.cwd,
+        ticketDirectory: context.ticketDirectory,
+        planPath: context.executionPath,
+        ledger: context.ledger,
+        definition,
+        digest: normalizedExecutionPlanDigest(plan),
+      });
+      if (review !== undefined) return undefined;
+    }
   }
   return {
     code: 'missing_admitted_delivery_checklist',
