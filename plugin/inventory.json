@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f5932459721885cfa6d1f2d5e62b54653af93a16387ae73c9de25599927c9a30"
+      "sha256": "698ee5f8cc1929e8ce48e4b05eefbad4a837f75d782fbc37ab54885e54a4555a"
     },
     {
       "path": "runtime/dispatch.js",
@@ -415,7 +415,7 @@
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
-      "sha256": "8c2c7cdebff38ebc086cbf427477303e3f73c8f7489fa6a25b8f610d2ad2157c"
+      "sha256": "4ee0521c9704b0db4e911823b01a12ad7cf7dca34a584bb710c1a3ccb5062e18"
     },
     {
       "path": "runtime/hooks/lib/typecheck-gate.ts",

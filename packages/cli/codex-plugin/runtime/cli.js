@@ -13314,7 +13314,7 @@ function hasAnyLayerPattern(cwd, patterns) {
   for (const pattern of patterns) {
     const srcPath = nodePath16.join(cwd, "src", pattern);
     const rootPath = nodePath16.join(cwd, pattern);
-    if (exists(srcPath) || exists(rootPath)) {
+    if (isDirectory(srcPath) || isDirectory(rootPath)) {
       return true;
     }
   }
@@ -13334,9 +13334,16 @@ function detectRootPackage(cwd) {
   const pyprojectPath = nodePath16.join(cwd, "pyproject.toml");
   const content = readFileSafe(pyprojectPath);
   if (content) {
-    const nameMatch = /^name\s*=\s*"([^"]+)"/m.exec(content);
-    if (nameMatch?.[1]) {
-      return nameMatch[1].replaceAll("-", "_");
+    const document2 = parseTomlTable(content);
+    const projectName = asTomlTable(document2?.project)?.name;
+    const poetryName = document2 === undefined ? undefined : tomlTableAt(document2, ["tool", "poetry"])?.name;
+    let packageName2;
+    if (typeof projectName === "string")
+      packageName2 = projectName;
+    else if (typeof poetryName === "string")
+      packageName2 = poetryName;
+    if (packageName2 !== undefined) {
+      return packageName2.replaceAll("-", "_");
     }
   }
   if (exists(nodePath16.join(cwd, "src"))) {
@@ -13361,10 +13368,18 @@ function detectSolePackage(cwd) {
   return candidates.length === 1 ? candidates[0] : undefined;
 }
 function isRootRequirementsFile(filename) {
-  if (!filename.endsWith(".txt"))
+  const extension = pythonRequirementsExtension(filename);
+  if (extension === undefined)
     return false;
-  const stem = filename.slice(0, -".txt".length);
+  const stem = filename.slice(0, -extension.length);
   return stem === "requirements" || stem.startsWith("requirements-") || stem.startsWith("requirements_") || stem.startsWith("requirements.") || stem.endsWith("-requirements") || stem.endsWith("_requirements");
+}
+function pythonRequirementsExtension(filename) {
+  if (filename.endsWith(".txt"))
+    return ".txt";
+  if (filename.endsWith(".in"))
+    return ".in";
+  return;
 }
 function normalizePythonDistributionName(value) {
   return value.trim().toLowerCase().replaceAll(/[-_.]+/g, "-");
@@ -13440,9 +13455,10 @@ function splitPythonSpecifications(value) {
 function setupConfigAssignment(line) {
   if (line.trimStart() !== line)
     return;
-  const separator = line.indexOf("=");
-  if (separator === -1)
+  const separators = [line.indexOf("="), line.indexOf(":")].filter((index) => index >= 0);
+  if (separators.length === 0)
     return;
+  const separator = Math.min(...separators);
   const key = line.slice(0, separator).trim();
   if (!/^[\w.-]+$/u.test(key))
     return;
@@ -13464,6 +13480,9 @@ function setupConfigOptionsSpecs(body) {
   let active = false;
   for (const line of body.split(`
 `)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("#") || trimmed.startsWith(";"))
+      continue;
     const assignment = setupConfigAssignment(line);
     if (assignment !== undefined) {
       active = dependencyKeys.has(assignment.key);
@@ -13471,6 +13490,8 @@ function setupConfigOptionsSpecs(body) {
         specifications.push(...splitPythonSpecifications(assignment.value));
     } else if (active && line.trimStart() !== line) {
       specifications.push(...splitPythonSpecifications(line));
+    } else if (trimmed !== "") {
+      active = false;
     }
   }
   return specifications;
@@ -13544,7 +13565,32 @@ function updatePythonBrackets(state, character, index) {
     state.brackets.pop();
   }
 }
+function pythonBracketExpressionStart(content, start) {
+  let comment = false;
+  for (let index = start;index < content.length; index += 1) {
+    const character = content[index];
+    if (character === undefined)
+      return;
+    if (comment) {
+      if (character === `
+`)
+        comment = false;
+      continue;
+    }
+    if (character === "#") {
+      comment = true;
+      continue;
+    }
+    if (/\s/u.test(character))
+      continue;
+    return PYTHON_CLOSING_BRACKETS.has(character) ? index : undefined;
+  }
+  return;
+}
 function pythonAssignedExpression(content, start) {
+  const expressionStart = pythonBracketExpressionStart(content, start);
+  if (expressionStart === undefined)
+    return;
   const state = {
     brackets: [],
     quote: undefined,
@@ -13552,7 +13598,7 @@ function pythonAssignedExpression(content, start) {
     comment: false,
     expressionStart: undefined
   };
-  for (let index = start;index < content.length; index += 1) {
+  for (let index = expressionStart;index < content.length; index += 1) {
     const character = content[index];
     if (character === undefined)
       break;
@@ -13565,20 +13611,45 @@ function pythonAssignedExpression(content, start) {
   }
   return;
 }
+function pythonStringLiterals(expression) {
+  return expression.matchAll(/(['"])(.*?)\1/gsu).map((match) => match[2]).filter((value) => value !== undefined).toArray();
+}
+function pythonExtrasDependencySpecs(expression) {
+  const specifications = [];
+  const state = {
+    brackets: [],
+    quote: undefined,
+    escaped: false,
+    comment: false,
+    expressionStart: undefined
+  };
+  for (let index = 0;index < expression.length; index += 1) {
+    const character = expression[index];
+    if (character === undefined)
+      break;
+    if (consumePythonProtectedCharacter(state, character))
+      continue;
+    if (character === ":" && state.brackets.length === 1) {
+      const value = pythonAssignedExpression(expression, index + 1);
+      if (value !== undefined)
+        specifications.push(...pythonStringLiterals(value));
+      continue;
+    }
+    updatePythonBrackets(state, character, index);
+  }
+  return specifications;
+}
 function setupPyDependencySpecs(content) {
   const specifications = [];
   const codeWithoutMultilineStrings = content.replaceAll(/'''[\s\S]*?(?:'''|$)|"""[\s\S]*?(?:"""|$)/gu, (value) => " ".repeat(value.length));
-  const assignment = /\b(?:install_requires|setup_requires|tests_require|extras_require)\s*=/gu;
+  const assignment = /\b(install_requires|setup_requires|tests_require|extras_require)\s*=/gu;
   for (const match of codeWithoutMultilineStrings.matchAll(assignment)) {
     if (match.index === undefined || !isPythonCodePosition(codeWithoutMultilineStrings, match.index))
       continue;
-    const expression = pythonAssignedExpression(content, match.index + match[0].length);
+    const expression = pythonAssignedExpression(codeWithoutMultilineStrings, match.index + match[0].length);
     if (expression === undefined)
       continue;
-    for (const stringMatch of expression.matchAll(/(['"])(.*?)\1/gsu)) {
-      if (stringMatch[2] !== undefined)
-        specifications.push(stringMatch[2]);
-    }
+    specifications.push(...match[1] === "extras_require" ? pythonExtrasDependencySpecs(expression) : pythonStringLiterals(expression));
   }
   return specifications;
 }
@@ -13664,7 +13735,7 @@ function pythonRequirementPaths(cwd) {
   } catch {
     return direct;
   }
-  const nested = requirementEntries.filter((entry) => entry.isFile() && entry.name.endsWith(".txt")).map((entry) => nodePath16.join(requirementsDirectory, entry.name));
+  const nested = requirementEntries.filter((entry) => entry.isFile() && (entry.name.endsWith(".txt") || entry.name.endsWith(".in"))).map((entry) => nodePath16.join(requirementsDirectory, entry.name));
   return [...direct, ...nested];
 }
 function readPythonDependencySources(cwd) {
@@ -13732,6 +13803,8 @@ function detectPythonPackageManagerAt(directory) {
 function uvLockDirectory(cwd, repoRoot) {
   const root = nodePath16.resolve(repoRoot);
   const projectDirectory = nodePath16.resolve(cwd);
+  if (!isPathWithinDirectory(projectDirectory, root))
+    return;
   let directory = projectDirectory;
   while (true) {
     if (exists(nodePath16.join(directory, "uv.lock")) && (directory === projectDirectory || pythonWorkspaceOwns(directory, projectDirectory))) {
@@ -13772,8 +13845,9 @@ function getPythonTools(includeImportLinter) {
   return tools;
 }
 function getMissingPythonToolDependencies(cwd, includeImportLinter, repoRoot = cwd) {
-  const workspaceRoot = uvLockDirectory(cwd, repoRoot);
-  const declarationDirectories = new Set([cwd, workspaceRoot].filter(Boolean));
+  const projectDirectory = nodePath16.resolve(cwd);
+  const workspaceRoot = uvLockDirectory(projectDirectory, repoRoot);
+  const declarationDirectories = new Set(workspaceRoot === undefined ? [projectDirectory] : [projectDirectory, workspaceRoot]);
   const sources = new Map([...declarationDirectories].map((directory) => [
     directory,
     readPythonDependencySources(directory)
@@ -13782,7 +13856,7 @@ function getMissingPythonToolDependencies(cwd, includeImportLinter, repoRoot = c
 }
 function findPythonProjectDirectories(cwd) {
   const root = nodePath16.resolve(cwd);
-  const requirementsDirectories = findAllFilesMatchingInTree(root, (filename, directory) => isRootRequirementsFile(filename) || nodePath16.basename(directory) === "requirements" && filename.endsWith(".txt")).filter((path2) => {
+  const requirementsDirectories = findAllFilesMatchingInTree(root, (filename, directory) => isRootRequirementsFile(filename) || nodePath16.basename(directory) === "requirements" && pythonRequirementsExtension(filename) !== undefined).filter((path2) => {
     const directory = nodePath16.dirname(path2);
     if (nodePath16.basename(directory) !== "requirements") {
       return isRootRequirementsFile(nodePath16.basename(path2));
@@ -13812,11 +13886,18 @@ function getPythonToolDependencyGaps(cwd, includeImportLinter) {
   });
 }
 function installUvDependencies(cwd, tools, repoRoot, verifyLock) {
-  const manifestPath = nodePath16.join(cwd, "pyproject.toml");
   const lockDirectory = uvLockDirectory(cwd, repoRoot);
-  const lockPath = nodePath16.join(lockDirectory ?? cwd, "uv.lock");
-  const manifestBefore = exists(manifestPath) ? readFileSync8(manifestPath) : undefined;
-  const lockBefore = exists(lockPath) ? readFileSync8(lockPath) : undefined;
+  const targets = [
+    nodePath16.join(cwd, "pyproject.toml"),
+    nodePath16.join(lockDirectory ?? cwd, "pyproject.toml"),
+    nodePath16.join(lockDirectory ?? cwd, "uv.lock")
+  ];
+  let snapshots;
+  try {
+    snapshots = snapshotPythonPaths(targets);
+  } catch {
+    return false;
+  }
   try {
     execFileSync2("uv", ["add", "--dev", ...tools], {
       cwd,
@@ -13832,19 +13913,9 @@ function installUvDependencies(cwd, tools, repoRoot, verifyLock) {
     }
     return true;
   } catch {
-    restoreUvInstall(manifestPath, manifestBefore, lockPath, lockBefore);
+    restorePythonFiles(snapshots);
     return false;
   }
-}
-function restoreUvInstall(manifestPath, manifestBefore, lockPath, lockBefore) {
-  if (manifestBefore)
-    writeFileSync5(manifestPath, manifestBefore);
-  else if (exists(manifestPath))
-    unlinkSync(manifestPath);
-  if (lockBefore)
-    writeFileSync5(lockPath, lockBefore);
-  else if (exists(lockPath))
-    unlinkSync(lockPath);
 }
 function installPythonDependencies(cwd, tools, repoRoot = cwd) {
   if (tools.length === 0)
@@ -13892,17 +13963,18 @@ function uvBatchTargets(gaps, repoRoot) {
         lockDirectory,
         paths: [
           nodePath16.join(gap.directory, "pyproject.toml"),
+          nodePath16.join(lockDirectory, "pyproject.toml"),
           nodePath16.join(lockDirectory, "uv.lock")
         ]
       }
     ];
   });
 }
+function snapshotPythonPaths(paths) {
+  return new Map([...new Set(paths)].map((path2) => [path2, exists(path2) ? readFileSync8(path2) : undefined]));
+}
 function snapshotPythonFiles(targets) {
-  return new Map([...new Set(targets.flatMap((target) => target.paths))].map((path2) => [
-    path2,
-    exists(path2) ? readFileSync8(path2) : undefined
-  ]));
+  return snapshotPythonPaths(targets.flatMap((target) => target.paths));
 }
 function finalizeUvLocks(targets) {
   try {
@@ -13928,7 +14000,12 @@ function installPythonDependencyBatch(gaps, repoRoot) {
   if (process.env.SAFEWORD_SKIP_INSTALL)
     return gaps.map(() => true);
   const targets = uvBatchTargets(gaps, repoRoot);
-  const snapshots = snapshotPythonFiles(targets);
+  let snapshots;
+  try {
+    snapshots = snapshotPythonFiles(targets);
+  } catch {
+    return gaps.map(() => false);
+  }
   const results = gaps.map((gap) => installPythonDependenciesForBatch(gap.directory, gap.tools, repoRoot));
   const installFailed = targets.some(({ index }) => !results.at(index));
   if (!installFailed && finalizeUvLocks(targets))
@@ -65118,11 +65195,15 @@ function observeTestPlan(cwd, dir, options) {
       cwd: entry2.cwd
     }
   }));
+  const machinePlan = plan.map((entry2) => ({
+    ...entry2,
+    unavailableReason: entry2.available ? undefined : unavailablePlanMessage(entry2, kind)
+  }));
   return Promise.resolve(createResult({
     state: findings.length === 0 || formatValue === "sh" ? "healthy" : "action_required",
     findings,
-    presentation: rawTestPlanPresentation(formatValue, plan, kind),
-    data: { command: "project test-plan", kind, plan }
+    presentation: rawTestPlanPresentation(formatValue, machinePlan, kind),
+    data: { command: "project test-plan", kind, plan: machinePlan }
   }));
 }
 var TEST_PLAN_FORMATS;
@@ -71964,7 +72045,7 @@ var CANONICAL_COMMANDS = [
       },
       {
         flags: "--format <format>",
-        description: "human, sh, or legacy raw json; use global --json for machine output",
+        description: "human, sh, or legacy raw json; sh must be evaluated to obtain lane status; use global --json for machine output",
         defaultValue: "human"
       }
     ]
