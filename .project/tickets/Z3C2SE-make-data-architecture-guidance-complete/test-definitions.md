@@ -64,7 +64,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 6c8a58562
 - [x] GREEN a2c4a49b2
-- [ ] REFACTOR
+- [x] REFACTOR skip: verifier responsibilities are already isolated; the test edit belongs to a separate bootstrap-hang fix found by scenario-close verification
 
 ### Scenario Outline: A non-discriminating guide-ablation pair fails evaluation
 
