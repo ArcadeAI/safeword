@@ -134,3 +134,16 @@ Confirmed by comparing the canonical and exported rubric text, then reproducing
 the stale result with `generate:delivery-compatibility-rubric --check`. Ruled
 out stale rubric content because the values were equal; ruled out extraction
 failure because the canonical markers produced the expected complete block.
+
+### Generated host bundle captured a symlinked dependency path
+
+The first clean-worktree regeneration reused `node_modules` through a symlink.
+Bun preserved that external absolute dependency path in generated bundle
+comments, so the checked-in bundle differed from a normal checkout even though
+its executable code was equivalent.
+
+Confirmed by replacing the symlink with a copy-on-write dependency directory:
+one regeneration changed only embedded dependency paths and the immediate
+`generate:codex-plugin --check` passed. Ruled out nondeterministic bundling
+because two generations under the same real-directory setup were byte-stable;
+ruled out source drift because the worktree remained at the same commit.
