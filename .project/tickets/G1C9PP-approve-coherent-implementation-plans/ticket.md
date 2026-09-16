@@ -2,6 +2,7 @@
 id: G1C9PP
 slug: approve-coherent-implementation-plans
 type: feature
+subtype: bug-investigated
 phase: implement
 status: in_progress
 phase_skips:
@@ -48,6 +49,29 @@ parent_contract_digest: c08988d3ae35252d5e18057f1332f7638bf55dfc0a4b230581386afa
 **Goal:** Make every feature approach complete, reviewable, and evidence-backed before sequencing
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Root Cause
+
+The repair-loop acceptance fixture created its fake Claude executable below the
+repository. This checkout lives below `/private/tmp`, whose writable ancestry is
+deliberately rejected by reviewer discovery. Because directly trusted reviewer
+installations take precedence over stageable PATH candidates, the test launched
+the real Claude process instead of its deterministic fixture.
+
+Confirmed by the four repair-loop failures returning real Claude prose after the
+normal review timeout, while neighboring fixtures created below the user's
+private temporary directory remained deterministic. Runtime candidate selection
+also explicitly keeps stageable candidates aside whenever a directly trusted
+installation exists.
+
+Ruled out:
+
+- a missing PATH override — `runRepairReview` prepends the fixture directory;
+- broken repair markers — the fixture script contains distinct responses for
+  every marker, but none of those responses appeared in the failing receipts.
+
+The fix is to create the repair reviewer in the same private temporary root as
+the neighboring trusted acceptance fixtures.
 
 ## Work Log
 

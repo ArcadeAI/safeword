@@ -499,9 +499,7 @@ function arrangeRepairReviewer(world: PlanWorld, plan: string): void {
   seedTicket(world, { phase: 'plan-implementation', spec: true });
   writeFileSync(ticketArtifact(world, 'impl-plan.md'), plan);
 
-  const trustedRoot = nodePath.join(PROJECT_ROOT, 'packages/cli/.test-tmp/reviewers');
-  mkdirSync(trustedRoot, { recursive: true, mode: 0o700 });
-  world.reviewerBinDirectory = mkdtempSync(nodePath.join(trustedRoot, 'plan-repair-'));
+  world.reviewerBinDirectory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'plan-repair-'));
   chmodSync(world.reviewerBinDirectory, 0o700);
   const reviewer = nodePath.join(world.reviewerBinDirectory, 'claude');
   writeFileSync(
