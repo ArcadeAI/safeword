@@ -68,7 +68,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario Outline: A non-discriminating guide-ablation pair fails evaluation
 
-- [ ] RED
+- [x] RED ee4d80dde
 - [ ] GREEN
 - [ ] REFACTOR
 
