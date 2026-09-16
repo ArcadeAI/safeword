@@ -137,5 +137,5 @@ export function verifyAblationPair(input: AblationPairInput): VerificationResult
     ...preservedLabelDiagnostics(input),
     ...responseDiagnostics(input),
   ];
-  return { accepted: true, diagnostics: diagnostics.slice(0, 0) };
+  return { accepted: diagnostics.length === 0, diagnostics };
 }
