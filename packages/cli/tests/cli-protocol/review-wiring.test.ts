@@ -1668,6 +1668,82 @@ describe('cross-agent review public-command wiring', () => {
     );
   });
 
+  it('preserves executable RED evidence for an alternate reviewer model', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    const alternatePromptLog = nodePath.join(directory, 'alternate-prompt.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        crossAgentReviewPrimaryModel: { codex: 'vendor-model-1' },
+        crossAgentReviewAlternateModel: { codex: 'vendor-model-2' },
+      }),
+    );
+    writeFileSync(nodePath.join(directory, 'proof.test.ts'), 'actor-boundary proof\n');
+    const bin = installFakeReviewer(directory, 'codex');
+    const execute = JSON.stringify([
+      process.execPath,
+      '-e',
+      "console.error('expected actor assertion'); process.exit(1)",
+    ]);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'executable-red',
+        'proof.test.ts',
+        '--scenario',
+        'Scenario: actor boundary',
+        '--ledger',
+        '.project/tickets/TST/test-definitions.md',
+        '--proof-cwd',
+        '.',
+        '--evidence-class',
+        'pure-contract',
+        '--expected-failure',
+        'expected actor assertion',
+        '--execution-timeout',
+        '1000',
+        '--execute',
+        execute,
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_ACCEPTED_MODEL: 'vendor-model-2',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_REVIEW_MODEL_PROMPT_LOG: alternatePromptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        status: 'approved',
+        reviewer_model: 'vendor-model-2',
+        preferred_failure: 'process_failed',
+        independence: 'cross-agent',
+        execution_attestation: {
+          expected_failure: { literal: 'expected actor assertion', matched: true },
+          termination: { exit_code: 1, timed_out: false },
+        },
+      },
+    });
+    expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\n');
+    expect(readFileSync(alternatePromptLog, 'utf8')).toContain('"execution_attestation":{');
+  });
+
   it('does not retry the same configured model as both primary and alternate', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
