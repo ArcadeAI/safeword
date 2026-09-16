@@ -64,6 +64,98 @@ const routes: ReviewRoute[] = [
 ];
 
 describe('Execution Plan semantic conformance admission', () => {
+  it.each(['one-coherent-change', 'several-ordered-changes'])(
+    'records an explicit slicing outcome for %s',
+    caseId => {
+      const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
+
+      expect(testCase?.expectation.verdict).toBe('approve');
+      expect(testCase?.execution_plan).toMatch(/^Decision: (?:one|multiple) pull requests?\.$/mu);
+    },
+  );
+
+  it('keeps an omitted slicing decision as a named denial case', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'omitted-slicing-decision',
+    );
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'request_changes',
+      finding_terms: ['slicing', 'decision'],
+    });
+  });
+
+  it('keeps two independent purposes as a named denial case', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'two-independent-purposes',
+    );
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'request_changes',
+      finding_terms: ['two', 'purpose'],
+    });
+  });
+
+  it('keeps unresolved authorization as a named denial case', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'unresolved-authorization-decision',
+    );
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'request_changes',
+      finding_terms: ['authorization'],
+    });
+  });
+
+  it('keeps ordered schema activation as a supported approval case', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'ordered-schema-before-reader',
+    );
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'approve',
+      slicing_decision: 'multiple_pull_requests',
+      slice_names: ['Schema', 'Reader'],
+    });
+  });
+
+  it('keeps line count alone as a named conceptual-scope denial', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'line-count-only-rationale',
+    );
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'request_changes',
+      finding_terms: ['conceptual', 'proof'],
+    });
+  });
+
+  it('keeps complete obligation ownership as an approval case', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'all-obligations-assigned',
+    );
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'approve',
+      slicing_decision: 'multiple_pull_requests',
+      slice_names: ['Contract owner', 'Release owner'],
+    });
+  });
+
+  it.each([
+    'missing-behavior-obligation',
+    'missing-migration-obligation',
+    'missing-rollout-obligation',
+    'missing-rollback-obligation',
+    'missing-documentation-obligation',
+    'missing-affected-surface-obligation',
+  ])('keeps %s as a named missing-obligation denial', caseId => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
+
+    expect(testCase?.expectation.verdict).toBe('request_changes');
+    expect(testCase?.expectation.finding_terms).toHaveLength(1);
+  });
+
   it('keeps every authoritative scenario example as its own case', () => {
     expect(EXECUTION_PLAN_CONFORMANCE_CASES.map(testCase => testCase.id)).toEqual(
       EXPECTED_CASE_IDS,

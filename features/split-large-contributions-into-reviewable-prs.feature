@@ -1,3 +1,7 @@
+# Semantic outcomes are exercised by the admitted Execution Plan conformance
+# corpus and its live reviewer matrix. The adjacent manifest binds each scenario
+# to the normally collected test that guards its exact corpus or CLI boundary.
+@proof.vitest
 Feature: Split large contributions into independently reviewable PRs
   Safeword turns an accepted approach into coherent PR slices without losing obligations or reopening design.
 
