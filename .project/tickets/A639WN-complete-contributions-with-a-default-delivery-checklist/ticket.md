@@ -147,3 +147,15 @@ one regeneration changed only embedded dependency paths and the immediate
 `generate:codex-plugin --check` passed. Ruled out nondeterministic bundling
 because two generations under the same real-directory setup were byte-stable;
 ruled out source drift because the worktree remained at the same commit.
+
+### Execution prerequisite crossed the command boundary
+
+The execution-prerequisite command reused Delivery Checklist admission by
+importing the delivery-checklist command module. That preserved one admission
+implementation, but violated the repository rule that command entry points
+remain independent and share behavior through a lower-level service.
+
+Confirmed by the diff-scoped dependency-cruiser audit, which reported the
+exact command-to-command edge. Ruled out a stale architecture rule because the
+same audit passed every other new command edge; ruled out duplicate public
+handler wiring because the edge is a direct source import, not CLI dispatch.
