@@ -82,6 +82,7 @@ interface HookInput {
  * `git commit-graph`, etc. The trailing (?!-) lookahead is what distinguishes them.
  */
 const GIT_COMMIT_COMMAND = /\bgit\s+commit\b(?!-)/;
+const FEATURE_SOURCE_PATTERN = /^\s*(?:\*\*)?Feature source:(?:\*\*)?\s*`(?<path>[^`]+)`/im;
 
 /**
  * Heuristic: a path is a test file if it matches *.test.* or *.spec.*, or lives
@@ -318,6 +319,63 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
       : 'The executable RED receipt check did not approve this scenario.';
   } catch {
     return 'The executable RED receipt check could not produce a valid result.';
+  }
+}
+
+function separateEvidenceMode(
+  ledgerContent: string,
+  scenario: string,
+): 'manual' | 'live' | undefined {
+  let activeScenario: string | undefined;
+  for (const line of ledgerContent.split(/\r?\n/)) {
+    const heading = line.match(/^#{2,6}\s+(?<scenario>.+)$/)?.groups?.scenario?.trim();
+    if (heading !== undefined) activeScenario = heading;
+    if (activeScenario !== scenario) continue;
+    const mode = line.match(/^- \[x\]\s+RED\s+skip:\s*(?<mode>manual|live)\b/i)?.groups?.mode;
+    if (mode === 'manual' || mode === 'live') return mode;
+  }
+  return undefined;
+}
+
+function featureScenarioHasTag(featureContent: string, scenario: string, tag: string): boolean {
+  const title = scenario.replace(/^Scenario(?: Outline)?:\s*/i, '');
+  let pendingTags: string[] = [];
+  for (const line of featureContent.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('@')) {
+      pendingTags = trimmed.split(/\s+/);
+      continue;
+    }
+    const match = trimmed.match(/^Scenario(?: Outline)?:\s*(?<title>.+)$/i);
+    if (match !== null) {
+      if (match.groups?.title?.trim() === title) return pendingTags.includes(tag);
+      pendingTags = [];
+      continue;
+    }
+    if (trimmed !== '' && !trimmed.startsWith('#')) pendingTags = [];
+  }
+  return false;
+}
+
+function usesSeparateEvidencePath(ledgerContent: string, scenario: string): boolean {
+  const mode = separateEvidenceMode(ledgerContent, scenario);
+  const source = FEATURE_SOURCE_PATTERN.exec(ledgerContent)?.groups?.path;
+  if (mode === undefined || source === undefined || nodePath.isAbsolute(source)) return false;
+
+  const featurePath = nodePath.resolve(projectDirectory, source);
+  const relativePath = nodePath.relative(projectDirectory, featurePath);
+  if (
+    relativePath === '..' ||
+    relativePath.startsWith(`..${nodePath.sep}`) ||
+    nodePath.extname(featurePath) !== '.feature' ||
+    !existsSync(featurePath)
+  ) {
+    return false;
+  }
+  try {
+    return featureScenarioHasTag(readFileSync(featurePath, 'utf8'), scenario, `@${mode}`);
+  } catch {
+    return false;
   }
 }
 
@@ -993,6 +1051,8 @@ if (isCanonicalTicketEdit) {
 
 if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 'tickets/')) {
   const transitions = collectNewTransitions(input, editedFile);
+  const priorLedgerContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedLedgerContent = nextContentAfterEdit(input.tool_input, priorLedgerContent);
   for (const transition of transitions) {
     if (transition.annotation === '') {
       deny(
@@ -1016,7 +1076,9 @@ if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 't
         );
       }
       const ledger = nodePath.relative(projectDirectory, editedFile);
-      const gateDenial = executableRedGateDenial(scenario, ledger);
+      const gateDenial = usesSeparateEvidencePath(proposedLedgerContent, scenario)
+        ? undefined
+        : executableRedGateDenial(scenario, ledger);
       if (gateDenial !== undefined) {
         deny(
           `Cannot mark GREEN without a fresh independent executable RED approval. ${gateDenial}`,
