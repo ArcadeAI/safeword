@@ -62,7 +62,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario: A discriminating guide-ablation pair validates independent proof
 
-- [ ] RED
+- [x] RED 6c8a58562
 - [ ] GREEN
 - [ ] REFACTOR
 
