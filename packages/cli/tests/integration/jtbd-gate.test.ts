@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -44,10 +45,11 @@ const TICKET_FRONTMATTER = [
 
 const PERSONAS = '# Personas\n\n## Platform Operator (PO)\n\n**Role:** Owns infra.\n';
 
-function runHook(input: object, hookPath = HOOK_PATH): HookResult {
+function runHook(input: object, hookPath = HOOK_PATH, projectRoot = process.cwd()): HookResult {
   const result = spawnSync('bun', [hookPath], {
     input: JSON.stringify(input),
     encoding: 'utf8',
+    env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
@@ -108,7 +110,11 @@ function jtbdSpec(jtbdBody: string): string {
   return `# Spec: x\n\n## Intent\n\nWhy.\n\n## Jobs To Be Done\n\n${jtbdBody}\n\n## Outcomes\n\nDone.\n`;
 }
 
-function attemptTestDefinitions(ticketDirectory: string, hookPath = HOOK_PATH): HookResult {
+function attemptTestDefinitions(
+  ticketDirectory: string,
+  hookPath = HOOK_PATH,
+  projectRoot = nodePath.resolve(ticketDirectory, '..', '..', '..'),
+): HookResult {
   return runHook(
     {
       tool_name: 'Write',
@@ -118,6 +124,7 @@ function attemptTestDefinitions(ticketDirectory: string, hookPath = HOOK_PATH): 
       },
     },
     hookPath,
+    projectRoot,
   );
 }
 
@@ -150,6 +157,25 @@ describe('intake-exit JTBD gate (Rule 7)', () => {
         '### x.PO1 — t\n\n**Persona:** Platform Operator (PO)\n\n> When I a, I want b, so I can c.\n\n#### x.PO1.AC1 — b is reliably delivered',
       ),
     );
+    expectHookAllow(attemptTestDefinitions(ticketDirectory));
+  });
+
+  it('resolves a deeply configured personas path from the host project root', () => {
+    const configuredPersonas = nodePath.join(projectRoot, 'config/product/people/personas.md');
+    mkdirSync(nodePath.dirname(configuredPersonas), { recursive: true });
+    writeFileSync(configuredPersonas, PERSONAS);
+    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectRoot, '.safeword/config.json'),
+      `${JSON.stringify({ paths: { personas: 'config/product/people/personas.md' } })}\n`,
+    );
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      jtbdSpec(
+        '### x.PO1 — t\n\n**Persona:** Platform Operator (PO)\n\n> When I a, I want b, so I can c.\n\n#### x.PO1.AC1 — b is reliably delivered',
+      ),
+    );
+
     expectHookAllow(attemptTestDefinitions(ticketDirectory));
   });
 

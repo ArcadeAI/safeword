@@ -30,10 +30,11 @@ import {
 
 /* eslint-disable unicorn/no-null -- State file uses JSON null values by design; re-enabled at EOF */
 
-// Absolute paths to hook scripts in safeword source tree
-const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const POST_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-quality.ts');
-const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
+// Exercise the source templates directly; generated/install mirrors are checked
+// separately by schema and parity tests.
+const PACKAGE_ROOT = nodePath.resolve(import.meta.dirname, '../..');
+const POST_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/post-tool-quality.ts');
+const PRE_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/pre-tool-quality.ts');
 
 /** Get per-session state file path */
 function stateFilePath(sessionId = 'test-session'): string {
@@ -462,11 +463,11 @@ describe('Quality Gates', () => {
         gate: 'phase:implement',
       });
 
-      const ticketPath = nodePath.join(
+      const metadataPath = nodePath.join(
         projectDirectory,
-        '.safeword-project/tickets/099-test/ticket.md',
+        '.safeword-project/tickets/099-test/notes.md',
       );
-      const result = runPreToolQuality(projectDirectory, 'Edit', ticketPath);
+      const result = runPreToolQuality(projectDirectory, 'Edit', metadataPath);
 
       // Should allow — .safeword-project/ files are exempt from gates
       expect(result.status).toBe(0);
@@ -1135,7 +1136,7 @@ describe('Quality Gates', () => {
       createTicket(projectDirectory, '099', 'test', { phase: 'intake', status: 'in_progress' });
 
       const metaPaths = [
-        '.safeword-project/tickets/099-test/ticket.md',
+        '.safeword-project/tickets/099-test/notes.md',
         '.claude/skills/bdd/DISCOVERY.md',
         '.safeword/hooks/pre-tool-quality.ts',
         '.cursor/settings.json',
@@ -1329,6 +1330,17 @@ describe('Quality Gates', () => {
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('scope');
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('out_of_scope');
       expect(output.hookSpecificOutput.permissionDecisionReason).toContain('done_when');
+    });
+
+    it('9.2a: ignores files whose basename only ends with test-definitions.md', () => {
+      const decoyPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/my-test-definitions.md',
+      );
+      const result = runPreToolQuality(projectDirectory, 'Write', decoyPath);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
     });
 
     it('9.2b: denies when scope fields are present but empty lists (9S6600)', () => {
@@ -1603,13 +1615,13 @@ describe('Quality Gates', () => {
     });
 
     it('9.10: non-test-definitions files in .safeword-project/ bypass prerequisite', () => {
-      const ticketPath = nodePath.join(
+      const metadataPath = nodePath.join(
         projectDirectory,
-        '.safeword-project/tickets/099-test/ticket.md',
+        '.safeword-project/tickets/099-test/notes.md',
       );
-      const result = runPreToolQuality(projectDirectory, 'Write', ticketPath);
+      const result = runPreToolQuality(projectDirectory, 'Write', metadataPath);
 
-      // ticket.md is not test-definitions.md — META_PATHS exemption applies
+      // notes.md is not test-definitions.md — META_PATHS exemption applies
       expect(result.status).toBe(0);
       expect(result.stdout).toBe('');
     });
@@ -1952,7 +1964,7 @@ describe('Quality Gates', () => {
         learningsNudgesPending: [learningPath],
       });
 
-      const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
+      const PROMPT_QUESTIONS = nodePath.join(PACKAGE_ROOT, 'templates/hooks/prompt-questions.ts');
 
       const result = spawnSync('bun', [PROMPT_QUESTIONS], {
         input: JSON.stringify({ session_id: 'test-session' }),
@@ -1982,7 +1994,7 @@ describe('Quality Gates', () => {
         gate: null,
       });
 
-      const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
+      const PROMPT_QUESTIONS = nodePath.join(PACKAGE_ROOT, 'templates/hooks/prompt-questions.ts');
 
       const result = spawnSync('bun', [PROMPT_QUESTIONS], {
         input: JSON.stringify({ session_id: 'test-session' }),

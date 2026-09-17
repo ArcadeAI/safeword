@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: ea4bd60c31a3ee3ec521b60ceb7c7dc29864353fab6c50ecef54678ac242e837
+fingerprint: 7c6da3677fffddd752f448dc679c64160d9c460b965f584b5e7e596b23e822c4
 ---
 
 # Architecture
@@ -9,7 +9,7 @@ fingerprint: ea4bd60c31a3ee3ec521b60ceb7c7dc29864353fab6c50ecef54678ac242e837
 
 ### content
 
-<!-- reconciled: ea4bd60c31a3ee3ec521b60ceb7c7dc29864353fab6c50ecef54678ac242e837 -->
+<!-- reconciled: 7c6da3677fffddd752f448dc679c64160d9c460b965f584b5e7e596b23e822c4 -->
 
 `src/content`
 
@@ -17,7 +17,7 @@ Contains the Starlight documentation collection for setup, workflows, configurat
 
 ### styles
 
-<!-- reconciled: ea4bd60c31a3ee3ec521b60ceb7c7dc29864353fab6c50ecef54678ac242e837 -->
+<!-- reconciled: 7c6da3677fffddd752f448dc679c64160d9c460b965f584b5e7e596b23e822c4 -->
 
 `src/styles`
 

@@ -739,7 +739,7 @@ esac
     writeFileSync(nodePath.join(directory, 'src/python_app/__init__.py'), '');
 
     const { envelope } = await planProject(directory);
-    const tools = ['ruff', 'mypy', 'deadcode', 'import-linter'];
+    const tools = ['ruff', 'mypy', 'deadcode', 'pip-audit', 'import-linter'];
 
     expectEffectsInclude(envelope, 'files', [
       { kind: 'update', target: 'pyproject.toml' },

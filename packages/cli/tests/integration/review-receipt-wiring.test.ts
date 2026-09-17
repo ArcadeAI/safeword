@@ -473,16 +473,16 @@ describe('review-receipt trust and aggregate budget', () => {
     writeFileSync(
       nodePath.join(pluginRoot, 'runtime', 'cli.js'),
       [
-        'await Bun.sleep(500);',
         'const id = process.argv[4];',
+        "await Bun.sleep(id === 'review-one' ? 1000 : 10000);",
         `process.stdout.write(JSON.stringify({ data: { ...${JSON.stringify(approvedEnvelope)}, review_id: id } }));`,
       ].join('\n'),
     );
-    const read = createReviewReceiptReader(projectRoot, 800);
+    const read = createReviewReceiptReader(projectRoot, 2500);
     const startedAt = Date.now();
 
     expect(read('review-one')?.reviewId).toBe('review-one');
     expect(read('review-two')).toBeUndefined();
-    expect(Date.now() - startedAt).toBeLessThan(1100);
+    expect(Date.now() - startedAt).toBeLessThan(3200);
   });
 });

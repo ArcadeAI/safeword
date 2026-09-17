@@ -400,7 +400,7 @@ if (args.includes(\`safeword@\${version}\`)) {
       expect(result.exitCode).toBe(2);
       expect(readSafewordConfig(temporaryDirectory).installedPacks).toContain('python');
       expect(result.stdout + result.stderr).toContain(
-        'Install Python tools: pip install ruff mypy deadcode',
+        'Install Python tools: pip install ruff mypy deadcode pip-audit',
       );
     });
   });
@@ -420,7 +420,7 @@ if (args.includes(\`safeword@\${version}\`)) {
       expect(result.stdout).not.toMatch(/installed.*python.*pack/i);
       expect(readSafewordConfig(temporaryDirectory).installedPacks).toContain('python');
       expect(result.stdout + result.stderr).toContain(
-        'Install Python tools: pip install ruff mypy deadcode',
+        'Install Python tools: pip install ruff mypy deadcode pip-audit',
       );
     });
   });

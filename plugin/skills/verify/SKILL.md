@@ -84,7 +84,7 @@ Run these in sequence, reporting each result:
 
 Per-language test/build/typecheck/bdd/deps commands all come from `safeword
 test-plan` — one source of truth (the same plan the stop-hook gate runs). Eval its
-shell plan in a child shell: an absent toolchain prints a visible skip, and a
+shell plan in a child shell: an absent toolchain prints a visible missing-tool failure, and a
 failing suite exits non-zero so the gate blocks. The Gherkin acceptance lane is
 resolved the same way (`--kind bdd`): cucumber-js / behave get their own lane,
 while godog and cucumber-rs fold into the Go/Rust test lanes and need no separate
@@ -217,7 +217,7 @@ record_verification_status
 
 # --- Supply-chain: JavaScript's package-manager audit, Python's `uv audit` or
 #     `pip-audit`, Go's pinned `govulncheck`, and Rust's cargo-deny advisories.
-#     A missing scanner prints a visible skip, never a false green. ---
+#     A missing scanner prints a visible failure, never a false green. ---
 plan_kind=deps
 run_plan
 lane_status=$?

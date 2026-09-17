@@ -9,18 +9,25 @@ import {
   sealClaudePluginCatalogue,
   writeClaudePluginCatalogue,
 } from '../src/claude-plugin/catalogue.js';
+import { generatePlanRubric } from './generate-plan-rubric.js';
+import { generateQualityRubric } from './generate-quality-rubric.js';
+import { generateRedRubric } from './generate-red-rubric.js';
+import { generateScenarioRubric } from './generate-scenario-rubric.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
-
-await import('./generate-scenario-rubric.js');
-await import('./generate-plan-rubric.js');
-await import('./generate-quality-rubric.js');
-await import('./generate-red-rubric.js');
-await import('./generate-red-rubric.js');
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
 const checkOnly = process.argv.includes('--check');
+const rubricResults = [
+  generateScenarioRubric(checkOnly),
+  generatePlanRubric(checkOnly),
+  generateQualityRubric(checkOnly),
+  generateRedRubric(checkOnly),
+];
+if (checkOnly && rubricResults.includes('stale')) {
+  throw new Error('Cannot check the Claude plugin while a generated runtime rubric is stale.');
+}
 const temporaryRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-plugin-'));
 const pluginRoot = temporaryRoot;
 // Testability seam: release-contract scenarios compare canonical generation to

@@ -13,10 +13,11 @@ export interface CheckboxAnnotation {
 export type AnnotationKind =
   { kind: 'none' } | { kind: 'skip'; reason: string } | { kind: 'sha'; value: string };
 
-// Matches a recognized step checkbox line, capturing the checkmark, the step
-// keyword, and any trailing annotation. Word boundary after the step keyword
-// prevents `REDish` / `cross-scenarios` from accidentally matching.
-const CHECKBOX_LINE = /^\s*- \[([ xX])\] (RED|GREEN|REFACTOR|cross-scenario)\b\s*(.*)$/;
+// Matches the canonical Safeword ledger shape (hyphen bullet and one space
+// around the checkbox), capturing the checkmark, step, and annotation. Other
+// valid Markdown list shapes intentionally earn no ledger credit. The word
+// boundary prevents `REDish` / `cross-scenarios` from accidentally matching.
+const CHECKBOX_LINE = /^\s*- \[([ xX])\] (RED|GREEN|REFACTOR|cross-scenario)\b\s*(.*)$/i;
 
 const SKIP_PREFIX = /^skip:(.*)$/i;
 
@@ -26,8 +27,10 @@ export function parseCheckboxAnnotation(line: string): CheckboxAnnotation | null
   // Regex guarantees these groups exist when match succeeds; defaults satisfy
   // tsconfig.json noUncheckedIndexedAccess without changing semantics.
   const [, mark = '', step = '', rest = ''] = match;
+  const normalizedStep =
+    step.toLowerCase() === 'cross-scenario' ? 'cross-scenario' : step.toUpperCase();
   return {
-    step: step as LedgerStep,
+    step: normalizedStep as LedgerStep,
     checked: mark.toLowerCase() === 'x',
     annotation: rest.trim(),
   };

@@ -33,6 +33,10 @@ import {
   createTrustedReviewerDirectory,
 } from '../review-fixtures.js';
 
+const PACKAGE_ROOT = nodePath.resolve(import.meta.dirname, '../..');
+const PRE_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/pre-tool-quality.ts');
+const SOURCE_CLI = nodePath.join(PACKAGE_ROOT, 'src/cli.ts');
+
 const COMPLETE_WORKER = String.raw`
 import { createHmac, randomBytes } from 'node:crypto';
 import { mkdirSync, openSync, closeSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
@@ -469,7 +473,7 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
-  it('reuses one approved receipt across Scenario Outline rows with identical proof inputs', async () => {
+  it('deduplicates identical executable-RED review requests', async () => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
       'reviewer_output: {',
@@ -828,6 +832,37 @@ describe('durable review jobs', () => {
       state: 'healthy',
       data: { command: 'review gate executable-red', status: 'approved' },
     });
+    const hookResult = spawnSync('bun', [PRE_TOOL_QUALITY], {
+      cwd,
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: cwd,
+        SAFEWORD_PLUGIN_CLI: SOURCE_CLI,
+      },
+      encoding: 'utf8',
+      input: JSON.stringify({
+        session_id: 'real-cli-receipt',
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: nodePath.join(cwd, execution.ledger),
+          old_string: [
+            '### Scenario: exact actor boundary',
+            '',
+            '- [x] RED abc1234',
+            '- [ ] GREEN',
+          ].join('\n'),
+          new_string: [
+            '### Scenario: exact actor boundary',
+            '',
+            '- [x] RED abc1234',
+            '- [x] GREEN def5678',
+          ].join('\n'),
+        },
+      }),
+    });
+    expect(hookResult.status, hookResult.stderr).toBe(0);
+    expect(hookResult.stdout).toBe('');
     expect(
       executableRedGate(cwd, execution.scenario, '.project/tickets/OTHER/test-definitions.md'),
     ).toMatchObject({
