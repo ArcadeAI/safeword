@@ -73,6 +73,10 @@ describe('remote workflow contract', () => {
         version: 6,
         normalizedSha256: 'ee986693fddf819f1d37843a8964428b1e43a7196d70e70798ea42a9b17881b1',
       },
+      {
+        version: 7,
+        normalizedSha256: '91b4bfc932a6c832730c7d57d32d6b89ae173fcc81028a5fc36d730857b5228a',
+      },
     ]);
     expect(fixtureHistory).toEqual(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1));
     expect(normalizedSha256(workflow)).toBe(
@@ -209,8 +213,8 @@ describe('remote workflow contract', () => {
     ],
     [
       'injects an expression into shell',
-      'run: npx --yes safeword@1.0.0-rc.3',
-      'run: echo "${{ inputs.lane }}" && npx --yes safeword@1.0.0-rc.3',
+      'run: npx --yes safeword@1.0.0-rc.4',
+      'run: echo "${{ inputs.lane }}" && npx --yes safeword@1.0.0-rc.4',
       'shell_env_only',
     ],
     [

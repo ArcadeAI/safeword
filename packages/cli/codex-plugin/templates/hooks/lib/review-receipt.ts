@@ -77,7 +77,9 @@ export interface ReviewReceipt {
  * Adding a specialist kind later narrows this fallback rather than widening it.
  */
 export function reviewKindForPhase(phase: string): string {
-  return phase === 'scenario-gate' || phase === 'plan-implementation' ? phase : 'quality-review';
+  return phase === 'scenario-gate' || phase === 'plan-implementation' || phase === 'plan-execution'
+    ? phase
+    : 'quality-review';
 }
 
 /** Levels that assert a coordinator ran and returned a verdict. */
@@ -171,6 +173,7 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
       target => target === 'test-definitions.md' || target.endsWith('.feature'),
     );
   if (phase === 'plan-implementation') return ticketTargets.includes('impl-plan.md');
+  if (phase === 'plan-execution') return ticketTargets.includes('execution-plan.md');
   if (phase === 'verify') return ticketTargets.includes('verify.md');
   if (phase === 'done') return ticketTargets.includes('ticket.md');
   if (phase === 'implement') {
