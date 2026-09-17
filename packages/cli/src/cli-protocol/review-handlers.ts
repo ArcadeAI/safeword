@@ -41,6 +41,20 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
       ],
     });
   }
+  if (rawKind === 'plan-execution') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_KIND_NOT_RUNNABLE',
+          message:
+            'This Safeword version can verify existing plan-execution receipts but cannot start a new plan-execution review.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'review run', status: 'blocked', review_kind: rawKind },
+    });
+  }
   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   const targets = Array.isArray(rawTargets)
     ? rawTargets.filter((target): target is string => typeof target === 'string')

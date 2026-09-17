@@ -88,6 +88,16 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     expect(receiptGateVerdict(claim, approved).ok).toBe(false);
   });
 
+  it('accepts an existing Execution Plan approval for the plan-execution exit', () => {
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'plan-execution' }), {
+        ...approved,
+        kind: 'plan-execution',
+        targets: [`.project/tickets/${TICKET}/execution-plan.md`],
+      }),
+    ).toEqual({ ok: true });
+  });
+
   it.each([
     ['define-behavior', 'quality-review'],
     ['scenario-gate', 'scenario-gate'],
@@ -232,7 +242,7 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
   );
 
   it('still demands the specialist kind where one exists', () => {
-    for (const phase of ['scenario-gate', 'plan-implementation']) {
+    for (const phase of ['scenario-gate', 'plan-implementation', 'plan-execution']) {
       const claim = claimFor({ phase });
       const generic = receiptGateVerdict(claim, {
         ...approved,
