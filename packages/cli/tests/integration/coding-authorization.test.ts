@@ -408,10 +408,6 @@ describe('coding authorization', () => {
   });
 
   it('identifies every stable authorization input but ignores checklist progress', async () => {
-    const baselineRoot = await featureFixture(true);
-    const baseline = await codingAuthorization(baselineRoot);
-    const baselineIdentity = authorizationIdentity(baseline);
-
     const mutations: {
       name: string;
       apply(root: string): void;
@@ -506,9 +502,10 @@ describe('coding authorization', () => {
 
     for (const mutation of mutations) {
       const root = await featureFixture(true);
+      const before = await codingAuthorization(root);
       mutation.apply(root);
-      const changed = await codingAuthorization(root);
-      expect(authorizationIdentity(changed), mutation.name).not.toBe(baselineIdentity);
+      const after = await codingAuthorization(root);
+      expect(authorizationIdentity(after), mutation.name).not.toBe(authorizationIdentity(before));
     }
 
     const approvalRoot = await featureFixture(true, true);
