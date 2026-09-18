@@ -94,8 +94,6 @@ When a required dependency is already authorized by the manifest but missing loc
 
 A genuine boundary retains the blocked step and gives its exact recovery action before the evidence:
 
-When reporting a boundary to a Non-Technical Builder, name the exact decision needed to resume in plain language and omit internal workflow-stage names.
-
 - At an authority boundary during implementation, stop at implementation without advancing; request the required human decision.
 - At an authority boundary during verification, stop at verification without advancing; request the required human decision, then report the blocking evidence.
 - At a safety boundary during verification, stop at verification without advancing; approve the exact risky operation, then report the blocking evidence.
