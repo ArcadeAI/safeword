@@ -112,7 +112,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 691edcfff
 - [x] GREEN 4eed8f441
-- [ ] REFACTOR
+- [x] REFACTOR skip: the implementation row reuses the shared boundary list without a second mechanism
 
 ### Scenario: An unauthorized missing dependency stops for a decision
 
