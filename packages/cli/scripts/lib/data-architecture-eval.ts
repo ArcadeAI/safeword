@@ -124,17 +124,39 @@ function bindingDiagnostics(input: AblationPairInput): string[] {
 function preservedLabelDiagnostics(input: AblationPairInput): string[] {
   return input.preservedDecisionIds.flatMap(decisionId => {
     const label = `[${decisionId}]`;
-    return input.canonicalGuide.includes(label) && input.storedAblatedGuide.includes(label)
+    if (!input.canonicalGuide.includes(label))
+      return [`Canonical guide does not define preserved decision label ${decisionId}.`];
+    return input.storedAblatedGuide.includes(label)
       ? []
       : [`Ablation does not preserve decision label ${decisionId}.`];
   });
 }
 
-function responseDiagnostics(input: AblationPairInput): string[] {
+function forbiddenResponseDiagnostics(
+  response: EvaluationResponse,
+  rubric: EvaluationRubric,
+): string[] {
   return [
-    ...(responsePasses(input.fullGuideRecord.response, input.rubric)
-      ? []
-      : ['Full-guide response does not satisfy the evaluation rubric.']),
+    ...rubric.forbiddenDecisionIds
+      .filter(id => response.decisionIds.includes(id))
+      .map(id => `Full-guide response contains forbidden decision ${id}.`),
+    ...rubric.forbiddenProofFactIds
+      .filter(id => response.proofFactIds.includes(id))
+      .map(id => `Full-guide response contains forbidden proof fact ${id}.`),
+  ];
+}
+
+function responseDiagnostics(input: AblationPairInput): string[] {
+  const forbiddenDiagnostics = forbiddenResponseDiagnostics(
+    input.fullGuideRecord.response,
+    input.rubric,
+  );
+  return [
+    ...forbiddenDiagnostics,
+    ...(!responsePasses(input.fullGuideRecord.response, input.rubric) &&
+    forbiddenDiagnostics.length === 0
+      ? ['Full-guide response does not satisfy the evaluation rubric.']
+      : []),
     ...(responsePasses(input.ablatedGuideRecord.response, input.rubric)
       ? ['Ablated response still satisfies the evaluation rubric.']
       : []),

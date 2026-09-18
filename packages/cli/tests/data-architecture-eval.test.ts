@@ -101,6 +101,35 @@ describe('data architecture guide evaluation', () => {
     });
   });
 
+  it.each([
+    {
+      name: 'missing transform markers',
+      canonicalGuide: guide.replaceAll(
+        /<!-- data-architecture-ablation:independent-proof:(?:start|end) -->\n?/g,
+        '',
+      ),
+    },
+    {
+      name: 'duplicate transform markers',
+      canonicalGuide: `${guide}\n<!-- data-architecture-ablation:independent-proof:start -->`,
+    },
+  ])('rejects a canonical guide with $name', ({ canonicalGuide }) => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(canonicalGuide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Canonical guide does not define one independent-proof transform.'],
+    });
+  });
+
   it('rejects a pair when the ablated response still satisfies the rubric', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
@@ -279,6 +308,27 @@ describe('data architecture guide evaluation', () => {
     });
   });
 
+  it('distinguishes a missing canonical decision label from ablation drift', () => {
+    const guideWithoutLabel = guide.replace(' [decision.core.independent-proof]', '');
+    const ablatedGuideWithoutLabel = ablatedGuide.replace(' [decision.core.independent-proof]', '');
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guideWithoutLabel,
+      storedAblatedGuide: ablatedGuideWithoutLabel,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guideWithoutLabel, fullResponse),
+      ablatedGuideRecord: record(ablatedGuideWithoutLabel, ablatedResponse),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: [
+        'Canonical guide does not define preserved decision label decision.core.independent-proof.',
+      ],
+    });
+  });
+
   it('rejects a pair whose recorded guide hash is stale', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
@@ -332,7 +382,9 @@ describe('data architecture guide evaluation', () => {
 
     expect(result).toEqual({
       accepted: false,
-      diagnostics: ['Full-guide response does not satisfy the evaluation rubric.'],
+      diagnostics: [
+        'Full-guide response contains forbidden proof fact proof.generated.sibling-output.',
+      ],
     });
   });
 });

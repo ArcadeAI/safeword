@@ -55,3 +55,18 @@ last_modified: 2026-09-13T22:52:33.607Z
 - 2026-09-14T01:02:00.000Z Define behavior: derived eight dimensions and authored fourteen representative scenarios across seven Rules, including one rejection path per Rule and the nine cold-start cases.
 - 2026-09-16T16:27:00.000Z Scenario gate: user approved sixteen independently reviewed scenarios after prompt-isolation, positive-ablation, and deterministic-record false-pass paths were closed.
 - 2026-09-16T16:45:00.000Z Plan implementation: selected a dependency-free, content-bound corpus with separate cold-start recording and deterministic verification; five slices across four components, no ADR and no split.
+
+## Root Cause
+
+The executable-RED retry was inadmissible because another checkout held the shared package-test
+lock, so Vitest never started and the expected assertion failure did not match. The independent
+review route itself was healthy: Claude Opus completed with cross-agent provenance. Once the lock
+released, focused RED runs exposed two verifier defects behind the review findings:
+`JSON.stringify` treated equivalent object key orders as different, and forbidden rubric entries
+collapsed into the same generic set-mismatch diagnostic.
+
+Confirmed by review record `d3d87b87-2db9-4f49-a459-7a8a3da3200c` plus focused failing tests for
+reordered decoding configuration, reordered rubric properties, and a forbidden proof fact. Ruled
+out authentication and reviewer launch failure because the retry reached a completed independent
+verdict; ruled out a stale lock because the recorded owner PID was an active Vitest process in the
+named checkout.
