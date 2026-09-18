@@ -124,7 +124,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 9281f9295
 - [x] GREEN 4322f6f9b
-- [ ] REFACTOR
+- [x] REFACTOR skip: one plain-language reporting rule covers every existing boundary without duplicating recovery text
 
 ### Scenario: Recovery state controls resumption at every established stop point
 
