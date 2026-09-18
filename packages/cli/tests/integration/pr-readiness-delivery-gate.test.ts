@@ -1,6 +1,6 @@
 /** Integration proof for the local Ready boundary (ticket PY73VN). */
 
-import { execFileSync, execSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -89,6 +89,8 @@ function unfinishedProject(): string {
 
 const TICKET_PATH = '.project/tickets/PY73VN-finish-delivery-before-pr-readiness/ticket.md';
 const VERIFY_PATH = '.project/tickets/PY73VN-finish-delivery-before-pr-readiness/verify.md';
+const OTHER_TICKET_PATH = '.project/tickets/OTHER-unrelated-ticket/ticket.md';
+const OTHER_VERIFY_PATH = '.project/tickets/OTHER-unrelated-ticket/verify.md';
 
 function writeTicket(directory: string, phase: string, status: string): void {
   writeTestFile(
@@ -105,21 +107,6 @@ function writeTicket(directory: string, phase: string, status: string): void {
       '',
       '# Finish accepted changes before asking for PR review',
     ].join('\n'),
-  );
-}
-
-function writeCurrentHeadReceipt(directory: string): void {
-  try {
-    execFileSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd: directory, stdio: 'ignore' });
-  } catch {
-    execFileSync('git', ['add', '.'], { cwd: directory, stdio: 'ignore' });
-    execFileSync('git', ['commit', '-m', 'fixture'], { cwd: directory, stdio: 'ignore' });
-  }
-  const head = execSync('git rev-parse HEAD', { cwd: directory, encoding: 'utf8' }).trim();
-  writeTestFile(
-    directory,
-    '.project/readiness-ticket.json',
-    JSON.stringify({ schema_version: 1, ticket_id: 'PY73VN', head_sha: head }),
   );
 }
 
@@ -203,7 +190,11 @@ function runHostShellHook(
     : (JSON.parse(result.stdout) as ClaudeHookOutput | CursorHookOutput);
 }
 
-function runHostPostTool(host: Host, directory: string, editedPath = TICKET_PATH): void {
+function runHostPostTool(
+  host: Host,
+  directory: string,
+  editedPath = TICKET_PATH,
+): { activeTicket?: string | null } {
   const filePath = nodePath.join(directory, editedPath);
   const hook = HOST_POST_HOOKS[host];
   const input =
@@ -232,10 +223,9 @@ function runHostPostTool(host: Host, directory: string, editedPath = TICKET_PATH
     'OpenAI Codex': 'quality-state-codex-codex-test.json',
     Cursor: 'quality-state-cursor-cursor-test.json',
   }[host];
-  const state = JSON.parse(
-    readFileSync(nodePath.join(directory, '.project', stateFile), 'utf8'),
-  ) as { activeTicket?: string | null };
-  expect(state.activeTicket).toBeNull();
+  return JSON.parse(readFileSync(nodePath.join(directory, '.project', stateFile), 'utf8')) as {
+    activeTicket?: string | null;
+  };
 }
 
 function denialReason(host: Host, output: ClaudeHookOutput | CursorHookOutput): string {
@@ -293,6 +283,7 @@ describe('pull-request readiness delivery gate', () => {
       );
 
       expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('implementation');
       expect(denialReason(host, output)).toContain('complete the current scenario');
     },
   );
@@ -330,7 +321,8 @@ describe('pull-request readiness delivery gate', () => {
     host => {
       const directory = unfinishedProject();
       writeTicket(directory, 'done', 'done');
-      runHostPostTool(host, directory);
+      const state = runHostPostTool(host, directory);
+      expect(state.activeTicket).toBeNull();
 
       const output = runHostShellHook(host, directory, 'gh pr ready');
 
@@ -345,9 +337,12 @@ describe('pull-request readiness delivery gate', () => {
     host => {
       const directory = unfinishedProject();
       writeTicket(directory, 'done', 'done');
-      mkdirSync(nodePath.join(directory, VERIFY_PATH));
-      writeCurrentHeadReceipt(directory);
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
       runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket');
+      runHostPostTool(host, directory);
+      rmSync(nodePath.join(directory, VERIFY_PATH));
+      mkdirSync(nodePath.join(directory, VERIFY_PATH));
 
       const output = runHostShellHook(host, directory, 'gh pr ready');
 
@@ -446,6 +441,33 @@ describe('pull-request readiness delivery gate', () => {
       } else {
         expect(refreshed).toEqual({});
       }
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'does not refresh Ready evidence from another ticket verify artifact on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket');
+      runHostPostTool(host, directory);
+      writeTestFile(
+        directory,
+        OTHER_TICKET_PATH,
+        ['---', 'id: OTHER', 'type: task', 'phase: done', 'status: done', '---'].join('\n'),
+      );
+      writeTestFile(directory, OTHER_VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      commitAll(directory, 'advance head with unrelated ticket');
+
+      runHostPostTool(host, directory, OTHER_VERIFY_PATH);
+      clearSessionBindings(directory);
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('current commit');
+      expect(denialReason(host, output)).toContain('run verification again');
     },
   );
 

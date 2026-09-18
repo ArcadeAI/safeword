@@ -196,6 +196,18 @@ function frontmatterField(content: string, field: string): string | undefined {
   return content.match(new RegExp(`^${field}:\\s*(\\S+)`, 'm'))?.[1];
 }
 
+function isCompletedTicketVerifyArtifact(filePath: string, ticketId: string): boolean {
+  if (!isNamespacePath(filePath, 'tickets/') || nodePath.basename(filePath) !== 'verify.md') {
+    return false;
+  }
+  const ticketFile = boundTicketFileForArtifact(filePath);
+  if (ticketFile === undefined || !existsSync(ticketFile)) return false;
+  const content = readFileSync(ticketFile, 'utf8');
+  return (
+    frontmatterField(content, 'id') === ticketId && frontmatterField(content, 'status') === 'done'
+  );
+}
+
 // Active ticket binding (phase/TDD step no longer cached — derived at read time)
 // Exact-basename match (#673): a suffix check would let decoys like
 // `sub-ticket.md` shadow the folder's canonical ticket.md and bind to a
@@ -271,8 +283,8 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
 // the exact current HEAD without requiring a follow-up commit. A later unrelated
 // commit remains stale because only this explicit verification edit may refresh.
 if (
-  nodePath.basename(editedFile) === 'verify.md' &&
   state.recentCompletedTicket &&
+  isCompletedTicketVerifyArtifact(editedFile, state.recentCompletedTicket) &&
   finalizeReadinessReceipt(projectDirectory, state.recentCompletedTicket)
 ) {
   state.readinessReceiptPending = false;

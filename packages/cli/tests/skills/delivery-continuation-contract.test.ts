@@ -36,6 +36,7 @@ const prReadinessCopies = [
   '.safeword/skills/pr-readiness/SKILL.md',
   '.claude/skills/pr-readiness/SKILL.md',
   'packages/cli/codex-plugin/skills/pr-readiness/SKILL.md',
+  'plugin/skills/pr-readiness/SKILL.md',
 ];
 
 const unsuccessfulSteps = [

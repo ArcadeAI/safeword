@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9c18d7878d53bf203f7608aa3ed9716f03acaeba9d7ffdfb02b0f29138c90c4e"
+      "sha256": "2cff964bba8c32f2d96b6989f5e3f117f462b123bab2792f2747c4167e37514b"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "02d72630dc839b22b7d8bb591570d6b7679180367c16f40cfac3220cc587252c"
+      "sha256": "19d51ec4bb5d2db2b17550af7c69735d8e401fbd1179cdae340d5be814de29e5"
     },
     {
       "path": "runtime/event-groups.json",
@@ -455,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "4d2d68c44d0e14a075154a100a5c8f13b72b3bb0b407a15afcd8318551ef4371"
+      "sha256": "d54201739545057838ce9c567ce83d04f1ef533b4d1fb72e3feb13198fadc250"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",

@@ -4,12 +4,11 @@
 @proof.vitest
 Feature: Finish accepted changes before asking for PR review
 
-  Every scenario tagged for Claude Code, OpenAI Codex, and Cursor is executed
-  independently through each tagged host's installed Safeword workflow. A Then
-  that explicitly names an installed lifecycle hook asserts deterministic hook
-  behavior. "The workflow's next-step directive" is the canonical instruction
-  the agent applies at the named workflow transition; it is not an automatic
-  hook emission unless the Then explicitly says so.
+  Surface tags identify the host deliveries each scenario covers. A Then that
+  explicitly names an installed lifecycle hook asserts deterministic hook
+  behavior. "The workflow's next-step directive" is asserted across the tagged
+  hosts' installed guidance; it is not an automatic hook emission unless the
+  Then explicitly says so.
 
   @prodigy-flow.TBU1.PY73VN.R1
   Rule: prodigy-flow.TBU1.PY73VN.R1 — Successful TDD steps advance without routine prompts
@@ -22,7 +21,7 @@ Feature: Finish accepted changes before asking for PR review
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: GREEN advances through refactor to the next incomplete scenario
-      Given an accepted feature has reached GREEN with another scenario incomplete and Safeword's installed lifecycle hook active
+      Given an accepted feature has reached GREEN with another scenario incomplete
       When the agent completes the GREEN step successfully
       Then the workflow's next-step directive names refactor and the next incomplete scenario without asking whether to continue
 
@@ -42,7 +41,7 @@ Feature: Finish accepted changes before asking for PR review
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: Final scenario advances through verified ticket closure on every installed host
-      Given every scenario in an accepted feature is complete with Safeword's installed lifecycle hook active
+      Given every scenario in an accepted feature is complete
       When the agent exits implementation successfully
       Then the workflow's next-step directive names, in order, whole-ticket review, plan reconciliation, verification, audit, and ticket closure without asking whether to continue
 
@@ -137,7 +136,7 @@ Feature: Finish accepted changes before asking for PR review
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: A genuine boundary stops at the blocked step with exact recovery
-      Given an accepted delivery is advancing automatically through Safeword's installed lifecycle hooks and <observable condition>
+      Given an accepted delivery is advancing automatically and <observable condition>
       When a <boundary type> boundary blocks verification
       Then the agent stops at verification without advancing, and reports <recovery action> followed by the evidence for the block
 
@@ -150,13 +149,13 @@ Feature: Finish accepted changes before asking for PR review
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: A genuine boundary stops at implementation instead of verification
-      Given an accepted delivery is advancing automatically at implementation through Safeword's installed lifecycle hooks
+      Given an accepted delivery is advancing automatically at implementation
       When an authority boundary blocks implementation
       Then the agent stops at implementation without advancing and reports the required human decision
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: An unauthorized missing dependency stops for a decision
-      Given an accepted delivery is advancing automatically at verification through Safeword's installed lifecycle hooks
+      Given an accepted delivery is advancing automatically at verification
       When verification requires a dependency that is absent from the package manifest
       Then the agent stops at verification without advancing and asks the Technical Builder to authorize the dependency change
 
