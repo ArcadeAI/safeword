@@ -57,6 +57,8 @@ async function mapWithConcurrency<Input, Output>(
 
 describe('public command machine contract', () => {
   it('executes every catalog fixture as deterministic JSON without prompting', async () => {
+    // This harness owns the offline guarantee for every fixture; individual
+    // catalog entries need only describe their canonical operands.
     const executions = await mapWithConcurrency(publicCommands, 2, async definition => {
       const directory = createTemporaryDirectory();
       const invoke = async () =>

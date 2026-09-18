@@ -627,7 +627,6 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
         ['impl-plan.md'],
         [],
         {
-          allowMissing: true,
           planContract: {
             author: authorContract,
             reviewer: {
@@ -638,7 +637,6 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
         },
       );
       const matching = prepareReviewPacket(project, 'plan-implementation', ['impl-plan.md'], [], {
-        allowMissing: true,
         planContract: { author: authorContract, reviewer: authorContract },
       });
       const matchingResult = await runHeadlessReviewer(

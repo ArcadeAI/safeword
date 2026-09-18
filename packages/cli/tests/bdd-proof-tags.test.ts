@@ -12,6 +12,7 @@ import {
   defaultVitestExclude,
   defaultVitestInclude,
 } from '../../../vitest.default-projects.js';
+import collectorVitestConfig from '../../retro-collector/vitest.config.js';
 import relayVitestConfig from '../../retro-relay/vitest.config.js';
 import { collectExecutableFeatureFiles } from '../src/utils/feature-source.js';
 import cliVitestConfig from '../vitest.config.js';
@@ -93,7 +94,7 @@ function onDiskProofManifestPaths(): string[] {
     for (const entry of entries) {
       const relativePath = nodePath.posix.join(directory, entry.name);
       if (entry.isDirectory()) {
-        if (!['.git', 'dist', 'node_modules'].includes(entry.name)) visit(relativePath);
+        if (!defaultExcludedPathSegments.has(entry.name)) visit(relativePath);
       } else if (entry.name.endsWith('.bdd-proof.json')) {
         manifests.push(relativePath);
       }
@@ -112,6 +113,10 @@ function readProofManifest(relativePath: string): ScenarioProofManifest {
   }
   if (!isRepoFeaturePath(manifest.feature)) {
     throw new TypeError(`${relativePath}: ${manifest.feature} must be a collected feature`);
+  }
+  const expectedFeature = relativePath.replace(/\.bdd-proof\.json$/u, '.feature');
+  if (manifest.feature !== expectedFeature) {
+    throw new TypeError(`${relativePath} must declare its matching feature ${expectedFeature}`);
   }
   for (const [scenario, registration] of Object.entries(manifest.scenarios)) {
     const registrations = proofRegistrations(registration);
@@ -636,19 +641,27 @@ function featureOrNestedHasTag(featurePath: string, tag: string): boolean {
 function proofRoutedScenarioNames(featurePath: string): string[] {
   const feature = parseFeature(featurePath).feature;
   if (feature === undefined) return [];
+  const featureManual = feature.tags.some(candidate => candidate.name === '@manual');
   const featureRouted = feature.tags.some(candidate => candidate.name === '@proof.vitest');
   return feature.children.flatMap(child => {
     if (child.scenario !== undefined) {
-      return featureRouted ||
-        child.scenario.tags.some(candidate => candidate.name === '@proof.vitest')
+      const manual =
+        featureManual || child.scenario.tags.some(candidate => candidate.name === '@manual');
+      return !manual &&
+        (featureRouted || child.scenario.tags.some(candidate => candidate.name === '@proof.vitest'))
         ? [child.scenario.name]
         : [];
     }
     if (child.rule === undefined) return [];
+    const ruleManual =
+      featureManual || child.rule.tags.some(candidate => candidate.name === '@manual');
     const ruleRouted = child.rule.tags.some(candidate => candidate.name === '@proof.vitest');
     return child.rule.children.flatMap(ruleChild => {
       const scenario = ruleChild.scenario;
+      const manual =
+        ruleManual || scenario?.tags.some(candidate => candidate.name === '@manual') === true;
       return scenario !== undefined &&
+        !manual &&
         (featureRouted ||
           ruleRouted ||
           scenario.tags.some(candidate => candidate.name === '@proof.vitest'))
@@ -707,12 +720,9 @@ describe('BDD proof provenance', () => {
   });
 
   it('keeps shared proof fan-in within the reviewed baseline', () => {
-    // Baseline measured after migrating the four legacy @manual Vitest-backed
-    // features, measured repository-wide by test declaration: 51 reused tests and a maximum fan-in
-    // of fourteen. The larger declaration-level ceiling makes whole-table and
-    // per-case reuse visible instead of treating them as unrelated tuples. These are
-    // ratchets—lower them as proofs become scenario-specific; do not raise them
-    // to accommodate new sharing.
+    // Current baseline after exposing the previously feature-level-@manual local-retro
+    // scenarios: 73 reused tests and a maximum fan-in of fourteen.
+    // These remain ratchets—lower them as proofs become scenario-specific.
     let sharedProofs = 0;
     let maximumFanIn = 0;
     const registrations = new Map<string, number>();
@@ -729,7 +739,7 @@ describe('BDD proof provenance', () => {
       maximumFanIn = Math.max(maximumFanIn, fanIn);
     }
 
-    expect(sharedProofs).toBeLessThanOrEqual(52);
+    expect(sharedProofs).toBeLessThanOrEqual(73);
     expect(maximumFanIn).toBeLessThanOrEqual(14);
   });
 
@@ -885,16 +895,22 @@ describe('BDD proof provenance', () => {
   });
 
   it('uses the same include and exclude rules as the shipped Vitest configs', () => {
-    expect(cliVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/cli'));
-    expect(cliVitestConfig.test?.exclude).toEqual([
-      ...configDefaults.exclude,
-      ...defaultVitestExclude('packages/cli'),
+    const shippedConfigs = new Map([
+      ['packages/cli', cliVitestConfig],
+      ['packages/retro-relay', relayVitestConfig],
+      ['packages/retro-collector', collectorVitestConfig],
     ]);
-    expect(relayVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/retro-relay'));
-    expect(relayVitestConfig.test?.exclude).toEqual([
-      ...configDefaults.exclude,
-      ...defaultVitestExclude('packages/retro-relay'),
-    ]);
+    expect(shippedConfigs.keys().toArray()).toEqual(
+      DEFAULT_VITEST_PROJECTS.map(project => project.root),
+    );
+    for (const project of DEFAULT_VITEST_PROJECTS) {
+      const config = shippedConfigs.get(project.root);
+      expect(config?.test?.include).toEqual(defaultVitestInclude(project.root));
+      expect(config?.test?.exclude).toEqual([
+        ...configDefaults.exclude,
+        ...defaultVitestExclude(project.root),
+      ]);
+    }
   });
 
   it('enumerates every workspace Vitest project in the shared collection contract', () => {

@@ -274,6 +274,14 @@ describe('readiness status wiring against the GitHub boundary', () => {
 
     expect(result).toMatchObject({
       state: 'healthy',
+      findings: [
+        {
+          code: 'PR_READINESS_REPORTED',
+          message:
+            'Published success readiness verdict: Readiness evidence is current for this head.',
+          severity: 'info',
+        },
+      ],
       data: {
         outcome: { headSha: HEAD, state: 'success', verdict: 'current' },
       },

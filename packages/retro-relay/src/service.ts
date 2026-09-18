@@ -178,25 +178,11 @@ export class RelayService {
       throw new RelayError(409, 'filing reconciliation is already in progress');
     }
     try {
-      const durableRequest = decryptPayload(
-        record.envelope,
-        record.scope,
-        record.payloadHash,
-        this.#payloadKeyring,
+      const { durableRequest, scan } = await this.#scanForRecovery(
+        record,
+        receiptId,
+        principal.subject,
       );
-      const scan = await this.#github.scanExactMarker({
-        installationId: record.scope.installationId,
-        repository: record.scope.repository,
-        marker: record.requestMarker,
-      });
-      if (!scan.complete) {
-        this.#store.recordReconciliation(receiptId, principal.subject, 'incomplete', 0);
-        throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
-          receiptId,
-          state: 'ambiguous',
-          disposition: 'incomplete',
-        });
-      }
       if (scan.matches.length !== 1) {
         const disposition = scan.matches.length === 0 ? 'zero' : 'multiple';
         this.#store.recordReconciliation(
@@ -228,7 +214,6 @@ export class RelayService {
     }
   }
 
-  // eslint-disable-next-line complexity -- Recovery keeps the raw-scan safety decisions explicit.
   async recover(
     principal: RelayPrincipal,
     receiptId: string,
@@ -249,25 +234,11 @@ export class RelayService {
       throw new RelayError(409, 'filing recovery is already in progress');
     }
     try {
-      const durableRequest = decryptPayload(
-        record.envelope,
-        record.scope,
-        record.payloadHash,
-        this.#payloadKeyring,
+      const { durableRequest, scan } = await this.#scanForRecovery(
+        record,
+        receiptId,
+        principal.subject,
       );
-      const scan = await this.#github.scanExactMarker({
-        installationId: record.scope.installationId,
-        repository: record.scope.repository,
-        marker: record.requestMarker,
-      });
-      if (!scan.complete) {
-        this.#store.recordReconciliation(receiptId, principal.subject, 'incomplete', 0);
-        throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
-          receiptId,
-          state: 'ambiguous',
-          disposition: 'incomplete',
-        });
-      }
       if (scan.matches.length === 1) {
         const [match] = scan.matches;
         requireMatchingRawEvidence(
@@ -411,6 +382,36 @@ export class RelayService {
     const claimed = this.#store.load(scope);
     if (claimed === undefined) throw new RelayError(404, 'filing receipt not found');
     return this.#processClaimed(claimed);
+  }
+
+  async #scanForRecovery(
+    record: DurableRequest,
+    receiptId: string,
+    actorSubject: string,
+  ): Promise<{
+    readonly durableRequest: FileRetroDraftRequest;
+    readonly scan: Awaited<ReturnType<GitHubRestClient['scanExactMarker']>>;
+  }> {
+    const durableRequest = decryptPayload(
+      record.envelope,
+      record.scope,
+      record.payloadHash,
+      this.#payloadKeyring,
+    );
+    const scan = await this.#github.scanExactMarker({
+      installationId: record.scope.installationId,
+      repository: record.scope.repository,
+      marker: record.requestMarker,
+    });
+    if (!scan.complete) {
+      this.#store.recordReconciliation(receiptId, actorSubject, 'incomplete', 0);
+      throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
+        receiptId,
+        state: 'ambiguous',
+        disposition: 'incomplete',
+      });
+    }
+    return { durableRequest, scan };
   }
 
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Preparation, dispatch, and ambiguity branches are the durable retry state machine.

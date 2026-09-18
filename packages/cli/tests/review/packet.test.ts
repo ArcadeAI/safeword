@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../../src/execution-plan/delivery-checklist.js';
+import type { RedExecutionAttestation } from '../../src/review/contract.js';
 import { prepareReviewPacket } from '../../src/review/packet.js';
 
 const temporaryDirectories: string[] = [];
@@ -52,6 +53,33 @@ function executionPlanWithDeliveryContract(): string {
   ].join('\n');
 }
 
+function executionAttestation(): RedExecutionAttestation {
+  const digest = 'a'.repeat(64);
+  return {
+    schema_version: 1,
+    argv: ['bun', 'test'],
+    cwd: '.',
+    evidence_class: 'pure-contract',
+    expected_failure: { literal: 'expected failure', matched: true },
+    timeout_ms: 1000,
+    source_fingerprint: digest,
+    environment: {
+      sha256: digest,
+      variable_count: 0,
+      platform: 'test',
+      arch: 'test',
+      node: 'test',
+    },
+    started_at: '2026-01-01T00:00:00.000Z',
+    finished_at: '2026-01-01T00:00:00.001Z',
+    duration_ms: 1,
+    // eslint-disable-next-line unicorn/no-null -- wire contract represents no signal as JSON null
+    termination: { exit_code: 1, signal: null, timed_out: false },
+    stdout: { excerpt: '', bytes: 0, sha256: digest, truncated: false },
+    stderr: { excerpt: 'expected failure', bytes: 16, sha256: digest, truncated: false },
+  };
+}
+
 afterEach(() => {
   for (const directory of temporaryDirectories) {
     rmSync(directory, { force: true, recursive: true });
@@ -67,6 +95,31 @@ describe('review packet containment and change accounting', () => {
     expect(() => prepareReviewPacket(root, 'executable-red', ['proof.md'])).toThrow(
       'Executable-red review requires a trusted execution attestation',
     );
+  });
+
+  it('allows fingerprint-only packet preparation before execution evidence exists', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'proof.md'), 'pending failing behavior\n');
+
+    const prepared = prepareReviewPacket(root, 'executable-red', ['proof.md'], [], {
+      allowMissingExecutableRedAttestation: true,
+    });
+    expect(prepared.packet.execution_attestation).toBeUndefined();
+    prepared.cleanup();
+  });
+
+  it('includes executable RED evidence and rejects it on other review kinds', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'proof.md'), 'failing proof\n');
+    const attestation = executionAttestation();
+    const prepared = prepareReviewPacket(root, 'executable-red', ['proof.md'], [], {
+      attestation,
+    });
+    expect(prepared.packet.execution_attestation).toEqual(attestation);
+    prepared.cleanup();
+    expect(() =>
+      prepareReviewPacket(root, 'quality-review', ['proof.md'], [], { attestation }),
+    ).toThrow('accepted only for executable-red');
   });
 
   it('treats only impl-plan.md as plan-review work and preserves supporting context', () => {
@@ -309,6 +362,22 @@ describe('review packet containment and change accounting', () => {
 
     expect(() => prepareReviewPacket(project, 'quality-review', ['invalid.md'])).toThrow(
       'not valid UTF-8 text',
+    );
+  });
+
+  it.each([
+    ['private key', ['-----BEGIN ', 'PRIVATE KEY-----\nfixture'].join('')],
+    ['AWS key', ['AWS_ACCESS_KEY_ID=AKIA', 'IOSFODNN7EXAMPLE'].join('')],
+    ['OpenAI key', ['OPENAI_API_KEY=sk-proj-', 'abcdefghijklmnopqrstuvwxyz012345'].join('')],
+    ['GitHub token', ['GITHUB_TOKEN=ghp_', 'abcdefghijklmnopqrstuvwxyz0123456789AB'].join('')],
+    ['Slack token', ['SLACK_TOKEN=xoxb-', '1234567890-abcdefghijklmnop'].join('')],
+    ['Google API key', ['GOOGLE_API_KEY=AIza', 'abcdefghijklmnopqrstuvwxyz123456789'].join('')],
+  ])('rejects a high-confidence %s before dispatch', (_label, credential) => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'secret.md'), credential);
+
+    expect(() => prepareReviewPacket(project, 'quality-review', ['secret.md'])).toThrow(
+      'high-confidence credential',
     );
   });
 

@@ -1,0 +1,271 @@
+{
+  "feature": "packages/cli/features/route-local-retros-through-server.feature",
+  "scenarios": {
+    "A fresh local installation submits through its installed harness": [
+      "packages/retro-relay/tests/cli-wiring.integration.test.ts",
+      "[ORR-001] routes the installed $harness surface through the persisted request"
+    ],
+    "Missing project identity prevents public submission": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "keeps public delivery disabled when project identity is %s"
+    ],
+    "Every transport outcome stays within the shared stop budget": [
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "routes a server-v3 finding only through the collector when it is %s"
+      ],
+      [
+        "packages/cli/src/retro/public-delivery.test.ts",
+        "abandons a collector handoff at the existing deadline without retrying"
+      ],
+      [
+        "packages/cli/src/retro/public-delivery.test.ts",
+        "bounds server-v3 transport by the remaining shared deadline"
+      ],
+      [
+        "packages/cli/src/retro/public-delivery.test.ts",
+        "contains a collector connection failure without retrying"
+      ]
+    ],
+    "An exhausted stop budget prevents transport": [
+      "packages/cli/src/retro/public-delivery.test.ts",
+      "persists server-v3 recovery without dialing when the shared deadline is exhausted"
+    ],
+    "Preparation and transport share one stop budget": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "excludes extraction but includes finding preparation in the shared delivery budget"
+    ],
+    "Default installation documents the sanitized feedback path": [
+      "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
+      "ships the public retro metadata, exclusion, and opt-out disclosure"
+    ],
+    "A project opt-out prevents collection": [
+      "packages/cli/src/retro/public-config.test.ts",
+      "honors an explicit public retrospective opt-out"
+    ],
+    "A lost receipt retries the persisted request": [
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "retries a retained server-v3 request on the next matching retro run"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "returns the original durable receipt for an exact retry after restart"
+      ]
+    ],
+    "Re-extracting the same transcript window reuses its durable identity": [
+      "packages/cli/src/retro/public-delivery.test.ts",
+      "reuses one atomic server-v3 identity and exact bytes after interruption"
+    ],
+    "A later transcript window is not suppressed by an earlier request": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "delivers later delta windows from one session under distinct public scopes"
+    ],
+    "Conflicting retry bytes preserve both recovery records": [
+      [
+        "packages/cli/src/retro/public-delivery.test.ts",
+        "preserves conflicting bytes for one session scope under distinct request identities"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "accepts only one of two concurrent byte-different bodies with one request identity"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "rejects byte-different reuse of an accepted session scope"
+      ]
+    ],
+    "Collector acceptance transfers recovery to the server": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "routes a server-v3 finding only through the collector when it is %s",
+      "accepted"
+    ],
+    "A legacy quarantine receipt preserves direct recovery": [
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "preserves every valid finding privately after public batch acceptance"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "keeps accepted %s quarantine records out of worker leases"
+      ]
+    ],
+    "A typed intake rejection preserves local diagnosis": [
+      "packages/cli/src/retro/public-delivery.test.ts",
+      "persists a typed collector rejection with the pending server-v3 recovery record"
+    ],
+    "A transport failure before acceptance preserves local recovery": [
+      [
+        "packages/cli/src/retro/public-delivery.test.ts",
+        "abandons a collector handoff at the existing deadline without retrying"
+      ],
+      [
+        "packages/cli/src/retro/public-delivery.test.ts",
+        "contains a collector connection failure without retrying"
+      ]
+    ],
+    "Exact authority markers suppress a duplicate create": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "recovers a post-create crash as ambiguous and reconciles from raw REST"
+    ],
+    "Non-authoritative evidence cannot suppress filing": [
+      [
+        "packages/retro-relay/tests/relay.integration.test.ts",
+        "files a fresh request despite %s",
+        "a sanitized MCP read"
+      ],
+      [
+        "packages/retro-relay/tests/relay.integration.test.ts",
+        "files a fresh request despite %s",
+        "a similar issue body without exact markers"
+      ],
+      [
+        "packages/retro-relay/tests/relay.integration.test.ts",
+        "files a fresh request despite %s",
+        "a lone request marker"
+      ]
+    ],
+    "The maximum-count relay-compatible batch is filed without truncation": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "accepts the largest relay-compatible collector batch without truncating its body"
+    ],
+    "The rendered-body boundary is accepted end to end": [
+      "packages/retro-collector/tests/worker.integration.test.ts",
+      "transfers collector acceptance through the real relay contract"
+    ],
+    "An oversized envelope is rejected before storage": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "rejects a %s %s envelope above the 262144-byte limit"
+    ],
+    "A malformed request identity is rejected before storage": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "rejects a well-formed non-v4 identity for v3 before persistence"
+    ],
+    "Prohibited request fields are rejected before storage": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "rejects v3 with %s before durable storage"
+    ],
+    "Public intake holds no GitHub filing authority": [
+      "packages/retro-collector/tests/packaged-collector.integration.test.ts",
+      "ships without private filing authority"
+    ],
+    "A claim crash is reclaimed and filed once": [
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "reports an expired collector lease as queued before it is reclaimed"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "prevents a stale lease token from mutating a reclaimed live lease"
+      ],
+      [
+        "packages/retro-collector/tests/worker.integration.test.ts",
+        "transfers collector acceptance through the real relay contract"
+      ]
+    ],
+    "Ambiguous creation follows raw-body ground truth": [
+      [
+        "packages/retro-relay/tests/relay.integration.test.ts",
+        "recovers a post-create crash as ambiguous and reconciles from raw REST"
+      ],
+      [
+        "packages/retro-relay/tests/relay.integration.test.ts",
+        "lets only an operator recover a complete zero-match with the reserved request marker"
+      ]
+    ],
+    "Incomplete ambiguity scan retains the request for reconciliation": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "fails closed when raw REST pagination is incomplete"
+    ],
+    "Lifecycle inspection returns metadata without payload": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "keeps lifecycle inspection payload-free and audits separate payload principals"
+    ],
+    "An ordinary operator credential cannot read raw payloads": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "keeps lifecycle inspection payload-free and audits separate payload principals"
+    ],
+    "An unauthenticated caller cannot inspect accepted work": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "denies anonymous access to private lifecycle, payload, and claim routes"
+    ],
+    "Break-glass payload access is audited": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "keeps lifecycle inspection payload-free and audits separate payload principals"
+    ],
+    "Authorized worker payload access is separately authenticated and audited": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "keeps lifecycle inspection payload-free and audits separate payload principals"
+    ],
+    "Cutover preserves a draft captured under the old route": [
+      [
+        "packages/cli/tests/hooks/retro-draft-spool.test.ts",
+        "drains matching signatures only from the owning route"
+      ],
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "a valid token files all drafts and drains the spool — no agent filing needed"
+      ]
+    ],
+    "Cutover routes a newly captured finding only through the server": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "routes a server-v3 finding only through the collector when it is %s"
+    ],
+    "Cursor host detection records truthful provenance": [
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "classifies Cursor managed, local, and indeterminate runtime evidence conservatively"
+      ],
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "never selects the local server route for indeterminate host provenance"
+      ],
+      [
+        "packages/cli/src/retro/local-retro-readiness.test.ts",
+        "requires positive host-bound Cursor Desktop lifecycle evidence"
+      ]
+    ],
+    "Admitted work drains oldest-first within filing quotas": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "leases the oldest eligible request and leaves newer work queued"
+    ],
+    "Configured filing quota controls admitted filing volume": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "persists global and per-project filing reservations across restarts"
+    ],
+    "Exhausted public intake rejects before storage": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "persists the public intake quota across collector restarts"
+    ],
+    "Prolonged filing quota exhaustion reaches an alerted terminal state": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "dead-letters and alerts work only after filing quota blocks it for 24 hours"
+    ],
+    "Complete truthful evidence enables global cutover": [
+      "packages/cli/tests/retro/local-retro-production-verifier.test.ts",
+      "accepts complete production evidence with a trailing issue-body newline"
+    ],
+    "Managed Cursor evidence cannot satisfy local readiness": [
+      "packages/cli/tests/retro/local-retro-production-verifier.test.ts",
+      "fails closed for %s evidence",
+      "managed-host"
+    ],
+    "Missing harness evidence keeps the global cutover disabled": [
+      "packages/cli/src/retro/local-retro-readiness.test.ts",
+      "requires evidence for every supported harness"
+    ],
+    "Indeterminate Cursor provenance cannot satisfy local readiness": [
+      "packages/cli/tests/retro/local-retro-production-verifier.test.ts",
+      "fails closed for %s evidence",
+      "unknown-host"
+    ],
+    "Mismatched build ancestry cannot satisfy readiness": [
+      "packages/cli/tests/retro/local-retro-production-verifier.test.ts",
+      "rejects evidence outside the release commit ancestry"
+    ],
+    "A fault artifact without recovery evidence cannot enable cutover": [
+      "packages/cli/src/retro/local-retro-readiness.test.ts",
+      "requires every production fault recovery artifact"
+    ]
+  }
+}

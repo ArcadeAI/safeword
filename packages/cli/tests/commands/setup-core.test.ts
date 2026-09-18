@@ -29,7 +29,7 @@ const languageFixtures: [string, (directory: string) => void][] = [
     'Python',
     directory => {
       createPythonProject(directory);
-      writeTestFile(directory, 'requirements.txt', 'ruff\nmypy\ndeadcode\n');
+      writeTestFile(directory, 'requirements.txt', 'ruff\nmypy\ndeadcode\npip-audit\n');
     },
   ],
   ['Go', createGoProject],

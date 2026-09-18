@@ -5,33 +5,24 @@ import nodePath from 'node:path';
 
 import { hasSafewordProjectMarker } from '../../templates/hooks/lib/namespace-root.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { projectRuntimeHelperDefinition } from '../project-runtime-helpers.js';
 import { ensureTransientStateIgnore } from '../project-state.js';
 
-const HELPERS = {
-  'audit-principle-trace': ['templates/hooks/audit-principle-trace.ts', 'bun'],
-  'cleanup-zombies': ['templates/scripts/cleanup-zombies.sh', 'bash'],
-  'closeout-cleanup': ['templates/scripts/closeout-cleanup.ts', 'bun'],
-  'resolve-verify-ticket': ['templates/hooks/resolve-verify-ticket.ts', 'bun'],
-  'write-review-stamp': ['templates/hooks/write-review-stamp.ts', 'bun'],
-} as const;
-
-function helperDefinition(
-  helper: string | undefined,
-): (typeof HELPERS)[keyof typeof HELPERS] | undefined {
-  switch (helper) {
-    case 'audit-principle-trace':
-    case 'cleanup-zombies':
-    case 'closeout-cleanup':
-    case 'resolve-verify-ticket':
-    case 'write-review-stamp': {
-      return HELPERS[helper];
-    }
-    case undefined:
-    default: {
-      return undefined;
-    }
-  }
+interface ProjectRuntimeRunnerResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
 }
+
+type ProjectRuntimeRunner = (
+  runtime: string,
+  args: readonly string[],
+  options: {
+    cwd: string;
+    encoding: 'utf8';
+    env: NodeJS.ProcessEnv;
+  },
+) => ProjectRuntimeRunnerResult;
 
 function completedResult(
   helper: string,
@@ -66,12 +57,32 @@ function packageRoot(): string {
     : nodePath.resolve(import.meta.dirname, '../..');
 }
 
+function packagedCliPath(): string {
+  const runtimeDirectory = nodePath.basename(import.meta.dirname);
+  return nodePath.join(
+    packageRoot(),
+    runtimeDirectory === 'runtime' ? 'runtime' : 'dist',
+    'cli.js',
+  );
+}
+
+function projectRuntimeEnvironment(projectDirectory: string): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: projectDirectory,
+  };
+  const reentrantCli = packagedCliPath();
+  if (existsSync(reentrantCli)) environment.SAFEWORD_PLUGIN_CLI = reentrantCli;
+  return environment;
+}
+
 export function runProjectRuntime(
   cwd: string,
   helper: string | undefined,
   args: readonly string[],
+  runner: ProjectRuntimeRunner = spawnSync,
 ): Promise<CliResult> {
-  const definition = helperDefinition(helper);
+  const definition = projectRuntimeHelperDefinition(helper);
   if (helper === undefined || definition === undefined)
     return Promise.resolve(
       createResult({
@@ -119,10 +130,10 @@ export function runProjectRuntime(
     );
   if (helper === 'write-review-stamp')
     ensureTransientStateIgnore(projectDirectory, 'skill-invocations.log');
-  const result = spawnSync(runtime, [script, ...args], {
+  const result = runner(runtime, [script, ...args], {
     cwd: projectDirectory,
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+    env: projectRuntimeEnvironment(projectDirectory),
   });
   return Promise.resolve(completedResult(helper, result.status, result.stdout, result.stderr));
 }

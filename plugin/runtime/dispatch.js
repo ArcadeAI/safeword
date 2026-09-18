@@ -7,6 +7,7 @@ import {
   readFileSync as readFileSync6,
   realpathSync as realpathSync3,
 } from 'node:fs';
+import { homedir as homedir2 } from 'node:os';
 import nodePath10 from 'node:path';
 
 // ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
@@ -1766,8 +1767,10 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
         'c88ae677ac877afca87745f13403f06e7c2dab86efc7934979d430e03837bf76',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
+      '.claude/skills/bdd/PLAN_EXECUTION.md':
+        '1bcea74c9b15646c3129d2799448ace218e882ad1e07edfd7bc835d2c429391a',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '65adc18b1cdccf5d53ba5aee6b5419bde1e5ac038d176ed8caea541b51c805fc',
+        '1e6dde2a5208fab92ac177f768f1b888a3d8386a73a10cea994bb0b66181faba',
       '.claude/skills/bdd/SCENARIOS.md':
         'd2d262f7b88d47df8d7d6da5cddbf78574252ce3eb1a25f4b978a41c42290cb8',
       '.claude/skills/bdd/SKILL.md':
@@ -1775,7 +1778,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '30f183c0c778db38f638d765e645d3dbfa11cba811730c91f41fd8393c69b6fd',
+        'b6291a181596f13f3bee61fd68b2151019c4bd123d016934e3dc39047bcd94bc',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -1803,7 +1806,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/pr-readiness/SKILL.md':
         '0e289cf59b11c72486d7d7fd9f73d5ff94f2ccccc1b116b0c77339c0cc9e949a',
       '.claude/skills/quality-review/SKILL.md':
-        '46189c47ba851e20688c9668a2129bf0f8efa6188c5337c66add87aec566ae59',
+        '61f9053cdd8007f2ebfd17684fb18cf8dfd068fbcdfbc85ad7ff7ec565a81461',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
@@ -1811,7 +1814,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         'da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb',
       '.claude/skills/review-spec/SKILL.md':
-        'e1b99b31dce6161d3504fb5c6f69c818b858addfac0c5bbd756222d06aab1a58',
+        '575e0b78c674ce3091168b7e644f7fa1807e981b0204800ad2f70a506ba8f478',
       '.claude/skills/self-review/SKILL.md':
         '7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc',
       '.claude/skills/spike/SKILL.md':
@@ -1823,7 +1826,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a',
       '.claude/skills/verify/SKILL.md':
-        'c3462a5b376129cfe6777e5603446f30a96c4f0bad8512336197b0da1bab94c4',
+        'd64a482998e9a546bbb6b7b6dbb1373a9153a9e806419098892744c92d614d04',
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':
@@ -1849,11 +1852,11 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '7980d412469904b4a28ca02cec5ef988d07c42e5642bbe1fb2eb130e46531632',
+        '8d3eb99c13ab363a97c9bc56df045d160ff7e970546ad4d8453836ce24534daa',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
-        '0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462',
+        '9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39',
       '.safeword/hooks/prompt-retro-nudge.ts':
         '78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457',
       '.safeword/hooks/prompt-timestamp.ts':
@@ -3989,6 +3992,7 @@ var CLAUDE_ADOPTED_LEGACY_STATE = [
 var CLAUDE_NATIVE_REQUIRED_ASSETS = [
   '.claude-plugin/plugin.json',
   'hooks/hooks.json',
+  'resources/SAFEWORD.md',
   'runtime/cli.js',
   'runtime/dispatch.js',
   'runtime/event-groups.json',
@@ -5378,16 +5382,26 @@ function acceptedLegacyHookFile(value, projectRoot) {
   return Object.values(value).some(child => acceptedLegacyHookFile(child, projectRoot));
 }
 function viableLegacyAuthority(event, projectRoot) {
-  const settings = parseSettings(nodePath10.join(projectRoot, '.claude/settings.json'));
-  const hooks = settings?.hooks;
-  if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
-  const entries = hooks[event];
-  return (
-    Array.isArray(entries) &&
-    entries.some(
-      entry => isAcceptedHistoricalHook(event, entry) && acceptedLegacyHookFile(entry, projectRoot),
-    )
-  );
+  const userConfigDirectory =
+    process.env.CLAUDE_CONFIG_DIR ?? nodePath10.join(homedir2(), '.claude');
+  const settingsPaths = /* @__PURE__ */ new Set([
+    nodePath10.join(projectRoot, '.claude/settings.json'),
+    nodePath10.join(projectRoot, '.claude/settings.local.json'),
+    nodePath10.join(userConfigDirectory, 'settings.json'),
+  ]);
+  return [...settingsPaths].some(settingsPath => {
+    const settings = parseSettings(settingsPath);
+    const hooks = settings?.hooks;
+    if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
+    const entries = hooks[event];
+    return (
+      Array.isArray(entries) &&
+      entries.some(
+        entry =>
+          isAcceptedHistoricalHook(event, entry) && acceptedLegacyHookFile(entry, projectRoot),
+      )
+    );
+  });
 }
 function requiredEnvironment(name) {
   const value = process.env[name];
@@ -5442,7 +5456,11 @@ function verifyInventory(pluginRoot, identity) {
   if (inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new Error('Safeword Claude plugin inventory is malformed.');
   }
+  for (const asset of inventory.assets) assertSafeInventoryAsset(asset);
   const inventoryPaths = new Set(inventory.assets.map(asset => asset.path));
+  if (inventoryPaths.size !== inventory.assets.length) {
+    throw new Error('Safeword Claude plugin inventory contains duplicate asset paths.');
+  }
   for (const requiredPath of CLAUDE_NATIVE_REQUIRED_ASSETS) {
     if (!inventoryPaths.has(requiredPath)) {
       throw new Error(
@@ -5484,37 +5502,9 @@ function writeDurableRecord(pluginData, filename, record2) {
     },
   );
 }
-function setupRanForSession(pluginData, sessionId, pluginRoot, projectRoot, identity) {
-  if (sessionId === void 0) return false;
-  const path = nodePath10.join(pluginData, 'cache-smoke-v1.json');
-  if (!existsSync7(path)) return false;
-  try {
-    const smoke = JSON.parse(readFileSync6(path, 'utf8'));
-    const expected = {
-      schema_version: 1,
-      event: 'Setup',
-      session_id: sessionId,
-      project_root: projectRoot,
-      plugin_version: identity.plugin_version,
-      hook_manifest_sha256: identity.hook_manifest_sha256,
-      inventory_sha256: identity.inventory_sha256,
-      canonical_plugin_root: pluginRoot,
-    };
-    return Object.entries(expected).every(([key, value]) => smoke[key] === value);
-  } catch {
-    return false;
-  }
-}
 function recordExecutionProof(event, pluginRoot, identity, input) {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
-  const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
-  if (
-    event === 'SessionStart' &&
-    setupRanForSession(pluginData, input.session_id, pluginRoot, projectRoot, identity)
-  ) {
-    return;
-  }
   writeDurableRecord(claudeProofDirectory(), `${claudeProjectDigest(projectRoot)}.json`, {
     schema_version: 2,
     project_root: projectRoot,
@@ -5568,9 +5558,18 @@ var TOOL_EVENTS = /* @__PURE__ */ new Set([
   'PreToolUse',
 ]);
 function eventEntryMatches(event, entry, input) {
-  if (entry.matcher === void 0 || entry.matcher === '') return true;
+  if (entry.matcher === void 0 || ['', '*'].includes(entry.matcher)) return true;
   const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
-  return entry.matcher.split('|').includes(subject ?? '');
+  if (subject === void 0) return false;
+  const exactMatcherCharacters =
+    event === 'FileChanged' || event === 'StopFailure' ? /^[\w|]+$/u : /^[\w\- ,|]+$/u;
+  if (exactMatcherCharacters.test(entry.matcher)) {
+    return entry.matcher
+      .split(/[|,]/u)
+      .map(candidate => candidate.trim())
+      .includes(subject);
+  }
+  return new RegExp(entry.matcher, 'u').test(subject);
 }
 function readEventEntries(event, eventGroupsContent) {
   const value = JSON.parse(eventGroupsContent.toString('utf8'));
@@ -5585,7 +5584,7 @@ function readEventEntries(event, eventGroupsContent) {
 }
 function appendUniqueText(current, next) {
   if (typeof current !== 'string' || current === '') return next;
-  if (current === next || current.split('\n').includes(next)) return current;
+  if (current.includes(next)) return current;
   return `${current}
 ${next}`;
 }
@@ -5645,6 +5644,9 @@ function parseHookOutput(event, target, trimmed) {
   try {
     const parsed = JSON.parse(trimmed);
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      if (event !== 'SessionStart' && event !== 'UserPromptSubmit') {
+        throw new TypeError(`Safeword cannot safely aggregate plain ${event} hook output.`);
+      }
       const output = specificOutput(target, event);
       output.additionalContext = appendUniqueText(output.additionalContext, trimmed);
       return void 0;
@@ -5652,6 +5654,15 @@ function parseHookOutput(event, target, trimmed) {
     return parsed;
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
+    if (event !== 'SessionStart' && event !== 'UserPromptSubmit') {
+      throw new TypeError(`Safeword cannot safely aggregate unparseable ${event} hook output.`, {
+        cause: error,
+      });
+    }
+    process.stderr.write(
+      `Safeword received unparseable ${event} sibling-hook output; treating it as context, not authorization.
+`,
+    );
     const output = specificOutput(target, event);
     output.additionalContext = appendUniqueText(output.additionalContext, trimmed);
     return void 0;
@@ -5850,9 +5861,9 @@ function runEventHooks(event, hooks, standardInput, response) {
     if (hook.type !== 'command' || typeof hook.command !== 'string') {
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
-    const result = runFunctionalCommand(['bash', '-lc', hook.command], standardInput, true);
+    const result = runFunctionalCommand(['bash', '-c', hook.command], standardInput, true);
     if (result.status !== 0) {
-      return event === 'UserPromptSubmit' ? result.status : 2;
+      return 2;
     }
     mergeHookOutput(event, response, result.stdout);
   }
@@ -5865,7 +5876,17 @@ function runEventGroup(event, eventGroupsContent, hookInput, standardInput) {
     if (!eventEntryMatches(event, entry, hookInput)) continue;
     const hooks = entry.hooks ?? [];
     const status = runEventHooks(event, hooks, standardInput, response);
-    if (status !== 0) return { status, stdout: '' };
+    if (status !== 0) {
+      if (event === 'UserPromptSubmit') {
+        const priorReason = typeof response.reason === 'string' ? ` ${response.reason}` : '';
+        process.stderr.write(
+          `Safeword blocked prompt submission because a sibling hook failed; later checks did not run.${priorReason}
+`,
+        );
+        return { postExecutionEligible: false, status: 2, stdout: '' };
+      }
+      return { status, stdout: '' };
+    }
   }
   return {
     status: 0,
@@ -5885,7 +5906,11 @@ function functionalExecutionFailure(event, error) {
     return { status: 2, stdout: '' };
   }
   const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no combined Safeword hook result was applied.`;
-  return { status: 0, stdout: safeAppendMigrationAdvisory(event, '', advisory) };
+  return {
+    postExecutionEligible: false,
+    status: 0,
+    stdout: safeAppendMigrationAdvisory(event, '', advisory),
+  };
 }
 function parseHookInput(standardInput) {
   try {
@@ -5913,7 +5938,21 @@ function exposePackagedSafewordContext(pluginRoot) {
   const packagedSafewordPath = nodePath10.join(pluginRoot, 'resources', 'SAFEWORD.md');
   if (existsSync7(packagedSafewordPath)) {
     process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
+  } else {
+    delete process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
   }
+}
+function completeSuccessfulExecution(input) {
+  if (input.execution.status !== 0 || input.execution.postExecutionEligible === false) {
+    return input.execution;
+  }
+  return postExecutionLifecycle(
+    input.event,
+    input.pluginRoot,
+    input.identity,
+    input.hookInput,
+    input.execution,
+  );
 }
 function mainUnsafe(event, mode, command) {
   if (mode !== void 0 && mode !== '--' && mode !== '--event-group') {
@@ -5931,19 +5970,22 @@ function mainUnsafe(event, mode, command) {
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === void 0) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
-  let execution = executeConfiguredHooks({
+  const execution = completeSuccessfulExecution({
     event,
-    mode,
-    command,
-    eventGroupsContent,
+    pluginRoot,
+    identity,
     hookInput,
-    projectRoot,
-    standardInput,
+    execution: executeConfiguredHooks({
+      event,
+      mode,
+      command,
+      eventGroupsContent,
+      hookInput,
+      projectRoot,
+      standardInput,
+    }),
   });
-  if (execution.status === 0) {
-    execution = postExecutionLifecycle(event, pluginRoot, identity, hookInput, execution);
-    if (execution.stdout !== '') process.stdout.write(execution.stdout);
-  }
+  if (execution.status === 0 && execution.stdout !== '') process.stdout.write(execution.stdout);
   return execution.status;
 }
 function startupFailure(event, error) {
@@ -5961,11 +6003,11 @@ function startupFailure(event, error) {
 }
 function main() {
   const [event, mode, ...command] = process.argv.slice(2);
-  if (event === void 0) throw new Error('Claude hook event is required.');
   try {
+    if (event === void 0) throw new Error('Claude hook event is required.');
     return mainUnsafe(event, mode, command);
   } catch (error) {
-    return startupFailure(event, error);
+    return startupFailure(event ?? 'unknown', error);
   }
 }
 process.exitCode = main();

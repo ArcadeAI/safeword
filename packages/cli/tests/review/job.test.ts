@@ -34,6 +34,10 @@ import {
   createTrustedReviewerDirectory,
 } from '../review-fixtures.js';
 
+const PACKAGE_ROOT = nodePath.resolve(import.meta.dirname, '../..');
+const PRE_TOOL_QUALITY = nodePath.join(PACKAGE_ROOT, 'templates/hooks/pre-tool-quality.ts');
+const SOURCE_CLI = nodePath.join(PACKAGE_ROOT, 'src/cli.ts');
+
 const COMPLETE_WORKER = String.raw`
 import { createHmac, randomBytes } from 'node:crypto';
 import { mkdirSync, openSync, closeSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
@@ -94,7 +98,23 @@ function project(): string {
   mkdirSync(nodePath.join(directory, '.project/tickets/TST'), { recursive: true });
   writeFileSync(
     nodePath.join(directory, '.project/tickets/TST/test-definitions.md'),
-    '### Scenario: exact actor boundary\n\n- [x] RED abc1234\n- [ ] GREEN\n',
+    [
+      '### Scenario: exact actor boundary',
+      '',
+      '- [x] RED abc1234',
+      '- [ ] GREEN',
+      '',
+      '### Scenario Outline: shared proof rows',
+      '',
+      '- [x] RED abc1234',
+      '- [ ] GREEN',
+      '',
+      '### Scenario: similar actor boundary',
+      '',
+      '- [x] RED abc1234',
+      '- [ ] GREEN',
+      '',
+    ].join('\n'),
   );
   return directory;
 }
@@ -384,6 +404,91 @@ describe('durable review jobs', () => {
     });
   });
 
+  it('keeps plan-execution approval current through ordinary checklist progress', async () => {
+    const cwd = executionPlanProject();
+    const plan = nodePath.join(cwd, 'execution-plan.md');
+    writeFileSync(
+      plan,
+      readFileSync(plan, 'utf8')
+        .replace(
+          '| item-1 | outcome and scope | Complete outcome and scope | contributor | proof-1 | open | missing | | |',
+          '| item-1 | outcome and scope | Complete outcome and scope | human | | pending_human | missing | | Named reviewer |',
+        )
+        .concat('\n## Notes\n\n| A | B | C | D | E | open | G | H | Stable note |\n'),
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+
+    const result = await startReviewJob({
+      cwd,
+      kind: 'plan-execution',
+      targets: ['execution-plan.md'],
+      context: ['impl-plan.md', 'behavior.feature'],
+    });
+    const id = (result.data as { review_id: string }).review_id;
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'approved' });
+
+    writeFileSync(
+      plan,
+      readFileSync(plan, 'utf8').replace(
+        '| proof-2 | open | missing | | |',
+        '| proof-2 | complete | current_revision_real_boundary | abc1234 | receipt:proof-2 |',
+      ),
+    );
+    expect(readFileSync(plan, 'utf8')).toContain('| proof-2 | complete |');
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'approved' });
+
+    writeFileSync(
+      plan,
+      readFileSync(plan, 'utf8').replace(
+        '| item-1 | outcome and scope | Complete outcome and scope | human | | pending_human | missing | | Named reviewer |',
+        '| item-1 | outcome and scope | Complete outcome and scope | human | proof-1 | complete | current_revision_real_boundary | abc1234 | Approved |',
+      ),
+    );
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
+    writeFileSync(
+      plan,
+      readFileSync(plan, 'utf8').replace(
+        '| item-1 | outcome and scope | Complete outcome and scope | human | proof-1 | complete | current_revision_real_boundary | abc1234 | Approved |',
+        '| item-1 | outcome and scope | Complete outcome and scope | human | | pending_human | missing | | Named reviewer |',
+      ),
+    );
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'approved' });
+
+    const appendix = nodePath.join(cwd, 'appendix.md');
+    writeFileSync(appendix, 'Supporting evidence\n');
+    const contextualReview = await startReviewJob({
+      cwd,
+      kind: 'plan-execution',
+      targets: ['execution-plan.md'],
+      context: ['impl-plan.md', 'behavior.feature', 'appendix.md'],
+    });
+    const contextualReviewId = (contextualReview.data as { review_id: string }).review_id;
+    writeFileSync(appendix, 'Changed supporting evidence\n');
+    expect(reviewJobStatus(cwd, contextualReviewId).data).toMatchObject({ status: 'stale' });
+
+    writeFileSync(plan, readFileSync(plan, 'utf8').replace('Stable note', 'Changed note'));
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
+    writeFileSync(plan, readFileSync(plan, 'utf8').replace('Changed note', 'Stable note'));
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'approved' });
+
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    const config = nodePath.join(cwd, '.safeword', 'config.json');
+    writeFileSync(config, '{"designApprovalGate":true}\n');
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
+    writeFileSync(config, '{"designApprovalGate":false}\n');
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'approved' });
+
+    writeFileSync(
+      plan,
+      readFileSync(plan, 'utf8').replace(
+        'Complete outcome and scope',
+        'Complete the revised outcome and scope',
+      ),
+    );
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
+  });
+
   it('preserves a quick changes-requested reviewer result inline', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, REQUEST_CHANGES_WORKER));
@@ -493,10 +598,99 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
-  it.each([
-    ['identical canonical proof inputs', 'reused'],
-    ['different canonical proof inputs', 'not reused'],
-  ] as const)('resolves %s as %s', async (relationship, verdict) => {
+  it('deduplicates identical executable-RED review requests', async () => {
+    const cwd = project();
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution = {
+      scenario: 'Scenario Outline: shared proof rows',
+      ledger: '.project/tickets/TST/test-definitions.md',
+      argv: [process.execPath, '-e', 'process.exit(1)'] as const,
+      cwd: '.',
+      evidenceClass: 'pure-contract' as const,
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    const first = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+    const second = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+
+    expect((second.data as { review_id: string }).review_id).toBe(
+      (first.data as { review_id: string }).review_id,
+    );
+    expect(reviewJobStatus(cwd, (second.data as { review_id: string }).review_id)).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved', execution_attestation: { expected_failure: { matched: true } } },
+    });
+  });
+
+  it('executes distinct primary proof targets under separate approved attestations', async () => {
+    const cwd = project();
+    writeFileSync(nodePath.join(cwd, 'alternate.md'), 'alternate proof target\n');
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution = {
+      scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
+      argv: [process.execPath, '-e', 'process.exit(1)'] as const,
+      cwd: '.',
+      evidenceClass: 'pure-contract' as const,
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    const first = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['input.md'],
+      execution,
+    });
+    const second = await startReviewJob({
+      cwd,
+      kind: 'executable-red',
+      targets: ['alternate.md'],
+      execution: { ...execution, argv: [process.execPath, '-e', 'process.exit(2)'] },
+    });
+    const firstId = (first.data as { review_id: string }).review_id;
+    const secondId = (second.data as { review_id: string }).review_id;
+    const firstStatus = reviewJobStatus(cwd, firstId);
+    const secondStatus = reviewJobStatus(cwd, secondId);
+
+    expect(secondId).not.toBe(firstId);
+    expect(firstStatus).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved', execution_attestation: { expected_failure: { matched: true } } },
+    });
+    expect(secondStatus).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved', execution_attestation: { expected_failure: { matched: true } } },
+    });
+    expect(
+      (secondStatus.data as { execution_attestation: { source_fingerprint: string } })
+        .execution_attestation.source_fingerprint,
+    ).not.toBe(
+      (firstStatus.data as { execution_attestation: { source_fingerprint: string } })
+        .execution_attestation.source_fingerprint,
+    );
+  });
+
+  it('requires separate receipts for similar scenarios with different proof implementations', async () => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
       'reviewer_output: {',
@@ -519,20 +713,20 @@ describe('durable review jobs', () => {
       targets: ['input.md'],
       execution,
     });
-    const candidate = await startReviewJob({
+    const second = await startReviewJob({
       cwd,
       kind: 'executable-red',
       targets: ['input.md'],
-      execution:
-        relationship === 'identical canonical proof inputs'
-          ? execution
-          : { ...execution, expectedFailure: 'different actor assertion' },
+      execution: {
+        ...execution,
+        scenario: 'Scenario: similar actor boundary',
+        expectedFailure: 'similar actor assertion',
+      },
     });
-    const sameReview =
-      (candidate.data as { review_id: string }).review_id ===
-      (first.data as { review_id: string }).review_id;
 
-    expect(sameReview).toBe(verdict === 'reused');
+    expect((second.data as { review_id: string }).review_id).not.toBe(
+      (first.data as { review_id: string }).review_id,
+    );
   });
 
   it('does not reuse an executable RED approval without bound execution evidence', async () => {
@@ -763,6 +957,37 @@ describe('durable review jobs', () => {
       state: 'healthy',
       data: { command: 'review gate executable-red', status: 'approved' },
     });
+    const hookResult = spawnSync('bun', [PRE_TOOL_QUALITY], {
+      cwd,
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: cwd,
+        SAFEWORD_PLUGIN_CLI: SOURCE_CLI,
+      },
+      encoding: 'utf8',
+      input: JSON.stringify({
+        session_id: 'real-cli-receipt',
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: nodePath.join(cwd, execution.ledger),
+          old_string: [
+            '### Scenario: exact actor boundary',
+            '',
+            '- [x] RED abc1234',
+            '- [ ] GREEN',
+          ].join('\n'),
+          new_string: [
+            '### Scenario: exact actor boundary',
+            '',
+            '- [x] RED abc1234',
+            '- [x] GREEN def5678',
+          ].join('\n'),
+        },
+      }),
+    });
+    expect(hookResult.status, hookResult.stderr).toBe(0);
+    expect(hookResult.stdout).toBe('');
     expect(
       executableRedGate(cwd, execution.scenario, '.project/tickets/OTHER/test-definitions.md'),
     ).toMatchObject({
@@ -1267,6 +1492,7 @@ describe('durable review jobs', () => {
     const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
     const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
     delete record.pid;
+    record.integrity = signRecord(cwd, record);
     writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
 
     const result = reviewJobStatus(cwd, id);

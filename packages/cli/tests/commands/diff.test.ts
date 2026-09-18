@@ -106,7 +106,7 @@ describe('Test Suite 10: Diff', () => {
       await createConfiguredProject(temporaryDirectory);
 
       // Set older project version
-      writeTestFile(temporaryDirectory, '.safeword/version', '1.0.0');
+      writeTestFile(temporaryDirectory, '.safeword/version', '0.83.1');
 
       const result = await runCli(['diff', '--json'], { cwd: temporaryDirectory });
 

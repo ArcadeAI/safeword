@@ -128,7 +128,7 @@ Feature: Choose where Safeword runs in Claude
   Rule: choose-claude-plugin-scope.TBU1.R3 — Repeating installation in either scope is idempotent
 
     Scenario Outline: Repeating an exact scoped installation is a no-op
-      Given the exact official Safeword plugin is enabled at <selected-scope> for the current project
+      Given an exact official Safeword plugin is already enabled at <selected-scope> for the current project
       When safeword claude install runs with --scope <selected-scope>
       Then selected-scope plugin and marketplace state are byte-identical
       And unrelated project and profile state are byte-identical

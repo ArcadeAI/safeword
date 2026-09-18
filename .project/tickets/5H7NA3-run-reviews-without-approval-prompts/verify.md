@@ -1,0 +1,190 @@
+# Verification
+
+## Verify Checklist
+
+**Test Suite:** ✅ Full verification green: 9,961 package tests passed / 37 expected skips.
+The final focused current-snapshot run passed 268 tests / 1 intentional skip.
+**Gherkin:** ✅ Full acceptance passed 1,499 scenarios; dedicated CLI acceptance passed 595/595
+scenarios and 11,100/11,100 steps. The final changed-behavior run passed 13/13 scenarios and
+601/601 steps.
+**Build:** ✅ CLI, relay, collector, and nine-page website builds pass
+**Lint:** ✅ Clean
+**Scenarios:** ✅ 13/13 changed-behavior scenarios complete; 601/601 steps pass
+**Refactor:** ✅ Completed after the repository audit: consolidated generated-file reconciliation,
+fixed numbered-principle trace matching, removed stale Knip configuration, and made the website's
+Sätteri runtime dependency explicit
+**PR Scope:** ✅ Changes cover the ticket plus the user's explicitly requested full-verification,
+repository-audit, and audit-driven refactor repairs
+**Dep Drift:** ✅ Clean
+**Parent Epic:** N/A
+**Reconcile:** ✅ No pattern deviation
+**Experience:** ⏭️ N/A — not persona-facing
+**Surface Evidence:** ✅ 6/6 affected surfaces have recorded proof
+**Evidence limits:** ✅ No release-relevant verification gap remains. The exact final local snapshot
+passed focused tests, Gherkin, ESLint, Gherkin lint, TypeScript checks, template/dogfood parity, and
+`git diff --check`. Exact pushed-head GitHub CI remains the final pre-merge gate.
+
+## Final Current-Snapshot Evidence — 2026-09-16
+
+- Focused Vitest: 268 passed / 1 intentional skip across the stop hook, Python setup, test-plan CLI,
+  renderer, relay measurement, verify skill, and CLI protocol suites.
+- Changed-behavior Gherkin: 13/13 scenarios and 601/601 steps passed.
+- Static checks: ESLint, Gherkin lint, CLI/relay/collector TypeScript checks, template/dogfood parity,
+  and `git diff --check` passed.
+- Earlier full verification remains green: 9,961 package tests / 37 expected skips, 1,499 acceptance
+  scenarios, dedicated CLI acceptance 595/595 scenarios and 11,100/11,100 steps, all builds,
+  `mypy`, `pip-audit`, `govulncheck`, and dependency audits.
+- Independent review `10dcf97a-551e-49ad-bfb7-bd1b51acc07b` ran through the installed
+  `1.0.0-rc.3` runtime. Claude Opus returned `approve` with cross-agent independence and no
+  release-relevant defect. Its remaining observations are nonblocking test-maintenance notes.
+- Safeword's dogfood project marker intentionally remains `0.83.1`; the external review itself used
+  the installed immutable `1.0.0-rc.3` runtime. This avoids shipping unrelated version/workflow
+  changes in this pull request.
+- Follow-up review `c88f5e48-a553-4aca-a8c6-9c227a5c7f19` approved with no error-severity
+  defect. Its proof questions were checked directly: `verify-skill.test.ts` already covers failed
+  plan generation and both `verify` and `build`; resolver tests already prove a JavaScript project
+  without `test:bdd` emits no BDD lane. The actionable findings were closed by matching
+  `setup.cfg` whole-line comment behavior to `configparser` and adding a done-gate decision test for
+  unavailable required runners.
+- Terminal review `f3ea06f2-38cf-4638-8d96-0d81a95bb985` also approved with no
+  release-relevant defect. Its concrete warnings were closed: `setup.cfg` accepts `:` delimiters,
+  missing-runner diagnostics survive later verbose output truncation, the bunx fallback requirement
+  is explicit, and relay throughput is checked against the deadline/latency budget while the real
+  readiness validator enforces the duration ceiling.
+- Final hardening review `57a0465f-cc78-48e7-bb04-c757a6121de7` approved with no
+  error-severity defect. Its concrete suggestions were applied: diagnostic preservation remains
+  inside the output cap, machine-readable resolver subprocesses disable update chatter, relay
+  throughput uses a bounded two-sided range with two scheduling slots of headroom, mixed-manager uv
+  rollback intent is explicit, and executable JavaScript fixtures pin npm with `package-lock.json`.
+
+## Current Rerun — 2026-09-13
+
+- Full build and typecheck lanes pass for the root, CLI, relay, collector, website, and Go modules;
+  `mypy .` passes with no issues.
+- Dependency audits are available and green: all five Bun audits, `pip-audit`, and `govulncheck`
+  report no known vulnerabilities.
+- CLI BDD acceptance passes 595/595 scenarios and 11,100/11,100 steps. The combined BDD proof and
+  focused Python/generated-plugin regression run passes 190 tests with one intentional
+  environment-dependent skip.
+- The root acceptance run completed 1,499 scenarios: 1,468 passed, 3 skipped, and 28 failed. Twenty-
+  three failures require loopback binding or the default npm cache, both denied by the Codex sandbox.
+  The other five exposed stale generated plugin artifacts and non-hermetic reconciliation fixtures;
+  both defects were fixed, then the affected four scenarios passed with 182/182 steps.
+- Regenerated Claude and Codex plugin runtimes now ship `pip-audit`; both generator freshness checks,
+  lint, TypeScript, Gherkin lint, formatting, and `git diff --check` pass.
+- Repository-scope audit completed. Config, principles, domain references, architecture, docs, and
+  learning checks are clean. Knip/dependency-cruiser findings remain the documented archive,
+  experiment, generated-surface, and public-API baseline; no safe deletion was inferred. The only
+  available package update is an already-compatible `@types/node` patch, so no manifest churn was
+  added.
+- BDD/TDD quality assessment found declarative scenarios, discriminating behavioral assertions, no
+  `.only`, and no new weak truthiness/defined/no-throw assertions. The opt-in skip is the intentional
+  live Codex boundary test. A real-time wait remains only where the behavior under test is a shared
+  deadline across independent review IDs.
+- Refactor scout found no justified production refactor in the latest Python-tool delta: the tool
+  contract is already single-sourced and package-manager handling is parameterized. Rewriting it
+  would add churn without reducing duplication or risk.
+- Quality-review job `ae8feb49-b92d-4ee5-be52-64c18b0f7549` exhausted Claude Opus, Claude Sonnet,
+  OpenCode, and Codex fallback routes without findings. The required degraded fallback produced no
+  blocking finding, but it is not independent coverage.
+- The installed dogfood marketplace was corrected from a stale worktree to this worktree. Concurrent
+  dogfood installs alternated the shared cache between `1.0.0-rc.1` and `1.0.0-rc.3`, so the local
+  execpolicy now keeps separate narrow allow rules for both immutable runtimes. Both ordinary review
+  prefixes match `allow`; executable RED and `review status` match no allow rule. Arcade/Bosslevel
+  remains `default_tools_approval_mode = "approve"` with no broad sandbox-network override.
+- A final Codex restart is required to record the new plugin's `session-start` hook. Four other hook
+  events already have current proof.
+
+## Focused Evidence
+
+- Final full verification: 9,961 package tests passed with 37 expected skips; the 9,610-test CLI
+  suite was repeated by the verification plan and remained green on both runs.
+- `packages/cli/tests/review/surface-parity.test.ts`: 44/44 passing before full verification.
+- Generated Claude plugin check: current at `1.0.0-rc.1`.
+- Generated Codex plugin check: current at `1.0.0-rc.1`.
+- Monorepo TypeScript and Astro type checks: 0 errors.
+- Execpolicy: `quality-review`, `scenario-gate`, and `plan-implementation` match their separate allow
+  rules; executable RED, status, and arbitrary Bun commands do not match.
+- Installed-Codex approval-boundary live test: 1/1 passing against the real installed versioned
+  Safeword runtime and the active Codex rules file.
+
+## Repository Audit and Refactor
+
+- Full repository audit completed after verification; learning, principle-trace, and domain-doc
+  checks are clean after repairs.
+- Fixed a real principle checker defect: numeric presentation prefixes in trace rows now normalize
+  the same way as source principle headings, with a regression test.
+- Repaired seven dead evidence references in two historical implementation plans.
+- Consolidated four duplicated rubric-generator check/write implementations into one helper that
+  preserves mtimes when generated output is unchanged; its direct missing/stale/write/mtime contract
+  tests and the complete 134-test focused regression set pass.
+- Removed one stale Knip fixture ignore and documented Sätteri as a config-loaded dependency.
+- Independent Claude Opus quality review `a18209be-ff36-47b2-a8e0-4f368d172eb0` approved the core
+  design. Its nonblocking suggestions were implemented and covered by focused tests.
+- Final independent Claude Opus quality review `25a24b1b-100f-49f1-be66-7dbe206fe3f6` again approved
+  with no blocking findings. All eight cleanup suggestions were implemented: the live boundary now
+  checks the complete documented argv and exact empty-rule result for disallowed commands; generator
+  tests use an explicit non-colliding output argument and cover update/no-op/check success; no-op
+  generation reports “already current”; Claude skill-reference namespacing is documented and tested;
+  the cachebuster fixture derives from the current version; and malformed historical tables are fixed.
+- Post-improvement focused evidence: 30/30 generator, Claude catalogue, and Codex release-contract
+  tests pass; installed-Codex approval-boundary live test passes 1/1; root lint/typecheck pass; Claude,
+  Codex, rubric, and historical-catalogue generated checks are current.
+- Subsequent independent reviews `f34021b4-8b8b-4990-960d-ac61f5f09f07`,
+  `a81690be-65d0-47b7-a338-764d53b6ccb6`, `d5b884a0-65d0-476a-a2d7-a2063f02840a`, and
+  `9d627a5a-0bfb-4f71-9855-282796f68eb1` supplied additional edge-case findings. Each actionable
+  finding was repaired before the next pass.
+- Terminal independent review `c62341ad-6aaa-4e69-b833-74d13c134520` approved. Its final warnings
+  are closed: route failures use typed errors; aggregate `--check` runs abort on stale rubrics without
+  writing; Codex manifest versions are validated in every mode; ordinary reviews reject every
+  RED-only flag; earlier prompt denials survive later sibling errors; argv-less dispatcher calls fail
+  cleanly; and the live allow-side covers no-context, multi-target, and quiet command variants.
+- Final focused evidence after those repairs: 97/97 contract and generator regressions, 122/122 full
+  review-wiring cases, and 1/1 real installed-Codex approval-boundary test pass. Root lint/typecheck,
+  Prettier, Markdown lint, and `git diff --check` pass. Claude and Codex plugins plus all generated
+  rubrics and the historical catalogue are current at `1.0.0-rc.1`.
+- Remaining audit output is repository baseline rather than a ticket regression: generated and
+  historical clone volume, historical research executables, script-string resolution limitations,
+  and unused-export candidates that require separate ownership decisions.
+
+## Surface Evidence
+
+| Affected surface | Proof | Result |
+| --- | --- | --- |
+| Codex independent review | Live bounded `quality-review` through installed `0.83.1` runtime after restart | Reached Claude and returned a typed verdict without a user approval prompt |
+| Arcade/Bosslevel MCP | Inspected effective Codex server configuration after restart | `default_tools_approval_mode = "approve"`; no general sandbox network override |
+| Stop-hook test runner | Real `runTests` subprocess and done-gate decision tests | Invalid plans and unavailable runners block; later lanes still run |
+| Verify skill | `verify-skill.test.ts` executes extracted shell helpers | Failed plan generation and earlier lane failures cannot become false green |
+| Test-plan CLI | JSON and shell renderer tests plus changed-behavior scenarios | Diagnostics, quoting, lane order, and first-failure status are preserved |
+| Python and relay support | Focused parser, rollback, and readiness-validator tests | Legacy declarations parse correctly; rollback and relay contracts pass |
+
+## Status Poll Boundary
+
+A synthetic `review status` call ran in the normal workspace sandbox. It returned
+`REVIEW_JOB_NOT_FOUND` as expected and reported no file, network, configuration, package, or
+destructive effects.
+
+## Final Independent Review Loop — 2026-09-13
+
+- Standing authorization dispatched each bounded, secret-screened packet without a per-review user
+  prompt. Every subsequent `review status` call ran in the normal workspace sandbox with no
+  escalation.
+- Independent reviews `66b2471c-2241-44a2-a81c-8144a29557a1`,
+  `ad73c8a6-c07b-4961-86a9-79da3b1faab1`, and
+  `a40e98ce-3cdd-4bcd-ab0c-0fb3b489ab69` completed through the external route. The terminal review
+  approved with no blocking defects.
+- All concrete terminal suggestions were applied: shell plans now execute every available language
+  lane while preserving the first failure; `--format sh` reaches that script through the real verify
+  gate; option validation is symmetric; shell accumulator state is scoped; repository-controlled
+  manifest text is excluded from commands; Python discovery handles guarded and underscore-style
+  requirements layouts, relative roots, and unreadable paths; skip-install invokes no package
+  manager; repeated manifest reads/parses are cached; and the verify skill describes missing tools as
+  failures rather than non-fatal skips.
+- Final focused proof: 137/137 tests pass with one intentional Poetry environment skip; the changed
+  behavior contract passes 87/87 scenarios and 3,984/3,984 steps; the complete CLI acceptance lane
+  passes 595/595 scenarios and 11,100/11,100 steps; generated Codex determinism passes 18/18; lint,
+  TypeScript, Gherkin lint, plugin generation, and `git diff --check` are clean.
+- The reviewer suggested a wall-clock parser assertion as an alternative to deterministic
+  instrumentation. It was intentionally not added: the production counter is incremented in each
+  scanning/paragraph pass and is bounded against input length, while wall-clock ratios are retained
+  as a manual benchmark to avoid flaky CI timing gates.

@@ -79,6 +79,20 @@ function planExecutionRecovery(input: {
   ];
 }
 
+type DegradedReviewInput = ReviewRunInput & {
+  readonly author: ReviewAgent;
+  readonly assignedReviewer: ReviewAgent;
+  readonly preferredModel?: string;
+  readonly preferredModelFailure?: ReviewFailure;
+  readonly preferredFailure: ReviewFailure;
+  readonly policy: ReviewPolicy;
+  readonly runDeadline: number;
+  readonly alternateFailure?: ReviewFailure;
+  readonly alternateModel?: string;
+  readonly independentFallback?: ReviewAgent;
+  readonly independentFallbackFailure?: ReviewFailure;
+};
+
 /**
  * Whether a route can still be funded. Below the minimum a route cannot produce
  * a real review, so it is left unattempted and reported honestly rather than
@@ -1108,17 +1122,7 @@ function prepareFallbackReview(
 }
 
 function degradedFailureRoutes(
-  input: {
-    readonly author: ReviewAgent;
-    readonly assignedReviewer: ReviewAgent;
-    readonly preferredModel?: string;
-    readonly preferredModelFailure?: ReviewFailure;
-    readonly preferredFailure: ReviewFailure;
-    readonly alternateFailure?: ReviewFailure;
-    readonly alternateModel?: string;
-    readonly independentFallback?: ReviewAgent;
-    readonly independentFallbackFailure?: ReviewFailure;
-  },
+  input: DegradedReviewInput,
   fallbackFailure: ReviewFailure,
 ): Parameters<typeof exhaustedExplanation>[0] {
   const routes = [...primaryFailureRoutes(input)];
@@ -1141,21 +1145,22 @@ function degradedFailureRoutes(
   return routes;
 }
 
-async function runDegradedFallback(
-  input: ReviewRunInput & {
-    readonly author: ReviewAgent;
-    readonly assignedReviewer: ReviewAgent;
-    readonly preferredModel?: string;
-    readonly preferredModelFailure?: ReviewFailure;
-    readonly preferredFailure: ReviewFailure;
-    readonly policy: ReviewPolicy;
-    readonly runDeadline: number;
-    readonly alternateFailure?: ReviewFailure;
-    readonly alternateModel?: string;
-    readonly independentFallback?: ReviewAgent;
-    readonly independentFallbackFailure?: ReviewFailure;
-  },
-): Promise<CliResult> {
+function degradedFallbackNetworkEffects(
+  input: DegradedReviewInput,
+  fallback: Parameters<typeof degradedNetworkEffects>[0]['fallback'],
+): readonly Effect[] {
+  return degradedNetworkEffects({
+    assignedReviewer: input.assignedReviewer,
+    author: input.author,
+    preferredFailure: input.preferredFailure,
+    alternateFailure: input.alternateFailure,
+    independentFallback: input.independentFallback,
+    independentFallbackFailure: input.independentFallbackFailure,
+    fallback,
+  });
+}
+
+async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResult> {
   const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
     input.author,
@@ -1176,15 +1181,7 @@ async function runDegradedFallback(
     context: input.context,
     sourceChanged,
     snapshotChanged,
-    network: degradedNetworkEffects({
-      assignedReviewer: input.assignedReviewer,
-      author: input.author,
-      preferredFailure: input.preferredFailure,
-      alternateFailure: input.alternateFailure,
-      independentFallback: input.independentFallback,
-      independentFallbackFailure: input.independentFallbackFailure,
-      fallback,
-    }),
+    network: degradedFallbackNetworkEffects(input, fallback),
   });
   if (changedResult !== undefined) return changedResult;
   const assessment = assessReviewOutcome(outcome, input.author, prepared.packet.dispatch_id);
@@ -1199,14 +1196,9 @@ async function runDegradedFallback(
         },
       ],
       effects: {
-        network: degradedNetworkEffects({
-          assignedReviewer: input.assignedReviewer,
-          author: input.author,
-          preferredFailure: input.preferredFailure,
-          alternateFailure: input.alternateFailure,
-          independentFallback: input.independentFallback,
-          independentFallbackFailure: input.independentFallbackFailure,
-          fallback: { kind: 'failed', failure: assessment.failure },
+        network: degradedFallbackNetworkEffects(input, {
+          kind: 'failed',
+          failure: assessment.failure,
         }),
       },
       recovery: [
@@ -1245,15 +1237,7 @@ async function runDegradedFallback(
         ...reviewerFeedback(completedOutput),
       ],
       effects: {
-        network: degradedNetworkEffects({
-          assignedReviewer: input.assignedReviewer,
-          author: input.author,
-          preferredFailure: input.preferredFailure,
-          alternateFailure: input.alternateFailure,
-          independentFallback: input.independentFallback,
-          independentFallbackFailure: input.independentFallbackFailure,
-          fallback: { kind: 'completed' },
-        }),
+        network: degradedFallbackNetworkEffects(input, { kind: 'completed' }),
       },
       recovery: [
         {
@@ -1291,15 +1275,7 @@ async function runDegradedFallback(
       ...reviewerFeedback(completedOutput),
     ],
     effects: {
-      network: degradedNetworkEffects({
-        assignedReviewer: input.assignedReviewer,
-        author: input.author,
-        preferredFailure: input.preferredFailure,
-        alternateFailure: input.alternateFailure,
-        independentFallback: input.independentFallback,
-        independentFallbackFailure: input.independentFallbackFailure,
-        fallback: { kind: 'completed' },
-      }),
+      network: degradedFallbackNetworkEffects(input, { kind: 'completed' }),
     },
     data: {
       command: 'review run',

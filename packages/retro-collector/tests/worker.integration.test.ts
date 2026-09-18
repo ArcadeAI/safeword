@@ -126,6 +126,7 @@ it('transfers collector acceptance through the real relay contract', async () =>
     collectorStore,
   );
   let createdIssues = 0;
+  let createdIssueBody = '';
   const github = createServer((request, response) => {
     if (request.method === 'GET' && request.url?.includes('/issues')) {
       response.setHeader('content-type', 'application/json');
@@ -133,10 +134,18 @@ it('transfers collector acceptance through the real relay contract', async () =>
       return;
     }
     if (request.method === 'POST' && request.url?.endsWith('/issues')) {
-      createdIssues += 1;
-      response.statusCode = 201;
-      response.setHeader('content-type', 'application/json');
-      response.end(JSON.stringify({ number: 3514 }));
+      let body = '';
+      request.setEncoding('utf8');
+      request.on('data', (chunk: string) => {
+        body += chunk;
+      });
+      request.on('end', () => {
+        createdIssues += 1;
+        createdIssueBody = (JSON.parse(body) as { body: string }).body;
+        response.statusCode = 201;
+        response.setHeader('content-type', 'application/json');
+        response.end(JSON.stringify({ number: 3514 }));
+      });
       return;
     }
     response.statusCode = 404;
@@ -219,6 +228,7 @@ it('transfers collector acceptance through the real relay contract', async () =>
       tenantId: 'tenant-1',
     });
     expect(createdIssues).toBe(1);
+    expect(createdIssueBody).toContain(findings.join('\n\n---\n\n'));
     expect(stored?.acceptedAt).toBe(relayAcceptedAt.toISOString());
     expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
   } finally {

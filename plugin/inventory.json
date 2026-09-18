@@ -15,11 +15,11 @@
     },
     {
       "path": "hooks/hooks.json",
-      "sha256": "ea53d65130d73a4a438d8e9040a17462db52fa3c23e2a0331ed87268543644f4"
+      "sha256": "b4d236bcd133dd42fe0c63c76a0d406e3149e453838b132531125961fdef6775"
     },
     {
       "path": "package.json",
-      "sha256": "29d6f817b00c99a0611b26ec4e46d5ebb59512e71b64934fd49f65ec62446284"
+      "sha256": "cb7aceb61a243ab262fca740fb356cf5a9943e7f7ef304403052839faa723270"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -99,7 +99,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "745731074c23b5acd924ff5c5da79d3b16b3a870d56f0a8e86337f033786843b"
+      "sha256": "d96bc312428847de3572732b28658bec5c31d0b2ff0c1d887d5508c414e38678"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -115,7 +115,7 @@
     },
     {
       "path": "resources/templates/execution-plan-template.md",
-      "sha256": "bbdb8185649f02b183e01763ebd58f481295d9bb6a47cba765bffbf1a8e02412"
+      "sha256": "1a2e8cbce9beb3499c45a088dd655cc20b39df49fc940010d72250fbeea26318"
     },
     {
       "path": "resources/templates/impl-plan-template.md",
@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "c507e49f662d0694fae060a2dca88c498f75ce5fe3c6e435808dc7520b87274d"
+      "sha256": "7d40c23338b83f29b880e1d52f42500746b466583f15fd38dd3518595c8772f5"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "e3ea2924524a8bce6322f5607f0614ffe7046302c524c7d662dd2880c1e0db3a"
+      "sha256": "2b752c568d01f21317f41349a5c285b07f2f71089bb5d4cd786b7865c29b231d"
     },
     {
       "path": "runtime/event-groups.json",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/checkbox-transitions.ts",
-      "sha256": "f5aea23bfc1797d0c197a5f92478a9a88e8ecf504512af4db75b7ab6841e8be8"
+      "sha256": "3f149e94a5eddd2f087d86bd0a05ec2532ae28db3543b8b670c6307252860db5"
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
@@ -295,7 +295,7 @@
     },
     {
       "path": "runtime/hooks/lib/parse-annotation.ts",
-      "sha256": "1bfc07267d045fa1e1b707a69b160666c22d09a4d17efce38a642095f2e8858c"
+      "sha256": "80d13a21c57c51cd9b1d2f3fc5b20bdf9bedf82615130af2cad9f96fbe9cd78b"
     },
     {
       "path": "runtime/hooks/lib/phase-provenance.ts",
@@ -307,7 +307,7 @@
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
-      "sha256": "773e4e38ea33d2c117c7edce6e74397348d54afcd34a2de00d8546a571f624ae"
+      "sha256": "9b832dd9c81740be0158924e5f5d55a327e5c2412751933d78adebecec7da1ef"
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
@@ -383,7 +383,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "35f3fa8e5586cab25a0c4a87b39b6f05dd366197d8d8a8dfcddf5c720f4ba6f8"
+      "sha256": "9d6f99ee104b1acf7308a5047e1dfe72d794be20a9e1e04ebabafb5ad70dd6e3"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -419,7 +419,7 @@
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
-      "sha256": "8c2c7cdebff38ebc086cbf427477303e3f73c8f7489fa6a25b8f610d2ad2157c"
+      "sha256": "4ee0521c9704b0db4e911823b01a12ad7cf7dca34a584bb710c1a3ccb5062e18"
     },
     {
       "path": "runtime/hooks/lib/typecheck-gate.ts",
@@ -487,7 +487,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "cd74f705be4c5b6f47ae5e19c873ce1b89db7b311303cfc6c2f806e91e5be8fc"
+      "sha256": "fe227d87a53ffb9dd43d5569b48e159689a9727f2eb3ba00911f454eb4478702"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -495,7 +495,7 @@
     },
     {
       "path": "runtime/hooks/prompt-questions.ts",
-      "sha256": "aa9d93722e73a6af32d5cdb8b0783157dd105c2d2a1a9526e2325e33374a4887"
+      "sha256": "96711e6e9cf7a7a051868a9cf1aaf7b41226ef1eb88f117cf49076c80b33b1af"
     },
     {
       "path": "runtime/hooks/prompt-retro-nudge.ts",
@@ -603,7 +603,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "0b04df8e2d51a603ee76f2c268c16b212a97c1e52c2a71eb2bb0dbeda6c86aba"
+      "sha256": "a0d6e63d0bbb8cbc8e223f07ce74db1340257a4af9eb94a554eb9d5cbc4a8f52"
     },
     {
       "path": "skills/audit/SKILL.md",
@@ -619,11 +619,11 @@
     },
     {
       "path": "skills/bdd/PLAN_EXECUTION.md",
-      "sha256": "bb680592d34c6e79a3981f6cbde0a2bb3f5819ffc45f446dbcef1ed9316ca618"
+      "sha256": "928f677181b2c1d59398173f3d7e9bfada4a287c6d2141553faa863b4ba5bb32"
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "9ed38cbfc98aeb597a3a480de51cedd5e48e58d2cc914a15cd5ec6a930cbce61"
+      "sha256": "a25e7b46d1f4bc430abea5da40b3111f3c864ef9171ba48c7ffc1a6a854bc95f"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -639,7 +639,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "0abe1a53c1b3897dcc34a5222cd16447c38860efd52abd6ebcf49bb37cf29920"
+      "sha256": "4ff49a039fa7909852d033e76b66643da4750264ea1eb0624c4a0ea55e9f6ca6"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -695,7 +695,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "1aaae79546be925c1f4cb1afed0a1df6cf3333739d11c747db3e0f885f9d20a4"
+      "sha256": "19557310027a2dbc0ff859378ffa3848df9843768a74f3246c30f89c5b47a5a9"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -711,7 +711,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "f44ecf03d6d851883ac27f8fd45fd9d9935906afd1d4e20f5dcb91ef0967310c"
+      "sha256": "1e8d6637fa6a560cdc555a80b26c4a1c01b9374cfdc6bf0ea30cddced27d679f"
     },
     {
       "path": "skills/self-review/SKILL.md",
@@ -735,7 +735,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "6d313d32755eae64d2707a6e001d41610d8ab01954c405ad13c55665d7dad5e3"
+      "sha256": "e65acf5fd52b5a5f7291a8f491fc6827dff6967529793804ddb917a86de64e49"
     }
   ]
 }
