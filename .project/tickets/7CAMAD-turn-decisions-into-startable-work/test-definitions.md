@@ -115,8 +115,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Execution Plan verdict and recorded assurance control coding authorization
 
 - [x] RED ef18bc398
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN d7dc1b100
+- [x] REFACTOR 4ca3c4422
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R10 — Every accepted obligation maps to startable work
 
