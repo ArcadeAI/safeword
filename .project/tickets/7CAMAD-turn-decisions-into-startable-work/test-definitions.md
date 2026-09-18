@@ -72,7 +72,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 86cda081d
 - [x] GREEN 153b78709
-- [ ] REFACTOR
+- [x] REFACTOR skip: production path is already a thin projection over the shared prerequisite evaluator
 
 ### Scenario: A missing project-local plan names the project-local artifact to create
 
