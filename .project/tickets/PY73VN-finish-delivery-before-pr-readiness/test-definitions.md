@@ -117,7 +117,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An unauthorized missing dependency stops for a decision
 
 - [x] RED b7d76ec93
-- [ ] GREEN
+- [x] GREEN 2181d8791
 - [ ] REFACTOR
 
 ### Scenario: A boundary gives a Non-Technical Builder a plain recovery action
