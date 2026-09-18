@@ -1,4 +1,12 @@
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHmac } from 'node:crypto';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -29,6 +37,7 @@ const CATEGORIES = [
   'ownership and human dependencies',
   'completion evidence',
 ] as const;
+const NULL_EXECUTION_PLAN_RECORD = JSON.parse('null') as null;
 
 function executionPlan(): string {
   const rows = CATEGORIES.map(
@@ -53,6 +62,34 @@ function executionPlan(): string {
     ...rows,
     '',
   ].join('\n');
+}
+
+function mutateExecutionReview(
+  root: string,
+  mutate: (data: Record<string, unknown>) => Record<string, unknown>,
+): void {
+  const ledger = readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8');
+  const reviewId = /phase@plan-execution[^\n]*review-id:(\S+)/u.exec(ledger)?.[1];
+  if (reviewId === undefined) throw new Error('plan-execution review id missing');
+  const path = nodePath.join(root, '.safeword', 'state', 'reviews', `${reviewId}.json`);
+  const record = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+  const { integrity: _integrity, ...unsigned } = record;
+  const result = { ...(unsigned.result as Record<string, unknown>) };
+  result.data = mutate({ ...(result.data as Record<string, unknown>) });
+  const changed = { ...unsigned, result };
+  const key = Buffer.from(
+    readFileSync(
+      nodePath.join(root, '.review-keys', 'safeword', 'review-integrity.key'),
+      'utf8',
+    ).trim(),
+    'hex',
+  );
+  const integrity = createHmac('sha256', key)
+    .update(realpathSync.native(root))
+    .update('\0')
+    .update(JSON.stringify(changed))
+    .digest('hex');
+  writeFileSync(path, `${JSON.stringify({ ...changed, integrity })}\n`);
 }
 
 function installReviewer(): string {
@@ -344,6 +381,183 @@ describe('coding authorization', () => {
     ]);
     expect(result.next_actions.map(action => action.command)).toEqual([
       'safeword review run plan-execution --context .project/tickets/ABC123-feature/impl-plan.md --context features/feature.feature -- .project/tickets/ABC123-feature/execution-plan.md',
+    ]);
+  });
+
+  it('rejects a semantic receipt with no verdict', async () => {
+    const root = await featureFixture(true);
+    mutateExecutionReview(root, data => {
+      const reviewerOutput = { ...(data.reviewer_output as Record<string, unknown>) };
+      delete reviewerOutput.verdict;
+      return { ...data, reviewer_output: reviewerOutput };
+    });
+
+    const invoked = await runCli(
+      ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+
+    expect(invoked.exitCode, invoked.stdout).toBe(2);
+    const result = JSON.parse(invoked.stdout) as {
+      findings: { code: string }[];
+      data: { coding_authorization: string };
+    };
+    expect(result.data.coding_authorization).toBe('denied');
+    expect(result.findings.map(finding => finding.code)).toEqual([
+      'missing_execution_plan_verdict',
+    ]);
+  });
+
+  it('reports a semantic receipt that rejected the Execution Plan', async () => {
+    const root = await featureFixture(true);
+    mutateExecutionReview(root, data => ({
+      ...data,
+      reviewer_output: {
+        ...(data.reviewer_output as Record<string, unknown>),
+        verdict: 'request_changes',
+        findings: [{ severity: 'error', message: 'Execution plan is not startable.' }],
+        execution_plan_record: NULL_EXECUTION_PLAN_RECORD,
+      },
+    }));
+
+    const invoked = await runCli(
+      ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+
+    expect(invoked.exitCode, invoked.stdout).toBe(2);
+    const result = JSON.parse(invoked.stdout) as {
+      findings: { code: string; message: string }[];
+      data: { coding_authorization: string };
+    };
+    expect(result.data.coding_authorization).toBe('denied');
+    expect(result.findings).toEqual([
+      {
+        code: 'rejected_execution_plan_review',
+        message: 'Execution plan is not startable.',
+        severity: 'warning',
+      },
+    ]);
+  });
+
+  it('authorizes a permitted fallback without calling it independent', async () => {
+    const root = await featureFixture(true);
+    mutateExecutionReview(root, data => ({
+      ...data,
+      author_agent: 'codex',
+      actual_reviewer: 'codex',
+      independence: 'degraded',
+      reviewer_output: {
+        ...(data.reviewer_output as Record<string, unknown>),
+        reviewer_agent: 'codex',
+      },
+    }));
+    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+    writeFileSync(
+      ledgerPath,
+      readFileSync(ledgerPath, 'utf8').replace(
+        'author:codex reviewer:claude independence:cross-agent',
+        'author:codex reviewer:codex independence:degraded',
+      ),
+    );
+
+    const invoked = await runCli(
+      ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+
+    expect(invoked.exitCode, invoked.stdout).toBe(0);
+    const result = JSON.parse(invoked.stdout) as {
+      data: { coding_authorization: string; achieved_independence?: string };
+    };
+    expect(result.data).toMatchObject({
+      coding_authorization: 'authorized',
+      achieved_independence: 'degraded',
+    });
+  });
+
+  it('rejects an assurance claim that does not match validated provenance', async () => {
+    const root = await featureFixture(true);
+    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+    writeFileSync(
+      ledgerPath,
+      readFileSync(ledgerPath, 'utf8').replace(
+        'author:codex reviewer:claude independence:cross-agent',
+        'author:codex reviewer:codex independence:degraded',
+      ),
+    );
+
+    const invoked = await runCli(
+      ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+
+    expect(invoked.exitCode, invoked.stdout).toBe(2);
+    const result = JSON.parse(invoked.stdout) as {
+      findings: { code: string }[];
+      data: { coding_authorization: string };
+    };
+    expect(result.data.coding_authorization).toBe('denied');
+    expect(result.findings.map(finding => finding.code)).toEqual([
+      'unearned_execution_plan_assurance',
+    ]);
+  });
+
+  it('ignores an author-written independence claim without validated assurance', async () => {
+    const root = await featureFixture(true);
+    mutateExecutionReview(root, data => {
+      const reviewerOutput = {
+        ...(data.reviewer_output as Record<string, unknown>),
+        independence: 'cross-agent',
+      };
+      const changed = { ...data, reviewer_output: reviewerOutput };
+      delete changed.independence;
+      return changed;
+    });
+
+    const invoked = await runCli(
+      ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+
+    expect(invoked.exitCode, invoked.stdout).toBe(2);
+    const result = JSON.parse(invoked.stdout) as {
+      findings: { code: string }[];
+      data: { coding_authorization: string };
+    };
+    expect(result.data.coding_authorization).toBe('denied');
+    expect(result.findings.map(finding => finding.code)).toEqual([
+      'unearned_execution_plan_assurance',
     ]);
   });
 });
