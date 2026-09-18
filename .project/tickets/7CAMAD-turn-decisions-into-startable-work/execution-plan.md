@@ -68,9 +68,10 @@ copy, stub, or locally redefine the sibling contract.
    read effects, deterministic fixtures, standard exit mapping, CLI reference,
    and command discovery.
 5. REFACTOR: Keep receipt parsing, plan normalization, and prerequisite
-   composition in their existing owners. Add a source-level assertion that the
-   public command has one prerequisite-composition owner; consumer wiring stays
-   in PR 2. Do not create a general dependency linter.
+   composition in their existing owners. Add a source-level assertion in
+   `coding-authorization.test.ts` that the public command has one
+   prerequisite-composition owner; consumer wiring stays in PR 2. Do not create
+   a general dependency linter.
 6. Run:
    `bun run test tests/integration/coding-authorization.test.ts tests/integration/delivery-execution-prerequisite.test.ts tests/cli-protocol/catalog.test.ts tests/cli-protocol/cli-documentation-contract.test.ts`.
 7. Run: `bun run lint`.
@@ -110,8 +111,11 @@ copy, stub, or locally redefine the sibling contract.
    real pre-tool hook against a production-file edit and assert: current plans
    allow; a stable plan edit denies; fresh review restores; a stale plan plus
    unmet named RED reports plan repair first; after plan repair the same edit
-   reports the named RED. Assert one local CLI subprocess, no network/lifecycle
-   work, and no recurring prompt injection.
+   reports the named RED. Assert host-local scratch notes cannot authorize
+   coding when the project-local Execution Plan is absent or stale, and that
+   recovery names that project-local `execution-plan.md` as the artifact to
+   create or repair. Assert one local CLI subprocess, no network/lifecycle work,
+   and no recurring prompt injection.
 3. GREEN: Update phase evidence, provenance anchors, planning code freeze, and
    the transition gate for `plan-execution`. Make both hook consumers delegate
    to the public authorization entry point. Activate production-edit checks for
@@ -125,10 +129,11 @@ copy, stub, or locally redefine the sibling contract.
 5. GREEN: Regenerate Claude, Cursor, Codex, and OpenCode-owned derivatives with
    the repository generators and parity fixer. Never hand-edit a derivative.
 6. REFACTOR: Keep the hook as a thin renderer/dispatcher. Add a source-level
-   assertion that both coding-boundary consumers import the public
-   authorization entry point, and fail if either computes a prerequisite
-   inline. Remove any duplicate authorization or plan-currentness calculation
-   discovered during wiring; do not create a general dependency linter.
+   assertion in `coding-authorization-hook.test.ts` that both coding-boundary
+   consumers import the public authorization entry point, and fail if either
+   computes a prerequisite inline. Remove any duplicate authorization or
+   plan-currentness calculation discovered during wiring; do not create a
+   general dependency linter.
 7. Run:
    `bun run test tests/integration/plan-transition-gate.test.ts tests/integration/coding-authorization-hook.test.ts tests/hooks/phase-provenance.test.ts tests/skills/implementation-plan-repair-loop.test.ts`.
 8. Run:
@@ -140,10 +145,10 @@ copy, stub, or locally redefine the sibling contract.
 - **Purpose:** Prove a fresh agent can move from an accepted Implementation Plan
   through a reviewed Execution Plan to the first RED, then recover from both
   implementation-time replan branches without losing or promoting evidence.
-- **Boundary:** Add end-to-end journey, compatibility, rollback, and resume-point
-  proof plus any minimal adapter correction those tests expose. Exclude sibling
-  review transport, evidence taxonomy, host migration, final NTB copy, and
-  public rollout documentation.
+- **Boundary:** Add end-to-end journey, compatibility, rollback, resume-point,
+  and remaining semantic-conformance proof plus any minimal adapter correction
+  those tests expose. Exclude sibling review transport, evidence taxonomy, host
+  migration, final NTB copy, and public rollout documentation.
 - **Prerequisites:** Enforce authorization at both coding boundaries.
 - **Proof:** Git-backed installed-CLI integration covers all R1–R17 partitions,
   the first executable RED, sequencing-only and design-changing replans,
@@ -180,8 +185,11 @@ copy, stub, or locally redefine the sibling contract.
    decisions; omitted, partially mapped, completely mapped, unowned rollback,
    and explicitly obligation-free work; one- and multi-purpose PR shapes;
    defect-versus-target; pending human authority; all four evidence classes;
-   partial-proof rejection; measurement work; and every downstream-authority
-   rejection.
+   partial-proof rejection; measurement work; every downstream-authority
+   rejection; and the structural gate's present-and-valid, absent, and
+   present-but-unreadable artifact states. For every structural state, assert
+   the report describes facts without calling the plan implementable, approved,
+   or ready for coding.
 5. RED/GREEN: Add a rollback fixture parked at `plan-execution`. Exercise the
    real backward ticket transition to `plan-implementation`, retain its plans,
    reviews, and ledger rows as inert history, then prove the reduced phase model

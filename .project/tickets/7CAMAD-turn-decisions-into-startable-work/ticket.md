@@ -48,6 +48,17 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-18T17:12:00.000Z Review-stamp root cause: The independently
+  approved `plan-execution` receipt was current under the feature source but
+  rc.4 reported it stale. The feature source fingerprints the normalized
+  Execution Plan contract so ordinary Delivery Checklist progress remains
+  valid; the rc.4 bootstrap verifier still fingerprints every raw plan byte.
+  Ruled out a missing or corrupt review record (both CLIs authenticated the same
+  integrity-signed job), changed review inputs (the source CLI re-fingerprinted
+  them as current), and npm propagation (rc.4 was publicly available with the
+  expected integrity). A legacy raw-byte receipt was rejected as a workaround
+  because its approval would become stale during ordinary checklist progress.
+
 - 2026-09-16T22:30:00.000Z Review integration root cause: The first two
   plan-execution reviewer processes received zero provider tokens because this
   new review kind lacked an installed Codex egress rule; a one-word request
