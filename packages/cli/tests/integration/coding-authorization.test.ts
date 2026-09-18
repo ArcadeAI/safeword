@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import {
   chmodSync,
   mkdirSync,
@@ -17,6 +17,7 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
+import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 import { assertTestCliFresh, runCli } from '../helpers.js';
 import {
   cleanupTrustedReviewerDirectories,
@@ -168,7 +169,10 @@ async function admitReview(
   return result.data.review_id;
 }
 
-async function featureFixture(includeExecutionPlan = false): Promise<string> {
+async function featureFixture(
+  includeExecutionPlan = false,
+  designApprovalGate = false,
+): Promise<string> {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coding-authorization-'));
   const ticketFolder = 'ABC123-feature';
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', ticketFolder);
@@ -181,7 +185,19 @@ async function featureFixture(includeExecutionPlan = false): Promise<string> {
   mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
   writeFileSync(
     nodePath.join(ticketDirectory, 'ticket.md'),
-    '---\ntype: feature\nphase: implement\n---\n',
+    [
+      '---',
+      'type: feature',
+      'phase: implement',
+      'scope:',
+      '  - Authorize coding from current plans.',
+      'out_of_scope:',
+      '  - Grant downstream authority.',
+      'done_when:',
+      '  - Coding authorization is inspectable.',
+      '---',
+      '',
+    ].join('\n'),
   );
   writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
   writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
@@ -193,7 +209,10 @@ async function featureFixture(includeExecutionPlan = false): Promise<string> {
   );
   writeFileSync(
     nodePath.join(root, '.safeword', 'config.json'),
-    '{"crossAgentReviewRoutes":{"codex":[{"reviewer":"claude","model":"opus"}]}}\n',
+    `${JSON.stringify({
+      crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] },
+      ...(designApprovalGate && { designApprovalGate: true }),
+    })}\n`,
   );
   writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), '');
 
@@ -239,7 +258,7 @@ async function featureFixture(includeExecutionPlan = false): Promise<string> {
       accepted_scenarios_covered: true,
       accepted_approach_preserved: true,
       normalized_plan_digest: normalizedExecutionPlanDigest(plan),
-      delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
+      delivery_definition: createExecutionPlanDeliveryDefinition(parsed, designApprovalGate),
     };
     const executionReviewId = await admitReview(
       root,
@@ -257,6 +276,32 @@ async function featureFixture(includeExecutionPlan = false): Promise<string> {
     [...reviewStamps, ''].join('\n'),
   );
   return root;
+}
+
+async function codingAuthorization(root: string): Promise<{
+  exitCode: number;
+  data: Record<string, unknown>;
+}> {
+  const invoked = await runCli(
+    ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+    {
+      cwd: root,
+      env: {
+        NODE_ENV: 'test',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+      },
+    },
+  );
+  const result = JSON.parse(invoked.stdout) as { data: Record<string, unknown> };
+  return { exitCode: invoked.exitCode, data: result.data };
+}
+
+function authorizationIdentity(result: { data: Record<string, unknown> }): string {
+  expect(
+    result.data.authorization_input_identity,
+    'authorization_input_identity must describe the complete evaluated input',
+  ).toEqual(expect.any(String));
+  return result.data.authorization_input_identity as string;
 }
 
 describe('coding authorization', () => {
@@ -344,31 +389,169 @@ describe('coding authorization', () => {
   it('limits an approved result to coding authorization without downstream authority', async () => {
     const root = await featureFixture(true);
 
-    const invoked = await runCli(
-      ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
-      {
-        cwd: root,
-        env: {
-          NODE_ENV: 'test',
-          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
-        },
-      },
-    );
+    const result = await codingAuthorization(root);
 
-    expect(invoked.exitCode, invoked.stdout).toBe(0);
-    const result = JSON.parse(invoked.stdout) as { data: Record<string, unknown> };
-    expect(Object.keys(result.data).toSorted((left, right) => left.localeCompare(right))).toEqual([
-      'achieved_independence',
-      'authorization_input_identity',
-      'coding_authorization',
-      'command',
-      'grants_authority',
-    ]);
+    expect(result.exitCode).toBe(0);
     expect(result.data).toMatchObject({
       coding_authorization: 'authorized',
       achieved_independence: 'cross-agent',
       grants_authority: false,
     });
+    for (const downstreamClaim of [
+      'implementation_complete',
+      'verification_passed',
+      'release_approved',
+      'merge_authorized',
+    ]) {
+      expect(result.data).not.toHaveProperty(downstreamClaim);
+    }
+  });
+
+  it('identifies every stable authorization input but ignores checklist progress', async () => {
+    const baselineRoot = await featureFixture(true);
+    const baseline = await codingAuthorization(baselineRoot);
+    const baselineIdentity = authorizationIdentity(baseline);
+
+    const mutations: {
+      name: string;
+      apply(root: string): void;
+    }[] = [
+      {
+        name: 'configuration',
+        apply(root) {
+          writeFileSync(
+            nodePath.join(root, '.safeword', 'config.json'),
+            '{"crossAgentReviewRoutes":{"codex":[{"reviewer":"claude","model":"sonnet"}]}}\n',
+          );
+        },
+      },
+      {
+        name: 'ticket scope',
+        apply(root) {
+          const path = nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'ticket.md');
+          writeFileSync(
+            path,
+            readFileSync(path, 'utf8').replace(
+              'Authorize coding from current plans.',
+              'Authorize coding from current reviewed plans.',
+            ),
+          );
+        },
+      },
+      {
+        name: 'product plan',
+        apply(root) {
+          writeFileSync(
+            nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'spec.md'),
+            '# Product Plan\n\nChanged accepted behavior.\n',
+          );
+        },
+      },
+      {
+        name: 'accepted scenarios',
+        apply(root) {
+          writeFileSync(
+            nodePath.join(root, 'features', 'feature.feature'),
+            'Feature: Changed accepted behavior\n',
+          );
+        },
+      },
+      {
+        name: 'implementation plan',
+        apply(root) {
+          writeFileSync(
+            nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
+            '# Implementation Plan\n\nChanged accepted approach.\n',
+          );
+        },
+      },
+      {
+        name: 'execution plan definition',
+        apply(root) {
+          const path = nodePath.join(
+            root,
+            '.project',
+            'tickets',
+            'ABC123-feature',
+            'execution-plan.md',
+          );
+          writeFileSync(
+            path,
+            readFileSync(path, 'utf8').replace('Deliver testing.', 'Prove testing.'),
+          );
+        },
+      },
+      {
+        name: 'validated review provenance',
+        apply(root) {
+          mutateExecutionReview(root, data => ({
+            ...data,
+            author_agent: 'codex',
+            actual_reviewer: 'codex',
+            independence: 'degraded',
+            reviewer_output: {
+              ...(data.reviewer_output as Record<string, unknown>),
+              reviewer_agent: 'codex',
+            },
+          }));
+          rewriteExecutionReviewStamp(root, line =>
+            line.replace(
+              'author:codex reviewer:claude independence:cross-agent',
+              'author:codex reviewer:codex independence:degraded',
+            ),
+          );
+        },
+      },
+    ];
+
+    for (const mutation of mutations) {
+      const root = await featureFixture(true);
+      mutation.apply(root);
+      const changed = await codingAuthorization(root);
+      expect(authorizationIdentity(changed), mutation.name).not.toBe(baselineIdentity);
+    }
+
+    const approvalRoot = await featureFixture(true, true);
+    const beforeApproval = await codingAuthorization(approvalRoot);
+    const approvalIdentity = authorizationIdentity(beforeApproval);
+    const implementationPath = nodePath.join(
+      approvalRoot,
+      '.project',
+      'tickets',
+      'ABC123-feature',
+      'impl-plan.md',
+    );
+    const approval = appendDesignDecision(
+      nodePath.join(approvalRoot, '.project', 'skill-invocations.log'),
+      {
+        authorityRef: 'test-human',
+        decision: 'approved',
+        planDigest: createHash('sha256').update(readFileSync(implementationPath)).digest('hex'),
+        ticket: 'ABC123',
+      },
+    );
+    expect(approval.status).not.toBe('pending');
+    const afterApproval = await codingAuthorization(approvalRoot);
+    expect(authorizationIdentity(afterApproval)).not.toBe(approvalIdentity);
+
+    const progressRoot = await featureFixture(true);
+    const beforeProgress = await codingAuthorization(progressRoot);
+    const executionPath = nodePath.join(
+      progressRoot,
+      '.project',
+      'tickets',
+      'ABC123-feature',
+      'execution-plan.md',
+    );
+    writeFileSync(
+      executionPath,
+      readFileSync(executionPath, 'utf8').replace(
+        '| item-1 | outcome and scope | Deliver outcome and scope. | contributor | proof | open | missing |  |  |',
+        '| item-1 | outcome and scope | Deliver outcome and scope. | contributor | proof | complete | current | HEAD | receipt |',
+      ),
+    );
+    const afterProgress = await codingAuthorization(progressRoot);
+    expect(authorizationIdentity(afterProgress)).toBe(authorizationIdentity(beforeProgress));
   });
 
   it('rejects stale project-local plans despite approving host-local notes', async () => {
