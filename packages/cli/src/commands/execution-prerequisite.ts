@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 
 import { parseReviewStamps } from '../../templates/hooks/lib/review-ledger.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { admittedExecutionPlanReview } from '../execution-plan/delivery-admission.js';
+import { executionPlanAdmission } from '../execution-plan/delivery-admission.js';
 import {
   createExecutionPlanDeliveryDefinition,
   normalizedExecutionPlanDigest,
@@ -24,6 +24,9 @@ export const EXECUTION_PREREQUISITE_REPAIR_CODES = [
   'missing_accepted_scenarios',
   'missing_accepted_approach',
   'missing_admitted_delivery_checklist',
+  'missing_execution_plan_verdict',
+  'rejected_execution_plan_review',
+  'unearned_execution_plan_assurance',
 ] as const;
 
 export type ExecutionPrerequisiteRepairCode = (typeof EXECUTION_PREREQUISITE_REPAIR_CODES)[number];
@@ -34,13 +37,19 @@ interface MissingPrerequisite {
   readonly command: string;
 }
 
-function successful(status: ExecutionPrerequisiteStatus): CliResult {
+function successful(
+  status: ExecutionPrerequisiteStatus,
+  achievedIndependence?: 'cross-agent' | 'degraded',
+): CliResult {
   return createResult({
     state: 'healthy',
     data: {
       command: 'ticket execution-prerequisite',
       prerequisite_status: status,
       grants_authority: false,
+      ...(achievedIndependence !== undefined && {
+        achieved_independence: achievedIndependence,
+      }),
     },
   });
 }
@@ -224,7 +233,12 @@ function approachPrerequisite(context: PrerequisiteContext): MissingPrerequisite
   };
 }
 
-function checklistPrerequisite(context: PrerequisiteContext): MissingPrerequisite | undefined {
+type ChecklistPrerequisite =
+  | { readonly admitted: true; readonly independence: 'cross-agent' | 'degraded' }
+  | { readonly admitted: false; readonly missing: MissingPrerequisite };
+
+function checklistPrerequisite(context: PrerequisiteContext): ChecklistPrerequisite {
+  const command = `safeword review run plan-execution --context ${nodePath.relative(context.cwd, context.implementationPath)} --context ${relativeFeature(context)} -- ${nodePath.relative(context.cwd, context.executionPath)}`;
   if (existsSync(context.executionPath)) {
     const plan = readFileSync(context.executionPath, 'utf8');
     const parsed = parseDeliveryPlanContract(plan);
@@ -233,7 +247,7 @@ function checklistPrerequisite(context: PrerequisiteContext): MissingPrerequisit
         parsed,
         designApprovalRequired(context.cwd),
       );
-      const review = admittedExecutionPlanReview({
+      const review = executionPlanAdmission({
         cwd: context.cwd,
         ticketDirectory: context.ticketDirectory,
         planPath: context.executionPath,
@@ -241,13 +255,48 @@ function checklistPrerequisite(context: PrerequisiteContext): MissingPrerequisit
         definition,
         digest: normalizedExecutionPlanDigest(plan),
       });
-      if (review !== undefined) return undefined;
+      if (review.kind === 'admitted') {
+        return { admitted: true, independence: review.independence };
+      }
+      if (review.kind === 'missing_verdict') {
+        return {
+          admitted: false,
+          missing: {
+            code: 'missing_execution_plan_verdict',
+            message: 'The current Execution Plan review has no verdict.',
+            command,
+          },
+        };
+      }
+      if (review.kind === 'rejected') {
+        return {
+          admitted: false,
+          missing: {
+            code: 'rejected_execution_plan_review',
+            message: review.message,
+            command,
+          },
+        };
+      }
+      if (review.kind === 'unearned_assurance') {
+        return {
+          admitted: false,
+          missing: {
+            code: 'unearned_execution_plan_assurance',
+            message: 'The Execution Plan review has no validated achieved independence.',
+            command,
+          },
+        };
+      }
     }
   }
   return {
-    code: 'missing_admitted_delivery_checklist',
-    message: 'An admitted Delivery Checklist is required before execution.',
-    command: `safeword review run plan-execution --context ${nodePath.relative(context.cwd, context.implementationPath)} --context ${relativeFeature(context)} -- ${nodePath.relative(context.cwd, context.executionPath)}`,
+    admitted: false,
+    missing: {
+      code: 'missing_admitted_delivery_checklist',
+      message: 'An admitted Delivery Checklist is required before execution.',
+      command,
+    },
   };
 }
 
@@ -255,14 +304,21 @@ function checklistPrerequisite(context: PrerequisiteContext): MissingPrerequisit
 export function evaluateExecutionPrerequisite(
   cwd: string,
   ticketId: string,
-  options: { readonly legacyExemption?: boolean } = {},
+  options: {
+    readonly legacyExemption?: boolean;
+    readonly includeAssurance?: boolean;
+  } = {},
 ): CliResult {
   const loaded = prerequisiteContext(cwd, ticketId, options.legacyExemption ?? true);
   if (!loaded.applicable) return successful(loaded.status);
+  const checklist = checklistPrerequisite(loaded.context);
   const missing = [
     scenarioPrerequisite(loaded.context),
     approachPrerequisite(loaded.context),
-    checklistPrerequisite(loaded.context),
+    checklist.admitted ? undefined : checklist.missing,
   ].filter((item): item is MissingPrerequisite => item !== undefined);
-  return missing.length === 0 ? successful('satisfied') : denied(missing);
+  if (missing.length > 0) return denied(missing);
+  if (!checklist.admitted) return denied([checklist.missing]);
+  const independence = options.includeAssurance === true ? checklist.independence : undefined;
+  return successful('satisfied', independence);
 }

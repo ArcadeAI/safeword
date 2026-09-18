@@ -485,6 +485,60 @@ function readJob(cwd: string, id: string): ReviewJobRecord {
   return parsed;
 }
 
+function plainRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function authenticatedTerminalReceipt(
+  cwd: string,
+  id: string,
+):
+  | {
+      readonly kind: ReviewKind;
+      readonly targets: readonly string[];
+      readonly result: unknown;
+    }
+  | undefined {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(jobPath(cwd, id), 'utf8'));
+    const candidate = plainRecord(parsed);
+    if (
+      candidate?.id !== id ||
+      candidate.state !== 'completed' ||
+      !hasReviewJobIdentity(candidate) ||
+      !hasValidIntegrity(cwd, candidate as unknown as ReviewJobRecord)
+    ) {
+      return undefined;
+    }
+    return {
+      kind: candidate.kind as ReviewKind,
+      targets: candidate.targets as readonly string[],
+      result: candidate.result,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Read authenticated terminal receipt data without requiring a valid reviewer payload. */
+export function authenticatedReviewReceiptData(
+  cwd: string,
+  id: string,
+): Record<string, unknown> | undefined {
+  const receipt = authenticatedTerminalReceipt(cwd, id);
+  const result = plainRecord(receipt?.result);
+  const data = plainRecord(result?.data);
+  if (receipt === undefined || data === undefined) return undefined;
+  return {
+    ...data,
+    review_id: id,
+    review_kind: receipt.kind,
+    review_targets: receipt.targets,
+  };
+}
+
 function pendingResult(record: ReviewJobRecord): CliResult {
   return createResult({
     state: 'action_required',
