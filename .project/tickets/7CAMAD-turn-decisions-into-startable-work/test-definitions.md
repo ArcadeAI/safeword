@@ -77,7 +77,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A missing project-local plan names the project-local artifact to create
 
 - [x] RED 86cda081d
-- [ ] GREEN
+- [x] GREEN 153b78709
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
