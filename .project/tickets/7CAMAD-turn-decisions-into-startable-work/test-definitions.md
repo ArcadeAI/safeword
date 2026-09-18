@@ -256,6 +256,6 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Execution approval cannot impersonate a downstream approval
 
-- [ ] RED
+- [x] RED 53d2c247e
 - [ ] GREEN
 - [ ] REFACTOR
