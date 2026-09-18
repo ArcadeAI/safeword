@@ -123,7 +123,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A boundary gives a Non-Technical Builder a plain recovery action
 
 - [x] RED 9281f9295
-- [ ] GREEN
+- [x] GREEN 4322f6f9b
 - [ ] REFACTOR
 
 ### Scenario: Recovery state controls resumption at every established stop point
