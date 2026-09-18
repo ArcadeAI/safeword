@@ -170,7 +170,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Review invalidation follows dependency direction
 
-- [ ] RED
+- [x] RED d25df2ea7
 - [ ] GREEN
 - [ ] REFACTOR
 
