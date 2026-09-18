@@ -103,15 +103,6 @@ When reporting a boundary to a Non-Technical Builder, name the exact decision ne
 - When a manifest-authorized dependency cannot be restored automatically, treat it as a dependency boundary. At a dependency boundary during verification, stop at verification without advancing; restore the required dependency, then report the blocking evidence.
 - At a scope boundary during verification, stop at verification without advancing; decide the proposed scope change, then report the blocking evidence.
 
-Resume from an authority boundary according to its recorded recovery state:
-
-| Interrupted step | Recovery state                    | Next-step directive                                                      |
-| ---------------- | --------------------------------- | ------------------------------------------------------------------------ |
-| implementation   | the required decision outstanding | `Implementation remains blocked — make the required decision to resume.` |
-| implementation   | the required decision completed   | `Resume implementation work.`                                            |
-| verification     | the required decision outstanding | `Verification remains blocked — make the required decision to resume.`   |
-| verification     | the required decision completed   | `Resume verification work.`                                              |
-
 An unsuccessful TDD step stays at the failing step and reports its evidence:
 
 | Unhealthy outcome | Next-step directive                                                         | Do not advance to |
