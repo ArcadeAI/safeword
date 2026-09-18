@@ -289,6 +289,7 @@ describe('receiptGateVerdict — a real review of the wrong work', () => {
     '.project/tickets/T1-slug/../T2-other/impl-plan.md',
     '.project/tickets/T1-slug/nested/impl-plan.md',
     String.raw`.project\tickets\T2-other\impl-plan.md`,
+    String.raw`.project\tickets\T1-slug\impl-plan.md`,
   ])('resolves traversal and nesting before binding an artifact: %j', target => {
     // The first row names T1 only after a `..` that leaves it; the third is a
     // real T1 path but not the ticket's own copy. Text matching admits both.

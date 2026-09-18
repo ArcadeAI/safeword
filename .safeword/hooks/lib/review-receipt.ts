@@ -117,17 +117,17 @@ export function claimFromScope(
     : { ...context, ticketFolder, artifact };
 }
 
-/** Resolve a recorded target using the separator style of the running host. */
-function resolveTarget(target: string, projectDirectory: string): string {
-  return nodePath.resolve(projectDirectory, target.replaceAll(/[\\/]/gu, nodePath.sep));
+/** Resolve a recorded target without reinterpreting legal POSIX filename characters. */
+function resolveTarget(target: string, projectDirectory: string): string | undefined {
+  if (nodePath.sep !== '\\' && target.includes('\\')) return undefined;
+  return nodePath.resolve(projectDirectory, target);
 }
 
 /** Whether a reviewed target is contained by this exact configured ticket directory. */
 function relativeTicketTarget(target: string, claim: StampClaim): string | undefined {
-  const relative = nodePath.relative(
-    claim.ticketDirectory,
-    resolveTarget(target, claim.projectDirectory),
-  );
+  const resolvedTarget = resolveTarget(target, claim.projectDirectory);
+  if (resolvedTarget === undefined) return undefined;
+  const relative = nodePath.relative(claim.ticketDirectory, resolvedTarget);
   if (
     relative === '' ||
     relative === '..' ||
@@ -149,10 +149,10 @@ function coversArtifact(targets: readonly string[], claim: StampClaim, artifact:
 
 /** Whether an exact file or reviewed parent directory covers a changed file. */
 function targetCoversFile(target: string, file: string, projectDirectory: string): boolean {
-  const relative = nodePath.relative(
-    resolveTarget(target, projectDirectory),
-    resolveTarget(file, projectDirectory),
-  );
+  const resolvedTarget = resolveTarget(target, projectDirectory);
+  const resolvedFile = resolveTarget(file, projectDirectory);
+  if (resolvedTarget === undefined || resolvedFile === undefined) return false;
+  const relative = nodePath.relative(resolvedTarget, resolvedFile);
   return (
     relative === '' ||
     (relative !== '..' &&
