@@ -141,7 +141,14 @@ describe('installed delivery continuation contract', () => {
   });
 
   it.each(tddCopies)('%s stops for an unauthorized missing dependency', path => {
-    expect(read(path)).toContain(
+    const content = readRaw(path);
+    const boundarySection =
+      content
+        .split('A genuine boundary retains the blocked step', 2)[1]
+        ?.split('An unsuccessful TDD step stays at the failing step', 1)[0]
+        .replaceAll(/\s+/gu, ' ') ?? '';
+
+    expect(boundarySection).toContain(
       'When verification requires a dependency absent from the manifest, stop at verification without advancing and ask the builder to authorize the dependency change.',
     );
   });
