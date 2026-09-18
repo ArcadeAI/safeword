@@ -92,6 +92,15 @@ function mutateExecutionReview(
   writeFileSync(path, `${JSON.stringify({ ...changed, integrity })}\n`);
 }
 
+function rewriteExecutionReviewStamp(root: string, rewrite: (line: string) => string): void {
+  const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+  const lines = readFileSync(ledgerPath, 'utf8').split('\n');
+  const index = lines.findIndex(line => line.includes('phase@plan-execution'));
+  if (index === -1) throw new Error('plan-execution review stamp missing');
+  lines[index] = rewrite(lines[index] ?? '');
+  writeFileSync(ledgerPath, lines.join('\n'));
+}
+
 function installReviewer(): string {
   const directory = createTrustedReviewerDirectory('safeword-coding-authorization-');
   const bin = nodePath.join(directory, 'bin');
@@ -464,10 +473,8 @@ describe('coding authorization', () => {
         reviewer_agent: 'codex',
       },
     }));
-    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
-    writeFileSync(
-      ledgerPath,
-      readFileSync(ledgerPath, 'utf8').replace(
+    rewriteExecutionReviewStamp(root, line =>
+      line.replace(
         'author:codex reviewer:claude independence:cross-agent',
         'author:codex reviewer:codex independence:degraded',
       ),
@@ -496,10 +503,8 @@ describe('coding authorization', () => {
 
   it('rejects an assurance claim that does not match validated provenance', async () => {
     const root = await featureFixture(true);
-    const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
-    writeFileSync(
-      ledgerPath,
-      readFileSync(ledgerPath, 'utf8').replace(
+    rewriteExecutionReviewStamp(root, line =>
+      line.replace(
         'author:codex reviewer:claude independence:cross-agent',
         'author:codex reviewer:codex independence:degraded',
       ),
