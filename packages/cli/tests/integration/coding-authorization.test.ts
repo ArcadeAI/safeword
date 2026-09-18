@@ -221,7 +221,7 @@ async function featureFixture(
     root,
     'scenario-gate',
     featureTarget,
-    [`.project/tickets/${ticketFolder}/spec.md`],
+    [`.project/tickets/${ticketFolder}/spec.md`, `.project/tickets/${ticketFolder}/ticket.md`],
     { bin },
   );
   const implementationReviewId = await admitReview(
