@@ -63,16 +63,17 @@ export interface ReviewReceipt {
 /**
  * The review kind that witnesses a given phase exit.
  *
- * Two exits have a specialist reviewer whose rubric is generated from the same
- * skill that authors the artifact, so the kind and the phase name coincide.
- * Every other exit is witnessed by the general `quality-review`.
+ * Specialist exits use a phase-named review kind; every other exit is witnessed
+ * by the general `quality-review`. `plan-execution` is intentionally receipt-only
+ * in 1.0.0-rc.4: this runtime can verify receipts produced by the source
+ * implementation, but cannot start that review kind itself.
  *
  * Before this mapping existed the check was `receipt.kind === claim.phase`,
- * which quietly made five of the seven exits unsatisfiable: `review run` accepts
- * only these three kinds, so a stamp for `intake`, `define-behavior`,
- * `implement`, `verify` or `done` could never cite a matching review. The gate
- * still blocked, but only an uncited stamp or a logged skip could clear it —
- * which is not the independent review the gate exists to require (ticket KHL52X).
+ * which quietly made five exits unsatisfiable: a stamp for `intake`,
+ * `define-behavior`, `implement`, `verify` or `done` could never cite a matching
+ * review. The gate still blocked, but only an uncited stamp or a logged skip
+ * could clear it — which is not the independent review the gate exists to
+ * require (ticket KHL52X).
  *
  * Adding a specialist kind later narrows this fallback rather than widening it.
  */
