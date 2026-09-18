@@ -21,12 +21,12 @@ import nodePath from 'node:path';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { createBestEffortByteSink } from '../cli-protocol/policy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { retryCommand } from './command.js';
+import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
 import {
   executionPlanReviewIdentity,
   hasExecutionPlanDeliveryChecklist,
-} from '../execution-plan/review-identity.js';
-import { retryCommand } from './command.js';
-import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
+} from './execution-plan-identity.js';
 import { prepareReviewPacket } from './packet.js';
 import { reviewWorkerRunBoundMs } from './runtime.js';
 
