@@ -114,7 +114,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Execution Plan verdict and recorded assurance control coding authorization
 
-- [ ] RED
+- [x] RED ef18bc398
 - [ ] GREEN
 - [ ] REFACTOR
 
