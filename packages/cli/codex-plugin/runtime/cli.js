@@ -35063,6 +35063,38 @@ function readJob(cwd, id) {
     throw new Error("invalid review job record");
   return parsed2;
 }
+function plainRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
+}
+function authenticatedTerminalReceipt(cwd, id) {
+  try {
+    const parsed2 = JSON.parse(readFileSync33(jobPath(cwd, id), "utf8"));
+    const candidate = plainRecord(parsed2);
+    if (candidate?.id !== id || candidate.state !== "completed" || !hasReviewJobIdentity(candidate) || !hasValidIntegrity(cwd, candidate)) {
+      return;
+    }
+    return {
+      kind: candidate.kind,
+      targets: candidate.targets,
+      result: candidate.result
+    };
+  } catch {
+    return;
+  }
+}
+function authenticatedReviewReceiptData(cwd, id) {
+  const receipt = authenticatedTerminalReceipt(cwd, id);
+  const result = plainRecord(receipt?.result);
+  const data = plainRecord(result?.data);
+  if (receipt === undefined || data === undefined)
+    return;
+  return {
+    ...data,
+    review_id: id,
+    review_kind: receipt.kind,
+    review_targets: receipt.targets
+  };
+}
 function pendingResult(record) {
   return createResult({
     state: "action_required",
@@ -35730,22 +35762,7 @@ function isActiveReviewJob(record) {
     return processExists(record.pid);
   return record.state === "running" && inspectReviewWorker(record.pid, record.id) !== "mismatch";
 }
-function reviewJobStatus(cwd, requestedId) {
-  let id;
-  try {
-    id = requestedId ?? latestJobId(cwd);
-  } catch {
-    id = requestedId;
-  }
-  if (id === undefined) {
-    return createResult({
-      state: "failed",
-      errors: [
-        { code: "REVIEW_JOB_NOT_FOUND", message: "No review job was found.", retryable: false }
-      ],
-      data: { command: "review status" }
-    });
-  }
+function validatedReviewJobStatus(cwd, id) {
   let record;
   try {
     record = readJob(cwd, id);
@@ -35779,6 +35796,29 @@ function reviewJobStatus(cwd, requestedId) {
       data: { command: "review status", status: "blocked", review_id: id }
     });
   }
+}
+function reviewJobStatus(cwd, requestedId, options = {}) {
+  let id;
+  try {
+    id = requestedId ?? latestJobId(cwd);
+  } catch {
+    id = requestedId;
+  }
+  if (id === undefined) {
+    return createResult({
+      state: "failed",
+      errors: [
+        { code: "REVIEW_JOB_NOT_FOUND", message: "No review job was found.", retryable: false }
+      ],
+      data: { command: "review status" }
+    });
+  }
+  if (options.allowMalformedReviewerOutput === true) {
+    const data = authenticatedReviewReceiptData(cwd, id);
+    if (data !== undefined)
+      return createResult({ state: "healthy", data });
+  }
+  return validatedReviewJobStatus(cwd, id);
 }
 function cancelReviewJob(cwd, requestedId) {
   try {
@@ -69175,31 +69215,84 @@ var init_plan_approval = __esm(() => {
 
 // src/execution-plan/delivery-admission.ts
 import nodePath124 from "path";
-function healthyReviewData(cwd, reviewId) {
-  const status = reviewJobStatus(cwd, reviewId);
-  if (status.state !== "healthy")
-    return;
-  if (typeof status.data !== "object" || status.data === null)
-    return;
-  return status.data;
+function isRecord11(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function approvedReviewOutput(cwd, reviewId, planPath, definition, digest4) {
-  const data = healthyReviewData(cwd, reviewId);
-  if (data === undefined)
-    return;
-  if (data.status !== "approved" || data.review_kind !== "plan-execution")
-    return;
+function reviewData(cwd, reviewId) {
+  const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
+  return isRecord11(status.data) ? status.data : undefined;
+}
+function coversPlan(data, cwd, planPath) {
   const targets = data.review_targets;
-  if (!Array.isArray(targets))
+  return Array.isArray(targets) && targets.some((target) => typeof target === "string" && nodePath124.resolve(cwd, target) === planPath);
+}
+function rejectionMessage(output) {
+  const findings = output.findings;
+  if (!Array.isArray(findings))
+    return "The Execution Plan review requested changes.";
+  for (const finding2 of findings) {
+    if (typeof finding2 === "object" && finding2 !== null && typeof finding2.message === "string") {
+      return finding2.message;
+    }
+  }
+  return "The Execution Plan review requested changes.";
+}
+function achievedIndependence(data, output, stamp) {
+  const independence = data.independence;
+  if (independence !== "cross-agent" && independence !== "degraded")
     return;
-  const coversPlan = targets.some((target) => typeof target === "string" && nodePath124.resolve(cwd, target) === planPath);
-  if (!coversPlan)
+  if (stamp.independence !== independence || stamp.author !== data.author_agent || stamp.reviewer !== data.actual_reviewer || output.reviewer_agent !== data.actual_reviewer) {
     return;
-  if (typeof data.reviewer_output !== "object" || data.reviewer_output === null)
+  }
+  if (independence === "cross-agent" && data.author_agent === data.actual_reviewer)
     return;
-  const output = data.reviewer_output;
-  const validated = validateExecutionPlanOutput(output, definition, digest4);
-  return validated.kind === "approved" ? validated.output.execution_plan_record : undefined;
+  return independence;
+}
+function reviewCandidate(input, stamp) {
+  if (stamp.reviewId === undefined)
+    return;
+  const data = reviewData(input.cwd, stamp.reviewId);
+  if (data?.review_kind !== "plan-execution")
+    return;
+  if (!coversPlan(data, input.cwd, input.planPath) || !isRecord11(data.reviewer_output)) {
+    return;
+  }
+  return { reviewId: stamp.reviewId, data, output: data.reviewer_output };
+}
+function candidateAdmission(input, stamp) {
+  const candidate = reviewCandidate(input, stamp);
+  if (candidate === undefined)
+    return;
+  const { data, output, reviewId } = candidate;
+  if (output.verdict === undefined)
+    return { kind: "missing_verdict" };
+  if (output.verdict === "request_changes") {
+    return { kind: "rejected", message: rejectionMessage(output) };
+  }
+  const independence = achievedIndependence(data, output, stamp);
+  if (independence === undefined)
+    return { kind: "unearned_assurance" };
+  if (data.status !== "approved")
+    return { kind: "not_admitted" };
+  const validated = validateExecutionPlanOutput(output, input.definition, input.digest);
+  if (validated.kind !== "approved")
+    return { kind: "not_admitted" };
+  return {
+    kind: "admitted",
+    reviewId,
+    record: validated.output.execution_plan_record,
+    independence
+  };
+}
+function executionPlanAdmission(input) {
+  const scope = `${nodePath124.basename(input.ticketDirectory)}:phase@plan-execution`;
+  const candidates = parseReviewStamps(input.ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
+  for (const stamp of candidates) {
+    const admission = candidateAdmission(input, stamp);
+    if (admission !== undefined)
+      return admission;
+  }
+  return { kind: "not_admitted" };
 }
 function admittedExecutionPlanReview(input) {
   const scope = `${nodePath124.basename(input.ticketDirectory)}:phase@plan-execution`;
@@ -69207,9 +69300,17 @@ function admittedExecutionPlanReview(input) {
   for (const stamp of candidates) {
     if (stamp.reviewId === undefined)
       continue;
-    const record2 = approvedReviewOutput(input.cwd, stamp.reviewId, input.planPath, input.definition, input.digest);
-    if (record2 !== undefined)
-      return { reviewId: stamp.reviewId, record: record2 };
+    const status = reviewJobStatus(input.cwd, stamp.reviewId);
+    if (status.state !== "healthy" || !isRecord11(status.data))
+      continue;
+    const data = status.data;
+    if (data.status !== "approved" || data.review_kind !== "plan-execution" || !coversPlan(data, input.cwd, input.planPath) || !isRecord11(data.reviewer_output)) {
+      continue;
+    }
+    const validated = validateExecutionPlanOutput(data.reviewer_output, input.definition, input.digest);
+    if (validated.kind === "approved") {
+      return { reviewId: stamp.reviewId, record: validated.output.execution_plan_record };
+    }
   }
   return;
 }
@@ -70241,13 +70342,16 @@ __export(exports_execution_prerequisite, {
 import { createHash as createHash42 } from "crypto";
 import { existsSync as existsSync60, readFileSync as readFileSync82 } from "fs";
 import nodePath128 from "path";
-function successful(status) {
+function successful(status, achievedIndependence2) {
   return createResult({
     state: "healthy",
     data: {
       command: "ticket execution-prerequisite",
       prerequisite_status: status,
-      grants_authority: false
+      grants_authority: false,
+      ...achievedIndependence2 !== undefined && {
+        achieved_independence: achievedIndependence2
+      }
     }
   });
 }
@@ -70307,7 +70411,7 @@ function contractedFeature(ticketDirectory, phase) {
     return true;
   return existsSync60(nodePath128.join(ticketDirectory, "impl-plan.md")) && existsSync60(nodePath128.join(ticketDirectory, "execution-plan.md"));
 }
-function prerequisiteContext(cwd, ticketId) {
+function prerequisiteContext(cwd, ticketId, legacyExemption) {
   const ticketDirectory = resolveTicketDirectory(cwd, ticketId);
   if (ticketDirectory === undefined)
     return { applicable: false, status: "not_applicable" };
@@ -70316,7 +70420,7 @@ function prerequisiteContext(cwd, ticketId) {
   if (readFrontmatterScalar(ticket, "type") !== "feature") {
     return { applicable: false, status: "not_applicable" };
   }
-  if (!contractedFeature(ticketDirectory, readFrontmatterScalar(ticket, "phase"))) {
+  if (legacyExemption && !contractedFeature(ticketDirectory, readFrontmatterScalar(ticket, "phase"))) {
     return { applicable: false, status: "not_applicable" };
   }
   const ledgerPath = nodePath128.join(resolveNamespaceRoot(cwd), "skill-invocations.log");
@@ -70360,12 +70464,13 @@ function approachPrerequisite(context) {
   };
 }
 function checklistPrerequisite(context) {
+  const command = `safeword review run plan-execution --context ${nodePath128.relative(context.cwd, context.implementationPath)} --context ${relativeFeature(context)} -- ${nodePath128.relative(context.cwd, context.executionPath)}`;
   if (existsSync60(context.executionPath)) {
     const plan = readFileSync82(context.executionPath, "utf8");
     const parsed2 = parseDeliveryPlanContract(plan);
     if (parsed2.ok) {
       const definition = createExecutionPlanDeliveryDefinition(parsed2, designApprovalRequired(context.cwd));
-      const review = admittedExecutionPlanReview({
+      const review = executionPlanAdmission({
         cwd: context.cwd,
         ticketDirectory: context.ticketDirectory,
         planPath: context.executionPath,
@@ -70373,26 +70478,66 @@ function checklistPrerequisite(context) {
         definition,
         digest: normalizedExecutionPlanDigest(plan)
       });
-      if (review !== undefined)
-        return;
+      if (review.kind === "admitted") {
+        return { admitted: true, independence: review.independence };
+      }
+      if (review.kind === "missing_verdict") {
+        return {
+          admitted: false,
+          missing: {
+            code: "missing_execution_plan_verdict",
+            message: "The current Execution Plan review has no verdict.",
+            command
+          }
+        };
+      }
+      if (review.kind === "rejected") {
+        return {
+          admitted: false,
+          missing: {
+            code: "rejected_execution_plan_review",
+            message: review.message,
+            command
+          }
+        };
+      }
+      if (review.kind === "unearned_assurance") {
+        return {
+          admitted: false,
+          missing: {
+            code: "unearned_execution_plan_assurance",
+            message: "The Execution Plan review has no validated achieved independence.",
+            command
+          }
+        };
+      }
     }
   }
   return {
-    code: "missing_admitted_delivery_checklist",
-    message: "An admitted Delivery Checklist is required before execution.",
-    command: `safeword review run plan-execution --context ${nodePath128.relative(context.cwd, context.implementationPath)} --context ${relativeFeature(context)} -- ${nodePath128.relative(context.cwd, context.executionPath)}`
+    admitted: false,
+    missing: {
+      code: "missing_admitted_delivery_checklist",
+      message: "An admitted Delivery Checklist is required before execution.",
+      command
+    }
   };
 }
-function evaluateExecutionPrerequisite(cwd, ticketId) {
-  const loaded = prerequisiteContext(cwd, ticketId);
+function evaluateExecutionPrerequisite(cwd, ticketId, options = {}) {
+  const loaded = prerequisiteContext(cwd, ticketId, options.legacyExemption ?? true);
   if (!loaded.applicable)
     return successful(loaded.status);
+  const checklist = checklistPrerequisite(loaded.context);
   const missing = [
     scenarioPrerequisite(loaded.context),
     approachPrerequisite(loaded.context),
-    checklistPrerequisite(loaded.context)
+    checklist.admitted ? undefined : checklist.missing
   ].filter((item) => item !== undefined);
-  return missing.length === 0 ? successful("satisfied") : denied2(missing);
+  if (missing.length > 0)
+    return denied2(missing);
+  if (!checklist.admitted)
+    return denied2([checklist.missing]);
+  const independence = options.includeAssurance === true ? checklist.independence : undefined;
+  return successful("satisfied", independence);
 }
 var EXECUTION_PREREQUISITE_REPAIR_CODES;
 var init_execution_prerequisite = __esm(() => {
@@ -70408,8 +70553,39 @@ var init_execution_prerequisite = __esm(() => {
   EXECUTION_PREREQUISITE_REPAIR_CODES = [
     "missing_accepted_scenarios",
     "missing_accepted_approach",
-    "missing_admitted_delivery_checklist"
+    "missing_admitted_delivery_checklist",
+    "missing_execution_plan_verdict",
+    "rejected_execution_plan_review",
+    "unearned_execution_plan_assurance"
   ];
+});
+
+// src/commands/coding-authorization.ts
+var exports_coding_authorization = {};
+__export(exports_coding_authorization, {
+  evaluateCodingAuthorization: () => evaluateCodingAuthorization
+});
+function evaluateCodingAuthorization(cwd, ticketId) {
+  const prerequisite = evaluateExecutionPrerequisite(cwd, ticketId, {
+    legacyExemption: false,
+    includeAssurance: true
+  });
+  const authorized = prerequisite.state === "healthy";
+  const prerequisiteData = typeof prerequisite.data === "object" && prerequisite.data !== null ? prerequisite.data : {};
+  return {
+    ...prerequisite,
+    data: {
+      command: "ticket coding-authorization",
+      coding_authorization: authorized ? "authorized" : "denied",
+      grants_authority: false,
+      ...typeof prerequisiteData.achieved_independence === "string" && {
+        achieved_independence: prerequisiteData.achieved_independence
+      }
+    }
+  };
+}
+var init_coding_authorization = __esm(() => {
+  init_execution_prerequisite();
 });
 
 // src/commands/review-knowledge.ts
@@ -76833,6 +77009,14 @@ async function executionPrerequisiteHandler(invocation) {
   const { evaluateExecutionPrerequisite: evaluateExecutionPrerequisite2 } = await Promise.resolve().then(() => (init_execution_prerequisite(), exports_execution_prerequisite));
   return evaluateExecutionPrerequisite2(invocation.cwd, ticket);
 }
+async function codingAuthorizationHandler(invocation) {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== "string" || ticket === "") {
+    return invalidOperand("ticket coding-authorization", "ticket id must be non-empty text.");
+  }
+  const { evaluateCodingAuthorization: evaluateCodingAuthorization2 } = await Promise.resolve().then(() => (init_coding_authorization(), exports_coding_authorization));
+  return evaluateCodingAuthorization2(invocation.cwd, ticket);
+}
 async function recordDeliveryProofHandler(invocation) {
   const [ticket, item, proof] = invocation.operands;
   if ([ticket, item, proof].some((value) => typeof value !== "string" || value === "")) {
@@ -76978,6 +77162,7 @@ var HANDLERS = {
   "ticket approve-plan": ticketApprovePlanHandler,
   "ticket delivery-checklist": deliveryChecklistHandler,
   "ticket execution-prerequisite": executionPrerequisiteHandler,
+  "ticket coding-authorization": codingAuthorizationHandler,
   "ticket record-delivery-proof": recordDeliveryProofHandler,
   "review run": reviewRunHandler,
   "review gate executable-red": executableRedGateHandler,
@@ -77430,6 +77615,13 @@ var CANONICAL_COMMANDS = [
     syntax: "execution-prerequisite <ticketId>",
     fixture: {
       argv: ["ticket", "execution-prerequisite", "fixture"],
+      environment: MACHINE_ENVIRONMENT
+    }
+  }),
+  command("ticket coding-authorization", "Check whether current reviewed plans authorize coding", "observe", {
+    syntax: "coding-authorization <ticketId>",
+    fixture: {
+      argv: ["ticket", "coding-authorization", "fixture"],
       environment: MACHINE_ENVIRONMENT
     }
   }),

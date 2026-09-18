@@ -7,7 +7,7 @@ import type {
   UnverifiedReviewerOutput,
 } from '../review/contract.js';
 import { validateExecutionPlanOutput } from '../review/execution-plan-output.js';
-import { authenticatedReviewReceiptData } from '../review/job.js';
+import { reviewJobStatus } from '../review/job.js';
 
 export type ExecutionPlanAdmission =
   | {
@@ -23,6 +23,11 @@ export type ExecutionPlanAdmission =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function reviewData(cwd: string, reviewId: string): Record<string, unknown> | undefined {
+  const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
+  return isRecord(status.data) ? status.data : undefined;
 }
 
 function coversPlan(data: Record<string, unknown>, cwd: string, planPath: string): boolean {
@@ -79,7 +84,7 @@ function reviewCandidate(
     }
   | undefined {
   if (stamp.reviewId === undefined) return undefined;
-  const data = authenticatedReviewReceiptData(input.cwd, stamp.reviewId);
+  const data = reviewData(input.cwd, stamp.reviewId);
   if (data?.review_kind !== 'plan-execution') return undefined;
   if (!coversPlan(data, input.cwd, input.planPath) || !isRecord(data.reviewer_output)) {
     return undefined;
@@ -136,13 +141,34 @@ export function executionPlanAdmission(input: {
 }
 
 /** Resolve an admitted review for callers that need the approved plan record. */
-export function admittedExecutionPlanReview(input: Parameters<typeof executionPlanAdmission>[0]):
-  | {
-      readonly reviewId: string;
-      readonly record: ExecutionPlanRecord;
-      readonly independence: 'cross-agent' | 'degraded';
+export function admittedExecutionPlanReview(
+  input: Parameters<typeof executionPlanAdmission>[0],
+): { readonly reviewId: string; readonly record: ExecutionPlanRecord } | undefined {
+  const scope = `${nodePath.basename(input.ticketDirectory)}:phase@plan-execution`;
+  const candidates = parseReviewStamps(input.ledger)
+    .filter(stamp => stamp.scope === scope && stamp.skipReason === undefined)
+    .toReversed();
+  for (const stamp of candidates) {
+    if (stamp.reviewId === undefined) continue;
+    const status = reviewJobStatus(input.cwd, stamp.reviewId);
+    if (status.state !== 'healthy' || !isRecord(status.data)) continue;
+    const data = status.data;
+    if (
+      data.status !== 'approved' ||
+      data.review_kind !== 'plan-execution' ||
+      !coversPlan(data, input.cwd, input.planPath) ||
+      !isRecord(data.reviewer_output)
+    ) {
+      continue;
     }
-  | undefined {
-  const admission = executionPlanAdmission(input);
-  return admission.kind === 'admitted' ? admission : undefined;
+    const validated = validateExecutionPlanOutput(
+      data.reviewer_output as unknown as UnverifiedReviewerOutput,
+      input.definition,
+      input.digest,
+    );
+    if (validated.kind === 'approved') {
+      return { reviewId: stamp.reviewId, record: validated.output.execution_plan_record };
+    }
+  }
+  return undefined;
 }

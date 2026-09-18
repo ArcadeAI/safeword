@@ -523,7 +523,7 @@ function authenticatedTerminalReceipt(
 }
 
 /** Read authenticated terminal receipt data without requiring a valid reviewer payload. */
-export function authenticatedReviewReceiptData(
+function authenticatedReviewReceiptData(
   cwd: string,
   id: string,
 ): Record<string, unknown> | undefined {
@@ -1387,22 +1387,7 @@ function isActiveReviewJob(record: ReviewJobRecord): boolean {
   return record.state === 'running' && inspectReviewWorker(record.pid, record.id) !== 'mismatch';
 }
 
-export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
-  let id: string | undefined;
-  try {
-    id = requestedId ?? latestJobId(cwd);
-  } catch {
-    id = requestedId;
-  }
-  if (id === undefined) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        { code: 'REVIEW_JOB_NOT_FOUND', message: 'No review job was found.', retryable: false },
-      ],
-      data: { command: 'review status' },
-    });
-  }
+function validatedReviewJobStatus(cwd: string, id: string): CliResult {
   let record: ReviewJobRecord;
   try {
     record = readJob(cwd, id);
@@ -1436,6 +1421,33 @@ export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
       data: { command: 'review status', status: 'blocked', review_id: id },
     });
   }
+}
+
+export function reviewJobStatus(
+  cwd: string,
+  requestedId?: string,
+  options: { readonly allowMalformedReviewerOutput?: boolean } = {},
+): CliResult {
+  let id: string | undefined;
+  try {
+    id = requestedId ?? latestJobId(cwd);
+  } catch {
+    id = requestedId;
+  }
+  if (id === undefined) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        { code: 'REVIEW_JOB_NOT_FOUND', message: 'No review job was found.', retryable: false },
+      ],
+      data: { command: 'review status' },
+    });
+  }
+  if (options.allowMalformedReviewerOutput === true) {
+    const data = authenticatedReviewReceiptData(cwd, id);
+    if (data !== undefined) return createResult({ state: 'healthy', data });
+  }
+  return validatedReviewJobStatus(cwd, id);
 }
 
 export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {
