@@ -1,77 +1,86 @@
-import { createHmac } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { assertTestCliFresh, runCli } from '../helpers.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
 
-const REVIEW_KEY = Buffer.alloc(32, 7);
+function installReviewer(): string {
+  const directory = createTrustedReviewerDirectory('safeword-coding-authorization-');
+  const bin = nodePath.join(directory, 'bin');
+  mkdirSync(bin, { recursive: true });
+  const executable = nodePath.join(bin, 'claude');
+  writeFileSync(
+    executable,
+    String.raw`#!/bin/sh
+set -eu
+if [ "${'$'}{1:-}" = "--version" ]; then printf 'claude 1.0.0\n'; exit 0; fi
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  printf '%s\n' '${REVIEWER_CAPABILITIES.claude}'
+  exit 0
+fi
+payload=$(cat)
+dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved fixture","findings":[]}\n' "$dispatch_id"
+`,
+    { mode: 0o755 },
+  );
+  chmodSync(executable, 0o755);
+  return bin;
+}
 
-function writeApprovedReview(
+async function admitReview(
   root: string,
   kind: 'scenario-gate' | 'plan-implementation',
   target: string,
-  reviewId: string,
-): void {
-  const result = {
-    schema_version: 1,
-    ok: true,
-    state: 'healthy',
-    changed: false,
-    findings: [],
-    effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
-    errors: [],
-    recovery: [],
-    next_actions: [],
-    data: {
-      command: 'review run',
-      status: 'approved',
-      review_kind: kind,
-      review_targets: [target],
-      author_agent: 'codex',
-      actual_reviewer: 'claude',
-      independence: 'cross-agent',
+  context: readonly string[],
+  bin: string,
+): Promise<string> {
+  const reviewed = await runCli(
+    [
+      'review',
+      'run',
+      kind,
+      target,
+      ...context.flatMap(path => ['--context', path]),
+      '--json',
+      '--no-input',
+      '--cwd',
+      root,
+    ],
+    {
+      cwd: root,
+      env: {
+        PATH: `${bin}:/usr/bin:/bin`,
+        NODE_ENV: 'test',
+        SAFEWORD_AGENT_RUNTIME: 'codex',
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+      },
     },
-  };
-  const record = {
-    schema_version: 1,
-    id: reviewId,
-    state: 'completed',
-    kind,
-    targets: [target],
-    context: [],
-    source_fingerprint: 'a'.repeat(64),
-    started_at: '2026-09-18T00:00:00.000Z',
-    updated_at: '2026-09-18T00:00:01.000Z',
-    result,
-  };
-  const integrity = createHmac('sha256', REVIEW_KEY)
-    .update(realpathSync.native(root))
-    .update('\0')
-    .update(JSON.stringify(record))
-    .digest('hex');
-  const reviewDirectory = nodePath.join(root, '.safeword', 'state', 'reviews');
-  mkdirSync(reviewDirectory, { recursive: true });
-  writeFileSync(
-    nodePath.join(reviewDirectory, `${reviewId}.json`),
-    `${JSON.stringify({ ...record, integrity })}\n`,
   );
+  expect(reviewed.exitCode, reviewed.stdout).toBe(0);
+  const result = JSON.parse(reviewed.stdout) as { data?: { review_id?: string } };
+  if (result.data?.review_id === undefined) throw new Error(`${kind} review id missing`);
+  return result.data.review_id;
 }
 
-function featureFixture(): string {
+async function featureFixture(): Promise<string> {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coding-authorization-'));
   const ticketFolder = 'ABC123-feature';
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', ticketFolder);
   const featureTarget = 'features/feature.feature';
   const implementationTarget = `.project/tickets/${ticketFolder}/impl-plan.md`;
-  const scenarioReviewId = '11111111-1111-4111-8111-111111111111';
-  const implementationReviewId = '22222222-2222-4222-8222-222222222222';
   mkdirSync(ticketDirectory, { recursive: true });
   mkdirSync(nodePath.join(root, 'features'), { recursive: true });
   mkdirSync(nodePath.join(root, '.claude', 'plans'), { recursive: true });
-  mkdirSync(nodePath.join(root, '.review-keys', 'safeword'), { recursive: true });
+  mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
   writeFileSync(
     nodePath.join(ticketDirectory, 'ticket.md'),
     '---\ntype: feature\nphase: implement\n---\n',
@@ -84,11 +93,26 @@ function featureFixture(): string {
     '# Host-local execution notes\n',
   );
   writeFileSync(
-    nodePath.join(root, '.review-keys', 'safeword', 'review-integrity.key'),
-    `${REVIEW_KEY.toString('hex')}\n`,
+    nodePath.join(root, '.safeword', 'config.json'),
+    '{"crossAgentReviewRoutes":{"codex":[{"reviewer":"claude","model":"opus"}]}}\n',
   );
-  writeApprovedReview(root, 'scenario-gate', featureTarget, scenarioReviewId);
-  writeApprovedReview(root, 'plan-implementation', implementationTarget, implementationReviewId);
+  writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), '');
+
+  const bin = installReviewer();
+  const scenarioReviewId = await admitReview(
+    root,
+    'scenario-gate',
+    featureTarget,
+    [`.project/tickets/${ticketFolder}/spec.md`],
+    bin,
+  );
+  const implementationReviewId = await admitReview(
+    root,
+    'plan-implementation',
+    implementationTarget,
+    [featureTarget, `.project/tickets/${ticketFolder}/spec.md`],
+    bin,
+  );
   writeFileSync(
     nodePath.join(root, '.project', 'skill-invocations.log'),
     [
@@ -103,8 +127,12 @@ function featureFixture(): string {
 describe('coding authorization', () => {
   beforeAll(assertTestCliFresh);
 
+  afterEach(() => {
+    cleanupTrustedReviewerDirectories();
+  });
+
   it('rejects host-local notes when the project-local Execution Plan is missing', async () => {
-    const root = featureFixture();
+    const root = await featureFixture();
 
     const invoked = await runCli(
       ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
