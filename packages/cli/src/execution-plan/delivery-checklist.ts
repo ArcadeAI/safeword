@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import {
   closeSync,
   constants,
@@ -10,6 +10,8 @@ import {
 } from 'node:fs';
 
 import type { ExecutionPlanDeliveryDefinition } from '../review/contract.js';
+
+export { normalizedExecutionPlanDigest } from './review-identity.js';
 
 export const DELIVERY_CHECKLIST_CATEGORIES = [
   'outcome and scope',
@@ -209,37 +211,6 @@ function unescapedPipeOffsets(line: string): number[] {
     index += 1;
   }
   return offsets;
-}
-
-function normalizeProgressCells(line: string): string {
-  const cells = splitRow(line);
-  const item = cells === undefined ? undefined : parseItem(cells);
-  if (
-    item === undefined ||
-    item.disposition === 'not_applicable' ||
-    item.disposition === 'pending_human'
-  ) {
-    return line;
-  }
-  const pipes = unescapedPipeOffsets(line);
-  if (pipes.length !== HEADERS.length + 1) return line;
-  const stableEnd = pipes[5];
-  const finalPipe = pipes[9];
-  if (stableEnd === undefined || finalPipe === undefined) return line;
-  return `${line.slice(0, stableEnd + 1)} <progress> | <progress> | <progress> | <progress> ${line.slice(finalPipe)}`;
-}
-
-/** Hash every Execution Plan byte except ordinary contributor progress cells. */
-export function normalizedExecutionPlanDigest(content: string): string {
-  const lines = content.split('\n');
-  const markerIndex = lines.findIndex(line => line.trim() === MARKER);
-  if (markerIndex !== -1) {
-    for (let index = markerIndex + 1; index < lines.length; index += 1) {
-      const line = lines[index];
-      if (line !== undefined) lines[index] = normalizeProgressCells(line);
-    }
-  }
-  return createHash('sha256').update(lines.join('\n')).digest('hex');
 }
 
 function isSeparator(cells: readonly string[]): boolean {

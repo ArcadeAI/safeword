@@ -21,6 +21,7 @@ import nodePath from 'node:path';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { createBestEffortByteSink } from '../cli-protocol/policy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { executionPlanReviewIdentity } from '../execution-plan/review-identity.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
@@ -181,11 +182,8 @@ function fingerprint(
     if (execution !== undefined) hash.update(`execution\0${JSON.stringify(execution)}\0`);
     if (ledger.missing) hash.update('ledger\0missing\0');
     const executionPlanFingerprint =
-      kind === 'plan-execution'
-        ? JSON.stringify({
-            delivery_definition: prepared.packet.execution_plan_delivery_definition,
-            normalized_digest: prepared.packet.execution_plan_normalized_digest,
-          })
+      kind === 'plan-execution' && prepared.packet.logical_files[0] !== undefined
+        ? executionPlanReviewIdentity(prepared.packet.logical_files[0].content, cwd)
         : undefined;
     for (const [section, files] of [
       ['targets', prepared.packet.logical_files],
@@ -195,11 +193,7 @@ function fingerprint(
       for (const file of files) {
         hash.update(file.path);
         hash.update('\0');
-        hash.update(
-          section === 'targets' && executionPlanFingerprint !== undefined
-            ? executionPlanFingerprint
-            : file.content,
-        );
+        hash.update(reviewFingerprintContent(section, file.content, executionPlanFingerprint));
         hash.update('\0');
       }
     }
@@ -207,6 +201,17 @@ function fingerprint(
   } finally {
     prepared.cleanup();
   }
+}
+
+function reviewFingerprintContent(
+  section: 'targets' | 'context',
+  content: string,
+  executionPlanFingerprint: string | undefined,
+): string {
+  if (section === 'targets' && executionPlanFingerprint !== undefined) {
+    return executionPlanFingerprint;
+  }
+  return content;
 }
 
 function pathEscapes(root: string, candidate: string): boolean {
