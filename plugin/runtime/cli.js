@@ -31509,6 +31509,7 @@ var init_contract = __esm(() => {
     "quality-review",
     "scenario-gate",
     "plan-implementation",
+    "plan-execution",
     "executable-red"
   ]);
 });
@@ -63186,7 +63187,7 @@ function commandViolations(steps) {
     ...stepById(steps, "validate")?.run === VALIDATE_COMMAND ? [] : ["fixed_validation"],
     ...stepById(steps, "verify")?.run === VERIFY_COMMAND ? [] : ["fixed_revision_verification"]
   ];
-  return testRun === 'npx --yes safeword@1.0.0-rc.3 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
+  return testRun === 'npx --yes safeword@1.0.0-rc.4 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
 }
 function executionViolations(steps) {
   return [
@@ -63614,6 +63615,10 @@ var init_remote_workflow_state = __esm(() => {
     {
       version: 6,
       normalizedSha256: "ee986693fddf819f1d37843a8964428b1e43a7196d70e70798ea42a9b17881b1"
+    },
+    {
+      version: 7,
+      normalizedSha256: "91b4bfc932a6c832730c7d57d32d6b89ae173fcc81028a5fc36d730857b5228a"
     }
   ];
   HISTORICAL_MANAGED_DIGESTS = new Set(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1).map((release) => release.normalizedSha256));
@@ -70694,6 +70699,19 @@ async function reviewRunHandler(invocation) {
           retryable: false
         }
       ]
+    });
+  }
+  if (rawKind === "plan-execution") {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_KIND_NOT_RUNNABLE",
+          message: "This Safeword version can verify existing plan-execution receipts but cannot start a new plan-execution review.",
+          retryable: false
+        }
+      ],
+      data: { command: "review run", status: "blocked", review_kind: rawKind }
     });
   }
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")

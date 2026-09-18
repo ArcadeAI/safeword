@@ -63,21 +63,24 @@ export interface ReviewReceipt {
 /**
  * The review kind that witnesses a given phase exit.
  *
- * Two exits have a specialist reviewer whose rubric is generated from the same
- * skill that authors the artifact, so the kind and the phase name coincide.
- * Every other exit is witnessed by the general `quality-review`.
+ * Specialist exits use a phase-named review kind; every other exit is witnessed
+ * by the general `quality-review`. `plan-execution` is intentionally receipt-only
+ * in 1.0.0-rc.4: this runtime can verify receipts produced by the source
+ * implementation, but cannot start that review kind itself.
  *
  * Before this mapping existed the check was `receipt.kind === claim.phase`,
- * which quietly made five of the seven exits unsatisfiable: `review run` accepts
- * only these three kinds, so a stamp for `intake`, `define-behavior`,
- * `implement`, `verify` or `done` could never cite a matching review. The gate
- * still blocked, but only an uncited stamp or a logged skip could clear it —
- * which is not the independent review the gate exists to require (ticket KHL52X).
+ * which quietly made five exits unsatisfiable: a stamp for `intake`,
+ * `define-behavior`, `implement`, `verify` or `done` could never cite a matching
+ * review. The gate still blocked, but only an uncited stamp or a logged skip
+ * could clear it — which is not the independent review the gate exists to
+ * require (ticket KHL52X).
  *
  * Adding a specialist kind later narrows this fallback rather than widening it.
  */
 export function reviewKindForPhase(phase: string): string {
-  return phase === 'scenario-gate' || phase === 'plan-implementation' ? phase : 'quality-review';
+  return phase === 'scenario-gate' || phase === 'plan-implementation' || phase === 'plan-execution'
+    ? phase
+    : 'quality-review';
 }
 
 /** Levels that assert a coordinator ran and returned a verdict. */
@@ -114,17 +117,17 @@ export function claimFromScope(
     : { ...context, ticketFolder, artifact };
 }
 
-/** Resolve a recorded target using the separator style of the running host. */
-function resolveTarget(target: string, projectDirectory: string): string {
-  return nodePath.resolve(projectDirectory, target.replaceAll(/[\\/]/gu, nodePath.sep));
+/** Resolve a recorded target without reinterpreting legal POSIX filename characters. */
+function resolveTarget(target: string, projectDirectory: string): string | undefined {
+  if (nodePath.sep !== '\\' && target.includes('\\')) return undefined;
+  return nodePath.resolve(projectDirectory, target);
 }
 
 /** Whether a reviewed target is contained by this exact configured ticket directory. */
 function relativeTicketTarget(target: string, claim: StampClaim): string | undefined {
-  const relative = nodePath.relative(
-    claim.ticketDirectory,
-    resolveTarget(target, claim.projectDirectory),
-  );
+  const resolvedTarget = resolveTarget(target, claim.projectDirectory);
+  if (resolvedTarget === undefined) return undefined;
+  const relative = nodePath.relative(claim.ticketDirectory, resolvedTarget);
   if (
     relative === '' ||
     relative === '..' ||
@@ -146,10 +149,10 @@ function coversArtifact(targets: readonly string[], claim: StampClaim, artifact:
 
 /** Whether an exact file or reviewed parent directory covers a changed file. */
 function targetCoversFile(target: string, file: string, projectDirectory: string): boolean {
-  const relative = nodePath.relative(
-    resolveTarget(target, projectDirectory),
-    resolveTarget(file, projectDirectory),
-  );
+  const resolvedTarget = resolveTarget(target, projectDirectory);
+  const resolvedFile = resolveTarget(file, projectDirectory);
+  if (resolvedTarget === undefined || resolvedFile === undefined) return false;
+  const relative = nodePath.relative(resolvedTarget, resolvedFile);
   return (
     relative === '' ||
     (relative !== '..' &&
@@ -171,6 +174,7 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
       target => target === 'test-definitions.md' || target.endsWith('.feature'),
     );
   if (phase === 'plan-implementation') return ticketTargets.includes('impl-plan.md');
+  if (phase === 'plan-execution') return ticketTargets.includes('execution-plan.md');
   if (phase === 'verify') return ticketTargets.includes('verify.md');
   if (phase === 'done') return ticketTargets.includes('ticket.md');
   if (phase === 'implement') {
