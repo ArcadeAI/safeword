@@ -18,7 +18,12 @@ import {
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
 import { appendDesignDecision } from '../../src/review/approval-ledger.js';
-import { assertTestCliFresh, runCli } from '../helpers.js';
+import {
+  assertTestCliFresh,
+  removeTemporaryDirectory,
+  runCli,
+  TIMEOUT_ACCEPTANCE_LANE,
+} from '../helpers.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -38,6 +43,7 @@ const CATEGORIES = [
   'ownership and human dependencies',
   'completion evidence',
 ] as const;
+const fixtureRoots: string[] = [];
 
 function executionPlan(): string {
   const rows = CATEGORIES.map(
@@ -169,11 +175,93 @@ async function admitReview(
   return result.data.review_id;
 }
 
+function executionReviewRecord(plan: string, designApprovalGate: boolean): Record<string, unknown> {
+  const parsed = parseDeliveryPlanContract(plan);
+  if (!parsed.ok) throw new Error(parsed.message);
+  return {
+    slicing_decision: 'one_pull_request',
+    rationale: 'One coherent contribution.',
+    slices: [
+      {
+        name: 'Contribution',
+        purpose: 'Deliver coding authorization.',
+        boundary: 'Public authorization command.',
+        prerequisites: [],
+        proof: 'Integration test.',
+        completion_signal: 'Authorization is observable.',
+        relies_on_unmerged_successor: false,
+      },
+    ],
+    obligation_owners: [{ obligation: 'Contribution', slices: ['Contribution'] }],
+    decision_statuses: [{ decision: 'Use accepted plans', status: 'unchanged' }],
+    accepted_scenarios_covered: true,
+    accepted_approach_preserved: true,
+    normalized_plan_digest: normalizedExecutionPlanDigest(plan),
+    delivery_definition: createExecutionPlanDeliveryDefinition(parsed, designApprovalGate),
+  };
+}
+
+async function refreshReviews(
+  root: string,
+  from: 'scenario' | 'implementation' | 'execution',
+): Promise<void> {
+  const ticketFolder = 'ABC123-feature';
+  const featureTarget = 'features/feature.feature';
+  const implementationTarget = `.project/tickets/${ticketFolder}/impl-plan.md`;
+  const executionTarget = `.project/tickets/${ticketFolder}/execution-plan.md`;
+  const config = JSON.parse(
+    readFileSync(nodePath.join(root, '.safeword', 'config.json'), 'utf8'),
+  ) as { designApprovalGate?: unknown };
+  const bin = installReviewer();
+  const stamps: string[] = [];
+  if (from === 'scenario') {
+    const reviewId = await admitReview(
+      root,
+      'scenario-gate',
+      featureTarget,
+      [`.project/tickets/${ticketFolder}/spec.md`, `.project/tickets/${ticketFolder}/ticket.md`],
+      { bin },
+    );
+    stamps.push(
+      `2026-09-18T00:01:01.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+    );
+  }
+  if (from === 'scenario' || from === 'implementation') {
+    const reviewId = await admitReview(
+      root,
+      'plan-implementation',
+      implementationTarget,
+      [featureTarget, `.project/tickets/${ticketFolder}/spec.md`],
+      { bin },
+    );
+    stamps.push(
+      `2026-09-18T00:01:02.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+    );
+  }
+  const plan = readFileSync(nodePath.join(root, executionTarget), 'utf8');
+  const reviewId = await admitReview(
+    root,
+    'plan-execution',
+    executionTarget,
+    [implementationTarget, featureTarget],
+    {
+      bin,
+      executionPlanRecord: executionReviewRecord(plan, config.designApprovalGate === true),
+    },
+  );
+  stamps.push(
+    `2026-09-18T00:01:03.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+  );
+  const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
+  writeFileSync(ledgerPath, `${readFileSync(ledgerPath, 'utf8')}${stamps.join('\n')}\n`);
+}
+
 async function featureFixture(
   includeExecutionPlan = false,
   designApprovalGate = false,
 ): Promise<string> {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coding-authorization-'));
+  fixtureRoots.push(root);
   const ticketFolder = 'ABC123-feature';
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', ticketFolder);
   const featureTarget = 'features/feature.feature';
@@ -237,35 +325,12 @@ async function featureFixture(
   ];
   if (includeExecutionPlan) {
     const plan = executionPlan();
-    const parsed = parseDeliveryPlanContract(plan);
-    if (!parsed.ok) throw new Error(parsed.message);
-    const executionPlanRecord = {
-      slicing_decision: 'one_pull_request',
-      rationale: 'One coherent contribution.',
-      slices: [
-        {
-          name: 'Contribution',
-          purpose: 'Deliver coding authorization.',
-          boundary: 'Public authorization command.',
-          prerequisites: [],
-          proof: 'Integration test.',
-          completion_signal: 'Authorization is observable.',
-          relies_on_unmerged_successor: false,
-        },
-      ],
-      obligation_owners: [{ obligation: 'Contribution', slices: ['Contribution'] }],
-      decision_statuses: [{ decision: 'Use accepted plans', status: 'unchanged' }],
-      accepted_scenarios_covered: true,
-      accepted_approach_preserved: true,
-      normalized_plan_digest: normalizedExecutionPlanDigest(plan),
-      delivery_definition: createExecutionPlanDeliveryDefinition(parsed, designApprovalGate),
-    };
     const executionReviewId = await admitReview(
       root,
       'plan-execution',
       executionTarget,
       [implementationTarget, featureTarget],
-      { bin, executionPlanRecord },
+      { bin, executionPlanRecord: executionReviewRecord(plan, designApprovalGate) },
     );
     reviewStamps.push(
       `2026-09-18T00:00:04.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:cross-agent review-id:${executionReviewId}`,
@@ -309,6 +374,7 @@ describe('coding authorization', () => {
 
   afterEach(() => {
     cleanupTrustedReviewerDirectories();
+    for (const root of fixtureRoots.splice(0)) removeTemporaryDirectory(root);
   });
 
   it('rejects host-local notes when the project-local Execution Plan is missing', async () => {
@@ -407,163 +473,188 @@ describe('coding authorization', () => {
     }
   });
 
-  it('identifies every stable authorization input but ignores checklist progress', async () => {
-    const mutations: {
-      name: string;
-      authorization: 'authorized' | 'denied';
-      apply(root: string): void;
-    }[] = [
-      {
-        name: 'configuration',
-        authorization: 'authorized',
-        apply(root) {
-          writeFileSync(
-            nodePath.join(root, '.safeword', 'config.json'),
-            '{"crossAgentReviewRoutes":{"codex":[{"reviewer":"claude","model":"sonnet"}]}}\n',
-          );
+  it(
+    'identifies every stable authorization input but ignores checklist progress',
+    async () => {
+      const mutations: {
+        name: string;
+        authorization: 'authorized' | 'denied';
+        refreshFrom?: 'scenario' | 'implementation' | 'execution';
+        apply(root: string): void;
+      }[] = [
+        {
+          name: 'configuration',
+          authorization: 'authorized',
+          apply(root) {
+            writeFileSync(
+              nodePath.join(root, '.safeword', 'config.json'),
+              '{"crossAgentReviewRoutes":{"codex":[{"reviewer":"claude","model":"sonnet"}]}}\n',
+            );
+          },
         },
-      },
-      {
-        name: 'ticket scope',
-        authorization: 'denied',
-        apply(root) {
-          const path = nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'ticket.md');
-          writeFileSync(
-            path,
-            readFileSync(path, 'utf8').replace(
-              'Authorize coding from current plans.',
-              'Authorize coding from current reviewed plans.',
-            ),
-          );
+        {
+          name: 'ticket scope',
+          authorization: 'denied',
+          refreshFrom: 'scenario',
+          apply(root) {
+            const path = nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'ticket.md');
+            writeFileSync(
+              path,
+              readFileSync(path, 'utf8').replace(
+                'Authorize coding from current plans.',
+                'Authorize coding from current reviewed plans.',
+              ),
+            );
+          },
         },
-      },
-      {
-        name: 'product plan',
-        authorization: 'denied',
-        apply(root) {
-          writeFileSync(
-            nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'spec.md'),
-            '# Product Plan\n\nChanged accepted behavior.\n',
-          );
+        {
+          name: 'product plan',
+          authorization: 'denied',
+          refreshFrom: 'scenario',
+          apply(root) {
+            writeFileSync(
+              nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'spec.md'),
+              '# Product Plan\n\nChanged accepted behavior.\n',
+            );
+          },
         },
-      },
-      {
-        name: 'accepted scenarios',
-        authorization: 'denied',
-        apply(root) {
-          writeFileSync(
-            nodePath.join(root, 'features', 'feature.feature'),
-            'Feature: Changed accepted behavior\n',
-          );
+        {
+          name: 'accepted scenarios',
+          authorization: 'denied',
+          refreshFrom: 'scenario',
+          apply(root) {
+            writeFileSync(
+              nodePath.join(root, 'features', 'feature.feature'),
+              'Feature: Changed accepted behavior\n',
+            );
+          },
         },
-      },
-      {
-        name: 'implementation plan',
-        authorization: 'denied',
-        apply(root) {
-          writeFileSync(
-            nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
-            '# Implementation Plan\n\nChanged accepted approach.\n',
-          );
+        {
+          name: 'implementation plan',
+          authorization: 'denied',
+          refreshFrom: 'implementation',
+          apply(root) {
+            writeFileSync(
+              nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
+              '# Implementation Plan\n\nChanged accepted approach.\n',
+            );
+          },
         },
-      },
-      {
-        name: 'execution plan definition',
-        authorization: 'denied',
-        apply(root) {
-          const path = nodePath.join(
-            root,
-            '.project',
-            'tickets',
-            'ABC123-feature',
-            'execution-plan.md',
-          );
-          writeFileSync(
-            path,
-            readFileSync(path, 'utf8').replace('Deliver testing.', 'Prove testing.'),
-          );
+        {
+          name: 'execution plan definition',
+          authorization: 'denied',
+          refreshFrom: 'execution',
+          apply(root) {
+            const path = nodePath.join(
+              root,
+              '.project',
+              'tickets',
+              'ABC123-feature',
+              'execution-plan.md',
+            );
+            writeFileSync(
+              path,
+              readFileSync(path, 'utf8').replace('Deliver testing.', 'Prove testing.'),
+            );
+          },
         },
-      },
-      {
-        name: 'validated review provenance',
-        authorization: 'authorized',
-        apply(root) {
-          mutateExecutionReview(root, data => ({
-            ...data,
-            author_agent: 'codex',
-            actual_reviewer: 'codex',
-            independence: 'degraded',
-            reviewer_output: {
-              ...(data.reviewer_output as Record<string, unknown>),
-              reviewer_agent: 'codex',
-            },
-          }));
-          rewriteExecutionReviewStamp(root, line =>
-            line.replace(
-              'author:codex reviewer:claude independence:cross-agent',
-              'author:codex reviewer:codex independence:degraded',
-            ),
-          );
+        {
+          name: 'validated review provenance',
+          authorization: 'authorized',
+          apply(root) {
+            mutateExecutionReview(root, data => ({
+              ...data,
+              author_agent: 'codex',
+              actual_reviewer: 'codex',
+              independence: 'degraded',
+              reviewer_output: {
+                ...(data.reviewer_output as Record<string, unknown>),
+                reviewer_agent: 'codex',
+              },
+            }));
+            rewriteExecutionReviewStamp(root, line =>
+              line.replace(
+                'author:codex reviewer:claude independence:cross-agent',
+                'author:codex reviewer:codex independence:degraded',
+              ),
+            );
+          },
         },
-      },
-    ];
+      ];
 
-    for (const mutation of mutations) {
-      const root = await featureFixture(true);
-      const before = await codingAuthorization(root);
-      expect(before.data.coding_authorization).toBe('authorized');
-      mutation.apply(root);
-      const after = await codingAuthorization(root);
-      expect(after.data.coding_authorization, mutation.name).toBe(mutation.authorization);
-      expect(authorizationIdentity(after), mutation.name).not.toBe(authorizationIdentity(before));
-    }
+      for (const mutation of mutations) {
+        const root = await featureFixture(true);
+        const before = await codingAuthorization(root);
+        expect(before.data.coding_authorization).toBe('authorized');
+        const beforeIdentity = authorizationIdentity(before);
+        mutation.apply(root);
+        const after = await codingAuthorization(root);
+        expect(after.data.coding_authorization, mutation.name).toBe(mutation.authorization);
+        if (mutation.refreshFrom === undefined) {
+          expect(authorizationIdentity(after), mutation.name).not.toBe(beforeIdentity);
+        } else {
+          await refreshReviews(root, mutation.refreshFrom);
+          const repaired = await codingAuthorization(root);
+          expect(repaired.data.coding_authorization, mutation.name).toBe('authorized');
+          expect(authorizationIdentity(repaired), mutation.name).not.toBe(beforeIdentity);
+        }
+      }
 
-    const approvalRoot = await featureFixture(true, true);
-    const beforeApproval = await codingAuthorization(approvalRoot);
-    expect(beforeApproval.data.coding_authorization).toBe('denied');
-    const approvalIdentity = authorizationIdentity(beforeApproval);
-    const implementationPath = nodePath.join(
-      approvalRoot,
-      '.project',
-      'tickets',
-      'ABC123-feature',
-      'impl-plan.md',
-    );
-    const approval = appendDesignDecision(
-      nodePath.join(approvalRoot, '.project', 'skill-invocations.log'),
-      {
-        authorityRef: 'test-human',
-        decision: 'approved',
-        planDigest: createHash('sha256').update(readFileSync(implementationPath)).digest('hex'),
-        ticket: 'ABC123',
-      },
-    );
-    expect(approval.status).not.toBe('pending');
-    const afterApproval = await codingAuthorization(approvalRoot);
-    expect(afterApproval.data.coding_authorization).toBe('authorized');
-    expect(authorizationIdentity(afterApproval)).not.toBe(approvalIdentity);
+      const rereviewRoot = await featureFixture(true);
+      const beforeRereview = await codingAuthorization(rereviewRoot);
+      await refreshReviews(rereviewRoot, 'scenario');
+      const afterRereview = await codingAuthorization(rereviewRoot);
+      expect(afterRereview.data.coding_authorization).toBe('authorized');
+      expect(authorizationIdentity(afterRereview)).toBe(authorizationIdentity(beforeRereview));
 
-    const progressRoot = await featureFixture(true);
-    const beforeProgress = await codingAuthorization(progressRoot);
-    expect(beforeProgress.data.coding_authorization).toBe('authorized');
-    const executionPath = nodePath.join(
-      progressRoot,
-      '.project',
-      'tickets',
-      'ABC123-feature',
-      'execution-plan.md',
-    );
-    writeFileSync(
-      executionPath,
-      readFileSync(executionPath, 'utf8').replace(
-        '| item-1 | outcome and scope | Deliver outcome and scope. | contributor | proof | open | missing |  |  |',
-        '| item-1 | outcome and scope | Deliver outcome and scope. | contributor | proof | complete | current | HEAD | receipt |',
-      ),
-    );
-    const afterProgress = await codingAuthorization(progressRoot);
-    expect(afterProgress.data.coding_authorization).toBe('authorized');
-    expect(authorizationIdentity(afterProgress)).toBe(authorizationIdentity(beforeProgress));
-  });
+      const approvalRoot = await featureFixture(true, true);
+      const beforeApproval = await codingAuthorization(approvalRoot);
+      expect(beforeApproval.data.coding_authorization).toBe('denied');
+      const approvalIdentity = authorizationIdentity(beforeApproval);
+      const implementationPath = nodePath.join(
+        approvalRoot,
+        '.project',
+        'tickets',
+        'ABC123-feature',
+        'impl-plan.md',
+      );
+      const approval = appendDesignDecision(
+        nodePath.join(approvalRoot, '.project', 'skill-invocations.log'),
+        {
+          authorityRef: 'test-human',
+          decision: 'approved',
+          planDigest: createHash('sha256').update(readFileSync(implementationPath)).digest('hex'),
+          ticket: 'ABC123',
+        },
+      );
+      expect(approval.status).not.toBe('pending');
+      const afterApproval = await codingAuthorization(approvalRoot);
+      expect(afterApproval.data.coding_authorization).toBe('authorized');
+      expect(authorizationIdentity(afterApproval)).not.toBe(approvalIdentity);
+
+      const progressRoot = await featureFixture(true);
+      const beforeProgress = await codingAuthorization(progressRoot);
+      expect(beforeProgress.data.coding_authorization).toBe('authorized');
+      const executionPath = nodePath.join(
+        progressRoot,
+        '.project',
+        'tickets',
+        'ABC123-feature',
+        'execution-plan.md',
+      );
+      writeFileSync(
+        executionPath,
+        readFileSync(executionPath, 'utf8').replace(
+          '| item-1 | outcome and scope | Deliver outcome and scope. | contributor | proof | open | missing |  |  |',
+          '| item-1 | outcome and scope | Deliver outcome and scope. | contributor | proof | complete | current | HEAD | receipt |',
+        ),
+      );
+      const afterProgress = await codingAuthorization(progressRoot);
+      expect(afterProgress.data.coding_authorization).toBe('authorized');
+      expect(authorizationIdentity(afterProgress)).toBe(authorizationIdentity(beforeProgress));
+    },
+    TIMEOUT_ACCEPTANCE_LANE,
+  );
 
   it('rejects stale project-local plans despite approving host-local notes', async () => {
     const root = await featureFixture(true);
