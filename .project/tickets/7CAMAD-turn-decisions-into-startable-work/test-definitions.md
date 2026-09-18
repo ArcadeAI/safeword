@@ -110,7 +110,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 7cead12f6
 - [x] GREEN 153b78709
-- [ ] REFACTOR
+- [x] REFACTOR skip: currency is already enforced by content-bound review admission
 
 ### Scenario: Execution Plan verdict and recorded assurance control coding authorization
 
