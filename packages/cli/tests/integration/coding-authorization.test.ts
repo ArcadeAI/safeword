@@ -501,14 +501,13 @@ describe('coding authorization', () => {
     });
   });
 
-  it('rejects an assurance claim that does not match validated provenance', async () => {
+  it('rejects a receipt with no validated achieved independence', async () => {
     const root = await featureFixture(true);
-    rewriteExecutionReviewStamp(root, line =>
-      line.replace(
-        'author:codex reviewer:claude independence:cross-agent',
-        'author:codex reviewer:codex independence:degraded',
-      ),
-    );
+    mutateExecutionReview(root, data => {
+      const changed = { ...data };
+      delete changed.independence;
+      return changed;
+    });
 
     const invoked = await runCli(
       ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
@@ -521,15 +520,19 @@ describe('coding authorization', () => {
       },
     );
 
-    expect(invoked.exitCode, invoked.stdout).toBe(2);
     const result = JSON.parse(invoked.stdout) as {
       findings: { code: string }[];
       data: { coding_authorization: string };
     };
-    expect(result.data.coding_authorization).toBe('denied');
-    expect(result.findings.map(finding => finding.code)).toEqual([
-      'unearned_execution_plan_assurance',
-    ]);
+    expect({
+      exitCode: invoked.exitCode,
+      codingAuthorization: result.data.coding_authorization,
+      findingCodes: result.findings.map(finding => finding.code),
+    }).toEqual({
+      exitCode: 2,
+      codingAuthorization: 'denied',
+      findingCodes: ['unearned_execution_plan_assurance'],
+    });
   });
 
   it('ignores an author-written independence claim without validated assurance', async () => {
@@ -555,14 +558,18 @@ describe('coding authorization', () => {
       },
     );
 
-    expect(invoked.exitCode, invoked.stdout).toBe(2);
     const result = JSON.parse(invoked.stdout) as {
       findings: { code: string }[];
       data: { coding_authorization: string };
     };
-    expect(result.data.coding_authorization).toBe('denied');
-    expect(result.findings.map(finding => finding.code)).toEqual([
-      'unearned_execution_plan_assurance',
-    ]);
+    expect({
+      exitCode: invoked.exitCode,
+      codingAuthorization: result.data.coding_authorization,
+      findingCodes: result.findings.map(finding => finding.code),
+    }).toEqual({
+      exitCode: 2,
+      codingAuthorization: 'denied',
+      findingCodes: ['unearned_execution_plan_assurance'],
+    });
   });
 });
