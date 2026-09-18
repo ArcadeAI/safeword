@@ -118,7 +118,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b7d76ec93
 - [x] GREEN 2181d8791
-- [ ] REFACTOR
+- [x] REFACTOR skip: the two dependency cases share the existing boundary list without adding a second mechanism
 
 ### Scenario: A boundary gives a Non-Technical Builder a plain recovery action
 
