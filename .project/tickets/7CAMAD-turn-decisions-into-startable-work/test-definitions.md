@@ -71,7 +71,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Project-local Execution Plan state controls coding authorization
 
 - [x] RED 86cda081d
-- [ ] GREEN
+- [x] GREEN 153b78709
 - [ ] REFACTOR
 
 ### Scenario: A missing project-local plan names the project-local artifact to create
