@@ -4,12 +4,56 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../../src/execution-plan/delivery-checklist.js';
 import { assertTestCliFresh, runCli } from '../helpers.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
   REVIEWER_CAPABILITIES,
 } from '../review-fixtures.js';
+
+const CATEGORIES = [
+  'outcome and scope',
+  'resolved decisions',
+  'dependency and pull-request decomposition',
+  'testing',
+  'data and compatibility',
+  'monitoring and failure signals',
+  'security and privacy',
+  'rollout and rollback',
+  'documentation',
+  'ownership and human dependencies',
+  'completion evidence',
+] as const;
+
+function executionPlan(): string {
+  const rows = CATEGORIES.map(
+    (category, index) =>
+      `| item-${index + 1} | ${category} | Deliver ${category}. | contributor | proof | open | missing |  |  |`,
+  );
+  return [
+    '# Execution Plan',
+    '',
+    '## Proof specifications',
+    '',
+    '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    `| proof | command | integration | public authorization | real_boundary | current_required | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"--version"]} |`,
+    '',
+    '## Delivery checklist',
+    '',
+    '<!-- safeword:delivery-checklist:v1 -->',
+    '',
+    '| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    ...rows,
+    '',
+  ].join('\n');
+}
 
 function installReviewer(): string {
   const directory = createTrustedReviewerDirectory('safeword-coding-authorization-');
@@ -27,7 +71,12 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
 fi
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
-printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved fixture","findings":[]}\n' "$dispatch_id"
+record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
+if [ -n "$record" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved fixture","findings":[],"execution_plan_record":%s}\n' "$dispatch_id" "$record"
+else
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved fixture","findings":[]}\n' "$dispatch_id"
+fi
 `,
     { mode: 0o755 },
   );
@@ -37,10 +86,10 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
 
 async function admitReview(
   root: string,
-  kind: 'scenario-gate' | 'plan-implementation',
+  kind: 'scenario-gate' | 'plan-implementation' | 'plan-execution',
   target: string,
   context: readonly string[],
-  bin: string,
+  options: { bin: string; executionPlanRecord?: Record<string, unknown> },
 ): Promise<string> {
   const reviewed = await runCli(
     [
@@ -57,11 +106,14 @@ async function admitReview(
     {
       cwd: root,
       env: {
-        PATH: `${bin}:/usr/bin:/bin`,
+        PATH: `${options.bin}:/usr/bin:/bin`,
         NODE_ENV: 'test',
         SAFEWORD_AGENT_RUNTIME: 'codex',
         SAFEWORD_NO_UPDATE_CHECK: '1',
         SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        ...(options.executionPlanRecord !== undefined && {
+          SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: JSON.stringify(options.executionPlanRecord),
+        }),
       },
     },
   );
@@ -71,12 +123,13 @@ async function admitReview(
   return result.data.review_id;
 }
 
-async function featureFixture(): Promise<string> {
+async function featureFixture(includeExecutionPlan = false): Promise<string> {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coding-authorization-'));
   const ticketFolder = 'ABC123-feature';
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', ticketFolder);
   const featureTarget = 'features/feature.feature';
   const implementationTarget = `.project/tickets/${ticketFolder}/impl-plan.md`;
+  const executionTarget = `.project/tickets/${ticketFolder}/execution-plan.md`;
   mkdirSync(ticketDirectory, { recursive: true });
   mkdirSync(nodePath.join(root, 'features'), { recursive: true });
   mkdirSync(nodePath.join(root, '.claude', 'plans'), { recursive: true });
@@ -88,6 +141,7 @@ async function featureFixture(): Promise<string> {
   writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
   writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), '# Implementation Plan\n');
   writeFileSync(nodePath.join(root, featureTarget), 'Feature: Accepted behavior\n');
+  if (includeExecutionPlan) writeFileSync(nodePath.join(root, executionTarget), executionPlan());
   writeFileSync(
     nodePath.join(root, '.claude', 'plans', 'execution.md'),
     '# Host-local execution notes\n',
@@ -104,22 +158,58 @@ async function featureFixture(): Promise<string> {
     'scenario-gate',
     featureTarget,
     [`.project/tickets/${ticketFolder}/spec.md`],
-    bin,
+    { bin },
   );
   const implementationReviewId = await admitReview(
     root,
     'plan-implementation',
     implementationTarget,
     [featureTarget, `.project/tickets/${ticketFolder}/spec.md`],
-    bin,
+    { bin },
   );
+  const reviewStamps = [
+    `2026-09-18T00:00:02.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${scenarioReviewId}`,
+    `2026-09-18T00:00:03.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${implementationReviewId}`,
+  ];
+  if (includeExecutionPlan) {
+    const plan = executionPlan();
+    const parsed = parseDeliveryPlanContract(plan);
+    if (!parsed.ok) throw new Error(parsed.message);
+    const executionPlanRecord = {
+      slicing_decision: 'one_pull_request',
+      rationale: 'One coherent contribution.',
+      slices: [
+        {
+          name: 'Contribution',
+          purpose: 'Deliver coding authorization.',
+          boundary: 'Public authorization command.',
+          prerequisites: [],
+          proof: 'Integration test.',
+          completion_signal: 'Authorization is observable.',
+          relies_on_unmerged_successor: false,
+        },
+      ],
+      obligation_owners: [{ obligation: 'Contribution', slices: ['Contribution'] }],
+      decision_statuses: [{ decision: 'Use accepted plans', status: 'unchanged' }],
+      accepted_scenarios_covered: true,
+      accepted_approach_preserved: true,
+      normalized_plan_digest: normalizedExecutionPlanDigest(plan),
+      delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
+    };
+    const executionReviewId = await admitReview(
+      root,
+      'plan-execution',
+      executionTarget,
+      [implementationTarget, featureTarget],
+      { bin, executionPlanRecord },
+    );
+    reviewStamps.push(
+      `2026-09-18T00:00:04.000Z fixture review:${ticketFolder}:phase@plan-execution author:codex reviewer:claude independence:cross-agent review-id:${executionReviewId}`,
+    );
+  }
   writeFileSync(
     nodePath.join(root, '.project', 'skill-invocations.log'),
-    [
-      `2026-09-18T00:00:02.000Z fixture review:${ticketFolder}:phase@scenario-gate author:codex reviewer:claude independence:cross-agent review-id:${scenarioReviewId}`,
-      `2026-09-18T00:00:03.000Z fixture review:${ticketFolder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${implementationReviewId}`,
-      '',
-    ].join('\n'),
+    [...reviewStamps, ''].join('\n'),
   );
   return root;
 }
@@ -173,5 +263,83 @@ describe('coding authorization', () => {
     expect(readFileSync(nodePath.join(root, '.claude', 'plans', 'execution.md'), 'utf8')).toBe(
       '# Host-local execution notes\n',
     );
+  });
+
+  it('authorizes coding from current project-local reviewed plans', async () => {
+    const root = await featureFixture(true);
+
+    const invoked = await runCli(
+      ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+
+    expect(
+      invoked.exitCode,
+      'coding authorization should authorize current project-local reviewed plans',
+    ).toBe(0);
+    const result = JSON.parse(invoked.stdout) as Record<string, unknown>;
+    expect(result).toMatchObject({
+      state: 'healthy',
+      findings: [],
+      next_actions: [],
+      data: {
+        command: 'ticket coding-authorization',
+        coding_authorization: 'authorized',
+        grants_authority: false,
+      },
+    });
+  });
+
+  it('rejects stale project-local plans despite approving host-local notes', async () => {
+    const root = await featureFixture(true);
+    const executionPlanPath = nodePath.join(
+      root,
+      '.project',
+      'tickets',
+      'ABC123-feature',
+      'execution-plan.md',
+    );
+    writeFileSync(
+      executionPlanPath,
+      `${readFileSync(executionPlanPath, 'utf8')}\nChanged after review.\n`,
+    );
+    writeFileSync(
+      nodePath.join(root, '.claude', 'plans', 'execution.md'),
+      '# Host-local execution notes\n\nApproved for implementation.\n',
+    );
+
+    const invoked = await runCli(
+      ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+
+    expect(
+      invoked.exitCode,
+      'coding authorization should reject a stale project-local plan despite approving host notes',
+    ).toBe(2);
+    const result = JSON.parse(invoked.stdout) as {
+      state: string;
+      findings: { code: string }[];
+      data: { coding_authorization: string; grants_authority: boolean };
+    };
+    expect(result).toMatchObject({
+      state: 'action_required',
+      data: { coding_authorization: 'denied', grants_authority: false },
+    });
+    expect(result.findings.map(finding => finding.code)).toEqual([
+      'missing_admitted_delivery_checklist',
+    ]);
   });
 });
