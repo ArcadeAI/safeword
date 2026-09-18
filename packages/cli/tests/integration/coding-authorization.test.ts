@@ -37,7 +37,6 @@ const CATEGORIES = [
   'ownership and human dependencies',
   'completion evidence',
 ] as const;
-const NULL_EXECUTION_PLAN_RECORD = JSON.parse('null') as null;
 
 function executionPlan(): string {
   const rows = CATEGORIES.map(
@@ -431,7 +430,6 @@ describe('coding authorization', () => {
         ...(data.reviewer_output as Record<string, unknown>),
         verdict: 'request_changes',
         findings: [{ severity: 'error', message: 'Execution plan is not startable.' }],
-        execution_plan_record: NULL_EXECUTION_PLAN_RECORD,
       },
     }));
 
