@@ -28,6 +28,7 @@ parent_contract_digest: 31fcd06cc32d4741d9b2cb39a0f1b04066f8bee6442bfa4343681177
 phase_anchors:
   - 'define-behavior: .project/tickets/PY73VN-finish-delivery-before-pr-readiness/spec.md'
   - 'scenario-gate: features/finish-delivery-before-pr-readiness.feature'
+  - 'implement: .project/tickets/PY73VN-finish-delivery-before-pr-readiness/impl-plan.md'
 ---
 
 # Finish accepted changes before asking for PR review
@@ -41,3 +42,4 @@ phase_anchors:
 - 2026-09-11T02:04:36.453Z Started: Created ticket PY73VN
 - 2026-09-12T15:02:12.140Z Intake accepted by explicit request to tackle this ticket; preserved Draft PRs as the CI-evidence escape hatch and treated external Ready actions as outside local-hook enforcement.
 - 2026-09-12T20:10:30.000Z Plan approved by independent cross-agent review. Kept one cohesive feature at the splitting checkpoint because all four proof groups share the same readiness identity, receipt, and irreversible shell boundary.
+- 2026-09-18T14:30:00.000-07:00 Implementation reconciled: the evidence design now covers a closing edit first observed in a resumed session; no planned decision was abandoned and no new design deviation was introduced. Independent whole-ticket review drove native Claude plugin parity fixes and the fresh-session exact-HEAD receipt regression fix.

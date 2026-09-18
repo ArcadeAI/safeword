@@ -1,6 +1,6 @@
 # Impl Plan: Finish accepted changes before asking for PR review
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-09-12
 
 ## Approach
@@ -23,7 +23,10 @@ Build in four slices:
    identity. After the
    successful close commit changes HEAD, atomically finalize a worktree-durable
    namespace-root `readiness-ticket.json` receipt containing that ticket ID and
-   full commit SHA. The Ready gate prefers active work; otherwise it accepts only
+   full commit SHA. A closing edit observed first in a resumed session also arms
+   finalization from the durable `done` state, while repeated observations of the
+   same completed ticket do not re-arm or refresh stale evidence. The Ready gate
+   prefers active work; otherwise it accepts only
    a receipt whose SHA equals current HEAD and whose ticket plus `verify.md`
    revalidate from disk. Evaluation order is fixed: if a session has an active
    ticket binding, validate that ticket and do not fall through; otherwise, if
@@ -109,7 +112,7 @@ Build in four slices:
    This is the highest practical proof for instruction-tier behavior:
    deterministic tests prove the exact canonical contract and its host delivery,
    while model compliance is why the irreversible Ready operation also has a
-   hard gate. Regenerate the Codex plugin and
+   hard gate. Regenerate the Claude and Codex plugins and
    reconcile the dogfood install after canonical template changes.
 
 The 20 accepted scenario headings collapse into those four actor-boundary proof groups
@@ -233,3 +236,5 @@ reversible extension of those accepted mechanisms.
   classification with an operation-level boundary rather than growing aliases.
 - Hook latency shows ticket/evidence reads are material at Ready invocation; add
   measured caching only with invalidation proof.
+- Either generated native plugin gains a different delivery source or catalogue
+  format; keep both generated trees in the installed-surface contract tests.
