@@ -450,7 +450,7 @@ describe('pre-tool architecture staging hook', () => {
     ['a lint preflight', 'bun run lint && git commit -m "remove billing"'],
   ])('visibly declines architecture auto-staging for %s', (_label, command) => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook(command);
 
@@ -572,7 +572,7 @@ describe('pre-tool architecture staging hook', () => {
     ['a broad add from a subdirectory', 'cd src && git add -A'],
   ])('does not advise when %s restores a staged deletion to HEAD', (_label, stagingCommand) => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
     mkdirSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     writeFileSync(
       nodePath.join(directory, 'src', 'billing', 'index.ts'),
@@ -589,7 +589,7 @@ describe('pre-tool architecture staging hook', () => {
 
   it('advises when an unrelated add leaves a staged deletion intact', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
 
     const hook = runHook('bun run lint && git add README.md && git commit -m "remove billing"');
@@ -1145,7 +1145,7 @@ git commit -m "text inside stdin"
     ],
   ])('does not treat a heredoc body with %s as an executable commit', (_label, command) => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook(command);
 
@@ -1159,7 +1159,7 @@ git commit -m "text inside stdin"
     'false && true && git commit -m "remove billing"',
   ])('does not inject guidance for a definitely short-circuited commit: %s', command => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook(command);
 
@@ -1171,7 +1171,7 @@ git commit -m "text inside stdin"
   it('does not inject Safeword guidance outside a Safeword project', () => {
     rmSync(nodePath.join(directory, '.safeword'), { recursive: true });
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook('git status --short && git commit -m "remove billing"');
 
@@ -1239,7 +1239,7 @@ git commit -m "text inside stdin"
     'does not mutate an already-staged tree for non-committing mode: %s',
     command => {
       rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-      git('add', '--', 'src/billing/index.ts');
+      git('add', '-u', '--', 'src/billing/index.ts');
 
       const hook = runHook(command);
 
@@ -1253,7 +1253,7 @@ git commit -m "text inside stdin"
 
   it('does not fall back to the real index when a projected git add fails', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook(
       'git add --pathspec-from-file=missing-pathspec && git commit -m "remove billing"',

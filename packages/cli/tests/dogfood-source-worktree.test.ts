@@ -19,6 +19,18 @@ function runNodeFromRepoRoot(source: string): string {
 }
 
 describe('dogfood source worktree package resolution (470)', () => {
+  it('bootstraps locked dependencies when Codex creates a worktree', () => {
+    const environment = parse(
+      readFileSync(nodePath.join(repoRoot, '.codex/environments/safeword.toml'), 'utf8'),
+    ) as {
+      setup?: { script?: string };
+    };
+
+    expect(environment.setup?.script).toBe(
+      ['mise install', 'bun ci', 'uv sync --locked'].join('\n'),
+    );
+  });
+
   it('keeps pinned core runtimes aligned with package metadata and CI', () => {
     const packageJson = readJson(nodePath.join(repoRoot, 'package.json')) as {
       packageManager?: string;
