@@ -194,7 +194,11 @@ function runHostPostTool(
   host: Host,
   directory: string,
   editedPath = TICKET_PATH,
-): { activeTicket?: string | null } {
+): {
+  activeTicket?: string | null;
+  recentCompletedTicket?: string;
+  readinessReceiptPending?: boolean;
+} {
   const filePath = nodePath.join(directory, editedPath);
   const hook = HOST_POST_HOOKS[host];
   const input =
@@ -225,6 +229,8 @@ function runHostPostTool(
   }[host];
   return JSON.parse(readFileSync(nodePath.join(directory, '.project', stateFile), 'utf8')) as {
     activeTicket?: string | null;
+    recentCompletedTicket?: string;
+    readinessReceiptPending?: boolean;
   };
 }
 
@@ -289,6 +295,17 @@ describe('pull-request readiness delivery gate', () => {
   );
 
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'denies direct Ready promotion during implementation on %s',
+    host => {
+      const output = runHostShellHook(host, unfinishedProject(), 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('implementation');
+      expect(denialReason(host, output)).toContain('complete the current scenario');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
     'gives a non-technical builder a plain visible recovery action on %s',
     host => {
       const output = runHostShellHook(host, unfinishedProject(), 'gh pr ready');
@@ -329,6 +346,24 @@ describe('pull-request readiness delivery gate', () => {
       expectDenied(host, output);
       expect(denialReason(host, output)).toContain('verification evidence');
       expect(denialReason(host, output)).toContain('run verification');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'denies a done ticket when verification records failed PR scope on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ❌ Piggybacked changes remain\n');
+      runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket with failed scope');
+      runHostPostTool(host, directory);
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('invalid verification evidence');
+      expect(denialReason(host, output)).toContain('run verification again');
     },
   );
 
@@ -392,6 +427,32 @@ describe('pull-request readiness delivery gate', () => {
       } else {
         expect(output).toEqual({});
       }
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'revokes completed-ticket readiness state when the ticket reopens on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      const completed = runHostPostTool(host, directory);
+      expect(completed.recentCompletedTicket).toBe('PY73VN');
+      expect(completed.readinessReceiptPending).toBe(true);
+
+      writeTicket(directory, 'implement', 'in_progress');
+      const reopened = runHostPostTool(host, directory);
+
+      expect(reopened.activeTicket).toBe('PY73VN');
+      expect(reopened.recentCompletedTicket).toBeUndefined();
+      expect(reopened.readinessReceiptPending).toBe(false);
+      commitAll(directory, 'reopen ticket');
+      runHostPostTool(host, directory);
+      clearSessionBindings(directory);
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('not finished');
     },
   );
 
@@ -468,6 +529,35 @@ describe('pull-request readiness delivery gate', () => {
       expectDenied(host, output);
       expect(denialReason(host, output)).toContain('current commit');
       expect(denialReason(host, output)).toContain('run verification again');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'does not refresh an older completed ticket while another ticket is active on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket');
+      runHostPostTool(host, directory);
+      const receiptPath = nodePath.join(directory, '.project/readiness-ticket.json');
+      const completedReceipt = readFileSync(receiptPath, 'utf8');
+
+      writeTestFile(
+        directory,
+        OTHER_TICKET_PATH,
+        ['---', 'id: OTHER', 'type: task', 'phase: implement', 'status: in_progress', '---'].join(
+          '\n',
+        ),
+      );
+      commitAll(directory, 'start another ticket');
+      const active = runHostPostTool(host, directory, OTHER_TICKET_PATH);
+      expect(active.activeTicket).toBe('OTHER');
+
+      runHostPostTool(host, directory, VERIFY_PATH);
+
+      expect(readFileSync(receiptPath, 'utf8')).toBe(completedReceipt);
     },
   );
 

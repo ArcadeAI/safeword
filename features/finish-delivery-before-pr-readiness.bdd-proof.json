@@ -30,7 +30,7 @@
     "Ready promotion is rejected across unfinished ticket states": [
       [
         "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
-        "denies Ready promotion chained after Draft creation on %s"
+        "denies direct Ready promotion during implementation on %s"
       ],
       [
         "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",

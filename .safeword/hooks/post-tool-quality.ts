@@ -228,6 +228,15 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
 
     // Auto-clear binding when ticket reaches done or backlog
     const ticketStatus = frontmatterField(content, 'status');
+    if (
+      ticketStatus !== undefined &&
+      ticketStatus !== 'done' &&
+      ticketId !== undefined &&
+      state.recentCompletedTicket === ticketId
+    ) {
+      delete state.recentCompletedTicket;
+      state.readinessReceiptPending = false;
+    }
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
       if (ticketStatus === 'done' && ticketId !== undefined) {
         const firstCompletedObservation = state.recentCompletedTicket !== ticketId;
@@ -284,6 +293,7 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
 // commit remains stale because only this explicit verification edit may refresh.
 if (
   state.recentCompletedTicket &&
+  (state.activeTicket === null || state.activeTicket === state.recentCompletedTicket) &&
   isCompletedTicketVerifyArtifact(editedFile, state.recentCompletedTicket) &&
   finalizeReadinessReceipt(projectDirectory, state.recentCompletedTicket)
 ) {

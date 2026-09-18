@@ -118,9 +118,10 @@ describe('installed delivery continuation contract', () => {
       const cells = rows[0]?.split('|').map(cell => cell.trim()) ?? [];
       expect(cells).toHaveLength(5);
       const directive = cells[2] ?? '';
+      const prohibitedStep = cells[3] ?? '';
       expect(directive).toContain(current);
       expect(directive).toContain(evidence);
-      expect(directive.toLowerCase()).not.toContain(following.toLowerCase());
+      expect(prohibitedStep.toLowerCase()).toContain(following.toLowerCase());
     }
   }
 
