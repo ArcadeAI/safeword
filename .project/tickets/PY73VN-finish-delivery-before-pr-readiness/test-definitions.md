@@ -130,7 +130,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5636c33af
 - [x] GREEN 8621d2987
-- [ ] REFACTOR
+- [x] REFACTOR skip: one four-row table is the smallest explicit model of step and recovery-state combinations
 
 ## Feature-level cross-scenario refactor
 
