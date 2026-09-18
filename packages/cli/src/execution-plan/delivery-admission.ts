@@ -21,10 +21,6 @@ export type ExecutionPlanAdmission =
   | { readonly kind: 'unearned_assurance' }
   | { readonly kind: 'not_admitted' };
 
-function reviewData(cwd: string, reviewId: string): Record<string, unknown> | undefined {
-  return authenticatedReviewReceiptData(cwd, reviewId);
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -83,7 +79,7 @@ function reviewCandidate(
     }
   | undefined {
   if (stamp.reviewId === undefined) return undefined;
-  const data = reviewData(input.cwd, stamp.reviewId);
+  const data = authenticatedReviewReceiptData(input.cwd, stamp.reviewId);
   if (data?.review_kind !== 'plan-execution') return undefined;
   if (!coversPlan(data, input.cwd, input.planPath) || !isRecord(data.reviewer_output)) {
     return undefined;
