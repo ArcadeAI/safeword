@@ -97,8 +97,7 @@ A genuine boundary retains the blocked step and gives its exact recovery action 
 - At an authority boundary during implementation, stop at implementation without advancing; request the required human decision.
 - At an authority boundary during verification, stop at verification without advancing; request the required human decision, then report the blocking evidence.
 - At a safety boundary during verification, stop at verification without advancing; approve the exact risky operation, then report the blocking evidence.
-- When verification requires a dependency absent from the manifest, stop at verification without advancing and ask the builder to authorize the dependency change.
-- When a manifest-authorized dependency cannot be restored automatically, treat it as a dependency boundary. At a dependency boundary during verification, stop at verification without advancing; restore the required dependency, then report the blocking evidence.
+- Treat a dependency as a boundary only when a manifest-authorized dependency cannot be restored automatically. At a dependency boundary during verification, stop at verification without advancing; restore the required dependency, then report the blocking evidence.
 - At a scope boundary during verification, stop at verification without advancing; decide the proposed scope change, then report the blocking evidence.
 
 An unsuccessful TDD step stays at the failing step and reports its evidence:
