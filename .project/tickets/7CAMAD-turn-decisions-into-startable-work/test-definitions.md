@@ -70,7 +70,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Project-local Execution Plan state controls coding authorization
 
-- [ ] RED
+- [x] RED 86cda081d
 - [ ] GREEN
 - [ ] REFACTOR
 
