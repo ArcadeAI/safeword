@@ -2,7 +2,7 @@
 id: 7CAMAD
 slug: turn-decisions-into-startable-work
 type: feature
-phase: plan-execution
+phase: implement
 status: in_progress
 phase_skips:
   - 'intake: originally inherited the 2026-09-08 approval of 82T411; that approval became stale after material parent changes and was superseded by the fresh Product Plan approval recorded on 2026-09-09T23:46:25.000Z'
@@ -47,6 +47,18 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-18T19:36:00.000Z Review-stamp verifier root cause: The published
+  rc.5 helper was current, but this checkout's dogfood version pointer selected
+  the legacy 0.83.1 receipt reader. That reader recognized the new review ID but
+  could not report `plan-execution` status or provenance, so the helper failed
+  closed with `status: unknown`. Confirmed by querying the same receipt through
+  both versions: 0.83.1 returned null receipt fields while the immutable
+  published rc.5 runtime returned the complete current approval. Ruled out a
+  stale plan (both current CLIs re-fingerprinted it as current), a corrupt job
+  record (integrity validation passed), and a failed Claude review (the receipt
+  records cross-agent Opus approval). Selected the immutable published rc.5
+  runtime explicitly; no receipt check was skipped or weakened.
 
 - 2026-09-18T17:12:00.000Z Review-stamp root cause: The independently
   approved `plan-execution` receipt was current under the feature source but
