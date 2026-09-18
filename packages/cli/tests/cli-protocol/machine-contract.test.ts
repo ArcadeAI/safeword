@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdirSync, rmSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -63,7 +64,11 @@ describe('public command machine contract', () => {
           [...definition.fixture.argv, '--json', '--no-input', '--offline', '--cwd', directory],
           {
             cwd: directory,
-            env: { ...definition.fixture.environment, XDG_CONFIG_HOME: directory },
+            env: {
+              ...definition.fixture.environment,
+              CODEX_HOME: nodePath.join(directory, '.codex'),
+              XDG_CONFIG_HOME: directory,
+            },
             timeout: 30_000,
           },
         );
@@ -125,7 +130,11 @@ describe('public command machine contract', () => {
         [...fixture.argv, '--json', '--no-input', '--offline', '--cwd', directory],
         {
           cwd: directory,
-          env: { ...fixture.environment, XDG_CONFIG_HOME: directory },
+          env: {
+            ...fixture.environment,
+            CODEX_HOME: nodePath.join(directory, '.codex'),
+            XDG_CONFIG_HOME: directory,
+          },
           timeout: 30_000,
         },
       );
