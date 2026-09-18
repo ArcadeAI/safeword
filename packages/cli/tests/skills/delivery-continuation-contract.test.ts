@@ -140,6 +140,12 @@ describe('installed delivery continuation contract', () => {
     );
   });
 
+  it.each(tddCopies)('%s stops for an unauthorized missing dependency', path => {
+    expect(read(path)).toContain(
+      'When verification requires a dependency absent from the manifest, stop at verification without advancing and ask the builder to authorize the dependency change.',
+    );
+  });
+
   it.each(prReadinessCopies)('%s returns from Draft evidence to delivery', path => {
     const content = readRaw(path);
     expect(content).toContain('## Observe and preserve');
