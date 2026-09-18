@@ -598,6 +598,18 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
+  command(
+    'ticket coding-authorization',
+    'Check whether current reviewed plans authorize coding',
+    'observe',
+    {
+      syntax: 'coding-authorization <ticketId>',
+      fixture: {
+        argv: ['ticket', 'coding-authorization', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('ticket record-delivery-proof', 'Run and retain one reviewed delivery proof', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'record-delivery-proof <ticketId> <itemId> <proofId>',

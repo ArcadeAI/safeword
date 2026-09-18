@@ -370,6 +370,15 @@ async function executionPrerequisiteHandler(invocation: CommandInvocation): Prom
   return evaluateExecutionPrerequisite(invocation.cwd, ticket);
 }
 
+async function codingAuthorizationHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket coding-authorization', 'ticket id must be non-empty text.');
+  }
+  const { evaluateCodingAuthorization } = await import('../commands/coding-authorization.js');
+  return evaluateCodingAuthorization(invocation.cwd, ticket);
+}
+
 async function recordDeliveryProofHandler(invocation: CommandInvocation): Promise<CliResult> {
   const [ticket, item, proof] = invocation.operands;
   if ([ticket, item, proof].some(value => typeof value !== 'string' || value === '')) {
@@ -542,6 +551,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket approve-plan': ticketApprovePlanHandler,
   'ticket delivery-checklist': deliveryChecklistHandler,
   'ticket execution-prerequisite': executionPrerequisiteHandler,
+  'ticket coding-authorization': codingAuthorizationHandler,
   'ticket record-delivery-proof': recordDeliveryProofHandler,
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,

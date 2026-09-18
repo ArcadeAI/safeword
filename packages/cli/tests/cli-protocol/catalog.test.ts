@@ -140,6 +140,7 @@ describe('CLI command catalog', () => {
       'ticket approve-plan',
       'ticket delivery-checklist',
       'ticket execution-prerequisite',
+      'ticket coding-authorization',
       'ticket record-delivery-proof',
       'review run',
       'review status',

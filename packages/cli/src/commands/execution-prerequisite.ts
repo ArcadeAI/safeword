@@ -145,6 +145,7 @@ interface PrerequisiteContext {
 function prerequisiteContext(
   cwd: string,
   ticketId: string,
+  legacyExemption: boolean,
 ):
   | { readonly applicable: false; readonly status: ExecutionPrerequisiteStatus }
   | { readonly applicable: true; readonly context: PrerequisiteContext } {
@@ -155,7 +156,10 @@ function prerequisiteContext(
   if (readFrontmatterScalar(ticket, 'type') !== 'feature') {
     return { applicable: false, status: 'not_applicable' };
   }
-  if (!contractedFeature(ticketDirectory, readFrontmatterScalar(ticket, 'phase'))) {
+  if (
+    legacyExemption &&
+    !contractedFeature(ticketDirectory, readFrontmatterScalar(ticket, 'phase'))
+  ) {
     return { applicable: false, status: 'not_applicable' };
   }
   const ledgerPath = nodePath.join(resolveNamespaceRoot(cwd), 'skill-invocations.log');
@@ -248,8 +252,12 @@ function checklistPrerequisite(context: PrerequisiteContext): MissingPrerequisit
 }
 
 /** Evaluate planning admission without granting coding or merge authority. */
-export function evaluateExecutionPrerequisite(cwd: string, ticketId: string): CliResult {
-  const loaded = prerequisiteContext(cwd, ticketId);
+export function evaluateExecutionPrerequisite(
+  cwd: string,
+  ticketId: string,
+  options: { readonly legacyExemption?: boolean } = {},
+): CliResult {
+  const loaded = prerequisiteContext(cwd, ticketId, options.legacyExemption ?? true);
   if (!loaded.applicable) return successful(loaded.status);
   const missing = [
     scenarioPrerequisite(loaded.context),
