@@ -332,6 +332,7 @@ describe('coding authorization', () => {
     const result = JSON.parse(invoked.stdout) as {
       state: string;
       findings: { code: string }[];
+      next_actions: { command: string }[];
       data: { coding_authorization: string; grants_authority: boolean };
     };
     expect(result).toMatchObject({
@@ -340,6 +341,9 @@ describe('coding authorization', () => {
     });
     expect(result.findings.map(finding => finding.code)).toEqual([
       'missing_admitted_delivery_checklist',
+    ]);
+    expect(result.next_actions.map(action => action.command)).toEqual([
+      'safeword review run plan-execution --context .project/tickets/ABC123-feature/impl-plan.md --context features/feature.feature -- .project/tickets/ABC123-feature/execution-plan.md',
     ]);
   });
 });
