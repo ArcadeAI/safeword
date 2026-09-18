@@ -341,6 +341,36 @@ describe('coding authorization', () => {
     });
   });
 
+  it('limits an approved result to coding authorization without downstream authority', async () => {
+    const root = await featureFixture(true);
+
+    const invoked = await runCli(
+      ['ticket', 'coding-authorization', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+
+    expect(invoked.exitCode, invoked.stdout).toBe(0);
+    const result = JSON.parse(invoked.stdout) as { data: Record<string, unknown> };
+    expect(Object.keys(result.data).toSorted((left, right) => left.localeCompare(right))).toEqual([
+      'achieved_independence',
+      'authorization_input_identity',
+      'coding_authorization',
+      'command',
+      'grants_authority',
+    ]);
+    expect(result.data).toMatchObject({
+      coding_authorization: 'authorized',
+      achieved_independence: 'cross-agent',
+      grants_authority: false,
+    });
+  });
+
   it('rejects stale project-local plans despite approving host-local notes', async () => {
     const root = await featureFixture(true);
     const executionPlanPath = nodePath.join(
