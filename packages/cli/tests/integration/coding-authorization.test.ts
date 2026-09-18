@@ -410,10 +410,12 @@ describe('coding authorization', () => {
   it('identifies every stable authorization input but ignores checklist progress', async () => {
     const mutations: {
       name: string;
+      authorization: 'authorized' | 'denied';
       apply(root: string): void;
     }[] = [
       {
         name: 'configuration',
+        authorization: 'authorized',
         apply(root) {
           writeFileSync(
             nodePath.join(root, '.safeword', 'config.json'),
@@ -423,6 +425,7 @@ describe('coding authorization', () => {
       },
       {
         name: 'ticket scope',
+        authorization: 'denied',
         apply(root) {
           const path = nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'ticket.md');
           writeFileSync(
@@ -436,6 +439,7 @@ describe('coding authorization', () => {
       },
       {
         name: 'product plan',
+        authorization: 'denied',
         apply(root) {
           writeFileSync(
             nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'spec.md'),
@@ -445,6 +449,7 @@ describe('coding authorization', () => {
       },
       {
         name: 'accepted scenarios',
+        authorization: 'denied',
         apply(root) {
           writeFileSync(
             nodePath.join(root, 'features', 'feature.feature'),
@@ -454,6 +459,7 @@ describe('coding authorization', () => {
       },
       {
         name: 'implementation plan',
+        authorization: 'denied',
         apply(root) {
           writeFileSync(
             nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
@@ -463,6 +469,7 @@ describe('coding authorization', () => {
       },
       {
         name: 'execution plan definition',
+        authorization: 'denied',
         apply(root) {
           const path = nodePath.join(
             root,
@@ -479,6 +486,7 @@ describe('coding authorization', () => {
       },
       {
         name: 'validated review provenance',
+        authorization: 'authorized',
         apply(root) {
           mutateExecutionReview(root, data => ({
             ...data,
@@ -503,13 +511,16 @@ describe('coding authorization', () => {
     for (const mutation of mutations) {
       const root = await featureFixture(true);
       const before = await codingAuthorization(root);
+      expect(before.data.coding_authorization).toBe('authorized');
       mutation.apply(root);
       const after = await codingAuthorization(root);
+      expect(after.data.coding_authorization, mutation.name).toBe(mutation.authorization);
       expect(authorizationIdentity(after), mutation.name).not.toBe(authorizationIdentity(before));
     }
 
     const approvalRoot = await featureFixture(true, true);
     const beforeApproval = await codingAuthorization(approvalRoot);
+    expect(beforeApproval.data.coding_authorization).toBe('denied');
     const approvalIdentity = authorizationIdentity(beforeApproval);
     const implementationPath = nodePath.join(
       approvalRoot,
@@ -529,10 +540,12 @@ describe('coding authorization', () => {
     );
     expect(approval.status).not.toBe('pending');
     const afterApproval = await codingAuthorization(approvalRoot);
+    expect(afterApproval.data.coding_authorization).toBe('authorized');
     expect(authorizationIdentity(afterApproval)).not.toBe(approvalIdentity);
 
     const progressRoot = await featureFixture(true);
     const beforeProgress = await codingAuthorization(progressRoot);
+    expect(beforeProgress.data.coding_authorization).toBe('authorized');
     const executionPath = nodePath.join(
       progressRoot,
       '.project',
@@ -548,6 +561,7 @@ describe('coding authorization', () => {
       ),
     );
     const afterProgress = await codingAuthorization(progressRoot);
+    expect(afterProgress.data.coding_authorization).toBe('authorized');
     expect(authorizationIdentity(afterProgress)).toBe(authorizationIdentity(beforeProgress));
   });
 
