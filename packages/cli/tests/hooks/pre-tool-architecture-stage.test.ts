@@ -34,11 +34,6 @@ describe('pre-tool architecture staging hook', () => {
   }
 
   function runHook(command: string): ReturnType<typeof spawnSync> {
-    symlinkSync(
-      nodePath.join(REPOSITORY_ROOT, 'packages'),
-      nodePath.join(directory, 'packages'),
-      'dir',
-    );
     return spawnSync('bun', [HOOK_PATH], {
       cwd: directory,
       encoding: 'utf8',
@@ -104,6 +99,11 @@ describe('pre-tool architecture staging hook', () => {
     writeFileSync(
       nodePath.join(directory, 'src', 'billing', 'index.ts'),
       'export const billing = true;\n',
+    );
+    symlinkSync(
+      nodePath.join(REPOSITORY_ROOT, 'packages'),
+      nodePath.join(directory, 'packages'),
+      'dir',
     );
     selfHeal(directory);
     git('add', '-A');
