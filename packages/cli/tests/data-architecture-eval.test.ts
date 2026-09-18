@@ -40,6 +40,17 @@ function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(item => canonicalJson(item)).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right));
+    return `{${entries
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${canonicalJson(entryValue)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function record(
   guideContent: string,
   response: EvaluationResponse,
@@ -47,7 +58,7 @@ function record(
 ): AblationRecord {
   return {
     guideSha256: sha256(guideContent),
-    caseRubricSha256: sha256(JSON.stringify(rubric)),
+    caseRubricSha256: sha256(canonicalJson(rubric)),
     modelVersion: 'controlled-model-v1',
     decodingConfiguration: { temperature: 0, topP: 1 },
     responseFormat: 'data-architecture-eval-v1',
@@ -215,6 +226,26 @@ describe('data architecture guide evaluation', () => {
       accepted: false,
       diagnostics: ['Ablation records do not match the current case rubric.'],
     });
+  });
+
+  it('accepts an equivalent case rubric with different property order', () => {
+    const reorderedRubric = {
+      forbiddenProofFactIds: ['proof.generated.sibling-output'],
+      expectedProofFactIds: ['proof.generated.independent-inventory'],
+      forbiddenDecisionIds: [],
+      expectedDecisionIds: ['decision.generated.source', 'decision.core.independent-proof'],
+    } as const;
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric: reorderedRubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
+    });
+
+    expect(result).toEqual({ accepted: true, diagnostics: [] });
   });
 
   it('rejects a named transform that removes a preserved decision label', () => {

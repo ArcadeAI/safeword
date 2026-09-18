@@ -110,7 +110,7 @@ function bindingDiagnostics(input: AblationPairInput): string[] {
   if (input.ablatedGuideRecord.guideSha256 !== sha256(input.storedAblatedGuide))
     diagnostics.push('Ablated-guide hash does not match the stored ablation.');
 
-  const rubricSha256 = sha256(JSON.stringify(input.rubric));
+  const rubricSha256 = sha256(canonicalJson(input.rubric));
   if (
     input.fullGuideRecord.caseRubricSha256 !== rubricSha256 ||
     input.ablatedGuideRecord.caseRubricSha256 !== rubricSha256
