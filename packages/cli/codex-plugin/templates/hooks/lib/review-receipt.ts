@@ -127,10 +127,7 @@ function resolveTarget(target: string, projectDirectory: string): string | undef
 function relativeTicketTarget(target: string, claim: StampClaim): string | undefined {
   const resolvedTarget = resolveTarget(target, claim.projectDirectory);
   if (resolvedTarget === undefined) return undefined;
-  const relative = nodePath.relative(
-    claim.ticketDirectory,
-    resolvedTarget,
-  );
+  const relative = nodePath.relative(claim.ticketDirectory, resolvedTarget);
   if (
     relative === '' ||
     relative === '..' ||
