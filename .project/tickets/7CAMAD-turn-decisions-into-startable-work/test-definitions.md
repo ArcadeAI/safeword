@@ -78,7 +78,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 86cda081d
 - [x] GREEN 153b78709
-- [ ] REFACTOR
+- [x] REFACTOR skip: recovery is already emitted by the shared prerequisite owner
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
 
