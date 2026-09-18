@@ -197,7 +197,9 @@ rejects stale, malformed, dirty-state, or wrong-head proof.
 
 ### BDD Orchestration
 
-Full feature workflow: **Discovery** → **Scenarios** → **Scenario Gate** → **Plan Implementation** → **TDD** → **Verify** → **Done**. Includes TDD (RED/GREEN/REFACTOR) inline. Large features can be split at any checkpoint.
+Full feature workflow: **Discovery** → **Scenarios** → **Scenario Gate** → **Plan Implementation** → **TDD** → **Verify** → **Audit** → **Done**. Includes TDD (RED/GREEN/REFACTOR) inline. After a successful GREEN, the agent continues through refactor and the next incomplete scenario without a routine handoff. After the final scenario, it continues through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure, stopping only at a real authority, safety, dependency, or scope boundary. Large features can be split at any checkpoint.
+
+Draft pull requests remain available for CI or review evidence during delivery. Claude Code, Codex, and Cursor deny first-class GitHub CLI Ready creation or promotion until the ticket is verified done. Reaching that state starts PR-readiness classification; it does not grant authority to promote the pull request, approve it, or merge it.
 
 **Example:** "Add user authentication to the API"
 
