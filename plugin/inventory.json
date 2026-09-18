@@ -455,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "3723b9306f0c8dd1de2508f057fbed01df74a442025625f02016d5b5b2da6c5a"
+      "sha256": "4d2d68c44d0e14a075154a100a5c8f13b72b3bb0b407a15afcd8318551ef4371"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -487,7 +487,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "7c0e500bdc7de16cba4f0be5b06b32fc3205b5059b644028096765c8dcad1a32"
+      "sha256": "2f6db0a9739c155810f641e91e69b001047c1467ca274c2c89ddd22ecf839264"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -635,7 +635,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "666b80e27d646732850796a593a3267438ad9247c9c976415a01ab9b4ba5d5f0"
+      "sha256": "e035f57f080eb47c8b9ce2d0fb136b1ca1c1ff58cf9c82a444541db07a2e429d"
     },
     {
       "path": "skills/bdd/VERIFY.md",

@@ -218,8 +218,13 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
     const ticketStatus = frontmatterField(content, 'status');
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
       if (ticketStatus === 'done' && ticketId !== undefined) {
+        const firstCompletedObservation = state.recentCompletedTicket !== ticketId;
         state.recentCompletedTicket = ticketId;
-        if (wasActiveTicket) state.readinessReceiptPending = true;
+        // A closing edit may be the first ticket event observed in a resumed
+        // session. Arm the receipt from the durable done state itself rather
+        // than requiring a prior in-memory binding, but do not re-arm it every
+        // time an already-recorded done ticket is observed.
+        if (wasActiveTicket || firstCompletedObservation) state.readinessReceiptPending = true;
       }
       state.activeTicket = null;
     }

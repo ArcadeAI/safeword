@@ -379,6 +379,28 @@ describe('pull-request readiness delivery gate', () => {
   );
 
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'records verified closure when the closing edit starts a fresh session on %s',
+    host => {
+      const directory = unfinishedProject();
+      clearSessionBindings(directory);
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket');
+      runHostPostTool(host, directory);
+      clearSessionBindings(directory);
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      if (host === 'Cursor') {
+        expect((output as CursorHookOutput).permission).toBe('allow');
+      } else {
+        expect(output).toEqual({});
+      }
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
     'denies Ready promotion after HEAD advances beyond verified closure on %s',
     host => {
       const directory = unfinishedProject();

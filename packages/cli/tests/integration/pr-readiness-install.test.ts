@@ -44,6 +44,7 @@ const temporaryDirectories: string[] = [];
 type Host = 'Claude Code' | 'OpenAI Codex' | 'Cursor';
 
 interface ClaudeHookOutput {
+  systemMessage?: string;
   hookSpecificOutput?: {
     permissionDecision?: string;
     permissionDecisionReason?: string;
@@ -261,6 +262,12 @@ describe('installed pull-request readiness gate', () => {
         expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecisionReason).toContain(
           'complete the current scenario',
         );
+        if (host === 'Claude Code') {
+          expect((output as ClaudeHookOutput).systemMessage).toContain('PY73VN');
+          expect((output as ClaudeHookOutput).systemMessage).toContain(
+            'complete the current scenario',
+          );
+        }
       }
     },
   );

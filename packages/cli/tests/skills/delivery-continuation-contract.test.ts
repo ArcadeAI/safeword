@@ -10,17 +10,25 @@ const readRaw = (path: string): string => {
   return readFileSync(fullPath, 'utf8');
 };
 const read = (path: string): string => readRaw(path).replaceAll(/\s+/gu, ' ');
-const readBoundarySection = (path: string): string =>
-  readRaw(path)
-    .split('A genuine boundary retains the blocked step', 2)[1]
-    ?.split('An unsuccessful TDD step stays at the failing step', 1)[0]
-    .replaceAll(/\s+/gu, ' ') ?? '';
+const readBoundarySection = (path: string): string => {
+  const content = readRaw(path);
+  const startMarker = 'A genuine boundary retains the blocked step';
+  const endMarker = 'An unsuccessful TDD step stays at the failing step';
+  const start = content.indexOf(startMarker);
+  const end = content.indexOf(endMarker, start + startMarker.length);
+
+  expect(start, `missing boundary-section start in ${path}`).toBeGreaterThanOrEqual(0);
+  expect(end, `missing boundary-section end in ${path}`).toBeGreaterThan(start);
+
+  return content.slice(start, end).replaceAll(/\s+/gu, ' ');
+};
 
 const tddCopies = [
   'packages/cli/templates/skills/bdd/TDD.md',
   '.safeword/skills/bdd/TDD.md',
   '.claude/skills/bdd/TDD.md',
   'packages/cli/codex-plugin/skills/bdd/references/TDD.md',
+  'plugin/skills/bdd/TDD.md',
 ];
 
 const prReadinessCopies = [
