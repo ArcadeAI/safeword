@@ -69,12 +69,26 @@ export function normalizedExecutionPlanDigest(content: string): string {
   const lines = content.split('\n');
   const markerIndex = lines.findIndex(line => line.trim() === DELIVERY_CHECKLIST_MARKER);
   if (markerIndex !== -1) {
-    for (let index = markerIndex + 1; index < lines.length; index += 1) {
+    const headerIndex = lines.findIndex((line, index) => {
+      if (index <= markerIndex) return false;
+      const cells = splitRow(line);
+      return (
+        cells?.length === DELIVERY_CHECKLIST_COLUMNS &&
+        cells[0] === 'ID' &&
+        cells[5] === 'Disposition'
+      );
+    });
+    for (let index = headerIndex + 1; headerIndex !== -1 && index < lines.length; index += 1) {
       const line = lines[index];
-      if (line !== undefined) lines[index] = normalizeProgressCells(line);
+      if (line === undefined || splitRow(line)?.length !== DELIVERY_CHECKLIST_COLUMNS) break;
+      lines[index] = normalizeProgressCells(line);
     }
   }
   return createHash('sha256').update(lines.join('\n')).digest('hex');
+}
+
+export function hasExecutionPlanDeliveryChecklist(content: string): boolean {
+  return content.split('\n').some(line => line.trim() === DELIVERY_CHECKLIST_MARKER);
 }
 
 export function executionPlanDesignApprovalGate(projectDirectory: string): boolean {
