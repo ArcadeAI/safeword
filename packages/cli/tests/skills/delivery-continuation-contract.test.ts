@@ -10,6 +10,11 @@ const readRaw = (path: string): string => {
   return readFileSync(fullPath, 'utf8');
 };
 const read = (path: string): string => readRaw(path).replaceAll(/\s+/gu, ' ');
+const readBoundarySection = (path: string): string =>
+  readRaw(path)
+    .split('A genuine boundary retains the blocked step', 2)[1]
+    ?.split('An unsuccessful TDD step stays at the failing step', 1)[0]
+    .replaceAll(/\s+/gu, ' ') ?? '';
 
 const tddCopies = [
   'packages/cli/templates/skills/bdd/TDD.md',
@@ -141,16 +146,18 @@ describe('installed delivery continuation contract', () => {
   });
 
   it.each(tddCopies)('%s stops for an unauthorized missing dependency', path => {
-    const content = readRaw(path);
-    const boundarySection =
-      content
-        .split('A genuine boundary retains the blocked step', 2)[1]
-        ?.split('An unsuccessful TDD step stays at the failing step', 1)[0]
-        .replaceAll(/\s+/gu, ' ') ?? '';
-
-    expect(boundarySection).toContain(
+    expect(readBoundarySection(path)).toContain(
       'When verification requires a dependency absent from the manifest, stop at verification without advancing and ask the builder to authorize the dependency change.',
     );
+  });
+
+  it.each(tddCopies)('%s gives a non-technical builder a plain recovery action', path => {
+    const boundarySection = readBoundarySection(path);
+
+    expect(boundarySection).toContain(
+      'When reporting a boundary to a Non-Technical Builder, name the exact decision needed to resume in plain language and omit internal workflow-stage names.',
+    );
+    expect(boundarySection).not.toMatch(/\b(?:red|green|refactor|reconciliation|audit)\b/iu);
   });
 
   it.each(prReadinessCopies)('%s returns from Draft evidence to delivery', path => {
