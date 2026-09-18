@@ -13,6 +13,43 @@ import { commandWords, splitShellSegments } from './shell-segments.js';
 /** Classification for local pull-request readiness mutations. */
 export type PrReadinessCommand = 'ready' | 'draft' | 'other';
 
+const PR_CREATE_VALUE_OPTIONS = new Set([
+  '--assignee',
+  '--base',
+  '--body',
+  '--body-file',
+  '--head',
+  '--label',
+  '--milestone',
+  '--project',
+  '--reviewer',
+  '--template',
+  '--title',
+  '-a',
+  '-B',
+  '-b',
+  '-F',
+  '-H',
+  '-l',
+  '-m',
+  '-p',
+  '-r',
+  '-T',
+  '-t',
+]);
+
+function hasDraftFlag(arguments_: string[]): boolean {
+  for (let index = 0; index < arguments_.length; index += 1) {
+    const argument = arguments_[index];
+    if (argument !== undefined && PR_CREATE_VALUE_OPTIONS.has(argument)) {
+      index += 1;
+      continue;
+    }
+    if (argument === '--draft' || argument === '-d') return true;
+  }
+  return false;
+}
+
 function classifyArguments(words: string[]): PrReadinessCommand {
   if (nodePath.basename(words[0] ?? '') !== 'gh') return 'other';
   if (words[1] !== 'pr') return 'other';
@@ -21,9 +58,7 @@ function classifyArguments(words: string[]): PrReadinessCommand {
   const arguments_ = words.slice(3);
   if (operation === 'ready') return arguments_.includes('--undo') ? 'draft' : 'ready';
   if (operation !== 'create') return 'other';
-  return arguments_.some(argument => argument === '--draft' || argument === '-d')
-    ? 'draft'
-    : 'ready';
+  return hasDraftFlag(arguments_) ? 'draft' : 'ready';
 }
 
 export function classifyPrReadinessCommand(command: string): PrReadinessCommand {
@@ -119,6 +154,32 @@ function unfinished(reason: string): PrReadinessVerdict {
   return { ok: false, reason: `This change is not finished. ${reason}` };
 }
 
+function phaseRecovery(phase: string): { label: string; action: string } {
+  const recoveries: Record<string, { label: string; action: string }> = {
+    intake: { label: 'planning', action: 'finish clarifying the requested outcome' },
+    'define-behavior': {
+      label: 'behavior definition',
+      action: 'finish defining the expected behavior',
+    },
+    'scenario-gate': {
+      label: 'acceptance-scenario review',
+      action: 'finish reviewing the acceptance scenarios',
+    },
+    'plan-implementation': {
+      label: 'implementation planning',
+      action: 'finish planning the implementation',
+    },
+    implement: { label: 'implementation', action: 'complete the current scenario' },
+    verify: { label: 'verification', action: 'finish verifying the change' },
+  };
+  return (
+    recoveries[phase] ?? {
+      label: 'delivery',
+      action: 'finish the current delivery step',
+    }
+  );
+}
+
 function evaluateTicket(
   projectDirectory: string,
   ticketId: string,
@@ -140,9 +201,7 @@ function evaluateTicket(
         `Ticket ${ticketId} is at ticket closure; close the verified ticket before making the pull request Ready.`,
       );
     }
-    const phaseLabel = ticket.phase === 'implement' ? 'implementation' : ticket.phase;
-    const nextAction =
-      ticket.phase === 'implement' ? 'complete the current scenario' : `finish ${ticket.phase}`;
+    const { label: phaseLabel, action: nextAction } = phaseRecovery(ticket.phase);
     return unfinished(
       `Ticket ${ticketId} is at ${phaseLabel}; ${nextAction} before making the pull request Ready.`,
     );

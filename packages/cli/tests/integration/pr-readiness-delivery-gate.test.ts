@@ -1,7 +1,7 @@
 /** Integration proof for the local Ready boundary (ticket PY73VN). */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -82,6 +82,16 @@ function unfinishedProject(): string {
     '.project/quality-state-cursor-cursor-test.json',
     JSON.stringify({ activeTicket: 'PY73VN' }),
   );
+  execFileSync('git', ['add', '.'], { cwd: directory, stdio: 'ignore' });
+  execFileSync('git', ['commit', '-m', 'fixture'], { cwd: directory, stdio: 'ignore' });
+  return directory;
+}
+
+function unenrolledProject(): string {
+  const directory = createTemporaryDirectory();
+  temporaryDirectories.push(directory);
+  initGitRepo(directory);
+  writeTestFile(directory, 'README.md', '# Unenrolled fixture\n');
   execFileSync('git', ['add', '.'], { cwd: directory, stdio: 'ignore' });
   execFileSync('git', ['commit', '-m', 'fixture'], { cwd: directory, stdio: 'ignore' });
   return directory;
@@ -256,6 +266,23 @@ function expectDenied(host: Host, output: ClaudeHookOutput | CursorHookOutput): 
 
 describe('pull-request readiness delivery gate', () => {
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'allows Ready commands in repositories that are not enrolled on %s',
+    host => {
+      const directory = unenrolledProject();
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      if (host === 'Cursor') {
+        expect((output as CursorHookOutput).permission).toBe('allow');
+      } else {
+        expect(output).toEqual({});
+      }
+      expect(existsSync(nodePath.join(directory, '.project'))).toBe(false);
+      expect(existsSync(nodePath.join(directory, '.safeword'))).toBe(false);
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
     'denies ready-by-default creation before verified done on %s',
     host => {
       const output = runHostShellHook(host, unfinishedProject(), 'gh pr create --fill');
@@ -316,6 +343,21 @@ describe('pull-request readiness delivery gate', () => {
       expect(message).toContain('complete the current scenario');
       expect(message).not.toMatch(/\b(?:RED|GREEN|refactor|reconciliation|audit)\b/iu);
       expect(message).not.toContain('repair the ticket state');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'explains a scenario-review denial without internal phase names on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'scenario-gate', 'in_progress');
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      const message = userVisibleDenial(host, output);
+      expect(message).toContain('finish reviewing the acceptance scenarios');
+      expect(message).not.toMatch(/scenario-gate|define-behavior|plan-implementation/iu);
     },
   );
 
@@ -479,6 +521,36 @@ describe('pull-request readiness delivery gate', () => {
   );
 
   it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'does not reauthorize an unverified HEAD after observing an already-done ticket on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket');
+      runHostPostTool(host, directory);
+      writeTestFile(directory, 'after-verification.md', 'unverified bytes\n');
+      commitAll(directory, 'advance head');
+      clearSessionBindings(directory);
+      writeTestFile(
+        directory,
+        TICKET_PATH,
+        `${readFileSync(nodePath.join(directory, TICKET_PATH), 'utf8')}\nObserved later.\n`,
+      );
+      runHostPostTool(host, directory);
+      commitAll(directory, 'annotate closed ticket');
+      runHostPostTool(host, directory);
+      clearSessionBindings(directory);
+
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      expectDenied(host, output);
+      expect(denialReason(host, output)).toContain('current commit');
+      expect(denialReason(host, output)).toContain('run verification again');
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
     'allows Ready after verification refreshes the advanced HEAD without another commit on %s',
     host => {
       const directory = unfinishedProject();
@@ -501,6 +573,30 @@ describe('pull-request readiness delivery gate', () => {
         expect((refreshed as CursorHookOutput).permission).toBe('allow');
       } else {
         expect(refreshed).toEqual({});
+      }
+    },
+  );
+
+  it.each<Host>(['Claude Code', 'OpenAI Codex', 'Cursor'])(
+    'restores a missing Ready receipt by rerunning verification in a fresh session on %s',
+    host => {
+      const directory = unfinishedProject();
+      writeTicket(directory, 'done', 'done');
+      writeTestFile(directory, VERIFY_PATH, '**PR Scope:** ✅ Diff matches ticket scope\n');
+      runHostPostTool(host, directory);
+      commitAll(directory, 'close ticket');
+      runHostPostTool(host, directory);
+      clearSessionBindings(directory);
+      rmSync(nodePath.join(directory, '.project/readiness-ticket.json'));
+
+      runHostPostTool(host, directory, VERIFY_PATH);
+      clearSessionBindings(directory);
+      const output = runHostShellHook(host, directory, 'gh pr ready');
+
+      if (host === 'Cursor') {
+        expect((output as CursorHookOutput).permission).toBe('allow');
+      } else {
+        expect(output).toEqual({});
       }
     },
   );

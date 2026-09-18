@@ -196,16 +196,35 @@ function frontmatterField(content: string, field: string): string | undefined {
   return content.match(new RegExp(`^${field}:\\s*(\\S+)`, 'm'))?.[1];
 }
 
-function isCompletedTicketVerifyArtifact(filePath: string, ticketId: string): boolean {
+function ticketStatusAtHead(ticketFile: string): string | undefined {
+  const relativePath = nodePath.relative(projectDirectory, ticketFile);
+  if (relativePath === '..' || relativePath.startsWith(`..${nodePath.sep}`)) return undefined;
+  try {
+    const content = execFileSync(
+      'git',
+      ['show', `HEAD:${relativePath.split(nodePath.sep).join('/')}`],
+      {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
+    );
+    return frontmatterField(content, 'status');
+  } catch {
+    return undefined;
+  }
+}
+
+function completedTicketIdForVerifyArtifact(filePath: string): string | undefined {
   if (!isNamespacePath(filePath, 'tickets/') || nodePath.basename(filePath) !== 'verify.md') {
-    return false;
+    return undefined;
   }
   const ticketFile = boundTicketFileForArtifact(filePath);
-  if (ticketFile === undefined || !existsSync(ticketFile)) return false;
+  if (ticketFile === undefined || !existsSync(ticketFile)) return undefined;
   const content = readFileSync(ticketFile, 'utf8');
-  return (
-    frontmatterField(content, 'id') === ticketId && frontmatterField(content, 'status') === 'done'
-  );
+  return frontmatterField(content, 'status') === 'done'
+    ? frontmatterField(content, 'id')
+    : undefined;
 }
 
 // Active ticket binding (phase/TDD step no longer cached — derived at read time)
@@ -239,13 +258,15 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
     }
     if (ticketStatus === 'done' || ticketStatus === 'backlog') {
       if (ticketStatus === 'done' && ticketId !== undefined) {
-        const firstCompletedObservation = state.recentCompletedTicket !== ticketId;
+        const previousStatus = ticketStatusAtHead(fullPath);
+        const completedSinceHead = previousStatus !== undefined && previousStatus !== 'done';
         state.recentCompletedTicket = ticketId;
         // A closing edit may be the first ticket event observed in a resumed
         // session. Arm the receipt from the durable done state itself rather
-        // than requiring a prior in-memory binding, but do not re-arm it every
-        // time an already-recorded done ticket is observed.
-        if (wasActiveTicket || firstCompletedObservation) state.readinessReceiptPending = true;
+        // than requiring a prior in-memory binding. The committed ticket must
+        // actually be unfinished so merely observing an old done ticket cannot
+        // bless an unrelated HEAD.
+        if (wasActiveTicket || completedSinceHead) state.readinessReceiptPending = true;
       }
       state.activeTicket = null;
     }
@@ -291,12 +312,16 @@ if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) ===
 // Re-running verification on an already-closed ticket deliberately refreshes
 // the exact current HEAD without requiring a follow-up commit. A later unrelated
 // commit remains stale because only this explicit verification edit may refresh.
+const completedVerifyTicket = completedTicketIdForVerifyArtifact(editedFile);
+const receiptTicket =
+  state.recentCompletedTicket ?? (state.activeTicket === null ? completedVerifyTicket : undefined);
 if (
-  state.recentCompletedTicket &&
-  (state.activeTicket === null || state.activeTicket === state.recentCompletedTicket) &&
-  isCompletedTicketVerifyArtifact(editedFile, state.recentCompletedTicket) &&
-  finalizeReadinessReceipt(projectDirectory, state.recentCompletedTicket)
+  receiptTicket &&
+  completedVerifyTicket === receiptTicket &&
+  (state.activeTicket === null || state.activeTicket === receiptTicket) &&
+  finalizeReadinessReceipt(projectDirectory, receiptTicket)
 ) {
+  state.recentCompletedTicket = receiptTicket;
   state.readinessReceiptPending = false;
 }
 

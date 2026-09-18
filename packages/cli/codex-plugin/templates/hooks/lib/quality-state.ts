@@ -179,9 +179,6 @@ function readableStateFilePaths(
     }
     return [primary];
   }
-  if (process.env.SAFEWORD_AGENT_RUNTIME && process.env.SAFEWORD_AGENT_RUNTIME !== 'claude') {
-    return [primary];
-  }
   return [primary];
 }
 

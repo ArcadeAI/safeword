@@ -47,7 +47,11 @@ import {
   readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
-import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import {
+  hasSafewordProjectMarker,
+  isNamespacePath,
+  resolveNamespaceRoot,
+} from './lib/namespace-root.ts';
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
@@ -355,7 +359,10 @@ const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_pat
 
 if (tool === 'Bash') {
   const command = input.tool_input?.command ?? '';
-  if (classifyPrReadinessCommand(command) === 'ready') {
+  if (
+    hasSafewordProjectMarker(projectDirectory) &&
+    classifyPrReadinessCommand(command) === 'ready'
+  ) {
     const readiness = evaluatePrReadiness(projectDirectory, input.session_id);
     if (!readiness.ok) {
       deny(readiness.reason ?? 'This change is not finished.', undefined, true);
