@@ -108,7 +108,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Execution Plan currency controls coding authorization
 
-- [ ] RED
+- [x] RED 7cead12f6
 - [ ] GREEN
 - [ ] REFACTOR
 
