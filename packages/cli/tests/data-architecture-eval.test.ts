@@ -162,6 +162,22 @@ describe('data architecture guide evaluation', () => {
     });
   });
 
+  it('accepts equivalent decoding configurations with different key order', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
+        decodingConfiguration: { topP: 1, temperature: 0 },
+      }),
+    });
+
+    expect(result).toEqual({ accepted: true, diagnostics: [] });
+  });
+
   it('rejects a pair recorded through different response and rubric loaders', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',

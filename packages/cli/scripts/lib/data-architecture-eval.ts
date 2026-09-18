@@ -41,6 +41,17 @@ function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(item => canonicalJson(item)).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right));
+    return `{${entries
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${canonicalJson(entryValue)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
   const actualSet = new Set(actual);
   const expectedSet = new Set(expected);
@@ -76,7 +87,7 @@ function deriveNamedAblation(canonicalGuide: string, ablationId: string): string
 function sameConfig(left: AblationRecord, right: AblationRecord): boolean {
   return (
     left.modelVersion === right.modelVersion &&
-    JSON.stringify(left.decodingConfiguration) === JSON.stringify(right.decodingConfiguration) &&
+    canonicalJson(left.decodingConfiguration) === canonicalJson(right.decodingConfiguration) &&
     left.responseFormat === right.responseFormat &&
     left.rubricLoader === right.rubricLoader
   );
