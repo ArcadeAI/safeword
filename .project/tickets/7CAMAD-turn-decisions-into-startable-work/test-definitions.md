@@ -76,7 +76,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A missing project-local plan names the project-local artifact to create
 
-- [ ] RED
+- [x] RED 86cda081d
 - [ ] GREEN
 - [ ] REFACTOR
 
