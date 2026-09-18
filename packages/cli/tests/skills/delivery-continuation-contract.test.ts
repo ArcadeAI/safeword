@@ -52,6 +52,21 @@ const verificationBoundaries = [
   ['scope', 'decide the proposed scope change'],
 ] as const;
 
+const recoveryStates = [
+  [
+    'implementation',
+    'the required decision outstanding',
+    'Implementation remains blocked — make the required decision to resume.',
+  ],
+  ['implementation', 'the required decision completed', 'Resume implementation work.'],
+  [
+    'verification',
+    'the required decision outstanding',
+    'Verification remains blocked — make the required decision to resume.',
+  ],
+  ['verification', 'the required decision completed', 'Resume verification work.'],
+] as const;
+
 describe('installed delivery continuation contract', () => {
   it.each(tddCopies)('%s advances from approved RED without a routine prompt', path => {
     const content = read(path);
@@ -158,6 +173,14 @@ describe('installed delivery continuation contract', () => {
       'When reporting a boundary to a Non-Technical Builder, name the exact decision needed to resume in plain language and omit internal workflow-stage names.',
     );
     expect(boundarySection).not.toMatch(/\b(?:red|green|refactor|reconciliation|audit)\b/iu);
+  });
+
+  it.each(
+    tddCopies.flatMap(path =>
+      recoveryStates.map(([step, state, directive]) => ({ path, step, state, directive })),
+    ),
+  )('$path resumes $step with $state', ({ path, step, state, directive }) => {
+    expect(readBoundarySection(path)).toContain(`| ${step} | ${state} | \`${directive}\` |`);
   });
 
   it.each(prReadinessCopies)('%s returns from Draft evidence to delivery', path => {
