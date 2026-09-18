@@ -232,43 +232,41 @@ afterEach(() => {
 });
 
 describe('installed pull-request readiness gate', () => {
-  const installCases = (['Claude Code', 'OpenAI Codex', 'Cursor'] as const).flatMap(host =>
-    (['fresh', 'update'] as const).map(phase => ({ host, phase })),
-  );
-
-  it.each(installCases)(
-    '$phase install denies Ready promotion on $host',
-    async ({ host, phase }) => {
-      const { claudePluginRoot, codexHome, project } = createFixture();
+  it.each([
+    { host: 'Claude Code', phase: 'fresh' },
+    { host: 'Claude Code', phase: 'update' },
+    { host: 'OpenAI Codex', phase: 'fresh' },
+    { host: 'OpenAI Codex', phase: 'update' },
+    { host: 'Cursor', phase: 'fresh' },
+    { host: 'Cursor', phase: 'update' },
+  ] as const)('$phase install denies Ready promotion on $host', async ({ host, phase }) => {
+    const { claudePluginRoot, codexHome, project } = createFixture();
+    await installHost(host, project, codexHome, claudePluginRoot);
+    if (phase === 'update') {
       await installHost(host, project, codexHome, claudePluginRoot);
-      if (phase === 'update') {
-        await installHost(host, project, codexHome, claudePluginRoot);
-      }
-      writeUnfinishedTicket(project, host);
+    }
+    writeUnfinishedTicket(project, host);
 
-      const output = runInstalledReadyHook(host, project, codexHome, claudePluginRoot);
+    const output = runInstalledReadyHook(host, project, codexHome, claudePluginRoot);
 
-      if (host === 'Cursor') {
-        expect((output as CursorHookOutput).permission).toBe('deny');
-        expect((output as CursorHookOutput).user_message).toContain('PY73VN');
-        expect((output as CursorHookOutput).user_message).toContain(
+    if (host === 'Cursor') {
+      expect((output as CursorHookOutput).permission).toBe('deny');
+      expect((output as CursorHookOutput).user_message).toContain('PY73VN');
+      expect((output as CursorHookOutput).user_message).toContain('complete the current scenario');
+    } else {
+      expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).toBe('deny');
+      expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecisionReason).toContain(
+        'PY73VN',
+      );
+      expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecisionReason).toContain(
+        'complete the current scenario',
+      );
+      if (host === 'Claude Code') {
+        expect((output as ClaudeHookOutput).systemMessage).toContain('PY73VN');
+        expect((output as ClaudeHookOutput).systemMessage).toContain(
           'complete the current scenario',
         );
-      } else {
-        expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecision).toBe('deny');
-        expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecisionReason).toContain(
-          'PY73VN',
-        );
-        expect((output as ClaudeHookOutput).hookSpecificOutput?.permissionDecisionReason).toContain(
-          'complete the current scenario',
-        );
-        if (host === 'Claude Code') {
-          expect((output as ClaudeHookOutput).systemMessage).toContain('PY73VN');
-          expect((output as ClaudeHookOutput).systemMessage).toContain(
-            'complete the current scenario',
-          );
-        }
       }
-    },
-  );
+    }
+  });
 });

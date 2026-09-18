@@ -1,3 +1,7 @@
+# The feature is @proof.vitest because its workflow directives and native hook
+# boundaries are covered by the delivery-continuation and pr-readiness Vitest
+# integration suites; Cucumber steps would duplicate those host harnesses.
+@proof.vitest
 Feature: Finish accepted changes before asking for PR review
 
   Every scenario tagged for Claude Code, OpenAI Codex, and Cursor is executed

@@ -1775,7 +1775,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '83548dfb6274c98bb43a5c27f8e306d00aa92ad7b81c3df5966cd28f925c2cf0',
+        '1e5f5d5cd888c42813e187f9ec2eb904ee83a75df0804a0f328c9b3a5a9ed950',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -1801,7 +1801,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/lint/SKILL.md':
         'f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14',
       '.claude/skills/pr-readiness/SKILL.md':
-        '0e289cf59b11c72486d7d7fd9f73d5ff94f2ccccc1b116b0c77339c0cc9e949a',
+        '4cc987da39efb1b9b682aff67988c975e8ff56a2c3eed0cfe3a1f3e8caf0d80b',
       '.claude/skills/quality-review/SKILL.md':
         '46189c47ba851e20688c9668a2129bf0f8efa6188c5337c66add87aec566ae59',
       '.claude/skills/refactor/SKILL.md':
@@ -1833,7 +1833,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/post-tool-lint.ts':
         'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
       '.safeword/hooks/post-tool-quality.ts':
-        'f5a8268809244c3c32fbeda75a028e6b6ae2218da6b75f11ed58acfaedbcef3d',
+        '4d2d68c44d0e14a075154a100a5c8f13b72b3bb0b407a15afcd8318551ef4371',
       '.safeword/hooks/post-tool-skill-nudge.ts':
         'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
       '.safeword/hooks/post-tool-sync-learnings.ts':
@@ -1849,7 +1849,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '3934bed4d94eaa61ccb52a52eb51e6f8442ee5920d15c4e73f1e0b25a8cda8db',
+        '89f1359d6b856d1ca83dfe85b3c3d56d198688bea2f1414d391731406083eb8b',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':

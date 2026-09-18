@@ -1,0 +1,135 @@
+{
+  "feature": "features/finish-delivery-before-pr-readiness.feature",
+  "scenarios": {
+    "RED advances directly into implementation": [
+      "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+      "every installed copy advances from approved RED without a routine prompt"
+    ],
+    "GREEN advances through refactor to the next incomplete scenario": [
+      "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+      "every installed copy advances from GREEN through refactor to the next scenario"
+    ],
+    "An unsuccessful TDD step remains at the failing step": [
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy keeps a passing RED proof at RED"
+      ],
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy keeps a failing GREEN check at GREEN"
+      ]
+    ],
+    "Final scenario advances through verified ticket closure on every installed host": [
+      "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+      "every installed copy closes the whole ticket after the final scenario"
+    ],
+    "Safeword installation ships the Ready gate to each enabled host": [
+      "packages/cli/tests/integration/pr-readiness-install.test.ts",
+      "$phase install denies Ready promotion on $host"
+    ],
+    "Ready promotion is rejected across unfinished ticket states": [
+      [
+        "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+        "denies Ready promotion chained after Draft creation on %s"
+      ],
+      [
+        "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+        "denies Ready promotion while verified closure remains open on %s"
+      ],
+      [
+        "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+        "denies a done ticket without verification after the real auto-clear on %s"
+      ]
+    ],
+    "Unreadable verification evidence fails Ready promotion closed": [
+      "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+      "fails closed when verification evidence cannot be read on %s"
+    ],
+    "Missing or unresolvable ticket state fails Ready promotion closed": [
+      [
+        "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+        "asks for a delivery ticket when no active or completed ticket can be resolved on %s"
+      ],
+      [
+        "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+        "asks for ticket-state repair when the active ticket cannot be parsed on %s"
+      ]
+    ],
+    "Ready-by-default creation is rejected before verified done": [
+      "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+      "denies ready-by-default creation before verified done on %s"
+    ],
+    "Ready denial gives a Non-Technical Builder a plain next action": [
+      "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+      "gives a non-technical builder a plain visible recovery action on %s"
+    ],
+    "Draft creation remains available for evidence before done": [
+      "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+      "allows Draft creation for evidence on %s"
+    ],
+    "Draft creation returns delivery to the unfinished step": [
+      "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+      "every installed copy returns from Draft evidence to delivery"
+    ],
+    "Ready promotion is allowed after verified done": [
+      "packages/cli/tests/integration/pr-readiness-delivery-gate.test.ts",
+      "allows Ready promotion from a fresh session at the verified done HEAD on %s"
+    ],
+    "Verified closure advances to PR-readiness classification without automatic promotion": [
+      "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+      "every installed copy classifies PR readiness without automatic promotion"
+    ],
+    "A locally repairable missing dependency is restored without asking to continue": [
+      "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+      "every installed copy restores an authorized missing dependency without prompting"
+    ],
+    "A genuine boundary stops at the blocked step with exact recovery": [
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy stops verification at an authority boundary"
+      ],
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy stops verification at a safety boundary"
+      ],
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy stops verification at a dependency boundary"
+      ],
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy stops verification at a scope boundary"
+      ]
+    ],
+    "A genuine boundary stops at implementation instead of verification": [
+      "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+      "every installed copy retains an authority boundary at implementation"
+    ],
+    "An unauthorized missing dependency stops for a decision": [
+      "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+      "every installed copy stops for an unauthorized missing dependency"
+    ],
+    "A boundary gives a Non-Technical Builder a plain recovery action": [
+      "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+      "every installed copy gives a non-technical builder a plain recovery action"
+    ],
+    "Recovery state controls resumption at every established stop point": [
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy repeats an outstanding implementation decision"
+      ],
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy resumes implementation after the decision"
+      ],
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy repeats an outstanding verification decision"
+      ],
+      [
+        "packages/cli/tests/skills/delivery-continuation-contract.test.ts",
+        "every installed copy resumes verification after the decision"
+      ]
+    ]
+  }
+}
