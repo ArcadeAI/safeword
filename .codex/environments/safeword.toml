@@ -4,6 +4,7 @@ name = "Safeword"
 
 [setup]
 script = '''
+set -eu
 mise install
 mise exec -- bun install --frozen-lockfile
 mise exec -- uv sync --locked'''

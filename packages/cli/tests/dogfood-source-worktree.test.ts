@@ -2,8 +2,9 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { parse } from 'smol-toml';
+import { parse as parseToml } from 'smol-toml';
 import { describe, expect, it } from 'vitest';
+import { parse as parseYaml } from 'yaml';
 
 import { createTemporaryDirectory, removeTemporaryDirectory } from './helpers.js';
 
@@ -20,9 +21,24 @@ function runNodeFromRepoRoot(source: string): string {
   });
 }
 
+interface CiJob {
+  steps?: { with?: { 'node-version'?: string } }[];
+  strategy?: { matrix?: { 'node-version'?: string[] } };
+}
+
+function directNodeVersions(jobs: Record<string, CiJob>): string[] {
+  return Object.values(jobs).flatMap(
+    job =>
+      job.steps
+        ?.map(step => step.with?.['node-version'])
+        .filter((version): version is string => Boolean(version) && !version.startsWith('${{')) ??
+      [],
+  );
+}
+
 describe('dogfood source worktree package resolution (470)', () => {
   it('routes locked worktree installs through the mise-pinned tools', () => {
-    const environment = parse(
+    const environment = parseToml(
       readFileSync(nodePath.join(repoRoot, '.codex/environments/safeword.toml'), 'utf8'),
     ) as {
       setup?: { script?: string };
@@ -30,12 +46,21 @@ describe('dogfood source worktree package resolution (470)', () => {
     const fixture = createTemporaryDirectory();
     const callsPath = nodePath.join(fixture, 'mise-calls.txt');
     const misePath = nodePath.join(fixture, 'mise');
-    writeFileSync(misePath, '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$MISE_CALLS"\n');
+    writeFileSync(
+      misePath,
+      [
+        '#!/bin/sh',
+        String.raw`printf '%s\n' "$*" >> "$MISE_CALLS"`,
+        '[ "${MISE_FAIL_COMMAND:-}" = "$*" ] && exit 23',
+        'exit 0',
+        '',
+      ].join('\n'),
+    );
     chmodSync(misePath, 0o755);
 
     try {
       const result = spawnSync('/bin/sh', ['-c', environment.setup?.script ?? ''], {
-        cwd: repoRoot,
+        cwd: fixture,
         encoding: 'utf8',
         env: { ...process.env, MISE_CALLS: callsPath, PATH: fixture },
       });
@@ -46,6 +71,16 @@ describe('dogfood source worktree package resolution (470)', () => {
         'exec -- bun install --frozen-lockfile',
         'exec -- uv sync --locked',
       ]);
+
+      writeFileSync(callsPath, '');
+      const failed = spawnSync('/bin/sh', ['-c', environment.setup?.script ?? ''], {
+        cwd: fixture,
+        encoding: 'utf8',
+        env: { ...process.env, MISE_CALLS: callsPath, MISE_FAIL_COMMAND: 'install', PATH: fixture },
+      });
+
+      expect(failed.status).toBe(23);
+      expect(readFileSync(callsPath, 'utf8').trim().split('\n')).toEqual(['install']);
     } finally {
       removeTemporaryDirectory(fixture);
     }
@@ -55,30 +90,46 @@ describe('dogfood source worktree package resolution (470)', () => {
     const packageJson = readJson(nodePath.join(repoRoot, 'package.json')) as {
       packageManager?: string;
     };
-    const mise = parse(readFileSync(nodePath.join(repoRoot, 'mise.toml'), 'utf8')) as {
+    const mise = parseToml(readFileSync(nodePath.join(repoRoot, 'mise.toml'), 'utf8')) as {
       tools?: Record<string, string>;
       settings?: { python?: { uv_venv_auto?: string } };
     };
     const workflow = readFileSync(nodePath.join(repoRoot, '.github/workflows/ci.yml'), 'utf8');
 
+    expect(packageJson.packageManager).toBeDefined();
+    if (packageJson.packageManager === undefined) throw new Error('packageManager is missing');
+    expect(mise.tools).toBeDefined();
+    if (mise.tools === undefined) throw new Error('mise tools are missing');
+    const packageManagerBun = packageJson.packageManager.replace('bun@', '');
+    expect(packageManagerBun).not.toBe('');
+    expect(mise.tools.bun).not.toBe('');
     expect(mise.tools).toMatchObject({
-      bun: packageJson.packageManager?.replace('bun@', ''),
+      bun: packageManagerBun,
       node: '24.18.1',
       go: '1.25',
       python: '3.12',
       uv: '0.12.9',
     });
-    expect(workflow).toContain(`node-version: ['22.23.2', '${mise.tools?.node}']`);
-    expect(workflow).toContain(`go-version: '${mise.tools?.go}'`);
-    expect(workflow).toContain(`python-version: '${mise.tools?.python}'`);
+    expect(workflow).toContain(`node-version: ['22.23.2', '${mise.tools.node}']`);
+    expect(workflow).toContain(`go-version: '${mise.tools.go}'`);
+    expect(workflow).toContain(`python-version: '${mise.tools.python}'`);
+    const ci = parseYaml(workflow) as { jobs?: Record<string, CiJob> };
+    expect(ci.jobs).toBeDefined();
+    if (ci.jobs === undefined) throw new Error('CI jobs are missing');
+    expect(ci.jobs.test?.strategy?.matrix?.['node-version']).toEqual(['22.23.2', mise.tools.node]);
+    const configuredNodeVersions = directNodeVersions(ci.jobs ?? {});
+    expect(configuredNodeVersions.length).toBeGreaterThan(0);
+    expect(new Set(configuredNodeVersions)).toEqual(new Set([mise.tools.node]));
   });
 
   it('pins Python verification tools and activates the uv environment', () => {
-    const mise = parse(readFileSync(nodePath.join(repoRoot, 'mise.toml'), 'utf8')) as {
+    const mise = parseToml(readFileSync(nodePath.join(repoRoot, 'mise.toml'), 'utf8')) as {
       tools?: Record<string, string>;
       settings?: { python?: { uv_venv_auto?: string } };
     };
-    const pyproject = parse(readFileSync(nodePath.join(repoRoot, 'pyproject.toml'), 'utf8')) as {
+    const pyproject = parseToml(
+      readFileSync(nodePath.join(repoRoot, 'pyproject.toml'), 'utf8'),
+    ) as {
       'dependency-groups'?: { dev?: string[] };
       tool?: { uv?: { 'required-version'?: string } };
     };
@@ -107,28 +158,24 @@ describe('dogfood source worktree package resolution (470)', () => {
 
   it('installs CI Python tools from the checked lockfile', () => {
     const workflow = readFileSync(nodePath.join(repoRoot, '.github/workflows/ci.yml'), 'utf8');
-    const testJobMarker = '  test:\n';
-    const testJobStart = workflow.indexOf(testJobMarker);
-    const jobsAfterTest =
-      testJobStart === -1 ? undefined : workflow.slice(testJobStart + testJobMarker.length);
-    const nextJobStart = jobsAfterTest?.search(/^ {2}[a-z][a-z-]+:\n/m) ?? -1;
-    let testJob: string | undefined;
-    if (jobsAfterTest !== undefined) {
-      const testJobEnd = nextJobStart < 0 ? jobsAfterTest.length : nextJobStart;
-      testJob = jobsAfterTest.slice(0, testJobEnd);
-    }
-
+    const ci = parseYaml(workflow) as {
+      jobs?: {
+        test?: { steps?: { name?: string; run?: string; with?: Record<string, unknown> }[] };
+      };
+    };
+    const testJob = ci.jobs?.test;
     expect(testJob).toBeDefined();
     if (testJob === undefined) throw new Error('CI test job is missing');
-    expect(testJob).toContain('version-file: pyproject.toml');
-    expect(testJob).toContain('uv sync --locked');
-    expect(testJob).toContain('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"');
-    const setupUvIndex = testJob.indexOf('- name: Setup uv');
-    const installPythonIndex = testJob.indexOf('- name: Install Python tools');
-    const testPackagesIndex = testJob.indexOf('- name: Test all packages');
+    const steps = testJob.steps ?? [];
+    const setupUvIndex = steps.findIndex(step => step.name === 'Setup uv');
+    const installPythonIndex = steps.findIndex(step => step.name === 'Install Python tools');
+    const testPackagesIndex = steps.findIndex(step => step.name === 'Test all packages');
     expect(setupUvIndex).toBeGreaterThanOrEqual(0);
     expect(installPythonIndex).toBeGreaterThanOrEqual(0);
     expect(testPackagesIndex).toBeGreaterThanOrEqual(0);
+    expect(steps[setupUvIndex]?.with?.['version-file']).toBe('pyproject.toml');
+    expect(steps[installPythonIndex]?.run).toContain('uv sync --locked');
+    expect(steps[installPythonIndex]?.run).toContain('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"');
     expect(setupUvIndex).toBeLessThan(installPythonIndex);
     expect(installPythonIndex).toBeLessThan(testPackagesIndex);
     expect(workflow).not.toContain('requirements-ci.txt');
@@ -163,7 +210,6 @@ describe('dogfood source worktree package resolution (470)', () => {
         cwd: repoRoot,
         command: 'uv run --locked mypy .',
         runner: 'uv',
-        available: true,
       }),
     );
   });

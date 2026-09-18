@@ -67,6 +67,7 @@ describe('pre-tool architecture staging hook', () => {
     execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: worktree });
     execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: worktree });
     mkdirSync(nodePath.join(worktree, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(worktree, '.safeword', 'config.json'), '{}\n');
     mkdirSync(nodePath.join(worktree, 'src', 'auth'), { recursive: true });
     mkdirSync(nodePath.join(worktree, 'src', 'billing'), { recursive: true });
     writeFileSync(nodePath.join(worktree, 'package.json'), JSON.stringify({ name: 'target' }));
@@ -89,6 +90,7 @@ describe('pre-tool architecture staging hook', () => {
     directory = createTemporaryDirectory();
     initGitRepo(directory);
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword', 'config.json'), '{}\n');
     mkdirSync(nodePath.join(directory, 'src', 'auth'), { recursive: true });
     mkdirSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'fixture' }));
@@ -372,6 +374,7 @@ describe('pre-tool architecture staging hook', () => {
       try {
         initGitRepo(targetDirectory);
         mkdirSync(nodePath.join(targetDirectory, '.safeword'), { recursive: true });
+        writeFileSync(nodePath.join(targetDirectory, '.safeword', 'config.json'), '{}\n');
         mkdirSync(nodePath.join(targetDirectory, 'src', 'auth'), { recursive: true });
         mkdirSync(nodePath.join(targetDirectory, 'src', 'billing'), { recursive: true });
         writeFileSync(
@@ -684,7 +687,7 @@ describe('pre-tool architecture staging hook', () => {
       expect(output.systemMessage).toContain('skipped architecture auto-staging');
       expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
     } finally {
-      rmSync(otherDirectory, { recursive: true, force: true });
+      removeTemporaryDirectory(otherDirectory);
     }
   });
 
