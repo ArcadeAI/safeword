@@ -128,7 +128,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Recovery state controls resumption at every established stop point
 
-- [ ] RED
+- [x] RED 5636c33af
 - [ ] GREEN
 - [ ] REFACTOR
 
