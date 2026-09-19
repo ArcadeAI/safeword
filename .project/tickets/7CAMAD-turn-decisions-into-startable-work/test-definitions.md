@@ -73,7 +73,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A discovered change returns only when it alters an accepted decision
 
 - [x] RED skip: live — see work log 2026-09-19T12:52:03.000Z "discovery routing"
-- [ ] GREEN
+- [x] GREEN f7a05dc4a
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R5 — The Execution Plan is a project-local reviewed artifact
