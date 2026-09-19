@@ -26,7 +26,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A self-authored independence claim cannot authorize planning
 
-- [ ] RED
+- [x] RED 5d2aa327f
 - [ ] GREEN
 - [ ] REFACTOR
 
