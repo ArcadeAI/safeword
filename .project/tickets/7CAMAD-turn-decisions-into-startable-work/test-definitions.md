@@ -27,7 +27,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A self-authored independence claim cannot authorize planning
 
 - [x] RED 5d2aa327f
-- [ ] GREEN
+- [x] GREEN 88efda591
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R2 — Every execution step is startable without inventing a contract
