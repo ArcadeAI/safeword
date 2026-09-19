@@ -279,6 +279,7 @@ interface ContributorEvidence {
     | 'partial_or_structural'
     | 'missing';
   readonly limitations: readonly ('partial_or_structural' | 'earlier_revision' | 'missing')[];
+  readonly audit_receipt_id?: string;
   readonly satisfied: boolean;
 }
 
@@ -324,9 +325,10 @@ function earlierRequiredEvidence(
     });
   return {
     item_id: item.id,
-    status: item.disposition,
+    status: compatible && item.disposition === 'complete' ? 'complete' : 'open',
     evidence_class: compatible ? 'reusable_earlier_revision' : 'partial_or_structural',
     limitations: ['earlier_revision'],
+    ...(!compatible && { audit_receipt_id: event.id }),
     satisfied: compatible && item.disposition === 'complete',
   };
 }
@@ -348,7 +350,7 @@ function contributorEvidence(
   if (event === undefined) {
     return {
       item_id: item.id,
-      status: item.disposition,
+      status: 'open',
       evidence_class: 'missing',
       limitations: ['missing'],
       satisfied: false,
@@ -366,11 +368,12 @@ function contributorEvidence(
   if (!requiredRealBoundary) {
     return {
       item_id: item.id,
-      status: item.disposition,
+      status: 'open',
       evidence_class: 'partial_or_structural',
       limitations: current
         ? ['partial_or_structural']
         : ['partial_or_structural', 'earlier_revision'],
+      ...(!current && { audit_receipt_id: event.id }),
       satisfied: false,
     };
   }
