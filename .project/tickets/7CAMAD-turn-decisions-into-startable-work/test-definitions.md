@@ -58,7 +58,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: live — see work log 2026-09-19T10:14:00.000Z "first-step ordering"
 - [x] GREEN e8d7cf539
-- [ ] REFACTOR
+- [x] REFACTOR skip: fixtures already share the existing plan builder and each slice keeps one proof-aligned purpose
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R3 — Authors and reviewers use one implementability contract
 
