@@ -154,8 +154,14 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['later', 'exact action'],
+      finding_terms: ['fourth step', 'behavior decision'],
     });
+    expect(testCase?.execution_plan).toContain(
+      '1. RED: run `bun run test tests/auth.test.ts -t denied-request`',
+    );
+    expect(testCase?.execution_plan).toContain(
+      '4. TODO: decide whether denied authorization returns an error or an empty result before implementation.',
+    );
   });
 
   it('keeps complete obligation ownership as an approval case', () => {
@@ -190,12 +196,12 @@ describe('Execution Plan semantic conformance admission', () => {
     );
   });
 
-  it('gives every approved scenario a distinct reviewer input', () => {
-    const approvedInputs = EXECUTION_PLAN_CONFORMANCE_CASES.filter(
-      testCase => testCase.expectation.verdict === 'approve',
-    ).map(testCase => `${testCase.implementation_plan}\0${testCase.execution_plan}`);
+  it('gives every scenario a distinct reviewer input', () => {
+    const reviewerInputs = EXECUTION_PLAN_CONFORMANCE_CASES.map(
+      testCase => `${testCase.implementation_plan}\0${testCase.execution_plan}`,
+    );
 
-    expect(new Set(approvedInputs).size).toBe(approvedInputs.length);
+    expect(new Set(reviewerInputs).size).toBe(reviewerInputs.length);
   });
 
   it.each([
