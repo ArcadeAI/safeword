@@ -377,6 +377,15 @@ describe('coding authorization', () => {
     for (const root of fixtureRoots.splice(0)) removeTemporaryDirectory(root);
   });
 
+  it('delegates prerequisite composition to the shared evaluator exactly once', () => {
+    const source = readFileSync(
+      new URL('../../src/commands/coding-authorization.ts', import.meta.url),
+      'utf8',
+    );
+
+    expect(source.match(/\bevaluateExecutionPrerequisite\(/gu)).toHaveLength(1);
+  });
+
   it('rejects host-local notes when the project-local Execution Plan is missing', async () => {
     const root = await featureFixture();
 
