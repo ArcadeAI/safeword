@@ -48,7 +48,7 @@ const EXPECTED_CASE_IDS = [
   'missing-affected-surface-obligation',
   'migration-missing-completion-signal',
   'migration-missing-dependency-order',
-  'explicitly-obligation-free',
+  'explicitly-inapplicable-obligations',
   'reopened-authorization-decision',
   'fixture-discovery-stays-in-execution-planning',
   'test-command-discovery-stays-in-execution-planning',
@@ -274,17 +274,22 @@ describe('Execution Plan semantic conformance admission', () => {
     });
   });
 
-  it('keeps an explicitly obligation-free approach free of manufactured work', () => {
+  it('keeps explicitly inapplicable optional work out of the execution plan', () => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
-      candidate => candidate.id === 'explicitly-obligation-free',
+      candidate => candidate.id === 'explicitly-inapplicable-obligations',
     );
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'approve',
       planning_destination: 'plan-execution',
-      obligations: [],
+      obligations: ['Accepted behavior'],
     });
-    expect(testCase?.execution_plan).toContain('No execution obligations');
+    expect(testCase?.execution_plan).toContain('- Accepted behavior: Behavior delivery');
+    expect(testCase?.execution_plan).not.toContain('- Migration work:');
+    expect(testCase?.execution_plan).not.toContain('- Rollout work:');
+    expect(testCase?.execution_plan).not.toContain('- Rollback work:');
+    expect(testCase?.execution_plan).not.toContain('- Documentation work:');
+    expect(testCase?.execution_plan).not.toContain('- Affected-surface work:');
   });
 
   it('keeps every authoritative scenario example as its own case', () => {
