@@ -372,6 +372,8 @@ Feature: Turn accepted decisions into startable work
         | omits evidence collection for the accepted target | approval is blocked with the missing evidence work named |
         | changes the target while defining instrumentation | approval is blocked because execution changed Product-owned behavior |
         | changes the measurement origin without returning to Implementation Planning | approval is blocked because execution changed the accepted design |
+        | weakens an accepted validity safeguard while defining instrumentation | approval is blocked because execution changed the accepted validity contract |
+        | redefines the accepted failure behavior for the measure | approval is blocked because execution changed the accepted validity contract |
 
   @plan-implementability.TBU2.7CAMAD.R16
   Rule: plan-implementability.TBU2.7CAMAD.R16 — Changing load-bearing behavior or scope invalidates both plan reviews, changing the accepted Implementation Plan invalidates both plan reviews, and changing only the Execution Plan invalidates only its own review
