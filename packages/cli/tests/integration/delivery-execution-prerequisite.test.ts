@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -51,6 +52,8 @@ function executionPlan(): string {
   );
   return [
     '# Execution Plan',
+    '',
+    '**Status:** planned',
     '',
     '## Proof specifications',
     '',
@@ -417,6 +420,12 @@ describe('delivery execution prerequisite', () => {
       command: 'ticket execution-prerequisite',
       prerequisite_status: 'satisfied',
       grants_authority: false,
+      execution_plan_artifact: {
+        presence: 'present',
+        readability: 'readable',
+        status: 'planned',
+        receipt: 'valid',
+      },
     });
     expect(output).toMatchObject({ state: 'healthy', next_actions: [] });
     expect(output.effects).toEqual({
@@ -426,6 +435,101 @@ describe('delivery execution prerequisite', () => {
       network: [],
       destructive: [],
     });
+  });
+
+  it.each([
+    {
+      label: 'present artifact with planned status and a valid receipt',
+      arrange: (_executionPath: string) => {},
+      expectedExitCode: 0,
+      expectedFacts: {
+        presence: 'present',
+        readability: 'readable',
+        status: 'planned',
+        receipt: 'valid',
+      },
+    },
+    {
+      label: 'absent artifact',
+      arrange: (executionPath: string) => {
+        rmSync(executionPath);
+      },
+      expectedExitCode: 2,
+      expectedFacts: {
+        presence: 'absent',
+        readability: 'not_applicable',
+        status: 'unknown',
+        receipt: 'missing',
+      },
+    },
+    {
+      label: 'readable artifact with a non-planned status and no current receipt',
+      arrange: (executionPath: string) => {
+        writeFileSync(
+          executionPath,
+          readFileSync(executionPath, 'utf8').replace('**Status:** planned', '**Status:** draft'),
+        );
+      },
+      expectedExitCode: 2,
+      expectedFacts: {
+        presence: 'present',
+        readability: 'readable',
+        status: 'unknown',
+        receipt: 'missing',
+      },
+    },
+    {
+      label: 'present but unreadable artifact',
+      arrange: (executionPath: string) => {
+        rmSync(executionPath);
+        mkdirSync(executionPath);
+      },
+      expectedExitCode: 2,
+      expectedFacts: {
+        presence: 'present',
+        readability: 'unreadable',
+        status: 'unknown',
+        receipt: 'not_checked',
+      },
+    },
+  ])('reports structural facts for a $label without a semantic verdict', async testCase => {
+    const root = featureFixture();
+    await admitThroughInstalledCli(root);
+    const executionPath = nodePath.join(
+      root,
+      '.project',
+      'tickets',
+      'ABC123-feature',
+      'execution-plan.md',
+    );
+    testCase.arrange(executionPath);
+
+    const invoked = await runCli(
+      ['ticket', 'execution-prerequisite', 'ABC123', '--json', '--cwd', root],
+      {
+        cwd: root,
+        env: {
+          NODE_ENV: 'test',
+          SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        },
+      },
+    );
+
+    expect(invoked.exitCode, invoked.stdout).toBe(testCase.expectedExitCode);
+    const result = JSON.parse(invoked.stdout) as {
+      data?: Record<string, unknown>;
+      errors?: readonly unknown[];
+    };
+    expect(result.errors ?? []).toEqual([]);
+    expect(result.data).toEqual({
+      command: 'ticket execution-prerequisite',
+      grants_authority: false,
+      ...(testCase.expectedExitCode === 0 && { prerequisite_status: 'satisfied' }),
+      execution_plan_artifact: testCase.expectedFacts,
+    });
+    expect(JSON.stringify(result)).not.toMatch(
+      /\b(?:not )?implementable\b|\bapproved\b|\bready for coding\b/iu,
+    );
   });
 
   it('reports every missing prerequisite once in deterministic planning order', async () => {
