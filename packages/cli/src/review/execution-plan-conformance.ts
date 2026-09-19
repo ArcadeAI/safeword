@@ -96,8 +96,8 @@ const ACTIVATION_SLICE: SliceInput = {
   completion: 'The accepted behavior and every activation obligation are delivered and supported.',
   tasks: [
     '1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing review routing.',
-    '2. GREEN: connect public review routing to typed result retention, then run `bun run test:review-cli`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.',
-    '3. REFACTOR: keep one result-retention path for every caller, then rerun the five activation proof commands with exit 0.',
+    '2. GREEN: connect public review routing to typed result retention, then run `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.',
+    '3. REFACTOR: keep one result-retention path for every caller, then rerun the six activation proof commands with exit 0.',
   ],
 };
 
@@ -234,6 +234,7 @@ ${items}`;
 
 export interface ExecutionPlanConformanceExpectation {
   readonly verdict: 'approve' | 'request_changes';
+  readonly planning_destination: 'plan-execution' | 'plan-implementation';
   readonly slicing_decision?: 'one_pull_request' | 'multiple_pull_requests';
   readonly slice_names?: readonly string[];
   readonly obligations?: readonly string[];
@@ -263,6 +264,7 @@ function approved(
     execution_plan: plan,
     expectation: {
       verdict: 'approve',
+      planning_destination: 'plan-execution',
       slicing_decision: slicingDecision,
       slice_names: sliceNames,
       obligations: OBLIGATIONS,
@@ -282,7 +284,24 @@ function denied(
     scenario,
     implementation_plan: IMPLEMENTATION_PLAN,
     execution_plan: plan,
-    expectation: { verdict: 'request_changes', finding_terms: findingTerms },
+    expectation: {
+      verdict: 'request_changes',
+      planning_destination: 'plan-execution',
+      finding_terms: findingTerms,
+    },
+  };
+}
+
+function decisionChangingDiscovery(
+  id: string,
+  scenario: string,
+  plan: string,
+  findingTerms: readonly string[],
+): ExecutionPlanConformanceCase {
+  const testCase = denied(id, scenario, plan, findingTerms);
+  return {
+    ...testCase,
+    expectation: { ...testCase.expectation, planning_destination: 'plan-implementation' },
   };
 }
 
@@ -465,6 +484,12 @@ const UNCHANGED_DECISIONS_PLAN = executionPlan({
       boundary:
         'Contract compatibility, review activation, shared authorization, host-neutral ordering, failure signals, rollout, rollback, and documentation.',
       proof: ALL_DELIVERY_PROOFS,
+      tasks: [
+        '1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing production code.',
+        '2. GREEN: register review routing, migrate the stored result schema compatibly, connect the shared authorization service, add failure signals, wire feature-flag rollout and rollback, and publish the command documentation.',
+        '3. GREEN: run `bun run test:schema-compatibility`, `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.',
+        '4. REFACTOR: keep one typed result and authorization path, then rerun all seven proof commands with exit 0.',
+      ],
     },
   ],
 });
@@ -809,7 +834,7 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
   missingObligationCase('missing-rollback-obligation', 'Rollback work'),
   missingObligationCase('missing-documentation-obligation', 'Documentation work'),
   missingObligationCase('missing-affected-surface-obligation', 'Affected-surface work'),
-  denied(
+  decisionChangingDiscovery(
     'reopened-authorization-decision',
     'A slice cannot move the accepted shared authorization boundary.',
     executionPlan({
@@ -822,17 +847,49 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     ['authorization'],
   ),
   approved(
+    'fixture-discovery-stays-in-execution-planning',
+    'A discovered fixture implementation change preserves every accepted decision and proof boundary.',
+    `${ONE_PLAN}\n## Discovery\n\nThe fixture implementation must move from a builder to a literal without changing behavior, API, data, or proof boundaries.\n`,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  approved(
+    'test-command-discovery-stays-in-execution-planning',
+    'A discovered test-command change preserves every accepted decision and proof boundary.',
+    `${ONE_PLAN}\n## Discovery\n\nThe test command must use the package-local runner without changing the accepted proof boundary.\n`,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  decisionChangingDiscovery(
+    'accepted-design-discovery-returns-to-implementation-planning',
+    'A discovery requires replacing the accepted shared authorization design.',
+    `${ONE_PLAN}\n## Discovery\n\nImplementation requires moving authorization ownership from the accepted shared service into each transport.\n`,
+    ['authorization', 'decision'],
+  ),
+  decisionChangingDiscovery(
+    'accepted-proof-discovery-returns-to-implementation-planning',
+    'A discovery requires replacing an accepted real-boundary proof with structural evidence.',
+    `${ONE_PLAN}\n## Discovery\n\nThe accepted public CLI proof cannot run; replace it with a parser unit test that does not exercise that boundary.\n`,
+    ['proof', 'boundary'],
+  ),
+  decisionChangingDiscovery(
+    'path-and-api-discovery-returns-to-implementation-planning',
+    'A file-path discovery also changes the accepted API contract.',
+    `${ONE_PLAN}\n## Discovery\n\nMove the handler file and replace the accepted public command response with a new API contract.\n`,
+    ['api', 'contract'],
+  ),
+  approved(
     'fresh-context-first-red',
     'A fresh-context agent can begin with the named highest-risk RED without inventing a decision.',
     STARTABLE_PLAN,
     'one_pull_request',
     ['Authorization denial'],
   ),
-  denied(
+  decisionChangingDiscovery(
     'later-step-is-not-startable',
     'A concrete first RED cannot hide an unresolved behavior decision in the fourth step.',
     LATER_UNSTARTABLE_PLAN,
-    ['task 4', 'behavior decision'],
+    ['behavior decision', 'before implementation'],
   ),
   denied(
     'blocked-first-prerequisite',

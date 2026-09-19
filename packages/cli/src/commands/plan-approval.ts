@@ -141,6 +141,102 @@ function reviewsPlan(data: Record<string, unknown>, context: ApprovalContext): b
   );
 }
 
+type ExecutionDiscovery =
+  | { readonly destination: 'plan-execution' | 'plan-implementation' }
+  | { readonly destination: 'invalid' };
+
+function reviewTargetsPath(
+  data: Record<string, unknown>,
+  cwd: string,
+  expectedPath: string,
+): boolean {
+  if (!Array.isArray(data.review_targets)) return false;
+  const resolvedExpected = nodePath.resolve(expectedPath);
+  return data.review_targets.some(
+    target => typeof target === 'string' && nodePath.resolve(cwd, target) === resolvedExpected,
+  );
+}
+
+function discoveryDestination(output: unknown): ExecutionDiscovery {
+  if (typeof output !== 'object' || output === null || Array.isArray(output)) {
+    return { destination: 'invalid' };
+  }
+  const destination = (output as Record<string, unknown>).planning_destination;
+  return destination === 'plan-execution' || destination === 'plan-implementation'
+    ? { destination }
+    : { destination: 'invalid' };
+}
+
+function currentExecutionDiscovery(context: ApprovalContext): ExecutionDiscovery | undefined {
+  const ticket = readFileSync(context.ticketPath, 'utf8');
+  if (readFrontmatterScalar(ticket, 'phase') !== 'plan-execution') return undefined;
+  const planPath = nodePath.join(context.ticketDirectory, 'execution-plan.md');
+  if (!existsSync(planPath)) return undefined;
+
+  const review = reviewJobStatus(context.cwd);
+  if (typeof review.data !== 'object' || review.data === null || Array.isArray(review.data)) {
+    return undefined;
+  }
+  const data = review.data as Record<string, unknown>;
+  if (
+    data.review_kind !== 'plan-execution' ||
+    data.status !== 'changes_requested' ||
+    !reviewTargetsPath(data, context.cwd, planPath)
+  ) {
+    return undefined;
+  }
+  return discoveryDestination(data.reviewer_output);
+}
+
+function applyExecutionDiscovery(
+  context: ApprovalContext,
+  discovery: ExecutionDiscovery,
+): CliResult {
+  if (discovery.destination === 'plan-implementation') {
+    const changed = replaceTicketPhase(context, 'plan-execution', 'plan-implementation');
+    const target = nodePath.relative(context.cwd, context.ticketPath);
+    return createResult({
+      state: 'action_required',
+      changed,
+      effects: {
+        files: changed ? [{ kind: 'update', target, operation: 'write' }] : [],
+      },
+      findings: [
+        {
+          code: 'EXECUTION_DISCOVERY_APPLIED',
+          message:
+            'The reviewed discovery changes an accepted decision or proof boundary. The ticket returned to Implementation Planning for repair and fresh review.',
+          severity: 'warning',
+        },
+      ],
+      data: {
+        command: 'ticket approve-plan',
+        ticket_id: context.ticketId,
+        planning_destination: discovery.destination,
+      },
+    });
+  }
+
+  const invalid = discovery.destination === 'invalid';
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: invalid ? 'EXECUTION_DISCOVERY_INVALID' : 'EXECUTION_DISCOVERY_APPLIED',
+        message: invalid
+          ? 'The current Execution Plan review did not provide a valid planning destination. Run the review again before changing phase.'
+          : 'The reviewed discovery changes only execution mechanics. Repair and re-review the Execution Plan; the ticket remains in Execution Planning.',
+        severity: 'warning',
+      },
+    ],
+    data: {
+      command: 'ticket approve-plan',
+      ticket_id: context.ticketId,
+      planning_destination: discovery.destination,
+    },
+  });
+}
+
 function latestReviewRejection(context: ApprovalContext): string | undefined {
   const review = reviewJobStatus(context.cwd);
   if (typeof review.data !== 'object' || review.data === null || Array.isArray(review.data)) {
@@ -391,6 +487,10 @@ function currentApprovalResult(
 }
 
 async function approve(context: ApprovalContext, noInput: boolean): Promise<CliResult> {
+  const executionDiscovery = currentExecutionDiscovery(context);
+  if (executionDiscovery !== undefined) {
+    return applyExecutionDiscovery(context, executionDiscovery);
+  }
   const review = currentReview(context);
   if (!review.ok) {
     return result(context, 'pending', [], review.reason);

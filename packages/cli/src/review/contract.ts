@@ -145,6 +145,7 @@ export interface ReviewerOutput {
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly planning_destination?: 'plan-execution' | 'plan-implementation';
   readonly execution_plan_record?: ExecutionPlanRecord | null;
 }
 
@@ -155,6 +156,7 @@ export interface UnverifiedReviewerOutput {
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly planning_destination?: unknown;
   readonly execution_plan_record?: unknown;
 }
 

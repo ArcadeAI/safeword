@@ -215,16 +215,18 @@ describe('Execution Plan output schema', () => {
       verdict: 'request_changes' as const,
       findings: [{ severity: 'error' as const, message: 'Rollback ownership is missing.' }],
     };
+    const denial = { ...denialWithoutRecord, execution_plan_record: nullRecord };
 
     expect(parseReviewerOutput('claude', encoded, 'plan-execution')).toEqual(approval());
-    expect(
-      parseReviewerOutput('claude', JSON.stringify(denialWithoutRecord), 'plan-execution'),
-    ).toEqual(denialWithoutRecord);
+    expect(parseReviewerOutput('claude', JSON.stringify(denial), 'plan-execution')).toEqual(denial);
     expect(() => parseReviewerOutput('claude', encoded, 'quality-review')).toThrow(
       'invalid reviewer output',
     );
     expect(() =>
       parseReviewerOutput('claude', JSON.stringify(baseOutput), 'plan-execution'),
+    ).toThrow('invalid reviewer output');
+    expect(() =>
+      parseReviewerOutput('claude', JSON.stringify(denialWithoutRecord), 'plan-execution'),
     ).toThrow('invalid reviewer output');
   });
 });
@@ -298,7 +300,7 @@ describe('Execution Plan output validation', () => {
       validateExecutionPlanOutput({
         ...approval(),
         planning_destination: 'somewhere-else',
-      } as UnverifiedReviewerOutput),
+      }),
     ).toEqual({ kind: 'invalid_output' });
     expect(
       validateExecutionPlanOutput({

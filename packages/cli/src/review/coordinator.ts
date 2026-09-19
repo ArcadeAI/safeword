@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
+import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { retryCommand } from './command.js';
 import type {
   RedExecutionAttestation,
@@ -40,6 +41,26 @@ type ReviewRunInput = {
   readonly executionAttestation?: RedExecutionAttestation;
 };
 
+function implementationPlanningRecovery(cwd: string, target: string): CliResult['recovery'] {
+  try {
+    const targetPath = nodePath.resolve(cwd, target);
+    const ticketPath = nodePath.join(nodePath.dirname(targetPath), 'ticket.md');
+    const ticket = readFileSync(ticketPath, 'utf8');
+    const ticketId = readFrontmatterScalar(ticket, 'id');
+    if (ticketId === undefined || ticketId.trim() === '') return [];
+    return [
+      {
+        command: `safeword ticket approve-plan ${ticketId}`,
+        description:
+          'Apply the reviewed return to Implementation Planning before repairing the accepted decision.',
+        requiresHuman: false,
+      },
+    ];
+  } catch {
+    return [];
+  }
+}
+
 function planExecutionRecovery(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
@@ -50,6 +71,10 @@ function planExecutionRecovery(input: {
   if (input.kind !== 'plan-execution' || input.output.verdict !== 'request_changes') return [];
   const target = input.targets[0];
   if (target === undefined) return [];
+
+  if (input.output.planning_destination === 'plan-implementation') {
+    return implementationPlanningRecovery(input.cwd, target);
+  }
 
   let plan: string;
   try {

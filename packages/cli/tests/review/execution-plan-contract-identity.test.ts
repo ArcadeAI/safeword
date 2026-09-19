@@ -44,6 +44,7 @@ const approved: UnverifiedReviewerOutput = {
   dispatch_id: 'dispatch-1',
   reviewer_agent: 'claude',
   verdict: 'approve',
+  planning_destination: 'plan-execution',
   summary: 'approved',
   findings: [],
   execution_plan_record: {
@@ -144,6 +145,7 @@ process.stdin.on('end', () => {
     dispatch_id: packet.dispatch_id,
     reviewer_agent: 'claude',
     verdict: 'approve',
+    planning_destination: 'plan-execution',
     summary: 'approved',
     findings: [],
     execution_plan_record: {

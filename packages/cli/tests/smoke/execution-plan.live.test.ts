@@ -92,6 +92,7 @@ function assertCase(
 ): void {
   expect(output.reviewer_agent).toBe(assigned);
   expect(output.dispatch_id).toBe(dispatchId);
+  expect(output.planning_destination).toBe(testCase.expectation.planning_destination);
   if (testCase.expectation.verdict === 'approve') assertApproval(testCase, output);
   else assertDenial(testCase, output);
 }

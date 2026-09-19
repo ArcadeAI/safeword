@@ -253,9 +253,17 @@ const EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
   ...REVIEW_OUTPUT_SCHEMA_SHAPE,
   properties: {
     ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+    planning_destination: {
+      type: 'string',
+      enum: ['plan-execution', 'plan-implementation'],
+    },
     execution_plan_record: EXECUTION_PLAN_RECORD_SCHEMA,
   },
-  required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, 'execution_plan_record'],
+  required: [
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE.required,
+    'planning_destination',
+    'execution_plan_record',
+  ],
 } as const;
 
 /** Select the provider contract without changing any existing review-kind bytes. */
@@ -578,15 +586,19 @@ function reviewerOutputKeys(kind: ReviewKind): Set<string> {
     'summary',
     'findings',
   ]);
-  if (kind === 'plan-execution') keys.add('execution_plan_record');
+  if (kind === 'plan-execution') {
+    keys.add('planning_destination');
+    keys.add('execution_plan_record');
+  }
   return keys;
 }
 
 function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewKind): boolean {
   return (
     kind !== 'plan-execution' ||
-    value.verdict === 'request_changes' ||
-    Object.hasOwn(value, 'execution_plan_record')
+    ((value.planning_destination === 'plan-execution' ||
+      value.planning_destination === 'plan-implementation') &&
+      Object.hasOwn(value, 'execution_plan_record'))
   );
 }
 
@@ -702,6 +714,7 @@ export function reconcilePlanContract(
     ...output,
     verdict: 'request_changes',
     ...(packet.kind === 'plan-execution' && {
+      planning_destination: 'plan-execution' as const,
       execution_plan_record: NULL_EXECUTION_PLAN_RECORD,
     }),
     summary: 'Safeword blocked approval until the author and reviewer contracts are reconciled.',

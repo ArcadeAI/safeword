@@ -390,12 +390,21 @@ function isValidExecutionPlanRecord(value: unknown): value is ExecutionPlanRecor
   );
 }
 
+function hasValidPlanningDestination(output: UnverifiedReviewerOutput): boolean {
+  const destination = output.planning_destination;
+  return (
+    (destination === 'plan-execution' || destination === 'plan-implementation') &&
+    (output.verdict !== 'approve' || destination === 'plan-execution')
+  );
+}
+
 /** Classify one already parsed plan-execution result without interpreting plan prose. */
 export function validateExecutionPlanOutput(
   output: UnverifiedReviewerOutput,
   expectedDefinition?: ExecutionPlanDeliveryDefinition,
   expectedNormalizedPlanDigest?: string,
 ): ValidatedExecutionPlanOutput {
+  if (!hasValidPlanningDestination(output)) return { kind: 'invalid_output' };
   if (output.verdict === 'request_changes') return deniedOutput(output);
 
   const candidate = output.execution_plan_record;
