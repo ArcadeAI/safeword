@@ -4,7 +4,10 @@ import nodePath from 'node:path';
 
 import { parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { executionPlanAdmission } from '../execution-plan/delivery-admission.js';
+import {
+  type ExecutionPlanAdmission,
+  executionPlanAdmission,
+} from '../execution-plan/delivery-admission.js';
 import {
   createExecutionPlanDeliveryDefinition,
   normalizedExecutionPlanDigest,
@@ -18,6 +21,18 @@ import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
 
 type ExecutionPrerequisiteStatus = 'satisfied' | 'not_applicable';
+
+interface ExecutionPlanArtifactFacts {
+  readonly presence: 'present' | 'absent';
+  readonly readability: 'readable' | 'unreadable' | 'not_applicable';
+  readonly status: 'planned' | 'unknown';
+  readonly receipt: 'valid' | 'missing' | 'not_checked';
+}
+
+type ExecutionPlanInspection =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'unreadable' }
+  | { readonly kind: 'readable'; readonly content: string; readonly status: 'planned' | 'unknown' };
 
 export const EXECUTION_PREREQUISITE_REPAIR_CODES = [
   'missing_accepted_scenarios',
@@ -40,6 +55,7 @@ function successful(
   status: ExecutionPrerequisiteStatus,
   achievedIndependence?: 'cross-agent' | 'degraded',
   inputIdentity?: string,
+  executionPlanArtifact?: ExecutionPlanArtifactFacts,
 ): CliResult {
   return createResult({
     state: 'healthy',
@@ -53,11 +69,18 @@ function successful(
       ...(inputIdentity !== undefined && {
         authorization_input_identity: inputIdentity,
       }),
+      ...(executionPlanArtifact !== undefined && {
+        execution_plan_artifact: executionPlanArtifact,
+      }),
     },
   });
 }
 
-function denied(missing: readonly MissingPrerequisite[], inputIdentity?: string): CliResult {
+function denied(
+  missing: readonly MissingPrerequisite[],
+  inputIdentity?: string,
+  executionPlanArtifact?: ExecutionPlanArtifactFacts,
+): CliResult {
   return createResult({
     state: 'action_required',
     findings: missing.map(item => ({
@@ -75,6 +98,9 @@ function denied(missing: readonly MissingPrerequisite[], inputIdentity?: string)
       grants_authority: false,
       ...(inputIdentity !== undefined && {
         authorization_input_identity: inputIdentity,
+      }),
+      ...(executionPlanArtifact !== undefined && {
+        execution_plan_artifact: executionPlanArtifact,
       }),
     },
   });
@@ -226,64 +252,133 @@ type ChecklistPrerequisite =
       readonly admitted: true;
       readonly independence: 'cross-agent' | 'degraded';
       readonly provenance: ReviewProvenance;
+      readonly receipt: 'valid';
     }
-  | { readonly admitted: false; readonly missing: MissingPrerequisite };
+  | {
+      readonly admitted: false;
+      readonly missing: MissingPrerequisite;
+      readonly receipt: 'valid' | 'missing' | 'not_checked';
+    };
 
-function checklistPrerequisite(context: PrerequisiteContext): ChecklistPrerequisite {
+function inspectExecutionPlan(path: string): ExecutionPlanInspection {
+  if (!existsSync(path)) return { kind: 'absent' };
+  try {
+    const content = readFileSync(path, 'utf8');
+    return {
+      kind: 'readable',
+      content,
+      status: /^\*\*Status:\*\*\s*planned\s*$/imu.test(content) ? 'planned' : 'unknown',
+    };
+  } catch {
+    return { kind: 'unreadable' };
+  }
+}
+
+function executionPlanArtifactFacts(
+  inspection: ExecutionPlanInspection,
+  receipt: ChecklistPrerequisite['receipt'],
+): ExecutionPlanArtifactFacts {
+  if (inspection.kind === 'absent') {
+    return {
+      presence: 'absent',
+      readability: 'not_applicable',
+      status: 'unknown',
+      receipt: 'missing',
+    };
+  }
+  if (inspection.kind === 'unreadable') {
+    return {
+      presence: 'present',
+      readability: 'unreadable',
+      status: 'unknown',
+      receipt: 'not_checked',
+    };
+  }
+  return {
+    presence: 'present',
+    readability: 'readable',
+    status: inspection.status,
+    receipt,
+  };
+}
+
+function reviewedChecklist(
+  review: ExecutionPlanAdmission,
+  command: string,
+): ChecklistPrerequisite | undefined {
+  switch (review.kind) {
+    case 'admitted': {
+      return {
+        admitted: true,
+        independence: review.independence,
+        provenance: review.provenance,
+        receipt: 'valid',
+      };
+    }
+    case 'missing_verdict': {
+      return {
+        admitted: false,
+        missing: {
+          code: 'missing_execution_plan_verdict',
+          message: 'The current Execution Plan review has no verdict.',
+          command,
+        },
+        receipt: 'valid',
+      };
+    }
+    case 'rejected': {
+      return {
+        admitted: false,
+        missing: {
+          code: 'rejected_execution_plan_review',
+          message: review.message,
+          command,
+        },
+        receipt: 'valid',
+      };
+    }
+    case 'unearned_assurance': {
+      return {
+        admitted: false,
+        missing: {
+          code: 'unearned_execution_plan_assurance',
+          message: 'The Execution Plan review has no validated achieved independence.',
+          command,
+        },
+        receipt: 'valid',
+      };
+    }
+    case 'not_admitted': {
+      return undefined;
+    }
+  }
+}
+
+function checklistPrerequisite(
+  context: PrerequisiteContext,
+  inspection: ExecutionPlanInspection,
+): ChecklistPrerequisite {
   const command = `safeword review run plan-execution --context ${nodePath.relative(context.cwd, context.implementationPath)} --context ${relativeFeature(context)} -- ${nodePath.relative(context.cwd, context.executionPath)}`;
-  if (existsSync(context.executionPath)) {
-    const plan = readFileSync(context.executionPath, 'utf8');
+  if (inspection.kind === 'readable') {
+    const plan = inspection.content;
     const parsed = parseDeliveryPlanContract(plan);
     if (parsed.ok) {
       const definition = createExecutionPlanDeliveryDefinition(
         parsed,
         designApprovalRequired(context.cwd),
       );
-      const review = executionPlanAdmission({
-        cwd: context.cwd,
-        ticketDirectory: context.ticketDirectory,
-        planPath: context.executionPath,
-        ledger: context.ledger,
-        definition,
-        digest: normalizedExecutionPlanDigest(plan),
-      });
-      if (review.kind === 'admitted') {
-        return {
-          admitted: true,
-          independence: review.independence,
-          provenance: review.provenance,
-        };
-      }
-      if (review.kind === 'missing_verdict') {
-        return {
-          admitted: false,
-          missing: {
-            code: 'missing_execution_plan_verdict',
-            message: 'The current Execution Plan review has no verdict.',
-            command,
-          },
-        };
-      }
-      if (review.kind === 'rejected') {
-        return {
-          admitted: false,
-          missing: {
-            code: 'rejected_execution_plan_review',
-            message: review.message,
-            command,
-          },
-        };
-      }
-      if (review.kind === 'unearned_assurance') {
-        return {
-          admitted: false,
-          missing: {
-            code: 'unearned_execution_plan_assurance',
-            message: 'The Execution Plan review has no validated achieved independence.',
-            command,
-          },
-        };
-      }
+      const reviewed = reviewedChecklist(
+        executionPlanAdmission({
+          cwd: context.cwd,
+          ticketDirectory: context.ticketDirectory,
+          planPath: context.executionPath,
+          ledger: context.ledger,
+          definition,
+          digest: normalizedExecutionPlanDigest(plan),
+        }),
+        command,
+      );
+      if (reviewed !== undefined) return reviewed;
     }
   }
   return {
@@ -293,6 +388,7 @@ function checklistPrerequisite(context: PrerequisiteContext): ChecklistPrerequis
       message: 'An admitted Delivery Checklist is required before execution.',
       command,
     },
+    receipt: inspection.kind === 'unreadable' ? 'not_checked' : 'missing',
   };
 }
 
@@ -324,22 +420,23 @@ function designDecisionState(context: PrerequisiteContext): string {
 
 function applicableIdentityInput(
   context: PrerequisiteContext,
+  executionPlan: ExecutionPlanInspection,
   reviews: {
     readonly scenario?: ReviewProvenance;
     readonly implementation?: ReviewProvenance;
     readonly execution?: ReviewProvenance;
   },
 ): Record<string, unknown> {
-  const executionPlan = existsSync(context.executionPath)
-    ? normalizedExecutionPlanDigest(readFileSync(context.executionPath, 'utf8'))
-    : 'missing';
   return {
     applicability: 'applicable',
     ticket_scope: stableTicketScope(context.ticket),
     product_plan: fileDigest(nodePath.join(context.ticketDirectory, 'spec.md')),
     accepted_scenarios: fileDigest(context.featurePath),
     implementation_plan: fileDigest(context.implementationPath),
-    execution_plan: executionPlan,
+    execution_plan:
+      executionPlan.kind === 'readable'
+        ? normalizedExecutionPlanDigest(executionPlan.content)
+        : executionPlan.kind,
     reviews: {
       scenarios: reviews.scenario ?? 'missing',
       implementation: reviews.implementation ?? 'missing',
@@ -356,17 +453,22 @@ function authorizationInputIdentity(input: {
   readonly scenarioReview?: ReviewProvenance;
   readonly implementationReview?: ReviewProvenance;
   readonly executionReview?: ReviewProvenance;
+  readonly executionPlan?: ExecutionPlanInspection;
   readonly status?: ExecutionPrerequisiteStatus;
 }): string {
   const configPath = nodePath.join(input.cwd, '.safeword', 'config.json');
   const evaluated =
     input.context === undefined
       ? { applicability: input.status ?? 'not_applicable' }
-      : applicableIdentityInput(input.context, {
-          scenario: input.scenarioReview,
-          implementation: input.implementationReview,
-          execution: input.executionReview,
-        });
+      : applicableIdentityInput(
+          input.context,
+          input.executionPlan ?? inspectExecutionPlan(input.context.executionPath),
+          {
+            scenario: input.scenarioReview,
+            implementation: input.implementationReview,
+            execution: input.executionReview,
+          },
+        );
   return digest(
     JSON.stringify({
       version: 1,
@@ -415,7 +517,9 @@ export function evaluateExecutionPrerequisite(
     loaded.context.implementationPath,
     'Implementation Plan',
   );
-  const checklist = checklistPrerequisite(loaded.context);
+  const executionPlan = inspectExecutionPlan(loaded.context.executionPath);
+  const checklist = checklistPrerequisite(loaded.context, executionPlan);
+  const executionPlanArtifact = executionPlanArtifactFacts(executionPlan, checklist.receipt);
   const missing = [
     scenarioPrerequisite(loaded.context, scenarioReview),
     approachPrerequisite(loaded.context, implementationReview),
@@ -428,9 +532,10 @@ export function evaluateExecutionPrerequisite(
     scenarioReview,
     implementationReview,
     executionReview: checklist.admitted ? checklist.provenance : undefined,
+    executionPlan,
   });
-  if (missing.length > 0) return denied(missing, identity);
+  if (missing.length > 0) return denied(missing, identity, executionPlanArtifact);
   const independence =
     options.includeAssurance === true && checklist.admitted ? checklist.independence : undefined;
-  return successful('satisfied', independence, identity);
+  return successful('satisfied', independence, identity, executionPlanArtifact);
 }
