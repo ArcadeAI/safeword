@@ -113,7 +113,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Concrete proof content controls test-step startability
 
 - [x] RED 364f45b50
-- [ ] GREEN
+- [x] GREEN 760aafbe9
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R9 — Coding requires a reviewed current Execution Plan
