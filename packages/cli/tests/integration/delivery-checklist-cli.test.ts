@@ -368,6 +368,30 @@ describe('Delivery Checklist CLI service', () => {
     git(root, ['add', '.project']);
     git(root, ['commit', '--quiet', '-m', 'change accepted authorization contract']);
 
+    const expectAuditOnlyProof = async (): Promise<void> => {
+      const result = await publicReadiness(root);
+      const data = result.data as {
+        open_contributor_items: string[];
+        contributor_evidence: {
+          item_id: string;
+          status: string;
+          evidence_class: string;
+          limitations: string[];
+          audit_receipt_id?: string;
+        }[];
+      };
+      expect(data.open_contributor_items[0]).toBe('item-4');
+      expect(
+        data.contributor_evidence.find(evidence => evidence.item_id === 'item-4'),
+      ).toMatchObject({
+        status: 'open',
+        evidence_class: 'partial_or_structural',
+        limitations: ['earlier_revision'],
+        audit_receipt_id: receipt,
+      });
+    };
+    await expectAuditOnlyProof();
+
     review.compatibilityResult = compatibilityReviewResult({ status: 'changes_requested' });
     const compatibility = await publicHandler('ticket record-delivery-proof')({
       cwd: root,
@@ -384,27 +408,7 @@ describe('Delivery Checklist CLI service', () => {
       state: 'action_required',
       findings: [{ code: 'compatibility_review_denied' }],
     });
-
-    const result = await publicReadiness(root);
-    const data = result.data as {
-      open_contributor_items: string[];
-      contributor_evidence: {
-        item_id: string;
-        status: string;
-        evidence_class: string;
-        limitations: string[];
-        audit_receipt_id?: string;
-      }[];
-    };
-    expect(data.open_contributor_items[0]).toBe('item-4');
-    expect(data.contributor_evidence.find(evidence => evidence.item_id === 'item-4')).toMatchObject(
-      {
-        status: 'open',
-        evidence_class: 'partial_or_structural',
-        limitations: ['earlier_revision'],
-        audit_receipt_id: receipt,
-      },
-    );
+    await expectAuditOnlyProof();
     expect(readFileSync(planPath, 'utf8')).toContain(`receipt:${receipt}`);
     expect(
       readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8'),
