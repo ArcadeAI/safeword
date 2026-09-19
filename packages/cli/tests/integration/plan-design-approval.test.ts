@@ -567,6 +567,52 @@ describe('a declined design returns to Implementation Planning', () => {
   });
 });
 
+describe('implementation-time discoveries return to the affected planning phase', () => {
+  it.each([
+    ['plan-execution', 'plan-execution'],
+    ['plan-implementation', 'plan-implementation'],
+  ] as const)(
+    'routes %s repair from implementation through the installed CLI',
+    async (planningDestination, expectedPhase) => {
+      const project = fixture(false);
+      writeFileSync(
+        project.ticketPath,
+        readFileSync(project.ticketPath, 'utf8').replace(
+          'phase: plan-implementation',
+          'phase: implement',
+        ),
+      );
+      const executionPlanPath = nodePath.join(project.ticketDirectory, 'execution-plan.md');
+      writeFileSync(executionPlanPath, EXECUTION_PLAN_TEMPLATE);
+      mutateReview(project, data => ({
+        ...data,
+        status: 'changes_requested',
+        review_kind: 'plan-execution',
+        review_targets: [nodePath.relative(project.root, executionPlanPath)],
+        reviewer_output: {
+          schema_version: 1,
+          dispatch_id: 'implementation-discovery',
+          reviewer_agent: 'claude',
+          verdict: 'request_changes',
+          summary: 'Implementation exposed a planning defect.',
+          findings: [{ severity: 'error', message: 'Repair the affected plan.' }],
+          planning_destination: planningDestination,
+        },
+      }));
+
+      const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+        cwd: project.root,
+        env: reviewEnvironment(project),
+      });
+
+      expect(result.exitCode, result.stdout).toBe(2);
+      expect(phase(project.ticketPath)).toBe(expectedPhase);
+      expect(result.stdout).toContain('EXECUTION_DISCOVERY_APPLIED');
+      expect(result.stdout).toContain(`"planning_destination":"${planningDestination}"`);
+    },
+  );
+});
+
 describe('an accepted design enters Execution Planning', () => {
   it('binds the approval to the exact approach bytes before advancing', () => {
     const project = fixture(true);
