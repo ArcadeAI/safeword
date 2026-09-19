@@ -29,24 +29,31 @@ merge authority.
 ### Current state and target reconciliation
 
 `Status: planned` means this document remains the accepted target design; it
-does not mean implementation has not started. The ticket is already in
-`implement`, so current facts are separated from target work here:
+does not mean implementation has not started. The ticket returned to
+`plan-implementation` after stronger scenarios exposed a checklist-identity
+ambiguity, so current facts are separated from remaining target work here:
 
 | State | Current fact | Evidence strength | Remaining target |
 | --- | --- | --- | --- |
 | Implemented | The public coding-authorization projection and both coding-boundary consumers exist on this branch. R1, R5, and R9 ledger rows record their completed scenario loops. | Targeted CLI, hook, and review tests have passed during implementation; whole-ticket verification has not run, so this is not a completion or release claim. | Preserve the single prerequisite owner while the remaining semantic and journey cases are added. |
 | Implemented | Content-bound review invalidation and the closed downstream-authority result are present. Completed R14, R16, and R17 ledger rows identify the proved partitions. | Scenario-level GREEN/REFACTOR evidence only; unchecked rows remain unproved. | Complete the source-approach invalidation and replan/preservation journeys. |
 | Available dependency | The canonical Execution Plan review, Delivery Checklist, proof-currency, and compatibility contracts from 6XW8H7 and A639WN are available. | Their admitted contract tests establish the dependency boundary, not this ticket's complete behavior. | Add this ticket's startability, discovery-routing, obligation, measurement, and cold-start conformance cases without redefining those contracts. |
-| Known defect | No accepted behavior is currently recorded as a known open defect on this branch. The scenario-scoped executable-RED receipt bug found during this implementation was fixed and regression-tested. The work-log rc.4 raw-byte divergence belongs to older published bootstrap tooling; the current rc.5/source runtime uses the accepted normalized identity. | Focused regression evidence only. | Whole-ticket quality review and verification may still discover defects; record them here if they contradict an accepted decision. |
+| Known defect | The installed-CLI journey now proves denial before RED and release after the observed failure is recorded, but its semantic contract is still absent from the Execution Planning rubric. The scenario-scoped executable-RED receipt bug found earlier was fixed and regression-tested. The work-log rc.4 raw-byte divergence belongs to older published bootstrap tooling; the current rc.5/source runtime uses the accepted normalized identity. | The corrected journey is a verified RED only; whole-ticket verification has not run. | Add the startability contract and conformance case, then run the real review matrix before claiming GREEN. |
 | Pending human authority | No merge, release, or rollout approval has been granted by either planning review. | Not applicable; those authorities remain downstream and human-owned. | Obtain them only through the normal downstream process after verification. |
 
 Implementation-time changes follow the dependency direction already accepted
-in `ARCHITECTURE.md`. Product Plan identity comprises `spec.md`, the approved
-feature source, and the normalized `scope`, `out_of_scope`, and `done_when`
-ticket fields. A change to that identity or the Implementation Plan stales both
-planning reviews; a stable Execution Plan definition change stales its own
-review; ordinary Delivery Checklist progress does not. A stale authorization
-stops subsequent production edits. During replan, the canonical A639WN
+in `ARCHITECTURE.md`. This ticket consumes 5F5ZZA's admitted Product Plan
+identity rather than recomputing it. That upstream identity covers `spec.md`,
+the approved feature source, normalized `scope`, `out_of_scope`, and
+`done_when`, plus the applicable principles, personas, and surfaces bound by
+the review packet. A change to that identity or the Implementation Plan stales
+both planning reviews. In the Execution Plan checklist, `ID`, `Category`,
+`Obligation`, `Owner`, and `Required proof` are reviewed definition; changing
+any of them stales the Execution Plan review. For contributor rows, only
+`Disposition`, `Evidence class`, `Revision`, and the final evidence value are
+ordinary progress and stay review-current. Reviewed `not_applicable` reasons
+and `pending_human` dependencies remain stable definition. A stale
+authorization stops subsequent production edits. During replan, the canonical A639WN
 evidence-state update preserves proof whose accepted boundary is unchanged and
 demotes proof invalidated by the changed decision to audit evidence, reopening
 that obligation for current proof. The agent returns to the earliest affected
@@ -76,7 +83,7 @@ boundary proved in build step 5.
 | Accepted proof becomes TDD work                               | BDD ledger and executable-RED gate                                                                                                                        | Integration through the real hook workflow proves pre-RED production edits are denied with the named RED recovery, then RED, GREEN, and REFACTOR proceed | Existing ledger parser and executable-RED tests                                                                       | Does not prove the eventual feature under development is correct                                            |
 | Obligation, checklist, evidence, and PR-slice completeness    | Existing plan-execution record and Delivery Checklist admission                                                                                           | Semantic review covers omitted, partially mapped, and explicitly obligation-free approaches, known-defect versus target state, pending human authority, and canonical A639WN/6XW8H7 contract identity | Existing parser, normalized-digest, proof-currency, checklist, and slicing matrices                                   | Structural admission cannot establish semantic relevance by itself                                          |
 | Measurement work preserves the accepted promise               | Execution Planning semantic contract                                                                                                                      | Installed-CLI semantic review varies instrumentation, evidence, target, and origin                                                                     | Packet completeness and contract-identity tests                                                                       | No quantitative product promise exists for this child itself                                                |
-| Dependency-directed invalidation and replanning               | Coding authorization, review identities, and A639WN's `delivery-compatibility` review plus durable `delivery-compatibility:v1` decision event             | Git-backed integration separately varies `spec.md`, approved feature bytes, normalized ticket scope fields, Implementation Plan bytes, stable Execution Plan definition, and ordinary checklist progress | Mutation tests assert preserved proof keeps the byte-identical evidence class without a new proof-execution receipt, while invalidated proof becomes audit-only | Exact-byte upstream identity can require review for cosmetic edits; that conservative cost is deliberate    |
+| Dependency-directed invalidation and replanning               | Coding authorization, review identities, and A639WN's `delivery-compatibility` review plus durable `delivery-compatibility:v1` decision event             | Git-backed integration separately varies admitted Product Plan identity, Implementation Plan bytes, Execution Plan `Required proof`, and contributor progress cells; only progress retains review currency | Mutation tests assert preserved proof keeps the byte-identical evidence class without a new proof-execution receipt, while invalidated proof becomes audit-only | Exact-byte upstream identity can require review for cosmetic edits; that conservative cost is deliberate    |
 | Approval claims stay narrow                                   | Typed coding-authorization result                                                                                                                         | Public CLI integration rejects implementation, verification, release, and merge claims                                                                 | Closed result-shape tests                                                                                             | Human merge policy remains outside Safeword authority                                                       |
 
 The Safeword CLI is the only affected M1 runtime surface. Claude Code, Claude
@@ -223,7 +230,7 @@ authorization projection and consumers rather than a second checker.
 | Derive coding authorization once and consume it at both coding boundaries | Add one read-only public coding-authorization result over the existing prerequisite service; use it for `plan-execution → implement` and production-code edits                            | Duplicate checks in the hook; gate only the phase transition                          | Duplication creates two authorities that can drift; transition-only enforcement misses a plan changed during implementation |
 | Expose `ticket coding-authorization <ticketId>` through the public typed CLI | Register that read-only authorization projection in discovery and let both hook consumers invoke the inspectable contract                                                                  | Keep a hidden latency-oriented hook helper                                             | The same result must support transition enforcement, per-edit enforcement, TBU inspection, stable recovery, and closed authority claims; a hidden adapter would create a second less-inspectable surface |
 | Keep semantic and structural responsibilities separate                    | Structural gates report artifact, receipt, digest, and provenance facts; semantic review decides completeness, startability, decision preservation, and proof quality                     | Parse prose heuristically in hooks; trust a reviewer without structural admission     | Heuristics turn formatting into quality judgment; unadmitted reviewer output can fabricate approval                         |
-| Reuse content-bound review identity for dependency-directed replanning    | Exact upstream plan changes invalidate dependent authorization; the Execution Plan's reviewed normalization excludes only ordinary Delivery Checklist progress; unchanged proof retains its class and proof invalidated by a changed decision becomes audit-only | Add an invalidation ledger or mutable stale flags; restart all work; preserve every proof | Existing review identity already represents currentness; another store creates synchronization failure, while full restart loses valid work and indiscriminate preservation overstates completion |
+| Reuse content-bound review identity for dependency-directed replanning    | Exact upstream plan changes invalidate dependent authorization. Execution Plan identity retains checklist `ID`, `Category`, `Obligation`, `Owner`, and `Required proof`, plus reviewed applicability reasons and human dependencies; it excludes only contributor `Disposition`, `Evidence class`, `Revision`, and final evidence progress. Unchanged proof retains its class and proof invalidated by a changed decision becomes audit-only. | Add an invalidation ledger or mutable stale flags; restart all work; preserve every proof | Existing review identity already represents currentness; another store creates synchronization failure, while full restart loses valid work and indiscriminate preservation overstates completion |
 | Preserve TDD as a separate implementation contract                        | Execution Planning names exact RED/GREEN/REFACTOR work; the existing BDD ledger and executable-RED gate prove ordering                                                                    | Treat an approved Execution Plan as RED evidence; invent a second task ledger         | Planning approval proves startability, not execution; a second ledger would compete with `test-definitions.md`              |
 | Surface planning repair before executable RED                              | On a production edit, evaluate current planning authorization first and executable-RED authorization second                                                                             | Report RED first; combine unrelated failures into one recovery                         | RED cannot authorize work under a stale plan; one ordered repair avoids sending a builder to an action that remains blocked  |
 | Activate M1 enforcement without a provenance bypass                        | Record authenticated `plan-execution` phase provenance when the scaffolded plan is entered; derive durable activation from reachable committed Git history, not the current ticket file alone. A current admitted review and project-local plan corroborate currentness. An `implement` ticket with any M1 marker but no resolvable historical provenance fails closed; only a ticket with no current or historical M1 marker remains legacy until YCFFNC migration. | Treat the file itself as durable activation; gate every in-flight feature immediately with an exemption list; trust only the mutable phase field | A deletable file cannot prove prior activation, universal gating disrupts legacy work, and a phase field is forgeable. Historical provenance survives ordinary working-tree loss, which must deny rather than exempt; intentional history rewriting remains outside the same-user local-hook trust boundary. |
@@ -244,10 +251,11 @@ remain inert audit history. Per-decision boundaries are:
 | Dependency-directed replanning  | The accepted review dependency graph remains authoritative                                         |
 
 Plan identity remains deliberately asymmetric: Product and Implementation Plan
-reviews bind exact authored bytes. The Execution Plan digest excludes only
-ordinary contributor progress cells whose stable definition was already
-reviewed. Safeword does not attempt to decide whether two Markdown documents
-are semantically equivalent.
+reviews bind exact authored bytes. The Execution Plan digest retains the first
+five checklist cells (`ID` through `Required proof`) and excludes only the last
+four cells for contributor rows in `open` or `complete` state. Non-contributor
+dispositions and their reasons remain reviewed. Safeword does not attempt to
+decide whether two Markdown documents are semantically equivalent.
 
 ### Data applicability
 
