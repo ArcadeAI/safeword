@@ -374,6 +374,18 @@ function separateEvidenceMode(
   return undefined;
 }
 
+function scenarioHasCheckedStep(ledgerContent: string, scenario: string, step: string): boolean {
+  let activeScenario: string | undefined;
+  for (const line of ledgerContent.split(/\r?\n/)) {
+    const heading = line.match(/^#{2,6}\s+(?<scenario>.+)$/)?.groups?.scenario?.trim();
+    if (heading !== undefined) activeScenario = heading;
+    if (activeScenario === scenario && new RegExp(`^- \\[x\\]\\s+${step}\\b`, 'i').test(line)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function featureScenarioHasTag(featureContent: string, scenario: string, tag: string): boolean {
   const title = scenario.replace(/^Scenario(?: Outline)?:\s*/i, '');
   let pendingTags: string[] = [];
@@ -1195,6 +1207,17 @@ if (
       deny(
         `Cannot mark "[x] ${transition.step}" with malformed SHA: ${JSON.stringify(kind.value)}.`,
         `Use "${transition.step} <7-40 hexadecimal commit SHA>" or "${transition.step} skip: <non-empty reason>".`,
+      );
+    }
+    if (
+      transition.step === 'REFACTOR' &&
+      transition.scenario !== undefined &&
+      proposedLedgerContent !== undefined &&
+      !scenarioHasCheckedStep(proposedLedgerContent, transition.scenario, 'GREEN')
+    ) {
+      deny(
+        'Cannot mark REFACTOR before GREEN records the passing proof.',
+        'Leave REFACTOR unchecked. Complete GREEN with its passing test evidence, then record REFACTOR under that same proof.',
       );
     }
     if (transition.step === 'GREEN') {
