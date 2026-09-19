@@ -605,15 +605,12 @@ describe('Implementation Plan review admission controls Execution Planning', () 
   });
 
   it('rejects a current stamp with no authenticated review receipt', async () => {
-    const project = fixture(false, 'missing');
-    const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(PLAN));
-    writeFileSync(
-      project.ledgerPath,
-      [
-        `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:42000000-0000-4000-8000-000000000019`,
-        `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:42000000-0000-4000-8000-000000000019`,
-        '',
-      ].join('\n'),
+    const project = fixture(false);
+    rewriteReviewStamps(project, line =>
+      line.replace(
+        `review-id:${project.reviewId}`,
+        'review-id:42000000-0000-4000-8000-000000000019',
+      ),
     );
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
