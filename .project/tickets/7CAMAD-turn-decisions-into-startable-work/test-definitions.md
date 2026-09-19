@@ -12,7 +12,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 88efda591
 - [x] REFACTOR skip: production path already delegates to the shared review authority
 
-### Scenario: Exhausted review routes preserve their actual provenance
+### Scenario: Review routes preserve their actual provenance
 
 - [x] RED 5d2aa327f
 - [x] GREEN 88efda591
@@ -54,7 +54,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 7a9e321b8
 - [x] REFACTOR skip: corpus case, live admission, and installed-CLI assertion already share the canonical review path
 
-### Scenario: Ordering state controls first-step startability
+### Scenario: First-step availability and ordering control startability
 
 - [x] RED skip: live — see work log 2026-09-19T10:14:00.000Z "first-step ordering"
 - [x] GREEN e8d7cf539
@@ -92,7 +92,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
 
-### Scenario: Data-decision specificity controls semantic approval
+### Scenario: Decision specificity controls semantic approval
 
 - [x] RED skip: live Claude review evidence recorded at 2026-09-19T13:41:10.000Z
 - [x] RED skip: live — corrected durable reference to the same 2026-09-19T13:41:10.000Z evidence

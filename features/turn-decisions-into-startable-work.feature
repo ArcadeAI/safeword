@@ -1,7 +1,8 @@
 Feature: Turn accepted decisions into startable work
   Safeword turns an approved approach into work a fresh agent can start without inventing decisions.
 
-  # @live marks reviewer-semantic judgments; installed-CLI structural behavior remains deterministic.
+  # @live marks periodic reviewer-semantic evidence. The regenerated deterministic admission matrix is
+  # the CI gate; a failed live reviewer result fails its case without retry masking.
 
   @plan-implementability.TBU2.7CAMAD.R1
   Rule: plan-implementability.TBU2.7CAMAD.R1 — Execution Planning requires a reviewed current approach
@@ -22,10 +23,15 @@ Feature: Turn accepted decisions into startable work
         | current with a semantic review receipt recording rejection | the transition is blocked and the receipt's rejection is reported |
 
     @surface.safeword-cli
-    Scenario: Exhausted review routes preserve their actual provenance
-      Given a current Implementation Plan has a receipt whose achieved independence level was validated by 5F5ZZA as a permitted fallback
+    Scenario Outline: Review routes preserve their actual provenance
+      Given a current Implementation Plan has a receipt whose achieved independence level was validated by 5F5ZZA as <validated_level>
       When the installed Safeword CLI begins Execution Planning
-      Then the transition report records the permitted-fallback achieved independence level rather than independent review
+      Then the transition report records <reported_level> rather than <incorrect_level>
+
+      Examples:
+        | validated_level | reported_level | incorrect_level |
+        | a permitted fallback | the permitted-fallback achieved independence level | independent review |
+        | independent cross-agent review | independent cross-agent review | a permitted fallback |
 
     @rejection @surface.safeword-cli
     Scenario: An unearned fallback receipt cannot authorize planning
@@ -50,7 +56,6 @@ Feature: Turn accepted decisions into startable work
       Then semantic review reports no unresolved behavior-shaping decision
       And the ledger records its named test action failing before any production edit
 
-    # The live matrix retries only through its explicit test runner; one failed reviewer result fails the case.
     @rejection @surface.safeword-cli @live
     Scenario: A later unstartable step blocks an otherwise startable plan
       Given an Execution Plan whose first step is startable and whose fourth step leaves the accepted authorization failure behavior undecided
@@ -58,7 +63,7 @@ Feature: Turn accepted decisions into startable work
       Then approval is blocked and the fourth step is named as requiring a behavior decision
 
     @surface.safeword-cli @live
-    Scenario Outline: Ordering state controls first-step startability
+    Scenario Outline: First-step availability and ordering control startability
       Given an Execution Plan has <ordering_state>
       When the Execution Plan is reviewed for implementability through the installed Safeword CLI
       Then <ordering_result>
@@ -84,6 +89,7 @@ Feature: Turn accepted decisions into startable work
         | have a missing authoring copy | approval is blocked with the missing authoring copy named |
         | have a missing generated reviewer rubric | approval is blocked with the missing reviewer copy named |
         | have a byte-identical canonical authoring copy but a stale generated reviewer rubric | approval is blocked with the stale reviewer copy named |
+        | have a generated reviewer rubric byte-identical to the current packaged canonical contract but an edited authoring copy | approval is blocked with the drifted authoring copy named |
         | match each other and declare the current version label but omit a required startability check from the current packaged canonical contract | approval is blocked because the canonical contract-byte identity differs |
         | are both byte-identical to the current packaged canonical implementability contract | contract identity does not block semantic approval |
 
@@ -117,7 +123,7 @@ Feature: Turn accepted decisions into startable work
       Examples:
         | plan_state | authorization_result |
         | the only execution notes are host-local scratch notes | coding is blocked because the project-local Execution Plan is missing |
-        | a current project-local Execution Plan with an approving semantic review and achieved independence level exists | coding is authorized from the project-local plan |
+        | a current project-local Execution Plan with an approving semantic review and achieved independence level exists while its source Implementation Plan is unchanged | coding is authorized from the project-local plan |
         | a stale unreviewed project-local Execution Plan and host-local scratch notes recording semantic approval exist | coding is blocked because only the project-local plan supplies authorization |
 
     @surface.safeword-cli
@@ -130,16 +136,17 @@ Feature: Turn accepted decisions into startable work
   Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
 
     @surface.safeword-cli @live
-    Scenario Outline: Data-decision specificity controls semantic approval
-      Given an Execution Plan <data_state>
+    Scenario Outline: Decision specificity controls semantic approval
+      Given an Execution Plan <decision_state>
       When the plan is semantically reviewed through the installed Safeword CLI
       Then <review_result>
 
       Examples:
-        | data_state | review_result |
+        | decision_state | review_result |
         | says to use the appropriate store without naming the accepted store or ownership contract | approval is blocked with the unnamed accepted data decision reported |
         | names a concrete store and ownership contract that the accepted Implementation Plan never decided | approval is blocked with the invented data decision reported |
         | names the accepted store and ownership contract without changing them | the data decision does not block approval |
+        | says to use the appropriate component boundary without naming the accepted architecture decision | approval is blocked with the unnamed accepted architecture decision reported |
 
   @plan-implementability.TBU2.7CAMAD.R7
   Rule: plan-implementability.TBU2.7CAMAD.R7 — Structural gates report facts rather than semantic quality
@@ -152,9 +159,9 @@ Feature: Turn accepted decisions into startable work
 
       Examples:
         | structural_state | structural_result |
-        | a present artifact, planned status, and valid receipt | it reports those facts without calling the plan implementable, approved, or ready for coding |
-        | an absent artifact | it reports artifact absent without calling the plan implementable, approved, or ready for coding |
-        | a present but unreadable artifact | it reports artifact unreadable without calling the plan present-and-valid, implementable, approved, or ready for coding |
+        | a present artifact, planned status, and valid receipt | it reports those facts without rendering any favorable or unfavorable implementability verdict or claiming the plan approved or ready for coding |
+        | an absent artifact | it reports artifact absent without rendering any favorable or unfavorable implementability verdict or claiming the plan approved or ready for coding |
+        | a present but unreadable artifact | it reports artifact unreadable without calling the plan present-and-valid, rendering any favorable or unfavorable implementability verdict, or claiming the plan approved or ready for coding |
 
   @plan-implementability.TBU2.7CAMAD.R8
   Rule: plan-implementability.TBU2.7CAMAD.R8 — Accepted proof strategies become exact test work
@@ -198,6 +205,7 @@ Feature: Turn accepted decisions into startable work
         | a semantic receipt with no verdict | coding is blocked and the missing verdict is reported |
         | a semantic receipt recording rejection | coding is blocked and the rejection is reported |
         | a valid permitted-fallback verdict with its actual assurance recorded | coding is authorized without treating the fallback as independent |
+        | a valid independent cross-agent verdict with its actual assurance recorded | coding is authorized and the achieved independence is reported as independent rather than a permitted fallback |
         | a receipt whose achieved independence level is unsatisfied after 5F5ZZA provenance validation | coding is blocked because the required achieved independence level is absent |
         | a receipt containing an author-written independence claim that 5F5ZZA provenance validation did not accept | coding is blocked because the author-written claim does not establish achieved independence |
 
@@ -213,6 +221,8 @@ Feature: Turn accepted decisions into startable work
       Examples:
         | obligation |
         | an accepted scenario |
+        | an accepted decision |
+        | an accepted proof strategy |
         | an affected surface |
         | a migration obligation |
         | a rollout obligation |
@@ -307,7 +317,7 @@ Feature: Turn accepted decisions into startable work
 
     @surface.safeword-cli @live
     Scenario: The Execution Plan maps delivery obligations into owned review units
-      Given an accepted feature requires code, tests, migration, monitoring, rollback, and documentation across several independently provable changes
+      Given an accepted feature requires code, tests, migration, monitoring, rollback, and documentation
       When its Execution Plan is reviewed through the installed Safeword CLI
       Then approval is not blocked and every obligation's dependency-ordered task and completion signal are named under the canonical A639WN checklist
 
@@ -397,7 +407,7 @@ Feature: Turn accepted decisions into startable work
     Scenario: An Execution Plan cannot stay current after its source approach changes
       Given an Execution Plan was approved before its source Implementation Plan changed
       When coding is requested through the installed Safeword CLI
-      Then coding remains blocked until the Execution Plan is reconciled to and reviewed against the current approach
+      Then coding remains blocked until both the changed Implementation Plan and its reconciled Execution Plan are reviewed against the current approach
 
   @plan-implementability.TBU2.7CAMAD.R17
   Rule: plan-implementability.TBU2.7CAMAD.R17 — A design-changing implementation decision returns through revised and re-reviewed Implementation and Execution Plans, while a sequencing-only decision returns through a revised and re-reviewed Execution Plan; both paths preserve still-valid work and evidence and resume from the first invalidated obligation
