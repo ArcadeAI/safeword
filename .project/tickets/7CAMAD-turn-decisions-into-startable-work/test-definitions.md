@@ -196,7 +196,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Implementation-time replanning preserves valid progress and refreshes the affected plans
 
-- [ ] RED
+- [x] RED 9ca6f63c6
 - [ ] GREEN
 - [ ] REFACTOR
 
