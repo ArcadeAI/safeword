@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { expectHookAllow, expectHookDeny, TIMEOUT_QUICK } from '../helpers.js';
+import { expectHookDeny, TIMEOUT_QUICK } from '../helpers.js';
 
 const HOOK_PATH = nodePath.resolve(
   import.meta.dirname,
@@ -13,6 +13,7 @@ const HOOK_PATH = nodePath.resolve(
 );
 const SESSION_ID = 'coding-authorization';
 const TICKET_ID = 'AUTH01';
+const RED_ACTION = 'bun run test tests/integration/guarded-edit.test.ts';
 
 describe('coding authorization edit hook', () => {
   let projectRoot: string;
@@ -77,7 +78,7 @@ describe('coding authorization edit hook', () => {
         '',
         '### Scenario: guarded edit',
         '',
-        '- [ ] RED',
+        `- [ ] RED — ${RED_ACTION}`,
         '- [ ] GREEN',
         '- [ ] REFACTOR',
         '',
@@ -141,6 +142,19 @@ describe('coding authorization edit hook', () => {
 
     expect(result.error, result.stderr).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
+    expect(
+      result.stdout,
+      'a stale affected plan must block the production edit before implementation continues',
+    ).not.toBe('');
+    const output = JSON.parse(result.stdout) as {
+      hookSpecificOutput: { permissionDecisionReason: string; additionalContext?: string };
+    };
+    const reason = output.hookSpecificOutput.permissionDecisionReason;
+    expect(reason.startsWith('The accepted Implementation Plan changed after review.')).toBe(true);
+    expect(reason).not.toContain(RED_ACTION);
+    expect(output.hookSpecificOutput.additionalContext?.startsWith('safeword review run')).toBe(
+      true,
+    );
     const callsPath = nodePath.join(pluginRoot, 'calls.log');
     expect(
       existsSync(callsPath),
@@ -166,7 +180,7 @@ describe('coding authorization edit hook', () => {
     ]);
   });
 
-  it('allows production work when the public coding-authorization command authorizes it', () => {
+  it('reports the named RED after the public coding-authorization command authorizes it', () => {
     writeCliResponse({
       schema_version: 1,
       ok: true,
@@ -190,7 +204,8 @@ describe('coding authorization edit hook', () => {
 
     expect(result.error, result.stderr).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
-    expectHookAllow(result);
+    expectHookDeny(result, RED_ACTION);
+    expect(result.stdout).not.toContain('The accepted Implementation Plan changed after review.');
     const calls = readFileSync(nodePath.join(pluginRoot, 'calls.log'), 'utf8').trim().split('\n');
     expect(calls).toHaveLength(1);
   });
