@@ -171,7 +171,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Review invalidation follows dependency direction
 
 - [x] RED d25df2ea7
-- [ ] GREEN
+- [x] GREEN 2d41c4802
 - [ ] REFACTOR
 
 ### Scenario: An Execution Plan cannot stay current after its source approach changes
