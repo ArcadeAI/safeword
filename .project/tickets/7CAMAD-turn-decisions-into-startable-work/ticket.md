@@ -2,7 +2,7 @@
 id: 7CAMAD
 slug: turn-decisions-into-startable-work
 type: feature
-phase: plan-execution
+phase: implement
 status: in_progress
 phase_skips:
   - 'intake: originally inherited the 2026-09-08 approval of 82T411; that approval became stale after material parent changes and was superseded by the fresh Product Plan approval recorded on 2026-09-09T23:46:25.000Z'
@@ -47,6 +47,16 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-19T08:00:00.000Z Cold-start journey correction: The real review-stamp
+  helper required a scenario target inside the ticket folder even though the
+  execution-prerequisite command directs users to the ticket's declared
+  `features/...feature` source. Existing fixtures hid the mismatch with
+  hand-written stamps. Bound the stamp claim to that declared project-local
+  source instead, so accepted scenarios remain current while the separate TDD
+  ledger records RED/GREEN/REFACTOR progress. The installed-CLI journey now
+  blocks production before the named RED and allows the identical edit after
+  the observed failure is recorded.
 
 - 2026-09-19T03:42:00.000Z Execution-proof correction: Independent RED review
   found the first conformance test exercised only an in-process corpus lookup,

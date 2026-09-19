@@ -45,8 +45,8 @@ test-definitions.md is the R/G/R ledger.
 - The complete journey blocked the production edit before RED, but did not
   prove that recording the observed failure releases that same edit.
 - [x] RED 7380ff209
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 3936a7d0b
+- [x] REFACTOR d86fd1745
 
 ### Scenario: A later unstartable step blocks an otherwise startable plan
 
