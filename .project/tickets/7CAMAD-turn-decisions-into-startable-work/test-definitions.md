@@ -172,7 +172,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d25df2ea7
 - [x] GREEN 2d41c4802
-- [ ] REFACTOR
+- [x] REFACTOR 33955c24c
 
 ### Scenario: An Execution Plan cannot stay current after its source approach changes
 
