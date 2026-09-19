@@ -51,6 +51,18 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-19T22:35:02.000Z Live evidence — R15 measurement execution matrix:
+  the pre-contract Claude Opus run failed 4 of 7 cases, approving plans that
+  omitted instrumentation or evidence collection and routing changed validity
+  safeguards and failure behavior to Execution Planning. After adding the shared
+  measurement-execution contract, the same seven cases passed 7/7: complete work
+  was approved; both omissions were denied in Execution Planning; and changes to
+  the accepted target, origin, validity safeguards, or failure behavior returned
+  to Implementation Planning. The retained admission artifact combines those
+  seven results with the prior 51/51 matrix, and the deterministic review suite
+  passed 111/111. GREEN is commit `3c65b65f5`; RED is the committed seven-case
+  corpus at `6310e9ce2` plus the failing live run.
+
 - 2026-09-19T21:26:06.000Z Live evidence — R10 obligation mapping matrix:
   ran the current 51-case Execution Plan corpus through the real Claude Opus
   reviewer. Fifty cases completed in the full run; the sole timed-out
