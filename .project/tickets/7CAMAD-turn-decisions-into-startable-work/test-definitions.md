@@ -154,7 +154,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: live — see work log 2026-09-19T21:26:06.000Z "R10 obligation mapping matrix"
 - [x] GREEN 45bcf2227
-- [ ] REFACTOR
+- [x] REFACTOR skip: canonical fixture builder and generated rubric already share one contract path
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R11 — Execution Planning supplies rather than replaces TDD
 
