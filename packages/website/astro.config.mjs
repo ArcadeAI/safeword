@@ -11,6 +11,11 @@ export default defineConfig({
   base: '/safeword',
   vite: {
     cacheDir: path.resolve(__dirname, 'node_modules/.vite'),
+    ssr: {
+      // Keep Sätteri in its package so its platform-specific optional dependency
+      // resolves relative to the package instead of the prerender bundle.
+      external: ['satteri'],
+    },
   },
   integrations: [
     // Must come before starlight so it processes ```mermaid fences first.

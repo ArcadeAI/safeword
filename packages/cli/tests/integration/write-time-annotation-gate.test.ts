@@ -11,10 +11,11 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { readFileSync, symlinkSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { afterEach, beforeEach, describe, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createTemporaryDirectory,
@@ -28,10 +29,34 @@ import {
 } from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
+const SAFEWORD_CLI = nodePath.join(SAFEWORD_ROOT, 'packages/cli/src/cli.ts');
+const PRE_TOOL_QUALITY = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/pre-tool-quality.ts',
+);
 const CODEX_PRE_TOOL_QUALITY = nodePath.join(
   SAFEWORD_ROOT,
   'packages/cli/templates/hooks/codex/pre-tool-quality.ts',
+);
+const CODEX_PLUGIN_PRE_TOOL_QUALITY = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/codex-plugin/templates/hooks/pre-tool-quality.ts',
+);
+const CHECKBOX_TRANSITIONS = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/lib/checkbox-transitions.ts',
+);
+const CODEX_PLUGIN_CHECKBOX_TRANSITIONS = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/codex-plugin/templates/hooks/lib/checkbox-transitions.ts',
+);
+const PARSE_ANNOTATION = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/lib/parse-annotation.ts',
+);
+const CODEX_PLUGIN_PARSE_ANNOTATION = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/codex-plugin/templates/hooks/lib/parse-annotation.ts',
 );
 
 /** Invoke pre-tool-quality with an Edit payload simulating a checkbox transition. */
@@ -50,7 +75,46 @@ function runEditHook(
       tool_input: { file_path: filePath, old_string: oldString, new_string: newString },
     }),
     cwd,
-    env: { ...process.env, ...environment, CLAUDE_PROJECT_DIR: cwd },
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...environment,
+      CLAUDE_PROJECT_DIR: cwd,
+    },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+function runReplaceAllEditHook(
+  cwd: string,
+  filePath: string,
+  oldString: string,
+  newString: string,
+  environment: NodeJS.ProcessEnv,
+): HookResult {
+  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'test-session',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: filePath,
+        old_string: oldString,
+        new_string: newString,
+        replace_all: true,
+      },
+    }),
+    cwd,
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...environment,
+      CLAUDE_PROJECT_DIR: cwd,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -71,7 +135,61 @@ function runMultiEditHook(
       tool_input: { file_path: filePath, edits },
     }),
     cwd,
-    env: { ...process.env, ...environment, CLAUDE_PROJECT_DIR: cwd },
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...environment,
+      CLAUDE_PROJECT_DIR: cwd,
+    },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+function runWriteHook(
+  cwd: string,
+  filePath: string,
+  content: string,
+  environment: NodeJS.ProcessEnv = {},
+): HookResult {
+  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'test-session',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Write',
+      tool_input: { file_path: filePath, content },
+    }),
+    cwd,
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      ...environment,
+      CLAUDE_PROJECT_DIR: cwd,
+    },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+function runNotebookEditHook(cwd: string, filePath: string): HookResult {
+  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    input: JSON.stringify({
+      session_id: 'test-session',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'NotebookEdit',
+      tool_input: { notebook_path: filePath, content: '- [x] GREEN def5678' },
+    }),
+    cwd,
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
+      SAFEWORD_PLUGIN_CLI: '',
+      CLAUDE_PROJECT_DIR: cwd,
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
@@ -88,6 +206,7 @@ function runCodexPatchHook(cwd: string, patch: string, gateCli: string): HookRes
     cwd,
     env: {
       ...process.env,
+      CLAUDE_PLUGIN_ROOT: '',
       CLAUDE_PROJECT_DIR: cwd,
       SAFEWORD_PLUGIN_CLI: gateCli,
     },
@@ -139,6 +258,7 @@ function setupProject(initialTestDefinitions: string): {
 
 describe('write-time annotation gate', () => {
   let projectDirectory: string;
+  const gateDirectories: string[] = [];
 
   beforeEach(() => {
     projectDirectory = '';
@@ -148,6 +268,19 @@ describe('write-time annotation gate', () => {
     if (projectDirectory) {
       removeTemporaryDirectory(projectDirectory);
     }
+    for (const directory of gateDirectories.splice(0)) removeTemporaryDirectory(directory);
+  });
+
+  it('keeps the generated Codex quality gate and edited parser copies byte-identical', () => {
+    expect(readFileSync(CODEX_PLUGIN_PRE_TOOL_QUALITY, 'utf8')).toBe(
+      readFileSync(PRE_TOOL_QUALITY, 'utf8'),
+    );
+    expect(readFileSync(CODEX_PLUGIN_CHECKBOX_TRANSITIONS, 'utf8')).toBe(
+      readFileSync(CHECKBOX_TRANSITIONS, 'utf8'),
+    );
+    expect(readFileSync(CODEX_PLUGIN_PARSE_ANNOTATION, 'utf8')).toBe(
+      readFileSync(PARSE_ANNOTATION, 'utf8'),
+    );
   });
 
   describe('Rule 1: Marking a TDD checkbox requires a SHA or skip reason', () => {
@@ -176,7 +309,7 @@ describe('write-time annotation gate', () => {
         '- [ ] GREEN',
         '- [x] GREEN',
       );
-      expectHookDeny(result, 'GREEN');
+      expectHookDeny(result, 'without an annotation');
     });
 
     it('Scenario 3: skip with non-empty reason passes', () => {
@@ -204,7 +337,7 @@ describe('write-time annotation gate', () => {
         '- [ ] REFACTOR',
         '- [x] REFACTOR skip:',
       );
-      expectHookDeny(result, 'skip');
+      expectHookDeny(result, 'empty skip reason');
     });
 
     it('Scenario 5: skip with whitespace-only reason is blocked at write-time', () => {
@@ -218,7 +351,21 @@ describe('write-time annotation gate', () => {
         '- [ ] REFACTOR',
         '- [x] REFACTOR skip:    ',
       );
-      expectHookDeny(result, 'skip');
+      expectHookDeny(result, 'empty skip reason');
+    });
+
+    it('blocks a malformed SHA annotation at write time', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] RED',
+        '- [x] RED not-a-sha',
+      );
+      expectHookDeny(result, 'malformed SHA');
     });
 
     it('Scenario 6: pre-existing bare [x] is silently allowed on unrelated edits', () => {
@@ -237,16 +384,47 @@ describe('write-time annotation gate', () => {
       );
       expectHookAllow(result);
     });
+
+    it('ignores checkbox examples inside fenced code blocks', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n```markdown\n- [ ] GREEN\n```\n\n- [ ] RED\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN',
+      );
+      expectHookAllow(result);
+    });
+
+    it('ignores checkbox examples inside balanced tilde fences', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n~~~markdown\n- [ ] GREEN\n~~~\n\n- [ ] RED\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN',
+      );
+      expectHookAllow(result);
+    });
   });
 
   describe('Executable RED GREEN admission', () => {
     function gateStub(
-      cwd: string,
+      _cwd: string,
       state: 'healthy' | 'action_required',
       expectedScenario?: string,
       expectedLedger?: string,
+      relativePath = 'gate-stub.mjs',
     ): string {
-      const path = nodePath.join(cwd, 'gate-stub.mjs');
+      const directory = createTemporaryDirectory();
+      gateDirectories.push(directory);
+      const path = nodePath.join(directory, relativePath);
       const expectedCheck =
         expectedScenario === undefined
           ? 'true'
@@ -256,9 +434,9 @@ describe('write-time annotation gate', () => {
           ? 'true'
           : `process.argv.includes(${JSON.stringify(expectedLedger)})`;
       writeTestFile(
-        cwd,
-        'gate-stub.mjs',
-        `const approved = ${state === 'healthy'} && ${expectedCheck} && ${ledgerCheck}; console.log(JSON.stringify({ schemaVersion: 1, ok: approved, changed: false, state: approved ? 'healthy' : 'action_required', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: approved ? 'approved' : 'blocked' } }));\n`,
+        directory,
+        relativePath,
+        `const value = flag => { const index = process.argv.indexOf(flag); return index < 0 ? undefined : process.argv[index + 1]; }; const approved = ${state === 'healthy'} && ${expectedCheck} && ${ledgerCheck}; console.log(JSON.stringify({ schemaVersion: 1, ok: approved, changed: false, state: approved ? 'healthy' : 'action_required', findings: [], effects: { files: [], packages: [], configuration: [], network: [], destructive: [] }, errors: [], recovery: [], nextActions: [], data: { command: 'review gate executable-red', status: approved ? 'approved' : 'blocked', scenario: value('--scenario'), ledger: value('--ledger') } }));\n`,
       );
       return path;
     }
@@ -278,13 +456,321 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
+    it('does not let an unclosed fence hide a GREEN transition', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '```\n- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it.each(['manual', 'live'])(
+      'allows GREEN when prior %s RED evidence names a durable record',
+      mode => {
+        const setup = setupProject(
+          `### Scenario: example\n\n- [x] RED skip: ${mode} — see timestamped work log\n- [ ] GREEN\n- [ ] REFACTOR\n`,
+        );
+        projectDirectory = setup.cwd;
+        const result = runEditHook(
+          setup.cwd,
+          setup.testDefinitionsPath,
+          '- [ ] GREEN',
+          '- [x] GREEN skip: evidence passed',
+          { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+        );
+        expectHookAllow(result);
+      },
+    );
+
+    it('does not treat a word beginning with manual as the manual evidence mode', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED skip: manually reproduced later\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('does not exempt manual evidence without a durable reference', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED skip: manual — reproduced later\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN skip: evidence passed',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('blocks retroactively relabeling checked RED as manual evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED abc1234',
+        '- [x] RED skip: manual — see timestamped work log',
+      );
+      expectHookDeny(result, 'retroactively relabel');
+    });
+
+    it('allows a new manual RED record beside older executable RED evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] RED',
+        '- [x] RED skip: manual — see timestamped work log',
+      );
+      expectHookAllow(result);
+    });
+
+    it('allows a new manual RED record inserted above older executable RED evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [ ] RED\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] RED',
+        '- [x] RED skip: manual — see timestamped work log',
+      );
+      expectHookAllow(result);
+    });
+
+    it('pins the intentional two-call manual evidence escape path', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const redResult = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] RED',
+        '- [x] RED skip: manual — see timestamped work log',
+      );
+      expectHookAllow(redResult);
+      writeTestFile(
+        setup.cwd,
+        '.safeword-project/tickets/TST001/test-definitions.md',
+        '### Scenario: example\n\n- [x] RED skip: manual — see timestamped work log\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+
+      const greenResult = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN skip: observed manually',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookAllow(greenResult);
+    });
+
+    it('blocks removing previously checked RED evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED abc1234',
+        '- [ ] RED abc1234',
+      );
+      expectHookDeny(result, 'RED row that already carries historical evidence');
+    });
+
+    it('blocks moving checked RED evidence to another scenario', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: alpha',
+          '',
+          '- [x] RED skip: manual — see timestamped work log',
+          '',
+          '### Scenario: beta',
+          '',
+          '- [ ] RED',
+          '- [ ] GREEN',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        [
+          '### Scenario: alpha',
+          '',
+          '- [x] RED skip: manual — see timestamped work log',
+          '',
+          '### Scenario: beta',
+          '',
+          '- [ ] RED',
+        ].join('\n'),
+        [
+          '### Scenario: alpha',
+          '',
+          '### Scenario: beta',
+          '',
+          '- [x] RED skip: manual — see timestamped work log',
+        ].join('\n'),
+      );
+      expectHookDeny(result, 'RED row that already carries historical evidence');
+    });
+
+    it('blocks swapping historical RED evidence onto a newly checked row', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED abc1234\n- [ ] RED',
+        '- [ ] RED abc1234\n- [x] RED',
+      );
+      expectHookDeny(result, 'RED row that already carries historical evidence');
+    });
+
+    it('blocks rewriting the annotation on historical RED evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] RED abc1234',
+        '- [x] RED def5678',
+      );
+      expectHookDeny(result, 'historical evidence');
+    });
+
+    it('blocks rewriting the annotation on historical REFACTOR evidence', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN def5678\n- [x] REFACTOR 9876fed\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] REFACTOR 9876fed',
+        '- [x] REFACTOR 123abcd',
+      );
+      expectHookDeny(result, 'REFACTOR row that already carries historical evidence');
+    });
+
+    it('does not let a new manual RED row exempt GREEN in the same edit', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] RED\n- [ ] GREEN',
+        '- [x] RED skip: manual — see timestamped work log\n- [x] GREEN skip: observed',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('does not let an earlier MultiEdit add manual RED evidence that exempts GREEN', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runMultiEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        [
+          {
+            old_string: '- [ ] RED',
+            new_string: '- [x] RED skip: manual — see timestamped work log',
+          },
+          { old_string: '- [ ] GREEN', new_string: '- [x] GREEN skip: observed' },
+        ],
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'executable RED');
+    });
+
+    it('checks a whole-file Write that authors a heading and GREEN credit', () => {
+      const setup = setupProject('- [ ] GREEN\n');
+      projectDirectory = setup.cwd;
+      const result = runWriteHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '### Scenario: authored\n\n- [x] GREEN def5678\n',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy') },
+      );
+      expectHookDeny(result, 'could not identify the active scenario');
+    });
+
+    it('blocks a whole-file Write that drops checked RED evidence', () => {
+      const setup = setupProject('### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n');
+      projectDirectory = setup.cwd;
+      const result = runWriteHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '### Scenario: example\n\n- [ ] GREEN\n',
+      );
+      expectHookDeny(result, 'RED row that already carries historical evidence');
+    });
+
+    it('blocks transplanting checked GREEN credit onto a reopened row', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN def5678\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [x] GREEN def5678\n- [ ] GREEN',
+        '- [ ] GREEN def5678\n- [x] GREEN 9876fed',
+      );
+      expectHookDeny(result, 'GREEN row that already carries historical evidence');
+    });
+
+    it('blocks ledger edits attempted through NotebookEdit', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      expectHookDeny(runNotebookEditHook(setup.cwd, setup.testDefinitionsPath), 'NotebookEdit');
+    });
+
     it('blocks an annotated GREEN transition when the receipt gate process fails', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
       );
       projectDirectory = setup.cwd;
-      const unavailableGate = nodePath.join(setup.cwd, 'unavailable-gate.mjs');
-      writeTestFile(setup.cwd, 'unavailable-gate.mjs', 'process.exit(1);\n');
+      const unavailableDirectory = createTemporaryDirectory();
+      gateDirectories.push(unavailableDirectory);
+      const unavailableGate = nodePath.join(unavailableDirectory, 'unavailable-gate.mjs');
+      writeTestFile(unavailableDirectory, 'unavailable-gate.mjs', 'process.exit(1);\n');
 
       const result = runEditHook(
         setup.cwd,
@@ -294,6 +780,83 @@ describe('write-time annotation gate', () => {
         { SAFEWORD_PLUGIN_CLI: unavailableGate },
       );
       expectHookDeny(result, 'could not produce a valid result');
+    });
+
+    it('reports a missing local Safeword CLI without attempting a package fetch', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: '' },
+      );
+      expectHookDeny(result, 'could not find its local CLI');
+    });
+
+    it('discovers the bundled CLI from CLAUDE_PLUGIN_ROOT', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const gate = gateStub(setup.cwd, 'healthy', undefined, undefined, 'runtime/cli.js');
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        {
+          SAFEWORD_PLUGIN_CLI: '',
+          CLAUDE_PLUGIN_ROOT: nodePath.dirname(nodePath.dirname(gate)),
+        },
+      );
+      expectHookAllow(result);
+    });
+
+    it('rejects a project-writable CLI that claims the receipt is approved', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(
+        setup.cwd,
+        'packages/cli/src/cli.ts',
+        `console.log(JSON.stringify({ state: 'healthy', data: { status: 'approved', scenario: 'Scenario: example', ledger: '.safeword-project/tickets/TST001/test-definitions.md' } }));\n`,
+      );
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: nodePath.join(setup.cwd, 'packages/cli/src/cli.ts') },
+      );
+      expectHookDeny(result, 'resolved path is inside the project');
+    });
+
+    it('rejects a healthy receipt whose returned scenario does not match the request', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const directory = createTemporaryDirectory();
+      gateDirectories.push(directory);
+      const gate = nodePath.join(directory, 'mismatched-gate.mjs');
+      writeTestFile(
+        directory,
+        'mismatched-gate.mjs',
+        `const value = flag => process.argv[process.argv.indexOf(flag) + 1]; console.log(JSON.stringify({ state: 'healthy', data: { status: 'approved', scenario: 'Scenario: different', ledger: value('--ledger') } }));\n`,
+      );
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gate },
+      );
+      expectHookDeny(result, 'receipt check did not approve this scenario');
     });
 
     it('allows an annotated GREEN transition when the exact receipt gate approves it', () => {
@@ -309,6 +872,93 @@ describe('write-time annotation gate', () => {
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy') },
       );
       expectHookAllow(result);
+    });
+
+    it('invokes the real executable-RED CLI route and parses its blocked envelope', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: SAFEWORD_CLI },
+      );
+
+      expectHookDeny(result, 'No trusted executable RED receipt matches Scenario: example');
+    });
+
+    it('gates every GREEN transition produced by replace_all', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: first',
+          '',
+          '- [x] RED abc1234',
+          '- [ ] GREEN',
+          '',
+          '### Scenario: second',
+          '',
+          '- [x] RED 9876fed',
+          '- [ ] GREEN',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const result = runReplaceAllEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        {
+          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: first'),
+        },
+      );
+      expectHookDeny(result, 'more than one independently reviewed GREEN');
+    });
+
+    it('gates a mixed-case GREEN transition', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] gReEn\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] gReEn',
+        '- [x] gReEn def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+      expectHookDeny(result, 'receipt check did not approve this scenario');
+    });
+
+    it('does not bypass the canonical ledger gate through a symlink alias', () => {
+      const setup = setupProject(
+        '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
+      );
+      projectDirectory = setup.cwd;
+      const alias = nodePath.join(setup.cwd, 'ledger-notes.md');
+      symlinkSync(setup.testDefinitionsPath, alias);
+      const result = runEditHook(setup.cwd, alias, '- [ ] GREEN', '- [x] GREEN def5678', {
+        SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required'),
+      });
+      expectHookDeny(result, 'without either prior manual/live evidence');
+    });
+
+    it('canonicalizes a dangling symlink before a whole-file Write', () => {
+      const setup = setupProject('');
+      projectDirectory = setup.cwd;
+      unlinkSync(setup.testDefinitionsPath);
+      const alias = nodePath.join(setup.cwd, 'new-ledger.md');
+      symlinkSync(setup.testDefinitionsPath, alias);
+
+      const result = runWriteHook(
+        setup.cwd,
+        alias,
+        '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN def5678\n',
+      );
+      expectHookDeny(result, 'Ticket frontmatter is missing');
     });
 
     it('blocks a GREEN transition when the replacement inserts a line before the checkbox', () => {
@@ -383,6 +1033,39 @@ describe('write-time annotation gate', () => {
       expectHookAllow(result);
     });
 
+    it('blocks GREEN when MultiEdit creates a duplicate approved scenario heading', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: approved',
+          '',
+          '- [x] RED abc1234',
+          '- [ ] GREEN',
+          '- [ ] REFACTOR',
+          '',
+          '### Scenario: other',
+          '',
+          '- [x] RED 987fedc',
+          '- [ ] GREEN',
+          '- [ ] REFACTOR',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const result = runMultiEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        [
+          { old_string: '### Scenario: other', new_string: '### Scenario: approved' },
+          {
+            old_string: '- [x] RED 987fedc\n- [ ] GREEN',
+            new_string: '- [x] RED 987fedc\n- [x] GREEN def5678',
+          },
+        ],
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: approved') },
+      );
+      expectHookDeny(result, 'historical evidence');
+    });
+
     it('blocks checked GREEN credit restored after an unrecognized-step rename', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN2 def5678\n- [ ] REFACTOR\n',
@@ -398,7 +1081,7 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
-    it('blocks existing GREEN credit moved beneath a different scenario heading', () => {
+    it('allows a rename-only edit after GREEN has been checked', () => {
       const setup = setupProject(
         '### Scenario: original\n\n- [x] RED abc1234\n- [x] GREEN def5678\n- [ ] REFACTOR\n',
       );
@@ -408,11 +1091,8 @@ describe('write-time annotation gate', () => {
         setup.testDefinitionsPath,
         '### Scenario: original',
         '### Scenario: approved elsewhere',
-        {
-          SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy', 'Scenario: approved elsewhere'),
-        },
       );
-      expectHookDeny(result, 'could not identify the active scenario');
+      expectHookAllow(result);
     });
 
     it('binds a local Edit to its exact scenario when several GREEN rows remain open', () => {
@@ -523,6 +1203,71 @@ describe('write-time annotation gate', () => {
       );
 
       expectHookDeny(result, 'could not identify the active scenario');
+    });
+
+    it('rejects a disk-derived apply_patch binding when the scenario heading is duplicated', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: duplicate',
+          '',
+          '- [x] RED abc1234',
+          '',
+          '### Scenario: duplicate',
+          '',
+          '- [ ] GREEN',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const patch = [
+        '*** Begin Patch',
+        `*** Update File: ${setup.testDefinitionsPath}`,
+        '@@',
+        ' ### Scenario: duplicate',
+        ' non-contiguous context',
+        '-- [ ] GREEN',
+        '+- [x] GREEN def5678',
+        '*** End Patch',
+      ].join('\n');
+
+      const result = runCodexPatchHook(
+        setup.cwd,
+        patch,
+        gateStub(setup.cwd, 'healthy', 'Scenario: duplicate'),
+      );
+
+      expectHookDeny(result, 'could not identify the active scenario');
+    });
+
+    it('does not carry manual evidence across non-contiguous apply_patch context', () => {
+      const setup = setupProject(
+        [
+          '### Scenario: alpha',
+          '',
+          '- [x] RED skip: manual — see timestamped work log',
+          '',
+          '### Scenario: beta',
+          '',
+          '- [x] RED abc1234',
+          '- [ ] GREEN',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      const patch = [
+        '*** Begin Patch',
+        `*** Update File: ${setup.testDefinitionsPath}`,
+        '@@',
+        ' - [x] RED skip: manual — see timestamped work log',
+        '@@',
+        '-- [ ] GREEN',
+        '+- [x] GREEN def5678',
+        '*** End Patch',
+      ].join('\n');
+
+      const result = runCodexPatchHook(setup.cwd, patch, gateStub(setup.cwd, 'action_required'));
+
+      expectHookDeny(result, 'executable RED');
     });
 
     it('binds GREEN beneath a level-four scenario heading', () => {

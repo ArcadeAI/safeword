@@ -13,6 +13,9 @@ import {
 } from '../src/retro/relay-delivery.js';
 
 const BACKLOG_SIZE = 300;
+// Match the minimum latency accepted by the readiness validator while leaving
+// enough headroom for heavily contended CI runners to observe the real 750 ms
+// drain deadline without a scheduler-delay false negative against the 1 s gate.
 const RELAY_LATENCY_MS = 80;
 const REQUEST_DEADLINE_MS = DEFAULT_RELAY_REQUEST_DEADLINE_MS;
 const DRAIN_BUDGET_MS = REQUEST_DEADLINE_MS + RELAY_OVERALL_HEADROOM_MS;
@@ -64,8 +67,8 @@ function measurementArtifact(acceptedCount: number, durationMs: number) {
       backlogSize: BACKLOG_SIZE,
       durationMs,
       overallDeadlineMs: DRAIN_BUDGET_MS,
-      requestDeadlineMs: REQUEST_DEADLINE_MS,
       relayLatencyMs: RELAY_LATENCY_MS,
+      requestDeadlineMs: REQUEST_DEADLINE_MS,
     },
     sampleSize: BACKLOG_SIZE,
     version: 2,

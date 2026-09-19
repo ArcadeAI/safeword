@@ -107,7 +107,7 @@
       ["packages/cli/tests/review/preferences.test.ts", "rejects an empty project author list"],
       [
         "packages/cli/tests/review/preferences.test.ts",
-        "rejects an empty user route list before using project routes"
+        "refuses $label before writing scoped preferences"
       ]
     ],
     "Absent scoped preferences preserve built-in behavior": [
