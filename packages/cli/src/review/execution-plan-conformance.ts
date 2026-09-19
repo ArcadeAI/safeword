@@ -507,6 +507,67 @@ const LATER_UNSTARTABLE_PLAN = executionPlan({
     },
   ],
 });
+const BLOCKED_FIRST_PREREQUISITE_PLAN = executionPlan({
+  decision: 'multiple pull requests',
+  rationale: 'Activation follows a contract that is not yet complete.',
+  slices: [
+    {
+      ...ACTIVATION_SLICE,
+      name: 'Activation',
+      prerequisites: 'Unfinished contract',
+    },
+  ],
+});
+const NO_EXECUTABLE_STEPS_PLAN = executionPlan({
+  decision: 'one pull request',
+  rationale: 'One authorization change is one review unit.',
+  slices: [
+    {
+      ...CONTRACT_SLICE,
+      name: 'Authorization change',
+      tasks: [],
+    },
+  ],
+});
+const RISK_FIRST_PLAN = executionPlan({
+  decision: 'multiple pull requests',
+  rationale: 'Resolve the highest-risk authorization assumption before activating the command.',
+  slices: [
+    {
+      ...CONTRACT_SLICE,
+      name: 'Risk probe',
+      purpose: 'Prove the accepted authorization denial at the public boundary.',
+      completion: 'The highest-risk denial behavior is proven before activation begins.',
+    },
+    {
+      ...ACTIVATION_SLICE,
+      name: 'Activation',
+      prerequisites: 'Risk probe',
+    },
+  ],
+  obligationOwners: stagedOwners('Risk probe', 'Activation'),
+});
+const PARALLEL_AFTER_PROBE_PLAN = executionPlan({
+  decision: 'multiple pull requests',
+  rationale:
+    'Resolve the shared risk first, then implement the two independent consumers in parallel within one review unit.',
+  slices: [
+    {
+      ...CONTRACT_SLICE,
+      name: 'Risk probe',
+      purpose: 'Prove the accepted shared contract at the public boundary.',
+      completion: 'The shared contract is proven before either consumer begins.',
+    },
+    {
+      ...ACTIVATION_SLICE,
+      name: 'Independent consumers',
+      purpose: 'Implement the two independent consumers after the shared risk is resolved.',
+      prerequisites: 'Risk probe',
+      boundary: 'Two explicitly parallel-safe consumers; neither depends on the other.',
+    },
+  ],
+  obligationOwners: stagedOwners('Risk probe', 'Independent consumers'),
+});
 
 function missingFieldCase(
   id: string,
@@ -738,6 +799,32 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     'A concrete first RED cannot hide an unresolved behavior decision in the fourth step.',
     LATER_UNSTARTABLE_PLAN,
     ['task 4', 'behavior decision'],
+  ),
+  denied(
+    'blocked-first-prerequisite',
+    'The first planned slice depends on an incomplete prerequisite and is not startable.',
+    BLOCKED_FIRST_PREREQUISITE_PLAN,
+    ['prerequisite', 'startable'],
+  ),
+  denied(
+    'no-executable-steps',
+    'A plan with no executable task leaves a fresh agent with no startable step.',
+    NO_EXECUTABLE_STEPS_PLAN,
+    ['executable', 'step'],
+  ),
+  approved(
+    'risk-first-ordering',
+    'Independent work orders the highest-risk probe before activation.',
+    RISK_FIRST_PLAN,
+    'multiple_pull_requests',
+    ['Risk probe', 'Activation'],
+  ),
+  approved(
+    'parallel-safe-after-probe',
+    'Independent consumers may proceed in parallel after the shared risk probe.',
+    PARALLEL_AFTER_PROBE_PLAN,
+    'multiple_pull_requests',
+    ['Risk probe', 'Independent consumers'],
   ),
 ];
 
