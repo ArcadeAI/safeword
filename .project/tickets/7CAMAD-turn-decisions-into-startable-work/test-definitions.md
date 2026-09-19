@@ -66,7 +66,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED bb2bf5c8d
 - [x] GREEN b5ddd8b22
-- [ ] REFACTOR
+- [x] REFACTOR skip: canonical identity logic is isolated in one focused helper and shares the existing generator and reconciliation paths
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R4 — Execution discoveries return to the owning phase
 
