@@ -88,6 +88,21 @@ describe('receiptGateVerdict — stamps that claim independence', () => {
     expect(receiptGateVerdict(claim, approved).ok).toBe(false);
   });
 
+  it('accepts the ticket-declared scenario source outside the ticket folder', () => {
+    const claim = claimFor({
+      phase: 'scenario-gate',
+      scenarioArtifact: '/repo/features/t1.feature',
+    });
+
+    expect(
+      receiptGateVerdict(claim, {
+        ...approved,
+        kind: 'scenario-gate',
+        targets: ['features/t1.feature'],
+      }),
+    ).toEqual({ ok: true });
+  });
+
   it('binds the plan-execution phase to its specialist review of execution-plan.md', () => {
     const claim = claimFor({ phase: 'plan-execution' });
     const receipt = {

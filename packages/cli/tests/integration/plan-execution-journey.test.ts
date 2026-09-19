@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -33,6 +41,10 @@ const CATEGORIES = [
 const REVIEW_CONTRACT_SIGNAL = 'Every executable step must name its exact action';
 const RED_COMMAND = ['node', 'tests/denied-request.cjs'] as const;
 const PACKAGED_CLI = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+const WRITE_REVIEW_STAMP = nodePath.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/write-review-stamp.ts',
+);
 const SESSION_ID = 'startable-plan-journey';
 
 function executionPlan(): string {
@@ -154,11 +166,12 @@ if ! printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
   exit 0
 fi
-if ! printf '%s' "$payload" | /usr/bin/grep -Fq "$SAFEWORD_REQUIRED_CONTRACT_SIGNAL"; then
+if ! printf '%s' "$payload" | /usr/bin/grep -Fq '${REVIEW_CONTRACT_SIGNAL}'; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"the first step is not startable","findings":[{"severity":"error","message":"Execution Planning does not require a named first RED."}],"execution_plan_record":null}\n' "$dispatch_id"
   exit 0
 fi
-printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"the named RED is startable","findings":[],"execution_plan_record":%s}\n' "$dispatch_id" "$SAFEWORD_REVIEW_RECORD"
+review_record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"the named RED is startable","findings":[],"execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
 `,
     { mode: 0o755 },
   );
@@ -166,7 +179,12 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   return bin;
 }
 
-function runPreTool(root: string, input: Record<string, unknown>, reviewKeyRoot: string) {
+function runPreTool(
+  root: string,
+  input: Record<string, unknown>,
+  reviewKeyRoot: string,
+  receiptPluginRoot: string,
+) {
   return spawnSync(
     process.execPath,
     [PACKAGED_CLI, 'hook', 'codex', 'pre-tool-use', '--plugin-hook'],
@@ -180,7 +198,9 @@ function runPreTool(root: string, input: Record<string, unknown>, reviewKeyRoot:
       encoding: 'utf8',
       env: {
         ...process.env,
+        CLAUDE_PLUGIN_ROOT: receiptPluginRoot,
         CLAUDE_PROJECT_DIR: root,
+        NODE_ENV: 'test',
         SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
       },
     },
@@ -208,6 +228,7 @@ describe('Execution Plan cold-start journey', () => {
         nodePath.join(root, '.safeword', 'config.json'),
         `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] } })}\n`,
       );
+      writeFileSync(nodePath.join(root, '.safeword', 'SAFEWORD.md'), '# Safeword\n');
       writeFileSync(
         nodePath.join(ticketDirectory, 'ticket.md'),
         [
@@ -229,12 +250,49 @@ describe('Execution Plan cold-start journey', () => {
       writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
       writeFileSync(
         nodePath.join(ticketDirectory, 'impl-plan.md'),
-        '# Implementation Plan\n\n## Recorded Decisions\n\nUse one shared authorization service.\n',
+        [
+          '# Implementation Plan',
+          '',
+          '**Status:** planned',
+          '',
+          '## Approach',
+          '',
+          'The authorization denial is the riskiest boundary and the named integration RED proves it first.',
+          '',
+          '## Decisions',
+          '',
+          '### Recorded Decisions',
+          '',
+          '| Decision | Choice | Alternatives considered | Rejected because |',
+          '| --- | --- | --- | --- |',
+          '| Authorization owner | One shared authorization service owns permission checks for every transport. | Per-transport checks | They can drift. |',
+          '| Delivery order | Host-neutral dependency order keeps every intermediate merge supported. | Activate before prerequisites | It creates an unsafe merge. |',
+          '',
+          '## Design alignment',
+          '',
+          'Architecture applicability: one shared authorization boundary.',
+          'skip: no applicable project principles or ADRs',
+          '',
+          '## Known deviations',
+          '',
+          'skip: no deviations planned',
+          '',
+          '## Doc impact',
+          '',
+          'skip: the fixture has no customer-visible documentation surface',
+          '',
+          '## Assessment triggers',
+          '',
+          'Revisit when a second authorization owner is required.',
+          '',
+        ].join('\n'),
       );
       writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), plan);
       writeFileSync(
         nodePath.join(ticketDirectory, 'test-definitions.md'),
         [
+          'Feature source: `features/feature.feature`',
+          '',
           '### Scenario: denied request',
           '',
           `- Named RED: \`${RED_COMMAND.join(' ')}\` must exit 1 before production changes.`,
@@ -255,7 +313,7 @@ describe('Execution Plan cold-start journey', () => {
       );
       writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), '');
       writeFileSync(
-        nodePath.join(root, '.project', `quality-state-${SESSION_ID}.json`),
+        nodePath.join(root, '.project', `quality-state-codex-${SESSION_ID}.json`),
         JSON.stringify({ activeTicket: 'START1' }),
       );
       expect(spawnSync('git', ['init'], { cwd: root }).status).toBe(0);
@@ -282,29 +340,38 @@ describe('Execution Plan cold-start journey', () => {
         encoding: 'utf8',
       }).stdout.trim();
       const reviewerBin = installContractCheckingReviewer();
+      const receiptPluginRoot = createTrustedReviewerDirectory('safeword-receipt-cli-');
+      cpSync(nodePath.dirname(PACKAGED_CLI), nodePath.join(receiptPluginRoot, 'runtime'), {
+        recursive: true,
+      });
+      cpSync(
+        nodePath.resolve(nodePath.dirname(PACKAGED_CLI), '../package.json'),
+        nodePath.join(receiptPluginRoot, 'package.json'),
+      );
+      cpSync(
+        nodePath.resolve(nodePath.dirname(PACKAGED_CLI), '../templates'),
+        nodePath.join(receiptPluginRoot, 'templates'),
+        { recursive: true },
+      );
       const reviewKeyRoot = nodePath.join(root, '.review-keys');
 
       const reviews = [
         {
           kind: 'scenario-gate',
-          target: 'features/feature.feature',
-          context: [
-            '.project/tickets/START1-feature/spec.md',
-            '.project/tickets/START1-feature/ticket.md',
-          ],
+          targets: ['features/feature.feature'],
+          context: ['.project/tickets/START1-feature/spec.md'],
         },
         {
           kind: 'plan-implementation',
-          target: '.project/tickets/START1-feature/impl-plan.md',
+          targets: ['.project/tickets/START1-feature/impl-plan.md'],
           context: ['features/feature.feature', '.project/tickets/START1-feature/spec.md'],
         },
         {
           kind: 'plan-execution',
-          target: '.project/tickets/START1-feature/execution-plan.md',
+          targets: ['.project/tickets/START1-feature/execution-plan.md'],
           context: ['.project/tickets/START1-feature/impl-plan.md', 'features/feature.feature'],
         },
       ] as const;
-      const reviewStamps: string[] = [];
       for (const request of reviews) {
         const reviewed = await runCli(
           [
@@ -313,7 +380,7 @@ describe('Execution Plan cold-start journey', () => {
             'review',
             'run',
             request.kind,
-            request.target,
+            ...request.targets,
             ...request.context.flatMap(context => ['--context', context]),
             '--cwd',
             root,
@@ -324,9 +391,8 @@ describe('Execution Plan cold-start journey', () => {
               PATH: `${reviewerBin}:/usr/bin:/bin`,
               SAFEWORD_AGENT_RUNTIME: 'codex',
               SAFEWORD_NO_UPDATE_CHECK: '1',
-              SAFEWORD_REQUIRED_CONTRACT_SIGNAL: REVIEW_CONTRACT_SIGNAL,
               SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
-              SAFEWORD_REVIEW_RECORD: JSON.stringify(executionPlanRecord(plan)),
+              SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: JSON.stringify(executionPlanRecord(plan)),
             },
           },
         );
@@ -335,14 +401,41 @@ describe('Execution Plan cold-start journey', () => {
           data: { review_id: string; status: string; review_kind: string };
         };
         expect(result.data).toMatchObject({ status: 'approved', review_kind: request.kind });
-        reviewStamps.push(
-          `2026-09-18T00:00:00.000Z fixture review:START1-feature:phase@${request.kind} author:codex reviewer:claude independence:cross-agent review-id:${result.data.review_id}`,
+        const stamped = spawnSync(
+          'bun',
+          [
+            WRITE_REVIEW_STAMP,
+            '--ticket',
+            'START1-feature',
+            '--phase',
+            request.kind,
+            '--model',
+            'opus',
+            '--author-agent',
+            'codex',
+            '--reviewer-agent',
+            'claude',
+            '--independence',
+            'cross-agent',
+            '--review-id',
+            result.data.review_id,
+          ],
+          {
+            cwd: root,
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              CLAUDE_PLUGIN_ROOT: receiptPluginRoot,
+              CLAUDE_PROJECT_DIR: root,
+              CODEX_THREAD_ID: SESSION_ID,
+              NODE_ENV: 'test',
+              SAFEWORD_AGENT_RUNTIME: 'codex',
+              SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
+            },
+          },
         );
+        expect(stamped.status, `${stamped.stdout}\n${stamped.stderr}`).toBe(0);
       }
-      writeFileSync(
-        nodePath.join(root, '.project', 'skill-invocations.log'),
-        `${reviewStamps.join('\n')}\n`,
-      );
       const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
       const advance = runPreTool(
         root,
@@ -355,6 +448,7 @@ describe('Execution Plan cold-start journey', () => {
           },
         },
         reviewKeyRoot,
+        receiptPluginRoot,
       );
       expectHookAllow(advance);
       writeFileSync(
@@ -373,6 +467,7 @@ describe('Execution Plan cold-start journey', () => {
           },
         },
         reviewKeyRoot,
+        receiptPluginRoot,
       );
       expectHookDeny(productionEdit, RED_COMMAND.join(' '));
       const red = spawnSync(RED_COMMAND[0], RED_COMMAND.slice(1), { cwd: root, encoding: 'utf8' });
@@ -388,17 +483,13 @@ describe('Execution Plan cold-start journey', () => {
           tool_input: { file_path: ledgerPath, old_string: uncheckedRed, new_string: checkedRed },
         },
         reviewKeyRoot,
+        receiptPluginRoot,
       );
       expectHookAllow(ledgerEdit);
-      const observedLedger = [
-        '### Scenario: denied request',
-        '',
-        `- Observed RED: \`${RED_COMMAND.join(' ')}\` exited 1 before production changes.`,
-        checkedRed,
-        '- [ ] GREEN',
-        '- [ ] REFACTOR',
-        '',
-      ].join('\n');
+      const observedLedger = readFileSync(ledgerPath, 'utf8').replace(
+        uncheckedRed,
+        () => checkedRed,
+      );
       writeFileSync(ledgerPath, observedLedger);
       const productionEditAfterRed = runPreTool(
         root,
@@ -411,6 +502,7 @@ describe('Execution Plan cold-start journey', () => {
           },
         },
         reviewKeyRoot,
+        receiptPluginRoot,
       );
       expectHookAllow(productionEditAfterRed);
     } finally {

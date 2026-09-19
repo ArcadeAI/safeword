@@ -41,6 +41,8 @@ export interface StampClaim {
   readonly intakeArtifact?: 'spec.md' | 'ticket.md';
   /** Repo-relative files changed by the current branch/worktree. */
   readonly implementationFiles?: readonly string[];
+  /** Scenario source declared by this ticket, which may live outside its folder. */
+  readonly scenarioArtifact?: string;
   /** Author runtime the stamp reports, when it reports one. */
   readonly authorAgent?: string;
   /** Actual reviewer runtime the stamp reports, when it reports one. */
@@ -168,10 +170,21 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
 
   if (phase === 'intake')
     return claim.intakeArtifact !== undefined && ticketTargets.includes(claim.intakeArtifact);
-  if (phase === 'define-behavior' || phase === 'scenario-gate')
-    return ticketTargets.some(
-      target => target === 'test-definitions.md' || target.endsWith('.feature'),
+  if (phase === 'define-behavior' || phase === 'scenario-gate') {
+    const declaredScenario =
+      claim.scenarioArtifact === undefined
+        ? undefined
+        : resolveTarget(claim.scenarioArtifact, claim.projectDirectory);
+    return (
+      ticketTargets.some(
+        target => target === 'test-definitions.md' || target.endsWith('.feature'),
+      ) ||
+      (declaredScenario !== undefined &&
+        targets.some(
+          target => resolveTarget(target, claim.projectDirectory) === declaredScenario,
+        ))
     );
+  }
   if (phase === 'plan-implementation') return ticketTargets.includes('impl-plan.md');
   if (phase === 'plan-execution') return ticketTargets.includes('execution-plan.md');
   if (phase === 'verify') return ticketTargets.includes('verify.md');
