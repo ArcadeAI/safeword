@@ -456,9 +456,12 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
-    it('blocks REFACTOR until GREEN records the passing proof', () => {
+    it.each([
+      ['before RED', '- [ ] RED'],
+      ['after RED', '- [x] RED abc1234'],
+    ])('blocks REFACTOR %s until GREEN records the passing proof', (_state, redRow) => {
       const setup = setupProject(
-        '### Scenario: ordered loop\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+        `### Scenario: ordered loop\n\n${redRow}\n- [ ] GREEN\n- [ ] REFACTOR\n`,
       );
       projectDirectory = setup.cwd;
       const result = runEditHook(
