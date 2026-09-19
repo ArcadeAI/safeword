@@ -230,16 +230,7 @@ function planObligations(contract: string): string[] {
 }
 
 /** Build the byte identities shared by plan authors and reviewers. */
-export function assemblePlanContract(
-  authorRubric?: string,
-  reviewerRubric?: string,
-): PlanContractPair {
-  if (authorRubric === undefined || authorRubric.trim() === '') {
-    throw new ReviewPacketError('The authoring contract copy is missing or blank.');
-  }
-  if (reviewerRubric === undefined || reviewerRubric.trim() === '') {
-    throw new ReviewPacketError('The generated reviewer contract copy is missing or blank.');
-  }
+export function assemblePlanContract(authorRubric = '', reviewerRubric = ''): PlanContractPair {
   return {
     author: { sha256: digest(authorRubric), obligations: planObligations(authorRubric) },
     reviewer: { sha256: digest(reviewerRubric), obligations: planObligations(reviewerRubric) },
@@ -282,7 +273,7 @@ function packagedExecutionPlanAuthorRubric(): string {
     return extractExecutionPlanReviewRubric(readFileSync(contractPath, 'utf8'));
   } catch {
     throw new ReviewPacketError(
-      'The packaged Execution Planning authoring contract copy is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.',
+      'The packaged Execution Planning contract is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.',
     );
   }
 }

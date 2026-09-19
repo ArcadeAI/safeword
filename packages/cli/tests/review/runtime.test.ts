@@ -128,16 +128,16 @@ describe('plan contract reconciliation', () => {
       },
     };
 
-    const result = reconcilePlanContract(packet, approved);
-
-    expect(result.verdict).toBe('request_changes');
-    expect(result.execution_plan_record).toBeNull();
-    expect(
-      result.findings.some(
-        finding =>
-          finding.severity === 'error' && finding.message.includes('contract reconciliation'),
-      ),
-    ).toBe(true);
+    expect(reconcilePlanContract(packet, approved)).toMatchObject({
+      verdict: 'request_changes',
+      execution_plan_record: JSON.parse('null'),
+      findings: [
+        expect.objectContaining({
+          severity: 'error',
+          message: expect.stringContaining('contract reconciliation'),
+        }),
+      ],
+    });
   });
 });
 
