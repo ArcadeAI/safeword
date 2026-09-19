@@ -90,7 +90,7 @@ function validRecord(): ExecutionPlanRecord {
 }
 
 function approval(record: unknown = validRecord()): UnverifiedReviewerOutput {
-  return { ...baseOutput, execution_plan_record: record };
+  return { ...baseOutput, planning_destination: 'plan-execution', execution_plan_record: record };
 }
 
 function validSingleRecord(): ExecutionPlanRecord {
@@ -174,6 +174,10 @@ describe('Execution Plan output schema', () => {
     };
 
     expect(shape.required).toContain('execution_plan_record');
+    expect(shape.required).toContain('planning_destination');
+    expect(shape.properties.planning_destination).toMatchObject({
+      enum: ['plan-execution', 'plan-implementation'],
+    });
     expect(shape.properties.execution_plan_record?.anyOf).toEqual(
       expect.arrayContaining([expect.objectContaining({ type: 'null' })]),
     );
@@ -207,6 +211,7 @@ describe('Execution Plan output schema', () => {
     const encoded = JSON.stringify(approval());
     const denialWithoutRecord = {
       ...baseOutput,
+      planning_destination: 'plan-execution' as const,
       verdict: 'request_changes' as const,
       findings: [{ severity: 'error' as const, message: 'Rollback ownership is missing.' }],
     };
@@ -263,6 +268,7 @@ describe('Execution Plan output validation', () => {
   it('normalizes every legible denial to a null record', () => {
     const output: UnverifiedReviewerOutput = {
       ...baseOutput,
+      planning_destination: 'plan-implementation',
       verdict: 'request_changes',
       findings: [{ severity: 'error', message: 'The plan omits rollback ownership.' }],
       execution_plan_record: { malformed: true },
@@ -279,6 +285,27 @@ describe('Execution Plan output validation', () => {
       kind: 'denied',
       output: { ...denialWithoutRecord, execution_plan_record: nullRecord },
     });
+  });
+
+  it('fails closed when the planning destination is absent, unknown, or contradicts approval', () => {
+    const withoutDestination = { ...approval() } as Record<string, unknown>;
+    delete withoutDestination.planning_destination;
+
+    expect(validateExecutionPlanOutput(withoutDestination as UnverifiedReviewerOutput)).toEqual({
+      kind: 'invalid_output',
+    });
+    expect(
+      validateExecutionPlanOutput({
+        ...approval(),
+        planning_destination: 'somewhere-else',
+      } as UnverifiedReviewerOutput),
+    ).toEqual({ kind: 'invalid_output' });
+    expect(
+      validateExecutionPlanOutput({
+        ...approval(),
+        planning_destination: 'plan-implementation',
+      }),
+    ).toEqual({ kind: 'invalid_output' });
   });
 
   it.each([
