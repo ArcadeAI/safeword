@@ -48,6 +48,16 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-19T13:41:10.000Z Live evidence — data-decision specificity:
+  ran the vague, invented, and accepted data-decision partitions through the
+  real Claude Opus reviewer. A vague reference to an already accepted store
+  and owner was denied for Execution Plan repair; a concrete store and owner
+  invented downstream was denied and returned to Implementation Planning; the
+  exact accepted `delivery.db` and `DeliveryStateService` decision was
+  approved. The supplemental path-only discovery control also passed and
+  stayed in Execution Planning. Regenerated the complete 43-case admission
+  matrix; 46/46 deterministic conformance tests pass.
+
 - 2026-09-19T12:52:03.000Z Live evidence — discovery routing: ran the
   complete 39-case Execution Plan conformance matrix through the real Claude
   Opus reviewer. Both fixture and test-command repairs stayed in Execution
