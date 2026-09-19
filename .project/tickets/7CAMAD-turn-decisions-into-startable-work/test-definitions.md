@@ -104,7 +104,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The structural gate reports artifact facts without a semantic verdict
 
-- [ ] RED
+- [x] RED 82e8137ba
 - [ ] GREEN
 - [ ] REFACTOR
 
