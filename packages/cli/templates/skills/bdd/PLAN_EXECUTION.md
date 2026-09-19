@@ -11,9 +11,10 @@ Scaffold `execution-plan.md` next to `ticket.md` from
 ## Author the plan
 
 1. Read the approved scenarios, Implementation Plan, and applicable project
-   guides. Extract every accepted behavior, migration, rollout, rollback,
-   documentation, and affected-surface obligation. Do not invent missing
-   decisions; return a genuine gap to Implementation Planning.
+   guides. Extract every accepted behavior, decision-derived implementation,
+   proof-strategy implementation, migration, rollout, rollback, documentation,
+   and affected-surface obligation. Do not invent missing decisions; return a
+   genuine gap to Implementation Planning.
 2. Decide explicitly whether delivery is one pull request or multiple pull
    requests. Explain the boundary in terms of conceptual scope and independent
    proof, never line or file count alone.
@@ -78,13 +79,18 @@ from outside those sources.
   understood and proven independently. Many mechanical edits with one outcome
   may be one slice; a few edits with two independently valuable outcomes may
   require two. Numeric size signals may prompt inspection but never decide it.
-- **Obligation and decision preservation:** Require at least one obligation-owner
-  entry and cover every accepted behavior, migration, rollout, rollback,
-  documentation, and affected-surface obligation with existing slice names.
-  Require at least one decision-status entry and account for every Recorded
-  Decision, or the explicit no-load-bearing-choice applicability decision, with
-  the readable status `unchanged`. Reject an omitted obligation, an unowned
-  slice, or any reopened decision.
+- **Obligation and decision preservation:** Require at least one accepted
+  behavior obligation and owner. Cover every applicable accepted behavior,
+  decision-derived implementation, proof-strategy implementation, migration,
+  rollout, rollback, documentation, and affected-surface obligation with
+  existing slice names, dependency order, and a completion signal. Optional
+  categories explicitly recorded as inapplicable by the accepted Implementation
+  Plan do not require placeholder owners or tasks; never treat that as permission
+  to omit the feature's accepted behavior. Require at least one decision-status
+  entry and account for every Recorded Decision, or the explicit
+  no-load-bearing-choice applicability decision, with the readable status
+  `unchanged`. Reject an omitted or partially mapped applicable obligation, an
+  unowned slice, or any reopened decision.
 - **Discovery routing:** Classify every requested change by what it alters. A
   fixture implementation, test command, file location, sequencing detail, or
   other execution mechanic remains in `plan-execution` when all accepted

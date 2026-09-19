@@ -44,6 +44,45 @@ const PROOF_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
 
 - Edited-plan denial uses the named fixture and command through the installed CLI subprocess and must assert exit code 2.
 `;
+const DECISION_OBLIGATION_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted decision-derived work
+
+- Apply the shared authorization decision to both gateway transports.
+`;
+const PROOF_OBLIGATION_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted proof-strategy work
+
+- Implement the edited-plan denial proof through the installed CLI subprocess.
+`;
+const ORDERED_MIGRATION_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted migration order
+
+- Complete Migration work before activating Accepted behavior.
+`;
+const INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN = `# Implementation Plan
+
+## Accepted obligations
+
+- Accepted behavior
+
+## Explicitly inapplicable execution work
+
+- Migration work: not applicable because no persisted representation changes.
+- Rollout work: not applicable because the behavior has no staged activation.
+- Rollback work: not applicable because reverting the single behavior change is sufficient.
+- Documentation work: not applicable because no public or operator contract changes.
+- Affected-surface work: not applicable because no additional consumer surface changes.
+
+## Recorded decisions
+
+- One shared authorization service owns permission checks for every transport.
+- Host-neutral dependency order keeps every intermediate merge supported.
+`;
+const PROOF_ONLY_IMPLEMENTATION_PLAN = `${INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN}
+## Accepted proof strategy
+
+- Edited-plan denial uses a self-contained fixture and command through the installed CLI subprocess and must assert exit code 2.
+`;
 const BASE_DECISION_ACCOUNTING = DECISIONS.map(decision => `- ${decision}: unchanged`).join('\n');
 
 interface SliceInput {
@@ -118,12 +157,15 @@ function executionPlan(input: {
   readonly rationale: string;
   readonly slices: readonly SliceInput[];
   readonly omittedObligation?: (typeof OBLIGATIONS)[number];
+  readonly applicableObligations?: readonly (typeof OBLIGATIONS)[number][];
   readonly obligationOwners?: Readonly<Partial<Record<(typeof OBLIGATIONS)[number], string>>>;
   readonly decisionText?: string;
   readonly unrelatedChecklist?: boolean;
   readonly unrealProof?: boolean;
+  readonly inapplicableOptionalWork?: boolean;
 }): string {
-  const owners = OBLIGATIONS.filter(obligation => obligation !== input.omittedObligation)
+  const owners = (input.applicableObligations ?? OBLIGATIONS)
+    .filter(obligation => obligation !== input.omittedObligation)
     .map((obligation, index) => {
       const fallbackOwner = index === 0 ? input.slices[0] : input.slices.at(-1);
       const owner = input.obligationOwners?.[obligation] ?? fallbackOwner?.name ?? 'Contract';
@@ -145,7 +187,11 @@ ${owners}
 
 ${input.decisionText ?? DECISIONS.map(decision => `- ${decision}: unchanged`).join('\n')}
 
-${deliveryContract(input.unrelatedChecklist === true, input.unrealProof === true)}
+${deliveryContract(
+  input.unrelatedChecklist === true,
+  input.unrealProof === true,
+  input.inapplicableOptionalWork === true,
+)}
 `;
 }
 
@@ -217,11 +263,22 @@ const PROOF_SPECIFICATIONS = [
   ],
 ] as const;
 
-function deliveryContract(unrelated: boolean, unrealProof: boolean): string {
+function deliveryContract(
+  unrelated: boolean,
+  unrealProof: boolean,
+  inapplicableOptionalWork: boolean,
+): string {
+  const inapplicableCategories = new Set([4, 7, 8]);
   const items = DELIVERY_CHECKLIST_CATEGORIES.map((category, index) => {
-    const obligation = unrelated
-      ? 'Complete the standard delivery work.'
-      : CHECKLIST_OBLIGATIONS[index];
+    if (inapplicableOptionalWork && inapplicableCategories.has(index)) {
+      return `| item-${index + 1} | ${category} | No additional ${category} work. | contributor |  | not_applicable | missing | | The accepted approach explicitly makes this category inapplicable. |`;
+    }
+    let obligation = CHECKLIST_OBLIGATIONS[index];
+    if (unrelated) obligation = 'Complete the standard delivery work.';
+    else if (inapplicableOptionalWork && index === 5)
+      obligation = 'Expose typed failure signals for Accepted behavior.';
+    else if (inapplicableOptionalWork && index === 6)
+      obligation = 'Protect the authorization boundary for Accepted behavior.';
     const proof = unrealProof ? 'complete-delivery' : CHECKLIST_PROOFS[index];
     return `| item-${index + 1} | ${category} | ${obligation} | contributor | ${proof} | open | missing | | |`;
   }).join('\n');
@@ -326,7 +383,7 @@ function decisionChangingDiscovery(
 const ONE_PLAN = executionPlan({
   decision: 'one pull request',
   rationale:
-    'Contract, activation, and delivery obligations form one independently provable review capability.',
+    'The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.',
   slices: [
     {
       name: 'Complete delivery',
@@ -338,9 +395,17 @@ const ONE_PLAN = executionPlan({
       completion:
         'Every named proof command passes on the merge candidate and every checklist item has completion evidence.',
       tasks: [
-        '1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing production code.',
-        '2. GREEN: add the canonical contract, wire typed review and authorization, complete migration and rollback handling, and publish the documented command; then run every proof command named by the slice with exit 0.',
-        '3. REFACTOR: consolidate shared result validation without changing public output, then rerun every named proof command with exit 0.',
+        '1. RED: run `bun run test:review-cli -- --fixture approved-plan` through the public CLI and observe exit 2 with `typed review result is unavailable` before editing `src/review/command.ts`.',
+        '2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command; assert exit 0 and the complete typed response.',
+        '3. RED: run `bun run test:schema-compatibility -- --fixture legacy-result` and observe exit 1 with `legacy result cannot be read` before editing `src/review/result-store.ts`.',
+        '4. GREEN: add the backward-compatible legacy-result reader in `src/review/result-store.ts`, rerun the step-3 command, and assert the stored result round-trips without rewriting legacy bytes.',
+        '5. RED: run `bun run test:failure-signals` and `bun run test:authorization-boundary` with the denied-review fixture; observe exit 1 because the public CLI neither names the denial nor rejects the unauthorized actor before editing `src/review/command.ts`.',
+        '6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, return the typed denial identity on reviewer failure, rerun both step-5 commands, and assert the unauthorized call exits 2 without persisting a result.',
+        '7. RED: run `bun run test:rollout-rollback -- --fixture enabled-result` and observe exit 1 because disabling the review command does not restore the prior readable result before editing `src/review/rollout.ts`.',
+        '8. GREEN: add the accepted activation switch and rollback reader in `src/review/rollout.ts`, rerun the step-7 command, and assert both enabled activation and disabled rollback preserve a supported response.',
+        '9. RED: run `bun run test:documentation-contract` and `bun run test:execution-plan-conformance`; observe exit 1 because the public command and complete obligation mapping are absent before editing the command reference and canonical review contract.',
+        '10. GREEN: document the exact public response and add every accepted obligation to the canonical conformance corpus, then rerun both step-9 commands and assert exit 0.',
+        '11. REFACTOR: move the duplicate response validation in `src/review/command.ts` and `src/review/result-store.ts` into `src/review/contract.ts`, then rerun all seven proof commands and assert the public response snapshot is byte-identical.',
       ],
     },
   ],
@@ -523,12 +588,14 @@ const STARTABLE_PLAN = executionPlan({
       proof: 'behavior-boundary',
       completion: 'The denied request returns the accepted error.',
       tasks: [
-        '1. RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.',
-        '2. GREEN: implement the accepted denial in `src/auth.ts`.',
-        '3. REFACTOR: keep the authorization boundary in one owner.',
+        '1. RED: add the denied-request fixture, run `bun run test tests/auth.test.ts -t denied-request`, `bun run test:failure-signals`, and `bun run test:authorization-boundary` through the public authorization response, and observe exit 1 before editing `src/auth.ts`.',
+        '2. GREEN: implement the accepted denial in `src/auth.ts`, rerun all three step-1 commands, and assert exit 0 with the typed denial and no unauthorized side effect.',
+        '3. REFACTOR: move the duplicate denial check from `src/auth.ts` and `src/cli.ts` into the shared authorizer, then run `bun run test:review-cli` and assert the public response is unchanged.',
       ],
     },
   ],
+  applicableObligations: ['Accepted behavior'],
+  inapplicableOptionalWork: true,
 });
 
 function concreteProofPlan(step: string): string {
@@ -553,9 +620,28 @@ function concreteProofPlan(step: string): string {
   });
 }
 
-const EXACT_CLI_DENIAL_PROOF_PLAN = concreteProofPlan(
-  'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert exit code 2 before editing production code.',
-);
+const EXACT_CLI_DENIAL_PROOF_PLAN = executionPlan({
+  decision: 'one pull request',
+  rationale: 'One edited-plan denial is one independently provable behavior.',
+  slices: [
+    {
+      name: 'Edited-plan denial proof',
+      purpose: 'Prove the accepted edited-plan denial.',
+      boundary: 'Installed CLI subprocess response.',
+      prerequisites: 'none',
+      proof: 'behavior-boundary, failure-signals, security-boundary, and plan-integrity',
+      completion:
+        'The focused test runner exits 0 after asserting that the installed CLI exits 2 for the edited-plan fixture; the full behavior, failure, security, and plan-integrity proofs pass.',
+      tasks: [
+        '1. RED: create `tests/fixtures/edited-plan` with an approved plan, edit its recorded content, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` through the installed CLI subprocess, and observe the test runner fail because the CLI does not yet exit 2 before editing production code.',
+        '2. GREEN: implement the accepted edited-plan denial in `src/review/command.ts`, rerun the step-1 command, and assert test-runner exit 0 plus installed-CLI exit 2; then run `bun run test:failure-signals`, `bun run test:authorization-boundary`, and `bun run test:execution-plan-conformance` with exit 0.',
+        '3. REFACTOR: move duplicate plan-currentness validation from `src/review/command.ts` into `src/review/contract.ts`, rerun all four named proof commands, and assert the installed-CLI denial response is unchanged.',
+      ],
+    },
+  ],
+  applicableObligations: ['Accepted behavior'],
+  inapplicableOptionalWork: true,
+});
 const MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN = concreteProofPlan(
   'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the TBD CLI boundary and assert exit code 2 before editing production code.',
 );
@@ -676,6 +762,54 @@ const PARALLEL_AFTER_PROBE_PLAN = executionPlan({
     'Documentation work': 'Documentation consumer',
     'Affected-surface work': 'CLI consumer',
   },
+});
+
+const MIGRATION_WITHOUT_COMPLETION_PLAN = executionPlan({
+  decision: 'one pull request',
+  rationale: 'The migration and behavior activation form one coherent delivery change.',
+  slices: [
+    {
+      ...ACTIVATION_SLICE,
+      name: 'Behavior delivery',
+      proof: ALL_DELIVERY_PROOFS,
+      completion: 'Accepted behavior passes at the public boundary.',
+    },
+  ],
+});
+const MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN = executionPlan({
+  decision: 'multiple pull requests',
+  rationale: 'Migration and activation are independently reviewable changes.',
+  slices: [
+    { ...CONTRACT_SLICE, name: 'Migration', purpose: 'Complete the accepted migration.' },
+    {
+      ...ACTIVATION_SLICE,
+      name: 'Behavior activation',
+      prerequisites: 'none',
+    },
+  ],
+  obligationOwners: stagedOwners('Migration', 'Behavior activation'),
+});
+const INAPPLICABLE_OPTIONAL_WORK_PLAN = executionPlan({
+  decision: 'one pull request',
+  rationale: 'One accepted behavior is one independently provable change.',
+  slices: [
+    {
+      ...ACTIVATION_SLICE,
+      name: 'Behavior delivery',
+      prerequisites: 'none',
+      boundary:
+        'The accepted behavior only; no migration, rollout, rollback, documentation, or additional surface work.',
+      proof: 'behavior-boundary',
+      completion: 'Accepted behavior passes at its public boundary.',
+      tasks: [
+        '1. RED: add the denied-review fixture, run `bun run test:review-cli`, `bun run test:failure-signals`, and `bun run test:authorization-boundary` through the public review boundary, and observe exit 1 before editing `src/review/command.ts`.',
+        '2. GREEN: implement Accepted behavior in `src/review/command.ts`, rerun all three step-1 commands, and assert exit 0 with the typed denial and no unauthorized side effect.',
+        '3. REFACTOR: move duplicate denial validation into `src/review/contract.ts`, then rerun the three behavior commands plus `bun run test:execution-plan-conformance` and assert the public response is unchanged.',
+      ],
+    },
+  ],
+  applicableObligations: ['Accepted behavior'],
+  inapplicableOptionalWork: true,
 });
 
 function missingFieldCase(
@@ -928,11 +1062,73 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     },
   },
   missingObligationCase('missing-behavior-obligation', 'Accepted behavior'),
+  {
+    ...denied(
+      'missing-decision-obligation',
+      'Accepted decision-derived work has no owning slice.',
+      executionPlan({
+        decision: 'one pull request',
+        rationale: 'The contribution claims to preserve the accepted approach.',
+        slices: [CONTRACT_SLICE],
+      }),
+      ['decision-derived work'],
+    ),
+    implementation_plan: DECISION_OBLIGATION_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'missing-proof-strategy-obligation',
+      'Accepted proof-strategy work has no owning slice.',
+      executionPlan({
+        decision: 'one pull request',
+        rationale: 'The contribution claims to preserve the accepted proof boundary.',
+        slices: [CONTRACT_SLICE],
+      }),
+      ['proof-strategy work'],
+    ),
+    implementation_plan: PROOF_OBLIGATION_IMPLEMENTATION_PLAN,
+  },
   missingObligationCase('missing-migration-obligation', 'Migration work'),
   missingObligationCase('missing-rollout-obligation', 'Rollout work'),
   missingObligationCase('missing-rollback-obligation', 'Rollback work'),
   missingObligationCase('missing-documentation-obligation', 'Documentation work'),
   missingObligationCase('missing-affected-surface-obligation', 'Affected-surface work'),
+  {
+    ...denied(
+      'migration-missing-completion-signal',
+      'Owned migration work without a migration completion signal is incomplete.',
+      MIGRATION_WITHOUT_COMPLETION_PLAN,
+      ['migration', 'completion signal'],
+    ),
+    implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'migration-missing-dependency-order',
+      'Owned migration work without its accepted dependency order is incomplete.',
+      MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN,
+      ['migration', 'dependency order'],
+    ),
+    implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...approved(
+      'explicitly-inapplicable-obligations',
+      'One accepted behavior remains owned without manufacturing explicitly inapplicable optional work.',
+      INAPPLICABLE_OPTIONAL_WORK_PLAN,
+      'one_pull_request',
+      ['Behavior delivery'],
+    ),
+    implementation_plan: INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN,
+    expectation: {
+      verdict: 'approve',
+      planning_destination: 'plan-execution',
+      slicing_decision: 'one_pull_request',
+      slice_names: ['Behavior delivery'],
+      obligations: ['Accepted behavior'],
+      decisions: DECISIONS,
+    },
+  },
   decisionChangingDiscovery(
     'reopened-authorization-decision',
     'A slice cannot move the accepted shared authorization boundary.',
@@ -984,13 +1180,24 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     `${ONE_PLAN}\n## Discovery\n\nMove the handler file and replace the accepted public command response with a new API contract.\n`,
     ['api', 'contract'],
   ),
-  approved(
-    'fresh-context-first-red',
-    'A fresh-context agent can begin with the named highest-risk RED without inventing a decision.',
-    STARTABLE_PLAN,
-    'one_pull_request',
-    ['Authorization denial'],
-  ),
+  {
+    ...approved(
+      'fresh-context-first-red',
+      'A fresh-context agent can begin with the named highest-risk RED without inventing a decision.',
+      STARTABLE_PLAN,
+      'one_pull_request',
+      ['Authorization denial'],
+    ),
+    implementation_plan: INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN,
+    expectation: {
+      verdict: 'approve',
+      planning_destination: 'plan-execution',
+      slicing_decision: 'one_pull_request',
+      slice_names: ['Authorization denial'],
+      obligations: ['Accepted behavior'],
+      decisions: DECISIONS,
+    },
+  },
   {
     ...approved(
       'exact-cli-denial-proof',
@@ -999,7 +1206,15 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
       'one_pull_request',
       ['Edited-plan denial proof'],
     ),
-    implementation_plan: PROOF_IMPLEMENTATION_PLAN,
+    implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN,
+    expectation: {
+      verdict: 'approve',
+      planning_destination: 'plan-execution',
+      slicing_decision: 'one_pull_request',
+      slice_names: ['Edited-plan denial proof'],
+      obligations: ['Accepted behavior'],
+      decisions: DECISIONS,
+    },
   },
   {
     ...denied(
@@ -1023,7 +1238,7 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     'later-step-is-not-startable',
     'A concrete first RED cannot hide an unresolved behavior decision in the fourth step.',
     LATER_UNSTARTABLE_PLAN,
-    ['behavior decision', 'before implementation'],
+    ['behavior', 'before implementation'],
   ),
   denied(
     'blocked-first-prerequisite',

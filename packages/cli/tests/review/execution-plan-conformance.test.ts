@@ -177,7 +177,7 @@ describe('Execution Plan semantic conformance admission', () => {
       slice_names: ['Authorization denial'],
     });
     expect(testCase?.execution_plan).toContain(
-      'RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.',
+      'RED: add the denied-request fixture, run `bun run test tests/auth.test.ts -t denied-request`, `bun run test:failure-signals`, and `bun run test:authorization-boundary` through the public authorization response, and observe exit 1 before editing `src/auth.ts`.',
     );
   });
 
@@ -199,7 +199,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['behavior decision', 'before implementation'],
+      finding_terms: ['behavior', 'before implementation'],
     });
     expect(testCase?.execution_plan).toContain(
       '1. RED: run `bun run test tests/auth.test.ts -t denied-request`',
