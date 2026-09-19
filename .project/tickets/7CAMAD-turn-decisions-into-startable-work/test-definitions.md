@@ -166,7 +166,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Production code cannot precede the named RED
 
-- [ ] RED
+- [x] RED skip: existing behavior characterized against the pre-gate hook by the installed-CLI journey
 - [ ] GREEN
 - [ ] REFACTOR
 
