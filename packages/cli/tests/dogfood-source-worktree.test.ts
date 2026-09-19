@@ -31,8 +31,9 @@ function directNodeVersions(jobs: Record<string, CiJob>): string[] {
     job =>
       job.steps
         ?.map(step => step.with?.['node-version'])
-        .filter((version): version is string => Boolean(version) && !version.startsWith('${{')) ??
-      [],
+        .filter(
+          (version): version is string => typeof version === 'string' && !version.startsWith('${{'),
+        ) ?? [],
   );
 }
 
