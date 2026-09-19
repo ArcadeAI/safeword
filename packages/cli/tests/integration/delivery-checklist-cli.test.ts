@@ -350,6 +350,47 @@ describe('Delivery Checklist CLI service', () => {
     });
   });
 
+  it('reopens proof invalidated by a changed authorization contract and retains its audit receipt', async () => {
+    const { root, planPath } = fixture({ plan: settledPlan('contributor') });
+    const recorded = await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof');
+    const receipt = (recorded.data as { receipt_id?: string }).receipt_id;
+    expect(receipt).toEqual(expect.any(String));
+    git(root, ['add', '.project']);
+    git(root, ['commit', '--quiet', '-m', 'record authorization proof']);
+
+    writeFileSync(
+      nodePath.join(root, '.project', 'tickets', 'ABC123-feature', 'impl-plan.md'),
+      '# Implementation Plan\n\nAccepted authorization uses a revised contract.\n',
+    );
+    git(root, ['add', '.project']);
+    git(root, ['commit', '--quiet', '-m', 'change accepted authorization contract']);
+
+    const result = await publicReadiness(root);
+    const data = result.data as {
+      open_contributor_items: string[];
+      contributor_evidence: {
+        item_id: string;
+        status: string;
+        evidence_class: string;
+        limitations: string[];
+        audit_receipt_id?: string;
+      }[];
+    };
+    expect(data.open_contributor_items[0]).toBe('item-4');
+    expect(data.contributor_evidence.find(evidence => evidence.item_id === 'item-4')).toMatchObject(
+      {
+        status: 'open',
+        evidence_class: 'partial_or_structural',
+        limitations: ['earlier_revision'],
+        audit_receipt_id: receipt,
+      },
+    );
+    expect(readFileSync(planPath, 'utf8')).toContain(`receipt:${receipt}`);
+    expect(
+      readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8'),
+    ).toContain(receipt);
+  });
+
   it('keeps supporting proof narrow and reports both partial and earlier-revision gaps', async () => {
     const { root, planPath } = fixture({ plan: executionPlanWithSupportingProof() });
     const parsed = parseDeliveryPlanContract(readFileSync(planPath, 'utf8'));
