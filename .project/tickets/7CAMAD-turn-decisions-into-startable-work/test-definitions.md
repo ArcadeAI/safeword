@@ -21,7 +21,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An unearned fallback receipt cannot authorize planning
 
 - [x] RED 5d2aa327f
-- [ ] GREEN
+- [x] GREEN 88efda591
 - [ ] REFACTOR
 
 ### Scenario: A self-authored independence claim cannot authorize planning
