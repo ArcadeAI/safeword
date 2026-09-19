@@ -1,7 +1,7 @@
 # Execution Plan: Turn accepted decisions into startable work
 
 **Status:** planned
-**Prepared on:** 2026-09-16
+**Prepared on:** 2026-09-19
 
 ## Pull-request slicing
 
@@ -46,9 +46,11 @@ copy, stub, or locally redefine the sibling contract.
    installed CLI, assert authorization for current scenario, implementation,
    design-approval, and execution receipts; then separately mutate `spec.md`,
    approved feature bytes, normalized ticket `scope`/`out_of_scope`/`done_when`,
-   `impl-plan.md`, stable `execution-plan.md` definition, and ordinary Delivery
-   Checklist progress. Assert every stable upstream mutation denies, ordinary
-   progress does not, and a fresh affected review restores authorization.
+   `impl-plan.md`, a Delivery Checklist obligation's `Required proof`, and
+   ordinary contributor progress in `Disposition`, `Evidence class`,
+   `Revision`, and the final evidence cell. Assert every stable upstream
+   mutation denies, ordinary progress does not, and a fresh affected review
+   restores authorization.
 2. RED: In the same file, cover absent artifact, missing receipt, stale receipt,
    rejected verdict, missing achieved independence, unearned assurance,
    permitted fallback with actual assurance retained, disregarded author-written
@@ -169,22 +171,29 @@ copy, stub, or locally redefine the sibling contract.
 
 ### Tasks and tests
 
-1. RED: Add
-   `packages/cli/tests/integration/plan-execution-journey.test.ts` using a real
-   temporary Git repository and installed CLI. Start from approved scenario and
-   Implementation Plan receipts, author/review a complete Execution Plan, enter
-   implementation, run the named RED, and assert production code could not
-   precede it.
-2. RED: In the same journey, change only independent task order and assert only
+1. RED: Run
+   `bun run test tests/integration/plan-execution-journey.test.ts --testNamePattern="reviews a startable plan"`
+   from `packages/cli`. The installed-CLI journey must exit 1 with
+   `Execution Planning does not require a named first RED.` before it reaches
+   production work. The same test must deny the production edit before the
+   named RED, run that RED, record its observed failure, then allow the identical
+   edit.
+2. GREEN: Add the shared author/reviewer clause beginning `Every executable
+   step must name its exact action` to canonical `PLAN_EXECUTION.md`. Add the
+   `fresh-context-first-red` conformance case, regenerate the reviewer rubric,
+   run the complete real Claude/Opus conformance matrix, and regenerate reviewer
+   admission only from that passing result. Regenerate the Codex plugin before
+   rerunning the installed-CLI journey.
+3. RED: In the same journey, change only independent task order and assert only
    the Execution Plan review becomes stale. Re-review it, then assert work
    resumes from the first reordered task and the earlier proof retains its
    byte-identical A639WN class with no new proof-execution receipt.
-3. RED: Change the accepted authorization approach and assert both plans become
+4. RED: Change the accepted authorization approach and assert both plans become
    stale. Run the retained-boundary `delivery-compatibility` decision for proof
    that remains valid; demote proof invalidated by the changed contract to
    audit-only, reopen that obligation, and assert it is the first work item on
    resume.
-4. RED: Cover the complete conformance partitions not owned by the two hook
+5. RED: Cover the complete conformance partitions not owned by the two hook
    tests: missing/mismatched canonical contracts; fixture and test-command
    changes; first and later unstartable steps; empty plans; risk-first ordering;
    explicitly parallel-safe work; discovery routing; disguised unresolved data
@@ -196,22 +205,22 @@ copy, stub, or locally redefine the sibling contract.
    present-but-unreadable artifact states. For every structural state, assert
    the report describes facts without calling the plan implementable, approved,
    or ready for coding.
-5. RED/GREEN: Add rollback fixtures for a ticket parked at `plan-execution` and
+6. RED/GREEN: Add rollback fixtures for a ticket parked at `plan-execution` and
    an `implement` ticket carrying authenticated `plan-execution` provenance.
    Exercise the real backward ticket transition for both to
    `plan-implementation`, retain their plans, reviews, and ledger rows as inert
    history, then prove the reduced phase model can read and continue each
    ticket. Do not add a general migration framework.
-6. RED/GREEN: Assert K3EBHB remains an epic release dependency for progressive
+7. RED/GREEN: Assert K3EBHB remains an epic release dependency for progressive
    NTB recovery and YCFFNC remains the installed-host migration owner. If either
    boundary is absent, fail the epic-completion proof rather than expanding this
    child.
-7. REFACTOR: Keep the cold-start fixture declarative and reuse production
+8. REFACTOR: Keep the cold-start fixture declarative and reuse production
    commands. Do not encode a second execution-plan validator in test helpers.
-8. Run:
+9. Run:
    `bun run test tests/integration/plan-execution-journey.test.ts tests/review/execution-plan-conformance.test.ts tests/integration/delivery-checklist-cli.test.ts`.
-9. Run: `bun run test`.
-10. Run: `bun run lint`.
+10. Run: `bun run test`.
+11. Run: `bun run lint`.
 
 ## Obligation ownership
 
@@ -287,7 +296,7 @@ copy, stub, or locally redefine the sibling contract.
 | resolved-contract | resolved decisions | Admit only Execution Plans that preserve the canonical slicing, obligation, evidence, measurement, and startability contract. | contributor | replan-journey | open | missing | | |
 | pr-decomposition | dependency and pull-request decomposition | Deliver the shared contract, enforcement consumers, and complete journey in three dependency-ordered independently safe PRs. | contributor | plan-review | open | missing | | |
 | testing | testing | Complete outside-in RED/GREEN/REFACTOR work and full regression proof through the installed CLI and real hook boundaries. | contributor | full-verification | open | missing | | |
-| data-compatibility | data and compatibility | Preserve exact upstream identities, normalized checklist progress, evidence classes, and rollback of persisted phase state. | contributor | replan-journey | open | missing | | |
+| data-compatibility | data and compatibility | Preserve exact upstream identities; stale review after a stable `Required proof` change; review currency across ordinary contributor progress; evidence classes; and rollback of persisted phase state. | contributor | replan-journey | open | missing | | |
 | monitoring | monitoring and failure signals | Keep authorization local, read-only, no-network, single-subprocess, and synchronously observable through typed denial identities; no production service or SLO is introduced. | contributor | authorization-hooks | open | missing | | |
 | security-privacy | security and privacy | Reject editable authority claims, stale receipts, lost new-flow prerequisites, and duplicate prerequisite evaluators without external data egress. | contributor | authorization-cli | open | missing | | |
 | rollout-activation | rollout and rollback | Gate new-flow tickets through durable markers while preserving legacy M1 behavior until YCFFNC migration. | contributor | authorization-hooks | open | missing | | |

@@ -2,7 +2,7 @@
 id: 7CAMAD
 slug: turn-decisions-into-startable-work
 type: feature
-phase: plan-implementation
+phase: plan-execution
 status: in_progress
 phase_skips:
   - 'intake: originally inherited the 2026-09-08 approval of 82T411; that approval became stale after material parent changes and was superseded by the fresh Product Plan approval recorded on 2026-09-09T23:46:25.000Z'
