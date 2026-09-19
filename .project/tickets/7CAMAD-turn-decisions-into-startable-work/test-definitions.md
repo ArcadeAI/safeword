@@ -146,7 +146,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Complete obligation mapping permits semantic approval
 
-- [ ] RED
+- [x] RED skip: live — see work log 2026-09-19T21:26:06.000Z "R10 obligation mapping matrix"
 - [ ] GREEN
 - [ ] REFACTOR
 
