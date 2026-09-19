@@ -105,7 +105,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: The structural gate reports artifact facts without a semantic verdict
 
 - [x] RED 82e8137ba
-- [ ] GREEN
+- [x] GREEN 9a433ff6a
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R8 — Accepted proof strategies become exact test work
