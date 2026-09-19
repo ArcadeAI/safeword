@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 82e8137ba
 - [x] GREEN 9a433ff6a
-- [ ] REFACTOR
+- [x] REFACTOR skip: the GREEN already isolates reading, fact projection, and review-result mapping
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R8 — Accepted proof strategies become exact test work
 
