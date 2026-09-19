@@ -189,7 +189,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An Execution Plan cannot stay current after its source approach changes
 
 - [x] RED 4faf5aec8
-- [ ] GREEN
+- [x] GREEN cb9015b92
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R17 — A design-changing implementation decision returns through revised and re-reviewed Implementation and Execution Plans, while a sequencing-only decision returns through a revised and re-reviewed Execution Plan; both paths preserve still-valid work and evidence and resume from the first invalidated obligation
