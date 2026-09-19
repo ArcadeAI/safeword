@@ -229,6 +229,14 @@ function planObligations(contract: string): string[] {
   return Array.from(contract.matchAll(/^- \*\*([^*]+):\*\*/gmu), match => match[1]?.trim() ?? '');
 }
 
+/** Build the byte identities shared by plan authors and reviewers. */
+export function assemblePlanContract(authorRubric = '', reviewerRubric = ''): PlanContractPair {
+  return {
+    author: { sha256: digest(authorRubric), obligations: planObligations(authorRubric) },
+    reviewer: { sha256: digest(reviewerRubric), obligations: planObligations(reviewerRubric) },
+  };
+}
+
 function packageRoot(): string {
   const runtimeDirectory = nodePath.basename(import.meta.dirname);
   return runtimeDirectory === 'dist' || runtimeDirectory === 'runtime'
@@ -270,20 +278,14 @@ function packagedExecutionPlanAuthorRubric(): string {
   }
 }
 
-function currentPlanContract(kind: 'plan-implementation' | 'plan-execution'): PlanContractPair {
+export function packagedPlanContract(
+  kind: 'plan-implementation' | 'plan-execution',
+): PlanContractPair {
   const authorRubric =
     kind === 'plan-execution' ? packagedExecutionPlanAuthorRubric() : packagedPlanAuthorRubric();
   const reviewerRubric =
     kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_RUBRIC : PLAN_REVIEW_RUBRIC;
-  const author = {
-    sha256: digest(authorRubric),
-    obligations: planObligations(authorRubric),
-  };
-  const reviewer = {
-    sha256: digest(reviewerRubric),
-    obligations: planObligations(reviewerRubric),
-  };
-  return { author, reviewer };
+  return assemblePlanContract(authorRubric, reviewerRubric);
 }
 
 function packetPlanContract(
@@ -291,7 +293,7 @@ function packetPlanContract(
   configured: PlanContractPair | undefined,
 ): { readonly plan_contract?: PlanContractPair } {
   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
-  return { plan_contract: configured ?? currentPlanContract(kind) };
+  return { plan_contract: configured ?? packagedPlanContract(kind) };
 }
 
 function fileDigest(path: string): string | undefined {
