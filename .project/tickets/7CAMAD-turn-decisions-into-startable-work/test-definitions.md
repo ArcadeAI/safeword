@@ -176,7 +176,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: live — see work log 2026-09-19T22:35:02.000Z "R15 measurement execution matrix"
 - [x] GREEN 3c65b65f5
-- [ ] REFACTOR
+- [x] REFACTOR skip: one shared measurement contract and one canonical semantic corpus are already the minimal structure
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R16 — Changing load-bearing behavior or scope invalidates both plan reviews, changing the accepted Implementation Plan invalidates both plan reviews, and changing only the Execution Plan invalidates only its own review
 
