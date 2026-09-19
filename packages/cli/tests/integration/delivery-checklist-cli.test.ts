@@ -329,6 +329,7 @@ describe('Delivery Checklist CLI service', () => {
     expect(
       currentData.contributor_evidence.find(evidence => evidence.item_id === 'item-4'),
     ).toMatchObject({
+      status: 'complete',
       evidence_class: 'current_revision_real_boundary',
       limitations: [],
     });
@@ -351,7 +352,9 @@ describe('Delivery Checklist CLI service', () => {
   });
 
   it('reopens proof invalidated by a changed authorization contract and retains its audit receipt', async () => {
-    const { root, planPath } = fixture({ plan: settledPlan('contributor') });
+    const { root, planPath } = fixture({
+      plan: settledPlan('contributor').replace('current_required', 'compatible_earlier_allowed'),
+    });
     const recorded = await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof');
     const receipt = (recorded.data as { receipt_id?: string }).receipt_id;
     expect(receipt).toEqual(expect.any(String));
@@ -364,6 +367,23 @@ describe('Delivery Checklist CLI service', () => {
     );
     git(root, ['add', '.project']);
     git(root, ['commit', '--quiet', '-m', 'change accepted authorization contract']);
+
+    review.compatibilityResult = compatibilityReviewResult({ status: 'changes_requested' });
+    const compatibility = await publicHandler('ticket record-delivery-proof')({
+      cwd: root,
+      noInput: true,
+      offline: false,
+      operands: ['ABC123', 'item-4', 'proof'],
+      options: {
+        receipt,
+        compatibleReason: 'The authorization contract changed.',
+        confirmEgress: true,
+      },
+    });
+    expect(compatibility).toMatchObject({
+      state: 'action_required',
+      findings: [{ code: 'compatibility_review_denied' }],
+    });
 
     const result = await publicReadiness(root);
     const data = result.data as {
