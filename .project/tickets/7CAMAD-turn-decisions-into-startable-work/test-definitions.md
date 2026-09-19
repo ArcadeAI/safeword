@@ -168,7 +168,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: existing behavior characterized against the pre-gate hook by the installed-CLI journey
 - [x] GREEN 719486201
-- [ ] REFACTOR
+- [x] REFACTOR 2fbec3997
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R15 — Accepted measurement decisions become concrete instrumentation, test, and evidence-collection work without redefining the upstream promise or validity contract
 
