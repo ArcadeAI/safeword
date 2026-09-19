@@ -3,7 +3,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
-import { parseReviewStamps } from '../../templates/hooks/lib/review-ledger.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { executionPlanAdmission } from '../execution-plan/delivery-admission.js';
 import {
@@ -12,8 +11,7 @@ import {
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
 import { currentDesignDecision } from '../review/approval-ledger.js';
-import type { ReviewKind } from '../review/contract.js';
-import { reviewIntegrityKeyExists, reviewJobStatus } from '../review/job.js';
+import { phaseReviewAdmission, type ReviewProvenance } from '../review/phase-admission.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { findFeatureSourcePath } from '../utils/feature-source.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
@@ -36,12 +34,6 @@ interface MissingPrerequisite {
   readonly code: ExecutionPrerequisiteRepairCode;
   readonly message: string;
   readonly command: string;
-}
-
-interface ReviewProvenance {
-  readonly authorAgent?: string;
-  readonly reviewerAgent?: string;
-  readonly independence?: 'cross-agent' | 'degraded' | 'none';
 }
 
 function successful(
@@ -86,62 +78,6 @@ function denied(missing: readonly MissingPrerequisite[], inputIdentity?: string)
       }),
     },
   });
-}
-
-function text(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
-}
-
-function reviewProvenance(data: Record<string, unknown>): ReviewProvenance {
-  const independence = data.independence;
-  return {
-    ...(text(data.author_agent) !== undefined && { authorAgent: text(data.author_agent) }),
-    ...(text(data.actual_reviewer) !== undefined && { reviewerAgent: text(data.actual_reviewer) }),
-    ...(['cross-agent', 'degraded', 'none'].includes(String(independence)) && {
-      independence: independence as ReviewProvenance['independence'],
-    }),
-  };
-}
-
-function approvedReviewCandidate(input: {
-  readonly cwd: string;
-  readonly stamp: ReturnType<typeof parseReviewStamps>[number];
-  readonly kind: ReviewKind;
-  readonly target: string;
-}): ReviewProvenance | undefined {
-  if (input.stamp.reviewId === undefined) return undefined;
-  const review = reviewJobStatus(input.cwd, input.stamp.reviewId);
-  if (review.state !== 'healthy' || typeof review.data !== 'object' || review.data === null) {
-    return undefined;
-  }
-  const data = review.data as Record<string, unknown>;
-  const targets = Array.isArray(data.review_targets) ? data.review_targets : [];
-  const coversTarget = targets.some(
-    candidate =>
-      typeof candidate === 'string' && nodePath.resolve(input.cwd, candidate) === input.target,
-  );
-  return data.status === 'approved' && data.review_kind === input.kind && coversTarget
-    ? reviewProvenance(data)
-    : undefined;
-}
-
-function approvedReview(
-  cwd: string,
-  ledger: string,
-  ticketFolder: string,
-  kind: ReviewKind,
-  target: string | undefined,
-): ReviewProvenance | undefined {
-  if (target === undefined || !reviewIntegrityKeyExists()) return undefined;
-  const scope = `${ticketFolder}:phase@${kind}`;
-  const stamps = parseReviewStamps(ledger)
-    .filter(stamp => stamp.scope === scope && stamp.skipReason === undefined)
-    .toReversed();
-  for (const stamp of stamps) {
-    const provenance = approvedReviewCandidate({ cwd, stamp, kind, target });
-    if (provenance !== undefined) return provenance;
-  }
-  return undefined;
 }
 
 function designApprovalRequired(cwd: string): boolean {
@@ -238,6 +174,24 @@ function relativeFeature(context: PrerequisiteContext): string {
   return context.featurePath === undefined
     ? 'features/<ticket>.feature'
     : nodePath.relative(context.cwd, context.featurePath);
+}
+
+function admittedPhaseReview(
+  context: PrerequisiteContext,
+  kind: 'scenario-gate' | 'plan-implementation',
+  target: string | undefined,
+  label: string,
+): ReviewProvenance | undefined {
+  if (target === undefined) return undefined;
+  const admission = phaseReviewAdmission({
+    cwd: context.cwd,
+    ticketDirectory: context.ticketDirectory,
+    kind,
+    target: nodePath.resolve(target),
+    ledger: context.ledger,
+    label,
+  });
+  return admission.kind === 'admitted' ? admission.provenance : undefined;
 }
 
 function scenarioPrerequisite(
@@ -449,19 +403,17 @@ export function evaluateExecutionPrerequisite(
     });
     return successful(loaded.status, undefined, identity);
   }
-  const scenarioReview = approvedReview(
-    loaded.context.cwd,
-    loaded.context.ledger,
-    loaded.context.ticketFolder,
+  const scenarioReview = admittedPhaseReview(
+    loaded.context,
     'scenario-gate',
     loaded.context.featurePath,
+    'Scenario',
   );
-  const implementationReview = approvedReview(
-    loaded.context.cwd,
-    loaded.context.ledger,
-    loaded.context.ticketFolder,
+  const implementationReview = admittedPhaseReview(
+    loaded.context,
     'plan-implementation',
     loaded.context.implementationPath,
+    'Implementation Plan',
   );
   const checklist = checklistPrerequisite(loaded.context);
   const missing = [

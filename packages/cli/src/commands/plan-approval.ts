@@ -21,6 +21,7 @@ import {
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { appendDesignDecision, currentDesignDecision } from '../review/approval-ledger.js';
 import { reviewJobStatus } from '../review/job.js';
+import { phaseReviewAdmission } from '../review/phase-admission.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
@@ -89,41 +90,70 @@ function designApprovalEnabled(cwd: string): boolean {
   }
 }
 
-function currentReview(context: ApprovalContext): { ok: true } | { ok: false; reason: string } {
+function currentReview(
+  context: ApprovalContext,
+):
+  | { readonly ok: true; readonly independence: 'cross-agent' | 'degraded' }
+  | { readonly ok: false; readonly reason: string } {
   const gate = evaluateExecutionPlanningEntry(context.ticketDirectory, {
     projectDirectory: context.cwd,
   });
-  if (!gate.ok) return gate;
+  if (!gate.ok) return { ok: false, reason: latestReviewRejection(context) ?? gate.reason };
+  const ledger = existsSync(context.ledgerPath) ? readFileSync(context.ledgerPath, 'utf8') : '';
   const scope = reviewScope(
     nodePath.basename(context.ticketDirectory),
     'impl-plan',
     hashArtifact(context.plan),
   );
-  const ledger = existsSync(context.ledgerPath) ? readFileSync(context.ledgerPath, 'utf8') : '';
-  const review = gatePhaseAdvance(scope, parseReviewStamps(ledger));
-  if (review.ok) return review;
-  return { ok: false, reason: currentReviewFinding(context) ?? review.reason };
+  const artifactReview = gatePhaseAdvance(scope, parseReviewStamps(ledger));
+  if (!artifactReview.ok) {
+    return { ok: false, reason: latestReviewRejection(context) ?? artifactReview.reason };
+  }
+  const admission = phaseReviewAdmission({
+    cwd: context.cwd,
+    ticketDirectory: context.ticketDirectory,
+    kind: 'plan-implementation',
+    target: nodePath.resolve(context.planPath),
+    ledger,
+    label: 'Implementation Plan',
+  });
+  if (admission.kind === 'admitted') {
+    return { ok: true, independence: admission.provenance.independence };
+  }
+  if (admission.kind === 'rejected' || admission.kind === 'unearned_assurance') {
+    return { ok: false, reason: admission.message };
+  }
+  return {
+    ok: false,
+    reason:
+      'The current Implementation Plan has no current authenticated Implementation Plan review receipt.',
+  };
 }
 
-function currentReviewFinding(context: ApprovalContext): string | undefined {
+function reviewsPlan(data: Record<string, unknown>, context: ApprovalContext): boolean {
+  return (
+    Array.isArray(data.review_targets) &&
+    data.review_targets.some(
+      target =>
+        typeof target === 'string' &&
+        nodePath.resolve(context.cwd, target) === nodePath.resolve(context.planPath),
+    )
+  );
+}
+
+function latestReviewRejection(context: ApprovalContext): string | undefined {
   const review = reviewJobStatus(context.cwd);
-  const data =
-    typeof review.data === 'object' && review.data !== null && !Array.isArray(review.data)
-      ? (review.data as Record<string, unknown>)
-      : undefined;
-  if (data?.review_kind !== 'plan-implementation' || !Array.isArray(data.review_targets)) {
+  if (typeof review.data !== 'object' || review.data === null || Array.isArray(review.data)) {
     return undefined;
   }
-  const reviewsCurrentPlan = data.review_targets.some(
-    target =>
-      typeof target === 'string' &&
-      nodePath.resolve(context.cwd, target) === nodePath.resolve(context.planPath),
-  );
-  if (!reviewsCurrentPlan) return undefined;
-  const findings = review.findings.map(finding => finding.message).filter(Boolean);
-  return findings.length > 0
-    ? `Implementation Plan review is blocked: ${findings.join(' ')}`
-    : undefined;
+  const data = review.data as Record<string, unknown>;
+  if (data.review_kind !== 'plan-implementation' || !reviewsPlan(data, context)) {
+    return undefined;
+  }
+  const messages = review.findings.map(finding => finding.message).filter(Boolean);
+  return messages.length > 0
+    ? `Implementation Plan review is blocked: ${messages.join(' ')}`
+    : 'The Implementation Plan review requested changes.';
 }
 
 function appendReceipt(context: ApprovalContext, status: ApprovalStatus): void {
@@ -214,7 +244,10 @@ function result(
   status: ApprovalStatus,
   changedFiles: readonly string[],
   finding?: string,
-  findingSeverity: 'info' | 'warning' = 'warning',
+  options: {
+    readonly severity?: 'info' | 'warning';
+    readonly achievedIndependence?: 'cross-agent' | 'degraded';
+  } = {},
 ): CliResult {
   let state: CliResult['state'] = changedFiles.length > 0 ? 'changed' : 'healthy';
   if (status === 'pending') state = 'action_required';
@@ -227,7 +260,13 @@ function result(
     findings:
       finding === undefined
         ? []
-        : [{ code: 'PLAN_APPROVAL_STATUS', message: finding, severity: findingSeverity }],
+        : [
+            {
+              code: 'PLAN_APPROVAL_STATUS',
+              message: finding,
+              severity: options.severity ?? 'warning',
+            },
+          ],
     nextActions:
       status === 'pending'
         ? [
@@ -244,6 +283,9 @@ function result(
       ticket_id: context.ticketId,
       approval_status: status,
       plan_digest: context.digest,
+      ...(options.achievedIndependence !== undefined && {
+        achieved_independence: options.achievedIndependence,
+      }),
     },
   });
 }
@@ -271,6 +313,7 @@ function settleInteractiveDecision(
   context: ApprovalContext,
   accepted: boolean,
   ledgerTarget: string,
+  achievedIndependence: 'cross-agent' | 'degraded',
   returnedToPlanning = false,
 ): CliResult {
   const submittedStatus = accepted ? 'approved' : 'declined';
@@ -287,6 +330,7 @@ function settleInteractiveDecision(
       'pending',
       returnedToPlanning ? [nodePath.relative(context.cwd, context.ticketPath)] : [],
       'Human design authority could not be recorded safely; approval remains pending.',
+      { achievedIndependence },
     );
   }
   interruptApprovalForTest('after-decision');
@@ -301,6 +345,7 @@ function settleInteractiveDecision(
         returnedToPlanning ? [nodePath.relative(context.cwd, context.ticketPath)] : [],
       ),
       'The current human design decision changed while the ticket phase was being reconciled; approval remains pending.',
+      { achievedIndependence },
     );
   }
   const status = reconciled.decision;
@@ -315,11 +360,14 @@ function settleInteractiveDecision(
     status === 'approved'
       ? `Approved approach: ${planPath} at ${context.digest}.`
       : `Declined approach: ${planPath}. It remains in Implementation Planning for repair.`,
-    status === 'approved' ? 'info' : 'warning',
+    { severity: status === 'approved' ? 'info' : 'warning', achievedIndependence },
   );
 }
 
-function currentApprovalResult(context: ApprovalContext): CliResult | undefined {
+function currentApprovalResult(
+  context: ApprovalContext,
+  achievedIndependence: 'cross-agent' | 'degraded',
+): CliResult | undefined {
   if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) !== 'approved') {
     return undefined;
   }
@@ -330,6 +378,7 @@ function currentApprovalResult(context: ApprovalContext): CliResult | undefined 
       'pending',
       reconciled?.changedFiles ?? [],
       'The current human design decision changed while the ticket phase was being reconciled; approval remains pending.',
+      { achievedIndependence },
     );
   }
   return result(
@@ -337,7 +386,7 @@ function currentApprovalResult(context: ApprovalContext): CliResult | undefined 
     'approved',
     reconciled.changedFiles,
     `Existing approval remains current for ${nodePath.relative(context.cwd, context.planPath)} at ${context.digest}.`,
-    'info',
+    { severity: 'info', achievedIndependence },
   );
 }
 
@@ -352,10 +401,12 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
   if (!designApprovalEnabled(context.cwd)) {
     appendReceipt(context, 'not-required');
     const advanced = advanceToExecutionPlanning(context);
-    return result(context, 'not-required', [ledgerTarget, ...advanced]);
+    return result(context, 'not-required', [ledgerTarget, ...advanced], undefined, {
+      achievedIndependence: review.independence,
+    });
   }
 
-  const existingApproval = currentApprovalResult(context);
+  const existingApproval = currentApprovalResult(context, review.independence);
   if (existingApproval !== undefined) return existingApproval;
 
   const returnedToPlanning = replaceTicketPhase(context, 'plan-execution', 'plan-implementation');
@@ -367,11 +418,18 @@ async function approve(context: ApprovalContext, noInput: boolean): Promise<CliR
       'pending',
       [ledgerTarget, ...(returnedToPlanning ? [ticketTarget] : [])],
       'Human design approval is pending; the ticket remains in Implementation Planning.',
+      { achievedIndependence: review.independence },
     );
   }
 
   const accepted = await askForApproval(context.plan);
-  return settleInteractiveDecision(context, accepted, ledgerTarget, returnedToPlanning);
+  return settleInteractiveDecision(
+    context,
+    accepted,
+    ledgerTarget,
+    review.independence,
+    returnedToPlanning,
+  );
 }
 
 export async function approvePlanResult(
