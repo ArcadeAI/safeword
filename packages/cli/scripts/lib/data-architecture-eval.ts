@@ -127,11 +127,98 @@ export function buildColdStartPrompt(
   });
 }
 
-export function verifyEvaluationRecord(_input: EvaluationRecordInput): VerificationResult {
-  return {
-    accepted: false,
-    diagnostics: ['Evaluation record verification is not implemented.'],
-  };
+function canonicalEvaluationCaseAndRubricJson(evaluationCase: EvaluationCase): string {
+  return canonicalJson({
+    case: { id: evaluationCase.id, text: evaluationCase.text },
+    rubric: {
+      expectedDecisionIds: sortedStrings(evaluationCase.rubric.expectedDecisionIds),
+      forbiddenDecisionIds: sortedStrings(evaluationCase.rubric.forbiddenDecisionIds),
+      expectedProofFactIds: sortedStrings(evaluationCase.rubric.expectedProofFactIds),
+      forbiddenProofFactIds: sortedStrings(evaluationCase.rubric.forbiddenProofFactIds),
+    },
+  });
+}
+
+function idSetDiagnostics(
+  actual: readonly string[],
+  expected: readonly string[],
+  forbidden: readonly string[],
+  label: 'decision' | 'proof fact',
+): string[] {
+  const diagnostics: string[] = [];
+  const actualCounts = new Map<string, number>();
+  for (const id of actual) actualCounts.set(id, (actualCounts.get(id) ?? 0) + 1);
+
+  const actualIds = new Set(actualCounts.keys());
+  const expectedIds = new Set(expected);
+  const forbiddenIds = new Set(forbidden);
+  const sortedExpectedIds = sortedStrings([...expectedIds]);
+  const sortedActualIds = sortedStrings([...actualIds]);
+  for (const id of sortedExpectedIds) {
+    if (!actualIds.has(id))
+      diagnostics.push(`Evaluation response is missing expected ${label} ${id}.`);
+  }
+  for (const id of sortedActualIds) {
+    if (forbiddenIds.has(id)) {
+      diagnostics.push(`Evaluation response contains forbidden ${label} ${id}.`);
+    } else if (!expectedIds.has(id)) {
+      diagnostics.push(`Evaluation response contains unknown ${label} ${id}.`);
+    }
+    if ((actualCounts.get(id) ?? 0) > 1) {
+      diagnostics.push(`Evaluation response contains duplicate ${label} ${id}.`);
+    }
+  }
+  return diagnostics;
+}
+
+export function verifyEvaluationRecord(input: EvaluationRecordInput): VerificationResult {
+  const diagnostics: string[] = [];
+  const expectedPrompt = buildColdStartPrompt(input.canonicalGuide, input.evaluationCase);
+  const expectedCaseAndRubricSha256 = sha256(
+    canonicalEvaluationCaseAndRubricJson(input.evaluationCase),
+  );
+
+  if (input.record.guideSha256 !== sha256(input.canonicalGuide)) {
+    diagnostics.push('Evaluation record guide hash does not match the current canonical guide.');
+  }
+  if (
+    input.record.caseId !== input.evaluationCase.id ||
+    input.record.caseAndRubricSha256 !== expectedCaseAndRubricSha256
+  ) {
+    diagnostics.push('Evaluation record does not match the current case and rubric.');
+  }
+  if (
+    input.record.prompt !== expectedPrompt ||
+    input.record.coldStartPromptSha256 !== sha256(expectedPrompt)
+  ) {
+    diagnostics.push('Evaluation record prompt does not match the current cold-start prompt.');
+  }
+  if (
+    input.record.modelVersion !== input.contract.modelVersion ||
+    canonicalJson(input.record.decodingConfiguration) !==
+      canonicalJson(input.contract.decodingConfiguration) ||
+    input.record.responseFormat !== input.contract.responseFormat ||
+    input.record.rubricLoader !== input.contract.rubricLoader
+  ) {
+    diagnostics.push('Evaluation record does not match the checked-in recording contract.');
+  }
+
+  diagnostics.push(
+    ...idSetDiagnostics(
+      input.record.response.decisionIds,
+      input.evaluationCase.rubric.expectedDecisionIds,
+      input.evaluationCase.rubric.forbiddenDecisionIds,
+      'decision',
+    ),
+    ...idSetDiagnostics(
+      input.record.response.proofFactIds,
+      input.evaluationCase.rubric.expectedProofFactIds,
+      input.evaluationCase.rubric.forbiddenProofFactIds,
+      'proof fact',
+    ),
+  );
+
+  return { accepted: diagnostics.length === 0, diagnostics };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
