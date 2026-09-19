@@ -20,7 +20,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An unearned fallback receipt cannot authorize planning
 
-- [ ] RED
+- [x] RED 5d2aa327f
 - [ ] GREEN
 - [ ] REFACTOR
 
