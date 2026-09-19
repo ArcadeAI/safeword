@@ -54,7 +54,12 @@ import {
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
-import { evaluateExecutionPlanningEntry, evaluateImplementEntry } from './lib/plan-gate.ts';
+import {
+  evaluateCodingAuthorization,
+  evaluateExecutionPlanningEntry,
+  evaluateImplementEntry,
+  firstNamedRedAction,
+} from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
@@ -352,111 +357,6 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
   } catch {
     return `The executable RED receipt check could not produce a valid result from ${command}.`;
   }
-}
-
-type CodingAuthorizationVerdict =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly reason: string; readonly remediation: string };
-
-function codingAuthorizationVerdict(ticketId: string): CodingAuthorizationVerdict {
-  const commandParts = safewordCliCommand();
-  if (commandParts === undefined) {
-    return {
-      ok: false,
-      reason: 'Safeword could not check whether coding is authorized.',
-      remediation:
-        'Reinstall the Safeword plugin or set SAFEWORD_PLUGIN_CLI to the bundled runtime path.',
-    };
-  }
-  if (commandParts === 'project-writable') {
-    return {
-      ok: false,
-      reason: 'Safeword refused a project-writable coding-authorization command.',
-      remediation:
-        'Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.',
-    };
-  }
-  const [executable, ...prefix] = commandParts;
-  const checked = spawnSync(
-    executable,
-    [
-      ...prefix,
-      '--json',
-      '--no-input',
-      '--cwd',
-      projectDirectory,
-      'ticket',
-      'coding-authorization',
-      ticketId,
-    ],
-    { cwd: projectDirectory, encoding: 'utf8', timeout: 5000 },
-  );
-  try {
-    const parsed = JSON.parse(checked.stdout) as {
-      state?: unknown;
-      findings?: Array<{ message?: unknown }>;
-      next_actions?: Array<{ command?: unknown }>;
-      data?: {
-        command?: unknown;
-        coding_authorization?: unknown;
-        grants_authority?: unknown;
-        authorization_input_identity?: unknown;
-      };
-    };
-    if (
-      checked.status === 0 &&
-      parsed.state === 'healthy' &&
-      parsed.data?.command === 'ticket coding-authorization' &&
-      parsed.data.coding_authorization === 'authorized' &&
-      parsed.data.grants_authority === false &&
-      typeof parsed.data.authorization_input_identity === 'string' &&
-      parsed.data.authorization_input_identity !== ''
-    ) {
-      return { ok: true };
-    }
-    if (
-      parsed.data?.command === 'ticket coding-authorization' &&
-      parsed.data.coding_authorization === 'denied' &&
-      parsed.data.grants_authority === false
-    ) {
-      const reason = parsed.findings?.find(
-        finding => typeof finding.message === 'string' && finding.message !== '',
-      )?.message;
-      const remediation = parsed.next_actions?.find(
-        action => typeof action.command === 'string' && action.command !== '',
-      )?.command;
-      return {
-        ok: false,
-        reason:
-          typeof reason === 'string'
-            ? reason
-            : 'The current planning evidence does not authorize coding.',
-        remediation:
-          typeof remediation === 'string'
-            ? remediation
-            : `Run safeword ticket coding-authorization ${ticketId} and complete its recovery action.`,
-      };
-    }
-  } catch {
-    // Fall through to the fail-closed invalid-result verdict below.
-  }
-  return {
-    ok: false,
-    reason: 'Safeword could not validate the coding-authorization result.',
-    remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
-  };
-}
-
-function firstNamedRedAction(ticketFolder: string): string | undefined {
-  const ledgerPath = nodePath.join(
-    resolveNamespaceRoot(projectDirectory),
-    'tickets',
-    ticketFolder,
-    'test-definitions.md',
-  );
-  if (!existsSync(ledgerPath)) return undefined;
-  const match = readFileSync(ledgerPath, 'utf8').match(/^\s*- \[ \] RED\s+(?:—|-|:)\s*(.+)$/mu);
-  return match?.[1]?.trim() || undefined;
 }
 
 function separateEvidenceMode(
@@ -1381,12 +1281,16 @@ if (state.activeTicket) {
     ticketDirectory !== undefined &&
     existsSync(nodePath.join(ticketDirectory, 'execution-plan.md'))
   ) {
-    const authorization = codingAuthorizationVerdict(state.activeTicket);
+    const authorization = evaluateCodingAuthorization(
+      projectDirectory,
+      state.activeTicket,
+      safewordCliCommand(),
+    );
     if (!authorization.ok) {
       recordFailure(projectDirectory, input.session_id, 'coding-authorization-denied');
       deny(authorization.reason, authorization.remediation);
     }
-    const redAction = firstNamedRedAction(ticketInfo.folder);
+    const redAction = firstNamedRedAction(projectDirectory, ticketInfo.folder);
     if (redAction !== undefined) {
       recordFailure(projectDirectory, input.session_id, 'production-before-named-red');
       deny(
