@@ -23,6 +23,7 @@ import nodePath from 'node:path';
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
 import { warn } from '../utils/output.js';
 import type {
+  PlanContractPair,
   ReviewAgent,
   ReviewFailure,
   ReviewKind,
@@ -31,6 +32,7 @@ import type {
 } from './contract.js';
 import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
+import { EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 } from './execution-plan-rubric.generated.js';
 import { reviewerPromptInstructions } from './review-rubric.js';
 
 export {
@@ -639,6 +641,28 @@ function reviewPrompt(reviewer: ReviewAgent, packet: ReviewPacket): string {
   return `${reviewerPromptInstructions(packet.kind, reviewer)}\n${JSON.stringify(packet)}`;
 }
 
+function executionPlanIdentityConflicts(contract: PlanContractPair): string[] {
+  const authorIsCanonical = contract.author.sha256 === EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
+  if (!authorIsCanonical && contract.author.sha256 === contract.reviewer.sha256) {
+    return [
+      'Matching author and reviewer copies differ from the packaged canonical contract-byte identity.',
+    ];
+  }
+  const reviewerIsCanonical = contract.reviewer.sha256 === EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
+  return [
+    ...(authorIsCanonical
+      ? []
+      : [
+          'The authoring contract copy differs from the packaged canonical contract-byte identity.',
+        ]),
+    ...(reviewerIsCanonical
+      ? []
+      : [
+          'The stale generated reviewer contract copy differs from the packaged canonical contract-byte identity.',
+        ]),
+  ];
+}
+
 export function reconcilePlanContract(
   packet: ReviewPacket,
   output: UnverifiedReviewerOutput,
@@ -652,7 +676,9 @@ export function reconcilePlanContract(
 
   const author = new Set(contract.author.obligations);
   const reviewer = new Set(contract.reviewer.obligations);
-  const conflicts = [
+  const conflicts =
+    packet.kind === 'plan-execution' ? executionPlanIdentityConflicts(contract) : [];
+  conflicts.push(
     ...[...author]
       .filter(obligation => !reviewer.has(obligation))
       .map(
@@ -663,7 +689,7 @@ export function reconcilePlanContract(
       .map(
         obligation => `Reviewer contract requires "${obligation}" but author contract does not.`,
       ),
-  ];
+  );
   const identitiesMatch = contract.author.sha256 === contract.reviewer.sha256;
   if (identitiesMatch && conflicts.length === 0) return output;
   if (conflicts.length === 0) {
