@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5d2aa327f
 - [x] GREEN 88efda591
-- [ ] REFACTOR
+- [x] REFACTOR skip: fallback provenance already uses the canonical authenticated receipt
 
 ### Scenario: An unearned fallback receipt cannot authorize planning
 
