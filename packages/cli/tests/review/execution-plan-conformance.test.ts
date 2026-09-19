@@ -118,6 +118,19 @@ describe('Execution Plan semantic conformance admission', () => {
     });
   });
 
+  it.each([
+    ['vague-data-ownership', 'request_changes', ['data', 'unnamed']],
+    ['invented-data-ownership', 'request_changes', ['data', 'invented']],
+    ['accepted-data-ownership', 'approve', undefined],
+  ] as const)('keeps %s as a data-decision specificity case', (caseId, verdict, findingTerms) => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
+
+    expect(testCase?.expectation.verdict).toBe(verdict);
+    if (findingTerms !== undefined) {
+      expect(testCase?.expectation.finding_terms).toEqual(findingTerms);
+    }
+  });
+
   it('keeps ordered schema activation as a supported approval case', () => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
       candidate => candidate.id === 'ordered-schema-before-reader',
