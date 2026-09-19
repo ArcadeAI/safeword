@@ -74,7 +74,9 @@ copy, stub, or locally redefine the sibling contract.
    a general dependency linter.
 6. Run:
    `bun run test tests/integration/coding-authorization.test.ts tests/integration/delivery-execution-prerequisite.test.ts tests/cli-protocol/catalog.test.ts tests/cli-protocol/cli-documentation-contract.test.ts`.
-7. Run: `bun run lint`.
+7. Run:
+   `bun run test tests/parity.test.ts tests/schema.test.ts tests/npm-package.test.ts`.
+8. Run: `bun run lint`.
 
 ## PR 2 — Enforce authorization at both coding boundaries
 
@@ -127,7 +129,9 @@ copy, stub, or locally redefine the sibling contract.
    handbook, prompt/resume/stop guidance, and the accepted planning-gates
    architecture record. State clearly that the public command has no legacy
    exemption while per-edit M1 activation uses durable markers until YCFFNC
-   completes migration.
+   completes migration. Document that rollback uniformly returns both parked
+   `plan-execution` tickets and `implement` tickets with durable
+   `plan-execution` provenance to `plan-implementation`.
 5. GREEN: Regenerate Claude, Cursor, Codex, and OpenCode-owned derivatives with
    the repository generators and parity fixer. Never hand-edit a derivative.
 6. REFACTOR: Keep the hook as a thin renderer/dispatcher. Add a source-level
@@ -265,8 +269,8 @@ copy, stub, or locally redefine the sibling contract.
 | -------- | ------ | ----- | ------------------ | ------------ | -------- | ---------- |
 | authorization-cli | command | integration | Installed public CLI computes the closed coding-authorization result from real project artifacts and receipts | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/coding-authorization.test.ts","tests/integration/delivery-execution-prerequisite.test.ts","tests/cli-protocol/catalog.test.ts","tests/cli-protocol/cli-documentation-contract.test.ts"]} |
 | authorization-hooks | command | E2E | Real installed approval, transition, and production-edit subprocesses enforce reviewed planning and consume the shared authorization contract | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/plan-design-approval.test.ts","tests/integration/plan-transition-gate.test.ts","tests/integration/coding-authorization-hook.test.ts","tests/hooks/phase-provenance.test.ts"]} |
-| semantic-conformance | command | integration | Installed plan-execution review admits the canonical contract and rejects every representative incomplete or decision-changing plan | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/review/execution-plan-conformance.test.ts","tests/review/execution-plan-output.test.ts","tests/review/packet.test.ts"]} |
-| replan-journey | command | E2E | Git-backed installed CLI completes cold start, RED handoff, both replan routes, evidence preservation/demotion, resume, and rollback | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/plan-execution-journey.test.ts","tests/integration/delivery-checklist-cli.test.ts"]} |
+| semantic-conformance | command | unit | Static contract and corpus wiring represent every approved and denied semantic partition without claiming an installed reviewer ran them | partial_or_structural | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/review/execution-plan-conformance.test.ts","tests/review/execution-plan-output.test.ts","tests/review/packet.test.ts"]} |
+| replan-journey | command | E2E | Git-backed installed CLI completes cold start, RED handoff, both replan routes, evidence preservation/demotion, resume, and rollback while the supporting corpus asserts every semantic partition | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/plan-execution-journey.test.ts","tests/integration/delivery-checklist-cli.test.ts","tests/review/execution-plan-conformance.test.ts"]} |
 | workflow-parity | command | integration | Canonical phase guidance, templates, schema, and every registered generated host derivative remain synchronized | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/parity.test.ts","tests/schema.test.ts","tests/npm-package.test.ts","tests/skills/implementation-plan-repair-loop.test.ts"]} |
 | full-verification | command | E2E | Complete CLI test suite exercises all supported boundaries without regression | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test"]} |
 | lint-typecheck | command | integration | The repository's aggregate lint script runs ESLint, Gherkin validation, and TypeScript compilation against the final change | partial_or_structural | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","lint"]} |
@@ -280,7 +284,7 @@ copy, stub, or locally redefine the sibling contract.
 | --- | -------- | ---------- | ----- | -------------- | ----------- | -------------- | -------- | ------------------------------- |
 | outcome-scope | outcome and scope | Authorize coding only from current reviewed Product, Implementation, and Execution Plans without granting downstream authority. | contributor | authorization-cli | open | missing | | |
 | resolved-decisions | resolved decisions | Preserve every recorded implementation decision, including the public leaf, denial order, and monotonic M1 activation markers. | contributor | plan-review | open | missing | | |
-| resolved-contract | resolved decisions | Admit only Execution Plans that preserve the canonical slicing, obligation, evidence, measurement, and startability contract. | contributor | semantic-conformance | open | missing | | |
+| resolved-contract | resolved decisions | Admit only Execution Plans that preserve the canonical slicing, obligation, evidence, measurement, and startability contract. | contributor | replan-journey | open | missing | | |
 | pr-decomposition | dependency and pull-request decomposition | Deliver the shared contract, enforcement consumers, and complete journey in three dependency-ordered independently safe PRs. | contributor | plan-review | open | missing | | |
 | testing | testing | Complete outside-in RED/GREEN/REFACTOR work and full regression proof through the installed CLI and real hook boundaries. | contributor | full-verification | open | missing | | |
 | data-compatibility | data and compatibility | Preserve exact upstream identities, normalized checklist progress, evidence classes, and rollback of persisted phase state. | contributor | replan-journey | open | missing | | |

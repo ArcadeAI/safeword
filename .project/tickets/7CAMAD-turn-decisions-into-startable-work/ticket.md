@@ -2,7 +2,7 @@
 id: 7CAMAD
 slug: turn-decisions-into-startable-work
 type: feature
-phase: implement
+phase: plan-execution
 status: in_progress
 phase_skips:
   - 'intake: originally inherited the 2026-09-08 approval of 82T411; that approval became stale after material parent changes and was superseded by the fresh Product Plan approval recorded on 2026-09-09T23:46:25.000Z'
@@ -47,6 +47,13 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-19T03:42:00.000Z Execution-proof correction: Independent RED review
+  found the first conformance test exercised only an in-process corpus lookup,
+  while the accepted demo requires the installed CLI to review the plan and
+  reach its named failing test. Returned to Execution Planning, kept the unit
+  corpus check as structural support, and assigned actor-boundary approval to
+  the Git-backed installed-CLI journey.
 
 - 2026-09-18T23:55:00.000Z Root cause: The ordinary-progress authorization test used an invalid completed Delivery Checklist row (`current` and `receipt`) instead of the contract's `current_revision_real_boundary` evidence class and `receipt:<id>` locator. The parser therefore denied the malformed plan before identity comparison. Confirmed by parsing both rows directly. Ruled out review-identity normalization because the before/after normalized digests were identical; ruled out the new authorization digest because denial occurred first in Delivery Checklist parsing.
 
