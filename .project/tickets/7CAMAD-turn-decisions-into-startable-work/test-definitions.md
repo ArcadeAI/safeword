@@ -196,7 +196,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Implementation cannot continue under a stale affected plan
 
-- [ ] RED
+- [x] RED d65d37e28
 - [ ] GREEN
 - [ ] REFACTOR
 
