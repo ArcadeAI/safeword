@@ -132,6 +132,7 @@ Feature: Turn accepted decisions into startable work
       Examples:
         | data_state | review_result |
         | says to use the appropriate store without naming the accepted store or ownership contract | approval is blocked and the unresolved data decision is returned to Implementation Planning |
+        | names a concrete store and ownership contract that the accepted Implementation Plan never decided | approval is blocked and the unresolved data decision is returned to Implementation Planning |
         | names the accepted store and ownership contract without changing them | the data decision does not block approval |
 
   @plan-implementability.TBU2.7CAMAD.R7
@@ -177,6 +178,7 @@ Feature: Turn accepted decisions into startable work
         | plan_state | coding_result |
         | edited in its reviewed definition content after semantic approval | coding is blocked until the current plan passes semantic review |
         | unedited after valid semantic approval with its source Implementation Plan unchanged and the achieved independence level recorded | coding is authorized |
+        | edited only by checking off a completed Delivery Checklist task after valid semantic approval | coding remains authorized |
 
     @surface.safeword-cli
     Scenario Outline: Execution Plan verdict and recorded assurance control coding authorization
@@ -374,7 +376,8 @@ Feature: Turn accepted decisions into startable work
 
       Examples:
         | change | invalidation_result |
-        | accepted product behavior or scope | both planning reviews become stale |
+        | accepted product behavior | both planning reviews become stale |
+        | the accepted scope boundary | both planning reviews become stale |
         | the accepted Implementation Plan | both planning reviews become stale |
         | only Execution Plan sequencing | only the Execution Plan review becomes stale |
         | only a completed delivery task being checked off in the Execution Plan's Delivery Checklist | neither planning review becomes stale |
