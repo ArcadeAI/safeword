@@ -72,15 +72,15 @@ Feature: Turn accepted decisions into startable work
 
     @surface.safeword-cli
     Scenario Outline: Review-contract identity controls semantic approval
-      Given the authoring review contract <contract_state>
+      Given the authoring and reviewer contract copies <contract_state>
       When the Execution Plan is submitted through the installed Safeword CLI for review
       Then <review_result>
 
       Examples:
         | contract_state | review_result |
-        | is missing | approval is blocked because the shared contract is unavailable |
-        | omits a required startability check but retains the same version label | approval is blocked because the contract-byte identity differs |
-        | is byte-identical to the reviewer contract | contract identity does not block semantic approval |
+        | include a missing copy | approval is blocked because the shared contract is unavailable |
+        | match each other but omit a required startability check from the current packaged canonical contract | approval is blocked because the canonical contract-byte identity differs |
+        | are both byte-identical to the current packaged canonical implementability contract | contract identity does not block semantic approval |
 
   @plan-implementability.TBU2.7CAMAD.R4
   Rule: plan-implementability.TBU2.7CAMAD.R4 — Execution discoveries return to the owning phase
