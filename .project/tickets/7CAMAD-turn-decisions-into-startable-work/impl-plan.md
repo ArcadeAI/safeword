@@ -211,7 +211,8 @@ provenance rules, and fallback policy remain owned by 5F5ZZA.
 Measurement applicability: skip: this child makes no quantitative product
 promise. It requires Execution Planning to translate any accepted upstream
 measurement promise into instrumentation, test, and evidence work without
-changing the promise or measurement design.
+changing the promise, measurement design, accepted validity safeguards, or
+failure behavior.
 
 ## Decisions
 
