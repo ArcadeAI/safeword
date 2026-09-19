@@ -65,7 +65,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Review-contract identity controls semantic approval
 
 - [x] RED bb2bf5c8d
-- [ ] GREEN
+- [x] GREEN b5ddd8b22
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R4 — Execution discoveries return to the owning phase
