@@ -4,17 +4,128 @@
 // Pure-ish helper (reads only the ticket folder) so the pre-tool hook can call
 // it standalone from .safeword/hooks/, mirroring the #404 readiness gate.
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { inspirationContractProvenance, specArtifactProvenance } from './feature-provenance.js';
 import { type ImplPlanResult, parseImplPlan, unresolvedDecisionNames } from './impl-plan.js';
 import { evaluateImplementationInspiration } from './inspiration.js';
+import { resolveNamespaceRoot } from './namespace-root.js';
 import { checkPrincipleTrace } from './principle-trace.js';
 
 export type PlanGateVerdict = { ok: true } | { ok: false; reason: string; remediation: string };
 
 const OK: PlanGateVerdict = { ok: true };
+
+/** Consume the public coding-authorization envelope without recomputing its prerequisites. */
+export function evaluateCodingAuthorization(
+  projectDirectory: string,
+  ticketId: string,
+  commandParts: readonly [string, ...string[]] | 'project-writable' | undefined,
+): PlanGateVerdict {
+  if (commandParts === undefined) {
+    return {
+      ok: false,
+      reason: 'Safeword could not check whether coding is authorized.',
+      remediation:
+        'Reinstall the Safeword plugin or set SAFEWORD_PLUGIN_CLI to the bundled runtime path.',
+    };
+  }
+  if (commandParts === 'project-writable') {
+    return {
+      ok: false,
+      reason: 'Safeword refused a project-writable coding-authorization command.',
+      remediation:
+        'Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.',
+    };
+  }
+  const [executable, ...prefix] = commandParts;
+  const checked = spawnSync(
+    executable,
+    [
+      ...prefix,
+      '--json',
+      '--no-input',
+      '--cwd',
+      projectDirectory,
+      'ticket',
+      'coding-authorization',
+      ticketId,
+    ],
+    { cwd: projectDirectory, encoding: 'utf8', timeout: 5000 },
+  );
+  try {
+    const parsed = JSON.parse(checked.stdout) as {
+      state?: unknown;
+      findings?: Array<{ message?: unknown }>;
+      next_actions?: Array<{ command?: unknown }>;
+      data?: {
+        command?: unknown;
+        coding_authorization?: unknown;
+        grants_authority?: unknown;
+        authorization_input_identity?: unknown;
+      };
+    };
+    if (
+      checked.status === 0 &&
+      parsed.state === 'healthy' &&
+      parsed.data?.command === 'ticket coding-authorization' &&
+      parsed.data.coding_authorization === 'authorized' &&
+      parsed.data.grants_authority === false &&
+      typeof parsed.data.authorization_input_identity === 'string' &&
+      parsed.data.authorization_input_identity !== ''
+    ) {
+      return OK;
+    }
+    if (
+      parsed.data?.command === 'ticket coding-authorization' &&
+      parsed.data.coding_authorization === 'denied' &&
+      parsed.data.grants_authority === false
+    ) {
+      const reason = parsed.findings?.find(
+        finding => typeof finding.message === 'string' && finding.message !== '',
+      )?.message;
+      const remediation = parsed.next_actions?.find(
+        action => typeof action.command === 'string' && action.command !== '',
+      )?.command;
+      return {
+        ok: false,
+        reason:
+          typeof reason === 'string'
+            ? reason
+            : 'The current planning evidence does not authorize coding.',
+        remediation:
+          typeof remediation === 'string'
+            ? remediation
+            : `Run safeword ticket coding-authorization ${ticketId} and complete its recovery action.`,
+      };
+    }
+  } catch {
+    // Fall through to the fail-closed invalid-result verdict below.
+  }
+  return {
+    ok: false,
+    reason: 'Safeword could not validate the coding-authorization result.',
+    remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
+  };
+}
+
+/** Return the exact executable action carried by the first unmet RED row. */
+export function firstNamedRedAction(
+  projectDirectory: string,
+  ticketFolder: string,
+): string | undefined {
+  const ledgerPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
+    ticketFolder,
+    'test-definitions.md',
+  );
+  if (!existsSync(ledgerPath)) return undefined;
+  const match = readFileSync(ledgerPath, 'utf8').match(/^\s*- \[ \] RED\s+(?:—|-|:)\s*(.+)$/mu);
+  return match?.[1]?.trim() || undefined;
+}
 
 function missingSpecVerdict(
   activationProvenance: ReturnType<typeof inspirationContractProvenance>,
