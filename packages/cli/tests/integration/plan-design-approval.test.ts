@@ -7,7 +7,7 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import {
   chmodSync,
   existsSync,
@@ -15,6 +15,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -97,7 +98,10 @@ interface Fixture {
   readonly ticketDirectory: string;
   readonly ticketPath: string;
   readonly ledgerPath: string;
+  readonly reviewId?: string;
 }
+
+type ReviewState = 'approved' | 'missing' | 'rejected';
 
 const fixtures: string[] = [];
 
@@ -108,7 +112,7 @@ function projectFiles(directory: string, root = directory): string[] {
   });
 }
 
-function fixture(designApprovalGate: boolean, reviewed = true): Fixture {
+function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approved'): Fixture {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plan-approval-'));
   fixtures.push(root);
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', TICKET_FOLDER);
@@ -116,6 +120,7 @@ function fixture(designApprovalGate: boolean, reviewed = true): Fixture {
   const ledgerPath = nodePath.join(root, '.project', 'skill-invocations.log');
   mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
   mkdirSync(nodePath.join(root, '.safeword', 'templates'), { recursive: true });
+  mkdirSync(nodePath.join(root, 'features'), { recursive: true });
   mkdirSync(ticketDirectory, { recursive: true });
   writeFileSync(
     nodePath.join(root, '.safeword', 'config.json'),
@@ -141,17 +146,106 @@ function fixture(designApprovalGate: boolean, reviewed = true): Fixture {
   writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
   writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), PLAN);
   writeFileSync(
+    nodePath.join(root, 'features', 'review-the-approach.feature'),
+    'Feature: Review the approach\n',
+  );
+  writeFileSync(
     nodePath.join(root, '.safeword', 'templates', 'execution-plan-template.md'),
     EXECUTION_PLAN_TEMPLATE,
   );
+  writeFileSync(ledgerPath, '');
+  if (reviewState === 'missing') return { root, ticketDirectory, ticketPath, ledgerPath };
+
+  const bin = installBlockingReviewer();
+  const target = `.project/tickets/${TICKET_FOLDER}/impl-plan.md`;
+  const reviewed = spawnSync(
+    process.execPath,
+    [
+      testCliPath,
+      'review',
+      'run',
+      'plan-implementation',
+      target,
+      '--context',
+      `.project/tickets/${TICKET_FOLDER}/spec.md`,
+      '--context',
+      'features/review-the-approach.feature',
+      '--json',
+      '--no-input',
+      '--cwd',
+      root,
+    ],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:/usr/bin:/bin`,
+        NODE_ENV: 'test',
+        SAFEWORD_AGENT_RUNTIME: 'codex',
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+        SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        SAFEWORD_REVIEW_FAKE_VERDICT: reviewState === 'rejected' ? 'request_changes' : 'approve',
+      },
+    },
+  );
+  const payload = JSON.parse(reviewed.stdout) as { data?: { review_id?: string } };
+  const reviewId = payload.data?.review_id;
+  if (reviewId === undefined)
+    throw new Error(`Implementation Plan review failed: ${reviewed.stdout}`);
   const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(PLAN));
   writeFileSync(
     ledgerPath,
-    reviewed
-      ? `2026-09-11T00:00:00.000Z fixture review:${scope} author:claude reviewer:codex independence:cross-agent review-id:${REVIEW_ID}\n`
-      : '',
+    [
+      `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      '',
+    ].join('\n'),
   );
-  return { root, ticketDirectory, ticketPath, ledgerPath };
+  return { root, ticketDirectory, ticketPath, ledgerPath, reviewId };
+}
+
+function mutateReview(
+  project: Fixture,
+  mutate: (data: Record<string, unknown>) => Record<string, unknown>,
+): void {
+  if (project.reviewId === undefined) throw new Error('review id missing');
+  const path = nodePath.join(
+    project.root,
+    '.safeword',
+    'state',
+    'reviews',
+    `${project.reviewId}.json`,
+  );
+  const record = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+  const { integrity: _integrity, ...unsigned } = record;
+  const result = { ...(unsigned.result as Record<string, unknown>) };
+  result.data = mutate({ ...(result.data as Record<string, unknown>) });
+  const changed = { ...unsigned, result };
+  const key = Buffer.from(
+    readFileSync(
+      nodePath.join(project.root, '.review-keys', 'safeword', 'review-integrity.key'),
+      'utf8',
+    ).trim(),
+    'hex',
+  );
+  const integrity = createHmac('sha256', key)
+    .update(realpathSync.native(project.root))
+    .update('\0')
+    .update(JSON.stringify(changed))
+    .digest('hex');
+  writeFileSync(path, `${JSON.stringify({ ...changed, integrity })}\n`);
+}
+
+function rewriteReviewStamps(project: Fixture, rewrite: (line: string) => string): void {
+  writeFileSync(
+    project.ledgerPath,
+    readFileSync(project.ledgerPath, 'utf8')
+      .split('\n')
+      .map(line => (line.includes(`review-id:${project.reviewId}`) ? rewrite(line) : line))
+      .join('\n'),
+  );
 }
 
 function phase(path: string): string | undefined {
@@ -162,6 +256,10 @@ function approvalEvents(path: string): string[] {
   return readFileSync(path, 'utf8')
     .split('\n')
     .filter(line => line.includes(' design-decision:'));
+}
+
+function reviewEnvironment(project: Fixture): Record<string, string> {
+  return { SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(project.root, '.review-keys') };
 }
 
 function decisionPayloads(path: string): Record<string, unknown>[] {
@@ -200,7 +298,12 @@ function runApprovalInPty(
     {
       cwd: project.root,
       encoding: 'utf8',
-      env: { ...process.env, NODE_ENV: 'test', ...environment },
+      env: {
+        ...process.env,
+        NODE_ENV: 'test',
+        ...reviewEnvironment(project),
+        ...environment,
+      },
     },
   );
 }
@@ -225,7 +328,15 @@ function runApprovalInPtyAsync(
         'approve-plan',
         ticketId,
       ],
-      { cwd: project.root, env: { ...process.env, NODE_ENV: 'test', ...environment } },
+      {
+        cwd: project.root,
+        env: {
+          ...process.env,
+          NODE_ENV: 'test',
+          ...reviewEnvironment(project),
+          ...environment,
+        },
+      },
     );
     child.once('error', reject);
     child.once('close', resolve);
@@ -279,7 +390,11 @@ case "$*" in
 esac
 payload=$(/bin/cat)
 dispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
-printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan is blocked","findings":[{"severity":"error","message":"Authorization boundary is missing."}]}\n' "$dispatch_id"
+if [ "${'$'}{SAFEWORD_REVIEW_FAKE_VERDICT:-approve}" = "request_changes" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan is blocked","findings":[{"severity":"error","message":"Authorization boundary is missing."}]}\n' "$dispatch_id"
+else
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved","findings":[]}\n' "$dispatch_id"
+fi
 `,
     { mode: 0o755 },
   );
@@ -299,6 +414,7 @@ describe('installed CLI human design authority follows configuration', () => {
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
       cwd: project.root,
+      env: reviewEnvironment(project),
     });
 
     expect(result.exitCode).toBe(0);
@@ -315,6 +431,7 @@ describe('installed CLI human design authority follows configuration', () => {
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
       cwd: project.root,
+      env: reviewEnvironment(project),
     });
 
     expect(result.exitCode, result.stdout).toBe(0);
@@ -336,6 +453,7 @@ describe('installed CLI human design authority follows configuration', () => {
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
       cwd: project.root,
+      env: reviewEnvironment(project),
     });
 
     expect(result.exitCode).toBe(1);
@@ -362,6 +480,7 @@ describe('installed CLI human design authority follows configuration', () => {
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
       cwd: project.root,
+      env: reviewEnvironment(project),
     });
 
     expect(result.timedOut).toBe(false);
@@ -416,9 +535,81 @@ describe('an accepted design enters Execution Planning', () => {
   });
 });
 
+describe('Implementation Plan review admission controls Execution Planning', () => {
+  it('reports a rejected semantic verdict instead of treating its stamp as approval', async () => {
+    const project = fixture(false, 'rejected');
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(result.stdout).toContain('Authorization boundary is missing.');
+  });
+
+  it('rejects an approving receipt with no achieved independence', async () => {
+    const project = fixture(false);
+    mutateReview(project, data => {
+      const { independence: _independence, ...withoutIndependence } = data;
+      return withoutIndependence;
+    });
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(result.stdout).toContain('validated achieved independence');
+  });
+
+  it('rejects a self-authored cross-agent claim', async () => {
+    const project = fixture(false);
+    mutateReview(project, data => ({
+      ...data,
+      author_agent: 'claude',
+      actual_reviewer: 'claude',
+    }));
+    rewriteReviewStamps(project, line =>
+      line.replace('author:codex reviewer:claude', 'author:claude reviewer:claude'),
+    );
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(result.stdout).toContain('validated achieved independence');
+  });
+
+  it('preserves a permitted fallback as degraded assurance', async () => {
+    const project = fixture(false);
+    mutateReview(project, data => ({ ...data, independence: 'degraded' }));
+    rewriteReviewStamps(project, line =>
+      line.replace('independence:cross-agent', 'independence:degraded'),
+    );
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: { approval_status: 'not-required', achieved_independence: 'degraded' },
+    });
+  });
+});
+
 describe('a review-blocked design is never presented for human approval', () => {
   it('returns the current semantic finding before crossing the prompt boundary', async () => {
-    const project = fixture(true, false);
+    const project = fixture(true, 'missing');
     const bin = installBlockingReviewer();
     const keyRoot = nodePath.join(project.root, 'review-integrity');
     const environment = {
@@ -427,6 +618,7 @@ describe('a review-blocked design is never presented for human approval', () => 
       SAFEWORD_NO_UPDATE_CHECK: '1',
       SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
       SAFEWORD_REVIEW_KEY_ROOT: keyRoot,
+      SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
     };
     const target = `.project/tickets/${TICKET_FOLDER}/impl-plan.md`;
     const reviewed = await runCli(
