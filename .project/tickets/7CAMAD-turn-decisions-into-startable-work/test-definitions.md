@@ -198,7 +198,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 9ca6f63c6
 - [x] GREEN 8f2059b23
-- [ ] REFACTOR
+- [x] REFACTOR skip: the phase-routing fix reuses existing discovery and plan-approval primitives; no new abstraction is warranted
 
 ### Scenario: Replanning reopens proof invalidated by the changed decision
 
