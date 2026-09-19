@@ -64,7 +64,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Review-contract identity controls semantic approval
 
-- [ ] RED
+- [x] RED bb2bf5c8d
 - [ ] GREEN
 - [ ] REFACTOR
 
