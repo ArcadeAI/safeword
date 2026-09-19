@@ -160,7 +160,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An execution step still proceeds through RED GREEN and REFACTOR
 
-- [ ] RED
+- [x] RED 40fed356a
 - [ ] GREEN
 - [ ] REFACTOR
 
