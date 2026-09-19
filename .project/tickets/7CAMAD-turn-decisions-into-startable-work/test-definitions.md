@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5d2aa327f
 - [x] GREEN 88efda591
-- [ ] REFACTOR
+- [x] REFACTOR skip: rejection shares the existing authenticated review decision path
 
 ### Scenario: A self-authored independence claim cannot authorize planning
 
