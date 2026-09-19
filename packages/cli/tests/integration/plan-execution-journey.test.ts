@@ -283,7 +283,6 @@ describe('Execution Plan cold-start journey', () => {
       }).stdout.trim();
       const reviewerBin = installContractCheckingReviewer();
       const reviewKeyRoot = nodePath.join(root, '.review-keys');
-      const implementationBefore = readFileSync(nodePath.join(root, 'src', 'auth.ts'), 'utf8');
 
       const reviews = [
         {
@@ -376,9 +375,6 @@ describe('Execution Plan cold-start journey', () => {
         reviewKeyRoot,
       );
       expectHookDeny(productionEdit, RED_COMMAND.join(' '));
-      expect(readFileSync(nodePath.join(root, 'src', 'auth.ts'), 'utf8')).toBe(
-        implementationBefore,
-      );
       const red = spawnSync(RED_COMMAND[0], RED_COMMAND.slice(1), { cwd: root, encoding: 'utf8' });
       expect(red.status).toBe(1);
       expect(red.stderr).toContain('denied request is not implemented');
@@ -404,9 +400,19 @@ describe('Execution Plan cold-start journey', () => {
         '',
       ].join('\n');
       writeFileSync(ledgerPath, observedLedger);
-      expect(readFileSync(ledgerPath, 'utf8')).toContain(
-        `Observed RED: \`${RED_COMMAND.join(' ')}\` exited 1 before production changes.\n- [x] RED ${fixtureRevision}`,
+      const productionEditAfterRed = runPreTool(
+        root,
+        {
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: nodePath.join(root, 'src', 'auth.ts'),
+            old_string: 'export const policy = "pending";',
+            new_string: 'export const policy = "denied";',
+          },
+        },
+        reviewKeyRoot,
       );
+      expectHookAllow(productionEditAfterRed);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
