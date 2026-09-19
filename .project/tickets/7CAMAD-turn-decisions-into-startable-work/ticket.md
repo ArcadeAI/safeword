@@ -2,7 +2,7 @@
 id: 7CAMAD
 slug: turn-decisions-into-startable-work
 type: feature
-phase: implement
+phase: plan-implementation
 status: in_progress
 phase_skips:
   - 'intake: originally inherited the 2026-09-08 approval of 82T411; that approval became stale after material parent changes and was superseded by the fresh Product Plan approval recorded on 2026-09-09T23:46:25.000Z'
@@ -50,6 +50,18 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-19T18:05:00.000Z Returned to scenario gate — obligation-floor
+  correction: executable-RED review exposed a contradiction between R10's
+  zero-obligation example and 6XW8H7's accepted contract that every in-scope
+  feature retains at least one accepted behavior obligation and owner. Kept
+  that behavior floor and narrowed the example to optional migration, rollout,
+  rollback, documentation, and affected-surface categories that the accepted
+  approach explicitly marks inapplicable. Rejected a `no_pull_request` mode
+  because it would expand the approved schema and could authorize delivery
+  planning with no executable work; rejected denying all inapplicability
+  because that would manufacture placeholder tasks. Existing evidence remains
+  audit history, but both plans require fresh review after this scenario repair.
 
 - 2026-09-19T17:24:52.000Z Root cause — installed proof-step journey:
   the canonical concrete-proof sentence was present in the generated reviewer

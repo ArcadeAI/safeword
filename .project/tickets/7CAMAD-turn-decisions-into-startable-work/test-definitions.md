@@ -150,7 +150,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An explicitly obligation-free accepted approach does not manufacture execution work
+### Scenario: Explicitly inapplicable obligations do not manufacture execution work
 
 - [ ] RED
 - [ ] GREEN

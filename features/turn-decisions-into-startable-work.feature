@@ -226,6 +226,8 @@ Feature: Turn accepted decisions into startable work
         | an affected surface |
         | a migration obligation |
         | a rollout obligation |
+        | a rollback obligation |
+        | a documentation obligation |
 
     @surface.safeword-cli @live
     Scenario Outline: Partial obligation mapping is not startable
@@ -245,10 +247,10 @@ Feature: Turn accepted decisions into startable work
       Then obligation mapping does not block approval
 
     @surface.safeword-cli @live
-    Scenario: An explicitly obligation-free accepted approach does not manufacture execution work
-      Given the accepted approach explicitly records that it has no execution obligations
+    Scenario: Explicitly inapplicable obligations do not manufacture execution work
+      Given the accepted approach has one accepted behavior obligation and explicitly records migration, rollout, rollback, documentation, and affected-surface work as inapplicable
       When implementability is reviewed through the installed Safeword CLI
-      Then obligation mapping reports nothing to map without creating placeholder steps
+      Then the accepted behavior maps to startable work without placeholder work for the inapplicable categories
 
   @plan-implementability.TBU2.7CAMAD.R11
   Rule: plan-implementability.TBU2.7CAMAD.R11 — Execution Planning supplies rather than replaces TDD
@@ -317,9 +319,9 @@ Feature: Turn accepted decisions into startable work
 
     @surface.safeword-cli @live
     Scenario: The Execution Plan maps delivery obligations into owned review units
-      Given an accepted feature requires code, tests, migration, monitoring, rollback, and documentation
+      Given an Execution Plan's Delivery Checklist maps required code, tests, migration, monitoring, rollback, and documentation into dependency-ordered tasks with completion signals
       When its Execution Plan is reviewed through the installed Safeword CLI
-      Then approval is not blocked and every obligation's dependency-ordered task and completion signal are named under the canonical A639WN checklist
+      Then approval is not blocked and every obligation is owned by a named pull-request slice under the canonical A639WN checklist and 6XW8H7 slicing contracts
 
     @surface.safeword-cli
     Scenario Outline: Canonical slicing-contract identity prevents local contract drift
