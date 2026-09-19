@@ -69,6 +69,7 @@ from outside those sources.
   slice to begin with the highest-risk named RED and state its command or fixture
   plus the failure signal before any production edit. Reject any step that leaves
   behavior, architecture, data, proof, or ordering for the implementer to invent.
+  <span>A test step must name its fixture, command, edit action, expected exit or assertion, and real actor boundary.</span>
 - **Dependency safety:** Require every prerequisite to name a unique earlier
   slice. Reject cycles, forward dependencies, missing prerequisites, and any
   slice that becomes safe only after a later merge. Every intermediate merge
@@ -84,6 +85,17 @@ from outside those sources.
   Decision, or the explicit no-load-bearing-choice applicability decision, with
   the readable status `unchanged`. Reject an omitted obligation, an unowned
   slice, or any reopened decision.
+- **Discovery routing:** Classify every requested change by what it alters. A
+  fixture implementation, test command, file location, sequencing detail, or
+  other execution mechanic remains in `plan-execution` when all accepted
+  behavior, design, API, data, and proof boundaries remain unchanged. Any
+  changed or newly required accepted decision—including a design, API, data,
+  behavior, or proof boundary—returns to `plan-implementation`. Classify the
+  semantic change, not its filename: a path-only edit stays, while a path edit
+  that also changes the accepted API contract returns. An inadequate command,
+  fixture, or proof method stays in `plan-execution` when the accepted proof
+  boundary itself remains unchanged; only changing that accepted boundary
+  returns to `plan-implementation`.
 - **Scenario and approach coverage:** Judge whether the checklist obligations
   cover every accepted scenario and preserve the accepted Implementation Plan
   approach. Reject a complete-looking generic checklist that is unrelated to
@@ -102,7 +114,11 @@ from outside those sources.
   it. Copy `execution_plan_normalized_digest` exactly so any plan change outside
   ordinary checklist progress invalidates the retained review.
 
-For an approval, return `execution_plan_record` containing the slicing decision
+Always return `planning_destination`. Set it to `plan-execution` for approvals
+and for denials that only require Execution Plan repair. Set it to
+`plan-implementation` when a denial exposes a missing or changed accepted
+decision or proof boundary. For an approval, return `execution_plan_record`
+containing the slicing decision
 and rationale; the complete ordered slices; obligation-owner entries; and
 decision-status entries; `accepted_scenarios_covered: true`;
 `accepted_approach_preserved: true`; and `delivery_definition` copied exactly

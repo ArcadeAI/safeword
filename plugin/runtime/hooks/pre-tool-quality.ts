@@ -54,7 +54,12 @@ import {
 import { reviewKindForPhase } from './lib/review-receipt.ts';
 import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
-import { evaluateExecutionPlanningEntry, evaluateImplementEntry } from './lib/plan-gate.ts';
+import {
+  evaluateCodingAuthorization,
+  evaluateExecutionPlanningEntry,
+  evaluateImplementEntry,
+  firstNamedRedAction,
+} from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
@@ -1249,6 +1254,10 @@ if (!state) {
 
 if (state.activeTicket) {
   const ticketInfo = getTicketInfo(projectDirectory, state.activeTicket);
+  const ticketDirectory =
+    ticketInfo.folder === undefined
+      ? undefined
+      : nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', ticketInfo.folder);
 
   // Planning code freeze (TXRHMD, #480): while a feature plans, application
   // code stays untouched — the plan is the phase's only deliverable. Meta
@@ -1264,6 +1273,31 @@ if (state.activeTicket) {
       'Feature at plan-implementation phase: application code stays untouched while planning. Finish impl-plan.md, advance the ticket to implement, then write code.',
       'Author impl-plan.md next to ticket.md (scaffold from "\${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
     );
+  }
+
+  if (
+    ticketInfo.type === 'feature' &&
+    ticketInfo.folder !== undefined &&
+    ticketDirectory !== undefined &&
+    existsSync(nodePath.join(ticketDirectory, 'execution-plan.md'))
+  ) {
+    const authorization = evaluateCodingAuthorization(
+      projectDirectory,
+      state.activeTicket,
+      safewordCliCommand(),
+    );
+    if (!authorization.ok) {
+      recordFailure(projectDirectory, input.session_id, 'coding-authorization-denied');
+      deny(authorization.reason, authorization.remediation);
+    }
+    const redAction = firstNamedRedAction(projectDirectory, ticketInfo.folder);
+    if (redAction !== undefined) {
+      recordFailure(projectDirectory, input.session_id, 'production-before-named-red');
+      deny(
+        `Production code cannot precede the current scenario's named RED: ${redAction}`,
+        `Run the named RED action first: ${redAction}`,
+      );
+    }
   }
 
   if (ticketInfo.type === 'feature' && ticketInfo.phase === 'implement' && ticketInfo.folder) {

@@ -31758,6 +31758,69 @@ var init_review_identity = __esm(() => {
   ORDINARY_PROGRESS_DISPOSITIONS = new Set(["open", "complete"]);
 });
 
+// src/utils/markdown-sections.ts
+function computeSkipMask(lines) {
+  const skip = [];
+  let isInsideCodeFence = false;
+  let isInsideComment = false;
+  for (const line of lines) {
+    if (line.trimStart().startsWith("```")) {
+      skip.push(true);
+      isInsideCodeFence = !isInsideCodeFence;
+      continue;
+    }
+    if (isInsideCodeFence) {
+      skip.push(true);
+      continue;
+    }
+    if (!isInsideComment && line.trimStart().startsWith("<!--"))
+      isInsideComment = true;
+    if (isInsideComment) {
+      skip.push(true);
+      if (line.includes("-->"))
+        isInsideComment = false;
+      continue;
+    }
+    skip.push(false);
+  }
+  return skip;
+}
+function stripInlineComments(text) {
+  let result = "";
+  let pos = 0;
+  while (pos < text.length) {
+    const open2 = text.indexOf("<!--", pos);
+    if (open2 === -1) {
+      result += text.slice(pos);
+      break;
+    }
+    result += text.slice(pos, open2);
+    const close = text.indexOf("-->", open2 + 4);
+    if (close === -1) {
+      result += text.slice(open2);
+      break;
+    }
+    pos = close + 3;
+  }
+  return result;
+}
+function parseHeading(line) {
+  const trimmed = line.trim();
+  let level = 0;
+  while (level < trimmed.length && trimmed.charAt(level) === "#")
+    level += 1;
+  if (level === 0 || level > 6)
+    return;
+  const rest = trimmed.slice(level);
+  if (rest.length === 0 || !HEADING_WHITESPACE.test(rest))
+    return;
+  return { level, text: rest.trim() };
+}
+var HEADING_WHITESPACE;
+var init_markdown_sections = __esm(() => {
+  HEADING_WHITESPACE = /^\s/;
+});
+
 // src/execution-plan/delivery-checklist.ts
 import { randomUUID as randomUUID8 } from "crypto";
 import {
@@ -32399,6 +32462,12 @@ from outside those sources.
   signal, and a readable \`relies_on_unmerged_successor\` assertion. Reject a
   slice with two independently valuable purposes or any implementation choice
   the approved plan did not settle.
+- **Startable steps:** Every executable step must name its exact action, inputs,
+  prerequisites, and observable expected result. Require the first production
+  slice to begin with the highest-risk named RED and state its command or fixture
+  plus the failure signal before any production edit. Reject any step that leaves
+  behavior, architecture, data, proof, or ordering for the implementer to invent.
+  <span>A test step must name its fixture, command, edit action, expected exit or assertion, and real actor boundary.</span>
 - **Dependency safety:** Require every prerequisite to name a unique earlier
   slice. Reject cycles, forward dependencies, missing prerequisites, and any
   slice that becomes safe only after a later merge. Every intermediate merge
@@ -32414,6 +32483,17 @@ from outside those sources.
   Decision, or the explicit no-load-bearing-choice applicability decision, with
   the readable status \`unchanged\`. Reject an omitted obligation, an unowned
   slice, or any reopened decision.
+- **Discovery routing:** Classify every requested change by what it alters. A
+  fixture implementation, test command, file location, sequencing detail, or
+  other execution mechanic remains in \`plan-execution\` when all accepted
+  behavior, design, API, data, and proof boundaries remain unchanged. Any
+  changed or newly required accepted decision\u2014including a design, API, data,
+  behavior, or proof boundary\u2014returns to \`plan-implementation\`. Classify the
+  semantic change, not its filename: a path-only edit stays, while a path edit
+  that also changes the accepted API contract returns. An inadequate command,
+  fixture, or proof method stays in \`plan-execution\` when the accepted proof
+  boundary itself remains unchanged; only changing that accepted boundary
+  returns to \`plan-implementation\`.
 - **Scenario and approach coverage:** Judge whether the checklist obligations
   cover every accepted scenario and preserve the accepted Implementation Plan
   approach. Reject a complete-looking generic checklist that is unrelated to
@@ -32432,7 +32512,11 @@ from outside those sources.
   it. Copy \`execution_plan_normalized_digest\` exactly so any plan change outside
   ordinary checklist progress invalidates the retained review.
 
-For an approval, return \`execution_plan_record\` containing the slicing decision
+Always return \`planning_destination\`. Set it to \`plan-execution\` for approvals
+and for denials that only require Execution Plan repair. Set it to
+\`plan-implementation\` when a denial exposes a missing or changed accepted
+decision or proof boundary. For an approval, return \`execution_plan_record\`
+containing the slicing decision
 and rationale; the complete ordered slices; obligation-owner entries; and
 decision-status entries; \`accepted_scenarios_covered: true\`;
 \`accepted_approach_preserved: true\`; and \`delivery_definition\` copied exactly
@@ -32444,7 +32528,7 @@ slice's \`relies_on_unmerged_successor\` to \`false\` and every decision status 
 coverage booleans to true only after judging the supplied scenarios and
 approach. For a denial, return the record as null and name each blocking slice,
 field, obligation, dependency, proof, or decision in findings. Never approve
-because the prose merely contains the expected labels.`;
+because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "16dd96cada2b059a83bc55f248b6faf51f36addafe6378bc39940d5767b69646";
 
 // src/review/execution-plan-rubric.ts
 function extractExecutionPlanReviewRubric(reference) {
@@ -32631,6 +32715,8 @@ var PLAN_RUBRIC_START = "<!-- SAFEWORD:PLAN_RUBRIC_START -->", PLAN_RUBRIC_END =
 var exports_packet = {};
 __export(exports_packet, {
   prepareReviewPacket: () => prepareReviewPacket,
+  packagedPlanContract: () => packagedPlanContract,
+  assemblePlanContract: () => assemblePlanContract,
   ReviewPacketError: () => ReviewPacketError
 });
 import { createHash as createHash17, randomUUID as randomUUID9 } from "crypto";
@@ -32741,6 +32827,18 @@ function digest2(content) {
 function planObligations(contract) {
   return Array.from(contract.matchAll(/^- \*\*([^*]+):\*\*/gmu), (match) => match[1]?.trim() ?? "");
 }
+function assemblePlanContract(authorRubric, reviewerRubric) {
+  if (authorRubric === undefined || authorRubric.trim() === "") {
+    throw new ReviewPacketError("The authoring contract copy is missing or blank.");
+  }
+  if (reviewerRubric === undefined || reviewerRubric.trim() === "") {
+    throw new ReviewPacketError("The generated reviewer contract copy is missing or blank.");
+  }
+  return {
+    author: { sha256: digest2(authorRubric), obligations: planObligations(authorRubric) },
+    reviewer: { sha256: digest2(reviewerRubric), obligations: planObligations(reviewerRubric) }
+  };
+}
 function packageRoot() {
   const runtimeDirectory = nodePath45.basename(import.meta.dirname);
   return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath45.dirname(import.meta.dirname) : nodePath45.resolve(import.meta.dirname, "../..");
@@ -32772,26 +32870,18 @@ function packagedExecutionPlanAuthorRubric() {
       throw new Error("contract file is absent");
     return extractExecutionPlanReviewRubric(readFileSync31(contractPath, "utf8"));
   } catch {
-    throw new ReviewPacketError("The packaged Execution Planning contract is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.");
+    throw new ReviewPacketError("The packaged Execution Planning authoring contract copy is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.");
   }
 }
-function currentPlanContract(kind) {
+function packagedPlanContract(kind) {
   const authorRubric = kind === "plan-execution" ? packagedExecutionPlanAuthorRubric() : packagedPlanAuthorRubric();
   const reviewerRubric = kind === "plan-execution" ? EXECUTION_PLAN_REVIEW_RUBRIC : PLAN_REVIEW_RUBRIC;
-  const author = {
-    sha256: digest2(authorRubric),
-    obligations: planObligations(authorRubric)
-  };
-  const reviewer = {
-    sha256: digest2(reviewerRubric),
-    obligations: planObligations(reviewerRubric)
-  };
-  return { author, reviewer };
+  return assemblePlanContract(authorRubric, reviewerRubric);
 }
 function packetPlanContract(kind, configured) {
   if (kind !== "plan-implementation" && kind !== "plan-execution")
     return {};
-  return { plan_contract: configured ?? currentPlanContract(kind) };
+  return { plan_contract: configured ?? packagedPlanContract(kind) };
 }
 function fileDigest(path7) {
   try {
@@ -33372,7 +33462,13 @@ function isValidExecutionPlanRecord(value) {
   const record = value;
   return hasValidSliceGraph(record) && hasValidObligationOwners(record) && hasValidDecisionStatuses(record) && hasValidDeliveryDefinition(record.delivery_definition);
 }
+function hasValidPlanningDestination(output) {
+  const destination = output.planning_destination;
+  return (destination === "plan-execution" || destination === "plan-implementation") && (output.verdict !== "approve" || destination === "plan-execution");
+}
 function validateExecutionPlanOutput(output, expectedDefinition, expectedNormalizedPlanDigest) {
+  if (!hasValidPlanningDestination(output))
+    return { kind: "invalid_output" };
   if (output.verdict === "request_changes")
     return deniedOutput(output);
   const candidate = output.execution_plan_record;
@@ -33771,12 +33867,14 @@ function reviewerOutputKeys(kind) {
     "summary",
     "findings"
   ]);
-  if (kind === "plan-execution")
+  if (kind === "plan-execution") {
+    keys.add("planning_destination");
     keys.add("execution_plan_record");
+  }
   return keys;
 }
 function hasKindSpecificOutput(value, kind) {
-  return kind !== "plan-execution" || value.verdict === "request_changes" || Object.hasOwn(value, "execution_plan_record");
+  return kind !== "plan-execution" || (value.planning_destination === "plan-execution" || value.planning_destination === "plan-implementation") && Object.hasOwn(value, "execution_plan_record");
 }
 function hasValidReviewerOutputBody(value, kind) {
   if (!isRecord7(value))
@@ -33806,16 +33904,31 @@ function reviewPrompt(reviewer, packet) {
   return `${reviewerPromptInstructions(packet.kind, reviewer)}
 ${JSON.stringify(packet)}`;
 }
+function executionPlanIdentityConflicts(contract) {
+  const authorIsCanonical = contract.author.sha256 === EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
+  if (!authorIsCanonical && contract.author.sha256 === contract.reviewer.sha256) {
+    return [
+      "Matching author and reviewer copies differ from the packaged canonical contract-byte identity."
+    ];
+  }
+  const reviewerIsCanonical = contract.reviewer.sha256 === EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
+  return [
+    ...authorIsCanonical ? [] : [
+      "The authoring contract copy differs from the packaged canonical contract-byte identity."
+    ],
+    ...reviewerIsCanonical ? [] : [
+      "The stale generated reviewer contract copy differs from the packaged canonical contract-byte identity."
+    ]
+  ];
+}
 function reconcilePlanContract(packet, output) {
   const contract = packet.plan_contract;
   if (packet.kind !== "plan-implementation" && packet.kind !== "plan-execution" || contract === undefined)
     return output;
   const author = new Set(contract.author.obligations);
   const reviewer = new Set(contract.reviewer.obligations);
-  const conflicts = [
-    ...[...author].filter((obligation) => !reviewer.has(obligation)).map((obligation) => `Author contract requires "${obligation}" but reviewer contract does not.`),
-    ...[...reviewer].filter((obligation) => !author.has(obligation)).map((obligation) => `Reviewer contract requires "${obligation}" but author contract does not.`)
-  ];
+  const conflicts = packet.kind === "plan-execution" ? executionPlanIdentityConflicts(contract) : [];
+  conflicts.push(...[...author].filter((obligation) => !reviewer.has(obligation)).map((obligation) => `Author contract requires "${obligation}" but reviewer contract does not.`), ...[...reviewer].filter((obligation) => !author.has(obligation)).map((obligation) => `Reviewer contract requires "${obligation}" but author contract does not.`));
   const identitiesMatch = contract.author.sha256 === contract.reviewer.sha256;
   if (identitiesMatch && conflicts.length === 0)
     return output;
@@ -33826,6 +33939,7 @@ function reconcilePlanContract(packet, output) {
     ...output,
     verdict: "request_changes",
     ...packet.kind === "plan-execution" && {
+      planning_destination: "plan-execution",
       execution_plan_record: NULL_EXECUTION_PLAN_RECORD2
     },
     summary: "Safeword blocked approval until the author and reviewer contracts are reconciled.",
@@ -34653,9 +34767,17 @@ var init_runtime = __esm(() => {
     ...REVIEW_OUTPUT_SCHEMA_SHAPE,
     properties: {
       ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+      planning_destination: {
+        type: "string",
+        enum: ["plan-execution", "plan-implementation"]
+      },
       execution_plan_record: EXECUTION_PLAN_RECORD_SCHEMA
     },
-    required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, "execution_plan_record"]
+    required: [
+      ...REVIEW_OUTPUT_SCHEMA_SHAPE.required,
+      "planning_destination",
+      "execution_plan_record"
+    ]
   };
   CLAUDE_EFFORT_LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
   ARGUMENTS = {
@@ -34869,7 +34991,11 @@ function fingerprint(cwd, kind, targets, context = [], execution) {
       for (const file of files) {
         hash.update(file.path);
         hash.update("\x00");
-        hash.update(reviewFingerprintContent(section, file.path, file.content, executionPlanTarget?.path, executionPlanFingerprint));
+        hash.update(reviewFingerprintContent(section, file.path, file.content, {
+          executionPlanTargetPath: executionPlanTarget?.path,
+          executionPlanFingerprint,
+          executableRedScenario: executableRedScenarioForFile(cwd, file.path, execution)
+        }));
         hash.update("\x00");
       }
     }
@@ -34878,11 +35004,49 @@ function fingerprint(cwd, kind, targets, context = [], execution) {
     prepared.cleanup();
   }
 }
-function reviewFingerprintContent(section, path7, content, executionPlanTargetPath, executionPlanFingerprint) {
-  if (section === "targets" && path7 === executionPlanTargetPath && executionPlanFingerprint !== undefined) {
-    return executionPlanFingerprint;
+function reviewFingerprintContent(section, path7, content, options) {
+  if (section === "targets" && path7 === options.executionPlanTargetPath && options.executionPlanFingerprint !== undefined) {
+    return options.executionPlanFingerprint;
+  }
+  if (options.executableRedScenario !== undefined) {
+    return executableRedLedgerIdentity(content, options.executableRedScenario);
   }
   return content;
+}
+function executableRedScenarioForFile(cwd, file, execution) {
+  if (execution === undefined)
+    return;
+  return nodePath47.resolve(cwd, file) === nodePath47.resolve(cwd, execution.ledger) ? execution.scenario : undefined;
+}
+function ledgerHeadings(lines, skipped) {
+  return lines.flatMap((line, index) => {
+    if (skipped.at(index) === true)
+      return [];
+    const heading = parseHeading(line);
+    return heading === undefined ? [] : [{ index, line, ...heading }];
+  });
+}
+function executableRedLedgerIdentity(content, scenario) {
+  const lines = content.split(`
+`);
+  const skipped = computeSkipMask(lines);
+  const headings = ledgerHeadings(lines, skipped);
+  const featureSources = lines.filter((line, index) => skipped.at(index) !== true && /^\s*(?:\*\*)?Feature source:(?:\*\*)?\s*`[^`]+`/iu.test(line));
+  const matches = headings.filter((heading) => heading.text === scenario);
+  if (matches.length !== 1)
+    return content;
+  const [match] = matches;
+  if (match === undefined)
+    return content;
+  const end = headings.find((heading) => heading.index > match.index && heading.level <= match.level)?.index ?? lines.length;
+  const parent = headings.findLast((heading) => heading.index < match.index && heading.level < match.level);
+  const rule = parent?.text.startsWith("Rule:") === true ? parent.line : undefined;
+  return [
+    ...featureSources,
+    ...rule === undefined ? [] : [rule],
+    ...lines.slice(match.index, end)
+  ].join(`
+`);
 }
 function pathEscapes(root, candidate) {
   const relative = nodePath47.relative(root, candidate);
@@ -35873,6 +36037,7 @@ var init_job = __esm(() => {
   init_policy();
   init_result();
   init_review_identity();
+  init_markdown_sections();
   init_contract();
   init_packet();
   init_runtime();
@@ -36292,13 +36457,30 @@ var init_red_execution = __esm(() => {
   MAX_EXCERPT_BYTES = 64 * 1024;
 });
 
+// src/utils/frontmatter.ts
+function readFrontmatterScalar(content, field) {
+  const lines = content?.split(/\r?\n/) ?? [];
+  if (lines[0] !== "---")
+    return;
+  const prefix = `${field}:`;
+  for (const line of lines.slice(1)) {
+    if (line === "---")
+      return;
+    if (!line.startsWith(prefix))
+      continue;
+    const value = line.slice(prefix.length).trim();
+    return value === "" ? undefined : value;
+  }
+  return;
+}
+
 // src/review/execution-plan-admission.generated.ts
 var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
-    contract_sha256: "1d00eefce049c5101967da7923b60b338865cbf8f600fc1acfaf50a6de4b1852",
-    corpus_sha256: "a2292b51bf3be96c768ff8f1bcf8e8fc864d966a091ab1d14cafb078dee7231e",
+    contract_sha256: "9e610bcff0602065581bac5166b26a3ab75f5d6662617417792b78b6d2244ff1",
+    corpus_sha256: "d39150e31632dadbbca83dd9eee2f947c5f1cc3a3cb84a46134b527a20c9740a",
     identities: [
       {
         reviewer: "claude",
@@ -36325,13 +36507,31 @@ var init_execution_plan_admission_generated = __esm(() => {
           "line-count-only-rationale",
           "all-obligations-assigned",
           "all-decisions-unchanged",
+          "vague-data-ownership",
+          "invented-data-ownership",
+          "accepted-data-ownership",
           "missing-behavior-obligation",
           "missing-migration-obligation",
           "missing-rollout-obligation",
           "missing-rollback-obligation",
           "missing-documentation-obligation",
           "missing-affected-surface-obligation",
-          "reopened-authorization-decision"
+          "reopened-authorization-decision",
+          "fixture-discovery-stays-in-execution-planning",
+          "test-command-discovery-stays-in-execution-planning",
+          "path-only-discovery-stays-in-execution-planning",
+          "accepted-design-discovery-returns-to-implementation-planning",
+          "accepted-proof-discovery-returns-to-implementation-planning",
+          "path-and-api-discovery-returns-to-implementation-planning",
+          "fresh-context-first-red",
+          "exact-cli-denial-proof",
+          "missing-cli-subprocess-boundary",
+          "missing-denied-exit-assertion",
+          "later-step-is-not-startable",
+          "blocked-first-prerequisite",
+          "no-executable-steps",
+          "risk-first-ordering",
+          "parallel-safe-after-probe"
         ]
       }
     ]
@@ -36344,6 +36544,11 @@ function stagedOwners(prerequisite, activation) {
   return { "Accepted behavior": activation, "Migration work": prerequisite };
 }
 function slice(input) {
+  const tasks = input.tasks ?? [
+    `1. RED: run \`bun run test tests/execution-plan.test.ts -t "${input.name}"\` with the ${input.name} fixture and observe exit 1 with \`${input.name} is not implemented\` before editing production code.`,
+    `2. GREEN: implement ${input.purpose ?? input.name} within the accepted boundary, then rerun the named RED command and observe exit 0.`,
+    "3. REFACTOR: remove duplication without changing the passing result, then rerun the named command and observe exit 0."
+  ];
   return `### ${input.name}
 
 ${input.purpose === undefined ? "" : `- Purpose: ${input.purpose}
@@ -36351,7 +36556,13 @@ ${input.purpose === undefined ? "" : `- Purpose: ${input.purpose}
 `}${input.prerequisites === undefined ? "" : `- Prerequisites: ${input.prerequisites}
 `}${input.proof === undefined ? "" : `- Proof: ${input.proof}
 `}${input.completion === undefined ? "" : `- Completion signal: ${input.completion}
-`}`;
+`}- Relies on an unmerged successor: no
+
+#### Tasks and tests
+
+${tasks.join(`
+`)}
+`;
 }
 function executionPlan(input) {
   const owners = OBLIGATIONS.filter((obligation) => obligation !== input.omittedObligation).map((obligation, index) => {
@@ -36380,6 +36591,12 @@ ${input.decisionText ?? DECISIONS.map((decision) => `- ${decision}: unchanged`).
 
 ${deliveryContract(input.unrelatedChecklist === true, input.unrealProof === true)}
 `;
+}
+function withDecisionAccounting(plan, decisionText) {
+  const start = plan.indexOf(BASE_DECISION_ACCOUNTING);
+  if (start === -1)
+    throw new Error("Conformance fixture is missing base decision accounting");
+  return `${plan.slice(0, start)}${decisionText}${plan.slice(start + BASE_DECISION_ACCOUNTING.length)}`;
 }
 function deliveryContract(unrelated, unrealProof) {
   const items = DELIVERY_CHECKLIST_CATEGORIES.map((category, index) => {
@@ -36412,6 +36629,7 @@ function approved(id, scenario, plan, slicingDecision, sliceNames) {
     execution_plan: plan,
     expectation: {
       verdict: "approve",
+      planning_destination: "plan-execution",
       slicing_decision: slicingDecision,
       slice_names: sliceNames,
       obligations: OBLIGATIONS,
@@ -36425,8 +36643,40 @@ function denied(id, scenario, plan, findingTerms) {
     scenario,
     implementation_plan: IMPLEMENTATION_PLAN,
     execution_plan: plan,
-    expectation: { verdict: "request_changes", finding_terms: findingTerms }
+    expectation: {
+      verdict: "request_changes",
+      planning_destination: "plan-execution",
+      finding_terms: findingTerms
+    }
   };
+}
+function decisionChangingDiscovery(id, scenario, plan, findingTerms) {
+  const testCase = denied(id, scenario, plan, findingTerms);
+  return {
+    ...testCase,
+    expectation: { ...testCase.expectation, planning_destination: "plan-implementation" }
+  };
+}
+function concreteProofPlan(step) {
+  return executionPlan({
+    decision: "one pull request",
+    rationale: "One edited-plan denial is one independently provable behavior.",
+    slices: [
+      {
+        name: "Edited-plan denial proof",
+        purpose: "Prove the accepted edited-plan denial.",
+        boundary: "Installed CLI subprocess response.",
+        prerequisites: "none",
+        proof: "behavior-boundary",
+        completion: "The installed CLI exits 2 for the edited-plan fixture.",
+        tasks: [
+          `1. RED: ${step}`,
+          "2. GREEN: implement the accepted edited-plan denial, then rerun the named command and observe exit code 0.",
+          "3. REFACTOR: preserve the installed CLI boundary, then rerun the named command and observe exit code 0."
+        ]
+      }
+    ]
+  });
 }
 function missingFieldCase(id, field, term) {
   return denied(id, `A planned pull request omits its ${term}; review names ${term} as required.`, executionPlan({
@@ -36470,7 +36720,7 @@ function filterExecutionPlanRoutes(kind, routes, evidence = EXECUTION_PLAN_ADMIS
     return [];
   return routes.filter((route) => admittedIdentity(route, evidence.identities));
 }
-var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integrity, failure-signals, security-boundary, rollout-rollback, and documentation-contract", ALL_DELIVERY_PROOFS, IMPLEMENTATION_PLAN, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, UNCHANGED_DECISIONS_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
+var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integrity, failure-signals, security-boundary, rollout-rollback, and documentation-contract", ALL_DELIVERY_PROOFS, IMPLEMENTATION_PLAN, DATA_IMPLEMENTATION_PLAN, PROOF_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, UNCHANGED_DECISIONS_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
 var init_execution_plan_conformance = __esm(() => {
   init_delivery_checklist();
   init_execution_plan_admission_generated();
@@ -36500,13 +36750,31 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
 - One shared authorization service owns permission checks for every transport.
 - Host-neutral dependency order keeps every intermediate merge supported.
 `;
+  DATA_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted data design
+
+- The project-local SQLite database \`delivery.db\` stores delivery evidence.
+- DeliveryStateService owns all reads and writes for that store.
+`;
+  PROOF_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted proof strategy
+
+- Edited-plan denial uses the named fixture and command through the installed CLI subprocess and must assert exit code 2.
+`;
+  BASE_DECISION_ACCOUNTING = DECISIONS.map((decision) => `- ${decision}: unchanged`).join(`
+`);
   CONTRACT_SLICE = {
     name: "Contract",
     purpose: "Package the canonical Execution Planning contract.",
     boundary: "Contract template, schema registration, and generated assets.",
     prerequisites: "none",
     proof: "data-compatibility: package tests compare every installed contract byte.",
-    completion: "The inert contract ships and the repository remains supported."
+    completion: "The inert contract ships and the repository remains supported.",
+    tasks: [
+      "1. RED: run `bun run test:schema-compatibility` with the generated-contract fixture and observe `canonical contract bytes differ` before editing templates.",
+      "2. GREEN: add the canonical contract to the template registry, regenerate its mirrors, and rerun `bun run test:schema-compatibility` with exit 0.",
+      "3. REFACTOR: remove duplicate contract text, regenerate the mirrors, and rerun `bun run test:schema-compatibility` with exit 0."
+    ]
   };
   ACTIVATION_SLICE = {
     name: "Activation",
@@ -36514,7 +36782,12 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     boundary: "Review routing, result retention, CLI presentation, failure signals, authorization, rollout, rollback, and documentation.",
     prerequisites: "Contract",
     proof: ACTIVATION_PROOFS,
-    completion: "The accepted behavior and every activation obligation are delivered and supported."
+    completion: "The accepted behavior and every activation obligation are delivered and supported.",
+    tasks: [
+      "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing review routing.",
+      "2. GREEN: connect public review routing to typed result retention, then run `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.",
+      "3. REFACTOR: keep one result-retention path for every caller, then rerun the six activation proof commands with exit 0."
+    ]
   };
   CHECKLIST_OBLIGATIONS = [
     "Deliver Accepted behavior.",
@@ -36585,7 +36858,12 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         boundary: "Contract, CLI behavior, compatibility, failure signals, authorization, rollout, rollback, and documentation.",
         prerequisites: "none",
         proof: ALL_DELIVERY_PROOFS,
-        completion: "Every accepted obligation is delivered and the repository remains supported."
+        completion: "Every named proof command passes on the merge candidate and every checklist item has completion evidence.",
+        tasks: [
+          "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing production code.",
+          "2. GREEN: add the canonical contract, wire typed review and authorization, complete migration and rollback handling, and publish the documented command; then run every proof command named by the slice with exit 0.",
+          "3. REFACTOR: consolidate shared result validation without changing public output, then rerun every named proof command with exit 0."
+        ]
       }
     ]
   });
@@ -36612,7 +36890,12 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         boundary: "Result type, validation, persistence, compatibility, failure and security behavior, rollout, rollback, and documentation.",
         prerequisites: "none",
         proof: ALL_DELIVERY_PROOFS,
-        completion: "A complete judgment round-trips and every accepted obligation is supported."
+        completion: "A complete judgment round-trips and every accepted obligation is supported.",
+        tasks: [
+          "1. RED: run `bun run test:review-cli` with a complete-result fixture and observe `typed review result does not round-trip` before editing persistence.",
+          "2. GREEN: implement schema validation and result persistence for the complete typed judgment, then run every proof command named by the slice with exit 0.",
+          "3. REFACTOR: share one validator between write and read paths, then rerun every named proof command with exit 0."
+        ]
       }
     ]
   });
@@ -36626,7 +36909,12 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         boundary: "Types and schema only; no reader calls it.",
         prerequisites: "none",
         proof: "data-compatibility: schema golden tests pass.",
-        completion: "The unused schema ships without changing runtime behavior."
+        completion: "The unused schema ships without changing runtime behavior.",
+        tasks: [
+          "1. RED: run `bun run test:schema-compatibility` with the result-schema fixture and observe `result schema is missing` before editing schema files.",
+          "2. GREEN: add the inert result schema without a runtime consumer, then rerun `bun run test:schema-compatibility` with exit 0.",
+          "3. REFACTOR: remove duplicate schema declarations and rerun `bun run test:schema-compatibility` with exit 0."
+        ]
       },
       {
         name: "Reader",
@@ -36634,7 +36922,12 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         boundary: "Reader activation, persistence, failure signals, authorization, rollout, rollback, and documentation.",
         prerequisites: "Schema",
         proof: ACTIVATION_PROOFS,
-        completion: "The reader and every activation obligation are supported."
+        completion: "The reader and every activation obligation are supported.",
+        tasks: [
+          "1. RED: run `bun run test:review-cli` with a schema-valid result and observe `result reader is unavailable` before editing the reader.",
+          "2. GREEN: read and retain schema-valid results through the public review command, then run every activation proof command with exit 0.",
+          "3. REFACTOR: reuse the schema validator in the reader and rerun every activation proof command with exit 0."
+        ]
       }
     ],
     obligationOwners: stagedOwners("Schema", "Reader")
@@ -36649,7 +36942,12 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         boundary: "Canonical source, mechanical mirrors, compatibility, failure and security behavior, rollout, rollback, and documentation.",
         prerequisites: "none",
         proof: ALL_DELIVERY_PROOFS,
-        completion: "All mirrors and every accepted delivery obligation are supported."
+        completion: "All mirrors and every accepted delivery obligation are supported.",
+        tasks: [
+          "1. RED: run `bun run test:schema-compatibility` with the generated-mirror fixture and observe `generated contract bytes differ` before editing the canonical template.",
+          "2. GREEN: update the canonical template and regenerate every registered mirror, then run every proof command named by the slice with exit 0.",
+          "3. REFACTOR: remove duplicate hand-authored mirror text, regenerate, and rerun every named proof command with exit 0."
+        ]
       }
     ]
   });
@@ -36663,7 +36961,12 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         boundary: "One schema file.",
         prerequisites: "none",
         proof: "data-compatibility: a golden test proves the schema bytes.",
-        completion: "The schema is available but unused."
+        completion: "The schema is available but unused.",
+        tasks: [
+          "1. RED: run `bun run test:schema-compatibility` with the public-result fixture and observe `public result schema is missing` before editing schema files.",
+          "2. GREEN: add the inert public result schema, then rerun `bun run test:schema-compatibility` with exit 0.",
+          "3. REFACTOR: consolidate schema declarations and rerun `bun run test:schema-compatibility` with exit 0."
+        ]
       },
       {
         name: "Public activation",
@@ -36671,14 +36974,19 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         boundary: "Public routing, failure signals, authorization, rollout, rollback, and documentation.",
         prerequisites: "Inert schema",
         proof: ACTIVATION_PROOFS,
-        completion: "The command and every activation obligation are supported."
+        completion: "The command and every activation obligation are supported.",
+        tasks: [
+          "1. RED: run `bun run test:review-cli` with the public-command fixture and observe `review command is unavailable` before editing routing.",
+          "2. GREEN: register the public review command and connect it to schema-valid results, then run every activation proof command with exit 0.",
+          "3. REFACTOR: keep one command-routing path and rerun every activation proof command with exit 0."
+        ]
       }
     ],
     obligationOwners: stagedOwners("Inert schema", "Public activation")
   });
   OBLIGATION_PLAN = executionPlan({
     decision: "multiple pull requests",
-    rationale: "Contract delivery and release activation divide ownership without dropping an obligation.",
+    rationale: "The inert contract is reviewable through byte-compatibility proof before the separately provable public review activation consumes it.",
     slices: [
       { ...CONTRACT_SLICE, name: "Contract owner" },
       {
@@ -36699,9 +37007,149 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         name: "Decision-preserving activation",
         prerequisites: "none",
         boundary: "Contract compatibility, review activation, shared authorization, host-neutral ordering, failure signals, rollout, rollback, and documentation.",
-        proof: ALL_DELIVERY_PROOFS
+        proof: ALL_DELIVERY_PROOFS,
+        tasks: [
+          "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing production code.",
+          "2. GREEN: register review routing, migrate the stored result schema compatibly, connect the shared authorization service, add failure signals, wire feature-flag rollout and rollback, and publish the command documentation.",
+          "3. GREEN: run `bun run test:schema-compatibility`, `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.",
+          "4. REFACTOR: keep one typed result and authorization path, then rerun all seven proof commands with exit 0."
+        ]
       }
     ]
+  });
+  STARTABLE_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "One authorization denial is one independently provable behavior.",
+    slices: [
+      {
+        name: "Authorization denial",
+        purpose: "Reject a denied request.",
+        boundary: "Public authorization response.",
+        prerequisites: "none",
+        proof: "behavior-boundary",
+        completion: "The denied request returns the accepted error.",
+        tasks: [
+          "1. RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.",
+          "2. GREEN: implement the accepted denial in `src/auth.ts`.",
+          "3. REFACTOR: keep the authorization boundary in one owner."
+        ]
+      }
+    ]
+  });
+  EXACT_CLI_DENIAL_PROOF_PLAN = concreteProofPlan("using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert exit code 2 before editing production code.");
+  MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN = concreteProofPlan("using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the TBD CLI boundary and assert exit code 2 before editing production code.");
+  MISSING_DENIED_EXIT_ASSERTION_PLAN = concreteProofPlan("using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert the TBD denied-exit result before editing production code.");
+  LATER_UNSTARTABLE_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "One authorization denial is one independently provable behavior.",
+    slices: [
+      {
+        name: "Authorization denial",
+        purpose: "Reject a denied request.",
+        boundary: "Public authorization response.",
+        prerequisites: "none",
+        proof: "behavior-boundary",
+        completion: "The denied request returns the accepted error.",
+        tasks: [
+          "1. RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.",
+          "2. GREEN: implement the accepted denial in `src/auth.ts`.",
+          "3. REFACTOR: keep the authorization boundary in one owner.",
+          "4. TODO: decide whether denied authorization returns an error or an empty result before implementation."
+        ]
+      }
+    ]
+  });
+  BLOCKED_FIRST_PREREQUISITE_PLAN = executionPlan({
+    decision: "multiple pull requests",
+    rationale: "Activation follows a contract that is not yet complete.",
+    slices: [
+      {
+        ...ACTIVATION_SLICE,
+        name: "Activation",
+        prerequisites: "Unfinished contract"
+      }
+    ]
+  });
+  NO_EXECUTABLE_STEPS_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "One authorization change is one review unit.",
+    slices: [
+      {
+        ...CONTRACT_SLICE,
+        name: "Authorization change",
+        tasks: []
+      }
+    ]
+  });
+  RISK_FIRST_PLAN = executionPlan({
+    decision: "multiple pull requests",
+    rationale: "Resolve the highest-risk contract assumption before activating the command.",
+    slices: [
+      {
+        ...CONTRACT_SLICE,
+        name: "Risk probe",
+        purpose: "Prove the canonical result contract before any consumer activates it.",
+        completion: "The highest-risk contract assumption is proven before activation begins."
+      },
+      {
+        ...ACTIVATION_SLICE,
+        name: "Activation",
+        prerequisites: "Risk probe",
+        proof: ALL_DELIVERY_PROOFS,
+        tasks: [
+          "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing review routing.",
+          "2. GREEN: connect public review routing to typed result retention, then run `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.",
+          "3. REFACTOR: keep one result-retention path for every caller, then rerun the six activation proof commands with exit 0."
+        ]
+      }
+    ],
+    obligationOwners: stagedOwners("Risk probe", "Activation")
+  });
+  PARALLEL_AFTER_PROBE_PLAN = executionPlan({
+    decision: "multiple pull requests",
+    rationale: "Resolve the shared contract risk first, then implement two independently provable consumers in parallel.",
+    slices: [
+      {
+        ...CONTRACT_SLICE,
+        name: "Risk probe",
+        purpose: "Prove the accepted shared contract before either consumer uses it.",
+        completion: "The shared contract is proven before either consumer begins."
+      },
+      {
+        name: "CLI consumer",
+        purpose: "Activate the public CLI consumer after the shared contract is proven.",
+        prerequisites: "Risk probe",
+        boundary: "CLI routing and result presentation only.",
+        proof: "behavior-boundary, plan-integrity, failure-signals, security-boundary, and rollout-rollback",
+        completion: "The CLI consumer passes every named boundary proof.",
+        tasks: [
+          "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing CLI routing.",
+          "2. GREEN: activate the CLI consumer, then run `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, and `bun run test:rollout-rollback` with exit 0.",
+          "3. REFACTOR: keep one CLI result path, then rerun the five CLI proof commands with exit 0."
+        ]
+      },
+      {
+        name: "Documentation consumer",
+        purpose: "Publish the independent documentation consumer after the shared contract is proven.",
+        prerequisites: "Risk probe",
+        boundary: "Published command documentation only; no CLI routing changes.",
+        proof: "documentation-contract",
+        completion: "The documented command matches the proven shared contract.",
+        tasks: [
+          "1. RED: run `bun run test:documentation-contract` and observe `documented command is unavailable` before editing documentation.",
+          "2. GREEN: publish the command documentation, then rerun `bun run test:documentation-contract` with exit 0.",
+          "3. REFACTOR: remove duplicate examples, then rerun `bun run test:documentation-contract` with exit 0."
+        ]
+      }
+    ],
+    obligationOwners: {
+      "Accepted behavior": "CLI consumer",
+      "Migration work": "Risk probe",
+      "Rollout work": "CLI consumer",
+      "Rollback work": "CLI consumer",
+      "Documentation work": "Documentation consumer",
+      "Affected-surface work": "CLI consumer"
+    }
   });
   EXECUTION_PLAN_CONFORMANCE_CASES = [
     approved("one-coherent-change", "One coherent change records one pull request.", ONE_PLAN, "one_pull_request", ["Complete delivery"]),
@@ -36780,19 +37228,98 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     }), ["conceptual", "proof"]),
     approved("all-obligations-assigned", "Every accepted obligation has an owner.", OBLIGATION_PLAN, "multiple_pull_requests", ["Contract owner", "Release owner"]),
     approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", UNCHANGED_DECISIONS_PLAN, "one_pull_request", ["Decision-preserving activation"]),
+    {
+      ...denied("vague-data-ownership", "A vague store reference is denied and reported as an unnamed accepted data decision.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
+- Host-neutral dependency order keeps every intermediate merge supported: unchanged
+- Use the appropriate store and ownership contract during implementation.`), ["data", "unnamed"]),
+      implementation_plan: DATA_IMPLEMENTATION_PLAN
+    },
+    {
+      ...decisionChangingDiscovery("invented-data-ownership", "A concrete data design invented downstream is denied and reported as an invented data decision.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
+- Host-neutral dependency order keeps every intermediate merge supported: unchanged
+- Store delivery evidence in Redis and let ReviewService own reads and writes.`), ["data", "invented"])
+    },
+    {
+      ...approved("accepted-data-ownership", "The accepted concrete store and owner do not block semantic approval.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
+- Host-neutral dependency order keeps every intermediate merge supported: unchanged
+- The project-local SQLite database \`delivery.db\` stores delivery evidence: unchanged
+- DeliveryStateService owns all reads and writes for that store: unchanged`), "one_pull_request", ["Complete delivery"]),
+      implementation_plan: DATA_IMPLEMENTATION_PLAN,
+      expectation: {
+        verdict: "approve",
+        planning_destination: "plan-execution",
+        slicing_decision: "one_pull_request",
+        slice_names: ["Complete delivery"],
+        obligations: OBLIGATIONS,
+        decisions: [
+          "One shared authorization service owns permission checks for every transport",
+          "Host-neutral dependency order keeps every intermediate merge supported",
+          "The project-local SQLite database `delivery.db` stores delivery evidence",
+          "DeliveryStateService owns all reads and writes for that store"
+        ]
+      }
+    },
     missingObligationCase("missing-behavior-obligation", "Accepted behavior"),
     missingObligationCase("missing-migration-obligation", "Migration work"),
     missingObligationCase("missing-rollout-obligation", "Rollout work"),
     missingObligationCase("missing-rollback-obligation", "Rollback work"),
     missingObligationCase("missing-documentation-obligation", "Documentation work"),
     missingObligationCase("missing-affected-surface-obligation", "Affected-surface work"),
-    denied("reopened-authorization-decision", "A slice cannot move the accepted shared authorization boundary.", executionPlan({
+    decisionChangingDiscovery("reopened-authorization-decision", "A slice cannot move the accepted shared authorization boundary.", executionPlan({
       decision: "one pull request",
       rationale: "The slice replaces the accepted authorization design.",
       slices: [{ ...CONTRACT_SLICE, purpose: "Move authorization into each transport." }],
       decisionText: `- One shared authorization service owns permission checks for every transport: changed to per-transport checks
 - Host-neutral dependency order keeps every intermediate merge supported: unchanged`
-    }), ["authorization"])
+    }), ["authorization"]),
+    approved("fixture-discovery-stays-in-execution-planning", "A discovered fixture implementation change preserves every accepted decision and proof boundary.", `${ONE_PLAN}
+## Discovery
+
+The fixture implementation must move from a builder to a literal without changing behavior, API, data, or proof boundaries.
+`, "one_pull_request", ["Complete delivery"]),
+    approved("test-command-discovery-stays-in-execution-planning", "A discovered test-command change preserves every accepted decision and proof boundary.", `${ONE_PLAN}
+## Discovery
+
+The test command must use the package-local runner without changing the accepted proof boundary.
+`, "one_pull_request", ["Complete delivery"]),
+    approved("path-only-discovery-stays-in-execution-planning", "A file or helper location change with no contract consequence stays in Execution Planning.", `${ONE_PLAN}
+## Discovery
+
+Move one helper file without changing behavior, API, data, or proof boundaries.
+`, "one_pull_request", ["Complete delivery"]),
+    decisionChangingDiscovery("accepted-design-discovery-returns-to-implementation-planning", "A discovery requires replacing the accepted shared authorization design.", `${ONE_PLAN}
+## Discovery
+
+Implementation requires moving authorization ownership from the accepted shared service into each transport.
+`, ["authorization", "decision"]),
+    decisionChangingDiscovery("accepted-proof-discovery-returns-to-implementation-planning", "A discovery requires replacing an accepted real-boundary proof with structural evidence.", `${ONE_PLAN}
+## Discovery
+
+The accepted public CLI proof cannot run; replace it with a parser unit test that does not exercise that boundary.
+`, ["proof", "boundary"]),
+    decisionChangingDiscovery("path-and-api-discovery-returns-to-implementation-planning", "A file-path discovery also changes the accepted API contract.", `${ONE_PLAN}
+## Discovery
+
+Move the handler file and replace the accepted public command response with a new API contract.
+`, ["api", "contract"]),
+    approved("fresh-context-first-red", "A fresh-context agent can begin with the named highest-risk RED without inventing a decision.", STARTABLE_PLAN, "one_pull_request", ["Authorization denial"]),
+    {
+      ...approved("exact-cli-denial-proof", "A complete proof step names its fixture, command, edit action, denied exit assertion, and installed CLI subprocess boundary.", EXACT_CLI_DENIAL_PROOF_PLAN, "one_pull_request", ["Edited-plan denial proof"]),
+      implementation_plan: PROOF_IMPLEMENTATION_PLAN
+    },
+    {
+      ...denied("missing-cli-subprocess-boundary", "A proof step with a placeholder actor boundary is denied with the missing subprocess boundary named.", MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, ["subprocess", "boundary"]),
+      implementation_plan: PROOF_IMPLEMENTATION_PLAN
+    },
+    {
+      ...denied("missing-denied-exit-assertion", "A proof step with a placeholder denied-exit result is denied with the missing exit assertion named.", MISSING_DENIED_EXIT_ASSERTION_PLAN, ["exit", "assertion"]),
+      implementation_plan: PROOF_IMPLEMENTATION_PLAN
+    },
+    decisionChangingDiscovery("later-step-is-not-startable", "A concrete first RED cannot hide an unresolved behavior decision in the fourth step.", LATER_UNSTARTABLE_PLAN, ["behavior decision", "before implementation"]),
+    denied("blocked-first-prerequisite", "The first planned slice depends on an incomplete prerequisite and is not startable.", BLOCKED_FIRST_PREREQUISITE_PLAN, ["prerequisite", "startable"]),
+    denied("no-executable-steps", "A plan with no executable task leaves a fresh agent with no startable step.", NO_EXECUTABLE_STEPS_PLAN, ["executable", "step"]),
+    approved("risk-first-ordering", "Independent work orders the highest-risk probe before activation.", RISK_FIRST_PLAN, "multiple_pull_requests", ["Risk probe", "Activation"]),
+    approved("parallel-safe-after-probe", "Independent consumers may proceed in parallel after the shared risk probe.", PARALLEL_AFTER_PROBE_PLAN, "multiple_pull_requests", ["Risk probe", "CLI consumer", "Documentation consumer"])
   ];
 });
 
@@ -36803,12 +37330,34 @@ __export(exports_coordinator, {
 });
 import { readFileSync as readFileSync35 } from "fs";
 import nodePath50 from "path";
+function implementationPlanningRecovery(cwd, target) {
+  try {
+    const targetPath = nodePath50.resolve(cwd, target);
+    const ticketPath = nodePath50.join(nodePath50.dirname(targetPath), "ticket.md");
+    const ticket = readFileSync35(ticketPath, "utf8");
+    const ticketId = readFrontmatterScalar(ticket, "id");
+    if (ticketId === undefined || ticketId.trim() === "")
+      return [];
+    return [
+      {
+        command: `safeword ticket approve-plan ${ticketId}`,
+        description: "Apply the reviewed return to Implementation Planning before repairing the accepted decision.",
+        requiresHuman: false
+      }
+    ];
+  } catch {
+    return [];
+  }
+}
 function planExecutionRecovery(input) {
   if (input.kind !== "plan-execution" || input.output.verdict !== "request_changes")
     return [];
   const target = input.targets[0];
   if (target === undefined)
     return [];
+  if (input.output.planning_destination === "plan-implementation") {
+    return implementationPlanningRecovery(input.cwd, target);
+  }
   let plan;
   try {
     plan = readFileSync35(nodePath50.resolve(input.cwd, target), "utf8");
@@ -41176,23 +41725,6 @@ function cryptoIdMinter() {
 var CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ", ID_LENGTH = 6;
 var init_id_minter = () => {};
 
-// src/utils/frontmatter.ts
-function readFrontmatterScalar(content, field) {
-  const lines = content?.split(/\r?\n/) ?? [];
-  if (lines[0] !== "---")
-    return;
-  const prefix = `${field}:`;
-  for (const line of lines.slice(1)) {
-    if (line === "---")
-      return;
-    if (!line.startsWith(prefix))
-      continue;
-    const value = line.slice(prefix.length).trim();
-    return value === "" ? undefined : value;
-  }
-  return;
-}
-
 // src/utils/product-plan-contract.ts
 import { createHash as createHash23 } from "crypto";
 import { existsSync as existsSync28, readdirSync as readdirSync14, readFileSync as readFileSync46 } from "fs";
@@ -42259,7 +42791,7 @@ function parseJtbdSection(specContent) {
   }
   return { entries, skip };
 }
-function computeSkipMask(lines) {
+function computeSkipMask2(lines) {
   const skip = [];
   let insideCodeFence = false;
   let insideComment = false;
@@ -42285,7 +42817,7 @@ function computeSkipMask(lines) {
   }
   return skip;
 }
-function stripInlineComments(text) {
+function stripInlineComments2(text) {
   let result = "";
   let pos = 0;
   while (pos < text.length) {
@@ -42307,12 +42839,12 @@ function stripInlineComments(text) {
 function activeLines2(content) {
   const lines = content.split(`
 `);
-  const skip = computeSkipMask(lines);
+  const skip = computeSkipMask2(lines);
   const out = [];
   for (const [index, line] of lines.entries()) {
     if (skip[index])
       continue;
-    const text = stripInlineComments(line).trim();
+    const text = stripInlineComments2(line).trim();
     if (text !== "")
       out.push({ index, text });
   }
@@ -55923,69 +56455,6 @@ var init_gherkin_feature = __esm(() => {
   };
 });
 
-// src/utils/markdown-sections.ts
-function computeSkipMask2(lines) {
-  const skip = [];
-  let isInsideCodeFence = false;
-  let isInsideComment = false;
-  for (const line of lines) {
-    if (line.trimStart().startsWith("```")) {
-      skip.push(true);
-      isInsideCodeFence = !isInsideCodeFence;
-      continue;
-    }
-    if (isInsideCodeFence) {
-      skip.push(true);
-      continue;
-    }
-    if (!isInsideComment && line.trimStart().startsWith("<!--"))
-      isInsideComment = true;
-    if (isInsideComment) {
-      skip.push(true);
-      if (line.includes("-->"))
-        isInsideComment = false;
-      continue;
-    }
-    skip.push(false);
-  }
-  return skip;
-}
-function stripInlineComments2(text) {
-  let result = "";
-  let pos = 0;
-  while (pos < text.length) {
-    const open2 = text.indexOf("<!--", pos);
-    if (open2 === -1) {
-      result += text.slice(pos);
-      break;
-    }
-    result += text.slice(pos, open2);
-    const close = text.indexOf("-->", open2 + 4);
-    if (close === -1) {
-      result += text.slice(open2);
-      break;
-    }
-    pos = close + 3;
-  }
-  return result;
-}
-function parseHeading(line) {
-  const trimmed = line.trim();
-  let level = 0;
-  while (level < trimmed.length && trimmed.charAt(level) === "#")
-    level += 1;
-  if (level === 0 || level > 6)
-    return;
-  const rest = trimmed.slice(level);
-  if (rest.length === 0 || !HEADING_WHITESPACE.test(rest))
-    return;
-  return { level, text: rest.trim() };
-}
-var HEADING_WHITESPACE;
-var init_markdown_sections = __esm(() => {
-  HEADING_WHITESPACE = /^\s/;
-});
-
 // src/utils/validation.ts
 function groupByLine(entries, pick) {
   const grouped = new Map;
@@ -56129,13 +56598,13 @@ function parseTermHeader(line) {
   if (line === "##")
     return "";
   if (line.startsWith("## "))
-    return stripInlineComments2(line.slice(3)).trim();
+    return stripInlineComments(line.slice(3)).trim();
   return;
 }
 function parseGlossary(content) {
   const lines = content.split(`
 `);
-  const skip = computeSkipMask2(lines);
+  const skip = computeSkipMask(lines);
   const entries = [];
   let current;
   let activeField;
@@ -56205,7 +56674,7 @@ function isValidPersonaCode(code) {
 function parseHeaderLine(line) {
   if (!line.startsWith("## "))
     return;
-  const body = stripInlineComments2(line.slice(3)).trimEnd();
+  const body = stripInlineComments(line.slice(3)).trimEnd();
   if (body.endsWith(")")) {
     const openParen = body.lastIndexOf("(");
     if (openParen !== -1) {
@@ -56219,7 +56688,7 @@ function parseHeaderLine(line) {
 function parsePersonas(content) {
   const lines = content.split(`
 `);
-  const skip = computeSkipMask2(lines);
+  const skip = computeSkipMask(lines);
   const personas = [];
   let current;
   for (const [index, line] of lines.entries()) {
@@ -56354,7 +56823,7 @@ function parseAcReferenceFromTitle(title) {
 function parseCriteriaIdsByJtbd(specContent) {
   const lines = specContent.split(`
 `);
-  const skip = computeSkipMask2(lines);
+  const skip = computeSkipMask(lines);
   const byJtbd = new Map;
   let state = { inSection: false, currentJtbd: undefined };
   for (const [index, line] of lines.entries()) {
@@ -56441,7 +56910,7 @@ function buildSurfaceCoverageReportFromFeature(specContent, featureContent) {
 function parseAffectedSurfaceReferences(specContent) {
   const lines = specContent.split(`
 `);
-  const skip = computeSkipMask2(lines);
+  const skip = computeSkipMask(lines);
   const surfaces = [];
   let state = { inSurfacesSection: false, inAffectedList: false };
   for (const [index, rawLine] of lines.entries()) {
@@ -56604,7 +57073,7 @@ function jtbdPart(reference) {
 function parseTestDefinitionReferences(content) {
   const lines = content.split(`
 `);
-  const skip = computeSkipMask2(lines);
+  const skip = computeSkipMask(lines);
   const references = [];
   for (const [index, line] of lines.entries()) {
     if (skip[index] === true)
@@ -67550,7 +68019,7 @@ var init_learning_sync = __esm(() => {
 function parseScenarios(testDefinitionsContent) {
   const lines = testDefinitionsContent.split(`
 `);
-  const skip = computeSkipMask2(lines);
+  const skip = computeSkipMask(lines);
   const scenarios = [];
   let currentRule;
   let current;
@@ -68475,6 +68944,7 @@ var init_plan_gate = __esm(() => {
   init_feature_provenance();
   init_impl_plan();
   init_inspiration();
+  init_namespace_root2();
   init_principle_trace();
   OK2 = { ok: true };
 });
@@ -68939,6 +69409,107 @@ var init_approval_ledger = __esm(() => {
   deliveryCompatibilityLinePattern = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) cli delivery-compatibility:v1:(\{.*\})$/u;
 });
 
+// src/review/phase-admission.ts
+import nodePath123 from "path";
+function isRecord11(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function coversTarget(data, cwd, target) {
+  return Array.isArray(data.review_targets) && data.review_targets.some((candidate) => typeof candidate === "string" && nodePath123.resolve(cwd, candidate) === target);
+}
+function rejectionMessage(output, label) {
+  if (Array.isArray(output.findings)) {
+    for (const finding2 of output.findings) {
+      if (isRecord11(finding2) && typeof finding2.message === "string")
+        return finding2.message;
+    }
+  }
+  return `The ${label} review requested changes.`;
+}
+function reviewCandidate(input, reviewId) {
+  const authenticated = reviewJobStatus(input.cwd, reviewId, {
+    allowMalformedReviewerOutput: true
+  });
+  if (!isRecord11(authenticated.data))
+    return;
+  const data = authenticated.data;
+  if (data.review_kind !== input.kind || !coversTarget(data, input.cwd, input.target) || !isRecord11(data.reviewer_output)) {
+    return;
+  }
+  return { data, output: data.reviewer_output };
+}
+function isCurrentReceipt(cwd, reviewId) {
+  const current = reviewJobStatus(cwd, reviewId);
+  return isRecord11(current.data) && current.data.command === "review run" && ["approved", "changes_requested"].includes(String(current.data.status));
+}
+function assuranceMatches(candidate, stamp, independence) {
+  const { data, output } = candidate;
+  return [
+    stamp.independence === independence,
+    stamp.author === data.author_agent,
+    stamp.reviewer === data.actual_reviewer,
+    output.reviewer_agent === data.actual_reviewer,
+    typeof data.author_agent === "string",
+    typeof data.actual_reviewer === "string"
+  ].every(Boolean);
+}
+function assuranceAdmission(candidate, stamp, label) {
+  const { data } = candidate;
+  const independence = data.independence;
+  if (independence !== "cross-agent" && independence !== "degraded") {
+    return {
+      kind: "unearned_assurance",
+      message: `The ${label} review has no validated achieved independence.`
+    };
+  }
+  if (independence === "cross-agent" && data.author_agent === data.actual_reviewer) {
+    return {
+      kind: "unearned_assurance",
+      message: `The ${label} review's self-authored cross-agent claim did not establish achieved independence.`
+    };
+  }
+  if (!assuranceMatches(candidate, stamp, independence)) {
+    return {
+      kind: "unearned_assurance",
+      message: `The recorded assurance disagrees with the authenticated ${label} review.`
+    };
+  }
+  return {
+    kind: "admitted",
+    provenance: {
+      authorAgent: data.author_agent,
+      reviewerAgent: data.actual_reviewer,
+      independence
+    }
+  };
+}
+function phaseReviewAdmission(input) {
+  const scope = `${nodePath123.basename(input.ticketDirectory)}:phase@${input.kind}`;
+  const stamps = parseReviewStamps(input.ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
+  for (const stamp of stamps) {
+    if (stamp.reviewId === undefined)
+      continue;
+    const candidate = reviewCandidate(input, stamp.reviewId);
+    if (candidate === undefined)
+      continue;
+    if (!isCurrentReceipt(input.cwd, stamp.reviewId))
+      return { kind: "not_admitted" };
+    const { data, output } = candidate;
+    if (output.verdict === "request_changes") {
+      return { kind: "rejected", message: rejectionMessage(output, input.label) };
+    }
+    if (output.verdict !== "approve" || data.status !== "approved") {
+      return { kind: "not_admitted" };
+    }
+    return assuranceAdmission(candidate, stamp, input.label);
+  }
+  return { kind: "not_admitted" };
+}
+var init_phase_admission = __esm(() => {
+  init_review_ledger();
+  init_job();
+});
+
 // src/commands/plan-approval.ts
 var exports_plan_approval = {};
 __export(exports_plan_approval, {
@@ -68953,7 +69524,7 @@ import {
   renameSync as renameSync16,
   writeFileSync as writeFileSync30
 } from "fs";
-import nodePath123 from "path";
+import nodePath124 from "path";
 import process18 from "process";
 import { createInterface as createInterface2 } from "readline/promises";
 function interruptApprovalForTest(boundary) {
@@ -68968,8 +69539,8 @@ function readContext2(cwd, ticketId) {
   const ticketDirectory = resolveTicketDirectory(cwd, ticketId);
   if (ticketDirectory === undefined)
     throw new Error(`Ticket "${ticketId}" does not resolve.`);
-  const ticketPath = nodePath123.join(ticketDirectory, "ticket.md");
-  const planPath = nodePath123.join(ticketDirectory, "impl-plan.md");
+  const ticketPath = nodePath124.join(ticketDirectory, "ticket.md");
+  const planPath = nodePath124.join(ticketDirectory, "impl-plan.md");
   if (!existsSync58(ticketPath) || !existsSync58(planPath)) {
     throw new Error(`Ticket "${ticketId}" needs ticket.md and impl-plan.md.`);
   }
@@ -68981,12 +69552,12 @@ function readContext2(cwd, ticketId) {
     ticketPath,
     planPath,
     plan,
-    ledgerPath: nodePath123.join(resolveNamespaceRoot(cwd), "skill-invocations.log"),
+    ledgerPath: nodePath124.join(resolveNamespaceRoot(cwd), "skill-invocations.log"),
     digest: planDigest(plan)
   };
 }
 function designApprovalEnabled(cwd) {
-  const path8 = nodePath123.join(cwd, ".safeword", "config.json");
+  const path8 = nodePath124.join(cwd, ".safeword", "config.json");
   if (!existsSync58(path8))
     return false;
   try {
@@ -69005,28 +69576,120 @@ function currentReview(context) {
     projectDirectory: context.cwd
   });
   if (!gate.ok)
-    return gate;
-  const scope = reviewScope(nodePath123.basename(context.ticketDirectory), "impl-plan", hashArtifact(context.plan));
+    return { ok: false, reason: latestReviewRejection(context) ?? gate.reason };
   const ledger = existsSync58(context.ledgerPath) ? readFileSync80(context.ledgerPath, "utf8") : "";
-  const review = gatePhaseAdvance(scope, parseReviewStamps(ledger));
-  if (review.ok)
-    return review;
-  return { ok: false, reason: currentReviewFinding(context) ?? review.reason };
+  const scope = reviewScope(nodePath124.basename(context.ticketDirectory), "impl-plan", hashArtifact(context.plan));
+  const artifactReview = gatePhaseAdvance(scope, parseReviewStamps(ledger));
+  if (!artifactReview.ok) {
+    return { ok: false, reason: latestReviewRejection(context) ?? artifactReview.reason };
+  }
+  const admission = phaseReviewAdmission({
+    cwd: context.cwd,
+    ticketDirectory: context.ticketDirectory,
+    kind: "plan-implementation",
+    target: nodePath124.resolve(context.planPath),
+    ledger,
+    label: "Implementation Plan"
+  });
+  if (admission.kind === "admitted") {
+    return { ok: true, independence: admission.provenance.independence };
+  }
+  if (admission.kind === "rejected" || admission.kind === "unearned_assurance") {
+    return { ok: false, reason: admission.message };
+  }
+  return {
+    ok: false,
+    reason: "The current Implementation Plan has no current authenticated Implementation Plan review receipt."
+  };
 }
-function currentReviewFinding(context) {
+function reviewsPlan(data, context) {
+  return Array.isArray(data.review_targets) && data.review_targets.some((target) => typeof target === "string" && nodePath124.resolve(context.cwd, target) === nodePath124.resolve(context.planPath));
+}
+function reviewTargetsPath(data, cwd, expectedPath) {
+  if (!Array.isArray(data.review_targets))
+    return false;
+  const resolvedExpected = nodePath124.resolve(expectedPath);
+  return data.review_targets.some((target) => typeof target === "string" && nodePath124.resolve(cwd, target) === resolvedExpected);
+}
+function discoveryDestination(output) {
+  if (typeof output !== "object" || output === null || Array.isArray(output)) {
+    return { destination: "invalid" };
+  }
+  const destination = output.planning_destination;
+  return destination === "plan-execution" || destination === "plan-implementation" ? { destination } : { destination: "invalid" };
+}
+function currentExecutionDiscovery(context) {
+  const ticket = readFileSync80(context.ticketPath, "utf8");
+  if (readFrontmatterScalar(ticket, "phase") !== "plan-execution")
+    return;
+  const planPath = nodePath124.join(context.ticketDirectory, "execution-plan.md");
+  if (!existsSync58(planPath))
+    return;
   const review = reviewJobStatus(context.cwd);
-  const data = typeof review.data === "object" && review.data !== null && !Array.isArray(review.data) ? review.data : undefined;
-  if (data?.review_kind !== "plan-implementation" || !Array.isArray(data.review_targets)) {
+  if (typeof review.data !== "object" || review.data === null || Array.isArray(review.data)) {
     return;
   }
-  const reviewsCurrentPlan = data.review_targets.some((target) => typeof target === "string" && nodePath123.resolve(context.cwd, target) === nodePath123.resolve(context.planPath));
-  if (!reviewsCurrentPlan)
+  const data = review.data;
+  if (data.review_kind !== "plan-execution" || data.status !== "changes_requested" || !reviewTargetsPath(data, context.cwd, planPath)) {
     return;
-  const findings = review.findings.map((finding2) => finding2.message).filter(Boolean);
-  return findings.length > 0 ? `Implementation Plan review is blocked: ${findings.join(" ")}` : undefined;
+  }
+  return discoveryDestination(data.reviewer_output);
+}
+function applyExecutionDiscovery(context, discovery) {
+  if (discovery.destination === "plan-implementation") {
+    const changed2 = replaceTicketPhase(context, "plan-execution", "plan-implementation");
+    const target = nodePath124.relative(context.cwd, context.ticketPath);
+    return createResult({
+      state: "action_required",
+      changed: changed2,
+      effects: {
+        files: changed2 ? [{ kind: "update", target, operation: "write" }] : []
+      },
+      findings: [
+        {
+          code: "EXECUTION_DISCOVERY_APPLIED",
+          message: "The reviewed discovery changes an accepted decision or proof boundary. The ticket returned to Implementation Planning for repair and fresh review.",
+          severity: "warning"
+        }
+      ],
+      data: {
+        command: "ticket approve-plan",
+        ticket_id: context.ticketId,
+        planning_destination: discovery.destination
+      }
+    });
+  }
+  const invalid2 = discovery.destination === "invalid";
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: invalid2 ? "EXECUTION_DISCOVERY_INVALID" : "EXECUTION_DISCOVERY_APPLIED",
+        message: invalid2 ? "The current Execution Plan review did not provide a valid planning destination. Run the review again before changing phase." : "The reviewed discovery changes only execution mechanics. Repair and re-review the Execution Plan; the ticket remains in Execution Planning.",
+        severity: "warning"
+      }
+    ],
+    data: {
+      command: "ticket approve-plan",
+      ticket_id: context.ticketId,
+      planning_destination: discovery.destination
+    }
+  });
+}
+function latestReviewRejection(context) {
+  const review = reviewJobStatus(context.cwd);
+  if (typeof review.data !== "object" || review.data === null || Array.isArray(review.data)) {
+    return;
+  }
+  const data = review.data;
+  if (data.review_kind !== "plan-implementation" || !reviewsPlan(data, context)) {
+    return;
+  }
+  const messages3 = review.findings.map((finding2) => finding2.message).filter(Boolean);
+  return messages3.length > 0 ? `Implementation Plan review is blocked: ${messages3.join(" ")}` : "The Implementation Plan review requested changes.";
 }
 function appendReceipt(context, status) {
-  mkdirSync23(nodePath123.dirname(context.ledgerPath), { recursive: true });
+  mkdirSync23(nodePath124.dirname(context.ledgerPath), { recursive: true });
   appendFileSync3(context.ledgerPath, `${new Date().toISOString()} cli human-approval:${status} ${JSON.stringify({
     ticket: context.ticketId,
     phase: "plan-implementation",
@@ -69051,22 +69714,22 @@ function replaceTicketPhase(context, from, to) {
   return true;
 }
 function scaffoldExecutionPlan(context) {
-  const planPath = nodePath123.join(context.ticketDirectory, "execution-plan.md");
+  const planPath = nodePath124.join(context.ticketDirectory, "execution-plan.md");
   if (existsSync58(planPath))
     return;
-  const templatePath = nodePath123.join(context.cwd, ".safeword", "templates", "execution-plan-template.md");
+  const templatePath = nodePath124.join(context.cwd, ".safeword", "templates", "execution-plan-template.md");
   if (!existsSync58(templatePath)) {
     throw new Error("The installed Execution Plan template is missing. Repair the Safeword installation before approving the plan.");
   }
   writeFileSync30(planPath, readFileSync80(templatePath, "utf8"), { flag: "wx" });
-  return nodePath123.relative(context.cwd, planPath);
+  return nodePath124.relative(context.cwd, planPath);
 }
 function advanceToExecutionPlanning(context) {
   const planTarget2 = scaffoldExecutionPlan(context);
   const ticketChanged = replaceTicketPhase(context, "plan-implementation", "plan-execution");
   return [
     ...planTarget2 === undefined ? [] : [planTarget2],
-    ...ticketChanged ? [nodePath123.relative(context.cwd, context.ticketPath)] : []
+    ...ticketChanged ? [nodePath124.relative(context.cwd, context.ticketPath)] : []
   ];
 }
 function reconcilePhaseWithCurrentDecision(context) {
@@ -69079,7 +69742,7 @@ function reconcilePhaseWithCurrentDecision(context) {
       for (const target of advanceToExecutionPlanning(context))
         changedFiles.add(target);
     } else if (replaceTicketPhase(context, "plan-execution", "plan-implementation")) {
-      changedFiles.add(nodePath123.relative(context.cwd, context.ticketPath));
+      changedFiles.add(nodePath124.relative(context.cwd, context.ticketPath));
     }
     if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) === decision) {
       return { decision, changedFiles: [...changedFiles] };
@@ -69087,7 +69750,7 @@ function reconcilePhaseWithCurrentDecision(context) {
   }
   return;
 }
-function result(context, status, changedFiles, finding2, findingSeverity = "warning") {
+function result(context, status, changedFiles, finding2, options = {}) {
   let state = changedFiles.length > 0 ? "changed" : "healthy";
   if (status === "pending")
     state = "action_required";
@@ -69097,7 +69760,13 @@ function result(context, status, changedFiles, finding2, findingSeverity = "warn
     effects: {
       files: changedFiles.map((target) => ({ kind: "update", target, operation: "write" }))
     },
-    findings: finding2 === undefined ? [] : [{ code: "PLAN_APPROVAL_STATUS", message: finding2, severity: findingSeverity }],
+    findings: finding2 === undefined ? [] : [
+      {
+        code: "PLAN_APPROVAL_STATUS",
+        message: finding2,
+        severity: options.severity ?? "warning"
+      }
+    ],
     nextActions: status === "pending" ? [
       {
         kind: "human",
@@ -69110,7 +69779,10 @@ function result(context, status, changedFiles, finding2, findingSeverity = "warn
       command: "ticket approve-plan",
       ticket_id: context.ticketId,
       approval_status: status,
-      plan_digest: context.digest
+      plan_digest: context.digest,
+      ...options.achievedIndependence !== undefined && {
+        achieved_independence: options.achievedIndependence
+      }
     }
   });
 }
@@ -69129,7 +69801,7 @@ async function askForApproval(plan) {
 function settledDecisionChanges(ledgerTarget, appended, changedFiles) {
   return [...new Set([...appended === "written" ? [ledgerTarget] : [], ...changedFiles])];
 }
-function settleInteractiveDecision(context, accepted, ledgerTarget, returnedToPlanning = false) {
+function settleInteractiveDecision(context, accepted, ledgerTarget, achievedIndependence, returnedToPlanning = false) {
   const submittedStatus = accepted ? "approved" : "declined";
   interruptApprovalForTest("before-decision");
   const appended = appendDesignDecision(context.ledgerPath, {
@@ -69139,52 +69811,58 @@ function settleInteractiveDecision(context, accepted, ledgerTarget, returnedToPl
     ticket: context.ticketId
   });
   if (appended.status === "pending") {
-    return result(context, "pending", returnedToPlanning ? [nodePath123.relative(context.cwd, context.ticketPath)] : [], "Human design authority could not be recorded safely; approval remains pending.");
+    return result(context, "pending", returnedToPlanning ? [nodePath124.relative(context.cwd, context.ticketPath)] : [], "Human design authority could not be recorded safely; approval remains pending.", { achievedIndependence });
   }
   interruptApprovalForTest("after-decision");
   const reconciled = reconcilePhaseWithCurrentDecision(context);
   if (reconciled === undefined) {
-    return result(context, "pending", settledDecisionChanges(ledgerTarget, appended.status, returnedToPlanning ? [nodePath123.relative(context.cwd, context.ticketPath)] : []), "The current human design decision changed while the ticket phase was being reconciled; approval remains pending.");
+    return result(context, "pending", settledDecisionChanges(ledgerTarget, appended.status, returnedToPlanning ? [nodePath124.relative(context.cwd, context.ticketPath)] : []), "The current human design decision changed while the ticket phase was being reconciled; approval remains pending.", { achievedIndependence });
   }
   const status = reconciled.decision;
-  const planPath = nodePath123.relative(context.cwd, context.planPath);
+  const planPath = nodePath124.relative(context.cwd, context.planPath);
   return result(context, status, settledDecisionChanges(ledgerTarget, appended.status, [
     ...reconciled.changedFiles,
-    ...returnedToPlanning ? [nodePath123.relative(context.cwd, context.ticketPath)] : []
-  ]), status === "approved" ? `Approved approach: ${planPath} at ${context.digest}.` : `Declined approach: ${planPath}. It remains in Implementation Planning for repair.`, status === "approved" ? "info" : "warning");
+    ...returnedToPlanning ? [nodePath124.relative(context.cwd, context.ticketPath)] : []
+  ]), status === "approved" ? `Approved approach: ${planPath} at ${context.digest}.` : `Declined approach: ${planPath}. It remains in Implementation Planning for repair.`, { severity: status === "approved" ? "info" : "warning", achievedIndependence });
 }
-function currentApprovalResult(context) {
+function currentApprovalResult(context, achievedIndependence) {
   if (currentDesignDecision(context.ledgerPath, context.ticketId, context.digest) !== "approved") {
     return;
   }
   const reconciled = reconcilePhaseWithCurrentDecision(context);
   if (reconciled?.decision !== "approved") {
-    return result(context, "pending", reconciled?.changedFiles ?? [], "The current human design decision changed while the ticket phase was being reconciled; approval remains pending.");
+    return result(context, "pending", reconciled?.changedFiles ?? [], "The current human design decision changed while the ticket phase was being reconciled; approval remains pending.", { achievedIndependence });
   }
-  return result(context, "approved", reconciled.changedFiles, `Existing approval remains current for ${nodePath123.relative(context.cwd, context.planPath)} at ${context.digest}.`, "info");
+  return result(context, "approved", reconciled.changedFiles, `Existing approval remains current for ${nodePath124.relative(context.cwd, context.planPath)} at ${context.digest}.`, { severity: "info", achievedIndependence });
 }
 async function approve(context, noInput) {
+  const executionDiscovery = currentExecutionDiscovery(context);
+  if (executionDiscovery !== undefined) {
+    return applyExecutionDiscovery(context, executionDiscovery);
+  }
   const review = currentReview(context);
   if (!review.ok) {
     return result(context, "pending", [], review.reason);
   }
-  const ledgerTarget = nodePath123.relative(context.cwd, context.ledgerPath);
-  const ticketTarget = nodePath123.relative(context.cwd, context.ticketPath);
+  const ledgerTarget = nodePath124.relative(context.cwd, context.ledgerPath);
+  const ticketTarget = nodePath124.relative(context.cwd, context.ticketPath);
   if (!designApprovalEnabled(context.cwd)) {
     appendReceipt(context, "not-required");
     const advanced = advanceToExecutionPlanning(context);
-    return result(context, "not-required", [ledgerTarget, ...advanced]);
+    return result(context, "not-required", [ledgerTarget, ...advanced], undefined, {
+      achievedIndependence: review.independence
+    });
   }
-  const existingApproval = currentApprovalResult(context);
+  const existingApproval = currentApprovalResult(context, review.independence);
   if (existingApproval !== undefined)
     return existingApproval;
   const returnedToPlanning = replaceTicketPhase(context, "plan-execution", "plan-implementation");
   if (noInput || !process18.stdin.isTTY || !process18.stdout.isTTY) {
     appendReceipt(context, "pending");
-    return result(context, "pending", [ledgerTarget, ...returnedToPlanning ? [ticketTarget] : []], "Human design approval is pending; the ticket remains in Implementation Planning.");
+    return result(context, "pending", [ledgerTarget, ...returnedToPlanning ? [ticketTarget] : []], "Human design approval is pending; the ticket remains in Implementation Planning.", { achievedIndependence: review.independence });
   }
   const accepted = await askForApproval(context.plan);
-  return settleInteractiveDecision(context, accepted, ledgerTarget, returnedToPlanning);
+  return settleInteractiveDecision(context, accepted, ledgerTarget, review.independence, returnedToPlanning);
 }
 async function approvePlanResult(cwd, ticketId, options) {
   try {
@@ -69209,24 +69887,25 @@ var init_plan_approval = __esm(() => {
   init_result();
   init_approval_ledger();
   init_job();
+  init_phase_admission();
   init_configured_paths();
   init_product_plan_contract();
 });
 
 // src/execution-plan/delivery-admission.ts
-import nodePath124 from "path";
-function isRecord11(value) {
+import nodePath125 from "path";
+function isRecord12(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function reviewData(cwd, reviewId) {
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
-  return isRecord11(status.data) ? status.data : undefined;
+  return isRecord12(status.data) ? status.data : undefined;
 }
 function coversPlan(data, cwd, planPath) {
   const targets = data.review_targets;
-  return Array.isArray(targets) && targets.some((target) => typeof target === "string" && nodePath124.resolve(cwd, target) === planPath);
+  return Array.isArray(targets) && targets.some((target) => typeof target === "string" && nodePath125.resolve(cwd, target) === planPath);
 }
-function rejectionMessage(output) {
+function rejectionMessage2(output) {
   const findings = output.findings;
   if (!Array.isArray(findings))
     return "The Execution Plan review requested changes.";
@@ -69248,26 +69927,26 @@ function achievedIndependence(data, output, stamp) {
     return;
   return independence;
 }
-function reviewCandidate(input, stamp) {
+function reviewCandidate2(input, stamp) {
   if (stamp.reviewId === undefined)
     return;
   const data = reviewData(input.cwd, stamp.reviewId);
   if (data?.review_kind !== "plan-execution")
     return;
-  if (!coversPlan(data, input.cwd, input.planPath) || !isRecord11(data.reviewer_output)) {
+  if (!coversPlan(data, input.cwd, input.planPath) || !isRecord12(data.reviewer_output)) {
     return;
   }
   return { reviewId: stamp.reviewId, data, output: data.reviewer_output };
 }
 function candidateAdmission(input, stamp) {
-  const candidate = reviewCandidate(input, stamp);
+  const candidate = reviewCandidate2(input, stamp);
   if (candidate === undefined)
     return;
   const { data, output, reviewId } = candidate;
   if (output.verdict === undefined)
     return { kind: "missing_verdict" };
   if (output.verdict === "request_changes") {
-    return { kind: "rejected", message: rejectionMessage(output) };
+    return { kind: "rejected", message: rejectionMessage2(output) };
   }
   const independence = achievedIndependence(data, output, stamp);
   if (independence === undefined)
@@ -69281,11 +69960,16 @@ function candidateAdmission(input, stamp) {
     kind: "admitted",
     reviewId,
     record: validated.output.execution_plan_record,
-    independence
+    independence,
+    provenance: {
+      authorAgent: data.author_agent,
+      reviewerAgent: data.actual_reviewer,
+      independence
+    }
   };
 }
 function executionPlanAdmission(input) {
-  const scope = `${nodePath124.basename(input.ticketDirectory)}:phase@plan-execution`;
+  const scope = `${nodePath125.basename(input.ticketDirectory)}:phase@plan-execution`;
   const candidates = parseReviewStamps(input.ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
   for (const stamp of candidates) {
     const admission = candidateAdmission(input, stamp);
@@ -69295,16 +69979,16 @@ function executionPlanAdmission(input) {
   return { kind: "not_admitted" };
 }
 function admittedExecutionPlanReview(input) {
-  const scope = `${nodePath124.basename(input.ticketDirectory)}:phase@plan-execution`;
+  const scope = `${nodePath125.basename(input.ticketDirectory)}:phase@plan-execution`;
   const candidates = parseReviewStamps(input.ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
   for (const stamp of candidates) {
     if (stamp.reviewId === undefined)
       continue;
     const status = reviewJobStatus(input.cwd, stamp.reviewId);
-    if (status.state !== "healthy" || !isRecord11(status.data))
+    if (status.state !== "healthy" || !isRecord12(status.data))
       continue;
     const data = status.data;
-    if (data.status !== "approved" || data.review_kind !== "plan-execution" || !coversPlan(data, input.cwd, input.planPath) || !isRecord11(data.reviewer_output)) {
+    if (data.status !== "approved" || data.review_kind !== "plan-execution" || !coversPlan(data, input.cwd, input.planPath) || !isRecord12(data.reviewer_output)) {
       continue;
     }
     const validated = validateExecutionPlanOutput(data.reviewer_output, input.definition, input.digest);
@@ -69324,16 +70008,16 @@ var init_delivery_admission = __esm(() => {
 import { spawnSync as spawnSync15 } from "child_process";
 import { createHash as createHash40 } from "crypto";
 import { mkdirSync as mkdirSync24, writeFileSync as writeFileSync31 } from "fs";
-import nodePath125 from "path";
+import nodePath126 from "path";
 function sha2568(value) {
   return createHash40("sha256").update(value).digest("hex");
 }
 function relativePathspec(projectRoot, path8) {
-  const relative = nodePath125.relative(projectRoot, nodePath125.resolve(path8));
-  if (relative === "" || nodePath125.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${nodePath125.sep}`)) {
+  const relative = nodePath126.relative(projectRoot, nodePath126.resolve(path8));
+  if (relative === "" || nodePath126.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${nodePath126.sep}`)) {
     return;
   }
-  return relative.split(nodePath125.sep).join("/");
+  return relative.split(nodePath126.sep).join("/");
 }
 function git2(projectRoot, args) {
   return spawnSync15("git", args, {
@@ -69446,14 +70130,14 @@ ${rendered.stdout}`)) {
   const reasonDigest = sha2568(input.reason);
   const request = renderRequest({ ...input, reasonDigest, diff: rendered.stdout });
   const requestDigest = sha2568(request);
-  const directory = nodePath125.join(input.projectRoot, ".safeword", "state", "reviews", "requests");
-  const path8 = nodePath125.join(directory, `delivery-compatibility-${requestDigest}.md`);
+  const directory = nodePath126.join(input.projectRoot, ".safeword", "state", "reviews", "requests");
+  const path8 = nodePath126.join(directory, `delivery-compatibility-${requestDigest}.md`);
   mkdirSync24(directory, { recursive: true, mode: 448 });
   writeFileSync31(path8, request, { mode: 384 });
   return {
     ok: true,
     path: path8,
-    relativePath: nodePath125.relative(input.projectRoot, path8),
+    relativePath: nodePath126.relative(input.projectRoot, path8),
     requestDigest,
     reasonDigest,
     reviewedRevision: input.reviewedRevision
@@ -69467,7 +70151,7 @@ var init_delivery_compatibility = __esm(() => {
 
 // src/execution-plan/delivery-proof.ts
 import { spawnSync as spawnSync16 } from "child_process";
-import nodePath126 from "path";
+import nodePath127 from "path";
 function git3(projectRoot, args) {
   const result2 = spawnSync16("git", args, {
     cwd: projectRoot,
@@ -69477,11 +70161,11 @@ function git3(projectRoot, args) {
   return { status: result2.status, stdout: result2.stdout };
 }
 function excludedPathspec(projectRoot, path8) {
-  const relative = nodePath126.relative(projectRoot, nodePath126.resolve(projectRoot, path8));
-  if (relative === "" || nodePath126.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${nodePath126.sep}`)) {
+  const relative = nodePath127.relative(projectRoot, nodePath127.resolve(projectRoot, path8));
+  if (relative === "" || nodePath127.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${nodePath127.sep}`)) {
     return;
   }
-  return `:(top,exclude)${relative.split(nodePath126.sep).join("/")}`;
+  return `:(top,exclude)${relative.split(nodePath127.sep).join("/")}`;
 }
 function unavailable(message) {
   return { ok: false, code: "proof_subject_unavailable", message };
@@ -69579,7 +70263,7 @@ __export(exports_delivery_checklist, {
 });
 import { createHash as createHash41 } from "crypto";
 import { existsSync as existsSync59, readFileSync as readFileSync81 } from "fs";
-import nodePath127 from "path";
+import nodePath128 from "path";
 function findingResult(command, code, message, recovery) {
   return createResult({
     state: "action_required",
@@ -69592,7 +70276,7 @@ function sha2569(value) {
   return createHash41("sha256").update(value).digest("hex");
 }
 function designApprovalEnabled2(cwd) {
-  const path8 = nodePath127.join(cwd, ".safeword", "config.json");
+  const path8 = nodePath128.join(cwd, ".safeword", "config.json");
   if (!existsSync59(path8))
     return false;
   try {
@@ -69605,7 +70289,7 @@ function designApprovalEnabled2(cwd) {
   }
 }
 function loadExecutionPlan(cwd, planPath, command) {
-  const relativePlanPath = nodePath127.relative(cwd, planPath);
+  const relativePlanPath = nodePath128.relative(cwd, planPath);
   let plan;
   try {
     plan = readFileSync81(planPath, "utf8");
@@ -69631,12 +70315,12 @@ function loadDeliveryContext(cwd, ticketId, command) {
       result: findingResult(command, "ticket_not_found", `Ticket ${ticketId} was not found.`, "safeword ticket list")
     };
   }
-  const ticketPath = nodePath127.join(ticketDirectory, "ticket.md");
-  const planPath = nodePath127.join(ticketDirectory, "execution-plan.md");
+  const ticketPath = nodePath128.join(ticketDirectory, "ticket.md");
+  const planPath = nodePath128.join(ticketDirectory, "execution-plan.md");
   if (!existsSync59(ticketPath) || !existsSync59(planPath)) {
     return {
       ok: false,
-      result: findingResult(command, "missing_execution_plan", `Ticket ${ticketId} has no execution-plan.md.`, `safeword review run plan-execution ${nodePath127.relative(cwd, planPath)}`)
+      result: findingResult(command, "missing_execution_plan", `Ticket ${ticketId} has no execution-plan.md.`, `safeword review run plan-execution ${nodePath128.relative(cwd, planPath)}`)
     };
   }
   if (readFrontmatterScalar(readFileSync81(ticketPath, "utf8"), "type") !== "feature") {
@@ -69668,7 +70352,7 @@ function loadDeliveryContext(cwd, ticketId, command) {
   }
   const definition = createExecutionPlanDeliveryDefinition(parsed2, designApprovalGate2);
   const digest4 = normalizedExecutionPlanDigest(plan);
-  const ledgerPath = nodePath127.join(resolveNamespaceRoot(cwd), "skill-invocations.log");
+  const ledgerPath = nodePath128.join(resolveNamespaceRoot(cwd), "skill-invocations.log");
   let ledger;
   try {
     ledger = existsSync59(ledgerPath) ? readFileSync81(ledgerPath, "utf8") : "";
@@ -69699,7 +70383,7 @@ function loadDeliveryContext(cwd, ticketId, command) {
   if (admittedReview === undefined) {
     return {
       ok: false,
-      result: findingResult(command, "review_required", "The current Execution Plan has no admitted plan-execution review.", `safeword review run plan-execution ${nodePath127.relative(cwd, planPath)}`)
+      result: findingResult(command, "review_required", "The current Execution Plan has no admitted plan-execution review.", `safeword review run plan-execution ${nodePath128.relative(cwd, planPath)}`)
     };
   }
   return {
@@ -69814,7 +70498,7 @@ function designApprovalSatisfied(context, item) {
   if (!item.evidence.startsWith(prefix))
     return false;
   const digest4 = item.evidence.slice(prefix.length);
-  const implementationPlan = nodePath127.join(context.ticketDirectory, "impl-plan.md");
+  const implementationPlan = nodePath128.join(context.ticketDirectory, "impl-plan.md");
   if (!existsSync59(implementationPlan))
     return false;
   const currentDigest = sha2569(readFileSync81(implementationPlan, "utf8"));
@@ -69966,7 +70650,7 @@ function successfulProofResult(context, itemId, proofId, receipt, revision) {
     effects: {
       files: [context.ledgerPath, context.planPath].map((target) => ({
         kind: "update",
-        target: nodePath127.relative(context.cwd, target)
+        target: nodePath128.relative(context.cwd, target)
       }))
     },
     data: {
@@ -70199,7 +70883,7 @@ function approvedCompatibilityReview(result2, cwd, requestPath2) {
     data.assigned_reviewer === reviewer,
     output?.verdict === "approve",
     output?.reviewer_agent === reviewer,
-    typeof target === "string" && nodePath127.resolve(cwd, target) === requestPath2,
+    typeof target === "string" && nodePath128.resolve(cwd, target) === requestPath2,
     reviewId !== undefined
   ].every(Boolean);
   return approved2 ? reviewId : undefined;
@@ -70341,8 +71025,8 @@ __export(exports_execution_prerequisite, {
 });
 import { createHash as createHash42 } from "crypto";
 import { existsSync as existsSync60, readFileSync as readFileSync82 } from "fs";
-import nodePath128 from "path";
-function successful(status, achievedIndependence2) {
+import nodePath129 from "path";
+function successful(status, achievedIndependence2, inputIdentity, executionPlanArtifact) {
   return createResult({
     state: "healthy",
     data: {
@@ -70351,11 +71035,17 @@ function successful(status, achievedIndependence2) {
       grants_authority: false,
       ...achievedIndependence2 !== undefined && {
         achieved_independence: achievedIndependence2
+      },
+      ...inputIdentity !== undefined && {
+        authorization_input_identity: inputIdentity
+      },
+      ...executionPlanArtifact !== undefined && {
+        execution_plan_artifact: executionPlanArtifact
       }
     }
   });
 }
-function denied2(missing) {
+function denied2(missing, inputIdentity, executionPlanArtifact) {
   return createResult({
     state: "action_required",
     findings: missing.map((item) => ({
@@ -70368,27 +71058,20 @@ function denied2(missing) {
       mutates: true,
       requiresHuman: false
     })),
-    data: { command: "ticket execution-prerequisite", grants_authority: false }
-  });
-}
-function reviewApproved(cwd, ledger, ticketFolder, kind, target) {
-  if (target === undefined || !reviewIntegrityKeyExists())
-    return false;
-  const scope = `${ticketFolder}:phase@${kind}`;
-  const stamps = parseReviewStamps(ledger).filter((stamp) => stamp.scope === scope && stamp.skipReason === undefined).toReversed();
-  return stamps.some((stamp) => {
-    if (stamp.reviewId === undefined)
-      return false;
-    const review = reviewJobStatus(cwd, stamp.reviewId);
-    if (review.state !== "healthy" || typeof review.data !== "object" || review.data === null) {
-      return false;
+    data: {
+      command: "ticket execution-prerequisite",
+      grants_authority: false,
+      ...inputIdentity !== undefined && {
+        authorization_input_identity: inputIdentity
+      },
+      ...executionPlanArtifact !== undefined && {
+        execution_plan_artifact: executionPlanArtifact
+      }
     }
-    const data = review.data;
-    return data.status === "approved" && data.review_kind === kind && Array.isArray(data.review_targets) && data.review_targets.some((candidate) => typeof candidate === "string" && nodePath128.resolve(cwd, candidate) === target);
   });
 }
 function designApprovalRequired(cwd) {
-  const path8 = nodePath128.join(cwd, ".safeword", "config.json");
+  const path8 = nodePath129.join(cwd, ".safeword", "config.json");
   if (!existsSync60(path8))
     return false;
   try {
@@ -70403,19 +71086,19 @@ function designDecisionAccepted(input) {
     return true;
   if (!existsSync60(input.implementationPath))
     return false;
-  const digest4 = createHash42("sha256").update(readFileSync82(input.implementationPath, "utf8")).digest("hex");
-  return currentDesignDecision(input.ledgerPath, input.ticketId, digest4) === "approved";
+  const planDigest2 = createHash42("sha256").update(readFileSync82(input.implementationPath, "utf8")).digest("hex");
+  return currentDesignDecision(input.ledgerPath, input.ticketId, planDigest2) === "approved";
 }
 function contractedFeature(ticketDirectory, phase) {
   if (phase !== "implement" && phase !== "verify")
     return true;
-  return existsSync60(nodePath128.join(ticketDirectory, "impl-plan.md")) && existsSync60(nodePath128.join(ticketDirectory, "execution-plan.md"));
+  return existsSync60(nodePath129.join(ticketDirectory, "impl-plan.md")) && existsSync60(nodePath129.join(ticketDirectory, "execution-plan.md"));
 }
 function prerequisiteContext(cwd, ticketId, legacyExemption) {
   const ticketDirectory = resolveTicketDirectory(cwd, ticketId);
   if (ticketDirectory === undefined)
     return { applicable: false, status: "not_applicable" };
-  const ticketPath = nodePath128.join(ticketDirectory, "ticket.md");
+  const ticketPath = nodePath129.join(ticketDirectory, "ticket.md");
   const ticket = existsSync60(ticketPath) ? readFileSync82(ticketPath, "utf8") : "";
   if (readFrontmatterScalar(ticket, "type") !== "feature") {
     return { applicable: false, status: "not_applicable" };
@@ -70423,8 +71106,8 @@ function prerequisiteContext(cwd, ticketId, legacyExemption) {
   if (legacyExemption && !contractedFeature(ticketDirectory, readFrontmatterScalar(ticket, "phase"))) {
     return { applicable: false, status: "not_applicable" };
   }
-  const ledgerPath = nodePath128.join(resolveNamespaceRoot(cwd), "skill-invocations.log");
-  const ticketFolder = nodePath128.basename(ticketDirectory);
+  const ledgerPath = nodePath129.join(resolveNamespaceRoot(cwd), "skill-invocations.log");
+  const ticketFolder = nodePath129.basename(ticketDirectory);
   return {
     applicable: true,
     context: {
@@ -70432,85 +71115,152 @@ function prerequisiteContext(cwd, ticketId, legacyExemption) {
       ticketId,
       ticketDirectory,
       ticketFolder,
+      ticket,
       featurePath: findFeatureSourcePath(cwd, ticketFolder),
-      implementationPath: nodePath128.join(ticketDirectory, "impl-plan.md"),
-      executionPath: nodePath128.join(ticketDirectory, "execution-plan.md"),
+      implementationPath: nodePath129.join(ticketDirectory, "impl-plan.md"),
+      executionPath: nodePath129.join(ticketDirectory, "execution-plan.md"),
       ledgerPath,
       ledger: existsSync60(ledgerPath) ? readFileSync82(ledgerPath, "utf8") : ""
     }
   };
 }
 function relativeFeature(context) {
-  return context.featurePath === undefined ? "features/<ticket>.feature" : nodePath128.relative(context.cwd, context.featurePath);
+  return context.featurePath === undefined ? "features/<ticket>.feature" : nodePath129.relative(context.cwd, context.featurePath);
 }
-function scenarioPrerequisite(context) {
-  if (reviewApproved(context.cwd, context.ledger, context.ticketFolder, "scenario-gate", context.featurePath)) {
+function admittedPhaseReview(context, kind, target, label) {
+  if (target === undefined)
     return;
-  }
+  const admission = phaseReviewAdmission({
+    cwd: context.cwd,
+    ticketDirectory: context.ticketDirectory,
+    kind,
+    target: nodePath129.resolve(target),
+    ledger: context.ledger,
+    label
+  });
+  return admission.kind === "admitted" ? admission.provenance : undefined;
+}
+function scenarioPrerequisite(context, reviewed) {
+  if (reviewed !== undefined)
+    return;
   return {
     code: "missing_accepted_scenarios",
     message: "Accepted scenarios are required before execution.",
-    command: `safeword review run scenario-gate --context ${nodePath128.relative(context.cwd, nodePath128.join(context.ticketDirectory, "spec.md"))} -- ${relativeFeature(context)}`
+    command: `safeword review run scenario-gate --context ${nodePath129.relative(context.cwd, nodePath129.join(context.ticketDirectory, "spec.md"))} -- ${relativeFeature(context)}`
   };
 }
-function approachPrerequisite(context) {
-  const reviewed = reviewApproved(context.cwd, context.ledger, context.ticketFolder, "plan-implementation", context.implementationPath);
-  if (reviewed && designDecisionAccepted(context))
+function approachPrerequisite(context, reviewed) {
+  if (reviewed !== undefined && designDecisionAccepted(context))
     return;
   return {
     code: "missing_accepted_approach",
     message: "An accepted implementation approach is required before execution.",
-    command: reviewed && designApprovalRequired(context.cwd) ? `safeword ticket approve-plan ${context.ticketId}` : `safeword review run plan-implementation --context ${relativeFeature(context)} --context ${nodePath128.relative(context.cwd, nodePath128.join(context.ticketDirectory, "spec.md"))} -- ${nodePath128.relative(context.cwd, context.implementationPath)}`
+    command: reviewed !== undefined && designApprovalRequired(context.cwd) ? `safeword ticket approve-plan ${context.ticketId}` : `safeword review run plan-implementation --context ${relativeFeature(context)} --context ${nodePath129.relative(context.cwd, nodePath129.join(context.ticketDirectory, "spec.md"))} -- ${nodePath129.relative(context.cwd, context.implementationPath)}`
   };
 }
-function checklistPrerequisite(context) {
-  const command = `safeword review run plan-execution --context ${nodePath128.relative(context.cwd, context.implementationPath)} --context ${relativeFeature(context)} -- ${nodePath128.relative(context.cwd, context.executionPath)}`;
-  if (existsSync60(context.executionPath)) {
-    const plan = readFileSync82(context.executionPath, "utf8");
+function inspectExecutionPlan(path8) {
+  if (!existsSync60(path8))
+    return { kind: "absent" };
+  try {
+    const content = readFileSync82(path8, "utf8");
+    return {
+      kind: "readable",
+      content,
+      status: /^\*\*Status:\*\*\s*planned\s*$/imu.test(content) ? "planned" : "unknown"
+    };
+  } catch {
+    return { kind: "unreadable" };
+  }
+}
+function executionPlanArtifactFacts(inspection, receipt) {
+  if (inspection.kind === "absent") {
+    return {
+      presence: "absent",
+      readability: "not_applicable",
+      status: "unknown",
+      receipt: "missing"
+    };
+  }
+  if (inspection.kind === "unreadable") {
+    return {
+      presence: "present",
+      readability: "unreadable",
+      status: "unknown",
+      receipt: "not_checked"
+    };
+  }
+  return {
+    presence: "present",
+    readability: "readable",
+    status: inspection.status,
+    receipt
+  };
+}
+function reviewedChecklist(review, command) {
+  switch (review.kind) {
+    case "admitted": {
+      return {
+        admitted: true,
+        independence: review.independence,
+        provenance: review.provenance,
+        receipt: "valid"
+      };
+    }
+    case "missing_verdict": {
+      return {
+        admitted: false,
+        missing: {
+          code: "missing_execution_plan_verdict",
+          message: "The current Execution Plan review has no verdict.",
+          command
+        },
+        receipt: "valid"
+      };
+    }
+    case "rejected": {
+      return {
+        admitted: false,
+        missing: {
+          code: "rejected_execution_plan_review",
+          message: review.message,
+          command
+        },
+        receipt: "valid"
+      };
+    }
+    case "unearned_assurance": {
+      return {
+        admitted: false,
+        missing: {
+          code: "unearned_execution_plan_assurance",
+          message: "The Execution Plan review has no validated achieved independence.",
+          command
+        },
+        receipt: "valid"
+      };
+    }
+    case "not_admitted": {
+      return;
+    }
+  }
+}
+function checklistPrerequisite(context, inspection) {
+  const command = `safeword review run plan-execution --context ${nodePath129.relative(context.cwd, context.implementationPath)} --context ${relativeFeature(context)} -- ${nodePath129.relative(context.cwd, context.executionPath)}`;
+  if (inspection.kind === "readable") {
+    const plan = inspection.content;
     const parsed2 = parseDeliveryPlanContract(plan);
     if (parsed2.ok) {
       const definition = createExecutionPlanDeliveryDefinition(parsed2, designApprovalRequired(context.cwd));
-      const review = executionPlanAdmission({
+      const reviewed = reviewedChecklist(executionPlanAdmission({
         cwd: context.cwd,
         ticketDirectory: context.ticketDirectory,
         planPath: context.executionPath,
         ledger: context.ledger,
         definition,
         digest: normalizedExecutionPlanDigest(plan)
-      });
-      if (review.kind === "admitted") {
-        return { admitted: true, independence: review.independence };
-      }
-      if (review.kind === "missing_verdict") {
-        return {
-          admitted: false,
-          missing: {
-            code: "missing_execution_plan_verdict",
-            message: "The current Execution Plan review has no verdict.",
-            command
-          }
-        };
-      }
-      if (review.kind === "rejected") {
-        return {
-          admitted: false,
-          missing: {
-            code: "rejected_execution_plan_review",
-            message: review.message,
-            command
-          }
-        };
-      }
-      if (review.kind === "unearned_assurance") {
-        return {
-          admitted: false,
-          missing: {
-            code: "unearned_execution_plan_assurance",
-            message: "The Execution Plan review has no validated achieved independence.",
-            command
-          }
-        };
-      }
+      }), command);
+      if (reviewed !== undefined)
+        return reviewed;
     }
   }
   return {
@@ -70519,34 +71269,109 @@ function checklistPrerequisite(context) {
       code: "missing_admitted_delivery_checklist",
       message: "An admitted Delivery Checklist is required before execution.",
       command
-    }
+    },
+    receipt: inspection.kind === "unreadable" ? "not_checked" : "missing"
   };
+}
+function digest4(content) {
+  return createHash42("sha256").update(content).digest("hex");
+}
+function fileDigest2(path8) {
+  return path8 !== undefined && existsSync60(path8) ? digest4(readFileSync82(path8, "utf8")) : "missing";
+}
+function stableTicketScope(ticket) {
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(ticket)?.[1];
+  const parsed2 = parseFrontmatter2(frontmatter ?? "");
+  const field = (name) => parsed2[name] ?? "missing";
+  return {
+    scope: field("scope"),
+    out_of_scope: field("out_of_scope"),
+    done_when: field("done_when")
+  };
+}
+function designDecisionState(context) {
+  if (!designApprovalRequired(context.cwd))
+    return "not_required";
+  if (!existsSync60(context.implementationPath))
+    return "missing_plan";
+  const planDigest2 = digest4(readFileSync82(context.implementationPath, "utf8"));
+  return currentDesignDecision(context.ledgerPath, context.ticketId, planDigest2) ?? "pending";
+}
+function applicableIdentityInput(context, executionPlan2, reviews) {
+  return {
+    applicability: "applicable",
+    ticket_scope: stableTicketScope(context.ticket),
+    product_plan: fileDigest2(nodePath129.join(context.ticketDirectory, "spec.md")),
+    accepted_scenarios: fileDigest2(context.featurePath),
+    implementation_plan: fileDigest2(context.implementationPath),
+    execution_plan: executionPlan2.kind === "readable" ? normalizedExecutionPlanDigest(executionPlan2.content) : executionPlan2.kind,
+    reviews: {
+      scenarios: reviews.scenario ?? "missing",
+      implementation: reviews.implementation ?? "missing",
+      execution: reviews.execution ?? "missing"
+    },
+    human_design_decision: designDecisionState(context)
+  };
+}
+function authorizationInputIdentity(input) {
+  const configPath3 = nodePath129.join(input.cwd, ".safeword", "config.json");
+  const evaluated = input.context === undefined ? { applicability: input.status ?? "not_applicable" } : applicableIdentityInput(input.context, input.executionPlan ?? inspectExecutionPlan(input.context.executionPath), {
+    scenario: input.scenarioReview,
+    implementation: input.implementationReview,
+    execution: input.executionReview
+  });
+  return digest4(JSON.stringify({
+    version: 1,
+    ticket_id: input.ticketId,
+    config: fileDigest2(configPath3),
+    ...evaluated
+  }));
+}
+function maybeAuthorizationIdentity(enabled, input) {
+  return enabled === true ? authorizationInputIdentity(input) : undefined;
 }
 function evaluateExecutionPrerequisite(cwd, ticketId, options = {}) {
   const loaded = prerequisiteContext(cwd, ticketId, options.legacyExemption ?? true);
-  if (!loaded.applicable)
-    return successful(loaded.status);
-  const checklist = checklistPrerequisite(loaded.context);
+  if (!loaded.applicable) {
+    const identity2 = maybeAuthorizationIdentity(options.includeAuthorizationIdentity, {
+      cwd,
+      ticketId,
+      status: loaded.status
+    });
+    return successful(loaded.status, undefined, identity2);
+  }
+  const scenarioReview = admittedPhaseReview(loaded.context, "scenario-gate", loaded.context.featurePath, "Scenario");
+  const implementationReview = admittedPhaseReview(loaded.context, "plan-implementation", loaded.context.implementationPath, "Implementation Plan");
+  const executionPlan2 = inspectExecutionPlan(loaded.context.executionPath);
+  const checklist = checklistPrerequisite(loaded.context, executionPlan2);
+  const executionPlanArtifact = executionPlanArtifactFacts(executionPlan2, checklist.receipt);
   const missing = [
-    scenarioPrerequisite(loaded.context),
-    approachPrerequisite(loaded.context),
+    scenarioPrerequisite(loaded.context, scenarioReview),
+    approachPrerequisite(loaded.context, implementationReview),
     checklist.admitted ? undefined : checklist.missing
   ].filter((item) => item !== undefined);
+  const identity = maybeAuthorizationIdentity(options.includeAuthorizationIdentity, {
+    cwd,
+    ticketId,
+    context: loaded.context,
+    scenarioReview,
+    implementationReview,
+    executionReview: checklist.admitted ? checklist.provenance : undefined,
+    executionPlan: executionPlan2
+  });
   if (missing.length > 0)
-    return denied2(missing);
-  if (!checklist.admitted)
-    return denied2([checklist.missing]);
-  const independence = options.includeAssurance === true ? checklist.independence : undefined;
-  return successful("satisfied", independence);
+    return denied2(missing, identity, executionPlanArtifact);
+  const independence = options.includeAssurance === true && checklist.admitted ? checklist.independence : undefined;
+  return successful("satisfied", independence, identity, executionPlanArtifact);
 }
 var EXECUTION_PREREQUISITE_REPAIR_CODES;
 var init_execution_prerequisite = __esm(() => {
-  init_review_ledger();
+  init_hierarchy();
   init_result();
   init_delivery_admission();
   init_delivery_checklist();
   init_approval_ledger();
-  init_job();
+  init_phase_admission();
   init_configured_paths();
   init_feature_source();
   init_product_plan_contract();
@@ -70568,7 +71393,8 @@ __export(exports_coding_authorization, {
 function evaluateCodingAuthorization(cwd, ticketId) {
   const prerequisite = evaluateExecutionPrerequisite(cwd, ticketId, {
     legacyExemption: false,
-    includeAssurance: true
+    includeAssurance: true,
+    includeAuthorizationIdentity: true
   });
   const authorized = prerequisite.state === "healthy";
   const prerequisiteData = typeof prerequisite.data === "object" && prerequisite.data !== null ? prerequisite.data : {};
@@ -70580,6 +71406,9 @@ function evaluateCodingAuthorization(cwd, ticketId) {
       grants_authority: false,
       ...typeof prerequisiteData.achieved_independence === "string" && {
         achieved_independence: prerequisiteData.achieved_independence
+      },
+      ...typeof prerequisiteData.authorization_input_identity === "string" && {
+        authorization_input_identity: prerequisiteData.authorization_input_identity
       }
     }
   };
@@ -70593,11 +71422,11 @@ var exports_review_knowledge = {};
 __export(exports_review_knowledge, {
   observeReviewKnowledge: () => observeReviewKnowledge
 });
-import nodePath129 from "path";
+import nodePath130 from "path";
 function observeReviewKnowledge(cwd) {
   const sources = resolveReviewKnowledgeSources(cwd).map((source) => ({
     ...source,
-    path: nodePath129.relative(cwd, source.path)
+    path: nodePath130.relative(cwd, source.path)
   }));
   return Promise.resolve(createResult({
     state: "healthy",
@@ -70615,11 +71444,11 @@ __export(exports_audit_scope, {
   observeAuditScope: () => observeAuditScope
 });
 import { existsSync as existsSync61, readFileSync as readFileSync83 } from "fs";
-import nodePath130 from "path";
+import nodePath131 from "path";
 function auditScopePath() {
-  const runtimeDirectory = nodePath130.basename(import.meta.dirname);
-  const packageRoot2 = runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath130.dirname(import.meta.dirname) : nodePath130.resolve(import.meta.dirname, "../..");
-  return nodePath130.join(packageRoot2, "templates/hooks/lib/audit-scope.sh");
+  const runtimeDirectory = nodePath131.basename(import.meta.dirname);
+  const packageRoot2 = runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath131.dirname(import.meta.dirname) : nodePath131.resolve(import.meta.dirname, "../..");
+  return nodePath131.join(packageRoot2, "templates/hooks/lib/audit-scope.sh");
 }
 function observeAuditScope() {
   const path8 = auditScopePath();
@@ -70653,13 +71482,13 @@ var init_shell_segments = __esm(() => {
 
 // templates/hooks/lib/cursor-run-identity.ts
 import { existsSync as existsSync62, mkdirSync as mkdirSync25, readFileSync as readFileSync84, rmSync as rmSync15, writeFileSync as writeFileSync32 } from "fs";
-import nodePath131 from "path";
+import nodePath132 from "path";
 function nonEmptyString3(value) {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 function cachePathForProject(projectDirectory, cacheFile) {
-  return nodePath131.join(resolveNamespaceRoot2(projectDirectory), cacheFile);
+  return nodePath132.join(resolveNamespaceRoot2(projectDirectory), cacheFile);
 }
 function readFreshShellRunIdentity(input) {
   const cachePath = cachePathForProject(input.projectDirectory, input.cacheFile);
@@ -70714,10 +71543,10 @@ var init_cursor_run_identity = __esm(() => {
 // templates/hooks/lib/project-state.ts
 import { spawnSync as spawnSync17 } from "child_process";
 import { appendFileSync as appendFileSync4, existsSync as existsSync63, mkdirSync as mkdirSync26, readFileSync as readFileSync85, writeFileSync as writeFileSync33 } from "fs";
-import nodePath132 from "path";
+import nodePath133 from "path";
 function gitAlreadyIgnores(cwd, path8) {
-  const relativePath = nodePath132.relative(cwd, path8);
-  if (relativePath.startsWith("..") || nodePath132.isAbsolute(relativePath))
+  const relativePath = nodePath133.relative(cwd, path8);
+  if (relativePath.startsWith("..") || nodePath133.isAbsolute(relativePath))
     return false;
   return spawnSync17("git", ["check-ignore", "--no-index", "--quiet", "--", relativePath], {
     cwd,
@@ -70726,8 +71555,8 @@ function gitAlreadyIgnores(cwd, path8) {
 }
 function ensureTransientStateIgnore(cwd, basename, rule = `/${basename}`) {
   const namespaceRoot = resolveNamespaceRoot2(cwd);
-  const ignorePath = nodePath132.join(namespaceRoot, ".gitignore");
-  const statePath = nodePath132.join(namespaceRoot, basename);
+  const ignorePath = nodePath133.join(namespaceRoot, ".gitignore");
+  const statePath = nodePath133.join(namespaceRoot, basename);
   mkdirSync26(namespaceRoot, { recursive: true });
   if (gitAlreadyIgnores(cwd, statePath))
     return;
@@ -70756,7 +71585,7 @@ var init_skill_invocation_log = __esm(() => {
 
 // templates/hooks/record-skill-invocation.ts
 import { appendFileSync as appendFileSync5 } from "fs";
-import nodePath133 from "path";
+import nodePath134 from "path";
 import process19 from "process";
 function resolveProofSessionKey(input) {
   const { projectDirectory, skillName: skillName2, explicitSessionId } = input;
@@ -70793,7 +71622,7 @@ function recordSkillInvocation(projectDirectory, skillName2, sessionId) {
   }
   const namespaceRoot = resolveNamespaceRoot2(projectDirectory);
   ensureTransientStateIgnore(projectDirectory, SKILL_INVOCATIONS_LOG);
-  appendFileSync5(nodePath133.join(namespaceRoot, SKILL_INVOCATIONS_LOG), `${new Date().toISOString()} ${proofSessionKey} ${skillName2}
+  appendFileSync5(nodePath134.join(namespaceRoot, SKILL_INVOCATIONS_LOG), `${new Date().toISOString()} ${proofSessionKey} ${skillName2}
 `, "utf8");
   return true;
 }
@@ -70896,7 +71725,7 @@ __export(exports_project_runtime, {
 });
 import { spawnSync as spawnSync18 } from "child_process";
 import { existsSync as existsSync64 } from "fs";
-import nodePath134 from "path";
+import nodePath135 from "path";
 function completedResult(helper, status, stdout, stderr) {
   const exitCode = status ?? 1;
   if (exitCode !== 0)
@@ -70918,12 +71747,12 @@ function completedResult(helper, status, stdout, stderr) {
   });
 }
 function packageRoot2() {
-  const runtimeDirectory = nodePath134.basename(import.meta.dirname);
-  return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath134.dirname(import.meta.dirname) : nodePath134.resolve(import.meta.dirname, "../..");
+  const runtimeDirectory = nodePath135.basename(import.meta.dirname);
+  return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath135.dirname(import.meta.dirname) : nodePath135.resolve(import.meta.dirname, "../..");
 }
 function packagedCliPath() {
-  const runtimeDirectory = nodePath134.basename(import.meta.dirname);
-  return nodePath134.join(packageRoot2(), runtimeDirectory === "runtime" ? "runtime" : "dist", "cli.js");
+  const runtimeDirectory = nodePath135.basename(import.meta.dirname);
+  return nodePath135.join(packageRoot2(), runtimeDirectory === "runtime" ? "runtime" : "dist", "cli.js");
 }
 function projectRuntimeEnvironment(projectDirectory) {
   const environment = {
@@ -70950,7 +71779,7 @@ function runProjectRuntime(cwd, helper, args, runner = spawnSync18) {
     }));
   const projectDirectory = hasSafewordProjectMarker2(cwd) ? cwd : process.env.CLAUDE_PROJECT_DIR ?? cwd;
   const [relativePath, runtime] = definition;
-  const script = nodePath134.join(packageRoot2(), relativePath);
+  const script = nodePath135.join(packageRoot2(), relativePath);
   if (!existsSync64(script))
     return Promise.resolve(createResult({
       state: "failed",
@@ -71015,19 +71844,19 @@ __export(exports_drain_retro_spool, {
   drainRetroSpool: () => drainRetroSpool
 });
 import { existsSync as existsSync65, lstatSync as lstatSync25, realpathSync as realpathSync18 } from "fs";
-import nodePath135 from "path";
+import nodePath136 from "path";
 function drainRetroSpool(inputPath, mode = "drain") {
-  const spoolPath2 = nodePath135.resolve(inputPath);
-  const draftsDirectory = nodePath135.dirname(spoolPath2);
-  const safewordDirectory = nodePath135.dirname(draftsDirectory);
-  if (nodePath135.basename(draftsDirectory) !== "retro-drafts" || nodePath135.basename(safewordDirectory) !== ".safeword" || !spoolPath2.endsWith(".jsonl")) {
+  const spoolPath2 = nodePath136.resolve(inputPath);
+  const draftsDirectory = nodePath136.dirname(spoolPath2);
+  const safewordDirectory = nodePath136.dirname(draftsDirectory);
+  if (nodePath136.basename(draftsDirectory) !== "retro-drafts" || nodePath136.basename(safewordDirectory) !== ".safeword" || !spoolPath2.endsWith(".jsonl")) {
     return {
       state: "refused",
       message: "Refusing to drain a path outside .safeword/retro-drafts/*.jsonl"
     };
   }
-  const projectDirectory = nodePath135.dirname(safewordDirectory);
-  const sessionId = nodePath135.basename(spoolPath2, ".jsonl");
+  const projectDirectory = nodePath136.dirname(safewordDirectory);
+  const sessionId = nodePath136.basename(spoolPath2, ".jsonl");
   const ackPath2 = ackFilePath(projectDirectory, sessionId);
   const protectedPaths = [safewordDirectory, draftsDirectory, spoolPath2, ackPath2];
   if (protectedPaths.some((path8) => existsSync65(path8) && lstatSync25(path8).isSymbolicLink())) {
@@ -71036,7 +71865,7 @@ function drainRetroSpool(inputPath, mode = "drain") {
       message: "Refusing a symlinked retro spool or acknowledgement path"
     };
   }
-  if (existsSync65(spoolPath2) && (!existsSync65(draftsDirectory) || nodePath135.dirname(realpathSync18(spoolPath2)) !== realpathSync18(draftsDirectory))) {
+  if (existsSync65(spoolPath2) && (!existsSync65(draftsDirectory) || nodePath136.dirname(realpathSync18(spoolPath2)) !== realpathSync18(draftsDirectory))) {
     return {
       state: "refused",
       message: "Refusing a retro spool outside its canonical drafts directory"
@@ -71066,7 +71895,7 @@ __export(exports_retro_drain, {
   runRetroDrain: () => runRetroDrain
 });
 import { statSync as statSync12 } from "fs";
-import nodePath136 from "path";
+import nodePath137 from "path";
 function spoolSize(path8) {
   try {
     return statSync12(path8).size;
@@ -71087,7 +71916,7 @@ async function runRetroDrain(cwd, spoolPath2, options) {
       ]
     });
   }
-  const resolvedSpoolPath = nodePath136.resolve(cwd, spoolPath2);
+  const resolvedSpoolPath = nodePath137.resolve(cwd, spoolPath2);
   const { drainRetroSpool: drainRetroSpool2 } = await Promise.resolve().then(() => (init_drain_retro_spool(), exports_drain_retro_spool));
   const before = spoolSize(resolvedSpoolPath);
   const result2 = drainRetroSpool2(resolvedSpoolPath, options.validatedJsonl === true ? "validated-jsonl" : "drain");
@@ -71120,7 +71949,7 @@ async function runRetroDrain(cwd, spoolPath2, options) {
     changed: drained,
     ...drained && {
       effects: {
-        files: [{ kind: "update", target: nodePath136.relative(cwd, resolvedSpoolPath) }]
+        files: [{ kind: "update", target: nodePath137.relative(cwd, resolvedSpoolPath) }]
       }
     },
     data: { command: "project retro-drain", drained }
@@ -71136,7 +71965,7 @@ __export(exports_lint_gherkin, {
   observeGherkinLint: () => observeGherkinLint
 });
 import { existsSync as existsSync66, readFileSync as readFileSync86, statSync as statSync13 } from "fs";
-import nodePath137 from "path";
+import nodePath138 from "path";
 function observeGherkinLint(cwd, files2) {
   const featureFiles = files2.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files2);
   const issues = featureFiles.flatMap((file) => lintFile(cwd, file));
@@ -71157,7 +71986,7 @@ function observeGherkinLint(cwd, files2) {
   });
 }
 function resolveInputFiles(cwd, files2) {
-  return files2.map((file) => nodePath137.resolve(cwd, file));
+  return files2.map((file) => nodePath138.resolve(cwd, file));
 }
 function discoverFeatureFiles(cwd) {
   return collectExecutableFeatureFiles(cwd);
@@ -71197,7 +72026,7 @@ function formatIssue(cwd, filePath, issue2) {
   return `${location}: ${issue2.message} [${issue2.rule}]`;
 }
 function formatPath(cwd, filePath) {
-  return nodePath137.relative(cwd, filePath) || nodePath137.basename(filePath);
+  return nodePath138.relative(cwd, filePath) || nodePath138.basename(filePath);
 }
 var OFFLOAD_RULE_PROOF_POLICY;
 var init_lint_gherkin = __esm(() => {
@@ -71700,7 +72529,7 @@ __export(exports_boundary, {
 });
 import { execFileSync as execFileSync11 } from "child_process";
 import { appendFileSync as appendFileSync6, existsSync as existsSync68, mkdirSync as mkdirSync27 } from "fs";
-import nodePath140 from "path";
+import nodePath141 from "path";
 import process22 from "process";
 function tryGit(cwd, args) {
   try {
@@ -71779,10 +72608,10 @@ function collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures) 
     byTicket.set(ticketPath, change);
   }
   for (const change of byTicket.values()) {
-    const folder = nodePath140.join(cwd, change.anchorScope.ticketPath);
+    const folder = nodePath141.join(cwd, change.anchorScope.ticketPath);
     const staged = change.artifacts.find((a) => a.artifact === "ticket.md")?.proposed;
-    change.ticketCurrent = staged ?? readFileSafe(nodePath140.join(folder, "ticket.md"));
-    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync68(nodePath140.join(folder, "test-definitions.md"));
+    change.ticketCurrent = staged ?? readFileSafe(nodePath141.join(folder, "ticket.md"));
+    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync68(nodePath141.join(folder, "test-definitions.md"));
     if (at === "push" && change.artifacts.some((a) => a.artifact === "ticket.md")) {
       const path8 = `${change.anchorScope.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path8, range.priorRef);
@@ -71800,8 +72629,8 @@ function legalityStepsFor(cwd, path8, priorReference) {
   }));
 }
 function appendAudit(cwd, entry2) {
-  const auditPath = nodePath140.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync27(nodePath140.dirname(auditPath), { recursive: true });
+  const auditPath = nodePath141.join(cwd, AUDIT_RELATIVE_PATH);
+  mkdirSync27(nodePath141.dirname(auditPath), { recursive: true });
   appendFileSync6(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -71845,7 +72674,7 @@ function boundary(options) {
   try {
     const at = options.at === "push" ? "push" : "commit";
     const cwd = process22.cwd();
-    if (existsSync68(nodePath140.join(cwd, ".safeword"))) {
+    if (existsSync68(nodePath141.join(cwd, ".safeword"))) {
       reconcileBoundary(cwd, at);
     }
   } catch (error2) {
@@ -71860,7 +72689,7 @@ var init_boundary = __esm(() => {
   init_configured_paths();
   init_feature_source();
   init_fs();
-  AUDIT_RELATIVE_PATH = nodePath140.join(".safeword", "boundary-audit.jsonl");
+  AUDIT_RELATIVE_PATH = nodePath141.join(".safeword", "boundary-audit.jsonl");
 });
 
 // src/commands/codex-hook.ts
@@ -71885,7 +72714,7 @@ import {
   writeFileSync as writeFileSync34
 } from "fs";
 import { tmpdir as tmpdir7 } from "os";
-import nodePath141 from "path";
+import nodePath142 from "path";
 import process23 from "process";
 async function readStdin() {
   stdinCache.body ??= (async () => {
@@ -72006,8 +72835,8 @@ function writeCodexIdentityCache(input) {
   if (!sessionId || !skillName2)
     return;
   try {
-    const cachePath = nodePath141.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync28(nodePath141.dirname(cachePath), { recursive: true });
+    const cachePath = nodePath142.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
+    mkdirSync28(nodePath142.dirname(cachePath), { recursive: true });
     writeFileSync34(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
@@ -72070,9 +72899,9 @@ function missingIntakeFields(ticketContent) {
   return REQUIRED_INTAKE_FIELDS.filter((field) => !frontmatterHasField(body, field));
 }
 function testDefinitionsTicketFolder(projectDirectory, targetPath) {
-  const ticketsDirectory = nodePath141.join(resolveNamespaceRoot(projectDirectory), "tickets");
-  const absoluteTarget = nodePath141.resolve(projectDirectory, targetPath);
-  const normalized = nodePath141.relative(ticketsDirectory, absoluteTarget).replaceAll("\\", "/");
+  const ticketsDirectory = nodePath142.join(resolveNamespaceRoot(projectDirectory), "tickets");
+  const absoluteTarget = nodePath142.resolve(projectDirectory, targetPath);
+  const normalized = nodePath142.relative(ticketsDirectory, absoluteTarget).replaceAll("\\", "/");
   const match = /^([^/]+)\/test-definitions\.md$/u.exec(normalized);
   return match?.[1];
 }
@@ -72116,10 +72945,10 @@ function readPackagedSafewordInstructions() {
 `);
 }
 function findPackagedTemplate(relativePath) {
-  return TEMPLATE_DIRECTORIES.map((directory) => nodePath141.join(directory, relativePath)).find((candidate) => existsSync69(candidate));
+  return TEMPLATE_DIRECTORIES.map((directory) => nodePath142.join(directory, relativePath)).find((candidate) => existsSync69(candidate));
 }
 function resolvePackagedHook(relativePath) {
-  return findPackagedTemplate(nodePath141.join("hooks", relativePath));
+  return findPackagedTemplate(nodePath142.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
   const runtime = process23.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process23.execPath : "bun";
@@ -72148,7 +72977,7 @@ function normalizeNamespaceRootLabel(label) {
   return normalizedLabel === "." || normalizedLabel.startsWith("..") || [".project", ".safeword-project"].includes(normalizedLabel) ? undefined : normalizedLabel;
 }
 function packagedNamespaceRootLabel(projectDirectory) {
-  return normalizeNamespaceRootLabel(nodePath141.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
+  return normalizeNamespaceRootLabel(nodePath142.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
 }
 function runPackagedHook(relativePath, rawInput, projectDirectory) {
   const hookPath = resolvePackagedHook(relativePath);
@@ -72163,10 +72992,10 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   let temporaryHookDirectory;
   try {
     if (relativePath === "session-codex-start.ts") {
-      temporaryHookDirectory = mkdtempSync9(nodePath141.join(tmpdir7(), "safeword-codex-hook-"));
-      cpSync5(nodePath141.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync34(nodePath141.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
-      executableHookPath = nodePath141.join(temporaryHookDirectory, nodePath141.basename(hookPath));
+      temporaryHookDirectory = mkdtempSync9(nodePath142.join(tmpdir7(), "safeword-codex-hook-"));
+      cpSync5(nodePath142.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      writeFileSync34(nodePath142.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      executableHookPath = nodePath142.join(temporaryHookDirectory, nodePath142.basename(hookPath));
     }
     const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
@@ -72192,12 +73021,12 @@ function snapshotEmbeddedOpenCodePreToolHook(relativePath) {
   const embedded = embeddedOpenCodePreToolHooks();
   if (!embedded)
     return;
-  const directory = mkdtempSync9(nodePath141.join(tmpdir7(), `safeword-opencode-hook-snapshot-${process23.pid}-`));
-  const hooksDirectory = nodePath141.join(directory, "hooks");
-  const codexDirectory = nodePath141.join(hooksDirectory, "codex");
+  const directory = mkdtempSync9(nodePath142.join(tmpdir7(), `safeword-opencode-hook-snapshot-${process23.pid}-`));
+  const hooksDirectory = nodePath142.join(directory, "hooks");
+  const codexDirectory = nodePath142.join(hooksDirectory, "codex");
   mkdirSync28(codexDirectory, { recursive: true });
-  writeFileSync34(nodePath141.join(hooksDirectory, "pre-tool-quality.ts"), embedded.preTool, "utf8");
-  const hookPath = nodePath141.join(codexDirectory, "pre-tool-quality.ts");
+  writeFileSync34(nodePath142.join(hooksDirectory, "pre-tool-quality.ts"), embedded.preTool, "utf8");
+  const hookPath = nodePath142.join(codexDirectory, "pre-tool-quality.ts");
   writeFileSync34(hookPath, embedded.codexPreTool, "utf8");
   return { directory, hookPath };
 }
@@ -72209,11 +73038,11 @@ function requiredSourceRewrite(source, expected, replacement, path8) {
   return source.slice(0, index) + replacement + source.slice(index + expected.length);
 }
 function rewriteOpenCodeHookRuntime(relativePath, source, rewritten, path8) {
-  if (relativePath === nodePath141.join("codex", "pre-tool-quality.ts") && source.includes("Bun.stdin")) {
+  if (relativePath === nodePath142.join("codex", "pre-tool-quality.ts") && source.includes("Bun.stdin")) {
     return requiredSourceRewrite(rewritten, "return JSON.parse(await Bun.stdin.text()) as CodexHookInput;", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
     return JSON.parse(raw) as CodexHookInput;`, path8);
   }
-  if (relativePath === nodePath141.join("codex", "pre-tool-quality-helpers.ts") && source.includes("spawnSync('bun'")) {
+  if (relativePath === nodePath142.join("codex", "pre-tool-quality-helpers.ts") && source.includes("spawnSync('bun'")) {
     const nodeSpawn = requiredSourceRewrite(rewritten, "return spawnSync('bun', [claudeHookPath], {", "return spawnSync(process.execPath, [claudeHookPath], {", path8);
     return requiredSourceRewrite(nodeSpawn, "SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',", path8);
   }
@@ -72226,14 +73055,14 @@ function rewriteOpenCodeHookRuntime(relativePath, source, rewritten, path8) {
 function rewriteSnapshotImportsForNode(directory, root = directory) {
   const entries = readdirSync37(directory, { withFileTypes: true });
   for (const entry2 of entries) {
-    const path8 = nodePath141.join(directory, entry2.name);
+    const path8 = nodePath142.join(directory, entry2.name);
     if (entry2.isDirectory()) {
       rewriteSnapshotImportsForNode(path8, root);
       continue;
     }
     if (!entry2.isFile() || !entry2.name.endsWith(".ts"))
       continue;
-    const relativePath = nodePath141.relative(root, path8);
+    const relativePath = nodePath142.relative(root, path8);
     const source = readFileSync87(path8, "utf8");
     const importRewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3");
     const rewritten = rewriteOpenCodeHookRuntime(relativePath, source, importRewritten, path8);
@@ -72248,16 +73077,16 @@ function snapshotPackagedHook(relativePath) {
       error: new Error(`Safeword packaged hook is missing: ${relativePath}`)
     };
   }
-  const directory = mkdtempSync9(nodePath141.join(tmpdir7(), `safeword-codex-hook-snapshot-${process23.pid}-`));
-  const stagingHooksDirectory = nodePath141.join(directory, "hooks-copying");
-  const snapshotHooksDirectory = nodePath141.join(directory, "hooks");
+  const directory = mkdtempSync9(nodePath142.join(tmpdir7(), `safeword-codex-hook-snapshot-${process23.pid}-`));
+  const stagingHooksDirectory = nodePath142.join(directory, "hooks-copying");
+  const snapshotHooksDirectory = nodePath142.join(directory, "hooks");
   try {
     cpSync5(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
     if (process23.env.SAFEWORD_AGENT_RUNTIME === "opencode") {
       rewriteSnapshotImportsForNode(stagingHooksDirectory);
     }
     renameSync17(stagingHooksDirectory, snapshotHooksDirectory);
-    const hookPath = nodePath141.join(snapshotHooksDirectory, relativePath);
+    const hookPath = nodePath142.join(snapshotHooksDirectory, relativePath);
     return existsSync69(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
     return {
@@ -72303,7 +73132,7 @@ function emitPackagedPreToolResult(result2) {
   return true;
 }
 function readProjectTextFile(projectDirectory, relativePath) {
-  const filePath = nodePath141.join(projectDirectory, relativePath);
+  const filePath = nodePath142.join(projectDirectory, relativePath);
   return existsSync69(filePath) ? readFileSync87(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
@@ -72351,7 +73180,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder)
     return false;
-  const ticketPath = nodePath141.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
+  const ticketPath = nodePath142.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
   const ticketContent = existsSync69(ticketPath) ? readFileSync87(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
@@ -72415,7 +73244,7 @@ function postToolLintInputs(input, rawInput, projectDirectory) {
   if (input?.tool_name !== "apply_patch")
     return [rawInput];
   return extractTargetPaths(input).map((filePath) => JSON.stringify({
-    tool_input: { file_path: nodePath141.resolve(projectDirectory, filePath) }
+    tool_input: { file_path: nodePath142.resolve(projectDirectory, filePath) }
   }));
 }
 function collectPostToolLintContexts(lintInputs, projectDirectory) {
@@ -72539,8 +73368,8 @@ var init_codex_hook = __esm(() => {
   REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
-    nodePath141.resolve(MODULE_DIRECTORY, "../templates"),
-    nodePath141.resolve(MODULE_DIRECTORY, "../../templates")
+    nodePath142.resolve(MODULE_DIRECTORY, "../templates"),
+    nodePath142.resolve(MODULE_DIRECTORY, "../../templates")
   ];
   SKILL_NAME_PATTERN3 = /^[a-z][a-z0-9-]*$/u;
   SHELL_WHITESPACE = [" ", `
@@ -74659,7 +75488,7 @@ init_agent_selection();
 // src/cli-protocol/public-handlers.ts
 init_agent_selection();
 import { existsSync as existsSync67 } from "fs";
-import nodePath138 from "path";
+import nodePath139 from "path";
 
 // src/cli-protocol/architecture-handlers.ts
 init_architecture_document();
@@ -76893,14 +77722,14 @@ async function uninstallHandler(invocation) {
   return finding2 === undefined ? result2 : { ...result2, findings: [...result2.findings, finding2] };
 }
 async function syncConfigHandler(invocation) {
-  const safewordDirectory = nodePath138.join(invocation.cwd, ".safeword");
+  const safewordDirectory = nodePath139.join(invocation.cwd, ".safeword");
   if (!existsSync67(safewordDirectory))
     return notConfigured("project sync-config");
   const { buildArchitecture: buildArchitecture2, inspectConfig: inspectConfig2, syncConfigCore: syncConfigCore2 } = await Promise.resolve().then(() => (init_sync_config(), exports_sync_config));
   const architecture2 = buildArchitecture2(invocation.cwd);
   const before = inspectConfig2(invocation.cwd, architecture2);
-  const mainConfigExists = existsSync67(nodePath138.join(invocation.cwd, ".dependency-cruiser.cjs"));
-  const generatedConfigExists = existsSync67(nodePath138.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
+  const mainConfigExists = existsSync67(nodePath139.join(invocation.cwd, ".dependency-cruiser.cjs"));
+  const generatedConfigExists = existsSync67(nodePath139.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
   if (invocation.options.check === true) {
     return configCheckResult(completeConfigInspection(before, mainConfigExists));
   }
@@ -76932,7 +77761,7 @@ async function syncLearningsHandler(invocation) {
       files: result2.wrote ? [
         {
           kind: "write",
-          target: nodePath138.relative(invocation.cwd, result2.indexPath)
+          target: nodePath139.relative(invocation.cwd, result2.indexPath)
         }
       ] : []
     },
@@ -76952,7 +77781,7 @@ async function syncTicketsHandler(invocation) {
     effects: {
       files: result2.wrote ? [result2.indexPath, result2.completedIndexPath].map((target) => ({
         kind: "write",
-        target: nodePath138.relative(invocation.cwd, target)
+        target: nodePath139.relative(invocation.cwd, target)
       })) : []
     },
     findings: result2.skipped.map((skip) => ({
@@ -78159,7 +78988,7 @@ function createCapabilitiesResult() {
 }
 
 // src/cli-protocol/execute.ts
-import nodePath139 from "path";
+import nodePath140 from "path";
 import process20 from "process";
 init_policy();
 init_result();
@@ -78185,7 +79014,7 @@ function readGlobalOptions(command2) {
   return {
     json: options.json === true,
     noInput: options.input === false,
-    cwd: nodePath139.resolve(process20.cwd(), options.cwd ?? "."),
+    cwd: nodePath140.resolve(process20.cwd(), options.cwd ?? "."),
     quiet: options.quiet === true,
     offline: options.offline === true,
     verbose: options.verbose === true
