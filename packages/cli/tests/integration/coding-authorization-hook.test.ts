@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { expectHookDeny, TIMEOUT_QUICK } from '../helpers.js';
+import { expectHookAllow, expectHookDeny, TIMEOUT_QUICK } from '../helpers.js';
 
 const HOOK_PATH = nodePath.resolve(
   import.meta.dirname,
@@ -53,7 +53,10 @@ describe('coding authorization edit hook', () => {
     sourcePath = nodePath.join(projectRoot, 'src', 'application.ts');
     mkdirSync(ticketDirectory, { recursive: true });
     mkdirSync(nodePath.dirname(sourcePath), { recursive: true });
+    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
     mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
+    writeFileSync(nodePath.join(projectRoot, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
+    writeFileSync(nodePath.join(projectRoot, '.safeword', 'config.json'), '{}\n');
     writeFileSync(
       nodePath.join(ticketDirectory, 'ticket.md'),
       [
@@ -74,7 +77,7 @@ describe('coding authorization edit hook', () => {
         '',
         '### Scenario: guarded edit',
         '',
-        '- [x] RED fixture',
+        '- [ ] RED',
         '- [ ] GREEN',
         '- [ ] REFACTOR',
         '',
@@ -136,15 +139,18 @@ describe('coding authorization edit hook', () => {
 
     const result = runProductionEdit();
 
+    expect(result.error, result.stderr).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    const callsPath = nodePath.join(pluginRoot, 'calls.log');
     expect(
-      result.stdout,
-      'a stale affected plan must block the production edit before implementation continues',
-    ).not.toBe('');
+      existsSync(callsPath),
+      'a production edit under a contracted feature must ask the public coding-authorization command',
+    ).toBe(true);
     expectHookDeny(result, 'The accepted Implementation Plan changed after review.');
     expect(result.stdout).toContain(
       'safeword review run plan-implementation -- .project/tickets/AUTH01-gate/impl-plan.md',
     );
-    const calls = readFileSync(nodePath.join(pluginRoot, 'calls.log'), 'utf8')
+    const calls = readFileSync(callsPath, 'utf8')
       .trim()
       .split('\n')
       .map(line => JSON.parse(line) as string[]);
@@ -158,5 +164,34 @@ describe('coding authorization edit hook', () => {
       'coding-authorization',
       TICKET_ID,
     ]);
+  });
+
+  it('allows production work when the public coding-authorization command authorizes it', () => {
+    writeCliResponse({
+      schema_version: 1,
+      ok: true,
+      state: 'healthy',
+      changed: false,
+      findings: [],
+      effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
+      errors: [],
+      recovery: [],
+      next_actions: [],
+      data: {
+        command: 'ticket coding-authorization',
+        coding_authorization: 'authorized',
+        achieved_independence: 'cross-agent',
+        grants_authority: false,
+        authorization_input_identity: 'current-plans',
+      },
+    });
+
+    const result = runProductionEdit();
+
+    expect(result.error, result.stderr).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expectHookAllow(result);
+    const calls = readFileSync(nodePath.join(pluginRoot, 'calls.log'), 'utf8').trim().split('\n');
+    expect(calls).toHaveLength(1);
   });
 });
