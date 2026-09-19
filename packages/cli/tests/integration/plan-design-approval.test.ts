@@ -1,5 +1,6 @@
 /**
- * Design-approval and Execution Planning boundary for G1C9PP R19 and A639WN R4.
+ * Design-approval and Execution Planning boundary for G1C9PP R19, A639WN R4,
+ * and 7CAMAD R1.
  *
  * The interactive row deliberately crosses a real pseudo-terminal. Calling an
  * injected prompt would prove only handler composition, not that an installed
@@ -589,6 +590,20 @@ describe('an accepted design enters Execution Planning', () => {
 });
 
 describe('Implementation Plan review admission controls Execution Planning', () => {
+  it('blocks when the project-local Implementation Plan is absent', async () => {
+    const project = fixture(false);
+    rmSync(nodePath.join(project.ticketDirectory, 'impl-plan.md'));
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(result.stdout).toContain('impl-plan.md');
+  });
+
   it('rejects a current stamp with no authenticated review receipt', async () => {
     const project = fixture(false, 'missing');
     const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(PLAN));
