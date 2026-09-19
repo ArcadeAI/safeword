@@ -70,7 +70,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R4 — Execution discoveries return to the owning phase
 
-### Scenario: A discovered change returns only when it alters an accepted decision
+### Scenario Outline: A discovered change returns only when it alters an accepted decision
 
 - [x] RED skip: live — see work log 2026-09-19T12:52:03.000Z "discovery routing"
 - [ ] GREEN
