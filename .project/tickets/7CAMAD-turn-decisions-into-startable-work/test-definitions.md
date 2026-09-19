@@ -198,7 +198,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d65d37e28
 - [x] GREEN 719486201
-- [ ] REFACTOR
+- [x] REFACTOR 2fbec3997
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R12 — The Execution Plan distinguishes current implementation from target work and uses the canonical evidence-currency taxonomy owned by A639WN.R7
 
