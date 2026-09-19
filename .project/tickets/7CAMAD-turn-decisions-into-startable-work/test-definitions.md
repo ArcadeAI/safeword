@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Implementation Plan review state controls Execution Planning
 
-- [ ] RED
+- [x] RED 5d2aa327f
 - [ ] GREEN
 - [ ] REFACTOR
 
