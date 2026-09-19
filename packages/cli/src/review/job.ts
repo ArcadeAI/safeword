@@ -25,6 +25,7 @@ import {
   executionPlanReviewIdentity,
   hasExecutionPlanDeliveryChecklist,
 } from '../execution-plan/review-identity.js';
+import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
@@ -172,9 +173,9 @@ function fingerprint(
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
 ): string {
-  // A GREEN receipt is bound to the ledger state that the reviewer approved,
-  // not just to the human-readable scenario label. Otherwise a later heading
-  // rename could make an old receipt appear to cover a different scenario.
+  // A GREEN receipt is bound to the reviewed scenario's ledger block, not just
+  // its human-readable label. Other scenarios share this progress ledger, so
+  // their later GREEN/REFACTOR updates are outputs rather than proof inputs.
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
     allowMissingExecutableRedAttestation: true,
@@ -203,13 +204,11 @@ function fingerprint(
         hash.update(file.path);
         hash.update('\0');
         hash.update(
-          reviewFingerprintContent(
-            section,
-            file.path,
-            file.content,
-            executionPlanTarget?.path,
+          reviewFingerprintContent(section, file.path, file.content, {
+            executionPlanTargetPath: executionPlanTarget?.path,
             executionPlanFingerprint,
-          ),
+            executableRedScenario: executableRedScenarioForFile(cwd, file.path, execution),
+          }),
         );
         hash.update('\0');
       }
@@ -220,21 +219,84 @@ function fingerprint(
   }
 }
 
+interface ReviewFingerprintOptions {
+  readonly executionPlanTargetPath?: string;
+  readonly executionPlanFingerprint?: string;
+  readonly executableRedScenario?: string;
+}
+
 function reviewFingerprintContent(
   section: 'targets' | 'context',
   path: string,
   content: string,
-  executionPlanTargetPath: string | undefined,
-  executionPlanFingerprint: string | undefined,
+  options: ReviewFingerprintOptions,
 ): string {
   if (
     section === 'targets' &&
-    path === executionPlanTargetPath &&
-    executionPlanFingerprint !== undefined
+    path === options.executionPlanTargetPath &&
+    options.executionPlanFingerprint !== undefined
   ) {
-    return executionPlanFingerprint;
+    return options.executionPlanFingerprint;
+  }
+  if (options.executableRedScenario !== undefined) {
+    return executableRedLedgerIdentity(content, options.executableRedScenario);
   }
   return content;
+}
+
+function executableRedScenarioForFile(
+  cwd: string,
+  file: string,
+  execution: RedExecutionRequest | undefined,
+): string | undefined {
+  if (execution === undefined) return undefined;
+  return nodePath.resolve(cwd, file) === nodePath.resolve(cwd, execution.ledger)
+    ? execution.scenario
+    : undefined;
+}
+
+interface LedgerHeading {
+  readonly index: number;
+  readonly level: number;
+  readonly text: string;
+  readonly line: string;
+}
+
+function ledgerHeadings(lines: readonly string[], skipped: readonly boolean[]): LedgerHeading[] {
+  return lines.flatMap((line, index) => {
+    if (skipped.at(index) === true) return [];
+    const heading = parseHeading(line);
+    return heading === undefined ? [] : [{ index, line, ...heading }];
+  });
+}
+
+function executableRedLedgerIdentity(content: string, scenario: string): string {
+  const lines = content.split('\n');
+  const skipped = computeSkipMask(lines);
+  const headings = ledgerHeadings(lines, skipped);
+  const featureSources = lines.filter(
+    (line, index) =>
+      skipped.at(index) !== true && /^\s*(?:\*\*)?Feature source:(?:\*\*)?\s*`[^`]+`/iu.test(line),
+  );
+  const matches = headings.filter(heading => heading.text === scenario);
+
+  // Missing or duplicate bindings are ambiguous. Hash the whole ledger so no
+  // normalization can make a stale receipt look current.
+  if (matches.length !== 1) return content;
+  const [match] = matches;
+  if (match === undefined) return content;
+  const end =
+    headings.find(heading => heading.index > match.index && heading.level <= match.level)?.index ??
+    lines.length;
+  const parent = headings.findLast(
+    heading => heading.index < match.index && heading.level < match.level,
+  );
+  const rule = parent?.text.startsWith('Rule:') === true ? parent.line : undefined;
+  return [
+    ...featureSources,
+    ...(rule === undefined ? [] : [rule]),
+    ...lines.slice(match.index, end),
+  ].join('\n');
 }
 
 function pathEscapes(root: string, candidate: string): boolean {

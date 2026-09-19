@@ -1014,6 +1014,47 @@ describe('durable review jobs', () => {
     });
   });
 
+  it('keeps a scenario receipt current when another scenario records progress', async () => {
+    const cwd = project();
+    const executableWorker = COMPLETE_WORKER.replace(
+      'reviewer_output: {',
+      () => APPROVED_RED_ATTESTATION,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, executableWorker));
+    const execution: RedExecutionRequest = {
+      scenario: 'Scenario: exact actor boundary',
+      ledger: '.project/tickets/TST/test-definitions.md',
+      argv: [process.execPath, '-e', 'process.exit(1)'],
+      cwd: '.',
+      evidenceClass: 'pure-contract',
+      expectedFailure: 'actor assertion',
+      timeoutMs: 1000,
+    };
+
+    await startReviewJob({ cwd, kind: 'executable-red', targets: ['input.md'], execution });
+    const ledgerPath = nodePath.join(cwd, execution.ledger);
+    writeFileSync(
+      ledgerPath,
+      readFileSync(ledgerPath, 'utf8').replace(
+        ['### Scenario Outline: shared proof rows', '', '- [x] RED abc1234', '- [ ] GREEN'].join(
+          '\n',
+        ),
+        () =>
+          [
+            '### Scenario Outline: shared proof rows',
+            '',
+            '- [x] RED abc1234',
+            '- [x] GREEN def5678',
+          ].join('\n'),
+      ),
+    );
+
+    expect(executableRedGate(cwd, execution.scenario, execution.ledger)).toMatchObject({
+      state: 'healthy',
+      data: { command: 'review gate executable-red', status: 'approved' },
+    });
+  });
+
   it('returns a typed stale denial when a reviewed proof target was deleted', async () => {
     const cwd = project();
     const executableWorker = COMPLETE_WORKER.replace(
