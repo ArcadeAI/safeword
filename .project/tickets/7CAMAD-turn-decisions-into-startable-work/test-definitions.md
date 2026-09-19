@@ -34,7 +34,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A fresh-context agent turns an accepted approach into the first RED
 
-- [ ] RED
+- [x] RED 39163e735
 - [ ] GREEN
 - [ ] REFACTOR
 
