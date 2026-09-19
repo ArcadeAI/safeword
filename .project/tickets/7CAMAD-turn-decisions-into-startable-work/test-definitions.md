@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Exhausted review routes preserve their actual provenance
 
-- [ ] RED
+- [x] RED 5d2aa327f
 - [ ] GREEN
 - [ ] REFACTOR
 
