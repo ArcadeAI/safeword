@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5d2aa327f
 - [x] GREEN 88efda591
-- [ ] REFACTOR
+- [x] REFACTOR skip: production path already delegates to the shared review authority
 
 ### Scenario: Exhausted review routes preserve their actual provenance
 
