@@ -44,6 +44,10 @@ const EXPECTED_CASE_IDS = [
   'reopened-authorization-decision',
   'fresh-context-first-red',
   'later-step-is-not-startable',
+  'blocked-first-prerequisite',
+  'no-executable-steps',
+  'risk-first-ordering',
+  'parallel-safe-after-probe',
 ] as const;
 
 function passingResults(
@@ -162,6 +166,31 @@ describe('Execution Plan semantic conformance admission', () => {
     expect(testCase?.execution_plan).toContain(
       '4. TODO: decide whether denied authorization returns an error or an empty result before implementation.',
     );
+  });
+
+  it.each([
+    ['blocked-first-prerequisite', ['prerequisite', 'startable']],
+    ['no-executable-steps', ['executable', 'step']],
+  ])('keeps %s as a named first-step denial', (caseId, findingTerms) => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'request_changes',
+      finding_terms: findingTerms,
+    });
+  });
+
+  it.each([
+    ['risk-first-ordering', ['Risk probe', 'Activation']],
+    ['parallel-safe-after-probe', ['Risk probe', 'Independent consumers']],
+  ])('keeps %s as a supported ordering case', (caseId, sliceNames) => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'approve',
+      slicing_decision: 'multiple_pull_requests',
+      slice_names: sliceNames,
+    });
   });
 
   it('keeps complete obligation ownership as an approval case', () => {
