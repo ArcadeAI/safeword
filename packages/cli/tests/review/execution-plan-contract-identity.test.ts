@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
@@ -16,10 +17,14 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ReviewPacket, UnverifiedReviewerOutput } from '../../src/review/contract.js';
-import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
+import {
+  EXECUTION_PLAN_CONFORMANCE_CASES,
+  executionPlanConformanceDigests,
+} from '../../src/review/execution-plan-conformance.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
 import { extractExecutionPlanReviewRubric } from '../../src/review/execution-plan-rubric.js';
 import { assemblePlanContract } from '../../src/review/packet.js';
+import { reviewPromptContract } from '../../src/review/review-rubric.js';
 import { reconcilePlanContract } from '../../src/review/runtime.js';
 import {
   cleanupTrustedReviewerDirectories,
@@ -94,6 +99,29 @@ function patchInstalledReviewerRubric(distribution: string, rubric: string): voi
       () => `var EXECUTION_PLAN_REVIEW_RUBRIC = ${JSON.stringify(rubric)};`,
     ),
   );
+}
+
+function retainInstalledRouteAdmission(distribution: string, rubric: string): void {
+  const currentDigest = executionPlanConformanceDigests().contract_sha256;
+  const contract = reviewPromptContract('plan-execution').replace(
+    EXECUTION_PLAN_REVIEW_RUBRIC,
+    () => rubric,
+  );
+  const fixtureDigest = createHash('sha256').update(contract).digest('hex');
+  let replacements = 0;
+  const entries = readdirSync(nodePath.join(distribution, 'dist'));
+  for (const entry of entries) {
+    if (!entry.endsWith('.js')) continue;
+    const path = nodePath.join(distribution, 'dist', entry);
+    const source = readFileSync(path, 'utf8');
+    if (!source.includes(currentDigest)) continue;
+    writeFileSync(
+      path,
+      source.replaceAll(currentDigest, () => fixtureDigest),
+    );
+    replacements += 1;
+  }
+  if (replacements !== 1) throw new Error('Installed reviewer admission identity was not unique');
 }
 
 function installApprovingReviewer(): string {
@@ -175,10 +203,13 @@ function runInstalledReview(state: InstalledContractState) {
     }
     case 'missing-reviewer': {
       patchInstalledReviewerRubric(distribution, '');
+      retainInstalledRouteAdmission(distribution, '');
       break;
     }
     case 'stale-reviewer': {
-      patchInstalledReviewerRubric(distribution, `${canonicalRubric}\nStale reviewer-only text.`);
+      const stale = `${canonicalRubric}\nStale reviewer-only text.`;
+      patchInstalledReviewerRubric(distribution, stale);
+      retainInstalledRouteAdmission(distribution, stale);
 
       break;
     }
@@ -189,6 +220,7 @@ function runInstalledReview(state: InstalledContractState) {
         canonicalReference.replace(canonicalRubric, () => incomplete),
       );
       patchInstalledReviewerRubric(distribution, incomplete);
+      retainInstalledRouteAdmission(distribution, incomplete);
 
       break;
     }
@@ -292,9 +324,18 @@ describe('Execution Plan review-contract identity', () => {
     'blocks %s through the installed CLI with the failed copy named',
     (state, expected) => {
       const result = runInstalledReview(state);
+      const output = JSON.parse(result.stdout) as {
+        errors?: { code: string; message: string }[];
+        findings?: { code: string; message: string }[];
+      };
+      const messages = [...(output.errors ?? []), ...(output.findings ?? [])];
 
       expect(result.status).not.toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain(expected);
+      expect(
+        messages.some(
+          candidate => candidate.code.startsWith('REVIEW') && candidate.message.includes(expected),
+        ),
+      ).toBe(true);
     },
   );
 
