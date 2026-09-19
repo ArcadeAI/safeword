@@ -197,7 +197,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Implementation cannot continue under a stale affected plan
 
 - [x] RED d65d37e28
-- [ ] GREEN
+- [x] GREEN 719486201
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R12 — The Execution Plan distinguishes current implementation from target work and uses the canonical evidence-currency taxonomy owned by A639WN.R7
