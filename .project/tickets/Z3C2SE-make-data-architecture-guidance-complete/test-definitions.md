@@ -14,7 +14,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario: Treating a consequential data contract as a reversible helper fails review
 
-- [ ] RED
+- [x] RED 6ff225ad5
 - [ ] GREEN
 - [ ] REFACTOR
 
