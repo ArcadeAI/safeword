@@ -28,7 +28,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5d2aa327f
 - [x] GREEN 88efda591
-- [ ] REFACTOR
+- [x] REFACTOR skip: self-claim rejection already shares the canonical provenance check
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R2 — Every execution step is startable without inventing a contract
 
