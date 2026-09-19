@@ -161,7 +161,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An execution step still proceeds through RED GREEN and REFACTOR
 
 - [x] RED 40fed356a
-- [ ] GREEN
+- [x] GREEN 91a446985
 - [ ] REFACTOR
 
 ### Scenario: Production code cannot precede the named RED
