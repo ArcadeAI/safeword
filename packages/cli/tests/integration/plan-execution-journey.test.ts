@@ -106,6 +106,15 @@ function executionPlan(): string {
   ].join('\n');
 }
 
+function executionPlanWithUnstartableFourthStep(): string {
+  return executionPlan().replace('3. REFACTOR: keep the authorization boundary in one owner.', () =>
+    [
+      '3. REFACTOR: keep the authorization boundary in one owner.',
+      '4. TODO: decide whether denied authorization returns an error or an empty result before implementation.',
+    ].join('\n'),
+  );
+}
+
 function executionPlanRecord(plan: string): Record<string, unknown> {
   const parsed = parseDeliveryPlanContract(plan);
   if (!parsed.ok) throw new Error(parsed.message);
@@ -214,7 +223,7 @@ describe('Execution Plan cold-start journey', () => {
     cleanupTrustedReviewerDirectories();
   });
 
-  it('reviews a startable plan and reaches its named RED before production changes', async () => {
+  it('rejects an unstartable fourth step through the installed CLI, then reaches the named RED', async () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plan-journey-'));
     try {
       const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'START1-feature');
@@ -354,6 +363,41 @@ describe('Execution Plan cold-start journey', () => {
         { recursive: true },
       );
       const reviewKeyRoot = nodePath.join(root, '.review-keys');
+
+      const unstartablePlan = executionPlanWithUnstartableFourthStep();
+      writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), unstartablePlan);
+      const rejectedPlan = await runCli(
+        [
+          '--json',
+          '--no-input',
+          'review',
+          'run',
+          'plan-execution',
+          '.project/tickets/START1-feature/execution-plan.md',
+          '--context',
+          '.project/tickets/START1-feature/impl-plan.md',
+          '--context',
+          'features/feature.feature',
+          '--cwd',
+          root,
+        ],
+        {
+          cwd: root,
+          env: {
+            PATH: `${reviewerBin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'codex',
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+            SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
+            SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: JSON.stringify(
+              executionPlanRecord(unstartablePlan),
+            ),
+          },
+        },
+      );
+      expect(rejectedPlan.exitCode, `${rejectedPlan.stdout}\n${rejectedPlan.stderr}`).toBe(2);
+      expect(rejectedPlan.stdout).toContain('fourth step');
+      expect(rejectedPlan.stdout).toContain('behavior decision');
+      writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), plan);
 
       const reviews = [
         {
