@@ -179,6 +179,7 @@ Feature: Turn accepted decisions into startable work
         | edited in its reviewed definition content after semantic approval | coding is blocked until the current plan passes semantic review |
         | unedited after valid semantic approval with its source Implementation Plan unchanged and the achieved independence level recorded | coding is authorized |
         | edited only by checking off a completed Delivery Checklist task after valid semantic approval | coding remains authorized |
+        | edited to change a Delivery Checklist obligation's recorded evidence class after valid semantic approval | coding is blocked until the current plan passes semantic review |
 
     @surface.safeword-cli
     Scenario Outline: Execution Plan verdict and recorded assurance control coding authorization
@@ -381,6 +382,7 @@ Feature: Turn accepted decisions into startable work
         | the accepted Implementation Plan | both planning reviews become stale |
         | only Execution Plan sequencing | only the Execution Plan review becomes stale |
         | only a completed delivery task being checked off in the Execution Plan's Delivery Checklist | neither planning review becomes stale |
+        | only a Delivery Checklist obligation's recorded evidence class | only the Execution Plan review becomes stale |
 
     @rejection @surface.safeword-cli
     Scenario: An Execution Plan cannot stay current after its source approach changes
