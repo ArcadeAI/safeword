@@ -42,6 +42,7 @@ const EXPECTED_CASE_IDS = [
   'missing-documentation-obligation',
   'missing-affected-surface-obligation',
   'reopened-authorization-decision',
+  'fresh-context-first-red',
 ] as const;
 
 function passingResults(
@@ -128,6 +129,21 @@ describe('Execution Plan semantic conformance admission', () => {
       verdict: 'request_changes',
       finding_terms: ['conceptual', 'proof'],
     });
+  });
+
+  it('keeps a fresh-context first RED as a supported approval case', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'fresh-context-first-red',
+    );
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'approve',
+      slicing_decision: 'one_pull_request',
+      slice_names: ['Authorization denial'],
+    });
+    expect(testCase?.execution_plan).toContain(
+      'RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.',
+    );
   });
 
   it('keeps complete obligation ownership as an approval case', () => {
