@@ -570,6 +570,24 @@ describe('Implementation Plan review admission controls Execution Planning', () 
     expect(result.stdout).toContain('has no validated achieved independence');
   });
 
+  it('rejects assurance text that disagrees with the authenticated review', async () => {
+    const project = fixture(false);
+    rewriteReviewStamps(project, line =>
+      line.replace('independence:cross-agent', 'independence:degraded'),
+    );
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(result.stdout).toContain(
+      'recorded assurance disagrees with the authenticated Implementation Plan review',
+    );
+  });
+
   it('rejects a self-authored cross-agent claim', async () => {
     const project = fixture(false);
     mutateReview(project, data => ({
