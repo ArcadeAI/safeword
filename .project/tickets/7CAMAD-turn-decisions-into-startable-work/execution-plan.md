@@ -98,14 +98,16 @@ copy, stub, or locally redefine the sibling contract.
 ### Tasks and tests
 
 1. RED: Extend
+   `packages/cli/tests/integration/plan-design-approval.test.ts` at the installed
+   `ticket approve-plan` boundary for the absent, unreviewed, stale, rejected,
+   and unearned-independence Implementation Plan partitions, including the
+   actual achieved assurance in the successful report. Extend
    `packages/cli/tests/integration/plan-transition-gate.test.ts` so implement
    entry requires the project-local `execution-plan.md` and the exact public
-   authorization result. In that same real transition harness, bind
-   `plan-implementation → plan-execution` to the absent, unreviewed, stale,
-   rejected, and unearned-independence Implementation Plan partitions. Cover
-   current authorization, each denial identity, fresh re-review, mutable phase
-   without provenance, and authenticated new-flow provenance whose later
-   prerequisite disappears.
+   authorization result. In that real hook harness, cover current
+   authorization, each denial identity, fresh re-review, mutable phase without
+   provenance, and authenticated new-flow provenance whose later prerequisite
+   disappears.
 2. RED: Add
    `packages/cli/tests/integration/coding-authorization-hook.test.ts`. Invoke the
    real pre-tool hook against a production-file edit and assert: current plans
@@ -135,7 +137,7 @@ copy, stub, or locally redefine the sibling contract.
    plan-currentness calculation discovered during wiring; do not create a
    general dependency linter.
 7. Run:
-   `bun run test tests/integration/plan-transition-gate.test.ts tests/integration/coding-authorization-hook.test.ts tests/hooks/phase-provenance.test.ts tests/skills/implementation-plan-repair-loop.test.ts`.
+   `bun run test tests/integration/plan-design-approval.test.ts tests/integration/plan-transition-gate.test.ts tests/integration/coding-authorization-hook.test.ts tests/hooks/phase-provenance.test.ts tests/skills/implementation-plan-repair-loop.test.ts`.
 8. Run:
    `bun run test tests/parity.test.ts tests/schema.test.ts tests/npm-package.test.ts`.
 9. Run: `bun run lint`.
@@ -260,7 +262,7 @@ copy, stub, or locally redefine the sibling contract.
 | Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |
 | -------- | ------ | ----- | ------------------ | ------------ | -------- | ---------- |
 | authorization-cli | command | integration | Installed public CLI computes the closed coding-authorization result from real project artifacts and receipts | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/coding-authorization.test.ts","tests/integration/delivery-execution-prerequisite.test.ts","tests/cli-protocol/catalog.test.ts","tests/cli-protocol/cli-documentation-contract.test.ts"]} |
-| authorization-hooks | command | E2E | Real transition and production-edit hook subprocesses consume the same public authorization contract | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/plan-transition-gate.test.ts","tests/integration/coding-authorization-hook.test.ts","tests/hooks/phase-provenance.test.ts"]} |
+| authorization-hooks | command | E2E | Real installed approval, transition, and production-edit subprocesses enforce reviewed planning and consume the shared authorization contract | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/plan-design-approval.test.ts","tests/integration/plan-transition-gate.test.ts","tests/integration/coding-authorization-hook.test.ts","tests/hooks/phase-provenance.test.ts"]} |
 | semantic-conformance | command | integration | Installed plan-execution review admits the canonical contract and rejects every representative incomplete or decision-changing plan | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/review/execution-plan-conformance.test.ts","tests/review/execution-plan-output.test.ts","tests/review/packet.test.ts"]} |
 | replan-journey | command | E2E | Git-backed installed CLI completes cold start, RED handoff, both replan routes, evidence preservation/demotion, resume, and rollback | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/integration/plan-execution-journey.test.ts","tests/integration/delivery-checklist-cli.test.ts"]} |
 | workflow-parity | command | integration | Canonical phase guidance, templates, schema, and every registered generated host derivative remain synchronized | real_boundary | current_required | {"type":"command","cwd":"packages/cli","argv":["bun","run","test","tests/parity.test.ts","tests/schema.test.ts","tests/npm-package.test.ts","tests/skills/implementation-plan-repair-loop.test.ts"]} |
