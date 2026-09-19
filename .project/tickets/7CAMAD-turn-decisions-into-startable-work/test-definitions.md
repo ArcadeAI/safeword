@@ -74,7 +74,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: live — see work log 2026-09-19T12:52:03.000Z "discovery routing"
 - [x] GREEN f7a05dc4a
-- [ ] REFACTOR
+- [x] REFACTOR skip: typed destination parsing and phase mutation already have single focused owners
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R5 — The Execution Plan is a project-local reviewed artifact
 
