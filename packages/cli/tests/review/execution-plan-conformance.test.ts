@@ -39,11 +39,16 @@ const EXPECTED_CASE_IDS = [
   'invented-data-ownership',
   'accepted-data-ownership',
   'missing-behavior-obligation',
+  'missing-decision-obligation',
+  'missing-proof-strategy-obligation',
   'missing-migration-obligation',
   'missing-rollout-obligation',
   'missing-rollback-obligation',
   'missing-documentation-obligation',
   'missing-affected-surface-obligation',
+  'migration-missing-completion-signal',
+  'migration-missing-dependency-order',
+  'explicitly-obligation-free',
   'reopened-authorization-decision',
   'fixture-discovery-stays-in-execution-planning',
   'test-command-discovery-stays-in-execution-planning',
@@ -243,6 +248,8 @@ describe('Execution Plan semantic conformance admission', () => {
 
   it.each([
     'missing-behavior-obligation',
+    'missing-decision-obligation',
+    'missing-proof-strategy-obligation',
     'missing-migration-obligation',
     'missing-rollout-obligation',
     'missing-rollback-obligation',
@@ -253,6 +260,31 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation.verdict).toBe('request_changes');
     expect(testCase?.expectation.finding_terms).toHaveLength(1);
+  });
+
+  it.each([
+    ['migration-missing-completion-signal', ['migration', 'completion signal']],
+    ['migration-missing-dependency-order', ['migration', 'dependency order']],
+  ] as const)('keeps %s as a partial obligation-mapping denial', (caseId, findingTerms) => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'request_changes',
+      finding_terms: findingTerms,
+    });
+  });
+
+  it('keeps an explicitly obligation-free approach free of manufactured work', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'explicitly-obligation-free',
+    );
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'approve',
+      planning_destination: 'plan-execution',
+      obligations: [],
+    });
+    expect(testCase?.execution_plan).toContain('No execution obligations');
   });
 
   it('keeps every authoritative scenario example as its own case', () => {
