@@ -619,6 +619,10 @@ describe('Execution Plan cold-start journey', () => {
         receiptPluginRoot,
       );
       expectHookAllow(productionEditAfterRed);
+      expect(observedLedger).toMatch(/- \[x\] GREEN [0-9a-f]{7,40}/u);
+      expect(observedLedger).toContain(
+        '- [x] REFACTOR skip: no structural improvement needed; named proof remains green',
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
