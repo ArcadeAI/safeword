@@ -31509,6 +31509,7 @@ var init_contract = __esm(() => {
     "quality-review",
     "scenario-gate",
     "plan-implementation",
+    "plan-execution",
     "executable-red"
   ]);
 });
@@ -33200,6 +33201,102 @@ function withRecordIntegrity(cwd, record) {
   const unsigned = { ...record, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
+function splitExecutionPlanRow(line) {
+  if (!line.trimStart().startsWith("|") || !line.trimEnd().endsWith("|"))
+    return;
+  const cells = [];
+  let cell = "";
+  let escaped = false;
+  const body = line.trim().slice(1, -1);
+  for (const character of body) {
+    if (escaped) {
+      cell += character;
+      escaped = false;
+    } else if (character === "\\") {
+      escaped = true;
+    } else if (character === "|") {
+      cells.push(cell.trim());
+      cell = "";
+    } else {
+      cell += character;
+    }
+  }
+  if (escaped)
+    cell += "\\";
+  cells.push(cell.trim());
+  return cells;
+}
+function unescapedPipeOffsets(line) {
+  const offsets = [];
+  let escaped = false;
+  let index = 0;
+  while (index < line.length) {
+    const character = line[index];
+    if (escaped) {
+      escaped = false;
+    } else if (character === "\\") {
+      escaped = true;
+    } else if (character === "|") {
+      offsets.push(index);
+    }
+    index += 1;
+  }
+  return offsets;
+}
+function normalizeExecutionPlanProgress(line) {
+  const cells = splitExecutionPlanRow(line);
+  if (cells?.length !== DELIVERY_CHECKLIST_COLUMNS || !ORDINARY_PROGRESS_DISPOSITIONS.has(cells[5] ?? "")) {
+    return line;
+  }
+  const pipes = unescapedPipeOffsets(line);
+  if (pipes.length !== DELIVERY_CHECKLIST_COLUMNS + 1)
+    return line;
+  const stableEnd = pipes[5];
+  const finalPipe = pipes[9];
+  if (stableEnd === undefined || finalPipe === undefined)
+    return line;
+  return `${line.slice(0, stableEnd + 1)} <progress> | <progress> | <progress> | <progress> ${line.slice(finalPipe)}`;
+}
+function hasExecutionPlanDeliveryChecklist(content) {
+  return content.split(`
+`).some((line) => line.trim() === DELIVERY_CHECKLIST_MARKER);
+}
+function normalizedExecutionPlanDigest(content) {
+  const lines = content.split(`
+`);
+  const markerIndex = lines.findIndex((line) => line.trim() === DELIVERY_CHECKLIST_MARKER);
+  if (markerIndex !== -1) {
+    const headerIndex = lines.findIndex((line, index) => {
+      if (index <= markerIndex)
+        return false;
+      const cells = splitExecutionPlanRow(line);
+      return cells?.length === DELIVERY_CHECKLIST_COLUMNS && cells[0] === "ID" && cells[5] === "Disposition";
+    });
+    for (let index = headerIndex + 1;headerIndex !== -1 && index < lines.length; index += 1) {
+      const line = lines[index];
+      if (line === undefined || splitExecutionPlanRow(line)?.length !== DELIVERY_CHECKLIST_COLUMNS)
+        break;
+      lines[index] = normalizeExecutionPlanProgress(line);
+    }
+  }
+  return createHash18("sha256").update(lines.join(`
+`)).digest("hex");
+}
+function executionPlanReviewIdentity(content, projectDirectory) {
+  const configPath2 = nodePath46.join(projectDirectory, ".safeword", "config.json");
+  let designApprovalGate = false;
+  if (existsSync15(configPath2)) {
+    const value = JSON.parse(readFileSync30(configPath2, "utf8"));
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      throw new Error("Safeword config root is not an object");
+    }
+    designApprovalGate = value.designApprovalGate === true;
+  }
+  return JSON.stringify({
+    design_approval_gate: designApprovalGate,
+    normalized_digest: normalizedExecutionPlanDigest(content)
+  });
+}
 function ledgerFingerprintContext(cwd, targets, context, execution) {
   if (execution === undefined)
     return { context, missing: false };
@@ -33227,6 +33324,8 @@ function fingerprint(cwd, kind, targets, context = [], execution) {
       hash.update(`execution\x00${JSON.stringify(execution)}\x00`);
     if (ledger.missing)
       hash.update("ledger\x00missing\x00");
+    const executionPlanTarget = kind === "plan-execution" ? prepared.packet.logical_files.find((file) => hasExecutionPlanDeliveryChecklist(file.content)) : undefined;
+    const executionPlanFingerprint = executionPlanTarget === undefined ? undefined : executionPlanReviewIdentity(executionPlanTarget.content, cwd);
     for (const [section, files] of [
       ["targets", prepared.packet.logical_files],
       ["context", prepared.packet.context_files ?? []]
@@ -33235,7 +33334,7 @@ function fingerprint(cwd, kind, targets, context = [], execution) {
       for (const file of files) {
         hash.update(file.path);
         hash.update("\x00");
-        hash.update(file.content);
+        hash.update(reviewFingerprintContent(section, file.path, file.content, executionPlanTarget?.path, executionPlanFingerprint));
         hash.update("\x00");
       }
     }
@@ -33247,6 +33346,12 @@ function fingerprint(cwd, kind, targets, context = [], execution) {
 function executableRedGateFingerprint(cwd, targets, context, execution) {
   const primaryProof = targets.slice(0, 1);
   return fingerprint(cwd, "executable-red", primaryProof, context, execution);
+}
+function reviewFingerprintContent(section, path7, content, executionPlanTargetPath, executionPlanFingerprint) {
+  if (section === "targets" && path7 === executionPlanTargetPath && executionPlanFingerprint !== undefined) {
+    return executionPlanFingerprint;
+  }
+  return content;
 }
 function pathEscapes(root, candidate) {
   const relative = nodePath46.relative(root, candidate);
@@ -34172,13 +34277,14 @@ function inspectReviewWorker(pid, id) {
     return processExists(pid) ? "unavailable" : "mismatch";
   return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
-var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
+var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000, DELIVERY_CHECKLIST_MARKER = "<!-- safeword:delivery-checklist:v1 -->", DELIVERY_CHECKLIST_COLUMNS = 9, ORDINARY_PROGRESS_DISPOSITIONS;
 var init_job = __esm(() => {
   init_policy();
   init_result();
   init_contract();
   init_packet();
   init_runtime();
+  ORDINARY_PROGRESS_DISPOSITIONS = new Set(["open", "complete"]);
 });
 
 // templates/hooks/lib/parse-annotation.ts
@@ -63195,7 +63301,7 @@ function commandViolations(steps) {
     ...stepById(steps, "validate")?.run === VALIDATE_COMMAND ? [] : ["fixed_validation"],
     ...stepById(steps, "verify")?.run === VERIFY_COMMAND ? [] : ["fixed_revision_verification"]
   ];
-  return testRun === 'npx --yes safeword@1.0.0-rc.3 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
+  return testRun === 'npx --yes safeword@1.0.0-rc.5 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
 }
 function executionViolations(steps) {
   return [
@@ -63623,6 +63729,14 @@ var init_remote_workflow_state = __esm(() => {
     {
       version: 6,
       normalizedSha256: "ee986693fddf819f1d37843a8964428b1e43a7196d70e70798ea42a9b17881b1"
+    },
+    {
+      version: 7,
+      normalizedSha256: "91b4bfc932a6c832730c7d57d32d6b89ae173fcc81028a5fc36d730857b5228a"
+    },
+    {
+      version: 8,
+      normalizedSha256: "a47cd767a6e1fb31afd165bd3ba07dfa26535277bde66610858f89a558b9d06a"
     }
   ];
   HISTORICAL_MANAGED_DIGESTS = new Set(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1).map((release) => release.normalizedSha256));
@@ -70727,6 +70841,19 @@ async function reviewRunHandler(invocation) {
           retryable: false
         }
       ]
+    });
+  }
+  if (rawKind === "plan-execution") {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_KIND_NOT_RUNNABLE",
+          message: "This Safeword version can verify existing plan-execution receipts but cannot start a new plan-execution review.",
+          retryable: false
+        }
+      ],
+      data: { command: "review run", status: "blocked", review_kind: rawKind }
     });
   }
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")

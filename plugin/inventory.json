@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "d6df309b4368ee4058960af9be3edb4cd6db9d9a201e73051d44a48bd3527c0b"
+      "sha256": "cb7aceb61a243ab262fca740fb356cf5a9943e7f7ef304403052839faa723270"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "77a483f5714e81123f917ef86002502230dcc60ce854511d3b8ab8a6d80b682c"
+      "sha256": "a92d336698ae6706a240c929a0cd2308c9c62f47ac184b8d87ba4a03bb31eb7d"
     },
     {
       "path": "runtime/dispatch.js",
@@ -379,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "f6376b35bc5f4154f8e38653a54e745787e4231346119bf25b1e8f110a280c7a"
+      "sha256": "5a28c5698da39dade7ae480e87f29a640f6b2b6663d45aafef9ef848a1c23096"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",

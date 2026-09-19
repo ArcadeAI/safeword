@@ -993,6 +993,33 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
+  it('keeps plan-execution receipt compatibility read-only', async () => {
+    const directory = createTemporaryDirectory();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'plan-execution',
+        'execution-plan.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: { SAFEWORD_NO_UPDATE_CHECK: '1' },
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_KIND_NOT_RUNNABLE' }],
+    });
+  });
+
   it.each([
     { identity: 'missing', failure: 'REVIEWER_PROVENANCE_MISSING' },
     { identity: 'contradictory', failure: 'REVIEWER_PROVENANCE_CONTRADICTORY' },
