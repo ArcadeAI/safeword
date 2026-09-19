@@ -31,6 +31,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function reviewData(cwd: string, reviewId: string): Record<string, unknown> | undefined {
+  const current = reviewJobStatus(cwd, reviewId);
+  if (current.findings.some(finding => finding.code === 'REVIEW_STALE')) return undefined;
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
   return isRecord(status.data) ? status.data : undefined;
 }
