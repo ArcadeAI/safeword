@@ -15,6 +15,7 @@ export interface EvaluationResponse {
 export interface AblationRecord {
   readonly guideSha256: string;
   readonly caseRubricSha256: string;
+  readonly promptSha256: string;
   readonly modelVersion: string;
   readonly decodingConfiguration: Readonly<Record<string, string | number | boolean>>;
   readonly responseFormat: string;
@@ -52,6 +53,19 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function sortedStrings(values: readonly string[]): string[] {
+  return values.toSorted((left, right) => left.localeCompare(right));
+}
+
+function canonicalRubricJson(rubric: EvaluationRubric): string {
+  return canonicalJson({
+    expectedDecisionIds: sortedStrings(rubric.expectedDecisionIds),
+    forbiddenDecisionIds: sortedStrings(rubric.forbiddenDecisionIds),
+    expectedProofFactIds: sortedStrings(rubric.expectedProofFactIds),
+    forbiddenProofFactIds: sortedStrings(rubric.forbiddenProofFactIds),
+  });
+}
+
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
   const actualSet = new Set(actual);
   const expectedSet = new Set(expected);
@@ -86,6 +100,7 @@ function deriveNamedAblation(canonicalGuide: string, ablationId: string): string
 
 function sameConfig(left: AblationRecord, right: AblationRecord): boolean {
   return (
+    left.promptSha256 === right.promptSha256 &&
     left.modelVersion === right.modelVersion &&
     canonicalJson(left.decodingConfiguration) === canonicalJson(right.decodingConfiguration) &&
     left.responseFormat === right.responseFormat &&
@@ -97,6 +112,9 @@ function ablationDiagnostics(input: AblationPairInput): string[] {
   const derivedAblation = deriveNamedAblation(input.canonicalGuide, input.ablationId);
   if (derivedAblation === undefined) {
     return [`Canonical guide does not define one ${input.ablationId} transform.`];
+  }
+  if (derivedAblation === input.canonicalGuide) {
+    return [`Named ${input.ablationId} transform does not change the canonical guide.`];
   }
   return derivedAblation === input.storedAblatedGuide
     ? []
@@ -110,7 +128,7 @@ function bindingDiagnostics(input: AblationPairInput): string[] {
   if (input.ablatedGuideRecord.guideSha256 !== sha256(input.storedAblatedGuide))
     diagnostics.push('Ablated-guide hash does not match the stored ablation.');
 
-  const rubricSha256 = sha256(canonicalJson(input.rubric));
+  const rubricSha256 = sha256(canonicalRubricJson(input.rubric));
   if (
     input.fullGuideRecord.caseRubricSha256 !== rubricSha256 ||
     input.ablatedGuideRecord.caseRubricSha256 !== rubricSha256

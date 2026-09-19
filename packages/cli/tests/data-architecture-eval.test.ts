@@ -35,6 +35,7 @@ const ablatedResponse: EvaluationResponse = {
   decisionIds: ['decision.generated.source'],
   proofFactIds: [],
 };
+const sharedPromptSha256 = sha256('generated-manifest case + neutral response schema');
 
 function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
@@ -51,6 +52,19 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function sortedStrings(values: readonly string[]): string[] {
+  return values.toSorted((left, right) => left.localeCompare(right));
+}
+
+function canonicalRubricJson(value: typeof rubric): string {
+  return canonicalJson({
+    expectedDecisionIds: sortedStrings(value.expectedDecisionIds),
+    forbiddenDecisionIds: sortedStrings(value.forbiddenDecisionIds),
+    expectedProofFactIds: sortedStrings(value.expectedProofFactIds),
+    forbiddenProofFactIds: sortedStrings(value.forbiddenProofFactIds),
+  });
+}
+
 function record(
   guideContent: string,
   response: EvaluationResponse,
@@ -58,7 +72,8 @@ function record(
 ): AblationRecord {
   return {
     guideSha256: sha256(guideContent),
-    caseRubricSha256: sha256(canonicalJson(rubric)),
+    caseRubricSha256: sha256(canonicalRubricJson(rubric)),
+    promptSha256: sharedPromptSha256,
     modelVersion: 'controlled-model-v1',
     decodingConfiguration: { temperature: 0, topP: 1 },
     responseFormat: 'data-architecture-eval-v1',
@@ -98,6 +113,23 @@ describe('data architecture guide evaluation', () => {
     expect(result).toEqual({
       accepted: false,
       diagnostics: ['Stored ablated guide does not match the independent-proof transform.'],
+    });
+  });
+
+  it('rejects a named transform that does not change the canonical guide', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: ablatedGuide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(ablatedGuide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Named independent-proof transform does not change the canonical guide.'],
     });
   });
 
@@ -174,6 +206,25 @@ describe('data architecture guide evaluation', () => {
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
         modelVersion: 'different-model-v2',
+      }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Ablation records do not share one evaluation configuration.'],
+    });
+  });
+
+  it('rejects a pair recorded from different case prompts', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
+        promptSha256: sha256('different case prompt'),
       }),
     });
 
@@ -277,6 +328,24 @@ describe('data architecture guide evaluation', () => {
     expect(result).toEqual({ accepted: true, diagnostics: [] });
   });
 
+  it('accepts an equivalent case rubric with different ID order', () => {
+    const reorderedRubric = {
+      ...rubric,
+      expectedDecisionIds: rubric.expectedDecisionIds.toReversed(),
+    };
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric: reorderedRubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
+    });
+
+    expect(result).toEqual({ accepted: true, diagnostics: [] });
+  });
+
   it('rejects a named transform that removes a preserved decision label', () => {
     const labelInsideTransform = [
       '# Data architecture',
@@ -362,6 +431,58 @@ describe('data architecture guide evaluation', () => {
     expect(result).toEqual({
       accepted: false,
       diagnostics: ['Ablated-guide hash does not match the stored ablation.'],
+    });
+  });
+
+  it('reports every independent binding failure in stable order', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse, {
+        guideSha256: sha256('stale guide'),
+      }),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
+        modelVersion: 'different-model-v2',
+      }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: [
+        'Full-guide hash does not match the canonical guide.',
+        'Ablation records do not share one evaluation configuration.',
+      ],
+    });
+  });
+
+  it('rejects a full-guide control response containing a forbidden decision', () => {
+    const forbiddenDecisionRubric = {
+      ...rubric,
+      forbiddenDecisionIds: ['decision.generated.sibling-output'],
+    } as const;
+    const forbiddenResponse: EvaluationResponse = {
+      ...fullResponse,
+      decisionIds: [...fullResponse.decisionIds, 'decision.generated.sibling-output'],
+    };
+    const caseRubricSha256 = sha256(canonicalRubricJson(forbiddenDecisionRubric));
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric: forbiddenDecisionRubric,
+      fullGuideRecord: record(guide, forbiddenResponse, { caseRubricSha256 }),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, { caseRubricSha256 }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: [
+        'Full-guide response contains forbidden decision decision.generated.sibling-output.',
+      ],
     });
   });
 
