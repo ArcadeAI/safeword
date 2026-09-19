@@ -69,6 +69,8 @@ from outside those sources.
   slice to begin with the highest-risk named RED and state its command or fixture
   plus the failure signal before any production edit. Reject any step that leaves
   behavior, architecture, data, proof, or ordering for the implementer to invent.
+  A test step must name its fixture, command, edit action, expected exit or
+  assertion, and real actor boundary.
 - **Dependency safety:** Require every prerequisite to name a unique earlier
   slice. Reject cycles, forward dependencies, missing prerequisites, and any
   slice that becomes safe only after a later merge. Every intermediate merge

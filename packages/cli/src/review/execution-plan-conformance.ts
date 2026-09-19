@@ -39,6 +39,11 @@ const DATA_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
 - The project-local SQLite database \`delivery.db\` stores delivery evidence.
 - DeliveryStateService owns all reads and writes for that store.
 `;
+const PROOF_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted proof strategy
+
+- Edited-plan denial uses the named fixture and command through the installed CLI subprocess and must assert exit code 2.
+`;
 const BASE_DECISION_ACCOUNTING = DECISIONS.map(decision => `- ${decision}: unchanged`).join('\n');
 
 interface SliceInput {
@@ -525,6 +530,38 @@ const STARTABLE_PLAN = executionPlan({
     },
   ],
 });
+
+function concreteProofPlan(step: string): string {
+  return executionPlan({
+    decision: 'one pull request',
+    rationale: 'One edited-plan denial is one independently provable behavior.',
+    slices: [
+      {
+        name: 'Edited-plan denial proof',
+        purpose: 'Prove the accepted edited-plan denial.',
+        boundary: 'Installed CLI subprocess response.',
+        prerequisites: 'none',
+        proof: 'behavior-boundary',
+        completion: 'The installed CLI exits 2 for the edited-plan fixture.',
+        tasks: [
+          `1. RED: ${step}`,
+          '2. GREEN: implement the accepted edited-plan denial, then rerun the named command and observe exit code 0.',
+          '3. REFACTOR: preserve the installed CLI boundary, then rerun the named command and observe exit code 0.',
+        ],
+      },
+    ],
+  });
+}
+
+const EXACT_CLI_DENIAL_PROOF_PLAN = concreteProofPlan(
+  'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert exit code 2 before editing production code.',
+);
+const MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN = concreteProofPlan(
+  'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the TBD CLI boundary and assert exit code 2 before editing production code.',
+);
+const MISSING_DENIED_EXIT_ASSERTION_PLAN = concreteProofPlan(
+  'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert the TBD denied-exit result before editing production code.',
+);
 const LATER_UNSTARTABLE_PLAN = executionPlan({
   decision: 'one pull request',
   rationale: 'One authorization denial is one independently provable behavior.',
@@ -954,6 +991,34 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     'one_pull_request',
     ['Authorization denial'],
   ),
+  {
+    ...approved(
+      'exact-cli-denial-proof',
+      'A complete proof step names its fixture, command, edit action, denied exit assertion, and installed CLI subprocess boundary.',
+      EXACT_CLI_DENIAL_PROOF_PLAN,
+      'one_pull_request',
+      ['Edited-plan denial proof'],
+    ),
+    implementation_plan: PROOF_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'missing-cli-subprocess-boundary',
+      'A proof step with a placeholder actor boundary is denied with the missing subprocess boundary named.',
+      MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN,
+      ['subprocess', 'boundary'],
+    ),
+    implementation_plan: PROOF_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'missing-denied-exit-assertion',
+      'A proof step with a placeholder denied-exit result is denied with the missing exit assertion named.',
+      MISSING_DENIED_EXIT_ASSERTION_PLAN,
+      ['exit', 'assertion'],
+    ),
+    implementation_plan: PROOF_IMPLEMENTATION_PLAN,
+  },
   decisionChangingDiscovery(
     'later-step-is-not-startable',
     'A concrete first RED cannot hide an unresolved behavior decision in the fourth step.',
