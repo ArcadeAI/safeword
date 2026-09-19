@@ -94,7 +94,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Data-decision specificity controls semantic approval
 
-- [ ] RED
+- [x] RED skip: live Claude review evidence recorded at 2026-09-19T13:41:10.000Z
 - [ ] GREEN
 - [ ] REFACTOR
 
