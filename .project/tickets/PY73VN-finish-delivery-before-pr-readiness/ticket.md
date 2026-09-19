@@ -29,7 +29,7 @@ phase_anchors:
   - 'define-behavior: .project/tickets/PY73VN-finish-delivery-before-pr-readiness/spec.md'
   - 'scenario-gate: features/finish-delivery-before-pr-readiness.feature'
   - 'implement: .project/tickets/PY73VN-finish-delivery-before-pr-readiness/impl-plan.md'
-  - 'verify: .project/tickets/PY73VN-finish-delivery-before-pr-readiness/verify.md'
+  - 'verify: .project/tickets/PY73VN-finish-delivery-before-pr-readiness/test-definitions.md'
 ---
 
 # Finish accepted changes before asking for PR review
