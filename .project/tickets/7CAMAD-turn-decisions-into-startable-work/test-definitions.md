@@ -72,7 +72,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A discovered change returns only when it alters an accepted decision
 
-- [ ] RED
+- [x] RED skip: live — see work log 2026-09-19T12:52:03.000Z "discovery routing"
 - [ ] GREEN
 - [ ] REFACTOR
 

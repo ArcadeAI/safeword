@@ -48,6 +48,16 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-19T12:52:03.000Z Live evidence — discovery routing: ran the
+  complete 39-case Execution Plan conformance matrix through the real Claude
+  Opus reviewer. Both fixture and test-command repairs stayed in Execution
+  Planning; accepted design, proof-boundary, and API-contract changes returned
+  to Implementation Planning. Regenerated the admitted rubric from three
+  disjoint passing result sets. The installed CLI separately proved that the
+  typed return becomes the exact recovery command and an actual ticket phase
+  transition. Affected automated suites passed 369 tests with two intentional
+  skips.
+
 - 2026-09-19T10:14:00.000Z Live evidence — first-step ordering:
   ran all four ordering partitions through the real Claude Opus reviewer. The
   incomplete prerequisite and no-executable-step plans were rejected; after
