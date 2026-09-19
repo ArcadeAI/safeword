@@ -469,7 +469,41 @@ describe('coding authorization', () => {
       'release_approved',
       'merge_authorized',
     ]) {
-      expect(result.data).not.toHaveProperty(downstreamClaim);
+      expect(
+        result.data,
+        `${downstreamClaim} must not be implied by coding authorization`,
+      ).not.toHaveProperty(downstreamClaim);
+    }
+  });
+
+  it('rejects attempts to turn coding authorization into downstream authority', async () => {
+    const root = await featureFixture(true);
+
+    for (const downstreamClaim of [
+      'implementation_complete',
+      'verification_passed',
+      'release_approved',
+      'merge_authorized',
+    ]) {
+      const invoked = await runCli(
+        ['ticket', 'coding-authorization', 'ABC123', downstreamClaim, '--json', '--cwd', root],
+        {
+          cwd: root,
+          env: {
+            NODE_ENV: 'test',
+            SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+          },
+        },
+      );
+
+      expect(
+        invoked.exitCode,
+        `${downstreamClaim} must be rejected as unsupported downstream authority`,
+      ).toBe(1);
+      expect(JSON.parse(invoked.stdout)).toMatchObject({
+        state: 'failed',
+        errors: [{ code: 'CLI_ARGUMENT_INVALID' }],
+      });
     }
   });
 
