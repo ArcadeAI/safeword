@@ -16,7 +16,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 6ff225ad5
 - [x] GREEN 945552266
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared exact-set grader already reports the missing durable decision directly with no scenario-specific branch to simplify
 
 ## Rule: data-architecture-guidance.TBU1.R2 — Every plan answers the applicable universal questions and invokes only the conditional modules whose triggers fire
 
