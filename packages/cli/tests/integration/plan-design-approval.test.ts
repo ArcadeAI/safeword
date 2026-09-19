@@ -30,7 +30,6 @@ import { assertTestCliFresh, runCli, testCliPath } from '../helpers.js';
 
 const TICKET_ID = 'PLAN42';
 const TICKET_FOLDER = `${TICKET_ID}-review-the-approach`;
-const REVIEW_ID = '42000000-0000-4000-8000-000000000019';
 const EXECUTION_PLAN_TEMPLATE = readFileSync(
   nodePath.resolve(__dirname, '../../templates/doc-templates/execution-plan-template.md'),
   'utf8',
@@ -270,10 +269,15 @@ function decisionPayloads(path: string): Record<string, unknown>[] {
 }
 
 function appendCurrentReview(project: Fixture, plan: string): void {
+  const reviewId = runImplementationReview(project, TICKET_FOLDER);
   const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(plan));
   writeFileSync(
     project.ledgerPath,
-    `${readFileSync(project.ledgerPath, 'utf8')}2026-09-11T00:01:00.000Z fixture review:${scope} author:claude reviewer:codex independence:cross-agent review-id:${REVIEW_ID}\n`,
+    `${readFileSync(project.ledgerPath, 'utf8')}${[
+      `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      '',
+    ].join('\n')}`,
   );
 }
 
@@ -365,11 +369,56 @@ function addReviewedTicket(project: Fixture, ticketId: string, suffix: string): 
   writeFileSync(nodePath.join(directory, 'spec.md'), '# Product Plan\n');
   const plan = `${PLAN}\n${suffix}\n`;
   writeFileSync(nodePath.join(directory, 'impl-plan.md'), plan);
+  const reviewId = runImplementationReview(project, folder);
   const scope = reviewScope(folder, 'impl-plan', hashArtifact(plan));
   writeFileSync(
     project.ledgerPath,
-    `${readFileSync(project.ledgerPath, 'utf8')}2026-09-11T00:02:00.000Z fixture review:${scope} author:claude reviewer:codex independence:cross-agent review-id:${REVIEW_ID}\n`,
+    `${readFileSync(project.ledgerPath, 'utf8')}${[
+      `2026-09-11T00:02:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-11T00:02:01.000Z fixture review:${folder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      '',
+    ].join('\n')}`,
   );
+}
+
+function runImplementationReview(project: Fixture, ticketFolder: string): string {
+  const bin = installBlockingReviewer();
+  const target = `.project/tickets/${ticketFolder}/impl-plan.md`;
+  const reviewed = spawnSync(
+    process.execPath,
+    [
+      testCliPath,
+      'review',
+      'run',
+      'plan-implementation',
+      target,
+      '--context',
+      `.project/tickets/${ticketFolder}/spec.md`,
+      '--json',
+      '--no-input',
+      '--cwd',
+      project.root,
+    ],
+    {
+      cwd: project.root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:/usr/bin:/bin`,
+        NODE_ENV: 'test',
+        SAFEWORD_AGENT_RUNTIME: 'codex',
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+        SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(project.root, '.review-keys'),
+      },
+    },
+  );
+  const payload = JSON.parse(reviewed.stdout) as { data?: { review_id?: string } };
+  const reviewId = payload.data?.review_id;
+  if (reviewed.status !== 0 || reviewId === undefined) {
+    throw new Error(`Implementation Plan review failed: ${reviewed.stdout}`);
+  }
+  return reviewId;
 }
 
 function installBlockingReviewer(): string {
@@ -540,6 +589,56 @@ describe('an accepted design enters Execution Planning', () => {
 });
 
 describe('Implementation Plan review admission controls Execution Planning', () => {
+  it('rejects a current stamp with no authenticated review receipt', async () => {
+    const project = fixture(false, 'missing');
+    const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(PLAN));
+    writeFileSync(
+      project.ledgerPath,
+      [
+        `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:42000000-0000-4000-8000-000000000019`,
+        `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:42000000-0000-4000-8000-000000000019`,
+        '',
+      ].join('\n'),
+    );
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(result.stdout).toContain(
+      'has no current authenticated Implementation Plan review receipt',
+    );
+  });
+
+  it('rejects an authenticated receipt for earlier plan bytes', async () => {
+    const project = fixture(false);
+    const changedPlan = `${PLAN}\nA later unreviewed decision.\n`;
+    writeFileSync(nodePath.join(project.ticketDirectory, 'impl-plan.md'), changedPlan);
+    const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(changedPlan));
+    writeFileSync(
+      project.ledgerPath,
+      `${readFileSync(project.ledgerPath, 'utf8')}${[
+        `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${project.reviewId}`,
+        `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${project.reviewId}`,
+        '',
+      ].join('\n')}`,
+    );
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(result.stdout).toContain(
+      'has no current authenticated Implementation Plan review receipt',
+    );
+  });
+
   it('reports a rejected semantic verdict instead of treating its stamp as approval', async () => {
     const project = fixture(false, 'rejected');
 
