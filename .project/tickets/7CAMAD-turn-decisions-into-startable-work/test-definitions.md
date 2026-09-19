@@ -112,7 +112,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Concrete proof content controls test-step startability
 
-- [ ] RED
+- [x] RED 364f45b50
 - [ ] GREEN
 - [ ] REFACTOR
 
