@@ -1,6 +1,6 @@
 /**
  * Design-approval and Execution Planning boundary for G1C9PP R19, A639WN R4,
- * and 7CAMAD R1.
+ * and 7CAMAD R1/R17.
  *
  * The interactive row deliberately crosses a real pseudo-terminal. Calling an
  * injected prompt would prove only handler composition, not that an installed
@@ -25,6 +25,11 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  createExecutionPlanDeliveryDefinition,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../../src/execution-plan/delivery-checklist.js';
 import { appendDesignDecision } from '../../src/review/approval-ledger.js';
 import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
 import { assertTestCliFresh, runCli, testCliPath } from '../helpers.js';
@@ -51,10 +56,12 @@ const REPLAN_CATEGORIES = [
 ] as const;
 
 function replanExecutionPlan(discovery: string): string {
-  const checklist = REPLAN_CATEGORIES.map(
-    (category, index) =>
-      `| item-${index + 1} | ${category} | Deliver ${category}. | contributor | proof | open | missing |  |  |`,
-  );
+  const checklist = REPLAN_CATEGORIES.map((category, index) => {
+    if (category === 'testing') {
+      return '| item-4 | testing | Preserve accepted proof. | contributor | proof | complete | reusable_earlier_revision | proof-revision | receipt:retained-proof; compatible:Implementation-only planning changes preserve this boundary. |';
+    }
+    return `| item-${index + 1} | ${category} | Deliver ${category}. | contributor | proof | open | missing |  |  |`;
+  });
   return [
     '# Execution Plan',
     '',
@@ -66,7 +73,7 @@ function replanExecutionPlan(discovery: string): string {
     '',
     '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
     '| --- | --- | --- | --- | --- | --- | --- |',
-    `| proof | command | integration | installed CLI | real_boundary | current_required | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"--version"]} |`,
+    `| proof | command | integration | installed CLI | real_boundary | compatible_earlier_allowed | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"-e","require('node:fs').writeFileSync('.proof-reran','yes')"]} |`,
     '',
     '## Delivery checklist',
     '',
@@ -77,6 +84,32 @@ function replanExecutionPlan(discovery: string): string {
     ...checklist,
     '',
   ].join('\n');
+}
+
+function executionPlanRecord(plan: string): Record<string, unknown> {
+  const parsed = parseDeliveryPlanContract(plan);
+  if (!parsed.ok) throw new Error(parsed.message);
+  return {
+    slicing_decision: 'one_pull_request',
+    rationale: 'One planning repair preserves one coherent contribution.',
+    slices: [
+      {
+        name: 'Planning repair',
+        purpose: 'Resume from the first invalidated obligation.',
+        boundary: 'Installed CLI planning transition.',
+        prerequisites: [],
+        proof: 'Installed CLI integration test.',
+        completion_signal: 'The ticket returns to its owning planning phase.',
+        relies_on_unmerged_successor: false,
+      },
+    ],
+    obligation_owners: [{ obligation: 'Planning repair', slices: ['Planning repair'] }],
+    decision_statuses: [{ decision: 'Preserve retained proof', status: 'unchanged' }],
+    accepted_scenarios_covered: true,
+    accepted_approach_preserved: true,
+    normalized_plan_digest: normalizedExecutionPlanDigest(plan),
+    delivery_definition: createExecutionPlanDeliveryDefinition(parsed, false),
+  };
 }
 
 const PLAN = [
@@ -485,6 +518,11 @@ esac
 payload=$(/bin/cat)
 dispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 if printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
+  review_record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
+  if [ -n "$review_record" ]; then
+    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"replan approved","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
+    exit 0
+  fi
   if printf '%s' "$payload" | /usr/bin/grep -Fq 'Accepted authorization approach changed'; then
     destination=plan-implementation
   else
@@ -635,34 +673,37 @@ describe('implementation-time discoveries return to the affected planning phase'
         ),
       );
       const executionPlanPath = nodePath.join(project.ticketDirectory, 'execution-plan.md');
-      writeFileSync(executionPlanPath, replanExecutionPlan(discovery));
+      const discoveredPlan = replanExecutionPlan(discovery);
+      writeFileSync(executionPlanPath, discoveredPlan);
+      const retainedProofRow = discoveredPlan
+        .split('\n')
+        .find(line => line.startsWith('| item-4 |'));
+      expect(retainedProofRow).toEqual(expect.any(String));
       const reviewerBin = installBlockingReviewer();
-      const reviewed = await runCli(
-        [
-          '--json',
-          '--no-input',
-          'review',
-          'run',
-          'plan-execution',
-          nodePath.relative(project.root, executionPlanPath),
-          '--context',
-          nodePath.relative(project.root, nodePath.join(project.ticketDirectory, 'impl-plan.md')),
-          '--context',
-          'features/review-the-approach.feature',
-          '--cwd',
-          project.root,
-        ],
-        {
-          cwd: project.root,
-          env: {
-            PATH: `${reviewerBin}:/usr/bin:/bin`,
-            SAFEWORD_AGENT_RUNTIME: 'codex',
-            SAFEWORD_NO_UPDATE_CHECK: '1',
-            SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
-            ...reviewEnvironment(project),
-          },
+      const executionReviewArguments = [
+        '--json',
+        '--no-input',
+        'review',
+        'run',
+        'plan-execution',
+        nodePath.relative(project.root, executionPlanPath),
+        '--context',
+        nodePath.relative(project.root, nodePath.join(project.ticketDirectory, 'impl-plan.md')),
+        '--context',
+        'features/review-the-approach.feature',
+        '--cwd',
+        project.root,
+      ];
+      const reviewed = await runCli(executionReviewArguments, {
+        cwd: project.root,
+        env: {
+          PATH: `${reviewerBin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
+          ...reviewEnvironment(project),
         },
-      );
+      });
       expect(reviewed.exitCode, reviewed.stdout).toBe(2);
       expect(reviewed.stdout).toContain(`"planning_destination":"${planningDestination}"`);
 
@@ -675,6 +716,47 @@ describe('implementation-time discoveries return to the affected planning phase'
       expect(phase(project.ticketPath)).toBe(expectedPhase);
       expect(result.stdout).toContain('EXECUTION_DISCOVERY_APPLIED');
       expect(result.stdout).toContain(`"planning_destination":"${planningDestination}"`);
+
+      if (planningDestination === 'plan-implementation') {
+        const revisedImplementationPlan = `${PLAN}\nAccepted authorization uses the revised boundary.\n`;
+        writeFileSync(
+          nodePath.join(project.ticketDirectory, 'impl-plan.md'),
+          revisedImplementationPlan,
+        );
+        appendCurrentReview(project, revisedImplementationPlan);
+        const implementationApproved = await runCli(
+          ['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID],
+          { cwd: project.root, env: reviewEnvironment(project) },
+        );
+        expect(implementationApproved.exitCode, implementationApproved.stdout).toBe(0);
+      }
+
+      expect(phase(project.ticketPath)).toBe('plan-execution');
+      const repairedPlan = replanExecutionPlan('reviewed repair is complete');
+      writeFileSync(executionPlanPath, repairedPlan);
+      const executionApproved = await runCli(executionReviewArguments, {
+        cwd: project.root,
+        env: {
+          PATH: `${reviewerBin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
+          SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: JSON.stringify(
+            executionPlanRecord(repairedPlan),
+          ),
+          ...reviewEnvironment(project),
+        },
+      });
+      expect(executionApproved.exitCode, executionApproved.stdout).toBe(0);
+      expect(executionApproved.stdout).toContain('"status":"approved"');
+      expect(readFileSync(executionPlanPath, 'utf8')).toContain(retainedProofRow);
+      expect(existsSync(nodePath.join(project.root, '.proof-reran'))).toBe(false);
+      const implementationReviews = readFileSync(project.ledgerPath, 'utf8').match(
+        /phase@plan-implementation/gu,
+      );
+      expect(implementationReviews).toHaveLength(
+        planningDestination === 'plan-implementation' ? 2 : 1,
+      );
     },
   );
 });
