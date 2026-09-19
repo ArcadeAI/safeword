@@ -259,3 +259,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 53d2c247e
 - [x] GREEN 91aba5c13
 - [x] REFACTOR skip: the public command is already a closed, thin projection over the shared prerequisite evaluator
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario 1731c2959
