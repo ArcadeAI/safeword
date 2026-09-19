@@ -646,7 +646,7 @@ describe('coding authorization', () => {
         executionPath,
         readFileSync(executionPath, 'utf8').replace(
           '| item-1 | outcome and scope | Deliver outcome and scope. | contributor | proof | open | missing |  |  |',
-          '| item-1 | outcome and scope | Deliver outcome and scope. | contributor | proof | complete | current | HEAD | receipt |',
+          '| item-1 | outcome and scope | Deliver outcome and scope. | contributor | proof | complete | current_revision_real_boundary | HEAD | receipt:proof |',
         ),
       );
       const afterProgress = await codingAuthorization(progressRoot);
@@ -855,7 +855,7 @@ describe('coding authorization', () => {
         ...(data.reviewer_output as Record<string, unknown>),
         independence: 'cross-agent',
       };
-      const changed = { ...data, reviewer_output: reviewerOutput };
+      const changed: Record<string, unknown> = { ...data, reviewer_output: reviewerOutput };
       delete changed.independence;
       return changed;
     });

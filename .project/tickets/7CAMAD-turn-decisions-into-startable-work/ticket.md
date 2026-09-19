@@ -48,6 +48,8 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-18T23:55:00.000Z Root cause: The ordinary-progress authorization test used an invalid completed Delivery Checklist row (`current` and `receipt`) instead of the contract's `current_revision_real_boundary` evidence class and `receipt:<id>` locator. The parser therefore denied the malformed plan before identity comparison. Confirmed by parsing both rows directly. Ruled out review-identity normalization because the before/after normalized digests were identical; ruled out the new authorization digest because denial occurred first in Delivery Checklist parsing.
+
 - 2026-09-18T19:36:00.000Z Review-stamp verifier root cause: The published
   rc.5 helper was current, but this checkout's dogfood version pointer selected
   the legacy 0.83.1 receipt reader. That reader recognized the new review ID but

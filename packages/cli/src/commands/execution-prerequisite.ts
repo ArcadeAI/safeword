@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
 import { parseReviewStamps } from '../../templates/hooks/lib/review-ledger.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { executionPlanAdmission } from '../execution-plan/delivery-admission.js';
@@ -37,9 +38,16 @@ interface MissingPrerequisite {
   readonly command: string;
 }
 
+interface ReviewProvenance {
+  readonly authorAgent?: string;
+  readonly reviewerAgent?: string;
+  readonly independence?: 'cross-agent' | 'degraded' | 'none';
+}
+
 function successful(
   status: ExecutionPrerequisiteStatus,
   achievedIndependence?: 'cross-agent' | 'degraded',
+  inputIdentity?: string,
 ): CliResult {
   return createResult({
     state: 'healthy',
@@ -50,11 +58,14 @@ function successful(
       ...(achievedIndependence !== undefined && {
         achieved_independence: achievedIndependence,
       }),
+      ...(inputIdentity !== undefined && {
+        authorization_input_identity: inputIdentity,
+      }),
     },
   });
 }
 
-function denied(missing: readonly MissingPrerequisite[]): CliResult {
+function denied(missing: readonly MissingPrerequisite[], inputIdentity?: string): CliResult {
   return createResult({
     state: 'action_required',
     findings: missing.map(item => ({
@@ -67,38 +78,70 @@ function denied(missing: readonly MissingPrerequisite[]): CliResult {
       mutates: true,
       requiresHuman: false,
     })),
-    data: { command: 'ticket execution-prerequisite', grants_authority: false },
+    data: {
+      command: 'ticket execution-prerequisite',
+      grants_authority: false,
+      ...(inputIdentity !== undefined && {
+        authorization_input_identity: inputIdentity,
+      }),
+    },
   });
 }
 
-function reviewApproved(
+function text(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function reviewProvenance(data: Record<string, unknown>): ReviewProvenance {
+  const independence = data.independence;
+  return {
+    ...(text(data.author_agent) !== undefined && { authorAgent: text(data.author_agent) }),
+    ...(text(data.actual_reviewer) !== undefined && { reviewerAgent: text(data.actual_reviewer) }),
+    ...(['cross-agent', 'degraded', 'none'].includes(String(independence)) && {
+      independence: independence as ReviewProvenance['independence'],
+    }),
+  };
+}
+
+function approvedReviewCandidate(input: {
+  readonly cwd: string;
+  readonly stamp: ReturnType<typeof parseReviewStamps>[number];
+  readonly kind: ReviewKind;
+  readonly target: string;
+}): ReviewProvenance | undefined {
+  if (input.stamp.reviewId === undefined) return undefined;
+  const review = reviewJobStatus(input.cwd, input.stamp.reviewId);
+  if (review.state !== 'healthy' || typeof review.data !== 'object' || review.data === null) {
+    return undefined;
+  }
+  const data = review.data as Record<string, unknown>;
+  const targets = Array.isArray(data.review_targets) ? data.review_targets : [];
+  const coversTarget = targets.some(
+    candidate =>
+      typeof candidate === 'string' && nodePath.resolve(input.cwd, candidate) === input.target,
+  );
+  return data.status === 'approved' && data.review_kind === input.kind && coversTarget
+    ? reviewProvenance(data)
+    : undefined;
+}
+
+function approvedReview(
   cwd: string,
   ledger: string,
   ticketFolder: string,
   kind: ReviewKind,
   target: string | undefined,
-): boolean {
-  if (target === undefined || !reviewIntegrityKeyExists()) return false;
+): ReviewProvenance | undefined {
+  if (target === undefined || !reviewIntegrityKeyExists()) return undefined;
   const scope = `${ticketFolder}:phase@${kind}`;
   const stamps = parseReviewStamps(ledger)
     .filter(stamp => stamp.scope === scope && stamp.skipReason === undefined)
     .toReversed();
-  return stamps.some(stamp => {
-    if (stamp.reviewId === undefined) return false;
-    const review = reviewJobStatus(cwd, stamp.reviewId);
-    if (review.state !== 'healthy' || typeof review.data !== 'object' || review.data === null) {
-      return false;
-    }
-    const data = review.data as Record<string, unknown>;
-    return (
-      data.status === 'approved' &&
-      data.review_kind === kind &&
-      Array.isArray(data.review_targets) &&
-      data.review_targets.some(
-        candidate => typeof candidate === 'string' && nodePath.resolve(cwd, candidate) === target,
-      )
-    );
-  });
+  for (const stamp of stamps) {
+    const provenance = approvedReviewCandidate({ cwd, stamp, kind, target });
+    if (provenance !== undefined) return provenance;
+  }
+  return undefined;
 }
 
 function designApprovalRequired(cwd: string): boolean {
@@ -125,10 +168,10 @@ function designDecisionAccepted(input: {
 }): boolean {
   if (!designApprovalRequired(input.cwd)) return true;
   if (!existsSync(input.implementationPath)) return false;
-  const digest = createHash('sha256')
+  const planDigest = createHash('sha256')
     .update(readFileSync(input.implementationPath, 'utf8'))
     .digest('hex');
-  return currentDesignDecision(input.ledgerPath, input.ticketId, digest) === 'approved';
+  return currentDesignDecision(input.ledgerPath, input.ticketId, planDigest) === 'approved';
 }
 
 function contractedFeature(ticketDirectory: string, phase: string | undefined): boolean {
@@ -144,6 +187,7 @@ interface PrerequisiteContext {
   readonly ticketId: string;
   readonly ticketDirectory: string;
   readonly ticketFolder: string;
+  readonly ticket: string;
   readonly featurePath: string | undefined;
   readonly implementationPath: string;
   readonly executionPath: string;
@@ -180,6 +224,7 @@ function prerequisiteContext(
       ticketId,
       ticketDirectory,
       ticketFolder,
+      ticket,
       featurePath: findFeatureSourcePath(cwd, ticketFolder),
       implementationPath: nodePath.join(ticketDirectory, 'impl-plan.md'),
       executionPath: nodePath.join(ticketDirectory, 'execution-plan.md'),
@@ -195,18 +240,11 @@ function relativeFeature(context: PrerequisiteContext): string {
     : nodePath.relative(context.cwd, context.featurePath);
 }
 
-function scenarioPrerequisite(context: PrerequisiteContext): MissingPrerequisite | undefined {
-  if (
-    reviewApproved(
-      context.cwd,
-      context.ledger,
-      context.ticketFolder,
-      'scenario-gate',
-      context.featurePath,
-    )
-  ) {
-    return undefined;
-  }
+function scenarioPrerequisite(
+  context: PrerequisiteContext,
+  reviewed: ReviewProvenance | undefined,
+): MissingPrerequisite | undefined {
+  if (reviewed !== undefined) return undefined;
   return {
     code: 'missing_accepted_scenarios',
     message: 'Accepted scenarios are required before execution.',
@@ -214,27 +252,27 @@ function scenarioPrerequisite(context: PrerequisiteContext): MissingPrerequisite
   };
 }
 
-function approachPrerequisite(context: PrerequisiteContext): MissingPrerequisite | undefined {
-  const reviewed = reviewApproved(
-    context.cwd,
-    context.ledger,
-    context.ticketFolder,
-    'plan-implementation',
-    context.implementationPath,
-  );
-  if (reviewed && designDecisionAccepted(context)) return undefined;
+function approachPrerequisite(
+  context: PrerequisiteContext,
+  reviewed: ReviewProvenance | undefined,
+): MissingPrerequisite | undefined {
+  if (reviewed !== undefined && designDecisionAccepted(context)) return undefined;
   return {
     code: 'missing_accepted_approach',
     message: 'An accepted implementation approach is required before execution.',
     command:
-      reviewed && designApprovalRequired(context.cwd)
+      reviewed !== undefined && designApprovalRequired(context.cwd)
         ? `safeword ticket approve-plan ${context.ticketId}`
         : `safeword review run plan-implementation --context ${relativeFeature(context)} --context ${nodePath.relative(context.cwd, nodePath.join(context.ticketDirectory, 'spec.md'))} -- ${nodePath.relative(context.cwd, context.implementationPath)}`,
   };
 }
 
 type ChecklistPrerequisite =
-  | { readonly admitted: true; readonly independence: 'cross-agent' | 'degraded' }
+  | {
+      readonly admitted: true;
+      readonly independence: 'cross-agent' | 'degraded';
+      readonly provenance: ReviewProvenance;
+    }
   | { readonly admitted: false; readonly missing: MissingPrerequisite };
 
 function checklistPrerequisite(context: PrerequisiteContext): ChecklistPrerequisite {
@@ -256,7 +294,11 @@ function checklistPrerequisite(context: PrerequisiteContext): ChecklistPrerequis
         digest: normalizedExecutionPlanDigest(plan),
       });
       if (review.kind === 'admitted') {
-        return { admitted: true, independence: review.independence };
+        return {
+          admitted: true,
+          independence: review.independence,
+          provenance: review.provenance,
+        };
       }
       if (review.kind === 'missing_verdict') {
         return {
@@ -300,6 +342,94 @@ function checklistPrerequisite(context: PrerequisiteContext): ChecklistPrerequis
   };
 }
 
+function digest(content: string): string {
+  return createHash('sha256').update(content).digest('hex');
+}
+
+function fileDigest(path: string | undefined): string {
+  return path !== undefined && existsSync(path) ? digest(readFileSync(path, 'utf8')) : 'missing';
+}
+
+function stableTicketScope(ticket: string): Record<string, string | readonly string[]> {
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(ticket)?.[1];
+  const parsed = parseFrontmatter(frontmatter ?? '');
+  const field = (name: string): string | readonly string[] => parsed[name] ?? 'missing';
+  return {
+    scope: field('scope'),
+    out_of_scope: field('out_of_scope'),
+    done_when: field('done_when'),
+  };
+}
+
+function designDecisionState(context: PrerequisiteContext): string {
+  if (!designApprovalRequired(context.cwd)) return 'not_required';
+  if (!existsSync(context.implementationPath)) return 'missing_plan';
+  const planDigest = digest(readFileSync(context.implementationPath, 'utf8'));
+  return currentDesignDecision(context.ledgerPath, context.ticketId, planDigest) ?? 'pending';
+}
+
+function applicableIdentityInput(
+  context: PrerequisiteContext,
+  reviews: {
+    readonly scenario?: ReviewProvenance;
+    readonly implementation?: ReviewProvenance;
+    readonly execution?: ReviewProvenance;
+  },
+): Record<string, unknown> {
+  const executionPlan = existsSync(context.executionPath)
+    ? normalizedExecutionPlanDigest(readFileSync(context.executionPath, 'utf8'))
+    : 'missing';
+  return {
+    applicability: 'applicable',
+    ticket_scope: stableTicketScope(context.ticket),
+    product_plan: fileDigest(nodePath.join(context.ticketDirectory, 'spec.md')),
+    accepted_scenarios: fileDigest(context.featurePath),
+    implementation_plan: fileDigest(context.implementationPath),
+    execution_plan: executionPlan,
+    reviews: {
+      scenarios: reviews.scenario ?? 'missing',
+      implementation: reviews.implementation ?? 'missing',
+      execution: reviews.execution ?? 'missing',
+    },
+    human_design_decision: designDecisionState(context),
+  };
+}
+
+function authorizationInputIdentity(input: {
+  readonly cwd: string;
+  readonly ticketId: string;
+  readonly context?: PrerequisiteContext;
+  readonly scenarioReview?: ReviewProvenance;
+  readonly implementationReview?: ReviewProvenance;
+  readonly executionReview?: ReviewProvenance;
+  readonly status?: ExecutionPrerequisiteStatus;
+}): string {
+  const configPath = nodePath.join(input.cwd, '.safeword', 'config.json');
+  const evaluated =
+    input.context === undefined
+      ? { applicability: input.status ?? 'not_applicable' }
+      : applicableIdentityInput(input.context, {
+          scenario: input.scenarioReview,
+          implementation: input.implementationReview,
+          execution: input.executionReview,
+        });
+  return digest(
+    JSON.stringify({
+      version: 1,
+      ticket_id: input.ticketId,
+      config: fileDigest(configPath),
+      ...evaluated,
+    }),
+  );
+}
+
+function maybeAuthorizationIdentity(
+  enabled: boolean | undefined,
+  input: Parameters<typeof authorizationInputIdentity>[0],
+): string | undefined {
+  return enabled === true ? authorizationInputIdentity(input) : undefined;
+}
+
 /** Evaluate planning admission without granting coding or merge authority. */
 export function evaluateExecutionPrerequisite(
   cwd: string,
@@ -307,18 +437,48 @@ export function evaluateExecutionPrerequisite(
   options: {
     readonly legacyExemption?: boolean;
     readonly includeAssurance?: boolean;
+    readonly includeAuthorizationIdentity?: boolean;
   } = {},
 ): CliResult {
   const loaded = prerequisiteContext(cwd, ticketId, options.legacyExemption ?? true);
-  if (!loaded.applicable) return successful(loaded.status);
+  if (!loaded.applicable) {
+    const identity = maybeAuthorizationIdentity(options.includeAuthorizationIdentity, {
+      cwd,
+      ticketId,
+      status: loaded.status,
+    });
+    return successful(loaded.status, undefined, identity);
+  }
+  const scenarioReview = approvedReview(
+    loaded.context.cwd,
+    loaded.context.ledger,
+    loaded.context.ticketFolder,
+    'scenario-gate',
+    loaded.context.featurePath,
+  );
+  const implementationReview = approvedReview(
+    loaded.context.cwd,
+    loaded.context.ledger,
+    loaded.context.ticketFolder,
+    'plan-implementation',
+    loaded.context.implementationPath,
+  );
   const checklist = checklistPrerequisite(loaded.context);
   const missing = [
-    scenarioPrerequisite(loaded.context),
-    approachPrerequisite(loaded.context),
+    scenarioPrerequisite(loaded.context, scenarioReview),
+    approachPrerequisite(loaded.context, implementationReview),
     checklist.admitted ? undefined : checklist.missing,
   ].filter((item): item is MissingPrerequisite => item !== undefined);
-  if (missing.length > 0) return denied(missing);
-  if (!checklist.admitted) return denied([checklist.missing]);
+  const identity = maybeAuthorizationIdentity(options.includeAuthorizationIdentity, {
+    cwd,
+    ticketId,
+    context: loaded.context,
+    scenarioReview,
+    implementationReview,
+    executionReview: checklist.admitted ? checklist.provenance : undefined,
+  });
+  if (missing.length > 0) return denied(missing, identity);
+  if (!checklist.admitted) return denied([checklist.missing], identity);
   const independence = options.includeAssurance === true ? checklist.independence : undefined;
-  return successful('satisfied', independence);
+  return successful('satisfied', independence, identity);
 }

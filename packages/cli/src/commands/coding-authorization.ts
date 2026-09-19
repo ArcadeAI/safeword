@@ -6,6 +6,7 @@ export function evaluateCodingAuthorization(cwd: string, ticketId: string): CliR
   const prerequisite = evaluateExecutionPrerequisite(cwd, ticketId, {
     legacyExemption: false,
     includeAssurance: true,
+    includeAuthorizationIdentity: true,
   });
   const authorized = prerequisite.state === 'healthy';
   const prerequisiteData =
@@ -20,6 +21,9 @@ export function evaluateCodingAuthorization(cwd: string, ticketId: string): CliR
       grants_authority: false,
       ...(typeof prerequisiteData.achieved_independence === 'string' && {
         achieved_independence: prerequisiteData.achieved_independence,
+      }),
+      ...(typeof prerequisiteData.authorization_input_identity === 'string' && {
+        authorization_input_identity: prerequisiteData.authorization_input_identity,
       }),
     },
   };

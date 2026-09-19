@@ -15,6 +15,11 @@ export type ExecutionPlanAdmission =
       readonly reviewId: string;
       readonly record: ExecutionPlanRecord;
       readonly independence: 'cross-agent' | 'degraded';
+      readonly provenance: {
+        readonly authorAgent: string;
+        readonly reviewerAgent: string;
+        readonly independence: 'cross-agent' | 'degraded';
+      };
     }
   | { readonly kind: 'missing_verdict' }
   | { readonly kind: 'rejected'; readonly message: string }
@@ -117,6 +122,11 @@ function candidateAdmission(
     reviewId,
     record: validated.output.execution_plan_record,
     independence,
+    provenance: {
+      authorAgent: data.author_agent as string,
+      reviewerAgent: data.actual_reviewer as string,
+      independence,
+    },
   };
 }
 
