@@ -456,7 +456,7 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
-    it('blocks REFACTOR before GREEN records the passing proof', () => {
+    it('blocks REFACTOR after RED until GREEN records the passing proof', () => {
       const setup = setupProject(
         '### Scenario: ordered loop\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
       );
@@ -467,7 +467,8 @@ describe('write-time annotation gate', () => {
         '- [ ] REFACTOR',
         '- [x] REFACTOR skip: no structural improvement needed',
       );
-      expect(result.stdout).toContain('Cannot mark REFACTOR before GREEN');
+      expect(result.stdout, 'hook allowed the out-of-order REFACTOR edit').not.toBe('');
+      expectHookDeny(result, 'Cannot mark REFACTOR before GREEN');
     });
 
     it('does not let an unclosed fence hide a GREEN transition', () => {
