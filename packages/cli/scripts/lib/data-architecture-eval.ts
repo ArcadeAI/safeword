@@ -31,7 +31,8 @@ export interface EvaluationContract {
 export interface EvaluationRecord {
   readonly caseId: string;
   readonly guideSha256: string;
-  readonly caseRubricSha256: string;
+  /** Hash of the case identity and text plus its sorted rubric sets. */
+  readonly caseAndRubricSha256: string;
   readonly prompt: string;
   /** Hash of the complete cold-start prompt, including the guide bytes. */
   readonly coldStartPromptSha256: string;

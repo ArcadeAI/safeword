@@ -111,7 +111,7 @@ describe('data architecture guide evaluation', () => {
           'decision.routing.helper-architecture',
         ],
         expectedProofFactIds: ['proof.routing.durable-and-reversible-separated'],
-        forbiddenProofFactIds: [],
+        forbiddenProofFactIds: ['proof.routing.durable-and-reversible-collapsed'],
       },
     };
     const contract: EvaluationContract = {
@@ -125,7 +125,7 @@ describe('data architecture guide evaluation', () => {
     const mixedRecord: EvaluationRecord = {
       caseId: mixedCase.id,
       guideSha256: sha256(guide),
-      caseRubricSha256: sha256(
+      caseAndRubricSha256: sha256(
         canonicalJson({
           case: { id: mixedCase.id, text: mixedCase.text },
           rubric: {
@@ -162,7 +162,16 @@ describe('data architecture guide evaluation', () => {
       },
       toolsDisabled: true,
     });
+    const smuggledPrompt = JSON.stringify({
+      ...JSON.parse(prompt),
+      ambientContext: 'repository state',
+    });
     const rejectedRecords = [
+      {
+        name: 'different case identity',
+        record: { ...mixedRecord, caseId: 'different-case' },
+        diagnostic: 'Evaluation record does not match the current case and rubric.',
+      },
       {
         name: 'stale canonical guide hash',
         record: { ...mixedRecord, guideSha256: sha256('stale guide') },
@@ -170,12 +179,21 @@ describe('data architecture guide evaluation', () => {
       },
       {
         name: 'stale case and rubric digest',
-        record: { ...mixedRecord, caseRubricSha256: sha256('stale case and rubric') },
+        record: { ...mixedRecord, caseAndRubricSha256: sha256('stale case and rubric') },
         diagnostic: 'Evaluation record does not match the current case and rubric.',
       },
       {
         name: 'stale cold-start prompt digest',
         record: { ...mixedRecord, coldStartPromptSha256: sha256('stale prompt') },
+        diagnostic: 'Evaluation record prompt does not match the current cold-start prompt.',
+      },
+      {
+        name: 'self-consistent prompt with ambient context',
+        record: {
+          ...mixedRecord,
+          prompt: smuggledPrompt,
+          coldStartPromptSha256: sha256(smuggledPrompt),
+        },
         diagnostic: 'Evaluation record prompt does not match the current cold-start prompt.',
       },
       {
@@ -252,6 +270,21 @@ describe('data architecture guide evaluation', () => {
           },
         },
         diagnostic: 'Evaluation response contains unknown proof fact proof.routing.unknown.',
+      },
+      {
+        name: 'forbidden proof fact',
+        record: {
+          ...mixedRecord,
+          response: {
+            ...mixedRecord.response,
+            proofFactIds: [
+              ...mixedRecord.response.proofFactIds,
+              'proof.routing.durable-and-reversible-collapsed',
+            ],
+          },
+        },
+        diagnostic:
+          'Evaluation response contains forbidden proof fact proof.routing.durable-and-reversible-collapsed.',
       },
     ];
     for (const rejected of rejectedRecords) {
