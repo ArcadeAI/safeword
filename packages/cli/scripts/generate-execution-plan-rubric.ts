@@ -5,6 +5,7 @@ import {
 } from './lib/reconcile-generated-file.js';
 
 export const generateExecutionPlanRubric = defineGeneratedRubric({
+  digestExportName: 'EXECUTION_PLAN_REVIEW_RUBRIC_SHA256',
   exportName: 'EXECUTION_PLAN_REVIEW_RUBRIC',
   extract: extractExecutionPlanReviewRubric,
   generateCommand: 'generate:execution-plan-rubric',

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -28,9 +29,15 @@ describe('Execution Plan contract generation', () => {
     const generated = readFileSync(generatedPath, 'utf8');
 
     expect(generated).toContain(JSON.stringify(rubric));
+    expect(generated).toContain(
+      `export const EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = ${JSON.stringify(
+        createHash('sha256').update(rubric).digest('hex'),
+      )};`,
+    );
     for (const obligation of [
       'Slicing decision',
       'Complete slices',
+      'Startable steps',
       'Dependency safety',
       'Conceptual reviewability',
       'Obligation and decision preservation',
