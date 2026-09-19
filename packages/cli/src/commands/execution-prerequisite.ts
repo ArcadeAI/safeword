@@ -478,6 +478,7 @@ export function evaluateExecutionPrerequisite(
     executionReview: checklist.admitted ? checklist.provenance : undefined,
   });
   if (missing.length > 0) return denied(missing, identity);
-  const independence = options.includeAssurance === true ? checklist.independence : undefined;
+  const independence =
+    options.includeAssurance === true && checklist.admitted ? checklist.independence : undefined;
   return successful('satisfied', independence, identity);
 }
