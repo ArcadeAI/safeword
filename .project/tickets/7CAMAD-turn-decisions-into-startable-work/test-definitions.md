@@ -35,9 +35,13 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A fresh-context agent turns an accepted approach into the first RED
 
 - [x] RED 39163e735
-- Structural support only: the actor-boundary RED remains open for the
-  Git-backed installed-CLI journey.
+- Structural support only; the later journey commits supply the actor-boundary
+  proof.
 - [x] RED 265496503
+- The first installed-CLI journey reached semantic review but did not exercise
+  the complete phase-entry, production-edit denial, RED execution, and ledger
+  path.
+- [x] RED 6d08a5cd7
 - [ ] GREEN
 - [ ] REFACTOR
 
