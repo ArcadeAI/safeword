@@ -32488,6 +32488,13 @@ from outside those sources.
   no-load-bearing-choice applicability decision, with the readable status
   \`unchanged\`. Reject an omitted or partially mapped applicable obligation, an
   unowned slice, or any reopened decision.
+- **Measurement execution:** When the accepted plans define a quantitative
+  contract, require owned, dependency-ordered instrumentation, tests, evidence
+  collection, and a concrete completion signal. Preserve the accepted outcome,
+  population, target, measurement origin, method, validity safeguards, and
+  failure behavior exactly. Missing execution mechanics return to
+  \`plan-execution\`; changing any accepted measurement term returns to
+  \`plan-implementation\`, even when restoring the accepted value would be easy.
 - **Discovery routing:** Classify every requested change by what it alters. A
   fixture implementation, test command, file location, sequencing detail, or
   other execution mechanic remains in \`plan-execution\` when all accepted
@@ -32533,7 +32540,7 @@ slice's \`relies_on_unmerged_successor\` to \`false\` and every decision status 
 coverage booleans to true only after judging the supplied scenarios and
 approach. For a denial, return the record as null and name each blocking slice,
 field, obligation, dependency, proof, or decision in findings. Never approve
-because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "e4f825b6b77eeb023d50de3564622d1c301bb2f081d1c6d15f25bbda078f7051";
+because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "e6fece9144cb49e0ce9ffea6141a2a7354d64070c83d4b65102d389e7e06bf97";
 
 // src/review/execution-plan-rubric.ts
 function extractExecutionPlanReviewRubric(reference) {
@@ -36484,8 +36491,8 @@ var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
-    contract_sha256: "55c8a966e0703a4ec0a648607a683d4e49003ba6deec29669923feb4e1677a26",
-    corpus_sha256: "b7b72d77eb23e623d54757b8138170a019552fe94b6486cb2e99bf94cac331d9",
+    contract_sha256: "4d36a76a839c4960b474ddb9dae5e064f37ffc5940aa107736c6985f57252165",
+    corpus_sha256: "41f0c4c0b913be4f9f90214bd410aeeab245fa13d6eeae90d6110c1153c31667",
     identities: [
       {
         reviewer: "claude",
@@ -36526,6 +36533,13 @@ var init_execution_plan_admission_generated = __esm(() => {
           "migration-missing-completion-signal",
           "migration-missing-dependency-order",
           "explicitly-inapplicable-obligations",
+          "complete-measurement-execution",
+          "missing-measurement-instrumentation",
+          "missing-measurement-evidence-collection",
+          "changed-measurement-target",
+          "changed-measurement-origin",
+          "weakened-measurement-safeguard",
+          "changed-measurement-failure-behavior",
           "reopened-authorization-decision",
           "fixture-discovery-stays-in-execution-planning",
           "test-command-discovery-stays-in-execution-planning",
@@ -36758,7 +36772,18 @@ var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integri
 
 - One shared authorization service owns permission checks for every transport.
 - Host-neutral dependency order keeps every intermediate merge supported.
-`, PROOF_ONLY_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, UNCHANGED_DECISIONS_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
+`, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_PLAN, MEASUREMENT_EXECUTION_BLOCK = `
+## Measurement execution
+
+- Owner: Complete delivery.
+- Dependency order: add instrumentation, validate its samples, then collect current-revision evidence.
+- Instrumentation: record the duration at the gateway authorization boundary before response serialization and publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions.
+- Tests: prove the histogram covers production gateway authorization requests, excludes documented synthetic probes, and rejects evidence below 99 percent sample coverage.
+- Evidence collection: query the rolling seven-day window and retain the population, sample coverage, p95 result, target comparison, and source revision.
+- Completion signal: current-revision evidence shows p95 authorization latency at or below 200 milliseconds with at least 99 percent valid sample coverage.
+- Preserved contract: the accepted outcome, population, target, measurement origin, method, validity safeguards, and failure behavior remain unchanged.
+- Failure handling: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
+`, MEASUREMENT_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, UNCHANGED_DECISIONS_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
 var init_execution_plan_conformance = __esm(() => {
   init_delivery_checklist();
   init_execution_plan_admission_generated();
@@ -36818,6 +36843,17 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
 ## Accepted proof strategy
 
 - Edited-plan denial uses a self-contained fixture and command through the installed CLI subprocess and must assert exit code 2.
+`;
+  MEASUREMENT_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted measurement contract
+
+- Outcome: reduce authorization latency for production gateway requests.
+- Population: all production gateway authorization requests, excluding documented synthetic probes.
+- Target: p95 authorization latency is at most 200 milliseconds over a rolling seven-day window.
+- Measurement origin: record the duration at the gateway authorization boundary before response serialization.
+- Method: publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions.
+- Validity safeguards: reject evidence when sample coverage is below 99 percent or synthetic traffic is included.
+- Failure behavior: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
 `;
   BASE_DECISION_ACCOUNTING = DECISIONS.map((decision) => `- ${decision}: unchanged`).join(`
 `);
@@ -36933,6 +36969,13 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       }
     ]
   });
+  MEASUREMENT_PLAN = `${ONE_PLAN}${MEASUREMENT_EXECUTION_BLOCK}`;
+  MISSING_MEASUREMENT_INSTRUMENTATION_PLAN = MEASUREMENT_PLAN.replace(/^- Instrumentation:.*\n/m, "");
+  MISSING_MEASUREMENT_EVIDENCE_PLAN = MEASUREMENT_PLAN.replace(/^- Evidence collection:.*\n/m, "");
+  CHANGED_MEASUREMENT_TARGET_PLAN = MEASUREMENT_PLAN.replace("at or below 200 milliseconds", "at or below 300 milliseconds");
+  CHANGED_MEASUREMENT_ORIGIN_PLAN = MEASUREMENT_PLAN.replace("at the gateway authorization boundary before response serialization", "in the client after response parsing");
+  WEAKENED_MEASUREMENT_SAFEGUARD_PLAN = MEASUREMENT_PLAN.replace("rejects evidence below 99 percent sample coverage", "accepts evidence at any sample coverage");
+  CHANGED_MEASUREMENT_FAILURE_PLAN = MEASUREMENT_PLAN.replace("keep rollout disabled and report the measurement as invalid when a validity safeguard fails", "continue rollout and treat missing samples as a passing measurement");
   DISMISSED_APPLICABLE_WORK_PLAN = ONE_PLAN.replace("| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor |  | not_applicable | missing | | No runtime proof is needed. |").replace("| item-11 | completion evidence | Retain concrete completion evidence for all accepted obligations. | contributor | plan-integrity | open | missing | | |", `| item-11 | completion evidence | Retain concrete completion evidence for all accepted obligations. | contributor | plan-integrity | open | missing | | |
 | item-12 | testing | Exercise an unrelated smoke check. | contributor | behavior-boundary | open | missing | | |`);
   APPLICABILITY_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
@@ -37434,6 +37477,34 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         obligations: ["Accepted behavior"],
         decisions: DECISIONS
       }
+    },
+    {
+      ...approved("complete-measurement-execution", "Accepted measurement decisions map to owned instrumentation, tests, evidence collection, and a completion signal.", MEASUREMENT_PLAN, "one_pull_request", ["Complete delivery"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...denied("missing-measurement-instrumentation", "Accepted measurement execution without the instrumentation work is denied.", MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, ["instrumentation"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...denied("missing-measurement-evidence-collection", "Accepted measurement execution without evidence collection is denied.", MISSING_MEASUREMENT_EVIDENCE_PLAN, ["evidence", "collection"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...decisionChangingDiscovery("changed-measurement-target", "Execution Planning cannot change the accepted Product-owned measurement target.", CHANGED_MEASUREMENT_TARGET_PLAN, ["target", "200"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...decisionChangingDiscovery("changed-measurement-origin", "Execution Planning cannot change the accepted measurement origin.", CHANGED_MEASUREMENT_ORIGIN_PLAN, ["measurement origin", "gateway"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...decisionChangingDiscovery("weakened-measurement-safeguard", "Execution Planning cannot weaken an accepted measurement validity safeguard.", WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, ["validity", "99"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...decisionChangingDiscovery("changed-measurement-failure-behavior", "Execution Planning cannot redefine accepted measurement failure behavior.", CHANGED_MEASUREMENT_FAILURE_PLAN, ["failure", "rollout"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
     },
     decisionChangingDiscovery("reopened-authorization-decision", "A slice cannot move the accepted shared authorization boundary.", executionPlan({
       decision: "one pull request",

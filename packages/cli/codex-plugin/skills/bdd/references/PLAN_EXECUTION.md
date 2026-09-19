@@ -13,8 +13,10 @@ Scaffold `execution-plan.md` next to `ticket.md` from
 1. Read the approved scenarios, Implementation Plan, and applicable project
    guides. Extract every accepted behavior, decision-derived implementation,
    proof-strategy implementation, migration, rollout, rollback, documentation,
-   and affected-surface obligation. Do not invent missing decisions; return a
-   genuine gap to Implementation Planning.
+   affected-surface, and measurement-execution obligation. For an accepted
+   quantitative contract, preserve its outcome, population, target, origin,
+   method, validity safeguards, and failure behavior exactly. Do not invent
+   missing decisions; return a genuine gap to Implementation Planning.
 2. Decide explicitly whether delivery is one pull request or multiple pull
    requests. Explain the boundary in terms of conceptual scope and independent
    proof, never line or file count alone.
@@ -91,6 +93,13 @@ from outside those sources.
   no-load-bearing-choice applicability decision, with the readable status
   `unchanged`. Reject an omitted or partially mapped applicable obligation, an
   unowned slice, or any reopened decision.
+- **Measurement execution:** When the accepted plans define a quantitative
+  contract, require owned, dependency-ordered instrumentation, tests, evidence
+  collection, and a concrete completion signal. Preserve the accepted outcome,
+  population, target, measurement origin, method, validity safeguards, and
+  failure behavior exactly. Missing execution mechanics return to
+  `plan-execution`; changing any accepted measurement term returns to
+  `plan-implementation`, even when restoring the accepted value would be easy.
 - **Discovery routing:** Classify every requested change by what it alters. A
   fixture implementation, test command, file location, sequencing detail, or
   other execution mechanic remains in `plan-execution` when all accepted
