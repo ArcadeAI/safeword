@@ -583,6 +583,7 @@ describe('Execution Plan cold-start journey', () => {
         reviewKeyRoot,
         receiptPluginRoot,
       );
+      expect(productionEdit.stdout, 'hook allowed production before the named RED').not.toBe('');
       expectHookDeny(productionEdit, RED_COMMAND.join(' '));
       const red = spawnSync(RED_COMMAND[0], RED_COMMAND.slice(1), { cwd: root, encoding: 'utf8' });
       expect(red.status).toBe(1);
