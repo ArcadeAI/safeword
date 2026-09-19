@@ -20,6 +20,23 @@ present in the merge branch with their targeted tests green before PR 1 starts.
 If one is absent or changes incompatibly, stop at that prerequisite; do not
 copy, stub, or locally redefine the sibling contract.
 
+## Current state and remaining target
+
+- **PR 1 implemented:** the public authorization projection, typed command,
+  identity, and closed authority claims have targeted proof. Preserve that
+  single prerequisite owner; whole-ticket verification remains open.
+- **PR 2 in progress:** both coding-boundary consumers and denial ordering
+  exist. Phase-anchor and planning-freeze proof, canonical guidance,
+  architecture reconciliation, and generated parity remain open.
+- **PR 3 in progress:** discovery routing and disguised data-decision
+  partitions are admitted by the complete live-review matrix, and the retained
+  `execution-plan-contract-identity.test.ts` proves the packaged author/reviewer
+  bytes. Startability, obligation, measurement, structural-fact, replan,
+  rollback, and cold-start journey work remains open.
+
+Completed work is retained implementation evidence, not approval of the
+remaining target, whole-ticket verification, release, or merge.
+
 ## PR 1 — Expose one coding-authorization contract
 
 - **Purpose:** Give builders and both later hook consumers one inspectable,
@@ -50,7 +67,10 @@ copy, stub, or locally redefine the sibling contract.
    ordinary contributor progress in `Disposition`, `Evidence class`,
    `Revision`, and the final evidence cell. Assert every stable upstream
    mutation denies, ordinary progress does not, and a fresh affected review
-   restores authorization.
+   restores authorization. First run
+   `bun run test tests/integration/coding-authorization.test.ts`; before GREEN
+   it must fail because `ticket coding-authorization` is not registered and
+   therefore cannot return the expected typed denial.
 2. RED: In the same file, cover absent artifact, missing receipt, stale receipt,
    rejected verdict, missing achieved independence, unearned assurance,
    permitted fallback with actual assurance retained, disregarded author-written
@@ -105,7 +125,8 @@ copy, stub, or locally redefine the sibling contract.
    `packages/cli/tests/integration/plan-design-approval.test.ts` at the installed
    `ticket approve-plan` boundary for the absent, unreviewed, stale, rejected,
    and unearned-independence Implementation Plan partitions, including the
-   actual achieved assurance in the successful report. Extend
+   permitted fallback's actual achieved assurance in the successful report and
+   the disregarded author-written independence claim. Extend
    `packages/cli/tests/integration/plan-transition-gate.test.ts` so implement
    entry requires the project-local `execution-plan.md` and the exact public
    authorization result. In that real hook harness, cover current
@@ -121,7 +142,12 @@ copy, stub, or locally redefine the sibling contract.
    coding when the project-local Execution Plan is absent or stale, and that
    recovery names that project-local `execution-plan.md` as the artifact to
    create or repair. Assert one local CLI subprocess, no network/lifecycle work,
-   and no recurring prompt injection.
+   and no recurring prompt injection. With an existing Execution Plan, also
+   assert that returning to `define-behavior` or `scenario-gate` permits edits
+   to the owned `.feature` source while application edits remain frozen. At the
+   same real hook boundary, task and patch fixtures must edit application code
+   without invoking the feature-only authorization CLI, while a feature fixture
+   must invoke it.
 3. GREEN: Update phase evidence, provenance anchors, planning code freeze, and
    the transition gate for `plan-execution`. Make both hook consumers delegate
    to the public authorization entry point. Activate production-edit checks for
@@ -200,8 +226,14 @@ copy, stub, or locally redefine the sibling contract.
    decisions; omitted, partially mapped, completely mapped, unowned rollback,
    and explicitly obligation-free work; one- and multi-purpose PR shapes;
    defect-versus-target; pending human authority; all four evidence classes;
-   partial-proof rejection; measurement work; every downstream-authority
-   rejection; and the structural gate's present-and-valid, absent, and
+   partial-proof rejection; measurement work that separately omits
+   instrumentation, omits evidence collection, changes the target, changes the
+   measurement origin, weakens an accepted validity safeguard, or redefines
+   accepted failure behavior; every downstream-authority
+   rejection; the retained
+   `tests/review/execution-plan-contract-identity.test.ts` cases for missing,
+   mismatched, and exact packaged author/reviewer contracts; and the structural
+   gate's present-and-valid, absent, and
    present-but-unreadable artifact states. For every structural state, assert
    the report describes facts without calling the plan implementable, approved,
    or ready for coding.
@@ -243,6 +275,7 @@ copy, stub, or locally redefine the sibling contract.
 | R15 measurement decisions become execution work | PR 3 |
 | R16 invalidation follows Product → Implementation → Execution | PR 1, PR 3 |
 | R17 replanning preserves valid proof and resumes at first invalidated obligation | PR 3 |
+| Task and patch flows bypass feature-only coding authorization | PR 2 |
 | Safeword CLI command and local hook surface | PR 1, PR 2, PR 3 |
 | M1 migration window and monotonic new-flow markers | PR 1, PR 2 |
 | Rollback of persisted `plan-execution` tickets | PR 3 |
@@ -261,6 +294,9 @@ copy, stub, or locally redefine the sibling contract.
 - K3EBHB owns progressive plain-language recovery and must complete before the
   epic ships; this child proves only typed identities and ordering.
 - YCFFNC owns installed-host migration/activation and public rollout guidance.
+- 3EG00H owns the broader proportional task-and-patch workflow; this child owns
+  only the regression proof that its feature-specific gate does not intercept
+  those flows.
 
 ## Decision accounting
 
@@ -293,6 +329,7 @@ copy, stub, or locally redefine the sibling contract.
 | ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |
 | --- | -------- | ---------- | ----- | -------------- | ----------- | -------------- | -------- | ------------------------------- |
 | outcome-scope | outcome and scope | Authorize coding only from current reviewed Product, Implementation, and Execution Plans without granting downstream authority. | contributor | authorization-cli | open | missing | | |
+| proportional-work | outcome and scope | Keep task and patch application edits outside the feature-only coding-authorization projection while proving feature edits invoke it. | contributor | authorization-hooks | open | missing | | |
 | resolved-decisions | resolved decisions | Preserve every recorded implementation decision, including the public leaf, denial order, and monotonic M1 activation markers. | contributor | plan-review | open | missing | | |
 | resolved-contract | resolved decisions | Admit only Execution Plans that preserve the canonical slicing, obligation, evidence, measurement, and startability contract. | contributor | contract-identity | open | missing | | |
 | pr-decomposition | dependency and pull-request decomposition | Deliver the shared contract, enforcement consumers, and complete journey in three dependency-ordered independently safe PRs. | contributor | plan-review | open | missing | | |

@@ -2,13 +2,15 @@
 id: 7CAMAD
 slug: turn-decisions-into-startable-work
 type: feature
-phase: plan-implementation
+phase: implement
 status: in_progress
 phase_skips:
   - 'intake: originally inherited the 2026-09-08 approval of 82T411; that approval became stale after material parent changes and was superseded by the fresh Product Plan approval recorded on 2026-09-09T23:46:25.000Z'
   - "define-behavior: partitioned the accepted 82T411 Rule and scenario packet at Safeword's documented split restart point"
 phase_anchors:
   - scenario-gate: features/turn-decisions-into-startable-work.feature
+  - plan-implementation: features/turn-decisions-into-startable-work.feature
+  - plan-execution: .project/tickets/7CAMAD-turn-decisions-into-startable-work/impl-plan.md
 scope:
   - turn a reviewed current Implementation Plan into dependency-ordered build and test work
   - own the integrated demo continuation: turn the complete and correct accepted Implementation Plan into an Execution Plan, then begin the first RED step without inventing a decision
