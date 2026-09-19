@@ -28,7 +28,7 @@ copy, stub, or locally redefine the sibling contract.
 - **PR 2 in progress:** both coding-boundary consumers and denial ordering
   exist. Phase-anchor and planning-freeze proof, canonical guidance,
   architecture reconciliation, and generated parity remain open.
-- **PR 3 in progress:** discovery routing and disguised data-decision
+- **PR 3 in progress:** discovery routing and disguised data- and architecture-decision
   partitions are admitted by the complete live-review matrix, and the retained
   `execution-plan-contract-identity.test.ts` proves the packaged author/reviewer
   bytes. Startability, obligation, measurement, structural-fact, replan,
@@ -226,14 +226,21 @@ remaining target, whole-ticket verification, release, or merge.
    tests: missing/mismatched canonical contracts; fixture and test-command
    changes; first and later unstartable steps; empty plans; risk-first ordering;
    explicitly parallel-safe work; discovery routing; disguised unresolved data
-   decisions; omitted, partially mapped, completely mapped, unowned rollback,
-   and explicitly obligation-free work; one- and multi-purpose PR shapes;
+   and architecture decisions; omitted accepted behavior, decision, proof
+   strategy, affected-surface, migration, rollout, rollback, and documentation
+   obligations; migration work missing either dependency order or a completion
+   signal; completely mapped and unowned rollback work; and an accepted
+   behavior mapped without placeholder tasks for migration, rollout, rollback,
+   documentation, and affected-surface categories explicitly marked
+   inapplicable; one- and multi-purpose PR shapes;
    defect-versus-target; pending human authority; all four evidence classes;
    partial-proof rejection; measurement work that separately omits
    instrumentation, omits evidence collection, changes the target, changes the
    measurement origin, weakens an accepted validity safeguard, or redefines
    accepted failure behavior; every downstream-authority
-   rejection; the retained
+   rejection. Regenerate the real reviewer admission matrix whenever the
+   canonical contract digest changes and reject admission generated from
+   superseded contract bytes. Preserve the retained
    `tests/review/execution-plan-contract-identity.test.ts` cases for missing,
    mismatched, and exact packaged author/reviewer contracts; and the structural
    gate's present-and-valid, absent, and
@@ -245,7 +252,10 @@ remaining target, whole-ticket verification, release, or merge.
    Exercise the real backward ticket transition for both to
    `plan-implementation`, retain their plans, reviews, and ledger rows as inert
    history, then prove the reduced phase model can read and continue each
-   ticket. Do not add a general migration framework.
+   ticket. Make the per-ticket reversal idempotent and resumable: a retry
+   recognizes an already reverted ticket as complete and continues remaining
+   tickets without skipping an unreverted one. Do not add a general migration
+   framework.
 7. RED/GREEN: Assert K3EBHB remains an epic release dependency for progressive
    NTB recovery and YCFFNC remains the installed-host migration owner. If either
    boundary is absent, fail the epic-completion proof rather than expanding this
@@ -308,6 +318,7 @@ remaining target, whole-ticket verification, release, or merge.
 - Keep semantic and structural responsibilities separate: unchanged
 - Reuse content-bound review identity for dependency-directed replanning: unchanged
 - Preserve TDD as a separate implementation contract: unchanged
+- Preserve one real behavior obligation without manufacturing optional work: unchanged
 - Surface planning repair before executable RED: unchanged
 - Activate M1 enforcement without a provenance bypass: unchanged
 
