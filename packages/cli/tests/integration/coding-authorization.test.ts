@@ -708,7 +708,10 @@ describe('coding authorization', () => {
     );
 
     const staleExecution = await codingAuthorization(root);
-    expect(staleExecution.exitCode).toBe(2);
+    expect(
+      staleExecution.exitCode,
+      'coding must remain blocked until the dependent Execution Plan is re-reviewed',
+    ).toBe(2);
     expect(staleExecution.data.coding_authorization).toBe('denied');
 
     await refreshReviews(root, 'execution');
