@@ -155,8 +155,8 @@ copy, stub, or locally redefine the sibling contract.
 - **Proof:** Git-backed installed-CLI integration covers all R1–R17 partitions,
   the first executable RED, sequencing-only and design-changing replans,
   byte-identical retained evidence class without re-execution, invalidated proof
-  becoming audit-only, resumption at the first reopened obligation, and rollback
-  of a ticket parked at `plan-execution`.
+  becoming audit-only, resumption at the first reopened obligation, and uniform
+  rollback of both `plan-execution` and durably migrated `implement` tickets.
 - **Completion signal:** The cold-start journey reaches the named RED without an
   invented decision; both replan routes re-review only the affected plans and
   resume at the first invalidated obligation; the documented rollback returns
@@ -192,10 +192,12 @@ copy, stub, or locally redefine the sibling contract.
    present-but-unreadable artifact states. For every structural state, assert
    the report describes facts without calling the plan implementable, approved,
    or ready for coding.
-5. RED/GREEN: Add a rollback fixture parked at `plan-execution`. Exercise the
-   real backward ticket transition to `plan-implementation`, retain its plans,
-   reviews, and ledger rows as inert history, then prove the reduced phase model
-   can read and continue the ticket. Do not add a general migration framework.
+5. RED/GREEN: Add rollback fixtures for a ticket parked at `plan-execution` and
+   an `implement` ticket carrying authenticated `plan-execution` provenance.
+   Exercise the real backward ticket transition for both to
+   `plan-implementation`, retain their plans, reviews, and ledger rows as inert
+   history, then prove the reduced phase model can read and continue each
+   ticket. Do not add a general migration framework.
 6. RED/GREEN: Assert K3EBHB remains an epic release dependency for progressive
    NTB recovery and YCFFNC remains the installed-host migration owner. If either
    boundary is absent, fail the epic-completion proof rather than expanding this
@@ -285,7 +287,7 @@ copy, stub, or locally redefine the sibling contract.
 | monitoring | monitoring and failure signals | Keep authorization local, read-only, no-network, single-subprocess, and synchronously observable through typed denial identities; no production service or SLO is introduced. | contributor | authorization-hooks | open | missing | | |
 | security-privacy | security and privacy | Reject editable authority claims, stale receipts, lost new-flow prerequisites, and duplicate prerequisite evaluators without external data egress. | contributor | authorization-cli | open | missing | | |
 | rollout-activation | rollout and rollback | Gate new-flow tickets through durable markers while preserving legacy M1 behavior until YCFFNC migration. | contributor | authorization-hooks | open | missing | | |
-| rollout-rollback | rollout and rollback | Return parked tickets to Implementation Planning before removing the phase. | contributor | replan-journey | open | missing | | |
+| rollout-rollback | rollout and rollback | Return parked `plan-execution` tickets and `implement` tickets with durable `plan-execution` provenance to Implementation Planning before removing the phase. | contributor | replan-journey | open | missing | | |
 | documentation | documentation | Update canonical workflow, architecture, command reference, and every registered host derivative without hand-editing generated copies. | contributor | workflow-parity | open | missing | | |
 | ownership-dependencies | ownership and human dependencies | Keep G1C9PP, 5F5ZZA, 6XW8H7, A639WN, K3EBHB, and YCFFNC obligations in their named tickets and block epic completion if required downstream work is absent. | contributor | plan-review | open | missing | | |
 | completion-journey | completion evidence | Prove the complete cold-start and replan journeys on final bytes. | contributor | replan-journey | open | missing | | |
