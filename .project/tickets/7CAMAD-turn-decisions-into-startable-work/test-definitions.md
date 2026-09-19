@@ -42,6 +42,9 @@ test-definitions.md is the R/G/R ledger.
   the complete phase-entry, production-edit denial, RED execution, and ledger
   path.
 - [x] RED 6d08a5cd7
+- The complete journey blocked the production edit before RED, but did not
+  prove that recording the observed failure releases that same edit.
+- [x] RED 7380ff209
 - [ ] GREEN
 - [ ] REFACTOR
 
