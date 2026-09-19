@@ -257,5 +257,5 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Execution approval cannot impersonate a downstream approval
 
 - [x] RED 53d2c247e
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 91aba5c13
+- [x] REFACTOR skip: the public command is already a closed, thin projection over the shared prerequisite evaluator
