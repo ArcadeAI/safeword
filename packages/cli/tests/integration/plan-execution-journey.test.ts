@@ -176,15 +176,15 @@ if ! printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   exit 0
 fi
 if printf '%s' "$payload" | /usr/bin/grep -Fq '4. TODO: decide whether denied authorization returns an error or an empty result'; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"task 4 requires a behavior decision","findings":[{"severity":"error","message":"Task 4 requires a behavior decision before implementation."}],"execution_plan_record":null}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"task 4 requires a behavior decision","findings":[{"severity":"error","message":"Task 4 requires a behavior decision before implementation."}],"planning_destination":"plan-implementation","execution_plan_record":null}\n' "$dispatch_id"
   exit 0
 fi
 if ! printf '%s' "$payload" | /usr/bin/grep -Fq '${REVIEW_CONTRACT_SIGNAL}'; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"the first step is not startable","findings":[{"severity":"error","message":"Execution Planning does not require a named first RED."}],"execution_plan_record":null}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"the first step is not startable","findings":[{"severity":"error","message":"Execution Planning does not require a named first RED."}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id"
   exit 0
 fi
 review_record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
-printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"the named RED is startable","findings":[],"execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
+printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"the named RED is startable","findings":[],"planning_destination":"plan-execution","execution_plan_record":%s}\n' "$dispatch_id" "$review_record"
 `,
     { mode: 0o755 },
   );
@@ -401,6 +401,33 @@ describe('Execution Plan cold-start journey', () => {
       expect(rejectedPlan.exitCode, `${rejectedPlan.stdout}\n${rejectedPlan.stderr}`).toBe(2);
       expect(rejectedPlan.stdout).toContain('task 4');
       expect(rejectedPlan.stdout).toContain('behavior decision');
+      expect(rejectedPlan.stdout).toContain('safeword ticket approve-plan START1');
+      const appliedDiscovery = await runCli(
+        ['--json', '--no-input', 'ticket', 'approve-plan', 'START1'],
+        {
+          cwd: root,
+          env: {
+            SAFEWORD_AGENT_RUNTIME: 'codex',
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+            SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
+          },
+        },
+      );
+      expect(
+        appliedDiscovery.exitCode,
+        `${appliedDiscovery.stdout}\n${appliedDiscovery.stderr}`,
+      ).toBe(2);
+      expect(appliedDiscovery.stdout).toContain('returned to Implementation Planning');
+      expect(readFileSync(nodePath.join(ticketDirectory, 'ticket.md'), 'utf8')).toContain(
+        'phase: plan-implementation',
+      );
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        readFileSync(nodePath.join(ticketDirectory, 'ticket.md'), 'utf8').replace(
+          'phase: plan-implementation',
+          'phase: plan-execution',
+        ),
+      );
       writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), plan);
 
       const reviews = [

@@ -179,6 +179,7 @@ function fixture(options: { plan?: string; designApprovalGate?: boolean } = {}):
         verdict: 'approve',
         summary: 'approved',
         findings: [],
+        planning_destination: 'plan-execution',
         execution_plan_record: {
           slicing_decision: 'one_pull_request',
           rationale: 'One coherent change.',

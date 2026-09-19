@@ -144,6 +144,11 @@ summary=$(printenv SAFEWORD_REVIEW_FAKE_SUMMARY || true)
 if [ -z "$summary" ]; then summary=reviewed; fi
 finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
 execution_plan_record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
+planning_destination=$(printenv SAFEWORD_REVIEW_FAKE_PLANNING_DESTINATION || true)
+if [ -z "$planning_destination" ]; then planning_destination=plan-execution; fi
+if [ -z "$execution_plan_record" ] && printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
+  execution_plan_record=null
+fi
 finding_second=''
 case "$finding" in
   *'|||'*)
@@ -170,12 +175,14 @@ elif [ "$identity" = "dispatch" ]; then
   else
     printf '%s\n' "$result"
   fi
+elif [ -n "$execution_plan_record" ] && [ -n "$finding" ] && [ -n "$finding_second" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"},{"severity":"error","message":"%s"}],"planning_destination":"%s","execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$finding_second" "$planning_destination" "$execution_plan_record"
 elif [ -n "$finding" ] && [ -n "$finding_second" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"},{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$finding_second"
 elif [ -n "$execution_plan_record" ] && [ -n "$finding" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}],"execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$execution_plan_record"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}],"planning_destination":"%s","execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$finding" "$planning_destination" "$execution_plan_record"
 elif [ -n "$execution_plan_record" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[],"execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$execution_plan_record"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[],"planning_destination":"%s","execution_plan_record":%s}\n' "$dispatch_id" "$verdict" "$summary" "$planning_destination" "$execution_plan_record"
 elif [ -n "$finding" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding"
 elif [ "${agent}" = "opencode" ]; then
