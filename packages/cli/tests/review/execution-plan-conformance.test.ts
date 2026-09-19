@@ -43,6 +43,7 @@ const EXPECTED_CASE_IDS = [
   'missing-affected-surface-obligation',
   'reopened-authorization-decision',
   'fresh-context-first-red',
+  'later-step-is-not-startable',
 ] as const;
 
 function passingResults(
@@ -144,6 +145,17 @@ describe('Execution Plan semantic conformance admission', () => {
     expect(testCase?.execution_plan).toContain(
       'RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.',
     );
+  });
+
+  it('keeps an unstartable later step as a named denial case', () => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(
+      candidate => candidate.id === 'later-step-is-not-startable',
+    );
+
+    expect(testCase?.expectation).toMatchObject({
+      verdict: 'request_changes',
+      finding_terms: ['later', 'exact action'],
+    });
   });
 
   it('keeps complete obligation ownership as an approval case', () => {
