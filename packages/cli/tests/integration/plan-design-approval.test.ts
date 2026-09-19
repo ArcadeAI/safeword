@@ -36,6 +36,49 @@ const EXECUTION_PLAN_TEMPLATE = readFileSync(
   'utf8',
 );
 
+const REPLAN_CATEGORIES = [
+  'outcome and scope',
+  'resolved decisions',
+  'dependency and pull-request decomposition',
+  'testing',
+  'data and compatibility',
+  'monitoring and failure signals',
+  'security and privacy',
+  'rollout and rollback',
+  'documentation',
+  'ownership and human dependencies',
+  'completion evidence',
+] as const;
+
+function replanExecutionPlan(discovery: string): string {
+  const checklist = REPLAN_CATEGORIES.map(
+    (category, index) =>
+      `| item-${index + 1} | ${category} | Deliver ${category}. | contributor | proof | open | missing |  |  |`,
+  );
+  return [
+    '# Execution Plan',
+    '',
+    '**Status:** planned',
+    '',
+    `Implementation discovery: ${discovery}.`,
+    '',
+    '## Proof specifications',
+    '',
+    '| Proof ID | Method | Scope | Boundary exercised | Qualifies as | Currency | Invocation |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    `| proof | command | integration | installed CLI | real_boundary | current_required | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"--version"]} |`,
+    '',
+    '## Delivery checklist',
+    '',
+    '<!-- safeword:delivery-checklist:v1 -->',
+    '',
+    '| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    ...checklist,
+    '',
+  ].join('\n');
+}
+
 const PLAN = [
   '# Impl Plan: Review the approach',
   '',
@@ -441,6 +484,15 @@ case "$*" in
 esac
 payload=$(/bin/cat)
 dispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+if printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
+  if printf '%s' "$payload" | /usr/bin/grep -Fq 'Accepted authorization approach changed'; then
+    destination=plan-implementation
+  else
+    destination=plan-execution
+  fi
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"implementation discovery","findings":[{"severity":"error","message":"Repair the affected plan."}],"planning_destination":"%s","execution_plan_record":null}\n' "$dispatch_id" "$destination"
+  exit 0
+fi
 if [ "${'$'}{SAFEWORD_REVIEW_FAKE_VERDICT:-approve}" = "request_changes" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan is blocked","findings":[{"severity":"error","message":"Authorization boundary is missing."}]}\n' "$dispatch_id"
 else
@@ -569,11 +621,11 @@ describe('a declined design returns to Implementation Planning', () => {
 
 describe('implementation-time discoveries return to the affected planning phase', () => {
   it.each([
-    ['plan-execution', 'plan-execution'],
-    ['plan-implementation', 'plan-implementation'],
+    ['the order of independent build tasks changed', 'plan-execution', 'plan-execution'],
+    ['Accepted authorization approach changed', 'plan-implementation', 'plan-implementation'],
   ] as const)(
     'routes %s repair from implementation through the installed CLI',
-    async (planningDestination, expectedPhase) => {
+    async (discovery, planningDestination, expectedPhase) => {
       const project = fixture(false);
       writeFileSync(
         project.ticketPath,
@@ -583,22 +635,36 @@ describe('implementation-time discoveries return to the affected planning phase'
         ),
       );
       const executionPlanPath = nodePath.join(project.ticketDirectory, 'execution-plan.md');
-      writeFileSync(executionPlanPath, EXECUTION_PLAN_TEMPLATE);
-      mutateReview(project, data => ({
-        ...data,
-        status: 'changes_requested',
-        review_kind: 'plan-execution',
-        review_targets: [nodePath.relative(project.root, executionPlanPath)],
-        reviewer_output: {
-          schema_version: 1,
-          dispatch_id: 'implementation-discovery',
-          reviewer_agent: 'claude',
-          verdict: 'request_changes',
-          summary: 'Implementation exposed a planning defect.',
-          findings: [{ severity: 'error', message: 'Repair the affected plan.' }],
-          planning_destination: planningDestination,
+      writeFileSync(executionPlanPath, replanExecutionPlan(discovery));
+      const reviewerBin = installBlockingReviewer();
+      const reviewed = await runCli(
+        [
+          '--json',
+          '--no-input',
+          'review',
+          'run',
+          'plan-execution',
+          nodePath.relative(project.root, executionPlanPath),
+          '--context',
+          nodePath.relative(project.root, nodePath.join(project.ticketDirectory, 'impl-plan.md')),
+          '--context',
+          'features/review-the-approach.feature',
+          '--cwd',
+          project.root,
+        ],
+        {
+          cwd: project.root,
+          env: {
+            PATH: `${reviewerBin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'codex',
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+            SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
+            ...reviewEnvironment(project),
+          },
         },
-      }));
+      );
+      expect(reviewed.exitCode, reviewed.stdout).toBe(2);
+      expect(reviewed.stdout).toContain(`"planning_destination":"${planningDestination}"`);
 
       const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
         cwd: project.root,
