@@ -53,7 +53,7 @@ function canonicalJson(value: unknown): string {
 }
 
 function sortedStrings(values: readonly string[]): string[] {
-  return values.toSorted((left, right) => left.localeCompare(right));
+  return values.toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)));
 }
 
 function canonicalRubricJson(value: typeof rubric): string {
@@ -116,14 +116,30 @@ describe('data architecture guide evaluation', () => {
     });
   });
 
-  it('rejects a named transform that does not change the canonical guide', () => {
+  it.each([
+    ['one newline', ablatedGuide],
+    [
+      'adjacent markers',
+      ablatedGuide.replace(
+        ':independent-proof:start -->\n<!-- data-architecture-ablation:',
+        ':independent-proof:start --><!-- data-architecture-ablation:',
+      ),
+    ],
+    [
+      'whitespace-only content',
+      ablatedGuide.replace(
+        ':independent-proof:start -->\n<!-- data-architecture-ablation:',
+        ':independent-proof:start -->  \n<!-- data-architecture-ablation:',
+      ),
+    ],
+  ])('rejects a named transform containing only $0', (_name, canonicalGuide) => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
-      canonicalGuide: ablatedGuide,
+      canonicalGuide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       rubric,
-      fullGuideRecord: record(ablatedGuide, fullResponse),
+      fullGuideRecord: record(canonicalGuide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
     });
 
@@ -269,7 +285,7 @@ describe('data architecture guide evaluation', () => {
     expect(result).toEqual({ accepted: true, diagnostics: [] });
   });
 
-  it('rejects a pair recorded through different response and rubric loaders', () => {
+  it('rejects a pair recorded through different response formats', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
@@ -279,6 +295,24 @@ describe('data architecture guide evaluation', () => {
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
         responseFormat: 'different-response-v2',
+      }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Ablation records do not share one evaluation configuration.'],
+    });
+  });
+
+  it('rejects a pair recorded through different rubric loaders', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
         rubricLoader: 'different-rubric-v2',
       }),
     });
@@ -482,6 +516,30 @@ describe('data architecture guide evaluation', () => {
       accepted: false,
       diagnostics: [
         'Full-guide response contains forbidden decision decision.generated.sibling-output.',
+      ],
+    });
+  });
+
+  it('rejects a rubric that both expects and forbids one decision', () => {
+    const contradictoryRubric = {
+      ...rubric,
+      forbiddenDecisionIds: ['decision.core.independent-proof'],
+    } as const;
+    const caseRubricSha256 = sha256(canonicalRubricJson(contradictoryRubric));
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      rubric: contradictoryRubric,
+      fullGuideRecord: record(guide, fullResponse, { caseRubricSha256 }),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, { caseRubricSha256 }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: [
+        'Evaluation rubric both expects and forbids decision decision.core.independent-proof.',
       ],
     });
   });

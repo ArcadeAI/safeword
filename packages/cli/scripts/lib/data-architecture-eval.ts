@@ -15,6 +15,7 @@ export interface EvaluationResponse {
 export interface AblationRecord {
   readonly guideSha256: string;
   readonly caseRubricSha256: string;
+  /** Hash of case text plus neutral response schema; guide bytes bind separately. */
   readonly promptSha256: string;
   readonly modelVersion: string;
   readonly decodingConfiguration: Readonly<Record<string, string | number | boolean>>;
@@ -54,7 +55,7 @@ function canonicalJson(value: unknown): string {
 }
 
 function sortedStrings(values: readonly string[]): string[] {
-  return values.toSorted((left, right) => left.localeCompare(right));
+  return values.toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)));
 }
 
 function canonicalRubricJson(rubric: EvaluationRubric): string {
@@ -113,7 +114,13 @@ function ablationDiagnostics(input: AblationPairInput): string[] {
   if (derivedAblation === undefined) {
     return [`Canonical guide does not define one ${input.ablationId} transform.`];
   }
-  if (derivedAblation === input.canonicalGuide) {
+  const start = `<!-- data-architecture-ablation:${input.ablationId}:start -->`;
+  const end = `<!-- data-architecture-ablation:${input.ablationId}:end -->`;
+  const removedContent = input.canonicalGuide.slice(
+    input.canonicalGuide.indexOf(start) + start.length,
+    input.canonicalGuide.indexOf(end),
+  );
+  if (removedContent.trim().length === 0 || derivedAblation === input.canonicalGuide) {
     return [`Named ${input.ablationId} transform does not change the canonical guide.`];
   }
   return derivedAblation === input.storedAblatedGuide
@@ -164,6 +171,17 @@ function forbiddenResponseDiagnostics(
   ];
 }
 
+function rubricConsistencyDiagnostics(rubric: EvaluationRubric): string[] {
+  return [
+    ...rubric.expectedDecisionIds
+      .filter(id => rubric.forbiddenDecisionIds.includes(id))
+      .map(id => `Evaluation rubric both expects and forbids decision ${id}.`),
+    ...rubric.expectedProofFactIds
+      .filter(id => rubric.forbiddenProofFactIds.includes(id))
+      .map(id => `Evaluation rubric both expects and forbids proof fact ${id}.`),
+  ];
+}
+
 function responseDiagnostics(input: AblationPairInput): string[] {
   const forbiddenDiagnostics = forbiddenResponseDiagnostics(
     input.fullGuideRecord.response,
@@ -182,11 +200,13 @@ function responseDiagnostics(input: AblationPairInput): string[] {
 }
 
 export function verifyAblationPair(input: AblationPairInput): VerificationResult {
+  const rubricDiagnostics = rubricConsistencyDiagnostics(input.rubric);
   const diagnostics = [
+    ...rubricDiagnostics,
     ...ablationDiagnostics(input),
     ...bindingDiagnostics(input),
     ...preservedLabelDiagnostics(input),
-    ...responseDiagnostics(input),
+    ...(rubricDiagnostics.length === 0 ? responseDiagnostics(input) : []),
   ];
   return { accepted: diagnostics.length === 0, diagnostics };
 }
