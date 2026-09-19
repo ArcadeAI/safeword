@@ -52,7 +52,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: live — see work log 2026-09-19T08:43:10.000Z "later-step implementability"
 - [x] GREEN 7a9e321b8
-- [ ] REFACTOR
+- [x] REFACTOR skip: corpus case, live admission, and installed-CLI assertion already share the canonical review path
 
 ### Scenario: Ordering state controls first-step startability
 
