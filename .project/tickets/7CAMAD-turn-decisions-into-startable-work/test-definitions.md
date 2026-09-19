@@ -153,7 +153,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Explicitly inapplicable obligations do not manufacture execution work
 
 - [x] RED skip: live — see work log 2026-09-19T21:26:06.000Z "R10 obligation mapping matrix"
-- [ ] GREEN
+- [x] GREEN 45bcf2227
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R11 — Execution Planning supplies rather than replaces TDD
