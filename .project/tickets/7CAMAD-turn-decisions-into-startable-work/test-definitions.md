@@ -114,7 +114,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 364f45b50
 - [x] GREEN 760aafbe9
-- [ ] REFACTOR
+- [x] REFACTOR skip: canonical generator and shared corpus builder already keep the change minimal
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R9 — Coding requires a reviewed current Execution Plan
 
