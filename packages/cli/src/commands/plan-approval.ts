@@ -169,7 +169,8 @@ function discoveryDestination(output: unknown): ExecutionDiscovery {
 
 function currentExecutionDiscovery(context: ApprovalContext): ExecutionDiscovery | undefined {
   const ticket = readFileSync(context.ticketPath, 'utf8');
-  if (readFrontmatterScalar(ticket, 'phase') !== 'plan-execution') return undefined;
+  const phase = readFrontmatterScalar(ticket, 'phase');
+  if (phase !== 'plan-execution' && phase !== 'implement') return undefined;
   const planPath = nodePath.join(context.ticketDirectory, 'execution-plan.md');
   if (!existsSync(planPath)) return undefined;
 
@@ -192,9 +193,15 @@ function applyExecutionDiscovery(
   context: ApprovalContext,
   discovery: ExecutionDiscovery,
 ): CliResult {
-  if (discovery.destination === 'plan-implementation') {
-    const changed = replaceTicketPhase(context, 'plan-execution', 'plan-implementation');
+  if (discovery.destination !== 'invalid') {
+    const ticket = readFileSync(context.ticketPath, 'utf8');
+    const currentPhase = readFrontmatterScalar(ticket, 'phase');
+    if (currentPhase !== 'plan-execution' && currentPhase !== 'implement') {
+      throw new Error(`Ticket is in ${String(currentPhase)}, not plan-execution or implement.`);
+    }
+    const changed = replaceTicketPhase(context, currentPhase, discovery.destination);
     const target = nodePath.relative(context.cwd, context.ticketPath);
+    const implementationDecision = discovery.destination === 'plan-implementation';
     return createResult({
       state: 'action_required',
       changed,
@@ -204,8 +211,9 @@ function applyExecutionDiscovery(
       findings: [
         {
           code: 'EXECUTION_DISCOVERY_APPLIED',
-          message:
-            'The reviewed discovery changes an accepted decision or proof boundary. The ticket returned to Implementation Planning for repair and fresh review.',
+          message: implementationDecision
+            ? 'The reviewed discovery changes an accepted decision or proof boundary. The ticket returned to Implementation Planning for repair and fresh review.'
+            : 'The reviewed discovery changes only execution mechanics. The ticket returned to Execution Planning for repair and fresh review.',
           severity: 'warning',
         },
       ],
@@ -217,15 +225,13 @@ function applyExecutionDiscovery(
     });
   }
 
-  const invalid = discovery.destination === 'invalid';
   return createResult({
     state: 'action_required',
     findings: [
       {
-        code: invalid ? 'EXECUTION_DISCOVERY_INVALID' : 'EXECUTION_DISCOVERY_APPLIED',
-        message: invalid
-          ? 'The current Execution Plan review did not provide a valid planning destination. Run the review again before changing phase.'
-          : 'The reviewed discovery changes only execution mechanics. Repair and re-review the Execution Plan; the ticket remains in Execution Planning.',
+        code: 'EXECUTION_DISCOVERY_INVALID',
+        message:
+          'The current Execution Plan review did not provide a valid planning destination. Run the review again before changing phase.',
         severity: 'warning',
       },
     ],
@@ -266,17 +272,20 @@ function appendReceipt(context: ApprovalContext, status: ApprovalStatus): void {
 
 function replaceTicketPhase(
   context: ApprovalContext,
-  from: 'plan-execution' | 'plan-implementation',
+  from: 'implement' | 'plan-execution' | 'plan-implementation',
   to: 'plan-execution' | 'plan-implementation',
 ): boolean {
   const ticket = readFileSync(context.ticketPath, 'utf8');
   const phase = readFrontmatterScalar(ticket, 'phase');
   if (phase === to) return false;
   if (phase !== from) throw new Error(`Ticket is in ${String(phase)}, not ${from}.`);
-  const updated =
-    from === 'plan-implementation'
-      ? ticket.replace(/^phase:[\t ]*plan-implementation[\t ]*$/mu, 'phase: plan-execution')
-      : ticket.replace(/^phase:[\t ]*plan-execution[\t ]*$/mu, 'phase: plan-implementation');
+  let pattern = /^phase:[\t ]*implement[\t ]*$/mu;
+  if (from === 'plan-implementation') {
+    pattern = /^phase:[\t ]*plan-implementation[\t ]*$/mu;
+  } else if (from === 'plan-execution') {
+    pattern = /^phase:[\t ]*plan-execution[\t ]*$/mu;
+  }
+  const updated = ticket.replace(pattern, () => `phase: ${to}`);
   if (updated === ticket) {
     throw new Error(`Ticket phase "${from}" could not be updated safely.`);
   }
