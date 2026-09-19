@@ -83,6 +83,17 @@ const PROOF_ONLY_IMPLEMENTATION_PLAN = `${INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTAT
 
 - Edited-plan denial uses a self-contained fixture and command through the installed CLI subprocess and must assert exit code 2.
 `;
+const MEASUREMENT_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted measurement contract
+
+- Outcome: reduce authorization latency for production gateway requests.
+- Population: all production gateway authorization requests, excluding documented synthetic probes.
+- Target: p95 authorization latency is at most 200 milliseconds over a rolling seven-day window.
+- Measurement origin: record the duration at the gateway authorization boundary before response serialization.
+- Method: publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions.
+- Validity safeguards: reject evidence when sample coverage is below 99 percent or synthetic traffic is included.
+- Failure behavior: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
+`;
 const BASE_DECISION_ACCOUNTING = DECISIONS.map(decision => `- ${decision}: unchanged`).join('\n');
 
 interface SliceInput {
@@ -410,6 +421,43 @@ const ONE_PLAN = executionPlan({
     },
   ],
 });
+const MEASUREMENT_EXECUTION_BLOCK = `
+## Measurement execution
+
+- Owner: Complete delivery.
+- Dependency order: add instrumentation, validate its samples, then collect current-revision evidence.
+- Instrumentation: record the duration at the gateway authorization boundary before response serialization and publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions.
+- Tests: prove the histogram covers production gateway authorization requests, excludes documented synthetic probes, and rejects evidence below 99 percent sample coverage.
+- Evidence collection: query the rolling seven-day window and retain the population, sample coverage, p95 result, target comparison, and source revision.
+- Completion signal: current-revision evidence shows p95 authorization latency at or below 200 milliseconds with at least 99 percent valid sample coverage.
+- Preserved contract: the accepted outcome, population, target, measurement origin, method, validity safeguards, and failure behavior remain unchanged.
+- Failure handling: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
+`;
+const MEASUREMENT_PLAN = `${ONE_PLAN}${MEASUREMENT_EXECUTION_BLOCK}`;
+const MISSING_MEASUREMENT_INSTRUMENTATION_PLAN = MEASUREMENT_PLAN.replace(
+  /^- Instrumentation:.*\n/m,
+  '',
+);
+const MISSING_MEASUREMENT_EVIDENCE_PLAN = MEASUREMENT_PLAN.replace(
+  /^- Evidence collection:.*\n/m,
+  '',
+);
+const CHANGED_MEASUREMENT_TARGET_PLAN = MEASUREMENT_PLAN.replace(
+  'at or below 200 milliseconds',
+  'at or below 300 milliseconds',
+);
+const CHANGED_MEASUREMENT_ORIGIN_PLAN = MEASUREMENT_PLAN.replace(
+  'at the gateway authorization boundary before response serialization',
+  'in the client after response parsing',
+);
+const WEAKENED_MEASUREMENT_SAFEGUARD_PLAN = MEASUREMENT_PLAN.replace(
+  'rejects evidence below 99 percent sample coverage',
+  'accepts evidence at any sample coverage',
+);
+const CHANGED_MEASUREMENT_FAILURE_PLAN = MEASUREMENT_PLAN.replace(
+  'keep rollout disabled and report the measurement as invalid when a validity safeguard fails',
+  'continue rollout and treat missing samples as a passing measurement',
+);
 const DISMISSED_APPLICABLE_WORK_PLAN = ONE_PLAN.replace(
   '| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |',
   '| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor |  | not_applicable | missing | | No runtime proof is needed. |',
@@ -1128,6 +1176,70 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
       obligations: ['Accepted behavior'],
       decisions: DECISIONS,
     },
+  },
+  {
+    ...approved(
+      'complete-measurement-execution',
+      'Accepted measurement decisions map to owned instrumentation, tests, evidence collection, and a completion signal.',
+      MEASUREMENT_PLAN,
+      'one_pull_request',
+      ['Complete delivery'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'missing-measurement-instrumentation',
+      'Accepted measurement execution without the instrumentation work is denied.',
+      MISSING_MEASUREMENT_INSTRUMENTATION_PLAN,
+      ['instrumentation'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...denied(
+      'missing-measurement-evidence-collection',
+      'Accepted measurement execution without evidence collection is denied.',
+      MISSING_MEASUREMENT_EVIDENCE_PLAN,
+      ['evidence', 'collection'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'changed-measurement-target',
+      'Execution Planning cannot change the accepted Product-owned measurement target.',
+      CHANGED_MEASUREMENT_TARGET_PLAN,
+      ['target', '200'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'changed-measurement-origin',
+      'Execution Planning cannot change the accepted measurement origin.',
+      CHANGED_MEASUREMENT_ORIGIN_PLAN,
+      ['measurement origin', 'gateway'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'weakened-measurement-safeguard',
+      'Execution Planning cannot weaken an accepted measurement validity safeguard.',
+      WEAKENED_MEASUREMENT_SAFEGUARD_PLAN,
+      ['validity', '99'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'changed-measurement-failure-behavior',
+      'Execution Planning cannot redefine accepted measurement failure behavior.',
+      CHANGED_MEASUREMENT_FAILURE_PLAN,
+      ['failure', 'rollout'],
+    ),
+    implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN,
   },
   decisionChangingDiscovery(
     'reopened-authorization-decision',
