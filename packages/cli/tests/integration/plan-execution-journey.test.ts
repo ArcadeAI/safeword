@@ -10,7 +10,7 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
-import { assertTestCliFresh, runCli } from '../helpers.js';
+import { assertTestCliFresh, expectHookAllow, expectHookDeny, runCli } from '../helpers.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -32,6 +32,8 @@ const CATEGORIES = [
 ] as const;
 const REVIEW_CONTRACT_SIGNAL = 'Every executable step must name its exact action';
 const RED_COMMAND = ['node', 'tests/denied-request.cjs'] as const;
+const PACKAGED_CLI = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+const SESSION_ID = 'startable-plan-journey';
 
 function executionPlan(): string {
   const checklist = CATEGORIES.map(
@@ -148,6 +150,10 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
 fi
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+if ! printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
+  exit 0
+fi
 if ! printf '%s' "$payload" | /usr/bin/grep -Fq "$SAFEWORD_REQUIRED_CONTRACT_SIGNAL"; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"the first step is not startable","findings":[{"severity":"error","message":"Execution Planning does not require a named first RED."}],"execution_plan_record":null}\n' "$dispatch_id"
   exit 0
@@ -158,6 +164,27 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   );
   chmodSync(executable, 0o755);
   return bin;
+}
+
+function runPreTool(root: string, input: Record<string, unknown>, reviewKeyRoot: string) {
+  return spawnSync(
+    process.execPath,
+    [PACKAGED_CLI, 'hook', 'codex', 'pre-tool-use', '--plugin-hook'],
+    {
+      cwd: root,
+      input: JSON.stringify({
+        hook_event_name: 'PreToolUse',
+        session_id: SESSION_ID,
+        ...input,
+      }),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: root,
+        SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
+      },
+    },
+  );
 }
 
 describe('Execution Plan cold-start journey', () => {
@@ -179,11 +206,25 @@ describe('Execution Plan cold-start journey', () => {
       mkdirSync(nodePath.join(root, 'tests'), { recursive: true });
       writeFileSync(
         nodePath.join(root, '.safeword', 'config.json'),
-        `${JSON.stringify({ crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] } })}\n`,
+        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] } })}\n`,
       );
       writeFileSync(
         nodePath.join(ticketDirectory, 'ticket.md'),
-        '---\nid: START1\ntype: feature\nphase: plan-execution\nstatus: in_progress\n---\n',
+        [
+          '---',
+          'id: START1',
+          'type: feature',
+          'phase: plan-execution',
+          'status: in_progress',
+          'scope:',
+          '  - Reject a denied request.',
+          'out_of_scope:',
+          '  - Grant downstream release authority.',
+          'done_when:',
+          '  - The named RED runs before production changes.',
+          '---',
+          '',
+        ].join('\n'),
       );
       writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
       writeFileSync(
@@ -196,6 +237,7 @@ describe('Execution Plan cold-start journey', () => {
         [
           '### Scenario: denied request',
           '',
+          `- Named RED: \`${RED_COMMAND.join(' ')}\` must exit 1 before production changes.`,
           `- [ ] RED — ${RED_COMMAND.join(' ')}`,
           '- [ ] GREEN',
           '- [ ] REFACTOR',
@@ -211,46 +253,159 @@ describe('Execution Plan cold-start journey', () => {
         nodePath.join(root, 'tests', 'denied-request.cjs'),
         'process.stderr.write("denied request is not implemented\\n"); process.exit(1);\n',
       );
+      writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), '');
+      writeFileSync(
+        nodePath.join(root, '.project', `quality-state-${SESSION_ID}.json`),
+        JSON.stringify({ activeTicket: 'START1' }),
+      );
+      expect(spawnSync('git', ['init'], { cwd: root }).status).toBe(0);
+      expect(spawnSync('git', ['add', '.'], { cwd: root }).status).toBe(0);
+      expect(
+        spawnSync(
+          'git',
+          [
+            '-c',
+            'commit.gpgsign=false',
+            '-c',
+            'user.name=Safeword Test',
+            '-c',
+            'user.email=test@safeword.local',
+            'commit',
+            '-m',
+            'fixture',
+          ],
+          { cwd: root },
+        ).status,
+      ).toBe(0);
+      const fixtureRevision = spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
+        cwd: root,
+        encoding: 'utf8',
+      }).stdout.trim();
       const reviewerBin = installContractCheckingReviewer();
+      const reviewKeyRoot = nodePath.join(root, '.review-keys');
       const implementationBefore = readFileSync(nodePath.join(root, 'src', 'auth.ts'), 'utf8');
 
-      const reviewed = await runCli(
-        [
-          '--json',
-          '--no-input',
-          'review',
-          'run',
-          'plan-execution',
-          '.project/tickets/START1-feature/execution-plan.md',
-          '--context',
-          '.project/tickets/START1-feature/impl-plan.md',
-          '--context',
-          'features/feature.feature',
-          '--cwd',
-          root,
-        ],
+      const reviews = [
         {
-          cwd: root,
-          env: {
-            PATH: `${reviewerBin}:/usr/bin:/bin`,
-            SAFEWORD_AGENT_RUNTIME: 'codex',
-            SAFEWORD_NO_UPDATE_CHECK: '1',
-            SAFEWORD_REQUIRED_CONTRACT_SIGNAL: REVIEW_CONTRACT_SIGNAL,
-            SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
-            SAFEWORD_REVIEW_RECORD: JSON.stringify(executionPlanRecord(plan)),
+          kind: 'scenario-gate',
+          target: 'features/feature.feature',
+          context: [
+            '.project/tickets/START1-feature/spec.md',
+            '.project/tickets/START1-feature/ticket.md',
+          ],
+        },
+        {
+          kind: 'plan-implementation',
+          target: '.project/tickets/START1-feature/impl-plan.md',
+          context: ['features/feature.feature', '.project/tickets/START1-feature/spec.md'],
+        },
+        {
+          kind: 'plan-execution',
+          target: '.project/tickets/START1-feature/execution-plan.md',
+          context: ['.project/tickets/START1-feature/impl-plan.md', 'features/feature.feature'],
+        },
+      ] as const;
+      const reviewStamps: string[] = [];
+      for (const request of reviews) {
+        const reviewed = await runCli(
+          [
+            '--json',
+            '--no-input',
+            'review',
+            'run',
+            request.kind,
+            request.target,
+            ...request.context.flatMap(context => ['--context', context]),
+            '--cwd',
+            root,
+          ],
+          {
+            cwd: root,
+            env: {
+              PATH: `${reviewerBin}:/usr/bin:/bin`,
+              SAFEWORD_AGENT_RUNTIME: 'codex',
+              SAFEWORD_NO_UPDATE_CHECK: '1',
+              SAFEWORD_REQUIRED_CONTRACT_SIGNAL: REVIEW_CONTRACT_SIGNAL,
+              SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
+              SAFEWORD_REVIEW_RECORD: JSON.stringify(executionPlanRecord(plan)),
+            },
+          },
+        );
+        expect(reviewed.exitCode, `${reviewed.stdout}\n${reviewed.stderr}`).toBe(0);
+        const result = JSON.parse(reviewed.stdout) as {
+          data: { review_id: string; status: string; review_kind: string };
+        };
+        expect(result.data).toMatchObject({ status: 'approved', review_kind: request.kind });
+        reviewStamps.push(
+          `2026-09-18T00:00:00.000Z fixture review:START1-feature:phase@${request.kind} author:codex reviewer:claude independence:cross-agent review-id:${result.data.review_id}`,
+        );
+      }
+      writeFileSync(
+        nodePath.join(root, '.project', 'skill-invocations.log'),
+        `${reviewStamps.join('\n')}\n`,
+      );
+      const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+      const advance = runPreTool(
+        root,
+        {
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: ticketPath,
+            old_string: 'phase: plan-execution',
+            new_string: 'phase: implement',
           },
         },
+        reviewKeyRoot,
+      );
+      expectHookAllow(advance);
+      writeFileSync(
+        ticketPath,
+        readFileSync(ticketPath, 'utf8').replace('phase: plan-execution', 'phase: implement'),
       );
 
-      expect(reviewed.exitCode, `${reviewed.stdout}\n${reviewed.stderr}`).toBe(0);
-      expect(JSON.parse(reviewed.stdout)).toMatchObject({
-        data: { status: 'approved', review_kind: 'plan-execution' },
-      });
+      const productionEdit = runPreTool(
+        root,
+        {
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: nodePath.join(root, 'src', 'auth.ts'),
+            old_string: 'export const policy = "pending";',
+            new_string: 'export const policy = "denied";',
+          },
+        },
+        reviewKeyRoot,
+      );
+      expectHookDeny(productionEdit, RED_COMMAND.join(' '));
+      expect(readFileSync(nodePath.join(root, 'src', 'auth.ts'), 'utf8')).toBe(
+        implementationBefore,
+      );
       const red = spawnSync(RED_COMMAND[0], RED_COMMAND.slice(1), { cwd: root, encoding: 'utf8' });
       expect(red.status).toBe(1);
       expect(red.stderr).toContain('denied request is not implemented');
-      expect(readFileSync(nodePath.join(root, 'src', 'auth.ts'), 'utf8')).toBe(
-        implementationBefore,
+      const ledgerPath = nodePath.join(ticketDirectory, 'test-definitions.md');
+      const uncheckedRed = `- [ ] RED — ${RED_COMMAND.join(' ')}`;
+      const checkedRed = `- [x] RED ${fixtureRevision}`;
+      const ledgerEdit = runPreTool(
+        root,
+        {
+          tool_name: 'Edit',
+          tool_input: { file_path: ledgerPath, old_string: uncheckedRed, new_string: checkedRed },
+        },
+        reviewKeyRoot,
+      );
+      expectHookAllow(ledgerEdit);
+      const observedLedger = [
+        '### Scenario: denied request',
+        '',
+        `- Observed RED: \`${RED_COMMAND.join(' ')}\` exited 1 before production changes.`,
+        checkedRed,
+        '- [ ] GREEN',
+        '- [ ] REFACTOR',
+        '',
+      ].join('\n');
+      writeFileSync(ledgerPath, observedLedger);
+      expect(readFileSync(ledgerPath, 'utf8')).toContain(
+        `Observed RED: \`${RED_COMMAND.join(' ')}\` exited 1 before production changes.\n- [x] RED ${fixtureRevision}`,
       );
     } finally {
       rmSync(root, { recursive: true, force: true });
