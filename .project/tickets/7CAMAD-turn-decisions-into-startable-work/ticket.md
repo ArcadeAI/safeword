@@ -51,6 +51,15 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-19T21:26:06.000Z Live evidence — R10 obligation mapping matrix:
+  ran the current 51-case Execution Plan corpus through the real Claude Opus
+  reviewer. Fifty cases completed in the full run; the sole timed-out
+  `all-decisions-unchanged` case passed when retried with identical plan and
+  contract bytes, yielding 51/51 unique semantic verdicts. Regenerated the
+  content-bound admission artifact from those passing records. The deterministic
+  conformance suite then passed 54/54. GREEN is commit `45bcf2227`; RED is the
+  live matrix and its committed corpus/contract identity.
+
 - 2026-09-19T18:05:00.000Z Returned to scenario gate — obligation-floor
   correction: executable-RED review exposed a contradiction between R10's
   zero-obligation example and 6XW8H7's accepted contract that every in-scope
