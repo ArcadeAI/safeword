@@ -11,6 +11,7 @@ phase_anchors:
   - scenario-gate: features/turn-decisions-into-startable-work.feature
   - plan-implementation: features/turn-decisions-into-startable-work.feature
   - plan-execution: .project/tickets/7CAMAD-turn-decisions-into-startable-work/impl-plan.md
+  - implement: .project/tickets/7CAMAD-turn-decisions-into-startable-work/impl-plan.md
 scope:
   - turn a reviewed current Implementation Plan into dependency-ordered build and test work
   - own the integrated demo continuation: turn the complete and correct accepted Implementation Plan into an Execution Plan, then begin the first RED step without inventing a decision
