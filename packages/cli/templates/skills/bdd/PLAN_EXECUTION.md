@@ -64,6 +64,11 @@ from outside those sources.
   signal, and a readable `relies_on_unmerged_successor` assertion. Reject a
   slice with two independently valuable purposes or any implementation choice
   the approved plan did not settle.
+- **Startable steps:** Every executable step must name its exact action, inputs,
+  prerequisites, and observable expected result. Require the first production
+  slice to begin with the highest-risk named RED and state its command or fixture
+  plus the failure signal before any production edit. Reject any step that leaves
+  behavior, architecture, data, proof, or ordering for the implementer to invent.
 - **Dependency safety:** Require every prerequisite to name a unique earlier
   slice. Reject cycles, forward dependencies, missing prerequisites, and any
   slice that becomes safe only after a later merge. Every intermediate merge

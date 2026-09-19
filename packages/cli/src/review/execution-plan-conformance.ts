@@ -41,6 +41,7 @@ interface SliceInput {
   readonly prerequisites?: string;
   readonly proof?: string;
   readonly completion?: string;
+  readonly tasks?: readonly string[];
 }
 
 function stagedOwners(
@@ -51,6 +52,11 @@ function stagedOwners(
 }
 
 function slice(input: SliceInput): string {
+  const tasks = input.tasks ?? [
+    `1. RED: run \`bun run test tests/execution-plan.test.ts -t "${input.name}"\` with the ${input.name} fixture and observe exit 1 with \`${input.name} is not implemented\` before editing production code.`,
+    `2. GREEN: implement ${input.purpose ?? input.name} within the accepted boundary, then rerun the named RED command and observe exit 0.`,
+    '3. REFACTOR: remove duplication without changing the passing result, then rerun the named command and observe exit 0.',
+  ];
   return `### ${input.name}
 
 ${input.purpose === undefined ? '' : `- Purpose: ${input.purpose}\n`}${
@@ -59,7 +65,12 @@ ${input.purpose === undefined ? '' : `- Purpose: ${input.purpose}\n`}${
     input.prerequisites === undefined ? '' : `- Prerequisites: ${input.prerequisites}\n`
   }${input.proof === undefined ? '' : `- Proof: ${input.proof}\n`}${
     input.completion === undefined ? '' : `- Completion signal: ${input.completion}\n`
-  }`;
+  }- Relies on an unmerged successor: no
+
+#### Tasks and tests
+
+${tasks.join('\n')}
+`;
 }
 
 const CONTRACT_SLICE: SliceInput = {
@@ -69,6 +80,11 @@ const CONTRACT_SLICE: SliceInput = {
   prerequisites: 'none',
   proof: 'data-compatibility: package tests compare every installed contract byte.',
   completion: 'The inert contract ships and the repository remains supported.',
+  tasks: [
+    '1. RED: run `bun run test:schema-compatibility` with the generated-contract fixture and observe `canonical contract bytes differ` before editing templates.',
+    '2. GREEN: add the canonical contract to the template registry, regenerate its mirrors, and rerun `bun run test:schema-compatibility` with exit 0.',
+    '3. REFACTOR: remove duplicate contract text, regenerate the mirrors, and rerun `bun run test:schema-compatibility` with exit 0.',
+  ],
 };
 const ACTIVATION_SLICE: SliceInput = {
   name: 'Activation',
@@ -78,6 +94,11 @@ const ACTIVATION_SLICE: SliceInput = {
   prerequisites: 'Contract',
   proof: ACTIVATION_PROOFS,
   completion: 'The accepted behavior and every activation obligation are delivered and supported.',
+  tasks: [
+    '1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing review routing.',
+    '2. GREEN: connect public review routing to typed result retention, then run `bun run test:review-cli`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.',
+    '3. REFACTOR: keep one result-retention path for every caller, then rerun the five activation proof commands with exit 0.',
+  ],
 };
 
 function executionPlan(input: {
@@ -277,7 +298,13 @@ const ONE_PLAN = executionPlan({
         'Contract, CLI behavior, compatibility, failure signals, authorization, rollout, rollback, and documentation.',
       prerequisites: 'none',
       proof: ALL_DELIVERY_PROOFS,
-      completion: 'Every accepted obligation is delivered and the repository remains supported.',
+      completion:
+        'Every named proof command passes on the merge candidate and every checklist item has completion evidence.',
+      tasks: [
+        '1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing production code.',
+        '2. GREEN: add the canonical contract, wire typed review and authorization, complete migration and rollback handling, and publish the documented command; then run every proof command named by the slice with exit 0.',
+        '3. REFACTOR: consolidate shared result validation without changing public output, then rerun every named proof command with exit 0.',
+      ],
     },
   ],
 });
@@ -312,6 +339,11 @@ const COMPLETE_RECORD_PLAN = executionPlan({
       prerequisites: 'none',
       proof: ALL_DELIVERY_PROOFS,
       completion: 'A complete judgment round-trips and every accepted obligation is supported.',
+      tasks: [
+        '1. RED: run `bun run test:review-cli` with a complete-result fixture and observe `typed review result does not round-trip` before editing persistence.',
+        '2. GREEN: implement schema validation and result persistence for the complete typed judgment, then run every proof command named by the slice with exit 0.',
+        '3. REFACTOR: share one validator between write and read paths, then rerun every named proof command with exit 0.',
+      ],
     },
   ],
 });
@@ -327,6 +359,11 @@ const ORDERED_SCHEMA_PLAN = executionPlan({
       prerequisites: 'none',
       proof: 'data-compatibility: schema golden tests pass.',
       completion: 'The unused schema ships without changing runtime behavior.',
+      tasks: [
+        '1. RED: run `bun run test:schema-compatibility` with the result-schema fixture and observe `result schema is missing` before editing schema files.',
+        '2. GREEN: add the inert result schema without a runtime consumer, then rerun `bun run test:schema-compatibility` with exit 0.',
+        '3. REFACTOR: remove duplicate schema declarations and rerun `bun run test:schema-compatibility` with exit 0.',
+      ],
     },
     {
       name: 'Reader',
@@ -336,6 +373,11 @@ const ORDERED_SCHEMA_PLAN = executionPlan({
       prerequisites: 'Schema',
       proof: ACTIVATION_PROOFS,
       completion: 'The reader and every activation obligation are supported.',
+      tasks: [
+        '1. RED: run `bun run test:review-cli` with a schema-valid result and observe `result reader is unavailable` before editing the reader.',
+        '2. GREEN: read and retain schema-valid results through the public review command, then run every activation proof command with exit 0.',
+        '3. REFACTOR: reuse the schema validator in the reader and rerun every activation proof command with exit 0.',
+      ],
     },
   ],
   obligationOwners: stagedOwners('Schema', 'Reader'),
@@ -353,6 +395,11 @@ const MECHANICAL_MIRRORS_PLAN = executionPlan({
       prerequisites: 'none',
       proof: ALL_DELIVERY_PROOFS,
       completion: 'All mirrors and every accepted delivery obligation are supported.',
+      tasks: [
+        '1. RED: run `bun run test:schema-compatibility` with the generated-mirror fixture and observe `generated contract bytes differ` before editing the canonical template.',
+        '2. GREEN: update the canonical template and regenerate every registered mirror, then run every proof command named by the slice with exit 0.',
+        '3. REFACTOR: remove duplicate hand-authored mirror text, regenerate, and rerun every named proof command with exit 0.',
+      ],
     },
   ],
 });
@@ -368,6 +415,11 @@ const FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
       prerequisites: 'none',
       proof: 'data-compatibility: a golden test proves the schema bytes.',
       completion: 'The schema is available but unused.',
+      tasks: [
+        '1. RED: run `bun run test:schema-compatibility` with the public-result fixture and observe `public result schema is missing` before editing schema files.',
+        '2. GREEN: add the inert public result schema, then rerun `bun run test:schema-compatibility` with exit 0.',
+        '3. REFACTOR: consolidate schema declarations and rerun `bun run test:schema-compatibility` with exit 0.',
+      ],
     },
     {
       name: 'Public activation',
@@ -377,6 +429,11 @@ const FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
       prerequisites: 'Inert schema',
       proof: ACTIVATION_PROOFS,
       completion: 'The command and every activation obligation are supported.',
+      tasks: [
+        '1. RED: run `bun run test:review-cli` with the public-command fixture and observe `review command is unavailable` before editing routing.',
+        '2. GREEN: register the public review command and connect it to schema-valid results, then run every activation proof command with exit 0.',
+        '3. REFACTOR: keep one command-routing path and rerun every activation proof command with exit 0.',
+      ],
     },
   ],
   obligationOwners: stagedOwners('Inert schema', 'Public activation'),
@@ -384,7 +441,7 @@ const FEW_FILES_TWO_OUTCOMES_PLAN = executionPlan({
 const OBLIGATION_PLAN = executionPlan({
   decision: 'multiple pull requests',
   rationale:
-    'Contract delivery and release activation divide ownership without dropping an obligation.',
+    'The inert contract is reviewable through byte-compatibility proof before the separately provable public review activation consumes it.',
   slices: [
     { ...CONTRACT_SLICE, name: 'Contract owner' },
     {
@@ -408,6 +465,25 @@ const UNCHANGED_DECISIONS_PLAN = executionPlan({
       boundary:
         'Contract compatibility, review activation, shared authorization, host-neutral ordering, failure signals, rollout, rollback, and documentation.',
       proof: ALL_DELIVERY_PROOFS,
+    },
+  ],
+});
+const STARTABLE_PLAN = executionPlan({
+  decision: 'one pull request',
+  rationale: 'One authorization denial is one independently provable behavior.',
+  slices: [
+    {
+      name: 'Authorization denial',
+      purpose: 'Reject a denied request.',
+      boundary: 'Public authorization response.',
+      prerequisites: 'none',
+      proof: 'behavior-boundary',
+      completion: 'The denied request returns the accepted error.',
+      tasks: [
+        '1. RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.',
+        '2. GREEN: implement the accepted denial in `src/auth.ts`.',
+        '3. REFACTOR: keep the authorization boundary in one owner.',
+      ],
     },
   ],
 });
@@ -629,6 +705,13 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
         '- One shared authorization service owns permission checks for every transport: changed to per-transport checks\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged',
     }),
     ['authorization'],
+  ),
+  approved(
+    'fresh-context-first-red',
+    'A fresh-context agent can begin with the named highest-risk RED without inventing a decision.',
+    STARTABLE_PLAN,
+    'one_pull_request',
+    ['Authorization denial'],
   ),
 ];
 
