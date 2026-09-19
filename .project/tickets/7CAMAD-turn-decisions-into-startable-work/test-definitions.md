@@ -167,7 +167,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Production code cannot precede the named RED
 
 - [x] RED skip: existing behavior characterized against the pre-gate hook by the installed-CLI journey
-- [ ] GREEN
+- [x] GREEN 719486201
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R15 — Accepted measurement decisions become concrete instrumentation, test, and evidence-collection work without redefining the upstream promise or validity contract
