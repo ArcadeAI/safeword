@@ -2,7 +2,7 @@
 export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
   schema_version: 1,
   contract_sha256: '50d00817e3dcb9dcf5627f78184d98b0f6ff8a1c79b37ce012f45769472c8597',
-  corpus_sha256: 'bb86ae37e7e0355b6739a311199dd0313aa2ffaee737dd6e02c87dd3acc4f857',
+  corpus_sha256: '251babc3c4541f026f5ff212c6004ba7a7f257ac9e69fcf60e639c85af65a546',
   identities: [
     {
       reviewer: 'claude',
@@ -38,6 +38,10 @@ export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
         'reopened-authorization-decision',
         'fresh-context-first-red',
         'later-step-is-not-startable',
+        'blocked-first-prerequisite',
+        'no-executable-steps',
+        'risk-first-ordering',
+        'parallel-safe-after-probe',
       ],
     },
   ],

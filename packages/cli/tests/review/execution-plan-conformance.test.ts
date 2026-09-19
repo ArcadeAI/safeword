@@ -182,7 +182,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
   it.each([
     ['risk-first-ordering', ['Risk probe', 'Activation']],
-    ['parallel-safe-after-probe', ['Risk probe', 'Independent consumers']],
+    ['parallel-safe-after-probe', ['Risk probe', 'CLI consumer', 'Documentation consumer']],
   ])('keeps %s as a supported ordering case', (caseId, sliceNames) => {
     const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
 

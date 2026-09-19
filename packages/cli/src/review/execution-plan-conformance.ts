@@ -531,18 +531,24 @@ const NO_EXECUTABLE_STEPS_PLAN = executionPlan({
 });
 const RISK_FIRST_PLAN = executionPlan({
   decision: 'multiple pull requests',
-  rationale: 'Resolve the highest-risk authorization assumption before activating the command.',
+  rationale: 'Resolve the highest-risk contract assumption before activating the command.',
   slices: [
     {
       ...CONTRACT_SLICE,
       name: 'Risk probe',
-      purpose: 'Prove the accepted authorization denial at the public boundary.',
-      completion: 'The highest-risk denial behavior is proven before activation begins.',
+      purpose: 'Prove the canonical result contract before any consumer activates it.',
+      completion: 'The highest-risk contract assumption is proven before activation begins.',
     },
     {
       ...ACTIVATION_SLICE,
       name: 'Activation',
       prerequisites: 'Risk probe',
+      proof: ALL_DELIVERY_PROOFS,
+      tasks: [
+        '1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing review routing.',
+        '2. GREEN: connect public review routing to typed result retention, then run `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.',
+        '3. REFACTOR: keep one result-retention path for every caller, then rerun the six activation proof commands with exit 0.',
+      ],
     },
   ],
   obligationOwners: stagedOwners('Risk probe', 'Activation'),
@@ -550,23 +556,51 @@ const RISK_FIRST_PLAN = executionPlan({
 const PARALLEL_AFTER_PROBE_PLAN = executionPlan({
   decision: 'multiple pull requests',
   rationale:
-    'Resolve the shared risk first, then implement the two independent consumers in parallel within one review unit.',
+    'Resolve the shared contract risk first, then implement two independently provable consumers in parallel.',
   slices: [
     {
       ...CONTRACT_SLICE,
       name: 'Risk probe',
-      purpose: 'Prove the accepted shared contract at the public boundary.',
+      purpose: 'Prove the accepted shared contract before either consumer uses it.',
       completion: 'The shared contract is proven before either consumer begins.',
     },
     {
-      ...ACTIVATION_SLICE,
-      name: 'Independent consumers',
-      purpose: 'Implement the two independent consumers after the shared risk is resolved.',
+      name: 'CLI consumer',
+      purpose: 'Activate the public CLI consumer after the shared contract is proven.',
       prerequisites: 'Risk probe',
-      boundary: 'Two explicitly parallel-safe consumers; neither depends on the other.',
+      boundary: 'CLI routing and result presentation only.',
+      proof:
+        'behavior-boundary, plan-integrity, failure-signals, security-boundary, and rollout-rollback',
+      completion: 'The CLI consumer passes every named boundary proof.',
+      tasks: [
+        '1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing CLI routing.',
+        '2. GREEN: activate the CLI consumer, then run `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, and `bun run test:rollout-rollback` with exit 0.',
+        '3. REFACTOR: keep one CLI result path, then rerun the five CLI proof commands with exit 0.',
+      ],
+    },
+    {
+      name: 'Documentation consumer',
+      purpose:
+        'Publish the independent documentation consumer after the shared contract is proven.',
+      prerequisites: 'Risk probe',
+      boundary: 'Published command documentation only; no CLI routing changes.',
+      proof: 'documentation-contract',
+      completion: 'The documented command matches the proven shared contract.',
+      tasks: [
+        '1. RED: run `bun run test:documentation-contract` and observe `documented command is unavailable` before editing documentation.',
+        '2. GREEN: publish the command documentation, then rerun `bun run test:documentation-contract` with exit 0.',
+        '3. REFACTOR: remove duplicate examples, then rerun `bun run test:documentation-contract` with exit 0.',
+      ],
     },
   ],
-  obligationOwners: stagedOwners('Risk probe', 'Independent consumers'),
+  obligationOwners: {
+    'Accepted behavior': 'CLI consumer',
+    'Migration work': 'Risk probe',
+    'Rollout work': 'CLI consumer',
+    'Rollback work': 'CLI consumer',
+    'Documentation work': 'Documentation consumer',
+    'Affected-surface work': 'CLI consumer',
+  },
 });
 
 function missingFieldCase(
@@ -824,7 +858,7 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     'Independent consumers may proceed in parallel after the shared risk probe.',
     PARALLEL_AFTER_PROBE_PLAN,
     'multiple_pull_requests',
-    ['Risk probe', 'Independent consumers'],
+    ['Risk probe', 'CLI consumer', 'Documentation consumer'],
   ),
 ];
 
