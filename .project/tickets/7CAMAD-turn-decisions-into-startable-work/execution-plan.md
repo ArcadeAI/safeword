@@ -198,18 +198,21 @@ remaining target, whole-ticket verification, release, or merge.
 ### Tasks and tests
 
 1. RED: Run
-   `bun run test tests/integration/plan-execution-journey.test.ts --testNamePattern="reviews a startable plan"`
-   from `packages/cli`. The installed-CLI journey must exit 1 with
-   `Execution Planning does not require a named first RED.` before it reaches
-   production work. The same test must deny the production edit before the
-   named RED, run that RED, record its observed failure, then allow the identical
-   edit.
+   `bun run test tests/integration/plan-execution-journey.test.ts --testNamePattern="reviews concrete proof steps through the installed CLI"`
+   from `packages/cli`. The installed-CLI proof must exit 1 because the plan
+   with a `TBD CLI boundary` is incorrectly approved with exit 0 instead of
+   being denied with exit 2. The same proof must approve the complete fixture,
+   command, edit action, exit assertion, and subprocess boundary; reject the
+   missing-boundary variant with `subprocess boundary`; and reject the
+   missing-assertion variant with `exit-code assertion`.
 2. GREEN: Add the shared author/reviewer clause beginning `Every executable
-   step must name its exact action` to canonical `PLAN_EXECUTION.md`. Add the
-   `fresh-context-first-red` conformance case, regenerate the reviewer rubric,
-   run the complete real Claude/Opus conformance matrix, and regenerate reviewer
-   admission only from that passing result. Regenerate the Codex plugin before
-   rerunning the installed-CLI journey.
+   step must name its exact action` and the concrete proof-content clause to
+   canonical `PLAN_EXECUTION.md`. Add the `exact-cli-denial-proof`,
+   `missing-cli-subprocess-boundary`, and `missing-denied-exit-assertion`
+   conformance cases beside `fresh-context-first-red`; regenerate the reviewer
+   rubric, run the complete real Claude/Opus conformance matrix, and regenerate
+   reviewer admission only from that passing result. Regenerate the Codex
+   plugin before rerunning the installed-CLI proof.
 3. RED: In the same journey, change only independent task order and assert only
    the Execution Plan review becomes stale. Re-review it, then assert work
    resumes from the first reordered task and the earlier proof retains its

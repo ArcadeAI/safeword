@@ -39,6 +39,8 @@ const CATEGORIES = [
   'completion evidence',
 ] as const;
 const REVIEW_CONTRACT_SIGNAL = 'Every executable step must name its exact action';
+const CONCRETE_PROOF_CONTRACT_SIGNAL =
+  'A test step must name its fixture, command, edit action, expected exit or assertion, and real actor boundary.';
 const RED_COMMAND = ['node', 'tests/denied-request.cjs'] as const;
 const PACKAGED_CLI = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 const WRITE_REVIEW_STAMP = nodePath.resolve(
@@ -115,6 +117,33 @@ function executionPlanWithUnstartableFourthStep(): string {
   );
 }
 
+function executionPlanWithProofStep(step: string): string {
+  return executionPlan().replace(
+    `1. RED: run \`${RED_COMMAND.join(' ')}\` and observe exit 1 before editing \`src/auth.ts\`.`,
+    () => `1. RED: ${step}`,
+  );
+}
+
+const CONCRETE_PROOF_CASES = [
+  {
+    name: 'exact CLI denial proof',
+    step: 'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert exit code 2 before editing production code.',
+    exitCode: 0,
+  },
+  {
+    name: 'missing CLI subprocess boundary',
+    step: 'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the TBD CLI boundary and assert exit code 2 before editing production code.',
+    exitCode: 2,
+    finding: 'subprocess boundary',
+  },
+  {
+    name: 'missing denied-exit assertion',
+    step: 'using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert the TBD denied-exit result before editing production code.',
+    exitCode: 2,
+    finding: 'exit-code assertion',
+  },
+] as const;
+
 function executionPlanRecord(plan: string): Record<string, unknown> {
   const parsed = parseDeliveryPlanContract(plan);
   if (!parsed.ok) throw new Error(parsed.message);
@@ -174,6 +203,16 @@ dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\
 if ! printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
   exit 0
+fi
+if printf '%s' "$payload" | /usr/bin/grep -Fq '${CONCRETE_PROOF_CONTRACT_SIGNAL}'; then
+  if printf '%s' "$payload" | /usr/bin/grep -Fq 'TBD CLI boundary'; then
+    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"missing subprocess boundary","findings":[{"severity":"error","message":"The test step must name the installed CLI subprocess boundary."}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id"
+    exit 0
+  fi
+  if printf '%s' "$payload" | /usr/bin/grep -Fq 'TBD denied-exit result'; then
+    printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"missing exit-code assertion","findings":[{"severity":"error","message":"The test step must name the denied exit-code assertion."}],"planning_destination":"plan-execution","execution_plan_record":null}\n' "$dispatch_id"
+    exit 0
+  fi
 fi
 if printf '%s' "$payload" | /usr/bin/grep -Fq '4. TODO: decide whether denied authorization returns an error or an empty result'; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"task 4 requires a behavior decision","findings":[{"severity":"error","message":"Task 4 requires a behavior decision before implementation."}],"planning_destination":"plan-implementation","execution_plan_record":null}\n' "$dispatch_id"
@@ -235,8 +274,8 @@ describe('Execution Plan cold-start journey', () => {
       mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
       mkdirSync(ticketDirectory, { recursive: true });
       mkdirSync(nodePath.join(root, 'features'), { recursive: true });
-      mkdirSync(nodePath.join(root, 'src'), { recursive: true });
       mkdirSync(nodePath.join(root, 'tests'), { recursive: true });
+      mkdirSync(nodePath.join(root, 'src'), { recursive: true });
       writeFileSync(
         nodePath.join(root, '.safeword', 'config.json'),
         `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] } })}\n`,
@@ -580,6 +619,133 @@ describe('Execution Plan cold-start journey', () => {
         receiptPluginRoot,
       );
       expectHookAllow(productionEditAfterRed);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('reviews concrete proof steps through the installed CLI', async () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-proof-step-'));
+    try {
+      const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'START1-feature');
+      mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+      mkdirSync(ticketDirectory, { recursive: true });
+      mkdirSync(nodePath.join(root, 'features'), { recursive: true });
+      mkdirSync(nodePath.join(root, 'tests'), { recursive: true });
+      writeFileSync(
+        nodePath.join(root, '.safeword', 'config.json'),
+        `${JSON.stringify({ designApprovalGate: false, crossAgentReviewRoutes: { codex: [{ reviewer: 'claude', model: 'opus' }] } })}\n`,
+      );
+      writeFileSync(nodePath.join(root, '.safeword', 'SAFEWORD.md'), '# Safeword\n');
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'ticket.md'),
+        [
+          '---',
+          'id: START1',
+          'type: feature',
+          'phase: plan-execution',
+          'status: in_progress',
+          'scope:',
+          '  - Reject a denied request.',
+          'out_of_scope:',
+          '  - Grant downstream release authority.',
+          'done_when:',
+          '  - Concrete proof steps are startable.',
+          '---',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Product Plan\n');
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'impl-plan.md'),
+        [
+          '# Implementation Plan',
+          '',
+          '**Status:** planned',
+          '',
+          '## Approach',
+          '',
+          'Prove edited-plan denial through the installed CLI subprocess.',
+          '',
+          '## Decisions',
+          '',
+          '### Recorded Decisions',
+          '',
+          '| Decision | Choice | Alternatives considered | Rejected because |',
+          '| --- | --- | --- | --- |',
+          '| Proof boundary | Installed CLI subprocess. | Parser unit test | It cannot prove caller-visible exit behavior. |',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        nodePath.join(root, 'features', 'feature.feature'),
+        'Feature: Authorization\n\n  Scenario: edited plan denial\n    Then the CLI exits 2\n',
+      );
+      writeFileSync(nodePath.join(root, 'tests', 'denied-request.cjs'), 'process.exit(1);\n');
+      writeFileSync(
+        nodePath.join(ticketDirectory, 'execution-plan.md'),
+        executionPlanWithProofStep(CONCRETE_PROOF_CASES[0].step),
+      );
+      expect(spawnSync('git', ['init'], { cwd: root }).status).toBe(0);
+      expect(spawnSync('git', ['add', '.'], { cwd: root }).status).toBe(0);
+      expect(
+        spawnSync(
+          'git',
+          [
+            '-c',
+            'commit.gpgsign=false',
+            '-c',
+            'user.name=Safeword Test',
+            '-c',
+            'user.email=test@safeword.local',
+            'commit',
+            '-m',
+            'fixture',
+          ],
+          { cwd: root },
+        ).status,
+      ).toBe(0);
+      const reviewerBin = installContractCheckingReviewer();
+      const reviewKeyRoot = nodePath.join(root, '.review-keys');
+
+      for (const proofCase of CONCRETE_PROOF_CASES) {
+        const proofPlan = executionPlanWithProofStep(proofCase.step);
+        writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), proofPlan);
+        const proofReview = await runCli(
+          [
+            '--json',
+            '--no-input',
+            'review',
+            'run',
+            'plan-execution',
+            '.project/tickets/START1-feature/execution-plan.md',
+            '--context',
+            '.project/tickets/START1-feature/impl-plan.md',
+            '--context',
+            'features/feature.feature',
+            '--cwd',
+            root,
+          ],
+          {
+            cwd: root,
+            env: {
+              PATH: `${reviewerBin}:/usr/bin:/bin`,
+              SAFEWORD_AGENT_RUNTIME: 'codex',
+              SAFEWORD_NO_UPDATE_CHECK: '1',
+              SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
+              SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: JSON.stringify(
+                executionPlanRecord(proofPlan),
+              ),
+            },
+          },
+        );
+        expect
+          .soft(proofReview.exitCode, `${proofCase.name}\n${proofReview.stdout}`)
+          .toBe(proofCase.exitCode);
+        if ('finding' in proofCase) {
+          expect.soft(proofReview.stdout, proofCase.name).toContain(proofCase.finding);
+        }
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

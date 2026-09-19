@@ -52,6 +52,9 @@ const EXPECTED_CASE_IDS = [
   'accepted-proof-discovery-returns-to-implementation-planning',
   'path-and-api-discovery-returns-to-implementation-planning',
   'fresh-context-first-red',
+  'exact-cli-denial-proof',
+  'missing-cli-subprocess-boundary',
+  'missing-denied-exit-assertion',
   'later-step-is-not-startable',
   'blocked-first-prerequisite',
   'no-executable-steps',
@@ -171,6 +174,17 @@ describe('Execution Plan semantic conformance admission', () => {
     expect(testCase?.execution_plan).toContain(
       'RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.',
     );
+  });
+
+  it.each([
+    ['exact-cli-denial-proof', 'approve', undefined],
+    ['missing-cli-subprocess-boundary', 'request_changes', ['subprocess', 'boundary']],
+    ['missing-denied-exit-assertion', 'request_changes', ['exit', 'assertion']],
+  ] as const)('keeps %s as a concrete proof-startability case', (caseId, verdict, terms) => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
+
+    expect(testCase?.expectation.verdict).toBe(verdict);
+    if (terms !== undefined) expect(testCase?.expectation.finding_terms).toEqual(terms);
   });
 
   it('keeps an unstartable later step as a named denial case', () => {
