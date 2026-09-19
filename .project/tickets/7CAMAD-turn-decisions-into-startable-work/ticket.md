@@ -48,6 +48,16 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-19T08:43:10.000Z Live evidence — later-step implementability:
+  ran the focused `later-step-is-not-startable` semantic-conformance case
+  through the real Claude Opus reviewer. It returned `request_changes`, named
+  Task 4, and identified the unresolved authorization behavior decision. The
+  retained passing matrix regenerated
+  `execution-plan-admission.generated.ts`; the installed-CLI journey separately
+  proves that this verdict blocks approval and reaches the user. Scenario review
+  `8baaa076-c589-49da-bac7-7cf460f2f369` approved the explicit `@live`
+  classification with cross-agent provenance.
+
 - 2026-09-19T08:00:00.000Z Cold-start journey correction: The real review-stamp
   helper required a scenario target inside the ticket folder even though the
   execution-prerequisite command directs users to the ticket's declared

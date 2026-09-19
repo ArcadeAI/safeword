@@ -487,6 +487,26 @@ const STARTABLE_PLAN = executionPlan({
     },
   ],
 });
+const LATER_UNSTARTABLE_PLAN = executionPlan({
+  decision: 'one pull request',
+  rationale: 'One authorization denial is one independently provable behavior.',
+  slices: [
+    {
+      name: 'Authorization denial',
+      purpose: 'Reject a denied request.',
+      boundary: 'Public authorization response.',
+      prerequisites: 'none',
+      proof: 'behavior-boundary',
+      completion: 'The denied request returns the accepted error.',
+      tasks: [
+        '1. RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.',
+        '2. GREEN: implement the accepted denial in `src/auth.ts`.',
+        '3. REFACTOR: keep the authorization boundary in one owner.',
+        '4. TODO: decide whether denied authorization returns an error or an empty result before implementation.',
+      ],
+    },
+  ],
+});
 
 function missingFieldCase(
   id: string,
@@ -712,6 +732,12 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     STARTABLE_PLAN,
     'one_pull_request',
     ['Authorization denial'],
+  ),
+  denied(
+    'later-step-is-not-startable',
+    'A concrete first RED cannot hide an unresolved behavior decision in the fourth step.',
+    LATER_UNSTARTABLE_PLAN,
+    ['task 4', 'behavior decision'],
   ),
 ];
 

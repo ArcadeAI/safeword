@@ -48,7 +48,7 @@ Feature: Turn accepted decisions into startable work
       Then semantic review reports no unresolved behavior-shaping decision
       And the ledger records its named test action failing before any production edit
 
-    @rejection @surface.safeword-cli
+    @rejection @surface.safeword-cli @live
     Scenario: A later unstartable step blocks an otherwise startable plan
       Given an Execution Plan whose first step is startable and whose fourth step leaves the accepted authorization failure behavior undecided
       When implementability is reviewed through the installed Safeword CLI

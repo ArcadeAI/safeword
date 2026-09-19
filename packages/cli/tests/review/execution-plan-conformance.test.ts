@@ -154,7 +154,7 @@ describe('Execution Plan semantic conformance admission', () => {
 
     expect(testCase?.expectation).toMatchObject({
       verdict: 'request_changes',
-      finding_terms: ['fourth step', 'behavior decision'],
+      finding_terms: ['task 4', 'behavior decision'],
     });
     expect(testCase?.execution_plan).toContain(
       '1. RED: run `bun run test tests/auth.test.ts -t denied-request`',

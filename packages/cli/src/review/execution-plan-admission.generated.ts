@@ -2,7 +2,7 @@
 export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
   schema_version: 1,
   contract_sha256: '50d00817e3dcb9dcf5627f78184d98b0f6ff8a1c79b37ce012f45769472c8597',
-  corpus_sha256: 'bd24d0e27a98b41e440dc0bd969a9e9bc0648d0aacf1f93f37ce9d3dd843e797',
+  corpus_sha256: 'bb86ae37e7e0355b6739a311199dd0313aa2ffaee737dd6e02c87dd3acc4f857',
   identities: [
     {
       reviewer: 'claude',
@@ -37,6 +37,7 @@ export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
         'missing-affected-surface-obligation',
         'reopened-authorization-decision',
         'fresh-context-first-red',
+        'later-step-is-not-startable',
       ],
     },
   ],

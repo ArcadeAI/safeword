@@ -175,6 +175,10 @@ if ! printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"approved","findings":[]}\n' "$dispatch_id"
   exit 0
 fi
+if printf '%s' "$payload" | /usr/bin/grep -Fq '4. TODO: decide whether denied authorization returns an error or an empty result'; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"task 4 requires a behavior decision","findings":[{"severity":"error","message":"Task 4 requires a behavior decision before implementation."}],"execution_plan_record":null}\n' "$dispatch_id"
+  exit 0
+fi
 if ! printf '%s' "$payload" | /usr/bin/grep -Fq '${REVIEW_CONTRACT_SIGNAL}'; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"the first step is not startable","findings":[{"severity":"error","message":"Execution Planning does not require a named first RED."}],"execution_plan_record":null}\n' "$dispatch_id"
   exit 0
@@ -395,7 +399,7 @@ describe('Execution Plan cold-start journey', () => {
         },
       );
       expect(rejectedPlan.exitCode, `${rejectedPlan.stdout}\n${rejectedPlan.stderr}`).toBe(2);
-      expect(rejectedPlan.stdout).toContain('fourth step');
+      expect(rejectedPlan.stdout).toContain('task 4');
       expect(rejectedPlan.stdout).toContain('behavior decision');
       writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), plan);
 

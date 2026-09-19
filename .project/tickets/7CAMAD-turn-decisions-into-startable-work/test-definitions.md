@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A later unstartable step blocks an otherwise startable plan
 
-- [ ] RED
+- [x] RED skip: live — see work log 2026-09-19T08:43:10.000Z "later-step implementability"
 - [ ] GREEN
 - [ ] REFACTOR
 
