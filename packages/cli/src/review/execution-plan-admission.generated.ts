@@ -2,7 +2,7 @@
 export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
   schema_version: 1,
   contract_sha256: 'a82dd14744f784f6c2e37ed62bd5ea00ffc1fcf476d8bd067cf1f45d5a882b59',
-  corpus_sha256: 'cb8769f892e10d527948349079b262f0e367e20232495577e5bb80495c9fd185',
+  corpus_sha256: '58f3eb1c375708912337ba2f63d936b1d3acffa9d7cb996e8dd2815e1c467414',
   identities: [
     {
       reviewer: 'claude',
@@ -29,6 +29,9 @@ export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
         'line-count-only-rationale',
         'all-obligations-assigned',
         'all-decisions-unchanged',
+        'vague-data-ownership',
+        'invented-data-ownership',
+        'accepted-data-ownership',
         'missing-behavior-obligation',
         'missing-migration-obligation',
         'missing-rollout-obligation',
@@ -38,6 +41,7 @@ export const EXECUTION_PLAN_ADMISSION_EVIDENCE = {
         'reopened-authorization-decision',
         'fixture-discovery-stays-in-execution-planning',
         'test-command-discovery-stays-in-execution-planning',
+        'path-only-discovery-stays-in-execution-planning',
         'accepted-design-discovery-returns-to-implementation-planning',
         'accepted-proof-discovery-returns-to-implementation-planning',
         'path-and-api-discovery-returns-to-implementation-planning',

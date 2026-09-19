@@ -33,6 +33,13 @@ ${OBLIGATIONS.map(obligation => `- ${obligation}`).join('\n')}
 - One shared authorization service owns permission checks for every transport.
 - Host-neutral dependency order keeps every intermediate merge supported.
 `;
+const DATA_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted data design
+
+- The project-local SQLite database \`delivery.db\` stores delivery evidence.
+- DeliveryStateService owns all reads and writes for that store.
+`;
+const BASE_DECISION_ACCOUNTING = DECISIONS.map(decision => `- ${decision}: unchanged`).join('\n');
 
 interface SliceInput {
   readonly name: string;
@@ -135,6 +142,12 @@ ${input.decisionText ?? DECISIONS.map(decision => `- ${decision}: unchanged`).jo
 
 ${deliveryContract(input.unrelatedChecklist === true, input.unrealProof === true)}
 `;
+}
+
+function withDecisionAccounting(plan: string, decisionText: string): string {
+  const start = plan.indexOf(BASE_DECISION_ACCOUNTING);
+  if (start === -1) throw new Error('Conformance fixture is missing base decision accounting');
+  return `${plan.slice(0, start)}${decisionText}${plan.slice(start + BASE_DECISION_ACCOUNTING.length)}`;
 }
 
 const CHECKLIST_OBLIGATIONS = [
@@ -828,6 +841,55 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     'one_pull_request',
     ['Decision-preserving activation'],
   ),
+  {
+    ...denied(
+      'vague-data-ownership',
+      'A vague store reference is denied and reported as an unnamed accepted data decision.',
+      withDecisionAccounting(
+        ONE_PLAN,
+        '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- Use the appropriate store and ownership contract during implementation.',
+      ),
+      ['data', 'unnamed'],
+    ),
+    implementation_plan: DATA_IMPLEMENTATION_PLAN,
+  },
+  {
+    ...decisionChangingDiscovery(
+      'invented-data-ownership',
+      'A concrete data design invented downstream is denied and reported as an invented data decision.',
+      withDecisionAccounting(
+        ONE_PLAN,
+        '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- Store delivery evidence in Redis and let ReviewService own reads and writes.',
+      ),
+      ['data', 'invented'],
+    ),
+  },
+  {
+    ...approved(
+      'accepted-data-ownership',
+      'The accepted concrete store and owner do not block semantic approval.',
+      withDecisionAccounting(
+        ONE_PLAN,
+        '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- The project-local SQLite database `delivery.db` stores delivery evidence: unchanged\n- DeliveryStateService owns all reads and writes for that store: unchanged',
+      ),
+      'one_pull_request',
+      ['Complete delivery'],
+    ),
+    implementation_plan: DATA_IMPLEMENTATION_PLAN,
+    expectation: {
+      verdict: 'approve',
+      planning_destination: 'plan-execution',
+      slicing_decision: 'one_pull_request',
+      slice_names: ['Complete delivery'],
+      obligations: OBLIGATIONS,
+      decisions: [
+        'One shared authorization service owns permission checks for every transport',
+        'Host-neutral dependency order keeps every intermediate merge supported',
+        'The project-local SQLite database `delivery.db` stores delivery evidence',
+        'DeliveryStateService owns all reads and writes for that store',
+      ],
+    },
+  },
   missingObligationCase('missing-behavior-obligation', 'Accepted behavior'),
   missingObligationCase('missing-migration-obligation', 'Migration work'),
   missingObligationCase('missing-rollout-obligation', 'Rollout work'),
@@ -857,6 +919,13 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     'test-command-discovery-stays-in-execution-planning',
     'A discovered test-command change preserves every accepted decision and proof boundary.',
     `${ONE_PLAN}\n## Discovery\n\nThe test command must use the package-local runner without changing the accepted proof boundary.\n`,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  approved(
+    'path-only-discovery-stays-in-execution-planning',
+    'A file or helper location change with no contract consequence stays in Execution Planning.',
+    `${ONE_PLAN}\n## Discovery\n\nMove one helper file without changing behavior, API, data, or proof boundaries.\n`,
     'one_pull_request',
     ['Complete delivery'],
   ),
