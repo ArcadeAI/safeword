@@ -678,6 +678,45 @@ describe('coding authorization', () => {
     TIMEOUT_ACCEPTANCE_LANE,
   );
 
+  it('keeps coding blocked until a changed source approach and its execution plan are re-reviewed', async () => {
+    const root = await featureFixture(true);
+    const implementationPath = nodePath.join(
+      root,
+      '.project',
+      'tickets',
+      'ABC123-feature',
+      'impl-plan.md',
+    );
+    writeFileSync(implementationPath, '# Implementation Plan\n\nChanged accepted approach.\n');
+
+    const staleImplementation = await codingAuthorization(root);
+    expect(staleImplementation.exitCode).toBe(2);
+    expect(staleImplementation.data.coding_authorization).toBe('denied');
+
+    const reviewer = installReviewer();
+    const implementationReviewId = await admitReview(
+      root,
+      'plan-implementation',
+      '.project/tickets/ABC123-feature/impl-plan.md',
+      ['features/feature.feature', '.project/tickets/ABC123-feature/spec.md'],
+      { bin: reviewer },
+    );
+    const reviewLedger = nodePath.join(root, '.project', 'skill-invocations.log');
+    writeFileSync(
+      reviewLedger,
+      `${readFileSync(reviewLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${implementationReviewId}\n`,
+    );
+
+    const staleExecution = await codingAuthorization(root);
+    expect(staleExecution.exitCode).toBe(2);
+    expect(staleExecution.data.coding_authorization).toBe('denied');
+
+    await refreshReviews(root, 'execution');
+    const repaired = await codingAuthorization(root);
+    expect(repaired.exitCode).toBe(0);
+    expect(repaired.data.coding_authorization).toBe('authorized');
+  });
+
   it('rejects stale project-local plans despite approving host-local notes', async () => {
     const root = await featureFixture(true);
     const executionPlanPath = nodePath.join(
