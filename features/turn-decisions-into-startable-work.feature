@@ -100,6 +100,7 @@ Feature: Turn accepted decisions into startable work
         | change | destination |
         | fixture implementation | it remains in Execution Planning |
         | test command | it remains in Execution Planning |
+        | a file path or helper location with no contract change | it remains in Execution Planning |
         | accepted design boundary | it returns to Implementation Planning |
         | accepted proof boundary | it returns to Implementation Planning |
         | a file-path change that also alters an accepted API contract | it returns to Implementation Planning |
@@ -136,8 +137,8 @@ Feature: Turn accepted decisions into startable work
 
       Examples:
         | data_state | review_result |
-        | says to use the appropriate store without naming the accepted store or ownership contract | approval is blocked and the unresolved data decision is returned to Implementation Planning |
-        | names a concrete store and ownership contract that the accepted Implementation Plan never decided | approval is blocked and the unresolved data decision is returned to Implementation Planning |
+        | says to use the appropriate store without naming the accepted store or ownership contract | approval is blocked with the unnamed accepted data decision reported |
+        | names a concrete store and ownership contract that the accepted Implementation Plan never decided | approval is blocked with the invented data decision reported |
         | names the accepted store and ownership contract without changing them | the data decision does not block approval |
 
   @plan-implementability.TBU2.7CAMAD.R7
@@ -214,6 +215,7 @@ Feature: Turn accepted decisions into startable work
         | an accepted scenario |
         | an affected surface |
         | a migration obligation |
+        | a rollout obligation |
 
     @surface.safeword-cli @live
     Scenario Outline: Partial obligation mapping is not startable
