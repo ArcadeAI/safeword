@@ -174,7 +174,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Measurement execution preserves the accepted promise and validity contract
 
-- [ ] RED
+- [x] RED skip: live — see work log 2026-09-19T22:35:02.000Z "R15 measurement execution matrix"
 - [ ] GREEN
 - [ ] REFACTOR
 
