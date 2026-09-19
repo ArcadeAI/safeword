@@ -195,13 +195,14 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
   if (reviewId === undefined)
     throw new Error(`Implementation Plan review failed: ${reviewed.stdout}`);
   const scope = reviewScope(TICKET_FOLDER, 'impl-plan', hashArtifact(PLAN));
+  const existingLedger = readFileSync(ledgerPath, 'utf8');
   writeFileSync(
     ledgerPath,
-    [
+    `${existingLedger}${[
       `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
       `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
       '',
-    ].join('\n'),
+    ].join('\n')}`,
   );
   return { root, ticketDirectory, ticketPath, ledgerPath, reviewId };
 }
@@ -420,7 +421,10 @@ describe('installed CLI human design authority follows configuration', () => {
     expect(result.exitCode).toBe(0);
     expect(phase(project.ticketPath)).toBe('plan-execution');
     const payload = JSON.parse(result.stdout) as { data?: Record<string, unknown> };
-    expect(payload.data).toMatchObject({ approval_status: 'not-required' });
+    expect(payload.data).toMatchObject({
+      approval_status: 'not-required',
+      achieved_independence: 'cross-agent',
+    });
     expect(readFileSync(project.ledgerPath, 'utf8')).toContain('human-approval:not-required');
     expect(approvalEvents(project.ledgerPath)).toEqual([]);
   });
@@ -563,7 +567,7 @@ describe('Implementation Plan review admission controls Execution Planning', () 
 
     expect(result.exitCode).toBe(2);
     expect(phase(project.ticketPath)).toBe('plan-implementation');
-    expect(result.stdout).toContain('validated achieved independence');
+    expect(result.stdout).toContain('has no validated achieved independence');
   });
 
   it('rejects a self-authored cross-agent claim', async () => {
@@ -584,7 +588,9 @@ describe('Implementation Plan review admission controls Execution Planning', () 
 
     expect(result.exitCode).toBe(2);
     expect(phase(project.ticketPath)).toBe('plan-implementation');
-    expect(result.stdout).toContain('validated achieved independence');
+    expect(result.stdout).toContain(
+      'self-authored cross-agent claim did not establish achieved independence',
+    );
   });
 
   it('preserves a permitted fallback as degraded assurance', async () => {
