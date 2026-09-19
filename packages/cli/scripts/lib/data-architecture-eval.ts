@@ -46,7 +46,9 @@ function sha256(content: string): string {
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(item => canonicalJson(item)).join(',')}]`;
   if (value !== null && typeof value === 'object') {
-    const entries = Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right));
+    const entries = Object.entries(value).toSorted(([left], [right]) =>
+      Buffer.compare(Buffer.from(left), Buffer.from(right)),
+    );
     return `{${entries
       .map(([key, entryValue]) => `${JSON.stringify(key)}:${canonicalJson(entryValue)}`)
       .join(',')}}`;
@@ -76,11 +78,10 @@ function sameSet(actual: readonly string[], expected: readonly string[]): boolea
 }
 
 function responsePasses(response: EvaluationResponse, rubric: EvaluationRubric): boolean {
+  // Exact expected sets decide acceptance. Forbidden sets provide focused diagnostics for extra IDs.
   return (
     sameSet(response.decisionIds, rubric.expectedDecisionIds) &&
-    sameSet(response.proofFactIds, rubric.expectedProofFactIds) &&
-    rubric.forbiddenDecisionIds.every(id => !response.decisionIds.includes(id)) &&
-    rubric.forbiddenProofFactIds.every(id => !response.proofFactIds.includes(id))
+    sameSet(response.proofFactIds, rubric.expectedProofFactIds)
   );
 }
 

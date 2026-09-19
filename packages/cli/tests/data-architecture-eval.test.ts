@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   type AblationRecord,
   type EvaluationResponse,
+  type EvaluationRubric,
   verifyAblationPair,
 } from '../scripts/lib/data-architecture-eval.js';
 
@@ -44,7 +45,9 @@ function sha256(content: string): string {
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(item => canonicalJson(item)).join(',')}]`;
   if (value !== null && typeof value === 'object') {
-    const entries = Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right));
+    const entries = Object.entries(value).toSorted(([left], [right]) =>
+      Buffer.compare(Buffer.from(left), Buffer.from(right)),
+    );
     return `{${entries
       .map(([key, entryValue]) => `${JSON.stringify(key)}:${canonicalJson(entryValue)}`)
       .join(',')}}`;
@@ -56,7 +59,7 @@ function sortedStrings(values: readonly string[]): string[] {
   return values.toSorted((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)));
 }
 
-function canonicalRubricJson(value: typeof rubric): string {
+function canonicalRubricJson(value: EvaluationRubric): string {
   return canonicalJson({
     expectedDecisionIds: sortedStrings(value.expectedDecisionIds),
     forbiddenDecisionIds: sortedStrings(value.forbiddenDecisionIds),
