@@ -180,9 +180,7 @@ function coversPhase(targets: readonly string[], claim: StampClaim, phase: strin
         target => target === 'test-definitions.md' || target.endsWith('.feature'),
       ) ||
       (declaredScenario !== undefined &&
-        targets.some(
-          target => resolveTarget(target, claim.projectDirectory) === declaredScenario,
-        ))
+        targets.some(target => resolveTarget(target, claim.projectDirectory) === declaredScenario))
     );
   }
   if (phase === 'plan-implementation') return ticketTargets.includes('impl-plan.md');

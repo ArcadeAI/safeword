@@ -123,7 +123,9 @@ export function firstNamedRedAction(
     'test-definitions.md',
   );
   if (!existsSync(ledgerPath)) return undefined;
-  const match = readFileSync(ledgerPath, 'utf8').match(/^\s*- \[ \] RED\s+(?:—|-|:)\s*(.+)$/mu);
+  const match = readFileSync(ledgerPath, 'utf8').match(
+    /^[ \t]*- \[ \] RED[ \t]+(?:—|-|:)[ \t]*(.+)$/mu,
+  );
   return match?.[1]?.trim() || undefined;
 }
 

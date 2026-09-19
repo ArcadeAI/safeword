@@ -51,6 +51,18 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-19T17:24:52.000Z Root cause — installed proof-step journey:
+  the canonical concrete-proof sentence was present in the generated reviewer
+  rubric and bundled runtime, but a Markdown line break split the exact contract
+  signal expected by the installed-CLI reviewer fixture. The fixture therefore
+  followed its legacy approval path for both incomplete plans. Confirmed by
+  comparing `reviewPromptContract('plan-execution')` with the exact signal.
+  Ruled out stale generation because the bundled runtime contained the new
+  clause and current digest; ruled out wrong routing because the review reached
+  the admitted Claude/Opus plan-execution route. Keep this load-bearing contract
+  sentence contiguous, regenerate its rubric and admission, and rerun the same
+  installed boundary.
+
 - 2026-09-19T13:41:10.000Z Live evidence — data-decision specificity:
   ran the vague, invented, and accepted data-decision partitions through the
   real Claude Opus reviewer. A vague reference to an already accepted store
