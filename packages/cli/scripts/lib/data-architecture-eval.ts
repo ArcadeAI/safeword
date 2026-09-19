@@ -12,6 +12,32 @@ export interface EvaluationResponse {
   readonly proofFactIds: readonly string[];
 }
 
+export interface EvaluationCase {
+  readonly id: string;
+  readonly text: string;
+  readonly rubric: EvaluationRubric;
+}
+
+export interface EvaluationContract {
+  readonly modelVersion: string;
+  readonly decodingConfiguration: Readonly<Record<string, string | number | boolean>>;
+  readonly responseFormat: string;
+  readonly rubricLoader: string;
+  readonly toolsDisabled: true;
+}
+
+export interface EvaluationRecord extends AblationRecord {
+  readonly caseId: string;
+  readonly prompt: string;
+}
+
+export interface EvaluationRecordInput {
+  readonly canonicalGuide: string;
+  readonly evaluationCase: EvaluationCase;
+  readonly contract: EvaluationContract;
+  readonly record: EvaluationRecord;
+}
+
 export interface AblationRecord {
   readonly guideSha256: string;
   readonly caseRubricSha256: string;
@@ -67,6 +93,33 @@ function canonicalRubricJson(rubric: EvaluationRubric): string {
     expectedProofFactIds: sortedStrings(rubric.expectedProofFactIds),
     forbiddenProofFactIds: sortedStrings(rubric.forbiddenProofFactIds),
   });
+}
+
+export function buildColdStartPrompt(
+  canonicalGuide: string,
+  evaluationCase: Pick<EvaluationCase, 'id' | 'text'>,
+): string {
+  return canonicalJson({
+    case: { id: evaluationCase.id, text: evaluationCase.text },
+    guide: canonicalGuide,
+    responseSchema: {
+      additionalProperties: false,
+      properties: {
+        decisionIds: { items: { type: 'string' }, type: 'array' },
+        proofFactIds: { items: { type: 'string' }, type: 'array' },
+      },
+      required: ['decisionIds', 'proofFactIds'],
+      type: 'object',
+    },
+    toolsDisabled: true,
+  });
+}
+
+export function verifyEvaluationRecord(_input: EvaluationRecordInput): VerificationResult {
+  return {
+    accepted: false,
+    diagnostics: ['Evaluation record verification is not implemented.'],
+  };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {

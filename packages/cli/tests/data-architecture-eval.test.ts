@@ -4,9 +4,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type AblationRecord,
+  buildColdStartPrompt,
+  type EvaluationCase,
+  type EvaluationContract,
+  type EvaluationRecord,
   type EvaluationResponse,
   type EvaluationRubric,
   verifyAblationPair,
+  verifyEvaluationRecord,
 } from '../scripts/lib/data-architecture-eval.js';
 
 const guide = [
@@ -87,6 +92,86 @@ function record(
 }
 
 describe('data architecture guide evaluation', () => {
+  it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
+    const mixedCase: EvaluationCase = {
+      id: 'mixed-decision-routing',
+      text: [
+        'Plan a stored session record with a durable account identity and expiry lifecycle.',
+        'A local parsing helper and retry loop remain reversible implementation choices.',
+      ].join(' '),
+      rubric: {
+        expectedDecisionIds: [
+          'decision.routing.identity-architecture',
+          'decision.routing.lifecycle-architecture',
+          'decision.routing.helper-implementation',
+          'decision.routing.control-flow-implementation',
+        ],
+        forbiddenDecisionIds: [
+          'decision.routing.identity-implementation-only',
+          'decision.routing.helper-architecture',
+        ],
+        expectedProofFactIds: ['proof.routing.durable-and-reversible-separated'],
+        forbiddenProofFactIds: [],
+      },
+    };
+    const contract: EvaluationContract = {
+      modelVersion: 'controlled-model-v1',
+      decodingConfiguration: { temperature: 0, topP: 1 },
+      responseFormat: 'data-architecture-eval-v1',
+      rubricLoader: 'data-architecture-rubric-v1',
+      toolsDisabled: true,
+    };
+    const prompt = buildColdStartPrompt(guide, mixedCase);
+    const mixedRecord: EvaluationRecord = {
+      caseId: mixedCase.id,
+      guideSha256: sha256(guide),
+      caseRubricSha256: sha256(
+        canonicalJson({
+          case: { id: mixedCase.id, text: mixedCase.text },
+          rubric: {
+            expectedDecisionIds: sortedStrings(mixedCase.rubric.expectedDecisionIds),
+            forbiddenDecisionIds: sortedStrings(mixedCase.rubric.forbiddenDecisionIds),
+            expectedProofFactIds: sortedStrings(mixedCase.rubric.expectedProofFactIds),
+            forbiddenProofFactIds: sortedStrings(mixedCase.rubric.forbiddenProofFactIds),
+          },
+        }),
+      ),
+      prompt,
+      promptSha256: sha256(prompt),
+      modelVersion: contract.modelVersion,
+      decodingConfiguration: contract.decodingConfiguration,
+      responseFormat: contract.responseFormat,
+      rubricLoader: contract.rubricLoader,
+      response: {
+        decisionIds: [...mixedCase.rubric.expectedDecisionIds],
+        proofFactIds: [...mixedCase.rubric.expectedProofFactIds],
+      },
+    };
+
+    expect(JSON.parse(prompt)).toEqual({
+      case: { id: mixedCase.id, text: mixedCase.text },
+      guide,
+      responseSchema: {
+        additionalProperties: false,
+        properties: {
+          decisionIds: { items: { type: 'string' }, type: 'array' },
+          proofFactIds: { items: { type: 'string' }, type: 'array' },
+        },
+        required: ['decisionIds', 'proofFactIds'],
+        type: 'object',
+      },
+      toolsDisabled: true,
+    });
+    expect(
+      verifyEvaluationRecord({
+        canonicalGuide: guide,
+        evaluationCase: mixedCase,
+        contract,
+        record: mixedRecord,
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
   it('accepts a discriminating independent-proof guide ablation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
