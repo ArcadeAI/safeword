@@ -8,7 +8,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario: A mixed planning case keeps durable decisions separate from reversible helpers
 
-- [ ] RED
+- [x] RED 6ff225ad5
 - [ ] GREEN
 - [ ] REFACTOR
 
