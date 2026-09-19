@@ -680,6 +680,14 @@ describe('coding authorization', () => {
 
   it('keeps coding blocked until a changed source approach and its execution plan are re-reviewed', async () => {
     const root = await featureFixture(true);
+    const originalReviewLedger = readFileSync(
+      nodePath.join(root, '.project', 'skill-invocations.log'),
+      'utf8',
+    );
+    const originalExecutionReviewId = /phase@plan-execution[^\n]*review-id:(\S+)/u.exec(
+      originalReviewLedger,
+    )?.[1];
+    expect(originalExecutionReviewId).toEqual(expect.any(String));
     const implementationPath = nodePath.join(
       root,
       '.project',
@@ -707,6 +715,22 @@ describe('coding authorization', () => {
       `${readFileSync(reviewLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${implementationReviewId}\n`,
     );
 
+    const staleReceipt = await runCli(['review', 'status', originalExecutionReviewId ?? ''], {
+      cwd: root,
+      env: {
+        NODE_ENV: 'test',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+      },
+    });
+    expect(staleReceipt.exitCode).toBe(2);
+    expect(staleReceipt.stdout).toContain('reviewed source changed');
+    expect(
+      readFileSync(reviewLedger, 'utf8')
+        .matchAll(/phase@plan-execution[^\n]*review-id:(\S+)/gu)
+        .map(match => match[1])
+        .toArray(),
+    ).toEqual([originalExecutionReviewId]);
+
     const staleExecution = await codingAuthorization(root);
     expect(
       staleExecution.exitCode,
@@ -718,6 +742,24 @@ describe('coding authorization', () => {
     const repaired = await codingAuthorization(root);
     expect(repaired.exitCode).toBe(0);
     expect(repaired.data.coding_authorization).toBe('authorized');
+
+    const unchangedRoot = await featureFixture(true);
+    const unchangedReviewer = installReviewer();
+    const unchangedImplementationReviewId = await admitReview(
+      unchangedRoot,
+      'plan-implementation',
+      '.project/tickets/ABC123-feature/impl-plan.md',
+      ['features/feature.feature', '.project/tickets/ABC123-feature/spec.md'],
+      { bin: unchangedReviewer },
+    );
+    const unchangedLedger = nodePath.join(unchangedRoot, '.project', 'skill-invocations.log');
+    writeFileSync(
+      unchangedLedger,
+      `${readFileSync(unchangedLedger, 'utf8')}2026-09-18T00:01:02.000Z fixture review:ABC123-feature:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${unchangedImplementationReviewId}\n`,
+    );
+    const contentIdenticalRereview = await codingAuthorization(unchangedRoot);
+    expect(contentIdenticalRereview.exitCode).toBe(0);
+    expect(contentIdenticalRereview.data.coding_authorization).toBe('authorized');
   });
 
   it('rejects stale project-local plans despite approving host-local notes', async () => {
