@@ -98,7 +98,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED skip: live — corrected durable reference to the same 2026-09-19T13:41:10.000Z evidence
 - [x] RED skip: live — work log 2026-09-19T13:41:10.000Z
 - [x] GREEN 0c5f1a6ce
-- [ ] REFACTOR
+- [x] REFACTOR skip: conformance fixtures already share the complete-plan builder
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R7 — Structural gates report facts rather than semantic quality
 
