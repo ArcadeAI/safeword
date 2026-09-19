@@ -69,8 +69,8 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 ### Scenario Outline: A non-discriminating guide-ablation pair fails evaluation
 
 - [x] RED ee4d80dde
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN fda0a5e14
+- [x] REFACTOR skip: independent review strengthened the verifier; no further behavior-preserving refactor remained
 
 ## Rule: data-architecture-guidance.TBU2.R2 — Conditional proof includes the environment, boundaries, controls, and revalidation conditions needed to falsify the claim
 
