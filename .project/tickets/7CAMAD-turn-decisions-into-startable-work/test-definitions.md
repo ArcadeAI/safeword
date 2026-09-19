@@ -190,7 +190,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 4faf5aec8
 - [x] GREEN cb9015b92
-- [ ] REFACTOR
+- [x] REFACTOR skip: the two-line freshness guard preserves the existing malformed-output diagnostic path without adding another admission abstraction
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R17 — A design-changing implementation decision returns through revised and re-reviewed Implementation and Execution Plans, while a sequencing-only decision returns through a revised and re-reviewed Execution Plan; both paths preserve still-valid work and evidence and resume from the first invalidated obligation
 
