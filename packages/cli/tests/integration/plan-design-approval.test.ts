@@ -18,6 +18,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -732,7 +733,10 @@ describe('implementation-time discoveries return to the affected planning phase'
       }
 
       expect(phase(project.ticketPath)).toBe('plan-execution');
-      const repairedPlan = replanExecutionPlan('reviewed repair is complete');
+      const repairedPlan = readFileSync(executionPlanPath, 'utf8').replace(
+        `Implementation discovery: ${discovery}.`,
+        'Implementation discovery: reviewed repair is complete.',
+      );
       writeFileSync(executionPlanPath, repairedPlan);
       const executionApproved = await runCli(executionReviewArguments, {
         cwd: project.root,
@@ -749,8 +753,26 @@ describe('implementation-time discoveries return to the affected planning phase'
       });
       expect(executionApproved.exitCode, executionApproved.stdout).toBe(0);
       expect(executionApproved.stdout).toContain('"status":"approved"');
-      expect(readFileSync(executionPlanPath, 'utf8')).toContain(retainedProofRow);
-      expect(existsSync(nodePath.join(project.root, '.proof-reran'))).toBe(false);
+      const finalPlan = readFileSync(executionPlanPath, 'utf8');
+      expect(finalPlan).toContain(retainedProofRow);
+      const parsedFinalPlan = parseDeliveryPlanContract(finalPlan);
+      if (!parsedFinalPlan.ok) throw new Error(parsedFinalPlan.message);
+      expect(parsedFinalPlan.items.find(item => item.id === 'item-4')).toMatchObject({
+        evidenceClass: 'reusable_earlier_revision',
+        disposition: 'complete',
+      });
+      const proofMarker = nodePath.join(project.root, '.proof-reran');
+      expect(existsSync(proofMarker)).toBe(false);
+      const proof = parsedFinalPlan.specifications.find(
+        specification => specification.id === 'proof',
+      );
+      if (proof?.invocation.type !== 'command') throw new Error('proof command missing');
+      const control = spawnSync(proof.invocation.argv[0], proof.invocation.argv.slice(1), {
+        cwd: project.root,
+      });
+      expect(control.status).toBe(0);
+      expect(existsSync(proofMarker)).toBe(true);
+      unlinkSync(proofMarker);
       const implementationReviews = readFileSync(project.ledgerPath, 'utf8').match(
         /phase@plan-implementation/gu,
       );
