@@ -354,6 +354,111 @@ function executableRedGateDenial(scenario: string, ledger: string): string | und
   }
 }
 
+type CodingAuthorizationVerdict =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: string; readonly remediation: string };
+
+function codingAuthorizationVerdict(ticketId: string): CodingAuthorizationVerdict {
+  const commandParts = safewordCliCommand();
+  if (commandParts === undefined) {
+    return {
+      ok: false,
+      reason: 'Safeword could not check whether coding is authorized.',
+      remediation:
+        'Reinstall the Safeword plugin or set SAFEWORD_PLUGIN_CLI to the bundled runtime path.',
+    };
+  }
+  if (commandParts === 'project-writable') {
+    return {
+      ok: false,
+      reason: 'Safeword refused a project-writable coding-authorization command.',
+      remediation:
+        'Point SAFEWORD_PLUGIN_CLI or CLAUDE_PLUGIN_ROOT at the installed plugin runtime.',
+    };
+  }
+  const [executable, ...prefix] = commandParts;
+  const checked = spawnSync(
+    executable,
+    [
+      ...prefix,
+      '--json',
+      '--no-input',
+      '--cwd',
+      projectDirectory,
+      'ticket',
+      'coding-authorization',
+      ticketId,
+    ],
+    { cwd: projectDirectory, encoding: 'utf8', timeout: 5000 },
+  );
+  try {
+    const parsed = JSON.parse(checked.stdout) as {
+      state?: unknown;
+      findings?: Array<{ message?: unknown }>;
+      next_actions?: Array<{ command?: unknown }>;
+      data?: {
+        command?: unknown;
+        coding_authorization?: unknown;
+        grants_authority?: unknown;
+        authorization_input_identity?: unknown;
+      };
+    };
+    if (
+      checked.status === 0 &&
+      parsed.state === 'healthy' &&
+      parsed.data?.command === 'ticket coding-authorization' &&
+      parsed.data.coding_authorization === 'authorized' &&
+      parsed.data.grants_authority === false &&
+      typeof parsed.data.authorization_input_identity === 'string' &&
+      parsed.data.authorization_input_identity !== ''
+    ) {
+      return { ok: true };
+    }
+    if (
+      parsed.data?.command === 'ticket coding-authorization' &&
+      parsed.data.coding_authorization === 'denied' &&
+      parsed.data.grants_authority === false
+    ) {
+      const reason = parsed.findings?.find(
+        finding => typeof finding.message === 'string' && finding.message !== '',
+      )?.message;
+      const remediation = parsed.next_actions?.find(
+        action => typeof action.command === 'string' && action.command !== '',
+      )?.command;
+      return {
+        ok: false,
+        reason:
+          typeof reason === 'string'
+            ? reason
+            : 'The current planning evidence does not authorize coding.',
+        remediation:
+          typeof remediation === 'string'
+            ? remediation
+            : `Run safeword ticket coding-authorization ${ticketId} and complete its recovery action.`,
+      };
+    }
+  } catch {
+    // Fall through to the fail-closed invalid-result verdict below.
+  }
+  return {
+    ok: false,
+    reason: 'Safeword could not validate the coding-authorization result.',
+    remediation: `Run safeword ticket coding-authorization ${ticketId} and repair the reported local CLI problem.`,
+  };
+}
+
+function firstNamedRedAction(ticketFolder: string): string | undefined {
+  const ledgerPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
+    ticketFolder,
+    'test-definitions.md',
+  );
+  if (!existsSync(ledgerPath)) return undefined;
+  const match = readFileSync(ledgerPath, 'utf8').match(/^\s*- \[ \] RED\s+(?:—|-|:)\s*(.+)$/mu);
+  return match?.[1]?.trim() || undefined;
+}
+
 function separateEvidenceMode(
   ledgerContent: string,
   scenario: string,
@@ -1249,6 +1354,10 @@ if (!state) {
 
 if (state.activeTicket) {
   const ticketInfo = getTicketInfo(projectDirectory, state.activeTicket);
+  const ticketDirectory =
+    ticketInfo.folder === undefined
+      ? undefined
+      : nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', ticketInfo.folder);
 
   // Planning code freeze (TXRHMD, #480): while a feature plans, application
   // code stays untouched — the plan is the phase's only deliverable. Meta
@@ -1264,6 +1373,27 @@ if (state.activeTicket) {
       'Feature at plan-implementation phase: application code stays untouched while planning. Finish impl-plan.md, advance the ticket to implement, then write code.',
       'Author impl-plan.md next to ticket.md (scaffold from .safeword/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
     );
+  }
+
+  if (
+    ticketInfo.type === 'feature' &&
+    ticketInfo.folder !== undefined &&
+    ticketDirectory !== undefined &&
+    existsSync(nodePath.join(ticketDirectory, 'execution-plan.md'))
+  ) {
+    const authorization = codingAuthorizationVerdict(state.activeTicket);
+    if (!authorization.ok) {
+      recordFailure(projectDirectory, input.session_id, 'coding-authorization-denied');
+      deny(authorization.reason, authorization.remediation);
+    }
+    const redAction = firstNamedRedAction(ticketInfo.folder);
+    if (redAction !== undefined) {
+      recordFailure(projectDirectory, input.session_id, 'production-before-named-red');
+      deny(
+        `Production code cannot precede the current scenario's named RED: ${redAction}`,
+        `Run the named RED action first: ${redAction}`,
+      );
+    }
   }
 
   if (ticketInfo.type === 'feature' && ticketInfo.phase === 'implement' && ticketInfo.folder) {
