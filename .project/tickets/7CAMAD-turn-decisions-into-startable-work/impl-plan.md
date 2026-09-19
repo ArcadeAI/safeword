@@ -15,12 +15,30 @@ ticket connects those already accepted contracts at one coding-authorization
 boundary. It does not add another planning artifact or approval authority.
 
 One read-only public CLI operation, `ticket coding-authorization <ticketId>`,
-will answer whether coding is authorized for one feature ticket. It composes the existing authenticated scenario review,
+answers whether coding is authorized for one feature ticket. It composes the existing authenticated scenario review,
 accepted Implementation Plan (including configured human design approval), and
 admitted normalized Execution Plan review. The `plan-execution → implement`
 transition and production-code edit gate consume that same result. Structural
 checks report artifact and receipt facts; only the semantic reviews decide plan
-quality.
+quality. Its positive result must carry the authorization decision, stable
+authorization-input identity, actual achieved-independence level, and exact
+project-local artifact identity. Its denial identifies the failed prerequisite
+and repair artifact without claiming implementation, verification, release, or
+merge authority.
+
+### Current state and target reconciliation
+
+`Status: planned` means this document remains the accepted target design; it
+does not mean implementation has not started. The ticket is already in
+`implement`, so current facts are separated from target work here:
+
+| State | Current fact | Evidence strength | Remaining target |
+| --- | --- | --- | --- |
+| Implemented | The public coding-authorization projection and both coding-boundary consumers exist on this branch. R1, R5, and R9 ledger rows record their completed scenario loops. | Targeted CLI, hook, and review tests have passed during implementation; whole-ticket verification has not run, so this is not a completion or release claim. | Preserve the single prerequisite owner while the remaining semantic and journey cases are added. |
+| Implemented | Content-bound review invalidation and the closed downstream-authority result are present. Completed R14, R16, and R17 ledger rows identify the proved partitions. | Scenario-level GREEN/REFACTOR evidence only; unchecked rows remain unproved. | Complete the source-approach invalidation and replan/preservation journeys. |
+| Available dependency | The canonical Execution Plan review, Delivery Checklist, proof-currency, and compatibility contracts from 6XW8H7 and A639WN are available. | Their admitted contract tests establish the dependency boundary, not this ticket's complete behavior. | Add this ticket's startability, discovery-routing, obligation, measurement, and cold-start conformance cases without redefining those contracts. |
+| Known defect | No accepted behavior is currently recorded as a known open defect on this branch. The scenario-scoped executable-RED receipt bug found during this implementation was fixed and regression-tested. The work-log rc.4 raw-byte divergence belongs to older published bootstrap tooling; the current rc.5/source runtime uses the accepted normalized identity. | Focused regression evidence only. | Whole-ticket quality review and verification may still discover defects; record them here if they contradict an accepted decision. |
+| Pending human authority | No merge, release, or rollout approval has been granted by either planning review. | Not applicable; those authorities remain downstream and human-owned. | Obtain them only through the normal downstream process after verification. |
 
 Implementation-time changes follow the dependency direction already accepted
 in `ARCHITECTURE.md`. Product Plan identity comprises `spec.md`, the approved
@@ -69,8 +87,8 @@ which will install and prove the canonical behavior on each applicable host.
 
 ### Build order
 
-1. Insert `plan-execution` into the canonical phase model, phase evidence,
-   provenance lists, planning code freeze, and parity fixtures. Then prove the
+1. Preserve `plan-execution` in the canonical phase model, phase evidence,
+   provenance lists, planning code freeze, and parity fixtures. Prove the
    public coding-authorization result from the three existing prerequisites and
    wire both thin consumers against the same provenance fixture. The minimal
    loop for this slice must invoke the installed CLI through the real
@@ -86,31 +104,33 @@ which will install and prove the canonical behavior on each applicable host.
    reject attempts to infer implementation, verification, human release
    approval, or merge authority. This is the load-bearing slice.
 2. First prove installed-CLI admission and mismatch rejection for the canonical
-   Execution Planning, A639WN, and 6XW8H7 contract bytes. Then add the semantic
-   conformance cases for discovery routing, disguised data decisions, concrete
-   proof work, a later unstartable step, omitted, partially
-   mapped without dependency order, completion signal, or pull-request owner,
-   completely mapped, and explicitly obligation-free approaches, current defect
-   versus target work, pending human
-   authority, all four A639WN evidence classes and the partial-proof rejection,
-   missing and mismatched canonical contracts, fixture and test-command changes,
-   incomplete prerequisites, empty plans, risk-first ordering, explicit safe
-   parallelism, one-purpose and dependency-ordered multi-purpose contribution
-   shapes, stale project-local plans coexisting with host-local approval notes,
-   and measurement execution.
-3. Make the Implementation Planning exit enforce R1's absent artifact, missing
+   Execution Planning, A639WN, and 6XW8H7 contract bytes. Then prove the
+   complete semantic-conformance matrix defined in the Execution Plan; keep
+   that test inventory out of this decision record.
+3. Preserve the Implementation Planning exit enforcement for R1's absent artifact, missing
    semantic receipt, stale receipt, rejected verdict,
    missing-achieved-independence, unearned-assurance, permitted-fallback
    provenance, and disregarded self-authored-claim states, plus the positive
    admitted-review path into Execution Planning and its schema-owned
-   `execution-plan.md` template scaffold.
+   `execution-plan.md` template scaffold. Create the scaffold only when the file
+   is absent; retries and R17 re-entry preserve every existing authored byte.
+   Write that create-if-absent scaffold first, then atomically update the ticket
+   phase and its authenticated `plan-execution` provenance in one ticket-file
+   replacement. The existing serialized design-decision ledger owns concurrent
+   transition authority; competing callers reread the decision and ticket state
+   and either observe the same completed transition or remain pending. A crash
+   before the ticket update leaves the ticket in planning with a harmless
+   reusable scaffold; a crash after it leaves durable activation and therefore
+   denies coding until a current reviewed plan exists.
 4. Harden phase provenance beyond the basic transition wired in step 1:
    implement entry requires `execution-plan.md`. Production-edit enforcement is
-   monotonic for the new flow: any authenticated `plan-execution` provenance,
-   admitted Execution Plan review, or project-local Execution Plan activates the
-   gate, and a missing or downgraded prerequisite then denies coding. An editable
-   phase field alone cannot activate the gate. A legacy feature with none of
-   those durable markers remains outside M1 until YCFFNC migrates it.
+   monotonic for the new flow because authenticated, Git-backed
+   `plan-execution` phase provenance is the durable activation authority. A
+   project-local plan or admitted review may conservatively activate the gate
+   before that transition is committed, but deleting either cannot erase
+   durable activation; a missing or downgraded prerequisite then denies coding.
+   An editable phase field alone cannot activate the gate. A legacy feature
+   without durable provenance remains outside M1 until YCFFNC migrates it.
 5. Extend the basic production-edit denial from step 1 with implementation-time
    ordering and replan behavior. When both planning authorization and the named
    RED are unsatisfied, surface plan repair first. Preserve unchanged evidence
@@ -121,8 +141,10 @@ which will install and prove the canonical behavior on each applicable host.
 6. Update the canonical BDD workflow, Safeword handbook, and existing
    planning-gates architecture record so `plan-execution` has its entry,
    artifact, review exit, resume behavior, code freeze, shared authorization
-   projection, gate summary, return paths, and the rollback migration defined
-   under Compatibility below; then regenerate host derivatives.
+   projection, gate summary, return paths, authenticated phase provenance as
+   the durable monotonic activation authority, and the uniform in-flight
+   rollback migration defined under Compatibility below; then regenerate host
+   derivatives.
 7. Prove the complete cold-start journey from accepted Implementation Plan to
    reviewed Execution Plan to the first executable RED, plus both
    implementation-time replan branches.
@@ -135,31 +157,38 @@ do not belong in this decision record.
 
 | Persona               | Consequence                                                                                                               | Confidence limit                                                     |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Technical Builder     | Gets a direct, inspectable authorization verdict and retains exact review and proof evidence without a new approval layer | Installed-host parity remains YCFFNC's responsibility                |
-| Non-Technical Builder | Gets one concrete repair path when coding is unsafe, without having to interpret plan digests or reviewer internals       | K3EBHB owns the final plain-language rendering across every gate     |
+| Technical Builder     | Gets a direct, inspectable authorization verdict, retains exact review and proof evidence without a new approval layer, and gets the owning phase plus unresolved prerequisite or decision on recovery | Novel semantic prose can still be misclassified; installed-host parity and final plain-language rendering remain YCFFNC and K3EBHB responsibilities |
+| Non-Technical Builder | Gets one concrete repair path when coding is unsafe, without having to interpret plan digests or reviewer internals; being non-technical grants no approval authority, while any separately assigned authority remains explicit | K3EBHB owns the final plain-language rendering across every gate; human authority remains outside this command |
 | Safeword Maintainer   | Maintains one prerequisite evaluator and one authorization projection rather than duplicated hook logic                   | The hook still depends on resolving and invoking a healthy local CLI |
 
 ### Compatibility, rollout, and rollback
 
 This is an unreleased workflow extension. The public authorization result has
 no legacy exemption: whenever it is invoked, a missing or stale plan denies
-coding. During the M1-to-M2 window, the production-edit consumer activates for
-tickets with any authenticated `plan-execution` provenance, admitted Execution
-Plan review, or project-local Execution Plan. Once present, those markers make
-enforcement monotonic: losing a prerequisite denies rather than exempts the
-ticket. A mutable phase field alone cannot activate the gate. The delegated
+coding. During the M1-to-M2 window, authenticated, Git-backed `plan-execution`
+provenance is the durable monotonic activation authority. A project-local plan
+or admitted review may cause conservative fail-closed enforcement before that
+transition is committed, but neither is the historical authority. Once durable
+provenance exists, deleting the plan, losing the review, or downgrading another
+prerequisite denies coding rather than reclassifying the ticket as legacy. A
+mutable phase field alone cannot activate the gate. The delegated
 host-migration work covers later activation for earlier in-flight tickets with
 none of those markers. New contracted features enter implementation only
-through the new phase. Rollback first moves every ticket still at
-`plan-execution` back to `plan-implementation`, then removes the unreleased
-authorization command, transition consumer, phase value, and guidance
-together. Retained Execution Plans, review jobs, and ledger events become inert
-audit history and require no further data reversal.
+through the new phase. Rollback first moves every in-flight ticket at
+`plan-execution`, plus every `implement` ticket carrying authenticated
+`plan-execution` provenance, back to `plan-implementation`. Only after that
+uniform reversal may it remove the unreleased authorization command, transition
+consumer, phase value, and guidance together. This deliberately costs a fresh
+plan review for migrated in-flight work rather than leaving unknown provenance
+or silently withdrawing its gate. Retained Execution Plans, review jobs, and
+ledger events then become readable but authority-inert audit history and need no
+further data reversal.
 
-Implementation may begin only after the current scenario artifacts and this
-exact Implementation Plan have admitted reviews. The canonical parent-contract
-reconciliation gate remains authoritative for Product Plan currency at
-transition time.
+New implementation work may proceed only while the current scenario artifacts,
+this exact Implementation Plan, and the Execution Plan have admitted reviews.
+Work already recorded above remains historical evidence rather than authority
+for later edits. The canonical parent-contract reconciliation gate remains
+authoritative for Product Plan currency at transition time.
 
 Failures are closed and actionable: unreadable state, missing artifacts,
 unapproved or stale reviews, missing configured human authority, and an
@@ -197,7 +226,7 @@ authorization projection and consumers rather than a second checker.
 | Reuse content-bound review identity for dependency-directed replanning    | Exact upstream plan changes invalidate dependent authorization; the Execution Plan's reviewed normalization excludes only ordinary Delivery Checklist progress; unchanged proof retains its class and proof invalidated by a changed decision becomes audit-only | Add an invalidation ledger or mutable stale flags; restart all work; preserve every proof | Existing review identity already represents currentness; another store creates synchronization failure, while full restart loses valid work and indiscriminate preservation overstates completion |
 | Preserve TDD as a separate implementation contract                        | Execution Planning names exact RED/GREEN/REFACTOR work; the existing BDD ledger and executable-RED gate prove ordering                                                                    | Treat an approved Execution Plan as RED evidence; invent a second task ledger         | Planning approval proves startability, not execution; a second ledger would compete with `test-definitions.md`              |
 | Surface planning repair before executable RED                              | On a production edit, evaluate current planning authorization first and executable-RED authorization second                                                                             | Report RED first; combine unrelated failures into one recovery                         | RED cannot authorize work under a stale plan; one ordered repair avoids sending a builder to an action that remains blocked  |
-| Activate M1 enforcement without a provenance bypass                        | Treat any authenticated new-flow provenance, admitted Execution Plan review, or project-local Execution Plan as a monotonic gate marker; a later missing or downgraded prerequisite denies coding | Gate every in-flight feature immediately with a per-ticket exemption list; trust only the mutable phase field | Immediate universal gating disrupts legacy work and adds exemption state; a phase field is forgeable, while durable new-flow markers distinguish migrated work without making their later loss authorize edits |
+| Activate M1 enforcement without a provenance bypass                        | Record authenticated `plan-execution` phase provenance when the scaffolded plan is entered; derive durable activation from reachable committed Git history, not the current ticket file alone. A current admitted review and project-local plan corroborate currentness. An `implement` ticket with any M1 marker but no resolvable historical provenance fails closed; only a ticket with no current or historical M1 marker remains legacy until YCFFNC migration. | Treat the file itself as durable activation; gate every in-flight feature immediately with an exemption list; trust only the mutable phase field | A deletable file cannot prove prior activation, universal gating disrupts legacy work, and a phase field is forgeable. Historical provenance survives ordinary working-tree loss, which must deny rather than exempt; intentional history rewriting remains outside the same-user local-hook trust boundary. |
 
 #### Reversibility and boundaries
 
@@ -223,15 +252,21 @@ are semantically equivalent.
 ### Data applicability
 
 This feature extends the persisted workflow phase enum with `plan-execution`
-and gives project-local `execution-plan.md` an explicit lifecycle: scaffolded
-after the accepted Implementation Plan, reviewed against that exact approach,
+and gives project-local `execution-plan.md` an explicit lifecycle: created from
+the scaffold only when absent after the accepted Implementation Plan, preserved
+byte-for-byte on retry and re-entry, reviewed against that exact approach,
 current across ordinary Delivery Checklist progress, stale after stable plan or
 upstream approach changes, and retained as inert audit history on rollback.
-Authenticated phase provenance, admitted review state, and the project-local
-Execution Plan control the migration window; an editable phase field alone does
-not. Existing review jobs and append-only ledger events remain the storage
-authorities; there is no new database, cross-system data flow, or formal
-data-architecture document to add.
+Authenticated, Git-backed phase provenance is the durable activation source;
+admitted review state and the project-local Execution Plan establish current
+authorization but do not replace that history. An editable phase field alone
+does not activate or deactivate enforcement. Existing review jobs and
+append-only ledger events remain the storage authorities. The Technical Builder
+authors the plan through normal repository writes; review and human design
+authority retain their existing access controls. There is no new database,
+cross-system data flow, personal data, regulated data, egress, or formal
+data-architecture document to add, so additional compliance controls are not
+applicable.
 
 ## Design alignment
 
@@ -255,8 +290,9 @@ Architecture applicability: this feature implements the accepted
 [Conformance-Gated Execution Plan Review](../../../ARCHITECTURE.md#conformance-gated-execution-plan-review),
 [Digest-Bound Planning Decisions in the Shared Review Ledger](../../../ARCHITECTURE.md#digest-bound-planning-decisions-in-the-shared-review-ledger),
 and [Typed CLI Execution and Discovery](../../../ARCHITECTURE.md#typed-cli-execution-and-discovery).
-It adds no new structural or hard-to-reverse decision, so no new architecture
-record is warranted.
+The shared authorization projection is a concrete consequence for two coding
+boundaries, so update the existing planning-gates architecture record in place.
+It does not warrant a second architecture record.
 
 ## Known deviations
 
@@ -283,7 +319,9 @@ record is warranted.
   that canonical path; do not introduce host-local planning notes.
 - Update the canonical Safeword handbook phase model and gate summary.
 - Update the existing planning-gates architecture record in place to name the
-  shared authorization projection consumed at both coding boundaries.
+  shared authorization projection consumed at both coding boundaries, the
+  authenticated phase provenance that makes activation monotonic, deletion as
+  denial rather than exemption, and the uniform in-flight rollback rule.
 - Regenerate every repository-owned derivative required by schema and parity
   checks, including Claude, Cursor, Codex, and OpenCode. YCFFNC separately owns
   installed-host activation and migration guidance.
