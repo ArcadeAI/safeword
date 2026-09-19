@@ -10,7 +10,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 6ff225ad5
 - [x] GREEN 945552266
-- [ ] REFACTOR
+- [x] REFACTOR skip: canonical binding checks and exact-set grading are already isolated with no behavior-preserving simplification left
 
 ### Scenario: Treating a consequential data contract as a reversible helper fails review
 
