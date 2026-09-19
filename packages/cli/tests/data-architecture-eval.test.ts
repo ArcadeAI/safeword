@@ -213,6 +213,46 @@ describe('data architecture guide evaluation', () => {
         },
         diagnostic: 'Evaluation response contains unknown decision decision.routing.unknown.',
       },
+      {
+        name: 'forbidden decision',
+        record: {
+          ...mixedRecord,
+          response: {
+            ...mixedRecord.response,
+            decisionIds: [
+              ...mixedRecord.response.decisionIds,
+              'decision.routing.helper-architecture',
+            ],
+          },
+        },
+        diagnostic:
+          'Evaluation response contains forbidden decision decision.routing.helper-architecture.',
+      },
+      {
+        name: 'missing expected proof fact',
+        record: {
+          ...mixedRecord,
+          response: {
+            ...mixedRecord.response,
+            proofFactIds: mixedRecord.response.proofFactIds.filter(
+              id => id !== 'proof.routing.durable-and-reversible-separated',
+            ),
+          },
+        },
+        diagnostic:
+          'Evaluation response is missing expected proof fact proof.routing.durable-and-reversible-separated.',
+      },
+      {
+        name: 'unknown proof fact',
+        record: {
+          ...mixedRecord,
+          response: {
+            ...mixedRecord.response,
+            proofFactIds: [...mixedRecord.response.proofFactIds, 'proof.routing.unknown'],
+          },
+        },
+        diagnostic: 'Evaluation response contains unknown proof fact proof.routing.unknown.',
+      },
     ];
     for (const rejected of rejectedRecords) {
       expect
