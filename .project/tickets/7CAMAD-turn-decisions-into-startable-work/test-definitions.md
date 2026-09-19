@@ -162,7 +162,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 40fed356a
 - [x] GREEN 91a446985
-- [ ] REFACTOR
+- [x] REFACTOR skip: one focused ledger-order helper and one gate are already the minimal structural change
 
 ### Scenario: Production code cannot precede the named RED
 
