@@ -57,7 +57,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Ordering state controls first-step startability
 
 - [x] RED skip: live — see work log 2026-09-19T10:14:00.000Z "first-step ordering"
-- [ ] GREEN
+- [x] GREEN e8d7cf539
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R3 — Authors and reviewers use one implementability contract
