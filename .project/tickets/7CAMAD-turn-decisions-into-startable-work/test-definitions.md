@@ -15,7 +15,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Exhausted review routes preserve their actual provenance
 
 - [x] RED 5d2aa327f
-- [ ] GREEN
+- [x] GREEN 88efda591
 - [ ] REFACTOR
 
 ### Scenario: An unearned fallback receipt cannot authorize planning
