@@ -137,7 +137,7 @@ describe('data architecture guide evaluation', () => {
         }),
       ),
       prompt,
-      promptSha256: sha256(prompt),
+      coldStartPromptSha256: sha256(prompt),
       modelVersion: contract.modelVersion,
       decodingConfiguration: contract.decodingConfiguration,
       responseFormat: contract.responseFormat,
@@ -148,7 +148,7 @@ describe('data architecture guide evaluation', () => {
       },
     };
 
-    expect(JSON.parse(prompt)).toEqual({
+    expect.soft(JSON.parse(prompt)).toEqual({
       case: { id: mixedCase.id, text: mixedCase.text },
       guide,
       responseSchema: {
@@ -162,14 +162,81 @@ describe('data architecture guide evaluation', () => {
       },
       toolsDisabled: true,
     });
-    expect(
-      verifyEvaluationRecord({
-        canonicalGuide: guide,
-        evaluationCase: mixedCase,
-        contract,
-        record: mixedRecord,
-      }),
-    ).toEqual({ accepted: true, diagnostics: [] });
+    const rejectedRecords = [
+      {
+        name: 'stale canonical guide hash',
+        record: { ...mixedRecord, guideSha256: sha256('stale guide') },
+        diagnostic: 'Evaluation record guide hash does not match the current canonical guide.',
+      },
+      {
+        name: 'stale case and rubric digest',
+        record: { ...mixedRecord, caseRubricSha256: sha256('stale case and rubric') },
+        diagnostic: 'Evaluation record does not match the current case and rubric.',
+      },
+      {
+        name: 'stale cold-start prompt digest',
+        record: { ...mixedRecord, coldStartPromptSha256: sha256('stale prompt') },
+        diagnostic: 'Evaluation record prompt does not match the current cold-start prompt.',
+      },
+      {
+        name: 'different model version',
+        record: { ...mixedRecord, modelVersion: 'different-model-v2' },
+        diagnostic: 'Evaluation record does not match the checked-in recording contract.',
+      },
+      {
+        name: 'different decoding configuration',
+        record: { ...mixedRecord, decodingConfiguration: { temperature: 1, topP: 1 } },
+        diagnostic: 'Evaluation record does not match the checked-in recording contract.',
+      },
+      {
+        name: 'missing durable lifecycle decision',
+        record: {
+          ...mixedRecord,
+          response: {
+            ...mixedRecord.response,
+            decisionIds: mixedRecord.response.decisionIds.filter(
+              id => id !== 'decision.routing.lifecycle-architecture',
+            ),
+          },
+        },
+        diagnostic:
+          'Evaluation response is missing expected decision decision.routing.lifecycle-architecture.',
+      },
+      {
+        name: 'unknown decision',
+        record: {
+          ...mixedRecord,
+          response: {
+            ...mixedRecord.response,
+            decisionIds: [...mixedRecord.response.decisionIds, 'decision.routing.unknown'],
+          },
+        },
+        diagnostic: 'Evaluation response contains unknown decision decision.routing.unknown.',
+      },
+    ];
+    for (const rejected of rejectedRecords) {
+      expect
+        .soft(
+          verifyEvaluationRecord({
+            canonicalGuide: guide,
+            evaluationCase: mixedCase,
+            contract,
+            record: rejected.record,
+          }),
+          rejected.name,
+        )
+        .toEqual({ accepted: false, diagnostics: [rejected.diagnostic] });
+    }
+    expect
+      .soft(
+        verifyEvaluationRecord({
+          canonicalGuide: guide,
+          evaluationCase: mixedCase,
+          contract,
+          record: mixedRecord,
+        }),
+      )
+      .toEqual({ accepted: true, diagnostics: [] });
   });
 
   it('accepts a discriminating independent-proof guide ablation', () => {

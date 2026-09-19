@@ -12,6 +12,8 @@ export interface EvaluationResponse {
   readonly proofFactIds: readonly string[];
 }
 
+export type EvaluationConfigValue = string | number | boolean;
+
 export interface EvaluationCase {
   readonly id: string;
   readonly text: string;
@@ -20,15 +22,24 @@ export interface EvaluationCase {
 
 export interface EvaluationContract {
   readonly modelVersion: string;
-  readonly decodingConfiguration: Readonly<Record<string, string | number | boolean>>;
+  readonly decodingConfiguration: Readonly<Record<string, EvaluationConfigValue>>;
   readonly responseFormat: string;
   readonly rubricLoader: string;
   readonly toolsDisabled: true;
 }
 
-export interface EvaluationRecord extends AblationRecord {
+export interface EvaluationRecord {
   readonly caseId: string;
+  readonly guideSha256: string;
+  readonly caseRubricSha256: string;
   readonly prompt: string;
+  /** Hash of the complete cold-start prompt, including the guide bytes. */
+  readonly coldStartPromptSha256: string;
+  readonly modelVersion: string;
+  readonly decodingConfiguration: Readonly<Record<string, EvaluationConfigValue>>;
+  readonly responseFormat: string;
+  readonly rubricLoader: string;
+  readonly response: EvaluationResponse;
 }
 
 export interface EvaluationRecordInput {
@@ -44,7 +55,7 @@ export interface AblationRecord {
   /** Hash of case text plus neutral response schema; guide bytes bind separately. */
   readonly promptSha256: string;
   readonly modelVersion: string;
-  readonly decodingConfiguration: Readonly<Record<string, string | number | boolean>>;
+  readonly decodingConfiguration: Readonly<Record<string, EvaluationConfigValue>>;
   readonly responseFormat: string;
   readonly rubricLoader: string;
   readonly response: EvaluationResponse;
