@@ -24,7 +24,9 @@ quality. Its positive result must carry the authorization decision, stable
 authorization-input identity, actual achieved-independence level, and exact
 project-local artifact identity. Its denial identifies the failed prerequisite
 and repair artifact without claiming implementation, verification, release, or
-merge authority.
+merge authority. Task and patch tickets never invoke this feature-only
+authorization operation; they retain the existing proportional TDD and direct
+patch flows without Implementation or Execution Plans.
 
 ### Current state and target reconciliation
 
@@ -129,9 +131,11 @@ which will install and prove the canonical behavior on each applicable host.
    before the ticket update leaves the ticket in planning with a harmless
    reusable scaffold; a crash after it leaves durable activation and therefore
    denies coding until a current reviewed plan exists.
-4. Harden phase provenance beyond the basic transition wired in step 1:
-   implement entry requires `execution-plan.md`. Production-edit enforcement is
-   monotonic for the new flow because authenticated, Git-backed
+4. Harden phase provenance beyond the basic transition wired in step 1. For
+   contracted feature tickets, implement entry requires `execution-plan.md` and
+   production edits consume the same authorization result; task and patch
+   tickets pass through without invoking it. Feature enforcement is monotonic
+   for the new flow because authenticated, Git-backed
    `plan-execution` phase provenance is the durable activation authority. A
    project-local plan or admitted review may conservatively activate the gate
    before that transition is committed, but deleting either cannot erase
@@ -170,9 +174,11 @@ do not belong in this decision record.
 
 ### Compatibility, rollout, and rollback
 
-This is an unreleased workflow extension. The public authorization result has
-no legacy exemption: whenever it is invoked, a missing or stale plan denies
-coding. During the M1-to-M2 window, authenticated, Git-backed `plan-execution`
+This is an unreleased workflow extension. Task and patch tickets keep their
+existing proportional flows and never invoke the feature-only authorization
+result. When that result is invoked for a feature ticket, it has no legacy
+exemption: a missing or stale plan denies coding. During the M1-to-M2 window,
+authenticated, Git-backed `plan-execution`
 provenance is the durable monotonic activation authority. A project-local plan
 or admitted review may cause conservative fail-closed enforcement before that
 transition is committed, but neither is the historical authority. Once durable
@@ -214,9 +220,9 @@ changing the promise or measurement design.
 <!-- prettier-ignore -->
 | Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |
 | --- | --- | --- | --- | --- | --- | --- |
-| [execution prerequisite](../../../packages/cli/src/commands/execution-prerequisite.ts) and [its installed-CLI proof](../../../packages/cli/tests/integration/delivery-execution-prerequisite.test.ts) | 2026-09-16 | commit 549c9c38ae28354c678646babd4ab413044b71af | this unreleased #4200 branch | Already composes authenticated scenario, approach, design-approval, and normalized Execution Plan admission without granting authority | Project a narrow authorization result from one prerequisite source instead of rebuilding its checks | Project-owned source is the authority for current behavior; no code or license crosses repositories |
-| [pre-tool quality hook](../../../packages/cli/templates/hooks/pre-tool-quality.ts) and [its transition proof](../../../packages/cli/tests/integration/plan-transition-gate.test.ts) | 2026-09-16 | commit 549c9c38ae28354c678646babd4ab413044b71af | this unreleased #4200 branch | Shows the established local CLI subprocess seam for semantic gates and the production-edit enforcement boundary | Keep the hook a thin consumer of typed CLI truth | Hook dispatch exists only on supported local hosts; YCFFNC owns parity and advisory-only surfaces |
-| [accepted planning architecture](../../../ARCHITECTURE.md#separate-implementation-and-execution-planning-gates) | 2026-09-16 | accepted decisions through 2026-09-12 | this unreleased #4200 branch | Fixes phase ownership, review identity, and dependency-directed currentness before this child chooses wiring | Enforce the accepted dependency graph rather than introduce a parallel state machine | Human-readable architecture is trusted project evidence; runtime tests must prove implementation conformance |
+| [execution prerequisite](../../../packages/cli/src/commands/execution-prerequisite.ts) and [its installed-CLI proof](../../../packages/cli/tests/integration/delivery-execution-prerequisite.test.ts) | 2026-09-19 | commit 1a7f426b2f046ff269764dcb0235a5feac33511a | this unreleased #4200 branch | Already composes authenticated scenario, approach, design-approval, and normalized Execution Plan admission without granting authority | Project a narrow authorization result from one prerequisite source instead of rebuilding its checks | Project-owned source is the authority for current behavior; no code or license crosses repositories |
+| [pre-tool quality hook](../../../packages/cli/templates/hooks/pre-tool-quality.ts) and [its transition proof](../../../packages/cli/tests/integration/plan-transition-gate.test.ts) | 2026-09-19 | commit 1a7f426b2f046ff269764dcb0235a5feac33511a | this unreleased #4200 branch | Shows the established local CLI subprocess seam for semantic gates and the production-edit enforcement boundary | Keep the hook a thin consumer of typed CLI truth | Hook dispatch exists only on supported local hosts; YCFFNC owns parity and advisory-only surfaces |
+| [accepted planning architecture](../../../ARCHITECTURE.md#separate-implementation-and-execution-planning-gates) | 2026-09-19 | accepted decisions through commit 1a7f426b2f046ff269764dcb0235a5feac33511a | this unreleased #4200 branch | Fixes phase ownership, review identity, and dependency-directed currentness before this child chooses wiring | Enforce the accepted dependency graph rather than introduce a parallel state machine | Human-readable architecture is trusted project evidence; runtime tests must prove implementation conformance |
 
 **Decision impact:** retained: the existing execution-prerequisite service and
 local CLI hook seam already form the smallest shared boundary; add a narrow

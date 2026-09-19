@@ -1,6 +1,8 @@
 Feature: Turn accepted decisions into startable work
   Safeword turns an approved approach into work a fresh agent can start without inventing decisions.
 
+  # @live marks reviewer-semantic judgments; installed-CLI structural behavior remains deterministic.
+
   @plan-implementability.TBU2.7CAMAD.R1
   Rule: plan-implementability.TBU2.7CAMAD.R1 — Execution Planning requires a reviewed current approach
 
@@ -40,7 +42,7 @@ Feature: Turn accepted decisions into startable work
   @plan-implementability.TBU2.7CAMAD.R2
   Rule: plan-implementability.TBU2.7CAMAD.R2 — Every execution step is startable without inventing a contract
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     @demo
     Scenario: A fresh-context agent turns an accepted approach into the first RED
       Given an agent has only the accepted behavior and a current approved Implementation Plan
@@ -48,13 +50,14 @@ Feature: Turn accepted decisions into startable work
       Then semantic review reports no unresolved behavior-shaping decision
       And the ledger records its named test action failing before any production edit
 
+    # The live matrix retries only through its explicit test runner; one failed reviewer result fails the case.
     @rejection @surface.safeword-cli @live
     Scenario: A later unstartable step blocks an otherwise startable plan
       Given an Execution Plan whose first step is startable and whose fourth step leaves the accepted authorization failure behavior undecided
       When implementability is reviewed through the installed Safeword CLI
       Then approval is blocked and the fourth step is named as requiring a behavior decision
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario Outline: Ordering state controls first-step startability
       Given an Execution Plan has <ordering_state>
       When the Execution Plan is reviewed for implementability through the installed Safeword CLI
@@ -78,14 +81,16 @@ Feature: Turn accepted decisions into startable work
 
       Examples:
         | contract_state | review_result |
-        | include a missing copy | approval is blocked because the shared contract is unavailable |
-        | match each other but omit a required startability check from the current packaged canonical contract | approval is blocked because the canonical contract-byte identity differs |
+        | have a missing authoring copy | approval is blocked with the missing authoring copy named |
+        | have a missing generated reviewer rubric | approval is blocked with the missing reviewer copy named |
+        | have a byte-identical canonical authoring copy but a stale generated reviewer rubric | approval is blocked with the stale reviewer copy named |
+        | match each other and declare the current version label but omit a required startability check from the current packaged canonical contract | approval is blocked because the canonical contract-byte identity differs |
         | are both byte-identical to the current packaged canonical implementability contract | contract identity does not block semantic approval |
 
   @plan-implementability.TBU2.7CAMAD.R4
   Rule: plan-implementability.TBU2.7CAMAD.R4 — Execution discoveries return to the owning phase
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario Outline: A discovered change returns only when it alters an accepted decision
       Given an Execution Planning discovery involving <change>
       When the installed Safeword CLI classifies and applies the discovery
@@ -111,7 +116,7 @@ Feature: Turn accepted decisions into startable work
       Examples:
         | plan_state | authorization_result |
         | the only execution notes are host-local scratch notes | coding is blocked because the project-local Execution Plan is missing |
-        | a current project-local Execution Plan with an approving semantic review and achieved independence level exists | the project-local plan is the artifact that supplies authorization |
+        | a current project-local Execution Plan with an approving semantic review and achieved independence level exists | coding is authorized from the project-local plan |
         | a stale unreviewed project-local Execution Plan and host-local scratch notes recording semantic approval exist | coding is blocked because only the project-local plan supplies authorization |
 
     @surface.safeword-cli
@@ -123,7 +128,7 @@ Feature: Turn accepted decisions into startable work
   @plan-implementability.TBU2.7CAMAD.R6
   Rule: plan-implementability.TBU2.7CAMAD.R6 — Semantic review detects disguised unresolved decisions
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario Outline: Data-decision specificity controls semantic approval
       Given an Execution Plan <data_state>
       When the plan is semantically reviewed through the installed Safeword CLI
@@ -153,7 +158,7 @@ Feature: Turn accepted decisions into startable work
   @plan-implementability.TBU2.7CAMAD.R8
   Rule: plan-implementability.TBU2.7CAMAD.R8 — Accepted proof strategies become exact test work
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario Outline: Concrete proof content controls test-step startability
       Given an accepted proof strategy requires an edited-plan denial with exit code 2 through the real CLI subprocess
       When the installed Safeword CLI reviews an Execution Plan supplying <step_content>
@@ -198,7 +203,7 @@ Feature: Turn accepted decisions into startable work
   @plan-implementability.TBU2.7CAMAD.R10
   Rule: plan-implementability.TBU2.7CAMAD.R10 — Every accepted obligation maps to startable work
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario Outline: Every accepted obligation must map to startable work
       Given the accepted approach includes <obligation> but the Execution Plan omits it
       When implementability is reviewed through the installed Safeword CLI
@@ -210,7 +215,7 @@ Feature: Turn accepted decisions into startable work
         | an affected surface |
         | a migration obligation |
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario Outline: Partial obligation mapping is not startable
       Given a migration obligation is mapped to work with <mapping_gap>
       When implementability is reviewed through the installed Safeword CLI
@@ -221,13 +226,13 @@ Feature: Turn accepted decisions into startable work
         | no completion signal | the completion signal |
         | no dependency order | the dependency order |
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario: Complete obligation mapping permits semantic approval
       Given every accepted scenario, decision, proof strategy, affected surface, migration, rollout, rollback, and documentation obligation has dependency-ordered work and a completion signal
       When implementability is reviewed through the installed Safeword CLI
       Then obligation mapping does not block approval
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario: An explicitly obligation-free accepted approach does not manufacture execution work
       Given the accepted approach explicitly records that it has no execution obligations
       When implementability is reviewed through the installed Safeword CLI
@@ -298,11 +303,11 @@ Feature: Turn accepted decisions into startable work
   @plan-implementability.TBU2.7CAMAD.R13
   Rule: plan-implementability.TBU2.7CAMAD.R13 — The Execution Plan carries the feature Delivery Checklist and maps accepted obligations into dependency-ordered tasks and independently reviewable pull-request slices under the sibling checklist and slicing contracts
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario: The Execution Plan maps delivery obligations into owned review units
       Given an accepted feature requires code, tests, migration, monitoring, rollback, and documentation across several independently provable changes
       When its Execution Plan is reviewed through the installed Safeword CLI
-      Then approval is not blocked and every obligation's dependency-ordered task, independently reviewable pull-request slice, and completion signal are named under the canonical A639WN checklist and 6XW8H7 slicing contracts
+      Then approval is not blocked and every obligation's dependency-ordered task and completion signal are named under the canonical A639WN checklist
 
     @surface.safeword-cli
     Scenario Outline: Canonical slicing-contract identity prevents local contract drift
@@ -315,7 +320,7 @@ Feature: Turn accepted decisions into startable work
         | a local slicing copy that differs from the current 6XW8H7 contract bytes | approval is blocked because the canonical contract identity differs |
         | the current 6XW8H7 contract bytes | contract identity does not block approval |
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario Outline: Contribution shape controls pull-request decomposition
       Given an accepted feature has <contribution_shape>
       When its Execution Plan is reviewed through the installed Safeword CLI against the 6XW8H7 slicing contract
@@ -326,7 +331,7 @@ Feature: Turn accepted decisions into startable work
         | one coherent purpose with independently provable completion | the plan records one coherent pull-request slice without artificial decomposition |
         | several dependency-ordered purposes with independent proof | the plan records the dependency-ordered reviewable slices |
 
-    @rejection @surface.safeword-cli
+    @rejection @surface.safeword-cli @live
     Scenario: A complete-looking task list cannot leave delivery obligations unowned
       Given an Execution Plan lists coding tasks but maps no pull-request slice to the accepted rollback obligation
       When its execution completeness is reviewed through the installed Safeword CLI
@@ -352,7 +357,7 @@ Feature: Turn accepted decisions into startable work
   @plan-implementability.TBU2.7CAMAD.R15
   Rule: plan-implementability.TBU2.7CAMAD.R15 — Accepted measurement decisions become concrete instrumentation, test, and evidence-collection work without redefining the upstream promise or validity contract
 
-    @surface.safeword-cli
+    @surface.safeword-cli @live
     Scenario Outline: Measurement execution preserves the accepted promise and validity contract
       Given the accepted plans define an outcome, population, target, measurement origin, method, validity safeguards, and failure behavior
       When the installed Safeword CLI reviews an Execution Plan that <execution_state>
@@ -371,7 +376,7 @@ Feature: Turn accepted decisions into startable work
 
     @surface.safeword-cli
     Scenario Outline: Review invalidation follows dependency direction
-      Given the Product, Implementation, and Execution Plans each have a current review
+      Given the Implementation and Execution Plans each have a current review
       When the installed Safeword CLI records <change>
       Then <invalidation_result>
 

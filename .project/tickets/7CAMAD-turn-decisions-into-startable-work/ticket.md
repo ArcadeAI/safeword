@@ -48,6 +48,20 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-19T10:14:00.000Z Live evidence — first-step ordering:
+  ran all four ordering partitions through the real Claude Opus reviewer. The
+  incomplete prerequisite and no-executable-step plans were rejected; after
+  correcting proof-purpose alignment and separating the parallel consumers,
+  both risk-first plans were approved. The complete 34-case admission matrix
+  regenerated, and 43/43 deterministic conformance tests pass.
+
+- 2026-09-19T09:38:00.000Z Scope correction — scenario-repair authorization:
+  executable-RED review exposed a real host-hook defect, but independent
+  scenario review confirmed that installed hook delivery belongs to YCFFNC/M2,
+  not this child's M1 CLI contract. Removed the proposed hook scenario, test,
+  temporary workaround, and Execution Plan work rather than expanding 7CAMAD;
+  refreshed the CLI-only scenario and Execution Plan reviews afterward.
+
 - 2026-09-19T08:43:10.000Z Live evidence — later-step implementability:
   ran the focused `later-step-is-not-startable` semantic-conformance case
   through the real Claude Opus reviewer. It returned `request_changes`, named
