@@ -22,7 +22,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario Outline: Each representative case selects exactly its applicable guidance
 
-- [ ] RED
+- [x] RED 3bc52596e
 - [ ] GREEN
 - [ ] REFACTOR
 
