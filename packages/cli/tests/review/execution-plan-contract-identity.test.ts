@@ -382,6 +382,7 @@ describe('Execution Plan review-contract identity', () => {
         messages.some(
           candidate => candidate.code.startsWith('REVIEW') && candidate.message.includes(expected),
         ),
+        `${JSON.stringify(messages)}\n${result.stdout}\n${result.stderr}`,
       ).toBe(true);
     },
   );
