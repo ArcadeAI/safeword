@@ -1281,6 +1281,9 @@ if (state.activeTicket) {
     ticketInfo.folder === undefined
       ? undefined
       : nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', ticketInfo.folder);
+  const isBehaviorDefinitionEdit =
+    (ticketInfo.phase === 'define-behavior' || ticketInfo.phase === 'scenario-gate') &&
+    nodePath.extname(editedFile) === '.feature';
 
   // Planning code freeze (TXRHMD, #480): while a feature plans, application
   // code stays untouched — the plan is the phase's only deliverable. Meta
@@ -1302,6 +1305,7 @@ if (state.activeTicket) {
     ticketInfo.type === 'feature' &&
     ticketInfo.folder !== undefined &&
     ticketDirectory !== undefined &&
+    !isBehaviorDefinitionEdit &&
     existsSync(nodePath.join(ticketDirectory, 'execution-plan.md'))
   ) {
     const authorization = evaluateCodingAuthorization(
