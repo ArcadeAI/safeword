@@ -81,6 +81,40 @@ export interface ConditionalProofInput {
   readonly factIds: readonly string[];
 }
 
+const requiredConditionalFacts: Readonly<Record<ConditionalClaimKind, readonly string[]>> = {
+  'encrypted-scope-binding': [
+    'canonical-aad-identity',
+    'scope-mutation-failure',
+    'key-dependency-rotation-coverage',
+  ],
+  'erasure-completeness': [
+    'copy-inventory',
+    'positive-deletion-proof',
+    'sibling-scope-isolation',
+    'different-owner-isolation',
+  ],
+  'live-additive-migration': [
+    'deployed-starting-state',
+    'mixed-version-compatibility',
+    'cutover',
+    'recovery',
+    'restore-behavior',
+  ],
+  'relational-query-performance': [
+    'engine-and-version',
+    'representative-data-shape',
+    'query-shape',
+    'threshold',
+    'revalidation-trigger',
+  ],
+  'time-dependent-lifecycle': [
+    'authoritative-clock',
+    'exact-equality-behavior',
+    'retry-behavior',
+    'restore-behavior',
+  ],
+};
+
 export interface AblationRecord {
   readonly guideSha256: string;
   readonly caseRubricSha256: string;
@@ -326,10 +360,22 @@ export function verifyFacetCompleteness(input: FacetCompletenessInput): Verifica
 }
 
 export function verifyConditionalProof(input: ConditionalProofInput): VerificationResult {
-  return {
-    accepted: false,
-    diagnostics: [`Conditional proof claim ${input.claim} has no verifier.`],
-  };
+  const expectedFactIds = new Set(requiredConditionalFacts[input.claim]);
+  const actualFactIds = new Set(input.factIds);
+  const diagnostics: string[] = [];
+  const sortedExpectedFactIds = sortedStrings([...expectedFactIds]);
+  const sortedActualFactIds = sortedStrings([...actualFactIds]);
+
+  for (const factId of sortedExpectedFactIds) {
+    if (!actualFactIds.has(factId))
+      diagnostics.push(`Conditional proof is missing required fact ${factId}.`);
+  }
+  for (const factId of sortedActualFactIds) {
+    if (!expectedFactIds.has(factId))
+      diagnostics.push(`Conditional proof contains unknown fact ${factId}.`);
+  }
+
+  return { accepted: diagnostics.length === 0, diagnostics };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
