@@ -204,7 +204,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED fc1f607e3
 - [x] GREEN 6d71508bd
-- [ ] REFACTOR
+- [x] REFACTOR skip: the projection now derives status and audit identity directly from existing proof currency; no structural cleanup is needed
 
 ### Scenario: Implementation cannot continue under a stale affected plan
 
