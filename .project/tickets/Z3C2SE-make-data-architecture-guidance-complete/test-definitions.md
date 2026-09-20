@@ -77,7 +77,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 ### Scenario Outline: Conditional claims carry the facts that make them falsifiable
 
 - [x] RED 02f8f581b
-- [ ] GREEN
+- [x] GREEN 0dfc41dbe
 - [ ] REFACTOR
 
 ### Scenario Outline: A non-discriminating proof fails with a focused diagnostic
