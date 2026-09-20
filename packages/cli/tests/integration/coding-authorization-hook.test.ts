@@ -212,6 +212,66 @@ describe('coding authorization edit hook', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('freezes application code throughout execution planning', () => {
+    writeFileSync(
+      ticketPath,
+      readFileSync(ticketPath, 'utf8').replace('implement', 'plan-execution'),
+    );
+    rmSync(nodePath.join(nodePath.dirname(ticketPath), 'execution-plan.md'));
+
+    const result = runEdit();
+
+    expectHookDeny(result, 'Feature at plan-execution phase');
+    expect(existsSync(nodePath.join(pluginRoot, 'calls.log'))).toBe(false);
+  });
+
+  it('keeps coding authorization active after the Execution Plan is deleted', () => {
+    expect(spawnSync('git', ['init'], { cwd: projectRoot }).status).toBe(0);
+    expect(spawnSync('git', ['add', '.'], { cwd: projectRoot }).status).toBe(0);
+    expect(
+      spawnSync(
+        'git',
+        [
+          '-c',
+          'commit.gpgsign=false',
+          '-c',
+          'user.name=Safeword Test',
+          '-c',
+          'user.email=test@safeword.local',
+          'commit',
+          '-m',
+          'record execution planning',
+        ],
+        { cwd: projectRoot },
+      ).status,
+    ).toBe(0);
+    rmSync(nodePath.join(nodePath.dirname(ticketPath), 'execution-plan.md'));
+    writeCliResponse({
+      schema_version: 1,
+      ok: true,
+      state: 'action_required',
+      findings: [
+        {
+          code: 'missing_admitted_delivery_checklist',
+          message: 'The project-local Execution Plan is missing.',
+          severity: 'warning',
+        },
+      ],
+      errors: [],
+      next_actions: [],
+      data: {
+        command: 'ticket coding-authorization',
+        coding_authorization: 'denied',
+        grants_authority: false,
+      },
+    });
+
+    const result = runEdit();
+
+    expectHookDeny(result, 'The project-local Execution Plan is missing.');
+    expect(existsSync(nodePath.join(pluginRoot, 'calls.log'))).toBe(true);
+  });
+
   it.each(['define-behavior', 'scenario-gate'])(
     'allows feature-source repair during %s after execution planning has begun',
     phase => {

@@ -386,6 +386,27 @@ describe('coding authorization', () => {
     expect(source.match(/\bevaluateExecutionPrerequisite\(/gu)).toHaveLength(1);
   });
 
+  it('does not authorize an input that is not an applicable feature ticket', async () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coding-authorization-missing-'));
+    fixtureRoots.push(root);
+    mkdirSync(nodePath.join(root, '.project', 'tickets'), { recursive: true });
+
+    const invoked = await runCli(
+      ['ticket', 'coding-authorization', 'DOESNOTEXIST', '--json', '--cwd', root],
+      { cwd: root, env: { NODE_ENV: 'test' } },
+    );
+
+    expect(invoked.exitCode).toBe(2);
+    expect(JSON.parse(invoked.stdout)).toMatchObject({
+      state: 'action_required',
+      data: {
+        command: 'ticket coding-authorization',
+        coding_authorization: 'denied',
+        grants_authority: false,
+      },
+    });
+  });
+
   it('rejects host-local notes when the project-local Execution Plan is missing', async () => {
     const root = await featureFixture();
 
