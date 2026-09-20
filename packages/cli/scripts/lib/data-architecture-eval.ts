@@ -69,6 +69,18 @@ export interface FacetCompletenessInput {
   readonly oracleKind: 'hand-maintained' | 'generated-sibling';
 }
 
+export type ConditionalClaimKind =
+  | 'encrypted-scope-binding'
+  | 'erasure-completeness'
+  | 'live-additive-migration'
+  | 'relational-query-performance'
+  | 'time-dependent-lifecycle';
+
+export interface ConditionalProofInput {
+  readonly claim: ConditionalClaimKind;
+  readonly factIds: readonly string[];
+}
+
 export interface AblationRecord {
   readonly guideSha256: string;
   readonly caseRubricSha256: string;
@@ -311,6 +323,13 @@ export function verifyFacetCompleteness(input: FacetCompletenessInput): Verifica
   }
 
   return { accepted: diagnostics.length === 0, diagnostics };
+}
+
+export function verifyConditionalProof(input: ConditionalProofInput): VerificationResult {
+  return {
+    accepted: false,
+    diagnostics: [`Conditional proof claim ${input.claim} has no verifier.`],
+  };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {

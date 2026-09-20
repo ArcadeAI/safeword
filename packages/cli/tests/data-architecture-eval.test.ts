@@ -6,6 +6,7 @@ import {
   type AblationRecord,
   type ArtifactAuthorityClaim,
   buildColdStartPrompt,
+  type ConditionalProofInput,
   type EvaluationCase,
   type EvaluationContract,
   type EvaluationCorpusInput,
@@ -15,6 +16,7 @@ import {
   type FacetCompletenessInput,
   verifyAblationPair,
   verifyArtifactOwnership,
+  verifyConditionalProof,
   verifyEvaluationCorpus,
   verifyEvaluationRecord,
   verifyFacetCompleteness,
@@ -740,6 +742,60 @@ describe('data architecture guide evaluation', () => {
         diagnostics: ['Completeness oracle must be independent of generated outputs.'],
       });
   });
+
+  it.each([
+    {
+      claim: 'relational-query-performance',
+      factIds: [
+        'engine-and-version',
+        'representative-data-shape',
+        'query-shape',
+        'threshold',
+        'revalidation-trigger',
+      ],
+    },
+    {
+      claim: 'encrypted-scope-binding',
+      factIds: [
+        'canonical-aad-identity',
+        'scope-mutation-failure',
+        'key-dependency-rotation-coverage',
+      ],
+    },
+    {
+      claim: 'live-additive-migration',
+      factIds: [
+        'deployed-starting-state',
+        'mixed-version-compatibility',
+        'cutover',
+        'recovery',
+        'restore-behavior',
+      ],
+    },
+    {
+      claim: 'erasure-completeness',
+      factIds: [
+        'copy-inventory',
+        'positive-deletion-proof',
+        'sibling-scope-isolation',
+        'different-owner-isolation',
+      ],
+    },
+    {
+      claim: 'time-dependent-lifecycle',
+      factIds: [
+        'authoritative-clock',
+        'exact-equality-behavior',
+        'retry-behavior',
+        'restore-behavior',
+      ],
+    },
+  ] satisfies readonly ConditionalProofInput[])(
+    'accepts the complete $claim conditional proof',
+    conditionalProof => {
+      expect(verifyConditionalProof(conditionalProof)).toEqual({ accepted: true, diagnostics: [] });
+    },
+  );
 
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
     const mixedCase: EvaluationCase = {
