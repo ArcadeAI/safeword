@@ -259,7 +259,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Contribution shape controls pull-request decomposition
 
 - [x] RED skip: live — see work log 2026-09-20T19:43:43.000Z "R13 slice ownership"
-- [ ] GREEN
+- [x] GREEN 45bcf2227
 - [ ] REFACTOR
 
 ### Scenario: A complete-looking task list cannot leave delivery obligations unowned
