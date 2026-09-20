@@ -216,7 +216,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Evidence state controls the delivery claim
 
-- [ ] RED
+- [x] RED 13e5380e0
 - [ ] GREEN
 - [ ] REFACTOR
 
