@@ -19,12 +19,13 @@ describe('coding authorization edit hook', () => {
   let projectRoot: string;
   let pluginRoot: string;
   let sourcePath: string;
+  let ticketPath: string;
 
   function writeCliResponse(response: Record<string, unknown>): void {
     writeFileSync(nodePath.join(pluginRoot, 'response.json'), JSON.stringify(response));
   }
 
-  function runProductionEdit() {
+  function runEdit(filePath = sourcePath) {
     return spawnSync('bun', [HOOK_PATH], {
       cwd: projectRoot,
       input: JSON.stringify({
@@ -32,7 +33,7 @@ describe('coding authorization edit hook', () => {
         hook_event_name: 'PreToolUse',
         tool_name: 'Edit',
         tool_input: {
-          file_path: sourcePath,
+          file_path: filePath,
           old_string: 'export const value = 1;',
           new_string: 'export const value = 2;',
         },
@@ -51,6 +52,7 @@ describe('coding authorization edit hook', () => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coding-hook-'));
     pluginRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-coding-hook-cli-'));
     const ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', `${TICKET_ID}-gate`);
+    ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
     sourcePath = nodePath.join(projectRoot, 'src', 'application.ts');
     mkdirSync(ticketDirectory, { recursive: true });
     mkdirSync(nodePath.dirname(sourcePath), { recursive: true });
@@ -59,7 +61,7 @@ describe('coding authorization edit hook', () => {
     writeFileSync(nodePath.join(projectRoot, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
     writeFileSync(nodePath.join(projectRoot, '.safeword', 'config.json'), '{}\n');
     writeFileSync(
-      nodePath.join(ticketDirectory, 'ticket.md'),
+      ticketPath,
       [
         '---',
         `id: ${TICKET_ID}`,
@@ -138,7 +140,7 @@ describe('coding authorization edit hook', () => {
       },
     });
 
-    const result = runProductionEdit();
+    const result = runEdit();
 
     expect(result.error, result.stderr).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
@@ -200,7 +202,7 @@ describe('coding authorization edit hook', () => {
       },
     });
 
-    const result = runProductionEdit();
+    const result = runEdit();
 
     expect(result.error, result.stderr).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);
@@ -209,4 +211,38 @@ describe('coding authorization edit hook', () => {
     const calls = readFileSync(nodePath.join(pluginRoot, 'calls.log'), 'utf8').trim().split('\n');
     expect(calls).toHaveLength(1);
   });
+
+  it.each(['define-behavior', 'scenario-gate'])(
+    'allows feature-source repair during %s after execution planning has begun',
+    phase => {
+      writeFileSync(
+        ticketPath,
+        readFileSync(ticketPath, 'utf8').replace('implement', () => phase),
+      );
+      const featurePath = nodePath.join(projectRoot, 'features', 'feature.feature');
+      mkdirSync(nodePath.dirname(featurePath), { recursive: true });
+      writeFileSync(featurePath, 'Feature: Original behavior\n');
+      writeCliResponse({
+        schema_version: 1,
+        ok: true,
+        state: 'action_required',
+        findings: [
+          {
+            code: 'missing_accepted_scenarios',
+            message: 'Accepted scenarios are required before execution.',
+            severity: 'warning',
+          },
+        ],
+        errors: [],
+        next_actions: [],
+      });
+
+      const result = runEdit(featurePath);
+
+      expect(result.error, result.stderr).toBeUndefined();
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(existsSync(nodePath.join(pluginRoot, 'calls.log'))).toBe(false);
+    },
+  );
 });
