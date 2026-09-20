@@ -254,7 +254,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 2f81f4a6b
 - [x] GREEN b5ddd8b22
-- [ ] REFACTOR
+- [x] REFACTOR skip: slicing identity is already part of the single canonical execution-plan rubric identity
 
 ### Scenario: Contribution shape controls pull-request decomposition
 
