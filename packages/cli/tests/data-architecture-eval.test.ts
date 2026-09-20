@@ -892,6 +892,37 @@ describe('data architecture guide evaluation', () => {
     expect(verifyEvidenceSafety(evidence)).toEqual({ accepted: true, diagnostics: [] });
   });
 
+  it.each([
+    {
+      diagnostic: 'Evidence contains a credential, token, or key prefix.',
+      value: 'sk_live_EXAMPLE_CREDENTIAL',
+      valueClass: 'credential, token, or key prefix',
+    },
+    {
+      diagnostic: 'Evidence contains an email-shaped value.',
+      value: 'customer@example.com',
+      valueClass: 'email-shaped value',
+    },
+    {
+      diagnostic: 'Evidence contains a non-placeholder high-entropy value.',
+      value: '7b1d9f0342a6e8c57d0b1493f6a2c8e57b1d9f0342a6e8c57d0b1493f6a2c8e5',
+      valueClass: 'non-placeholder high-entropy value',
+    },
+  ])(
+    'rejects a nested $valueClass with its unsafe value class identified',
+    ({ diagnostic, value }) => {
+      const evidence: EvidenceSafetyInput = {
+        mutableValues: { records: [{ response: { proofFactIds: [value] } }] },
+        migrationEvidenceSources: ['deployed-read-only'],
+      };
+
+      expect(verifyEvidenceSafety(evidence)).toEqual({
+        accepted: false,
+        diagnostics: [diagnostic],
+      });
+    },
+  );
+
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
     const mixedCase: EvaluationCase = {
       id: 'mixed-decision-routing',
