@@ -218,7 +218,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 13e5380e0
 - [x] GREEN de47c9120
-- [ ] REFACTOR
+- [x] REFACTOR skip: the canonical rubric, generated mirror, and semantic corpus already provide the minimal shared structure
 
 ### Scenario: Delivery evidence uses the canonical checklist taxonomy
 
