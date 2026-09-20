@@ -43298,16 +43298,11 @@ function evaluateAdvance(priorPhase, proposedPhase, proposed) {
   const toIndex = canonicalIndex(proposedPhase);
   if (toIndex <= fromIndex + 1)
     return OK;
-  return requireJustifiedSkips(proposed, migrationCompatibleBypassed(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex)), (missing) => ({
+  return requireJustifiedSkips(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex), (missing) => ({
     ok: false,
     reason: `Phases advance one canonical step at a time \u2014 ${effectivePrior} \u2192 ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(", ")}.`,
     remediation: `Advance one phase at a time (${CANONICAL_SEQUENCE}), or ${SKIPS_SYNTAX}.`
   }));
-}
-function migrationCompatibleBypassed(meta, bypassed) {
-  if (!bypassed.includes("plan-execution"))
-    return bypassed;
-  return parseSkips(meta).justified.has("plan-implementation") ? bypassed.filter((phase) => phase !== "plan-execution") : bypassed;
 }
 function requireJustifiedSkips(meta, bypassed, denialFor) {
   const skips = parseSkips(meta);
@@ -43334,7 +43329,7 @@ function evaluateBirth(meta, context) {
       remediation: "Create the ticket at phase: intake (or another canonical phase justified via phase_skips) and work forward."
     };
   }
-  return requireJustifiedSkips(meta, migrationCompatibleBypassed(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase))), (missing) => {
+  return requireJustifiedSkips(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase)), (missing) => {
     const act = context === "creation" ? "begin life" : "become a feature";
     return {
       ok: false,

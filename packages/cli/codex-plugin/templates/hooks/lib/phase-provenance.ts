@@ -232,28 +232,13 @@ function evaluateAdvance(
 
   return requireJustifiedSkips(
     proposed,
-    migrationCompatibleBypassed(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex)),
+    CANONICAL_PHASES.slice(fromIndex + 1, toIndex),
     missing => ({
       ok: false,
       reason: `Phases advance one canonical step at a time — ${effectivePrior} → ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(', ')}.`,
       remediation: `Advance one phase at a time (${CANONICAL_SEQUENCE}), or ${SKIPS_SYNTAX}.`,
     }),
   );
-}
-
-/**
- * Before Execution Planning existed, a justified plan-implementation skip
- * covered the whole planning boundary. Preserve that meaning for existing
- * tickets until YCFFNC rewrites their provenance explicitly.
- */
-function migrationCompatibleBypassed(
-  meta: Record<string, string | string[]> | undefined,
-  bypassed: readonly string[],
-): readonly string[] {
-  if (!bypassed.includes('plan-execution')) return bypassed;
-  return parseSkips(meta).justified.has('plan-implementation')
-    ? bypassed.filter(phase => phase !== 'plan-execution')
-    : bypassed;
 }
 
 /**
@@ -301,18 +286,14 @@ function evaluateBirth(
     };
   }
 
-  return requireJustifiedSkips(
-    meta,
-    migrationCompatibleBypassed(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase))),
-    missing => {
-      const act = context === 'creation' ? 'begin life' : 'become a feature';
-      return {
-        ok: false,
-        reason: `Feature tickets are born at phase: intake — this write would ${act} at "${phase}" without provenance, silently bypassing every gate keyed to the skipped phases. Phases still needing justification: ${missing.join(', ')}.`,
-        remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`,
-      };
-    },
-  );
+  return requireJustifiedSkips(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase)), missing => {
+    const act = context === 'creation' ? 'begin life' : 'become a feature';
+    return {
+      ok: false,
+      reason: `Feature tickets are born at phase: intake — this write would ${act} at "${phase}" without provenance, silently bypassing every gate keyed to the skipped phases. Phases still needing justification: ${missing.join(', ')}.`,
+      remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
