@@ -108,6 +108,13 @@ describe('coding authorization edit hook', () => {
     rmSync(pluginRoot, { recursive: true, force: true });
   });
 
+  it('delegates authorization to the public projection rather than the prerequisite evaluator', () => {
+    const source = readFileSync(HOOK_PATH, 'utf8');
+
+    expect(source.match(/\bevaluateCodingAuthorization\(/gu)).toHaveLength(1);
+    expect(source).not.toContain('evaluateExecutionPrerequisite');
+  });
+
   it('blocks production work under a stale affected plan and names plan repair first', () => {
     writeCliResponse({
       schema_version: 1,
