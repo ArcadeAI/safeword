@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   constants,
@@ -166,6 +166,29 @@ const PROOF_CURRENCIES = new Set<DeliveryProofCurrency>([
   'current_required',
   'compatible_earlier_allowed',
 ]);
+const CANONICAL_DELIVERY_CONTRACT_SHA256 =
+  'addccd21a80dae922f2161a85079fac2f0169bdde14302a2680448019c760e18';
+
+export function hasCanonicalDeliveryContractIdentity(): boolean {
+  const contract = {
+    schemaVersion: 1,
+    marker: MARKER,
+    checklistHeaders: HEADERS,
+    proofHeaders: PROOF_HEADERS,
+    categories: DELIVERY_CHECKLIST_CATEGORIES,
+    owners: [...OWNERS],
+    dispositions: [...DISPOSITIONS],
+    evidenceClasses: [...EVIDENCE_CLASSES],
+    proofMethods: [...PROOF_METHODS],
+    proofScopes: [...PROOF_SCOPES],
+    proofQualifications: [...PROOF_QUALIFICATIONS],
+    proofCurrencies: [...PROOF_CURRENCIES],
+  };
+  return (
+    createHash('sha256').update(JSON.stringify(contract)).digest('hex') ===
+    CANONICAL_DELIVERY_CONTRACT_SHA256
+  );
+}
 
 function invalid(code: string, message: string): DeliveryChecklistResult {
   return { ok: false, code, message };

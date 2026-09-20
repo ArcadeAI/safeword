@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 
 import {
   createExecutionPlanDeliveryDefinition,
+  hasCanonicalDeliveryContractIdentity,
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
@@ -154,6 +155,11 @@ function retainedDeliveryDefinition(
   root: string,
 ): ExecutionPlanDeliveryDefinition | undefined {
   if (kind !== 'plan-execution') return undefined;
+  if (!hasCanonicalDeliveryContractIdentity()) {
+    throw new ReviewPacketError(
+      'Plan-execution review refused: installed package differs from the canonical delivery-contract identity.',
+    );
+  }
   const plan = logicalFiles[0];
   if (plan === undefined) return undefined;
   const parsed = parseDeliveryPlanContract(plan.content);
