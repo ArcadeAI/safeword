@@ -264,7 +264,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A complete-looking task list cannot leave delivery obligations unowned
 
-- [ ] RED
+- [x] RED skip: live — see work log 2026-09-20T19:43:43.000Z "R13 slice ownership"
 - [ ] GREEN
 - [ ] REFACTOR
 
