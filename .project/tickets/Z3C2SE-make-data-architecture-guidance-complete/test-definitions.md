@@ -30,7 +30,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED d9a8274ad
 - [x] GREEN c56da116a
-- [ ] REFACTOR
+- [x] REFACTOR skip: invalid-record diagnostics reuse the same record verifier and stable case-prefix path without scenario-specific branching
 
 ## Rule: data-architecture-guidance.TBU1.R3 — Architecture, implementation plans, generated representations, ADRs, and linked evidence each retain a single explicit responsibility
 
