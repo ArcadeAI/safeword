@@ -220,6 +220,7 @@ const representativeCases = [
       'decision.ownership.adr',
       'decision.ownership.linked-evidence',
     ],
+    forbiddenDecisions: ['decision.ownership.duplicate-authority'],
     proofs: ['proof.ownership.single-authority'],
   },
 ] as const satisfies readonly RepresentativeCaseFixture[];
@@ -386,6 +387,11 @@ describe('data architecture guide evaluation', () => {
     );
     if (encryptedCredentialRecord === undefined)
       throw new Error('Missing encrypted credential corpus record.');
+    const artifactOwnershipRecord = corpus.records.find(
+      evaluationRecord => evaluationRecord.caseId === 'artifact-ownership',
+    );
+    if (artifactOwnershipRecord === undefined)
+      throw new Error('Missing artifact ownership corpus record.');
     const smuggledPrompt = JSON.stringify({
       ...JSON.parse(relationalRecord.prompt),
       ambientContext: 'repository state',
@@ -573,6 +579,28 @@ describe('data architecture guide evaluation', () => {
         }),
         diagnostic:
           '[multi-tenant-relational-event-store] Evaluation response contains forbidden proof fact proof.relational.self-generated-coverage.',
+      },
+      {
+        name: 'two artifacts claim authority for one durable contract',
+        corpus: {
+          ...corpus,
+          records: corpus.records.map(evaluationRecord =>
+            evaluationRecord === artifactOwnershipRecord
+              ? {
+                  ...artifactOwnershipRecord,
+                  response: {
+                    ...artifactOwnershipRecord.response,
+                    decisionIds: [
+                      ...artifactOwnershipRecord.response.decisionIds,
+                      'decision.ownership.duplicate-authority',
+                    ],
+                  },
+                }
+              : evaluationRecord,
+          ),
+        },
+        diagnostic:
+          '[artifact-ownership] Evaluation response contains forbidden decision decision.ownership.duplicate-authority.',
       },
     ];
 
