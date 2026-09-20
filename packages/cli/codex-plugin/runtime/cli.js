@@ -32516,6 +32516,14 @@ from outside those sources.
   and whether its currency policy is defensible. Every contributor Required
   proof must resolve to a unique proof classified \`real_boundary\`; partial or
   structural support cannot satisfy completion.
+- **Current-to-target truthfulness:** Require every obligation to distinguish
+  current implementation from target work. Absent implementation is target work
+  with missing proof. Only matching implementation with current-revision,
+  real-boundary proof may be recorded as implemented and proven. Reusable
+  earlier-revision proof remains open for current proof. Keep a known defect
+  separate from its target correction, and completed contributor work separate
+  from pending human authority. Never call stale proof, a known defect, or
+  pending human authority complete.
 - **Checklist completeness and applicability:** Require the versioned checklist,
   unique stable IDs, every default category, honest owners and dispositions,
   and concrete reviewed reasons or dependencies. Treat the packet's
@@ -32540,7 +32548,7 @@ slice's \`relies_on_unmerged_successor\` to \`false\` and every decision status 
 coverage booleans to true only after judging the supplied scenarios and
 approach. For a denial, return the record as null and name each blocking slice,
 field, obligation, dependency, proof, or decision in findings. Never approve
-because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "e6fece9144cb49e0ce9ffea6141a2a7354d64070c83d4b65102d389e7e06bf97";
+because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "14bc17090fbbe44a996c543e1593d3a1af0dd89f4c2cf5baac635863304e426b";
 
 // src/review/execution-plan-rubric.ts
 function extractExecutionPlanReviewRubric(reference) {
@@ -36491,8 +36499,8 @@ var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
-    contract_sha256: "4d36a76a839c4960b474ddb9dae5e064f37ffc5940aa107736c6985f57252165",
-    corpus_sha256: "41f0c4c0b913be4f9f90214bd410aeeab245fa13d6eeae90d6110c1153c31667",
+    contract_sha256: "f6ed238d92e2b929d6c07b51ffd9b92447f7dba7e7c6875759573adab931f024",
+    corpus_sha256: "833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309",
     identities: [
       {
         reviewer: "claude",
@@ -36533,6 +36541,11 @@ var init_execution_plan_admission_generated = __esm(() => {
           "migration-missing-completion-signal",
           "migration-missing-dependency-order",
           "explicitly-inapplicable-obligations",
+          "absent-work-is-not-complete",
+          "current-proof-supports-completion",
+          "earlier-proof-remains-open",
+          "known-defect-is-not-complete",
+          "pending-human-authority-is-not-complete",
           "complete-measurement-execution",
           "missing-measurement-instrumentation",
           "missing-measurement-evidence-collection",
@@ -36691,6 +36704,14 @@ function decisionChangingDiscovery(id, scenario, plan, findingTerms) {
     expectation: { ...testCase.expectation, planning_destination: "plan-implementation" }
   };
 }
+function withDeliveryState(plan, state, proofRow) {
+  const updated = proofRow === undefined ? plan : plan.split(OPEN_PROOF_ROW).join(proofRow);
+  return `${updated}
+## Current-to-target state
+
+${state}
+`;
+}
 function concreteProofPlan(step) {
   return executionPlan({
     decision: "one pull request",
@@ -36772,7 +36793,7 @@ var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integri
 
 - One shared authorization service owns permission checks for every transport.
 - Host-neutral dependency order keeps every intermediate merge supported.
-`, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_PLAN, MEASUREMENT_EXECUTION_BLOCK = `
+`, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_PLAN, UNCHANGED_DECISIONS_PLAN, CURRENT_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", CURRENT_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", EARLIER_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | reusable_earlier_revision | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | receipt:earlier-proof; compatible: accepted boundary is unchanged |", OPEN_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", OPEN_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | open | missing | | |", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, CURRENT_PROOF_BASE_PLAN, CURRENT_PROOF_PLAN, EARLIER_PROOF_CLAIMED_CURRENT_PLAN, KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, MEASUREMENT_EXECUTION_BLOCK = `
 ## Measurement execution
 
 - Owner: Complete delivery.
@@ -36783,7 +36804,7 @@ var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integri
 - Completion signal: current-revision evidence shows p95 authorization latency at or below 200 milliseconds with at least 99 percent valid sample coverage.
 - Preserved contract: the accepted outcome, population, target, measurement origin, method, validity safeguards, and failure behavior remain unchanged.
 - Failure handling: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
-`, MEASUREMENT_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, UNCHANGED_DECISIONS_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
+`, MEASUREMENT_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
 var init_execution_plan_conformance = __esm(() => {
   init_delivery_checklist();
   init_execution_plan_admission_generated();
@@ -36969,6 +36990,40 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       }
     ]
   });
+  UNCHANGED_DECISIONS_PLAN = `${ONE_PLAN}
+## Decision preservation focus
+
+- Verify that the shared authorization service still owns permission checks for every transport.
+- Verify that the dependency order remains host-neutral at every intermediate merge.
+`;
+  ABSENT_WORK_CLAIMED_COMPLETE_PLAN = withDeliveryState(ONE_PLAN, `- Obligation: Prove Accepted behavior at the named boundary.
+- Current implementation: absent.
+- Evidence: missing.
+- Target work: implement the accepted behavior and collect current-revision real-boundary proof.
+- Claimed delivery state: complete.`);
+  CURRENT_PROOF_BASE_PLAN = ONE_PLAN.split(OPEN_BEHAVIOR_ROW).join(CURRENT_BEHAVIOR_ROW).replace("1. RED: run `bun run test:review-cli -- --fixture approved-plan` through the public CLI and observe exit 2 with `typed review result is unavailable` before editing `src/review/command.ts`.", "1. RED: retain the current exit-0 `bun run test:review-cli -- --fixture approved-plan` receipt, then run `bun run test:failure-signals` with the denied-review fixture and observe exit 1 because the denial identity is absent before editing `src/review/command.ts`.").replace("2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command; assert exit 0 and the complete typed response.", "2. GREEN: preserve the accepted typed result while adding the denial identity in `src/review/command.ts`, then rerun both step-1 commands; assert the approved fixture still exits 0 and the denied fixture exposes the typed denial.").replace("5. RED: run `bun run test:failure-signals` and `bun run test:authorization-boundary` with the denied-review fixture; observe exit 1 because the public CLI neither names the denial nor rejects the unauthorized actor before editing `src/review/command.ts`.", "5. RED: run `bun run test:authorization-boundary` with the denied-review fixture and observe exit 1 because the public CLI does not reject the unauthorized actor before editing `src/review/command.ts`.").replace("6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, return the typed denial identity on reviewer failure, rerun both step-5 commands, and assert the unauthorized call exits 2 without persisting a result.", "6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, rerun the step-5 command, and assert the unauthorized call exits 2 without persisting a result while the typed denial identity from step 2 remains unchanged.");
+  CURRENT_PROOF_PLAN = withDeliveryState(CURRENT_PROOF_BASE_PLAN, `- Obligation: Prove Accepted behavior at the named boundary.
+- Current implementation: matches the accepted design.
+- Evidence: current-revision real-boundary proof.
+- Receipt: the specified command exited 0 on the recorded revision and its receipt is retained.
+- Target work: none.
+- Recorded delivery state: implemented and proven.`, CURRENT_PROOF_ROW);
+  EARLIER_PROOF_CLAIMED_CURRENT_PLAN = withDeliveryState(ONE_PLAN, `- Obligation: Prove Accepted behavior at the named boundary.
+- Current implementation: matches the accepted design.
+- Evidence: reusable earlier-revision proof only.
+- Target work: collect current-revision real-boundary proof.
+- Claimed delivery state: implemented and proven at the current revision.`, EARLIER_PROOF_ROW);
+  KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN = withDeliveryState(ONE_PLAN, `- Obligation: Deliver Accepted behavior.
+- Current implementation: known defect contradicts the accepted design.
+- Evidence: the failing behavior is reproduced at the accepted boundary.
+- Target work: correct the defect and collect current-revision real-boundary proof.
+- Claimed delivery state: complete.`);
+  PENDING_HUMAN_CLAIMED_COMPLETE_PLAN = withDeliveryState(ONE_PLAN.split(OPEN_PROOF_ROW).join(CURRENT_PROOF_ROW).replace("| item-7 | security and privacy | Protect the Affected-surface work boundary. | contributor | security-boundary | open | missing | | |", "| item-7 | security and privacy | Approve the Affected-surface work boundary. | human |  | pending_human | missing | | Security approval by the named reviewer. |"), `- Obligation: Activate the accepted behavior after security approval.
+- Contributor work: complete.
+- Evidence: current-revision real-boundary proof.
+- Human authority: pending security approval.
+- Target work: obtain the named security approval.
+- Claimed delivery state: complete.`);
   MEASUREMENT_PLAN = `${ONE_PLAN}${MEASUREMENT_EXECUTION_BLOCK}`;
   MISSING_MEASUREMENT_INSTRUMENTATION_PLAN = MEASUREMENT_PLAN.replace(/^- Instrumentation:.*\n/m, "");
   MISSING_MEASUREMENT_EVIDENCE_PLAN = MEASUREMENT_PLAN.replace(/^- Evidence collection:.*\n/m, "");
@@ -37106,25 +37161,6 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       }
     ],
     obligationOwners: stagedOwners("Contract owner", "Release owner")
-  });
-  UNCHANGED_DECISIONS_PLAN = executionPlan({
-    decision: "one pull request",
-    rationale: "One cohesive activation preserves both accepted decisions and proves every delivery obligation independently.",
-    slices: [
-      {
-        ...ACTIVATION_SLICE,
-        name: "Decision-preserving activation",
-        prerequisites: "none",
-        boundary: "Contract compatibility, review activation, shared authorization, host-neutral ordering, failure signals, rollout, rollback, and documentation.",
-        proof: ALL_DELIVERY_PROOFS,
-        tasks: [
-          "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing production code.",
-          "2. GREEN: register review routing, migrate the stored result schema compatibly, connect the shared authorization service, add failure signals, wire feature-flag rollout and rollback, and publish the command documentation.",
-          "3. GREEN: run `bun run test:schema-compatibility`, `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.",
-          "4. REFACTOR: keep one typed result and authorization path, then rerun all seven proof commands with exit 0."
-        ]
-      }
-    ]
   });
   STARTABLE_PLAN = executionPlan({
     decision: "one pull request",
@@ -37404,7 +37440,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       slices: [CONTRACT_SLICE]
     }), ["conceptual", "proof"]),
     approved("all-obligations-assigned", "Every accepted obligation has an owner.", OBLIGATION_PLAN, "multiple_pull_requests", ["Contract owner", "Release owner"]),
-    approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", UNCHANGED_DECISIONS_PLAN, "one_pull_request", ["Decision-preserving activation"]),
+    approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", UNCHANGED_DECISIONS_PLAN, "one_pull_request", ["Complete delivery"]),
     {
       ...denied("vague-data-ownership", "A vague store reference is denied and reported as an unnamed accepted data decision.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
 - Host-neutral dependency order keeps every intermediate merge supported: unchanged
@@ -37478,6 +37514,11 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         decisions: DECISIONS
       }
     },
+    denied("absent-work-is-not-complete", "Absent implementation remains target work and cannot be called complete.", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, ["absent", "complete"]),
+    approved("current-proof-supports-completion", "Matching implementation with current-revision real-boundary proof may be recorded as implemented and proven.", CURRENT_PROOF_PLAN, "one_pull_request", ["Complete delivery"]),
+    denied("earlier-proof-remains-open", "Reusable earlier-revision proof remains open until current proof is collected.", EARLIER_PROOF_CLAIMED_CURRENT_PLAN, ["earlier", "open"]),
+    denied("known-defect-is-not-complete", "A known defect remains separate target correction work and cannot be called complete.", KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, ["defect", "complete"]),
+    denied("pending-human-authority-is-not-complete", "Completed contributor work remains incomplete while required human authority is pending.", PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, ["human", "pending"]),
     {
       ...approved("complete-measurement-execution", "Accepted measurement decisions map to owned instrumentation, tests, evidence collection, and a completion signal.", MEASUREMENT_PLAN, "one_pull_request", ["Complete delivery"]),
       implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
@@ -69880,7 +69921,8 @@ function discoveryDestination(output) {
 }
 function currentExecutionDiscovery(context) {
   const ticket = readFileSync80(context.ticketPath, "utf8");
-  if (readFrontmatterScalar(ticket, "phase") !== "plan-execution")
+  const phase = readFrontmatterScalar(ticket, "phase");
+  if (phase !== "plan-execution" && phase !== "implement")
     return;
   const planPath = nodePath124.join(context.ticketDirectory, "execution-plan.md");
   if (!existsSync58(planPath))
@@ -69896,9 +69938,15 @@ function currentExecutionDiscovery(context) {
   return discoveryDestination(data.reviewer_output);
 }
 function applyExecutionDiscovery(context, discovery) {
-  if (discovery.destination === "plan-implementation") {
-    const changed2 = replaceTicketPhase(context, "plan-execution", "plan-implementation");
+  if (discovery.destination !== "invalid") {
+    const ticket = readFileSync80(context.ticketPath, "utf8");
+    const currentPhase = readFrontmatterScalar(ticket, "phase");
+    if (currentPhase !== "plan-execution" && currentPhase !== "implement") {
+      throw new Error(`Ticket is in ${String(currentPhase)}, not plan-execution or implement.`);
+    }
+    const changed2 = replaceTicketPhase(context, currentPhase, discovery.destination);
     const target = nodePath124.relative(context.cwd, context.ticketPath);
+    const implementationDecision = discovery.destination === "plan-implementation";
     return createResult({
       state: "action_required",
       changed: changed2,
@@ -69908,7 +69956,7 @@ function applyExecutionDiscovery(context, discovery) {
       findings: [
         {
           code: "EXECUTION_DISCOVERY_APPLIED",
-          message: "The reviewed discovery changes an accepted decision or proof boundary. The ticket returned to Implementation Planning for repair and fresh review.",
+          message: implementationDecision ? "The reviewed discovery changes an accepted decision or proof boundary. The ticket returned to Implementation Planning for repair and fresh review." : "The reviewed discovery changes only execution mechanics. The ticket returned to Execution Planning for repair and fresh review.",
           severity: "warning"
         }
       ],
@@ -69919,13 +69967,12 @@ function applyExecutionDiscovery(context, discovery) {
       }
     });
   }
-  const invalid2 = discovery.destination === "invalid";
   return createResult({
     state: "action_required",
     findings: [
       {
-        code: invalid2 ? "EXECUTION_DISCOVERY_INVALID" : "EXECUTION_DISCOVERY_APPLIED",
-        message: invalid2 ? "The current Execution Plan review did not provide a valid planning destination. Run the review again before changing phase." : "The reviewed discovery changes only execution mechanics. Repair and re-review the Execution Plan; the ticket remains in Execution Planning.",
+        code: "EXECUTION_DISCOVERY_INVALID",
+        message: "The current Execution Plan review did not provide a valid planning destination. Run the review again before changing phase.",
         severity: "warning"
       }
     ],
@@ -69964,7 +70011,13 @@ function replaceTicketPhase(context, from, to) {
     return false;
   if (phase !== from)
     throw new Error(`Ticket is in ${String(phase)}, not ${from}.`);
-  const updated = from === "plan-implementation" ? ticket.replace(/^phase:[\t ]*plan-implementation[\t ]*$/mu, "phase: plan-execution") : ticket.replace(/^phase:[\t ]*plan-execution[\t ]*$/mu, "phase: plan-implementation");
+  let pattern = /^phase:[\t ]*implement[\t ]*$/mu;
+  if (from === "plan-implementation") {
+    pattern = /^phase:[\t ]*plan-implementation[\t ]*$/mu;
+  } else if (from === "plan-execution") {
+    pattern = /^phase:[\t ]*plan-execution[\t ]*$/mu;
+  }
+  const updated = ticket.replace(pattern, () => `phase: ${to}`);
   if (updated === ticket) {
     throw new Error(`Ticket phase "${from}" could not be updated safely.`);
   }
@@ -70158,6 +70211,9 @@ function isRecord12(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function reviewData(cwd, reviewId) {
+  const current = reviewJobStatus(cwd, reviewId);
+  if (current.findings.some((finding2) => finding2.code === "REVIEW_STALE"))
+    return;
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
   return isRecord12(status.data) ? status.data : undefined;
 }
@@ -70699,9 +70755,10 @@ function earlierRequiredEvidence(context, item, event) {
   });
   return {
     item_id: item.id,
-    status: item.disposition,
+    status: compatible && item.disposition === "complete" ? "complete" : "open",
     evidence_class: compatible ? "reusable_earlier_revision" : "partial_or_structural",
     limitations: ["earlier_revision"],
+    ...!compatible && { audit_receipt_id: event.id },
     satisfied: compatible && item.disposition === "complete"
   };
 }
@@ -70719,7 +70776,7 @@ function contributorEvidence(context, item) {
   if (event === undefined) {
     return {
       item_id: item.id,
-      status: item.disposition,
+      status: "open",
       evidence_class: "missing",
       limitations: ["missing"],
       satisfied: false
@@ -70736,9 +70793,10 @@ function contributorEvidence(context, item) {
   if (!requiredRealBoundary) {
     return {
       item_id: item.id,
-      status: item.disposition,
+      status: "open",
       evidence_class: "partial_or_structural",
       limitations: current ? ["partial_or_structural"] : ["partial_or_structural", "earlier_revision"],
+      ...!current && { audit_receipt_id: event.id },
       satisfied: false
     };
   }
