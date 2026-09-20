@@ -83,7 +83,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 ### Scenario Outline: A non-discriminating proof fails with a focused diagnostic
 
 - [x] RED 215482369
-- [ ] GREEN
+- [x] GREEN 86abd0447
 - [ ] REFACTOR
 
 ## Rule: data-architecture-guidance.TBU2.R3 — Proof uses synthetic or read-only evidence and never requires secrets, plaintext customer data, or production credentials
