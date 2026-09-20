@@ -306,6 +306,17 @@ describe('coding authorization edit hook', () => {
     expect(existsSync(nodePath.join(pluginRoot, 'calls.log'))).toBe(true);
   });
 
+  it('grandfathers a legacy feature with no execution marker outside Git', () => {
+    rmSync(nodePath.join(nodePath.dirname(ticketPath), 'execution-plan.md'));
+
+    const result = runEdit();
+
+    expect(result.error, result.stderr).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(existsSync(nodePath.join(pluginRoot, 'calls.log'))).toBe(false);
+  });
+
   it('keeps coding authorization active through a quoted historical phase anchor', () => {
     rmSync(nodePath.join(nodePath.dirname(ticketPath), 'execution-plan.md'));
     writeFileSync(
