@@ -248,7 +248,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: live — see work log 2026-09-20T19:43:43.000Z "R13 slice ownership"
 - [x] GREEN 45bcf2227
-- [ ] REFACTOR
+- [x] REFACTOR skip: the retained live case and typed record validator already share one canonical contract path
 
 ### Scenario: Canonical slicing-contract identity prevents local contract drift
 
