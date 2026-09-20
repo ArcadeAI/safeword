@@ -230,11 +230,6 @@ function evaluateAdvance(
   // Backward moves and re-declarations are rework, never gated.
   if (toIndex <= fromIndex + 1) return OK;
 
-  // Transitional compatibility for tickets created before G1C9PP introduced
-  // Execution Planning. Sibling YCFFNC owns migrating in-flight tickets; until
-  // that lands, the formerly canonical direct transition must remain usable.
-  if (effectivePrior === 'plan-implementation' && proposedPhase === 'implement') return OK;
-
   return requireJustifiedSkips(
     proposed,
     migrationCompatibleBypassed(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex)),
@@ -432,10 +427,10 @@ const ANCHOR_KINDS = {
     shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0,
   },
   implement: {
-    label: 'impl-plan.md',
-    example: '<ticket-folder>/impl-plan.md',
-    matches: relpath => basenameOf(relpath) === 'impl-plan.md',
-    shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0,
+    label: 'execution-plan.md',
+    example: '<ticket-folder>/execution-plan.md',
+    matches: relpath => basenameOf(relpath) === 'execution-plan.md',
+    shapeOk: (_relpath, content) => hasSubstance(content),
   },
   verify: {
     label: 'test-definitions.md (the R/G/R ledger)',

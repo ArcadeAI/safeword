@@ -43298,8 +43298,6 @@ function evaluateAdvance(priorPhase, proposedPhase, proposed) {
   const toIndex = canonicalIndex(proposedPhase);
   if (toIndex <= fromIndex + 1)
     return OK;
-  if (effectivePrior === "plan-implementation" && proposedPhase === "implement")
-    return OK;
   return requireJustifiedSkips(proposed, migrationCompatibleBypassed(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex)), (missing) => ({
     ok: false,
     reason: `Phases advance one canonical step at a time \u2014 ${effectivePrior} \u2192 ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(", ")}.`,
@@ -43492,10 +43490,10 @@ var init_phase_provenance = __esm(() => {
       shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0
     },
     implement: {
-      label: "impl-plan.md",
-      example: "<ticket-folder>/impl-plan.md",
-      matches: (relpath) => basenameOf(relpath) === "impl-plan.md",
-      shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0
+      label: "execution-plan.md",
+      example: "<ticket-folder>/execution-plan.md",
+      matches: (relpath) => basenameOf(relpath) === "execution-plan.md",
+      shapeOk: (_relpath, content) => hasSubstance(content)
     },
     verify: {
       label: "test-definitions.md (the R/G/R ledger)",
