@@ -51,7 +51,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 ### Scenario: An independent facet inventory exposes an omitted generated-manifest facet
 
 - [x] RED 7a8978a6b
-- [ ] GREEN
+- [x] GREEN dc3daf19a
 - [ ] REFACTOR
 
 ### Scenario: Agreement between sibling generated outputs cannot prove completeness
