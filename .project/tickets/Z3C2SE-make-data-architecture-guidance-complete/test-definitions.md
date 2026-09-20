@@ -38,7 +38,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED d1ab3fd7b
 - [x] GREEN c56da116a
-- [ ] REFACTOR
+- [x] REFACTOR skip: ownership uses the shared exact-set corpus path and adds no ownership-specific implementation branch to simplify
 
 ### Scenario: Duplicating a contract as authority across artifacts fails review
 
