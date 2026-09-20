@@ -458,6 +458,15 @@ describe('data architecture guide evaluation', () => {
           '[multi-tenant-relational-event-store] Evaluation record does not match the checked-in recording contract.',
       },
       {
+        name: 'different response format',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          responseFormat: 'freeform-text',
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation record does not match the checked-in recording contract.',
+      },
+      {
         name: 'response fails its rubric',
         corpus: replaceRelationalRecord({
           ...relationalRecord,
@@ -497,6 +506,47 @@ describe('data architecture guide evaluation', () => {
         }),
         diagnostic:
           '[multi-tenant-relational-event-store] Evaluation response contains forbidden decision decision.relational.cross-tenant-parent-binding.',
+      },
+      {
+        name: 'response is missing an expected proof fact',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          response: {
+            ...relationalRecord.response,
+            proofFactIds: relationalRecord.response.proofFactIds.filter(
+              id => id !== 'proof.migration.deployed-mixed-version',
+            ),
+          },
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation response is missing expected proof fact proof.migration.deployed-mixed-version.',
+      },
+      {
+        name: 'response contains an unknown proof fact',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          response: {
+            ...relationalRecord.response,
+            proofFactIds: [...relationalRecord.response.proofFactIds, 'proof.relational.unknown'],
+          },
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation response contains unknown proof fact proof.relational.unknown.',
+      },
+      {
+        name: 'response contains a forbidden proof fact',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          response: {
+            ...relationalRecord.response,
+            proofFactIds: [
+              ...relationalRecord.response.proofFactIds,
+              'proof.relational.self-generated-coverage',
+            ],
+          },
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation response contains forbidden proof fact proof.relational.self-generated-coverage.',
       },
     ];
 
