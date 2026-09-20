@@ -1,5 +1,5 @@
 import type { CliResult } from '../cli-protocol/result.js';
-import { evaluateExecutionPrerequisite } from './execution-prerequisite.js';
+import { evaluateExecutionPrerequisite } from '../execution-plan/execution-prerequisite.js';
 
 function prerequisiteData(result: CliResult): Record<string, unknown> {
   return typeof result.data === 'object' && result.data !== null
