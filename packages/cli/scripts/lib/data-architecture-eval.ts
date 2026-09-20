@@ -259,9 +259,26 @@ export function verifyEvaluationCorpus(input: EvaluationCorpusInput): Verificati
 }
 
 export function verifyArtifactOwnership(
-  _claims: readonly ArtifactAuthorityClaim[],
+  claims: readonly ArtifactAuthorityClaim[],
 ): VerificationResult {
-  return { accepted: true, diagnostics: [] };
+  const ownersByContract = new Map<string, Set<string>>();
+  for (const claim of claims) {
+    if (!claim.claimsSourceOfTruth) continue;
+    const owners = ownersByContract.get(claim.contractId) ?? new Set<string>();
+    owners.add(claim.artifactId);
+    ownersByContract.set(claim.contractId, owners);
+  }
+
+  const diagnostics = [...ownersByContract]
+    .toSorted(([left], [right]) => Buffer.compare(Buffer.from(left), Buffer.from(right)))
+    .flatMap(([contractId, owners]) => {
+      const sortedOwners = sortedStrings([...owners]);
+      return sortedOwners.length > 1
+        ? [`[${contractId}] Multiple source-of-truth owners: ${sortedOwners.join(', ')}.`]
+        : [];
+    });
+
+  return { accepted: diagnostics.length === 0, diagnostics };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
