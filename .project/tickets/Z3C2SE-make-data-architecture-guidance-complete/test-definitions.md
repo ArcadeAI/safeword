@@ -96,7 +96,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario Outline: Sensitive-looking evaluation values are refused
 
-- [ ] RED
+- [x] RED 433ac1e29
 - [ ] GREEN
 - [ ] REFACTOR
 
