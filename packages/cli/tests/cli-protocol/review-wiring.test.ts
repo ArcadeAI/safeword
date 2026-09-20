@@ -146,6 +146,18 @@ finding=$(printenv SAFEWORD_REVIEW_FAKE_FINDING || true)
 execution_plan_record=$(printenv SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD || true)
 planning_destination=$(printenv SAFEWORD_REVIEW_FAKE_PLANNING_DESTINATION || true)
 if [ -z "$planning_destination" ]; then planning_destination=plan-execution; fi
+required_contract_signal=''
+case "$finding" in
+  require-contract:*)
+    required_contract_signal=${'$'}{finding#require-contract:}
+    finding=''
+    ;;
+esac
+if [ -n "$required_contract_signal" ] && ! printf '%s' "$payload" | /usr/bin/grep -Fq "$required_contract_signal"; then
+  verdict=request_changes
+  finding="Execution Plan review contract does not distinguish current implementation from target work."
+  execution_plan_record=''
+fi
 if [ -z "$execution_plan_record" ] && printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
   execution_plan_record=null
 fi
@@ -733,6 +745,8 @@ describe('cross-agent review public-command wiring', () => {
       PATH: `${bin}:/usr/bin:/bin`,
       SAFEWORD_AGENT_RUNTIME: 'codex',
       SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: executionPlanRecord,
+      SAFEWORD_REVIEW_FAKE_FINDING:
+        'require-contract:Distinguish current implementation from target work',
       SAFEWORD_REVIEW_LOG: reviewLog,
       SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
       SAFEWORD_NO_UPDATE_CHECK: '1',
