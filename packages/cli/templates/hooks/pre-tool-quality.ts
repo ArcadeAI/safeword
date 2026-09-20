@@ -8,6 +8,7 @@ import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSy
 import nodePath from 'node:path';
 
 import {
+  executionPlanContractProvenance,
   evaluateFeatureTicketReadiness,
   formatFeatureTicketReadiness,
   getTicketInfo,
@@ -1290,23 +1291,42 @@ if (state.activeTicket) {
   // paths (ticket artifacts, impl-plan.md) already exited above. A significant
   // decision may also need to land in the configured durable architecture
   // record before plan review, so that exact project-owned target is allowed.
-  if (ticketInfo.type === 'feature' && ticketInfo.phase === 'plan-implementation') {
+  if (
+    ticketInfo.type === 'feature' &&
+    (ticketInfo.phase === 'plan-implementation' || ticketInfo.phase === 'plan-execution')
+  ) {
     if (isConfiguredArchitectureRecordEdit(editedFile, projectDirectory)) {
       process.exit(0);
     }
-    recordFailure(projectDirectory, input.session_id, 'plan-implementation-code-freeze');
+    recordFailure(projectDirectory, input.session_id, `${ticketInfo.phase}-code-freeze`);
     deny(
-      'Feature at plan-implementation phase: application code stays untouched while planning. Finish impl-plan.md, advance the ticket to implement, then write code.',
-      'Author impl-plan.md next to ticket.md (scaffold from .safeword/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
+      `Feature at ${ticketInfo.phase} phase: application code stays untouched while planning. Finish the current plan, advance the ticket to implement, then write code.`,
+      ticketInfo.phase === 'plan-implementation'
+        ? 'Author impl-plan.md next to ticket.md (scaffold from .safeword/templates/impl-plan-template.md), then advance to plan-execution.'
+        : 'Author and review execution-plan.md next to ticket.md, then set phase: implement to unlock code edits.',
     );
   }
 
+  const executionReviewRecorded =
+    ticketInfo.folder !== undefined &&
+    parseReviewStamps(
+      existsSync(nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log'))
+        ? readFileSync(
+            nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log'),
+            'utf8',
+          )
+        : '',
+    ).some(
+      stamp =>
+        stamp.scope === `${ticketInfo.folder}:phase@plan-execution` &&
+        stamp.skipReason === undefined,
+    );
   if (
     ticketInfo.type === 'feature' &&
     ticketInfo.folder !== undefined &&
     ticketDirectory !== undefined &&
     !isBehaviorDefinitionEdit &&
-    existsSync(nodePath.join(ticketDirectory, 'execution-plan.md'))
+    (executionReviewRecorded || executionPlanContractProvenance(ticketDirectory) !== 'absent')
   ) {
     const authorization = evaluateCodingAuthorization(
       projectDirectory,

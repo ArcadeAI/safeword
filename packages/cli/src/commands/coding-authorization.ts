@@ -8,13 +8,27 @@ export function evaluateCodingAuthorization(cwd: string, ticketId: string): CliR
     includeAssurance: true,
     includeAuthorizationIdentity: true,
   });
-  const authorized = prerequisite.state === 'healthy';
   const prerequisiteData =
     typeof prerequisite.data === 'object' && prerequisite.data !== null
       ? (prerequisite.data as Record<string, unknown>)
       : {};
+  const authorized =
+    prerequisite.state === 'healthy' && prerequisiteData.prerequisite_status === 'satisfied';
+  const notApplicable =
+    prerequisite.state === 'healthy' && prerequisiteData.prerequisite_status === 'not_applicable';
   return {
     ...prerequisite,
+    ...(notApplicable && {
+      state: 'action_required',
+      findings: [
+        ...prerequisite.findings,
+        {
+          code: 'coding_authorization_not_applicable',
+          message: `Ticket ${ticketId} is not an applicable feature ticket for coding authorization.`,
+          severity: 'warning' as const,
+        },
+      ],
+    }),
     data: {
       command: 'ticket coding-authorization',
       coding_authorization: authorized ? 'authorized' : 'denied',
