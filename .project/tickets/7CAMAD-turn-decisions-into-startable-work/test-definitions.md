@@ -226,7 +226,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED skip: manual — existing sibling-contract behavior verified by code inspection and the focused current, earlier, partial, and missing evidence tests
 - [x] RED skip: manual — receipt packages/cli/tests/integration/delivery-checklist-cli.test.ts covers current, reusable earlier, partial or structural, and missing evidence
 - [x] GREEN a444ccd57
-- [ ] REFACTOR
+- [x] REFACTOR skip: the scenario reuses the existing canonical A639WN taxonomy without adding a second abstraction
 
 ### Scenario: Canonical delivery-contract identity prevents local contract drift
 
