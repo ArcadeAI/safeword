@@ -110,6 +110,6 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario Outline: Shipped guide drift fails delivery verification
 
-- [ ] RED
+- [x] RED 084b82814
 - [ ] GREEN
 - [ ] REFACTOR
