@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type AblationRecord,
+  type ArtifactAuthorityClaim,
   buildColdStartPrompt,
   type EvaluationCase,
   type EvaluationContract,
@@ -12,6 +13,7 @@ import {
   type EvaluationResponse,
   type EvaluationRubric,
   verifyAblationPair,
+  verifyArtifactOwnership,
   verifyEvaluationCorpus,
   verifyEvaluationRecord,
 } from '../scripts/lib/data-architecture-eval.js';
@@ -626,6 +628,28 @@ describe('data architecture guide evaluation', () => {
         diagnostics: [rejected.diagnostic],
       });
     }
+  });
+
+  it('rejects duplicate source-of-truth ownership across artifacts', () => {
+    const claims: ArtifactAuthorityClaim[] = [
+      {
+        artifactId: 'architecture-answer',
+        contractId: 'durable-session-contract',
+        claimsSourceOfTruth: true,
+      },
+      {
+        artifactId: 'generated-representation',
+        contractId: 'durable-session-contract',
+        claimsSourceOfTruth: true,
+      },
+    ];
+
+    expect(verifyArtifactOwnership(claims)).toEqual({
+      accepted: false,
+      diagnostics: [
+        '[durable-session-contract] Multiple source-of-truth owners: architecture-answer, generated-representation.',
+      ],
+    });
   });
 
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {

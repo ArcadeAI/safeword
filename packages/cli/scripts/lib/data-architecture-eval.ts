@@ -57,6 +57,12 @@ export interface EvaluationCorpusInput {
   readonly records: readonly EvaluationRecord[];
 }
 
+export interface ArtifactAuthorityClaim {
+  readonly artifactId: string;
+  readonly contractId: string;
+  readonly claimsSourceOfTruth: boolean;
+}
+
 export interface AblationRecord {
   readonly guideSha256: string;
   readonly caseRubricSha256: string;
@@ -250,6 +256,12 @@ export function verifyEvaluationCorpus(input: EvaluationCorpusInput): Verificati
   }
 
   return { accepted: diagnostics.length === 0, diagnostics };
+}
+
+export function verifyArtifactOwnership(
+  _claims: readonly ArtifactAuthorityClaim[],
+): VerificationResult {
+  return { accepted: true, diagnostics: [] };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
