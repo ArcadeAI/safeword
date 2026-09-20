@@ -232,7 +232,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 231553108
 - [x] GREEN c87435977
-- [ ] REFACTOR
+- [x] REFACTOR skip: the identity projection and packet guard are already the smallest complete boundary
 
 ### Scenario: Partial structural evidence cannot authorize completion
 
