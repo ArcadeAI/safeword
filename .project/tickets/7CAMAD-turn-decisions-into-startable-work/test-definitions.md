@@ -276,4 +276,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario 1731c2959
+- [ ] cross-scenario
