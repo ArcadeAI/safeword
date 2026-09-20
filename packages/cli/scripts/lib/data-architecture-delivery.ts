@@ -59,10 +59,14 @@ function planningReferenceDiagnostic(
   surfaceName: string,
   surface: DeliverySurface,
   expectedTarget: string,
+  crossSurfaceTarget?: string,
 ): string | undefined {
   const source = surface.assets[surface.planningSourcePath];
   if (source === undefined) {
     return `${surfaceName} planning source is missing at ${surface.planningSourcePath}.`;
+  }
+  if (crossSurfaceTarget !== undefined && source.includes(crossSurfaceTarget)) {
+    return `${surfaceName} planning reference crosses surfaces to ${crossSurfaceTarget}.`;
   }
   return occurrenceCount(source, expectedTarget) === 1
     ? undefined
@@ -73,7 +77,14 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
   const diagnostics: string[] = [];
   const { inventory } = input;
   if (!sameStrings(input.actualManagedGuidePaths, inventory.managedGuidePaths)) {
-    diagnostics.push('Managed data architecture guide path inventory does not match.');
+    const missingPaths = inventory.managedGuidePaths.filter(
+      path => !input.actualManagedGuidePaths.includes(path),
+    );
+    diagnostics.push(
+      ...(missingPaths.length > 0
+        ? missingPaths.map(path => `Managed guide is missing at ${path}.`)
+        : ['Managed data architecture guide path inventory does not match.']),
+    );
   }
   if (input.installedGuide !== input.canonicalGuide) {
     diagnostics.push(`Installed guide content differs at ${inventory.installedGuidePath}.`);
@@ -132,10 +143,19 @@ export function verifyDataArchitectureDelivery(
 
   for (const diagnostic of [
     planningReferenceDiagnostic('Claude', input.claude, inventory.claudePlanningTarget),
-    planningReferenceDiagnostic('Codex', input.codex, inventory.projectPlanningTarget),
+    planningReferenceDiagnostic(
+      'Codex',
+      input.codex,
+      inventory.projectPlanningTarget,
+      inventory.claudePlanningTarget,
+    ),
     planningReferenceDiagnostic('Cursor', input.cursor, inventory.projectPlanningTarget),
   ]) {
     if (diagnostic !== undefined) diagnostics.push(diagnostic);
+  }
+
+  if (input.cursor.assets[inventory.installedGuidePath] === undefined) {
+    diagnostics.push(`Planning target is missing at ${inventory.installedGuidePath}.`);
   }
 
   diagnostics.push(...openCodeDeliveryDiagnostics(input));
