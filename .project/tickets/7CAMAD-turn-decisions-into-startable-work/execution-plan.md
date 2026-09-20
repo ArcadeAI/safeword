@@ -116,7 +116,8 @@ remaining target, whole-ticket verification, release, or merge.
   gate, while loss of a durable new-flow prerequisite cannot deactivate it.
 - **Completion signal:** A contracted feature cannot enter or continue coding
   under stale plans, a legacy feature without any M1 marker remains unchanged,
-  and canonical plus generated workflow guidance describes that exact window.
+  one planning-phase skip cannot implicitly skip the other phase, and canonical
+  plus generated workflow guidance describes that exact window.
 - **Relies on an unmerged successor:** no
 
 ### Tasks and tests
@@ -147,12 +148,16 @@ remaining target, whole-ticket verification, release, or merge.
    to the owned `.feature` source while application edits remain frozen. At the
    same real hook boundary, task and patch fixtures must edit application code
    without invoking the feature-only authorization CLI, while a feature fixture
-   must invoke it.
+   must invoke it. Preserve the existing ledger assertion that the named test is
+   recorded RED before production code, then GREEN and REFACTOR under the same
+   passing proof.
 3. GREEN: Update phase evidence, provenance anchors, planning code freeze, and
    the transition gate for `plan-execution`. Make both hook consumers delegate
    to the public authorization entry point. Activate production-edit checks for
    any authenticated phase provenance, admitted Execution Plan review, or
    project-local Execution Plan; never activate from mutable phase text alone.
+   Assert that an explicit `plan-implementation` skip does not implicitly skip
+   `plan-execution`; each omitted phase requires its own `phase_skips` reason.
 4. GREEN: Update the canonical BDD skill, `PLAN_EXECUTION.md`, Safeword
    handbook, prompt/resume/stop guidance, and the accepted planning-gates
    architecture record. State clearly that the public command has no legacy
@@ -239,7 +244,8 @@ remaining target, whole-ticket verification, release, or merge.
    partial-proof rejection; measurement work that separately omits
    instrumentation, omits evidence collection, changes the target, changes the
    measurement origin, weakens an accepted validity safeguard, or redefines
-   accepted failure behavior; every downstream-authority
+   accepted failure behavior, plus the positive partition with owned
+   instrumentation, tests, evidence collection, and a completion signal; every downstream-authority
    rejection. Regenerate the real reviewer admission matrix whenever the
    canonical contract digest changes and reject admission generated from
    superseded contract bytes. Preserve the retained
@@ -295,6 +301,7 @@ remaining target, whole-ticket verification, release, or merge.
 | M1 migration window and monotonic new-flow markers | PR 1, PR 2 |
 | Rollback of persisted `plan-execution` tickets | PR 3 |
 | Canonical workflow and architecture documentation | PR 2 |
+| Explicit per-phase skip compatibility | PR 2 |
 
 ## Deferred scope ownership
 
@@ -303,7 +310,9 @@ remaining target, whole-ticket verification, release, or merge.
 - 5F5ZZA owns review transport, achieved-independence provenance, and fallback
   policy.
 - 6XW8H7 owns the canonical Execution Planning semantic/slicing contract and
-  reviewer admission.
+  reviewer admission; this child only applies its accepted contract to the
+  phase guide and regenerated integration artifacts named in the Implementation
+  Plan.
 - A639WN owns Delivery Checklist parsing, proof currency, and
   `delivery-compatibility:v1`.
 - K3EBHB owns progressive plain-language recovery and must complete before the
@@ -320,6 +329,7 @@ remaining target, whole-ticket verification, release, or merge.
 - Keep semantic and structural responsibilities separate: unchanged
 - Reuse content-bound review identity for dependency-directed replanning: unchanged
 - Preserve TDD as a separate implementation contract: unchanged
+- Require explicit skips for each planning phase: unchanged
 - Preserve one real behavior obligation without manufacturing optional work: unchanged
 - Surface planning repair before executable RED: unchanged
 - Activate M1 enforcement without a provenance bypass: unchanged
