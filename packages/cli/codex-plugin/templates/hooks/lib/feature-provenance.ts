@@ -214,7 +214,7 @@ export function executionPlanContractProvenance(
   if (existsSync(executionPlanPath)) return 'activated';
 
   const repository = repositoryState(ticketDirectory);
-  if (repository === 'unavailable' || repository === 'absent') return 'unavailable';
+  if (repository !== 'repository') return repository;
   const prefix = git(ticketDirectory, ['rev-parse', '--show-prefix']);
   if (prefix.error !== undefined || prefix.status !== 0) return 'unavailable';
   const activated = historicalExecutionPlanContractWasActivated(
