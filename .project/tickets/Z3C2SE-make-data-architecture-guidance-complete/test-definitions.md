@@ -37,7 +37,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 ### Scenario: The artifact-ownership case assigns each decision to one owner
 
 - [x] RED d1ab3fd7b
-- [ ] GREEN
+- [x] GREEN c56da116a
 - [ ] REFACTOR
 
 ### Scenario: Duplicating a contract as authority across artifacts fails review
