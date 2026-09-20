@@ -31822,7 +31822,7 @@ var init_markdown_sections = __esm(() => {
 });
 
 // src/execution-plan/delivery-checklist.ts
-import { randomUUID as randomUUID8 } from "crypto";
+import { createHash as createHash17, randomUUID as randomUUID8 } from "crypto";
 import {
   closeSync as closeSync4,
   constants as constants2,
@@ -31832,6 +31832,23 @@ import {
   unlinkSync as unlinkSync4,
   writeFileSync as writeFileSync11
 } from "fs";
+function hasCanonicalDeliveryContractIdentity() {
+  const contract = {
+    schemaVersion: 1,
+    marker: MARKER,
+    checklistHeaders: HEADERS,
+    proofHeaders: PROOF_HEADERS,
+    categories: DELIVERY_CHECKLIST_CATEGORIES,
+    owners: [...OWNERS],
+    dispositions: [...DISPOSITIONS],
+    evidenceClasses: [...EVIDENCE_CLASSES],
+    proofMethods: [...PROOF_METHODS],
+    proofScopes: [...PROOF_SCOPES],
+    proofQualifications: [...PROOF_QUALIFICATIONS],
+    proofCurrencies: [...PROOF_CURRENCIES]
+  };
+  return createHash17("sha256").update(JSON.stringify(contract)).digest("hex") === CANONICAL_DELIVERY_CONTRACT_SHA256;
+}
 function invalid(code, message) {
   return { ok: false, code, message };
 }
@@ -32383,7 +32400,7 @@ function updateDeliveryChecklistFile(input) {
     return updated;
   return replaceExactPlanSnapshot(input, updated.content);
 }
-var DELIVERY_CHECKLIST_CATEGORIES, MARKER = "<!-- safeword:delivery-checklist:v1 -->", HEADERS, PROOF_HEADERS, OWNERS, DISPOSITIONS, EVIDENCE_CLASSES, PROOF_METHODS, PROOF_SCOPES, PROOF_QUALIFICATIONS, PROOF_CURRENCIES, JSON_NULL;
+var DELIVERY_CHECKLIST_CATEGORIES, MARKER = "<!-- safeword:delivery-checklist:v1 -->", HEADERS, PROOF_HEADERS, OWNERS, DISPOSITIONS, EVIDENCE_CLASSES, PROOF_METHODS, PROOF_SCOPES, PROOF_QUALIFICATIONS, PROOF_CURRENCIES, CANONICAL_DELIVERY_CONTRACT_SHA256 = "addccd21a80dae922f2161a85079fac2f0169bdde14302a2680448019c760e18", JSON_NULL;
 var init_delivery_checklist = __esm(() => {
   init_review_identity();
   DELIVERY_CHECKLIST_CATEGORIES = [
@@ -32476,13 +32493,25 @@ from outside those sources.
   understood and proven independently. Many mechanical edits with one outcome
   may be one slice; a few edits with two independently valuable outcomes may
   require two. Numeric size signals may prompt inspection but never decide it.
-- **Obligation and decision preservation:** Require at least one obligation-owner
-  entry and cover every accepted behavior, migration, rollout, rollback,
-  documentation, and affected-surface obligation with existing slice names.
-  Require at least one decision-status entry and account for every Recorded
-  Decision, or the explicit no-load-bearing-choice applicability decision, with
-  the readable status \`unchanged\`. Reject an omitted obligation, an unowned
-  slice, or any reopened decision.
+- **Obligation and decision preservation:** Require at least one accepted
+  behavior obligation and owner. Cover every applicable accepted behavior,
+  decision-derived implementation, proof-strategy implementation, migration,
+  rollout, rollback, documentation, and affected-surface obligation with
+  existing slice names, dependency order, and a completion signal. Optional
+  categories explicitly recorded as inapplicable by the accepted Implementation
+  Plan do not require placeholder owners or tasks; never treat that as permission
+  to omit the feature's accepted behavior. Require at least one decision-status
+  entry and account for every Recorded Decision, or the explicit
+  no-load-bearing-choice applicability decision, with the readable status
+  \`unchanged\`. Reject an omitted or partially mapped applicable obligation, an
+  unowned slice, or any reopened decision.
+- **Measurement execution:** When the accepted plans define a quantitative
+  contract, require owned, dependency-ordered instrumentation, tests, evidence
+  collection, and a concrete completion signal. Preserve the accepted outcome,
+  population, target, measurement origin, method, validity safeguards, and
+  failure behavior exactly. Missing execution mechanics return to
+  \`plan-execution\`; changing any accepted measurement term returns to
+  \`plan-implementation\`, even when restoring the accepted value would be easy.
 - **Discovery routing:** Classify every requested change by what it alters. A
   fixture implementation, test command, file location, sequencing detail, or
   other execution mechanic remains in \`plan-execution\` when all accepted
@@ -32504,6 +32533,14 @@ from outside those sources.
   and whether its currency policy is defensible. Every contributor Required
   proof must resolve to a unique proof classified \`real_boundary\`; partial or
   structural support cannot satisfy completion.
+- **Current-to-target truthfulness:** Require every obligation to distinguish
+  current implementation from target work. Absent implementation is target work
+  with missing proof. Only matching implementation with current-revision,
+  real-boundary proof may be recorded as implemented and proven. Reusable
+  earlier-revision proof remains open for current proof. Keep a known defect
+  separate from its target correction, and completed contributor work separate
+  from pending human authority. Never call stale proof, a known defect, or
+  pending human authority complete.
 - **Checklist completeness and applicability:** Require the versioned checklist,
   unique stable IDs, every default category, honest owners and dispositions,
   and concrete reviewed reasons or dependencies. Treat the packet's
@@ -32528,7 +32565,7 @@ slice's \`relies_on_unmerged_successor\` to \`false\` and every decision status 
 coverage booleans to true only after judging the supplied scenarios and
 approach. For a denial, return the record as null and name each blocking slice,
 field, obligation, dependency, proof, or decision in findings. Never approve
-because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "16dd96cada2b059a83bc55f248b6faf51f36addafe6378bc39940d5767b69646";
+because the prose merely contains the expected labels.`, EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = "14bc17090fbbe44a996c543e1593d3a1af0dd89f4c2cf5baac635863304e426b";
 
 // src/review/execution-plan-rubric.ts
 function extractExecutionPlanReviewRubric(reference) {
@@ -32719,7 +32756,7 @@ __export(exports_packet, {
   assemblePlanContract: () => assemblePlanContract,
   ReviewPacketError: () => ReviewPacketError
 });
-import { createHash as createHash17, randomUUID as randomUUID9 } from "crypto";
+import { createHash as createHash18, randomUUID as randomUUID9 } from "crypto";
 import {
   closeSync as closeSync5,
   constants as constants3,
@@ -32783,6 +32820,9 @@ function designApprovalGate(root) {
 function retainedDeliveryDefinition(kind, logicalFiles, root) {
   if (kind !== "plan-execution")
     return;
+  if (!hasCanonicalDeliveryContractIdentity()) {
+    throw new ReviewPacketError("Plan-execution review refused: installed package differs from the canonical delivery-contract identity.");
+  }
   const plan = logicalFiles[0];
   if (plan === undefined)
     return;
@@ -32822,7 +32862,7 @@ function checkedExecutionAttestation(kind, execution) {
   return execution.attestation;
 }
 function digest2(content) {
-  return createHash17("sha256").update(content).digest("hex");
+  return createHash18("sha256").update(content).digest("hex");
 }
 function planObligations(contract) {
   return Array.from(contract.matchAll(/^- \*\*([^*]+):\*\*/gmu), (match) => match[1]?.trim() ?? "");
@@ -33725,7 +33765,7 @@ var init_review_rubric = () => {};
 
 // src/review/runtime.ts
 import { spawn } from "child_process";
-import { createHash as createHash18 } from "crypto";
+import { createHash as createHash19 } from "crypto";
 import {
   accessSync as accessSync2,
   chmodSync as chmodSync3,
@@ -33991,7 +34031,7 @@ function digestOpenFile(fd) {
   if (!fstatSync3(fd).isFile())
     return;
   const bytes = readFileSync32(fd);
-  return { bytes, digest: createHash18("sha256").update(bytes).digest("hex") };
+  return { bytes, digest: createHash19("sha256").update(bytes).digest("hex") };
 }
 function cachedCopyMatchesDigest(copyPath, expectedDigest) {
   let cachedFd;
@@ -34869,7 +34909,7 @@ __export(exports_job, {
   cancelReviewJob: () => cancelReviewJob
 });
 import { spawn as spawn2, spawnSync as spawnSync5 } from "child_process";
-import { createHash as createHash19, createHmac, randomBytes, randomUUID as randomUUID10, timingSafeEqual } from "crypto";
+import { createHash as createHash20, createHmac, randomBytes, randomUUID as randomUUID10, timingSafeEqual } from "crypto";
 import {
   closeSync as closeSync7,
   existsSync as existsSync17,
@@ -34975,7 +35015,7 @@ function fingerprint(cwd, kind, targets, context = [], execution) {
     allowMissingExecutableRedAttestation: true
   });
   try {
-    const hash = createHash19("sha256");
+    const hash = createHash20("sha256");
     hash.update(`kind\x00${kind}\x00`);
     if (execution !== undefined)
       hash.update(`execution\x00${JSON.stringify(execution)}\x00`);
@@ -36079,9 +36119,9 @@ var init_parse_annotation = __esm(() => {
 });
 
 // templates/hooks/lib/review-ledger.ts
-import { createHash as createHash20 } from "crypto";
+import { createHash as createHash21 } from "crypto";
 function hashArtifact(content) {
-  return createHash20("sha1").update(content).digest("hex").slice(0, 12);
+  return createHash21("sha1").update(content).digest("hex").slice(0, 12);
 }
 function reviewScope(ticketId, artifact, contentHash) {
   return `${ticketId}:${artifact}@${contentHash}`;
@@ -36279,7 +36319,7 @@ __export(exports_red_execution, {
   executeNoShellCommand: () => executeNoShellCommand
 });
 import { spawn as spawn3, spawnSync as spawnSync6 } from "child_process";
-import { createHash as createHash21 } from "crypto";
+import { createHash as createHash22 } from "crypto";
 import { realpathSync as realpathSync10 } from "fs";
 import nodePath49 from "path";
 function terminateProofTree(child) {
@@ -36313,7 +36353,7 @@ function proofEnvironment() {
 }
 function environmentIdentity(environment) {
   const entries = Object.entries(environment).toSorted(([left], [right]) => left.localeCompare(right));
-  const sha2564 = createHash21("sha256").update(JSON.stringify(entries)).digest("hex");
+  const sha2564 = createHash22("sha256").update(JSON.stringify(entries)).digest("hex");
   return {
     sha256: sha2564,
     variable_count: entries.length,
@@ -36326,7 +36366,7 @@ function environmentIdentity(environment) {
 
 class StreamEvidence {
   expected;
-  #hash = createHash21("sha256");
+  #hash = createHash22("sha256");
   #chunks = [];
   #retained = 0;
   #bytes = 0;
@@ -36479,8 +36519,8 @@ var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
-    contract_sha256: "9e610bcff0602065581bac5166b26a3ab75f5d6662617417792b78b6d2244ff1",
-    corpus_sha256: "d39150e31632dadbbca83dd9eee2f947c5f1cc3a3cb84a46134b527a20c9740a",
+    contract_sha256: "f6ed238d92e2b929d6c07b51ffd9b92447f7dba7e7c6875759573adab931f024",
+    corpus_sha256: "833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309",
     identities: [
       {
         reviewer: "claude",
@@ -36511,11 +36551,28 @@ var init_execution_plan_admission_generated = __esm(() => {
           "invented-data-ownership",
           "accepted-data-ownership",
           "missing-behavior-obligation",
+          "missing-decision-obligation",
+          "missing-proof-strategy-obligation",
           "missing-migration-obligation",
           "missing-rollout-obligation",
           "missing-rollback-obligation",
           "missing-documentation-obligation",
           "missing-affected-surface-obligation",
+          "migration-missing-completion-signal",
+          "migration-missing-dependency-order",
+          "explicitly-inapplicable-obligations",
+          "absent-work-is-not-complete",
+          "current-proof-supports-completion",
+          "earlier-proof-remains-open",
+          "known-defect-is-not-complete",
+          "pending-human-authority-is-not-complete",
+          "complete-measurement-execution",
+          "missing-measurement-instrumentation",
+          "missing-measurement-evidence-collection",
+          "changed-measurement-target",
+          "changed-measurement-origin",
+          "weakened-measurement-safeguard",
+          "changed-measurement-failure-behavior",
           "reopened-authorization-decision",
           "fixture-discovery-stays-in-execution-planning",
           "test-command-discovery-stays-in-execution-planning",
@@ -36539,7 +36596,7 @@ var init_execution_plan_admission_generated = __esm(() => {
 });
 
 // src/review/execution-plan-conformance.ts
-import { createHash as createHash22 } from "crypto";
+import { createHash as createHash23 } from "crypto";
 function stagedOwners(prerequisite, activation) {
   return { "Accepted behavior": activation, "Migration work": prerequisite };
 }
@@ -36565,7 +36622,7 @@ ${tasks.join(`
 `;
 }
 function executionPlan(input) {
-  const owners = OBLIGATIONS.filter((obligation) => obligation !== input.omittedObligation).map((obligation, index) => {
+  const owners = (input.applicableObligations ?? OBLIGATIONS).filter((obligation) => obligation !== input.omittedObligation).map((obligation, index) => {
     const fallbackOwner = index === 0 ? input.slices[0] : input.slices.at(-1);
     const owner = input.obligationOwners?.[obligation] ?? fallbackOwner?.name ?? "Contract";
     return `- ${obligation}: ${owner}`;
@@ -36589,7 +36646,7 @@ ${owners}
 ${input.decisionText ?? DECISIONS.map((decision) => `- ${decision}: unchanged`).join(`
 `)}
 
-${deliveryContract(input.unrelatedChecklist === true, input.unrealProof === true)}
+${deliveryContract(input.unrelatedChecklist === true, input.unrealProof === true, input.inapplicableOptionalWork === true)}
 `;
 }
 function withDecisionAccounting(plan, decisionText) {
@@ -36598,9 +36655,22 @@ function withDecisionAccounting(plan, decisionText) {
     throw new Error("Conformance fixture is missing base decision accounting");
   return `${plan.slice(0, start)}${decisionText}${plan.slice(start + BASE_DECISION_ACCOUNTING.length)}`;
 }
-function deliveryContract(unrelated, unrealProof) {
+function deliveryContract(unrelated, unrealProof, inapplicableOptionalWork) {
+  const inapplicableCategories = new Set([4, 7, 8]);
   const items = DELIVERY_CHECKLIST_CATEGORIES.map((category, index) => {
-    const obligation = unrelated ? "Complete the standard delivery work." : CHECKLIST_OBLIGATIONS[index];
+    if (inapplicableOptionalWork && inapplicableCategories.has(index)) {
+      return `| item-${index + 1} | ${category} | No additional ${category} work. | contributor |  | not_applicable | missing | | The accepted approach explicitly makes this category inapplicable. |`;
+    }
+    const defaultObligation = CHECKLIST_OBLIGATIONS[index];
+    if (defaultObligation === undefined)
+      throw new Error(`Missing obligation ${index + 1}`);
+    let obligation = defaultObligation;
+    if (unrelated)
+      obligation = "Complete the standard delivery work.";
+    else if (inapplicableOptionalWork && index === 5)
+      obligation = "Expose typed failure signals for Accepted behavior.";
+    else if (inapplicableOptionalWork && index === 6)
+      obligation = "Protect the authorization boundary for Accepted behavior.";
     const proof = unrealProof ? "complete-delivery" : CHECKLIST_PROOFS[index];
     return `| item-${index + 1} | ${category} | ${obligation} | contributor | ${proof} | open | missing | | |`;
   }).join(`
@@ -36657,6 +36727,14 @@ function decisionChangingDiscovery(id, scenario, plan, findingTerms) {
     expectation: { ...testCase.expectation, planning_destination: "plan-implementation" }
   };
 }
+function withDeliveryState(plan, state, proofRow) {
+  const updated = proofRow === undefined ? plan : plan.split(OPEN_PROOF_ROW).join(proofRow);
+  return `${updated}
+## Current-to-target state
+
+${state}
+`;
+}
 function concreteProofPlan(step) {
   return executionPlan({
     decision: "one pull request",
@@ -36694,7 +36772,7 @@ function missingObligationCase(id, obligation) {
   }), [obligation]);
 }
 function sha2564(value) {
-  return createHash22("sha256").update(value).digest("hex");
+  return createHash23("sha256").update(value).digest("hex");
 }
 function executionPlanConformanceDigests() {
   return {
@@ -36720,7 +36798,36 @@ function filterExecutionPlanRoutes(kind, routes, evidence = EXECUTION_PLAN_ADMIS
     return [];
   return routes.filter((route) => admittedIdentity(route, evidence.identities));
 }
-var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integrity, failure-signals, security-boundary, rollout-rollback, and documentation-contract", ALL_DELIVERY_PROOFS, IMPLEMENTATION_PLAN, DATA_IMPLEMENTATION_PLAN, PROOF_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, UNCHANGED_DECISIONS_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
+var OBLIGATIONS, DECISIONS, ACTIVATION_PROOFS = "behavior-boundary, plan-integrity, failure-signals, security-boundary, rollout-rollback, and documentation-contract", ALL_DELIVERY_PROOFS, IMPLEMENTATION_PLAN, DATA_IMPLEMENTATION_PLAN, PROOF_IMPLEMENTATION_PLAN, DECISION_OBLIGATION_IMPLEMENTATION_PLAN, PROOF_OBLIGATION_IMPLEMENTATION_PLAN, ORDERED_MIGRATION_IMPLEMENTATION_PLAN, INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN = `# Implementation Plan
+
+## Accepted obligations
+
+- Accepted behavior
+
+## Explicitly inapplicable execution work
+
+- Migration work: not applicable because no persisted representation changes.
+- Rollout work: not applicable because the behavior has no staged activation.
+- Rollback work: not applicable because reverting the single behavior change is sufficient.
+- Documentation work: not applicable because no public or operator contract changes.
+- Affected-surface work: not applicable because no additional consumer surface changes.
+
+## Recorded decisions
+
+- One shared authorization service owns permission checks for every transport.
+- Host-neutral dependency order keeps every intermediate merge supported.
+`, PROOF_ONLY_IMPLEMENTATION_PLAN, MEASUREMENT_IMPLEMENTATION_PLAN, BASE_DECISION_ACCOUNTING, CONTRACT_SLICE, ACTIVATION_SLICE, CHECKLIST_OBLIGATIONS, CHECKLIST_PROOFS, PROOF_SPECIFICATIONS, ONE_PLAN, UNCHANGED_DECISIONS_PLAN, CURRENT_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", CURRENT_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |", EARLIER_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | reusable_earlier_revision | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | receipt:earlier-proof; compatible: accepted boundary is unchanged |", OPEN_PROOF_ROW = "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", OPEN_BEHAVIOR_ROW = "| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | open | missing | | |", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, CURRENT_PROOF_BASE_PLAN, CURRENT_PROOF_PLAN, EARLIER_PROOF_CLAIMED_CURRENT_PLAN, KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, MEASUREMENT_EXECUTION_BLOCK = `
+## Measurement execution
+
+- Owner: Complete delivery.
+- Dependency order: add instrumentation, validate its samples, then collect current-revision evidence.
+- Instrumentation: record the duration at the gateway authorization boundary before response serialization and publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions.
+- Tests: prove the histogram covers production gateway authorization requests, excludes documented synthetic probes, and rejects evidence below 99 percent sample coverage.
+- Evidence collection: query the rolling seven-day window and retain the population, sample coverage, p95 result, target comparison, and source revision.
+- Completion signal: current-revision evidence shows p95 authorization latency at or below 200 milliseconds with at least 99 percent valid sample coverage.
+- Preserved contract: the accepted outcome, population, target, measurement origin, method, validity safeguards, and failure behavior remain unchanged.
+- Failure handling: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
+`, MEASUREMENT_PLAN, MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, MISSING_MEASUREMENT_EVIDENCE_PLAN, CHANGED_MEASUREMENT_TARGET_PLAN, CHANGED_MEASUREMENT_ORIGIN_PLAN, WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, CHANGED_MEASUREMENT_FAILURE_PLAN, DISMISSED_APPLICABLE_WORK_PLAN, APPLICABILITY_IMPLEMENTATION_PLAN, MULTI_PLAN, COMPLETE_RECORD_PLAN, ORDERED_SCHEMA_PLAN, MECHANICAL_MIRRORS_PLAN, FEW_FILES_TWO_OUTCOMES_PLAN, OBLIGATION_PLAN, STARTABLE_PLAN, EXACT_CLI_DENIAL_PROOF_PLAN, MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, MISSING_DENIED_EXIT_ASSERTION_PLAN, LATER_UNSTARTABLE_PLAN, BLOCKED_FIRST_PREREQUISITE_PLAN, NO_EXECUTABLE_STEPS_PLAN, RISK_FIRST_PLAN, PARALLEL_AFTER_PROBE_PLAN, MIGRATION_WITHOUT_COMPLETION_PLAN, MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, INAPPLICABLE_OPTIONAL_WORK_PLAN, EXECUTION_PLAN_CONFORMANCE_CASES;
 var init_execution_plan_conformance = __esm(() => {
   init_delivery_checklist();
   init_execution_plan_admission_generated();
@@ -36760,6 +36867,37 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
 ## Accepted proof strategy
 
 - Edited-plan denial uses the named fixture and command through the installed CLI subprocess and must assert exit code 2.
+`;
+  DECISION_OBLIGATION_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted decision-derived work
+
+- Apply the shared authorization decision to both gateway transports.
+`;
+  PROOF_OBLIGATION_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted proof-strategy work
+
+- Implement the edited-plan denial proof through the installed CLI subprocess.
+`;
+  ORDERED_MIGRATION_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted migration order
+
+- Complete Migration work before activating Accepted behavior.
+`;
+  PROOF_ONLY_IMPLEMENTATION_PLAN = `${INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN}
+## Accepted proof strategy
+
+- Edited-plan denial uses a self-contained fixture and command through the installed CLI subprocess and must assert exit code 2.
+`;
+  MEASUREMENT_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
+## Accepted measurement contract
+
+- Outcome: reduce authorization latency for production gateway requests.
+- Population: all production gateway authorization requests, excluding documented synthetic probes.
+- Target: p95 authorization latency is at most 200 milliseconds over a rolling seven-day window.
+- Measurement origin: record the duration at the gateway authorization boundary before response serialization.
+- Method: publish the \`gateway_authorization_seconds\` histogram with transport and outcome dimensions.
+- Validity safeguards: reject evidence when sample coverage is below 99 percent or synthetic traffic is included.
+- Failure behavior: keep rollout disabled and report the measurement as invalid when a validity safeguard fails.
 `;
   BASE_DECISION_ACCOUNTING = DECISIONS.map((decision) => `- ${decision}: unchanged`).join(`
 `);
@@ -36850,7 +36988,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
   ];
   ONE_PLAN = executionPlan({
     decision: "one pull request",
-    rationale: "Contract, activation, and delivery obligations form one independently provable review capability.",
+    rationale: "The public review result, its compatible persistence, permission check, failure signal, rollout switch, rollback, and documentation are inseparable facets of one command contract; none is independently useful and every proof protects that same response.",
     slices: [
       {
         name: "Complete delivery",
@@ -36860,13 +36998,62 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         proof: ALL_DELIVERY_PROOFS,
         completion: "Every named proof command passes on the merge candidate and every checklist item has completion evidence.",
         tasks: [
-          "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing production code.",
-          "2. GREEN: add the canonical contract, wire typed review and authorization, complete migration and rollback handling, and publish the documented command; then run every proof command named by the slice with exit 0.",
-          "3. REFACTOR: consolidate shared result validation without changing public output, then rerun every named proof command with exit 0."
+          "1. RED: run `bun run test:review-cli -- --fixture approved-plan` through the public CLI and observe exit 2 with `typed review result is unavailable` before editing `src/review/command.ts`.",
+          "2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command; assert exit 0 and the complete typed response.",
+          "3. RED: run `bun run test:schema-compatibility -- --fixture legacy-result` and observe exit 1 with `legacy result cannot be read` before editing `src/review/result-store.ts`.",
+          "4. GREEN: add the backward-compatible legacy-result reader in `src/review/result-store.ts`, rerun the step-3 command, and assert the stored result round-trips without rewriting legacy bytes.",
+          "5. RED: run `bun run test:failure-signals` and `bun run test:authorization-boundary` with the denied-review fixture; observe exit 1 because the public CLI neither names the denial nor rejects the unauthorized actor before editing `src/review/command.ts`.",
+          "6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, return the typed denial identity on reviewer failure, rerun both step-5 commands, and assert the unauthorized call exits 2 without persisting a result.",
+          "7. RED: run `bun run test:rollout-rollback -- --fixture enabled-result` and observe exit 1 because disabling the review command does not restore the prior readable result before editing `src/review/rollout.ts`.",
+          "8. GREEN: add the accepted activation switch and rollback reader in `src/review/rollout.ts`, rerun the step-7 command, and assert both enabled activation and disabled rollback preserve a supported response.",
+          "9. RED: run `bun run test:documentation-contract` and `bun run test:execution-plan-conformance`; observe exit 1 because the public command and complete obligation mapping are absent before editing the command reference and canonical review contract.",
+          "10. GREEN: document the exact public response and add every accepted obligation to the canonical conformance corpus, then rerun both step-9 commands and assert exit 0.",
+          "11. REFACTOR: move the duplicate response validation in `src/review/command.ts` and `src/review/result-store.ts` into `src/review/contract.ts`, then rerun all seven proof commands and assert the public response snapshot is byte-identical."
         ]
       }
     ]
   });
+  UNCHANGED_DECISIONS_PLAN = `${ONE_PLAN}
+## Decision preservation focus
+
+- Verify that the shared authorization service still owns permission checks for every transport.
+- Verify that the dependency order remains host-neutral at every intermediate merge.
+`;
+  ABSENT_WORK_CLAIMED_COMPLETE_PLAN = withDeliveryState(ONE_PLAN, `- Obligation: Prove Accepted behavior at the named boundary.
+- Current implementation: absent.
+- Evidence: missing.
+- Target work: implement the accepted behavior and collect current-revision real-boundary proof.
+- Claimed delivery state: complete.`);
+  CURRENT_PROOF_BASE_PLAN = ONE_PLAN.split(OPEN_BEHAVIOR_ROW).join(CURRENT_BEHAVIOR_ROW).replace("1. RED: run `bun run test:review-cli -- --fixture approved-plan` through the public CLI and observe exit 2 with `typed review result is unavailable` before editing `src/review/command.ts`.", "1. RED: retain the current exit-0 `bun run test:review-cli -- --fixture approved-plan` receipt, then run `bun run test:failure-signals` with the denied-review fixture and observe exit 1 because the denial identity is absent before editing `src/review/command.ts`.").replace("2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command; assert exit 0 and the complete typed response.", "2. GREEN: preserve the accepted typed result while adding the denial identity in `src/review/command.ts`, then rerun both step-1 commands; assert the approved fixture still exits 0 and the denied fixture exposes the typed denial.").replace("5. RED: run `bun run test:failure-signals` and `bun run test:authorization-boundary` with the denied-review fixture; observe exit 1 because the public CLI neither names the denial nor rejects the unauthorized actor before editing `src/review/command.ts`.", "5. RED: run `bun run test:authorization-boundary` with the denied-review fixture and observe exit 1 because the public CLI does not reject the unauthorized actor before editing `src/review/command.ts`.").replace("6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, return the typed denial identity on reviewer failure, rerun both step-5 commands, and assert the unauthorized call exits 2 without persisting a result.", "6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, rerun the step-5 command, and assert the unauthorized call exits 2 without persisting a result while the typed denial identity from step 2 remains unchanged.");
+  CURRENT_PROOF_PLAN = withDeliveryState(CURRENT_PROOF_BASE_PLAN, `- Obligation: Prove Accepted behavior at the named boundary.
+- Current implementation: matches the accepted design.
+- Evidence: current-revision real-boundary proof.
+- Receipt: the specified command exited 0 on the recorded revision and its receipt is retained.
+- Target work: none.
+- Recorded delivery state: implemented and proven.`, CURRENT_PROOF_ROW);
+  EARLIER_PROOF_CLAIMED_CURRENT_PLAN = withDeliveryState(ONE_PLAN, `- Obligation: Prove Accepted behavior at the named boundary.
+- Current implementation: matches the accepted design.
+- Evidence: reusable earlier-revision proof only.
+- Target work: collect current-revision real-boundary proof.
+- Claimed delivery state: implemented and proven at the current revision.`, EARLIER_PROOF_ROW);
+  KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN = withDeliveryState(ONE_PLAN, `- Obligation: Deliver Accepted behavior.
+- Current implementation: known defect contradicts the accepted design.
+- Evidence: the failing behavior is reproduced at the accepted boundary.
+- Target work: correct the defect and collect current-revision real-boundary proof.
+- Claimed delivery state: complete.`);
+  PENDING_HUMAN_CLAIMED_COMPLETE_PLAN = withDeliveryState(ONE_PLAN.split(OPEN_PROOF_ROW).join(CURRENT_PROOF_ROW).replace("| item-7 | security and privacy | Protect the Affected-surface work boundary. | contributor | security-boundary | open | missing | | |", "| item-7 | security and privacy | Approve the Affected-surface work boundary. | human |  | pending_human | missing | | Security approval by the named reviewer. |"), `- Obligation: Activate the accepted behavior after security approval.
+- Contributor work: complete.
+- Evidence: current-revision real-boundary proof.
+- Human authority: pending security approval.
+- Target work: obtain the named security approval.
+- Claimed delivery state: complete.`);
+  MEASUREMENT_PLAN = `${ONE_PLAN}${MEASUREMENT_EXECUTION_BLOCK}`;
+  MISSING_MEASUREMENT_INSTRUMENTATION_PLAN = MEASUREMENT_PLAN.replace(/^- Instrumentation:.*\n/m, "");
+  MISSING_MEASUREMENT_EVIDENCE_PLAN = MEASUREMENT_PLAN.replace(/^- Evidence collection:.*\n/m, "");
+  CHANGED_MEASUREMENT_TARGET_PLAN = MEASUREMENT_PLAN.replace("at or below 200 milliseconds", "at or below 300 milliseconds");
+  CHANGED_MEASUREMENT_ORIGIN_PLAN = MEASUREMENT_PLAN.replace("at the gateway authorization boundary before response serialization", "in the client after response parsing");
+  WEAKENED_MEASUREMENT_SAFEGUARD_PLAN = MEASUREMENT_PLAN.replace("rejects evidence below 99 percent sample coverage", "accepts evidence at any sample coverage");
+  CHANGED_MEASUREMENT_FAILURE_PLAN = MEASUREMENT_PLAN.replace("keep rollout disabled and report the measurement as invalid when a validity safeguard fails", "continue rollout and treat missing samples as a passing measurement");
   DISMISSED_APPLICABLE_WORK_PLAN = ONE_PLAN.replace("| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |", "| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor |  | not_applicable | missing | | No runtime proof is needed. |").replace("| item-11 | completion evidence | Retain concrete completion evidence for all accepted obligations. | contributor | plan-integrity | open | missing | | |", `| item-11 | completion evidence | Retain concrete completion evidence for all accepted obligations. | contributor | plan-integrity | open | missing | | |
 | item-12 | testing | Exercise an unrelated smoke check. | contributor | behavior-boundary | open | missing | | |`);
   APPLICABILITY_IMPLEMENTATION_PLAN = `${IMPLEMENTATION_PLAN}
@@ -36998,25 +37185,6 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     ],
     obligationOwners: stagedOwners("Contract owner", "Release owner")
   });
-  UNCHANGED_DECISIONS_PLAN = executionPlan({
-    decision: "one pull request",
-    rationale: "One cohesive activation preserves both accepted decisions and proves every delivery obligation independently.",
-    slices: [
-      {
-        ...ACTIVATION_SLICE,
-        name: "Decision-preserving activation",
-        prerequisites: "none",
-        boundary: "Contract compatibility, review activation, shared authorization, host-neutral ordering, failure signals, rollout, rollback, and documentation.",
-        proof: ALL_DELIVERY_PROOFS,
-        tasks: [
-          "1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing production code.",
-          "2. GREEN: register review routing, migrate the stored result schema compatibly, connect the shared authorization service, add failure signals, wire feature-flag rollout and rollback, and publish the command documentation.",
-          "3. GREEN: run `bun run test:schema-compatibility`, `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.",
-          "4. REFACTOR: keep one typed result and authorization path, then rerun all seven proof commands with exit 0."
-        ]
-      }
-    ]
-  });
   STARTABLE_PLAN = executionPlan({
     decision: "one pull request",
     rationale: "One authorization denial is one independently provable behavior.",
@@ -37029,14 +37197,36 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
         proof: "behavior-boundary",
         completion: "The denied request returns the accepted error.",
         tasks: [
-          "1. RED: run `bun run test tests/auth.test.ts -t denied-request` and observe exit 1 before editing `src/auth.ts`.",
-          "2. GREEN: implement the accepted denial in `src/auth.ts`.",
-          "3. REFACTOR: keep the authorization boundary in one owner."
+          "1. RED: add the denied-request fixture, run `bun run test tests/auth.test.ts -t denied-request`, `bun run test:failure-signals`, and `bun run test:authorization-boundary` through the public authorization response, and observe exit 1 before editing `src/auth.ts`.",
+          "2. GREEN: implement the accepted denial in `src/auth.ts`, rerun all three step-1 commands, and assert exit 0 with the typed denial and no unauthorized side effect.",
+          "3. REFACTOR: move the duplicate denial check from `src/auth.ts` and `src/cli.ts` into the shared authorizer, then run `bun run test:review-cli` and assert the public response is unchanged."
         ]
       }
-    ]
+    ],
+    applicableObligations: ["Accepted behavior"],
+    inapplicableOptionalWork: true
   });
-  EXACT_CLI_DENIAL_PROOF_PLAN = concreteProofPlan("using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert exit code 2 before editing production code.");
+  EXACT_CLI_DENIAL_PROOF_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "One edited-plan denial is one independently provable behavior.",
+    slices: [
+      {
+        name: "Edited-plan denial proof",
+        purpose: "Prove the accepted edited-plan denial.",
+        boundary: "Installed CLI subprocess response.",
+        prerequisites: "none",
+        proof: "behavior-boundary, failure-signals, security-boundary, and plan-integrity",
+        completion: "The focused test runner exits 0 after asserting that the installed CLI exits 2 for the edited-plan fixture; the full behavior, failure, security, and plan-integrity proofs pass.",
+        tasks: [
+          "1. RED: create `tests/fixtures/edited-plan` with an approved plan, edit its recorded content, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` through the installed CLI subprocess, and observe the test runner fail because the CLI does not yet exit 2 before editing production code.",
+          "2. GREEN: implement the accepted edited-plan denial in `src/review/command.ts`, rerun the step-1 command, and assert test-runner exit 0 plus installed-CLI exit 2; then run `bun run test:failure-signals`, `bun run test:authorization-boundary`, and `bun run test:execution-plan-conformance` with exit 0.",
+          "3. REFACTOR: move duplicate plan-currentness validation from `src/review/command.ts` into `src/review/contract.ts`, rerun all four named proof commands, and assert the installed-CLI denial response is unchanged."
+        ]
+      }
+    ],
+    applicableObligations: ["Accepted behavior"],
+    inapplicableOptionalWork: true
+  });
   MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN = concreteProofPlan("using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the TBD CLI boundary and assert exit code 2 before editing production code.");
   MISSING_DENIED_EXIT_ASSERTION_PLAN = concreteProofPlan("using fixture `tests/fixtures/edited-plan` from prerequisite step 1, run `bun run test tests/cli-protocol/phase-gates.test.ts -t edited-plan` after the plan edit through the installed CLI subprocess and assert the TBD denied-exit result before editing production code.");
   LATER_UNSTARTABLE_PLAN = executionPlan({
@@ -37151,6 +37341,52 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       "Affected-surface work": "CLI consumer"
     }
   });
+  MIGRATION_WITHOUT_COMPLETION_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "The migration and behavior activation form one coherent delivery change.",
+    slices: [
+      {
+        ...ACTIVATION_SLICE,
+        name: "Behavior delivery",
+        proof: ALL_DELIVERY_PROOFS,
+        completion: "Accepted behavior passes at the public boundary."
+      }
+    ]
+  });
+  MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN = executionPlan({
+    decision: "multiple pull requests",
+    rationale: "Migration and activation are independently reviewable changes.",
+    slices: [
+      { ...CONTRACT_SLICE, name: "Migration", purpose: "Complete the accepted migration." },
+      {
+        ...ACTIVATION_SLICE,
+        name: "Behavior activation",
+        prerequisites: "none"
+      }
+    ],
+    obligationOwners: stagedOwners("Migration", "Behavior activation")
+  });
+  INAPPLICABLE_OPTIONAL_WORK_PLAN = executionPlan({
+    decision: "one pull request",
+    rationale: "One accepted behavior is one independently provable change.",
+    slices: [
+      {
+        ...ACTIVATION_SLICE,
+        name: "Behavior delivery",
+        prerequisites: "none",
+        boundary: "The accepted behavior only; no migration, rollout, rollback, documentation, or additional surface work.",
+        proof: "behavior-boundary",
+        completion: "Accepted behavior passes at its public boundary.",
+        tasks: [
+          "1. RED: add the denied-review fixture, run `bun run test:review-cli`, `bun run test:failure-signals`, and `bun run test:authorization-boundary` through the public review boundary, and observe exit 1 before editing `src/review/command.ts`.",
+          "2. GREEN: implement Accepted behavior in `src/review/command.ts`, rerun all three step-1 commands, and assert exit 0 with the typed denial and no unauthorized side effect.",
+          "3. REFACTOR: move duplicate denial validation into `src/review/contract.ts`, then rerun the three behavior commands plus `bun run test:execution-plan-conformance` and assert the public response is unchanged."
+        ]
+      }
+    ],
+    applicableObligations: ["Accepted behavior"],
+    inapplicableOptionalWork: true
+  });
   EXECUTION_PLAN_CONFORMANCE_CASES = [
     approved("one-coherent-change", "One coherent change records one pull request.", ONE_PLAN, "one_pull_request", ["Complete delivery"]),
     approved("several-ordered-changes", "Several independent changes record ordered pull requests.", MULTI_PLAN, "multiple_pull_requests", ["Contract", "Activation"]),
@@ -37227,7 +37463,7 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       slices: [CONTRACT_SLICE]
     }), ["conceptual", "proof"]),
     approved("all-obligations-assigned", "Every accepted obligation has an owner.", OBLIGATION_PLAN, "multiple_pull_requests", ["Contract owner", "Release owner"]),
-    approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", UNCHANGED_DECISIONS_PLAN, "one_pull_request", ["Decision-preserving activation"]),
+    approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", UNCHANGED_DECISIONS_PLAN, "one_pull_request", ["Complete delivery"]),
     {
       ...denied("vague-data-ownership", "A vague store reference is denied and reported as an unnamed accepted data decision.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
 - Host-neutral dependency order keeps every intermediate merge supported: unchanged
@@ -37260,11 +37496,80 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
       }
     },
     missingObligationCase("missing-behavior-obligation", "Accepted behavior"),
+    {
+      ...denied("missing-decision-obligation", "Accepted decision-derived work has no owning slice.", executionPlan({
+        decision: "one pull request",
+        rationale: "The contribution claims to preserve the accepted approach.",
+        slices: [CONTRACT_SLICE]
+      }), ["decision-derived work"]),
+      implementation_plan: DECISION_OBLIGATION_IMPLEMENTATION_PLAN
+    },
+    {
+      ...denied("missing-proof-strategy-obligation", "Accepted proof-strategy work has no owning slice.", executionPlan({
+        decision: "one pull request",
+        rationale: "The contribution claims to preserve the accepted proof boundary.",
+        slices: [CONTRACT_SLICE]
+      }), ["proof-strategy work"]),
+      implementation_plan: PROOF_OBLIGATION_IMPLEMENTATION_PLAN
+    },
     missingObligationCase("missing-migration-obligation", "Migration work"),
     missingObligationCase("missing-rollout-obligation", "Rollout work"),
     missingObligationCase("missing-rollback-obligation", "Rollback work"),
     missingObligationCase("missing-documentation-obligation", "Documentation work"),
     missingObligationCase("missing-affected-surface-obligation", "Affected-surface work"),
+    {
+      ...denied("migration-missing-completion-signal", "Owned migration work without a migration completion signal is incomplete.", MIGRATION_WITHOUT_COMPLETION_PLAN, ["migration", "completion signal"]),
+      implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN
+    },
+    {
+      ...denied("migration-missing-dependency-order", "Owned migration work without its accepted dependency order is incomplete.", MIGRATION_WITHOUT_DEPENDENCY_ORDER_PLAN, ["migration", "dependency order"]),
+      implementation_plan: ORDERED_MIGRATION_IMPLEMENTATION_PLAN
+    },
+    {
+      ...approved("explicitly-inapplicable-obligations", "One accepted behavior remains owned without manufacturing explicitly inapplicable optional work.", INAPPLICABLE_OPTIONAL_WORK_PLAN, "one_pull_request", ["Behavior delivery"]),
+      implementation_plan: INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN,
+      expectation: {
+        verdict: "approve",
+        planning_destination: "plan-execution",
+        slicing_decision: "one_pull_request",
+        slice_names: ["Behavior delivery"],
+        obligations: ["Accepted behavior"],
+        decisions: DECISIONS
+      }
+    },
+    denied("absent-work-is-not-complete", "Absent implementation remains target work and cannot be called complete.", ABSENT_WORK_CLAIMED_COMPLETE_PLAN, ["absent", "complete"]),
+    approved("current-proof-supports-completion", "Matching implementation with current-revision real-boundary proof may be recorded as implemented and proven.", CURRENT_PROOF_PLAN, "one_pull_request", ["Complete delivery"]),
+    denied("earlier-proof-remains-open", "Reusable earlier-revision proof remains open until current proof is collected.", EARLIER_PROOF_CLAIMED_CURRENT_PLAN, ["earlier", "open"]),
+    denied("known-defect-is-not-complete", "A known defect remains separate target correction work and cannot be called complete.", KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN, ["defect", "complete"]),
+    denied("pending-human-authority-is-not-complete", "Completed contributor work remains incomplete while required human authority is pending.", PENDING_HUMAN_CLAIMED_COMPLETE_PLAN, ["human", "pending"]),
+    {
+      ...approved("complete-measurement-execution", "Accepted measurement decisions map to owned instrumentation, tests, evidence collection, and a completion signal.", MEASUREMENT_PLAN, "one_pull_request", ["Complete delivery"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...denied("missing-measurement-instrumentation", "Accepted measurement execution without the instrumentation work is denied.", MISSING_MEASUREMENT_INSTRUMENTATION_PLAN, ["instrumentation"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...denied("missing-measurement-evidence-collection", "Accepted measurement execution without evidence collection is denied.", MISSING_MEASUREMENT_EVIDENCE_PLAN, ["evidence", "collection"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...decisionChangingDiscovery("changed-measurement-target", "Execution Planning cannot change the accepted Product-owned measurement target.", CHANGED_MEASUREMENT_TARGET_PLAN, ["target", "200"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...decisionChangingDiscovery("changed-measurement-origin", "Execution Planning cannot change the accepted measurement origin.", CHANGED_MEASUREMENT_ORIGIN_PLAN, ["measurement origin", "gateway"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...decisionChangingDiscovery("weakened-measurement-safeguard", "Execution Planning cannot weaken an accepted measurement validity safeguard.", WEAKENED_MEASUREMENT_SAFEGUARD_PLAN, ["validity", "99"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
+    {
+      ...decisionChangingDiscovery("changed-measurement-failure-behavior", "Execution Planning cannot redefine accepted measurement failure behavior.", CHANGED_MEASUREMENT_FAILURE_PLAN, ["failure", "rollout"]),
+      implementation_plan: MEASUREMENT_IMPLEMENTATION_PLAN
+    },
     decisionChangingDiscovery("reopened-authorization-decision", "A slice cannot move the accepted shared authorization boundary.", executionPlan({
       decision: "one pull request",
       rationale: "The slice replaces the accepted authorization design.",
@@ -37302,10 +37607,29 @@ The accepted public CLI proof cannot run; replace it with a parser unit test tha
 
 Move the handler file and replace the accepted public command response with a new API contract.
 `, ["api", "contract"]),
-    approved("fresh-context-first-red", "A fresh-context agent can begin with the named highest-risk RED without inventing a decision.", STARTABLE_PLAN, "one_pull_request", ["Authorization denial"]),
+    {
+      ...approved("fresh-context-first-red", "A fresh-context agent can begin with the named highest-risk RED without inventing a decision.", STARTABLE_PLAN, "one_pull_request", ["Authorization denial"]),
+      implementation_plan: INAPPLICABLE_OPTIONAL_WORK_IMPLEMENTATION_PLAN,
+      expectation: {
+        verdict: "approve",
+        planning_destination: "plan-execution",
+        slicing_decision: "one_pull_request",
+        slice_names: ["Authorization denial"],
+        obligations: ["Accepted behavior"],
+        decisions: DECISIONS
+      }
+    },
     {
       ...approved("exact-cli-denial-proof", "A complete proof step names its fixture, command, edit action, denied exit assertion, and installed CLI subprocess boundary.", EXACT_CLI_DENIAL_PROOF_PLAN, "one_pull_request", ["Edited-plan denial proof"]),
-      implementation_plan: PROOF_IMPLEMENTATION_PLAN
+      implementation_plan: PROOF_ONLY_IMPLEMENTATION_PLAN,
+      expectation: {
+        verdict: "approve",
+        planning_destination: "plan-execution",
+        slicing_decision: "one_pull_request",
+        slice_names: ["Edited-plan denial proof"],
+        obligations: ["Accepted behavior"],
+        decisions: DECISIONS
+      }
     },
     {
       ...denied("missing-cli-subprocess-boundary", "A proof step with a placeholder actor boundary is denied with the missing subprocess boundary named.", MISSING_CLI_SUBPROCESS_BOUNDARY_PLAN, ["subprocess", "boundary"]),
@@ -37315,7 +37639,7 @@ Move the handler file and replace the accepted public command response with a ne
       ...denied("missing-denied-exit-assertion", "A proof step with a placeholder denied-exit result is denied with the missing exit assertion named.", MISSING_DENIED_EXIT_ASSERTION_PLAN, ["exit", "assertion"]),
       implementation_plan: PROOF_IMPLEMENTATION_PLAN
     },
-    decisionChangingDiscovery("later-step-is-not-startable", "A concrete first RED cannot hide an unresolved behavior decision in the fourth step.", LATER_UNSTARTABLE_PLAN, ["behavior decision", "before implementation"]),
+    decisionChangingDiscovery("later-step-is-not-startable", "A concrete first RED cannot hide an unresolved behavior decision in the fourth step.", LATER_UNSTARTABLE_PLAN, ["behavior", "before implementation"]),
     denied("blocked-first-prerequisite", "The first planned slice depends on an incomplete prerequisite and is not startable.", BLOCKED_FIRST_PREREQUISITE_PLAN, ["prerequisite", "startable"]),
     denied("no-executable-steps", "A plan with no executable task leaves a fresh agent with no startable step.", NO_EXECUTABLE_STEPS_PLAN, ["executable", "step"]),
     approved("risk-first-ordering", "Independent work orders the highest-risk probe before activation.", RISK_FIRST_PLAN, "multiple_pull_requests", ["Risk probe", "Activation"]),
@@ -41726,7 +42050,7 @@ var CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ", ID_LENGTH = 6;
 var init_id_minter = () => {};
 
 // src/utils/product-plan-contract.ts
-import { createHash as createHash23 } from "crypto";
+import { createHash as createHash24 } from "crypto";
 import { existsSync as existsSync28, readdirSync as readdirSync14, readFileSync as readFileSync46 } from "fs";
 import nodePath61 from "path";
 function sectionAfterHeading(content, level, id) {
@@ -41792,7 +42116,7 @@ function canonicalizeContractValue(value) {
 }
 function digestParentContract(values) {
   const canonical = CONTRACT_KEYS.map((key) => [key, canonicalizeContractValue(values[key])]);
-  return createHash23("sha256").update(JSON.stringify(canonical)).digest("hex");
+  return createHash24("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 function resolveTicketDirectory(cwd, ticketId) {
   const root = resolveTicketsDirectory(cwd);
@@ -42974,18 +43298,11 @@ function evaluateAdvance(priorPhase, proposedPhase, proposed) {
   const toIndex = canonicalIndex(proposedPhase);
   if (toIndex <= fromIndex + 1)
     return OK;
-  if (effectivePrior === "plan-implementation" && proposedPhase === "implement")
-    return OK;
-  return requireJustifiedSkips(proposed, migrationCompatibleBypassed(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex)), (missing) => ({
+  return requireJustifiedSkips(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex), (missing) => ({
     ok: false,
     reason: `Phases advance one canonical step at a time \u2014 ${effectivePrior} \u2192 ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(", ")}.`,
     remediation: `Advance one phase at a time (${CANONICAL_SEQUENCE}), or ${SKIPS_SYNTAX}.`
   }));
-}
-function migrationCompatibleBypassed(meta, bypassed) {
-  if (!bypassed.includes("plan-execution"))
-    return bypassed;
-  return parseSkips(meta).justified.has("plan-implementation") ? bypassed.filter((phase) => phase !== "plan-execution") : bypassed;
 }
 function requireJustifiedSkips(meta, bypassed, denialFor) {
   const skips = parseSkips(meta);
@@ -43012,7 +43329,7 @@ function evaluateBirth(meta, context) {
       remediation: "Create the ticket at phase: intake (or another canonical phase justified via phase_skips) and work forward."
     };
   }
-  return requireJustifiedSkips(meta, migrationCompatibleBypassed(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase))), (missing) => {
+  return requireJustifiedSkips(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase)), (missing) => {
     const act = context === "creation" ? "begin life" : "become a feature";
     return {
       ok: false,
@@ -43168,10 +43485,10 @@ var init_phase_provenance = __esm(() => {
       shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0
     },
     implement: {
-      label: "impl-plan.md",
-      example: "<ticket-folder>/impl-plan.md",
-      matches: (relpath) => basenameOf(relpath) === "impl-plan.md",
-      shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0
+      label: "execution-plan.md",
+      example: "<ticket-folder>/execution-plan.md",
+      matches: (relpath) => basenameOf(relpath) === "execution-plan.md",
+      shapeOk: (_relpath, content) => hasSubstance(content)
     },
     verify: {
       label: "test-definitions.md (the R/G/R ledger)",
@@ -44853,7 +45170,7 @@ var init_project_root = __esm(() => {
 });
 
 // src/claude-plugin/plugin-data.ts
-import { createHash as createHash24 } from "crypto";
+import { createHash as createHash25 } from "crypto";
 import { homedir as homedir7 } from "os";
 import nodePath67 from "path";
 function claudeConfigDirectory(environment = process.env) {
@@ -44870,7 +45187,7 @@ function claudePluginDataDirectory(environment = process.env) {
   return nodePath67.join(claudeConfigDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.pluginsRoot, claudePluginDataId());
 }
 function claudeProjectDigest(canonicalProjectRoot) {
-  return createHash24("sha256").update(canonicalProjectRoot).digest("hex");
+  return createHash25("sha256").update(canonicalProjectRoot).digest("hex");
 }
 function claudeProofDirectory(environment = process.env) {
   return nodePath67.join(claudePluginDataDirectory(environment), CLAUDE_MIGRATION_SCHEMA.data.proofs);
@@ -44885,7 +45202,7 @@ var init_plugin_data = __esm(() => {
 });
 
 // src/claude-plugin/migration-state.ts
-import { createHash as createHash25, randomUUID as randomUUID11 } from "crypto";
+import { createHash as createHash26, randomUUID as randomUUID11 } from "crypto";
 import { cpSync, existsSync as existsSync32, mkdirSync as mkdirSync16, readFileSync as readFileSync50, renameSync as renameSync11, rmSync as rmSync9 } from "fs";
 import nodePath68 from "path";
 function createClaudePluginMode(marker) {
@@ -44896,7 +45213,7 @@ function createClaudePluginMode(marker) {
   };
 }
 function digest3(value) {
-  return createHash25("sha256").update(value).digest("hex");
+  return createHash26("sha256").update(value).digest("hex");
 }
 function relocateLegacyState(from, to, rename2 = renameSync11, copy = (source, destination) => {
   cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
@@ -44983,7 +45300,7 @@ function claudeWatchedSettingsDigest(cwd) {
     nodePath68.join(cwd, ".claude/settings.json"),
     nodePath68.join(configDirectory, "settings.json")
   ];
-  const hash = createHash25("sha256");
+  const hash = createHash26("sha256");
   for (const path7 of paths) {
     hash.update(path7);
     hash.update("\x00");
@@ -46864,9 +47181,9 @@ var init_detect = __esm(() => {
 });
 
 // src/utils/cucumber-template-revisions.ts
-import { createHash as createHash26 } from "crypto";
+import { createHash as createHash27 } from "crypto";
 function isShippedCucumberTemplateRevision(content) {
-  const hash = createHash26("sha256").update(content).digest("hex");
+  const hash = createHash27("sha256").update(content).digest("hex");
   return CUCUMBER_TEMPLATE_REVISION_HASHES.has(hash);
 }
 var CUCUMBER_TEMPLATE_REVISION_HASHES;
@@ -57822,7 +58139,7 @@ __export(exports_profile, {
   claudeInstallRequiresMutation: () => claudeInstallRequiresMutation
 });
 import { spawnSync as spawnSync8 } from "child_process";
-import { createHash as createHash27 } from "crypto";
+import { createHash as createHash28 } from "crypto";
 import {
   closeSync as closeSync9,
   cpSync as cpSync2,
@@ -58365,7 +58682,7 @@ function convergePlugin(cwd, scope, effects) {
   }
 }
 function fileSha256(path8) {
-  return createHash27("sha256").update(readFileSync54(path8)).digest("hex");
+  return createHash28("sha256").update(readFileSync54(path8)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
   if (typeof asset.path !== "string" || nodePath84.isAbsolute(asset.path) || asset.path.split(/[\\/]/u).includes("..") || typeof asset.sha256 !== "string") {
@@ -58377,7 +58694,7 @@ function assertInstalledAsset(installPath, asset) {
   }
 }
 function assertInstalledIdentity(identity, inventory, inventoryContent) {
-  if (identity.schema_version !== 1 || identity.plugin_version !== VERSION || identity.inventory_sha256 !== createHash27("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
+  if (identity.schema_version !== 1 || identity.plugin_version !== VERSION || identity.inventory_sha256 !== createHash28("sha256").update(inventoryContent).digest("hex") || inventory.schema_version !== 1 || !Array.isArray(inventory.assets)) {
     throw new TypeError("installed identity or inventory is inconsistent");
   }
 }
@@ -58676,7 +58993,7 @@ var init_profile = __esm(() => {
 });
 
 // src/claude-plugin/hook-manifest.ts
-import { createHash as createHash28 } from "crypto";
+import { createHash as createHash29 } from "crypto";
 function adaptHookValue(value) {
   if (typeof value === "string") {
     return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
@@ -58726,7 +59043,7 @@ function pluginHookManifest() {
 `;
 }
 function currentClaudePluginHookManifestSha256() {
-  return createHash28("sha256").update(pluginHookManifest()).digest("hex");
+  return createHash29("sha256").update(pluginHookManifest()).digest("hex");
 }
 var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
 var init_hook_manifest = __esm(() => {
@@ -59921,7 +60238,7 @@ __export(exports_profile2, {
   installOpenCodeProfile: () => installOpenCodeProfile,
   generateOpenCodeProfilePlugin: () => generateOpenCodeProfilePlugin
 });
-import { createHash as createHash29 } from "crypto";
+import { createHash as createHash30 } from "crypto";
 import {
   existsSync as existsSync43,
   lstatSync as lstatSync17,
@@ -59979,7 +60296,7 @@ function observeFile2(path8) {
   }
 }
 function sha2565(value) {
-  return createHash29("sha256").update(value).digest("hex");
+  return createHash30("sha256").update(value).digest("hex");
 }
 function packagedDispatcherPath() {
   const moduleDirectory = import.meta.dirname;
@@ -60903,7 +61220,7 @@ __export(exports_conformance, {
   observeOpenCodeVersion: () => observeOpenCodeVersion
 });
 import { spawnSync as spawnSync10 } from "child_process";
-import { createHash as createHash30 } from "crypto";
+import { createHash as createHash31 } from "crypto";
 import { accessSync as accessSync3, constants as constants5, lstatSync as lstatSync18, readFileSync as readFileSync59, realpathSync as realpathSync15, statSync as statSync7 } from "fs";
 import nodePath92 from "path";
 function resolveExecutable(environment) {
@@ -60958,7 +61275,7 @@ function profileRemediation() {
   });
 }
 function sha2566(value) {
-  return createHash30("sha256").update(value).digest("hex");
+  return createHash31("sha256").update(value).digest("hex");
 }
 function installedProfile(environment) {
   const root = resolveOpenCodeConfigRoot({
@@ -61892,7 +62209,7 @@ var init_doctor = __esm(() => {
 });
 
 // src/cli-protocol/reconciliation.ts
-import { createHash as createHash31 } from "crypto";
+import { createHash as createHash32 } from "crypto";
 import { lstatSync as lstatSync19, readdirSync as readdirSync29, readFileSync as readFileSync60, readlinkSync as readlinkSync3 } from "fs";
 import nodePath93 from "path";
 function actionTargets(action) {
@@ -61943,7 +62260,7 @@ function hashPath(hash, absolutePath, relativePath, readFile3) {
   }
 }
 function preconditionDigestForPaths(cwd, paths, readFile3 = readFileForDigest) {
-  const hash = createHash31("sha256");
+  const hash = createHash32("sha256");
   const targets = [...new Set(paths)].toSorted((left, right) => left.localeCompare(right));
   for (const target of targets) {
     hashField(hash, "target", target);
@@ -62668,7 +62985,7 @@ To wire the warn-only boundary gate, add under repos:
 
 // src/utils/namespace-migration.ts
 import { execSync } from "child_process";
-import { createHash as createHash32 } from "crypto";
+import { createHash as createHash33 } from "crypto";
 import {
   closeSync as closeSync10,
   constants as fsConstants3,
@@ -62717,7 +63034,7 @@ function validateDirectoryRoot(path8, label) {
 }
 function conflictArchivePath(source, relative) {
   const metadata = lstatSync20(source);
-  const digest4 = createHash32("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync63(source)).digest("hex");
+  const digest4 = createHash33("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync63(source)).digest("hex");
   return nodePath100.join(".safeword", "namespace-migration-conflicts-v1", digest4, relative);
 }
 function plannedNamespaceMigrationFiles(cwd) {
@@ -63429,7 +63746,7 @@ var init_vendored_ignores_nudge = __esm(() => {
 });
 
 // src/lifecycle/project-install.ts
-import { createHash as createHash33 } from "crypto";
+import { createHash as createHash34 } from "crypto";
 import {
   closeSync as closeSync11,
   constants as fsConstants4,
@@ -63730,7 +64047,7 @@ function setupPreconditionDigest(cwd, reconciliationDigest, effects, context, op
     ...effects.files.map((effect) => effect.target),
     ...effects.destructive.map((effect) => effect.target)
   ].filter((target) => !target.includes(" \u2192 "));
-  return createHash33("sha256").update(JSON.stringify([
+  return createHash34("sha256").update(JSON.stringify([
     reconciliationDigest,
     effects,
     JSON.stringify(context, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value),
@@ -64734,7 +65051,7 @@ __export(exports_commands, {
   planLifecycle: () => planLifecycle,
   installLifecycle: () => installLifecycle
 });
-import { createHash as createHash34 } from "crypto";
+import { createHash as createHash35 } from "crypto";
 function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
@@ -64930,7 +65247,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   };
   const integrationSurfaces = observedSurfaces.filter((surface) => selected.has(surface.name));
   const surfaces = [{ name: "project", effects: project.plan.effects }, ...integrationSurfaces];
-  const preconditionDigest2 = createHash34("sha256").update(JSON.stringify([
+  const preconditionDigest2 = createHash35("sha256").update(JSON.stringify([
     project.plan.preconditionDigest,
     agents,
     scope,
@@ -65230,7 +65547,7 @@ __export(exports_cleanup, {
   claudeLegacyMutations: () => claudeLegacyMutations,
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
-import { createHash as createHash35, randomUUID as randomUUID13 } from "crypto";
+import { createHash as createHash36, randomUUID as randomUUID13 } from "crypto";
 import {
   closeSync as closeSync12,
   constants as fsConstants5,
@@ -65250,7 +65567,7 @@ import {
 } from "fs";
 import nodePath107 from "path";
 function sha2567(content) {
-  return createHash35("sha256").update(content).digest("hex");
+  return createHash36("sha256").update(content).digest("hex");
 }
 function containsJsonComments(content) {
   let found = false;
@@ -66287,7 +66604,7 @@ function resolveExecutionMode(input) {
 }
 
 // src/test-execution/remote-workflow-contract.ts
-import { createHash as createHash36 } from "crypto";
+import { createHash as createHash37 } from "crypto";
 function mapping(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
 }
@@ -66431,7 +66748,7 @@ function hasFixedUpload(steps) {
 }
 function resultViolations(steps) {
   const reportRun = stepById(steps, "report")?.run;
-  const reportValid = typeof reportRun === "string" && createHash36("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
+  const reportValid = typeof reportRun === "string" && createHash37("sha256").update(reportRun).digest("hex") === REPORT_COMMAND_SHA256;
   return reportValid && hasFixedUpload(steps) ? [] : ["fixed_result_protocol"];
 }
 function hasSecretsKey(value) {
@@ -66675,7 +66992,7 @@ var init_remote_workflow_fs = __esm(() => {
 });
 
 // src/test-execution/remote-workflow-state.ts
-import { createHash as createHash37 } from "crypto";
+import { createHash as createHash38 } from "crypto";
 import nodePath110 from "path";
 function observationError(error2, path8) {
   const code = filesystemErrorCode(error2);
@@ -66690,7 +67007,7 @@ function normalizeLineEndings2(content) {
 `);
 }
 function workflowDigest(content) {
-  return createHash37("sha256").update(normalizeLineEndings2(content)).digest("hex");
+  return createHash38("sha256").update(normalizeLineEndings2(content)).digest("hex");
 }
 function readOpenedWorkflow(descriptor, filesystem) {
   const metadata = filesystem.fstat(descriptor);
@@ -68950,7 +69267,7 @@ var init_plan_gate = __esm(() => {
 });
 
 // src/review/approval-ledger.ts
-import { createHash as createHash38, randomUUID as randomUUID15 } from "crypto";
+import { createHash as createHash39, randomUUID as randomUUID15 } from "crypto";
 import {
   closeSync as closeSync15,
   constants as constants8,
@@ -69069,7 +69386,7 @@ function positionedEvents(ledger) {
   ];
 }
 function decisionIdempotencyKey(identity, supersedesPosition) {
-  return createHash38("sha256").update(JSON.stringify([
+  return createHash39("sha256").update(JSON.stringify([
     identity.ticket,
     identity.planDigest,
     identity.decision,
@@ -69078,7 +69395,7 @@ function decisionIdempotencyKey(identity, supersedesPosition) {
   ])).digest("hex");
 }
 function deliveryIdempotencyKey(identity) {
-  return createHash38("sha256").update(JSON.stringify([
+  return createHash39("sha256").update(JSON.stringify([
     identity.ticket,
     identity.itemId,
     identity.proofId,
@@ -69087,7 +69404,7 @@ function deliveryIdempotencyKey(identity) {
   ])).digest("hex");
 }
 function deliveryCompatibilityIdempotencyKey(identity) {
-  return createHash38("sha256").update(JSON.stringify([
+  return createHash39("sha256").update(JSON.stringify([
     identity.ticket,
     identity.itemId,
     identity.proofId,
@@ -69462,7 +69779,15 @@ function assuranceAdmission(candidate, stamp, label) {
       message: `The ${label} review has no validated achieved independence.`
     };
   }
-  if (independence === "cross-agent" && data.author_agent === data.actual_reviewer) {
+  const authorAgent = data.author_agent;
+  const reviewerAgent = data.actual_reviewer;
+  if (typeof authorAgent !== "string" || typeof reviewerAgent !== "string") {
+    return {
+      kind: "unearned_assurance",
+      message: `The ${label} review has no authenticated author and reviewer identity.`
+    };
+  }
+  if (independence === "cross-agent" && authorAgent === reviewerAgent) {
     return {
       kind: "unearned_assurance",
       message: `The ${label} review's self-authored cross-agent claim did not establish achieved independence.`
@@ -69477,8 +69802,8 @@ function assuranceAdmission(candidate, stamp, label) {
   return {
     kind: "admitted",
     provenance: {
-      authorAgent: data.author_agent,
-      reviewerAgent: data.actual_reviewer,
+      authorAgent,
+      reviewerAgent,
       independence
     }
   };
@@ -69515,7 +69840,7 @@ var exports_plan_approval = {};
 __export(exports_plan_approval, {
   approvePlanResult: () => approvePlanResult
 });
-import { createHash as createHash39, randomUUID as randomUUID16 } from "crypto";
+import { createHash as createHash40, randomUUID as randomUUID16 } from "crypto";
 import {
   appendFileSync as appendFileSync3,
   existsSync as existsSync58,
@@ -69533,7 +69858,7 @@ function interruptApprovalForTest(boundary) {
   }
 }
 function planDigest(content) {
-  return createHash39("sha256").update(content).digest("hex");
+  return createHash40("sha256").update(content).digest("hex");
 }
 function readContext2(cwd, ticketId) {
   const ticketDirectory = resolveTicketDirectory(cwd, ticketId);
@@ -69620,7 +69945,8 @@ function discoveryDestination(output) {
 }
 function currentExecutionDiscovery(context) {
   const ticket = readFileSync80(context.ticketPath, "utf8");
-  if (readFrontmatterScalar(ticket, "phase") !== "plan-execution")
+  const phase = readFrontmatterScalar(ticket, "phase");
+  if (phase !== "plan-execution" && phase !== "implement")
     return;
   const planPath = nodePath124.join(context.ticketDirectory, "execution-plan.md");
   if (!existsSync58(planPath))
@@ -69636,9 +69962,15 @@ function currentExecutionDiscovery(context) {
   return discoveryDestination(data.reviewer_output);
 }
 function applyExecutionDiscovery(context, discovery) {
-  if (discovery.destination === "plan-implementation") {
-    const changed2 = replaceTicketPhase(context, "plan-execution", "plan-implementation");
+  if (discovery.destination !== "invalid") {
+    const ticket = readFileSync80(context.ticketPath, "utf8");
+    const currentPhase = readFrontmatterScalar(ticket, "phase");
+    if (currentPhase !== "plan-execution" && currentPhase !== "implement") {
+      throw new Error(`Ticket is in ${String(currentPhase)}, not plan-execution or implement.`);
+    }
+    const changed2 = replaceTicketPhase(context, currentPhase, discovery.destination);
     const target = nodePath124.relative(context.cwd, context.ticketPath);
+    const implementationDecision = discovery.destination === "plan-implementation";
     return createResult({
       state: "action_required",
       changed: changed2,
@@ -69648,7 +69980,7 @@ function applyExecutionDiscovery(context, discovery) {
       findings: [
         {
           code: "EXECUTION_DISCOVERY_APPLIED",
-          message: "The reviewed discovery changes an accepted decision or proof boundary. The ticket returned to Implementation Planning for repair and fresh review.",
+          message: implementationDecision ? "The reviewed discovery changes an accepted decision or proof boundary. The ticket returned to Implementation Planning for repair and fresh review." : "The reviewed discovery changes only execution mechanics. The ticket returned to Execution Planning for repair and fresh review.",
           severity: "warning"
         }
       ],
@@ -69659,13 +69991,12 @@ function applyExecutionDiscovery(context, discovery) {
       }
     });
   }
-  const invalid2 = discovery.destination === "invalid";
   return createResult({
     state: "action_required",
     findings: [
       {
-        code: invalid2 ? "EXECUTION_DISCOVERY_INVALID" : "EXECUTION_DISCOVERY_APPLIED",
-        message: invalid2 ? "The current Execution Plan review did not provide a valid planning destination. Run the review again before changing phase." : "The reviewed discovery changes only execution mechanics. Repair and re-review the Execution Plan; the ticket remains in Execution Planning.",
+        code: "EXECUTION_DISCOVERY_INVALID",
+        message: "The current Execution Plan review did not provide a valid planning destination. Run the review again before changing phase.",
         severity: "warning"
       }
     ],
@@ -69704,7 +70035,13 @@ function replaceTicketPhase(context, from, to) {
     return false;
   if (phase !== from)
     throw new Error(`Ticket is in ${String(phase)}, not ${from}.`);
-  const updated = from === "plan-implementation" ? ticket.replace(/^phase:[\t ]*plan-implementation[\t ]*$/mu, "phase: plan-execution") : ticket.replace(/^phase:[\t ]*plan-execution[\t ]*$/mu, "phase: plan-implementation");
+  let pattern = /^phase:[\t ]*implement[\t ]*$/mu;
+  if (from === "plan-implementation") {
+    pattern = /^phase:[\t ]*plan-implementation[\t ]*$/mu;
+  } else if (from === "plan-execution") {
+    pattern = /^phase:[\t ]*plan-execution[\t ]*$/mu;
+  }
+  const updated = ticket.replace(pattern, () => `phase: ${to}`);
   if (updated === ticket) {
     throw new Error(`Ticket phase "${from}" could not be updated safely.`);
   }
@@ -69898,6 +70235,9 @@ function isRecord12(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function reviewData(cwd, reviewId) {
+  const current = reviewJobStatus(cwd, reviewId);
+  if (current.findings.some((finding2) => finding2.code === "REVIEW_STALE"))
+    return;
   const status = reviewJobStatus(cwd, reviewId, { allowMalformedReviewerOutput: true });
   return isRecord12(status.data) ? status.data : undefined;
 }
@@ -70006,11 +70346,11 @@ var init_delivery_admission = __esm(() => {
 
 // src/execution-plan/delivery-compatibility.ts
 import { spawnSync as spawnSync15 } from "child_process";
-import { createHash as createHash40 } from "crypto";
+import { createHash as createHash41 } from "crypto";
 import { mkdirSync as mkdirSync24, writeFileSync as writeFileSync31 } from "fs";
 import nodePath126 from "path";
 function sha2568(value) {
-  return createHash40("sha256").update(value).digest("hex");
+  return createHash41("sha256").update(value).digest("hex");
 }
 function relativePathspec(projectRoot, path8) {
   const relative = nodePath126.relative(projectRoot, nodePath126.resolve(path8));
@@ -70261,7 +70601,7 @@ __export(exports_delivery_checklist, {
   observeDeliveryChecklist: () => observeDeliveryChecklist,
   hasAdmittedDeliveryChecklist: () => hasAdmittedDeliveryChecklist
 });
-import { createHash as createHash41 } from "crypto";
+import { createHash as createHash42 } from "crypto";
 import { existsSync as existsSync59, readFileSync as readFileSync81 } from "fs";
 import nodePath128 from "path";
 function findingResult(command, code, message, recovery) {
@@ -70273,7 +70613,7 @@ function findingResult(command, code, message, recovery) {
   });
 }
 function sha2569(value) {
-  return createHash41("sha256").update(value).digest("hex");
+  return createHash42("sha256").update(value).digest("hex");
 }
 function designApprovalEnabled2(cwd) {
   const path8 = nodePath128.join(cwd, ".safeword", "config.json");
@@ -70439,9 +70779,10 @@ function earlierRequiredEvidence(context, item, event) {
   });
   return {
     item_id: item.id,
-    status: item.disposition,
+    status: compatible && item.disposition === "complete" ? "complete" : "open",
     evidence_class: compatible ? "reusable_earlier_revision" : "partial_or_structural",
     limitations: ["earlier_revision"],
+    ...!compatible && { audit_receipt_id: event.id },
     satisfied: compatible && item.disposition === "complete"
   };
 }
@@ -70459,7 +70800,7 @@ function contributorEvidence(context, item) {
   if (event === undefined) {
     return {
       item_id: item.id,
-      status: item.disposition,
+      status: "open",
       evidence_class: "missing",
       limitations: ["missing"],
       satisfied: false
@@ -70476,9 +70817,10 @@ function contributorEvidence(context, item) {
   if (!requiredRealBoundary) {
     return {
       item_id: item.id,
-      status: item.disposition,
+      status: "open",
       evidence_class: "partial_or_structural",
       limitations: current ? ["partial_or_structural"] : ["partial_or_structural", "earlier_revision"],
+      ...!current && { audit_receipt_id: event.id },
       satisfied: false
     };
   }
@@ -70544,9 +70886,11 @@ function readiness(context) {
     humanDependencies
   };
 }
-function evidenceGapSummary(evidence) {
+function evidenceGapSummary(context, evidence) {
   const gaps = evidence.flatMap((item) => {
-    const labels = item.limitations.filter((limitation) => limitation !== "missing").map((limitation) => limitation === "partial_or_structural" ? "partial or structural proof" : "earlier revision");
+    const checklistItem = context.items.find((candidate) => candidate.id === item.item_id);
+    const requiredBoundary = context.specifications.find((candidate) => candidate.id === checklistItem?.requiredProof)?.boundary;
+    const labels = item.limitations.filter((limitation) => limitation !== "missing").map((limitation) => limitation === "partial_or_structural" ? `partial or structural proof (missing real boundary: ${requiredBoundary})` : "earlier revision");
     return labels.length === 0 ? [] : [`${item.item_id}: ${labels.join(", ")}`];
   });
   return gaps.length === 0 ? "" : ` Evidence gaps: ${gaps.join("; ")}.`;
@@ -70558,7 +70902,7 @@ function observeDeliveryChecklist(cwd, ticketId) {
     return loaded.result;
   const projected = readiness(loaded.context);
   const next = projected.openContributorItems[0] ?? projected.pendingHumanItems[0];
-  const gaps = evidenceGapSummary(projected.contributorEvidence);
+  const gaps = evidenceGapSummary(loaded.context, projected.contributorEvidence);
   return createResult({
     state: "action_required",
     findings: [
@@ -71017,13 +71361,8 @@ var init_delivery_checklist2 = __esm(() => {
   init_product_plan_contract();
 });
 
-// src/commands/execution-prerequisite.ts
-var exports_execution_prerequisite = {};
-__export(exports_execution_prerequisite, {
-  evaluateExecutionPrerequisite: () => evaluateExecutionPrerequisite,
-  EXECUTION_PREREQUISITE_REPAIR_CODES: () => EXECUTION_PREREQUISITE_REPAIR_CODES
-});
-import { createHash as createHash42 } from "crypto";
+// src/execution-plan/execution-prerequisite.ts
+import { createHash as createHash43 } from "crypto";
 import { existsSync as existsSync60, readFileSync as readFileSync82 } from "fs";
 import nodePath129 from "path";
 function successful(status, achievedIndependence2, inputIdentity, executionPlanArtifact) {
@@ -71086,7 +71425,7 @@ function designDecisionAccepted(input) {
     return true;
   if (!existsSync60(input.implementationPath))
     return false;
-  const planDigest2 = createHash42("sha256").update(readFileSync82(input.implementationPath, "utf8")).digest("hex");
+  const planDigest2 = createHash43("sha256").update(readFileSync82(input.implementationPath, "utf8")).digest("hex");
   return currentDesignDecision(input.ledgerPath, input.ticketId, planDigest2) === "approved";
 }
 function contractedFeature(ticketDirectory, phase) {
@@ -71274,7 +71613,7 @@ function checklistPrerequisite(context, inspection) {
   };
 }
 function digest4(content) {
-  return createHash42("sha256").update(content).digest("hex");
+  return createHash43("sha256").update(content).digest("hex");
 }
 function fileDigest2(path8) {
   return path8 !== undefined && existsSync60(path8) ? digest4(readFileSync82(path8, "utf8")) : "missing";
@@ -71385,31 +71724,70 @@ var init_execution_prerequisite = __esm(() => {
   ];
 });
 
+// src/commands/execution-prerequisite.ts
+var exports_execution_prerequisite = {};
+__export(exports_execution_prerequisite, {
+  evaluateExecutionPrerequisite: () => evaluateExecutionPrerequisite,
+  EXECUTION_PREREQUISITE_REPAIR_CODES: () => EXECUTION_PREREQUISITE_REPAIR_CODES
+});
+var init_execution_prerequisite2 = __esm(() => {
+  init_execution_prerequisite();
+});
+
 // src/commands/coding-authorization.ts
 var exports_coding_authorization = {};
 __export(exports_coding_authorization, {
+  projectCodingAuthorization: () => projectCodingAuthorization,
   evaluateCodingAuthorization: () => evaluateCodingAuthorization
 });
+function prerequisiteData(result2) {
+  return typeof result2.data === "object" && result2.data !== null ? result2.data : {};
+}
+function healthyDenialOverride(prerequisite, data, ticketId) {
+  if (prerequisite.state !== "healthy" || data.prerequisite_status === "satisfied")
+    return {};
+  const notApplicable = data.prerequisite_status === "not_applicable";
+  return {
+    state: "action_required",
+    findings: [
+      ...prerequisite.findings,
+      {
+        code: notApplicable ? "coding_authorization_not_applicable" : "invalid_execution_prerequisite_result",
+        message: notApplicable ? `Ticket ${ticketId} is not an applicable feature ticket for coding authorization.` : `Ticket ${ticketId} did not produce a valid execution prerequisite status.`,
+        severity: "warning"
+      }
+    ]
+  };
+}
+function authorizationEvidence(data) {
+  return {
+    ...typeof data.achieved_independence === "string" && {
+      achieved_independence: data.achieved_independence
+    },
+    ...typeof data.authorization_input_identity === "string" && {
+      authorization_input_identity: data.authorization_input_identity
+    }
+  };
+}
 function evaluateCodingAuthorization(cwd, ticketId) {
   const prerequisite = evaluateExecutionPrerequisite(cwd, ticketId, {
     legacyExemption: false,
     includeAssurance: true,
     includeAuthorizationIdentity: true
   });
-  const authorized = prerequisite.state === "healthy";
-  const prerequisiteData = typeof prerequisite.data === "object" && prerequisite.data !== null ? prerequisite.data : {};
+  return projectCodingAuthorization(prerequisite, ticketId);
+}
+function projectCodingAuthorization(prerequisite, ticketId) {
+  const data = prerequisiteData(prerequisite);
+  const authorized = prerequisite.state === "healthy" && data.prerequisite_status === "satisfied";
   return {
     ...prerequisite,
+    ...healthyDenialOverride(prerequisite, data, ticketId),
     data: {
       command: "ticket coding-authorization",
       coding_authorization: authorized ? "authorized" : "denied",
       grants_authority: false,
-      ...typeof prerequisiteData.achieved_independence === "string" && {
-        achieved_independence: prerequisiteData.achieved_independence
-      },
-      ...typeof prerequisiteData.authorization_input_identity === "string" && {
-        authorization_input_identity: prerequisiteData.authorization_input_identity
-      }
+      ...authorizationEvidence(data)
     }
   };
 }
@@ -77835,7 +78213,7 @@ async function executionPrerequisiteHandler(invocation) {
   if (typeof ticket !== "string" || ticket === "") {
     return invalidOperand("ticket execution-prerequisite", "ticket id must be non-empty text.");
   }
-  const { evaluateExecutionPrerequisite: evaluateExecutionPrerequisite2 } = await Promise.resolve().then(() => (init_execution_prerequisite(), exports_execution_prerequisite));
+  const { evaluateExecutionPrerequisite: evaluateExecutionPrerequisite2 } = await Promise.resolve().then(() => (init_execution_prerequisite2(), exports_execution_prerequisite));
   return evaluateExecutionPrerequisite2(invocation.cwd, ticket);
 }
 async function codingAuthorizationHandler(invocation) {

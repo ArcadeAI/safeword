@@ -71361,12 +71361,7 @@ var init_delivery_checklist2 = __esm(() => {
   init_product_plan_contract();
 });
 
-// src/commands/execution-prerequisite.ts
-var exports_execution_prerequisite = {};
-__export(exports_execution_prerequisite, {
-  evaluateExecutionPrerequisite: () => evaluateExecutionPrerequisite,
-  EXECUTION_PREREQUISITE_REPAIR_CODES: () => EXECUTION_PREREQUISITE_REPAIR_CODES
-});
+// src/execution-plan/execution-prerequisite.ts
 import { createHash as createHash43 } from "crypto";
 import { existsSync as existsSync60, readFileSync as readFileSync82 } from "fs";
 import nodePath129 from "path";
@@ -71729,43 +71724,70 @@ var init_execution_prerequisite = __esm(() => {
   ];
 });
 
+// src/commands/execution-prerequisite.ts
+var exports_execution_prerequisite = {};
+__export(exports_execution_prerequisite, {
+  evaluateExecutionPrerequisite: () => evaluateExecutionPrerequisite,
+  EXECUTION_PREREQUISITE_REPAIR_CODES: () => EXECUTION_PREREQUISITE_REPAIR_CODES
+});
+var init_execution_prerequisite2 = __esm(() => {
+  init_execution_prerequisite();
+});
+
 // src/commands/coding-authorization.ts
 var exports_coding_authorization = {};
 __export(exports_coding_authorization, {
+  projectCodingAuthorization: () => projectCodingAuthorization,
   evaluateCodingAuthorization: () => evaluateCodingAuthorization
 });
+function prerequisiteData(result2) {
+  return typeof result2.data === "object" && result2.data !== null ? result2.data : {};
+}
+function healthyDenialOverride(prerequisite, data, ticketId) {
+  if (prerequisite.state !== "healthy" || data.prerequisite_status === "satisfied")
+    return {};
+  const notApplicable = data.prerequisite_status === "not_applicable";
+  return {
+    state: "action_required",
+    findings: [
+      ...prerequisite.findings,
+      {
+        code: notApplicable ? "coding_authorization_not_applicable" : "invalid_execution_prerequisite_result",
+        message: notApplicable ? `Ticket ${ticketId} is not an applicable feature ticket for coding authorization.` : `Ticket ${ticketId} did not produce a valid execution prerequisite status.`,
+        severity: "warning"
+      }
+    ]
+  };
+}
+function authorizationEvidence(data) {
+  return {
+    ...typeof data.achieved_independence === "string" && {
+      achieved_independence: data.achieved_independence
+    },
+    ...typeof data.authorization_input_identity === "string" && {
+      authorization_input_identity: data.authorization_input_identity
+    }
+  };
+}
 function evaluateCodingAuthorization(cwd, ticketId) {
   const prerequisite = evaluateExecutionPrerequisite(cwd, ticketId, {
     legacyExemption: false,
     includeAssurance: true,
     includeAuthorizationIdentity: true
   });
-  const prerequisiteData = typeof prerequisite.data === "object" && prerequisite.data !== null ? prerequisite.data : {};
-  const authorized = prerequisite.state === "healthy" && prerequisiteData.prerequisite_status === "satisfied";
-  const notApplicable = prerequisite.state === "healthy" && prerequisiteData.prerequisite_status === "not_applicable";
+  return projectCodingAuthorization(prerequisite, ticketId);
+}
+function projectCodingAuthorization(prerequisite, ticketId) {
+  const data = prerequisiteData(prerequisite);
+  const authorized = prerequisite.state === "healthy" && data.prerequisite_status === "satisfied";
   return {
     ...prerequisite,
-    ...notApplicable && {
-      state: "action_required",
-      findings: [
-        ...prerequisite.findings,
-        {
-          code: "coding_authorization_not_applicable",
-          message: `Ticket ${ticketId} is not an applicable feature ticket for coding authorization.`,
-          severity: "warning"
-        }
-      ]
-    },
+    ...healthyDenialOverride(prerequisite, data, ticketId),
     data: {
       command: "ticket coding-authorization",
       coding_authorization: authorized ? "authorized" : "denied",
       grants_authority: false,
-      ...typeof prerequisiteData.achieved_independence === "string" && {
-        achieved_independence: prerequisiteData.achieved_independence
-      },
-      ...typeof prerequisiteData.authorization_input_identity === "string" && {
-        authorization_input_identity: prerequisiteData.authorization_input_identity
-      }
+      ...authorizationEvidence(data)
     }
   };
 }
@@ -78191,7 +78213,7 @@ async function executionPrerequisiteHandler(invocation) {
   if (typeof ticket !== "string" || ticket === "") {
     return invalidOperand("ticket execution-prerequisite", "ticket id must be non-empty text.");
   }
-  const { evaluateExecutionPrerequisite: evaluateExecutionPrerequisite2 } = await Promise.resolve().then(() => (init_execution_prerequisite(), exports_execution_prerequisite));
+  const { evaluateExecutionPrerequisite: evaluateExecutionPrerequisite2 } = await Promise.resolve().then(() => (init_execution_prerequisite2(), exports_execution_prerequisite));
   return evaluateExecutionPrerequisite2(invocation.cwd, ticket);
 }
 async function codingAuthorizationHandler(invocation) {

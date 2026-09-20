@@ -11,9 +11,12 @@ Scaffold `execution-plan.md` next to `ticket.md` from
 ## Author the plan
 
 1. Read the approved scenarios, Implementation Plan, and applicable project
-   guides. Extract every accepted behavior, migration, rollout, rollback,
-   documentation, and affected-surface obligation. Do not invent missing
-   decisions; return a genuine gap to Implementation Planning.
+   guides. Extract every accepted behavior, decision-derived implementation,
+   proof-strategy implementation, migration, rollout, rollback, documentation,
+   affected-surface, and measurement-execution obligation. For an accepted
+   quantitative contract, preserve its outcome, population, target, origin,
+   method, validity safeguards, and failure behavior exactly. Do not invent
+   missing decisions; return a genuine gap to Implementation Planning.
 2. Decide explicitly whether delivery is one pull request or multiple pull
    requests. Explain the boundary in terms of conceptual scope and independent
    proof, never line or file count alone.
@@ -78,13 +81,25 @@ from outside those sources.
   understood and proven independently. Many mechanical edits with one outcome
   may be one slice; a few edits with two independently valuable outcomes may
   require two. Numeric size signals may prompt inspection but never decide it.
-- **Obligation and decision preservation:** Require at least one obligation-owner
-  entry and cover every accepted behavior, migration, rollout, rollback,
-  documentation, and affected-surface obligation with existing slice names.
-  Require at least one decision-status entry and account for every Recorded
-  Decision, or the explicit no-load-bearing-choice applicability decision, with
-  the readable status `unchanged`. Reject an omitted obligation, an unowned
-  slice, or any reopened decision.
+- **Obligation and decision preservation:** Require at least one accepted
+  behavior obligation and owner. Cover every applicable accepted behavior,
+  decision-derived implementation, proof-strategy implementation, migration,
+  rollout, rollback, documentation, and affected-surface obligation with
+  existing slice names, dependency order, and a completion signal. Optional
+  categories explicitly recorded as inapplicable by the accepted Implementation
+  Plan do not require placeholder owners or tasks; never treat that as permission
+  to omit the feature's accepted behavior. Require at least one decision-status
+  entry and account for every Recorded Decision, or the explicit
+  no-load-bearing-choice applicability decision, with the readable status
+  `unchanged`. Reject an omitted or partially mapped applicable obligation, an
+  unowned slice, or any reopened decision.
+- **Measurement execution:** When the accepted plans define a quantitative
+  contract, require owned, dependency-ordered instrumentation, tests, evidence
+  collection, and a concrete completion signal. Preserve the accepted outcome,
+  population, target, measurement origin, method, validity safeguards, and
+  failure behavior exactly. Missing execution mechanics return to
+  `plan-execution`; changing any accepted measurement term returns to
+  `plan-implementation`, even when restoring the accepted value would be easy.
 - **Discovery routing:** Classify every requested change by what it alters. A
   fixture implementation, test command, file location, sequencing detail, or
   other execution mechanic remains in `plan-execution` when all accepted
@@ -106,6 +121,14 @@ from outside those sources.
   and whether its currency policy is defensible. Every contributor Required
   proof must resolve to a unique proof classified `real_boundary`; partial or
   structural support cannot satisfy completion.
+- **Current-to-target truthfulness:** Require every obligation to distinguish
+  current implementation from target work. Absent implementation is target work
+  with missing proof. Only matching implementation with current-revision,
+  real-boundary proof may be recorded as implemented and proven. Reusable
+  earlier-revision proof remains open for current proof. Keep a known defect
+  separate from its target correction, and completed contributor work separate
+  from pending human authority. Never call stale proof, a known defect, or
+  pending human authority complete.
 - **Checklist completeness and applicability:** Require the versioned checklist,
   unique stable IDs, every default category, honest owners and dispositions,
   and concrete reviewed reasons or dependencies. Treat the packet's

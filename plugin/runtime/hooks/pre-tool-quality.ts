@@ -8,6 +8,7 @@ import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSy
 import nodePath from 'node:path';
 
 import {
+  executionPlanContractProvenance,
   evaluateFeatureTicketReadiness,
   formatFeatureTicketReadiness,
   getTicketInfo,
@@ -372,6 +373,18 @@ function separateEvidenceMode(
     if (mode === 'manual' || mode === 'live') return mode;
   }
   return undefined;
+}
+
+function scenarioHasCheckedStep(ledgerContent: string, scenario: string, step: string): boolean {
+  let activeScenario: string | undefined;
+  for (const line of ledgerContent.split(/\r?\n/)) {
+    const heading = line.match(/^#{2,6}\s+(?<scenario>.+)$/)?.groups?.scenario?.trim();
+    if (heading !== undefined) activeScenario = heading;
+    if (activeScenario === scenario && new RegExp(`^- \\[x\\]\\s+${step}\\b`, 'i').test(line)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function featureScenarioHasTag(featureContent: string, scenario: string, tag: string): boolean {
@@ -771,7 +784,7 @@ function nextContentAfterEdit(
   if (toolInput?.old_string !== undefined) {
     if (toolInput.replace_all === true && toolInput.old_string !== '') {
       return priorContent.includes(toolInput.old_string)
-        ? priorContent.replaceAll(toolInput.old_string, toolInput.new_string ?? '')
+        ? priorContent.split(toolInput.old_string).join(toolInput.new_string ?? '')
         : undefined;
     }
     return applyUniqueEdit(priorContent, toolInput.old_string, toolInput.new_string ?? '');
@@ -1058,9 +1071,25 @@ if (isCanonicalTicketEdit) {
   const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
 
   if (proposedType === 'feature' && proposedPhase === 'implement' && priorPhase !== proposedPhase) {
-    const verdict = evaluateImplementEntry(nodePath.dirname(editedFile), { projectDirectory });
+    const ticketDirectory = nodePath.dirname(editedFile);
+    const verdict = evaluateImplementEntry(ticketDirectory, { projectDirectory });
     if (!verdict.ok) {
       deny(verdict.reason, verdict.remediation);
+    }
+    if (priorPhase === 'plan-execution') {
+      const ticketId = frontmatterScalar(canonicalTicketEditContext().proposedMeta, 'id');
+      if (ticketId === undefined) {
+        deny(
+          'Safeword could not identify the feature ticket for coding authorization.',
+          'Restore the ticket frontmatter id, then retry the move to implement.',
+        );
+      }
+      const authorization = evaluateCodingAuthorization(
+        projectDirectory,
+        ticketId,
+        safewordCliCommand(),
+      );
+      if (!authorization.ok) deny(authorization.reason, authorization.remediation);
     }
   }
 }
@@ -1197,6 +1226,17 @@ if (
         `Use "${transition.step} <7-40 hexadecimal commit SHA>" or "${transition.step} skip: <non-empty reason>".`,
       );
     }
+    if (
+      transition.step === 'REFACTOR' &&
+      transition.scenario !== undefined &&
+      proposedLedgerContent !== undefined &&
+      !scenarioHasCheckedStep(proposedLedgerContent, transition.scenario, 'GREEN')
+    ) {
+      deny(
+        'Cannot mark REFACTOR before GREEN records the passing proof.',
+        'Leave REFACTOR unchecked. Complete GREEN with its passing test evidence, then record REFACTOR under that same proof.',
+      );
+    }
     if (transition.step === 'GREEN') {
       const scenario = transition.scenario;
       if (scenario === undefined) {
@@ -1258,28 +1298,51 @@ if (state.activeTicket) {
     ticketInfo.folder === undefined
       ? undefined
       : nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets', ticketInfo.folder);
+  const isBehaviorDefinitionEdit =
+    (ticketInfo.phase === 'define-behavior' || ticketInfo.phase === 'scenario-gate') &&
+    nodePath.extname(editedFile) === '.feature';
 
   // Planning code freeze (TXRHMD, #480): while a feature plans, application
   // code stays untouched — the plan is the phase's only deliverable. Meta
   // paths (ticket artifacts, impl-plan.md) already exited above. A significant
   // decision may also need to land in the configured durable architecture
   // record before plan review, so that exact project-owned target is allowed.
-  if (ticketInfo.type === 'feature' && ticketInfo.phase === 'plan-implementation') {
+  if (
+    ticketInfo.type === 'feature' &&
+    (ticketInfo.phase === 'plan-implementation' || ticketInfo.phase === 'plan-execution')
+  ) {
     if (isConfiguredArchitectureRecordEdit(editedFile, projectDirectory)) {
       process.exit(0);
     }
-    recordFailure(projectDirectory, input.session_id, 'plan-implementation-code-freeze');
+    recordFailure(projectDirectory, input.session_id, `${ticketInfo.phase}-code-freeze`);
     deny(
-      'Feature at plan-implementation phase: application code stays untouched while planning. Finish impl-plan.md, advance the ticket to implement, then write code.',
-      'Author impl-plan.md next to ticket.md (scaffold from "\${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
+      `Feature at ${ticketInfo.phase} phase: application code stays untouched while planning. Finish the current plan, advance the ticket to implement, then write code.`,
+      ticketInfo.phase === 'plan-implementation'
+        ? 'Author impl-plan.md next to ticket.md (scaffold from "\${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md), then advance to plan-execution.'
+        : 'Author and review execution-plan.md next to ticket.md, then set phase: implement to unlock code edits.',
     );
   }
 
+  const executionReviewRecorded =
+    ticketInfo.folder !== undefined &&
+    parseReviewStamps(
+      existsSync(nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log'))
+        ? readFileSync(
+            nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log'),
+            'utf8',
+          )
+        : '',
+    ).some(
+      stamp =>
+        stamp.scope === `${ticketInfo.folder}:phase@plan-execution` &&
+        stamp.skipReason === undefined,
+    );
   if (
     ticketInfo.type === 'feature' &&
     ticketInfo.folder !== undefined &&
     ticketDirectory !== undefined &&
-    existsSync(nodePath.join(ticketDirectory, 'execution-plan.md'))
+    !isBehaviorDefinitionEdit &&
+    (executionReviewRecorded || executionPlanContractProvenance(ticketDirectory) !== 'absent')
   ) {
     const authorization = evaluateCodingAuthorization(
       projectDirectory,
@@ -1291,7 +1354,7 @@ if (state.activeTicket) {
       deny(authorization.reason, authorization.remediation);
     }
     const redAction = firstNamedRedAction(projectDirectory, ticketInfo.folder);
-    if (redAction !== undefined) {
+    if (redAction !== undefined && !isTestFile(editedFile)) {
       recordFailure(projectDirectory, input.session_id, 'production-before-named-red');
       deny(
         `Production code cannot precede the current scenario's named RED: ${redAction}`,

@@ -143,7 +143,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "4f52bcca1e8640af5c9bd06be12bfa85f7f532e3ee6e04d7554e7b9aca445cfa"
+      "sha256": "367c69cb79a555e0541410cffb73e35eccd6b9bfd6cb65f947d2f5d3a2a4cc80"
     },
     {
       "path": "runtime/dispatch.js",
@@ -163,7 +163,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "9dca29f6a71ce7159ce249b7ce6b46a5f6849b6e2ce8ad9fa85e5b201cc2c2af"
+      "sha256": "8d48bc0937c4ecadedb6b8a2a97c26a9152d630c43906b08c7bb9ecab091b274"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -231,7 +231,7 @@
     },
     {
       "path": "runtime/hooks/lib/feature-provenance.ts",
-      "sha256": "840d3bff9d61d75dbcbdeff0f6317752cf7a640eebc26bae59d7b1920d66b4aa"
+      "sha256": "7afa93cde6e81eb11582baa8a968311e44322b8ae1e671a54ba336bdd6031935"
     },
     {
       "path": "runtime/hooks/lib/git-operation.ts",
@@ -299,7 +299,7 @@
     },
     {
       "path": "runtime/hooks/lib/phase-provenance.ts",
-      "sha256": "ea3c4fe77df918b55c4495cef42494ecaa5c01977921345733da2941dc24e734"
+      "sha256": "c76b18f3da894f45d4eed48e7fdff9afc02c0e6d66d4412f5ab461e5cab85c6f"
     },
     {
       "path": "runtime/hooks/lib/plan-gate.ts",
@@ -487,7 +487,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "4814b268090f93af3c92ef0ea6766b5a91c9bd0dab659912488fe46fdd38a481"
+      "sha256": "57c70de45b6ddbe67c2515e45baefc41cb8a460da14e121cad1e5bf413fd0076"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "skills/bdd/PLAN_EXECUTION.md",
-      "sha256": "8c4fb232eafacb4e605a55cc1d695d4c44a01a9f9fa9e039f57224e2ad09c0de"
+      "sha256": "ef28f68976c9d37c383f815a4b2c77b390798b58a600e774673278acfbe651ff"
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
