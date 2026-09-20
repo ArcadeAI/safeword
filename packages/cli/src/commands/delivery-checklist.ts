@@ -462,12 +462,21 @@ function readiness(context: DeliveryContext): {
   };
 }
 
-function evidenceGapSummary(evidence: readonly ContributorEvidence[]): string {
+function evidenceGapSummary(
+  context: DeliveryContext,
+  evidence: readonly ContributorEvidence[],
+): string {
   const gaps = evidence.flatMap(item => {
+    const checklistItem = context.items.find(candidate => candidate.id === item.item_id);
+    const requiredBoundary = context.specifications.find(
+      candidate => candidate.id === checklistItem?.requiredProof,
+    )?.boundary;
     const labels = item.limitations
       .filter(limitation => limitation !== 'missing')
       .map(limitation =>
-        limitation === 'partial_or_structural' ? 'partial or structural proof' : 'earlier revision',
+        limitation === 'partial_or_structural'
+          ? `partial or structural proof (missing real boundary: ${requiredBoundary})`
+          : 'earlier revision',
       );
     return labels.length === 0 ? [] : [`${item.item_id}: ${labels.join(', ')}`];
   });
@@ -480,7 +489,7 @@ export function observeDeliveryChecklist(cwd: string, ticketId: string): CliResu
   if (!loaded.ok) return loaded.result;
   const projected = readiness(loaded.context);
   const next = projected.openContributorItems[0] ?? projected.pendingHumanItems[0];
-  const gaps = evidenceGapSummary(projected.contributorEvidence);
+  const gaps = evidenceGapSummary(loaded.context, projected.contributorEvidence);
   return createResult({
     state: 'action_required',
     findings: [
