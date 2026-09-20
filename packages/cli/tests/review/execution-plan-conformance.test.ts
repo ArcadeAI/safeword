@@ -49,6 +49,11 @@ const EXPECTED_CASE_IDS = [
   'migration-missing-completion-signal',
   'migration-missing-dependency-order',
   'explicitly-inapplicable-obligations',
+  'absent-work-is-not-complete',
+  'current-proof-supports-completion',
+  'earlier-proof-remains-open',
+  'known-defect-is-not-complete',
+  'pending-human-authority-is-not-complete',
   'complete-measurement-execution',
   'missing-measurement-instrumentation',
   'missing-measurement-evidence-collection',
@@ -297,6 +302,19 @@ describe('Execution Plan semantic conformance admission', () => {
     expect(testCase?.execution_plan).not.toContain('- Rollback work:');
     expect(testCase?.execution_plan).not.toContain('- Documentation work:');
     expect(testCase?.execution_plan).not.toContain('- Affected-surface work:');
+  });
+
+  it.each([
+    ['absent-work-is-not-complete', 'request_changes', ['absent', 'complete']],
+    ['current-proof-supports-completion', 'approve', undefined],
+    ['earlier-proof-remains-open', 'request_changes', ['earlier', 'open']],
+    ['known-defect-is-not-complete', 'request_changes', ['defect', 'complete']],
+    ['pending-human-authority-is-not-complete', 'request_changes', ['human', 'pending']],
+  ] as const)('keeps %s as a current-to-target truthfulness case', (caseId, verdict, terms) => {
+    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
+
+    expect(testCase?.expectation.verdict).toBe(verdict);
+    if (terms !== undefined) expect(testCase?.expectation.finding_terms).toEqual(terms);
   });
 
   it('keeps every authoritative scenario example as its own case', () => {
