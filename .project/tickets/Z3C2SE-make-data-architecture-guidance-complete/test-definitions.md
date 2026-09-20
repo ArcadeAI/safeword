@@ -43,7 +43,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 ### Scenario: Duplicating a contract as authority across artifacts fails review
 
 - [x] RED fd644bd7a
-- [ ] GREEN
+- [x] GREEN 9041ba23f
 - [ ] REFACTOR
 
 ## Rule: data-architecture-guidance.TBU2.R1 — Every completeness claim names an oracle independent of the mechanism being checked
