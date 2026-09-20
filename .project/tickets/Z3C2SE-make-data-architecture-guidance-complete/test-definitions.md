@@ -24,7 +24,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 3bc52596e
 - [x] GREEN c56da116a
-- [ ] REFACTOR
+- [x] REFACTOR skip: the corpus verifier is a single stable-order delegation to the existing record verifier with no duplicated grading logic to simplify
 
 ### Scenario Outline: Invalid evaluation records fail deterministic verification
 
