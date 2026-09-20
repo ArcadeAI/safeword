@@ -85,7 +85,7 @@ export interface ConditionalProofInput {
 
 export interface EvidenceSafetyInput {
   readonly migrationEvidenceSources: readonly ('checked-in-equivalent' | 'deployed-read-only')[];
-  readonly mutableValues: readonly string[];
+  readonly mutableValues: Readonly<Record<string, unknown>>;
 }
 
 const requiredConditionalFacts: Readonly<Record<ConditionalClaimKind, readonly string[]>> = {

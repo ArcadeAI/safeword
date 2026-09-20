@@ -875,7 +875,17 @@ describe('data architecture guide evaluation', () => {
 
   it('accepts synthetic mutable values and read-only migration evidence', () => {
     const evidence: EvidenceSafetyInput = {
-      mutableValues: ['SYNTHETIC_TENANT_ID', 'SYNTHETIC_ENCRYPTED_VALUE', 'SYNTHETIC_OWNER_ID'],
+      mutableValues: {
+        cases: [{ tenantId: 'SYNTHETIC_TENANT_ID' }],
+        records: [
+          {
+            payload: {
+              encryptedValue: 'SYNTHETIC_ENCRYPTED_VALUE',
+              ownerId: 'SYNTHETIC_OWNER_ID',
+            },
+          },
+        ],
+      },
       migrationEvidenceSources: ['deployed-read-only', 'checked-in-equivalent'],
     };
 
