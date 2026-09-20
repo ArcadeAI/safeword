@@ -231,7 +231,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Canonical delivery-contract identity prevents local contract drift
 
 - [x] RED 231553108
-- [ ] GREEN
+- [x] GREEN c87435977
 - [ ] REFACTOR
 
 ### Scenario: Partial structural evidence cannot authorize completion
