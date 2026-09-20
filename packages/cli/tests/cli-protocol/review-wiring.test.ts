@@ -772,7 +772,7 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('"plan_contract"');
     expect(prompt).toContain('Slicing decision');
     expect(prompt).toMatch(/Reject line or file count as\s+the sole justification/);
-    expect(prompt).toContain('Distinguish current implementation from target work');
+    expect(prompt).toMatch(/Distinguish current implementation from\s+target work/);
     expect(prompt).toContain('# Execution Plan');
     expect(prompt).toContain('# Implementation Plan');
     expect(prompt).toContain('Feature: behavior');
