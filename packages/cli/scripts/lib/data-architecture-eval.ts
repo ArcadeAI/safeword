@@ -287,8 +287,23 @@ export function verifyArtifactOwnership(
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 
-export function verifyFacetCompleteness(_input: FacetCompletenessInput): VerificationResult {
-  return { accepted: true, diagnostics: [] };
+export function verifyFacetCompleteness(input: FacetCompletenessInput): VerificationResult {
+  const intendedFacetIds = new Set(input.intendedFacetIds);
+  const generatedFacetIds = new Set(input.generatedFacetIds);
+  const diagnostics: string[] = [];
+  const sortedIntendedFacetIds = sortedStrings([...intendedFacetIds]);
+  const sortedGeneratedFacetIds = sortedStrings([...generatedFacetIds]);
+
+  for (const facetId of sortedIntendedFacetIds) {
+    if (!generatedFacetIds.has(facetId))
+      diagnostics.push(`Generated manifest is missing intended facet ${facetId}.`);
+  }
+  for (const facetId of sortedGeneratedFacetIds) {
+    if (!intendedFacetIds.has(facetId))
+      diagnostics.push(`Generated manifest contains unknown facet ${facetId}.`);
+  }
+
+  return { accepted: diagnostics.length === 0, diagnostics };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
