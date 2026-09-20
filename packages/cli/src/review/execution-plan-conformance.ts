@@ -284,7 +284,9 @@ function deliveryContract(
     if (inapplicableOptionalWork && inapplicableCategories.has(index)) {
       return `| item-${index + 1} | ${category} | No additional ${category} work. | contributor |  | not_applicable | missing | | The accepted approach explicitly makes this category inapplicable. |`;
     }
-    let obligation = CHECKLIST_OBLIGATIONS[index];
+    const defaultObligation = CHECKLIST_OBLIGATIONS[index];
+    if (defaultObligation === undefined) throw new Error(`Missing obligation ${index + 1}`);
+    let obligation: string = defaultObligation;
     if (unrelated) obligation = 'Complete the standard delivery work.';
     else if (inapplicableOptionalWork && index === 5)
       obligation = 'Expose typed failure signals for Accepted behavior.';

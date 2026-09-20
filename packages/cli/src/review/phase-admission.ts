@@ -100,7 +100,15 @@ function assuranceAdmission(
       message: `The ${label} review has no validated achieved independence.`,
     };
   }
-  if (independence === 'cross-agent' && data.author_agent === data.actual_reviewer) {
+  const authorAgent = data.author_agent;
+  const reviewerAgent = data.actual_reviewer;
+  if (typeof authorAgent !== 'string' || typeof reviewerAgent !== 'string') {
+    return {
+      kind: 'unearned_assurance',
+      message: `The ${label} review has no authenticated author and reviewer identity.`,
+    };
+  }
+  if (independence === 'cross-agent' && authorAgent === reviewerAgent) {
     return {
       kind: 'unearned_assurance',
       message: `The ${label} review's self-authored cross-agent claim did not establish achieved independence.`,
@@ -115,8 +123,8 @@ function assuranceAdmission(
   return {
     kind: 'admitted',
     provenance: {
-      authorAgent: data.author_agent,
-      reviewerAgent: data.actual_reviewer,
+      authorAgent,
+      reviewerAgent,
       independence,
     },
   };

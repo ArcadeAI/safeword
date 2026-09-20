@@ -767,7 +767,9 @@ describe('implementation-time discoveries return to the affected planning phase'
         specification => specification.id === 'proof',
       );
       if (proof?.invocation.type !== 'command') throw new Error('proof command missing');
-      const control = spawnSync(proof.invocation.argv[0], proof.invocation.argv.slice(1), {
+      const [command, ...arguments_] = proof.invocation.argv;
+      if (command === undefined) throw new Error('proof command is empty');
+      const control = spawnSync(command, arguments_, {
         cwd: project.root,
       });
       expect(control.status).toBe(0);

@@ -293,9 +293,9 @@ describe('Execution Plan output validation', () => {
     const withoutDestination = { ...approval() } as Record<string, unknown>;
     delete withoutDestination.planning_destination;
 
-    expect(validateExecutionPlanOutput(withoutDestination as UnverifiedReviewerOutput)).toEqual({
-      kind: 'invalid_output',
-    });
+    expect(
+      validateExecutionPlanOutput(withoutDestination as unknown as UnverifiedReviewerOutput),
+    ).toEqual({ kind: 'invalid_output' });
     expect(
       validateExecutionPlanOutput({
         ...approval(),
