@@ -284,7 +284,7 @@ Feature: Turn accepted decisions into startable work
         | a known defect contradicting the accepted design | the current defect and target correction are separate and the obligation is not called complete |
         | complete contributor work with accepted human authority still pending | the obligation names the pending human dependency and is not called complete |
 
-    @surface.safeword-cli
+    @surface.safeword-cli @manual
     Scenario Outline: Delivery evidence uses the canonical checklist taxonomy
       Given an Execution Plan obligation has <available_evidence>
       When the installed Safeword CLI records its delivery evidence state
