@@ -28,7 +28,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario Outline: Invalid evaluation records fail deterministic verification
 
-- [ ] RED
+- [x] RED d9a8274ad
 - [ ] GREEN
 - [ ] REFACTOR
 
