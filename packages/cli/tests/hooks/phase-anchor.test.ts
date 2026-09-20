@@ -80,24 +80,6 @@ const SHAPE_VALID_IMPL_PLAN = [
   '',
 ].join('\n');
 
-/** Scaffold with the headings present but every section empty — shape-invalid. */
-const HOLLOW_IMPL_PLAN = [
-  '# Impl Plan: fixture',
-  '',
-  '**Status:** planned',
-  '',
-  '## Approach',
-  '',
-  '## Decisions',
-  '',
-  '## Arch alignment',
-  '',
-  '## Known deviations',
-  '',
-  '## Assessment triggers',
-  '',
-].join('\n');
-
 const SHAPE_VALID_SPEC = [
   '# Spec: fixture',
   '',
