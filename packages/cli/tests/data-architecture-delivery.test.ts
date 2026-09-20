@@ -96,4 +96,117 @@ describe('data architecture guide delivery', () => {
       diagnostics: [],
     });
   });
+
+  it.each([
+    {
+      diagnostic: 'Managed guide is missing at .safeword/guides/data-architecture-guide.md.',
+      drift: 'a missing managed guide copy',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        actualManagedGuidePaths: [],
+      }),
+    },
+    {
+      diagnostic:
+        'Codex contains an unexpected guide copy at resources/guides/data-architecture-guide.md.',
+      drift: 'an extra Codex-managed guide copy',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        codex: {
+          ...input.codex,
+          assets: {
+            ...input.codex.assets,
+            'resources/guides/data-architecture-guide.md': input.canonicalGuide,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic: 'Claude guide content differs at resources/guides/data-architecture-guide.md.',
+      drift: 'Claude guide body drift',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        claude: {
+          ...input.claude,
+          assets: {
+            ...input.claude.assets,
+            [input.inventory.claudeGuidePath]:
+              `${input.claude.assets[input.inventory.claudeGuidePath]}\nDRIFT`,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic: 'Claude guide content differs at resources/guides/data-architecture-guide.md.',
+      drift: 'a non-path Claude substitution',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        claude: {
+          ...input.claude,
+          assets: {
+            ...input.claude.assets,
+            [input.inventory.claudeGuidePath]:
+              input.claude.assets[input.inventory.claudeGuidePath]?.replace(
+                'Data Architecture Documentation Guide',
+                'Data Storage Documentation Guide',
+              ) ?? '',
+          },
+        },
+      }),
+    },
+    {
+      diagnostic: 'Planning target is missing at .safeword/guides/data-architecture-guide.md.',
+      drift: 'a missing planning-reference target',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        cursor: {
+          ...input.cursor,
+          assets: Object.fromEntries(
+            Object.entries(input.cursor.assets).filter(
+              ([path]) => path !== input.inventory.installedGuidePath,
+            ),
+          ),
+        },
+        installedGuide: undefined,
+      }),
+    },
+    {
+      diagnostic:
+        'Codex planning reference crosses surfaces to "${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md.',
+      drift: 'a cross-surface planning reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        codex: {
+          ...input.codex,
+          assets: {
+            ...input.codex.assets,
+            [input.codex.planningSourcePath]:
+              input.codex.assets[input.codex.planningSourcePath]?.replace(
+                input.inventory.projectPlanningTarget,
+                () => input.inventory.claudePlanningTarget,
+              ) ?? '',
+          },
+        },
+      }),
+    },
+    {
+      diagnostic:
+        'OpenCode contains an unexpected guide copy at guides/data-architecture-guide.md.',
+      drift: 'an OpenCode guide copy or reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        openCode: {
+          assets: {
+            ...input.openCode.assets,
+            'guides/data-architecture-guide.md': input.canonicalGuide,
+          },
+        },
+      }),
+    },
+  ])('rejects $drift with its mismatched path or content identified', ({ diagnostic, mutate }) => {
+    const result = verifyDataArchitectureDelivery(mutate(deliveryFixture()));
+
+    expect(result.accepted).toBe(false);
+    expect(result.diagnostics).toContain(diagnostic);
+  });
 });

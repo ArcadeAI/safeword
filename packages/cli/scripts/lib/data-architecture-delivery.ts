@@ -21,7 +21,7 @@ export interface DataArchitectureDeliveryInventory {
 export interface DataArchitectureDeliveryInput {
   readonly inventory: DataArchitectureDeliveryInventory;
   readonly canonicalGuide: string;
-  readonly installedGuide: string;
+  readonly installedGuide?: string;
   readonly actualManagedGuidePaths: readonly string[];
   readonly claude: DeliverySurface;
   readonly codex: DeliverySurface;
