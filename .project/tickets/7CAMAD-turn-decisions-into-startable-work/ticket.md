@@ -51,6 +51,17 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-20T19:43:43.000Z Retained live evidence — R13 slice ownership:
+  reused the current Claude Opus admission for `all-obligations-assigned`,
+  `one-coherent-change`, `several-ordered-changes`, and
+  `missing-rollback-obligation`. Those cases respectively prove complete
+  ownership, coherent one-PR work, dependency-ordered multi-PR work, and named
+  rejection of an unowned rollback obligation. The admission remains bound to
+  contract `f6ed238d92e2b929d6c07b51ffd9b92447f7dba7e7c6875759573adab931f024`
+  and corpus `833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309`;
+  `bun run test tests/review/execution-plan-conformance.test.ts` passed 59/59
+  against those current bytes.
+
 - 2026-09-20T19:20:00.000Z Scenario gate: Claude Opus independently approved
   all 37 scenarios with cross-agent provenance (review
   `4ad5ebbf-18af-414e-af70-78e971384606`). No must-fix findings remained. The
