@@ -292,9 +292,24 @@ describe('Delivery Checklist CLI service', () => {
   it('records retained proof and immediately reports the next open obligation', async () => {
     const { root, planPath } = fixture();
 
-    expect(observeDeliveryChecklist(root, 'ABC123')).toMatchObject({
+    const missingReadiness = observeDeliveryChecklist(root, 'ABC123');
+    expect(missingReadiness).toMatchObject({
       state: 'action_required',
       data: { readiness_state: 'contributor_work_incomplete' },
+    });
+    expect(
+      (
+        missingReadiness.data as {
+          contributor_evidence: {
+            item_id: string;
+            evidence_class: string;
+            limitations: string[];
+          }[];
+        }
+      ).contributor_evidence.find(evidence => evidence.item_id === 'item-4'),
+    ).toMatchObject({
+      evidence_class: 'missing',
+      limitations: ['missing'],
     });
     const recorded = await recordDeliveryProof(root, 'ABC123', 'item-4', 'proof');
 
