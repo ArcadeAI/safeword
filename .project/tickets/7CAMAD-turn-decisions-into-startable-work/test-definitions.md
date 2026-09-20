@@ -265,7 +265,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A complete-looking task list cannot leave delivery obligations unowned
 
 - [x] RED skip: live — see work log 2026-09-20T19:43:43.000Z "R13 slice ownership"
-- [ ] GREEN
+- [x] GREEN 45bcf2227
 - [ ] REFACTOR
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R14 — Execution Plan approval establishes only that delivery is startable and provable without a new behavior-shaping decision; it does not claim implementation, verification, human release approval, or merge authority
