@@ -631,14 +631,29 @@ describe('data architecture guide evaluation', () => {
   });
 
   it('rejects duplicate source-of-truth ownership across artifacts', () => {
+    expect(
+      verifyArtifactOwnership([
+        {
+          artifactId: 'architecture-answer',
+          contractId: 'durable-session-contract',
+          claimsSourceOfTruth: true,
+        },
+        {
+          artifactId: 'generated-representation',
+          contractId: 'durable-session-contract',
+          claimsSourceOfTruth: false,
+        },
+      ]),
+    ).toEqual({ accepted: true, diagnostics: [] });
+
     const claims: ArtifactAuthorityClaim[] = [
       {
-        artifactId: 'architecture-answer',
+        artifactId: 'generated-representation',
         contractId: 'durable-session-contract',
         claimsSourceOfTruth: true,
       },
       {
-        artifactId: 'generated-representation',
+        artifactId: 'architecture-answer',
         contractId: 'durable-session-contract',
         claimsSourceOfTruth: true,
       },
