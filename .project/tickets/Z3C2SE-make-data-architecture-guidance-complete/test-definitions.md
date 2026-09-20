@@ -82,7 +82,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario Outline: A non-discriminating proof fails with a focused diagnostic
 
-- [ ] RED
+- [x] RED 215482369
 - [ ] GREEN
 - [ ] REFACTOR
 
