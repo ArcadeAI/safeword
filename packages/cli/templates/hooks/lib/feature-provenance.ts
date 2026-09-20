@@ -210,15 +210,11 @@ export function inspirationContractProvenance(ticketDirectory: string): Inspirat
 export function executionPlanContractProvenance(
   ticketDirectory: string,
 ): ExecutionPlanContractProvenance {
-  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
   const executionPlanPath = nodePath.join(ticketDirectory, 'execution-plan.md');
-  const currentTicket = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
-  if (existsSync(executionPlanPath) || hasExecutionPlanActivationCandidate(currentTicket)) {
-    return 'activated';
-  }
+  if (existsSync(executionPlanPath)) return 'activated';
 
   const repository = repositoryState(ticketDirectory);
-  if (repository !== 'repository') return repository;
+  if (repository === 'unavailable' || repository === 'absent') return 'unavailable';
   const prefix = git(ticketDirectory, ['rev-parse', '--show-prefix']);
   if (prefix.error !== undefined || prefix.status !== 0) return 'unavailable';
   const activated = historicalExecutionPlanContractWasActivated(

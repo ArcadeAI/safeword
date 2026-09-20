@@ -1071,9 +1071,25 @@ if (isCanonicalTicketEdit) {
   const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
 
   if (proposedType === 'feature' && proposedPhase === 'implement' && priorPhase !== proposedPhase) {
-    const verdict = evaluateImplementEntry(nodePath.dirname(editedFile), { projectDirectory });
+    const ticketDirectory = nodePath.dirname(editedFile);
+    const verdict = evaluateImplementEntry(ticketDirectory, { projectDirectory });
     if (!verdict.ok) {
       deny(verdict.reason, verdict.remediation);
+    }
+    if (priorPhase === 'plan-execution') {
+      const ticketId = frontmatterScalar(canonicalTicketEditContext().proposedMeta, 'id');
+      if (ticketId === undefined) {
+        deny(
+          'Safeword could not identify the feature ticket for coding authorization.',
+          'Restore the ticket frontmatter id, then retry the move to implement.',
+        );
+      }
+      const authorization = evaluateCodingAuthorization(
+        projectDirectory,
+        ticketId,
+        safewordCliCommand(),
+      );
+      if (!authorization.ok) deny(authorization.reason, authorization.remediation);
     }
   }
 }
@@ -1338,7 +1354,7 @@ if (state.activeTicket) {
       deny(authorization.reason, authorization.remediation);
     }
     const redAction = firstNamedRedAction(projectDirectory, ticketInfo.folder);
-    if (redAction !== undefined) {
+    if (redAction !== undefined && !isTestFile(editedFile)) {
       recordFailure(projectDirectory, input.session_id, 'production-before-named-red');
       deny(
         `Production code cannot precede the current scenario's named RED: ${redAction}`,

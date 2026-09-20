@@ -111,7 +111,7 @@ describe('coding authorization edit hook', () => {
   it('delegates authorization to the public projection rather than the prerequisite evaluator', () => {
     const source = readFileSync(HOOK_PATH, 'utf8');
 
-    expect(source.match(/\bevaluateCodingAuthorization\(/gu)).toHaveLength(1);
+    expect(source.match(/\bevaluateCodingAuthorization\(/gu)).toHaveLength(2);
     expect(source).not.toContain('evaluateExecutionPrerequisite');
   });
 

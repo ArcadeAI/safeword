@@ -285,6 +285,27 @@ describe('implementation planning transition gates (wired)', () => {
     ).toBe(0);
   }
 
+  function writeCodingAuthorization(authorized: boolean): void {
+    writeFileSync(
+      nodePath.join(pluginRoot, 'response.json'),
+      JSON.stringify({
+        state: authorized ? 'healthy' : 'action_required',
+        findings: authorized
+          ? []
+          : [{ message: 'The current Execution Plan has not passed review.' }],
+        next_actions: authorized
+          ? []
+          : [{ command: 'safeword review run plan-execution -- execution-plan.md' }],
+        data: {
+          command: 'ticket coding-authorization',
+          coding_authorization: authorized ? 'authorized' : 'denied',
+          grants_authority: false,
+          authorization_input_identity: 'fixture-plans',
+        },
+      }),
+    );
+  }
+
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'sw-plan-gate-'));
     pluginRoot = mkdtempSync(nodePath.join(tmpdir(), 'sw-plan-gate-cli-'));
@@ -380,6 +401,32 @@ describe('implementation planning transition gates (wired)', () => {
   });
 
   it.each([
+    [true, undefined],
+    [false, 'The current Execution Plan has not passed review.'],
+  ] as const)(
+    'requires the public coding authorization result when entering implement: authorized=%s',
+    (authorized, denial) => {
+      const executionPlanPath = `.project/tickets/${TICKET_ID}-gate/execution-plan.md`;
+      writeFileSync(
+        ticketFile,
+        ticketBody('plan-execution').replace(
+          'status: in_progress',
+          () => `status: in_progress\nphase_anchors:\n  - implement: ${executionPlanPath}`,
+        ),
+      );
+      writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+      writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+      writeFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), '# Execution Plan\n');
+      writeCodingAuthorization(authorized);
+
+      const result = runAdvance('plan-execution', 'implement');
+
+      if (denial === undefined) expectHookAllow(result);
+      else expectHookDeny(result, denial);
+    },
+  );
+
+  it.each([
     {
       state: 'an unresolved behavior-shaping choice',
       plan: VALID_PLAN.replace(
@@ -399,7 +446,10 @@ describe('implementation planning transition gates (wired)', () => {
     writeGateConfig(projectRoot, { reviewGate: false, designApprovalGate: false });
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
-    expectHookDeny(runPackagedCodexAdvance('plan-implementation', 'implement'), 'impl-plan.md');
+    expectHookDeny(
+      runPackagedCodexAdvance('plan-implementation', 'plan-execution'),
+      'impl-plan.md',
+    );
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), plan);
 
     const result = runPackagedCodexAdvance('plan-implementation', 'plan-execution');
@@ -445,7 +495,7 @@ describe('implementation planning transition gates (wired)', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
-    expectHookAllow(runAdvance('plan-implementation', 'implement'));
+    expectHookAllow(runAdvance('plan-implementation', 'plan-execution'));
   });
 
   it('denies activated implement entry without Implementation Inspiration', () => {
@@ -462,7 +512,10 @@ describe('implementation planning transition gates (wired)', () => {
       ),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Implementation Inspiration');
+    expectHookDeny(
+      runAdvance('plan-implementation', 'plan-execution'),
+      'Implementation Inspiration',
+    );
   });
 
   it('allows an activated unsuccessful-search path with a recorded decision', () => {
@@ -473,7 +526,7 @@ describe('implementation planning transition gates (wired)', () => {
     );
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), ACTIVATED_UNSUCCESSFUL_PLAN);
 
-    expectHookAllow(runAdvance('plan-implementation', 'implement'));
+    expectHookAllow(runAdvance('plan-implementation', 'plan-execution'));
   });
 
   it('denies an activated unsuccessful-search path without a recorded decision', () => {
@@ -487,7 +540,7 @@ describe('implementation planning transition gates (wired)', () => {
       ACTIVATED_UNSUCCESSFUL_PLAN.replace('| gate | pre-tool | stop-only | too late |', ''),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Recorded Decisions');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'Recorded Decisions');
   });
 
   it('denies an activated unsuccessful-search path linked to an unrelated decision', () => {
@@ -501,7 +554,7 @@ describe('implementation planning transition gates (wired)', () => {
       ACTIVATED_UNSUCCESSFUL_PLAN.replace('| gate | pre-tool |', '| unrelated | pre-tool |'),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Decision informed');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'Decision informed');
   });
 
   it('denies activated implement entry without Doc impact', () => {
@@ -518,7 +571,7 @@ describe('implementation planning transition gates (wired)', () => {
       ),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Doc impact');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'Doc impact');
   });
 
   it('allows a markerless legacy spec-backed plan without Doc impact', () => {
@@ -532,7 +585,7 @@ describe('implementation planning transition gates (wired)', () => {
       ),
     );
 
-    expectHookAllow(runAdvance('plan-implementation', 'implement'));
+    expectHookAllow(runAdvance('plan-implementation', 'plan-execution'));
   });
 
   it.each([
@@ -546,7 +599,7 @@ describe('implementation planning transition gates (wired)', () => {
       VALID_PLAN.replace(`## ${section}\n\n${content}`, () => `## ${section}\n\n${placeholder}`),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), section);
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), section);
   });
 
   it('denies template-only Decisions scaffolding for a markerless new-flow feature', () => {
@@ -569,7 +622,7 @@ describe('implementation planning transition gates (wired)', () => {
     );
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), scaffoldOnlyDecisions);
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Decisions');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'Decisions');
   });
 
   it('denies an empty unsuccessful-search scaffold for a markerless new-flow feature', () => {
@@ -589,7 +642,7 @@ describe('implementation planning transition gates (wired)', () => {
     );
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), scaffoldOnlyDecisions);
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Decisions');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'Decisions');
   });
 
   it('denies a plan whose metadata and sections exist only inside fenced code', () => {
@@ -600,7 +653,7 @@ describe('implementation planning transition gates (wired)', () => {
       `\`\`\`md\n${VALID_PLAN}\`\`\`\n`,
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), '**Status:**');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), '**Status:**');
   });
 
   it('denies a plan whose metadata and sections exist only inside indented code', () => {
@@ -613,7 +666,7 @@ describe('implementation planning transition gates (wired)', () => {
         .join('\n'),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), '**Status:**');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), '**Status:**');
   });
 
   it('denies contradictory duplicate plan statuses through the real gate', () => {
@@ -624,7 +677,10 @@ describe('implementation planning transition gates (wired)', () => {
       VALID_PLAN.replace('**Status:** planned', '**Status:** planned\n**Status:** implemented'),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'exactly one `**Status:**`');
+    expectHookDeny(
+      runAdvance('plan-implementation', 'plan-execution'),
+      'exactly one `**Status:**`',
+    );
   });
 
   it('denies duplicate canonical plan sections through the real gate', () => {
@@ -635,13 +691,13 @@ describe('implementation planning transition gates (wired)', () => {
       `${VALID_PLAN}\n## Approach\n\nA contradictory duplicate.\n`,
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'appears 2 times');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'appears 2 times');
   });
 
   it('denies activated implement entry without spec.md', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation', 'feature', true));
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'missing spec.md');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'missing spec.md');
   });
 
   it('denies markerless implement entry when a phase anchor proves spec.md existed', () => {
@@ -654,7 +710,7 @@ describe('implementation planning transition gates (wired)', () => {
     );
     writeFileSync(ticketFile, anchoredTicket);
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'missing spec.md');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'missing spec.md');
   });
 
   it('denies markerless implement entry when Git history proves spec.md existed', () => {
@@ -666,7 +722,7 @@ describe('implementation planning transition gates (wired)', () => {
     commitFixture('record markerless spec');
     rmSync(specFile);
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'missing spec.md');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'missing spec.md');
   });
 
   it.each([
@@ -688,7 +744,7 @@ describe('implementation planning transition gates (wired)', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(specFile, '# Spec\n');
 
-    expectHookAllow(runAdvance('plan-implementation', 'implement'));
+    expectHookAllow(runAdvance('plan-implementation', 'plan-execution'));
   });
 
   it.each([
@@ -718,7 +774,7 @@ describe('implementation planning transition gates (wired)', () => {
       writeFileSync(specFile, '# Spec\n');
 
       expect(inspirationContractProvenance(ticketDirectory)).toBe('activated');
-      expectHookDeny(runAdvance('plan-implementation', 'implement'), 'previously activated');
+      expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'previously activated');
     },
   );
 
@@ -734,7 +790,7 @@ describe('implementation planning transition gates (wired)', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
 
     expect(inspirationContractProvenance(ticketDirectory)).toBe('activated');
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'previously activated');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'previously activated');
   });
 
   it('preserves durable activation provenance across a ticket-directory rename', () => {
@@ -762,7 +818,7 @@ describe('implementation planning transition gates (wired)', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
 
     expect(inspirationContractProvenance(ticketDirectory)).toBe('activated');
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'previously activated');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'previously activated');
   });
 
   it('denies missing Implementation Inspiration through CRLF artifacts', () => {
@@ -782,7 +838,10 @@ describe('implementation planning transition gates (wired)', () => {
       ).replaceAll('\n', '\r\n'),
     );
 
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Implementation Inspiration');
+    expectHookDeny(
+      runAdvance('plan-implementation', 'plan-execution'),
+      'Implementation Inspiration',
+    );
   });
 
   it('allows activated implement entry with current version-matched inspiration', () => {
@@ -793,7 +852,7 @@ describe('implementation planning transition gates (wired)', () => {
     );
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), ACTIVATED_PLAN);
 
-    expectHookAllow(runAdvance('plan-implementation', 'implement'));
+    expectHookAllow(runAdvance('plan-implementation', 'plan-execution'));
   });
 
   it('carries implementation inspiration denial and acceptance through the Codex adapter', () => {
@@ -810,12 +869,12 @@ describe('implementation planning transition gates (wired)', () => {
       ),
     );
     expectHookDeny(
-      runCodexAdvance('plan-implementation', 'implement'),
+      runCodexAdvance('plan-implementation', 'plan-execution'),
       'Implementation Inspiration',
     );
 
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), ACTIVATED_PLAN);
-    expectHookAllow(runCodexAdvance('plan-implementation', 'implement'));
+    expectHookAllow(runCodexAdvance('plan-implementation', 'plan-execution'));
   });
 
   it('carries implementation inspiration denial and acceptance through the Cursor adapter', () => {
@@ -831,12 +890,12 @@ describe('implementation planning transition gates (wired)', () => {
         () => `**Status:** planned\n**Planned on:** ${TODAY}`,
       ),
     );
-    const denied = runCursorAdvance(ticketBody('implement', 'feature', true));
+    const denied = runCursorAdvance(ticketBody('plan-execution', 'feature', true));
     expect(denied.permission).toBe('deny');
     expect(denied.user_message).toContain('Implementation Inspiration');
 
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), ACTIVATED_PLAN);
-    expect(runCursorAdvance(ticketBody('implement', 'feature', true))).toEqual({
+    expect(runCursorAdvance(ticketBody('plan-execution', 'feature', true))).toEqual({
       permission: 'allow',
     });
   });
@@ -858,7 +917,7 @@ describe('implementation planning transition gates (wired)', () => {
     expect(lastSignalRemoval.user_message).toContain('last inspiration-contract activation signal');
 
     const transition = runCursorAdvance(
-      ticketWithoutSignals.replace('phase: plan-implementation', 'phase: implement'),
+      ticketWithoutSignals.replace('phase: plan-implementation', 'phase: plan-execution'),
     );
     expect(transition.permission).toBe('deny');
     expect(transition.user_message).toContain('all three');
@@ -916,7 +975,7 @@ describe('implementation planning transition gates (wired)', () => {
   it('denies implement entry without impl-plan.md, naming the artifact and scaffold', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
-    const result = runAdvance('plan-implementation', 'implement');
+    const result = runAdvance('plan-implementation', 'plan-execution');
     expectHookDeny(result, 'impl-plan.md');
     expectHookDeny(result, 'impl-plan-template.md');
   });
@@ -928,7 +987,7 @@ describe('implementation planning transition gates (wired)', () => {
       nodePath.join(ticketDirectory, 'impl-plan.md'),
       VALID_PLAN.replace('## Decisions', '## Notes'),
     );
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'Decisions');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'Decisions');
   });
 
   it('denies implement entry when the plan status is still implemented from a replan loop', () => {
@@ -938,12 +997,12 @@ describe('implementation planning transition gates (wired)', () => {
       nodePath.join(ticketDirectory, 'impl-plan.md'),
       VALID_PLAN.replace('**Status:** planned', '**Status:** implemented'),
     );
-    expectHookDeny(runAdvance('plan-implementation', 'implement'), 'implemented');
+    expectHookDeny(runAdvance('plan-implementation', 'plan-execution'), 'implemented');
   });
 
   it('grandfathers a legacy feature without spec.md', () => {
     writeFileSync(ticketFile, ticketBody('plan-implementation'));
-    expectHookAllow(runAdvance('plan-implementation', 'implement'));
+    expectHookAllow(runAdvance('plan-implementation', 'plan-execution'));
   });
 
   it('denies a justified provenance skip when the new-flow feature still has no plan', () => {
