@@ -228,11 +228,28 @@ export function verifyEvaluationRecord(input: EvaluationRecordInput): Verificati
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 
-export function verifyEvaluationCorpus(_input: EvaluationCorpusInput): VerificationResult {
-  return {
-    accepted: false,
-    diagnostics: ['Evaluation corpus verification is not implemented.'],
-  };
+export function verifyEvaluationCorpus(input: EvaluationCorpusInput): VerificationResult {
+  const diagnostics: string[] = [];
+
+  for (const evaluationCase of input.cases) {
+    const record = input.records.find(candidate => candidate.caseId === evaluationCase.id);
+    if (record === undefined) {
+      diagnostics.push(`[${evaluationCase.id}] Evaluation corpus is missing a record.`);
+      continue;
+    }
+
+    const result = verifyEvaluationRecord({
+      canonicalGuide: input.canonicalGuide,
+      evaluationCase,
+      contract: input.contract,
+      record,
+    });
+    diagnostics.push(
+      ...result.diagnostics.map(diagnostic => `[${evaluationCase.id}] ${diagnostic}`),
+    );
+  }
+
+  return { accepted: diagnostics.length === 0, diagnostics };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
