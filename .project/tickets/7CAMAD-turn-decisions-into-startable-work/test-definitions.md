@@ -230,7 +230,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Canonical delivery-contract identity prevents local contract drift
 
-- [ ] RED
+- [x] RED 231553108
 - [ ] GREEN
 - [ ] REFACTOR
 
