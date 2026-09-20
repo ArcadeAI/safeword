@@ -306,6 +306,85 @@ describe('coding authorization edit hook', () => {
     expect(existsSync(nodePath.join(pluginRoot, 'calls.log'))).toBe(true);
   });
 
+  it('keeps coding authorization active through a quoted historical phase anchor', () => {
+    rmSync(nodePath.join(nodePath.dirname(ticketPath), 'execution-plan.md'));
+    writeFileSync(
+      ticketPath,
+      readFileSync(ticketPath, 'utf8').replace('status: in_progress', () =>
+        [
+          'status: in_progress',
+          'phase_anchors:',
+          `  - "plan-execution: .project/tickets/${TICKET_ID}-gate/impl-plan.md"`,
+        ].join('\n'),
+      ),
+    );
+    expect(spawnSync('git', ['init'], { cwd: projectRoot }).status).toBe(0);
+    expect(spawnSync('git', ['add', '.'], { cwd: projectRoot }).status).toBe(0);
+    expect(
+      spawnSync(
+        'git',
+        [
+          '-c',
+          'commit.gpgsign=false',
+          '-c',
+          'user.name=Safeword Test',
+          '-c',
+          'user.email=test@safeword.local',
+          'commit',
+          '-m',
+          'record quoted execution planning anchor',
+        ],
+        { cwd: projectRoot },
+      ).status,
+    ).toBe(0);
+    writeFileSync(
+      ticketPath,
+      readFileSync(ticketPath, 'utf8').replace(
+        /phase_anchors:\n {2}- "plan-execution: [^\n]+"\n/u,
+        '',
+      ),
+    );
+    writeCliResponse({
+      schema_version: 1,
+      ok: true,
+      state: 'action_required',
+      findings: [
+        {
+          code: 'missing_admitted_delivery_checklist',
+          message: 'The project-local Execution Plan is missing.',
+          severity: 'warning',
+        },
+      ],
+      errors: [],
+      next_actions: [],
+      data: {
+        command: 'ticket coding-authorization',
+        coding_authorization: 'denied',
+        grants_authority: false,
+      },
+    });
+
+    const result = runEdit();
+
+    expectHookDeny(result, 'The project-local Execution Plan is missing.');
+    expect(existsSync(nodePath.join(pluginRoot, 'calls.log'))).toBe(true);
+  });
+
+  it.each(['task', 'patch'])('does not apply feature coding authorization to a %s', type => {
+    writeFileSync(
+      ticketPath,
+      readFileSync(ticketPath, 'utf8').replace('type: feature', () => `type: ${type}`),
+    );
+    rmSync(nodePath.join(nodePath.dirname(ticketPath), 'execution-plan.md'));
+
+    const result = runEdit();
+
+    expect(result.error, result.stderr).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(existsSync(nodePath.join(pluginRoot, 'calls.log'))).toBe(false);
+  });
+
   it.each(['define-behavior', 'scenario-gate'])(
     'allows feature-source repair during %s after execution planning has begun',
     phase => {

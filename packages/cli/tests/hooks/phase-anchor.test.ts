@@ -174,6 +174,20 @@ describe('detectUnanchoredPhaseTransition — an advance anchored to the exited 
     expect(verdict.kind).toBe('anchored');
   });
 
+  it('a quoted block-sequence entry is parsed as the same phase anchor', () => {
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'plan-execution' }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        anchors: [`"implement: ${EXECUTION_PLAN_PATH}"`],
+      }),
+      readTree,
+    );
+
+    expect(verdict.kind).toBe('anchored');
+  });
+
   it('only the entered phase needs an anchor on a multi-step advance', () => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'define-behavior' }),
