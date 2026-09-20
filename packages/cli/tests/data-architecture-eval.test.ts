@@ -525,6 +525,21 @@ describe('data architecture guide evaluation', () => {
           '[multi-tenant-relational-event-store] Evaluation response contains unknown decision decision.relational.unknown.',
       },
       {
+        name: 'response contains a known but inapplicable decision',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          response: {
+            ...relationalRecord.response,
+            decisionIds: [
+              ...relationalRecord.response.decisionIds,
+              'decision.encryption.aad-binding',
+            ],
+          },
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation response contains unknown decision decision.encryption.aad-binding.',
+      },
+      {
         name: 'response contains a forbidden decision',
         corpus: replaceRelationalRecord({
           ...relationalRecord,
@@ -751,6 +766,18 @@ describe('data architecture guide evaluation', () => {
           },
         },
         diagnostic: 'Evaluation response contains unknown decision decision.routing.unknown.',
+      },
+      {
+        name: 'known but inapplicable decision',
+        record: {
+          ...mixedRecord,
+          response: {
+            ...mixedRecord.response,
+            decisionIds: [...mixedRecord.response.decisionIds, 'decision.encryption.aad-binding'],
+          },
+        },
+        diagnostic:
+          'Evaluation response contains unknown decision decision.encryption.aad-binding.',
       },
       {
         name: 'forbidden decision',
