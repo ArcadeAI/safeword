@@ -253,7 +253,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Canonical slicing-contract identity prevents local contract drift
 
 - [x] RED 2f81f4a6b
-- [ ] GREEN
+- [x] GREEN b5ddd8b22
 - [ ] REFACTOR
 
 ### Scenario: Contribution shape controls pull-request decomposition
