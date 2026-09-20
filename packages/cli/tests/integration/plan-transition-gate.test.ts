@@ -141,11 +141,21 @@ describe('implementation planning transition gates (wired)', () => {
     return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   }
 
-  function runExactEdit(filePath: string, oldString: string, newString: string): HookResult {
+  function runExactEdit(
+    filePath: string,
+    oldString: string,
+    newString: string,
+    replaceAll = false,
+  ): HookResult {
     const result = spawnSync('bun', [GATE_PATH], {
       input: JSON.stringify({
         tool_name: 'Edit',
-        tool_input: { file_path: filePath, old_string: oldString, new_string: newString },
+        tool_input: {
+          file_path: filePath,
+          old_string: oldString,
+          new_string: newString,
+          replace_all: replaceAll,
+        },
       }),
       encoding: 'utf8',
       env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
@@ -931,6 +941,16 @@ describe('implementation planning transition gates (wired)', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
 
     expectHookDeny(runExactEdit(specFile, marker, '$&'), 'last inspiration-contract');
+  });
+
+  it('treats replace-all replacement tokens literally while guarding the last activation marker', () => {
+    const specFile = nodePath.join(ticketDirectory, 'spec.md');
+    const marker = '<!-- safeword:inspiration-contract:v1 -->';
+    writeFileSync(ticketFile, ticketBody('plan-implementation'));
+    writeFileSync(specFile, `# Spec\n${marker}\n`);
+    writeFileSync(nodePath.join(ticketDirectory, 'impl-plan.md'), VALID_PLAN);
+
+    expectHookDeny(runExactEdit(specFile, marker, '$&', true), 'last inspiration-contract');
   });
 
   it('accepts a completed canonical implementation-plan template in the evaluator', () => {
