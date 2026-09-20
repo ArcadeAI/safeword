@@ -74,6 +74,12 @@ function withoutStartability(rubric: string): string {
   return rubric.slice(0, startability) + rubric.slice(followingObligation);
 }
 
+function withDriftedSlicingContract(rubric: string): string {
+  const drifted = rubric.replace('`multiple_pull_requests`', '`many_pull_requests`');
+  if (drifted === rubric) throw new Error('Canonical slicing contract was not found');
+  return drifted;
+}
+
 function packet(authorRubric: string, reviewerRubric: string): ReviewPacket {
   return {
     schema_version: 1,
@@ -203,6 +209,7 @@ type InstalledContractState =
   | 'missing-author'
   | 'missing-reviewer'
   | 'stale-reviewer'
+  | 'stale-slicing-contract'
   | 'incomplete-pair'
   | 'stale-delivery-taxonomy';
 
@@ -239,6 +246,12 @@ function runInstalledReview(state: InstalledContractState) {
       patchInstalledReviewerRubric(distribution, stale);
       retainInstalledRouteAdmission(distribution, stale);
 
+      break;
+    }
+    case 'stale-slicing-contract': {
+      const stale = withDriftedSlicingContract(canonicalRubric);
+      patchInstalledReviewerRubric(distribution, stale);
+      retainInstalledRouteAdmission(distribution, stale);
       break;
     }
     case 'incomplete-pair': {
@@ -351,6 +364,7 @@ describe('Execution Plan review-contract identity', () => {
     ['missing-author', 'authoring contract copy'],
     ['missing-reviewer', 'generated reviewer contract copy'],
     ['stale-reviewer', 'stale generated reviewer contract'],
+    ['stale-slicing-contract', 'canonical contract-byte identity'],
     ['incomplete-pair', 'canonical contract-byte identity'],
     ['stale-delivery-taxonomy', 'canonical delivery-contract identity'],
   ] as const)(
