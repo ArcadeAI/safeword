@@ -92,7 +92,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED b7aac38fe
 - [x] GREEN 0aa897eb5
-- [ ] REFACTOR
+- [x] REFACTOR skip: recursive walk is already small and direct
 
 ### Scenario Outline: Sensitive-looking evaluation values are refused
 
