@@ -134,6 +134,8 @@ const representativeCases = [
       'decision.migration.deployed-state',
       'decision.erasure.copy-disposition',
     ],
+    forbiddenDecisions: ['decision.relational.cross-tenant-parent-binding'],
+    forbiddenProofs: ['proof.relational.self-generated-coverage'],
     proofs: [
       'proof.relational.query-context',
       'proof.migration.deployed-mixed-version',
@@ -379,6 +381,10 @@ describe('data architecture guide evaluation', () => {
       evaluationRecord => evaluationRecord.caseId === 'multi-tenant-relational-event-store',
     );
     if (relationalRecord === undefined) throw new Error('Missing relational corpus record.');
+    const smuggledPrompt = JSON.stringify({
+      ...JSON.parse(relationalRecord.prompt),
+      ambientContext: 'repository state',
+    });
     const replaceRelationalRecord = (replacement: EvaluationRecord): EvaluationCorpusInput => ({
       ...corpus,
       records: corpus.records.map(evaluationRecord =>
@@ -424,6 +430,16 @@ describe('data architecture guide evaluation', () => {
           '[multi-tenant-relational-event-store] Evaluation record prompt does not match the current cold-start prompt.',
       },
       {
+        name: 'self-consistent prompt with ambient context',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          prompt: smuggledPrompt,
+          coldStartPromptSha256: sha256(smuggledPrompt),
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation record prompt does not match the current cold-start prompt.',
+      },
+      {
         name: 'different model version',
         corpus: replaceRelationalRecord({
           ...relationalRecord,
@@ -454,6 +470,33 @@ describe('data architecture guide evaluation', () => {
         }),
         diagnostic:
           '[multi-tenant-relational-event-store] Evaluation response is missing expected decision decision.relational.query-contract.',
+      },
+      {
+        name: 'response contains an unknown decision',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          response: {
+            ...relationalRecord.response,
+            decisionIds: [...relationalRecord.response.decisionIds, 'decision.relational.unknown'],
+          },
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation response contains unknown decision decision.relational.unknown.',
+      },
+      {
+        name: 'response contains a forbidden decision',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          response: {
+            ...relationalRecord.response,
+            decisionIds: [
+              ...relationalRecord.response.decisionIds,
+              'decision.relational.cross-tenant-parent-binding',
+            ],
+          },
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation response contains forbidden decision decision.relational.cross-tenant-parent-binding.',
       },
     ];
 
