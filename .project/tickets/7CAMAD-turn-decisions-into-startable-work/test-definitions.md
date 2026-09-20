@@ -237,6 +237,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Partial structural evidence cannot authorize completion
 
 - [x] RED e7237d2b6
+- [x] RED 0db3aeda9
 - [ ] GREEN
 - [ ] REFACTOR
 
