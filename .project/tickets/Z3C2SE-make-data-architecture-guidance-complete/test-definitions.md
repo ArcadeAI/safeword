@@ -98,7 +98,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 433ac1e29
 - [x] GREEN 71939322c
-- [ ] REFACTOR
+- [x] REFACTOR skip: ordered classifiers and recursive traversal are already direct
 
 ## Rule: data-architecture-guidance.SWM1.R1 — Installed and generated guide paths match an independent inventory and every planning reference resolves
 
