@@ -52,7 +52,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 7a8978a6b
 - [x] GREEN dc3daf19a
-- [ ] REFACTOR
+- [x] REFACTOR skip: exact-set comparison is already a single stable boundary
 
 ### Scenario: Agreement between sibling generated outputs cannot prove completeness
 
