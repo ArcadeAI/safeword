@@ -784,7 +784,7 @@ function nextContentAfterEdit(
   if (toolInput?.old_string !== undefined) {
     if (toolInput.replace_all === true && toolInput.old_string !== '') {
       return priorContent.includes(toolInput.old_string)
-        ? priorContent.replaceAll(toolInput.old_string, toolInput.new_string ?? '')
+        ? priorContent.split(toolInput.old_string).join(toolInput.new_string ?? '')
         : undefined;
     }
     return applyUniqueEdit(priorContent, toolInput.old_string, toolInput.new_string ?? '');

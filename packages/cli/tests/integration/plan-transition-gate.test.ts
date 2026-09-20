@@ -1048,7 +1048,7 @@ describe('implementation planning transition gates (wired)', () => {
     writeFileSync(ticketFile, withSkip);
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
     const result = runAdvance('scenario-gate', 'implement');
-    expectHookDeny(result, 'impl-plan.md');
+    expectHookDeny(result, 'plan-execution');
   });
 
   it('leaves task tickets unpoliced', () => {
