@@ -690,16 +690,29 @@ describe('data architecture guide evaluation', () => {
       oracleKind: 'hand-maintained',
     };
 
-    expect(verifyFacetCompleteness(complete)).toEqual({ accepted: true, diagnostics: [] });
-    expect(
-      verifyFacetCompleteness({
-        ...complete,
-        generatedFacetIds: ['access-patterns', 'encryption'],
-      }),
-    ).toEqual({
-      accepted: false,
-      diagnostics: ['Generated manifest is missing intended facet erasure.'],
-    });
+    expect.soft(verifyFacetCompleteness(complete)).toEqual({ accepted: true, diagnostics: [] });
+    expect
+      .soft(
+        verifyFacetCompleteness({
+          ...complete,
+          generatedFacetIds: ['access-patterns', 'encryption'],
+        }),
+      )
+      .toEqual({
+        accepted: false,
+        diagnostics: ['Generated manifest is missing intended facet erasure.'],
+      });
+    expect
+      .soft(
+        verifyFacetCompleteness({
+          ...complete,
+          generatedFacetIds: [...complete.generatedFacetIds, 'retention'],
+        }),
+      )
+      .toEqual({
+        accepted: false,
+        diagnostics: ['Generated manifest contains unknown facet retention.'],
+      });
   });
 
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
