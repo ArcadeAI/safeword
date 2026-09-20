@@ -105,7 +105,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 ### Scenario: Supported hosts resolve one coherent guide through their existing delivery model
 
 - [x] RED 103119ac3
-- [ ] GREEN
+- [x] GREEN ffe1105fa
 - [ ] REFACTOR
 
 ### Scenario Outline: Shipped guide drift fails delivery verification
