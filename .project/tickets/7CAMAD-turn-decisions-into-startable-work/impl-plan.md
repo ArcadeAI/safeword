@@ -1,6 +1,6 @@
 # Implementation Plan: Turn accepted decisions into startable work
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-09-16
 
 ## Approach
@@ -30,19 +30,19 @@ patch flows without Implementation or Execution Plans.
 
 ### Current state and target reconciliation
 
-`Status: planned` means this document remains the accepted target design; it
-does not mean implementation has not started. The ticket returned to
-`plan-implementation` after stronger scenarios exposed a checklist-identity
-ambiguity, so current facts are separated from remaining target work here:
+The accepted design is now implemented. The facts below distinguish completed
+implementation from the still-pending whole-ticket verification and downstream
+human authorities:
 
 | State | Current fact | Evidence strength | Remaining target |
 | --- | --- | --- | --- |
-| Implemented | The public coding-authorization projection and both coding-boundary consumers exist on this branch. | Targeted CLI, hook, and review tests have passed during implementation; whole-ticket verification has not run, so this is not a completion or release claim. | Preserve the single prerequisite owner while the remaining semantic and journey cases are added. |
-| Implemented | Content-bound review invalidation and the closed downstream-authority result are present. | Scenario-level GREEN/REFACTOR evidence only; unchecked rows remain unproved. | Complete the source-approach invalidation and replan/preservation journeys. |
-| Implemented | Discovery routing and disguised data- and architecture-decision checks now distinguish execution repair from design repair. | The complete real-review conformance matrix and deterministic tests passed for the implemented partitions; whole-ticket verification has not run. | Preserve those partitions while adding the remaining obligation, measurement, and cold-start cases. |
-| Available dependency | G1C9PP's plan-approval command, 5F5ZZA's authenticated review provenance, 6XW8H7's canonical Execution Plan review, and A639WN's Delivery Checklist, proof-currency, and compatibility contracts are available. | Their admitted contract tests establish the dependency boundary, not this ticket's complete behavior. | Add this ticket's startability, obligation, measurement, and cold-start conformance cases without redefining those contracts. |
-| Known gap | The implemented obligation corpus covers accepted behaviors, migrations, rollout, rollback, documentation, and affected surfaces, but does not yet distinguish omitted applicable work from optional categories the accepted approach explicitly marks inapplicable. | Static conformance tests are RED for the missing partitions; real reviewer evidence has not run for this repair. | Preserve the accepted-behavior floor, add the missing applicable/inapplicable partitions, then regenerate the real-review admission matrix against the current contract digest before claiming GREEN. |
-| Resolved history | The scenario-scoped executable-RED receipt bug was fixed and regression-tested. The work-log rc.4 raw-byte divergence belongs to older published bootstrap tooling; the current rc.5/source runtime uses the accepted normalized identity. | Targeted regression evidence only; neither item is current target work. | None; retain as context so a resumed agent does not reopen either item. |
+| Implemented | One public coding-authorization projection controls both entry to implementation and production edits. Every denial is non-healthy, including a malformed healthy prerequisite result. | Installed-CLI and real-hook subprocess tests, closed-shape tests, and the independent review completed on 2026-09-20. | Whole-ticket verification only. |
+| Implemented | Authenticated `plan-execution` history is the durable activation marker. Deleting or downgrading a current marker cannot restore a legacy exemption; an editable phase alone cannot activate the gate. | Git-backed provenance and mutation tests cover current and historical markers, quoted anchors, missing files, and unresolvable history. | Whole-ticket verification only. |
+| Implemented | Hook reconstruction treats `replace_all` replacement text literally, and each omitted planning phase requires its own explicit `phase_skips` entry. | Regression tests cover JavaScript replacement tokens and prove that an Implementation Planning skip cannot silently skip Execution Planning. | Whole-ticket verification only. |
+| Implemented | Legacy features outside Git remain grandfathered when they have no M1 marker, while task and patch edits bypass feature-only authorization entirely. | Public CLI and real-hook tests cover the no-Git legacy boundary and assert that task and patch flows do not invoke coding authorization. | Whole-ticket verification only. |
+| Implemented | Content-bound review invalidation, dependency-directed replanning, proof preservation, discovery routing, obligation applicability, measurement work, cold-start behavior, and independently reviewable PR slicing match the accepted contracts. | The admitted real-review corpus and deterministic conformance and journey suites cover every accepted partition. | Whole-ticket verification only. |
+| Available dependency | G1C9PP's plan-approval command, 5F5ZZA's authenticated review provenance, 6XW8H7's canonical Execution Plan review, and A639WN's Delivery Checklist, proof-currency, and compatibility contracts are integrated without redefining their authority. | Contract-identity and compatibility suites prove the dependency boundaries. | None for this implementation. |
+| Resolved history | The scenario-scoped executable-RED receipt bug, rc.4 raw-byte divergence, checklist-identity ambiguity, replacement-token mismatch, implicit phase-skip compatibility shim, and no-Git provenance regression are fixed and regression-tested. | Focused RED/GREEN commits and independent review provide implementation evidence; none is current target work. | None; retain as context so resumed work does not reopen them. |
 | Pending human authority | No merge, release, or rollout approval has been granted by either planning review. | Not applicable; those authorities remain downstream and human-owned. | Obtain them only through the normal downstream process after verification. |
 
 Implementation-time changes follow the dependency direction already accepted
