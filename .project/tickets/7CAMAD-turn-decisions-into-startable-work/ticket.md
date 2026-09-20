@@ -2,7 +2,7 @@
 id: 7CAMAD
 slug: turn-decisions-into-startable-work
 type: feature
-phase: define-behavior
+phase: plan-implementation
 status: in_progress
 phase_skips:
   - 'intake: originally inherited the 2026-09-08 approval of 82T411; that approval became stale after material parent changes and was superseded by the fresh Product Plan approval recorded on 2026-09-09T23:46:25.000Z'
@@ -50,6 +50,12 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-20T19:20:00.000Z Scenario gate: Claude Opus independently approved
+  all 37 scenarios with cross-agent provenance (review
+  `4ad5ebbf-18af-414e-af70-78e971384606`). No must-fix findings remained. The
+  reviewer confirmed that the deterministic matrix substitutes only for the
+  repeated semantic verdict while CI still exercises the installed CLI.
 
 - 2026-09-20T19:14:00.000Z Scenario review correction: clarified that the
   deterministic admission matrix substitutes only for the live reviewer's
