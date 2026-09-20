@@ -58,7 +58,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 6eb359759
 - [x] GREEN d0c604791
-- [ ] REFACTOR
+- [x] REFACTOR skip: oracle independence is already an explicit guard at the verifier boundary
 
 ### Scenario: A discriminating guide-ablation pair validates independent proof
 
