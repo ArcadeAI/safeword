@@ -106,7 +106,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 103119ac3
 - [x] GREEN ffe1105fa
-- [ ] REFACTOR
+- [x] REFACTOR skip: guide, planning, and OpenCode checks are already separated by concern
 
 ### Scenario Outline: Shipped guide drift fails delivery verification
 
