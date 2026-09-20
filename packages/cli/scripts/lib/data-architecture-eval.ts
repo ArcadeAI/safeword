@@ -471,13 +471,43 @@ export function verifyConditionalProof(input: ConditionalProofInput): Verificati
 }
 
 const syntheticPlaceholderPattern = /^SYNTHETIC_[A-Z0-9_]+$/;
+const credentialPrefixPattern =
+  /^(?:AKIA|ASIA|gh[pousr]_|github_pat_|[ps]k_(?:live|test)_|xox[baprs]-|-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----)/i;
+const emailShapePattern = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/;
 const allowedMigrationEvidenceSources = new Set(['checked-in-equivalent', 'deployed-read-only']);
+
+function hasHighEntropy(value: string): boolean {
+  if (value.length < 32) return false;
+  const frequencies = new Map<string, number>();
+  for (const character of value) {
+    frequencies.set(character, (frequencies.get(character) ?? 0) + 1);
+  }
+  let entropy = 0;
+  for (const frequency of frequencies.values()) {
+    const probability = frequency / value.length;
+    entropy -= probability * Math.log2(probability);
+  }
+  return entropy >= 3.5;
+}
+
+function unsafeEvidenceStringDiagnostic(value: string, path: string): string {
+  if (credentialPrefixPattern.test(value)) {
+    return `Evidence value at ${path} is a credential, token, or key prefix.`;
+  }
+  if (emailShapePattern.test(value)) {
+    return `Evidence value at ${path} is an email-shaped value.`;
+  }
+  if (hasHighEntropy(value)) {
+    return `Evidence value at ${path} is a non-placeholder high-entropy value.`;
+  }
+  return `Evidence value at ${path} does not follow the synthetic-placeholder convention.`;
+}
 
 function unsafeEvidenceValueDiagnostics(value: unknown, path: string): string[] {
   if (typeof value === 'string') {
     return syntheticPlaceholderPattern.test(value)
       ? []
-      : [`Evidence value at ${path} does not follow the synthetic-placeholder convention.`];
+      : [unsafeEvidenceStringDiagnostic(value, path)];
   }
   if (Array.isArray(value)) {
     return value.flatMap((entry, index) =>
