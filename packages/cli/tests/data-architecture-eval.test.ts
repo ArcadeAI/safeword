@@ -381,6 +381,11 @@ describe('data architecture guide evaluation', () => {
       evaluationRecord => evaluationRecord.caseId === 'multi-tenant-relational-event-store',
     );
     if (relationalRecord === undefined) throw new Error('Missing relational corpus record.');
+    const encryptedCredentialRecord = corpus.records.find(
+      evaluationRecord => evaluationRecord.caseId === 'encrypted-credential-record',
+    );
+    if (encryptedCredentialRecord === undefined)
+      throw new Error('Missing encrypted credential corpus record.');
     const smuggledPrompt = JSON.stringify({
       ...JSON.parse(relationalRecord.prompt),
       ambientContext: 'repository state',
@@ -479,6 +484,27 @@ describe('data architecture guide evaluation', () => {
         }),
         diagnostic:
           '[multi-tenant-relational-event-store] Evaluation response is missing expected decision decision.relational.query-contract.',
+      },
+      {
+        name: 'a non-relational response fails its rubric',
+        corpus: {
+          ...corpus,
+          records: corpus.records.map(evaluationRecord =>
+            evaluationRecord === encryptedCredentialRecord
+              ? {
+                  ...encryptedCredentialRecord,
+                  response: {
+                    ...encryptedCredentialRecord.response,
+                    decisionIds: encryptedCredentialRecord.response.decisionIds.filter(
+                      id => id !== 'decision.encryption.aad-binding',
+                    ),
+                  },
+                }
+              : evaluationRecord,
+          ),
+        },
+        diagnostic:
+          '[encrypted-credential-record] Evaluation response is missing expected decision decision.encryption.aad-binding.',
       },
       {
         name: 'response contains an unknown decision',
