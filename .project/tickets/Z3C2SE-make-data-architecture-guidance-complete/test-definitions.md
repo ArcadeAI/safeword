@@ -29,7 +29,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 ### Scenario Outline: Invalid evaluation records fail deterministic verification
 
 - [x] RED d9a8274ad
-- [ ] GREEN
+- [x] GREEN c56da116a
 - [ ] REFACTOR
 
 ## Rule: data-architecture-guidance.TBU1.R3 — Architecture, implementation plans, generated representations, ADRs, and linked evidence each retain a single explicit responsibility
