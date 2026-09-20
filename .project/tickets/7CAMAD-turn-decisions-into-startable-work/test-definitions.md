@@ -240,7 +240,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 0db3aeda9
 - [x] RED e08716a40
 - [x] GREEN fecea88ed
-- [ ] REFACTOR
+- [x] REFACTOR skip: the readiness projection now reads the existing required-proof boundary directly
 
 ## Rule: plan-implementability.TBU2.7CAMAD.R13 — The Execution Plan carries the feature Delivery Checklist and maps accepted obligations into dependency-ordered tasks and independently reviewable pull-request slices under the sibling checklist and slicing contracts
 
