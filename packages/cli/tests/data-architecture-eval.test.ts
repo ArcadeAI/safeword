@@ -894,17 +894,20 @@ describe('data architecture guide evaluation', () => {
 
   it.each([
     {
-      diagnostic: 'Evidence contains a credential, token, or key prefix.',
+      diagnostic:
+        'Evidence value at mutableValues.records[0].response.proofFactIds[0] is a credential, token, or key prefix.',
       value: 'sk_live_EXAMPLE_CREDENTIAL',
       valueClass: 'credential, token, or key prefix',
     },
     {
-      diagnostic: 'Evidence contains an email-shaped value.',
+      diagnostic:
+        'Evidence value at mutableValues.records[0].response.proofFactIds[0] is an email-shaped value.',
       value: 'customer@example.com',
       valueClass: 'email-shaped value',
     },
     {
-      diagnostic: 'Evidence contains a non-placeholder high-entropy value.',
+      diagnostic:
+        'Evidence value at mutableValues.records[0].response.proofFactIds[0] is a non-placeholder high-entropy value.',
       value: '7b1d9f0342a6e8c57d0b1493f6a2c8e57b1d9f0342a6e8c57d0b1493f6a2c8e5',
       valueClass: 'non-placeholder high-entropy value',
     },
@@ -922,6 +925,30 @@ describe('data architecture guide evaluation', () => {
       });
     },
   );
+
+  it('reports every nested unsafe value in stable path order', () => {
+    const evidence: EvidenceSafetyInput = {
+      mutableValues: {
+        records: [
+          {
+            response: {
+              contact: 'customer@example.com',
+              token: 'sk_live_EXAMPLE_CREDENTIAL',
+            },
+          },
+        ],
+      },
+      migrationEvidenceSources: ['checked-in-equivalent'],
+    };
+
+    expect(verifyEvidenceSafety(evidence)).toEqual({
+      accepted: false,
+      diagnostics: [
+        'Evidence value at mutableValues.records[0].response.contact is an email-shaped value.',
+        'Evidence value at mutableValues.records[0].response.token is a credential, token, or key prefix.',
+      ],
+    });
+  });
 
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
     const mixedCase: EvaluationCase = {
