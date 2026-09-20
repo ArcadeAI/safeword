@@ -470,8 +470,36 @@ export function verifyConditionalProof(input: ConditionalProofInput): Verificati
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 
-export function verifyEvidenceSafety(_input: EvidenceSafetyInput): VerificationResult {
-  return { accepted: false, diagnostics: ['Evidence safety verification is not implemented.'] };
+const syntheticPlaceholderPattern = /^SYNTHETIC_[A-Z0-9_]+$/;
+const allowedMigrationEvidenceSources = new Set(['checked-in-equivalent', 'deployed-read-only']);
+
+function unsafeEvidenceValueDiagnostics(value: unknown, path: string): string[] {
+  if (typeof value === 'string') {
+    return syntheticPlaceholderPattern.test(value)
+      ? []
+      : [`Evidence value at ${path} does not follow the synthetic-placeholder convention.`];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) =>
+      unsafeEvidenceValueDiagnostics(entry, `${path}[${index}]`),
+    );
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.entries(value)
+      .toSorted(([left], [right]) => Buffer.compare(Buffer.from(left), Buffer.from(right)))
+      .flatMap(([key, entry]) => unsafeEvidenceValueDiagnostics(entry, `${path}.${key}`));
+  }
+  return [];
+}
+
+export function verifyEvidenceSafety(input: EvidenceSafetyInput): VerificationResult {
+  const diagnostics = unsafeEvidenceValueDiagnostics(input.mutableValues, 'mutableValues');
+  for (const source of input.migrationEvidenceSources) {
+    if (!allowedMigrationEvidenceSources.has(source)) {
+      diagnostics.push(`Migration evidence source ${source} is not read-only or checked-in.`);
+    }
+  }
+  return { accepted: diagnostics.length === 0, diagnostics };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
