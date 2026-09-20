@@ -217,7 +217,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Evidence state controls the delivery claim
 
 - [x] RED 13e5380e0
-- [ ] GREEN
+- [x] GREEN de47c9120
 - [ ] REFACTOR
 
 ### Scenario: Delivery evidence uses the canonical checklist taxonomy
