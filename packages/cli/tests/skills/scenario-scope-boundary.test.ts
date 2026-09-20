@@ -108,9 +108,13 @@ describe('scenario scope boundary', () => {
     expect(content).toContain(
       'If a Must Fix names missing review context, re-dispatch with that file before judging the scenarios',
     );
-    expect(content).toContain(
-      'Any scenario edit — including a user-requested Should Strengthen — invalidates the review stamp and requires a re-run',
-    );
+    // An edit still costs the stamp and still re-runs the gate. What changed
+    // (#4701) is the re-run's SCOPE: the generative lenses run once per accepted
+    // scope, so repairing a finding cannot regenerate the scope that produced it.
+    expect(content).toContain('A scenario edit invalidates the review stamp, so the gate re-runs');
+    expect(content).toContain("the re-run's scope is the edit, not a fresh expansion");
+    expect(content).toContain('run once per accepted scope');
+    expect(content).toContain('Let severity end the loop, not patience');
   });
 
   it.each(authoringSurfaces)('%s demonstrates both halves of the scope check', relative => {
