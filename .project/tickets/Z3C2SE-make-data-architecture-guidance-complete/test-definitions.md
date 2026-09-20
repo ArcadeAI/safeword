@@ -84,7 +84,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 215482369
 - [x] GREEN 86abd0447
-- [ ] REFACTOR
+- [x] REFACTOR skip: focused diagnostics already use a low-complexity ordered rule table
 
 ## Rule: data-architecture-guidance.TBU2.R3 — Proof uses synthetic or read-only evidence and never requires secrets, plaintext customer data, or production credentials
 
