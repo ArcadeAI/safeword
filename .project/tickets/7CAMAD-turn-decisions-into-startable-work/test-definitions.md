@@ -238,6 +238,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e7237d2b6
 - [x] RED 0db3aeda9
+- [x] RED e08716a40
 - [ ] GREEN
 - [ ] REFACTOR
 
