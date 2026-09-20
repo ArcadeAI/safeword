@@ -1665,6 +1665,10 @@ interface GhPullRequest {
 
 interface GhStatusCheck {
   __typename?: string;
+  name?: string;
+  workflowName?: string;
+  context?: string;
+  startedAt?: string;
   status?: string;
   conclusion?: string;
   state?: string;
@@ -1692,8 +1696,26 @@ export function resolveHostedCheckRollup(
 ): PullRequestIdentity['ciChecks'] {
   if (!checks) return 'unknown';
   if (checks.length === 0) return 'absent';
-  let pending = false;
+  const latestChecks = new Map<string, { check: GhStatusCheck; startedAt: number }>();
+  const undatedChecks: GhStatusCheck[] = [];
   for (const check of checks) {
+    const identity =
+      check.__typename === 'CheckRun' && check.name
+        ? `CheckRun:${check.workflowName ?? ''}:${check.name}`
+        : check.__typename === 'StatusContext' && check.context
+          ? `StatusContext:${check.context}`
+          : undefined;
+    const startedAt = Date.parse(check.startedAt ?? '');
+    if (!identity || Number.isNaN(startedAt)) {
+      undatedChecks.push(check);
+      continue;
+    }
+    const latest = latestChecks.get(identity);
+    if (!latest || startedAt >= latest.startedAt) latestChecks.set(identity, { check, startedAt });
+  }
+
+  let pending = false;
+  for (const check of [...undatedChecks, ...[...latestChecks.values()].map(({ check }) => check)]) {
     if (check.__typename === 'CheckRun') {
       if (check.status !== 'COMPLETED') pending = true;
       else if (!['SUCCESS', 'NEUTRAL', 'SKIPPED'].includes(check.conclusion ?? '')) return 'failed';
