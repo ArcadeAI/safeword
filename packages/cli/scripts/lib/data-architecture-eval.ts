@@ -63,6 +63,12 @@ export interface ArtifactAuthorityClaim {
   readonly claimsSourceOfTruth: boolean;
 }
 
+export interface FacetCompletenessInput {
+  readonly intendedFacetIds: readonly string[];
+  readonly generatedFacetIds: readonly string[];
+  readonly oracleKind: 'hand-maintained' | 'generated-sibling';
+}
+
 export interface AblationRecord {
   readonly guideSha256: string;
   readonly caseRubricSha256: string;
@@ -279,6 +285,10 @@ export function verifyArtifactOwnership(
     });
 
   return { accepted: diagnostics.length === 0, diagnostics };
+}
+
+export function verifyFacetCompleteness(_input: FacetCompletenessInput): VerificationResult {
+  return { accepted: true, diagnostics: [] };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {

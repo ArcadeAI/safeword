@@ -12,10 +12,12 @@ import {
   type EvaluationRecord,
   type EvaluationResponse,
   type EvaluationRubric,
+  type FacetCompletenessInput,
   verifyAblationPair,
   verifyArtifactOwnership,
   verifyEvaluationCorpus,
   verifyEvaluationRecord,
+  verifyFacetCompleteness,
 } from '../scripts/lib/data-architecture-eval.js';
 
 const guide = [
@@ -678,6 +680,25 @@ describe('data architecture guide evaluation', () => {
       diagnostics: [
         '[durable-session-contract] Multiple source-of-truth owners: architecture-answer, generated-representation.',
       ],
+    });
+  });
+
+  it('reports a generated-manifest facet omitted from an independent inventory', () => {
+    const complete: FacetCompletenessInput = {
+      intendedFacetIds: ['access-patterns', 'encryption', 'erasure'],
+      generatedFacetIds: ['access-patterns', 'encryption', 'erasure'],
+      oracleKind: 'hand-maintained',
+    };
+
+    expect(verifyFacetCompleteness(complete)).toEqual({ accepted: true, diagnostics: [] });
+    expect(
+      verifyFacetCompleteness({
+        ...complete,
+        generatedFacetIds: ['access-patterns', 'encryption'],
+      }),
+    ).toEqual({
+      accepted: false,
+      diagnostics: ['Generated manifest is missing intended facet erasure.'],
     });
   });
 
