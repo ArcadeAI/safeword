@@ -1695,11 +1695,7 @@ export function resolveRequiredChecks(
     : 'unknown';
 }
 
-export function resolveHostedCheckRollup(
-  checks: GhStatusCheck[] | undefined,
-): PullRequestIdentity['ciChecks'] {
-  if (!checks) return 'unknown';
-  if (checks.length === 0) return 'absent';
+function latestHostedChecks(checks: GhStatusCheck[]): GhStatusCheck[] {
   const latestChecks = new Map<string, { check: GhStatusCheck; startedAt: number }>();
   const undatedChecks: GhStatusCheck[] = [];
   for (const check of checks) {
@@ -1717,9 +1713,16 @@ export function resolveHostedCheckRollup(
     const latest = latestChecks.get(identity);
     if (!latest || startedAt >= latest.startedAt) latestChecks.set(identity, { check, startedAt });
   }
+  return [...undatedChecks, ...[...latestChecks.values()].map(({ check }) => check)];
+}
 
+export function resolveHostedCheckRollup(
+  checks: GhStatusCheck[] | undefined,
+): PullRequestIdentity['ciChecks'] {
+  if (!checks) return 'unknown';
+  if (checks.length === 0) return 'absent';
   let pending = false;
-  for (const check of [...undatedChecks, ...[...latestChecks.values()].map(({ check }) => check)]) {
+  for (const check of latestHostedChecks(checks)) {
     if (check.__typename === 'CheckRun') {
       if (check.status !== 'COMPLETED') pending = true;
       else if (!['SUCCESS', 'NEUTRAL', 'SKIPPED'].includes(check.conclusion ?? '')) return 'failed';
