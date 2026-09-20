@@ -42,6 +42,19 @@ function assetsByPath(
   return Object.fromEntries(assets.map(asset => [asset.relativePath, asset.content]));
 }
 
+function replaceInAsset(
+  assets: Readonly<Record<string, string>>,
+  path: string,
+  from: string,
+  to: string,
+): Readonly<Record<string, string>> {
+  const content = assets[path];
+  if (content === undefined) throw new Error(`Fixture asset is missing at ${path}.`);
+  const replaced = content.replace(from, () => to);
+  if (replaced === content) throw new Error(`Fixture mutation anchor is missing from ${path}.`);
+  return { ...assets, [path]: replaced };
+}
+
 function deliveryFixture(): DataArchitectureDeliveryInput {
   const claudeAssets = assetsByPath(
     generateClaudePluginAssets({
@@ -143,14 +156,12 @@ describe('data architecture guide delivery', () => {
         ...input,
         claude: {
           ...input.claude,
-          assets: {
-            ...input.claude.assets,
-            [input.inventory.claudeGuidePath]:
-              input.claude.assets[input.inventory.claudeGuidePath]?.replace(
-                'Data Architecture Documentation Guide',
-                'Data Storage Documentation Guide',
-              ) ?? '',
-          },
+          assets: replaceInAsset(
+            input.claude.assets,
+            input.inventory.claudeGuidePath,
+            input.inventory.claudePathSubstitution.to,
+            '@./.safeword/guides/',
+          ),
         },
       }),
     },
@@ -177,14 +188,12 @@ describe('data architecture guide delivery', () => {
         ...input,
         cursor: {
           ...input.cursor,
-          assets: {
-            ...input.cursor.assets,
-            [input.cursor.planningSourcePath]:
-              input.cursor.assets[input.cursor.planningSourcePath]?.replace(
-                input.inventory.projectPlanningTarget,
-                () => '',
-              ) ?? '',
-          },
+          assets: replaceInAsset(
+            input.cursor.assets,
+            input.cursor.planningSourcePath,
+            input.inventory.projectPlanningTarget,
+            '',
+          ),
         },
       }),
     },
@@ -197,12 +206,13 @@ describe('data architecture guide delivery', () => {
         codex: {
           ...input.codex,
           assets: {
-            ...input.codex.assets,
-            [input.codex.planningSourcePath]:
-              input.codex.assets[input.codex.planningSourcePath]?.replace(
-                input.inventory.projectPlanningTarget,
-                () => input.inventory.claudePlanningTarget,
-              ) ?? '',
+            ...replaceInAsset(
+              input.codex.assets,
+              input.codex.planningSourcePath,
+              input.inventory.projectPlanningTarget,
+              input.inventory.claudePlanningTarget,
+            ),
+            [input.inventory.claudePlanningTarget]: input.canonicalGuide,
           },
         },
       }),
@@ -217,6 +227,19 @@ describe('data architecture guide delivery', () => {
           assets: {
             ...input.openCode.assets,
             'guides/data-architecture-guide.md': input.canonicalGuide,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic: 'OpenCode contains an unexpected guide reference at SAFEWORD.md.',
+      drift: 'an OpenCode guide reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        openCode: {
+          assets: {
+            ...input.openCode.assets,
+            'SAFEWORD.md': `Read ${input.inventory.projectPlanningTarget}.`,
           },
         },
       }),
