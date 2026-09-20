@@ -457,6 +457,17 @@ describe('Delivery Checklist CLI service', () => {
     expect(readFileSync(planPath, 'utf8')).toContain(
       '| item-4 | testing | Deliver testing. | contributor | proof | open | partial_or_structural |',
     );
+    const currentPartialReadiness = await publicReadiness(root);
+    expect(currentPartialReadiness.findings).toEqual([
+      expect.objectContaining({ message: expect.stringMatching(/retained child process/u) }),
+    ]);
+    expect(
+      (
+        currentPartialReadiness.data as {
+          contributor_evidence: { item_id: string; limitations: string[] }[];
+        }
+      ).contributor_evidence.find(evidence => evidence.item_id === 'item-4')?.limitations,
+    ).toEqual(['partial_or_structural']);
 
     git(root, ['add', '.project']);
     git(root, ['commit', '--quiet', '-m', 'record supporting proof']);
