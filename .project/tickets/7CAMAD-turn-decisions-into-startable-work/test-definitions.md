@@ -203,7 +203,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Replanning reopens proof invalidated by the changed decision
 
 - [x] RED fc1f607e3
-- [ ] GREEN
+- [x] GREEN 6d71508bd
 - [ ] REFACTOR
 
 ### Scenario: Implementation cannot continue under a stale affected plan
