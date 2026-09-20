@@ -715,6 +715,32 @@ describe('data architecture guide evaluation', () => {
       });
   });
 
+  it('rejects sibling generated outputs as a completeness oracle', () => {
+    const generatedFacetIds = ['access-patterns', 'encryption'];
+
+    expect
+      .soft(
+        verifyFacetCompleteness({
+          intendedFacetIds: generatedFacetIds,
+          generatedFacetIds,
+          oracleKind: 'hand-maintained',
+        }),
+      )
+      .toEqual({ accepted: true, diagnostics: [] });
+    expect
+      .soft(
+        verifyFacetCompleteness({
+          intendedFacetIds: generatedFacetIds,
+          generatedFacetIds,
+          oracleKind: 'generated-sibling',
+        }),
+      )
+      .toEqual({
+        accepted: false,
+        diagnostics: ['Completeness oracle must be independent of generated outputs.'],
+      });
+  });
+
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
     const mixedCase: EvaluationCase = {
       id: 'mixed-decision-routing',
