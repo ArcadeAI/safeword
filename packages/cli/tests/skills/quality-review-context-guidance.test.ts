@@ -27,13 +27,15 @@ describe('quality-review supporting context guidance', () => {
     'packages/cli/templates/skills/review-spec/SKILL.md',
     'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md',
     'packages/cli/templates/skills/bdd/TDD.md',
-  ])('%s sends Codex review dispatches through native approval', path => {
+  ])('%s keeps Codex review dispatches approval-free', path => {
     const content = readFileSync(nodePath.join(repoRoot, path), 'utf8');
     const normalized = content.replaceAll(/\s+/gu, ' ');
 
     expect(normalized).toContain('The dispatch is authorized; skipping it is not your call.');
     expect(normalized).toContain('Do not stop and ask the user for consent in chat');
     expect(normalized).toContain('Invoke the coordinator first.');
-    expect(normalized).toContain('use its native tool-approval request');
+    expect(normalized).toContain('never surface a host approval request');
+    expect(normalized).toContain('normal workspace sandbox');
+    expect(normalized).toContain('report the route as unavailable instead of asking the user');
   });
 });
