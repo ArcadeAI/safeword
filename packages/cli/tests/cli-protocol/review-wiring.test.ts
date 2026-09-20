@@ -745,8 +745,7 @@ describe('cross-agent review public-command wiring', () => {
       PATH: `${bin}:/usr/bin:/bin`,
       SAFEWORD_AGENT_RUNTIME: 'codex',
       SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: executionPlanRecord,
-      SAFEWORD_REVIEW_FAKE_FINDING:
-        'require-contract:Distinguish current implementation from target work',
+      SAFEWORD_REVIEW_FAKE_FINDING: 'require-contract:Current-to-target truthfulness',
       SAFEWORD_REVIEW_LOG: reviewLog,
       SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
       SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -784,7 +783,7 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('"plan_contract"');
     expect(prompt).toContain('Slicing decision');
     expect(prompt).toMatch(/Reject line or file count as\s+the sole justification/);
-    expect(prompt).toMatch(/Distinguish current implementation from\s+target work/);
+    expect(prompt).toContain('Current-to-target truthfulness');
     expect(prompt).toContain('# Execution Plan');
     expect(prompt).toContain('# Implementation Plan');
     expect(prompt).toContain('Feature: behavior');
@@ -845,7 +844,7 @@ describe('cross-agent review public-command wiring', () => {
         },
       ],
     });
-    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude']);
+    expect(readFileSync(reviewLog, 'utf8').trim().split('\n')).toEqual(['claude', 'claude']);
   });
 
   it('guides the author to record an unresolved pull-request slicing decision', async () => {
