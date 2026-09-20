@@ -339,7 +339,7 @@ describe('Delivery Checklist CLI service', () => {
       contributor_evidence: { item_id: string; evidence_class: string; limitations: string[] }[];
     };
     expect(currentReadiness.findings.map(finding => finding.message).join(' ')).not.toMatch(
-      /partial|earlier/u,
+      /partial|earlier|retained child process/u,
     );
     expect(
       currentData.contributor_evidence.find(evidence => evidence.item_id === 'item-4'),
@@ -474,7 +474,9 @@ describe('Delivery Checklist CLI service', () => {
     const readinessMessages = readinessResult.findings.map(finding => finding.message).join(' ');
     expect(readinessMessages).toMatch(/partial or structural/u);
     expect(readinessMessages).toMatch(/earlier revision/u);
-    expect(readinessMessages).toMatch(/retained child process/u);
+    expect(readinessResult.findings).toEqual([
+      expect.objectContaining({ message: expect.stringMatching(/retained child process/u) }),
+    ]);
     const readinessData = readinessResult.data as {
       readiness_state: string;
       contributor_evidence: {
