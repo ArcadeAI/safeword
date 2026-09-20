@@ -219,6 +219,33 @@ describe('coding authorization edit hook', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('allows the named RED test file to be authored before production code', () => {
+    writeCliResponse({
+      schema_version: 1,
+      ok: true,
+      state: 'healthy',
+      changed: false,
+      findings: [],
+      effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
+      errors: [],
+      recovery: [],
+      next_actions: [],
+      data: {
+        command: 'ticket coding-authorization',
+        coding_authorization: 'authorized',
+        grants_authority: false,
+        authorization_input_identity: 'current-plans',
+      },
+    });
+    const testPath = nodePath.join(projectRoot, 'tests', 'integration', 'guarded-edit.test.ts');
+
+    const result = runEdit(testPath);
+
+    expect(result.error, result.stderr).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe('');
+  });
+
   it('freezes application code throughout execution planning', () => {
     writeFileSync(
       ticketPath,

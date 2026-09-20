@@ -25,6 +25,7 @@ const SHA = 'a1b2c3d';
 
 const TICKET_DIR = '.project/tickets/ZZTEST-fixture';
 const IMPL_PLAN_PATH = `${TICKET_DIR}/impl-plan.md`;
+const EXECUTION_PLAN_PATH = `${TICKET_DIR}/execution-plan.md`;
 const SPEC_PATH = `${TICKET_DIR}/spec.md`;
 const LEDGER_PATH = `${TICKET_DIR}/test-definitions.md`;
 const VERIFY_PATH = `${TICKET_DIR}/verify.md`;
@@ -135,6 +136,8 @@ const SHAPE_VALID_LEDGER = [
   '',
 ].join('\n');
 
+const SHAPE_VALID_EXECUTION_PLAN = '# Execution Plan\n\n## Pull-request plan\n\nOne slice.\n';
+
 const SHAPE_VALID_VERIFY = [
   '# Verify: fixture',
   '',
@@ -152,6 +155,7 @@ function readerFor(tree: Record<string, string>): ArtifactReader {
 
 const FULL_TREE: Record<string, string> = {
   [IMPL_PLAN_PATH]: SHAPE_VALID_IMPL_PLAN,
+  [EXECUTION_PLAN_PATH]: SHAPE_VALID_EXECUTION_PLAN,
   [SPEC_PATH]: SHAPE_VALID_SPEC,
   [LEDGER_PATH]: SHAPE_VALID_LEDGER,
   [VERIFY_PATH]: SHAPE_VALID_VERIFY,
@@ -207,7 +211,8 @@ describe('detectUnanchoredPhaseTransition — the per-phase kind map', () => {
     ['define-behavior', 'intake', SPEC_PATH],
     ['scenario-gate', 'define-behavior', FEATURE_PATH],
     ['plan-implementation', 'scenario-gate', FEATURE_PATH],
-    ['implement', 'scenario-gate', IMPL_PLAN_PATH],
+    ['plan-execution', 'plan-implementation', IMPL_PLAN_PATH],
+    ['implement', 'plan-execution', EXECUTION_PLAN_PATH],
     ['verify', 'implement', LEDGER_PATH],
     ['done', 'verify', VERIFY_PATH],
   ])('entering %s anchored to its canonical artifact is anchored', (entered, prior, path) => {

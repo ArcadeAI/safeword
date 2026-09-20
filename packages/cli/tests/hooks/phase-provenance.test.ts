@@ -266,6 +266,16 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
     expect(verdict.ok).toBe(true);
   });
 
+  it('denies the retired direct plan-implementation -> implement transition', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'plan-implementation' }),
+      ticket({ type: 'feature', phase: 'implement' }),
+    );
+
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.reason).toContain('plan-execution');
+  });
+
   it('denies scenario-gate -> implement as a skip, naming plan-implementation', () => {
     const verdict = evaluateTicketWrite(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
