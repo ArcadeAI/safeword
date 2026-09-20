@@ -474,6 +474,7 @@ describe('Delivery Checklist CLI service', () => {
     const readinessMessages = readinessResult.findings.map(finding => finding.message).join(' ');
     expect(readinessMessages).toMatch(/partial or structural/u);
     expect(readinessMessages).toMatch(/earlier revision/u);
+    expect(readinessMessages).toMatch(/retained child process/u);
     const readinessData = readinessResult.data as {
       readiness_state: string;
       contributor_evidence: {
