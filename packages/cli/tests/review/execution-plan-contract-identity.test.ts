@@ -102,6 +102,28 @@ function patchInstalledReviewerRubric(distribution: string, rubric: string): voi
   );
 }
 
+function patchInstalledDeliveryTaxonomy(distribution: string): void {
+  const distribution_ = nodePath.join(distribution, 'dist');
+  const declaration =
+    /var EVIDENCE_CLASSES = \/\* @__PURE__ \*\/ new Set\(\[\s*"current_revision_real_boundary",\s*"reusable_earlier_revision",\s*"partial_or_structural",\s*"missing"\s*\]\);/u;
+  const module = readdirSync(distribution_)
+    .filter(path => path.endsWith('.js'))
+    .map(path => nodePath.join(distribution_, path))
+    .find(path => declaration.test(readFileSync(path, 'utf8')));
+  if (module === undefined)
+    throw new Error('Installed delivery taxonomy declaration was not found');
+  const source = readFileSync(module, 'utf8');
+  writeFileSync(
+    module,
+    source.replace(declaration, matched =>
+      matched.replace(
+        '"current_revision_real_boundary",\n  "reusable_earlier_revision"',
+        '"reusable_earlier_revision",\n  "current_revision_real_boundary"',
+      ),
+    ),
+  );
+}
+
 function retainInstalledRouteAdmission(distribution: string, rubric: string): void {
   const currentDigest = executionPlanConformanceDigests().contract_sha256;
   const contract = reviewPromptContract('plan-execution').replace(
@@ -178,7 +200,12 @@ process.stdin.on('end', () => {
 }
 
 type InstalledContractState =
-  'canonical' | 'missing-author' | 'missing-reviewer' | 'stale-reviewer' | 'incomplete-pair';
+  | 'canonical'
+  | 'missing-author'
+  | 'missing-reviewer'
+  | 'stale-reviewer'
+  | 'incomplete-pair'
+  | 'stale-delivery-taxonomy';
 
 function runInstalledReview(state: InstalledContractState) {
   const distribution = temporaryDirectory('safeword-contract-distribution-');
@@ -224,6 +251,10 @@ function runInstalledReview(state: InstalledContractState) {
       patchInstalledReviewerRubric(distribution, incomplete);
       retainInstalledRouteAdmission(distribution, incomplete);
 
+      break;
+    }
+    case 'stale-delivery-taxonomy': {
+      patchInstalledDeliveryTaxonomy(distribution);
       break;
     }
   }
@@ -322,6 +353,7 @@ describe('Execution Plan review-contract identity', () => {
     ['missing-reviewer', 'generated reviewer contract copy'],
     ['stale-reviewer', 'stale generated reviewer contract'],
     ['incomplete-pair', 'canonical contract-byte identity'],
+    ['stale-delivery-taxonomy', 'canonical delivery-contract identity'],
   ] as const)(
     'blocks %s through the installed CLI with the failed copy named',
     (state, expected) => {
