@@ -51,7 +51,6 @@ const VALID_PLUGIN_PLAN = [
   '',
   'Revisit if plugin delivery changes.',
 ].join('\n');
-
 function runPluginAdvance(root: string, ticketPath: string) {
   return spawnSync('bun', [nodePath.join(REPO_ROOT, 'plugin/runtime/hooks/pre-tool-quality.ts')], {
     cwd: root,
@@ -59,8 +58,28 @@ function runPluginAdvance(root: string, ticketPath: string) {
       tool_name: 'Edit',
       tool_input: {
         file_path: ticketPath,
-        old_string: 'phase: plan-implementation',
+        old_string: 'phase: plan-execution',
         new_string: 'phase: implement',
+      },
+    }),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: root,
+      CLAUDE_PLUGIN_ROOT: nodePath.join(REPO_ROOT, 'plugin'),
+    },
+  });
+}
+
+function runPluginExecutionPlanningAdvance(root: string, ticketPath: string) {
+  return spawnSync('bun', [nodePath.join(REPO_ROOT, 'plugin/runtime/hooks/pre-tool-quality.ts')], {
+    cwd: root,
+    input: JSON.stringify({
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: ticketPath,
+        old_string: 'phase: plan-implementation',
+        new_string: 'phase: plan-execution',
       },
     }),
     encoding: 'utf8',
@@ -204,7 +223,7 @@ describe('Claude delivery schema', () => {
         '---',
         'id: PLUG01',
         'type: feature',
-        'phase: plan-implementation',
+        'phase: plan-execution',
         'status: in_progress',
         'scope: plugin plan gate',
         'out_of_scope: unrelated work',
@@ -224,7 +243,7 @@ describe('Claude delivery schema', () => {
           tool_name: 'Edit',
           tool_input: {
             file_path: ticketPath,
-            old_string: 'phase: plan-implementation',
+            old_string: 'phase: plan-execution',
             new_string: 'phase: implement',
           },
         }),
@@ -273,7 +292,7 @@ describe('Claude delivery schema', () => {
     writeFileSync(ticketPath, ticket(false));
     writeFileSync(specPath, '# Spec\n');
     writeFileSync(planPath, VALID_PLUGIN_PLAN);
-    const accepted = runPluginAdvance(root, ticketPath);
+    const accepted = runPluginExecutionPlanningAdvance(root, ticketPath);
     expect(accepted.status).toBe(0);
     expect(accepted.stderr).not.toContain('Error');
     expect(accepted.stdout).toBe('');
@@ -302,7 +321,7 @@ describe('Claude delivery schema', () => {
     writeFileSync(ticketPath, ticket(false));
     writeFileSync(specPath, '# Spec\n');
 
-    const denied = runPluginAdvance(root, ticketPath);
+    const denied = runPluginExecutionPlanningAdvance(root, ticketPath);
     expect(denied.status).toBe(0);
     expect(denied.stderr).not.toContain('Error');
     expect(denied.stdout).toContain('previously activated');

@@ -12,7 +12,7 @@ phase_anchors:
   - scenario-gate: features/turn-decisions-into-startable-work.feature
   - plan-implementation: features/turn-decisions-into-startable-work.feature
   - plan-execution: .project/tickets/7CAMAD-turn-decisions-into-startable-work/impl-plan.md
-  - implement: .project/tickets/7CAMAD-turn-decisions-into-startable-work/impl-plan.md
+  - implement: .project/tickets/7CAMAD-turn-decisions-into-startable-work/execution-plan.md
   - verify: .project/tickets/7CAMAD-turn-decisions-into-startable-work/test-definitions.md
 scope:
   - turn a reviewed current Implementation Plan into dependency-ordered build and test work
@@ -66,6 +66,16 @@ the unrelated dirty generated rubric and workflow files do not touch these
 clean source files; the focused runtime suites pass, so this is not a failing
 behavioral boundary; and no dependency or compiler configuration changed the
 meaning of the affected local types.
+
+The final acceptance rerun also exposed a stale fixture transition: the
+decision-evidence journey still tried to move directly from Implementation
+Planning to implementation, so phase provenance correctly rejected it before
+the evidence-completeness check ran. Confirmed by the installed hook's explicit
+`plan-execution` skip denial and by the same five scenarios passing after the
+fixture requested the canonical next phase. Ruled out a stale installed CLI
+because its new phase order produced the denial, and ruled out the earlier
+missing retro-relay build because this run reached the hook and returned a
+typed gate response.
 
 ## Work Log
 

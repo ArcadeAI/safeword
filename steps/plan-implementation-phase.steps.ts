@@ -606,7 +606,7 @@ function assertInstalledPlanGateIsLive(world: PlanWorld): void {
         tool_input: {
           file_path: ticketArtifact(world, 'ticket.md'),
           old_string: 'phase: plan-implementation',
-          new_string: 'phase: implement',
+          new_string: 'phase: plan-execution',
         },
       }),
       encoding: 'utf8',
@@ -1759,7 +1759,7 @@ When(
           tool_input: {
             file_path: ticketArtifact(this, 'ticket.md'),
             old_string: 'phase: plan-implementation',
-            new_string: 'phase: implement',
+            new_string: 'phase: plan-execution',
           },
         }),
         encoding: 'utf8',
