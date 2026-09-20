@@ -2,6 +2,7 @@
 id: 7CAMAD
 slug: turn-decisions-into-startable-work
 type: feature
+subtype: bug-investigated
 phase: implement
 status: in_progress
 phase_skips:
@@ -48,6 +49,22 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 **Goal:** Produce an Execution Plan a fresh agent can begin without inventing a contract
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Root Cause
+
+The final package typecheck exposed four compile-time contract gaps introduced
+by this feature: a mutable fixture value retained a literal-union type;
+authenticated review fields were validated inside a boolean helper without
+narrowing them at the return site; a parsed non-empty command was consumed
+through the broader `readonly string[]` interface; and a deliberately malformed
+review fixture used a direct cast between structurally incompatible types.
+
+Confirmed by the reproducible `bun run lint` TypeScript errors and by tracing
+each error to the feature commits that introduced the affected line. Ruled out:
+the unrelated dirty generated rubric and workflow files do not touch these
+clean source files; the focused runtime suites pass, so this is not a failing
+behavioral boundary; and no dependency or compiler configuration changed the
+meaning of the affected local types.
 
 ## Work Log
 
