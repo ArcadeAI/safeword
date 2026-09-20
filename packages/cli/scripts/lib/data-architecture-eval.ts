@@ -288,6 +288,13 @@ export function verifyArtifactOwnership(
 }
 
 export function verifyFacetCompleteness(input: FacetCompletenessInput): VerificationResult {
+  if (input.oracleKind === 'generated-sibling') {
+    return {
+      accepted: false,
+      diagnostics: ['Completeness oracle must be independent of generated outputs.'],
+    };
+  }
+
   const intendedFacetIds = new Set(input.intendedFacetIds);
   const generatedFacetIds = new Set(input.generatedFacetIds);
   const diagnostics: string[] = [];
