@@ -44,7 +44,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED fd644bd7a
 - [x] GREEN 9041ba23f
-- [ ] REFACTOR
+- [x] REFACTOR skip: the ownership grader is already a single pass over authoritative claims followed by stable per-contract diagnostics
 
 ## Rule: data-architecture-guidance.TBU2.R1 — Every completeness claim names an oracle independent of the mechanism being checked
 
