@@ -363,9 +363,92 @@ export function verifyFacetCompleteness(input: FacetCompletenessInput): Verifica
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 
+interface ConditionalDiagnosticRule {
+  readonly diagnostic: string;
+  readonly missingAnyOf?: readonly string[];
+  readonly presentAnyOf?: readonly string[];
+}
+
+const conditionalDiagnosticRules: Readonly<
+  Partial<Record<ConditionalClaimKind, readonly ConditionalDiagnosticRule[]>>
+> = {
+  'encrypted-scope-binding': [
+    {
+      diagnostic: 'Conditional proof is missing AAD and key lifecycle.',
+      missingAnyOf: [
+        'canonical-aad-identity',
+        'scope-mutation-failure',
+        'key-dependency-rotation-coverage',
+      ],
+    },
+  ],
+  'erasure-completeness': [
+    {
+      diagnostic: 'Conditional proof is missing secondary-copy disposition.',
+      missingAnyOf: ['copy-inventory'],
+    },
+    {
+      diagnostic: 'Conditional proof is missing negative isolation.',
+      missingAnyOf: ['sibling-scope-isolation', 'different-owner-isolation'],
+    },
+  ],
+  'generated-completeness': [
+    {
+      diagnostic: 'Conditional proof uses a dependent completeness oracle.',
+      presentAnyOf: ['generated-sibling-oracle'],
+    },
+  ],
+  'live-additive-migration': [
+    {
+      diagnostic: 'Conditional proof is missing deployed starting state.',
+      missingAnyOf: ['deployed-starting-state'],
+    },
+  ],
+  'relational-query-performance': [
+    {
+      diagnostic: 'Conditional proof is missing query context.',
+      missingAnyOf: ['engine-and-version', 'representative-data-shape'],
+    },
+  ],
+  'tenant-parent-binding': [
+    {
+      diagnostic: 'Conditional proof has cross-tenant parent binding.',
+      presentAnyOf: ['cross-tenant-parent-binding'],
+    },
+  ],
+  'time-dependent-lifecycle': [
+    {
+      diagnostic: 'Conditional proof is missing equality boundary.',
+      missingAnyOf: ['exact-equality-behavior'],
+    },
+  ],
+};
+
+function conditionalDiagnosticRuleMatches(
+  rule: ConditionalDiagnosticRule,
+  factIds: ReadonlySet<string>,
+): boolean {
+  const missesRequiredFact = rule.missingAnyOf?.some(factId => !factIds.has(factId)) ?? false;
+  const containsForbiddenFact = rule.presentAnyOf?.some(factId => factIds.has(factId)) ?? false;
+  return missesRequiredFact || containsForbiddenFact;
+}
+
+function focusedConditionalProofDiagnostic(
+  claim: ConditionalClaimKind,
+  factIds: ReadonlySet<string>,
+): string | undefined {
+  return conditionalDiagnosticRules[claim]?.find(rule =>
+    conditionalDiagnosticRuleMatches(rule, factIds),
+  )?.diagnostic;
+}
+
 export function verifyConditionalProof(input: ConditionalProofInput): VerificationResult {
   const expectedFactIds = new Set(requiredConditionalFacts[input.claim]);
   const actualFactIds = new Set(input.factIds);
+  const focusedDiagnostic = focusedConditionalProofDiagnostic(input.claim, actualFactIds);
+  if (focusedDiagnostic !== undefined) {
+    return { accepted: false, diagnostics: [focusedDiagnostic] };
+  }
   const diagnostics: string[] = [];
   const sortedExpectedFactIds = sortedStrings([...expectedFactIds]);
   const sortedActualFactIds = sortedStrings([...actualFactIds]);
