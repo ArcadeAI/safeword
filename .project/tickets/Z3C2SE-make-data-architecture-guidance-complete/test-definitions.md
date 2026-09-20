@@ -91,7 +91,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 ### Scenario: Synthetic placeholders and deployed read-only snapshots satisfy evidence needs
 
 - [x] RED b7aac38fe
-- [ ] GREEN
+- [x] GREEN 0aa897eb5
 - [ ] REFACTOR
 
 ### Scenario Outline: Sensitive-looking evaluation values are refused
