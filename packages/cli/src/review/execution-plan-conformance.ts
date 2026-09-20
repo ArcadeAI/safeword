@@ -421,6 +421,95 @@ const ONE_PLAN = executionPlan({
     },
   ],
 });
+const UNCHANGED_DECISIONS_PLAN = `${ONE_PLAN}
+## Decision preservation focus
+
+- Verify that the shared authorization service still owns permission checks for every transport.
+- Verify that the dependency order remains host-neutral at every intermediate merge.
+`;
+const CURRENT_PROOF_ROW =
+  '| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |';
+const CURRENT_BEHAVIOR_ROW =
+  '| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | complete | current_revision_real_boundary | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | receipt:current-proof |';
+const EARLIER_PROOF_ROW =
+  '| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | complete | reusable_earlier_revision | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb | receipt:earlier-proof; compatible: accepted boundary is unchanged |';
+const OPEN_PROOF_ROW =
+  '| item-4 | testing | Prove Accepted behavior at the named boundary. | contributor | behavior-boundary | open | missing | | |';
+const OPEN_BEHAVIOR_ROW =
+  '| item-1 | outcome and scope | Deliver Accepted behavior. | contributor | behavior-boundary | open | missing | | |';
+
+function withDeliveryState(plan: string, state: string, proofRow?: string): string {
+  const updated = proofRow === undefined ? plan : plan.split(OPEN_PROOF_ROW).join(proofRow);
+  return `${updated}\n## Current-to-target state\n\n${state}\n`;
+}
+
+const ABSENT_WORK_CLAIMED_COMPLETE_PLAN = withDeliveryState(
+  ONE_PLAN,
+  `- Obligation: Prove Accepted behavior at the named boundary.
+- Current implementation: absent.
+- Evidence: missing.
+- Target work: implement the accepted behavior and collect current-revision real-boundary proof.
+- Claimed delivery state: complete.`,
+);
+const CURRENT_PROOF_BASE_PLAN = ONE_PLAN.split(OPEN_BEHAVIOR_ROW)
+  .join(CURRENT_BEHAVIOR_ROW)
+  .replace(
+    '1. RED: run `bun run test:review-cli -- --fixture approved-plan` through the public CLI and observe exit 2 with `typed review result is unavailable` before editing `src/review/command.ts`.',
+    '1. RED: retain the current exit-0 `bun run test:review-cli -- --fixture approved-plan` receipt, then run `bun run test:failure-signals` with the denied-review fixture and observe exit 1 because the denial identity is absent before editing `src/review/command.ts`.',
+  )
+  .replace(
+    '2. GREEN: add the accepted result fields to `src/review/contract.ts`, route the public command through `src/review/command.ts`, and rerun the step-1 command; assert exit 0 and the complete typed response.',
+    '2. GREEN: preserve the accepted typed result while adding the denial identity in `src/review/command.ts`, then rerun both step-1 commands; assert the approved fixture still exits 0 and the denied fixture exposes the typed denial.',
+  )
+  .replace(
+    '5. RED: run `bun run test:failure-signals` and `bun run test:authorization-boundary` with the denied-review fixture; observe exit 1 because the public CLI neither names the denial nor rejects the unauthorized actor before editing `src/review/command.ts`.',
+    '5. RED: run `bun run test:authorization-boundary` with the denied-review fixture and observe exit 1 because the public CLI does not reject the unauthorized actor before editing `src/review/command.ts`.',
+  )
+  .replace(
+    '6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, return the typed denial identity on reviewer failure, rerun both step-5 commands, and assert the unauthorized call exits 2 without persisting a result.',
+    '6. GREEN: call the accepted shared authorization service from `src/review/command.ts`, rerun the step-5 command, and assert the unauthorized call exits 2 without persisting a result while the typed denial identity from step 2 remains unchanged.',
+  );
+const CURRENT_PROOF_PLAN = withDeliveryState(
+  CURRENT_PROOF_BASE_PLAN,
+  `- Obligation: Prove Accepted behavior at the named boundary.
+- Current implementation: matches the accepted design.
+- Evidence: current-revision real-boundary proof.
+- Receipt: the specified command exited 0 on the recorded revision and its receipt is retained.
+- Target work: none.
+- Recorded delivery state: implemented and proven.`,
+  CURRENT_PROOF_ROW,
+);
+const EARLIER_PROOF_CLAIMED_CURRENT_PLAN = withDeliveryState(
+  ONE_PLAN,
+  `- Obligation: Prove Accepted behavior at the named boundary.
+- Current implementation: matches the accepted design.
+- Evidence: reusable earlier-revision proof only.
+- Target work: collect current-revision real-boundary proof.
+- Claimed delivery state: implemented and proven at the current revision.`,
+  EARLIER_PROOF_ROW,
+);
+const KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN = withDeliveryState(
+  ONE_PLAN,
+  `- Obligation: Deliver Accepted behavior.
+- Current implementation: known defect contradicts the accepted design.
+- Evidence: the failing behavior is reproduced at the accepted boundary.
+- Target work: correct the defect and collect current-revision real-boundary proof.
+- Claimed delivery state: complete.`,
+);
+const PENDING_HUMAN_CLAIMED_COMPLETE_PLAN = withDeliveryState(
+  ONE_PLAN.split(OPEN_PROOF_ROW)
+    .join(CURRENT_PROOF_ROW)
+    .replace(
+      '| item-7 | security and privacy | Protect the Affected-surface work boundary. | contributor | security-boundary | open | missing | | |',
+      '| item-7 | security and privacy | Approve the Affected-surface work boundary. | human |  | pending_human | missing | | Security approval by the named reviewer. |',
+    ),
+  `- Obligation: Activate the accepted behavior after security approval.
+- Contributor work: complete.
+- Evidence: current-revision real-boundary proof.
+- Human authority: pending security approval.
+- Target work: obtain the named security approval.
+- Claimed delivery state: complete.`,
+);
 const MEASUREMENT_EXECUTION_BLOCK = `
 ## Measurement execution
 
@@ -602,27 +691,6 @@ const OBLIGATION_PLAN = executionPlan({
     },
   ],
   obligationOwners: stagedOwners('Contract owner', 'Release owner'),
-});
-const UNCHANGED_DECISIONS_PLAN = executionPlan({
-  decision: 'one pull request',
-  rationale:
-    'One cohesive activation preserves both accepted decisions and proves every delivery obligation independently.',
-  slices: [
-    {
-      ...ACTIVATION_SLICE,
-      name: 'Decision-preserving activation',
-      prerequisites: 'none',
-      boundary:
-        'Contract compatibility, review activation, shared authorization, host-neutral ordering, failure signals, rollout, rollback, and documentation.',
-      proof: ALL_DELIVERY_PROOFS,
-      tasks: [
-        '1. RED: run `bun run test:review-cli` with the approved-plan fixture and observe `typed review result is unavailable` before editing production code.',
-        '2. GREEN: register review routing, migrate the stored result schema compatibly, connect the shared authorization service, add failure signals, wire feature-flag rollout and rollback, and publish the command documentation.',
-        '3. GREEN: run `bun run test:schema-compatibility`, `bun run test:review-cli`, `bun run test:execution-plan-conformance`, `bun run test:failure-signals`, `bun run test:authorization-boundary`, `bun run test:rollout-rollback`, and `bun run test:documentation-contract` with exit 0.',
-        '4. REFACTOR: keep one typed result and authorization path, then rerun all seven proof commands with exit 0.',
-      ],
-    },
-  ],
 });
 const STARTABLE_PLAN = executionPlan({
   decision: 'one pull request',
@@ -1058,7 +1126,7 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
     'Every accepted decision remains unchanged.',
     UNCHANGED_DECISIONS_PLAN,
     'one_pull_request',
-    ['Decision-preserving activation'],
+    ['Complete delivery'],
   ),
   {
     ...denied(
@@ -1177,6 +1245,37 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
       decisions: DECISIONS,
     },
   },
+  denied(
+    'absent-work-is-not-complete',
+    'Absent implementation remains target work and cannot be called complete.',
+    ABSENT_WORK_CLAIMED_COMPLETE_PLAN,
+    ['absent', 'complete'],
+  ),
+  approved(
+    'current-proof-supports-completion',
+    'Matching implementation with current-revision real-boundary proof may be recorded as implemented and proven.',
+    CURRENT_PROOF_PLAN,
+    'one_pull_request',
+    ['Complete delivery'],
+  ),
+  denied(
+    'earlier-proof-remains-open',
+    'Reusable earlier-revision proof remains open until current proof is collected.',
+    EARLIER_PROOF_CLAIMED_CURRENT_PLAN,
+    ['earlier', 'open'],
+  ),
+  denied(
+    'known-defect-is-not-complete',
+    'A known defect remains separate target correction work and cannot be called complete.',
+    KNOWN_DEFECT_CLAIMED_COMPLETE_PLAN,
+    ['defect', 'complete'],
+  ),
+  denied(
+    'pending-human-authority-is-not-complete',
+    'Completed contributor work remains incomplete while required human authority is pending.',
+    PENDING_HUMAN_CLAIMED_COMPLETE_PLAN,
+    ['human', 'pending'],
+  ),
   {
     ...approved(
       'complete-measurement-execution',

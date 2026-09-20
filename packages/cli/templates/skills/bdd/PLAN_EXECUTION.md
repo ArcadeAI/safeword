@@ -121,6 +121,14 @@ from outside those sources.
   and whether its currency policy is defensible. Every contributor Required
   proof must resolve to a unique proof classified `real_boundary`; partial or
   structural support cannot satisfy completion.
+- **Current-to-target truthfulness:** Require every obligation to distinguish
+  current implementation from target work. Absent implementation is target work
+  with missing proof. Only matching implementation with current-revision,
+  real-boundary proof may be recorded as implemented and proven. Reusable
+  earlier-revision proof remains open for current proof. Keep a known defect
+  separate from its target correction, and completed contributor work separate
+  from pending human authority. Never call stale proof, a known defect, or
+  pending human authority complete.
 - **Checklist completeness and applicability:** Require the versioned checklist,
   unique stable IDs, every default category, honest owners and dispositions,
   and concrete reviewed reasons or dependencies. Treat the packet's

@@ -803,7 +803,10 @@ describe('cross-agent review public-command wiring', () => {
       },
     });
     expect(contradicted.exitCode, contradicted.stdout).toBe(2);
-    expect(JSON.parse(contradicted.stdout)).toMatchObject({
+    const contradictedOutput = JSON.parse(contradicted.stdout) as {
+      findings: unknown[];
+    };
+    expect(contradictedOutput).toMatchObject({
       data: {
         status: 'changes_requested',
         reviewer_output: {
@@ -811,12 +814,13 @@ describe('cross-agent review public-command wiring', () => {
           execution_plan_record: JSON.parse('null'),
         },
       },
-      findings: [
-        {
-          message: expect.stringContaining('target correction remains open'),
-        },
-      ],
     });
+    expect(contradictedOutput.findings).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        message: expect.stringContaining('target correction remains open'),
+      }),
+    );
 
     const rejected = await runCli(
       [
