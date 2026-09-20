@@ -108,6 +108,15 @@ const universalDecisionIds = [
   'decision.core.lifecycle',
 ] as const;
 
+interface RepresentativeCaseFixture {
+  readonly decisions: readonly string[];
+  readonly forbiddenDecisions?: readonly string[];
+  readonly forbiddenProofs?: readonly string[];
+  readonly id: string;
+  readonly proofs: readonly string[];
+  readonly text: string;
+}
+
 const representativeCases = [
   {
     id: 'simple-key-value-preference',
@@ -192,6 +201,11 @@ const representativeCases = [
       'decision.routing.helper-implementation',
       'decision.routing.control-flow-implementation',
     ],
+    forbiddenDecisions: [
+      'decision.routing.identity-implementation-only',
+      'decision.routing.helper-architecture',
+    ],
+    forbiddenProofs: ['proof.routing.durable-and-reversible-collapsed'],
     proofs: ['proof.routing.durable-and-reversible-separated'],
   },
   {
@@ -206,7 +220,7 @@ const representativeCases = [
     ],
     proofs: ['proof.ownership.single-authority'],
   },
-] as const;
+] as const satisfies readonly RepresentativeCaseFixture[];
 
 const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
   'simple-key-value-preference': {
@@ -319,9 +333,9 @@ function corpusFixture(): EvaluationCorpusInput {
     text: item.text,
     rubric: {
       expectedDecisionIds: [...item.decisions],
-      forbiddenDecisionIds: [],
+      forbiddenDecisionIds: [...(item.forbiddenDecisions ?? [])],
       expectedProofFactIds: [...item.proofs],
-      forbiddenProofFactIds: [],
+      forbiddenProofFactIds: [...(item.forbiddenProofs ?? [])],
     },
   }));
   const records = cases.map((evaluationCase): EvaluationRecord => {
@@ -337,9 +351,9 @@ function corpusFixture(): EvaluationCorpusInput {
           case: { id: evaluationCase.id, text: evaluationCase.text },
           rubric: {
             expectedDecisionIds: sortedStrings(evaluationCase.rubric.expectedDecisionIds),
-            forbiddenDecisionIds: [],
+            forbiddenDecisionIds: sortedStrings(evaluationCase.rubric.forbiddenDecisionIds),
             expectedProofFactIds: sortedStrings(evaluationCase.rubric.expectedProofFactIds),
-            forbiddenProofFactIds: [],
+            forbiddenProofFactIds: sortedStrings(evaluationCase.rubric.forbiddenProofFactIds),
           },
         }),
       ),
@@ -365,30 +379,91 @@ describe('data architecture guide evaluation', () => {
       evaluationRecord => evaluationRecord.caseId === 'multi-tenant-relational-event-store',
     );
     if (relationalRecord === undefined) throw new Error('Missing relational corpus record.');
-    const incompleteCorpus = {
+    const replaceRelationalRecord = (replacement: EvaluationRecord): EvaluationCorpusInput => ({
       ...corpus,
       records: corpus.records.map(evaluationRecord =>
-        evaluationRecord === relationalRecord
-          ? {
-              ...evaluationRecord,
-              response: {
-                ...evaluationRecord.response,
-                decisionIds: evaluationRecord.response.decisionIds.filter(
-                  id => id !== 'decision.relational.query-contract',
-                ),
-              },
-            }
-          : evaluationRecord,
+        evaluationRecord === relationalRecord ? replacement : evaluationRecord,
       ),
-    };
+    });
+    const rejectedCorpora = [
+      {
+        name: 'missing case record',
+        corpus: {
+          ...corpus,
+          records: corpus.records.filter(
+            evaluationRecord => evaluationRecord.caseId !== 'encrypted-credential-record',
+          ),
+        },
+        diagnostic: '[encrypted-credential-record] Evaluation corpus is missing a record.',
+      },
+      {
+        name: 'stale guide hash',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          guideSha256: sha256('stale guide'),
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation record guide hash does not match the current canonical guide.',
+      },
+      {
+        name: 'stale case and rubric digest',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          caseAndRubricSha256: sha256('stale case and rubric'),
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation record does not match the current case and rubric.',
+      },
+      {
+        name: 'stale cold-start prompt digest',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          coldStartPromptSha256: sha256('stale prompt'),
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation record prompt does not match the current cold-start prompt.',
+      },
+      {
+        name: 'different model version',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          modelVersion: 'different-model-v2',
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation record does not match the checked-in recording contract.',
+      },
+      {
+        name: 'different decoding configuration',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          decodingConfiguration: { temperature: 1, topP: 1 },
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation record does not match the checked-in recording contract.',
+      },
+      {
+        name: 'response fails its rubric',
+        corpus: replaceRelationalRecord({
+          ...relationalRecord,
+          response: {
+            ...relationalRecord.response,
+            decisionIds: relationalRecord.response.decisionIds.filter(
+              id => id !== 'decision.relational.query-contract',
+            ),
+          },
+        }),
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation response is missing expected decision decision.relational.query-contract.',
+      },
+    ];
 
     expect.soft(verifyEvaluationCorpus(corpus)).toEqual({ accepted: true, diagnostics: [] });
-    expect.soft(verifyEvaluationCorpus(incompleteCorpus)).toEqual({
-      accepted: false,
-      diagnostics: [
-        '[multi-tenant-relational-event-store] Evaluation response is missing expected decision decision.relational.query-contract.',
-      ],
-    });
+    for (const rejected of rejectedCorpora) {
+      expect.soft(verifyEvaluationCorpus(rejected.corpus), rejected.name).toEqual({
+        accepted: false,
+        diagnostics: [rejected.diagnostic],
+      });
+    }
   });
 
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
