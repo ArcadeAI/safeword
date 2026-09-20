@@ -797,6 +797,80 @@ describe('data architecture guide evaluation', () => {
     },
   );
 
+  it.each([
+    {
+      defect: 'query evidence without execution context',
+      diagnostic: 'Conditional proof is missing query context.',
+      proof: {
+        claim: 'relational-query-performance',
+        factIds: ['query-shape', 'threshold', 'revalidation-trigger'],
+      },
+    },
+    {
+      defect: 'a child identity bound to another tenant',
+      diagnostic: 'Conditional proof has cross-tenant parent binding.',
+      proof: { claim: 'tenant-parent-binding', factIds: ['cross-tenant-parent-binding'] },
+    },
+    {
+      defect: 'a generic encrypted-at-rest assertion',
+      diagnostic: 'Conditional proof is missing AAD and key lifecycle.',
+      proof: { claim: 'encrypted-scope-binding', factIds: ['encrypted-at-rest'] },
+    },
+    {
+      defect: 'migration evidence from a feature branch',
+      diagnostic: 'Conditional proof is missing deployed starting state.',
+      proof: {
+        claim: 'live-additive-migration',
+        factIds: [
+          'feature-branch-starting-state',
+          'mixed-version-compatibility',
+          'cutover',
+          'recovery',
+          'restore-behavior',
+        ],
+      },
+    },
+    {
+      defect: 'deletion evidence for only the primary row',
+      diagnostic: 'Conditional proof is missing secondary-copy disposition.',
+      proof: {
+        claim: 'erasure-completeness',
+        factIds: [
+          'positive-deletion-proof',
+          'sibling-scope-isolation',
+          'different-owner-isolation',
+        ],
+      },
+    },
+    {
+      defect: 'erasure proof without isolation controls',
+      diagnostic: 'Conditional proof is missing negative isolation.',
+      proof: {
+        claim: 'erasure-completeness',
+        factIds: ['copy-inventory', 'positive-deletion-proof'],
+      },
+    },
+    {
+      defect: 'coverage inferred from a generated sibling',
+      diagnostic: 'Conditional proof uses a dependent completeness oracle.',
+      proof: { claim: 'generated-completeness', factIds: ['generated-sibling-oracle'] },
+    },
+    {
+      defect: 'temporal proof away from equality',
+      diagnostic: 'Conditional proof is missing equality boundary.',
+      proof: {
+        claim: 'time-dependent-lifecycle',
+        factIds: ['authoritative-clock', 'retry-behavior', 'restore-behavior'],
+      },
+    },
+  ] satisfies readonly {
+    readonly defect: string;
+    readonly diagnostic: string;
+    readonly proof: ConditionalProofInput;
+  }[])('rejects $defect with its focused diagnostic', ({ diagnostic, proof }) => {
+    expect(verifyConditionalProof(proof)).toEqual({ accepted: false, diagnostics: [diagnostic] });
+  });
+
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
     const mixedCase: EvaluationCase = {
       id: 'mixed-decision-routing',

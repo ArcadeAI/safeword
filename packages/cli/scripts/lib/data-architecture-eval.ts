@@ -72,8 +72,10 @@ export interface FacetCompletenessInput {
 export type ConditionalClaimKind =
   | 'encrypted-scope-binding'
   | 'erasure-completeness'
+  | 'generated-completeness'
   | 'live-additive-migration'
   | 'relational-query-performance'
+  | 'tenant-parent-binding'
   | 'time-dependent-lifecycle';
 
 export interface ConditionalProofInput {
@@ -93,6 +95,7 @@ const requiredConditionalFacts: Readonly<Record<ConditionalClaimKind, readonly s
     'sibling-scope-isolation',
     'different-owner-isolation',
   ],
+  'generated-completeness': ['independent-completeness-oracle'],
   'live-additive-migration': [
     'deployed-starting-state',
     'mixed-version-compatibility',
@@ -107,6 +110,7 @@ const requiredConditionalFacts: Readonly<Record<ConditionalClaimKind, readonly s
     'threshold',
     'revalidation-trigger',
   ],
+  'tenant-parent-binding': ['same-tenant-parent-binding'],
   'time-dependent-lifecycle': [
     'authoritative-clock',
     'exact-equality-behavior',
