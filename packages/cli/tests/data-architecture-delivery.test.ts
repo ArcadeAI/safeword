@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type DataArchitectureDeliveryInput,
+  type DataArchitectureDeliveryInventory,
   verifyDataArchitectureDelivery,
 } from '../scripts/lib/data-architecture-delivery.js';
 import { generateClaudePluginAssets } from '../src/claude-plugin/catalogue.js';
@@ -16,6 +17,20 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const packageRoot = nodePath.join(repoRoot, 'packages/cli');
 const templatesRoot = nodePath.join(packageRoot, 'templates');
 const sourceRoot = nodePath.join(packageRoot, 'src');
+const deliveryInventory: DataArchitectureDeliveryInventory = {
+  canonicalGuidePath: 'packages/cli/templates/guides/data-architecture-guide.md',
+  installedGuidePath: '.safeword/guides/data-architecture-guide.md',
+  managedGuidePaths: ['.safeword/guides/data-architecture-guide.md'],
+  claudeGuidePath: 'resources/guides/data-architecture-guide.md',
+  claudePlanningSourcePath: 'resources/SAFEWORD.md',
+  claudePlanningTarget: '"${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md',
+  projectPlanningTarget: './.safeword/guides/data-architecture-guide.md',
+  claudePathSubstitution: {
+    from: '@.safeword/guides/',
+    to: '@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/',
+  },
+  openCodeRationale: 'OpenCode → no copy and no reference',
+};
 
 function file(relativePath: string): string {
   return readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
@@ -42,15 +57,16 @@ function deliveryFixture(): DataArchitectureDeliveryInput {
   const openCodeAssets = assetsByPath(generateOpenCodeCatalogueAssets(templatesRoot));
 
   return {
-    canonicalGuide: file('packages/cli/templates/guides/data-architecture-guide.md'),
-    installedGuide: file('.safeword/guides/data-architecture-guide.md'),
-    managedGuidePaths: [
+    inventory: deliveryInventory,
+    canonicalGuide: file(deliveryInventory.canonicalGuidePath),
+    installedGuide: file(deliveryInventory.installedGuidePath),
+    actualManagedGuidePaths: [
       ...Object.keys(SAFEWORD_SCHEMA.ownedFiles),
       ...Object.keys(SAFEWORD_SCHEMA.managedFiles),
     ].filter(path => path.endsWith('/data-architecture-guide.md')),
     claude: {
       assets: claudeAssets,
-      planningSourcePath: 'resources/SAFEWORD.md',
+      planningSourcePath: deliveryInventory.claudePlanningSourcePath,
     },
     codex: {
       assets: {
@@ -61,14 +77,15 @@ function deliveryFixture(): DataArchitectureDeliveryInput {
     },
     cursor: {
       assets: {
-        '.safeword/SAFEWORD.md': file('packages/cli/templates/SAFEWORD.md'),
-        '.safeword/guides/data-architecture-guide.md': file(
-          'packages/cli/templates/guides/data-architecture-guide.md',
-        ),
+        '.safeword/SAFEWORD.md': file('.safeword/SAFEWORD.md'),
+        '.safeword/guides/data-architecture-guide.md': file(deliveryInventory.installedGuidePath),
       },
       planningSourcePath: '.safeword/SAFEWORD.md',
     },
     openCode: { assets: openCodeAssets },
+    recordedRationale: file(
+      '.project/tickets/Z3C2SE-make-data-architecture-guidance-complete/impl-plan.md',
+    ),
   };
 }
 
