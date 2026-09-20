@@ -104,7 +104,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario: Supported hosts resolve one coherent guide through their existing delivery model
 
-- [ ] RED
+- [x] RED 103119ac3
 - [ ] GREEN
 - [ ] REFACTOR
 
