@@ -167,7 +167,6 @@ describe('data architecture guide delivery', () => {
             ),
           ),
         },
-        installedGuide: undefined,
       }),
     },
     {
