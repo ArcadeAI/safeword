@@ -222,7 +222,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Delivery evidence uses the canonical checklist taxonomy
 
-- [ ] RED
+- [x] RED skip: existing A639WN CLI behavior already records all four canonical evidence classes; this scenario adds explicit characterization
 - [ ] GREEN
 - [ ] REFACTOR
 
