@@ -13,12 +13,14 @@ import {
   type EvaluationRecord,
   type EvaluationResponse,
   type EvaluationRubric,
+  type EvidenceSafetyInput,
   type FacetCompletenessInput,
   verifyAblationPair,
   verifyArtifactOwnership,
   verifyConditionalProof,
   verifyEvaluationCorpus,
   verifyEvaluationRecord,
+  verifyEvidenceSafety,
   verifyFacetCompleteness,
 } from '../scripts/lib/data-architecture-eval.js';
 
@@ -869,6 +871,15 @@ describe('data architecture guide evaluation', () => {
     readonly proof: ConditionalProofInput;
   }[])('rejects $defect with its focused diagnostic', ({ diagnostic, proof }) => {
     expect(verifyConditionalProof(proof)).toEqual({ accepted: false, diagnostics: [diagnostic] });
+  });
+
+  it('accepts synthetic mutable values and read-only migration evidence', () => {
+    const evidence: EvidenceSafetyInput = {
+      mutableValues: ['SYNTHETIC_TENANT_ID', 'SYNTHETIC_ENCRYPTED_VALUE', 'SYNTHETIC_OWNER_ID'],
+      migrationEvidenceSources: ['deployed-read-only', 'checked-in-equivalent'],
+    };
+
+    expect(verifyEvidenceSafety(evidence)).toEqual({ accepted: true, diagnostics: [] });
   });
 
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {

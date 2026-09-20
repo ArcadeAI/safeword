@@ -83,6 +83,11 @@ export interface ConditionalProofInput {
   readonly factIds: readonly string[];
 }
 
+export interface EvidenceSafetyInput {
+  readonly migrationEvidenceSources: readonly ('checked-in-equivalent' | 'deployed-read-only')[];
+  readonly mutableValues: readonly string[];
+}
+
 const requiredConditionalFacts: Readonly<Record<ConditionalClaimKind, readonly string[]>> = {
   'encrypted-scope-binding': [
     'canonical-aad-identity',
@@ -463,6 +468,10 @@ export function verifyConditionalProof(input: ConditionalProofInput): Verificati
   }
 
   return { accepted: diagnostics.length === 0, diagnostics };
+}
+
+export function verifyEvidenceSafety(_input: EvidenceSafetyInput): VerificationResult {
+  return { accepted: false, diagnostics: ['Evidence safety verification is not implemented.'] };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
