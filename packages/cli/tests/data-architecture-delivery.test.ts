@@ -171,6 +171,25 @@ describe('data architecture guide delivery', () => {
     },
     {
       diagnostic:
+        'Cursor planning reference does not resolve exactly once to ./.safeword/guides/data-architecture-guide.md.',
+      drift: 'an absent planning reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        cursor: {
+          ...input.cursor,
+          assets: {
+            ...input.cursor.assets,
+            [input.cursor.planningSourcePath]:
+              input.cursor.assets[input.cursor.planningSourcePath]?.replace(
+                input.inventory.projectPlanningTarget,
+                () => '',
+              ) ?? '',
+          },
+        },
+      }),
+    },
+    {
+      diagnostic:
         'Codex planning reference crosses surfaces to "${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md.',
       drift: 'a cross-surface planning reference',
       mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
@@ -200,6 +219,14 @@ describe('data architecture guide delivery', () => {
             'guides/data-architecture-guide.md': input.canonicalGuide,
           },
         },
+      }),
+    },
+    {
+      diagnostic: 'OpenCode guide-delivery rationale is not recorded.',
+      drift: 'a missing OpenCode delivery rationale',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        recordedRationale: '',
       }),
     },
   ])('rejects $drift with its mismatched path or content identified', ({ diagnostic, mutate }) => {
