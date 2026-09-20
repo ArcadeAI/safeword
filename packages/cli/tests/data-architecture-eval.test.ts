@@ -645,6 +645,20 @@ describe('data architecture guide evaluation', () => {
         },
       ]),
     ).toEqual({ accepted: true, diagnostics: [] });
+    expect(
+      verifyArtifactOwnership([
+        {
+          artifactId: 'architecture-answer',
+          contractId: 'durable-session-contract',
+          claimsSourceOfTruth: true,
+        },
+        {
+          artifactId: 'architecture-answer',
+          contractId: 'retention-policy',
+          claimsSourceOfTruth: true,
+        },
+      ]),
+    ).toEqual({ accepted: true, diagnostics: [] });
 
     const claims: ArtifactAuthorityClaim[] = [
       {
