@@ -305,17 +305,60 @@ describe('Execution Plan semantic conformance admission', () => {
   });
 
   it.each([
-    ['absent-work-is-not-complete', 'request_changes', ['absent', 'complete']],
-    ['current-proof-supports-completion', 'approve', undefined],
-    ['earlier-proof-remains-open', 'request_changes', ['earlier', 'open']],
-    ['known-defect-is-not-complete', 'request_changes', ['defect', 'complete']],
-    ['pending-human-authority-is-not-complete', 'request_changes', ['human', 'pending']],
-  ] as const)('keeps %s as a current-to-target truthfulness case', (caseId, verdict, terms) => {
-    const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
+    [
+      'absent-work-is-not-complete',
+      'request_changes',
+      ['absent', 'complete'],
+      ['Current implementation: absent.', 'Claimed delivery state: complete.'],
+    ],
+    [
+      'current-proof-supports-completion',
+      'approve',
+      undefined,
+      [
+        'Current implementation: matches the accepted design.',
+        'Evidence: current-revision real-boundary proof.',
+        'Recorded delivery state: implemented and proven.',
+      ],
+    ],
+    [
+      'earlier-proof-remains-open',
+      'request_changes',
+      ['earlier', 'open'],
+      [
+        'Evidence: reusable earlier-revision proof only.',
+        'Claimed delivery state: implemented and proven at the current revision.',
+      ],
+    ],
+    [
+      'known-defect-is-not-complete',
+      'request_changes',
+      ['defect', 'complete'],
+      [
+        'Current implementation: known defect contradicts the accepted design.',
+        'Claimed delivery state: complete.',
+      ],
+    ],
+    [
+      'pending-human-authority-is-not-complete',
+      'request_changes',
+      ['human', 'pending'],
+      [
+        'Contributor work: complete.',
+        'Human authority: pending security approval.',
+        'Claimed delivery state: complete.',
+      ],
+    ],
+  ] as const)(
+    'keeps %s as a current-to-target truthfulness case',
+    (caseId, verdict, terms, requiredPlanText) => {
+      const testCase = EXECUTION_PLAN_CONFORMANCE_CASES.find(candidate => candidate.id === caseId);
 
-    expect(testCase?.expectation.verdict).toBe(verdict);
-    if (terms !== undefined) expect(testCase?.expectation.finding_terms).toEqual(terms);
-  });
+      expect(testCase?.expectation.verdict).toBe(verdict);
+      if (terms !== undefined) expect(testCase?.expectation.finding_terms).toEqual(terms);
+      for (const text of requiredPlanText) expect(testCase?.execution_plan).toContain(text);
+    },
+  );
 
   it('keeps every authoritative scenario example as its own case', () => {
     expect(EXECUTION_PLAN_CONFORMANCE_CASES.map(testCase => testCase.id)).toEqual(
