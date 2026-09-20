@@ -78,7 +78,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 - [x] RED 02f8f581b
 - [x] GREEN 0dfc41dbe
-- [ ] REFACTOR
+- [x] REFACTOR skip: the typed claim registry and exact-set comparison are already isolated
 
 ### Scenario Outline: A non-discriminating proof fails with a focused diagnostic
 
