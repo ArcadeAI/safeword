@@ -113,15 +113,14 @@ function patchInstalledDeliveryTaxonomy(distribution: string): void {
   if (module === undefined)
     throw new Error('Installed delivery taxonomy declaration was not found');
   const source = readFileSync(module, 'utf8');
-  writeFileSync(
-    module,
-    source.replace(declaration, matched =>
-      matched.replace(
-        '"current_revision_real_boundary",\n  "reusable_earlier_revision"',
-        '"reusable_earlier_revision",\n  "current_revision_real_boundary"',
-      ),
+  const patched = source.replace(declaration, matched =>
+    matched.replace(
+      '"current_revision_real_boundary",\n  "reusable_earlier_revision"',
+      '"reusable_earlier_revision",\n  "current_revision_real_boundary"',
     ),
   );
+  if (patched === source) throw new Error('Installed delivery taxonomy was not changed');
+  writeFileSync(module, patched);
 }
 
 function retainInstalledRouteAdmission(distribution: string, rubric: string): void {
