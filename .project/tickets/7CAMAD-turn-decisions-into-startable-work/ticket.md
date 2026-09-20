@@ -51,6 +51,11 @@ parent_contract_digest: c107ca39dc842a473be4ea5e12c6d448d12ccccd211da65b92ec3b68
 
 ## Work Log
 
+- 2026-09-20T19:14:00.000Z Scenario review correction: clarified that the
+  deterministic admission matrix substitutes only for the live reviewer's
+  semantic verdict. CI still exercises every scenario through the installed
+  Safeword CLI, so the matrix cannot replace the accepted actor boundary.
+
 - 2026-09-19T22:35:02.000Z Live evidence — R15 measurement execution matrix:
   the pre-contract Claude Opus run failed 4 of 7 cases, approving plans that
   omitted instrumentation or evidence collection and routing changed validity
