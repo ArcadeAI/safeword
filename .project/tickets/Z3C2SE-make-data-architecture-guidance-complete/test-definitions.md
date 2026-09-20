@@ -42,7 +42,7 @@ This file is the R/G/R progress ledger. The feature file is the behavior source 
 
 ### Scenario: Duplicating a contract as authority across artifacts fails review
 
-- [ ] RED
+- [x] RED fd644bd7a
 - [ ] GREEN
 - [ ] REFACTOR
 
