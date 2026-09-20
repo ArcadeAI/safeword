@@ -7,10 +7,12 @@ import {
   buildColdStartPrompt,
   type EvaluationCase,
   type EvaluationContract,
+  type EvaluationCorpusInput,
   type EvaluationRecord,
   type EvaluationResponse,
   type EvaluationRubric,
   verifyAblationPair,
+  verifyEvaluationCorpus,
   verifyEvaluationRecord,
 } from '../scripts/lib/data-architecture-eval.js';
 
@@ -91,7 +93,304 @@ function record(
   };
 }
 
+const corpusContract: EvaluationContract = {
+  modelVersion: 'controlled-model-v1',
+  decodingConfiguration: { temperature: 0, topP: 1 },
+  responseFormat: 'data-architecture-eval-v1',
+  rubricLoader: 'data-architecture-rubric-v1',
+  toolsDisabled: true,
+};
+
+const universalDecisionIds = [
+  'decision.core.source-of-truth',
+  'decision.core.identity-and-scope',
+  'decision.core.value-contract',
+  'decision.core.lifecycle',
+] as const;
+
+const representativeCases = [
+  {
+    id: 'simple-key-value-preference',
+    text: 'Plan a user-scoped key-value preference with no conditional data risks.',
+    decisions: [...universalDecisionIds],
+    proofs: ['proof.core.contract-complete'],
+  },
+  {
+    id: 'multi-tenant-relational-event-store',
+    text: 'Plan a multi-tenant relational event store with live migration and erasure.',
+    decisions: [
+      ...universalDecisionIds,
+      'decision.relational.physical-schema',
+      'decision.relational.query-contract',
+      'decision.migration.deployed-state',
+      'decision.erasure.copy-disposition',
+    ],
+    proofs: [
+      'proof.relational.query-context',
+      'proof.migration.deployed-mixed-version',
+      'proof.erasure.complete-and-isolated',
+    ],
+  },
+  {
+    id: 'encrypted-credential-record',
+    text: 'Plan an encrypted credential record with identity-bound AAD and key rotation.',
+    decisions: [
+      ...universalDecisionIds,
+      'decision.encryption.representation',
+      'decision.encryption.aad-binding',
+      'decision.encryption.key-lifecycle',
+    ],
+    proofs: ['proof.encryption.scope-and-rotation'],
+  },
+  {
+    id: 'live-additive-migration',
+    text: 'Plan a live additive migration from a deployed mixed-version starting state.',
+    decisions: [
+      ...universalDecisionIds,
+      'decision.migration.deployed-state',
+      'decision.migration.compatibility',
+      'decision.migration.cutover-and-recovery',
+    ],
+    proofs: ['proof.migration.deployed-mixed-version'],
+  },
+  {
+    id: 'generated-manifest-missing-one-facet',
+    text: 'Prove a generated manifest covers every independently intended facet.',
+    decisions: [
+      ...universalDecisionIds,
+      'decision.generated.source',
+      'decision.core.independent-proof',
+    ],
+    proofs: ['proof.generated.independent-inventory'],
+  },
+  {
+    id: 'erasure-across-secondary-copies',
+    text: 'Plan erasure across primary and secondary copies with isolation controls.',
+    decisions: [
+      ...universalDecisionIds,
+      'decision.erasure.copy-disposition',
+      'decision.erasure.isolation',
+    ],
+    proofs: ['proof.erasure.complete-and-isolated'],
+  },
+  {
+    id: 'time-equality-boundary',
+    text: 'Plan expiry behavior at exact clock equality and delayed physical deletion.',
+    decisions: [
+      ...universalDecisionIds,
+      'decision.temporal.clock-boundary',
+      'decision.temporal.deletion-lag',
+    ],
+    proofs: ['proof.temporal.equality-retry-restore'],
+  },
+  {
+    id: 'mixed-decision-routing',
+    text: 'Route durable identity and lifecycle separately from reversible helpers.',
+    decisions: [
+      'decision.routing.identity-architecture',
+      'decision.routing.lifecycle-architecture',
+      'decision.routing.helper-implementation',
+      'decision.routing.control-flow-implementation',
+    ],
+    proofs: ['proof.routing.durable-and-reversible-separated'],
+  },
+  {
+    id: 'artifact-ownership',
+    text: 'Assign each durable decision and its evidence to exactly one owning artifact.',
+    decisions: [
+      'decision.ownership.data-architecture',
+      'decision.ownership.implementation-plan',
+      'decision.ownership.generated-representation',
+      'decision.ownership.adr',
+      'decision.ownership.linked-evidence',
+    ],
+    proofs: ['proof.ownership.single-authority'],
+  },
+] as const;
+
+const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
+  'simple-key-value-preference': {
+    decisionIds: [
+      'decision.core.source-of-truth',
+      'decision.core.identity-and-scope',
+      'decision.core.value-contract',
+      'decision.core.lifecycle',
+    ],
+    proofFactIds: ['proof.core.contract-complete'],
+  },
+  'multi-tenant-relational-event-store': {
+    decisionIds: [
+      'decision.core.source-of-truth',
+      'decision.core.identity-and-scope',
+      'decision.core.value-contract',
+      'decision.core.lifecycle',
+      'decision.relational.physical-schema',
+      'decision.relational.query-contract',
+      'decision.migration.deployed-state',
+      'decision.erasure.copy-disposition',
+    ],
+    proofFactIds: [
+      'proof.relational.query-context',
+      'proof.migration.deployed-mixed-version',
+      'proof.erasure.complete-and-isolated',
+    ],
+  },
+  'encrypted-credential-record': {
+    decisionIds: [
+      'decision.core.source-of-truth',
+      'decision.core.identity-and-scope',
+      'decision.core.value-contract',
+      'decision.core.lifecycle',
+      'decision.encryption.representation',
+      'decision.encryption.aad-binding',
+      'decision.encryption.key-lifecycle',
+    ],
+    proofFactIds: ['proof.encryption.scope-and-rotation'],
+  },
+  'live-additive-migration': {
+    decisionIds: [
+      'decision.core.source-of-truth',
+      'decision.core.identity-and-scope',
+      'decision.core.value-contract',
+      'decision.core.lifecycle',
+      'decision.migration.deployed-state',
+      'decision.migration.compatibility',
+      'decision.migration.cutover-and-recovery',
+    ],
+    proofFactIds: ['proof.migration.deployed-mixed-version'],
+  },
+  'generated-manifest-missing-one-facet': {
+    decisionIds: [
+      'decision.core.source-of-truth',
+      'decision.core.identity-and-scope',
+      'decision.core.value-contract',
+      'decision.core.lifecycle',
+      'decision.generated.source',
+      'decision.core.independent-proof',
+    ],
+    proofFactIds: ['proof.generated.independent-inventory'],
+  },
+  'erasure-across-secondary-copies': {
+    decisionIds: [
+      'decision.core.source-of-truth',
+      'decision.core.identity-and-scope',
+      'decision.core.value-contract',
+      'decision.core.lifecycle',
+      'decision.erasure.copy-disposition',
+      'decision.erasure.isolation',
+    ],
+    proofFactIds: ['proof.erasure.complete-and-isolated'],
+  },
+  'time-equality-boundary': {
+    decisionIds: [
+      'decision.core.source-of-truth',
+      'decision.core.identity-and-scope',
+      'decision.core.value-contract',
+      'decision.core.lifecycle',
+      'decision.temporal.clock-boundary',
+      'decision.temporal.deletion-lag',
+    ],
+    proofFactIds: ['proof.temporal.equality-retry-restore'],
+  },
+  'mixed-decision-routing': {
+    decisionIds: [
+      'decision.routing.identity-architecture',
+      'decision.routing.lifecycle-architecture',
+      'decision.routing.helper-implementation',
+      'decision.routing.control-flow-implementation',
+    ],
+    proofFactIds: ['proof.routing.durable-and-reversible-separated'],
+  },
+  'artifact-ownership': {
+    decisionIds: [
+      'decision.ownership.data-architecture',
+      'decision.ownership.implementation-plan',
+      'decision.ownership.generated-representation',
+      'decision.ownership.adr',
+      'decision.ownership.linked-evidence',
+    ],
+    proofFactIds: ['proof.ownership.single-authority'],
+  },
+};
+
+function corpusFixture(): EvaluationCorpusInput {
+  const cases: EvaluationCase[] = representativeCases.map(item => ({
+    id: item.id,
+    text: item.text,
+    rubric: {
+      expectedDecisionIds: [...item.decisions],
+      forbiddenDecisionIds: [],
+      expectedProofFactIds: [...item.proofs],
+      forbiddenProofFactIds: [],
+    },
+  }));
+  const records = cases.map((evaluationCase): EvaluationRecord => {
+    const recordedResponse = recordedResponsesByCase[evaluationCase.id];
+    if (recordedResponse === undefined)
+      throw new Error(`Missing recorded response for ${evaluationCase.id}.`);
+    const prompt = buildColdStartPrompt(guide, evaluationCase);
+    return {
+      caseId: evaluationCase.id,
+      guideSha256: sha256(guide),
+      caseAndRubricSha256: sha256(
+        canonicalJson({
+          case: { id: evaluationCase.id, text: evaluationCase.text },
+          rubric: {
+            expectedDecisionIds: sortedStrings(evaluationCase.rubric.expectedDecisionIds),
+            forbiddenDecisionIds: [],
+            expectedProofFactIds: sortedStrings(evaluationCase.rubric.expectedProofFactIds),
+            forbiddenProofFactIds: [],
+          },
+        }),
+      ),
+      prompt,
+      coldStartPromptSha256: sha256(prompt),
+      modelVersion: corpusContract.modelVersion,
+      decodingConfiguration: { ...corpusContract.decodingConfiguration },
+      responseFormat: corpusContract.responseFormat,
+      rubricLoader: corpusContract.rubricLoader,
+      response: {
+        decisionIds: [...recordedResponse.decisionIds],
+        proofFactIds: [...recordedResponse.proofFactIds],
+      },
+    };
+  });
+  return { canonicalGuide: guide, cases, contract: corpusContract, records };
+}
+
 describe('data architecture guide evaluation', () => {
+  it('accepts all nine representative cases with exactly their applicable guidance', () => {
+    const corpus = corpusFixture();
+    const relationalRecord = corpus.records.find(
+      evaluationRecord => evaluationRecord.caseId === 'multi-tenant-relational-event-store',
+    );
+    if (relationalRecord === undefined) throw new Error('Missing relational corpus record.');
+    const incompleteCorpus = {
+      ...corpus,
+      records: corpus.records.map(evaluationRecord =>
+        evaluationRecord === relationalRecord
+          ? {
+              ...evaluationRecord,
+              response: {
+                ...evaluationRecord.response,
+                decisionIds: evaluationRecord.response.decisionIds.filter(
+                  id => id !== 'decision.relational.query-contract',
+                ),
+              },
+            }
+          : evaluationRecord,
+      ),
+    };
+
+    expect.soft(verifyEvaluationCorpus(corpus)).toEqual({ accepted: true, diagnostics: [] });
+    expect.soft(verifyEvaluationCorpus(incompleteCorpus)).toEqual({
+      accepted: false,
+      diagnostics: [
+        '[multi-tenant-relational-event-store] Evaluation response is missing expected decision decision.relational.query-contract.',
+      ],
+    });
+  });
+
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
     const mixedCase: EvaluationCase = {
       id: 'mixed-decision-routing',

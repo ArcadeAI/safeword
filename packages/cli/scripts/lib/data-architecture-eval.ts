@@ -50,6 +50,13 @@ export interface EvaluationRecordInput {
   readonly record: EvaluationRecord;
 }
 
+export interface EvaluationCorpusInput {
+  readonly canonicalGuide: string;
+  readonly cases: readonly EvaluationCase[];
+  readonly contract: EvaluationContract;
+  readonly records: readonly EvaluationRecord[];
+}
+
 export interface AblationRecord {
   readonly guideSha256: string;
   readonly caseRubricSha256: string;
@@ -219,6 +226,13 @@ export function verifyEvaluationRecord(input: EvaluationRecordInput): Verificati
   );
 
   return { accepted: diagnostics.length === 0, diagnostics };
+}
+
+export function verifyEvaluationCorpus(_input: EvaluationCorpusInput): VerificationResult {
+  return {
+    accepted: false,
+    diagnostics: ['Evaluation corpus verification is not implemented.'],
+  };
 }
 
 function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
