@@ -738,23 +738,21 @@ describe('cross-agent review public-command wiring', () => {
       SAFEWORD_NO_UPDATE_CHECK: '1',
     };
 
-    const accepted = await runCli(
-      [
-        'review',
-        'run',
-        'plan-execution',
-        '.project/tickets/T1-feature/execution-plan.md',
-        '--context',
-        '.project/tickets/T1-feature/impl-plan.md',
-        '--context',
-        '.project/tickets/T1-feature/behavior.feature',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      { cwd: directory, env: environment },
-    );
+    const reviewArguments = [
+      'review',
+      'run',
+      'plan-execution',
+      '.project/tickets/T1-feature/execution-plan.md',
+      '--context',
+      '.project/tickets/T1-feature/impl-plan.md',
+      '--context',
+      '.project/tickets/T1-feature/behavior.feature',
+      '--json',
+      '--no-input',
+      '--cwd',
+      directory,
+    ];
+    const accepted = await runCli(reviewArguments, { cwd: directory, env: environment });
 
     expect(accepted.exitCode, accepted.stdout).toBe(0);
     expect(JSON.parse(accepted.stdout)).toMatchObject({
@@ -776,6 +774,36 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('# Execution Plan');
     expect(prompt).toContain('# Implementation Plan');
     expect(prompt).toContain('Feature: behavior');
+
+    writeFileSync(
+      executionPlanPath,
+      `${acceptedPlan}\n## Current-to-target state\n\n- Current implementation: known defect contradicts the accepted design.\n- Target correction: restore the accepted authorization behavior.\n- Claimed delivery state: complete.\n`,
+    );
+    const contradicted = await runCli(reviewArguments, {
+      cwd: directory,
+      env: {
+        ...environment,
+        SAFEWORD_REVIEW_FAKE_EXECUTION_PLAN_RECORD: '',
+        SAFEWORD_REVIEW_FAKE_FINDING:
+          'The known defect contradicts the accepted design, so the target correction remains open and cannot be called complete.',
+        SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+      },
+    });
+    expect(contradicted.exitCode, contradicted.stdout).toBe(2);
+    expect(JSON.parse(contradicted.stdout)).toMatchObject({
+      data: {
+        status: 'changes_requested',
+        reviewer_output: {
+          verdict: 'request_changes',
+          execution_plan_record: JSON.parse('null'),
+        },
+      },
+      findings: [
+        {
+          message: expect.stringContaining('target correction remains open'),
+        },
+      ],
+    });
 
     const rejected = await runCli(
       [
