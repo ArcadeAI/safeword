@@ -678,6 +678,8 @@ describe('data architecture guide evaluation', () => {
 
   it('scans authored corpus text and responses without rejecting ordinary prose', () => {
     const corpus = corpusFixture();
+    const firstCase = corpus.cases[0];
+    if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
     expect(verifyEvaluationCorpusSafety({ cases: corpus.cases, records: corpus.records })).toEqual({
       accepted: true,
       diagnostics: [],
@@ -686,7 +688,7 @@ describe('data architecture guide evaluation', () => {
       verifyEvaluationCorpusSafety({
         cases: [
           {
-            ...corpus.cases[0],
+            ...firstCase,
             text: 'Use token github_pat_12345678901234567890123456789012.',
           },
         ],

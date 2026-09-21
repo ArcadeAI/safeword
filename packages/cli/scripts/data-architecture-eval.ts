@@ -61,9 +61,11 @@ function recordResponse(
   prompt: string,
   caseId: string,
 ): EvaluationResponse {
+  const command = adapter[0];
+  if (command === undefined) throw new Error('Adapter command is empty.');
   const workingDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-data-eval-'));
   try {
-    const result = spawnSync(adapter[0], adapter.slice(1), {
+    const result = spawnSync(command, adapter.slice(1), {
       cwd: workingDirectory,
       encoding: 'utf8',
       input: prompt,
