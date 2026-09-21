@@ -1643,6 +1643,29 @@ describe('data architecture guide evaluation', () => {
     });
   });
 
+  it('rejects duplicate IDs in the full-guide ablation control', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      evaluationCase: ablationCase,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
+      rubric,
+      fullGuideRecord: record(guide, {
+        ...fullResponse,
+        decisionIds: [...fullResponse.decisionIds, 'decision.generated.source'],
+      }),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Full-guide response does not satisfy the evaluation rubric.'],
+    });
+  });
+
   it('rejects a pair when the full-guide response fails its control rubric', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',

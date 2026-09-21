@@ -19,7 +19,14 @@ describe('data architecture evaluation CLI', () => {
       const corpusDirectory = nodePath.join(directory, 'corpus');
       const adapterPath = nodePath.join(directory, 'adapter.mjs');
       const capturePath = nodePath.join(directory, 'adapter-capture.json');
-      const guide = '# Guide\n[decision.test]\n[proof.test]\n';
+      const guide = [
+        '# Guide',
+        '[decision.test]',
+        '<!-- data-architecture-ablation:test:start -->',
+        '[proof.test]',
+        '<!-- data-architecture-ablation:test:end -->',
+        '',
+      ].join('\n');
       const evaluationCase = {
         id: 'test-case',
         text: 'Plan SYNTHETIC_TEST_VALUE.',
@@ -33,7 +40,7 @@ describe('data architecture evaluation CLI', () => {
       writeFileSync(guidePath, guide);
       writeFileSync(
         adapterPath,
-        "import{readdirSync,writeFileSync}from'node:fs';let input='';process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>{writeFileSync(process.argv[2],JSON.stringify({cwd:process.cwd(),entries:readdirSync('.'),input}));process.stdout.write(JSON.stringify({decisionIds:['decision.test'],proofFactIds:['proof.test']}));});\n",
+        "import{readdirSync,writeFileSync}from'node:fs';let input='';process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>{const full=input.includes('[proof.test]');if(full)writeFileSync(process.argv[2],JSON.stringify({cwd:process.cwd(),entries:readdirSync('.'),input}));process.stdout.write(JSON.stringify({decisionIds:['decision.test'],proofFactIds:full?['proof.test']:[]}));});\n",
       );
       mkdirSync(corpusDirectory);
       writeFileSync(nodePath.join(corpusDirectory, 'cases.json'), JSON.stringify([evaluationCase]));
@@ -45,6 +52,13 @@ describe('data architecture evaluation CLI', () => {
           responseFormat: 'data-architecture-eval-v1',
           rubricLoader: 'data-architecture-rubric-v1',
           toolsDisabled: true,
+          ablation: {
+            id: 'test',
+            caseId: 'test-case',
+            preservedDecisionIds: ['decision.test'],
+            attributableDecisionIds: [],
+            attributableProofFactIds: ['proof.test'],
+          },
         }),
       );
 
@@ -83,6 +97,17 @@ describe('data architecture evaluation CLI', () => {
         response: { decisionIds: ['decision.test'], proofFactIds: ['proof.test'] },
       });
       expect(records[0].caseAndRubricSha256).toMatch(/^[a-f0-9]{64}$/u);
+      const ablationRecord = JSON.parse(
+        readFileSync(nodePath.join(corpusDirectory, 'ablation-record.json'), 'utf8'),
+      );
+      expect(ablationRecord).toMatchObject({
+        ablationId: 'test',
+        caseId: 'test-case',
+        record: {
+          modelVersion: 'fixture-adapter-v1',
+          response: { decisionIds: ['decision.test'], proofFactIds: [] },
+        },
+      });
       const capture = JSON.parse(readFileSync(capturePath, 'utf8'));
       expect(capture.input).toBe(buildColdStartPrompt(guide, evaluationCase));
       expect(capture.cwd).not.toBe(packageRoot);
@@ -94,7 +119,9 @@ describe('data architecture evaluation CLI', () => {
         { cwd: packageRoot, encoding: 'utf8' },
       );
       expect(verify.status, verify.stderr).toBe(0);
-      expect(verify.stdout).toContain('Verified 1 data architecture evaluation record.');
+      expect(verify.stdout).toContain(
+        'Verified 1 data architecture evaluation record and 1 ablation record.',
+      );
 
       writeFileSync(guidePath, `${guide}\nDRIFT`);
       const rejected = spawnSync(

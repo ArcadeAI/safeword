@@ -145,7 +145,7 @@ function record(arguments_: readonly string[]): void {
   const recordsPath = nodePath.join(input.corpusDirectory, 'records.json');
   const safety = verifyEvaluationCorpusSafety({ cases: input.cases, records });
   if (!safety.accepted) throw new Error(safety.diagnostics.join('\n'));
-  const pendingWrites = [{ path: recordsPath, value: records }];
+  const pendingWrites: { path: string; value: unknown }[] = [{ path: recordsPath, value: records }];
 
   const ablationConfig = input.contract.ablation;
   if (ablationConfig !== undefined) {

@@ -44,7 +44,7 @@ Build five slices, keeping nondeterministic recording outside the normal test ru
    Codex, and Cursor and exactly zero for OpenCode, mapping each referenced host to its one permitted
    target: Claude →
    `plugin/resources/guides/data-architecture-guide.md`, Codex and Cursor →
-   `.safeword/guides/data-architecture-guide.md`, and OpenCode → no copy and no reference. Seed
+   `.safeword/guides/data-architecture-guide.md`, and OpenCode → no copy and no delivery-specific path. Seed
    missing copy, Codex extra copy, Claude body drift, illegal path substitution, absent reference,
    missing target, cross-surface target, and OpenCode-reference fixtures; the last two must fail even
    when their target exists. Primary proof:
@@ -79,7 +79,7 @@ Affected surfaces:
 | Claude Code | Generated plugin resource equals the canonical guide except for the independently specified path substitution; generated planning links resolve |
 | OpenAI Codex | Installed `.safeword` guide and generated planning route resolve; generated Codex catalogue contains no guide copy |
 | Cursor | Installed `.safeword` guide and generated planning route resolve through schema/install integration |
-| OpenCode | Explicit unaffected proof: profile catalogue contains neither a data-architecture guide copy nor a planning reference |
+| OpenCode | Explicit unaffected proof: profile catalogue contains neither a data-architecture guide copy nor a delivery-specific planning path; shared workflow prose may name the guide |
 
 The implementation touches four major components and five build slices, below the split trigger of
 more than twenty tasks or at least five major components; keep one feature ticket.

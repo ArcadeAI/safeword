@@ -30,7 +30,7 @@ export interface DataArchitectureDeliveryInput {
 }
 
 export const DATA_ARCHITECTURE_OPEN_CODE_RATIONALE =
-  'OpenCode has no data-architecture guide copy or planning reference because issue #4560 changes only the existing Claude, Codex, Cursor, and Safeword CLI delivery routes.';
+  'OpenCode has no owned data-architecture guide copy or delivery-specific planning path because issue #4560 changes only the existing Claude, Codex, Cursor, and Safeword CLI delivery routes; shared workflow prose may still name the guide.';
 
 export interface DeliveryVerificationResult {
   readonly accepted: boolean;
@@ -129,7 +129,10 @@ function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): stri
     diagnostics.push(`OpenCode contains an unexpected guide copy at ${openCodeGuidePath}.`);
   }
   const openCodeReferencePath = Object.entries(input.openCode.assets).find(([, content]) =>
-    content.includes(dataArchitectureGuideBasename),
+    [
+      `.safeword/guides/${dataArchitectureGuideBasename}`,
+      input.inventory.claudePlanningTarget,
+    ].some(target => content.includes(target)),
   )?.[0];
   if (openCodeReferencePath !== undefined) {
     diagnostics.push(

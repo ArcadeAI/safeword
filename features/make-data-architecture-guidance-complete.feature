@@ -166,7 +166,7 @@ Feature: Complete conditional data architecture guidance
     Scenario: Supported hosts resolve one coherent guide through their existing delivery model
       Given the canonical template, installed Safeword copy, generated Claude resource, and planning references have been produced by supported workflows
       When they are compared with the hand-maintained delivery inventory and literal path-substitution contract
-      Then the template and installed copy are identical, Claude differs only by the owned path substitution, Codex adds no guide copy, each planning reference resolves to its host-owned guide path, and the OpenCode catalogue remains copy-free and reference-free with that unaffected rationale recorded
+      Then the template and installed copy are identical, Claude differs only by the owned path substitution, Codex adds no guide copy, each planning reference resolves to its host-owned guide path, and the OpenCode catalogue remains copy-free and free of a delivery-specific planning path with that unaffected rationale recorded
 
     @rejection
     Scenario Outline: Shipped guide drift fails delivery verification

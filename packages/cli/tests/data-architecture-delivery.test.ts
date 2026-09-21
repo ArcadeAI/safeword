@@ -132,8 +132,7 @@ describe('data architecture guide delivery', () => {
       }),
     },
     {
-      diagnostic:
-        'Codex contains an unexpected guide copy at resources/guides/data-architecture-guide.md.',
+      diagnostic: 'Codex contains an unexpected guide copy at data-architecture-guide.md.',
       drift: 'an extra Codex-managed guide copy',
       mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
         ...input,
@@ -141,7 +140,7 @@ describe('data architecture guide delivery', () => {
           ...input.codex,
           assets: {
             ...input.codex.assets,
-            'resources/guides/data-architecture-guide.md': input.canonicalGuide,
+            'data-architecture-guide.md': input.canonicalGuide,
           },
         },
       }),
@@ -285,7 +284,7 @@ describe('data architecture guide delivery', () => {
         openCode: {
           assets: {
             ...input.openCode.assets,
-            'SAFEWORD.md': `Read ${input.inventory.projectPlanningTarget}.`,
+            'SAFEWORD.md': 'Read @.safeword/guides/data-architecture-guide.md.',
           },
         },
       }),
