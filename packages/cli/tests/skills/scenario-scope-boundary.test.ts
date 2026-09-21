@@ -117,6 +117,38 @@ describe('scenario scope boundary', () => {
     expect(content).toContain('Let severity end the loop, not patience');
   });
 
+  it.each(authoringSurfaces)('%s gives the scenario gate a termination condition', relative => {
+    const content = read(relative);
+
+    // #4701: the gate re-reviewed prose with nothing that could end it. No pass
+    // could return a negative — every one had something to say, and each edit
+    // gave the next pass fresh wording to question — so it ran for seventeen
+    // rounds until a human stopped it by hand. These two rules are what made it
+    // unbounded; asserting only the replacements would still pass if one were
+    // re-added alongside them, leaving the contract self-contradictory.
+    expect(content).not.toContain(
+      'Any scenario edit — including a user-requested Should Strengthen',
+    );
+    expect(content).not.toContain(
+      'If the adversarial pass or user feedback produced new scenarios',
+    );
+
+    // Severity ends the loop, not patience: should-strengthen never holds it open.
+    expect(content).toContain('A re-run with no Must Fix is clean even when Should Strengthen');
+    expect(content).toContain('two consecutive re-runs return only Should Strengthen');
+
+    // Only a user-owned scope change re-opens define-behavior. A scenario the
+    // reviewer proposed inside accepted scope must not restart the generative pass.
+    expect(content).toContain('If the **user** adds behavior or amends `out_of_scope`');
+    expect(content).toContain('is a scenario edit, not a scope change');
+
+    // The exit needs a check that can come back empty. Both commands are named:
+    // lint-gherkin alone passes a feature whose scenario carries no lineage tag,
+    // and doctor is what catches that.
+    expect(content).toContain('safeword project lint-gherkin');
+    expect(content).toContain('safeword doctor');
+  });
+
   it.each(authoringSurfaces)('%s demonstrates both halves of the scope check', relative => {
     const content = read(relative);
 
