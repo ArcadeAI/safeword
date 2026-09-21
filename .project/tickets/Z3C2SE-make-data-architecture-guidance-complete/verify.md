@@ -2,20 +2,20 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 10222/10222 tests pass
+**Test Suite:** ✓ 10221/10221 tests pass
 **Gherkin:** ✅ Acceptance lane passes (595 scenarios, 11100 steps)
 **Build:** ⚠️ Local environment limitation: the website prerender needs `NODE_PATH` to expose Bun's installed nested `@bruits/satteri-darwin-arm64` package; with that link visibility restored, the unchanged build succeeds (9 pages)
 **Lint:** ✅ Clean
 **Typecheck:** ✅ Clean
 **Scenarios:** ✅ All 48 scenarios marked complete
 **Refactor:** ✅ No change warranted — each scenario records its focused skip or completed structural disposition
-**PR Scope:** ❌ Piggybacked changes: review-infrastructure tickets `0PM7H8` and `50GQ69`, together with their runtime and test changes, remain on this branch
+**PR Scope:** ✅ Clean — the diff contains only the 12 issue-specific planning, feature, evaluator, delivery, and test files
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction — the Technical Builder can move from a context-free planning case through one of nine representative cases to a landed decision using hash-bound rubric and ablation evidence
 **Surface Evidence:** ✅ 4/4 affected surfaces have recorded proof
-**Evidence limits:** ⚠️ Go was unavailable; the website native optional dependency required `NODE_PATH` because of Bun link visibility; one unrelated OpenCode timing test flaked under load and passed 1/1 in isolation; BDD proof lock contention cleared and passed 45/45
+**Evidence limits:** ⚠️ Go was unavailable; the website native optional dependency required `NODE_PATH` because of Bun link visibility; BDD proof lock contention cleared and passed 45/45
 
 ## Surface Evidence
 
@@ -30,4 +30,4 @@ Audit passed — the diff-scoped architecture and test-quality audit found no ti
 
 ## Result
 
-The behavior requested by issue #4560 is implemented and verified. The ticket must remain open until the unrelated review-infrastructure work is separated from this branch and the scope check is rerun.
+The behavior requested by issue #4560 is implemented and verified. The unrelated reviewer and Codex bootstrap fixes are preserved on dedicated branches, while this branch is current with `origin/main` and has a clean issue-only diff.
