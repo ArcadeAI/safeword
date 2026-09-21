@@ -9,22 +9,39 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
   squash-merge, or in a shallow clone — the failure modes that orphaned the
   previous commit-SHA anchors. Hex-shaped legacy anchors are grandfathered at
   rest. The R/G/R ledger's per-tick commit SHAs are a separate mechanism and
-  keep their history-backed validation unchanged. Supersedes
-  evidence-anchored-phase-transitions.feature (#809's SHA grammar).
+  keep their history-backed validation unchanged. This is the sole acceptance
+  source; evidence-anchored-phase-transitions.feature (#809's SHA grammar) was
+  removed when this path grammar replaced it.
 
   Rule: A forward advance anchors the entered phase to the exited phase's artifact
 
     @artifact-content-phase-anchors.SM1.R1
     Scenario: Forward advance recording the exited phase's artifact path is anchored
-      Given a feature ticket at phase scenario-gate whose impl-plan artifact exists and is shape-valid
+      Given a feature ticket at phase plan-execution whose execution-plan artifact exists and is shape-valid
       When it advances to implement recording that artifact's path for implement
       Then the advance is recognized as anchored
 
     @artifact-content-phase-anchors.SM1.R1
     Scenario: Only the entered phase needs an anchor on a multi-step advance
-      Given a feature ticket at phase define-behavior whose impl-plan artifact exists and is shape-valid
-      When it advances two steps to implement recording that impl-plan path for implement only
+      Given a feature ticket at phase define-behavior whose execution-plan artifact exists and is shape-valid
+      When it advances four steps to implement recording that execution-plan path for implement only
       Then the advance is recognized as anchored
+
+    @artifact-content-phase-anchors.SM1.R1
+    Scenario Outline: Every entered phase has one canonical exit-artifact kind
+      Given a feature ticket at phase <prior phase> whose <artifact> anchor artifact exists and is shape-valid
+      When it advances to <entered phase> recording that artifact path for <entered phase>
+      Then the advance is recognized as anchored
+
+      Examples:
+        | prior phase         | entered phase       | artifact       |
+        | intake              | define-behavior     | spec           |
+        | define-behavior     | scenario-gate       | feature-source |
+        | scenario-gate       | plan-implementation | feature-source |
+        | plan-implementation | plan-execution      | impl-plan      |
+        | plan-execution      | implement           | execution-plan |
+        | implement           | verify              | ledger         |
+        | verify              | done                | verify         |
 
     @artifact-content-phase-anchors.SM1.R1
     Scenario Outline: The scenario-gate anchor accepts the feature source or its legacy fallback
@@ -40,12 +57,12 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
     @artifact-content-phase-anchors.SM1.R1
     Scenario: Re-advancing a phase is judged by its latest anchor entry
       Given a feature ticket that entered implement once, whose earlier implement anchor names a path absent from the tree
-      When it re-enters implement appending an anchor naming its existing shape-valid impl-plan
+      When it re-enters implement appending an anchor naming its existing shape-valid execution-plan
       Then the advance is recognized as anchored
 
     @artifact-content-phase-anchors.SM1.R1
     Scenario: An earlier valid entry cannot rescue a re-advance whose latest anchor is stale
-      Given a feature ticket whose earlier implement anchor names its existing shape-valid impl-plan
+      Given a feature ticket whose earlier implement anchor names its existing shape-valid execution-plan
       When it re-enters implement appending an implement anchor whose path is absent from the tree
       Then the advance is flagged as unanchored
 
@@ -87,15 +104,21 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
 
     @artifact-content-phase-anchors.SM1.R2
     Scenario: The commit tier verifies anchors against the staged tree, not the worktree
-      Given a staged forward advance anchored to an impl-plan path that exists on disk but is not staged
+      Given a staged forward advance anchored to an execution-plan path that exists on disk but is not staged
       When the boundary command runs at the commit boundary
       Then it exits zero and warns that the anchored artifact is missing from the staged tree
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: The push tier verifies anchors against the pushed HEAD tree, not the worktree
+      Given a pushed forward advance anchored to an execution-plan path that exists in the worktree but not the pushed HEAD tree
+      When the boundary command runs at the push boundary
+      Then it exits zero and warns that the anchored artifact is missing from the pushed tree
 
   Rule: Ownership and configured lanes are resolved from canonical staged paths
 
     @artifact-content-phase-anchors.SM1.R6
     Scenario: A ticket cannot reuse another ticket's same-kind artifact
-      Given a staged advance anchored to another ticket's shape-valid impl-plan
+      Given a staged advance anchored to another ticket's shape-valid execution-plan
       When the boundary command runs at the commit boundary
       Then it exits zero and warns that the anchor is outside this ticket
 
@@ -112,12 +135,6 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       Then it exits zero and warns that the anchor is not repo-relative
 
     @artifact-content-phase-anchors.SM1.R6
-    Scenario: OS-native ticket paths are normalized to the anchor grammar
-      Given an OS-native ticket directory path
-      When the path is normalized for an anchor
-      Then it uses the forward-slashed anchor grammar
-
-    @artifact-content-phase-anchors.SM1.R6
     Scenario: Canonical feature ownership is independent of unstaged worktree state
       Given a staged owned feature source that is then removed from the worktree
       When the boundary command runs at the commit boundary
@@ -125,9 +142,9 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
 
     @artifact-content-phase-anchors.SM1.R6
     Scenario: Feature anchors must live in an executable or configured feature lane
-      Given a staged advance anchored to a correctly named feature outside every feature lane
+      Given a staged advance anchored to a correctly named feature inside its ticket directory but outside every feature lane
       When the boundary command runs at the commit boundary
-      Then it exits zero and warns about the phase anchor
+      Then it exits zero and warns that the feature anchor is outside every executable or configured feature lane
 
     @artifact-content-phase-anchors.SM1.R6
     Scenario: Ticket discovery uses the staged project-root configuration
@@ -142,10 +159,10 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       Then it exits zero and reports the configured ticket's malformed plan
 
     @artifact-content-phase-anchors.SM1.R6
-    Scenario: Repository-root ticket and feature lanes remain enforceable
-      Given staged repository-root ticket and feature lanes with a valid owned anchor
+    Scenario: Repository-root ticket ownership remains enforceable
+      Given staged repository-root ticket and feature lanes with an anchor owned by another ticket
       When the boundary command runs at the commit boundary
-      Then it exits zero with no anchor warning
+      Then it exits zero and warns that the anchor is outside this ticket
 
     @artifact-content-phase-anchors.SM1.R6
     Scenario: A configured project root outside the repository warns instead of failing open
@@ -157,45 +174,47 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
 
     @artifact-content-phase-anchors.SM1.R3
     Scenario: Forward advance with no phase_anchors block at all is flagged with the exact line to add
-      Given a feature ticket at phase scenario-gate
+      Given a feature ticket at phase plan-execution
       When it advances to implement with no phase_anchors block recorded
       Then the advance is flagged as unanchored
       And the finding names the expected anchor line for implement
 
     @artifact-content-phase-anchors.SM1.R3
     Scenario: Forward advance whose phase_anchors block names only an earlier phase is flagged
-      Given a feature ticket at phase scenario-gate
-      When it advances to implement with a phase_anchors block naming only scenario-gate
+      Given a feature ticket at phase plan-execution
+      When it advances to implement with a phase_anchors block naming only plan-execution
       Then the advance is flagged as unanchored
 
     @artifact-content-phase-anchors.SM1.R3
     Scenario: Forward advance whose anchor value is empty is flagged
-      Given a feature ticket at phase scenario-gate
+      Given a feature ticket at phase plan-execution
       When it advances to implement recording an empty anchor value for implement
       Then the advance is flagged as unanchored
 
     @artifact-content-phase-anchors.SM1.R3
     Scenario Outline: Forward advance whose anchor is not a plausible repo-relative path is flagged
-      Given a feature ticket at phase scenario-gate
+      Given a feature ticket at phase plan-execution
       When it advances to implement recording "<value>" as the anchor for implement
       Then the advance is flagged as unanchored
 
       Examples:
-        | value                     |
-        | ../outside/impl-plan.md   |
-        | /absolute/impl-plan.md    |
+        | value                         |
+        | ../outside/execution-plan.md  |
+        | /absolute/execution-plan.md   |
+        | :(top)README.md               |
+        | features/*.feature            |
 
     @artifact-content-phase-anchors.SM1.R3
     Scenario: Forward advance anchored to a path absent from the tree is flagged
-      Given a feature ticket at phase scenario-gate whose anchored path does not exist in the tree
+      Given a feature ticket at phase plan-execution whose anchored path does not exist in the tree
       When it advances to implement recording that path for implement
       Then the advance is flagged as unanchored
       And the finding says the artifact is missing from the tree
 
     @artifact-content-phase-anchors.SM1.R3
     Scenario: Forward advance anchored to a hollow scaffold artifact is flagged
-      Given a feature ticket at phase scenario-gate whose impl-plan artifact exists but fails its shape check
-      When it advances to implement recording that artifact's path for implement
+      Given a feature ticket at phase plan-implementation whose impl-plan artifact exists but fails its shape check
+      When it advances to plan-execution recording that artifact's path for plan-execution
       Then the advance is flagged as unanchored
       And the finding says the artifact fails its shape check
 
@@ -239,13 +258,13 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
     Scenario: An edit that leaves the phase unchanged is not flagged
       Given a feature ticket at phase implement with no anchors recorded
       When its body is edited without changing the phase
-      Then the advance is not flagged
+      Then the transition check raises no anchor finding
 
     @artifact-content-phase-anchors.SM1.R3
     Scenario: The at-rest advisory nudges a missing anchor with the path grammar
       Given a feature ticket at rest at phase implement with no phase_anchors entry for implement
       When the at-rest anchor advisory inspects it
-      Then an anchor finding nudges the path grammar
+      Then the finding names the expected anchor line for implement
 
   Rule: Legacy SHA anchors neither warn at rest nor block new work
 
@@ -257,9 +276,10 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
 
     @artifact-content-phase-anchors.SM1.R4
     Scenario: A new forward advance recording a hex-shaped anchor draws the migration remediation
-      Given a feature ticket at phase scenario-gate
+      Given a feature ticket at phase plan-execution
       When it advances to implement recording a hex-shaped commit SHA as the anchor for implement
       Then the advance is flagged as unanchored
+      And the finding identifies the legacy commit SHA migration
       And the finding names the expected anchor line for implement
 
   Rule: The R/G/R ledger's per-tick commit SHAs are untouched

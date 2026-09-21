@@ -10,6 +10,7 @@
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
+import { toRepoPath } from '../../src/utils/repo-path.js';
 import { WORKSPACE_ROOTS } from '../../src/utils/workspace-roots.js';
 import type {
   ArtifactReader,
@@ -39,6 +40,10 @@ const ANCHOR_SCOPE = {
 it('requires ownership scope at the detector API boundary', () => {
   expectTypeOf(detectPhaseTransition).parameter(2).toEqualTypeOf<PhaseAnchorScope>();
   expectTypeOf(detectPhaseState).parameter(1).toEqualTypeOf<PhaseAnchorScope>();
+});
+
+it('normalizes OS-native separators to the anchor grammar', () => {
+  expect(toRepoPath(String.raw`.project\tickets\ZZTEST-fixture`)).toBe(TICKET_DIR);
 });
 
 function detectUnanchoredPhaseTransition(
