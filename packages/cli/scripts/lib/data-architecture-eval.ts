@@ -99,43 +99,52 @@ export interface EvidenceSafetyInput {
 
 export interface EvaluationCorpusSafetyInput {
   readonly cases: readonly EvaluationCase[];
-  readonly records: readonly EvaluationRecord[];
 }
 
 const requiredConditionalFacts: Readonly<Record<ConditionalClaimKind, readonly string[]>> = {
   'encrypted-scope-binding': [
-    'canonical-aad-identity',
-    'scope-mutation-failure',
-    'key-dependency-rotation-coverage',
+    'proof.encryption.canonical-aad-identity',
+    'proof.encryption.scope-mutation-failure',
+    'proof.encryption.key-dependency-rotation-coverage',
   ],
   'erasure-completeness': [
-    'copy-inventory',
-    'positive-deletion-proof',
-    'sibling-scope-isolation',
-    'different-owner-isolation',
+    'proof.erasure.copy-inventory',
+    'proof.erasure.positive-deletion',
+    'proof.erasure.sibling-scope-isolation',
+    'proof.erasure.different-owner-isolation',
   ],
-  'generated-completeness': ['independent-completeness-oracle'],
+  'generated-completeness': ['proof.generated.independent-inventory'],
   'live-additive-migration': [
-    'deployed-starting-state',
-    'mixed-version-compatibility',
-    'cutover',
-    'recovery',
-    'restore-behavior',
+    'proof.migration.deployed-starting-state',
+    'proof.migration.mixed-version-compatibility',
+    'proof.migration.cutover',
+    'proof.migration.recovery',
+    'proof.migration.restore-behavior',
   ],
   'relational-query-performance': [
-    'engine-and-version',
-    'representative-data-shape',
-    'query-shape',
-    'threshold',
-    'revalidation-trigger',
+    'proof.relational.engine-and-version',
+    'proof.relational.representative-data-shape',
+    'proof.relational.query-shape',
+    'proof.relational.threshold',
+    'proof.relational.revalidation-trigger',
   ],
-  'tenant-parent-binding': ['same-tenant-parent-binding'],
+  'tenant-parent-binding': [],
   'time-dependent-lifecycle': [
-    'authoritative-clock',
-    'exact-equality-behavior',
-    'retry-behavior',
-    'restore-behavior',
+    'proof.temporal.authoritative-clock',
+    'proof.temporal.exact-equality-behavior',
+    'proof.temporal.retry-behavior',
+    'proof.temporal.restore-behavior',
   ],
+};
+
+const forbiddenConditionalFacts: Readonly<Record<ConditionalClaimKind, readonly string[]>> = {
+  'encrypted-scope-binding': ['proof.encryption.encrypted-at-rest'],
+  'erasure-completeness': ['proof.erasure.primary-row-only'],
+  'generated-completeness': ['proof.generated.sibling-output'],
+  'live-additive-migration': ['proof.migration.feature-branch-starting-state'],
+  'relational-query-performance': [],
+  'tenant-parent-binding': ['decision.relational.cross-tenant-parent-binding'],
+  'time-dependent-lifecycle': ['proof.temporal.non-boundary'],
 };
 
 export interface AblationRecord {
@@ -502,50 +511,56 @@ const conditionalDiagnosticRules: Readonly<
     {
       diagnostic: 'Conditional proof is missing AAD and key lifecycle.',
       missingAnyOf: [
-        'canonical-aad-identity',
-        'scope-mutation-failure',
-        'key-dependency-rotation-coverage',
+        'proof.encryption.canonical-aad-identity',
+        'proof.encryption.scope-mutation-failure',
+        'proof.encryption.key-dependency-rotation-coverage',
       ],
     },
   ],
   'erasure-completeness': [
     {
       diagnostic: 'Conditional proof is missing secondary-copy disposition.',
-      missingAnyOf: ['copy-inventory'],
+      missingAnyOf: ['proof.erasure.copy-inventory'],
     },
     {
       diagnostic: 'Conditional proof is missing negative isolation.',
-      missingAnyOf: ['sibling-scope-isolation', 'different-owner-isolation'],
+      missingAnyOf: [
+        'proof.erasure.sibling-scope-isolation',
+        'proof.erasure.different-owner-isolation',
+      ],
     },
   ],
   'generated-completeness': [
     {
       diagnostic: 'Conditional proof uses a dependent completeness oracle.',
-      presentAnyOf: ['generated-sibling-oracle'],
+      presentAnyOf: ['proof.generated.sibling-output'],
     },
   ],
   'live-additive-migration': [
     {
       diagnostic: 'Conditional proof is missing deployed starting state.',
-      missingAnyOf: ['deployed-starting-state'],
+      missingAnyOf: ['proof.migration.deployed-starting-state'],
     },
   ],
   'relational-query-performance': [
     {
       diagnostic: 'Conditional proof is missing query context.',
-      missingAnyOf: ['engine-and-version', 'representative-data-shape'],
+      missingAnyOf: [
+        'proof.relational.engine-and-version',
+        'proof.relational.representative-data-shape',
+      ],
     },
   ],
   'tenant-parent-binding': [
     {
       diagnostic: 'Conditional proof has cross-tenant parent binding.',
-      presentAnyOf: ['cross-tenant-parent-binding'],
+      presentAnyOf: ['decision.relational.cross-tenant-parent-binding'],
     },
   ],
   'time-dependent-lifecycle': [
     {
       diagnostic: 'Conditional proof is missing equality boundary.',
-      missingAnyOf: ['exact-equality-behavior'],
+      missingAnyOf: ['proof.temporal.exact-equality-behavior'],
     },
   ],
 };
@@ -569,25 +584,17 @@ function focusedConditionalProofDiagnostic(
 }
 
 export function verifyConditionalProof(input: ConditionalProofInput): VerificationResult {
-  const expectedFactIds = new Set(requiredConditionalFacts[input.claim]);
   const actualFactIds = new Set(input.factIds);
   const focusedDiagnostic = focusedConditionalProofDiagnostic(input.claim, actualFactIds);
   if (focusedDiagnostic !== undefined) {
     return { accepted: false, diagnostics: [focusedDiagnostic] };
   }
-  const diagnostics: string[] = [];
-  const sortedExpectedFactIds = sortedStrings([...expectedFactIds]);
-  const sortedActualFactIds = sortedStrings([...actualFactIds]);
-
-  for (const factId of sortedExpectedFactIds) {
-    if (!actualFactIds.has(factId))
-      diagnostics.push(`Conditional proof is missing required fact ${factId}.`);
-  }
-  for (const factId of sortedActualFactIds) {
-    if (!expectedFactIds.has(factId))
-      diagnostics.push(`Conditional proof contains unknown fact ${factId}.`);
-  }
-
+  const diagnostics = idSetDiagnostics(
+    input.factIds,
+    requiredConditionalFacts[input.claim],
+    forbiddenConditionalFacts[input.claim],
+    'proof fact',
+  );
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 

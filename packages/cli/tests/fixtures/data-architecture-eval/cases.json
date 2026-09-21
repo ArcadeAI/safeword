@@ -33,11 +33,26 @@
       ],
       "forbiddenDecisionIds": ["decision.relational.cross-tenant-parent-binding"],
       "expectedProofFactIds": [
-        "proof.relational.query-context",
-        "proof.migration.deployed-mixed-version",
-        "proof.erasure.complete-and-isolated"
+        "proof.relational.engine-and-version",
+        "proof.relational.representative-data-shape",
+        "proof.relational.query-shape",
+        "proof.relational.threshold",
+        "proof.relational.revalidation-trigger",
+        "proof.migration.deployed-starting-state",
+        "proof.migration.mixed-version-compatibility",
+        "proof.migration.cutover",
+        "proof.migration.recovery",
+        "proof.migration.restore-behavior",
+        "proof.erasure.copy-inventory",
+        "proof.erasure.positive-deletion",
+        "proof.erasure.sibling-scope-isolation",
+        "proof.erasure.different-owner-isolation"
       ],
-      "forbiddenProofFactIds": ["proof.relational.self-generated-coverage"]
+      "forbiddenProofFactIds": [
+        "proof.relational.self-generated-coverage",
+        "proof.migration.feature-branch-starting-state",
+        "proof.erasure.primary-row-only"
+      ]
     }
   },
   {
@@ -54,8 +69,12 @@
         "decision.encryption.key-lifecycle"
       ],
       "forbiddenDecisionIds": [],
-      "expectedProofFactIds": ["proof.encryption.scope-and-rotation"],
-      "forbiddenProofFactIds": []
+      "expectedProofFactIds": [
+        "proof.encryption.canonical-aad-identity",
+        "proof.encryption.scope-mutation-failure",
+        "proof.encryption.key-dependency-rotation-coverage"
+      ],
+      "forbiddenProofFactIds": ["proof.encryption.encrypted-at-rest"]
     }
   },
   {
@@ -72,8 +91,14 @@
         "decision.migration.cutover-and-recovery"
       ],
       "forbiddenDecisionIds": [],
-      "expectedProofFactIds": ["proof.migration.deployed-mixed-version"],
-      "forbiddenProofFactIds": []
+      "expectedProofFactIds": [
+        "proof.migration.deployed-starting-state",
+        "proof.migration.mixed-version-compatibility",
+        "proof.migration.cutover",
+        "proof.migration.recovery",
+        "proof.migration.restore-behavior"
+      ],
+      "forbiddenProofFactIds": ["proof.migration.feature-branch-starting-state"]
     }
   },
   {
@@ -106,8 +131,13 @@
         "decision.erasure.isolation"
       ],
       "forbiddenDecisionIds": [],
-      "expectedProofFactIds": ["proof.erasure.complete-and-isolated"],
-      "forbiddenProofFactIds": []
+      "expectedProofFactIds": [
+        "proof.erasure.copy-inventory",
+        "proof.erasure.positive-deletion",
+        "proof.erasure.sibling-scope-isolation",
+        "proof.erasure.different-owner-isolation"
+      ],
+      "forbiddenProofFactIds": ["proof.erasure.primary-row-only"]
     }
   },
   {
@@ -126,10 +156,16 @@
       ],
       "forbiddenDecisionIds": [],
       "expectedProofFactIds": [
-        "proof.temporal.equality-retry-restore",
-        "proof.erasure.complete-and-isolated"
+        "proof.temporal.authoritative-clock",
+        "proof.temporal.exact-equality-behavior",
+        "proof.temporal.retry-behavior",
+        "proof.temporal.restore-behavior",
+        "proof.erasure.copy-inventory",
+        "proof.erasure.positive-deletion",
+        "proof.erasure.sibling-scope-isolation",
+        "proof.erasure.different-owner-isolation"
       ],
-      "forbiddenProofFactIds": []
+      "forbiddenProofFactIds": ["proof.temporal.non-boundary", "proof.erasure.primary-row-only"]
     }
   },
   {

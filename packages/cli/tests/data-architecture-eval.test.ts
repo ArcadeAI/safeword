@@ -178,9 +178,20 @@ const representativeCases: readonly RepresentativeCaseFixture[] = [
     forbiddenDecisions: ['decision.relational.cross-tenant-parent-binding'],
     forbiddenProofs: ['proof.relational.self-generated-coverage'],
     proofs: [
-      'proof.relational.query-context',
-      'proof.migration.deployed-mixed-version',
-      'proof.erasure.complete-and-isolated',
+      'proof.relational.engine-and-version',
+      'proof.relational.representative-data-shape',
+      'proof.relational.query-shape',
+      'proof.relational.threshold',
+      'proof.relational.revalidation-trigger',
+      'proof.migration.deployed-starting-state',
+      'proof.migration.mixed-version-compatibility',
+      'proof.migration.cutover',
+      'proof.migration.recovery',
+      'proof.migration.restore-behavior',
+      'proof.erasure.copy-inventory',
+      'proof.erasure.positive-deletion',
+      'proof.erasure.sibling-scope-isolation',
+      'proof.erasure.different-owner-isolation',
     ],
   },
   {
@@ -192,7 +203,11 @@ const representativeCases: readonly RepresentativeCaseFixture[] = [
       'decision.encryption.aad-binding',
       'decision.encryption.key-lifecycle',
     ],
-    proofs: ['proof.encryption.scope-and-rotation'],
+    proofs: [
+      'proof.encryption.canonical-aad-identity',
+      'proof.encryption.scope-mutation-failure',
+      'proof.encryption.key-dependency-rotation-coverage',
+    ],
   },
   {
     id: 'live-additive-migration',
@@ -203,7 +218,13 @@ const representativeCases: readonly RepresentativeCaseFixture[] = [
       'decision.migration.compatibility',
       'decision.migration.cutover-and-recovery',
     ],
-    proofs: ['proof.migration.deployed-mixed-version'],
+    proofs: [
+      'proof.migration.deployed-starting-state',
+      'proof.migration.mixed-version-compatibility',
+      'proof.migration.cutover',
+      'proof.migration.recovery',
+      'proof.migration.restore-behavior',
+    ],
   },
   {
     id: 'generated-manifest-missing-one-facet',
@@ -223,7 +244,12 @@ const representativeCases: readonly RepresentativeCaseFixture[] = [
       'decision.erasure.copy-disposition',
       'decision.erasure.isolation',
     ],
-    proofs: ['proof.erasure.complete-and-isolated'],
+    proofs: [
+      'proof.erasure.copy-inventory',
+      'proof.erasure.positive-deletion',
+      'proof.erasure.sibling-scope-isolation',
+      'proof.erasure.different-owner-isolation',
+    ],
   },
   {
     id: 'time-equality-boundary',
@@ -235,7 +261,16 @@ const representativeCases: readonly RepresentativeCaseFixture[] = [
       'decision.erasure.copy-disposition',
       'decision.erasure.isolation',
     ],
-    proofs: ['proof.temporal.equality-retry-restore', 'proof.erasure.complete-and-isolated'],
+    proofs: [
+      'proof.temporal.authoritative-clock',
+      'proof.temporal.exact-equality-behavior',
+      'proof.temporal.retry-behavior',
+      'proof.temporal.restore-behavior',
+      'proof.erasure.copy-inventory',
+      'proof.erasure.positive-deletion',
+      'proof.erasure.sibling-scope-isolation',
+      'proof.erasure.different-owner-isolation',
+    ],
   },
   {
     id: 'mixed-decision-routing',
@@ -293,9 +328,20 @@ const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
       'decision.erasure.isolation',
     ],
     proofFactIds: [
-      'proof.relational.query-context',
-      'proof.migration.deployed-mixed-version',
-      'proof.erasure.complete-and-isolated',
+      'proof.relational.engine-and-version',
+      'proof.relational.representative-data-shape',
+      'proof.relational.query-shape',
+      'proof.relational.threshold',
+      'proof.relational.revalidation-trigger',
+      'proof.migration.deployed-starting-state',
+      'proof.migration.mixed-version-compatibility',
+      'proof.migration.cutover',
+      'proof.migration.recovery',
+      'proof.migration.restore-behavior',
+      'proof.erasure.copy-inventory',
+      'proof.erasure.positive-deletion',
+      'proof.erasure.sibling-scope-isolation',
+      'proof.erasure.different-owner-isolation',
     ],
   },
   'encrypted-credential-record': {
@@ -308,7 +354,11 @@ const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
       'decision.encryption.aad-binding',
       'decision.encryption.key-lifecycle',
     ],
-    proofFactIds: ['proof.encryption.scope-and-rotation'],
+    proofFactIds: [
+      'proof.encryption.canonical-aad-identity',
+      'proof.encryption.scope-mutation-failure',
+      'proof.encryption.key-dependency-rotation-coverage',
+    ],
   },
   'live-additive-migration': {
     decisionIds: [
@@ -320,7 +370,13 @@ const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
       'decision.migration.compatibility',
       'decision.migration.cutover-and-recovery',
     ],
-    proofFactIds: ['proof.migration.deployed-mixed-version'],
+    proofFactIds: [
+      'proof.migration.deployed-starting-state',
+      'proof.migration.mixed-version-compatibility',
+      'proof.migration.cutover',
+      'proof.migration.recovery',
+      'proof.migration.restore-behavior',
+    ],
   },
   'generated-manifest-missing-one-facet': {
     decisionIds: [
@@ -342,7 +398,12 @@ const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
       'decision.erasure.copy-disposition',
       'decision.erasure.isolation',
     ],
-    proofFactIds: ['proof.erasure.complete-and-isolated'],
+    proofFactIds: [
+      'proof.erasure.copy-inventory',
+      'proof.erasure.positive-deletion',
+      'proof.erasure.sibling-scope-isolation',
+      'proof.erasure.different-owner-isolation',
+    ],
   },
   'time-equality-boundary': {
     decisionIds: [
@@ -355,7 +416,16 @@ const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
       'decision.erasure.copy-disposition',
       'decision.erasure.isolation',
     ],
-    proofFactIds: ['proof.temporal.equality-retry-restore', 'proof.erasure.complete-and-isolated'],
+    proofFactIds: [
+      'proof.temporal.authoritative-clock',
+      'proof.temporal.exact-equality-behavior',
+      'proof.temporal.retry-behavior',
+      'proof.temporal.restore-behavior',
+      'proof.erasure.copy-inventory',
+      'proof.erasure.positive-deletion',
+      'proof.erasure.sibling-scope-isolation',
+      'proof.erasure.different-owner-isolation',
+    ],
   },
   'mixed-decision-routing': {
     decisionIds: [
@@ -636,12 +706,12 @@ describe('data architecture guide evaluation', () => {
           response: {
             ...relationalRecord.response,
             proofFactIds: relationalRecord.response.proofFactIds.filter(
-              id => id !== 'proof.migration.deployed-mixed-version',
+              id => id !== 'proof.migration.deployed-starting-state',
             ),
           },
         }),
         diagnostic:
-          '[multi-tenant-relational-event-store] Evaluation response is missing expected proof fact proof.migration.deployed-mixed-version.',
+          '[multi-tenant-relational-event-store] Evaluation response is missing expected proof fact proof.migration.deployed-starting-state.',
       },
       {
         name: 'response contains an unknown proof fact',
@@ -1039,47 +1109,47 @@ describe('data architecture guide evaluation', () => {
     {
       claim: 'relational-query-performance',
       factIds: [
-        'engine-and-version',
-        'representative-data-shape',
-        'query-shape',
-        'threshold',
-        'revalidation-trigger',
+        'proof.relational.engine-and-version',
+        'proof.relational.representative-data-shape',
+        'proof.relational.query-shape',
+        'proof.relational.threshold',
+        'proof.relational.revalidation-trigger',
       ],
     },
     {
       claim: 'encrypted-scope-binding',
       factIds: [
-        'canonical-aad-identity',
-        'scope-mutation-failure',
-        'key-dependency-rotation-coverage',
+        'proof.encryption.canonical-aad-identity',
+        'proof.encryption.scope-mutation-failure',
+        'proof.encryption.key-dependency-rotation-coverage',
       ],
     },
     {
       claim: 'live-additive-migration',
       factIds: [
-        'deployed-starting-state',
-        'mixed-version-compatibility',
-        'cutover',
-        'recovery',
-        'restore-behavior',
+        'proof.migration.deployed-starting-state',
+        'proof.migration.mixed-version-compatibility',
+        'proof.migration.cutover',
+        'proof.migration.recovery',
+        'proof.migration.restore-behavior',
       ],
     },
     {
       claim: 'erasure-completeness',
       factIds: [
-        'copy-inventory',
-        'positive-deletion-proof',
-        'sibling-scope-isolation',
-        'different-owner-isolation',
+        'proof.erasure.copy-inventory',
+        'proof.erasure.positive-deletion',
+        'proof.erasure.sibling-scope-isolation',
+        'proof.erasure.different-owner-isolation',
       ],
     },
     {
       claim: 'time-dependent-lifecycle',
       factIds: [
-        'authoritative-clock',
-        'exact-equality-behavior',
-        'retry-behavior',
-        'restore-behavior',
+        'proof.temporal.authoritative-clock',
+        'proof.temporal.exact-equality-behavior',
+        'proof.temporal.retry-behavior',
+        'proof.temporal.restore-behavior',
       ],
     },
   ] satisfies readonly ConditionalProofInput[])(
@@ -1095,18 +1165,28 @@ describe('data architecture guide evaluation', () => {
       diagnostic: 'Conditional proof is missing query context.',
       proof: {
         claim: 'relational-query-performance',
-        factIds: ['query-shape', 'threshold', 'revalidation-trigger'],
+        factIds: [
+          'proof.relational.query-shape',
+          'proof.relational.threshold',
+          'proof.relational.revalidation-trigger',
+        ],
       },
     },
     {
       defect: 'a child identity bound to another tenant',
       diagnostic: 'Conditional proof has cross-tenant parent binding.',
-      proof: { claim: 'tenant-parent-binding', factIds: ['cross-tenant-parent-binding'] },
+      proof: {
+        claim: 'tenant-parent-binding',
+        factIds: ['decision.relational.cross-tenant-parent-binding'],
+      },
     },
     {
       defect: 'a generic encrypted-at-rest assertion',
       diagnostic: 'Conditional proof is missing AAD and key lifecycle.',
-      proof: { claim: 'encrypted-scope-binding', factIds: ['encrypted-at-rest'] },
+      proof: {
+        claim: 'encrypted-scope-binding',
+        factIds: ['proof.encryption.encrypted-at-rest'],
+      },
     },
     {
       defect: 'migration evidence from a feature branch',
@@ -1114,11 +1194,11 @@ describe('data architecture guide evaluation', () => {
       proof: {
         claim: 'live-additive-migration',
         factIds: [
-          'feature-branch-starting-state',
-          'mixed-version-compatibility',
-          'cutover',
-          'recovery',
-          'restore-behavior',
+          'proof.migration.feature-branch-starting-state',
+          'proof.migration.mixed-version-compatibility',
+          'proof.migration.cutover',
+          'proof.migration.recovery',
+          'proof.migration.restore-behavior',
         ],
       },
     },
@@ -1128,9 +1208,9 @@ describe('data architecture guide evaluation', () => {
       proof: {
         claim: 'erasure-completeness',
         factIds: [
-          'positive-deletion-proof',
-          'sibling-scope-isolation',
-          'different-owner-isolation',
+          'proof.erasure.positive-deletion',
+          'proof.erasure.sibling-scope-isolation',
+          'proof.erasure.different-owner-isolation',
         ],
       },
     },
@@ -1139,20 +1219,27 @@ describe('data architecture guide evaluation', () => {
       diagnostic: 'Conditional proof is missing negative isolation.',
       proof: {
         claim: 'erasure-completeness',
-        factIds: ['copy-inventory', 'positive-deletion-proof'],
+        factIds: ['proof.erasure.copy-inventory', 'proof.erasure.positive-deletion'],
       },
     },
     {
       defect: 'coverage inferred from a generated sibling',
       diagnostic: 'Conditional proof uses a dependent completeness oracle.',
-      proof: { claim: 'generated-completeness', factIds: ['generated-sibling-oracle'] },
+      proof: {
+        claim: 'generated-completeness',
+        factIds: ['proof.generated.sibling-output'],
+      },
     },
     {
       defect: 'temporal proof away from equality',
       diagnostic: 'Conditional proof is missing equality boundary.',
       proof: {
         claim: 'time-dependent-lifecycle',
-        factIds: ['authoritative-clock', 'retry-behavior', 'restore-behavior'],
+        factIds: [
+          'proof.temporal.authoritative-clock',
+          'proof.temporal.retry-behavior',
+          'proof.temporal.restore-behavior',
+        ],
       },
     },
   ] satisfies readonly {

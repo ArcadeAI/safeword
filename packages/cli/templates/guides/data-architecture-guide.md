@@ -73,8 +73,10 @@ Apply only modules whose trigger fires.
 - record physical schema, keys, constraints, indexes, tenant-parent binding, and query contract
   `[decision.relational.physical-schema]` `[decision.relational.query-contract]`
 - forbid cross-tenant parent binding `decision.relational.cross-tenant-parent-binding`
-- prove performance with engine/version, representative data shape, query shape, threshold, and
-  revalidation trigger `[proof.relational.query-context]`
+- prove performance with engine/version `[proof.relational.engine-and-version]`, representative data
+  shape `[proof.relational.representative-data-shape]`, query shape
+  `[proof.relational.query-shape]`, threshold `[proof.relational.threshold]`, and revalidation trigger
+  `[proof.relational.revalidation-trigger]`
 - never infer coverage from a sibling-generated schema
   `proof.relational.self-generated-coverage`
 
@@ -85,8 +87,10 @@ Apply only modules whose trigger fires.
 - record representation/versioning, canonical AAD identity, scope binding, and key dependencies
   `[decision.encryption.representation]` `[decision.encryption.aad-binding]`
   `[decision.encryption.key-lifecycle]`
-- prove scope mutation fails and dependency rotation remains covered
-  `[proof.encryption.scope-and-rotation]`
+- prove canonical AAD identity `[proof.encryption.canonical-aad-identity]`, scope mutation failure
+  `[proof.encryption.scope-mutation-failure]`, and dependency rotation coverage
+  `[proof.encryption.key-dependency-rotation-coverage]`; generic encrypted-at-rest evidence
+  `proof.encryption.encrypted-at-rest` is insufficient
 
 ### Live migration
 
@@ -95,8 +99,11 @@ Apply only modules whose trigger fires.
 - record deployed starting state, compatibility window, cutover, recovery, and restore behavior
   `[decision.migration.deployed-state]` `[decision.migration.compatibility]`
   `[decision.migration.cutover-and-recovery]`
-- use checked-in migration-equivalent inputs or deployed read-only evidence, not a feature branch
-  `[proof.migration.deployed-mixed-version]`
+- prove deployed starting state `[proof.migration.deployed-starting-state]`, mixed-version
+  compatibility `[proof.migration.mixed-version-compatibility]`, cutover
+  `[proof.migration.cutover]`, recovery `[proof.migration.recovery]`, and restore behavior
+  `[proof.migration.restore-behavior]`; feature-branch-only evidence
+  `proof.migration.feature-branch-starting-state` is insufficient
 
 ### Temporal behavior
 
@@ -105,7 +112,10 @@ boundary. Do not infer this module from a generic event or lifecycle.
 
 - record authoritative clock and exact equality behavior `[decision.temporal.clock-boundary]`
 - record delayed physical deletion and retry/restore semantics `[decision.temporal.deletion-lag]`
-- exercise equality, retry, and restore boundaries `[proof.temporal.equality-retry-restore]`
+- exercise the authoritative clock `[proof.temporal.authoritative-clock]`, exact equality
+  `[proof.temporal.exact-equality-behavior]`, retry `[proof.temporal.retry-behavior]`, and restore
+  `[proof.temporal.restore-behavior]` boundaries; non-boundary evidence
+  `proof.temporal.non-boundary` is insufficient
 
 ### Erasure and retention
 
@@ -114,8 +124,11 @@ boundary. Do not infer this module from a generic event or lifecycle.
 - inventory every copy and record its deletion or retained disposition
   `[decision.erasure.copy-disposition]`
 - record sibling-scope and different-owner isolation `[decision.erasure.isolation]`
-- prove positive deletion plus sibling-scope and different-owner isolation
-  `[proof.erasure.complete-and-isolated]`
+- prove copy inventory `[proof.erasure.copy-inventory]`, positive deletion
+  `[proof.erasure.positive-deletion]`, sibling-scope isolation
+  `[proof.erasure.sibling-scope-isolation]`, and different-owner isolation
+  `[proof.erasure.different-owner-isolation]`; primary-row-only evidence
+  `proof.erasure.primary-row-only` is insufficient
 
 ### Generated artifacts
 
