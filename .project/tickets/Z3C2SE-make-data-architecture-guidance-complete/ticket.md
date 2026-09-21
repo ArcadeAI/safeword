@@ -56,6 +56,7 @@ last_modified: 2026-09-13T22:52:33.607Z
 - 2026-09-16T16:27:00.000Z Scenario gate: user approved sixteen independently reviewed scenarios after prompt-isolation, positive-ablation, and deterministic-record false-pass paths were closed.
 - 2026-09-16T16:45:00.000Z Plan implementation: selected a dependency-free, content-bound corpus with separate cold-start recording and deterministic verification; five slices across four components, no ADR and no split.
 - 2026-09-19T00:40:00.000Z Independent quality review: Claude Opus approved the repaired ablation verifier with no error-level findings after canonical hash/config binding, focused diagnostics, no-op and malformed-transform rejection, prompt equality, rubric-consistency checks, and independently falsifiable configuration tests; focused Vitest passed 26/26 and TypeScript passed.
+- 2026-09-21T20:40:00.000Z Implement reconciliation: independent review exposed that the original 12-file packet proved only isolated verifier logic. Added the canonical conditional guide, isolated recorder and nine live Claude Opus records, deterministic corpus/safety verification, supported reconciliation/generation coverage, durable OpenCode rationale, BDD proof manifest, cross-surface negatives, causal ablation grading, and prompt re-derivation. Four decisions remain unchanged and no design deviations were introduced.
 
 ## Root Cause
 

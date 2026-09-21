@@ -1,6 +1,6 @@
 # Impl Plan: Complete conditional data architecture guidance
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-09-16
 
 ## Approach
@@ -139,6 +139,12 @@ from its canonical input; digest-shaped text anywhere else remains subject to th
 Each record includes an invocation ID and attempt ordinal. The accepted evidence remains one current
 pair rather than a statistical claim; those fields make replacement history visible but do not turn
 the ablation into a first-attempt or pass-rate assertion.
+
+Implementation reconciliation: all four recorded decisions remain current. The shipped recorder
+uses structured argv, an empty temporary working directory, atomic replacement, and deterministic
+re-grading; the corpus safety walk scans authored case and response values while prompt reconstruction
+proves the stored prompt contains only the canonical guide, case, neutral schema, and tools-disabled
+state. No design deviations were introduced.
 
 ## Doc impact
 

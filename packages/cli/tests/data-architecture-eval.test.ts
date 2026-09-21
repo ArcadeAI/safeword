@@ -8,6 +8,7 @@ import {
   type AblationRecord,
   type ArtifactAuthorityClaim,
   buildColdStartPrompt,
+  buildGuideIndependentPrompt,
   type ConditionalProofInput,
   type EvaluationCase,
   type EvaluationContract,
@@ -54,7 +55,11 @@ const ablatedResponse: EvaluationResponse = {
   decisionIds: ['decision.generated.source'],
   proofFactIds: [],
 };
-const sharedPromptSha256 = sha256('generated-manifest case + neutral response schema');
+const ablationCase = {
+  id: 'generated-manifest-missing-one-facet',
+  text: 'Prove a generated manifest covers every independently intended facet.',
+} as const;
+const sharedPromptSha256 = sha256(buildGuideIndependentPrompt(ablationCase));
 const shippedCanonicalGuide = readFileSync(
   nodePath.resolve(import.meta.dirname, '../templates/guides/data-architecture-guide.md'),
   'utf8',
@@ -1253,6 +1258,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1269,6 +1275,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1293,6 +1300,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1313,6 +1321,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: mismatchedAblation,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1348,6 +1357,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1379,6 +1389,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1398,6 +1409,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1417,6 +1429,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1436,6 +1449,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1457,6 +1471,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1474,10 +1489,32 @@ describe('data architecture guide evaluation', () => {
     });
   });
 
+  it('rejects a pair whose shared prompt digest does not derive from the declared case', () => {
+    const promptSha256 = sha256('same stale case prompt');
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      evaluationCase: ablationCase,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse, { promptSha256 }),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse, { promptSha256 }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Ablation records do not match the current guide-independent prompt.'],
+    });
+  });
+
   it('rejects a pair recorded with different decoding configurations', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1499,6 +1536,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1517,6 +1555,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1538,6 +1577,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1559,6 +1599,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1586,6 +1627,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1606,6 +1648,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1636,6 +1679,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: labelInsideTransform,
+      evaluationCase: ablationCase,
       storedAblatedGuide: labelRemovingAblation,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1657,6 +1701,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guideWithoutLabel,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuideWithoutLabel,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1678,6 +1723,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1697,6 +1743,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1718,6 +1765,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1753,6 +1801,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1779,6 +1828,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],
@@ -1804,6 +1854,7 @@ describe('data architecture guide evaluation', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
+      evaluationCase: ablationCase,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
       attributableDecisionIds: ['decision.core.independent-proof'],

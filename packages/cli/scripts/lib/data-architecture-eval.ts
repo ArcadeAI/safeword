@@ -144,6 +144,7 @@ export interface AblationRecord {
 export interface AblationPairInput {
   readonly ablationId: string;
   readonly canonicalGuide: string;
+  readonly evaluationCase: Pick<EvaluationCase, 'id' | 'text'>;
   readonly storedAblatedGuide: string;
   readonly preservedDecisionIds: readonly string[];
   readonly attributableDecisionIds: readonly string[];
@@ -151,6 +152,24 @@ export interface AblationPairInput {
   readonly rubric: EvaluationRubric;
   readonly fullGuideRecord: AblationRecord;
   readonly ablatedGuideRecord: AblationRecord;
+}
+
+export function buildGuideIndependentPrompt(
+  evaluationCase: Pick<EvaluationCase, 'id' | 'text'>,
+): string {
+  return canonicalJson({
+    case: { id: evaluationCase.id, text: evaluationCase.text },
+    responseSchema: {
+      additionalProperties: false,
+      properties: {
+        decisionIds: { items: { type: 'string' }, type: 'array' },
+        proofFactIds: { items: { type: 'string' }, type: 'array' },
+      },
+      required: ['decisionIds', 'proofFactIds'],
+      type: 'object',
+    },
+    toolsDisabled: true,
+  });
 }
 
 export interface VerificationResult {
@@ -700,6 +719,12 @@ function bindingDiagnostics(input: AblationPairInput): string[] {
     diagnostics.push('Ablation records do not match the current case rubric.');
   if (!sameConfig(input.fullGuideRecord, input.ablatedGuideRecord))
     diagnostics.push('Ablation records do not share one evaluation configuration.');
+  const expectedPromptSha256 = sha256(buildGuideIndependentPrompt(input.evaluationCase));
+  if (
+    input.fullGuideRecord.promptSha256 !== expectedPromptSha256 ||
+    input.ablatedGuideRecord.promptSha256 !== expectedPromptSha256
+  )
+    diagnostics.push('Ablation records do not match the current guide-independent prompt.');
   return diagnostics;
 }
 
