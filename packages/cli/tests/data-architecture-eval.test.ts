@@ -125,7 +125,7 @@ interface RepresentativeCaseFixture {
   readonly text: string;
 }
 
-const representativeCases = [
+const representativeCases: readonly RepresentativeCaseFixture[] = [
   {
     id: 'simple-key-value-preference',
     text: 'Plan a user-scoped key-value preference with no conditional data risks.',
@@ -231,7 +231,7 @@ const representativeCases = [
     forbiddenDecisions: ['decision.ownership.duplicate-authority'],
     proofs: ['proof.ownership.single-authority'],
   },
-] as const satisfies readonly RepresentativeCaseFixture[];
+] as const;
 
 const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
   'simple-key-value-preference': {
