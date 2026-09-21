@@ -1,0 +1,81 @@
+{
+  "feature": "features/make-data-architecture-guidance-complete.feature",
+  "scenarios": {
+    "A mixed planning case keeps durable decisions separate from reversible helpers": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts a mixed planning record that separates durable decisions from reversible helpers"
+    ],
+    "Treating a consequential data contract as a reversible helper fails review": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts a mixed planning record that separates durable decisions from reversible helpers"
+    ],
+    "Each representative case selects exactly its applicable guidance": [
+      [
+        "packages/cli/tests/data-architecture-eval-cli.test.ts",
+        "records through an isolated adapter and deterministically verifies the written corpus"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "accepts all nine representative cases with exactly their applicable guidance"
+      ]
+    ],
+    "Invalid evaluation records fail deterministic verification": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts all nine representative cases with exactly their applicable guidance"
+    ],
+    "The artifact-ownership case assigns each decision to one owner": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts all nine representative cases with exactly their applicable guidance"
+    ],
+    "Duplicating a contract as authority across artifacts fails review": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects duplicate source-of-truth ownership across artifacts"
+    ],
+    "An independent facet inventory exposes an omitted generated-manifest facet": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "reports a generated-manifest facet omitted from an independent inventory"
+    ],
+    "Agreement between sibling generated outputs cannot prove completeness": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects sibling generated outputs as a completeness oracle"
+    ],
+    "A discriminating guide-ablation pair validates independent proof": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts a discriminating independent-proof guide ablation"
+    ],
+    "A non-discriminating guide-ablation pair fails evaluation": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects an ablation whose failure is unrelated to the removed guidance"
+    ],
+    "Conditional claims carry the facts that make them falsifiable": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts $claim proof with all required facts"
+    ],
+    "A non-discriminating proof fails with a focused diagnostic": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects $defect with its focused diagnostic"
+    ],
+    "Synthetic placeholders and deployed read-only snapshots satisfy evidence needs": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts synthetic mutable values and read-only migration evidence"
+    ],
+    "Sensitive-looking evaluation values are refused": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects $name"
+    ],
+    "Supported hosts resolve one coherent guide through their existing delivery model": [
+      [
+        "packages/cli/tests/data-architecture-delivery.test.ts",
+        "resolves one coherent guide through every supported host delivery model"
+      ],
+      [
+        "packages/cli/tests/data-architecture-delivery.test.ts",
+        "installs the canonical guide through the supported reconciliation workflow"
+      ]
+    ],
+    "Shipped guide drift fails delivery verification": [
+      "packages/cli/tests/data-architecture-delivery.test.ts",
+      "rejects $drift with its mismatched path or content identified"
+    ]
+  }
+}

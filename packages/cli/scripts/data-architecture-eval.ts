@@ -13,6 +13,7 @@ import {
   type EvaluationRecord,
   type EvaluationResponse,
   verifyEvaluationCorpus,
+  verifyEvaluationCorpusSafety,
   verifyEvaluationRecord,
 } from './lib/data-architecture-eval.js';
 
@@ -108,6 +109,8 @@ function record(arguments_: readonly string[]): void {
     return evaluationRecord;
   });
   const recordsPath = nodePath.join(input.corpusDirectory, 'records.json');
+  const safety = verifyEvaluationCorpusSafety({ cases: input.cases, records });
+  if (!safety.accepted) throw new Error(safety.diagnostics.join('\n'));
   const temporaryPath = `${recordsPath}.tmp`;
   writeFileSync(temporaryPath, `${JSON.stringify(records, undefined, 2)}\n`, { mode: 0o600 });
   renameSync(temporaryPath, recordsPath);
@@ -125,8 +128,10 @@ function verify(arguments_: readonly string[]): void {
     contract: input.contract,
     records,
   });
-  if (!result.accepted) {
-    process.stderr.write(`${result.diagnostics.join('\n')}\n`);
+  const safety = verifyEvaluationCorpusSafety({ cases: input.cases, records });
+  const diagnostics = [...result.diagnostics, ...safety.diagnostics];
+  if (diagnostics.length > 0) {
+    process.stderr.write(`${diagnostics.join('\n')}\n`);
     process.exitCode = 1;
     return;
   }

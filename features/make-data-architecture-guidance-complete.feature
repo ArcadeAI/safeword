@@ -1,3 +1,4 @@
+@proof.vitest
 Feature: Complete conditional data architecture guidance
   Context-free authors and reviewers should capture consequential data contracts,
   invoke only applicable guidance, and support coverage claims with independent proof.

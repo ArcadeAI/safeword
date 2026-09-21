@@ -21,6 +21,7 @@ import {
   verifyArtifactOwnership,
   verifyConditionalProof,
   verifyEvaluationCorpus,
+  verifyEvaluationCorpusSafety,
   verifyEvaluationRecord,
   verifyEvidenceSafety,
   verifyFacetCompleteness,
@@ -673,6 +674,31 @@ describe('data architecture guide evaluation', () => {
         diagnostics: [rejected.diagnostic],
       });
     }
+  });
+
+  it('scans authored corpus text and responses without rejecting ordinary prose', () => {
+    const corpus = corpusFixture();
+    expect(verifyEvaluationCorpusSafety({ cases: corpus.cases, records: corpus.records })).toEqual({
+      accepted: true,
+      diagnostics: [],
+    });
+    expect(
+      verifyEvaluationCorpusSafety({
+        cases: [
+          {
+            ...corpus.cases[0],
+            text: 'Use token github_pat_12345678901234567890123456789012.',
+          },
+        ],
+        records: [],
+      }),
+    ).toEqual({
+      accepted: false,
+      diagnostics: [
+        'Corpus value at cases[0].text contains a credential or token prefix.',
+        'Corpus value at cases[0].text contains a non-placeholder high-entropy value.',
+      ],
+    });
   });
 
   it('rejects duplicate source-of-truth ownership across artifacts', () => {

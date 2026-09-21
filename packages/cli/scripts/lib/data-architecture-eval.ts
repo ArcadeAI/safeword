@@ -88,6 +88,11 @@ export interface EvidenceSafetyInput {
   readonly mutableValues: Readonly<Record<string, unknown>>;
 }
 
+export interface EvaluationCorpusSafetyInput {
+  readonly cases: readonly EvaluationCase[];
+  readonly records: readonly EvaluationRecord[];
+}
+
 const requiredConditionalFacts: Readonly<Record<ConditionalClaimKind, readonly string[]>> = {
   'encrypted-scope-binding': [
     'canonical-aad-identity',
@@ -573,6 +578,50 @@ export function verifyEvidenceSafety(input: EvidenceSafetyInput): VerificationRe
       diagnostics.push(`Migration evidence source ${source} is not read-only or checked-in.`);
     }
   }
+  return { accepted: diagnostics.length === 0, diagnostics };
+}
+
+function authoredCorpusStringDiagnostics(value: string, path: string): string[] {
+  const diagnostics: string[] = [];
+  if (/AKIA|ASIA|gh[pousr]_|github_pat_|[ps]k_(?:live|test)_|xox[baprs]-/iu.test(value))
+    diagnostics.push(`Corpus value at ${path} contains a credential or token prefix.`);
+  if (/\b[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+\b/u.test(value))
+    diagnostics.push(`Corpus value at ${path} contains an email-shaped value.`);
+  const opaqueTokens = value.match(/[\w+/=-]{32,}/gu) ?? [];
+  if (
+    opaqueTokens.some(
+      token =>
+        !token.startsWith('SYNTHETIC_') &&
+        !token.startsWith('decision.') &&
+        !token.startsWith('proof.') &&
+        hasHighEntropy(token),
+    )
+  )
+    diagnostics.push(`Corpus value at ${path} contains a non-placeholder high-entropy value.`);
+  return diagnostics;
+}
+
+export function verifyEvaluationCorpusSafety(
+  input: EvaluationCorpusSafetyInput,
+): VerificationResult {
+  const diagnostics = input.cases.flatMap((evaluationCase, caseIndex) => [
+    ...authoredCorpusStringDiagnostics(evaluationCase.text, `cases[${caseIndex}].text`),
+    ...[
+      ...evaluationCase.rubric.expectedDecisionIds,
+      ...evaluationCase.rubric.forbiddenDecisionIds,
+      ...evaluationCase.rubric.expectedProofFactIds,
+      ...evaluationCase.rubric.forbiddenProofFactIds,
+    ].flatMap((id, idIndex) =>
+      authoredCorpusStringDiagnostics(id, `cases[${caseIndex}].rubric.ids[${idIndex}]`),
+    ),
+  ]);
+  diagnostics.push(
+    ...input.records.flatMap((record, recordIndex) =>
+      [...record.response.decisionIds, ...record.response.proofFactIds].flatMap((id, idIndex) =>
+        authoredCorpusStringDiagnostics(id, `records[${recordIndex}].response.ids[${idIndex}]`),
+      ),
+    ),
+  );
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 
