@@ -28,6 +28,12 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       Then the advance is recognized as anchored
 
     @artifact-content-phase-anchors.SM1.R1
+    Scenario: A stale prior-phase path does not invalidate the newly entered phase
+      Given a feature ticket at phase plan-execution whose execution-plan is shape-valid and whose earlier define-behavior anchor path is absent
+      When it advances to implement recording that artifact's path for implement
+      Then the advance is recognized as anchored
+
+    @artifact-content-phase-anchors.SM1.R1
     Scenario Outline: Each entered phase accepts its canonical exit-artifact kind
       Given a feature ticket at phase <prior phase> whose <artifact> anchor artifact exists and is shape-valid
       When it advances to <entered phase> recording that artifact path for <entered phase>

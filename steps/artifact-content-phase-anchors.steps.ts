@@ -225,6 +225,16 @@ Given(
 );
 
 Given(
+  'a feature ticket at phase plan-execution whose execution-plan is shape-valid and whose earlier define-behavior anchor path is absent',
+  function (this: AnchorWorld) {
+    this.priorType = 'feature';
+    this.priorPhase = 'plan-execution';
+    this.priorAnchors = ['define-behavior: features/removed.feature'];
+    this.tree = { [EXECUTION_PLAN]: SHAPE_VALID_EXECUTION_PLAN };
+  },
+);
+
+Given(
   'a feature ticket at phase {word} whose {word} anchor artifact exists and is shape-valid',
   function (this: AnchorWorld, phase: string, artifact: string) {
     const artifacts: Record<string, { path: string; content: string }> = {
