@@ -170,7 +170,7 @@
   },
   {
     "id": "mixed-decision-routing",
-    "text": "Route durable identity and lifecycle separately from reversible helpers.",
+    "text": "Classify durable identity and lifecycle decisions separately from reversible helper and control-flow choices. Report only the routing decision IDs for this classification case; do not repeat the universal core decision IDs.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.routing.identity-architecture",

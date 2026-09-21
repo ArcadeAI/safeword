@@ -25,15 +25,15 @@
     ],
     "Duplicating a contract as authority across artifacts fails review": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects authoritative corpus defect: $defect"
+      "rejects duplicate authoritative ownership in the checked-in corpus"
     ],
     "An independent facet inventory exposes an omitted generated-manifest facet": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects authoritative corpus defect: $defect"
+      "rejects an omitted generated-manifest facet in the checked-in corpus"
     ],
     "Agreement between sibling generated outputs cannot prove completeness": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects authoritative corpus defect: $defect"
+      "rejects a full-guide control response containing a forbidden proof fact"
     ],
     "A discriminating guide-ablation pair validates independent proof": [
       "packages/cli/tests/data-architecture-eval.test.ts",
@@ -67,21 +67,15 @@
     ],
     "Conditional claims carry the facts that make them falsifiable": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "records $id against the canonical guide and rubric"
+      "accepts conditional proof corpus case: $caseId"
     ],
     "A non-discriminating proof fails with a focused diagnostic": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects authoritative corpus defect: $defect"
+      "rejects conditional corpus defect: $defect"
     ],
     "Synthetic placeholders and deployed read-only snapshots satisfy evidence needs": [
-      [
-        "packages/cli/tests/data-architecture-eval.test.ts",
-        "safety-checks the current authored corpus"
-      ],
-      [
-        "packages/cli/tests/data-architecture-eval.test.ts",
-        "records $id against the canonical guide and rubric"
-      ]
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "safety-checks the current authored corpus"
     ],
     "Sensitive-looking evaluation values are refused": [
       "packages/cli/tests/data-architecture-eval.test.ts",

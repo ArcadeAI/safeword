@@ -474,6 +474,27 @@ describe('data architecture guide evaluation', () => {
     ).toEqual({ accepted: true, diagnostics: [] });
   });
 
+  it.each([
+    { caseId: 'multi-tenant-relational-event-store' },
+    { caseId: 'encrypted-credential-record' },
+    { caseId: 'live-additive-migration' },
+    { caseId: 'erasure-across-secondary-copies' },
+    { caseId: 'time-equality-boundary' },
+  ])('accepts conditional proof corpus case: $caseId', ({ caseId }) => {
+    const evaluationCase = currentCases.find(item => item.id === caseId);
+    const evaluationRecord = currentRecords.find(item => item.caseId === caseId);
+    if (evaluationCase === undefined || evaluationRecord === undefined)
+      throw new Error(`Current ${caseId} evidence is missing.`);
+    expect(
+      verifyEvaluationRecord({
+        canonicalGuide: shippedCanonicalGuide,
+        evaluationCase,
+        contract: currentContract,
+        record: evaluationRecord,
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
   it('accepts the current mixed decision-routing record against the shipped guide', () => {
     const evaluationCase = currentCases.find(item => item.id === 'mixed-decision-routing');
     const evaluationRecord = currentRecords.find(item => item.caseId === 'mixed-decision-routing');
@@ -673,21 +694,64 @@ describe('data architecture guide evaluation', () => {
     );
   });
 
+  it('rejects duplicate authoritative ownership in the checked-in corpus', () => {
+    const evaluationCase = currentCases.find(item => item.id === 'artifact-ownership');
+    const evaluationRecord = currentRecords.find(item => item.caseId === 'artifact-ownership');
+    if (evaluationCase === undefined || evaluationRecord === undefined)
+      throw new Error('Current artifact-ownership evidence is missing.');
+
+    const result = verifyEvaluationRecord({
+      canonicalGuide: shippedCanonicalGuide,
+      evaluationCase,
+      contract: currentContract,
+      record: {
+        ...evaluationRecord,
+        response: {
+          ...evaluationRecord.response,
+          decisionIds: [
+            ...evaluationRecord.response.decisionIds,
+            'decision.ownership.duplicate-authority',
+          ],
+        },
+      },
+    });
+
+    expect(result.diagnostics).toContain(
+      'Evaluation response contains forbidden decision decision.ownership.duplicate-authority.',
+    );
+  });
+
+  it('rejects an omitted generated-manifest facet in the checked-in corpus', () => {
+    const evaluationCase = currentCases.find(
+      item => item.id === 'generated-manifest-missing-one-facet',
+    );
+    const evaluationRecord = currentRecords.find(
+      item => item.caseId === 'generated-manifest-missing-one-facet',
+    );
+    if (evaluationCase === undefined || evaluationRecord === undefined)
+      throw new Error('Current generated-manifest evidence is missing.');
+
+    const result = verifyEvaluationRecord({
+      canonicalGuide: shippedCanonicalGuide,
+      evaluationCase,
+      contract: currentContract,
+      record: {
+        ...evaluationRecord,
+        response: {
+          ...evaluationRecord.response,
+          proofFactIds: evaluationRecord.response.proofFactIds.filter(
+            id => id !== 'proof.generated.independent-inventory',
+          ),
+        },
+      },
+    });
+
+    expect(result.diagnostics).toContain(
+      'Evaluation response is missing expected proof fact proof.generated.independent-inventory.',
+    );
+  });
+
   it.each([
-    {
-      caseId: 'artifact-ownership',
-      defect: 'duplicate source-of-truth ownership',
-      injectedDecisionId: 'decision.ownership.duplicate-authority',
-      diagnostic:
-        'Evaluation response contains forbidden decision decision.ownership.duplicate-authority.',
-    },
-    {
-      caseId: 'generated-manifest-missing-one-facet',
-      defect: 'an omitted generated-manifest facet',
-      omittedProofFactId: 'proof.generated.independent-inventory',
-      diagnostic:
-        'Evaluation response is missing expected proof fact proof.generated.independent-inventory.',
-    },
     {
       caseId: 'generated-manifest-missing-one-facet',
       defect: 'coverage inferred from a generated sibling',
@@ -744,7 +808,7 @@ describe('data architecture guide evaluation', () => {
       diagnostic: 'Evaluation response contains forbidden proof fact proof.temporal.non-boundary.',
     },
   ])(
-    'rejects authoritative corpus defect: $defect',
+    'rejects conditional corpus defect: $defect',
     ({ caseId, injectedDecisionId, injectedProofFactId, omittedProofFactId, diagnostic }) => {
       const evaluationCase = currentCases.find(item => item.id === caseId);
       const evaluationRecord = currentRecords.find(item => item.caseId === caseId);
