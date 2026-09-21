@@ -38,7 +38,6 @@ interface ReviewJobRecord {
   readonly context?: readonly string[];
   readonly execution?: RedExecutionRequest;
   readonly source_fingerprint: string;
-  readonly gate_fingerprint?: string;
   readonly started_at: string;
   readonly updated_at: string;
   readonly deadline_at?: string;
@@ -318,16 +317,6 @@ function fingerprint(
   }
 }
 
-function executableRedGateFingerprint(
-  cwd: string,
-  targets: readonly string[],
-  context: readonly string[],
-  execution: RedExecutionRequest,
-): string {
-  const primaryProof = targets.slice(0, 1);
-  return fingerprint(cwd, 'executable-red', primaryProof, context, execution);
-}
-
 function reviewFingerprintContent(
   section: 'targets' | 'context',
   path: string,
@@ -453,7 +442,6 @@ function hasReviewJobIdentity(candidate: Record<string, unknown>): boolean {
     hasStrings &&
     isStringArray(candidate.targets) &&
     isOptional(candidate.context, isStringArray) &&
-    isOptional(candidate.gate_fingerprint, value => typeof value === 'string') &&
     (candidate.kind === 'executable-red'
       ? isRedExecutionRequest(candidate.execution)
       : candidate.execution === undefined) &&
@@ -932,10 +920,6 @@ export async function startReviewJob(input: {
       context,
       execution: input.execution,
       source_fingerprint: sourceFingerprint,
-      gate_fingerprint:
-        input.kind === 'executable-red' && input.execution !== undefined
-          ? executableRedGateFingerprint(input.cwd, input.targets, context, input.execution)
-          : undefined,
       started_at: now,
       updated_at: now,
       deadline_at: new Date(Date.now() + reviewWorkerRunBoundMs()).toISOString(),
@@ -1348,20 +1332,6 @@ function executableRedJobsForScenario(
 
 function hasCurrentFingerprint(cwd: string, record: ReviewJobRecord): boolean {
   try {
-    if (
-      record.kind === 'executable-red' &&
-      record.execution !== undefined &&
-      record.gate_fingerprint !== undefined
-    ) {
-      return (
-        executableRedGateFingerprint(
-          cwd,
-          record.targets,
-          record.context ?? [],
-          record.execution,
-        ) === record.gate_fingerprint
-      );
-    }
     return (
       fingerprint(cwd, record.kind, record.targets, record.context, record.execution) ===
       record.source_fingerprint

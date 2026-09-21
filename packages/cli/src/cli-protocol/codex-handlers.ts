@@ -8,6 +8,7 @@
  * imports so the dispatch layer remains cheap to load.
  */
 
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type {
@@ -432,37 +433,14 @@ function runCodexInstall(
   };
 }
 
-const OPTIONAL_STDIN_WAIT_MS = 100;
-
-async function readOptionalStdin(): Promise<string> {
-  if (process.stdin.isTTY || process.stdin.readableEnded) return '';
-  return new Promise(resolve => {
-    let rawInput = '';
-    let settled = false;
-    const finish = (): void => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      process.stdin.off('data', onData);
-      process.stdin.off('end', finish);
-      process.stdin.off('error', finish);
-      process.stdin.pause();
-      resolve(rawInput);
-    };
-    const onData = (chunk: Buffer | string): void => {
-      rawInput += chunk.toString();
-    };
-    const timer = setTimeout(finish, OPTIONAL_STDIN_WAIT_MS);
-    process.stdin.on('data', onData);
-    process.stdin.once('end', finish);
-    process.stdin.once('error', finish);
-    process.stdin.resume();
-  });
-}
-
 export async function codexBootstrapHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { bootstrapCodexPlugin } = await import('../commands/codex-bootstrap.js');
-  const rawInput = await readOptionalStdin();
+  let rawInput = '';
+  try {
+    rawInput = readFileSync(0, 'utf8');
+  } catch {
+    // A missing hook payload is reported as unverified, never as a blocker.
+  }
   return bootstrapCodexPlugin(invocation.cwd, rawInput, { offline: invocation.offline });
 }
 
