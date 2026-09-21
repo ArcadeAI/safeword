@@ -672,7 +672,7 @@ describe('data architecture guide evaluation', () => {
   it.each([
     {
       valueClass: 'credential, token, or key prefix',
-      text: '-----BEGIN PRIVATE KEY-----',
+      text: ['-----BEGIN', 'PRIVATE KEY-----'].join(' '),
       diagnostic: 'Corpus value at cases[0].text contains a credential or token prefix.',
     },
     {
