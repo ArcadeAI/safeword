@@ -95,7 +95,7 @@ Feature: Approve coherent Implementation Plans
   Rule: plan-implementability.TBU1.G1C9PP.R6 — Applicable data decisions cover purpose, store and model, schema and relationships, source of truth, ownership and access, identity and integrity, cross-system flow, lifecycle and retention, migration and backfill, compliance, and rollback at decision depth
 
     Scenario Outline: Data guidance follows data-contract applicability
-      Given a feature has <data_state>
+      Given a feature's Implementation Plan has <data_state>
       When the Implementation Plan is reviewed
       Then <review_result>
 

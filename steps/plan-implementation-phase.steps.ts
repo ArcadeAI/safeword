@@ -1076,7 +1076,7 @@ Given(
   },
 );
 
-Given(/^a feature has (.+)$/u, function (this: PlanWorld, dataState: string) {
+Given(/^a feature's Implementation Plan has (.+)$/u, function (this: PlanWorld, dataState: string) {
   switch (dataState) {
     case 'one persisted entity change that omits data ownership and migration decisions':
       this.dataPlan = withoutDataFields('Ownership and access', 'Migration and backfill');
