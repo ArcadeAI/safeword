@@ -330,7 +330,7 @@ the broader provenance changes.
   versioned fixed-rubric eval runs three deterministic repetitions and requires
   at least two agreeing correct verdicts per fixture; below threshold is
   inconclusive, never passing. The complete feature runs through Cucumber.
-- **Completion signal:** All 52 scenarios are GREEN/REFACTOR, the pinned eval
+- **Completion signal:** All 54 scenarios are GREEN/REFACTOR, the pinned eval
   passes 2-of-3, customer docs explain the bounded planning approvals and host
   matrix, and the contributor checklist has current evidence.
 - **Relies on an unmerged successor:** no
