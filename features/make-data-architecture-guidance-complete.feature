@@ -45,6 +45,8 @@ Feature: Complete conditional data architecture guidance
       Examples:
         | record-defect                              | diagnostic                    |
         | a missing case record                      | the missing case              |
+        | duplicate records for one case             | the duplicate case            |
+        | a record for a retired or unknown case     | the unknown case              |
         | a stale canonical guide hash               | the guide-hash mismatch       |
         | a stale case and rubric digest             | the case-rubric mismatch      |
         | a prompt digest that differs from the checked-in cold-start prompt containing only the guide, case, neutral JSON response format, and tools-disabled state | the cold-start prompt mismatch |

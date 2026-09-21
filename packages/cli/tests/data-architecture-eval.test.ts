@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -52,6 +54,10 @@ const ablatedResponse: EvaluationResponse = {
   proofFactIds: [],
 };
 const sharedPromptSha256 = sha256('generated-manifest case + neutral response schema');
+const shippedCanonicalGuide = readFileSync(
+  nodePath.resolve(import.meta.dirname, '../templates/guides/data-architecture-guide.md'),
+  'utf8',
+);
 
 function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
@@ -384,6 +390,27 @@ function corpusFixture(): EvaluationCorpusInput {
 }
 
 describe('data architecture guide evaluation', () => {
+  it('binds the canonical guide to every durable decision and named ablation marker', () => {
+    for (const decisionId of [
+      ...universalDecisionIds,
+      'decision.core.independent-proof',
+      'decision.relational.physical-schema',
+      'decision.encryption.aad-binding',
+      'decision.migration.deployed-state',
+      'decision.temporal.boundary',
+      'decision.erasure.copy-disposition',
+      'decision.generated.source',
+    ]) {
+      expect(shippedCanonicalGuide).toContain(`[${decisionId}]`);
+    }
+    expect(shippedCanonicalGuide).toContain(
+      '<!-- data-architecture-ablation:independent-proof:start -->',
+    );
+    expect(shippedCanonicalGuide).toContain(
+      '<!-- data-architecture-ablation:independent-proof:end -->',
+    );
+  });
+
   it('accepts all nine representative cases with exactly their applicable guidance', () => {
     const corpus = corpusFixture();
     const relationalRecord = corpus.records.find(
@@ -420,6 +447,20 @@ describe('data architecture guide evaluation', () => {
           ),
         },
         diagnostic: '[encrypted-credential-record] Evaluation corpus is missing a record.',
+      },
+      {
+        name: 'duplicate case record',
+        corpus: { ...corpus, records: [...corpus.records, relationalRecord] },
+        diagnostic:
+          '[multi-tenant-relational-event-store] Evaluation corpus contains duplicate records.',
+      },
+      {
+        name: 'unknown case record',
+        corpus: {
+          ...corpus,
+          records: [...corpus.records, { ...relationalRecord, caseId: 'retired-case' }],
+        },
+        diagnostic: '[retired-case] Evaluation corpus contains a record for an unknown case.',
       },
       {
         name: 'stale guide hash',
@@ -1188,9 +1229,54 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
+    });
+
+    expect(result).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it('rejects an ablation whose failure is unrelated to the removed guidance', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, {
+        decisionIds: ['decision.core.independent-proof'],
+        proofFactIds: ['proof.generated.independent-inventory'],
+      }),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: [
+        'Ablated response failure does not implicate an expected ID from the removed guidance.',
+      ],
+    });
+  });
+
+  it('accepts an ablation whose only missing attributable ID is a proof fact', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, {
+        decisionIds: ['decision.generated.source', 'decision.core.independent-proof'],
+        proofFactIds: [],
+      }),
     });
 
     expect(result).toEqual({ accepted: true, diagnostics: [] });
@@ -1203,6 +1289,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: mismatchedAblation,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(mismatchedAblation, ablatedResponse),
@@ -1236,6 +1324,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(canonicalGuide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
@@ -1265,6 +1355,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(canonicalGuide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
@@ -1282,6 +1374,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, fullResponse),
@@ -1299,6 +1393,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, ablatedResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
@@ -1316,6 +1412,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
@@ -1335,6 +1433,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
@@ -1354,6 +1454,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
@@ -1373,6 +1475,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
@@ -1389,6 +1493,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
@@ -1408,6 +1514,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
@@ -1427,6 +1535,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
@@ -1452,6 +1562,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric: reorderedRubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
@@ -1470,6 +1582,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric: reorderedRubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
@@ -1498,6 +1612,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: labelInsideTransform,
       storedAblatedGuide: labelRemovingAblation,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(labelInsideTransform, fullResponse),
       ablatedGuideRecord: record(labelRemovingAblation, ablatedResponse),
@@ -1517,6 +1633,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guideWithoutLabel,
       storedAblatedGuide: ablatedGuideWithoutLabel,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guideWithoutLabel, fullResponse),
       ablatedGuideRecord: record(ablatedGuideWithoutLabel, ablatedResponse),
@@ -1536,6 +1654,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse, { guideSha256: sha256('stale guide') }),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
@@ -1553,6 +1673,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, {
@@ -1572,6 +1694,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, fullResponse, {
         guideSha256: sha256('stale guide'),
@@ -1605,6 +1729,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric: forbiddenDecisionRubric,
       fullGuideRecord: record(guide, forbiddenResponse, { caseRubricSha256 }),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, { caseRubricSha256 }),
@@ -1629,6 +1755,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric: contradictoryRubric,
       fullGuideRecord: record(guide, fullResponse, { caseRubricSha256 }),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse, { caseRubricSha256 }),
@@ -1652,6 +1780,8 @@ describe('data architecture guide evaluation', () => {
       canonicalGuide: guide,
       storedAblatedGuide: ablatedGuide,
       preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
       rubric,
       fullGuideRecord: record(guide, forbiddenResponse),
       ablatedGuideRecord: record(ablatedGuide, ablatedResponse),

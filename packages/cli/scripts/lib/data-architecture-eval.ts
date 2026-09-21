@@ -141,6 +141,8 @@ export interface AblationPairInput {
   readonly canonicalGuide: string;
   readonly storedAblatedGuide: string;
   readonly preservedDecisionIds: readonly string[];
+  readonly attributableDecisionIds: readonly string[];
+  readonly attributableProofFactIds: readonly string[];
   readonly rubric: EvaluationRubric;
   readonly fullGuideRecord: AblationRecord;
   readonly ablatedGuideRecord: AblationRecord;
@@ -295,13 +297,34 @@ export function verifyEvaluationRecord(input: EvaluationRecordInput): Verificati
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 
+function corpusRecordDiagnostics(
+  casesById: ReadonlyMap<string, EvaluationCase>,
+  recordsByCaseId: ReadonlyMap<string, readonly EvaluationRecord[]>,
+): string[] {
+  return [...recordsByCaseId].flatMap(([caseId, records]) => {
+    if (!casesById.has(caseId))
+      return [`[${caseId}] Evaluation corpus contains a record for an unknown case.`];
+    return records.length > 1 ? [`[${caseId}] Evaluation corpus contains duplicate records.`] : [];
+  });
+}
+
 export function verifyEvaluationCorpus(input: EvaluationCorpusInput): VerificationResult {
-  const diagnostics: string[] = [];
+  const casesById = new Map(input.cases.map(evaluationCase => [evaluationCase.id, evaluationCase]));
+  const recordsByCaseId = new Map<string, EvaluationRecord[]>();
+  for (const record of input.records) {
+    const records = recordsByCaseId.get(record.caseId) ?? [];
+    records.push(record);
+    recordsByCaseId.set(record.caseId, records);
+  }
+
+  const diagnostics = corpusRecordDiagnostics(casesById, recordsByCaseId);
 
   for (const evaluationCase of input.cases) {
-    const record = input.records.find(candidate => candidate.caseId === evaluationCase.id);
+    const records = recordsByCaseId.get(evaluationCase.id) ?? [];
+    const record = records.length === 1 ? records[0] : undefined;
     if (record === undefined) {
-      diagnostics.push(`[${evaluationCase.id}] Evaluation corpus is missing a record.`);
+      if (records.length === 0)
+        diagnostics.push(`[${evaluationCase.id}] Evaluation corpus is missing a record.`);
       continue;
     }
 
@@ -651,6 +674,11 @@ function responseDiagnostics(input: AblationPairInput): string[] {
     input.fullGuideRecord.response,
     input.rubric,
   );
+  const ablatedDecisionIds = new Set(input.ablatedGuideRecord.response.decisionIds);
+  const ablatedProofFactIds = new Set(input.ablatedGuideRecord.response.proofFactIds);
+  const attributableFailure =
+    input.attributableDecisionIds.some(id => !ablatedDecisionIds.has(id)) ||
+    input.attributableProofFactIds.some(id => !ablatedProofFactIds.has(id));
   return [
     ...forbiddenDiagnostics,
     ...(!responsePasses(input.fullGuideRecord.response, input.rubric) &&
@@ -659,6 +687,9 @@ function responseDiagnostics(input: AblationPairInput): string[] {
       : []),
     ...(responsePasses(input.ablatedGuideRecord.response, input.rubric)
       ? ['Ablated response still satisfies the evaluation rubric.']
+      : []),
+    ...(!responsePasses(input.ablatedGuideRecord.response, input.rubric) && !attributableFailure
+      ? ['Ablated response failure does not implicate an expected ID from the removed guidance.']
       : []),
   ];
 }
