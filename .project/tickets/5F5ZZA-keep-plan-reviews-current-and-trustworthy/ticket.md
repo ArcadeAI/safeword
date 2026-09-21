@@ -2,7 +2,7 @@
 id: 5F5ZZA
 slug: keep-plan-reviews-current-and-trustworthy
 type: feature
-phase: plan-implementation
+phase: scenario-gate
 status: in_progress
 phase_skips:
   - "intake: originally inherited the 2026-09-08 approval of 82T411; after material parent changes, 82T411 was freshly approved and this child was reconciled before scenario review resumed"
@@ -22,7 +22,7 @@ out_of_scope:
   - defining Implementation Plan approach content, defining Execution Plan decomposition content, changing accepted scope, and migration policy
 done_when:
   - missing, unreadable, stale, or digest-mismatched required context cannot produce approval
-  - semantic changes invalidate dependent receipts while formatting and unrelated inventory changes do not
+  - semantic context changes invalidate dependent receipts while formatting and unrelated inventory changes do not; exact plan changes invalidate their own review except normalized Execution Plan checklist progress
   - receipts identify the plan, context, reviewer route, and achieved independence without overstating fallback quality
   - each phase contract declares its purpose, entry, required and prohibited content, review question, approval meaning, invalidation, and return path, and no approval claims a downstream state
   - corrected plans require a fresh exact-byte verdict and optional reviewer strengthening cannot fail a gate before user acceptance

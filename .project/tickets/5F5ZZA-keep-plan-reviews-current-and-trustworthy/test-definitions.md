@@ -74,6 +74,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Cosmetic canonical changes preserve review currency but require copy reconciliation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU4.5F5ZZA.R6 — Review fallback is bounded and honestly labeled
 
 ### Scenario: The review gate follows the typed route result
@@ -89,6 +95,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Independent approval requires a genuinely independent reviewer
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Route selection derives independence from configured model capability
 
 - [ ] RED
 - [ ] GREEN
@@ -156,6 +168,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Installed review dispatch preserves the retrieved-evidence trust boundary
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU4.5F5ZZA.R8 — Ungated surfaces receive advisory guidance only
 
 ### Scenario: Generated Codex Cloud instructions cannot claim a gated approval
@@ -179,6 +197,12 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: plan-implementability.TBU4.5F5ZZA.R9 — Review invalidation follows the dependency direction specified by the Execution Planning contract; this child implements the shared provenance and invalidation mechanics rather than defining a second dependency matrix
 
 ### Scenario: A changed artifact invalidates exactly its dependent reviews
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Invalidation follows the canonical Execution Planning dependency direction
 
 - [ ] RED
 - [ ] GREEN
@@ -230,6 +254,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: The installed Implementation Plan gate enforces finding authority
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Corrected plan bytes cannot inherit the prior verdict
 
 - [ ] RED
@@ -250,9 +280,21 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: The installed Implementation Plan gate enforces binding scope context
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU4.5F5ZZA.R13 — Completeness checks both omissions and overreach against that accepted boundary
 
 ### Scenario: Plan completeness is bidirectional
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The installed Implementation Plan gate enforces bidirectional scope completeness
 
 - [ ] RED
 - [ ] GREEN
@@ -289,6 +331,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Product Plan approval requires honest epistemic status
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Scenario review proves every applicable persona outcome
 
 - [ ] RED
 - [ ] GREEN
