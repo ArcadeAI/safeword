@@ -25,15 +25,15 @@
     ],
     "Duplicating a contract as authority across artifacts fails review": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects duplicate source-of-truth ownership across artifacts"
+      "rejects authoritative corpus defect: $defect"
     ],
     "An independent facet inventory exposes an omitted generated-manifest facet": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "reports a generated-manifest facet omitted from an independent inventory"
+      "rejects authoritative corpus defect: $defect"
     ],
     "Agreement between sibling generated outputs cannot prove completeness": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects sibling generated outputs as a completeness oracle"
+      "rejects authoritative corpus defect: $defect"
     ],
     "A discriminating guide-ablation pair validates independent proof": [
       "packages/cli/tests/data-architecture-eval.test.ts",
@@ -67,19 +67,25 @@
     ],
     "Conditional claims carry the facts that make them falsifiable": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "accepts the complete $claim conditional proof"
+      "records $id against the canonical guide and rubric"
     ],
     "A non-discriminating proof fails with a focused diagnostic": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects $defect with its focused diagnostic"
+      "rejects authoritative corpus defect: $defect"
     ],
     "Synthetic placeholders and deployed read-only snapshots satisfy evidence needs": [
-      "packages/cli/tests/data-architecture-eval.test.ts",
-      "accepts synthetic mutable values and read-only migration evidence"
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "safety-checks the current authored corpus"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "records $id against the canonical guide and rubric"
+      ]
     ],
     "Sensitive-looking evaluation values are refused": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects a nested $valueClass with its unsafe value class identified"
+      "rejects authored corpus $valueClass"
     ],
     "Supported hosts resolve one coherent guide through their existing delivery model": [
       [

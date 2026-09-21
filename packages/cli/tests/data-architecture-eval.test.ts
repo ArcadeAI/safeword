@@ -6,10 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type AblationRecord,
-  type ArtifactAuthorityClaim,
   buildColdStartPrompt,
   buildGuideIndependentPrompt,
-  type ConditionalProofInput,
   createEvaluationRecord,
   type EvaluationCase,
   type EvaluationContract,
@@ -17,17 +15,11 @@ import {
   type EvaluationRecord,
   type EvaluationResponse,
   type EvaluationRubric,
-  type EvidenceSafetyInput,
-  type FacetCompletenessInput,
   type StoredAblationRecord,
   verifyAblationPair,
-  verifyArtifactOwnership,
-  verifyConditionalProof,
   verifyEvaluationCorpus,
   verifyEvaluationCorpusSafety,
   verifyEvaluationRecord,
-  verifyEvidenceSafety,
-  verifyFacetCompleteness,
   verifyStoredAblation,
 } from '../scripts/lib/data-architecture-eval.js';
 
@@ -142,13 +134,6 @@ const corpusContract: EvaluationContract = {
   rubricLoader: 'data-architecture-rubric-v1',
   toolsDisabled: true,
 };
-
-const universalDecisionIds = [
-  'decision.core.source-of-truth',
-  'decision.core.identity-and-scope',
-  'decision.core.value-contract',
-  'decision.core.lifecycle',
-] as const;
 
 function corpusFixture(): EvaluationCorpusInput {
   const cases = structuredClone(currentCases);
@@ -648,7 +633,7 @@ describe('data architecture guide evaluation', () => {
     );
   });
 
-  it('scans authored corpus text and responses without rejecting ordinary prose', () => {
+  it('scans authored corpus text without rejecting ordinary prose', () => {
     const corpus = corpusFixture();
     const firstCase = corpus.cases[0];
     if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
@@ -661,97 +646,106 @@ describe('data architecture guide evaluation', () => {
         cases: [{ ...firstCase, text: 'Plan an Asia-Pacific regional deployment.' }],
       }),
     ).toEqual({ accepted: true, diagnostics: [] });
-    expect(
-      verifyEvaluationCorpusSafety({
-        cases: [
-          {
-            ...firstCase,
-            text: 'Use token github_pat_12345678901234567890123456789012.',
-          },
-        ],
-      }),
-    ).toEqual({
-      accepted: false,
-      diagnostics: [
-        'Corpus value at cases[0].text contains a credential or token prefix.',
-        'Corpus value at cases[0].text contains a non-placeholder high-entropy value.',
-      ],
-    });
+  });
+
+  it.each([
+    {
+      valueClass: 'credential, token, or key prefix',
+      text: '-----BEGIN PRIVATE KEY-----',
+      diagnostic: 'Corpus value at cases[0].text contains a credential or token prefix.',
+    },
+    {
+      valueClass: 'email-shaped value',
+      text: 'Contact customer@example.com.',
+      diagnostic: 'Corpus value at cases[0].text contains an email-shaped value.',
+    },
+    {
+      valueClass: 'non-placeholder high-entropy value',
+      text: 'Use 7b1d9f0342a6e8c57d0b1493f6a2c8e57b1d9f0342a6e8c57d0b1493f6a2c8e5.',
+      diagnostic: 'Corpus value at cases[0].text contains a non-placeholder high-entropy value.',
+    },
+  ])('rejects authored corpus $valueClass', ({ text, diagnostic }) => {
+    const firstCase = currentCases[0];
+    if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
+
+    expect(verifyEvaluationCorpusSafety({ cases: [{ ...firstCase, text }] }).diagnostics).toContain(
+      diagnostic,
+    );
   });
 
   it.each([
     {
       caseId: 'artifact-ownership',
       defect: 'duplicate source-of-truth ownership',
-      addDecisionId: 'decision.ownership.duplicate-authority',
+      injectedDecisionId: 'decision.ownership.duplicate-authority',
       diagnostic:
         'Evaluation response contains forbidden decision decision.ownership.duplicate-authority.',
     },
     {
       caseId: 'generated-manifest-missing-one-facet',
       defect: 'an omitted generated-manifest facet',
-      removeProofFactId: 'proof.generated.independent-inventory',
+      omittedProofFactId: 'proof.generated.independent-inventory',
       diagnostic:
         'Evaluation response is missing expected proof fact proof.generated.independent-inventory.',
     },
     {
       caseId: 'generated-manifest-missing-one-facet',
       defect: 'coverage inferred from a generated sibling',
-      addProofFactId: 'proof.generated.sibling-output',
+      injectedProofFactId: 'proof.generated.sibling-output',
       diagnostic:
         'Evaluation response contains forbidden proof fact proof.generated.sibling-output.',
     },
     {
       caseId: 'multi-tenant-relational-event-store',
       defect: 'query evidence without engine context',
-      removeProofFactId: 'proof.relational.engine-and-version',
+      omittedProofFactId: 'proof.relational.engine-and-version',
       diagnostic:
         'Evaluation response is missing expected proof fact proof.relational.engine-and-version.',
     },
     {
       caseId: 'multi-tenant-relational-event-store',
       defect: 'a child identity bound to another tenant',
-      addDecisionId: 'decision.relational.cross-tenant-parent-binding',
+      injectedDecisionId: 'decision.relational.cross-tenant-parent-binding',
       diagnostic:
         'Evaluation response contains forbidden decision decision.relational.cross-tenant-parent-binding.',
     },
     {
       caseId: 'encrypted-credential-record',
       defect: 'a generic encrypted-at-rest assertion',
-      addProofFactId: 'proof.encryption.encrypted-at-rest',
+      injectedProofFactId: 'proof.encryption.encrypted-at-rest',
       diagnostic:
         'Evaluation response contains forbidden proof fact proof.encryption.encrypted-at-rest.',
     },
     {
       caseId: 'live-additive-migration',
       defect: 'migration evidence from a feature branch',
-      addProofFactId: 'proof.migration.feature-branch-starting-state',
+      injectedProofFactId: 'proof.migration.feature-branch-starting-state',
       diagnostic:
         'Evaluation response contains forbidden proof fact proof.migration.feature-branch-starting-state.',
     },
     {
       caseId: 'erasure-across-secondary-copies',
       defect: 'deletion evidence for only the primary row',
-      addProofFactId: 'proof.erasure.primary-row-only',
+      injectedProofFactId: 'proof.erasure.primary-row-only',
       diagnostic:
         'Evaluation response contains forbidden proof fact proof.erasure.primary-row-only.',
     },
     {
       caseId: 'erasure-across-secondary-copies',
       defect: 'erasure proof without sibling isolation',
-      removeProofFactId: 'proof.erasure.sibling-scope-isolation',
+      omittedProofFactId: 'proof.erasure.sibling-scope-isolation',
       diagnostic:
         'Evaluation response is missing expected proof fact proof.erasure.sibling-scope-isolation.',
     },
     {
       caseId: 'time-equality-boundary',
       defect: 'temporal proof away from equality',
-      addProofFactId: 'proof.temporal.non-boundary',
+      injectedProofFactId: 'proof.temporal.non-boundary',
       diagnostic: 'Evaluation response contains forbidden proof fact proof.temporal.non-boundary.',
     },
   ])(
     'rejects authoritative corpus defect: $defect',
-    ({ caseId, addDecisionId, addProofFactId, removeProofFactId, diagnostic }) => {
+    ({ caseId, injectedDecisionId, injectedProofFactId, omittedProofFactId, diagnostic }) => {
       const evaluationCase = currentCases.find(item => item.id === caseId);
       const evaluationRecord = currentRecords.find(item => item.caseId === caseId);
       if (evaluationCase === undefined || evaluationRecord === undefined)
@@ -764,12 +758,12 @@ describe('data architecture guide evaluation', () => {
           ...evaluationRecord,
           response: {
             decisionIds:
-              addDecisionId === undefined
+              injectedDecisionId === undefined
                 ? evaluationRecord.response.decisionIds
-                : [...evaluationRecord.response.decisionIds, addDecisionId],
+                : [...evaluationRecord.response.decisionIds, injectedDecisionId],
             proofFactIds: [
-              ...evaluationRecord.response.proofFactIds.filter(id => id !== removeProofFactId),
-              ...(addProofFactId === undefined ? [] : [addProofFactId]),
+              ...evaluationRecord.response.proofFactIds.filter(id => id !== omittedProofFactId),
+              ...(injectedProofFactId === undefined ? [] : [injectedProofFactId]),
             ],
           },
         },

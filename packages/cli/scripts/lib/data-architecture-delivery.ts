@@ -119,6 +119,14 @@ function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): stri
   if (openCodeGuidePath !== undefined) {
     diagnostics.push(`OpenCode contains an unexpected guide copy at ${openCodeGuidePath}.`);
   }
+  const deliverySpecificReference = Object.entries(input.openCode.assets).find(([, content]) =>
+    content.includes(input.inventory.claudePlanningTarget),
+  )?.[0];
+  if (deliverySpecificReference !== undefined) {
+    diagnostics.push(
+      `OpenCode contains an unexpected delivery-specific guide reference at ${deliverySpecificReference}.`,
+    );
+  }
   return diagnostics;
 }
 

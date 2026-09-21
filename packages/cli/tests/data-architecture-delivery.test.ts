@@ -274,6 +274,20 @@ describe('data architecture guide delivery', () => {
         },
       }),
     },
+    {
+      diagnostic:
+        'OpenCode contains an unexpected delivery-specific guide reference at SAFEWORD.md.',
+      drift: 'an OpenCode delivery-specific guide reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        openCode: {
+          assets: {
+            ...input.openCode.assets,
+            'SAFEWORD.md': `Read @${input.inventory.claudePlanningTarget}.`,
+          },
+        },
+      }),
+    },
   ])('rejects $drift with its mismatched path or content identified', ({ diagnostic, mutate }) => {
     const result = verifyDataArchitectureDelivery(mutate(deliveryFixture()));
 
