@@ -936,6 +936,22 @@ Given(
 );
 
 Given(
+  'a staged forward advance whose entered phase carries a hex-shaped legacy anchor',
+  function (this: AnchorWorld) {
+    const dir = createProject(this);
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'plan-execution'));
+    git(dir, 'add -A');
+    git(dir, 'commit -m seed --quiet');
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'implement', [`implement: ${SHA}`]),
+    );
+    git(dir, `add ${TICKET_DIR}/ticket.md`);
+  },
+);
+
+Given(
   'a pushed range whose ticket carries a valid artifact-path anchor and a ledger tick SHA absent from history',
   function (this: AnchorWorld) {
     const dir = createProject(this);
@@ -1016,6 +1032,15 @@ Then('it exits zero and warns that the anchor is not repo-relative', function (t
   assert.equal(this.cli?.exitCode, 0);
   assert.match(this.cli?.output ?? '', /repo-relative/i);
 });
+
+Then(
+  'it exits zero and warns with the expected path-shaped anchor line',
+  function (this: AnchorWorld) {
+    assert.equal(this.cli?.exitCode, 0);
+    assert.match(this.cli?.output ?? '', /legacy commit-SHA anchor/i);
+    assert.match(this.cli?.output ?? '', /- implement: <ticket-folder>\/execution-plan\.md/);
+  },
+);
 
 Then('it exits zero and warns about the phase anchor', function (this: AnchorWorld) {
   assert.equal(this.cli?.exitCode, 0);

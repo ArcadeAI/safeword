@@ -28,7 +28,7 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       Then the advance is recognized as anchored
 
     @artifact-content-phase-anchors.SM1.R1
-    Scenario Outline: Every entered phase has one canonical exit-artifact kind
+    Scenario Outline: Each entered phase accepts its canonical exit-artifact kind
       Given a feature ticket at phase <prior phase> whose <artifact> anchor artifact exists and is shape-valid
       When it advances to <entered phase> recording that artifact path for <entered phase>
       Then the advance is recognized as anchored
@@ -294,6 +294,12 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       Then the advance is flagged as unanchored
       And the finding identifies the legacy commit SHA migration
       And the finding names the expected anchor line for implement
+
+    @artifact-content-phase-anchors.SM1.R4
+    Scenario: A staged forward advance with a legacy anchor warns without blocking the commit
+      Given a staged forward advance whose entered phase carries a hex-shaped legacy anchor
+      When the boundary command runs at the commit boundary
+      Then it exits zero and warns with the expected path-shaped anchor line
 
   Rule: The R/G/R ledger's per-tick commit SHAs are untouched
 
