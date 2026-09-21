@@ -48,6 +48,7 @@ and linked evidence `[decision.ownership.linked-evidence]`. Prove one authority
 `decision.ownership.duplicate-authority` fails.
 
 <!-- data-architecture-ablation:independent-proof:start -->
+
 ## Independent proof `[decision.core.independent-proof]`
 
 **Trigger:** the case explicitly makes a completeness or coverage claim. Do not apply this module

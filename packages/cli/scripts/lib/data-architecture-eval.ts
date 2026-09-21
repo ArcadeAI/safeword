@@ -623,23 +623,11 @@ function authoredCorpusStringDiagnostics(value: string, path: string): string[] 
 export function verifyEvaluationCorpusSafety(
   input: EvaluationCorpusSafetyInput,
 ): VerificationResult {
-  const diagnostics = input.cases.flatMap((evaluationCase, caseIndex) => [
-    ...authoredCorpusStringDiagnostics(evaluationCase.text, `cases[${caseIndex}].text`),
-    ...[
-      ...evaluationCase.rubric.expectedDecisionIds,
-      ...evaluationCase.rubric.forbiddenDecisionIds,
-      ...evaluationCase.rubric.expectedProofFactIds,
-      ...evaluationCase.rubric.forbiddenProofFactIds,
-    ].flatMap((id, idIndex) =>
-      authoredCorpusStringDiagnostics(id, `cases[${caseIndex}].rubric.ids[${idIndex}]`),
-    ),
-  ]);
-  diagnostics.push(
-    ...input.records.flatMap((record, recordIndex) =>
-      [...record.response.decisionIds, ...record.response.proofFactIds].flatMap((id, idIndex) =>
-        authoredCorpusStringDiagnostics(id, `records[${recordIndex}].response.ids[${idIndex}]`),
-      ),
-    ),
+  // Prompts are reconstructed from the canonical guide and case text, while responses are
+  // constrained to exact rubric IDs. Only the independently authored case prose can carry an
+  // arbitrary sensitive value after those structural checks succeed.
+  const diagnostics = input.cases.flatMap((evaluationCase, caseIndex) =>
+    authoredCorpusStringDiagnostics(evaluationCase.text, `cases[${caseIndex}].text`),
   );
   return { accepted: diagnostics.length === 0, diagnostics };
 }

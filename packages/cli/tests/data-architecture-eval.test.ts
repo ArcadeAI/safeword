@@ -64,6 +64,19 @@ const shippedCanonicalGuide = readFileSync(
   nodePath.resolve(import.meta.dirname, '../templates/guides/data-architecture-guide.md'),
   'utf8',
 );
+const recordedCorpusDirectory = nodePath.resolve(
+  import.meta.dirname,
+  'fixtures/data-architecture-eval',
+);
+const currentCases = JSON.parse(
+  readFileSync(nodePath.join(recordedCorpusDirectory, 'cases.json'), 'utf8'),
+) as EvaluationCase[];
+const currentContract = JSON.parse(
+  readFileSync(nodePath.join(recordedCorpusDirectory, 'contract.json'), 'utf8'),
+) as EvaluationContract;
+const currentRecords = JSON.parse(
+  readFileSync(nodePath.join(recordedCorpusDirectory, 'records.json'), 'utf8'),
+) as EvaluationRecord[];
 
 function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
@@ -679,6 +692,149 @@ describe('data architecture guide evaluation', () => {
         diagnostics: [rejected.diagnostic],
       });
     }
+  });
+
+  it.each([
+    { id: 'simple-key-value-preference' },
+    { id: 'multi-tenant-relational-event-store' },
+    { id: 'encrypted-credential-record' },
+    { id: 'live-additive-migration' },
+    { id: 'generated-manifest-missing-one-facet' },
+    { id: 'erasure-across-secondary-copies' },
+    { id: 'time-equality-boundary' },
+  ])('records $id against the canonical guide and rubric', ({ id }) => {
+    const evaluationCase = currentCases.find(candidate => candidate.id === id);
+    if (evaluationCase === undefined) throw new Error(`Missing current case for ${id}.`);
+    const evaluationRecord = currentRecords.find(
+      candidate => candidate.caseId === evaluationCase.id,
+    );
+    if (evaluationRecord === undefined)
+      throw new Error(`Missing current record for ${evaluationCase.id}.`);
+    expect(
+      verifyEvaluationRecord({
+        canonicalGuide: shippedCanonicalGuide,
+        evaluationCase,
+        contract: currentContract,
+        record: evaluationRecord,
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it.each([
+    { name: 'missing record', mutate: (records: EvaluationRecord[]) => records.slice(1) },
+    {
+      name: 'duplicate record',
+      mutate: (records: EvaluationRecord[]) => {
+        const firstRecord = records[0];
+        if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
+        return [...records, firstRecord];
+      },
+    },
+    {
+      name: 'unknown record',
+      mutate: (records: EvaluationRecord[]) => {
+        const firstRecord = records[0];
+        if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
+        return [...records, { ...firstRecord, caseId: 'retired-case' }];
+      },
+    },
+    {
+      name: 'stale guide hash',
+      mutate: (records: EvaluationRecord[]) => {
+        const firstRecord = records[0];
+        if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
+        return [{ ...firstRecord, guideSha256: sha256('stale guide') }, ...records.slice(1)];
+      },
+    },
+    {
+      name: 'stale case and rubric digest',
+      mutate: (records: EvaluationRecord[]) => {
+        const firstRecord = records[0];
+        if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
+        return [
+          { ...firstRecord, caseAndRubricSha256: sha256('stale rubric') },
+          ...records.slice(1),
+        ];
+      },
+    },
+    {
+      name: 'stale prompt digest',
+      mutate: (records: EvaluationRecord[]) => {
+        const firstRecord = records[0];
+        if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
+        return [
+          { ...firstRecord, coldStartPromptSha256: sha256('stale prompt') },
+          ...records.slice(1),
+        ];
+      },
+    },
+    {
+      name: 'recording contract drift',
+      mutate: (records: EvaluationRecord[]) => {
+        const firstRecord = records[0];
+        if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
+        return [{ ...firstRecord, modelVersion: 'different-model' }, ...records.slice(1)];
+      },
+    },
+    {
+      name: 'response rubric failure',
+      mutate: (records: EvaluationRecord[]) => {
+        const firstRecord = records[0];
+        if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
+        return [
+          { ...firstRecord, response: { ...firstRecord.response, decisionIds: [] } },
+          ...records.slice(1),
+        ];
+      },
+    },
+  ])('rejects corpus defect $name', ({ mutate }) => {
+    const result = verifyEvaluationCorpus({
+      canonicalGuide: shippedCanonicalGuide,
+      cases: currentCases,
+      contract: currentContract,
+      records: mutate(currentRecords),
+    });
+    expect(result.accepted).toBe(false);
+    expect(result.diagnostics.length).toBeGreaterThan(0);
+  });
+
+  it('accepts the current artifact-ownership record with one authority per role', () => {
+    const evaluationCase = currentCases.find(item => item.id === 'artifact-ownership');
+    const evaluationRecord = currentRecords.find(item => item.caseId === 'artifact-ownership');
+    if (evaluationCase === undefined || evaluationRecord === undefined)
+      throw new Error('Current artifact-ownership evidence is missing.');
+    expect(
+      verifyEvaluationRecord({
+        canonicalGuide: shippedCanonicalGuide,
+        evaluationCase,
+        contract: currentContract,
+        record: evaluationRecord,
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it('rejects routing a consequential data contract only to implementation planning', () => {
+    const evaluationCase = currentCases.find(item => item.id === 'mixed-decision-routing');
+    const evaluationRecord = currentRecords.find(item => item.caseId === 'mixed-decision-routing');
+    if (evaluationCase === undefined || evaluationRecord === undefined)
+      throw new Error('Current mixed-routing evidence is missing.');
+    const result = verifyEvaluationRecord({
+      canonicalGuide: shippedCanonicalGuide,
+      evaluationCase,
+      contract: currentContract,
+      record: {
+        ...evaluationRecord,
+        response: {
+          ...evaluationRecord.response,
+          decisionIds: evaluationRecord.response.decisionIds.filter(
+            id => id !== 'decision.routing.identity-architecture',
+          ),
+        },
+      },
+    });
+    expect(result.diagnostics).toContain(
+      'Evaluation response is missing expected decision decision.routing.identity-architecture.',
+    );
   });
 
   it('scans authored corpus text and responses without rejecting ordinary prose', () => {
@@ -1485,7 +1641,10 @@ describe('data architecture guide evaluation', () => {
 
     expect(result).toEqual({
       accepted: false,
-      diagnostics: ['Ablation records do not share one evaluation configuration.'],
+      diagnostics: [
+        'Ablation records do not share one evaluation configuration.',
+        'Ablation records do not match the current guide-independent prompt.',
+      ],
     });
   });
 

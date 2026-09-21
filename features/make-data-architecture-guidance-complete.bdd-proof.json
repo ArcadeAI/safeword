@@ -7,25 +7,21 @@
     ],
     "Treating a consequential data contract as a reversible helper fails review": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "accepts a mixed planning record that separates durable decisions from reversible helpers"
+      "rejects routing a consequential data contract only to implementation planning"
     ],
     "Each representative case selects exactly its applicable guidance": [
       [
-        "packages/cli/tests/data-architecture-eval-cli.test.ts",
-        "records through an isolated adapter and deterministically verifies the written corpus"
-      ],
-      [
         "packages/cli/tests/data-architecture-eval.test.ts",
-        "accepts all nine representative cases with exactly their applicable guidance"
+        "records $id against the canonical guide and rubric"
       ]
     ],
     "Invalid evaluation records fail deterministic verification": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "accepts all nine representative cases with exactly their applicable guidance"
+      "rejects corpus defect $name"
     ],
     "The artifact-ownership case assigns each decision to one owner": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "accepts all nine representative cases with exactly their applicable guidance"
+      "accepts the current artifact-ownership record with one authority per role"
     ],
     "Duplicating a contract as authority across artifacts fails review": [
       "packages/cli/tests/data-architecture-eval.test.ts",
@@ -44,12 +40,34 @@
       "accepts a discriminating independent-proof guide ablation"
     ],
     "A non-discriminating guide-ablation pair fails evaluation": [
-      "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects an ablation whose failure is unrelated to the removed guidance"
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a pair when the ablated response still satisfies the rubric"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects an ablation whose failure is unrelated to the removed guidance"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a pair when the full-guide response fails its control rubric"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a pair recorded with different model configurations"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a stored ablation that was not derived from the canonical guide"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a named transform that removes a preserved decision label"
+      ]
     ],
     "Conditional claims carry the facts that make them falsifiable": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "accepts $claim proof with all required facts"
+      "accepts the complete $claim conditional proof"
     ],
     "A non-discriminating proof fails with a focused diagnostic": [
       "packages/cli/tests/data-architecture-eval.test.ts",
@@ -61,7 +79,7 @@
     ],
     "Sensitive-looking evaluation values are refused": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "rejects $name"
+      "rejects a nested $valueClass with its unsafe value class identified"
     ],
     "Supported hosts resolve one coherent guide through their existing delivery model": [
       [
