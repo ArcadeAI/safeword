@@ -15,7 +15,6 @@ export interface DataArchitectureDeliveryInventory {
     readonly from: string;
     readonly to: string;
   };
-  readonly openCodeRationale: string;
 }
 
 export interface DataArchitectureDeliveryInput {
@@ -28,9 +27,6 @@ export interface DataArchitectureDeliveryInput {
   readonly cursor: DeliverySurface;
   readonly openCode: Omit<DeliverySurface, 'planningSourcePath'>;
 }
-
-export const DATA_ARCHITECTURE_OPEN_CODE_RATIONALE =
-  'OpenCode has no owned data-architecture guide copy or delivery-specific planning path because issue #4560 changes only the existing Claude, Codex, Cursor, and Safeword CLI delivery routes; shared workflow prose may still name the guide.';
 
 export interface DeliveryVerificationResult {
   readonly accepted: boolean;
@@ -117,27 +113,11 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
 
 function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[] {
   const diagnostics: string[] = [];
-  if (input.inventory.openCodeRationale !== DATA_ARCHITECTURE_OPEN_CODE_RATIONALE) {
-    diagnostics.push(
-      'OpenCode guide-delivery rationale differs from the durable package contract.',
-    );
-  }
   const openCodeGuidePath = Object.keys(input.openCode.assets).find(path =>
     isDataArchitectureGuidePath(path),
   );
   if (openCodeGuidePath !== undefined) {
     diagnostics.push(`OpenCode contains an unexpected guide copy at ${openCodeGuidePath}.`);
-  }
-  const openCodeReferencePath = Object.entries(input.openCode.assets).find(([, content]) =>
-    [
-      `.safeword/guides/${dataArchitectureGuideBasename}`,
-      input.inventory.claudePlanningTarget,
-    ].some(target => content.includes(target)),
-  )?.[0];
-  if (openCodeReferencePath !== undefined) {
-    diagnostics.push(
-      `OpenCode contains an unexpected guide reference at ${openCodeReferencePath}.`,
-    );
   }
   return diagnostics;
 }

@@ -5,7 +5,6 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
-  DATA_ARCHITECTURE_OPEN_CODE_RATIONALE,
   type DataArchitectureDeliveryInput,
   type DataArchitectureDeliveryInventory,
   verifyDataArchitectureDelivery,
@@ -32,7 +31,6 @@ const deliveryInventory: DataArchitectureDeliveryInventory = {
     from: '@.safeword/guides/',
     to: '@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/',
   },
-  openCodeRationale: DATA_ARCHITECTURE_OPEN_CODE_RATIONALE,
 };
 
 function file(relativePath: string): string {
@@ -276,23 +274,26 @@ describe('data architecture guide delivery', () => {
         },
       }),
     },
-    {
-      diagnostic: 'OpenCode contains an unexpected guide reference at SAFEWORD.md.',
-      drift: 'an OpenCode guide reference',
-      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
-        ...input,
-        openCode: {
-          assets: {
-            ...input.openCode.assets,
-            'SAFEWORD.md': 'Read @.safeword/guides/data-architecture-guide.md.',
-          },
-        },
-      }),
-    },
   ])('rejects $drift with its mismatched path or content identified', ({ diagnostic, mutate }) => {
     const result = verifyDataArchitectureDelivery(mutate(deliveryFixture()));
 
     expect(result.accepted).toBe(false);
     expect(result.diagnostics).toContain(diagnostic);
+  });
+
+  it('allows shared OpenCode workflow prose to name the project-owned guide', () => {
+    const input = deliveryFixture();
+
+    expect(
+      verifyDataArchitectureDelivery({
+        ...input,
+        openCode: {
+          assets: {
+            ...input.openCode.assets,
+            'SAFEWORD.md': 'Read @.safeword/guides/data-architecture-guide.md when applicable.',
+          },
+        },
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
   });
 });

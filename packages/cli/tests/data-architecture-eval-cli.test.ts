@@ -12,6 +12,47 @@ const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const scriptPath = nodePath.join(packageRoot, 'scripts/data-architecture-eval.ts');
 
 describe('data architecture evaluation CLI', () => {
+  it('rejects guide and corpus flags placed inside adapter argv', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'data-architecture-eval-'));
+    try {
+      const guidePath = nodePath.join(directory, 'guide.md');
+      const corpusDirectory = nodePath.join(directory, 'corpus');
+      writeFileSync(guidePath, '# Guide\n');
+      mkdirSync(corpusDirectory);
+      writeFileSync(nodePath.join(corpusDirectory, 'cases.json'), '[]');
+      writeFileSync(
+        nodePath.join(corpusDirectory, 'contract.json'),
+        JSON.stringify({
+          modelVersion: 'fixture-adapter-v1',
+          decodingConfiguration: { temperature: 0 },
+          responseFormat: 'data-architecture-eval-v1',
+          rubricLoader: 'data-architecture-rubric-v1',
+          toolsDisabled: true,
+        }),
+      );
+
+      const result = spawnSync(
+        'bun',
+        [
+          scriptPath,
+          'record',
+          '--adapter',
+          process.execPath,
+          '--guide',
+          guidePath,
+          '--corpus',
+          corpusDirectory,
+        ],
+        { cwd: packageRoot, encoding: 'utf8' },
+      );
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('--guide must appear before --adapter.');
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('records through an isolated adapter and deterministically verifies the written corpus', () => {
     const directory = mkdtempSync(nodePath.join(tmpdir(), 'data-architecture-eval-'));
     try {

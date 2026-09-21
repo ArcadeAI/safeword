@@ -606,8 +606,9 @@ export function verifyConditionalProof(input: ConditionalProofInput): Verificati
 }
 
 const syntheticPlaceholderPattern = /^SYNTHETIC_[A-Z0-9_]+$/;
+const awsCredentialPattern = /\b(?:AKIA|ASIA)[A-Z0-9]{12,}\b/u;
 const credentialPrefixPattern =
-  /\b(?:AKIA|ASIA)[A-Z0-9]{12,}\b|gh[pousr]_|github_pat_|[ps]k_(?:live|test)_|xox[baprs]-|-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/u;
+  /gh[pousr]_|github_pat_|[ps]k_(?:live|test)_|xox[baprs]-|-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/u;
 const emailShapePattern = /\b[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+\b/u;
 const allowedMigrationEvidenceSources = new Set(['checked-in-equivalent', 'deployed-read-only']);
 
@@ -636,8 +637,12 @@ function containsNonPlaceholderHighEntropyValue(value: string): boolean {
   );
 }
 
+function containsCredentialPrefix(value: string): boolean {
+  return awsCredentialPattern.test(value) || credentialPrefixPattern.test(value);
+}
+
 function unsafeEvidenceStringDiagnostic(value: string, path: string): string {
-  if (credentialPrefixPattern.test(value)) {
+  if (containsCredentialPrefix(value)) {
     return `Evidence value at ${path} is a credential, token, or key prefix.`;
   }
   if (emailShapePattern.test(value)) {
@@ -680,7 +685,7 @@ export function verifyEvidenceSafety(input: EvidenceSafetyInput): VerificationRe
 
 function authoredCorpusStringDiagnostics(value: string, path: string): string[] {
   const diagnostics: string[] = [];
-  if (credentialPrefixPattern.test(value))
+  if (containsCredentialPrefix(value))
     diagnostics.push(`Corpus value at ${path} contains a credential or token prefix.`);
   if (emailShapePattern.test(value))
     diagnostics.push(`Corpus value at ${path} contains an email-shaped value.`);

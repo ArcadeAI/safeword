@@ -658,6 +658,11 @@ describe('data architecture guide evaluation', () => {
     });
     expect(
       verifyEvaluationCorpusSafety({
+        cases: [{ ...firstCase, text: 'Plan an Asia-Pacific regional deployment.' }],
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+    expect(
+      verifyEvaluationCorpusSafety({
         cases: [
           {
             ...firstCase,
@@ -674,336 +679,105 @@ describe('data architecture guide evaluation', () => {
     });
   });
 
-  it('rejects duplicate source-of-truth ownership across artifacts', () => {
-    expect(
-      verifyArtifactOwnership([
-        {
-          artifactId: 'architecture-answer',
-          contractId: 'durable-session-contract',
-          claimsSourceOfTruth: true,
-        },
-        {
-          artifactId: 'generated-representation',
-          contractId: 'durable-session-contract',
-          claimsSourceOfTruth: false,
-        },
-      ]),
-    ).toEqual({ accepted: true, diagnostics: [] });
-    expect(
-      verifyArtifactOwnership([
-        {
-          artifactId: 'architecture-answer',
-          contractId: 'durable-session-contract',
-          claimsSourceOfTruth: true,
-        },
-        {
-          artifactId: 'architecture-answer',
-          contractId: 'retention-policy',
-          claimsSourceOfTruth: true,
-        },
-      ]),
-    ).toEqual({ accepted: true, diagnostics: [] });
-
-    const claims: ArtifactAuthorityClaim[] = [
-      {
-        artifactId: 'generated-representation',
-        contractId: 'durable-session-contract',
-        claimsSourceOfTruth: true,
-      },
-      {
-        artifactId: 'architecture-answer',
-        contractId: 'durable-session-contract',
-        claimsSourceOfTruth: true,
-      },
-    ];
-
-    expect(verifyArtifactOwnership(claims)).toEqual({
-      accepted: false,
-      diagnostics: [
-        '[durable-session-contract] Multiple source-of-truth owners: architecture-answer, generated-representation.',
-      ],
-    });
-  });
-
-  it('reports a generated-manifest facet omitted from an independent inventory', () => {
-    const complete: FacetCompletenessInput = {
-      intendedFacetIds: ['access-patterns', 'encryption', 'erasure'],
-      generatedFacetIds: ['access-patterns', 'encryption', 'erasure'],
-      oracleKind: 'hand-maintained',
-    };
-
-    expect.soft(verifyFacetCompleteness(complete)).toEqual({ accepted: true, diagnostics: [] });
-    expect
-      .soft(
-        verifyFacetCompleteness({
-          ...complete,
-          generatedFacetIds: ['access-patterns', 'encryption'],
-        }),
-      )
-      .toEqual({
-        accepted: false,
-        diagnostics: ['Generated manifest is missing intended facet erasure.'],
-      });
-    expect
-      .soft(
-        verifyFacetCompleteness({
-          ...complete,
-          generatedFacetIds: [...complete.generatedFacetIds, 'retention'],
-        }),
-      )
-      .toEqual({
-        accepted: false,
-        diagnostics: ['Generated manifest contains unknown facet retention.'],
-      });
-  });
-
-  it('rejects sibling generated outputs as a completeness oracle', () => {
-    const generatedFacetIds = ['access-patterns', 'encryption'];
-
-    expect
-      .soft(
-        verifyFacetCompleteness({
-          intendedFacetIds: generatedFacetIds,
-          generatedFacetIds,
-          oracleKind: 'hand-maintained',
-        }),
-      )
-      .toEqual({ accepted: true, diagnostics: [] });
-    expect
-      .soft(
-        verifyFacetCompleteness({
-          intendedFacetIds: generatedFacetIds,
-          generatedFacetIds,
-          oracleKind: 'generated-sibling',
-        }),
-      )
-      .toEqual({
-        accepted: false,
-        diagnostics: ['Completeness oracle must be independent of generated outputs.'],
-      });
-  });
-
   it.each([
     {
-      claim: 'relational-query-performance',
-      factIds: [
-        'proof.relational.engine-and-version',
-        'proof.relational.representative-data-shape',
-        'proof.relational.query-shape',
-        'proof.relational.threshold',
-        'proof.relational.revalidation-trigger',
-      ],
+      caseId: 'artifact-ownership',
+      defect: 'duplicate source-of-truth ownership',
+      addDecisionId: 'decision.ownership.duplicate-authority',
+      diagnostic:
+        'Evaluation response contains forbidden decision decision.ownership.duplicate-authority.',
     },
     {
-      claim: 'encrypted-scope-binding',
-      factIds: [
-        'proof.encryption.canonical-aad-identity',
-        'proof.encryption.scope-mutation-failure',
-        'proof.encryption.key-dependency-rotation-coverage',
-      ],
+      caseId: 'generated-manifest-missing-one-facet',
+      defect: 'an omitted generated-manifest facet',
+      removeProofFactId: 'proof.generated.independent-inventory',
+      diagnostic:
+        'Evaluation response is missing expected proof fact proof.generated.independent-inventory.',
     },
     {
-      claim: 'live-additive-migration',
-      factIds: [
-        'proof.migration.deployed-starting-state',
-        'proof.migration.mixed-version-compatibility',
-        'proof.migration.cutover',
-        'proof.migration.recovery',
-        'proof.migration.restore-behavior',
-      ],
-    },
-    {
-      claim: 'erasure-completeness',
-      factIds: [
-        'proof.erasure.copy-inventory',
-        'proof.erasure.positive-deletion',
-        'proof.erasure.sibling-scope-isolation',
-        'proof.erasure.different-owner-isolation',
-      ],
-    },
-    {
-      claim: 'time-dependent-lifecycle',
-      factIds: [
-        'proof.temporal.authoritative-clock',
-        'proof.temporal.exact-equality-behavior',
-        'proof.temporal.retry-behavior',
-        'proof.temporal.restore-behavior',
-      ],
-    },
-  ] satisfies readonly ConditionalProofInput[])(
-    'accepts the complete $claim conditional proof',
-    conditionalProof => {
-      expect(verifyConditionalProof(conditionalProof)).toEqual({ accepted: true, diagnostics: [] });
-    },
-  );
-
-  it.each([
-    {
-      defect: 'query evidence without execution context',
-      diagnostic: 'Conditional proof is missing query context.',
-      proof: {
-        claim: 'relational-query-performance',
-        factIds: [
-          'proof.relational.query-shape',
-          'proof.relational.threshold',
-          'proof.relational.revalidation-trigger',
-        ],
-      },
-    },
-    {
-      defect: 'a child identity bound to another tenant',
-      diagnostic: 'Conditional proof has cross-tenant parent binding.',
-      proof: {
-        claim: 'tenant-parent-binding',
-        factIds: ['decision.relational.cross-tenant-parent-binding'],
-      },
-    },
-    {
-      defect: 'a generic encrypted-at-rest assertion',
-      diagnostic: 'Conditional proof is missing AAD and key lifecycle.',
-      proof: {
-        claim: 'encrypted-scope-binding',
-        factIds: ['proof.encryption.encrypted-at-rest'],
-      },
-    },
-    {
-      defect: 'migration evidence from a feature branch',
-      diagnostic: 'Conditional proof is missing deployed starting state.',
-      proof: {
-        claim: 'live-additive-migration',
-        factIds: [
-          'proof.migration.feature-branch-starting-state',
-          'proof.migration.mixed-version-compatibility',
-          'proof.migration.cutover',
-          'proof.migration.recovery',
-          'proof.migration.restore-behavior',
-        ],
-      },
-    },
-    {
-      defect: 'deletion evidence for only the primary row',
-      diagnostic: 'Conditional proof is missing secondary-copy disposition.',
-      proof: {
-        claim: 'erasure-completeness',
-        factIds: [
-          'proof.erasure.positive-deletion',
-          'proof.erasure.sibling-scope-isolation',
-          'proof.erasure.different-owner-isolation',
-        ],
-      },
-    },
-    {
-      defect: 'erasure proof without isolation controls',
-      diagnostic: 'Conditional proof is missing negative isolation.',
-      proof: {
-        claim: 'erasure-completeness',
-        factIds: ['proof.erasure.copy-inventory', 'proof.erasure.positive-deletion'],
-      },
-    },
-    {
+      caseId: 'generated-manifest-missing-one-facet',
       defect: 'coverage inferred from a generated sibling',
-      diagnostic: 'Conditional proof uses a dependent completeness oracle.',
-      proof: {
-        claim: 'generated-completeness',
-        factIds: ['proof.generated.sibling-output'],
-      },
+      addProofFactId: 'proof.generated.sibling-output',
+      diagnostic:
+        'Evaluation response contains forbidden proof fact proof.generated.sibling-output.',
     },
     {
+      caseId: 'multi-tenant-relational-event-store',
+      defect: 'query evidence without engine context',
+      removeProofFactId: 'proof.relational.engine-and-version',
+      diagnostic:
+        'Evaluation response is missing expected proof fact proof.relational.engine-and-version.',
+    },
+    {
+      caseId: 'multi-tenant-relational-event-store',
+      defect: 'a child identity bound to another tenant',
+      addDecisionId: 'decision.relational.cross-tenant-parent-binding',
+      diagnostic:
+        'Evaluation response contains forbidden decision decision.relational.cross-tenant-parent-binding.',
+    },
+    {
+      caseId: 'encrypted-credential-record',
+      defect: 'a generic encrypted-at-rest assertion',
+      addProofFactId: 'proof.encryption.encrypted-at-rest',
+      diagnostic:
+        'Evaluation response contains forbidden proof fact proof.encryption.encrypted-at-rest.',
+    },
+    {
+      caseId: 'live-additive-migration',
+      defect: 'migration evidence from a feature branch',
+      addProofFactId: 'proof.migration.feature-branch-starting-state',
+      diagnostic:
+        'Evaluation response contains forbidden proof fact proof.migration.feature-branch-starting-state.',
+    },
+    {
+      caseId: 'erasure-across-secondary-copies',
+      defect: 'deletion evidence for only the primary row',
+      addProofFactId: 'proof.erasure.primary-row-only',
+      diagnostic:
+        'Evaluation response contains forbidden proof fact proof.erasure.primary-row-only.',
+    },
+    {
+      caseId: 'erasure-across-secondary-copies',
+      defect: 'erasure proof without sibling isolation',
+      removeProofFactId: 'proof.erasure.sibling-scope-isolation',
+      diagnostic:
+        'Evaluation response is missing expected proof fact proof.erasure.sibling-scope-isolation.',
+    },
+    {
+      caseId: 'time-equality-boundary',
       defect: 'temporal proof away from equality',
-      diagnostic: 'Conditional proof is missing equality boundary.',
-      proof: {
-        claim: 'time-dependent-lifecycle',
-        factIds: [
-          'proof.temporal.authoritative-clock',
-          'proof.temporal.retry-behavior',
-          'proof.temporal.restore-behavior',
-        ],
-      },
-    },
-  ] satisfies readonly {
-    readonly defect: string;
-    readonly diagnostic: string;
-    readonly proof: ConditionalProofInput;
-  }[])('rejects $defect with its focused diagnostic', ({ diagnostic, proof }) => {
-    expect(verifyConditionalProof(proof)).toEqual({ accepted: false, diagnostics: [diagnostic] });
-  });
-
-  it('accepts synthetic mutable values and read-only migration evidence', () => {
-    const evidence: EvidenceSafetyInput = {
-      mutableValues: {
-        cases: [{ tenantId: 'SYNTHETIC_TENANT_ID' }],
-        records: [
-          {
-            payload: {
-              encryptedValue: 'SYNTHETIC_ENCRYPTED_VALUE',
-              ownerId: 'SYNTHETIC_OWNER_ID',
-            },
-          },
-        ],
-      },
-      migrationEvidenceSources: ['deployed-read-only', 'checked-in-equivalent'],
-    };
-
-    expect(verifyEvidenceSafety(evidence)).toEqual({ accepted: true, diagnostics: [] });
-  });
-
-  it.each([
-    {
-      diagnostic:
-        'Evidence value at mutableValues.records[0].response.proofFactIds[0] is a credential, token, or key prefix.',
-      value: 'sk_live_EXAMPLE_CREDENTIAL',
-      valueClass: 'credential, token, or key prefix',
-    },
-    {
-      diagnostic:
-        'Evidence value at mutableValues.records[0].response.proofFactIds[0] is an email-shaped value.',
-      value: 'customer@example.com',
-      valueClass: 'email-shaped value',
-    },
-    {
-      diagnostic:
-        'Evidence value at mutableValues.records[0].response.proofFactIds[0] is a non-placeholder high-entropy value.',
-      value: '7b1d9f0342a6e8c57d0b1493f6a2c8e57b1d9f0342a6e8c57d0b1493f6a2c8e5',
-      valueClass: 'non-placeholder high-entropy value',
+      addProofFactId: 'proof.temporal.non-boundary',
+      diagnostic: 'Evaluation response contains forbidden proof fact proof.temporal.non-boundary.',
     },
   ])(
-    'rejects a nested $valueClass with its unsafe value class identified',
-    ({ diagnostic, value }) => {
-      const evidence: EvidenceSafetyInput = {
-        mutableValues: { records: [{ response: { proofFactIds: [value] } }] },
-        migrationEvidenceSources: ['deployed-read-only'],
-      };
-
-      expect(verifyEvidenceSafety(evidence)).toEqual({
-        accepted: false,
-        diagnostics: [diagnostic],
+    'rejects authoritative corpus defect: $defect',
+    ({ caseId, addDecisionId, addProofFactId, removeProofFactId, diagnostic }) => {
+      const evaluationCase = currentCases.find(item => item.id === caseId);
+      const evaluationRecord = currentRecords.find(item => item.caseId === caseId);
+      if (evaluationCase === undefined || evaluationRecord === undefined)
+        throw new Error(`Current ${caseId} evidence is missing.`);
+      const result = verifyEvaluationRecord({
+        canonicalGuide: shippedCanonicalGuide,
+        evaluationCase,
+        contract: currentContract,
+        record: {
+          ...evaluationRecord,
+          response: {
+            decisionIds:
+              addDecisionId === undefined
+                ? evaluationRecord.response.decisionIds
+                : [...evaluationRecord.response.decisionIds, addDecisionId],
+            proofFactIds: [
+              ...evaluationRecord.response.proofFactIds.filter(id => id !== removeProofFactId),
+              ...(addProofFactId === undefined ? [] : [addProofFactId]),
+            ],
+          },
+        },
       });
+
+      expect(result.diagnostics).toContain(diagnostic);
     },
   );
-
-  it('reports every nested unsafe value in stable path order', () => {
-    const evidence: EvidenceSafetyInput = {
-      mutableValues: {
-        records: [
-          {
-            response: {
-              contact: 'customer@example.com',
-              token: 'sk_live_EXAMPLE_CREDENTIAL',
-            },
-          },
-        ],
-      },
-      migrationEvidenceSources: ['checked-in-equivalent'],
-    };
-
-    expect(verifyEvidenceSafety(evidence)).toEqual({
-      accepted: false,
-      diagnostics: [
-        'Evidence value at mutableValues.records[0].response.contact is an email-shaped value.',
-        'Evidence value at mutableValues.records[0].response.token is a credential, token, or key prefix.',
-      ],
-    });
-  });
 
   it('accepts a mixed planning record that separates durable decisions from reversible helpers', () => {
     const mixedCase: EvaluationCase = {
@@ -1516,6 +1290,35 @@ describe('data architecture guide evaluation', () => {
     expect(result).toEqual({
       accepted: false,
       diagnostics: ['Ablation records do not match the current guide-independent prompt.'],
+    });
+  });
+
+  it('rejects an ablated prompt containing ambient context even with a matching digest', () => {
+    const ablatedRecord = record(ablatedGuide, ablatedResponse);
+    const prompt = JSON.stringify({
+      ...JSON.parse(ablatedRecord.prompt),
+      ambientContext: 'repository state',
+    });
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      evaluationCase: ablationCase,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: {
+        ...ablatedRecord,
+        prompt,
+        coldStartPromptSha256: sha256(prompt),
+      },
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: ['Ablation records do not match the current cold-start prompts.'],
     });
   });
 

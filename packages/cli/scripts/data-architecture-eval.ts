@@ -57,7 +57,12 @@ function adapterArgv(arguments_: readonly string[]): string[] {
   if (index === -1 || arguments_[index + 1] === undefined) {
     throw new Error('record requires --adapter followed by a structured command argv.');
   }
-  return arguments_.slice(index + 1);
+  const adapter = arguments_.slice(index + 1);
+  const misplacedFlag = adapter.find(argument => argument === '--guide' || argument === '--corpus');
+  if (misplacedFlag !== undefined) {
+    throw new Error(`${misplacedFlag} must appear before --adapter.`);
+  }
+  return adapter;
 }
 
 function isStringArray(value: unknown): value is string[] {
