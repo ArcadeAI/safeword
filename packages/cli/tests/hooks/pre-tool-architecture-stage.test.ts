@@ -34,11 +34,6 @@ describe('pre-tool architecture staging hook', () => {
   }
 
   function runHook(command: string): ReturnType<typeof spawnSync> {
-    symlinkSync(
-      nodePath.join(REPOSITORY_ROOT, 'packages'),
-      nodePath.join(directory, 'packages'),
-      'dir',
-    );
     return spawnSync('bun', [HOOK_PATH], {
       cwd: directory,
       encoding: 'utf8',
@@ -72,6 +67,7 @@ describe('pre-tool architecture staging hook', () => {
     execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: worktree });
     execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: worktree });
     mkdirSync(nodePath.join(worktree, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(worktree, '.safeword', 'config.json'), '{}\n');
     mkdirSync(nodePath.join(worktree, 'src', 'auth'), { recursive: true });
     mkdirSync(nodePath.join(worktree, 'src', 'billing'), { recursive: true });
     writeFileSync(nodePath.join(worktree, 'package.json'), JSON.stringify({ name: 'target' }));
@@ -94,6 +90,7 @@ describe('pre-tool architecture staging hook', () => {
     directory = createTemporaryDirectory();
     initGitRepo(directory);
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword', 'config.json'), '{}\n');
     mkdirSync(nodePath.join(directory, 'src', 'auth'), { recursive: true });
     mkdirSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'fixture' }));
@@ -104,6 +101,11 @@ describe('pre-tool architecture staging hook', () => {
     writeFileSync(
       nodePath.join(directory, 'src', 'billing', 'index.ts'),
       'export const billing = true;\n',
+    );
+    symlinkSync(
+      nodePath.join(REPOSITORY_ROOT, 'packages'),
+      nodePath.join(directory, 'packages'),
+      'dir',
     );
     selfHeal(directory);
     git('add', '-A');
@@ -372,6 +374,7 @@ describe('pre-tool architecture staging hook', () => {
       try {
         initGitRepo(targetDirectory);
         mkdirSync(nodePath.join(targetDirectory, '.safeword'), { recursive: true });
+        writeFileSync(nodePath.join(targetDirectory, '.safeword', 'config.json'), '{}\n');
         mkdirSync(nodePath.join(targetDirectory, 'src', 'auth'), { recursive: true });
         mkdirSync(nodePath.join(targetDirectory, 'src', 'billing'), { recursive: true });
         writeFileSync(
@@ -450,7 +453,7 @@ describe('pre-tool architecture staging hook', () => {
     ['a lint preflight', 'bun run lint && git commit -m "remove billing"'],
   ])('visibly declines architecture auto-staging for %s', (_label, command) => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook(command);
 
@@ -572,7 +575,7 @@ describe('pre-tool architecture staging hook', () => {
     ['a broad add from a subdirectory', 'cd src && git add -A'],
   ])('does not advise when %s restores a staged deletion to HEAD', (_label, stagingCommand) => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
     mkdirSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     writeFileSync(
       nodePath.join(directory, 'src', 'billing', 'index.ts'),
@@ -589,7 +592,7 @@ describe('pre-tool architecture staging hook', () => {
 
   it('advises when an unrelated add leaves a staged deletion intact', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
 
     const hook = runHook('bun run lint && git add README.md && git commit -m "remove billing"');
@@ -684,7 +687,7 @@ describe('pre-tool architecture staging hook', () => {
       expect(output.systemMessage).toContain('skipped architecture auto-staging');
       expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
     } finally {
-      rmSync(otherDirectory, { recursive: true, force: true });
+      removeTemporaryDirectory(otherDirectory);
     }
   });
 
@@ -1145,7 +1148,7 @@ git commit -m "text inside stdin"
     ],
   ])('does not treat a heredoc body with %s as an executable commit', (_label, command) => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook(command);
 
@@ -1159,7 +1162,7 @@ git commit -m "text inside stdin"
     'false && true && git commit -m "remove billing"',
   ])('does not inject guidance for a definitely short-circuited commit: %s', command => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook(command);
 
@@ -1171,7 +1174,7 @@ git commit -m "text inside stdin"
   it('does not inject Safeword guidance outside a Safeword project', () => {
     rmSync(nodePath.join(directory, '.safeword'), { recursive: true });
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook('git status --short && git commit -m "remove billing"');
 
@@ -1239,7 +1242,7 @@ git commit -m "text inside stdin"
     'does not mutate an already-staged tree for non-committing mode: %s',
     command => {
       rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-      git('add', '--', 'src/billing/index.ts');
+      git('add', '-u', '--', 'src/billing/index.ts');
 
       const hook = runHook(command);
 
@@ -1253,7 +1256,7 @@ git commit -m "text inside stdin"
 
   it('does not fall back to the real index when a projected git add fails', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
-    git('add', '--', 'src/billing/index.ts');
+    git('add', '-u', '--', 'src/billing/index.ts');
 
     const hook = runHook(
       'git add --pathspec-from-file=missing-pathspec && git commit -m "remove billing"',
