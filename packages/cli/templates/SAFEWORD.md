@@ -210,7 +210,7 @@ Read the matching guide when its trigger fires:
 Safeword runs hooks each turn to track your phase and TDD step. Four gates hard-block:
 
 - **Phase gate** — can't start TDD without `test-definitions.md`; can't create `test-definitions.md` without `scope` / `out_of_scope` / `done_when` in ticket frontmatter.
-- **Plan gate** — a new-flow feature can't enter `implement` without a valid `impl-plan.md` (authored during the plan-implementation phase, status `planned`), and can't reach `verify`/`done` until the plan is reconciled to `implemented`.
+- **Planning gates** — a new-flow feature can't enter `plan-execution` without a current reviewed Implementation Plan, or enter `implement` without a current reviewed Execution Plan. It can't reach `verify`/`done` until the Implementation Plan is reconciled to `implemented`.
 - **LOC gate** — commit every ~400 lines of project code (blast-radius control).
 - **Done gate** — can't close a ticket without `verify.md` in the ticket folder.
 

@@ -1063,10 +1063,10 @@ if (isCanonicalTicketEdit) {
   }
 }
 
-// Implement-entry plan gate (TXRHMD, #480) — ALWAYS-ON. A new-flow feature
-// enters implement only with a valid impl-plan.md (status planned), authored
-// during the plan-implementation phase. Ordered after provenance/readiness so
-// "wrong step" is reported before "plan not ready".
+// Implement-entry planning gates (TXRHMD, #480; 7CAMAD) — ALWAYS-ON. The
+// Implementation Plan must remain valid, and contracted new-flow features also
+// require current Execution Plan authorization. Ordered after
+// provenance/readiness so "wrong step" is reported before "plan not ready".
 if (isCanonicalTicketEdit) {
   const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext();
 

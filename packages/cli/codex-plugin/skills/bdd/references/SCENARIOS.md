@@ -215,7 +215,7 @@ Run this completeness check only if review edits scenarios or surfaces an unreso
    ready to distill. If the user declines, proceed directly to the next item.
    If no eligible risk exists, continue without offering `$safeword:spike` and update
    frontmatter directly to `phase: plan-implementation` in the next item.
-5. **Update frontmatter:** `phase: plan-implementation` — implementation design (the impl-plan, proof plan, build order, ADR work) happens there; see `PLAN_IMPLEMENTATION.md`.
+5. **Update frontmatter:** `phase: plan-implementation` — implementation design (the accepted approach, proof boundaries, and any durable architecture records) happens there; see `PLAN_IMPLEMENTATION.md`. Execution Planning owns concrete build and proof order.
 6. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
 
 ### Optional: codify the scenarios

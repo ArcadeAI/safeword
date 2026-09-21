@@ -1,6 +1,9 @@
 # Implement: Outside-in TDD
 
-**Entry:** Agent enters `implement` phase. The ticket's `impl-plan.md` (authored during the `plan-implementation` phase, status `planned`) is the design record for this phase — follow its Approach section's proof plan and build order. Begin TDD for the first unchecked scenario.
+**Entry:** Agent enters `implement` only after the current `execution-plan.md` passes its
+`plan-execution` review. Follow that plan's dependency order, exact proof work, and first startable
+step; use `impl-plan.md` as the accepted design authority. Begin TDD for the first unchecked
+scenario without inventing a new behavior-shaping decision.
 
 ## Harness availability check (entry)
 

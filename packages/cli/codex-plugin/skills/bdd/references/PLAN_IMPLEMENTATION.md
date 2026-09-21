@@ -312,7 +312,7 @@ required` and advances autonomously. When the gate is enabled in an
    plan digest; add a short narrative line (riskiest assumption, slice count,
    ADRs emitted) only when it adds useful context.
 
-**Splitting checkpoint:** the build order is where task counts materialize — run SPLITTING.md's plan-implementation checkpoint before starting TDD (its table owns the split trigger and the children-restart rule).
+**Splitting checkpoint:** Execution Planning turns the accepted approach into tasks and independently reviewable pull-request slices. Do not start TDD directly from this plan.
 
 **Voice:** plainspoken and concise — write to be scanned.
 
