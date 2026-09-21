@@ -97,7 +97,7 @@ results without calling a model.
 ```typescript
 function buildColdStartPrompt(guide: string, evaluationCase: EvaluationCase): string;
 function verifyEvaluationCorpus(root: string): VerificationReport;
-function deriveGuideAblation(guide: string, transformName: string): string;
+function deriveNamedAblation(guide: string, transformName: string): string;
 ```
 
 **Dependencies:** Structured argv subprocess execution, an empty temporary working directory, the

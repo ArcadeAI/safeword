@@ -2,7 +2,7 @@
   "ablationId": "independent-proof",
   "caseId": "generated-manifest-missing-one-facet",
   "record": {
-    "guideSha256": "aa096c0a5030669fb931b08affb28b8f6f19875ffc98fd215e24428401efbbc6",
+    "guideSha256": "a1831325257a284bd357e4d69020690cac103ba308bb9934947c5f50f2526f07",
     "caseRubricSha256": "e7cccdd76c29bab2b791e6861b45425f5862b94010f889be9bbf583bbb78b9b6",
     "promptSha256": "c037224a476eaf600ad706fd01692d695d127b9fda0ef62f16c7b5748a52ba8e",
     "modelVersion": "claude-opus-5",
@@ -21,7 +21,12 @@
         "decision.core.independent-proof",
         "decision.generated.source"
       ],
-      "proofFactIds": ["proof.independent.exact-set-oracle"]
+      "proofFactIds": [
+        "proof.independent.exact-set-oracle",
+        "proof.independent.oracle-independence",
+        "proof.independent.missing-facet-detection",
+        "proof.independent.unexpected-facet-detection"
+      ]
     }
   }
 }

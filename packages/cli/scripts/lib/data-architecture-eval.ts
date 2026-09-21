@@ -761,9 +761,26 @@ function ablationDiagnostics(input: AblationPairInput): string[] {
   if (removedContent.trim().length === 0 || derivedAblation === input.canonicalGuide) {
     return [`Named ${input.ablationId} transform does not change the canonical guide.`];
   }
-  return derivedAblation === input.storedAblatedGuide
-    ? []
-    : [`Stored ablated guide does not match the ${input.ablationId} transform.`];
+  const diagnostics =
+    derivedAblation === input.storedAblatedGuide
+      ? []
+      : [`Stored ablated guide does not match the ${input.ablationId} transform.`];
+  const attributableIds = [
+    ...input.attributableDecisionIds.filter(
+      decisionId => !input.preservedDecisionIds.includes(decisionId),
+    ),
+    ...input.attributableProofFactIds,
+  ];
+  for (const id of attributableIds) {
+    const label = `[${id}]`;
+    if (!removedContent.includes(label)) {
+      diagnostics.push(`Ablation attribution ID ${id} is not defined in the removed guidance.`);
+    }
+    if (derivedAblation.includes(label)) {
+      diagnostics.push(`Ablation attribution ID ${id} survives the named transform.`);
+    }
+  }
+  return diagnostics;
 }
 
 function bindingDiagnostics(input: AblationPairInput): string[] {

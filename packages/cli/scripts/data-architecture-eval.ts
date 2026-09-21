@@ -143,7 +143,7 @@ function record(arguments_: readonly string[]): void {
     return evaluationRecord;
   });
   const recordsPath = nodePath.join(input.corpusDirectory, 'records.json');
-  const safety = verifyEvaluationCorpusSafety({ cases: input.cases, records });
+  const safety = verifyEvaluationCorpusSafety({ cases: input.cases });
   if (!safety.accepted) throw new Error(safety.diagnostics.join('\n'));
   const pendingWrites: { path: string; value: unknown }[] = [{ path: recordsPath, value: records }];
 
@@ -212,7 +212,7 @@ function verify(arguments_: readonly string[]): void {
     contract: input.contract,
     records,
   });
-  const safety = verifyEvaluationCorpusSafety({ cases: input.cases, records });
+  const safety = verifyEvaluationCorpusSafety({ cases: input.cases });
   const diagnostics = [...result.diagnostics, ...safety.diagnostics];
   const ablationConfig = input.contract.ablation;
   if (ablationConfig !== undefined) {

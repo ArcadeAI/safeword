@@ -34,7 +34,7 @@ const guide = [
   '# Data architecture',
   '## Independent proof [decision.core.independent-proof]',
   '<!-- data-architecture-ablation:independent-proof:start -->',
-  'Every completeness claim names an oracle independent of the mechanism under test.',
+  'Every completeness claim names an oracle independent of the mechanism under test [proof.generated.independent-inventory].',
   '<!-- data-architecture-ablation:independent-proof:end -->',
 ].join('\n');
 const ablatedGuide = [
@@ -846,7 +846,7 @@ describe('data architecture guide evaluation', () => {
   });
 
   it('safety-checks the current authored corpus', () => {
-    expect(verifyEvaluationCorpusSafety({ cases: currentCases, records: currentRecords })).toEqual({
+    expect(verifyEvaluationCorpusSafety({ cases: currentCases })).toEqual({
       accepted: true,
       diagnostics: [],
     });
@@ -973,7 +973,7 @@ describe('data architecture guide evaluation', () => {
     const corpus = corpusFixture();
     const firstCase = corpus.cases[0];
     if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
-    expect(verifyEvaluationCorpusSafety({ cases: corpus.cases, records: corpus.records })).toEqual({
+    expect(verifyEvaluationCorpusSafety({ cases: corpus.cases })).toEqual({
       accepted: true,
       diagnostics: [],
     });
@@ -985,7 +985,6 @@ describe('data architecture guide evaluation', () => {
             text: 'Use token github_pat_12345678901234567890123456789012.',
           },
         ],
-        records: [],
       }),
     ).toEqual({
       accepted: false,
@@ -1998,7 +1997,7 @@ describe('data architecture guide evaluation', () => {
       '## Independent proof',
       '<!-- data-architecture-ablation:independent-proof:start -->',
       '[decision.core.independent-proof]',
-      'Every completeness claim names an independent oracle.',
+      'Every completeness claim names an independent oracle [proof.generated.independent-inventory].',
       '<!-- data-architecture-ablation:independent-proof:end -->',
     ].join('\n');
     const labelRemovingAblation = [
@@ -2023,6 +2022,44 @@ describe('data architecture guide evaluation', () => {
     expect(result).toEqual({
       accepted: false,
       diagnostics: ['Ablation does not preserve decision label decision.core.independent-proof.'],
+    });
+  });
+
+  it('rejects an attribution ID outside the removed guidance', () => {
+    const misplacedAttributionGuide = [
+      '# Data architecture',
+      '## Independent proof [decision.core.independent-proof]',
+      '[proof.generated.independent-inventory]',
+      '<!-- data-architecture-ablation:independent-proof:start -->',
+      'Every completeness claim names an independent oracle.',
+      '<!-- data-architecture-ablation:independent-proof:end -->',
+    ].join('\n');
+    const misplacedAttributionAblation = [
+      '# Data architecture',
+      '## Independent proof [decision.core.independent-proof]',
+      '[proof.generated.independent-inventory]',
+      '<!-- data-architecture-ablation:independent-proof:start -->',
+      '<!-- data-architecture-ablation:independent-proof:end -->',
+    ].join('\n');
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: misplacedAttributionGuide,
+      evaluationCase: ablationCase,
+      storedAblatedGuide: misplacedAttributionAblation,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: [],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
+      rubric,
+      fullGuideRecord: record(misplacedAttributionGuide, fullResponse),
+      ablatedGuideRecord: record(misplacedAttributionAblation, ablatedResponse),
+    });
+
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: [
+        'Ablation attribution ID proof.generated.independent-inventory is not defined in the removed guidance.',
+        'Ablation attribution ID proof.generated.independent-inventory survives the named transform.',
+      ],
     });
   });
 
