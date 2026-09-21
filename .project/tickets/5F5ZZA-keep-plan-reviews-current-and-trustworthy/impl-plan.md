@@ -20,7 +20,8 @@ or a typed missing-role error. The projector produces a
 versioned `PlanningReviewIdentity` containing ticket and review kind, target-plan
 identity, semantic canonical-contract digest, and an ordered role/path/semantic-
 digest entry for every dependency. The ticket projection explicitly retains
-scope, exclusions, and versioned user-owned review dispositions. The parent/spec
+scope, exclusions, and versioned user-owned review dispositions matching the
+current review kind. The parent/spec
 projection explicitly retains inherited parent boundaries. The project
 projection retains the owning Product Plan's `Project non-goals` field—resolved
 from the declared parent Product Plan for a child and from the target Product
@@ -101,9 +102,12 @@ authenticated warning/info finding after explicit user direction; it performs
 a compare-and-swap against the exact `ticket.md` bytes under the Data
 applicability boundary below. Recording,
 editing, or removing the disposition changes the ticket semantic projection,
-stales dependent approval, and sends the unchanged plan through fresh review
-with the decline in context. This reuses the ticket as accepted-boundary state;
-it does not widen scope or add another store.
+but the projector includes only dispositions whose recorded review kind matches
+the review being prepared. A disposition therefore stales only that kind's
+receipt and sends the unchanged plan through fresh same-kind review with the
+decline in context; other phase receipts remain current because neither accepted
+scope nor a plan decision changed. This reuses the ticket as accepted-boundary
+state; it does not widen scope or add another store.
 
 User direction is a structural boundary: the typed command presents the exact
 authenticated finding, boundary digest, and proposed reason in an interactive
@@ -157,7 +161,7 @@ evidence cannot rewrite the plan under review.
 | R10-R11: each phase contract asks and approves only its own decision, with bounded findings and fresh-byte repair | fixed-rubric judged review plus real phase-gate corrected-byte/fresh-verdict integration | integration + eval | semantic finding authority needs judgment while receipt currency is deterministic | the eval remains model-dependent; exact-byte integration cannot judge finding quality |
 | R12-R15: accepted boundaries include all authorities and reject both omissions and overreach without granting guidance authority | resolved-boundary packet plus fixed-rubric judged review | integration + eval | integration proves complete context; eval proves bidirectional scope judgment | no proof can invent unavailable human authority; unresolved choices remain blocked |
 | R14 disposition command: a user decline is explicit, durable, and currency-bearing without widening scope | real pseudo-terminal CLI through ticket write, fresh packet, and phase admission | integration | proves interactive confirmation/refusal/no-input behavior, lock and digest checks, atomic write, accepted-boundary matching, and disposition-to-stale/fresh-review linkage through the public entry point | cooperating-writer proof does not claim protection from an out-of-band writer that ignores the lock |
-| R16: Product Plan review covers persona outcomes and epistemic status before scenario coverage | real Product Plan review entry point with fixed-rubric judged fixtures | integration + eval | proves installed wiring and semantic completeness | scenario quality remains separately owned by scenario-gate review |
+| R16: Product Plan review inventories persona outcomes and epistemic status, then scenario review proves every applicable outcome has coverage | real Product Plan and scenario-gate review entry points with fixed-rubric judged fixtures | integration + eval | proves the Product gate inventories outcomes and the separate scenario gate maps each applicable inventory item to at least one accepted scenario | semantic mapping remains judge-dependent, so fixed pass/fail fixtures and repeated agreement are required |
 
 Every judged-eval row above uses the same pinned judge identity and exact rubric
 bytes, deterministic sampling settings, and a recorded repeated-run agreement
@@ -184,7 +188,7 @@ Every new public or lifecycle entry point receives a real wiring proof: CLI conf
 4. Generate shared planning clauses from one source and retain phase-specific author/reviewer rubrics and bounded approval meanings.
 5. Carry the existing untrusted-evidence quarantine into planning review packets and add the R7 evidence-record fields and disclosure/execution refusals before judged evaluation.
 6. Add the user-owned ticket disposition command and bind dispositions to the ticket projection before enforcing optional-strengthening behavior.
-7. Enforce finding authority, accepted-boundary completeness, and Product Plan persona/epistemic completeness in the judged rubrics and installed entry points.
+7. Enforce finding authority, accepted-boundary completeness, Product Plan persona/epistemic completeness, and separate persona-outcome-to-scenario coverage in the judged rubrics and installed entry points.
 8. Run the pinned reviewer-capability corpus, generate only supported packaged ranks with full provenance, and make release verification reject an unsupported default cross-vendor pair.
 9. Reconcile all host guidance and update the configured customer documentation surfaces.
 
@@ -243,7 +247,10 @@ inside the reviewer's verdict is not verified. Reviewer output can never
 upgrade this coordinator-observed provenance. An absent, unverified, or
 unrankable identifier fails closed with `reviewer_capability_unknown` and
 cannot earn cross-agent independence. A strictly lower verified rank returns
-`reviewer_capability_weaker`.
+`reviewer_capability_weaker` during route selection and is not launched as an
+independent reviewer. Adapter confirmation after launch still proves that an
+eligible requested selector was actually honored; a mismatch returns an
+unknown-capability failure and creates no receipt.
 Host capability is explicit rather than inferred. Claude Code's trusted
 SessionStart model field can establish an exact author model. The current Codex,
 Cursor, and OpenCode lifecycle contracts do not expose a trusted exact author
@@ -315,6 +322,17 @@ must name the exact policy edit or supported-host action before activation.
 The Product Plan review gate sits at the Product Plan's exit from `intake`,
 before `define-behavior` and scenario-quality review. It admits only the bounded
 behavior decision; it does not approve scenarios, design, execution, or release.
+
+The Product Plan rubric emits the accepted persona-outcome inventory already
+required by its contract: persona identity, outcome class, applicability, and
+the stated reason for every inapplicable class. Scenario review receives that
+inventory with the accepted scenarios and performs a separate judged mapping
+from every applicable outcome to at least one scenario. An uncovered outcome is
+a blocking scenario-review finding that names the persona and outcome class;
+Product Plan approval alone cannot clear it. The mapping is review evidence in
+the existing scenario-gate result, not a new persistent authority or structural
+tag scheme. Fixed pass/fail judged fixtures plus real installed scenario-gate
+dispatch prove both the semantic mapping and its wiring.
 
 Measurement applicability: skip: this child's accepted contribution carries no
 quantitative product promise. The capability corpus is an internal release gate,
@@ -406,9 +424,9 @@ digest, and rank.
 | Extend the existing coordinator and review ledger instead of creating a second planning-review subsystem. | One resolver feeds packet construction, job fingerprinting, status, stamps, and phase admission. | Validate only in hooks; add a new planning receipt store. | Hook-only checks drift by host. A second store would split authority and duplicate integrity, concurrency, and fallback behavior already present. |
 | Author shared planning clauses once and generate exact marked copies while keeping phase-only judgment separate. | One canonical shared-clause source generates Product, Implementation, and Execution contract mirrors; each phase owns its distinct rubric. | Duplicate prose with parity tests; collapse all phases into one rubric. | Duplicate prose remains two authorities even if tested. One rubric would erase the different behavior/design/delivery approval meanings. |
 | Treat semantic projection as a closed domain model, not generic Markdown normalization. | Parse named contract fields and role-specific sections into typed values; sort only unordered sets and preserve meaningful order. | Strip comments and whitespace from every file generically. | Generic normalization can erase meaningful Gherkin/doc structure or preserve unrelated inventory, creating false-current or false-stale receipts. |
-| Record a user-declined optional strengthening in ticket context. | Add a versioned `review_dispositions` ticket field written from an authenticated nonblocking finding after explicit user direction; include it in the semantic ticket projection so the unchanged plan receives fresh review. | Append a new review-ledger event; create a separate disposition store; keep the decline only in session/reviewer output. | The ledger would gain authority beyond phase-admission claims; another store adds integrity and concurrency machinery; ephemeral output cannot preserve the accepted decline across sessions. |
+| Record a user-declined optional strengthening in ticket context. | Add a versioned `review_dispositions` ticket field written from an authenticated nonblocking finding after explicit user direction; include only matching-review-kind dispositions in that phase's semantic ticket projection so the unchanged plan receives fresh same-kind review without staling unrelated phase receipts. | Append a new review-ledger event; create a separate disposition store; project every disposition into every review kind; keep the decline only in session/reviewer output. | The ledger would gain authority beyond phase-admission claims; another store adds integrity and concurrency machinery; whole-field projection creates unrelated rereviews; ephemeral output cannot preserve the accepted decline across sessions. |
 | Classify reviewer capability from explicit versioned ranks and fail closed when comparison is unavailable. | Compare verified exact author/reviewer model identifiers through a predeclared eval-backed packaged catalogue plus exact-model project/user overlays; require reviewer rank greater than or equal to author rank. | Infer capability from vendor/agent identity; treat unknown models as equivalent; require users to configure every comparison; assign undocumented maintainer integers; use aggregate score alone. | Agent identity does not establish model strength; permissive unknowns overstate assurance; configuration-only ranking breaks the fire-and-forget default for known supported models; undocumented integers are not auditable; an aggregate-only bar can hide a regression on a planning failure the author reliably catches. |
-| Permit authenticated reduced-independence receipts only after stronger routes are exhausted. | Use tier-bound continuations over the immutable packet and seal the actual reviewer/tier in the existing job store; policy may admit approval as `reduced`, never cross-agent. | Preserve non-stamping host fallback; call fallback independent; let hosts write ledger stamps directly. | Non-stamping fallback cannot satisfy accepted R6 recovery; calling it independent fabricates assurance; direct host stamps bypass coordinator authentication and packet identity. |
+| Admit authenticated reduced-independence receipts without discarding stronger completed evidence. | Under `prefer`, admit a successful different-agent, separate-process review immediately as `reduced` when author capability is unknown; only route failures descend through same-agent fallback after every stronger configured route is exhausted. Seal the actual reviewer, route, reason, and tier in the existing job store; no reduced receipt is labeled cross-agent. | Discard successful different-agent evidence and force fallback; preserve non-stamping host fallback; call fallback independent; let hosts write ledger stamps directly. | Discarding a stronger completed review wastes evidence and work; non-stamping fallback cannot satisfy accepted R6 recovery; calling it independent fabricates assurance; direct host stamps bypass coordinator authentication and packet identity. |
 
 The recommendation is the typed semantic projection because it is the only candidate that satisfies both sides of R4. Whole-packet hashing is safer than under-invalidation but contradicts the accepted cosmetic-stability behavior; a persisted dependency graph is flexible but moves complexity into schema and migration the ticket does not need. **Premortem:** six months from now a new accepted field is not represented and a stale approval remains current; mitigation is a closed role enum, fail-closed unknown structures, paired retained/invalidating mutation tests, and one resolver used by dispatch and admission.
 
@@ -421,9 +439,9 @@ Data applicability: review provenance and user-owned review dispositions are dur
 - **Schema and relationships:** one review identity belongs to one review job and contains one phase-specific target-plan identity, one semantic contract digest, and ordered role/path/semantic-digest dependencies. Each evidence record belongs to the verdict that produced it. Each ticket disposition cites one authenticated review kind and finding fingerprint plus the accepted-boundary digest it was judged against. A stamp references one job by ID and phase scope; generated-copy digests are recomputed conformance inputs, not currency fields.
 - **Source of truth:** captured plan and resolved project files are review inputs; the coordinator job record is the source of provenance and reviewer-produced evidence records; the ticket is the source of user-owned decline dispositions; the ledger is the source of phase-admission claims. No host-authored duplicate becomes authority.
 - **Ownership and access:** the coordinator writes job identity and evidence records; the stamp helper writes admission claims after authenticating that job; the user is the change authority for ticket dispositions and the typed CLI records one only after explicit user direction against an authenticated nonblocking finding. External reviewers receive bounded snapshots but never write authority files.
-- **Identity and integrity:** SHA-256 covers exact Product/Implementation bytes or the trusted normalized Execution identity, plus canonical semantic contract and context projections including ticket dispositions. Existing job integrity covers identity, verdict, and evidence records. Evidence records are outputs and do not affect the identity of the review that produced them; if reused later, their semantic projection becomes an input dependency. A separate SHA-256 comparison requires every generated copy to match canonical bytes. Review kind and ticket identity prevent cross-kind and cross-ticket reuse.
-- **Cross-system flow:** project sources and prior reusable evidence → resolver/projector → neutral packet → external verdict and evidence records → authenticated job → ledger stamp → phase admission. A user decline flows from an authenticated nonblocking finding → typed ticket disposition command → atomic ticket update → stale dependent receipt → fresh review of the unchanged plan.
-- **Lifecycle and retention:** use existing ticket, review-job, and ledger retention. Source or disposition changes recompute identity and make the earlier receipt non-current; evidence records remain with their verdict and declare reuse limits before later use. No automatic deletion or compaction is added.
+- **Identity and integrity:** SHA-256 covers exact Product/Implementation bytes or the trusted normalized Execution identity, plus canonical semantic contract and context projections including only ticket dispositions matching the current review kind. Existing job integrity covers identity, verdict, and evidence records. Evidence records are outputs and do not affect the identity of the review that produced them; if reused later, their semantic projection becomes an input dependency. A separate SHA-256 comparison requires every generated copy to match canonical bytes. Review kind and ticket identity prevent cross-kind and cross-ticket reuse.
+- **Cross-system flow:** project sources and prior reusable evidence → resolver/projector → neutral packet → external verdict and evidence records → authenticated job → ledger stamp → phase admission. A user decline flows from an authenticated nonblocking finding → typed ticket disposition command → atomic ticket update → stale matching-kind receipt → fresh same-kind review of the unchanged plan.
+- **Lifecycle and retention:** use existing ticket, review-job, and ledger retention. Source changes stale their declared dependents; disposition changes recompute only matching-kind identity and make that receipt non-current. Evidence records remain with their verdict and declare reuse limits before later use. No automatic deletion or compaction is added.
 - **Migration and backfill:** skip: the ticket excludes migration policy and adds no backfill. Existing receipts are preserved; they authorize only when the active admission reader can authenticate them and recompute the current required identity.
 - **Compliance:** packets retain the existing credential scan, size/containment checks, and prohibition on customer data, secrets, and private context sent for external research. Review dispatch follows the user's configured coordinator policy.
 - **Rollback:** reverting the feature leaves records intact. Unknown job-result and ticket fields stay authority-inert under older readers, and no rollback path rewrites or deletes ticket or ledger history.
@@ -510,6 +528,14 @@ authority, accepted this child partition through scenario-gate; any broader
 repair to the parent wording remains owned by 82T411. Ticket/parent/milestone
 boundaries, accepted behavior, and the canonical Execution contract remain
 direct inputs.
+The child R2 partition also narrows inherited TBU4.R4 for Product Plan review:
+accepted scenarios and downstream design guidance are not yet available at the
+Product Plan exit, so that phase directly reviews the ticket/project/parent/
+milestone boundary, Rules and epistemic state, principles, personas, affected
+surfaces, exact Product Plan, and canonical Product contract. Scenario coverage
+is enforced later by the separate scenario gate described above. This accepted
+child partition prevents a predecessor phase from requiring its own downstream
+output while preserving the parent's completeness intent.
 
 ## Doc impact
 
