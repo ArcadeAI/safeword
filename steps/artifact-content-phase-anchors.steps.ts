@@ -486,6 +486,17 @@ When('the at-rest anchor advisory inspects it', function (this: AnchorWorld) {
   this.verdict = runDetector(this, content, 'state');
 });
 
+When('safeword check runs on the project', function (this: AnchorWorld) {
+  const result = spawnSync('bun', [CLI, 'check', '--agents', 'none', '--offline'], {
+    cwd: this.dir,
+    encoding: 'utf8',
+  });
+  this.cli = {
+    exitCode: result.status ?? 1,
+    output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim(),
+  };
+});
+
 // ---------------------------------------------------------------------------
 // Predicate lane — Thens
 // ---------------------------------------------------------------------------
@@ -701,6 +712,19 @@ Given(
     );
     git(dir, 'add -A');
     unlinkSync(nodePath.join(dir, FEATURE_SRC));
+  },
+);
+
+Given(
+  'a Safeword project with a feature ticket at rest at phase implement and no implement anchor',
+  function (this: AnchorWorld) {
+    const dir = createProject(this);
+    const setup = spawnSync('bun', [CLI, 'setup', '--yes', '--agents', 'none'], {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+    assert.equal(setup.status, 0, `${setup.stdout ?? ''}\n${setup.stderr ?? ''}`.trim());
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'implement'));
   },
 );
 
@@ -1037,6 +1061,14 @@ Then('it exits zero and warns that the anchor is not repo-relative', function (t
   assert.equal(this.cli?.exitCode, 0);
   assert.match(this.cli?.output ?? '', /repo-relative/i);
 });
+
+Then(
+  'safeword check advises the expected path-shaped anchor line for implement',
+  function (this: AnchorWorld) {
+    assert.ok(this.cli, 'safeword check did not run');
+    assert.match(this.cli?.output ?? '', /- implement: <ticket-folder>\/execution-plan\.md/);
+  },
+);
 
 Then(
   'it exits zero and warns with the expected path-shaped anchor line',

@@ -275,9 +275,9 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
 
     @artifact-content-phase-anchors.SM1.R3
     Scenario: The at-rest advisory nudges a missing anchor with the path grammar
-      Given a feature ticket at rest at phase implement with no phase_anchors entry for implement
-      When the at-rest anchor advisory inspects it
-      Then the finding names the expected anchor line for implement
+      Given a Safeword project with a feature ticket at rest at phase implement and no implement anchor
+      When safeword check runs on the project
+      Then safeword check advises the expected path-shaped anchor line for implement
 
   Rule: Legacy SHA anchors neither warn at rest nor block new work
 
