@@ -10,6 +10,7 @@ import {
   buildColdStartPrompt,
   buildGuideIndependentPrompt,
   type ConditionalProofInput,
+  createEvaluationRecord,
   type EvaluationCase,
   type EvaluationContract,
   type EvaluationCorpusInput,
@@ -118,10 +119,13 @@ function record(
   response: EvaluationResponse,
   overrides: Partial<AblationRecord> = {},
 ): AblationRecord {
+  const prompt = buildColdStartPrompt(guideContent, ablationCase);
   return {
     guideSha256: sha256(guideContent),
     caseRubricSha256: sha256(canonicalRubricJson(rubric)),
     promptSha256: sharedPromptSha256,
+    prompt,
+    coldStartPromptSha256: sha256(prompt),
     modelVersion: 'controlled-model-v1',
     decodingConfiguration: { temperature: 0, topP: 1 },
     responseFormat: 'data-architecture-eval-v1',
@@ -146,356 +150,31 @@ const universalDecisionIds = [
   'decision.core.lifecycle',
 ] as const;
 
-interface RepresentativeCaseFixture {
-  readonly decisions: readonly string[];
-  readonly forbiddenDecisions?: readonly string[];
-  readonly forbiddenProofs?: readonly string[];
-  readonly id: string;
-  readonly proofs: readonly string[];
-  readonly text: string;
-}
-
-const representativeCases: readonly RepresentativeCaseFixture[] = [
-  {
-    id: 'simple-key-value-preference',
-    text: 'Plan a user-scoped key-value preference with no conditional data risks.',
-    decisions: [...universalDecisionIds],
-    proofs: [],
-  },
-  {
-    id: 'multi-tenant-relational-event-store',
-    text: 'Plan a multi-tenant relational event store with live migration and erasure.',
-    decisions: [
-      ...universalDecisionIds,
-      'decision.relational.physical-schema',
-      'decision.relational.query-contract',
-      'decision.migration.deployed-state',
-      'decision.migration.compatibility',
-      'decision.migration.cutover-and-recovery',
-      'decision.erasure.copy-disposition',
-      'decision.erasure.isolation',
-    ],
-    forbiddenDecisions: ['decision.relational.cross-tenant-parent-binding'],
-    forbiddenProofs: ['proof.relational.self-generated-coverage'],
-    proofs: [
-      'proof.relational.engine-and-version',
-      'proof.relational.representative-data-shape',
-      'proof.relational.query-shape',
-      'proof.relational.threshold',
-      'proof.relational.revalidation-trigger',
-      'proof.migration.deployed-starting-state',
-      'proof.migration.mixed-version-compatibility',
-      'proof.migration.cutover',
-      'proof.migration.recovery',
-      'proof.migration.restore-behavior',
-      'proof.erasure.copy-inventory',
-      'proof.erasure.positive-deletion',
-      'proof.erasure.sibling-scope-isolation',
-      'proof.erasure.different-owner-isolation',
-    ],
-  },
-  {
-    id: 'encrypted-credential-record',
-    text: 'Plan an encrypted credential record with identity-bound AAD and key rotation.',
-    decisions: [
-      ...universalDecisionIds,
-      'decision.encryption.representation',
-      'decision.encryption.aad-binding',
-      'decision.encryption.key-lifecycle',
-    ],
-    proofs: [
-      'proof.encryption.canonical-aad-identity',
-      'proof.encryption.scope-mutation-failure',
-      'proof.encryption.key-dependency-rotation-coverage',
-    ],
-  },
-  {
-    id: 'live-additive-migration',
-    text: 'Plan a live additive migration from a deployed mixed-version starting state.',
-    decisions: [
-      ...universalDecisionIds,
-      'decision.migration.deployed-state',
-      'decision.migration.compatibility',
-      'decision.migration.cutover-and-recovery',
-    ],
-    proofs: [
-      'proof.migration.deployed-starting-state',
-      'proof.migration.mixed-version-compatibility',
-      'proof.migration.cutover',
-      'proof.migration.recovery',
-      'proof.migration.restore-behavior',
-    ],
-  },
-  {
-    id: 'generated-manifest-missing-one-facet',
-    text: 'Prove a generated manifest covers every independently intended facet.',
-    decisions: [
-      ...universalDecisionIds,
-      'decision.generated.source',
-      'decision.core.independent-proof',
-    ],
-    proofs: ['proof.generated.independent-inventory'],
-  },
-  {
-    id: 'erasure-across-secondary-copies',
-    text: 'Plan erasure across primary and secondary copies with isolation controls.',
-    decisions: [
-      ...universalDecisionIds,
-      'decision.erasure.copy-disposition',
-      'decision.erasure.isolation',
-    ],
-    proofs: [
-      'proof.erasure.copy-inventory',
-      'proof.erasure.positive-deletion',
-      'proof.erasure.sibling-scope-isolation',
-      'proof.erasure.different-owner-isolation',
-    ],
-  },
-  {
-    id: 'time-equality-boundary',
-    text: 'Plan expiry behavior at exact clock equality and delayed physical deletion.',
-    decisions: [
-      ...universalDecisionIds,
-      'decision.temporal.clock-boundary',
-      'decision.temporal.deletion-lag',
-      'decision.erasure.copy-disposition',
-      'decision.erasure.isolation',
-    ],
-    proofs: [
-      'proof.temporal.authoritative-clock',
-      'proof.temporal.exact-equality-behavior',
-      'proof.temporal.retry-behavior',
-      'proof.temporal.restore-behavior',
-      'proof.erasure.copy-inventory',
-      'proof.erasure.positive-deletion',
-      'proof.erasure.sibling-scope-isolation',
-      'proof.erasure.different-owner-isolation',
-    ],
-  },
-  {
-    id: 'mixed-decision-routing',
-    text: 'Route durable identity and lifecycle separately from reversible helpers.',
-    decisions: [
-      'decision.routing.identity-architecture',
-      'decision.routing.lifecycle-architecture',
-      'decision.routing.helper-implementation',
-      'decision.routing.control-flow-implementation',
-    ],
-    forbiddenDecisions: [
-      'decision.routing.identity-implementation-only',
-      'decision.routing.helper-architecture',
-    ],
-    forbiddenProofs: ['proof.routing.durable-and-reversible-collapsed'],
-    proofs: ['proof.routing.durable-and-reversible-separated'],
-  },
-  {
-    id: 'artifact-ownership',
-    text: 'Assign each durable decision and its evidence to exactly one owning artifact.',
-    decisions: [
-      'decision.ownership.data-architecture',
-      'decision.ownership.implementation-plan',
-      'decision.ownership.generated-representation',
-      'decision.ownership.adr',
-      'decision.ownership.linked-evidence',
-    ],
-    forbiddenDecisions: ['decision.ownership.duplicate-authority'],
-    proofs: ['proof.ownership.single-authority'],
-  },
-] as const;
-
-const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
-  'simple-key-value-preference': {
-    decisionIds: [
-      'decision.core.source-of-truth',
-      'decision.core.identity-and-scope',
-      'decision.core.value-contract',
-      'decision.core.lifecycle',
-    ],
-    proofFactIds: [],
-  },
-  'multi-tenant-relational-event-store': {
-    decisionIds: [
-      'decision.core.source-of-truth',
-      'decision.core.identity-and-scope',
-      'decision.core.value-contract',
-      'decision.core.lifecycle',
-      'decision.relational.physical-schema',
-      'decision.relational.query-contract',
-      'decision.migration.deployed-state',
-      'decision.migration.compatibility',
-      'decision.migration.cutover-and-recovery',
-      'decision.erasure.copy-disposition',
-      'decision.erasure.isolation',
-    ],
-    proofFactIds: [
-      'proof.relational.engine-and-version',
-      'proof.relational.representative-data-shape',
-      'proof.relational.query-shape',
-      'proof.relational.threshold',
-      'proof.relational.revalidation-trigger',
-      'proof.migration.deployed-starting-state',
-      'proof.migration.mixed-version-compatibility',
-      'proof.migration.cutover',
-      'proof.migration.recovery',
-      'proof.migration.restore-behavior',
-      'proof.erasure.copy-inventory',
-      'proof.erasure.positive-deletion',
-      'proof.erasure.sibling-scope-isolation',
-      'proof.erasure.different-owner-isolation',
-    ],
-  },
-  'encrypted-credential-record': {
-    decisionIds: [
-      'decision.core.source-of-truth',
-      'decision.core.identity-and-scope',
-      'decision.core.value-contract',
-      'decision.core.lifecycle',
-      'decision.encryption.representation',
-      'decision.encryption.aad-binding',
-      'decision.encryption.key-lifecycle',
-    ],
-    proofFactIds: [
-      'proof.encryption.canonical-aad-identity',
-      'proof.encryption.scope-mutation-failure',
-      'proof.encryption.key-dependency-rotation-coverage',
-    ],
-  },
-  'live-additive-migration': {
-    decisionIds: [
-      'decision.core.source-of-truth',
-      'decision.core.identity-and-scope',
-      'decision.core.value-contract',
-      'decision.core.lifecycle',
-      'decision.migration.deployed-state',
-      'decision.migration.compatibility',
-      'decision.migration.cutover-and-recovery',
-    ],
-    proofFactIds: [
-      'proof.migration.deployed-starting-state',
-      'proof.migration.mixed-version-compatibility',
-      'proof.migration.cutover',
-      'proof.migration.recovery',
-      'proof.migration.restore-behavior',
-    ],
-  },
-  'generated-manifest-missing-one-facet': {
-    decisionIds: [
-      'decision.core.source-of-truth',
-      'decision.core.identity-and-scope',
-      'decision.core.value-contract',
-      'decision.core.lifecycle',
-      'decision.generated.source',
-      'decision.core.independent-proof',
-    ],
-    proofFactIds: ['proof.generated.independent-inventory'],
-  },
-  'erasure-across-secondary-copies': {
-    decisionIds: [
-      'decision.core.source-of-truth',
-      'decision.core.identity-and-scope',
-      'decision.core.value-contract',
-      'decision.core.lifecycle',
-      'decision.erasure.copy-disposition',
-      'decision.erasure.isolation',
-    ],
-    proofFactIds: [
-      'proof.erasure.copy-inventory',
-      'proof.erasure.positive-deletion',
-      'proof.erasure.sibling-scope-isolation',
-      'proof.erasure.different-owner-isolation',
-    ],
-  },
-  'time-equality-boundary': {
-    decisionIds: [
-      'decision.core.source-of-truth',
-      'decision.core.identity-and-scope',
-      'decision.core.value-contract',
-      'decision.core.lifecycle',
-      'decision.temporal.clock-boundary',
-      'decision.temporal.deletion-lag',
-      'decision.erasure.copy-disposition',
-      'decision.erasure.isolation',
-    ],
-    proofFactIds: [
-      'proof.temporal.authoritative-clock',
-      'proof.temporal.exact-equality-behavior',
-      'proof.temporal.retry-behavior',
-      'proof.temporal.restore-behavior',
-      'proof.erasure.copy-inventory',
-      'proof.erasure.positive-deletion',
-      'proof.erasure.sibling-scope-isolation',
-      'proof.erasure.different-owner-isolation',
-    ],
-  },
-  'mixed-decision-routing': {
-    decisionIds: [
-      'decision.routing.identity-architecture',
-      'decision.routing.lifecycle-architecture',
-      'decision.routing.helper-implementation',
-      'decision.routing.control-flow-implementation',
-    ],
-    proofFactIds: ['proof.routing.durable-and-reversible-separated'],
-  },
-  'artifact-ownership': {
-    decisionIds: [
-      'decision.ownership.data-architecture',
-      'decision.ownership.implementation-plan',
-      'decision.ownership.generated-representation',
-      'decision.ownership.adr',
-      'decision.ownership.linked-evidence',
-    ],
-    proofFactIds: ['proof.ownership.single-authority'],
-  },
-};
-
 function corpusFixture(): EvaluationCorpusInput {
-  const cases: EvaluationCase[] = representativeCases.map(item => ({
-    id: item.id,
-    text: item.text,
-    rubric: {
-      expectedDecisionIds: [...item.decisions],
-      forbiddenDecisionIds: [...(item.forbiddenDecisions ?? [])],
-      expectedProofFactIds: [...item.proofs],
-      forbiddenProofFactIds: [...(item.forbiddenProofs ?? [])],
-    },
-  }));
+  const cases = structuredClone(currentCases);
+  const currentRecordsByCaseId = new Map(currentRecords.map(item => [item.caseId, item]));
   const records = cases.map((evaluationCase): EvaluationRecord => {
-    const recordedResponse = recordedResponsesByCase[evaluationCase.id];
-    if (recordedResponse === undefined)
+    const currentRecord = currentRecordsByCaseId.get(evaluationCase.id);
+    if (currentRecord === undefined)
       throw new Error(`Missing recorded response for ${evaluationCase.id}.`);
-    const prompt = buildColdStartPrompt(guide, evaluationCase);
-    return {
-      caseId: evaluationCase.id,
-      guideSha256: sha256(guide),
-      caseAndRubricSha256: sha256(
-        canonicalJson({
-          case: { id: evaluationCase.id, text: evaluationCase.text },
-          rubric: {
-            expectedDecisionIds: sortedStrings(evaluationCase.rubric.expectedDecisionIds),
-            forbiddenDecisionIds: sortedStrings(evaluationCase.rubric.forbiddenDecisionIds),
-            expectedProofFactIds: sortedStrings(evaluationCase.rubric.expectedProofFactIds),
-            forbiddenProofFactIds: sortedStrings(evaluationCase.rubric.forbiddenProofFactIds),
-          },
-        }),
-      ),
-      prompt,
-      coldStartPromptSha256: sha256(prompt),
-      modelVersion: corpusContract.modelVersion,
-      decodingConfiguration: { ...corpusContract.decodingConfiguration },
-      responseFormat: corpusContract.responseFormat,
-      rubricLoader: corpusContract.rubricLoader,
+    return createEvaluationRecord({
+      canonicalGuide: guide,
+      contract: corpusContract,
+      evaluationCase,
       response: {
-        decisionIds: [...recordedResponse.decisionIds],
-        proofFactIds: [...recordedResponse.proofFactIds],
+        decisionIds: [...currentRecord.response.decisionIds],
+        proofFactIds: [...currentRecord.response.proofFactIds],
       },
-    };
+    });
   });
   return { canonicalGuide: guide, cases, contract: corpusContract, records };
 }
 
 describe('data architecture guide evaluation', () => {
   it('binds the canonical guide to every durable decision and named ablation marker', () => {
-    const expectedDecisionIds = new Set(representativeCases.flatMap(item => item.decisions));
+    const expectedDecisionIds = new Set(
+      currentCases.flatMap(item => item.rubric.expectedDecisionIds),
+    );
     for (const decisionId of expectedDecisionIds) {
       expect(shippedCanonicalGuide).toContain(`[${decisionId}]`);
     }

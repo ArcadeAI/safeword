@@ -93,7 +93,7 @@ export interface ConditionalProofInput {
 }
 
 export interface EvidenceSafetyInput {
-  readonly migrationEvidenceSources: readonly ('checked-in-equivalent' | 'deployed-read-only')[];
+  readonly migrationEvidenceSources: readonly string[];
   readonly mutableValues: Readonly<Record<string, unknown>>;
 }
 
@@ -152,6 +152,8 @@ export interface AblationRecord {
   readonly caseRubricSha256: string;
   /** Hash of case text plus neutral response schema; guide bytes bind separately. */
   readonly promptSha256: string;
+  readonly prompt: string;
+  readonly coldStartPromptSha256: string;
   readonly modelVersion: string;
   readonly decodingConfiguration: Readonly<Record<string, EvaluationConfigValue>>;
   readonly responseFormat: string;
@@ -294,10 +296,13 @@ export function createAblationRecord(input: {
   readonly contract: EvaluationContract;
   readonly response: EvaluationResponse;
 }): AblationRecord {
+  const prompt = buildColdStartPrompt(input.guide, input.evaluationCase);
   return {
     guideSha256: sha256(input.guide),
     caseRubricSha256: evaluationRubricSha256(input.evaluationCase.rubric),
     promptSha256: sha256(buildGuideIndependentPrompt(input.evaluationCase)),
+    prompt,
+    coldStartPromptSha256: sha256(prompt),
     modelVersion: input.contract.modelVersion,
     decodingConfiguration: input.contract.decodingConfiguration,
     responseFormat: input.contract.responseFormat,
@@ -314,6 +319,8 @@ export function evaluationRecordAsAblationRecord(
     guideSha256: record.guideSha256,
     caseRubricSha256: evaluationRubricSha256(evaluationCase.rubric),
     promptSha256: sha256(buildGuideIndependentPrompt(evaluationCase)),
+    prompt: record.prompt,
+    coldStartPromptSha256: record.coldStartPromptSha256,
     modelVersion: record.modelVersion,
     decodingConfiguration: record.decodingConfiguration,
     responseFormat: record.responseFormat,
@@ -600,8 +607,8 @@ export function verifyConditionalProof(input: ConditionalProofInput): Verificati
 
 const syntheticPlaceholderPattern = /^SYNTHETIC_[A-Z0-9_]+$/;
 const credentialPrefixPattern =
-  /^(?:AKIA|ASIA|gh[pousr]_|github_pat_|[ps]k_(?:live|test)_|xox[baprs]-|-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----)/i;
-const emailShapePattern = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/;
+  /\b(?:AKIA|ASIA)[A-Z0-9]{12,}\b|gh[pousr]_|github_pat_|[ps]k_(?:live|test)_|xox[baprs]-|-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/u;
+const emailShapePattern = /\b[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+\b/u;
 const allowedMigrationEvidenceSources = new Set(['checked-in-equivalent', 'deployed-read-only']);
 
 function hasHighEntropy(value: string): boolean {
@@ -618,6 +625,17 @@ function hasHighEntropy(value: string): boolean {
   return entropy >= 3.5;
 }
 
+function containsNonPlaceholderHighEntropyValue(value: string): boolean {
+  const opaqueTokens = value.match(/[\w+/=-]{32,}/gu) ?? [];
+  return opaqueTokens.some(
+    token =>
+      !token.startsWith('SYNTHETIC_') &&
+      !token.startsWith('decision.') &&
+      !token.startsWith('proof.') &&
+      hasHighEntropy(token),
+  );
+}
+
 function unsafeEvidenceStringDiagnostic(value: string, path: string): string {
   if (credentialPrefixPattern.test(value)) {
     return `Evidence value at ${path} is a credential, token, or key prefix.`;
@@ -625,7 +643,7 @@ function unsafeEvidenceStringDiagnostic(value: string, path: string): string {
   if (emailShapePattern.test(value)) {
     return `Evidence value at ${path} is an email-shaped value.`;
   }
-  if (hasHighEntropy(value)) {
+  if (containsNonPlaceholderHighEntropyValue(value)) {
     return `Evidence value at ${path} is a non-placeholder high-entropy value.`;
   }
   return `Evidence value at ${path} does not follow the synthetic-placeholder convention.`;
@@ -662,20 +680,11 @@ export function verifyEvidenceSafety(input: EvidenceSafetyInput): VerificationRe
 
 function authoredCorpusStringDiagnostics(value: string, path: string): string[] {
   const diagnostics: string[] = [];
-  if (/AKIA|ASIA|gh[pousr]_|github_pat_|[ps]k_(?:live|test)_|xox[baprs]-/iu.test(value))
+  if (credentialPrefixPattern.test(value))
     diagnostics.push(`Corpus value at ${path} contains a credential or token prefix.`);
-  if (/\b[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+\b/u.test(value))
+  if (emailShapePattern.test(value))
     diagnostics.push(`Corpus value at ${path} contains an email-shaped value.`);
-  const opaqueTokens = value.match(/[\w+/=-]{32,}/gu) ?? [];
-  if (
-    opaqueTokens.some(
-      token =>
-        !token.startsWith('SYNTHETIC_') &&
-        !token.startsWith('decision.') &&
-        !token.startsWith('proof.') &&
-        hasHighEntropy(token),
-    )
-  )
+  if (containsNonPlaceholderHighEntropyValue(value))
     diagnostics.push(`Corpus value at ${path} contains a non-placeholder high-entropy value.`);
   return diagnostics;
 }
@@ -783,6 +792,31 @@ function ablationDiagnostics(input: AblationPairInput): string[] {
   return diagnostics;
 }
 
+function promptBindingDiagnostics(input: AblationPairInput): string[] {
+  const expectedPromptSha256 = sha256(buildGuideIndependentPrompt(input.evaluationCase));
+  const guideIndependentPromptMatches =
+    input.fullGuideRecord.promptSha256 === expectedPromptSha256 &&
+    input.ablatedGuideRecord.promptSha256 === expectedPromptSha256;
+  const expectedFullPrompt = buildColdStartPrompt(input.canonicalGuide, input.evaluationCase);
+  const expectedAblatedPrompt = buildColdStartPrompt(
+    input.storedAblatedGuide,
+    input.evaluationCase,
+  );
+  const coldStartPromptsMatch =
+    input.fullGuideRecord.prompt === expectedFullPrompt &&
+    input.fullGuideRecord.coldStartPromptSha256 === sha256(expectedFullPrompt) &&
+    input.ablatedGuideRecord.prompt === expectedAblatedPrompt &&
+    input.ablatedGuideRecord.coldStartPromptSha256 === sha256(expectedAblatedPrompt);
+  return [
+    ...(guideIndependentPromptMatches
+      ? []
+      : ['Ablation records do not match the current guide-independent prompt.']),
+    ...(coldStartPromptsMatch
+      ? []
+      : ['Ablation records do not match the current cold-start prompts.']),
+  ];
+}
+
 function bindingDiagnostics(input: AblationPairInput): string[] {
   const diagnostics: string[] = [];
   if (input.fullGuideRecord.guideSha256 !== sha256(input.canonicalGuide))
@@ -798,12 +832,7 @@ function bindingDiagnostics(input: AblationPairInput): string[] {
     diagnostics.push('Ablation records do not match the current case rubric.');
   if (!sameConfig(input.fullGuideRecord, input.ablatedGuideRecord))
     diagnostics.push('Ablation records do not share one evaluation configuration.');
-  const expectedPromptSha256 = sha256(buildGuideIndependentPrompt(input.evaluationCase));
-  if (
-    input.fullGuideRecord.promptSha256 !== expectedPromptSha256 ||
-    input.ablatedGuideRecord.promptSha256 !== expectedPromptSha256
-  )
-    diagnostics.push('Ablation records do not match the current guide-independent prompt.');
+  diagnostics.push(...promptBindingDiagnostics(input));
   return diagnostics;
 }
 
