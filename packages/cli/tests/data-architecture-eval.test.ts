@@ -136,7 +136,7 @@ const representativeCases: readonly RepresentativeCaseFixture[] = [
     id: 'simple-key-value-preference',
     text: 'Plan a user-scoped key-value preference with no conditional data risks.',
     decisions: [...universalDecisionIds],
-    proofs: ['proof.core.contract-complete'],
+    proofs: [],
   },
   {
     id: 'multi-tenant-relational-event-store',
@@ -146,7 +146,10 @@ const representativeCases: readonly RepresentativeCaseFixture[] = [
       'decision.relational.physical-schema',
       'decision.relational.query-contract',
       'decision.migration.deployed-state',
+      'decision.migration.compatibility',
+      'decision.migration.cutover-and-recovery',
       'decision.erasure.copy-disposition',
+      'decision.erasure.isolation',
     ],
     forbiddenDecisions: ['decision.relational.cross-tenant-parent-binding'],
     forbiddenProofs: ['proof.relational.self-generated-coverage'],
@@ -247,7 +250,7 @@ const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
       'decision.core.value-contract',
       'decision.core.lifecycle',
     ],
-    proofFactIds: ['proof.core.contract-complete'],
+    proofFactIds: [],
   },
   'multi-tenant-relational-event-store': {
     decisionIds: [
@@ -258,7 +261,10 @@ const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
       'decision.relational.physical-schema',
       'decision.relational.query-contract',
       'decision.migration.deployed-state',
+      'decision.migration.compatibility',
+      'decision.migration.cutover-and-recovery',
       'decision.erasure.copy-disposition',
+      'decision.erasure.isolation',
     ],
     proofFactIds: [
       'proof.relational.query-context',
@@ -391,16 +397,8 @@ function corpusFixture(): EvaluationCorpusInput {
 
 describe('data architecture guide evaluation', () => {
   it('binds the canonical guide to every durable decision and named ablation marker', () => {
-    for (const decisionId of [
-      ...universalDecisionIds,
-      'decision.core.independent-proof',
-      'decision.relational.physical-schema',
-      'decision.encryption.aad-binding',
-      'decision.migration.deployed-state',
-      'decision.temporal.boundary',
-      'decision.erasure.copy-disposition',
-      'decision.generated.source',
-    ]) {
+    const expectedDecisionIds = new Set(representativeCases.flatMap(item => item.decisions));
+    for (const decisionId of expectedDecisionIds) {
       expect(shippedCanonicalGuide).toContain(`[${decisionId}]`);
     }
     expect(shippedCanonicalGuide).toContain(

@@ -1,0 +1,164 @@
+[
+  {
+    "id": "simple-key-value-preference",
+    "text": "Plan a user-scoped key-value preference with no conditional data risks.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": [],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "multi-tenant-relational-event-store",
+    "text": "Plan a multi-tenant relational event store with live migration and erasure.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.relational.physical-schema",
+        "decision.relational.query-contract",
+        "decision.migration.deployed-state",
+        "decision.migration.compatibility",
+        "decision.migration.cutover-and-recovery",
+        "decision.erasure.copy-disposition",
+        "decision.erasure.isolation"
+      ],
+      "forbiddenDecisionIds": ["decision.relational.cross-tenant-parent-binding"],
+      "expectedProofFactIds": [
+        "proof.relational.query-context",
+        "proof.migration.deployed-mixed-version",
+        "proof.erasure.complete-and-isolated"
+      ],
+      "forbiddenProofFactIds": ["proof.relational.self-generated-coverage"]
+    }
+  },
+  {
+    "id": "encrypted-credential-record",
+    "text": "Plan an encrypted credential record with identity-bound AAD and key rotation.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.encryption.representation",
+        "decision.encryption.aad-binding",
+        "decision.encryption.key-lifecycle"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": ["proof.encryption.scope-and-rotation"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "live-additive-migration",
+    "text": "Plan a live additive migration from a deployed mixed-version starting state.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.migration.deployed-state",
+        "decision.migration.compatibility",
+        "decision.migration.cutover-and-recovery"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": ["proof.migration.deployed-mixed-version"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "generated-manifest-missing-one-facet",
+    "text": "Prove a generated manifest covers every independently intended facet.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.generated.source",
+        "decision.core.independent-proof"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": ["proof.generated.independent-inventory"],
+      "forbiddenProofFactIds": ["proof.generated.sibling-output"]
+    }
+  },
+  {
+    "id": "erasure-across-secondary-copies",
+    "text": "Plan erasure across primary and secondary copies with isolation controls.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.erasure.copy-disposition",
+        "decision.erasure.isolation"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": ["proof.erasure.complete-and-isolated"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "time-equality-boundary",
+    "text": "Plan expiry behavior at exact clock equality and delayed physical deletion.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.temporal.clock-boundary",
+        "decision.temporal.deletion-lag"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": ["proof.temporal.equality-retry-restore"],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "mixed-decision-routing",
+    "text": "Route durable identity and lifecycle separately from reversible helpers.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.routing.identity-architecture",
+        "decision.routing.lifecycle-architecture",
+        "decision.routing.helper-implementation",
+        "decision.routing.control-flow-implementation"
+      ],
+      "forbiddenDecisionIds": [
+        "decision.routing.identity-implementation-only",
+        "decision.routing.helper-architecture"
+      ],
+      "expectedProofFactIds": ["proof.routing.durable-and-reversible-separated"],
+      "forbiddenProofFactIds": ["proof.routing.durable-and-reversible-collapsed"]
+    }
+  },
+  {
+    "id": "artifact-ownership",
+    "text": "Assign each durable decision and its evidence to exactly one owning artifact.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.ownership.data-architecture",
+        "decision.ownership.implementation-plan",
+        "decision.ownership.generated-representation",
+        "decision.ownership.adr",
+        "decision.ownership.linked-evidence"
+      ],
+      "forbiddenDecisionIds": ["decision.ownership.duplicate-authority"],
+      "expectedProofFactIds": ["proof.ownership.single-authority"],
+      "forbiddenProofFactIds": []
+    }
+  }
+]

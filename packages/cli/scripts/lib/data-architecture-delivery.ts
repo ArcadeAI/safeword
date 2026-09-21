@@ -27,8 +27,10 @@ export interface DataArchitectureDeliveryInput {
   readonly codex: DeliverySurface;
   readonly cursor: DeliverySurface;
   readonly openCode: Omit<DeliverySurface, 'planningSourcePath'>;
-  readonly recordedRationale: string;
 }
+
+export const DATA_ARCHITECTURE_OPEN_CODE_RATIONALE =
+  'OpenCode has no data-architecture guide copy or planning reference because issue #4560 changes only the existing Claude, Codex, Cursor, and Safeword CLI delivery routes.';
 
 export interface DeliveryVerificationResult {
   readonly accepted: boolean;
@@ -59,13 +61,14 @@ function planningReferenceDiagnostic(
   surfaceName: string,
   surface: DeliverySurface,
   expectedTarget: string,
-  crossSurfaceTarget?: string,
+  crossSurfaceTargets: readonly string[] = [],
 ): string | undefined {
   const source = surface.assets[surface.planningSourcePath];
   if (source === undefined) {
     return `${surfaceName} planning source is missing at ${surface.planningSourcePath}.`;
   }
-  if (crossSurfaceTarget !== undefined && source.includes(crossSurfaceTarget)) {
+  const crossSurfaceTarget = crossSurfaceTargets.find(target => source.includes(target));
+  if (crossSurfaceTarget !== undefined) {
     return `${surfaceName} planning reference crosses surfaces to ${crossSurfaceTarget}.`;
   }
   return occurrenceCount(source, expectedTarget) === 1
@@ -106,6 +109,11 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
 
 function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[] {
   const diagnostics: string[] = [];
+  if (input.inventory.openCodeRationale !== DATA_ARCHITECTURE_OPEN_CODE_RATIONALE) {
+    diagnostics.push(
+      'OpenCode guide-delivery rationale differs from the durable package contract.',
+    );
+  }
   const openCodeGuidePath = Object.keys(input.openCode.assets).find(path =>
     path.endsWith('/data-architecture-guide.md'),
   );
@@ -121,9 +129,6 @@ function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): stri
     diagnostics.push(
       `OpenCode contains an unexpected guide reference at ${openCodeReferencePath}.`,
     );
-  }
-  if (!input.recordedRationale.includes(input.inventory.openCodeRationale)) {
-    diagnostics.push('OpenCode guide-delivery rationale is not recorded.');
   }
   return diagnostics;
 }
@@ -142,14 +147,15 @@ export function verifyDataArchitectureDelivery(
   }
 
   for (const diagnostic of [
-    planningReferenceDiagnostic('Claude', input.claude, inventory.claudePlanningTarget),
-    planningReferenceDiagnostic(
-      'Codex',
-      input.codex,
+    planningReferenceDiagnostic('Claude', input.claude, inventory.claudePlanningTarget, [
       inventory.projectPlanningTarget,
+    ]),
+    planningReferenceDiagnostic('Codex', input.codex, inventory.projectPlanningTarget, [
       inventory.claudePlanningTarget,
-    ),
-    planningReferenceDiagnostic('Cursor', input.cursor, inventory.projectPlanningTarget),
+    ]),
+    planningReferenceDiagnostic('Cursor', input.cursor, inventory.projectPlanningTarget, [
+      inventory.claudePlanningTarget,
+    ]),
   ]) {
     if (diagnostic !== undefined) diagnostics.push(diagnostic);
   }

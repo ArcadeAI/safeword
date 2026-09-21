@@ -1,9 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import {
+  DATA_ARCHITECTURE_OPEN_CODE_RATIONALE,
   type DataArchitectureDeliveryInput,
   type DataArchitectureDeliveryInventory,
   verifyDataArchitectureDelivery,
@@ -12,6 +14,7 @@ import { generateClaudePluginAssets } from '../src/claude-plugin/catalogue.js';
 import { generateCodexPluginAssets } from '../src/codex-plugin/catalogue.js';
 import { generateOpenCodeCatalogueAssets } from '../src/opencode/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
+import { setupReconcileTest } from './helpers.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const packageRoot = nodePath.join(repoRoot, 'packages/cli');
@@ -29,7 +32,7 @@ const deliveryInventory: DataArchitectureDeliveryInventory = {
     from: '@.safeword/guides/',
     to: '@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/',
   },
-  openCodeRationale: 'OpenCode → no copy and no reference',
+  openCodeRationale: DATA_ARCHITECTURE_OPEN_CODE_RATIONALE,
 };
 
 function file(relativePath: string): string {
@@ -96,9 +99,6 @@ function deliveryFixture(): DataArchitectureDeliveryInput {
       planningSourcePath: '.safeword/SAFEWORD.md',
     },
     openCode: { assets: openCodeAssets },
-    recordedRationale: file(
-      '.project/tickets/Z3C2SE-make-data-architecture-guidance-complete/impl-plan.md',
-    ),
   };
 }
 
@@ -108,6 +108,18 @@ describe('data architecture guide delivery', () => {
       accepted: true,
       diagnostics: [],
     });
+  });
+
+  it('installs the canonical guide through the supported reconciliation workflow', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-data-guide-'));
+    try {
+      await setupReconcileTest(projectDirectory);
+      expect(
+        readFileSync(nodePath.join(projectDirectory, deliveryInventory.installedGuidePath), 'utf8'),
+      ).toBe(file(deliveryInventory.canonicalGuidePath));
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
   });
 
   it.each([
@@ -219,6 +231,40 @@ describe('data architecture guide delivery', () => {
     },
     {
       diagnostic:
+        'Claude planning reference crosses surfaces to ./.safeword/guides/data-architecture-guide.md.',
+      drift: 'a Claude cross-surface planning reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        claude: {
+          ...input.claude,
+          assets: replaceInAsset(
+            input.claude.assets,
+            input.claude.planningSourcePath,
+            input.inventory.claudePlanningTarget,
+            input.inventory.projectPlanningTarget,
+          ),
+        },
+      }),
+    },
+    {
+      diagnostic:
+        'Cursor planning reference crosses surfaces to "${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md.',
+      drift: 'a Cursor cross-surface planning reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        cursor: {
+          ...input.cursor,
+          assets: replaceInAsset(
+            input.cursor.assets,
+            input.cursor.planningSourcePath,
+            input.inventory.projectPlanningTarget,
+            input.inventory.claudePlanningTarget,
+          ),
+        },
+      }),
+    },
+    {
+      diagnostic:
         'OpenCode contains an unexpected guide copy at guides/data-architecture-guide.md.',
       drift: 'an OpenCode guide copy or reference',
       mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
@@ -242,14 +288,6 @@ describe('data architecture guide delivery', () => {
             'SAFEWORD.md': `Read ${input.inventory.projectPlanningTarget}.`,
           },
         },
-      }),
-    },
-    {
-      diagnostic: 'OpenCode guide-delivery rationale is not recorded.',
-      drift: 'a missing OpenCode delivery rationale',
-      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
-        ...input,
-        recordedRationale: '',
       }),
     },
   ])('rejects $drift with its mismatched path or content identified', ({ diagnostic, mutate }) => {

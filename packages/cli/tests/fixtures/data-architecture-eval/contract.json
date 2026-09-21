@@ -1,0 +1,10 @@
+{
+  "modelVersion": "claude-opus",
+  "decodingConfiguration": {
+    "effort": "high",
+    "maxTurns": 1
+  },
+  "responseFormat": "data-architecture-eval-v1",
+  "rubricLoader": "data-architecture-rubric-v1",
+  "toolsDisabled": true
+}

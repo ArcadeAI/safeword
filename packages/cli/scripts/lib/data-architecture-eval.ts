@@ -153,7 +153,7 @@ export interface VerificationResult {
   readonly diagnostics: readonly string[];
 }
 
-function sha256(content: string): string {
+export function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
@@ -213,6 +213,27 @@ function canonicalEvaluationCaseAndRubricJson(evaluationCase: EvaluationCase): s
       forbiddenProofFactIds: sortedStrings(evaluationCase.rubric.forbiddenProofFactIds),
     },
   });
+}
+
+export function createEvaluationRecord(input: {
+  readonly canonicalGuide: string;
+  readonly contract: EvaluationContract;
+  readonly evaluationCase: EvaluationCase;
+  readonly response: EvaluationResponse;
+}): EvaluationRecord {
+  const prompt = buildColdStartPrompt(input.canonicalGuide, input.evaluationCase);
+  return {
+    caseId: input.evaluationCase.id,
+    guideSha256: sha256(input.canonicalGuide),
+    caseAndRubricSha256: sha256(canonicalEvaluationCaseAndRubricJson(input.evaluationCase)),
+    prompt,
+    coldStartPromptSha256: sha256(prompt),
+    modelVersion: input.contract.modelVersion,
+    decodingConfiguration: input.contract.decodingConfiguration,
+    responseFormat: input.contract.responseFormat,
+    rubricLoader: input.contract.rubricLoader,
+    response: input.response,
+  };
 }
 
 function idSetDiagnostics(

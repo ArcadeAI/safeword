@@ -99,6 +99,7 @@ Feature: Complete conditional data architecture guidance
       Examples:
         | pair-defect                                             | diagnostic                      |
         | the ablated answer satisfies the independent-proof rule | a non-discriminating ablation   |
+        | the ablated answer fails only an unrelated expected ID  | an unrelated ablation failure  |
         | the full-guide answer fails the independent-proof rule   | a failed paired control         |
         | the records differ in model version or decoding configuration | an invalid paired configuration |
         | the stored ablated guide differs from the named transform | a derived-ablation mismatch      |
