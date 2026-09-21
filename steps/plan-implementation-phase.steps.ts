@@ -1989,6 +1989,10 @@ Then(
 );
 
 Then('the workflow enters Execution Planning', function (this: PlanWorld) {
+  if (this.result !== undefined) {
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
+    return;
+  }
   assert.equal(
     this.verdict?.decision,
     'allow',
