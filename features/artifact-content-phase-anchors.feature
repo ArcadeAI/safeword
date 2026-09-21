@@ -154,7 +154,7 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
 
     @artifact-content-phase-anchors.SM1.R6
     Scenario: Ticket discovery uses the staged project-root configuration
-      Given a staged project-root configuration and a ticket in that configured root
+      Given a project-root configuration staged for a custom root while its worktree copy points at the default root
       When the boundary command runs at the commit boundary
       Then it exits zero and reports the configured ticket's malformed plan
 

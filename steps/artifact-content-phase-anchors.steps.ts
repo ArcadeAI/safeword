@@ -741,9 +741,14 @@ function stageConfiguredTicket(
 }
 
 Given(
-  'a staged project-root configuration and a ticket in that configured root',
+  'a project-root configuration staged for a custom root while its worktree copy points at the default root',
   function (this: AnchorWorld) {
     stageConfiguredTicket(this, 'custom');
+    writeFileAt(
+      this.dir!,
+      '.safeword/config.json',
+      JSON.stringify({ paths: { projectRoot: '.project' } }, undefined, 2),
+    );
   },
 );
 
