@@ -51,26 +51,6 @@ const VALID_PLUGIN_PLAN = [
   '',
   'Revisit if plugin delivery changes.',
 ].join('\n');
-function runPluginAdvance(root: string, ticketPath: string) {
-  return spawnSync('bun', [nodePath.join(REPO_ROOT, 'plugin/runtime/hooks/pre-tool-quality.ts')], {
-    cwd: root,
-    input: JSON.stringify({
-      tool_name: 'Edit',
-      tool_input: {
-        file_path: ticketPath,
-        old_string: 'phase: plan-execution',
-        new_string: 'phase: implement',
-      },
-    }),
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: root,
-      CLAUDE_PLUGIN_ROOT: nodePath.join(REPO_ROOT, 'plugin'),
-    },
-  });
-}
-
 function runPluginExecutionPlanningAdvance(root: string, ticketPath: string) {
   return spawnSync('bun', [nodePath.join(REPO_ROOT, 'plugin/runtime/hooks/pre-tool-quality.ts')], {
     cwd: root,

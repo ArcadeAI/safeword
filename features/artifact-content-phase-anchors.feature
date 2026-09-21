@@ -129,6 +129,12 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       Then it exits zero and warns that the anchor is outside this ticket
 
     @artifact-content-phase-anchors.SM1.R6
+    Scenario: A configured non-default feature lane owns its feature anchors
+      Given a staged project configuring a non-default feature lane and an advance anchored to a feature source inside it
+      When the boundary command runs at the commit boundary
+      Then it exits zero with no anchor warning
+
+    @artifact-content-phase-anchors.SM1.R6
     Scenario: A Git index-stage prefix cannot alias a different artifact path
       Given a staged advance whose anchor uses a Git index-stage prefix
       When the boundary command runs at the commit boundary
@@ -224,6 +230,13 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       When it advances to done recording the README path as the anchor for done
       Then the advance is flagged as unanchored
       And the finding says the artifact is not the expected kind for done
+
+    @artifact-content-phase-anchors.SM1.R3
+    Scenario: A recognized artifact kind cannot be cross-wired to another phase
+      Given a feature ticket at phase plan-execution whose spec anchor artifact exists and is shape-valid
+      When it advances to implement recording that artifact path for implement
+      Then the advance is flagged as unanchored
+      And the finding says the artifact is not the expected kind for implement
 
     @artifact-content-phase-anchors.SM1.R3
     Scenario: A backward phase move is not flagged

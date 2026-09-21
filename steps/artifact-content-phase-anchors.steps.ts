@@ -543,6 +543,14 @@ Then(
   },
 );
 
+Then(
+  'the finding says the artifact is not the expected kind for implement',
+  function (this: AnchorWorld) {
+    assert.match(this.verdict?.reason ?? '', /expected/i);
+    assert.match(this.verdict?.reason ?? '', /execution-plan\.md/);
+  },
+);
+
 Then('the finding identifies the legacy commit SHA migration', function (this: AnchorWorld) {
   assert.match(this.verdict?.reason ?? '', /legacy commit-SHA anchor/i);
   assert.match(this.verdict?.reason ?? '', /artifact path instead/i);
@@ -645,6 +653,29 @@ Given("a staged advance anchored to another ticket's feature source", function (
   );
   git(dir, 'add -A');
 });
+
+Given(
+  'a staged project configuring a non-default feature lane and an advance anchored to a feature source inside it',
+  function (this: AnchorWorld) {
+    const configuredFeature = 'tests/behaviors/fixture.feature';
+    const dir = createProject(this);
+    writeFileAt(
+      dir,
+      '.safeword/config.json',
+      JSON.stringify({ paths: { features: 'tests/behaviors' } }, undefined, 2),
+    );
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'define-behavior'));
+    git(dir, 'add -A');
+    git(dir, 'commit -m seed --quiet');
+    writeFileAt(dir, configuredFeature, FEATURE_CONTENT);
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'scenario-gate', [`scenario-gate: ${configuredFeature}`]),
+    );
+    git(dir, 'add -A');
+  },
+);
 
 Given('a staged advance whose anchor uses a Git index-stage prefix', function (this: AnchorWorld) {
   const stagedAlias = `0:${EXECUTION_PLAN}`;
