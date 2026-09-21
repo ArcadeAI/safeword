@@ -958,6 +958,23 @@ Given(
 );
 
 Given(
+  'a staged forward advance anchored to an impl-plan that fails its shape check',
+  function (this: AnchorWorld) {
+    const dir = createProject(this);
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'plan-implementation'));
+    git(dir, 'add -A');
+    git(dir, 'commit -m seed --quiet');
+    writeFileAt(dir, IMPL_PLAN, HOLLOW_IMPL_PLAN);
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'plan-execution', [`plan-execution: ${IMPL_PLAN}`]),
+    );
+    git(dir, 'add -A');
+  },
+);
+
+Given(
   'a pushed forward advance anchored to an execution-plan path that exists in the worktree but not the pushed HEAD tree',
   function (this: AnchorWorld) {
     const dir = createProject(this);
@@ -1039,6 +1056,14 @@ Then(
   function (this: AnchorWorld) {
     assert.equal(this.cli?.exitCode, 0);
     assert.match(this.cli?.output ?? '', /missing/i);
+  },
+);
+
+Then(
+  'it exits zero and warns that the anchored artifact fails its shape check',
+  function (this: AnchorWorld) {
+    assert.equal(this.cli?.exitCode, 0);
+    assert.match(this.cli?.output ?? '', /phase-anchor.*fails its shape check/is);
   },
 );
 

@@ -115,6 +115,12 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       Then it exits zero and warns that the anchored artifact is missing from the staged tree
 
     @artifact-content-phase-anchors.SM1.R2
+    Scenario: The commit tier verifies the staged artifact's shape
+      Given a staged forward advance anchored to an impl-plan that fails its shape check
+      When the boundary command runs at the commit boundary
+      Then it exits zero and warns that the anchored artifact fails its shape check
+
+    @artifact-content-phase-anchors.SM1.R2
     Scenario: The push tier verifies anchors against the pushed HEAD tree, not the worktree
       Given a pushed forward advance anchored to an execution-plan path that exists in the worktree but not the pushed HEAD tree
       When the boundary command runs at the push boundary
