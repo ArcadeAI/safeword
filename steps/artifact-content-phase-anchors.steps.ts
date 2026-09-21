@@ -759,17 +759,32 @@ function stageConfiguredTicket(
   ticketRoot = 'custom',
 ): void {
   const ticketPath = `${ticketRoot}/tickets/ACA001-fixture`;
-  const dir = seedTicket(world, ticketPath, 'scenario-gate');
+  const defaultTicketPath = '.project/tickets/ACA001-fixture';
+  const defaultPlanPath = `${defaultTicketPath}/impl-plan.md`;
+  const dir = createProject(world);
+  writeFileAt(dir, `${ticketPath}/ticket.md`, ticketContent('feature', 'plan-implementation'));
+  writeFileAt(
+    dir,
+    `${defaultTicketPath}/ticket.md`,
+    ticketContent('feature', 'plan-implementation'),
+  );
+  git(dir, 'add -A');
+  git(dir, 'commit -m seed --quiet');
   writeFileAt(
     dir,
     '.safeword/config.json',
     JSON.stringify({ paths: { projectRoot: configuredProjectRoot } }, undefined, 2),
   );
-  writeFileAt(dir, `${ticketPath}/impl-plan.md`, '# hollow plan\n');
+  writeFileAt(dir, defaultPlanPath, SHAPE_VALID_IMPL_PLAN);
   writeFileAt(
     dir,
     `${ticketPath}/ticket.md`,
-    ticketContent('feature', 'plan-execution', [`plan-execution: ${ticketPath}/impl-plan.md`]),
+    ticketContent('feature', 'plan-execution', [`plan-execution: ${defaultPlanPath}`]),
+  );
+  writeFileAt(
+    dir,
+    `${defaultTicketPath}/ticket.md`,
+    ticketContent('feature', 'plan-execution', [`plan-execution: ${defaultPlanPath}`]),
   );
   git(dir, 'add -A');
 }
@@ -1125,14 +1140,6 @@ Then(
     assert.equal(this.cli?.exitCode, 0);
     assert.match(this.cli?.output ?? '', /phase-anchor/i);
     assert.match(this.cli?.output ?? '', /outside this ticket/i);
-  },
-);
-
-Then(
-  "it exits zero and reports the configured ticket's malformed plan",
-  function (this: AnchorWorld) {
-    assert.equal(this.cli?.exitCode, 0);
-    assert.match(this.cli?.output ?? '', /impl-plan-shape.*missing/is);
   },
 );
 

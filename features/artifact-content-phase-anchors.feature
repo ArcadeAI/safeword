@@ -168,13 +168,13 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
     Scenario: Ticket discovery uses the staged project-root configuration
       Given a project-root configuration staged for a custom root while its worktree copy points at the default root
       When the boundary command runs at the commit boundary
-      Then it exits zero and reports the configured ticket's malformed plan
+      Then it exits zero and warns that the anchor is outside this ticket
 
     @artifact-content-phase-anchors.SM1.R6
     Scenario: Configured project roots normalize dot and separator segments
       Given a staged project root containing dot and duplicate separator segments
       When the boundary command runs at the commit boundary
-      Then it exits zero and reports the configured ticket's malformed plan
+      Then it exits zero and warns that the anchor is outside this ticket
 
     @artifact-content-phase-anchors.SM1.R6
     Scenario: Repository-root ticket ownership remains enforceable
