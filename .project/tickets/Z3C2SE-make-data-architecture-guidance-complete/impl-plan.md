@@ -131,18 +131,18 @@ Safeword provides an empty working directory, a closed stdin request, and a tool
 then records the adapter identity and exact prompt. Treating a same-user adapter as hostile would
 require an OS sandbox and is outside this documentation-evaluation scope.
 
-The sensitive-value scan examines only human- or model-authored case text, prompts, responses, and
-seed fixtures. It permits only the named `promptSha256`, `guideSha256`, `caseRubricSha256`, and
-`ablatedGuideSha256` fields to contain 64-character hex digests, and only after recomputing each value
-from its canonical input; digest-shaped text anywhere else remains subject to the high-entropy rule.
+The corpus safety scan examines independently authored case prose. Prompts are reconstructed from
+the canonical guide and case, responses must contain exact rubric IDs, and every stored digest is
+recomputed by deterministic verification, so those structural fields are not treated as arbitrary
+sensitive-value inputs.
 
-Each record includes an invocation ID and attempt ordinal. The accepted evidence remains one current
-pair rather than a statistical claim; those fields make replacement history visible but do not turn
-the ablation into a first-attempt or pass-rate assertion.
+The accepted evidence remains one current full-guide result per case plus one current paired
+ablation record rather than a statistical claim. Re-recording atomically replaces the current
+evidence; this ticket does not claim or retain first-attempt, invocation-history, or pass-rate data.
 
 Implementation reconciliation: all four recorded decisions remain current. The shipped recorder
 uses structured argv, an empty temporary working directory, atomic replacement, and deterministic
-re-grading; the corpus safety walk scans authored case and response values while prompt reconstruction
+re-grading; the corpus safety walk scans authored case prose while prompt reconstruction
 proves the stored prompt contains only the canonical guide, case, neutral schema, and tools-disabled
 state. No design deviations were introduced.
 

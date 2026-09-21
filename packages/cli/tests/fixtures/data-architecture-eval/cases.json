@@ -120,10 +120,15 @@
         "decision.core.value-contract",
         "decision.core.lifecycle",
         "decision.temporal.clock-boundary",
-        "decision.temporal.deletion-lag"
+        "decision.temporal.deletion-lag",
+        "decision.erasure.copy-disposition",
+        "decision.erasure.isolation"
       ],
       "forbiddenDecisionIds": [],
-      "expectedProofFactIds": ["proof.temporal.equality-retry-restore"],
+      "expectedProofFactIds": [
+        "proof.temporal.equality-retry-restore",
+        "proof.erasure.complete-and-isolated"
+      ],
       "forbiddenProofFactIds": []
     }
   },

@@ -57,6 +57,14 @@ function occurrenceCount(content: string, value: string): number {
   }
 }
 
+const dataArchitectureGuideBasename = 'data-architecture-guide.md';
+
+function isDataArchitectureGuidePath(path: string): boolean {
+  return (
+    path === dataArchitectureGuideBasename || path.endsWith(`/${dataArchitectureGuideBasename}`)
+  );
+}
+
 function planningReferenceDiagnostic(
   surfaceName: string,
   surface: DeliverySurface,
@@ -115,15 +123,13 @@ function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): stri
     );
   }
   const openCodeGuidePath = Object.keys(input.openCode.assets).find(path =>
-    path.endsWith('/data-architecture-guide.md'),
+    isDataArchitectureGuidePath(path),
   );
   if (openCodeGuidePath !== undefined) {
     diagnostics.push(`OpenCode contains an unexpected guide copy at ${openCodeGuidePath}.`);
   }
   const openCodeReferencePath = Object.entries(input.openCode.assets).find(([, content]) =>
-    [input.inventory.projectPlanningTarget, input.inventory.claudePlanningTarget].some(target =>
-      content.includes(target),
-    ),
+    content.includes(dataArchitectureGuideBasename),
   )?.[0];
   if (openCodeReferencePath !== undefined) {
     diagnostics.push(
@@ -140,7 +146,7 @@ export function verifyDataArchitectureDelivery(
   const { inventory } = input;
 
   const codexGuidePath = Object.keys(input.codex.assets).find(path =>
-    path.endsWith('/data-architecture-guide.md'),
+    isDataArchitectureGuidePath(path),
   );
   if (codexGuidePath !== undefined) {
     diagnostics.push(`Codex contains an unexpected guide copy at ${codexGuidePath}.`);

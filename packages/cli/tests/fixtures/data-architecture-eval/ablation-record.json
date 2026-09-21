@@ -1,0 +1,27 @@
+{
+  "ablationId": "independent-proof",
+  "caseId": "generated-manifest-missing-one-facet",
+  "record": {
+    "guideSha256": "aa096c0a5030669fb931b08affb28b8f6f19875ffc98fd215e24428401efbbc6",
+    "caseRubricSha256": "e7cccdd76c29bab2b791e6861b45425f5862b94010f889be9bbf583bbb78b9b6",
+    "promptSha256": "c037224a476eaf600ad706fd01692d695d127b9fda0ef62f16c7b5748a52ba8e",
+    "modelVersion": "claude-opus-5",
+    "decodingConfiguration": {
+      "effort": "high",
+      "maxTurns": 1
+    },
+    "responseFormat": "data-architecture-eval-v1",
+    "rubricLoader": "data-architecture-rubric-v1",
+    "response": {
+      "decisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.core.independent-proof",
+        "decision.generated.source"
+      ],
+      "proofFactIds": ["proof.independent.exact-set-oracle"]
+    }
+  }
+}

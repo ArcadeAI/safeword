@@ -56,25 +56,26 @@ recording contract, seeded negative answers, and the named independent-proof abl
 ```typescript
 interface EvaluationCase {
   id: string;
-  prompt: string;
-  expectedDecisionIds: string[];
-  forbiddenDecisionIds: string[];
-  expectedProofFactIds: string[];
-  forbiddenProofFactIds: string[];
+  text: string;
+  rubric: {
+    expectedDecisionIds: string[];
+    forbiddenDecisionIds: string[];
+    expectedProofFactIds: string[];
+    forbiddenProofFactIds: string[];
+  };
 }
 
 interface RecordedResult {
   caseId: string;
-  invocationId: string;
-  attemptOrdinal: number;
   modelVersion: string;
   decodingConfiguration: Record<string, string | number | boolean>;
   prompt: string;
-  promptSha256: string;
+  coldStartPromptSha256: string;
   guideSha256: string;
-  caseRubricSha256: string;
-  response: unknown;
-  passed: boolean;
+  caseAndRubricSha256: string;
+  responseFormat: string;
+  rubricLoader: string;
+  response: { decisionIds: string[]; proofFactIds: string[] };
 }
 ```
 
@@ -127,19 +128,20 @@ unexpected OpenCode-reference cases.
 
 The corpus has four independent authorities:
 
-- `contract.json` owns model/version, decoding settings, response schema, and the prompt/runner
-  protocol.
-- `cases.json` owns case prose and expected/forbidden decision IDs.
-- `rubrics.json` owns required/forbidden proof-fact IDs and diagnostics.
-- `records/*.json` owns current observed responses plus all content bindings.
+- `contract.json` owns the concrete model version, exposed inference settings, response protocol,
+  and named ablation binding.
+- `cases.json` owns case prose plus expected/forbidden decision and proof-fact IDs.
+- `records.json` owns the nine current full-guide responses and their content bindings.
+- `ablation-record.json` owns the current recorder-produced response against the derived guide
+  ablation.
 
 The verifier derives prompt, guide, case/rubric, and ablated-guide hashes rather than trusting stored
 pass/fail fields. Expected and actual IDs are compared as sets, never by order. The delivery inventory
 lives in test code rather than being derived from the schema or generator it checks.
 
-Sensitive-value scanning covers only authored case text, prompts, responses, and seed fixtures. The
-four named digest fields may contain 64-character hex only when their recomputed canonical digest
-matches; digest-shaped authored content receives no exemption.
+Sensitive-value scanning covers independently authored case prose. Prompt bytes and hashes are
+reconstructed, response IDs are exact-set graded against the rubric, and the remaining hashes are
+recomputed from canonical inputs rather than accepted as authored evidence.
 
 ## Component Interaction
 
@@ -148,8 +150,8 @@ matches; digest-shaped authored content receives no exemption.
    the adapter protocol.
 2. The recorder stores the response and provenance fields, then invokes the same deterministic grader
    used by verification.
-3. Verification reloads canonical inputs, re-derives hashes and the named ablation, scans all mutable
-   values, and grades full-guide and ablation records.
+3. Verification reloads canonical inputs, re-derives hashes and the named ablation, scans authored
+   case prose, and grades full-guide and ablation records.
 4. Delivery tests generate/install from the canonical template and compare the resulting
    repository-relative paths and allowed Claude substitutions against independent literals.
 

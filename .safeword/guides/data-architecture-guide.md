@@ -47,9 +47,9 @@ and linked evidence `[decision.ownership.linked-evidence]`. Prove one authority
 `[proof.ownership.single-authority]`; duplicate authority
 `decision.ownership.duplicate-authority` fails.
 
-<!-- data-architecture-ablation:independent-proof:start -->
-
 ## Independent proof `[decision.core.independent-proof]`
+
+<!-- data-architecture-ablation:independent-proof:start -->
 
 **Trigger:** the case explicitly makes a completeness or coverage claim. Do not apply this module
 merely because ordinary verification would be useful.
@@ -58,6 +58,8 @@ Every completeness claim names an oracle maintained independently of the mechani
 Grade the intended and observed semantic IDs as exact sets: missing, forbidden, unknown, or duplicate
 IDs fail. Evidence must state the environment, boundary, controls, threshold, and conditions that
 require revalidation. A sibling generated output cannot prove another generated output complete.
+For generated-artifact completeness, compare the output with a hand-maintained intended-facet
+inventory `[proof.generated.independent-inventory]`.
 <!-- data-architecture-ablation:independent-proof:end -->
 
 ## Triggered modules
@@ -120,8 +122,7 @@ boundary. Do not infer this module from a generic event or lifecycle.
 **Trigger:** code, schemas, manifests, docs, or catalogues are generated from another source.
 
 - name the authoritative source and generation boundary `[decision.generated.source]`
-- compare output with a hand-maintained intended-facet inventory
-  `[proof.generated.independent-inventory]`
+- apply the independent-proof module whenever completeness or coverage is claimed
 - do not use sibling generated output as the oracle `proof.generated.sibling-output`
 
 ## Evidence safety

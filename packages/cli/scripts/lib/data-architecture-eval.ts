@@ -26,6 +26,15 @@ export interface EvaluationContract {
   readonly responseFormat: string;
   readonly rubricLoader: string;
   readonly toolsDisabled: true;
+  readonly ablation?: EvaluationAblationConfig;
+}
+
+export interface EvaluationAblationConfig {
+  readonly id: string;
+  readonly caseId: string;
+  readonly preservedDecisionIds: readonly string[];
+  readonly attributableDecisionIds: readonly string[];
+  readonly attributableProofFactIds: readonly string[];
 }
 
 export interface EvaluationRecord {
@@ -141,6 +150,12 @@ export interface AblationRecord {
   readonly response: EvaluationResponse;
 }
 
+export interface StoredAblationRecord {
+  readonly ablationId: string;
+  readonly caseId: string;
+  readonly record: AblationRecord;
+}
+
 export interface AblationPairInput {
   readonly ablationId: string;
   readonly canonicalGuide: string;
@@ -207,6 +222,10 @@ function canonicalRubricJson(rubric: EvaluationRubric): string {
   });
 }
 
+export function evaluationRubricSha256(rubric: EvaluationRubric): string {
+  return sha256(canonicalRubricJson(rubric));
+}
+
 export function buildColdStartPrompt(
   canonicalGuide: string,
   evaluationCase: Pick<EvaluationCase, 'id' | 'text'>,
@@ -257,6 +276,40 @@ export function createEvaluationRecord(input: {
     responseFormat: input.contract.responseFormat,
     rubricLoader: input.contract.rubricLoader,
     response: input.response,
+  };
+}
+
+export function createAblationRecord(input: {
+  readonly guide: string;
+  readonly evaluationCase: EvaluationCase;
+  readonly contract: EvaluationContract;
+  readonly response: EvaluationResponse;
+}): AblationRecord {
+  return {
+    guideSha256: sha256(input.guide),
+    caseRubricSha256: evaluationRubricSha256(input.evaluationCase.rubric),
+    promptSha256: sha256(buildGuideIndependentPrompt(input.evaluationCase)),
+    modelVersion: input.contract.modelVersion,
+    decodingConfiguration: input.contract.decodingConfiguration,
+    responseFormat: input.contract.responseFormat,
+    rubricLoader: input.contract.rubricLoader,
+    response: input.response,
+  };
+}
+
+export function evaluationRecordAsAblationRecord(
+  record: EvaluationRecord,
+  evaluationCase: EvaluationCase,
+): AblationRecord {
+  return {
+    guideSha256: record.guideSha256,
+    caseRubricSha256: evaluationRubricSha256(evaluationCase.rubric),
+    promptSha256: sha256(buildGuideIndependentPrompt(evaluationCase)),
+    modelVersion: record.modelVersion,
+    decodingConfiguration: record.decodingConfiguration,
+    responseFormat: record.responseFormat,
+    rubricLoader: record.rubricLoader,
+    response: record.response,
   };
 }
 
@@ -641,14 +694,28 @@ function sameSet(actual: readonly string[], expected: readonly string[]): boolea
 }
 
 function responsePasses(response: EvaluationResponse, rubric: EvaluationRubric): boolean {
-  // Exact expected sets decide acceptance. Forbidden sets provide focused diagnostics for extra IDs.
   return (
     sameSet(response.decisionIds, rubric.expectedDecisionIds) &&
-    sameSet(response.proofFactIds, rubric.expectedProofFactIds)
+    sameSet(response.proofFactIds, rubric.expectedProofFactIds) &&
+    idSetDiagnostics(
+      response.decisionIds,
+      rubric.expectedDecisionIds,
+      rubric.forbiddenDecisionIds,
+      'decision',
+    ).length === 0 &&
+    idSetDiagnostics(
+      response.proofFactIds,
+      rubric.expectedProofFactIds,
+      rubric.forbiddenProofFactIds,
+      'proof fact',
+    ).length === 0
   );
 }
 
-function deriveNamedAblation(canonicalGuide: string, ablationId: string): string | undefined {
+export function deriveNamedAblation(
+  canonicalGuide: string,
+  ablationId: string,
+): string | undefined {
   const start = `<!-- data-architecture-ablation:${ablationId}:start -->`;
   const end = `<!-- data-architecture-ablation:${ablationId}:end -->`;
   const startIndex = canonicalGuide.indexOf(start);
@@ -787,4 +854,42 @@ export function verifyAblationPair(input: AblationPairInput): VerificationResult
     ...(rubricDiagnostics.length === 0 ? responseDiagnostics(input) : []),
   ];
   return { accepted: diagnostics.length === 0, diagnostics };
+}
+
+export function verifyStoredAblation(input: {
+  readonly canonicalGuide: string;
+  readonly contract: EvaluationContract;
+  readonly evaluationCase: EvaluationCase;
+  readonly fullGuideRecord: EvaluationRecord;
+  readonly stored: StoredAblationRecord;
+}): VerificationResult {
+  const config = input.contract.ablation;
+  if (config === undefined) {
+    return { accepted: false, diagnostics: ['Evaluation contract does not define an ablation.'] };
+  }
+  const ablatedGuide = deriveNamedAblation(input.canonicalGuide, config.id);
+  if (ablatedGuide === undefined) {
+    return {
+      accepted: false,
+      diagnostics: [`Canonical guide does not define one ${config.id} transform.`],
+    };
+  }
+  const diagnostics: string[] = [];
+  if (input.stored.ablationId !== config.id)
+    diagnostics.push('Stored ablation ID does not match the evaluation contract.');
+  if (input.stored.caseId !== config.caseId || input.evaluationCase.id !== config.caseId)
+    diagnostics.push('Stored ablation case does not match the evaluation contract.');
+  if (diagnostics.length > 0) return { accepted: false, diagnostics };
+  return verifyAblationPair({
+    ablationId: config.id,
+    canonicalGuide: input.canonicalGuide,
+    evaluationCase: input.evaluationCase,
+    storedAblatedGuide: ablatedGuide,
+    preservedDecisionIds: config.preservedDecisionIds,
+    attributableDecisionIds: config.attributableDecisionIds,
+    attributableProofFactIds: config.attributableProofFactIds,
+    rubric: input.evaluationCase.rubric,
+    fullGuideRecord: evaluationRecordAsAblationRecord(input.fullGuideRecord, input.evaluationCase),
+    ablatedGuideRecord: input.stored.record,
+  });
 }

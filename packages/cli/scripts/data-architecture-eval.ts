@@ -7,14 +7,18 @@ import nodePath from 'node:path';
 
 import {
   buildColdStartPrompt,
+  createAblationRecord,
   createEvaluationRecord,
+  deriveNamedAblation,
   type EvaluationCase,
   type EvaluationContract,
   type EvaluationRecord,
   type EvaluationResponse,
+  type StoredAblationRecord,
   verifyEvaluationCorpus,
   verifyEvaluationCorpusSafety,
   verifyEvaluationRecord,
+  verifyStoredAblation,
 } from './lib/data-architecture-eval.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
@@ -56,6 +60,37 @@ function adapterArgv(arguments_: readonly string[]): string[] {
   return arguments_.slice(index + 1);
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(entry => typeof entry === 'string');
+}
+
+function structuredOutput(value: unknown): unknown {
+  return typeof value === 'object' && value !== null && 'structured_output' in value
+    ? value.structured_output
+    : value;
+}
+
+function parseAdapterResponse(stdout: string, caseId: string): EvaluationResponse {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout) as unknown;
+  } catch (error) {
+    throw new Error(`Adapter response parsing failed for ${caseId}.`, { cause: error });
+  }
+  const candidate = structuredOutput(parsed);
+  if (typeof candidate !== 'object' || candidate === null) {
+    throw new Error(`Adapter response validation failed for ${caseId}: expected an object.`);
+  }
+  const decisionIds = 'decisionIds' in candidate ? candidate.decisionIds : undefined;
+  const proofFactIds = 'proofFactIds' in candidate ? candidate.proofFactIds : undefined;
+  if (!isStringArray(decisionIds) || !isStringArray(proofFactIds)) {
+    throw new Error(
+      `Adapter response validation failed for ${caseId}: expected decisionIds and proofFactIds string arrays.`,
+    );
+  }
+  return { decisionIds, proofFactIds };
+}
+
 function recordResponse(
   adapter: readonly string[],
   prompt: string,
@@ -71,16 +106,13 @@ function recordResponse(
       input: prompt,
       timeout: 120_000,
     });
-    if (result.error !== undefined) throw result.error;
+    if (result.error !== undefined) {
+      throw new Error(`Adapter process failed for ${caseId}: ${result.error.message}`);
+    }
     if (result.status !== 0) {
       throw new Error(`Adapter failed for ${caseId}: ${result.stderr.trim()}`);
     }
-    const parsed = JSON.parse(result.stdout) as {
-      readonly decisionIds?: readonly string[];
-      readonly proofFactIds?: readonly string[];
-      readonly structured_output?: EvaluationResponse;
-    };
-    return parsed.structured_output ?? (parsed as EvaluationResponse);
+    return parseAdapterResponse(result.stdout, caseId);
   } finally {
     rmSync(workingDirectory, { recursive: true, force: true });
   }
@@ -113,10 +145,60 @@ function record(arguments_: readonly string[]): void {
   const recordsPath = nodePath.join(input.corpusDirectory, 'records.json');
   const safety = verifyEvaluationCorpusSafety({ cases: input.cases, records });
   if (!safety.accepted) throw new Error(safety.diagnostics.join('\n'));
-  const temporaryPath = `${recordsPath}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(records, undefined, 2)}\n`, { mode: 0o600 });
-  renameSync(temporaryPath, recordsPath);
-  process.stdout.write(`Recorded ${records.length} data architecture evaluation records.\n`);
+  const pendingWrites = [{ path: recordsPath, value: records }];
+
+  const ablationConfig = input.contract.ablation;
+  if (ablationConfig !== undefined) {
+    const evaluationCase = input.cases.find(item => item.id === ablationConfig.caseId);
+    const fullGuideRecord = records.find(item => item.caseId === ablationConfig.caseId);
+    if (evaluationCase === undefined || fullGuideRecord === undefined) {
+      throw new Error(
+        `Ablation case ${ablationConfig.caseId} is missing from the evaluation corpus.`,
+      );
+    }
+    const ablatedGuide = deriveNamedAblation(input.canonicalGuide, ablationConfig.id);
+    if (ablatedGuide === undefined) {
+      throw new Error(`Canonical guide does not define one ${ablationConfig.id} transform.`);
+    }
+    const storedAblation: StoredAblationRecord = {
+      ablationId: ablationConfig.id,
+      caseId: evaluationCase.id,
+      record: createAblationRecord({
+        guide: ablatedGuide,
+        evaluationCase,
+        contract: input.contract,
+        response: recordResponse(
+          adapter,
+          buildColdStartPrompt(ablatedGuide, evaluationCase),
+          `${evaluationCase.id}:ablation`,
+        ),
+      }),
+    };
+    const result = verifyStoredAblation({
+      canonicalGuide: input.canonicalGuide,
+      contract: input.contract,
+      evaluationCase,
+      fullGuideRecord,
+      stored: storedAblation,
+    });
+    if (!result.accepted) {
+      throw new Error(result.diagnostics.map(diagnostic => `[ablation] ${diagnostic}`).join('\n'));
+    }
+    pendingWrites.push({
+      path: nodePath.join(input.corpusDirectory, 'ablation-record.json'),
+      value: storedAblation,
+    });
+  }
+
+  for (const pending of pendingWrites) {
+    writeFileSync(`${pending.path}.tmp`, `${JSON.stringify(pending.value, undefined, 2)}\n`, {
+      mode: 0o600,
+    });
+  }
+  for (const pending of pendingWrites) renameSync(`${pending.path}.tmp`, pending.path);
+  process.stdout.write(
+    `Recorded ${records.length} data architecture evaluation records${ablationConfig === undefined ? '' : ' and 1 ablation record'}.\n`,
+  );
 }
 
 function verify(arguments_: readonly string[]): void {
@@ -132,13 +214,35 @@ function verify(arguments_: readonly string[]): void {
   });
   const safety = verifyEvaluationCorpusSafety({ cases: input.cases, records });
   const diagnostics = [...result.diagnostics, ...safety.diagnostics];
+  const ablationConfig = input.contract.ablation;
+  if (ablationConfig !== undefined) {
+    const evaluationCase = input.cases.find(item => item.id === ablationConfig.caseId);
+    const fullGuideRecord = records.find(item => item.caseId === ablationConfig.caseId);
+    if (evaluationCase === undefined || fullGuideRecord === undefined) {
+      diagnostics.push(`Ablation case ${ablationConfig.caseId} is missing from the corpus.`);
+    } else {
+      const stored = readJson(
+        nodePath.join(input.corpusDirectory, 'ablation-record.json'),
+      ) as StoredAblationRecord;
+      const ablation = verifyStoredAblation({
+        canonicalGuide: input.canonicalGuide,
+        contract: input.contract,
+        evaluationCase,
+        fullGuideRecord,
+        stored,
+      });
+      diagnostics.push(...ablation.diagnostics.map(diagnostic => `[ablation] ${diagnostic}`));
+    }
+  }
   if (diagnostics.length > 0) {
     process.stderr.write(`${diagnostics.join('\n')}\n`);
     process.exitCode = 1;
     return;
   }
   const suffix = records.length === 1 ? 'record' : 'records';
-  process.stdout.write(`Verified ${records.length} data architecture evaluation ${suffix}.\n`);
+  process.stdout.write(
+    `Verified ${records.length} data architecture evaluation ${suffix}${ablationConfig === undefined ? '' : ' and 1 ablation record'}.\n`,
+  );
 }
 
 const [mode, ...arguments_] = process.argv.slice(2);

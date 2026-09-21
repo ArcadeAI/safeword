@@ -18,6 +18,7 @@ import {
   type EvaluationRubric,
   type EvidenceSafetyInput,
   type FacetCompletenessInput,
+  type StoredAblationRecord,
   verifyAblationPair,
   verifyArtifactOwnership,
   verifyConditionalProof,
@@ -26,6 +27,7 @@ import {
   verifyEvaluationRecord,
   verifyEvidenceSafety,
   verifyFacetCompleteness,
+  verifyStoredAblation,
 } from '../scripts/lib/data-architecture-eval.js';
 
 const guide = [
@@ -77,6 +79,9 @@ const currentContract = JSON.parse(
 const currentRecords = JSON.parse(
   readFileSync(nodePath.join(recordedCorpusDirectory, 'records.json'), 'utf8'),
 ) as EvaluationRecord[];
+const currentAblation = JSON.parse(
+  readFileSync(nodePath.join(recordedCorpusDirectory, 'ablation-record.json'), 'utf8'),
+) as StoredAblationRecord;
 
 function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
@@ -227,8 +232,10 @@ const representativeCases: readonly RepresentativeCaseFixture[] = [
       ...universalDecisionIds,
       'decision.temporal.clock-boundary',
       'decision.temporal.deletion-lag',
+      'decision.erasure.copy-disposition',
+      'decision.erasure.isolation',
     ],
-    proofs: ['proof.temporal.equality-retry-restore'],
+    proofs: ['proof.temporal.equality-retry-restore', 'proof.erasure.complete-and-isolated'],
   },
   {
     id: 'mixed-decision-routing',
@@ -345,8 +352,10 @@ const recordedResponsesByCase: Readonly<Record<string, EvaluationResponse>> = {
       'decision.core.lifecycle',
       'decision.temporal.clock-boundary',
       'decision.temporal.deletion-lag',
+      'decision.erasure.copy-disposition',
+      'decision.erasure.isolation',
     ],
-    proofFactIds: ['proof.temporal.equality-retry-restore'],
+    proofFactIds: ['proof.temporal.equality-retry-restore', 'proof.erasure.complete-and-isolated'],
   },
   'mixed-decision-routing': {
     decisionIds: [
@@ -718,6 +727,59 @@ describe('data architecture guide evaluation', () => {
         record: evaluationRecord,
       }),
     ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it('accepts the complete current nine-case corpus against the shipped guide', () => {
+    expect(
+      verifyEvaluationCorpus({
+        canonicalGuide: shippedCanonicalGuide,
+        cases: currentCases,
+        contract: currentContract,
+        records: currentRecords,
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it('accepts the current mixed decision-routing record against the shipped guide', () => {
+    const evaluationCase = currentCases.find(item => item.id === 'mixed-decision-routing');
+    const evaluationRecord = currentRecords.find(item => item.caseId === 'mixed-decision-routing');
+    if (evaluationCase === undefined || evaluationRecord === undefined)
+      throw new Error('Current mixed decision-routing evidence is missing.');
+    expect(
+      verifyEvaluationRecord({
+        canonicalGuide: shippedCanonicalGuide,
+        evaluationCase,
+        contract: currentContract,
+        record: evaluationRecord,
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it('accepts the current recorder-produced independent-proof ablation', () => {
+    const evaluationCase = currentCases.find(
+      item => item.id === 'generated-manifest-missing-one-facet',
+    );
+    const fullGuideRecord = currentRecords.find(
+      item => item.caseId === 'generated-manifest-missing-one-facet',
+    );
+    if (evaluationCase === undefined || fullGuideRecord === undefined)
+      throw new Error('Current ablation control evidence is missing.');
+    expect(
+      verifyStoredAblation({
+        canonicalGuide: shippedCanonicalGuide,
+        contract: currentContract,
+        evaluationCase,
+        fullGuideRecord,
+        stored: currentAblation,
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it('safety-checks the current authored corpus', () => {
+    expect(verifyEvaluationCorpusSafety({ cases: currentCases, records: currentRecords })).toEqual({
+      accepted: true,
+      diagnostics: [],
+    });
   });
 
   it.each([

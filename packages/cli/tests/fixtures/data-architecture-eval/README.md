@@ -2,7 +2,8 @@
 
 This repository-only corpus proves issue #4560 without putting maintainer commands in the shipped
 guide. `cases.json` owns the nine hand-maintained rubrics, `contract.json` fixes model and decoding
-identity, and `records.json` contains recorder-produced, content-bound results.
+identity, `records.json` contains the nine recorder-produced full-guide results, and
+`ablation-record.json` contains the paired recorder-produced named-ablation result.
 
 From `packages/cli`, record with a model adapter whose argv reads one prompt from stdin and writes
 only the response JSON to stdout:
@@ -13,7 +14,8 @@ bun run data-architecture:record -- --adapter /absolute/path/to/model-adapter --
 
 The recorder runs the adapter in an empty temporary directory with a bounded timeout, reconstructs
 the prompt from only the canonical guide, one case, the neutral response schema, and tools-disabled
-state, re-grades the response, then atomically replaces `records.json` only when all nine pass.
+state, validates the adapter response shape, re-grades every full-guide result and the named
+ablation pair, then replaces the evidence files only when the complete evaluation passes.
 
 Verify deterministically, without model or network access:
 
@@ -21,5 +23,7 @@ Verify deterministically, without model or network access:
 bun run data-architecture:verify
 ```
 
-Refresh records whenever the guide, cases, rubric, model/version, decoding configuration, response
-format, or rubric loader changes. The verifier rejects stale, missing, duplicate, or unknown records.
+The checked-in contract pins `claude-opus-5` and the Claude CLI inference controls exposed by the
+adapter (`effort: high`, one turn, tools disabled). Refresh records whenever the guide, cases,
+rubric, model/version, inference configuration, response format, rubric loader, or named ablation
+changes. The verifier rejects stale, missing, duplicate, unknown, or non-discriminating evidence.

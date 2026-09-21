@@ -3,7 +3,7 @@
   "scenarios": {
     "A mixed planning case keeps durable decisions separate from reversible helpers": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "accepts a mixed planning record that separates durable decisions from reversible helpers"
+      "accepts the current mixed decision-routing record against the shipped guide"
     ],
     "Treating a consequential data contract as a reversible helper fails review": [
       "packages/cli/tests/data-architecture-eval.test.ts",
@@ -37,7 +37,7 @@
     ],
     "A discriminating guide-ablation pair validates independent proof": [
       "packages/cli/tests/data-architecture-eval.test.ts",
-      "accepts a discriminating independent-proof guide ablation"
+      "accepts the current recorder-produced independent-proof ablation"
     ],
     "A non-discriminating guide-ablation pair fails evaluation": [
       [

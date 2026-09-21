@@ -1,10 +1,17 @@
 {
-  "modelVersion": "claude-opus",
+  "modelVersion": "claude-opus-5",
   "decodingConfiguration": {
     "effort": "high",
     "maxTurns": 1
   },
   "responseFormat": "data-architecture-eval-v1",
   "rubricLoader": "data-architecture-rubric-v1",
-  "toolsDisabled": true
+  "toolsDisabled": true,
+  "ablation": {
+    "id": "independent-proof",
+    "caseId": "generated-manifest-missing-one-facet",
+    "preservedDecisionIds": ["decision.core.independent-proof"],
+    "attributableDecisionIds": ["decision.core.independent-proof"],
+    "attributableProofFactIds": ["proof.generated.independent-inventory"]
+  }
 }
