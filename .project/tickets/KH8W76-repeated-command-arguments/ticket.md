@@ -18,7 +18,7 @@ done_when:
   - Existing malformed invocation, unsafe cwd, receipt-target, equality, and digest checks remain green.
   - Invalid structural output reports a specific failing field or reason.
 created: 2026-09-22T18:04:08.026Z
-last_modified: 2026-09-22T18:08:00.000Z
+last_modified: 2026-09-22T20:34:00.000Z
 ---
 
 # Accept repeated command arguments in plan reviews
@@ -50,3 +50,9 @@ Ruled out:
 - 2026-09-22T18:04:08.026Z Started: Created ticket KH8W76
 - 2026-09-22T18:08:00.000Z Found: Issue #4769 targets the unmerged
   `codex/4200-plan-implementation-gates` line, so this fix is stacked on that branch.
+- 2026-09-22T20:34:00.000Z Verified: Repeated Cargo arguments are admitted; empty or
+  blank argv entries, unsafe cwd values, duplicate receipt targets, trusted-definition
+  mutations, and digest mutations remain rejected with field-specific reasons. Focused
+  validator/runtime tests pass (113 passed, 2 skipped). The repository-wide gate remains
+  red on pre-existing stacked-branch generated-artifact, Bun-version, and integration-timeout
+  failures; GitHub CI is the final environment check for this fix.

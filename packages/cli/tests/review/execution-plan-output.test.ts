@@ -236,7 +236,8 @@ describe('Execution Plan output validation', () => {
     const record = validRecord();
     const proof = record.delivery_definition.proof_specifications[0];
     if (proof?.invocation.type !== 'command') throw new Error('Missing command proof fixture');
-    proof.invocation.argv = [
+    const invocation = proof.invocation as unknown as { argv: string[]; cwd: string };
+    invocation.argv = [
       'cargo',
       'test',
       '--release',
@@ -246,7 +247,7 @@ describe('Execution Plan output validation', () => {
       '--test',
       'request_audit',
     ];
-    proof.invocation.cwd = 'apps/guard';
+    invocation.cwd = 'apps/guard';
     const output = approval(record);
 
     expect(
@@ -276,6 +277,24 @@ describe('Execution Plan output validation', () => {
     expect(validateExecutionPlanOutput(output)).toEqual({
       kind: 'invalid_output',
       reason: expect.stringContaining(field),
+    });
+  });
+
+  it('keeps unsafe command working directories rejected and names the field', () => {
+    const output = approval(
+      mutateRecord(record => {
+        const definition = record.delivery_definition as {
+          proof_specifications: { invocation: { cwd: string } }[];
+        };
+        const proof = definition.proof_specifications[0];
+        if (proof === undefined) throw new Error('Missing proof fixture');
+        proof.invocation.cwd = '../outside';
+      }),
+    );
+
+    expect(validateExecutionPlanOutput(output)).toEqual({
+      kind: 'invalid_output',
+      reason: expect.stringContaining('invocation.cwd'),
     });
   });
 
@@ -325,14 +344,16 @@ describe('Execution Plan output validation', () => {
       }),
     );
 
-    expect(validateExecutionPlanOutput(output, expected)).toEqual({ kind: 'invalid_output' });
+    expect(validateExecutionPlanOutput(output, expected)).toMatchObject({
+      kind: 'invalid_output',
+    });
   });
 
   it('refuses a reviewer digest that differs from the trusted normalized plan identity', () => {
     const output = approval();
     const expected = validRecord().delivery_definition;
 
-    expect(validateExecutionPlanOutput(output, expected, 'b'.repeat(64))).toEqual({
+    expect(validateExecutionPlanOutput(output, expected, 'b'.repeat(64))).toMatchObject({
       kind: 'invalid_output',
     });
   });
@@ -365,19 +386,19 @@ describe('Execution Plan output validation', () => {
 
     expect(
       validateExecutionPlanOutput(withoutDestination as unknown as UnverifiedReviewerOutput),
-    ).toEqual({ kind: 'invalid_output' });
+    ).toMatchObject({ kind: 'invalid_output' });
     expect(
       validateExecutionPlanOutput({
         ...approval(),
         planning_destination: 'somewhere-else',
       }),
-    ).toEqual({ kind: 'invalid_output' });
+    ).toMatchObject({ kind: 'invalid_output' });
     expect(
       validateExecutionPlanOutput({
         ...approval(),
         planning_destination: 'plan-implementation',
       }),
-    ).toEqual({ kind: 'invalid_output' });
+    ).toMatchObject({ kind: 'invalid_output' });
   });
 
   it.each([
@@ -562,7 +583,7 @@ describe('Execution Plan output validation', () => {
       ),
     ],
   ])('classifies %s as retryable invalid output', (_name, output) => {
-    expect(validateExecutionPlanOutput(output)).toEqual({
+    expect(validateExecutionPlanOutput(output)).toMatchObject({
       kind: 'invalid_output',
     });
   });
