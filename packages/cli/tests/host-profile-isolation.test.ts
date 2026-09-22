@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { assertIsolatedHostProfile, hostProfileSandbox } from './helpers/host-profile-sandbox.ts';
 
@@ -20,35 +20,43 @@ describe('host profile isolation (#4776)', () => {
     expect(process.env.CLAUDE_CONFIG_DIR).toBe(hostProfileSandbox());
   });
 
-  it('keeps one warm sandbox outside the home directory across runs', () => {
-    // Stable, not per-process: a fresh directory each run re-clones the
-    // marketplace, and that clone already exceeds Claude Code's 120s git
-    // timeout on this repository.
+  it('resolves the same sandbox in a freshly loaded module, not a per-run directory', async () => {
+    // The contract is stability ACROSS processes, so re-resolving inside one
+    // process proves nothing. Load the module again with a clean registry: a
+    // `mkdtemp`-style sandbox would hand back a different directory here, and
+    // that regression is what re-clones the marketplace on every run — a clone
+    // that already exceeds Claude Code's 120s git timeout on this repository.
+    vi.resetModules();
+    const reloaded = await import('./helpers/host-profile-sandbox.ts');
+
+    expect(reloaded.hostProfileSandbox()).toBe(hostProfileSandbox());
+  });
+
+  it('creates the sandbox inside the temp root so the host can write to it', () => {
     const directory = hostProfileSandbox();
-    expect(directory).toBe(nodePath.join(tmpdir(), 'safeword-test-host-profile'));
+
     expect(existsSync(directory)).toBe(true);
+    expect(nodePath.dirname(directory)).toBe(nodePath.resolve(tmpdir()));
   });
 
-  it('rejects a runner that never set a profile directory', () => {
+  it.each([
+    ['an unset profile directory', {}, /CLAUDE_CONFIG_DIR is unset/u],
+    ['a whitespace-only profile directory', { CLAUDE_CONFIG_DIR: ' ' }, /is unset/u],
+    ['the home directory itself', { CLAUDE_CONFIG_DIR: homedir() }, /inside the home directory/u],
+    [
+      'the real profile nested under home',
+      { CLAUDE_CONFIG_DIR: nodePath.join(homedir(), '.claude') },
+      /inside the home directory/u,
+    ],
+  ])('rejects %s', (_label, environment, expected) => {
     expect(() => {
-      assertIsolatedHostProfile({});
-    }).toThrow(/CLAUDE_CONFIG_DIR is unset/u);
-    expect(() => {
-      assertIsolatedHostProfile({ CLAUDE_CONFIG_DIR: ' '.repeat(3) });
-    }).toThrow(/CLAUDE_CONFIG_DIR is unset/u);
-  });
-
-  it('rejects the real home profile and anything nested under it', () => {
-    for (const directory of [homedir(), nodePath.join(homedir(), '.claude')]) {
-      expect(() => {
-        assertIsolatedHostProfile({ CLAUDE_CONFIG_DIR: directory });
-      }).toThrow(/inside the home directory/u);
-    }
+      assertIsolatedHostProfile(environment);
+    }).toThrow(expected);
   });
 
   it('accepts a sibling directory whose path merely starts with the home string', () => {
     // `${home}-scratch` is not under `${home}/`; a prefix check without the
-    // separator would reject a legitimate sandbox.
+    // separator would reject a legitimate sandbox, so this pins the separator.
     expect(() => {
       assertIsolatedHostProfile({ CLAUDE_CONFIG_DIR: `${homedir()}-scratch` });
     }).not.toThrow();
