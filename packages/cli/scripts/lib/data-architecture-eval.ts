@@ -452,13 +452,8 @@ function authoredCorpusStringDiagnostics(value: string, path: string): string[] 
 export function verifyEvaluationCorpusSafety(
   input: EvaluationCorpusSafetyInput,
 ): VerificationResult {
-  // Prompts are reconstructed from the canonical guide, authored case identity/prose, and the
-  // checked-in recording contract, while responses are constrained to exact rubric IDs. Scan every
-  // authored string that can carry an arbitrary sensitive value after those checks succeed.
-  const diagnostics = input.cases.flatMap((evaluationCase, caseIndex) => [
-    ...authoredCorpusStringDiagnostics(evaluationCase.id, `cases[${caseIndex}].id`),
-    ...authoredCorpusStringDiagnostics(evaluationCase.text, `cases[${caseIndex}].text`),
-  ]);
+  // Scan authored case and contract values before they reach recorded evaluation output.
+  const diagnostics: string[] = [];
   const visitAuthoredValue = (value: unknown, path: string): void => {
     if (typeof value === 'string') {
       diagnostics.push(...authoredCorpusStringDiagnostics(value, path));
@@ -475,7 +470,7 @@ export function verifyEvaluationCorpusSafety(
     }
   };
   for (const [caseIndex, evaluationCase] of input.cases.entries()) {
-    visitAuthoredValue(evaluationCase.rubric, `cases[${caseIndex}].rubric`);
+    visitAuthoredValue(evaluationCase, `cases[${caseIndex}]`);
   }
   visitAuthoredValue(input.contract, 'contract');
   return { accepted: diagnostics.length === 0, diagnostics };
