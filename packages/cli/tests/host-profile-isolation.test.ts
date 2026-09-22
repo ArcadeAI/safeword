@@ -1,8 +1,10 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { assertIsolatedHostProfile, hostProfileSandbox } from './helpers/host-profile-sandbox.ts';
 
@@ -20,16 +22,19 @@ describe('host profile isolation (#4776)', () => {
     expect(process.env.CLAUDE_CONFIG_DIR).toBe(hostProfileSandbox());
   });
 
-  it('resolves the same sandbox in a freshly loaded module, not a per-run directory', async () => {
-    // The contract is stability ACROSS processes, so re-resolving inside one
-    // process proves nothing. Load the module again with a clean registry: a
-    // `mkdtemp`-style sandbox would hand back a different directory here, and
-    // that regression is what re-clones the marketplace on every run — a clone
-    // that already exceeds Claude Code's 120s git timeout on this repository.
-    vi.resetModules();
-    const reloaded = await import('./helpers/host-profile-sandbox.ts');
+  it('resolves the same sandbox from two separate processes', () => {
+    // Genuinely separate processes, not `vi.resetModules()`: a clean module
+    // registry still shares this process, so a per-run sandbox keyed on
+    // something process-stable — `safeword-test-host-profile-${process.pid}`
+    // being the obvious one — would pass a reload comparison while handing every
+    // runner invocation a fresh profile. That regression re-clones the
+    // marketplace on each run, and that clone already exceeds Claude Code's
+    // 120s git timeout on this repository.
+    const [first, second] = [resolveSandboxInChildProcess(), resolveSandboxInChildProcess()];
 
-    expect(reloaded.hostProfileSandbox()).toBe(hostProfileSandbox());
+    expect(first.pid).not.toBe(second.pid);
+    expect(first.directory).toBe(second.directory);
+    expect(first.directory).toBe(hostProfileSandbox());
   });
 
   it('creates the sandbox inside the temp root so the host can write to it', () => {
@@ -62,3 +67,27 @@ describe('host profile isolation (#4776)', () => {
     }).not.toThrow();
   });
 });
+
+/**
+ * Resolves the sandbox in a child process, reporting its pid so the caller can
+ * prove the two resolutions really did come from different processes.
+ */
+function resolveSandboxInChildProcess(): { directory: string; pid: string } {
+  const moduleUrl = pathToFileURL(
+    nodePath.join(import.meta.dirname, 'helpers/host-profile-sandbox.ts'),
+  ).href;
+  const output = execFileSync(
+    process.execPath,
+    [
+      '--import',
+      'tsx',
+      '--input-type=module',
+      '-e',
+      `import { hostProfileSandbox } from ${JSON.stringify(moduleUrl)};
+       process.stdout.write(hostProfileSandbox() + '|' + process.pid);`,
+    ],
+    { encoding: 'utf8' },
+  );
+  const [directory, pid] = output.trim().split('|', 2);
+  return { directory: directory ?? '', pid: pid ?? '' };
+}
