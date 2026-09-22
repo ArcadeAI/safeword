@@ -81,6 +81,12 @@ Feature: Make Safeword plans clear and reviewable
       Then implementation continues against that accepted plan without claiming v2 approval
 
     @rejection
+    Scenario: Missing history cannot manufacture a continuation receipt
+      Given an implementing legacy feature needs a continuation receipt but its checkout lacks required history
+      When Safeword resolves its Product Plan contract
+      Then it preserves existing evidence and names a full-history checkout as the recovery
+
+    @rejection
     Scenario: Returning to planning ends legacy continuation
       Given an implementing feature continued under its accepted legacy plan
       When a changed product decision returns it to Product Planning
@@ -152,6 +158,11 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword checks their active instructions
       Then only authoring, semantic-review, and hybrid sources carry the operative writing-guide directive
 
+    Scenario: Failure recovery inventory has one action per distinct result
+      Given Product Plan, Implementation Plan, and writing-context failure fixtures name their typed results and reasons
+      When Safeword generates the recovery inventory
+      Then every result-and-reason pair has exactly one owner-facing recovery and owning rule
+
     @rejection
     Scenario: A guide mention inside an example cannot satisfy the directive
       Given an authoring workflow mentions the guide only inside a comment or example
@@ -210,6 +221,12 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword presents fields for approval one at a time before synthesizing the set
       Then the checkpoint is rejected without an approval or completed plan record
 
+    @rejection
+    Scenario: Approval waits for the complete decision set
+      Given a checkpoint omits its viable alternatives, tradeoffs, and proposed plan record
+      When Safeword requests confirmation
+      Then approval is withheld until the complete set is presented
+
     Scenario: User-only knowledge rejoins the current checkpoint
       Given a complete proposed decision set exposes one fact only the user can supply
       When the user supplies that fact after Safeword asks for it
@@ -234,6 +251,11 @@ Feature: Make Safeword plans clear and reviewable
       Given a user confirms a design choice in chat but the Implementation Plan has no durable record
       When Safeword tries to approve the Implementation Plan
       Then approval is refused until the choice and consequence are recorded in that plan
+
+    Scenario: Autonomous confirmation still records the decision
+      Given a planning checkpoint may be confirmed without a user reply under accepted authority
+      When Safeword confirms its complete decision set
+      Then the owning plan records the accepted choice and rejected alternatives with reasons
 
     Scenario: Resume repeats the current decision set without restarting discovery
       Given planning stops after presenting a checkpoint but before its confirmation

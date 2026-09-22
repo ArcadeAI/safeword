@@ -3,6 +3,8 @@ id: ZSHVEB
 slug: write-clear-reviewable-plans
 type: feature
 phase: define-behavior
+phase_anchors:
+  - define-behavior: .project/tickets/ZSHVEB-write-clear-reviewable-plans/spec.md
 status: in_progress
 scope:
   - add one shared technical-writing guide for Safeword workflows that author or review technical documents
@@ -47,6 +49,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 **See:** [spec.md](./spec.md) for this child contribution and Rules; personas, job, milestone, and outcomes are inherited from [the parent Product Plan](../82T411-plan-implementation-implementability/spec.md).
 
 ## Work Log
+
+- 2026-09-22T23:34:03.000Z Define-behavior draft: Derived 37 representative scenarios from the six accepted Rules and the dimension table, with the shared decision conversation covered by one-source, grouped synthesis, durable-record, resume, checkpoint-budget, and return-path examples. Added the matching R/G/R ledger. Kept the ticket in define-behavior pending the user's completeness and scope-edge check; no independent scenario-gate verdict is claimed.
 
 - 2026-09-22T20:51:37.000Z Independent intake review `38febe2e-0a25-4bcf-be39-0bc5adf27473` confirmed the plan contracts and cross-ticket bindings are internally consistent, then found that the prior fallback log did not name where its review-gate exception was recorded. Corrected the log to identify Safeword's machine review ledger and to distinguish a skipped review gate from a skipped intake phase; returned to intake and retained the reviewer's nonblocking cautions for implementation proof.
 - 2026-09-22T20:33:34.000Z Intake exit attempt: Both configured independent Claude routes timed out without findings. Under the configured `prefer` policy, the bounded terminal self-review approved the current contract with no findings; the review-gate exception was written to Safeword's machine review ledger, not to `phase_skips` (intake itself was completed). A later independent rerun superseded this fallback and returned the ticket to intake for one record-accuracy correction. The accepted design uses one decision-conversation contract for Product and Implementation Planning, with only stage-owned checkpoint topics varying.
