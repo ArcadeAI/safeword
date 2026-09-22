@@ -205,14 +205,15 @@ only one current result per case; no first-try or statistical reliability claim;
 remains untouched until the implement phase.
 
 **Error handling:** Recorder failures name the adapter, case, and failed protocol stage before staged
-files are promoted. Each file replacement is atomic; verification rejects a records/ablation pair
-interrupted between the two replacements. Verification aggregates deterministic diagnostics by case
-and exits nonzero on any mismatch.
+files are promoted. Each file replacement is atomic. Verification rejects an interrupted
+records/ablation pair whenever its guide, case/rubric, prompt, or recording-contract binding changed;
+it does not claim a transaction across both files. Verification aggregates deterministic diagnostics
+by case and exits nonzero on any mismatch.
 
 **Gotchas:** The verifier must never derive expected IDs, expected guide paths, or the ablation
-transform from generated output. Stored `passed` values are evidence to cross-check, not grading
-authority. Model processes run outside the repository so ambient files and tools cannot satisfy a
-cold-start case.
+transform from generated output. The recorder and verifier re-grade responses from canonical inputs;
+there is no stored pass/fail verdict to trust. Model processes run outside the repository so ambient
+files and tools cannot satisfy a cold-start case.
 
 **Open questions:** None.
 

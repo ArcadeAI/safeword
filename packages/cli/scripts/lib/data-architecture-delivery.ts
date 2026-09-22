@@ -99,6 +99,14 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
   if (input.installedGuide !== input.canonicalGuide) {
     diagnostics.push(`Installed guide content differs at ${inventory.installedGuidePath}.`);
   }
+  const claudeGuidePaths = Object.keys(input.claude.assets).filter(path =>
+    isDataArchitectureGuidePath(path),
+  );
+  diagnostics.push(
+    ...claudeGuidePaths
+      .filter(path => path !== inventory.claudeGuidePath)
+      .map(path => `Claude contains an unexpected guide copy at ${path}.`),
+  );
   const claudeGuide = input.claude.assets[inventory.claudeGuidePath];
   if (claudeGuide === undefined) {
     diagnostics.push(`Claude guide is missing at ${inventory.claudeGuidePath}.`);

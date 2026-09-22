@@ -181,6 +181,20 @@ describe('data architecture guide delivery', () => {
       }),
     },
     {
+      diagnostic: 'Claude contains an unexpected guide copy at skills/data-architecture-guide.md.',
+      drift: 'an extra Claude-managed guide copy',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        claude: {
+          ...input.claude,
+          assets: {
+            ...input.claude.assets,
+            'skills/data-architecture-guide.md': input.canonicalGuide,
+          },
+        },
+      }),
+    },
+    {
       diagnostic: 'Claude guide content differs at resources/guides/data-architecture-guide.md.',
       drift: 'a non-path Claude substitution',
       mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({

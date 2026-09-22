@@ -128,8 +128,10 @@ success threshold; revisit it only through a separately scoped product decision.
 
 The cold-start recorder trusts the selected model adapter not to obtain external context on its own.
 Safeword provides an empty working directory, a closed stdin request, and a tools-disabled contract,
-then records the adapter identity and exact prompt. Treating a same-user adapter as hostile would
-require an OS sandbox and is outside this documentation-evaluation scope.
+then records the configured adapter identity and exact prompt. The recorded decoding settings are
+contract assertions supplied by the maintainer, not independently observed provider behavior.
+Treating a same-user adapter as hostile would require an OS sandbox and is outside this
+documentation-evaluation scope.
 
 The corpus safety scan examines independently authored case prose, case IDs, and recording-contract
 strings. Prompts are reconstructed from the canonical guide and case, responses must contain exact
@@ -138,9 +140,11 @@ not treated as arbitrary sensitive-value inputs.
 
 The accepted evidence remains one current full-guide result per case plus one current paired
 ablation record rather than a statistical claim. Re-recording stages both files and replaces each
-atomically; verification rejects a pair interrupted between replacements. The files attest prompt,
+atomically; verification rejects an interrupted pair when a guide, case/rubric, prompt, or contract
+binding changed, but does not provide a transaction across both files. The files attest prompt,
 configuration, response, and content binding, but do not independently attest the remote model's
-identity. This ticket does not claim or retain first-attempt, invocation-history, or pass-rate data.
+identity or observed provider settings. This ticket does not claim or retain first-attempt,
+invocation-history, or pass-rate data.
 
 Implementation reconciliation: all four recorded decisions remain current. The shipped recorder
 uses structured argv, an empty temporary working directory, individually atomic replacement, and
