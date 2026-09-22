@@ -1024,6 +1024,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/data-architecture-guide.md': {
       template: 'guides/data-architecture-guide.md',
     },
+    '.safeword/guides/interface-contract-guide.md': {
+      template: 'guides/interface-contract-guide.md',
+    },
     '.safeword/guides/design-doc-guide.md': {
       template: 'guides/design-doc-guide.md',
     },
@@ -1038,6 +1041,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/guides/planning-guide.md': {
       template: 'guides/planning-guide.md',
+    },
+    '.safeword/guides/release-recovery-guide.md': {
+      template: 'guides/release-recovery-guide.md',
+    },
+    '.safeword/guides/measurement-design-guide.md': {
+      template: 'guides/measurement-design-guide.md',
     },
     '.safeword/guides/skill-eval-optimization-guide.md': {
       template: 'guides/skill-eval-optimization-guide.md',
