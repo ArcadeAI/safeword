@@ -2,7 +2,7 @@
 id: ZSHVEB
 slug: write-clear-reviewable-plans
 type: feature
-phase: define-behavior
+phase: scenario-gate
 phase_anchors:
   - define-behavior: .project/tickets/ZSHVEB-write-clear-reviewable-plans/spec.md
 status: in_progress
@@ -49,6 +49,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 **See:** [spec.md](./spec.md) for this child contribution and Rules; personas, job, milestone, and outcomes are inherited from [the parent Product Plan](../82T411-plan-implementation-implementability/spec.md).
 
 ## Work Log
+
+- 2026-09-22T23:58:22.000Z User confirmed the 37-scenario draft as complete and in scope; entered scenario-gate for independent review. No review verdict or approval is claimed yet.
 
 - 2026-09-22T23:34:03.000Z Define-behavior draft: Derived 37 representative scenarios from the six accepted Rules and the dimension table, with the shared decision conversation covered by one-source, grouped synthesis, durable-record, resume, checkpoint-budget, and return-path examples. Added the matching R/G/R ledger. Kept the ticket in define-behavior pending the user's completeness and scope-edge check; no independent scenario-gate verdict is claimed.
 
