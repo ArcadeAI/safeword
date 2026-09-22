@@ -137,9 +137,10 @@ Worked example — feature `oauth-flow`, persona Platform Operator (PLO), first 
 Scenario: Change association applies to subsequent auth
 ```
 
-A scenario with no lineage tag is left alone — it simply proves no criterion.
-`safeword doctor` reads the tags and reports coverage gaps for in-progress tickets
-as advisories (never a gate):
+A scenario with no lineage tag proves no criterion, and `doctor` reports it as a
+lineage defect. `safeword doctor` reads the tags and reports these gaps. While a
+ticket is in progress they are advisories and never block; `scenario-gate` exit is
+the one checkpoint that resolves them, under the disposition in Scenario Gate Exit:
 
 - **uncovered** — a Rule (or AC) in `spec.md` that no scenario references.
 - **stale ref** — a scenario whose JTBD exists but whose `R<#>`/`AC<#>` does not
@@ -225,10 +226,12 @@ Run this completeness check only if review edits scenarios or surfaces an unreso
    these two are worth running: they are the external signal the reviewer's prose judgment
    cannot talk itself out of. `lint-gherkin` findings are never skippable: source that cannot parse, or a
    `Scenario Outline` with no `Examples`, cannot execute at all, so fix it and rerun
-   until the command is clean. Only `doctor`'s coverage advisories take an explicit
-   `skip: <reason>`, and only where this file already grants one — an affected surface
-   with no scenario, or a declared Killer Demo. A skip is a recorded deferral of
-   coverage, never a way past a structural failure.
+   until the command is clean. `doctor`'s findings split by what they break. A lineage defect
+   (a scenario missing its tag or carrying two), a stale ref, or an orphan severs the
+   Rule-to-scenario link this gate exists to certify, so fix it. An uncovered Rule, an
+   untagged affected surface, or a declared Killer Demo may instead record an explicit
+   `skip: <reason>`, exactly where this file already grants one. A skip is a recorded
+   deferral of coverage, never a way past a structural failure.
 
 4. The approved terminal result's provenance is recorded in the `scenario-gate` review stamp; a pending, failed, stale, rejected, or unstamped review cannot exit.
 5. **Check for one build-only kill-risk.** Run this checkpoint only here, after
