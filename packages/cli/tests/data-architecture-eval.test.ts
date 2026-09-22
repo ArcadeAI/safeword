@@ -750,6 +750,80 @@ describe('data architecture guide evaluation', () => {
     ).toContain('Corpus value at cases[0].id contains an email-shaped value.');
   });
 
+  it.each(
+    (
+      [
+        'expectedDecisionIds',
+        'forbiddenDecisionIds',
+        'expectedProofFactIds',
+        'forbiddenProofFactIds',
+      ] as const
+    ).flatMap(rubricField =>
+      (
+        [
+          {
+            valueClass: 'credential, token, or key prefix',
+            value: ['-----BEGIN', 'PRIVATE KEY-----'].join(' '),
+            diagnostic: 'contains a credential or token prefix.',
+          },
+          {
+            valueClass: 'email-shaped value',
+            value: 'customer@example.com',
+            diagnostic: 'contains an email-shaped value.',
+          },
+          {
+            valueClass: 'non-placeholder high-entropy value',
+            value: '7b1d9f0342a6e8c57d0b1493f6a2c8e57b1d9f0342a6e8c57d0b1493f6a2c8e5',
+            diagnostic: 'contains a non-placeholder high-entropy value.',
+          },
+        ] as const
+      ).map(valueCase => ({ rubricField, ...valueCase })),
+    ),
+  )(
+    'rejects rubric $rubricField containing an authored $valueClass',
+    ({ rubricField, value, diagnostic }) => {
+      const firstCase = currentCases[0];
+      if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
+
+      expect(
+        verifyEvaluationCorpusSafety({
+          cases: [
+            {
+              ...firstCase,
+              rubric: { ...firstCase.rubric, [rubricField]: [value] },
+            },
+          ],
+          contract: currentContract,
+        }).diagnostics,
+      ).toContain(`Corpus value at cases[0].rubric.${rubricField}[0] ${diagnostic}`);
+    },
+  );
+
+  it.each([
+    'expectedDecisionIds',
+    'forbiddenDecisionIds',
+    'expectedProofFactIds',
+    'forbiddenProofFactIds',
+  ] as const)('accepts a synthetic placeholder in rubric $rubricField', rubricField => {
+    const firstCase = currentCases[0];
+    if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
+
+    expect(
+      verifyEvaluationCorpusSafety({
+        cases: [
+          {
+            ...firstCase,
+            rubric: {
+              ...firstCase.rubric,
+              [rubricField]: ['SYNTHETIC_CUSTOMER12345678_TOKEN12345678901_ABCDEF1234'],
+            },
+          },
+        ],
+        contract: currentContract,
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
   it('scans authored recording-contract strings as well as case prose', () => {
     expect(
       verifyEvaluationCorpusSafety({
