@@ -284,6 +284,16 @@ function idSetDiagnostics(
   return diagnostics;
 }
 
+function recordingContractMatches(contract: EvaluationContract, record: EvaluationRecord): boolean {
+  return (
+    contract.toolsDisabled &&
+    record.modelVersion === contract.modelVersion &&
+    canonicalJson(record.decodingConfiguration) === canonicalJson(contract.decodingConfiguration) &&
+    record.responseFormat === contract.responseFormat &&
+    record.rubricLoader === contract.rubricLoader
+  );
+}
+
 export function verifyEvaluationRecord(input: EvaluationRecordInput): VerificationResult {
   const diagnostics: string[] = [];
   const expectedPrompt = buildColdStartPrompt(input.canonicalGuide, input.evaluationCase);
@@ -306,13 +316,7 @@ export function verifyEvaluationRecord(input: EvaluationRecordInput): Verificati
   ) {
     diagnostics.push('Evaluation record prompt does not match the current cold-start prompt.');
   }
-  if (
-    input.record.modelVersion !== input.contract.modelVersion ||
-    canonicalJson(input.record.decodingConfiguration) !==
-      canonicalJson(input.contract.decodingConfiguration) ||
-    input.record.responseFormat !== input.contract.responseFormat ||
-    input.record.rubricLoader !== input.contract.rubricLoader
-  ) {
+  if (!recordingContractMatches(input.contract, input.record)) {
     diagnostics.push('Evaluation record does not match the checked-in recording contract.');
   }
 
@@ -509,6 +513,15 @@ function ablationDiagnostics(input: AblationPairInput): string[] {
     derivedAblation === input.storedAblatedGuide
       ? []
       : [`Stored ablated guide does not match the ${input.ablationId} transform.`];
+  if (
+    input.attributableDecisionIds.every(
+      decisionId => !input.preservedDecisionIds.includes(decisionId),
+    )
+  ) {
+    diagnostics.push(
+      'Ablation must attribute failure to at least one decision label preserved by the transform.',
+    );
+  }
   const attributableIds = [
     ...input.attributableDecisionIds.filter(
       decisionId => !input.preservedDecisionIds.includes(decisionId),
@@ -614,6 +627,12 @@ function responseDiagnostics(input: AblationPairInput): string[] {
   );
   const ablatedDecisionIds = new Set(input.ablatedGuideRecord.response.decisionIds);
   const ablatedProofFactIds = new Set(input.ablatedGuideRecord.response.proofFactIds);
+  const preservedAttributableDecisionIds = input.attributableDecisionIds.filter(id =>
+    input.preservedDecisionIds.includes(id),
+  );
+  const preservedAttributableFailure = preservedAttributableDecisionIds.some(
+    id => !ablatedDecisionIds.has(id),
+  );
   const attributableFailure =
     input.attributableDecisionIds.some(id => !ablatedDecisionIds.has(id)) ||
     input.attributableProofFactIds.some(id => !ablatedProofFactIds.has(id));
@@ -625,6 +644,9 @@ function responseDiagnostics(input: AblationPairInput): string[] {
       : []),
     ...(responsePasses(input.ablatedGuideRecord.response, input.rubric)
       ? ['Ablated response still satisfies the evaluation rubric.']
+      : []),
+    ...(preservedAttributableDecisionIds.length > 0 && !preservedAttributableFailure
+      ? ['Ablated response retains every attributable decision label preserved by the transform.']
       : []),
     ...(!responsePasses(input.ablatedGuideRecord.response, input.rubric) && !attributableFailure
       ? ['Ablated response failure does not implicate an expected ID from the removed guidance.']

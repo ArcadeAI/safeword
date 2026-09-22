@@ -474,6 +474,23 @@ describe('data architecture guide evaluation', () => {
     ).toEqual({ accepted: true, diagnostics: [] });
   });
 
+  it('rejects a recording contract that does not require tools to remain disabled', () => {
+    const evaluationCase = currentCases[0];
+    const evaluationRecord = currentRecords[0];
+    if (evaluationCase === undefined || evaluationRecord === undefined)
+      throw new Error('Current corpus evidence is missing.');
+    const contract = { ...currentContract, toolsDisabled: false } as unknown as EvaluationContract;
+
+    expect(
+      verifyEvaluationRecord({
+        canonicalGuide: shippedCanonicalGuide,
+        evaluationCase,
+        contract,
+        record: evaluationRecord,
+      }).diagnostics,
+    ).toContain('Evaluation record does not match the checked-in recording contract.');
+  });
+
   it.each([
     { caseId: 'multi-tenant-relational-event-store' },
     { caseId: 'encrypted-credential-record' },
@@ -538,9 +555,14 @@ describe('data architecture guide evaluation', () => {
   });
 
   it.each([
-    { name: 'missing record', mutate: (records: EvaluationRecord[]) => records.slice(1) },
+    {
+      name: 'missing record',
+      diagnostic: '[simple-key-value-preference] Evaluation corpus is missing a record.',
+      mutate: (records: EvaluationRecord[]) => records.slice(1),
+    },
     {
       name: 'duplicate record',
+      diagnostic: '[simple-key-value-preference] Evaluation corpus contains duplicate records.',
       mutate: (records: EvaluationRecord[]) => {
         const firstRecord = records[0];
         if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
@@ -549,6 +571,7 @@ describe('data architecture guide evaluation', () => {
     },
     {
       name: 'unknown record',
+      diagnostic: '[retired-case] Evaluation corpus contains a record for an unknown case.',
       mutate: (records: EvaluationRecord[]) => {
         const firstRecord = records[0];
         if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
@@ -557,6 +580,8 @@ describe('data architecture guide evaluation', () => {
     },
     {
       name: 'stale guide hash',
+      diagnostic:
+        '[simple-key-value-preference] Evaluation record guide hash does not match the current canonical guide.',
       mutate: (records: EvaluationRecord[]) => {
         const firstRecord = records[0];
         if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
@@ -565,6 +590,8 @@ describe('data architecture guide evaluation', () => {
     },
     {
       name: 'stale case and rubric digest',
+      diagnostic:
+        '[simple-key-value-preference] Evaluation record does not match the current case and rubric.',
       mutate: (records: EvaluationRecord[]) => {
         const firstRecord = records[0];
         if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
@@ -576,6 +603,8 @@ describe('data architecture guide evaluation', () => {
     },
     {
       name: 'stale prompt digest',
+      diagnostic:
+        '[simple-key-value-preference] Evaluation record prompt does not match the current cold-start prompt.',
       mutate: (records: EvaluationRecord[]) => {
         const firstRecord = records[0];
         if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
@@ -587,6 +616,8 @@ describe('data architecture guide evaluation', () => {
     },
     {
       name: 'recording contract drift',
+      diagnostic:
+        '[simple-key-value-preference] Evaluation record does not match the checked-in recording contract.',
       mutate: (records: EvaluationRecord[]) => {
         const firstRecord = records[0];
         if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
@@ -595,6 +626,8 @@ describe('data architecture guide evaluation', () => {
     },
     {
       name: 'response rubric failure',
+      diagnostic:
+        '[simple-key-value-preference] Evaluation response is missing expected decision decision.core.source-of-truth.',
       mutate: (records: EvaluationRecord[]) => {
         const firstRecord = records[0];
         if (firstRecord === undefined) throw new Error('Expected a non-empty evaluation corpus.');
@@ -604,15 +637,14 @@ describe('data architecture guide evaluation', () => {
         ];
       },
     },
-  ])('rejects corpus defect $name', ({ mutate }) => {
+  ])('rejects corpus defect $name', ({ diagnostic, mutate }) => {
     const result = verifyEvaluationCorpus({
       canonicalGuide: shippedCanonicalGuide,
       cases: currentCases,
       contract: currentContract,
       records: mutate(currentRecords),
     });
-    expect(result.accepted).toBe(false);
-    expect(result.diagnostics.length).toBeGreaterThan(0);
+    expect(result.diagnostics).toContain(diagnostic);
   });
 
   it('accepts the current artifact-ownership record with one authority per role', () => {
@@ -1106,12 +1138,13 @@ describe('data architecture guide evaluation', () => {
     expect(result).toEqual({
       accepted: false,
       diagnostics: [
+        'Ablated response retains every attributable decision label preserved by the transform.',
         'Ablated response failure does not implicate an expected ID from the removed guidance.',
       ],
     });
   });
 
-  it('accepts an ablation whose only missing attributable ID is a proof fact', () => {
+  it('rejects an ablation whose only missing attributable ID is removed vocabulary', () => {
     const result = verifyAblationPair({
       ablationId: 'independent-proof',
       canonicalGuide: guide,
@@ -1128,7 +1161,12 @@ describe('data architecture guide evaluation', () => {
       }),
     });
 
-    expect(result).toEqual({ accepted: true, diagnostics: [] });
+    expect(result).toEqual({
+      accepted: false,
+      diagnostics: [
+        'Ablated response retains every attributable decision label preserved by the transform.',
+      ],
+    });
   });
 
   it('rejects a stored ablation that was not derived from the canonical guide', () => {
@@ -1236,8 +1274,52 @@ describe('data architecture guide evaluation', () => {
 
     expect(result).toEqual({
       accepted: false,
-      diagnostics: ['Ablated response still satisfies the evaluation rubric.'],
+      diagnostics: [
+        'Ablated response still satisfies the evaluation rubric.',
+        'Ablated response retains every attributable decision label preserved by the transform.',
+      ],
     });
+  });
+
+  it('rejects attribution that can pass solely because the transform removed an ID label', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      evaluationCase: ablationCase,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: [],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, ablatedResponse),
+    });
+
+    expect(result.diagnostics).toContain(
+      'Ablation must attribute failure to at least one decision label preserved by the transform.',
+    );
+  });
+
+  it('rejects an ablation that loses only removed vocabulary', () => {
+    const result = verifyAblationPair({
+      ablationId: 'independent-proof',
+      canonicalGuide: guide,
+      evaluationCase: ablationCase,
+      storedAblatedGuide: ablatedGuide,
+      preservedDecisionIds: ['decision.core.independent-proof'],
+      attributableDecisionIds: ['decision.core.independent-proof'],
+      attributableProofFactIds: ['proof.generated.independent-inventory'],
+      rubric,
+      fullGuideRecord: record(guide, fullResponse),
+      ablatedGuideRecord: record(ablatedGuide, {
+        decisionIds: ['decision.generated.source', 'decision.core.independent-proof'],
+        proofFactIds: [],
+      }),
+    });
+
+    expect(result.diagnostics).toContain(
+      'Ablated response retains every attributable decision label preserved by the transform.',
+    );
   });
 
   it('rejects duplicate IDs in the full-guide ablation control', () => {
@@ -1597,6 +1679,7 @@ describe('data architecture guide evaluation', () => {
     expect(result).toEqual({
       accepted: false,
       diagnostics: [
+        'Ablation must attribute failure to at least one decision label preserved by the transform.',
         'Ablation attribution ID proof.generated.independent-inventory is not defined in the removed guidance.',
         'Ablation attribution ID proof.generated.independent-inventory survives the named transform.',
       ],

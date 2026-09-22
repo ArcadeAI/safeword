@@ -130,6 +130,17 @@ describe('data architecture guide delivery', () => {
       }),
     },
     {
+      diagnostic: 'Managed guide is unexpected at docs/data-architecture-guide.md.',
+      drift: 'an unexpected managed guide path',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        actualManagedGuidePaths: [
+          ...input.actualManagedGuidePaths,
+          'docs/data-architecture-guide.md',
+        ],
+      }),
+    },
+    {
       diagnostic: 'Codex contains an unexpected guide copy at data-architecture-guide.md.',
       drift: 'an extra Codex-managed guide copy',
       mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({

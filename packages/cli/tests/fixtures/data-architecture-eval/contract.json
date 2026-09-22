@@ -11,7 +11,7 @@
     "id": "independent-proof",
     "caseId": "generated-manifest-missing-one-facet",
     "preservedDecisionIds": ["decision.core.independent-proof"],
-    "attributableDecisionIds": [],
+    "attributableDecisionIds": ["decision.core.independent-proof"],
     "attributableProofFactIds": ["proof.generated.independent-inventory"]
   }
 }

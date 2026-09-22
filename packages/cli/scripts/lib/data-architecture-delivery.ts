@@ -87,10 +87,12 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
     const missingPaths = inventory.managedGuidePaths.filter(
       path => !input.actualManagedGuidePaths.includes(path),
     );
+    const unexpectedPaths = input.actualManagedGuidePaths.filter(
+      path => !inventory.managedGuidePaths.includes(path),
+    );
     diagnostics.push(
-      ...(missingPaths.length > 0
-        ? missingPaths.map(path => `Managed guide is missing at ${path}.`)
-        : ['Managed data architecture guide path inventory does not match.']),
+      ...missingPaths.map(path => `Managed guide is missing at ${path}.`),
+      ...unexpectedPaths.map(path => `Managed guide is unexpected at ${path}.`),
     );
   }
   if (input.installedGuide !== input.canonicalGuide) {

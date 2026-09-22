@@ -170,9 +170,13 @@
   },
   {
     "id": "mixed-decision-routing",
-    "text": "Classify durable identity and lifecycle decisions separately from reversible helper and control-flow choices. Report only the routing decision IDs for this classification case; do not repeat the universal core decision IDs.",
+    "text": "Plan a tenant-scoped session record whose account ID is the authoritative identity, whose status is active or revoked, and whose creation and revocation define lifecycle. Keep a local parsing helper and retry loop as reversible implementation choices.",
     "rubric": {
       "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
         "decision.routing.identity-architecture",
         "decision.routing.lifecycle-architecture",
         "decision.routing.helper-implementation",

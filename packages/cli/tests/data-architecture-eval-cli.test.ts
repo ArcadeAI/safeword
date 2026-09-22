@@ -81,7 +81,7 @@ describe('data architecture evaluation CLI', () => {
       writeFileSync(guidePath, guide);
       writeFileSync(
         adapterPath,
-        "import{readdirSync,writeFileSync}from'node:fs';let input='';process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>{const full=input.includes('[proof.test]');if(full)writeFileSync(process.argv[2],JSON.stringify({cwd:process.cwd(),entries:readdirSync('.'),input}));process.stdout.write(JSON.stringify({decisionIds:['decision.test'],proofFactIds:full?['proof.test']:[]}));});\n",
+        "import{readdirSync,writeFileSync}from'node:fs';let input='';process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>{const full=input.includes('[proof.test]');if(full)writeFileSync(process.argv[2],JSON.stringify({cwd:process.cwd(),entries:readdirSync('.'),input}));process.stdout.write(JSON.stringify({decisionIds:full?['decision.test']:[],proofFactIds:full?['proof.test']:[]}));});\n",
       );
       mkdirSync(corpusDirectory);
       writeFileSync(nodePath.join(corpusDirectory, 'cases.json'), JSON.stringify([evaluationCase]));
@@ -97,7 +97,7 @@ describe('data architecture evaluation CLI', () => {
             id: 'test',
             caseId: 'test-case',
             preservedDecisionIds: ['decision.test'],
-            attributableDecisionIds: [],
+            attributableDecisionIds: ['decision.test'],
             attributableProofFactIds: ['proof.test'],
           },
         }),
@@ -146,7 +146,7 @@ describe('data architecture evaluation CLI', () => {
         caseId: 'test-case',
         record: {
           modelVersion: 'fixture-adapter-v1',
-          response: { decisionIds: ['decision.test'], proofFactIds: [] },
+          response: { decisionIds: [], proofFactIds: [] },
         },
       });
       const capture = JSON.parse(readFileSync(capturePath, 'utf8'));

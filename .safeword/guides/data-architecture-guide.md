@@ -47,20 +47,22 @@ and linked evidence `[decision.ownership.linked-evidence]`. Prove one authority
 `[proof.ownership.single-authority]`; duplicate authority
 `decision.ownership.duplicate-authority` fails.
 
-## Independent proof `[decision.core.independent-proof]`
-
 <!-- data-architecture-ablation:independent-proof:start -->
+
+## Independent proof
 
 **Trigger:** the case explicitly makes a completeness or coverage claim. Do not apply this module
 merely because ordinary verification would be useful.
 
 Every completeness claim names an oracle maintained independently of the mechanism being checked.
+Apply this requirement as `[decision.core.independent-proof]`.
 Grade the intended and observed semantic IDs as exact sets: missing, forbidden, unknown, or duplicate
 IDs fail. Evidence must state the environment, boundary, controls, threshold, and conditions that
 require revalidation. A sibling generated output cannot prove another generated output complete.
 For generated-artifact completeness, compare the output with a hand-maintained intended-facet
 inventory `[proof.generated.independent-inventory]`.
 <!-- data-architecture-ablation:independent-proof:end -->
+<!-- Vocabulary-only compatibility marker. Do not select this ID without operative guidance: [decision.core.independent-proof] -->
 
 ## Triggered modules
 
