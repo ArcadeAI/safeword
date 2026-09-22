@@ -596,6 +596,52 @@ describe('reviewer process-group liveness', () => {
 
 describe('headless reviewer process lifecycle', () => {
   it.skipIf(process.platform === 'win32')(
+    'preserves the structural rejection reason from plan-execution review output',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      const malformedApproval = {
+        ...output,
+        planning_destination: 'plan-execution',
+        execution_plan_record: JSON.parse('null') as null,
+      };
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
+  exit 0
+fi
+/bin/cat > /dev/null
+printf '%s' '${JSON.stringify({ structured_output: malformedApproval })}'
+`,
+      );
+      chmodSync(executable, 0o755);
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'plan-execution',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).rejects.toMatchObject({
+        failure: 'invalid_output',
+        message: expect.stringContaining('execution_plan_record must be an object'),
+      });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
     'blocks contradictory plan contracts even when the reviewer approves',
     async () => {
       vi.stubEnv('NODE_ENV', 'test');

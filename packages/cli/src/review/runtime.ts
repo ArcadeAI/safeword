@@ -1559,9 +1559,18 @@ async function runCandidate(
                 packet.execution_plan_delivery_definition,
                 packet.execution_plan_normalized_digest,
               );
-              if (validation.kind === 'invalid_output') throw new Error('invalid reviewer output');
+              if (validation.kind === 'invalid_output') {
+                throw new ReviewRuntimeError(
+                  'invalid_output',
+                  `${reviewer} returned invalid review output: ${validation.reason}`,
+                );
+              }
               resolve(validation.output);
-            } catch {
+            } catch (error) {
+              if (error instanceof ReviewRuntimeError) {
+                reject(error);
+                return;
+              }
               reject(
                 new ReviewRuntimeError(
                   'invalid_output',
