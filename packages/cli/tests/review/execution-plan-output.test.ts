@@ -232,6 +232,76 @@ describe('Execution Plan output schema', () => {
 });
 
 describe('Execution Plan output validation', () => {
+  it('accepts repeated nonblank command arguments from the trusted delivery definition', () => {
+    const record = validRecord();
+    const proof = record.delivery_definition.proof_specifications[0];
+    if (proof?.invocation.type !== 'command') throw new Error('Missing command proof fixture');
+    proof.invocation.argv = [
+      'cargo',
+      'test',
+      '--release',
+      '--all-features',
+      '--test',
+      'local_route',
+      '--test',
+      'request_audit',
+    ];
+    proof.invocation.cwd = 'apps/guard';
+    const output = approval(record);
+
+    expect(
+      validateExecutionPlanOutput(
+        output,
+        structuredClone(record.delivery_definition),
+        record.normalized_plan_digest,
+      ),
+    ).toEqual({ kind: 'approved', output });
+  });
+
+  it.each([
+    ['empty argv', [], 'invocation.argv'],
+    ['blank argv value', ['cargo', ' '], 'invocation.argv'],
+  ])('names %s in structural rejection evidence', (_case, argv, field) => {
+    const output = approval(
+      mutateRecord(record => {
+        const definition = record.delivery_definition as {
+          proof_specifications: { invocation: { argv: string[] } }[];
+        };
+        const proof = definition.proof_specifications[0];
+        if (proof === undefined) throw new Error('Missing proof fixture');
+        proof.invocation.argv = argv;
+      }),
+    );
+
+    expect(validateExecutionPlanOutput(output)).toEqual({
+      kind: 'invalid_output',
+      reason: expect.stringContaining(field),
+    });
+  });
+
+  it('keeps review-receipt targets unique and names the rejected field', () => {
+    const output = approval(
+      mutateRecord(record => {
+        const definition = record.delivery_definition as {
+          proof_specifications: Record<string, unknown>[];
+        };
+        const proof = definition.proof_specifications[0];
+        if (proof === undefined) throw new Error('Missing proof fixture');
+        proof.method = 'review_receipt';
+        proof.invocation = {
+          type: 'review_receipt',
+          kind: 'scenario-gate',
+          targets: ['features/example.feature', 'features/example.feature'],
+        };
+      }),
+    );
+
+    expect(validateExecutionPlanOutput(output)).toEqual({
+      kind: 'invalid_output',
+      reason: expect.stringContaining('invocation.targets'),
+    });
+  });
+
   it('accepts a complete positive record without changing it', () => {
     const output = approval();
     expect(validateExecutionPlanOutput(output)).toEqual({ kind: 'approved', output });
