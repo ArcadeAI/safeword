@@ -1,7 +1,7 @@
 [
   {
     "id": "simple-key-value-preference",
-    "text": "Plan a user-scoped key-value preference with no conditional data risks.",
+    "text": "Plan how to store each user's preferred dashboard density as one user-scoped value that may be replaced by a later selection.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -16,7 +16,7 @@
   },
   {
     "id": "multi-tenant-relational-event-store",
-    "text": "Plan a multi-tenant relational event store with live migration and erasure.",
+    "text": "Plan a PostgreSQL-backed event store shared by multiple tenant accounts. Parent-child records must never cross tenant boundaries, old and new application versions overlap during deployment, rollback and restore must work, and deleting one account must remove its primary and secondary copies without affecting sibling or different-owner data.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -57,7 +57,7 @@
   },
   {
     "id": "encrypted-credential-record",
-    "text": "Plan an encrypted credential record with identity-bound AAD and key rotation.",
+    "text": "Plan a stored third-party credential whose ciphertext is bound to the canonical account and tenant identity. Moving it to another scope must fail, and dependent records must remain usable while keys rotate.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -79,7 +79,7 @@
   },
   {
     "id": "live-additive-migration",
-    "text": "Plan a live additive migration from a deployed mixed-version starting state.",
+    "text": "Plan adding a required field while already-deployed old and new application versions overlap. Describe the starting state, compatibility window, cutover, rollback, recovery, and restored-data behavior.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -103,7 +103,7 @@
   },
   {
     "id": "generated-manifest-missing-one-facet",
-    "text": "Prove a generated manifest covers every independently intended facet.",
+    "text": "A manifest is generated from source definitions and is claimed to cover every facet in a separately maintained intended-facet inventory. Plan the durable source relationship and proof of complete coverage.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -120,7 +120,7 @@
   },
   {
     "id": "erasure-across-secondary-copies",
-    "text": "Plan erasure across primary and secondary copies with isolation controls.",
+    "text": "One subject's records appear in the primary store, one cache, one replica, and one backup. Plan deletion behavior and prove sibling scopes and different owners remain untouched.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -142,7 +142,7 @@
   },
   {
     "id": "time-equality-boundary",
-    "text": "Plan expiry behavior at exact clock equality and delayed physical deletion.",
+    "text": "Plan a record that becomes unusable exactly when the authoritative clock equals its expiry timestamp, while physical removal may happen later and retries or restores must not revive access. Remove primary, secondary, and restored copies without affecting sibling scopes or different owners.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -170,7 +170,7 @@
   },
   {
     "id": "mixed-decision-routing",
-    "text": "Plan a tenant-scoped session record whose account ID is the authoritative identity, whose status is active or revoked, and whose creation and revocation define lifecycle. Keep a local parsing helper and retry loop as reversible implementation choices.",
+    "text": "Plan a tenant-scoped session record whose account ID is the authoritative identity, whose status is active or revoked, and whose creation and revocation define lifecycle. The parser library can be swapped locally and the retry order is local control flow.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -192,7 +192,7 @@
   },
   {
     "id": "artifact-ownership",
-    "text": "Assign each durable decision and its evidence to exactly one owning artifact.",
+    "text": "A project has data-architecture, implementation-plan, generated-representation, ADR, and evidence artifact roles. Decide the authority boundaries among them so maintainers know which artifact to update.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.ownership.data-architecture",

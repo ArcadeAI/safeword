@@ -26,6 +26,7 @@ export interface DataArchitectureDeliveryInput {
   readonly codex: DeliverySurface;
   readonly cursor: DeliverySurface;
   readonly openCode: Omit<DeliverySurface, 'planningSourcePath'>;
+  readonly projectAssets: Readonly<Record<string, string>>;
 }
 
 export interface DeliveryVerificationResult {
@@ -121,9 +122,15 @@ function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): stri
   if (openCodeGuidePath !== undefined) {
     diagnostics.push(`OpenCode contains an unexpected guide copy at ${openCodeGuidePath}.`);
   }
-  const deliverySpecificReference = Object.entries(input.openCode.assets).find(([, content]) =>
-    content.includes(input.inventory.claudePlanningTarget),
-  )?.[0];
+  const projectGuidePath = input.inventory.projectPlanningTarget.replace(/^\.\//u, '');
+  const deliverySpecificReference = Object.entries(input.openCode.assets).find(([, content]) => {
+    const referencedGuidePaths = content
+      .split(/\s+/u)
+      .filter(token => token.includes(dataArchitectureGuideBasename));
+    return referencedGuidePaths.some(
+      reference => reference.includes('/') && !reference.includes(projectGuidePath),
+    );
+  })?.[0];
   if (deliverySpecificReference !== undefined) {
     diagnostics.push(
       `OpenCode contains an unexpected delivery-specific guide reference at ${deliverySpecificReference}.`,
@@ -159,8 +166,30 @@ export function verifyDataArchitectureDelivery(
     if (diagnostic !== undefined) diagnostics.push(diagnostic);
   }
 
-  if (input.cursor.assets[inventory.installedGuidePath] === undefined) {
-    diagnostics.push(`Planning target is missing at ${inventory.installedGuidePath}.`);
+  const planningTargets = [
+    {
+      assets: input.claude.assets,
+      path: inventory.claudeGuidePath,
+      surface: 'Claude',
+      target: inventory.claudePlanningTarget,
+    },
+    {
+      assets: input.projectAssets,
+      path: inventory.installedGuidePath,
+      surface: 'Codex',
+      target: inventory.projectPlanningTarget,
+    },
+    {
+      assets: input.projectAssets,
+      path: inventory.installedGuidePath,
+      surface: 'Cursor',
+      target: inventory.projectPlanningTarget,
+    },
+  ] as const;
+  for (const { assets, path, surface, target } of planningTargets) {
+    if (assets[path] === undefined) {
+      diagnostics.push(`${surface} planning target is missing at ${target.replace(/^\.\//u, '')}.`);
+    }
   }
 
   diagnostics.push(...openCodeDeliveryDiagnostics(input));

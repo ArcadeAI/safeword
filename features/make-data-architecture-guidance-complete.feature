@@ -160,7 +160,7 @@ Feature: Complete conditional data architecture guidance
         | non-placeholder high-entropy value     |
 
   @data-architecture-guidance.SWM1.R1
-  Rule: data-architecture-guidance.SWM1.R1 — Installed and generated guide paths match an independent inventory and every planning reference resolves
+  Rule: data-architecture-guidance.SWM1.R1 — Post-install/generated guide paths equal an independent hand-maintained inventory exactly; seeded missing-copy, Codex-managed extra-copy, Claude body-drift, and non-path-substitution negatives fail; host path differences are separately maintained literal substitutions; and every planning reference resolves
 
     @surface.claude-code @surface.openai-codex @surface.cursor @surface.safeword-cli
     Scenario: Supported hosts resolve one coherent guide through their existing delivery model

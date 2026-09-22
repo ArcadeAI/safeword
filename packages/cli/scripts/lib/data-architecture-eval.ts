@@ -103,20 +103,22 @@ export interface AblationPairInput {
   readonly ablatedGuideRecord: AblationRecord;
 }
 
+const neutralResponseSchema = {
+  additionalProperties: false,
+  properties: {
+    decisionIds: { items: { type: 'string' }, type: 'array' },
+    proofFactIds: { items: { type: 'string' }, type: 'array' },
+  },
+  required: ['decisionIds', 'proofFactIds'],
+  type: 'object',
+} as const;
+
 export function buildGuideIndependentPrompt(
   evaluationCase: Pick<EvaluationCase, 'id' | 'text'>,
 ): string {
   return canonicalJson({
     case: { id: evaluationCase.id, text: evaluationCase.text },
-    responseSchema: {
-      additionalProperties: false,
-      properties: {
-        decisionIds: { items: { type: 'string' }, type: 'array' },
-        proofFactIds: { items: { type: 'string' }, type: 'array' },
-      },
-      required: ['decisionIds', 'proofFactIds'],
-      type: 'object',
-    },
+    responseSchema: neutralResponseSchema,
     toolsDisabled: true,
   });
 }
@@ -167,15 +169,7 @@ export function buildColdStartPrompt(
   return canonicalJson({
     case: { id: evaluationCase.id, text: evaluationCase.text },
     guide: canonicalGuide,
-    responseSchema: {
-      additionalProperties: false,
-      properties: {
-        decisionIds: { items: { type: 'string' }, type: 'array' },
-        proofFactIds: { items: { type: 'string' }, type: 'array' },
-      },
-      required: ['decisionIds', 'proofFactIds'],
-      type: 'object',
-    },
+    responseSchema: neutralResponseSchema,
     toolsDisabled: true,
   });
 }
@@ -402,14 +396,28 @@ function hasHighEntropy(value: string): boolean {
   return entropy >= 3.5;
 }
 
+function isLowercaseKebabCase(value: string): boolean {
+  const segments = value.split('-');
+  return (
+    segments.length > 1 &&
+    segments.every(segment => {
+      if (segment.length === 0) return false;
+      for (let index = 0; index < segment.length; index += 1) {
+        const code = segment.codePointAt(index) ?? -1;
+        const isLowercaseLetter = code >= 97 && code <= 122;
+        const isDigit = code >= 48 && code <= 57;
+        if (!isLowercaseLetter && !isDigit) return false;
+      }
+      return true;
+    })
+  );
+}
+
 function containsNonPlaceholderHighEntropyValue(value: string): boolean {
   const opaqueTokens = value.match(/[\w+/=-]{32,}/gu) ?? [];
   return opaqueTokens.some(
     token =>
-      !token.startsWith('SYNTHETIC_') &&
-      !token.startsWith('decision.') &&
-      !token.startsWith('proof.') &&
-      hasHighEntropy(token),
+      !token.startsWith('SYNTHETIC_') && !isLowercaseKebabCase(token) && hasHighEntropy(token),
   );
 }
 
@@ -431,12 +439,13 @@ function authoredCorpusStringDiagnostics(value: string, path: string): string[] 
 export function verifyEvaluationCorpusSafety(
   input: EvaluationCorpusSafetyInput,
 ): VerificationResult {
-  // Prompts are reconstructed from the canonical guide and case text, while responses are
-  // constrained to exact rubric IDs. Only the independently authored case prose can carry an
+  // Prompts are reconstructed from the canonical guide and authored case identity/prose, while
+  // responses are constrained to exact rubric IDs. Scan both authored strings that can carry an
   // arbitrary sensitive value after those structural checks succeed.
-  const diagnostics = input.cases.flatMap((evaluationCase, caseIndex) =>
-    authoredCorpusStringDiagnostics(evaluationCase.text, `cases[${caseIndex}].text`),
-  );
+  const diagnostics = input.cases.flatMap((evaluationCase, caseIndex) => [
+    ...authoredCorpusStringDiagnostics(evaluationCase.id, `cases[${caseIndex}].id`),
+    ...authoredCorpusStringDiagnostics(evaluationCase.text, `cases[${caseIndex}].text`),
+  ]);
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 

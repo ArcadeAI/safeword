@@ -97,6 +97,9 @@ function deliveryFixture(): DataArchitectureDeliveryInput {
       planningSourcePath: '.safeword/SAFEWORD.md',
     },
     openCode: { assets: openCodeAssets },
+    projectAssets: {
+      [deliveryInventory.installedGuidePath]: file(deliveryInventory.installedGuidePath),
+    },
   };
 }
 
@@ -186,18 +189,12 @@ describe('data architecture guide delivery', () => {
       }),
     },
     {
-      diagnostic: 'Planning target is missing at .safeword/guides/data-architecture-guide.md.',
+      diagnostic:
+        'Codex planning target is missing at .safeword/guides/data-architecture-guide.md.',
       drift: 'a missing planning-reference target',
       mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
         ...input,
-        cursor: {
-          ...input.cursor,
-          assets: Object.fromEntries(
-            Object.entries(input.cursor.assets).filter(
-              ([path]) => path !== input.inventory.installedGuidePath,
-            ),
-          ),
-        },
+        projectAssets: {},
       }),
     },
     {
@@ -295,6 +292,19 @@ describe('data architecture guide delivery', () => {
           assets: {
             ...input.openCode.assets,
             'SAFEWORD.md': `Read @${input.inventory.claudePlanningTarget}.`,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic: 'OpenCode contains an unexpected delivery-specific guide reference at AGENTS.md.',
+      drift: 'an OpenCode-specific guide path',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        openCode: {
+          assets: {
+            ...input.openCode.assets,
+            'AGENTS.md': 'Read @.opencode/guides/data-architecture-guide.md.',
           },
         },
       }),

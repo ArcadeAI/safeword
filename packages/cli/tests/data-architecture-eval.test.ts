@@ -726,6 +726,17 @@ describe('data architecture guide evaluation', () => {
     );
   });
 
+  it('scans authored corpus case IDs as well as prose', () => {
+    const firstCase = currentCases[0];
+    if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
+
+    expect(
+      verifyEvaluationCorpusSafety({
+        cases: [{ ...firstCase, id: 'customer@example.com' }],
+      }).diagnostics,
+    ).toContain('Corpus value at cases[0].id contains an email-shaped value.');
+  });
+
   it('rejects duplicate authoritative ownership in the checked-in corpus', () => {
     const evaluationCase = currentCases.find(item => item.id === 'artifact-ownership');
     const evaluationRecord = currentRecords.find(item => item.caseId === 'artifact-ownership');

@@ -47,6 +47,10 @@ and linked evidence `[decision.ownership.linked-evidence]`. Prove one authority
 `[proof.ownership.single-authority]`; duplicate authority
 `decision.ownership.duplicate-authority` fails.
 
+A cross-reference label is vocabulary, not guidance. Do not select
+`[decision.core.independent-proof]` unless this guide also contains the Independent proof module
+that defines its trigger and requirement.
+
 <!-- data-architecture-ablation:independent-proof:start -->
 
 ## Independent proof
@@ -62,7 +66,6 @@ require revalidation. A sibling generated output cannot prove another generated 
 For generated-artifact completeness, compare the output with a hand-maintained intended-facet
 inventory `[proof.generated.independent-inventory]`.
 <!-- data-architecture-ablation:independent-proof:end -->
-<!-- Vocabulary-only compatibility marker. Do not select this ID without operative guidance: [decision.core.independent-proof] -->
 
 ## Triggered modules
 
