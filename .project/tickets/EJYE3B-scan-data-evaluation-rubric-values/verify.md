@@ -17,6 +17,13 @@
 
 Audit passed — no diff-scoped architecture, dependency-boundary, dead-code, documentation, or test-quality findings.
 
+### Refactor and quality review
+
+- Refactor review: changed the verifier to scan each authored case with one recursive traversal; no further #4767 structural change warranted. Focused tests passed 93/93 after the change.
+- Independent Claude quality review of the updated code: no error-level finding. It confirmed all four rubric arrays and three sensitive-value classes are covered with field-specific diagnostics.
+- Nonblocking observations: the entropy rule remains a hygiene heuristic, and `verifyStoredAblation` relies on separate contract verification of the full-guide record. These concerns are outside #4767's rubric-value scan.
+- The actual `record` and `verify` CLI paths both call `verifyEvaluationCorpusSafety`; the reviewer could not inspect that caller because it was outside the review packet.
+
 ### Focused evidence
 
 - `bun run test tests/data-architecture-eval.test.ts` — 93/93 evaluator tests passed; prerequisite package suites also passed 351 tests with 1 skip.
