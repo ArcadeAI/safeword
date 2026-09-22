@@ -12,12 +12,12 @@ import { assertIsolatedHostProfile, hostProfileSandbox } from './helpers/host-pr
 // directory that is deleted seconds later, and Claude Code never prunes it —
 // the file grew ~45x over five days of normal development (issue #4776).
 describe('host profile isolation (#4776)', () => {
-  it('keeps every vitest lane pointed away from the real plugin store', () => {
+  it('keeps every vitest lane pointed at the sandbox, not the real plugin store', () => {
     // Runtime proof, not a config-shape assertion: this fails in whichever lane
     // loses the wiring, including lanes added after this test was written.
-    expect(() => {
-      assertIsolatedHostProfile(process.env);
-    }).not.toThrow();
+    // Asserting the exact directory rather than `not.toThrow()` also catches a
+    // lane wired to some other profile that merely happens to sit outside home.
+    expect(process.env.CLAUDE_CONFIG_DIR).toBe(hostProfileSandbox());
   });
 
   it('keeps one warm sandbox outside the home directory across runs', () => {
@@ -25,9 +25,7 @@ describe('host profile isolation (#4776)', () => {
     // marketplace, and that clone already exceeds Claude Code's 120s git
     // timeout on this repository.
     const directory = hostProfileSandbox();
-    const temporaryRoot = nodePath.resolve(tmpdir());
     expect(directory).toBe(nodePath.join(tmpdir(), 'safeword-test-host-profile'));
-    expect(directory.startsWith(temporaryRoot)).toBe(true);
     expect(existsSync(directory)).toBe(true);
   });
 
