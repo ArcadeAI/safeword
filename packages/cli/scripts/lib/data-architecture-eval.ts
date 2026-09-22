@@ -459,22 +459,25 @@ export function verifyEvaluationCorpusSafety(
     ...authoredCorpusStringDiagnostics(evaluationCase.id, `cases[${caseIndex}].id`),
     ...authoredCorpusStringDiagnostics(evaluationCase.text, `cases[${caseIndex}].text`),
   ]);
-  const visitContractValue = (value: unknown, path: string): void => {
+  const visitAuthoredValue = (value: unknown, path: string): void => {
     if (typeof value === 'string') {
       diagnostics.push(...authoredCorpusStringDiagnostics(value, path));
       return;
     }
     if (Array.isArray(value)) {
-      for (const [index, entry] of value.entries()) visitContractValue(entry, `${path}[${index}]`);
+      for (const [index, entry] of value.entries()) visitAuthoredValue(entry, `${path}[${index}]`);
       return;
     }
     if (typeof value === 'object' && value !== null) {
       for (const [key, entry] of Object.entries(value)) {
-        visitContractValue(entry, `${path}.${key}`);
+        visitAuthoredValue(entry, `${path}.${key}`);
       }
     }
   };
-  visitContractValue(input.contract, 'contract');
+  for (const [caseIndex, evaluationCase] of input.cases.entries()) {
+    visitAuthoredValue(evaluationCase.rubric, `cases[${caseIndex}].rubric`);
+  }
+  visitAuthoredValue(input.contract, 'contract');
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 
