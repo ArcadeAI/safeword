@@ -58,19 +58,19 @@ valid `skip:`; vague “complies with principles” prose is not.
 
 Component design and data-model design may use the lanes that already ship as linked supporting detail: scaffold from `design-doc-template.md` (Components, Data Model) when `design-doc-guide.md`'s triggers fire, and follow `data-architecture-guide.md` for data-model elevation. `impl-plan.md` remains the single feature design plan of record: it names every required decision and consequence even when a linked artifact carries the full depth. A second feature design document never becomes an alternative authority. The phase stores the plan, qualifying ADRs, and supporting design detail — no novel artifact kinds.
 
-Load `.safeword/guides/testing-guide.md` while choosing each scenario's proof
-scope and real boundary. Load `.safeword/guides/architecture-guide.md` for a
-significant structural or shared-contract decision, and
-`.safeword/guides/data-architecture-guide.md` when data contracts, ownership,
-lifecycle, migration, or cross-system flow change. Load the focused guides
-only for applicable concerns: `interface-contract-guide.md` for a new or
-changed interface or access rule; `release-recovery-guide.md` for a live
-transition or material failure/reversal risk; `measurement-design-guide.md`
-for a Product measurement promise or a decision that depends on an observed
-signal. These guides help make decisions; the accepted scenarios and this
-phase's plan contract determine what must be decided. Record a reason when a
-required applicability question does not apply. Keep each choice and its
-consequence in `impl-plan.md`, with subordinate detail linked when needed.
+Load the installed `testing-guide.md` while choosing each scenario's proof
+scope and real boundary. Load `architecture-guide.md` for a significant
+structural or shared-contract decision, and `data-architecture-guide.md` when
+data contracts, ownership, lifecycle, migration, or cross-system flow change.
+Load the focused guides only for applicable concerns:
+`interface-contract-guide.md` for a new or changed interface or access rule;
+`release-recovery-guide.md` for a live transition or material failure or
+reversal risk; `measurement-design-guide.md` for a Product measurement
+promise or a decision that depends on an observed signal. These guides help
+make decisions; the accepted scenarios and this phase's plan contract
+determine what must be decided. Record a reason when a required applicability
+question does not apply. Keep each choice and its consequence in
+`impl-plan.md`, with subordinate detail linked when needed.
 
 ## Author impl-plan.md
 

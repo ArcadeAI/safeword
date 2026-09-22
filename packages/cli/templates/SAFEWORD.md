@@ -176,18 +176,21 @@ Blog posts, tweets, marketing, and "I remember reading…" don't count for any t
 
 Read the matching guide when its trigger fires:
 
-| Trigger                                                          | Guide                                           |
-| ---------------------------------------------------------------- | ----------------------------------------------- |
-| Starting a feature/task OR writing specs/test-definitions        | `./.safeword/guides/planning-guide.md`          |
-| Choosing test type, doing TDD, or a test is failing              | `./.safeword/guides/testing-guide.md`           |
-| Creating or updating a design doc                                | `./.safeword/guides/design-doc-guide.md`        |
-| Making an architectural decision or writing an ADR               | `./.safeword/guides/architecture-guide.md`      |
-| Understanding the generated `architecture.generated.md` doc      | `./.safeword/guides/architecture-guide.md`      |
-| Data-heavy project needing formal data architecture              | `./.safeword/guides/data-architecture-guide.md` |
-| Writing learnings or agent config (CLAUDE.md, .cursor/rules)     | `./.safeword/guides/llm-writing-guide.md`       |
-| Updating CLAUDE.md, SAFEWORD.md, or any context file             | `./.safeword/guides/context-files-guide.md`     |
-| Hit the same bug repeatedly or discovered an undocumented gotcha | `./.safeword/guides/learning-extraction.md`     |
-| Process hanging, port in use, or zombie process suspected        | `./.safeword/guides/zombie-process-cleanup.md`  |
+| Trigger                                                             | Guide                                            |
+| ------------------------------------------------------------------- | ------------------------------------------------ |
+| Starting a feature/task OR writing specs/test-definitions           | `./.safeword/guides/planning-guide.md`           |
+| Choosing proof scope during planning, doing TDD, or a test failing  | `./.safeword/guides/testing-guide.md`            |
+| Creating or updating a design doc                                   | `./.safeword/guides/design-doc-guide.md`         |
+| Making a significant structural/shared-contract decision or ADR     | `./.safeword/guides/architecture-guide.md`       |
+| Understanding the generated `architecture.generated.md` doc         | `./.safeword/guides/architecture-guide.md`       |
+| Changing data contracts, ownership, lifecycle, or cross-system flow | `./.safeword/guides/data-architecture-guide.md`  |
+| Changing an interface or access rule                                | `./.safeword/guides/interface-contract-guide.md` |
+| Planning live transition, material failure, or reversal             | `./.safeword/guides/release-recovery-guide.md`   |
+| Designing measurement for a Product promise or decision signal      | `./.safeword/guides/measurement-design-guide.md` |
+| Writing learnings or agent config (CLAUDE.md, .cursor/rules)        | `./.safeword/guides/llm-writing-guide.md`        |
+| Updating CLAUDE.md, SAFEWORD.md, or any context file                | `./.safeword/guides/context-files-guide.md`      |
+| Hit the same bug repeatedly or discovered an undocumented gotcha    | `./.safeword/guides/learning-extraction.md`      |
+| Process hanging, port in use, or zombie process suspected           | `./.safeword/guides/zombie-process-cleanup.md`   |
 
 ---
 

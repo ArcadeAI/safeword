@@ -34,3 +34,4 @@ last_modified: 2026-09-22T21:54:57.911Z
 
 - 2026-09-22T21:54:57.911Z Decision: use three focused guides rather than one broad implementation manual or a longer checklist in the plan template. Current primary API, OWASP, SRE, and telemetry guidance shows reusable design questions in three distinct domains; subject routing keeps irrelevant material out of a plan. The plan and review contract remain the authority for required decisions.
 - 2026-09-22T21:54:57.911Z Started: Created ticket CGRX0H
+- 2026-09-22T22:16:45.000Z Added interface/access, release/recovery, and measurement-design guides; registered and installed them. Routed the applicable guides from Implementation Planning, made testing-guide loading explicit, and aligned architecture, data, and supporting-design guidance with one plan of record. Source/mirror parity and whitespace checks pass. Focused tests are pending because another checkout holds the shared test lock.

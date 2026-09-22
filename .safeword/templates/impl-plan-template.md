@@ -22,11 +22,10 @@ primary proof (`unit`, `integration`, `E2E`, or `eval`) chosen by
 `testing/SKILL.md`'s highest practical scope rule, the reason that proof is
 enough, the real system boundary it exercises, its confidence limitation, any
 supporting proof needed for pure-logic edge cases, AI output
-quality, or entry-point wiring, and the build order so each task builds on
-what's already green — among dependency-free work, sequence the load-bearing
-slice (the one proving that riskiest assumption) first, so a wrong design fails
-on slice 1 while it's still cheap. Record the plan-implementation
-phase's proof plan + sequencing output here. Link separately owned detailed
+quality, or entry-point wiring. Name the load-bearing proof to try first so a
+wrong design is exposed cheaply; leave dependency-ordered tasks and test steps
+to the Execution Plan. Record the plan-implementation
+phase's proof strategy here. Link separately owned detailed
 evidence when useful. Do not copy test paths, commands, current hashes,
 individual results, or the verification ledger into this decision path. -->
 
@@ -35,7 +34,11 @@ individual results, or the verification ledger into this decision path. -->
 <!-- This impl-plan.md is the feature's single design plan of record. Keep every
 required decision and its consequence here. Linked supporting detail may carry
 the full depth, but never a second, separately authoritative feature design
-plan. -->
+plan. For applicable choices, use the interface-contract, release-recovery,
+and measurement-design guides. Decide the contract, authorization and failure
+behavior, compatibility, rollout and rollback policy, and measurement origin
+and validity before Execution Planning; give a reason when a concern does not
+apply. -->
 
 ### Implementation Inspiration
 

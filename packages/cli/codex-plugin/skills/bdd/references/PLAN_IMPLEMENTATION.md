@@ -58,11 +58,25 @@ valid `skip:`; vague “complies with principles” prose is not.
 
 Component design and data-model design may use the lanes that already ship as linked supporting detail: scaffold from `design-doc-template.md` (Components, Data Model) when `design-doc-guide.md`'s triggers fire, and follow `data-architecture-guide.md` for data-model elevation. `impl-plan.md` remains the single feature design plan of record: it names every required decision and consequence even when a linked artifact carries the full depth. A second feature design document never becomes an alternative authority. The phase stores the plan, qualifying ADRs, and supporting design detail — no novel artifact kinds.
 
+Load the installed `testing-guide.md` while choosing each scenario's proof
+scope and real boundary. Load `architecture-guide.md` for a significant
+structural or shared-contract decision, and `data-architecture-guide.md` when
+data contracts, ownership, lifecycle, migration, or cross-system flow change.
+Load the focused guides only for applicable concerns:
+`interface-contract-guide.md` for a new or changed interface or access rule;
+`release-recovery-guide.md` for a live transition or material failure or
+reversal risk; `measurement-design-guide.md` for a Product measurement
+promise or a decision that depends on an observed signal. These guides help
+make decisions; the accepted scenarios and this phase's plan contract
+determine what must be decided. Record a reason when a required applicability
+question does not apply. Keep each choice and its consequence in
+`impl-plan.md`, with subordinate detail linked when needed.
+
 ## Author impl-plan.md
 
 Scaffold from `references/impl-plan-template.md` (sibling to `ticket.md`), status `planned`. Sections stay **content-or-skip** — every section gets real content or `skip: <non-empty reason>`:
 
-- **Approach** — open with the riskiest assumption and the cheapest scenario that proves it; then the proof plan: for each scenario the behavior, real system boundary, proof type (`unit`, `integration`, `E2E`, or `eval` per `testing/SKILL.md`'s highest practical scope rule), confidence limitation, supporting proofs, at least one wiring test per new entry point, and the build order with the load-bearing slice first. Cover each **affected surface** the spec lists — name the proof that covers it or a per-surface `skip: <reason>`. Link separately owned detailed evidence when useful; leave test paths, commands, hashes, individual results, and the verification ledger to Execution Planning and verification.
+- **Approach** — open with the riskiest assumption and the cheapest scenario that proves it; then the proof plan: for each scenario the behavior, real system boundary, proof type (`unit`, `integration`, `E2E`, or `eval` per the testing guide's highest practical scope rule), confidence limitation, supporting proofs, and at least one wiring proof per new entry point. Identify the load-bearing proof to attempt first; Execution Planning owns the dependency-ordered build and test steps. Cover each **affected surface** the spec lists — name the proof that covers it or a per-surface `skip: <reason>`. Link separately owned detailed evidence when useful; leave test paths, commands, hashes, individual results, and the verification ledger to Execution Planning and verification.
 - **Decisions** — use either the packaged table structure or the labeled prose/bullet structure from Design the approach step 2 and `references/impl-plan-template.md`; record one complete evidence-bearing entry per significant technical choice. When there is no load-bearing choice, replace the evidence entry with `Decision evidence applicability: skip: <reason>` inside `### Recorded Decisions`; a local non-load-bearing choice may still be named elsewhere in the plan.
 - **Design alignment** — record applicable project principles with their concrete consequence and proof, then consult the architecture record (resolve `paths.architecture` in `.safeword/config.json`; default `.project/architecture.md`; a directory holds one ADR per `.md`, README excluded). Records exist: list the decisions this design honors. With applicable principles but no records, write `None recorded yet` for the architecture sub-entry and offer to draft the first ADR for a significant decision. With neither applicable principles nor architecture records, write `skip: no applicable principles or ADRs` and offer to draft the first ADR for a significant decision (technology choices spanning features, data ownership, cross-service contracts).
 - **Known deviations** — where this deviates from guidance and why that's acceptable.
