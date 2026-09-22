@@ -799,6 +799,31 @@ describe('data architecture guide evaluation', () => {
     },
   );
 
+  it.each([
+    'expectedDecisionIds',
+    'forbiddenDecisionIds',
+    'expectedProofFactIds',
+    'forbiddenProofFactIds',
+  ] as const)('accepts a synthetic placeholder in rubric $rubricField', rubricField => {
+    const firstCase = currentCases[0];
+    if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
+
+    expect(
+      verifyEvaluationCorpusSafety({
+        cases: [
+          {
+            ...firstCase,
+            rubric: {
+              ...firstCase.rubric,
+              [rubricField]: ['SYNTHETIC_CUSTOMER12345678_TOKEN12345678901_ABCDEF1234'],
+            },
+          },
+        ],
+        contract: currentContract,
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
   it('scans authored recording-contract strings as well as case prose', () => {
     expect(
       verifyEvaluationCorpusSafety({
