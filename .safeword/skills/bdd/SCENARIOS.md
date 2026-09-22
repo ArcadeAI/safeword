@@ -228,9 +228,10 @@ Run this completeness check only if review edits scenarios or surfaces an unreso
    `Scenario Outline` with no `Examples`, cannot execute at all, so fix it and rerun
    until the command is clean. `doctor`'s findings split by what they break. A lineage defect
    (a scenario missing its tag or carrying two), a stale ref, or an orphan severs the
-   Rule-to-scenario link this gate exists to certify, so fix it. An uncovered Rule, an
-   untagged affected surface, or a declared Killer Demo may instead record an explicit
-   `skip: <reason>`, exactly where this file already grants one. A skip is a recorded
+   Rule-to-scenario link this gate exists to certify, so fix it. An untagged affected surface or a declared
+   Killer Demo may instead record an explicit `skip: <reason>` on the line this file
+   already grants one. An uncovered Rule is not skippable: every criterion needs at
+   least one scenario, so cover it or drop the Rule. A skip is a recorded
    deferral of coverage, never a way past a structural failure.
 
 4. The approved terminal result's provenance is recorded in the `scenario-gate` review stamp; a pending, failed, stale, rejected, or unstamped review cannot exit.
