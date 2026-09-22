@@ -354,6 +354,47 @@ describe('data architecture guide delivery', () => {
     ).toEqual({ accepted: true, diagnostics: [] });
   });
 
+  it('rejects planning references outside each surface planning source', () => {
+    const input = deliveryFixture();
+    const result = verifyDataArchitectureDelivery({
+      ...input,
+      claude: {
+        ...input.claude,
+        assets: {
+          ...input.claude.assets,
+          'skills/stray/SKILL.md': `Read @${input.inventory.claudePlanningTarget}.`,
+        },
+      },
+      codex: {
+        ...input.codex,
+        assets: {
+          ...input.codex.assets,
+          'skills/stray/SKILL.md': `Read @${input.inventory.claudePlanningTarget}.`,
+        },
+      },
+    });
+
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        `Claude planning reference does not resolve exactly once to ${input.inventory.claudePlanningTarget}.`,
+        `Codex planning reference crosses surfaces to ${input.inventory.claudePlanningTarget}.`,
+      ]),
+    );
+  });
+
+  it('records why OpenCode remains unaffected', () => {
+    expect(
+      file('.project/tickets/Z3C2SE-make-data-architecture-guidance-complete/spec.md'),
+    ).toContain(
+      'OpenCode — issue #4560 does not add or change an OpenCode guide or planning reference.',
+    );
+    expect(
+      file('.project/tickets/Z3C2SE-make-data-architecture-guidance-complete/impl-plan.md'),
+    ).toContain(
+      'Explicit unaffected proof: profile catalogue contains neither a data-architecture guide copy nor a delivery-specific planning path',
+    );
+  });
+
   it('reports every unexpected copy and delivery-specific reference in one pass', () => {
     const input = deliveryFixture();
     const result = verifyDataArchitectureDelivery({

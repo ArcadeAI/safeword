@@ -759,6 +759,19 @@ describe('data architecture guide evaluation', () => {
     ).toContain('Corpus value at contract.modelVersion contains an email-shaped value.');
   });
 
+  it('rejects opaque values disguised with the synthetic placeholder prefix', () => {
+    const firstCase = currentCases[0];
+    if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
+    const disguisedSecret = `SYNTHETIC_${'A1B2C3D4'.repeat(8)}`;
+
+    expect(
+      verifyEvaluationCorpusSafety({
+        cases: [{ ...firstCase, text: `Use ${disguisedSecret}.` }],
+        contract: currentContract,
+      }).diagnostics,
+    ).toContain('Corpus value at cases[0].text contains a non-placeholder high-entropy value.');
+  });
+
   it('rejects duplicate authoritative ownership in the checked-in corpus', () => {
     const evaluationCase = currentCases.find(item => item.id === 'artifact-ownership');
     const evaluationRecord = currentRecords.find(item => item.caseId === 'artifact-ownership');

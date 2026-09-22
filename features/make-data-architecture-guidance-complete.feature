@@ -88,7 +88,7 @@ Feature: Complete conditional data architecture guidance
       Given a full-guide generated-manifest result passes the independent-proof rule while its configuration-matched named-transform ablation result fails that rule
       And both guide hashes are re-derived from the canonical guide with decision-ID labels preserved
       When deterministic verification grades the paired results through the same rubric path
-      Then the evaluation accepts the pair as evidence that removing the named independent-proof module changes the selected guidance
+      Then the evaluation accepts the pair as evidence that removing the named independent-proof module changes the selected IDs under the guide's explicit module-presence rule
 
     @rejection
     Scenario Outline: A non-discriminating guide-ablation pair fails evaluation

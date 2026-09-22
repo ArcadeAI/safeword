@@ -72,11 +72,17 @@ function planningReferenceDiagnostic(
   if (source === undefined) {
     return `${surfaceName} planning source is missing at ${surface.planningSourcePath}.`;
   }
-  const crossSurfaceTarget = crossSurfaceTargets.find(target => source.includes(target));
+  const crossSurfaceTarget = crossSurfaceTargets.find(target =>
+    Object.values(surface.assets).some(content => content.includes(target)),
+  );
   if (crossSurfaceTarget !== undefined) {
     return `${surfaceName} planning reference crosses surfaces to ${crossSurfaceTarget}.`;
   }
-  return occurrenceCount(source, expectedTarget) === 1
+  const totalExpectedReferences = Object.values(surface.assets).reduce(
+    (count, content) => count + occurrenceCount(content, expectedTarget),
+    0,
+  );
+  return occurrenceCount(source, expectedTarget) === 1 && totalExpectedReferences === 1
     ? undefined
     : `${surfaceName} planning reference does not resolve exactly once to ${expectedTarget}.`;
 }

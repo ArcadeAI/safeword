@@ -23,7 +23,8 @@ Verify deterministically, without model or network access:
 bun run data-architecture:verify
 ```
 
-The checked-in contract pins `claude-opus-5` and the Claude CLI inference controls exposed by the
-adapter (`effort: high`, one turn, tools disabled). Refresh records whenever the guide, cases,
-rubric, model/version, inference configuration, response format, rubric loader, or named ablation
-changes. The verifier rejects stale, missing, duplicate, unknown, or non-discriminating evidence.
+The checked-in contract records the maintainer-selected `claude-opus-5` identity and Claude CLI
+inference controls (`effort: high`, one turn, tools disabled); these are contract assertions rather
+than independently observed provider behavior. Refresh records whenever the guide, cases, rubric,
+model/version, inference configuration, response format, rubric loader, or named ablation changes.
+The verifier rejects stale, missing, duplicate, unknown, or non-discriminating evidence.

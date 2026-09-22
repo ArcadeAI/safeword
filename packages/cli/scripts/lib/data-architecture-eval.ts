@@ -129,7 +129,7 @@ export interface VerificationResult {
   readonly diagnostics: readonly string[];
 }
 
-export function sha256(content: string): string {
+function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
@@ -414,11 +414,23 @@ function isLowercaseKebabCase(value: string): boolean {
   );
 }
 
+function isSyntheticPlaceholder(value: string): boolean {
+  if (!value.startsWith('SYNTHETIC_')) return false;
+  const segments = value.slice('SYNTHETIC_'.length).split('_');
+  return (
+    segments.length > 0 &&
+    segments.length <= 4 &&
+    segments.every(
+      segment => segment.length > 0 && segment.length <= 16 && /^[A-Z0-9]+$/u.test(segment),
+    )
+  );
+}
+
 function containsNonPlaceholderHighEntropyValue(value: string): boolean {
   const opaqueTokens = value.match(/[\w+/=-]{32,}/gu) ?? [];
   return opaqueTokens.some(
     token =>
-      !token.startsWith('SYNTHETIC_') && !isLowercaseKebabCase(token) && hasHighEntropy(token),
+      !isSyntheticPlaceholder(token) && !isLowercaseKebabCase(token) && hasHighEntropy(token),
   );
 }
 
