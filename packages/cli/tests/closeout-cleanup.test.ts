@@ -1286,6 +1286,96 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(resolveHostedVerification('unknown', 'passed')).toBe('unknown');
   });
 
+  it('uses the newest result when GitHub returns historical runs for the same check', () => {
+    expect(
+      resolveHostedCheckRollup([
+        {
+          __typename: 'CheckRun',
+          name: 'readiness',
+          workflowName: 'Safeword advisory PR review',
+          status: 'COMPLETED',
+          conclusion: 'CANCELLED',
+          startedAt: '2026-09-19T01:20:48Z',
+        },
+        {
+          __typename: 'CheckRun',
+          name: 'readiness',
+          workflowName: 'Safeword advisory PR review',
+          status: 'COMPLETED',
+          conclusion: 'SUCCESS',
+          startedAt: '2026-09-19T01:46:46Z',
+        },
+      ]),
+    ).toBe('passed');
+  });
+
+  it('does not hide a newer failed rerun behind an older successful check', () => {
+    expect(
+      resolveHostedCheckRollup([
+        {
+          __typename: 'CheckRun',
+          name: 'readiness',
+          workflowName: 'Safeword advisory PR review',
+          status: 'COMPLETED',
+          conclusion: 'SUCCESS',
+          startedAt: '2026-09-19T01:20:48Z',
+        },
+        {
+          __typename: 'CheckRun',
+          name: 'readiness',
+          workflowName: 'Safeword advisory PR review',
+          status: 'COMPLETED',
+          conclusion: 'FAILURE',
+          startedAt: '2026-09-19T01:46:46Z',
+        },
+      ]),
+    ).toBe('failed');
+  });
+
+  it('keeps same-named checks from different workflows separate', () => {
+    expect(
+      resolveHostedCheckRollup([
+        {
+          __typename: 'CheckRun',
+          name: 'test',
+          workflowName: 'unit tests',
+          status: 'COMPLETED',
+          conclusion: 'SUCCESS',
+          startedAt: '2026-09-19T01:20:48Z',
+        },
+        {
+          __typename: 'CheckRun',
+          name: 'test',
+          workflowName: 'integration tests',
+          status: 'COMPLETED',
+          conclusion: 'FAILURE',
+          startedAt: '2026-09-19T01:46:46Z',
+        },
+      ]),
+    ).toBe('failed');
+  });
+
+  it('keeps duplicate-looking checks conservative when their start time is unavailable', () => {
+    expect(
+      resolveHostedCheckRollup([
+        {
+          __typename: 'CheckRun',
+          name: 'readiness',
+          workflowName: 'Safeword advisory PR review',
+          status: 'COMPLETED',
+          conclusion: 'CANCELLED',
+        },
+        {
+          __typename: 'CheckRun',
+          name: 'readiness',
+          workflowName: 'Safeword advisory PR review',
+          status: 'COMPLETED',
+          conclusion: 'SUCCESS',
+        },
+      ]),
+    ).toBe('failed');
+  });
+
   it('derives branch protection conservatively while allowing a proven-absent remote ref', () => {
     expect(resolveProtection('absent')).toBe('unprotected');
     expect(resolveProtection('matched', true)).toBe('protected');
