@@ -204,9 +204,10 @@ Claude body drift.
 only one current result per case; no first-try or statistical reliability claim; application code
 remains untouched until the implement phase.
 
-**Error handling:** Recorder failures name the adapter, case, and failed protocol stage without
-persisting partial records. Verification aggregates deterministic diagnostics by case and exits
-nonzero on any mismatch.
+**Error handling:** Recorder failures name the adapter, case, and failed protocol stage before staged
+files are promoted. Each file replacement is atomic; verification rejects a records/ablation pair
+interrupted between the two replacements. Verification aggregates deterministic diagnostics by case
+and exits nonzero on any mismatch.
 
 **Gotchas:** The verifier must never derive expected IDs, expected guide paths, or the ablation
 transform from generated output. Stored `passed` values are evidence to cross-check, not grading

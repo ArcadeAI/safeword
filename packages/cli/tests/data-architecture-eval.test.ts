@@ -160,8 +160,14 @@ describe('data architecture guide evaluation', () => {
     const expectedDecisionIds = new Set(
       currentCases.flatMap(item => item.rubric.expectedDecisionIds),
     );
+    const expectedProofFactIds = new Set(
+      currentCases.flatMap(item => item.rubric.expectedProofFactIds),
+    );
     for (const decisionId of expectedDecisionIds) {
       expect(shippedCanonicalGuide).toContain(`[${decisionId}]`);
+    }
+    for (const proofFactId of expectedProofFactIds) {
+      expect(shippedCanonicalGuide).toContain(`[${proofFactId}]`);
     }
     expect(shippedCanonicalGuide).toContain(
       '<!-- data-architecture-ablation:independent-proof:start -->',
@@ -548,7 +554,9 @@ describe('data architecture guide evaluation', () => {
   });
 
   it('safety-checks the current authored corpus', () => {
-    expect(verifyEvaluationCorpusSafety({ cases: currentCases })).toEqual({
+    expect(
+      verifyEvaluationCorpusSafety({ cases: currentCases, contract: currentContract }),
+    ).toEqual({
       accepted: true,
       diagnostics: [],
     });
@@ -690,13 +698,16 @@ describe('data architecture guide evaluation', () => {
     const corpus = corpusFixture();
     const firstCase = corpus.cases[0];
     if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
-    expect(verifyEvaluationCorpusSafety({ cases: corpus.cases })).toEqual({
+    expect(
+      verifyEvaluationCorpusSafety({ cases: corpus.cases, contract: corpus.contract }),
+    ).toEqual({
       accepted: true,
       diagnostics: [],
     });
     expect(
       verifyEvaluationCorpusSafety({
         cases: [{ ...firstCase, text: 'Plan an Asia-Pacific regional deployment.' }],
+        contract: corpus.contract,
       }),
     ).toEqual({ accepted: true, diagnostics: [] });
   });
@@ -721,9 +732,10 @@ describe('data architecture guide evaluation', () => {
     const firstCase = currentCases[0];
     if (firstCase === undefined) throw new Error('Corpus fixture is empty.');
 
-    expect(verifyEvaluationCorpusSafety({ cases: [{ ...firstCase, text }] }).diagnostics).toContain(
-      diagnostic,
-    );
+    expect(
+      verifyEvaluationCorpusSafety({ cases: [{ ...firstCase, text }], contract: currentContract })
+        .diagnostics,
+    ).toContain(diagnostic);
   });
 
   it('scans authored corpus case IDs as well as prose', () => {
@@ -733,8 +745,18 @@ describe('data architecture guide evaluation', () => {
     expect(
       verifyEvaluationCorpusSafety({
         cases: [{ ...firstCase, id: 'customer@example.com' }],
+        contract: currentContract,
       }).diagnostics,
     ).toContain('Corpus value at cases[0].id contains an email-shaped value.');
+  });
+
+  it('scans authored recording-contract strings as well as case prose', () => {
+    expect(
+      verifyEvaluationCorpusSafety({
+        cases: currentCases,
+        contract: { ...currentContract, modelVersion: 'customer@example.com' },
+      }).diagnostics,
+    ).toContain('Corpus value at contract.modelVersion contains an email-shaped value.');
   });
 
   it('rejects duplicate authoritative ownership in the checked-in corpus', () => {

@@ -116,26 +116,28 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
 
 function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[] {
   const diagnostics: string[] = [];
-  const openCodeGuidePath = Object.keys(input.openCode.assets).find(path =>
+  const openCodeGuidePaths = Object.keys(input.openCode.assets).filter(path =>
     isDataArchitectureGuidePath(path),
   );
-  if (openCodeGuidePath !== undefined) {
-    diagnostics.push(`OpenCode contains an unexpected guide copy at ${openCodeGuidePath}.`);
-  }
+  diagnostics.push(
+    ...openCodeGuidePaths.map(path => `OpenCode contains an unexpected guide copy at ${path}.`),
+  );
   const projectGuidePath = input.inventory.projectPlanningTarget.replace(/^\.\//u, '');
-  const deliverySpecificReference = Object.entries(input.openCode.assets).find(([, content]) => {
-    const referencedGuidePaths = content
-      .split(/\s+/u)
-      .filter(token => token.includes(dataArchitectureGuideBasename));
-    return referencedGuidePaths.some(
-      reference => reference.includes('/') && !reference.includes(projectGuidePath),
-    );
-  })?.[0];
-  if (deliverySpecificReference !== undefined) {
-    diagnostics.push(
-      `OpenCode contains an unexpected delivery-specific guide reference at ${deliverySpecificReference}.`,
-    );
-  }
+  const deliverySpecificReferences = Object.entries(input.openCode.assets)
+    .filter(([, content]) => {
+      const referencedGuidePaths = content
+        .split(/\s+/u)
+        .filter(token => token.includes(dataArchitectureGuideBasename));
+      return referencedGuidePaths.some(
+        reference => reference.includes('/') && !reference.includes(projectGuidePath),
+      );
+    })
+    .map(([path]) => path);
+  diagnostics.push(
+    ...deliverySpecificReferences.map(
+      path => `OpenCode contains an unexpected delivery-specific guide reference at ${path}.`,
+    ),
+  );
   return diagnostics;
 }
 
@@ -145,12 +147,12 @@ export function verifyDataArchitectureDelivery(
   const diagnostics = guideDeliveryDiagnostics(input);
   const { inventory } = input;
 
-  const codexGuidePath = Object.keys(input.codex.assets).find(path =>
+  const codexGuidePaths = Object.keys(input.codex.assets).filter(path =>
     isDataArchitectureGuidePath(path),
   );
-  if (codexGuidePath !== undefined) {
-    diagnostics.push(`Codex contains an unexpected guide copy at ${codexGuidePath}.`);
-  }
+  diagnostics.push(
+    ...codexGuidePaths.map(path => `Codex contains an unexpected guide copy at ${path}.`),
+  );
 
   for (const diagnostic of [
     planningReferenceDiagnostic('Claude', input.claude, inventory.claudePlanningTarget, [

@@ -68,6 +68,7 @@ export interface EvaluationCorpusInput {
 
 export interface EvaluationCorpusSafetyInput {
   readonly cases: readonly EvaluationCase[];
+  readonly contract: EvaluationContract;
 }
 
 export interface AblationRecord {
@@ -439,13 +440,29 @@ function authoredCorpusStringDiagnostics(value: string, path: string): string[] 
 export function verifyEvaluationCorpusSafety(
   input: EvaluationCorpusSafetyInput,
 ): VerificationResult {
-  // Prompts are reconstructed from the canonical guide and authored case identity/prose, while
-  // responses are constrained to exact rubric IDs. Scan both authored strings that can carry an
-  // arbitrary sensitive value after those structural checks succeed.
+  // Prompts are reconstructed from the canonical guide, authored case identity/prose, and the
+  // checked-in recording contract, while responses are constrained to exact rubric IDs. Scan every
+  // authored string that can carry an arbitrary sensitive value after those checks succeed.
   const diagnostics = input.cases.flatMap((evaluationCase, caseIndex) => [
     ...authoredCorpusStringDiagnostics(evaluationCase.id, `cases[${caseIndex}].id`),
     ...authoredCorpusStringDiagnostics(evaluationCase.text, `cases[${caseIndex}].text`),
   ]);
+  const visitContractValue = (value: unknown, path: string): void => {
+    if (typeof value === 'string') {
+      diagnostics.push(...authoredCorpusStringDiagnostics(value, path));
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const [index, entry] of value.entries()) visitContractValue(entry, `${path}[${index}]`);
+      return;
+    }
+    if (typeof value === 'object' && value !== null) {
+      for (const [key, entry] of Object.entries(value)) {
+        visitContractValue(entry, `${path}.${key}`);
+      }
+    }
+  };
+  visitContractValue(input.contract, 'contract');
   return { accepted: diagnostics.length === 0, diagnostics };
 }
 

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -10,7 +10,6 @@ import {
   verifyDataArchitectureDelivery,
 } from '../scripts/lib/data-architecture-delivery.js';
 import { generateClaudePluginAssets } from '../src/claude-plugin/catalogue.js';
-import { generateCodexPluginAssets } from '../src/codex-plugin/catalogue.js';
 import { generateOpenCodeCatalogueAssets } from '../src/opencode/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
 import { setupReconcileTest } from './helpers.js';
@@ -43,6 +42,18 @@ function assetsByPath(
   return Object.fromEntries(assets.map(asset => [asset.relativePath, asset.content]));
 }
 
+function treeAssets(root: string, directory = root): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    readdirSync(directory).flatMap(entry => {
+      const absolutePath = nodePath.join(directory, entry);
+      if (statSync(absolutePath).isDirectory()) {
+        return Object.entries(treeAssets(root, absolutePath));
+      }
+      return [[nodePath.relative(root, absolutePath), readFileSync(absolutePath, 'utf8')]];
+    }),
+  );
+}
+
 function replaceInAsset(
   assets: Readonly<Record<string, string>>,
   path: string,
@@ -65,9 +76,9 @@ function deliveryFixture(): DataArchitectureDeliveryInput {
       version: '0.0.0-test',
     }),
   );
-  const codexAssets = assetsByPath(
-    generateCodexPluginAssets(nodePath.join(templatesRoot, 'skills'), '0.0.0-test'),
-  );
+  // Inspect the complete checked-in payload produced by generate-codex-plugin.ts, including the
+  // catalogue, handbook, hooks, runtime helpers, and bundled runtime—not only catalogue assets.
+  const codexAssets = treeAssets(nodePath.join(packageRoot, 'codex-plugin'));
   const openCodeAssets = assetsByPath(generateOpenCodeCatalogueAssets(templatesRoot));
 
   return {
@@ -83,11 +94,8 @@ function deliveryFixture(): DataArchitectureDeliveryInput {
       planningSourcePath: deliveryInventory.claudePlanningSourcePath,
     },
     codex: {
-      assets: {
-        ...codexAssets,
-        'SAFEWORD.md': file('packages/cli/codex-plugin/templates/SAFEWORD.md'),
-      },
-      planningSourcePath: 'SAFEWORD.md',
+      assets: codexAssets,
+      planningSourcePath: 'templates/SAFEWORD.md',
     },
     cursor: {
       assets: {
@@ -330,5 +338,36 @@ describe('data architecture guide delivery', () => {
         },
       }),
     ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it('reports every unexpected copy and delivery-specific reference in one pass', () => {
+    const input = deliveryFixture();
+    const result = verifyDataArchitectureDelivery({
+      ...input,
+      codex: {
+        ...input.codex,
+        assets: {
+          ...input.codex.assets,
+          'guides/data-architecture-guide.md': input.canonicalGuide,
+          'templates/guides/data-architecture-guide.md': input.canonicalGuide,
+        },
+      },
+      openCode: {
+        assets: {
+          ...input.openCode.assets,
+          'AGENTS.md': 'Read @.opencode/guides/data-architecture-guide.md.',
+          'SAFEWORD.md': `Read @${input.inventory.claudePlanningTarget}.`,
+        },
+      },
+    });
+
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        'Codex contains an unexpected guide copy at guides/data-architecture-guide.md.',
+        'Codex contains an unexpected guide copy at templates/guides/data-architecture-guide.md.',
+        'OpenCode contains an unexpected delivery-specific guide reference at AGENTS.md.',
+        'OpenCode contains an unexpected delivery-specific guide reference at SAFEWORD.md.',
+      ]),
+    );
   });
 });

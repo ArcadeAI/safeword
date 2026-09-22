@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 10265/10265 runnable tests pass
+**Test Suite:** ✓ 10267/10267 runnable tests pass
 **Gherkin:** ✅ Acceptance lane passes (1503 scenarios, 68909 steps)
 **Build:** ✅ Root packages build; the website builds all 9 pages with Bun's nested native package exposed through `NODE_PATH`
 **Lint:** ✅ Clean
@@ -21,7 +21,7 @@
 
 | Surface | Evidence |
 | --- | --- |
-| Safeword CLI | The aggregate verification passed 10265/10265 runnable tests; focused data-architecture suites passed 97/97; deterministic verification accepted all 9 records and 1 ablation record |
+| Safeword CLI | The aggregate verification passed 10267/10267 runnable tests; focused data-architecture suites passed 99/99; deterministic verification accepted all 9 records and 1 ablation record |
 | Claude Code | The generator inventory covers 184 assets, and delivery tests verify literal planning-target substitution |
 | OpenAI Codex | Delivery tests prove the copy-free shared-project route and managed guide references |
 | Cursor | Lifecycle update and clean verification passed 13/13, including the installed guide and planning-target route |

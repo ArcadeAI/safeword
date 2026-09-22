@@ -24,8 +24,8 @@ Build five slices, keeping nondeterministic recording outside the normal test ru
 2. **Cold-start recording entry point.** Add `packages/cli/scripts/data-architecture-eval.ts` with
    `record` and `verify` modes and package scripts documenting the exact commands. `record` launches
    a structured-argv model adapter in an empty temporary working directory, sends only guide + one
-   case + neutral JSON response schema, binds exact prompt/model/decoding/content hashes, and writes
-   atomically only after re-grading. Primary proof: an integration wiring test using real prompt
+   case + neutral JSON response schema, binds exact prompt/model/decoding/content hashes, and stages
+   individually atomic file replacements only after re-grading. Primary proof: an integration wiring test using real prompt
    composition, filesystem, corpus walk, and grader while replacing only the subprocess model
    boundary.
 3. **Canonical guidance and current records.** Rewrite
@@ -41,7 +41,7 @@ Build five slices, keeping nondeterministic recording outside the normal test ru
    ownership; no Codex copy; and OpenCode catalogue absence. The existing planning routes remain
    unchanged: the current planning template already invokes the data guide and host generators adapt
    that reference. The literal inventory requires exactly one emitted planning reference for Claude,
-   Codex, and Cursor and exactly zero for OpenCode, mapping each referenced host to its one permitted
+   Codex, and Cursor and no OpenCode delivery-owned reference, mapping each referenced host to its one permitted
    target: Claude →
    `plugin/resources/guides/data-architecture-guide.md`, Codex and Cursor →
    `.safeword/guides/data-architecture-guide.md`, and OpenCode → no copy and no delivery-specific path. Seed
@@ -131,18 +131,20 @@ Safeword provides an empty working directory, a closed stdin request, and a tool
 then records the adapter identity and exact prompt. Treating a same-user adapter as hostile would
 require an OS sandbox and is outside this documentation-evaluation scope.
 
-The corpus safety scan examines independently authored case prose. Prompts are reconstructed from
-the canonical guide and case, responses must contain exact rubric IDs, and every stored digest is
-recomputed by deterministic verification, so those structural fields are not treated as arbitrary
-sensitive-value inputs.
+The corpus safety scan examines independently authored case prose, case IDs, and recording-contract
+strings. Prompts are reconstructed from the canonical guide and case, responses must contain exact
+rubric IDs, and every stored digest is recomputed by deterministic verification, so response IDs are
+not treated as arbitrary sensitive-value inputs.
 
 The accepted evidence remains one current full-guide result per case plus one current paired
-ablation record rather than a statistical claim. Re-recording atomically replaces the current
-evidence; this ticket does not claim or retain first-attempt, invocation-history, or pass-rate data.
+ablation record rather than a statistical claim. Re-recording stages both files and replaces each
+atomically; verification rejects a pair interrupted between replacements. The files attest prompt,
+configuration, response, and content binding, but do not independently attest the remote model's
+identity. This ticket does not claim or retain first-attempt, invocation-history, or pass-rate data.
 
 Implementation reconciliation: all four recorded decisions remain current. The shipped recorder
-uses structured argv, an empty temporary working directory, atomic replacement, and deterministic
-re-grading; the corpus safety walk scans authored case prose while prompt reconstruction
+uses structured argv, an empty temporary working directory, individually atomic replacement, and
+deterministic re-grading; the corpus safety walk scans authored case and contract strings while prompt reconstruction
 proves the stored prompt contains only the canonical guide, case, neutral schema, and tools-disabled
 state. No design deviations were introduced.
 
