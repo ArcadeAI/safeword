@@ -12,6 +12,6 @@ Feature: Keep the acceptance lane out of the developer's plugin store
   the leak resume unnoticed.
 
   Scenario: The acceptance lane runs against a sandboxed host profile
-    When a scenario in this lane reaches its first step
-    Then the Claude host profile points at Safeword's test sandbox
-    And the Claude host profile is outside the developer's home directory
+    When Safeword reads the Claude host profile this lane is running under
+    Then that profile is Safeword's test sandbox
+    And that profile is outside the developer's home directory

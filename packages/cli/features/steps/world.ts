@@ -15,6 +15,8 @@ export interface CliResult {
 export class SafewordWorld extends World {
   temporaryDirectory = '';
   fakeCodexBin?: string;
+  /** The live CLAUDE_CONFIG_DIR a step observed for this lane (#4776). */
+  observedHostProfile?: string;
   result: CliResult = { stdout: '', stderr: '', exitCode: 0 };
 }
 

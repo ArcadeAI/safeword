@@ -8,28 +8,34 @@ import {
   assertIsolatedHostProfile,
   hostProfileSandbox,
 } from '../../tests/helpers/host-profile-sandbox.ts';
+import type { SafewordWorld } from './world.ts';
 
-// Deliberately observes the live process environment rather than a fixture:
-// the behaviour under test is that the lane's BeforeAll guard actually ran in
-// this runner, which no amount of in-test setup can stand in for.
-When('a scenario in this lane reaches its first step', function noSetupRequired() {
-  // The guard runs in BeforeAll, so by this point the lane is either isolated
-  // or it is not. Nothing to arrange.
-});
+// Reads the live process environment rather than a fixture on purpose: the
+// behaviour under test is that this lane's BeforeAll guard actually ran in this
+// runner, and no amount of in-step setup can stand in for that.
+When(
+  'Safeword reads the Claude host profile this lane is running under',
+  function readHostProfile(this: SafewordWorld) {
+    this.observedHostProfile = process.env.CLAUDE_CONFIG_DIR;
+  },
+);
 
-Then("the Claude host profile points at Safeword's test sandbox", () => {
+Then("that profile is Safeword's test sandbox", function assertSandbox(this: SafewordWorld) {
   assert.equal(
-    process.env.CLAUDE_CONFIG_DIR,
+    this.observedHostProfile,
     hostProfileSandbox(),
     'the acceptance lane did not run the host-profile guard — Cucumber may no longer discover features/steps/host-profile-sandbox.steps.ts, so scenarios would write install records into the real ~/.claude (#4776)',
   );
 });
 
-Then("the Claude host profile is outside the developer's home directory", () => {
-  assertIsolatedHostProfile(process.env);
-  const homePrefix = nodePath.resolve(homedir()) + nodePath.sep;
-  assert.ok(
-    !(process.env.CLAUDE_CONFIG_DIR ?? '').startsWith(homePrefix),
-    'the acceptance lane resolved a profile inside the home directory',
-  );
-});
+Then(
+  "that profile is outside the developer's home directory",
+  function assertOutsideHome(this: SafewordWorld) {
+    assertIsolatedHostProfile({ CLAUDE_CONFIG_DIR: this.observedHostProfile });
+    const homePrefix = nodePath.resolve(homedir()) + nodePath.sep;
+    assert.ok(
+      !(this.observedHostProfile ?? '').startsWith(homePrefix),
+      'the acceptance lane resolved a profile inside the home directory',
+    );
+  },
+);
