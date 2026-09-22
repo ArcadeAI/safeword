@@ -105,6 +105,15 @@ if git diff --cached --name-only | grep -q '^packages/cli/templates/'; then
   fi
 fi
 
+# Generated-surface gate (#4701): a single template/mirror edit invalidates the
+# Codex plugin, the Claude plugin runtime, the Claude historical catalogue, and
+# the Cursor wrappers. Each used to be found only by its own 10-25 minute test
+# run. Check all four here (~10s) whenever a template or mirror is staged.
+# Bypassable with --no-verify.
+if git diff --cached --name-only | grep -qE '^(packages/cli/templates/|packages/cli/codex-plugin/|packages/cli/src/cursor-wrappers\.ts|plugin/|\.claude/|\.agents/|\.cursor/|\.safeword/)'; then
+  bun packages/cli/scripts/check-generated-surfaces.ts || exit 1
+fi
+
 # Boundary reconciliation gate (CDRJTW, #810 slice 1): warn-and-record over
 # staged ticket artifacts. Exits 0 by contract — `|| true` is belt-and-braces
 # so a broken bun/CLI can never block a commit.
