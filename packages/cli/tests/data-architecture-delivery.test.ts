@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -18,6 +18,7 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const packageRoot = nodePath.join(repoRoot, 'packages/cli');
 const templatesRoot = nodePath.join(packageRoot, 'templates');
 const sourceRoot = nodePath.join(packageRoot, 'src');
+const ticketRelativePath = 'Z3C2SE-make-data-architecture-guidance-complete';
 const deliveryInventory: DataArchitectureDeliveryInventory = {
   canonicalGuidePath: 'packages/cli/templates/guides/data-architecture-guide.md',
   installedGuidePath: '.safeword/guides/data-architecture-guide.md',
@@ -34,6 +35,14 @@ const deliveryInventory: DataArchitectureDeliveryInventory = {
 
 function file(relativePath: string): string {
   return readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
+}
+
+function ticketFile(filename: string): string {
+  const activePath = nodePath.join(repoRoot, '.project/tickets', ticketRelativePath, filename);
+  const path = existsSync(activePath)
+    ? activePath
+    : nodePath.join(repoRoot, '.project/tickets/completed', ticketRelativePath, filename);
+  return readFileSync(path, 'utf8');
 }
 
 function assetsByPath(
@@ -383,14 +392,10 @@ describe('data architecture guide delivery', () => {
   });
 
   it('records why OpenCode remains unaffected', () => {
-    expect(
-      file('.project/tickets/Z3C2SE-make-data-architecture-guidance-complete/spec.md'),
-    ).toContain(
+    expect(ticketFile('spec.md')).toContain(
       'OpenCode — issue #4560 does not add or change an OpenCode guide or planning reference.',
     );
-    expect(
-      file('.project/tickets/Z3C2SE-make-data-architecture-guidance-complete/impl-plan.md'),
-    ).toContain(
+    expect(ticketFile('impl-plan.md')).toContain(
       'Explicit unaffected proof: profile catalogue contains neither a data-architecture guide copy nor a delivery-specific planning path',
     );
   });
