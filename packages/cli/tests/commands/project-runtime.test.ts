@@ -64,6 +64,30 @@ describe('packaged project runtime', () => {
     );
   });
 
+  it('keeps re-entrant helper commands on the same packaged CLI', async () => {
+    const project = createTemporaryDirectory();
+    directories.push(project);
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), '# enrolled\n');
+    let childEnvironment: NodeJS.ProcessEnv | undefined;
+
+    const result = await runProjectRuntime(
+      project,
+      'closeout-cleanup',
+      [],
+      (_runtime, _args, options) => {
+        childEnvironment = options.env;
+        return { status: 0, stdout: '', stderr: '' };
+      },
+    );
+
+    expect(result.state).toBe('healthy');
+    expect(childEnvironment).toMatchObject({
+      CLAUDE_PROJECT_DIR: project,
+      SAFEWORD_PLUGIN_CLI: nodePath.resolve(import.meta.dirname, '../../dist/cli.js'),
+    });
+  });
+
   it('recognizes packaged proof commands for Codex session bridging', () => {
     expect(
       parsePackagedRecordSkillInvocation(

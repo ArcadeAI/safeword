@@ -190,6 +190,38 @@ describe('child Product Plan phase boundaries', () => {
     );
   });
 
+  it('denies a contracted child with no scalar ticket id instead of crashing', () => {
+    rmSync(nodePath.join(project, '.project/tickets/CHILD1-child/test-definitions.md'));
+    writeFileSync(
+      nodePath.join(project, '.project/tickets/CHILD1-child/dimensions.md'),
+      'skip: one dimension\n',
+    );
+    writeFileSync(
+      nodePath.join(project, '.project/tickets/CHILD1-child/spec.md'),
+      '# Feature Contribution\n\n## Rules\n\n#### parent.PLO1.CHILD1.R1 — works\n',
+    );
+    writeFileSync(
+      childTicket,
+      readFileSync(childTicket, 'utf8')
+        .replace('id: CHILD1\n', '')
+        .replace('phase: intake', 'phase: define-behavior'),
+    );
+    const result = spawnSync('bun', [preTool], {
+      input: JSON.stringify({
+        tool_name: 'Write',
+        tool_input: {
+          file_path: nodePath.join(project, '.project/tickets/CHILD1-child/test-definitions.md'),
+          content: '# Test Definitions\n',
+        },
+      }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain('require one scalar ticket id');
+  });
+
   it('blocks a phase change that removes activation while leaving partial references', () => {
     const prior = readFileSync(childTicket, 'utf8');
     const content = prior

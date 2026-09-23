@@ -28,7 +28,10 @@ import {
 /* eslint-disable unicorn/no-null -- State file uses JSON null values by design */
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
+const PRE_TOOL_QUALITY = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/pre-tool-quality.ts',
+);
 
 /** Invoke pre-tool-quality with a Bash(git commit) payload. */
 function runBashCommitHook(cwd: string, command: string, sessionId = 'test-session'): HookResult {
@@ -154,6 +157,18 @@ describe('commit-time REFACTOR gate', () => {
     projectDirectory = setup.cwd;
     const result = runBashCommitHook(setup.cwd, 'git commit -m "refactor: clean up foo"');
     expectHookDeny(result, 'tests/foo.test.ts');
+  });
+
+  it.each([
+    'git -C . commit -m "refactor: clean up foo"',
+    'git --no-pager commit -m "refactor: clean up foo"',
+  ])('blocks test-file changes when commit uses global Git options: %s', command => {
+    const setup = setupRefactorProject({
+      'src/foo.ts': 'export const foo = 1;',
+      'tests/foo.test.ts': 'import { foo } from "../src/foo";',
+    });
+    projectDirectory = setup.cwd;
+    expectHookDeny(runBashCommitHook(setup.cwd, command), 'tests/foo.test.ts');
   });
 });
 

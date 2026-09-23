@@ -21,6 +21,7 @@ const tsconfigRootDirectory = import.meta.dirname;
 // Ignores
 const ignores = [
   '**/node_modules/',
+  '**/.venv/', // uv-managed third-party environment, not repository source
   '**/dist/',
   '**/build/',
   '**/coverage/',

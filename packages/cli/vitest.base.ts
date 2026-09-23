@@ -2,6 +2,8 @@ import path from 'node:path';
 
 import { defineConfig } from 'vitest/config';
 
+import { hostProfileSandbox } from './tests/helpers/host-profile-sandbox.ts';
+
 /**
  * Shared vitest settings for all test configs.
  * Import and merge via: mergeConfig(baseConfig, defineConfig({ ... }))
@@ -16,7 +18,13 @@ export const baseConfig = defineConfig({
     // throwaway repos in /tmp and must be hermetic — they must not inherit a
     // host that enforces commit signing (e.g. a managed env that signs via a
     // server), which otherwise fails every test `git commit` with a signing error.
+    // CLAUDE_CONFIG_DIR: suites that run the real CLI end in
+    // `claude plugin install`, which records the throwaway $TMPDIR project in
+    // the developer's real ~/.claude plugin store and never removes it
+    // (#4776). Sandboxing it here makes the leak impossible for every lane
+    // instead of relying on each suite to remember.
     env: {
+      CLAUDE_CONFIG_DIR: hostProfileSandbox(),
       PATH: `${path.dirname(process.execPath)}:${process.env.PATH}`,
       GIT_CONFIG_COUNT: '1',
       GIT_CONFIG_KEY_0: 'commit.gpgsign',

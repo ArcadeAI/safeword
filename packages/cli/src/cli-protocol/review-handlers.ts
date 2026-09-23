@@ -17,6 +17,8 @@ import type {
   RedExecutionRequest,
   ReviewKind,
 } from '../review/contract.js';
+import { ReviewConfigReadError, ReviewUserConfigPathError } from '../review/preferences.js';
+import { ReviewRouteConfigError } from '../review/route-config.js';
 import type { CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
 import { shellQuote } from './replay-command.js';
@@ -39,11 +41,25 @@ export async function reviewRunHandler(invocation: CommandInvocation): Promise<C
       ],
     });
   }
+  if (rawKind === 'plan-execution') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_KIND_NOT_RUNNABLE',
+          message:
+            'This Safeword version can verify existing plan-execution receipts but cannot start a new plan-execution review.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'review run', status: 'blocked', review_kind: rawKind },
+    });
+  }
+  if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   const targets = Array.isArray(rawTargets)
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
   const context = reviewContext(invocation.options.context);
-  if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   const execution = redExecutionRequest(rawKind, invocation.options);
   if (execution instanceof Error) return invalidOperand('review run', execution.message);
   return startReviewInBackground(invocation, rawKind, targets, context, execution);
@@ -75,9 +91,8 @@ function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | un
 function reviewRoutesFailure(command: string, error: unknown): CliResult {
   const message = error instanceof Error ? error.message : 'Review route configuration is invalid.';
   const invalid =
-    message.startsWith('Invalid ') ||
-    message.startsWith('Cannot locate the Safeword user configuration directory.');
-  const readFailure = command === 'review routes list' && !invalid;
+    error instanceof ReviewRouteConfigError || error instanceof ReviewUserConfigPathError;
+  const readFailure = error instanceof ReviewConfigReadError || command === 'review routes list';
   let code = 'REVIEW_ROUTE_CONFIG_WRITE_FAILED';
   if (invalid) code = 'REVIEW_ROUTE_CONFIG_INVALID';
   else if (readFailure) code = 'REVIEW_ROUTE_CONFIG_READ_FAILED';
@@ -87,7 +102,7 @@ function reviewRoutesFailure(command: string, error: unknown): CliResult {
       {
         code,
         message,
-        retryable: !invalid,
+        retryable: !invalid && !readFailure,
       },
     ],
     data: { command },
@@ -167,20 +182,19 @@ export async function reviewRoutesListHandler(invocation: CommandInvocation): Pr
     source: string;
     routes: readonly { reviewer: string; model?: string; independence: string }[];
   }[] = [];
-  for (const author of authors) {
-    let configured: ReturnType<typeof effectiveConfiguredRoutes>;
-    try {
-      configured = effectiveConfiguredRoutes(invocation.cwd, author);
-    } catch (error) {
-      return reviewRoutesFailure('review routes list', error);
+  try {
+    for (const author of authors) {
+      const configured = effectiveConfiguredRoutes(invocation.cwd, author);
+      listed.push({
+        author,
+        ...(configured ?? {
+          source: 'built-in',
+          routes: builtInReviewRoutes(invocation.cwd, author),
+        }),
+      });
     }
-    listed.push({
-      author,
-      ...(configured ?? {
-        source: 'built-in',
-        routes: builtInReviewRoutes(invocation.cwd, author),
-      }),
-    });
+  } catch (error) {
+    return reviewRoutesFailure('review routes list', error);
   }
 
   // Project-scoped paths travel relative to the project, matching `routes set`
@@ -209,7 +223,7 @@ export async function reviewRoutesListHandler(invocation: CommandInvocation): Pr
     data: {
       command: 'review routes list',
       config_key: REVIEW_ROUTE_CONFIG_KEY,
-      config_path: projectConfig,
+      project_config_path: projectConfig,
       authors: listed,
       ...(single !== undefined && {
         author: single.author,
@@ -272,7 +286,22 @@ function redExecutionRequest(
   kind: ReviewKind,
   options: Readonly<Record<string, unknown>>,
 ): RedExecutionRequest | undefined | Error {
-  if (kind !== 'executable-red') return undefined;
+  if (kind !== 'executable-red') {
+    const redOnlyOption = [
+      'execute',
+      'scenario',
+      'ledger',
+      'proofCwd',
+      'evidenceClass',
+      'expectedFailure',
+      'executionTimeout',
+    ].find(option => options[option] !== undefined);
+    if (redOnlyOption !== undefined) {
+      const flag = redOnlyOption.replaceAll(/[A-Z]/gu, letter => `-${letter.toLowerCase()}`);
+      return new Error(`--${flag} is only valid for executable-red reviews.`);
+    }
+    return undefined;
+  }
   const scenario = options.scenario;
   if (typeof scenario !== 'string' || scenario.trim() === '')
     return new Error('Executable-red review requires a non-empty --scenario.');
@@ -288,9 +317,11 @@ function redExecutionRequest(
   }
   if (!Array.isArray(argv) || argv.length === 0 || argv.some(value => typeof value !== 'string'))
     return new Error('Executable-red review requires --execute with exact argv.');
-  const cwd = options.proofCwd;
+  const cwd = options.proofCwd ?? '.';
   if (typeof cwd !== 'string' || cwd.trim() === '')
-    return new Error('Executable-red review requires a project-contained --proof-cwd.');
+    return new Error(
+      'Executable-red review requires a non-empty --proof-cwd; execution validates project containment.',
+    );
   const evidenceClass = options.evidenceClass;
   if (
     typeof evidenceClass !== 'string' ||
@@ -300,7 +331,7 @@ function redExecutionRequest(
   const expectedFailure = options.expectedFailure;
   if (typeof expectedFailure !== 'string' || expectedFailure === '')
     return new Error('Executable-red review requires a non-empty --expected-failure literal.');
-  const timeoutMs = Number(options.executionTimeout);
+  const timeoutMs = Number(options.executionTimeout ?? 120_000);
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 600_000)
     return new Error('--execution-timeout must be an integer from 1 to 600000 milliseconds.');
   return {
@@ -596,6 +627,13 @@ export async function reviewPrReadinessHandler(invocation: CommandInvocation): P
       // carry the readiness verdict.
       state: 'healthy',
       changed: true,
+      findings: [
+        {
+          code: 'PR_READINESS_REPORTED',
+          message: `Published ${outcome.state} readiness verdict: ${outcome.description}`,
+          severity: outcome.state === 'success' ? 'info' : 'warning',
+        },
+      ],
       effects: {
         network: [{ kind: 'commit-status', target: 'GitHub', operation: 'read-write' }],
       },

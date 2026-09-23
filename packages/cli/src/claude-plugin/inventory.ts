@@ -63,6 +63,7 @@ export const CLAUDE_ADOPTED_LEGACY_STATE = [
 export const CLAUDE_NATIVE_REQUIRED_ASSETS = [
   '.claude-plugin/plugin.json',
   'hooks/hooks.json',
+  'resources/SAFEWORD.md',
   'runtime/cli.js',
   'runtime/dispatch.js',
   'runtime/event-groups.json',

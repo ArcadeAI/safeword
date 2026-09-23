@@ -40,6 +40,7 @@ import {
   getQualityEvidence,
   getQualityMessage,
   renderDecisionBriefCorrection,
+  type TerminalHandoffSubstantiveEvidence,
 } from './lib/quality.ts';
 import {
   EXPLAIN_HINT,
@@ -430,6 +431,9 @@ const stopReviewConfig = existsSync(stopReviewConfigPath)
   : undefined;
 
 if (!editsToReview && currentPhase !== 'done') {
+  if (!stopHookActive) {
+    enforceTerminalHandoffCorrection(stopReviewConfig, combinedText, terminalHandoffEvidence);
+  }
   process.exit(0);
 }
 
@@ -708,6 +712,24 @@ function softBlock(reason: string): never {
   process.exit(0);
 }
 
+function enforceTerminalHandoffCorrection(
+  rawConfig: string | undefined,
+  reply: string,
+  substantiveEvidence: TerminalHandoffSubstantiveEvidence,
+): void {
+  if (!isTerminalHandoffCorrectionEnabled(rawConfig)) return;
+  try {
+    const evaluation = evaluateDecisionBriefCompliance(reply, undefined, {
+      substantiveEvidence,
+    });
+    if (!evaluation.compliant) {
+      softBlock(renderDecisionBriefCorrection(evaluation, 'Keep verified evidence intact.'));
+    }
+  } catch {
+    // A correction evaluator failure must never trap the host at Stop.
+  }
+}
+
 // Decision logic:
 // 1. Cumulative artifact missing/empty → hardBlockDone (no bypass; a feature with no scenarios is broken)
 // 2. Done phase with missing evidence → hardBlockDone (no bypass; loops until evidence present)
@@ -920,20 +942,7 @@ if (typecheckAdvice.advice !== null) {
 // judgment-based Stop review. Established evidence, done, navigation, and
 // typecheck gates above retain precedence; stop_hook_active was already handled
 // by the one-shot loop guard.
-if (isTerminalHandoffCorrectionEnabled(stopReviewConfig)) {
-  try {
-    const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText, undefined, {
-      substantiveEvidence: terminalHandoffEvidence,
-    });
-    if (!decisionBriefEvaluation.compliant) {
-      softBlock(
-        renderDecisionBriefCorrection(decisionBriefEvaluation, 'Keep verified evidence intact.'),
-      );
-    }
-  } catch {
-    // A correction evaluator failure must never trap the host at Stop.
-  }
-}
+enforceTerminalHandoffCorrection(stopReviewConfig, combinedText, terminalHandoffEvidence);
 
 // Stop-time quality review (KHL52X): OFF unless `stopQualityReview: true`.
 // Everything ABOVE this line still runs — the done gate, the impl-plan,
