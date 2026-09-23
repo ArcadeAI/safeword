@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T03:35:00.000Z Independent scenario review `b3fbf04e-a854-4bb9-9a31-48accb62b20d` found two issuance-side false passes: after-cutoff branch history could mint a receipt, and a valid v1 child could miss the latent receipt needed before parent migration. Added branch-history rejection, accepted branch-review contrast, and pre-migration latent issuance examples with matching ledger entries. Fresh exact-content review remains required.
+
 - 2026-09-23T03:29:00.000Z Independent scenario review `c940794c-a4b3-40f9-a5fa-ac2fbf98a892` found that an implementation-phase label could satisfy legacy Implementation Plan continuation without checking bound bytes. Added an R3 rejection and matching ledger entry; fresh exact-content review remains required.
 
 - 2026-09-23T03:23:00.000Z Independent scenario review `b7bf008b-82c4-4ee1-9bf8-d7800c8d302f` found that reconciliation could leave a divergent installed writing guide unchanged while all scenarios passed. Added R1 repair and R4 resumed-authoring examples with matching ledger entries. A fresh exact-content review remains required.

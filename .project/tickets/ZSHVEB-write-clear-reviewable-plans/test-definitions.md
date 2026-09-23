@@ -110,6 +110,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A valid implementing child gets a latent receipt before parent migration
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Changing bound parent meaning ends child continuation
 
 - [ ] RED
@@ -117,6 +123,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Missing history cannot manufacture a continuation receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Branch-only phase history cannot mint a continuation receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A branch-only accepted review can mint a continuation receipt
 
 - [ ] RED
 - [ ] GREEN
