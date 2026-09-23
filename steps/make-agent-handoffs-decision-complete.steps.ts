@@ -33,7 +33,7 @@ interface HandoffState {
   parityRoot?: string;
   parityTarget?: string;
   parityContractPath?: string;
-  parityFailureKind?: 'missing' | 'role' | 'version';
+  parityContractRequires?: string[];
   parityGateChecked?: boolean;
   parityStatus?: number | null;
   parityStderr?: string;
@@ -237,15 +237,22 @@ function prepareParityFailure(
   const contractPath = parityContractPath[label];
   assert.ok(target, `unknown parity copy ${label}`);
   assert.ok(contractPath, `unknown parity contract ${label}`);
+  const contract = SAFEWORD_SCHEMA.contracts[contractPath];
+  assert.ok(contract, `production schema omitted ${contractPath}`);
   const targetPath = nodePath.join(root, target);
   if (kind !== 'missing') {
     mkdirSync(nodePath.dirname(targetPath), { recursive: true });
-    const version = kind === 'version' ? 'terminal-handoff/v0' : 'terminal-handoff/v1';
-    const impact = kind === 'role' ? '' : 'material tradeoff or consequences';
-    writeFileSync(
-      targetPath,
-      `${version}\nconcrete choice\nrecommendation\ncontrolling reason\n${impact}\nexact reply\n`,
-    );
+    const content = contract.requires
+      .filter(requirement =>
+        kind === 'role' ? !requirement.includes('material tradeoff or consequences') : true,
+      )
+      .map(requirement =>
+        kind === 'version'
+          ? requirement.replace('terminal-handoff/v1', 'terminal-handoff/v0')
+          : requirement,
+      )
+      .join('\n');
+    writeFileSync(targetPath, `${content}\n`);
   }
   const templates = nodePath.join(root, 'templates');
   mkdirSync(templates, { recursive: true });
@@ -253,27 +260,7 @@ function prepareParityFailure(
   state.parityRoot = root;
   state.parityTarget = target;
   state.parityContractPath = contractPath;
-  state.parityFailureKind = kind;
-  state.parityResult = runParity({
-    rootDirectory: root,
-    templatesDirectory: templates,
-    mode: 'all',
-    schema: {
-      ownedFiles: {},
-      contracts: {
-        [target]: {
-          requires: [
-            'terminal-handoff/v1',
-            'concrete choice',
-            'recommendation',
-            'controlling reason',
-            'material tradeoff or consequences',
-            'exact reply',
-          ],
-        },
-      },
-    },
-  });
+  state.parityContractRequires = [...contract.requires];
 }
 
 function registeredStopCommand(host: string, project: string): string {
@@ -880,11 +867,18 @@ When(
   /^the release gate runs "bun scripts\/parity-check\.ts --mode=all"(?: against the fixed transcript corpus)?$/u,
   function (this: SafewordWorld) {
     const state = stateFor(this);
-    if (state.parityResult) {
-      assert.ok(
-        SAFEWORD_SCHEMA.contracts[state.parityContractPath ?? ''],
-        `production schema omitted ${state.parityContractPath}`,
-      );
+    if (state.parityRoot && state.parityTarget && state.parityContractRequires) {
+      state.parityResult = runParity({
+        rootDirectory: state.parityRoot,
+        templatesDirectory: nodePath.join(state.parityRoot, 'templates'),
+        mode: 'all',
+        schema: {
+          ownedFiles: {},
+          contracts: {
+            [state.parityTarget]: { requires: state.parityContractRequires },
+          },
+        },
+      });
       state.parityGateChecked = true;
       return;
     }
