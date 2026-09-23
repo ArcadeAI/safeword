@@ -312,7 +312,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A missing delivered contract copy fails parity
 
-- [ ] RED
+- [x] RED skip: rejection characterization is historically green; an ignored-contract mutant supplies the discriminating RED
 - [ ] GREEN
 - [ ] REFACTOR
 
