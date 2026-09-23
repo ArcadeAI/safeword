@@ -1,6 +1,4 @@
 import assert from 'node:assert/strict';
-import { homedir } from 'node:os';
-import nodePath from 'node:path';
 
 import { Then, When } from '@cucumber/cucumber';
 
@@ -31,11 +29,10 @@ Then("that profile is Safeword's test sandbox", function assertSandbox(this: Saf
 Then(
   "that profile is outside the developer's home directory",
   function assertOutsideHome(this: SafewordWorld) {
+    // assertIsolatedHostProfile is the whole check: it rejects the home
+    // directory itself as well as anything nested under it. A hand-rolled
+    // startsWith here duplicated that and was strictly weaker, missing the
+    // exact-equals-home case.
     assertIsolatedHostProfile({ CLAUDE_CONFIG_DIR: this.observedHostProfile });
-    const homePrefix = nodePath.resolve(homedir()) + nodePath.sep;
-    assert.ok(
-      !(this.observedHostProfile ?? '').startsWith(homePrefix),
-      'the acceptance lane resolved a profile inside the home directory',
-    );
   },
 );
