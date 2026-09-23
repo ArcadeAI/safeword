@@ -10,6 +10,11 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword installs and reconciles a project through its CLI
       Then the installed guide is byte-identical to the canonical guide
 
+    Scenario: Reconciliation repairs a divergent writing guide
+      Given a project's installed writing guide differs from the canonical guide
+      When Safeword installs and reconciles that project through its CLI
+      Then the installed guide is byte-identical to the canonical guide
+
     @rejection
     Scenario Outline: An incomplete or extra topic fails the writing-guide contract
       Given the canonical guide has <defect>
@@ -280,6 +285,11 @@ Feature: Make Safeword plans clear and reviewable
       Given a Markdown authoring request was prepared with a guide that changed before dispatch
       When Safeword tries to send that request
       Then it refuses dispatch and names preparation again after reconciliation
+
+    Scenario: Markdown authoring resumes after guide reconciliation
+      Given a project's divergent writing guide was reconciled to the canonical guide
+      When Safeword prepares a registered Markdown authoring request again
+      Then the request dispatches with the exact installed writing guide bound
 
     @rejection
     Scenario: An unregistered model transport cannot bypass the writing boundary

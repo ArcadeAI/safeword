@@ -12,6 +12,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Reconciliation repairs a divergent writing guide
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An incomplete or extra topic fails the writing-guide contract
 
 - [ ] RED
@@ -241,6 +247,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: A stale installed guide stops dispatch
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Markdown authoring resumes after guide reconciliation
 
 - [ ] RED
 - [ ] GREEN

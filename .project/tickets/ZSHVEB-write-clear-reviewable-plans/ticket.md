@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T03:23:00.000Z Independent scenario review `b7bf008b-82c4-4ee1-9bf8-d7800c8d302f` found that reconciliation could leave a divergent installed writing guide unchanged while all scenarios passed. Added R1 repair and R4 resumed-authoring examples with matching ledger entries. A fresh exact-content review remains required.
+
 - 2026-09-23T03:17:36.000Z Independent scenario review `a48ac759-8ffe-4767-809d-5ca88e44a457` found two accepted-boundary false passes: CLI command-contract headings lacked a permitted near-miss case and the guide could have no qualifying citation. Added one representative R3 acceptance and one R1 rejection with matching ledger entries. Fresh exact-content review remains required.
 
 - 2026-09-23T03:12:00.000Z Independent scenario review `fcbf523c-d158-4155-903f-e8a4d90cb2a1` found that union checks could satisfy individually deficient Product/Implementation sources and that a planning gate could mint receipts before activation was declared. Added per-source/region failures, a pre-activation no-receipt case, and the contract-to-fixture inventory rejection with matching ledger entries. Fresh exact-content review is required.
