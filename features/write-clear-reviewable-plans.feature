@@ -174,7 +174,7 @@ Feature: Make Safeword plans clear and reviewable
 
     @rejection
     Scenario: A dangling parent job cannot be hidden by invalid child markers
-      Given an implementing child has invalid version markers and a receipt but its Parent job no longer resolves under a schema-valid parent
+      Given an implementing child has an otherwise valid continuation receipt and a continuation-eligible marker defect but its Parent job no longer resolves under a schema-valid parent
       When Safeword resolves the child for continued work
       Then it returns only child-parent-reference-invalid without continuation and names correcting the child reference or restoring the accepted parent job
 
