@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T06:49:37.000Z Independent scenario review `e88fc6e7-2419-41f9-a977-12f9d1064fe2` found child-shaped and other invalid parent classes unproved. Added the distinct child-of-child hierarchy rejection and a named table-driven matrix for the full parent-classification set. Split the release-without-declaration case from invalid-activation-identity rows because its error must name the missing declaration, and named R3 missing-field and R4 recovery-inventory matrices rather than adding parser scenarios. Fresh exact-content review remains required.
+
 - 2026-09-23T06:41:32.000Z Independent scenario review `26dcc971-f819-4ebb-a995-453dd53159b7` found the accepted semantic-review rejection for an alternate-label seventh writing topic had no proof. Added one distinct acceptance scenario and ledger entry; placed source-suitability, exemplar-quality, and first-encounter migrator concurrency variations in named lower-level proof, and strengthened two existing resolver outcomes with their typed result. Fresh exact-content scenario review remains required.
 
 - 2026-09-23T05:43:09.000Z Independent scenario review `9ac3768a-cf3a-407e-8d08-91b88a9c0d9f` found a duplicate required writing-topic heading could pass while the extra-topic scenario still failed correctly. Placed duplicate headings and the citation URL predicate in R1's lower-level matrix, and placed the pinned-fixture release check in R2's matrix. Tightened R4 proof to the registered CLI dispatch path, applied CLI surface tags to real-boundary cases, and corrected two Given/When setups. No extra parser scenario was added; fresh exact-content review remains required.

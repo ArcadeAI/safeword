@@ -156,6 +156,12 @@ Feature: Make Safeword plans clear and reviewable
       Then it returns invalid-parent-contract without continuation and names completing the parent before child reconciliation
 
     @rejection
+    Scenario: A child cannot inherit from another child
+      Given an implementing child has complete v2 markers and a receipt but its referenced parent is a complete child contribution
+      When Safeword resolves the child for review
+      Then it returns invalid-parent-contract without continuation and names a valid Product Plan parent before child reconciliation
+
+    @rejection
     Scenario Outline: A v1 child cannot newly enter planning under a v2 parent
       Given a <child_state> v1 child references a valid v2 parent without an active continuation receipt
       When Safeword resolves the child for review
@@ -267,7 +273,12 @@ Feature: Make Safeword plans clear and reviewable
         | activation_defect |
         | a declaration SHA different from the computed activation commit |
         | an activation commit whose first parent already contains the new planning gates |
-        | a release containing the activation commit but not its declaration commit |
+
+    @rejection
+    Scenario: Release cannot omit the activation declaration
+      Given a release candidate contains the activation commit but not its declaration commit
+      When Safeword checks planning-contract activation history
+      Then release is blocked with the missing declaration commit named
 
     @rejection
     Scenario: A stale transition-history pin blocks release

@@ -140,6 +140,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A child cannot inherit from another child
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A v1 child cannot newly enter planning under a v2 parent
 
 - [ ] RED
@@ -237,6 +243,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Invalid activation history blocks release
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Release cannot omit the activation declaration
 
 - [ ] RED
 - [ ] GREEN
