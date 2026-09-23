@@ -52,6 +52,12 @@ Feature: Make Safeword plans clear and reviewable
         | an Arcade identifier |
         | a company-specific approval ceremony without a prohibited name |
 
+    @rejection
+    Scenario: Product Plan fields cannot be supplied by another canonical file
+      Given a canonical Product Plan source omits a required field that another canonical source contains
+      When Safeword checks the v2 Product Plan contract
+      Then the contract fails with the deficient source and field named
+
     Scenario: Complete v1 plans remain valid without rewriting them
       Given a complete accepted v1 Product Plan has matching markers
       When Safeword validates it under the version-selected contract
@@ -116,6 +122,12 @@ Feature: Make Safeword plans clear and reviewable
       Then it preserves existing evidence and names a full-history checkout as the recovery
 
     @rejection
+    Scenario: Planning cannot mint a receipt before activation is declared
+      Given a checkout lacks the planning-contract activation manifest declaration
+      When Safeword evaluates a new Product Planning gate
+      Then it returns planning-contract-activation-unavailable without minting a receipt and names checking out the declaration commit or a descendant
+
+    @rejection
     Scenario: Returning to planning ends legacy continuation
       Given an implementing feature continued under its accepted legacy plan
       When a changed product decision returns it to Product Planning
@@ -140,6 +152,12 @@ Feature: Make Safeword plans clear and reviewable
         | project_specific_content |
         | an Arcade identifier |
         | a company-specific approval ceremony without a prohibited name |
+
+    @rejection
+    Scenario: Rubric fields cannot satisfy the author-facing Implementation Plan contract
+      Given all thirteen required fields appear only inside the Implementation Plan rubric block
+      When Safeword checks the author-facing region outside that block
+      Then the contract fails with the deficient author-facing region named
 
     @rejection
     Scenario Outline: Execution fields cannot satisfy Implementation Planning
@@ -284,6 +302,12 @@ Feature: Make Safeword plans clear and reviewable
       Given a Product Plan failure fixture names a typed result and reason absent from the recovery inventory
       When Safeword checks the inventory against its failure fixtures
       Then inventory generation fails with the missing result-and-reason pair named
+
+    @rejection
+    Scenario: A declared result without a failure fixture fails recovery-inventory generation
+      Given a Product Plan contract declares a typed failure result that no failure fixture names
+      When Safeword checks the contract against its recovery fixtures
+      Then inventory generation fails with the unproven result named
 
     @rejection
     Scenario: A guide mention inside an example cannot satisfy the directive

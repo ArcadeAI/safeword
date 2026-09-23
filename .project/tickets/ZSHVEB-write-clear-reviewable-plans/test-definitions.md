@@ -44,6 +44,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Product Plan fields cannot be supplied by another canonical file
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Complete v1 plans remain valid without rewriting them
 
 - [ ] RED
@@ -104,6 +110,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Planning cannot mint a receipt before activation is declared
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Returning to planning ends legacy continuation
 
 - [ ] RED
@@ -119,6 +131,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Implementation Plan sources reject project-specific requirements
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Rubric fields cannot satisfy the author-facing Implementation Plan contract
 
 - [ ] RED
 - [ ] GREEN
@@ -247,6 +265,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: A missing fixture result fails recovery-inventory generation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A declared result without a failure fixture fails recovery-inventory generation
 
 - [ ] RED
 - [ ] GREEN
