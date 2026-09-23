@@ -25,8 +25,8 @@ last_modified: 2026-09-23T02:08:53.000Z
 
 - [ ] Cursor delivery verification inspects the union of freshly generated and reconciled asset paths and fails on missing, extra, or differing content; comparison may normalize line endings only and must retain all guide-copy bytes.
 - [ ] A bad planning reference seeded upstream of Cursor generation fails even when the reconciled copy is still clean.
-- [ ] OpenCode assets discovered from shipped files contain no data-architecture guide reference and match the independently generator-declared asset set, without reading ticket prose.
-- [ ] `packages/cli/tests/data-architecture-delivery.test.ts` no longer reads completed-ticket prose; a standing check rejects ticket-file reads in that test, while shipped OpenCode inventory assertions replace its unaffected-profile coverage.
+- [ ] OpenCode assets discovered from shipped files contain no data-architecture guide reference and match a generator-declared asset set obtained independently from the shipped-file enumeration, without reading ticket prose.
+- [ ] `packages/cli/tests/data-architecture-delivery.test.ts` no longer reads completed-ticket prose; a standing source check rejects literal ticket-file reads in that test (a regression diagnostic, not a security boundary), while shipped OpenCode inventory assertions replace its unaffected-profile coverage.
 - [ ] Existing guide-copy, missing-target, cross-surface, lifecycle, and release checks remain green.
 
 **Tests:**
@@ -35,7 +35,9 @@ last_modified: 2026-09-23T02:08:53.000Z
 - [ ] GREEN: the same mutation fails when delivery verification consumes the real Cursor asset set.
 - [ ] GREEN: a reconciled-only stale Cursor asset with drift outside planning references fails delivery verification.
 - [ ] GREEN: one generated-only path and one reconciled-only path each fail the Cursor set comparison.
+- [ ] GREEN: guide-copy whitespace-only drift fails the Cursor content comparison.
 - [ ] GREEN: a seeded OpenCode guide reference fails the shipped-inventory assertion that replaces the ticket-prose check.
+- [ ] GREEN: one declared-only and one discovered-only OpenCode asset each fail the independent inventory comparison.
 - [ ] GREEN: a seeded ticket-file read in `packages/cli/tests/data-architecture-delivery.test.ts` fails the standing check.
 - [ ] REFACTOR: Cursor and OpenCode verification share shipped-artifact helpers without introducing another inventory.
 
