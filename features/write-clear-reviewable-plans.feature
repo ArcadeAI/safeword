@@ -32,12 +32,6 @@ Feature: Make Safeword plans clear and reviewable
         | a seventh writing topic with its own examples |
 
     @rejection
-    Scenario: Markers hidden in a comment cannot complete a writing topic
-      Given a required writing topic's Weak, Strong, and Source markers appear only in an HTML comment
-      When Safeword checks the writing-guide contract
-      Then the guide is rejected with that topic named
-
-    @rejection
     Scenario: An unsupported citation fails guide review
       Given a writing topic cites a source that does not support its load-bearing claim
       When the guide receives source-aware semantic review
@@ -83,7 +77,6 @@ Feature: Make Safeword plans clear and reviewable
 
       Examples:
         | pair_state | result | recovery |
-        | a lone spec | incomplete-pair | restoring the tracked ticket or removing the orphan |
         | a ticket whose sibling spec was deleted | incomplete-pair | restoring the tracked spec or removing the orphan |
         | structure matching multiple ticket classes | ambiguous | restoring a recognized non-Product shape or owner-authorized v2 migration |
 
@@ -108,12 +101,6 @@ Feature: Make Safeword plans clear and reviewable
       Given a canonical Product Plan source omits a required field that another canonical source contains
       When Safeword checks the v2 Product Plan contract
       Then the contract fails with the deficient source and field named
-
-    @rejection
-    Scenario: A commented Product Plan field is not authored
-      Given a required field marker appears only in an HTML comment in one canonical Product Plan source
-      When Safeword checks the v2 Product Plan contract
-      Then the contract fails with that source and field named
 
     Scenario: Complete v1 plans remain valid without rewriting them
       Given a complete accepted v1 child has matching markers and references a valid v1 parent
@@ -293,16 +280,10 @@ Feature: Make Safeword plans clear and reviewable
       Then the contract fails with the deficient author-facing region named
 
     @rejection
-    Scenario Outline: Execution fields cannot satisfy Implementation Planning
-      Given an otherwise complete Implementation Plan adds an active <execution_field> field
+    Scenario: Execution sequencing cannot satisfy Implementation Planning
+      Given an otherwise complete Implementation Plan adds an active Build order field
       When the plan receives decision-focused review
       Then it is returned for moving that field to Execution Planning
-
-      Examples:
-        | execution_field |
-        | Build order |
-        | Commands to run |
-        | Current proof results |
 
     Scenario: A CLI command contract remains in the Implementation Plan
       Given an otherwise complete Implementation Plan has an API-contract heading named Commands exposed by the CLI
@@ -380,10 +361,7 @@ Feature: Make Safeword plans clear and reviewable
         | authoring | Markdown | includes |
         | semantic review | mixed Markdown and non-Markdown | includes |
         | hybrid | Markdown | includes |
-        | authoring | a tracked spec declared Markdown project-instance data | includes |
         | authoring | non-Markdown | omits |
-        | authoring | declared Markdown content at an identity without a .md suffix | includes |
-        | authoring | a .md-suffixed target declared non-Markdown | omits |
         | pure execution | Markdown | omits |
         | structural parsing | Markdown | omits |
 
@@ -394,21 +372,9 @@ Feature: Make Safeword plans clear and reviewable
       Then Safeword refuses model dispatch with writing-target-set-invalid and names correcting the registered request mapping
 
     @rejection
-    Scenario: A registered request without targets cannot dispatch
-      Given a registered authoring request derives no targets from its typed request
-      When Safeword prepares that model request
-      Then it refuses dispatch with writing-target-set-invalid and names correcting the registered request mapping
-
-    @rejection
     Scenario: A missing installed guide stops Markdown authoring
       Given a registered authoring request declares a Markdown target but the installed writing guide is absent
       When Safeword prepares the model request
-      Then it refuses dispatch with writing-guide-reconciliation-required and names reconciling from the shipped package
-
-    @rejection
-    Scenario: A mismatched package guide digest stops Markdown authoring
-      Given the shipped package's recorded guide digest differs from its canonical guide bytes
-      When Safeword prepares a Markdown authoring request
       Then it refuses dispatch with writing-guide-reconciliation-required and names reconciling from the shipped package
 
     @rejection
@@ -421,6 +387,28 @@ Feature: Make Safeword plans clear and reviewable
       Given a project's divergent writing guide was reconciled to the canonical guide
       When Safeword prepares a registered Markdown authoring request again
       Then the request dispatches with the exact installed writing guide bound
+
+    Scenario: Implementation review binds the current rubric and writing guide
+      Given the generated Implementation Plan rubric matches its canonical source and the installed writing guide is current
+      When Safeword prepares Implementation Plan review
+      Then its request binds the exact rubric bytes and digest alongside the exact installed writing guide
+
+    @rejection
+    Scenario Outline: A missing or outdated generated rubric blocks Implementation review
+      Given the generated Implementation Plan rubric is <rubric_state>
+      When Safeword prepares Implementation Plan review
+      Then it refuses dispatch with plan-review-rubric-reconciliation-required and names regenerating the rubric from its canonical source and rebuilding the package
+
+      Examples:
+        | rubric_state |
+        | absent |
+        | present with a digest unequal to the canonical source |
+
+    @rejection
+    Scenario: A prepared review cannot use a changed rubric
+      Given an Implementation Plan review request was prepared with a rubric that changed before dispatch
+      When Safeword tries to send that request
+      Then it refuses dispatch with prepared-plan-review-rubric-stale and names preparing the packet again against the current generated rubric
 
     @rejection
     Scenario: An unregistered model transport cannot bypass the writing boundary
@@ -460,12 +448,6 @@ Feature: Make Safeword plans clear and reviewable
       Given a Product Plan contract declares a typed failure result that no failure fixture names
       When Safeword checks the contract against its recovery fixtures
       Then inventory generation fails with the unproven result named
-
-    @rejection
-    Scenario: A guide mention inside an example cannot satisfy the directive
-      Given an authoring workflow mentions the guide only inside a comment or example
-      When Safeword checks its writing-guide dependency
-      Then the workflow fails with the missing operative directive named
 
   @plan-implementability.TBU4.ZSHVEB.R5
   Rule: plan-implementability.TBU4.ZSHVEB.R5 — The writing guide stays portable

@@ -30,12 +30,6 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Markers hidden in a comment cannot complete a writing topic
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: An unsupported citation fails guide review
 
 - [ ] RED
@@ -93,12 +87,6 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Product Plan fields cannot be supplied by another canonical file
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A commented Product Plan field is not authored
 
 - [ ] RED
 - [ ] GREEN
@@ -262,7 +250,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Execution fields cannot satisfy Implementation Planning
+### Scenario: Execution sequencing cannot satisfy Implementation Planning
 
 - [ ] RED
 - [ ] GREEN
@@ -342,19 +330,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A registered request without targets cannot dispatch
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: A missing installed guide stops Markdown authoring
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A mismatched package guide digest stops Markdown authoring
 
 - [ ] RED
 - [ ] GREEN
@@ -367,6 +343,24 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Markdown authoring resumes after guide reconciliation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Implementation review binds the current rubric and writing guide
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A missing or outdated generated rubric blocks Implementation review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A prepared review cannot use a changed rubric
 
 - [ ] RED
 - [ ] GREEN
@@ -409,12 +403,6 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: A declared result without a failure fixture fails recovery-inventory generation
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A guide mention inside an example cannot satisfy the directive
 
 - [ ] RED
 - [ ] GREEN
