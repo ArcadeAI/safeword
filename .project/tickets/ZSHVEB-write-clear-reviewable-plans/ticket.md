@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T00:04:57.000Z Independent scenario review `50789f7f-47fc-4036-ba30-14dad9111b2f` requested two corrections: make parent-owned child fields reference-only, and bind writing-guide dispatch to typed targets rather than caller-supplied targets or filename suffixes. Revised the scenarios and ledger for those accepted-rule gaps; nonblocking suggestions were not added to scope. Fresh exact-content review is required.
+
 - 2026-09-22T23:58:22.000Z User confirmed the 37-scenario draft as complete and in scope; entered scenario-gate for independent review. No review verdict or approval is claimed yet.
 
 - 2026-09-22T23:34:03.000Z Define-behavior draft: Derived 37 representative scenarios from the six accepted Rules and the dimension table, with the shared decision conversation covered by one-source, grouped synthesis, durable-record, resume, checkpoint-budget, and return-path examples. Added the matching R/G/R ledger. Kept the ticket in define-behavior pending the user's completeness and scope-edge check; no independent scenario-gate verdict is claimed.

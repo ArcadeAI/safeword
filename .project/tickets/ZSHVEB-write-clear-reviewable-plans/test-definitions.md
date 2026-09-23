@@ -26,7 +26,13 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementability.TBU4.ZSHVEB.R2 — Product Plan versions remain complete and compatible
 
-### Scenario: Fresh Product Plans use the complete v2 contract
+### Scenario: A fresh parent Product Plan uses the complete v2 contract
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A fresh child keeps parent-owned fields by reference
 
 - [ ] RED
 - [ ] GREEN
@@ -109,6 +115,18 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: plan-implementability.TBU4.ZSHVEB.R4 — Markdown work receives the guide at the right boundary
 
 ### Scenario: Model work binds the guide only for Markdown targets
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A caller cannot suppress a declared Markdown target
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A registered request without targets cannot dispatch
 
 - [ ] RED
 - [ ] GREEN

@@ -31,15 +31,15 @@ Feature: Make Safeword plans clear and reviewable
   Rule: plan-implementability.TBU4.ZSHVEB.R2 — Product Plan versions remain complete and compatible
 
     @surface.safeword-cli
-    Scenario Outline: Fresh Product Plans use the complete v2 contract
-      Given Safeword is authoring a fresh <plan_kind>
+    Scenario: A fresh parent Product Plan uses the complete v2 contract
+      Given Safeword is authoring a fresh parent Product Plan
       When the plan is created and reviewed through the CLI contract
-      Then its ticket and spec have matching v2 markers and every required product field comes from <field_owner>
+      Then its ticket and spec have matching v2 markers and every required product field is authored in that plan
 
-      Examples:
-        | plan_kind | field_owner |
-        | parent Product Plan | the plan itself |
-        | child contribution | the child or its accepted parent reference |
+    Scenario: A fresh child keeps parent-owned fields by reference
+      Given Safeword is authoring a fresh child contribution under an accepted v2 parent
+      When the child is created and reviewed through the CLI contract
+      Then child-owned fields are authored in the child and parent-owned fields resolve through its accepted parent reference and digest without restating parent content
 
     Scenario: Complete v1 plans remain valid without rewriting them
       Given a complete accepted v1 Product Plan has matching markers
@@ -138,8 +138,22 @@ Feature: Make Safeword plans clear and reviewable
         | authoring | Markdown | includes |
         | semantic review | mixed Markdown and non-Markdown | includes |
         | authoring | non-Markdown | omits |
+        | authoring | declared Markdown content at an identity without a .md suffix | includes |
+        | authoring | a .md-suffixed target declared non-Markdown | omits |
         | pure execution | Markdown | omits |
         | structural parsing | Markdown | omits |
+
+    @rejection
+    Scenario: A caller cannot suppress a declared Markdown target
+      Given a registered authoring request declares a Markdown target
+      When its caller supplies an empty target set instead
+      Then Safeword refuses model dispatch with writing-target-set-invalid and names correcting the registered request mapping
+
+    @rejection
+    Scenario: A registered request without targets cannot dispatch
+      Given a registered authoring request derives no targets from its typed request
+      When Safeword prepares that model request
+      Then it refuses dispatch with writing-target-set-invalid and names correcting the registered request mapping
 
     @rejection
     Scenario: A stale installed guide stops dispatch
