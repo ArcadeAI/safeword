@@ -295,7 +295,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Canonical generated installed and dogfood copies share the contract version and role set
 
 - [x] RED fe93232e9
-- [ ] GREEN
+- [x] GREEN 6c495df09
 - [ ] REFACTOR
 
 ### Scenario: Every delivered copy produces the canonical corpus behavior
