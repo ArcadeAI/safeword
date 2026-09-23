@@ -301,7 +301,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Every delivered copy produces the canonical corpus behavior
 
 - [x] RED fe93232e9
-- [ ] GREEN
+- [x] GREEN 6c495df09
 - [ ] REFACTOR
 
 ### Scenario: Version drift fails parity for every delivered copy
