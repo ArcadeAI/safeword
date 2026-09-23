@@ -140,6 +140,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Changed Product Plan bytes cannot mint a continuation receipt
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Planning cannot mint a receipt before activation is declared
 
 - [ ] RED

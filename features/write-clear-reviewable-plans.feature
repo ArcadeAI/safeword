@@ -124,6 +124,7 @@ Feature: Make Safeword plans clear and reviewable
       Given an implementing v1 child and its parent are valid under v1 with qualifying evidence at the consumer-local cutoff
       When Safeword first encounters the v2 planning contract before any parent migration
       Then ordinary v1 admission succeeds and a latent receipt binds the pre-migration parent digest and normalized projection
+      And tracked ticket, spec, and plan bytes remain unchanged
 
     @rejection
     Scenario: Changing bound parent meaning ends child continuation
@@ -147,6 +148,12 @@ Feature: Make Safeword plans clear and reviewable
       Given an implementing legacy Product Plan has an accepted content-addressed review receipt on the caller's branch matching its current plan bytes
       When Safeword first encounters the v2 planning contract
       Then it mints a receipt bound to that review id and artifact digest and allows in-flight continuation
+
+    @rejection
+    Scenario: Changed Product Plan bytes cannot mint a continuation receipt
+      Given an implementing legacy Product Plan differs from its matching historical blob and accepted review digest
+      When Safeword first encounters the v2 planning contract
+      Then it mints no receipt and returns legacy-unversioned with owner-authorized v2 migration and current review as recovery
 
     @rejection
     Scenario: Planning cannot mint a receipt before activation is declared
@@ -272,6 +279,7 @@ Feature: Make Safeword plans clear and reviewable
         | work_kind | target_kind | guide_result |
         | authoring | Markdown | includes |
         | semantic review | mixed Markdown and non-Markdown | includes |
+        | hybrid | Markdown | includes |
         | authoring | non-Markdown | omits |
         | authoring | declared Markdown content at an identity without a .md suffix | includes |
         | authoring | a .md-suffixed target declared non-Markdown | omits |
@@ -320,9 +328,9 @@ Feature: Make Safeword plans clear and reviewable
       Then the transport is rejected with registration through that boundary as its recovery
 
     Scenario: Workflow sources carry the directive according to role
-      Given canonical Markdown sources have declared authoring, review, execution, parser, or non-workflow roles
+      Given canonical Markdown sources include authoring, semantic-review, hybrid, execution, parser, and non-workflow roles
       When Safeword checks their active instructions
-      Then only authoring, semantic-review, and hybrid sources carry the operative writing-guide directive
+      Then every authoring, semantic-review, and hybrid source carries the operative writing-guide directive while execution, parser, and non-workflow sources do not
 
     @rejection
     Scenario: A plan contract cannot copy a writing lesson from the guide
