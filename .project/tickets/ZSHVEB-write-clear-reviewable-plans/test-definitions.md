@@ -172,6 +172,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Changed legacy plan bytes cannot continue by phase alone
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Returning to design requires current review
 
 - [ ] RED

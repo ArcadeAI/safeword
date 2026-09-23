@@ -193,6 +193,12 @@ Feature: Make Safeword plans clear and reviewable
       Then it continues under recorded legacy authority without a false current-contract approval
 
     @rejection
+    Scenario: Changed legacy plan bytes cannot continue by phase alone
+      Given a feature is implementing but its legacy Implementation Plan bytes differ from the bound evidence
+      When Safeword encounters the expanded design contract
+      Then it returns implementation-plan-continuation-unavailable and names returning to Implementation Planning for current-contract review
+
+    @rejection
     Scenario: Returning to design requires current review
       Given a feature continued under an accepted legacy Implementation Plan
       When a new design choice returns it to Implementation Planning
