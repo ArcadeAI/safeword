@@ -300,7 +300,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Every delivered copy produces the canonical corpus behavior
 
-- [ ] RED
+- [x] RED fe93232e9
 - [ ] GREEN
 - [ ] REFACTOR
 
