@@ -270,8 +270,14 @@ function prepareParityFailure(
     if (!definition.template) continue;
     if (destination.startsWith('packages/cli/src/')) continue;
     const source = nodePath.join(process.cwd(), destination);
-    if (!existsSync(source)) continue;
-    cpSync(source, nodePath.join(root, destination), { recursive: true });
+    const canonicalSource = nodePath.join(
+      process.cwd(),
+      'packages/cli/templates',
+      definition.template,
+    );
+    const fixtureSource = existsSync(source) ? source : canonicalSource;
+    assert.ok(existsSync(fixtureSource), `parity fixture source missing: ${destination}`);
+    cpSync(fixtureSource, nodePath.join(root, destination), { recursive: true });
   }
   for (const path of Object.keys(SAFEWORD_SCHEMA.contracts)) {
     if (path.startsWith('packages/cli/src/')) continue;
@@ -279,6 +285,15 @@ function prepareParityFailure(
     if (!existsSync(source)) continue;
     cpSync(source, nodePath.join(root, path), { recursive: true });
   }
+  const baseline = spawnSync('bun', ['scripts/parity-check.ts', '--mode=all'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  assert.equal(
+    baseline.status,
+    0,
+    `parity fixture was not clean before mutation: ${baseline.stderr}`,
+  );
   const targetPath = nodePath.join(root, target);
   if (kind === 'missing') {
     rmSync(targetPath, { force: true });
