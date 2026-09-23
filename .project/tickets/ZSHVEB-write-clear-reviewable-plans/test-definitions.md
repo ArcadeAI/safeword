@@ -4,7 +4,7 @@ Feature source: `features/write-clear-reviewable-plans.feature`
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: plan-implementability.TBU4.ZSHVEB.R1 — One shared writing guide is complete and reviewable
+## Rule: plan-implementability.TBU4.ZSHVEB.R1 — One shared technical-writing guide is complete and reviewable
 
 ### Scenario: Installation preserves the approved writing guide
 
@@ -42,7 +42,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU4.ZSHVEB.R2 — Product Plan versions remain complete and compatible
+## Rule: plan-implementability.TBU4.ZSHVEB.R2 — The Product Plan contract covers portable product decisions
 
 ### Scenario: A fresh parent Product Plan uses the complete v2 contract
 
@@ -56,7 +56,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Contradictory completion criteria cannot pass Product Plan review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A fresh child keeps parent-owned fields by reference
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A child cannot restate a parent-owned field as its own
 
 - [ ] RED
 - [ ] GREEN
@@ -236,7 +248,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU4.ZSHVEB.R3 — Implementation Plans decide design without sequencing work
+## Rule: plan-implementability.TBU4.ZSHVEB.R3 — The Implementation Plan contract covers design decisions, not execution mechanics
 
 ### Scenario: The current design contract retains its decision and proof obligations
 
@@ -304,7 +316,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU4.ZSHVEB.R4 — Markdown work receives the guide at the right boundary
+## Rule: plan-implementability.TBU4.ZSHVEB.R4 — Every canonical template Markdown workflow source has the right writing-guide dependency
 
 ### Scenario: An unclassified or ambiguous Markdown path stops dispatch
 
@@ -414,7 +426,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: plan-implementability.TBU4.ZSHVEB.R5 — The writing guide stays portable
+## Rule: plan-implementability.TBU4.ZSHVEB.R5 — The shared guide stays portable
 
 ### Scenario: A general writing guide works without a project-specific service
 

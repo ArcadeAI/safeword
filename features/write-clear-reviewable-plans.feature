@@ -2,7 +2,7 @@ Feature: Make Safeword plans clear and reviewable
   Plan authors and reviewers use one portable writing standard and one shared way to settle decisions.
 
   @plan-implementability.TBU4.ZSHVEB.R1
-  Rule: plan-implementability.TBU4.ZSHVEB.R1 — One shared writing guide is complete and reviewable
+  Rule: plan-implementability.TBU4.ZSHVEB.R1 — One shared technical-writing guide is complete and reviewable
 
     @surface.safeword-cli
     Scenario: Installation preserves the approved writing guide
@@ -44,7 +44,7 @@ Feature: Make Safeword plans clear and reviewable
       Then the guide is rejected with the missing citation named
 
   @plan-implementability.TBU4.ZSHVEB.R2
-  Rule: plan-implementability.TBU4.ZSHVEB.R2 — Product Plan versions remain complete and compatible
+  Rule: plan-implementability.TBU4.ZSHVEB.R2 — The Product Plan contract covers portable product decisions
 
     @surface.safeword-cli
     Scenario: A fresh parent Product Plan uses the complete v2 contract
@@ -58,10 +58,22 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword validates that instance under the v2 Product Plan contract
       Then review fails with the missing field named while its Product Plan class and v2 identity remain unchanged
 
+    @rejection
+    Scenario: Contradictory completion criteria cannot pass Product Plan review
+      Given a v2 Product Plan's Definition of done contradicts its ticket's done_when projection
+      When Safeword reviews the plan under the v2 Product Plan contract
+      Then review fails with the contradicting Definition of done and done_when entries named
+
     Scenario: A fresh child keeps parent-owned fields by reference
       Given Safeword is authoring a fresh child contribution under an accepted v2 parent
       When the child is created and reviewed through the CLI contract
       Then child-owned fields are authored in the child and parent-owned fields resolve through its accepted parent reference and digest without restating parent content
+
+    @rejection
+    Scenario: A child cannot restate a parent-owned field as its own
+      Given a v2 child repeats its accepted parent's Launch communication content outside the authoritative parent reference
+      When Safeword reviews the child under the v2 Product Plan contract
+      Then review fails with the duplicated parent-owned field named
 
     @rejection
     Scenario: A well-formed stale parent digest cannot validate a v2 child
@@ -87,9 +99,9 @@ Feature: Make Safeword plans clear and reviewable
 
     @rejection
     Scenario Outline: Product Plan sources reject project-specific requirements
-      Given one canonical Product Plan template, author/review contract, or shared decision source contains <project_specific_content>
+      Given the canonical full Product Plan template contains <project_specific_content>
       When Safeword checks every canonical Product Plan source for portability
-      Then the source containing the project-specific content is rejected with that content named
+      Then that template is rejected with the project-specific content named
 
       Examples:
         | project_specific_content |
@@ -260,7 +272,7 @@ Feature: Make Safeword plans clear and reviewable
       Then its continuation receipt is cleared and the base contract result requires current Product Planning and review
 
   @plan-implementability.TBU4.ZSHVEB.R3
-  Rule: plan-implementability.TBU4.ZSHVEB.R3 — Implementation Plans decide design without sequencing work
+  Rule: plan-implementability.TBU4.ZSHVEB.R3 — The Implementation Plan contract covers design decisions, not execution mechanics
 
     @surface.safeword-cli
     Scenario: The current design contract retains its decision and proof obligations
@@ -270,9 +282,9 @@ Feature: Make Safeword plans clear and reviewable
 
     @rejection
     Scenario Outline: Implementation Plan sources reject project-specific requirements
-      Given one Implementation Plan template, author contract, or evaluated rubric contains <project_specific_content>
+      Given the canonical Implementation Plan template contains <project_specific_content>
       When Safeword checks every canonical Implementation Plan source for portability
-      Then the source containing the project-specific content is rejected with that content named
+      Then that template is rejected with the project-specific content named
 
       Examples:
         | project_specific_content |
@@ -331,7 +343,7 @@ Feature: Make Safeword plans clear and reviewable
       Then it returns implementation-plan-contract-invalid with the execution field named
 
   @plan-implementability.TBU4.ZSHVEB.R4
-  Rule: plan-implementability.TBU4.ZSHVEB.R4 — Markdown work receives the guide at the right boundary
+  Rule: plan-implementability.TBU4.ZSHVEB.R4 — Every canonical template Markdown workflow source has the right writing-guide dependency
 
     @rejection
     Scenario Outline: An unclassified or ambiguous Markdown path stops dispatch
@@ -456,7 +468,7 @@ Feature: Make Safeword plans clear and reviewable
       Then inventory generation fails with the unproven result named
 
   @plan-implementability.TBU4.ZSHVEB.R5
-  Rule: plan-implementability.TBU4.ZSHVEB.R5 — The writing guide stays portable
+  Rule: plan-implementability.TBU4.ZSHVEB.R5 — The shared guide stays portable
 
     @surface.safeword-cli
     Scenario: A general writing guide works without a project-specific service
