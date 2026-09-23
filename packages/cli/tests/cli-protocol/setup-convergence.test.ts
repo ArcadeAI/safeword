@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { convergeSetup } from '../../src/lifecycle/project-install.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
@@ -46,6 +46,22 @@ async function expectOfflineSetupSuccess(directory: string): Promise<void> {
   const result = await runOfflineSetup(directory);
   expect(result.exitCode).toBe(0);
 }
+
+// `convergeSetup` runs the real setup adapters, and those reach the package
+// manager unless SAFEWORD_SKIP_INSTALL is set. These cases assert how setup
+// journals effects, never that a dependency actually installed, so letting them
+// shell out to a real install only buys network flakiness: the suite's slowest
+// case intermittently blew the 60s budget (~1 in 5 runs locally) and the file
+// took minutes instead of ~7s. Skipping the install keeps every assertion below
+// intact — the one case that asserts installed tools injects a fake
+// `configurePython` adapter and never depended on a real install either.
+beforeEach(() => {
+  vi.stubEnv('SAFEWORD_SKIP_INSTALL', '1');
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('convergent setup', () => {
   it('persists fresh defaults before reconciliation can interrupt setup', async () => {
@@ -468,33 +484,26 @@ describe('convergent setup', () => {
     mkdirSync(nodePath.dirname(manifest), { recursive: true });
     writeFileSync(manifest, '[project]\nname = "api"\n');
 
-    const previousSkipInstall = process.env.SAFEWORD_SKIP_INSTALL;
-    process.env.SAFEWORD_SKIP_INSTALL = '1';
-    try {
-      const result = await convergeSetup(directory, {
-        noModify: true,
-        adapters: {
-          configurePython: () => {
-            writeFileSync(manifest, '[project]\nname = "api"\ndependencies = ["ruff"]\n');
-            return {
-              tools: ['ruff'],
-              attemptedTools: ['ruff'],
-              installedTools: ['ruff'],
-              attempted: true,
-              installed: true,
-            };
-          },
+    const result = await convergeSetup(directory, {
+      noModify: true,
+      adapters: {
+        configurePython: () => {
+          writeFileSync(manifest, '[project]\nname = "api"\ndependencies = ["ruff"]\n');
+          return {
+            tools: ['ruff'],
+            attemptedTools: ['ruff'],
+            installedTools: ['ruff'],
+            attempted: true,
+            installed: true,
+          };
         },
-      });
+      },
+    });
 
-      expect(result.effects.files).toContainEqual({
-        kind: 'update',
-        target: 'apps/api/pyproject.toml',
-      });
-    } finally {
-      if (previousSkipInstall === undefined) delete process.env.SAFEWORD_SKIP_INSTALL;
-      else process.env.SAFEWORD_SKIP_INSTALL = previousSkipInstall;
-    }
+    expect(result.effects.files).toContainEqual({
+      kind: 'update',
+      target: 'apps/api/pyproject.toml',
+    });
   });
 
   it('shell-quotes nested Python project paths in manual install guidance', async () => {
