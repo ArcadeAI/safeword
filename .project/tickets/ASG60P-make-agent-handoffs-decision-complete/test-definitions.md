@@ -318,7 +318,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Decision-role drift fails parity at the canonical version
 
-- [ ] RED
+- [x] RED skip: rejection characterization is historically green; an ignored-contract mutant supplies the discriminating RED
 - [ ] GREEN
 - [ ] REFACTOR
 
