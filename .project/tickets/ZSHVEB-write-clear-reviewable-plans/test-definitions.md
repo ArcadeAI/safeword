@@ -12,6 +12,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A complete writing guide passes its content contract
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Reconciliation repairs a divergent writing guide
 
 - [ ] RED

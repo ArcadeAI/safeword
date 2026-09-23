@@ -10,6 +10,11 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword installs and reconciles a project through its CLI
       Then the installed guide is byte-identical to the canonical guide
 
+    Scenario: A complete writing guide passes its content contract
+      Given all six required topics have active Weak, Strong, and Source examples and at least one Source has an inline HTTPS citation
+      When Safeword checks the writing-guide contract
+      Then the guide passes
+
     Scenario: Reconciliation repairs a divergent writing guide
       Given a project's installed writing guide differs from the canonical guide
       When Safeword installs and reconciles that project through its CLI
@@ -82,7 +87,7 @@ Feature: Make Safeword plans clear and reviewable
       Then the contract fails with that source and field named
 
     Scenario: Complete v1 plans remain valid without rewriting them
-      Given a complete accepted v1 Product Plan has matching markers
+      Given a complete accepted v1 child has matching markers and references a valid v1 parent
       When Safeword validates it under the version-selected contract
       Then it remains v1 with its accepted content and parent digest unchanged
 
@@ -141,7 +146,7 @@ Feature: Make Safeword plans clear and reviewable
 
     @rejection
     Scenario: A spec cannot override the frontmatter parent
-      Given a child's spec Parent entry disagrees with its ticket frontmatter parent
+      Given a child's spec Parent entry disagrees with its ticket frontmatter under a schema-valid Product Plan parent
       When Safeword resolves the child for review
       Then it returns child-parent-reference-invalid and names reconciling the spec reference to frontmatter
 
@@ -177,7 +182,7 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: Missing history cannot manufacture a continuation receipt
       Given an implementing legacy feature needs a continuation receipt but its checkout lacks required history
       When Safeword resolves its Product Plan contract
-      Then it preserves existing evidence and names a full-history checkout as the recovery
+      Then it mints no receipt, returns planning-history-unavailable, preserves existing evidence, and names a full-history checkout as recovery
 
     @rejection
     Scenario: Branch-only phase history cannot mint a continuation receipt
@@ -212,6 +217,7 @@ Feature: Make Safeword plans clear and reviewable
         | activation_defect |
         | a declaration SHA different from the computed activation commit |
         | an activation commit whose first parent already contains the new planning gates |
+        | a release containing the activation commit but not its declaration commit |
 
     @rejection
     Scenario: A stale transition-history pin blocks release
@@ -223,7 +229,7 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: Returning to planning ends legacy continuation
       Given an implementing feature continued under its accepted legacy plan
       When a changed product decision returns it to Product Planning
-      Then planning waits for the current Product Plan contract and a fresh review
+      Then its continuation receipt is cleared and the base contract result requires current Product Planning and review
 
   @plan-implementability.TBU4.ZSHVEB.R3
   Rule: plan-implementability.TBU4.ZSHVEB.R3 — Implementation Plans decide design without sequencing work
@@ -374,7 +380,7 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: A stale installed guide stops dispatch
       Given a Markdown authoring request was prepared with a guide that changed before dispatch
       When Safeword tries to send that request
-      Then it refuses dispatch and names preparation again after reconciliation
+      Then it refuses dispatch with prepared-writing-context-stale and names preparation again after reconciliation
 
     Scenario: Markdown authoring resumes after guide reconciliation
       Given a project's divergent writing guide was reconciled to the canonical guide
@@ -385,7 +391,7 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: An unregistered model transport cannot bypass the writing boundary
       Given a model-capable transport has no registered role or audited construction path
       When Safeword checks the dispatch inventory
-      Then the transport is rejected with registration through that boundary as its recovery
+      Then it returns model-transport-unregistered and names registration through the audited boundary as recovery
 
     Scenario: Workflow sources carry the directive according to role
       Given canonical Markdown sources include authoring, semantic-review, hybrid, execution, parser, and non-workflow roles
