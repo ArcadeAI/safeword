@@ -68,6 +68,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A well-formed stale parent digest cannot validate a v2 child
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Partial or ambiguous ticket pairs have named recoveries
 
 - [ ] RED

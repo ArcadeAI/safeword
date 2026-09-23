@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T04:26:00.000Z Independent scenario review `5ca8cfe8-2726-4fe5-b4e4-c362f7d87f92` found that a format-only parent digest validator could admit a v2 child bound to stale parent content. Added a digest-equality rejection with matching ledger entry. Fresh exact-content review remains required.
+
 - 2026-09-23T04:19:00.000Z Independent scenario review `708e245e-7468-4901-ab8e-74db03a28d1d` found that marker-complete v2 instances could pass despite missing required fields and serve as valid parents. Added an instance rejection and specialized the existing invalid-parent case to block that inheritance even with a receipt; updated the ledger. Fresh exact-content review remains required.
 
 - 2026-09-23T04:14:00.000Z Independent scenario review `56b69e40-8fed-4a76-9773-e3b08798e5b3` found that partial/ambiguous pair classification and never-continuable parent failure lacked acceptance proof. Added classification outcomes and a receipt-with-missing-parent rejection with matching ledger entries. Fresh exact-content review remains required.

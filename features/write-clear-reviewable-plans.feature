@@ -70,6 +70,12 @@ Feature: Make Safeword plans clear and reviewable
       Then child-owned fields are authored in the child and parent-owned fields resolve through its accepted parent reference and digest without restating parent content
 
     @rejection
+    Scenario: A well-formed stale parent digest cannot validate a v2 child
+      Given a v2 child's recorded parent_contract_digest is 64 lowercase hexadecimal characters but differs from its accepted parent's job-scoped digest
+      When Safeword resolves the child for review
+      Then review fails with the stale parent digest named and reconciling the child to its accepted parent as recovery
+
+    @rejection
     Scenario Outline: Partial or ambiguous ticket pairs have named recoveries
       Given a tracked ticket directory has <pair_state>
       When Safeword classifies it before Product Plan version resolution
