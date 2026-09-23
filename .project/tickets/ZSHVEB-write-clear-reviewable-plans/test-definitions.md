@@ -92,6 +92,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A missing frontmatter parent blocks child review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A spec cannot override the frontmatter parent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A v2 child names absent v1 concepts
 
 - [ ] RED

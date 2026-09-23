@@ -104,6 +104,18 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword resolves the child for review
       Then the child is blocked by the parent result until the parent is repaired
 
+    @rejection
+    Scenario: A missing frontmatter parent blocks child review
+      Given a child's ticket frontmatter names a parent with no tracked ticket directory
+      When Safeword resolves the child for review
+      Then it returns parent-not-found and names correcting the reference or restoring the tracked parent
+
+    @rejection
+    Scenario: A spec cannot override the frontmatter parent
+      Given a child's spec Parent entry disagrees with its ticket frontmatter parent
+      When Safeword resolves the child for review
+      Then it returns child-parent-reference-invalid and names reconciling the spec reference to frontmatter
+
     Scenario: A v2 child names absent v1 concepts
       Given a complete v1 parent lacks a persona outcome inventory and launch communication
       When Safeword reviews a v2 child against that parent
@@ -259,9 +271,10 @@ Feature: Make Safeword plans clear and reviewable
         | matches two declared path classes |
 
     Scenario: Project plans and tickets remain data rather than workflow instructions
-      Given tracked ticket, spec, and plan files are declared project-instance data
-      When Safeword prepares a model request that reads those files
-      Then the prepared request carries those files as reviewable data without an authoring role or load directive
+      Given a registered semantic-review request targets a tracked Markdown spec and reads tracked ticket and plan files
+      When Safeword prepares that request
+      Then those project-instance files carry no instruction role or load directive of their own
+      And the request binds the exact installed writing guide for its Markdown target
 
     @rejection
     Scenario: An instruction role on project-instance data fails before dispatch
@@ -280,6 +293,7 @@ Feature: Make Safeword plans clear and reviewable
         | authoring | Markdown | includes |
         | semantic review | mixed Markdown and non-Markdown | includes |
         | hybrid | Markdown | includes |
+        | authoring | a tracked spec declared Markdown project-instance data | includes |
         | authoring | non-Markdown | omits |
         | authoring | declared Markdown content at an identity without a .md suffix | includes |
         | authoring | a .md-suffixed target declared non-Markdown | omits |

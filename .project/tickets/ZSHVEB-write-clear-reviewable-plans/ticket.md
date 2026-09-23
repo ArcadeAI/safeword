@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T03:48:00.000Z Independent scenario review `98ce625d-87fa-4b6c-8c1c-e5e323320757` found that Markdown project-instance targets could miss the guide and child resolution could ignore authoritative frontmatter parent identity. Added the project-data guide-binding case and two parent-reference rejections with matching ledger entries. Fresh exact-content review remains required.
+
 - 2026-09-23T03:41:00.000Z Independent scenario review `46e27b14-7e3b-4803-b3b8-c3d4d6eac4aa` found three false passes: hybrid workflows lacked a binding example, changed Product Plan bytes could mint receipts, and receipt migration could rewrite tracked plans. Added the hybrid row and role assertion, a changed-byte rejection with ledger entry, and the non-mutation assertion. Fresh exact-content review remains required.
 
 - 2026-09-23T03:35:00.000Z Independent scenario review `b3fbf04e-a854-4bb9-9a31-48accb62b20d` found two issuance-side false passes: after-cutoff branch history could mint a receipt, and a valid v1 child could miss the latent receipt needed before parent migration. Added branch-history rejection, accepted branch-review contrast, and pre-migration latent issuance examples with matching ledger entries. Fresh exact-content review remains required.
