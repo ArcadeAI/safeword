@@ -28,29 +28,63 @@ import nodePath from 'node:path';
  * this is the floor beneath them, not a replacement for it.
  */
 export function hostProfileSandbox(): string {
-  const directory = nodePath.join(tmpdir(), 'safeword-test-host-profile');
+  return sandboxDirectory('safeword-test-host-profile');
+}
+
+/**
+ * The throwaway `CODEX_HOME` for the same reason, with a distinct failure to
+ * show for it. `codex status` reports a proof record whose `recorded_at`
+ * timestamp is rewritten every time a real Codex hook fires. A suite reading
+ * the developer's own ~/.codex therefore sees that field change underneath it:
+ * `machine-contract` runs each public command twice and asserts identical
+ * stdout, so a hook firing between the two runs failed the suite with two
+ * byte-identical envelopes apart from that timestamp. Nothing was wrong with
+ * the command — the test was reading the developer's live machine.
+ */
+export function codexHomeSandbox(): string {
+  return sandboxDirectory('safeword-test-codex-home');
+}
+
+function sandboxDirectory(name: string): string {
+  const directory = nodePath.join(tmpdir(), name);
   mkdirSync(directory, { recursive: true });
   return directory;
 }
 
+/** Host-profile variables a test runner must never leave pointed at the real home. */
+const GUARDED_HOST_VARIABLES = [
+  {
+    variable: 'CLAUDE_CONFIG_DIR',
+    consequence: '`claude plugin install` would write into the real ~/.claude plugin store',
+    wiring: 'hostProfileSandbox()',
+  },
+  {
+    variable: 'CODEX_HOME',
+    consequence: "`codex status` would read the developer's live ~/.codex proof records",
+    wiring: 'codexHomeSandbox()',
+  },
+] as const;
+
 /**
  * Fails loudly when a runner reaches test execution still pointed at the
- * developer's real profile. This assertion is what keeps the sandbox wired up:
- * drop the wiring from a runner and a test fails, rather than the leak
+ * developer's real profile. This assertion is what keeps the sandboxes wired
+ * up: drop the wiring from a runner and a test fails, rather than the leak
  * resuming silently.
  * @param environment
  */
 export function assertIsolatedHostProfile(environment: NodeJS.ProcessEnv): void {
-  const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
-  if (configured === '') {
-    throw new Error(
-      'CLAUDE_CONFIG_DIR is unset, so `claude plugin install` would write into the real ~/.claude plugin store (#4776). Wire hostProfileSandbox() into this test runner.',
-    );
-  }
-  if (isInsideHome(configured)) {
-    throw new Error(
-      `CLAUDE_CONFIG_DIR points inside the home directory (${configured}), so test installs would pollute the developer's real plugin store (#4776).`,
-    );
+  for (const { variable, consequence, wiring } of GUARDED_HOST_VARIABLES) {
+    const configured = (environment[variable] ?? '').trim();
+    if (configured === '') {
+      throw new Error(
+        `${variable} is unset, so ${consequence} (#4776). Wire ${wiring} into this test runner.`,
+      );
+    }
+    if (isInsideHome(configured)) {
+      throw new Error(
+        `${variable} points inside the home directory (${configured}), so tests would read or write the developer's real state (#4776).`,
+      );
+    }
   }
 }
 
