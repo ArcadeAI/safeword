@@ -27,6 +27,12 @@ Feature: Make Safeword plans clear and reviewable
       When the guide receives source-aware semantic review
       Then the guide is rejected with the unsupported claim named
 
+    @rejection
+    Scenario: Source prose cannot replace a qualifying citation
+      Given all six writing topics have active Weak, Strong, and Source markers but no Source contains an inline HTTPS citation
+      When Safeword checks the writing-guide contract
+      Then the guide is rejected with the missing citation named
+
   @plan-implementability.TBU4.ZSHVEB.R2
   Rule: plan-implementability.TBU4.ZSHVEB.R2 — Product Plan versions remain complete and compatible
 
@@ -170,6 +176,11 @@ Feature: Make Safeword plans clear and reviewable
         | Build order |
         | Commands to run |
         | Current proof results |
+
+    Scenario: A CLI command contract remains in the Implementation Plan
+      Given an otherwise complete Implementation Plan has an API-contract heading named Commands exposed by the CLI
+      When the plan receives decision-focused review
+      Then it passes the execution-field contract with that heading retained
 
     Scenario: Accepted legacy implementation keeps its exact design authority
       Given a feature is implementing an accepted legacy Implementation Plan with bound unchanged content

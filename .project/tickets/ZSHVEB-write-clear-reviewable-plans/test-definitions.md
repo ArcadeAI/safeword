@@ -24,6 +24,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Source prose cannot replace a qualifying citation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU4.ZSHVEB.R2 — Product Plan versions remain complete and compatible
 
 ### Scenario: A fresh parent Product Plan uses the complete v2 contract
@@ -143,6 +149,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Execution fields cannot satisfy Implementation Planning
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A CLI command contract remains in the Implementation Plan
 
 - [ ] RED
 - [ ] GREEN
