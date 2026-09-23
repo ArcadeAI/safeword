@@ -6,7 +6,7 @@ phase: intake
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/4768
 created: 2026-09-22T17:21:43.266Z
-last_modified: 2026-09-22T17:22:30.000Z
+last_modified: 2026-09-23T02:08:53.000Z
 ---
 
 # Keep data evaluation evidence from one recording run
@@ -17,13 +17,13 @@ last_modified: 2026-09-22T17:22:30.000Z
 
 **Type:** Improvement
 
-**Scope:** Give full-guide and ablation evidence one shared recording-generation identity and publish refreshes so interruption cannot leave a newly accepted mixed-generation pair.
+**Scope:** Mint one identity for each recording run, bind it into both full-guide and ablation evidence, and publish refreshes so interruption cannot leave a newly accepted mixed-generation pair.
 
 **Out of Scope:** Adding statistical multi-trial claims, changing model adapters, or adding a database or external transaction service.
 
 **Done When:**
 
-- [ ] Both evidence files carry or derive one shared recording-generation identity.
+- [ ] Both evidence files carry the same per-run identity minted when recording begins; that identity is not derived solely from guide, case, rubric, prompt, or configuration bindings.
 - [ ] Verification rejects different-generation pairs even when every guide, case, rubric, prompt, and configuration binding matches.
 - [ ] A failed or interrupted publish leaves either the previous complete pair or the new complete pair verifiable.
 - [ ] Deterministic verification remains offline and dependency-free.
@@ -39,3 +39,4 @@ last_modified: 2026-09-22T17:22:30.000Z
 
 - 2026-09-22T17:21:43.266Z Started: Created ticket MK635X
 - 2026-09-22T17:22:30.000Z Validated: A focused probe changed the full response ordering while reusing the checked-in ablation; verifyStoredAblation still returned accepted=true.
+- 2026-09-23T02:08:53.000Z Clarified: A recording run must mint an identity independent of unchanged input bindings; publication mechanics remain an implementation decision.

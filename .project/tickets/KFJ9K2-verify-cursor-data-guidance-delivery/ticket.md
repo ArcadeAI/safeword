@@ -6,7 +6,7 @@ phase: intake
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/4766
 created: 2026-09-22T17:21:41.554Z
-last_modified: 2026-09-22T17:22:30.000Z
+last_modified: 2026-09-23T02:08:53.000Z
 ---
 
 # Verify data guidance through real shipped Cursor assets
@@ -17,20 +17,21 @@ last_modified: 2026-09-22T17:22:30.000Z
 
 **Type:** Improvement
 
-**Scope:** Build data-architecture delivery verification from the real generated or reconciled Cursor asset set, prove OpenCode's unaffected state from shipped inventory, and remove exact completed-ticket prose from the product-test boundary.
+**Scope:** Verify freshly generated Cursor assets against the reconciled assets users receive, prove OpenCode's unaffected state from shipped inventory, and remove exact completed-ticket prose from the product-test boundary.
 
 **Out of Scope:** Changing Cursor or OpenCode delivery ownership, adding a new guide copy, or changing generator output unrelated to verification.
 
 **Done When:**
 
-- [ ] Cursor delivery verification consumes the real generated or reconciled Cursor assets.
-- [ ] A seeded bad Cursor planning reference fails through that real asset boundary.
-- [ ] OpenCode's unaffected state is proven from shipped catalogue or inventory data without reading ticket prose.
+- [ ] Cursor delivery verification inspects freshly generated assets and fails if they differ from the reconciled assets users receive.
+- [ ] A bad planning reference seeded upstream of Cursor generation fails even when the reconciled copy is still clean.
+- [ ] Shipped OpenCode inventory contains no data-architecture guide reference and matches its expected asset set, without reading ticket prose.
+- [ ] Product tests no longer depend on exact prose in a completed ticket.
 - [ ] Existing guide-copy, missing-target, cross-surface, lifecycle, and release checks remain green.
 
 **Tests:**
 
-- [ ] RED: a bad reference present only in generated Cursor output escapes the current two-file fixture.
+- [ ] RED: a bad reference seeded upstream of generation and present only in generated Cursor output escapes the current two-file fixture.
 - [ ] GREEN: the same mutation fails when delivery verification consumes the real Cursor asset set.
 - [ ] REFACTOR: Cursor and OpenCode verification share shipped-artifact helpers without introducing another inventory.
 
@@ -38,3 +39,4 @@ last_modified: 2026-09-22T17:22:30.000Z
 
 - 2026-09-22T17:21:41.554Z Started: Created ticket KFJ9K2
 - 2026-09-22T17:22:30.000Z Validated: Independent review warning reproduced by inspecting the two-file Cursor fixture; combined the related ticket-prose coupling because both are failures to test shipped artifacts directly.
+- 2026-09-23T02:08:53.000Z Clarified: A seeded generator-only defect must fail even when the reconciled copy remains clean; OpenCode absence and ticket-prose independence are explicit completion checks.
