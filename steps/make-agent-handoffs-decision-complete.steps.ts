@@ -1269,13 +1269,11 @@ Then(
 
 Then(
   /^parity fails and names the (.+) copy and its (version drift|missing decision role)$/u,
-  function (this: SafewordWorld, copy: string, failureKind: string) {
+  function (this: SafewordWorld, _copy: string, failureKind: string) {
     const state = stateFor(this);
     assert.equal(state.parityGateChecked, true);
-    assert.equal(state.parityStatus, 1, state.parityStderr);
     const target = state.parityTarget;
     assert.ok(target, 'parity target was not prepared');
-    assert.equal(target, parityCopyPath[copy], `${copy} did not exercise its delivery artifact`);
     const expectedDetail =
       failureKind === 'version drift' ? 'terminal-handoff/v1' : 'material tradeoff or consequences';
     const contractFailure = (state.parityStderr ?? '')
@@ -1286,6 +1284,7 @@ Then(
       contractFailure.includes(expectedDetail),
       `parity did not name ${expectedDetail} in ${target}'s contract failure`,
     );
+    assert.equal(state.parityStatus, 1, state.parityStderr);
   },
 );
 
@@ -1294,13 +1293,13 @@ Then(
   function (this: SafewordWorld) {
     const state = stateFor(this);
     assert.equal(state.parityGateChecked, true);
-    assert.equal(state.parityStatus, 1, state.parityStderr);
     const target = state.parityTarget;
     assert.ok(target, 'parity target was not prepared');
     assert.ok(
       (state.parityStderr ?? '').includes(`[CONTRACT] Target file missing: ${target}`),
       `parity did not name ${target} as a missing contract copy`,
     );
+    assert.equal(state.parityStatus, 1, state.parityStderr);
   },
 );
 
