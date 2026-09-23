@@ -269,7 +269,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: An intervening compliant stop re-arms correction in the same session
 
 - [x] RED skip: positive characterization is historically green; a sticky suppression mutant supplies the discriminating RED
-- [ ] GREEN
+- [x] GREEN 3b015e5bc
 - [ ] REFACTOR
 
 ### Scenario: Each installed native terminal boundary fails open on an unreadable payload
