@@ -197,8 +197,8 @@ Feature: Make Safeword plans clear and reviewable
 
     @rejection
     Scenario: A child cannot hide a field its parent supplies
-      Given a v1 parent has a persona outcome inventory
-      When its v2 child claims that inventory is unavailable in v1
+      Given a v1 parent has a persona outcome inventory and its v2 child claims that inventory is unavailable in v1
+      When Safeword reviews the child against its parent
       Then the child fails review with the omitted parent field named
 
     Scenario: A parent migration preserves bound child meaning
@@ -206,6 +206,7 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword resolves the child after the authorized parent migration
       Then the child continues under its receipt without claiming v2 approval
 
+    @surface.safeword-cli
     Scenario: A valid implementing child gets a latent receipt before parent migration
       Given an isolated real Git repository has an implementing v1 child and parent valid under v1 with qualifying evidence at its default-branch cutoff
       When the Safeword CLI first encounters the v2 planning contract before any parent migration
@@ -219,17 +220,20 @@ Feature: Make Safeword plans clear and reviewable
       Then continuation is refused with the child's base contract result and a return to planning
 
     @rejection
+    @surface.safeword-cli
     Scenario: Missing history cannot manufacture a continuation receipt
       Given an isolated real Git checkout has an implementing legacy feature that needs a receipt but lacks its complete default-branch history
       When the Safeword CLI first encounters the v2 planning contract
       Then it mints no partial receipt, returns planning-history-unavailable, preserves existing evidence, and names a full-history checkout as recovery
 
     @rejection
+    @surface.safeword-cli
     Scenario: Branch-only phase history cannot mint a continuation receipt
       Given an implementing legacy Product Plan's matching blob and phase commit exist only on the caller's branch after the consumer default-branch cutoff, without an accepted review receipt
       When Safeword first encounters the v2 planning contract
       Then it mints no receipt and returns legacy-unversioned with owner-authorized v2 migration and current review as recovery
 
+    @surface.safeword-cli
     Scenario: A branch-only accepted review can mint a continuation receipt
       Given an isolated real Git repository has an implementing legacy Product Plan with an accepted content-addressed review receipt on the caller's branch matching its current plan bytes
       When the Safeword CLI first encounters the v2 planning contract
@@ -371,7 +375,7 @@ Feature: Make Safeword plans clear and reviewable
     @surface.safeword-cli
     Scenario Outline: Model work binds the guide only for Markdown targets
       Given a registered <work_kind> request has <target_kind> targets
-      When Safeword prepares its model request from declared targets
+      When the registered Safeword CLI dispatch path prepares that model request from declared targets
       Then the request <guide_result> the exact installed writing guide
 
       Examples:
@@ -406,9 +410,10 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword prepares a registered Markdown authoring request again
       Then the request dispatches with the exact installed writing guide bound
 
+    @surface.safeword-cli
     Scenario: Implementation review binds the current rubric and writing guide
       Given the generated Implementation Plan rubric matches its canonical source and the installed writing guide is current
-      When Safeword prepares Implementation Plan review
+      When the Safeword CLI prepares Implementation Plan review through its registered dispatch entry point
       Then its request binds the exact rubric bytes and digest alongside the exact installed writing guide
 
     @rejection
@@ -429,9 +434,10 @@ Feature: Make Safeword plans clear and reviewable
       Then it refuses dispatch with prepared-plan-review-rubric-stale and names preparing the packet again against the current generated rubric
 
     @rejection
+    @surface.safeword-cli
     Scenario: An unregistered model transport cannot bypass the writing boundary
       Given a model-capable transport has no registered role or audited construction path
-      When Safeword checks the dispatch inventory
+      When the Safeword CLI checks its dispatch inventory before release
       Then it returns model-transport-unregistered and names registration through the audited boundary as recovery
 
     Scenario: Workflow sources carry the directive according to role
@@ -526,18 +532,18 @@ Feature: Make Safeword plans clear and reviewable
       Then Safeword re-presents one reconciled decision set before requesting confirmation
 
     Scenario Outline: Each decision is recorded in its owning plan
-      Given the user <disposition> a proposed <decision_kind> decision
+      Given a proposed <decision_kind> decision has the user-recorded disposition <disposition>
       When Safeword records the checkpoint outcome
       Then <owning_plan> records the choice, reason, and consequence as <recorded_state>
 
       Examples:
         | disposition | decision_kind | owning_plan | recorded_state |
-        | accepts | product | the Product Plan section it shapes | accepted |
-        | rejects | product | the Product Plan section it shapes | rejected |
-        | leaves unresolved | product | Unresolved product decisions | pending with an owner |
-        | accepts | design | Recorded Decisions in the Implementation Plan | accepted |
-        | rejects | design | Approaches considered in the Implementation Plan | rejected |
-        | leaves unresolved | design | Approval state in the Implementation Plan | pending with an owner |
+        | accepted | product | the Product Plan section it shapes | accepted |
+        | rejected | product | the Product Plan section it shapes | rejected |
+        | unresolved | product | Unresolved product decisions | pending with an owner |
+        | accepted | design | Recorded Decisions in the Implementation Plan | accepted |
+        | rejected | design | Approaches considered in the Implementation Plan | rejected |
+        | unresolved | design | Approval state in the Implementation Plan | pending with an owner |
 
     @rejection
     Scenario: Chat-only agreement cannot complete a checkpoint
