@@ -38,6 +38,12 @@ Feature: Make Safeword plans clear and reviewable
       Then the guide is rejected with the unsupported claim named
 
     @rejection
+    Scenario: Alternate labels cannot hide a seventh writing rule
+      Given a seventh writing topic uses Poor, Better, and Reference examples instead of Weak, Strong, and Source markers
+      When the guide receives source-aware semantic review
+      Then the guide is rejected with the equivalent extra topic named
+
+    @rejection
     Scenario: Source prose cannot replace a qualifying citation
       Given all six writing topics have active Weak, Strong, and Source markers but no Source contains an inline HTTPS citation
       When Safeword checks the writing-guide contract
@@ -129,13 +135,13 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: The same marker gap outside the transition window requires v2 migration
       Given a spec-v1 Product Plan lacks its ticket marker and full history proves first coexistence outside the pinned transition window
       When Safeword resolves its contract version before review
-      Then it blocks until the owner authorizes v2 migration and current-contract review
+      Then it returns invalid-product-plan-contract and blocks until the owner authorizes v2 migration and current-contract review
 
     @rejection
     Scenario Outline: Other invalid Product Plan identities require v2 migration
       Given a Product Plan has <marker_state>
       When Safeword resolves its contract version before review
-      Then it blocks until the owner authorizes v2 migration and current-contract review
+      Then it returns invalid-product-plan-contract and blocks until the owner authorizes v2 migration and current-contract review
 
       Examples:
         | marker_state |

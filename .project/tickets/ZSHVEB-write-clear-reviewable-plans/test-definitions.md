@@ -36,6 +36,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Alternate labels cannot hide a seventh writing rule
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Source prose cannot replace a qualifying citation
 
 - [ ] RED
