@@ -270,7 +270,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: positive characterization is historically green; a sticky suppression mutant supplies the discriminating RED
 - [x] GREEN 3b015e5bc
-- [ ] REFACTOR
+- [x] REFACTOR skip: native loop control already owns re-arming without persistent project state
 
 ### Scenario: Each installed native terminal boundary fails open on an unreadable payload
 
