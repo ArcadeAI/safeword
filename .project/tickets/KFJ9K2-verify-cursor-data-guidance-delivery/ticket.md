@@ -24,6 +24,7 @@ last_modified: 2026-09-23T02:08:53.000Z
 **Done When:**
 
 - [ ] Cursor generation occurs away from reconciled output; delivery verification rejects an empty set on either side, inspects the real union of generated and reconciled assets, rejects missing, extra, or differing content, and validates planning references and guide copy against their canonical targets across both sets even when their bytes match. Comparison may normalize line endings only and must retain all guide-copy bytes.
+- [ ] The delivered Cursor/project asset set contains the managed `.safeword/guides/data-architecture-guide.md` and exactly one Cursor planning reference to it; verification fails if either disappears from both generated and reconciled sets.
 - [ ] A bad planning reference seeded upstream of Cursor generation fails even when the reconciled copy is still clean.
 - [ ] OpenCode assets discovered from shipped files contain neither a data-architecture guide asset nor a planning reference to `data-architecture-guide.md`, and match a generator-declared asset set obtained independently from the shipped-file enumeration, without reading ticket prose.
 - [ ] `packages/cli/tests/data-architecture-delivery.test.ts` no longer reads completed-ticket prose; a standing source check rejects literal ticket-file reads in that test (a regression diagnostic, not a security boundary), while shipped OpenCode inventory assertions replace its unaffected-profile coverage.
@@ -39,6 +40,7 @@ last_modified: 2026-09-23T02:08:53.000Z
 - [ ] GREEN: a bad planning reference present identically in generated and reconciled Cursor assets still fails content validation.
 - [ ] GREEN: guide-copy drift present identically in both Cursor sets still fails against the canonical guide.
 - [ ] GREEN: an empty generated set or empty reconciled set fails Cursor delivery verification.
+- [ ] GREEN: removal of the managed guide or Cursor planning reference from both generated and reconciled delivery still fails the positive-presence check.
 - [ ] GREEN: a seeded OpenCode guide reference fails the shipped-inventory assertion that replaces the ticket-prose check.
 - [ ] GREEN: a data-architecture guide asset both declared and shipped for OpenCode fails its guide-asset absence assertion.
 - [ ] GREEN: one declared-only and one discovered-only OpenCode asset each fail the independent inventory comparison.
