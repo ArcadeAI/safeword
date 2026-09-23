@@ -251,7 +251,7 @@ Assertion strength (weak vs strong `Then`) is covered by the vacuous-pass check'
 
 After AODI validation, argue against your own scenario list: "What breaks that none of these scenarios catch?" Record each defect through the active mode's findings channel.
 
-One lens to always run — **negative-case coverage**: for each happy-path scenario, is there a rejection-path counterpart? Partitioning should already have produced the invalid-input classes; this pass is the backstop. Common pairs — create ↔ duplicate, read ↔ not-found, update ↔ not-allowed, act ↔ precondition-failed. Treat a gap as **should-strengthen**, not must-fix — a sibling AC often already covers the rejection: _"Happy path X has no rejection counterpart — add a scenario for path Z?"_ For one behavior across many inputs, use a `Scenario Outline`.
+One lens to always run — **negative-case coverage**: for each accepted happy-path Rule, ask whether a distinct user-visible rejection or recovery remains unproved. Common pairs — create ↔ duplicate, read ↔ not-found, update ↔ not-allowed, act ↔ precondition-failed. Do not add one rejection scenario per happy-path input when the same outcome is already proved; place input permutations in a lower-level table. Treat a missing counterpart as **should-strengthen**, not must-fix, unless the accepted Rule requires that rejection. For one behavior across several genuinely distinct outcomes, use a coherent `Scenario Outline`.
 
 For each `Scenario Outline`, confirm its rows vary one behavioral dimension and keep the same outcome shape. Do not group unrelated defect mechanisms merely because they share a generic rejection. Keep feature scenarios representative; exhaustive parser, schema, arithmetic, malformed-field, and implementation-corruption matrices belong in table-driven lower-level tests, while externally meaningful boundaries and failure classes required by the cross-cutting checks remain acceptance scenarios. A missing matrix row is not a missing acceptance scenario unless it changes that observable outcome or recovery.
 
@@ -260,7 +260,7 @@ For each `Scenario Outline`, confirm its rows vary one behavioral dimension and 
 Ten lenses across the whole scenario set (not per scenario). Nine ask "what's missing?"; the last asks "what's extra?":
 
 - **Conflict** — do two scenarios contradict (one allows X, another rejects it) with no distinguishing precondition?
-- **Boundary** — zero / one / max / empty / null covered where they apply?
+- **Boundary** — which zero / one / max / empty / null value changes the accepted outcome or recovery? Keep that boundary in acceptance scenarios; place other variations in lower-level tests.
 - **Failure** — external-dependency failures covered (timeout, 5xx, malformed, partition)? Distinct from the feature's own rejections (the negative-case lens above).
 - **Security** — authn/authz failures and abuse vectors covered?
 - **Persona consistency** — does each scenario's triggering persona resolve in the configured personas file, and would another defined persona experience it differently?

@@ -53,5 +53,7 @@ describe('shared scenario-quality contract', () => {
     expect(reviewSpec).toContain('**Compress the set**');
     expect(reviewSpec).toContain('Report all material gaps found in that sweep together');
     expect(reviewSpec).toContain('A missing matrix row is not a missing acceptance scenario');
+    expect(reviewSpec).toContain('Do not add one rejection scenario per happy-path input');
+    expect(reviewSpec).toContain('which zero / one / max / empty / null value changes');
   });
 });
