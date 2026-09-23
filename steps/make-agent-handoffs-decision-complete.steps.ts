@@ -1,14 +1,22 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { Given, Then, When } from '@cucumber/cucumber';
+import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import * as quality from '../packages/cli/templates/hooks/lib/quality.js';
 import { evaluateDecisionBriefCompliance } from '../packages/cli/templates/hooks/lib/quality.js';
-import { runParity, type ParityResult } from '../packages/cli/src/parity.js';
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from '../packages/cli/src/templates/config.js';
 import type { SafewordWorld } from './world.js';
@@ -29,11 +37,8 @@ interface HandoffState {
     expected: { compliant: boolean; form: string; requirements?: string[] };
   }>;
   corpusEvaluations?: Array<ReturnType<typeof evaluateDecisionBriefCompliance>>;
-  parityResult?: ParityResult;
   parityRoot?: string;
   parityTarget?: string;
-  parityContractPath?: string;
-  parityContractRequires?: string[];
   parityGateChecked?: boolean;
   parityStatus?: number | null;
   parityStderr?: string;
@@ -213,9 +218,9 @@ const parityCopyPath: Record<string, string> = {
   'canonical template': 'packages/cli/templates/hooks/lib/quality.ts',
   'generated Claude plugin': 'plugin/runtime/hooks/lib/quality.ts',
   'generated Codex plugin': 'packages/cli/codex-plugin/templates/hooks/lib/quality.ts',
-  'Cursor delivery': 'cursor/.safeword/hooks/lib/quality.ts',
-  'customer installed': 'customer/.safeword/hooks/lib/quality.ts',
-  'dogfood installed': 'dogfood/.safeword/hooks/lib/quality.ts',
+  'Cursor delivery': '.safeword/hooks/lib/quality.ts',
+  'customer installed': '.safeword/hooks/lib/quality.ts',
+  'dogfood installed': '.safeword/hooks/lib/quality.ts',
 };
 
 const parityContractPath: Record<string, string> = {
@@ -239,9 +244,44 @@ function prepareParityFailure(
   assert.ok(contractPath, `unknown parity contract ${label}`);
   const contract = SAFEWORD_SCHEMA.contracts[contractPath];
   assert.ok(contract, `production schema omitted ${contractPath}`);
+  mkdirSync(nodePath.join(root, 'scripts'), { recursive: true });
+  cpSync(
+    nodePath.join(process.cwd(), 'scripts/parity-check.ts'),
+    nodePath.join(root, 'scripts/parity-check.ts'),
+  );
+  cpSync(
+    nodePath.join(process.cwd(), 'packages/cli/templates'),
+    nodePath.join(root, 'packages/cli/templates'),
+    { recursive: true },
+  );
+  symlinkSync(
+    nodePath.join(process.cwd(), 'packages/cli/src'),
+    nodePath.join(root, 'packages/cli/src'),
+    'dir',
+  );
+  for (const [destination, definition] of Object.entries({
+    ...SAFEWORD_SCHEMA.ownedFiles,
+    ...Object.fromEntries(
+      Object.entries(SAFEWORD_SCHEMA.managedFiles).filter(([, entry]) => entry.dogfoodParity),
+    ),
+  })) {
+    if (!definition.template) continue;
+    if (destination.startsWith('packages/cli/src/')) continue;
+    const source = nodePath.join(process.cwd(), destination);
+    if (!existsSync(source)) continue;
+    cpSync(source, nodePath.join(root, destination), { recursive: true });
+  }
+  for (const path of Object.keys(SAFEWORD_SCHEMA.contracts)) {
+    if (path.startsWith('packages/cli/src/')) continue;
+    const source = nodePath.join(process.cwd(), path);
+    if (!existsSync(source)) continue;
+    cpSync(source, nodePath.join(root, path), { recursive: true });
+  }
   const targetPath = nodePath.join(root, target);
-  if (kind !== 'missing') {
-    mkdirSync(nodePath.dirname(targetPath), { recursive: true });
+  if (kind === 'missing') {
+    rmSync(targetPath, { force: true });
+  } else {
+    const original = readFileSync(targetPath, 'utf8');
     const content = contract.requires
       .filter(requirement =>
         kind === 'role' ? !requirement.includes('material tradeoff or consequences') : true,
@@ -252,16 +292,19 @@ function prepareParityFailure(
           : requirement,
       )
       .join('\n');
+    assert.notEqual(content, contract.requires.join('\n'), `${kind} mutation changed nothing`);
+    assert.notEqual(content, original, `${kind} mutation left ${target} unchanged`);
     writeFileSync(targetPath, `${content}\n`);
   }
-  const templates = nodePath.join(root, 'templates');
-  mkdirSync(templates, { recursive: true });
   const state = stateFor(world);
   state.parityRoot = root;
   state.parityTarget = target;
-  state.parityContractPath = contractPath;
-  state.parityContractRequires = [...contract.requires];
 }
+
+After(function (this: SafewordWorld) {
+  const state = stateFor(this);
+  if (state.parityRoot) rmSync(state.parityRoot, { recursive: true, force: true });
+});
 
 function registeredStopCommand(host: string, project: string): string {
   if (host === 'Claude Code') {
@@ -867,23 +910,8 @@ When(
   /^the release gate runs "bun scripts\/parity-check\.ts --mode=all"(?: against the fixed transcript corpus)?$/u,
   function (this: SafewordWorld) {
     const state = stateFor(this);
-    if (state.parityRoot && state.parityTarget && state.parityContractRequires) {
-      state.parityResult = runParity({
-        rootDirectory: state.parityRoot,
-        templatesDirectory: nodePath.join(state.parityRoot, 'templates'),
-        mode: 'all',
-        schema: {
-          ownedFiles: {},
-          contracts: {
-            [state.parityTarget]: { requires: state.parityContractRequires },
-          },
-        },
-      });
-      state.parityGateChecked = true;
-      return;
-    }
     const result = spawnSync('bun', ['scripts/parity-check.ts', '--mode=all'], {
-      cwd: process.cwd(),
+      cwd: state.parityRoot ?? process.cwd(),
       encoding: 'utf8',
     });
     state.parityStatus = result.status;
@@ -1218,14 +1246,19 @@ Then(
   function (this: SafewordWorld, _copy: string, failureKind: string) {
     const state = stateFor(this);
     assert.equal(state.parityGateChecked, true);
-    const failure = state.parityResult?.failures.find(candidate =>
-      candidate.message.includes(state.parityTarget ?? ''),
+    assert.equal(state.parityStatus, 1, state.parityStderr);
+    assert.match(
+      state.parityStderr ?? '',
+      new RegExp(state.parityTarget ?? ''),
+      `parity did not name ${state.parityTarget}`,
     );
-    assert.ok(failure, `parity did not name ${state.parityTarget}`);
     const expectedDetail =
       failureKind === 'version drift' ? 'terminal-handoff/v1' : 'material tradeoff or consequences';
-    assert.ok(failure.message.includes(expectedDetail), `parity did not name ${expectedDetail}`);
-    if (state.parityRoot) rmSync(state.parityRoot, { recursive: true, force: true });
+    assert.match(
+      state.parityStderr ?? '',
+      new RegExp(expectedDetail),
+      `parity did not name ${expectedDetail}`,
+    );
   },
 );
 
@@ -1234,12 +1267,17 @@ Then(
   function (this: SafewordWorld) {
     const state = stateFor(this);
     assert.equal(state.parityGateChecked, true);
-    const failure = state.parityResult?.failures.find(candidate =>
-      candidate.message.includes(state.parityTarget ?? ''),
+    assert.equal(state.parityStatus, 1, state.parityStderr);
+    assert.match(
+      state.parityStderr ?? '',
+      new RegExp(state.parityTarget ?? ''),
+      `parity did not name ${state.parityTarget}`,
     );
-    assert.ok(failure, `parity did not name ${state.parityTarget}`);
-    assert.ok(failure.message.includes('Target file missing'));
-    if (state.parityRoot) rmSync(state.parityRoot, { recursive: true, force: true });
+    assert.match(
+      state.parityStderr ?? '',
+      /Target file missing/u,
+      'parity did not report missing copy',
+    );
   },
 );
 
