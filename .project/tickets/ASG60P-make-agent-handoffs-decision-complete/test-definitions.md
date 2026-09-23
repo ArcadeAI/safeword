@@ -306,7 +306,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Version drift fails parity for every delivered copy
 
-- [ ] RED
+- [x] RED skip: rejection characterization is historically green; an ignored-contract mutant supplies the discriminating RED
 - [ ] GREEN
 - [ ] REFACTOR
 
