@@ -49,12 +49,12 @@ const CONFIDENT = [
   '**CONFIDENT** — The change is complete.',
   '**Decided:** Keep the implementation focused.',
   '**Open:** none.',
-  '**Next:** Review the result.',
+  '**Next:** Action: Review the completed change. Reason: Required because it is ready for review.',
 ];
 const BLOCKED = [
   '**BLOCKED** — A release target is required.',
   '**Tried:** Checked the ticket and release configuration.',
-  '**Need:** Choose the intended release target.',
+  '**Need:** Choice: release target. Recommendation: production. Reason: the deployment requires one target. Impact: staging delays the release; production deploys it now. Reply: Use production.',
 ];
 const brief = (paragraphs: string[], separator = '\n\n') => paragraphs.join(separator);
 const nestedBulletBrief = brief(CONFIDENT.map(paragraph => '  ' + paragraph));
@@ -616,7 +616,12 @@ Given(
 
     state.projectDirectory = projectDirectory;
     state.formerReply = brief(CONFIDENT);
-    state.reply = brief([CONFIDENT[0], CONFIDENT[1], '**Risks:** none.', CONFIDENT[3]]);
+    state.reply = brief([
+      CONFIDENT[0],
+      CONFIDENT[1],
+      '**Risks:** none.',
+      '**Next:** Choice: terminal contract shape. Recommendation: shape B. Reason: the installed grammar declares Risks. Impact: shape A is rejected; shape B is accepted. Reply: Use shape B.',
+    ]);
     setReplyFormatState(this, {
       projectDirectory,
       reply: state.formerReply,
@@ -953,7 +958,9 @@ When('terminal-format compliance is evaluated repeatedly', function (this: Safew
   const state = stateFor(this);
   assert.ok(state.reply);
   state.evaluations = Array.from({ length: 3 }, () =>
-    evaluateDecisionBriefCompliance(state.reply ?? ''),
+    evaluateDecisionBriefCompliance(state.reply ?? '', undefined, {
+      substantiveEvidence: 'structured-verdict',
+    }),
   );
 });
 
@@ -988,7 +995,11 @@ Given('parser instrumentation counts examined input characters', function (this:
 When('each reply is evaluated in-process', function (this: SafewordWorld) {
   const state = stateFor(this);
   assert.ok(state.replies);
-  state.evaluations = state.replies.map(evaluateDecisionBriefCompliance);
+  state.evaluations = state.replies.map(reply =>
+    evaluateDecisionBriefCompliance(reply, undefined, {
+      substantiveEvidence: 'structured-verdict',
+    }),
+  );
 });
 
 Then('every reply is rejected', function (this: SafewordWorld) {

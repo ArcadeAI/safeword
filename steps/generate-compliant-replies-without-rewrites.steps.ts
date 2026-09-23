@@ -153,7 +153,7 @@ Given(
       '',
       '**Open:** none.',
       '',
-      '**Next:** Review the result.',
+      '**Next:** Action: Review the completed change. Reason: Required because it is ready for review.',
     ].join('\n');
   },
 );
@@ -192,7 +192,7 @@ Given(
       '',
       '**Tried:** Checked the ticket and release configuration.',
       '',
-      '**Need:** Choose the intended release target.',
+      '**Need:** Choice: release target. Recommendation: production. Reason: the deployment requires one target. Impact: staging delays the release; production deploys it now. Reply: Use production.',
     ].join('\n');
   },
 );
@@ -213,7 +213,7 @@ Given(
       '',
       '**Decided:** Keep the implementation focused.',
       '',
-      '**Next:** Review the result.',
+      '**Next:** Action: Review the completed change. Reason: Required because it is ready for review.',
     ].join('\n');
   },
 );

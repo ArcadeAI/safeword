@@ -2,6 +2,7 @@
 id: ASG60P
 slug: make-agent-handoffs-decision-complete
 type: feature
+subtype: bug-investigated
 phase: implement
 status: in_progress
 scope: |
@@ -96,3 +97,22 @@ Ruled out: shared correction-state failure, because the same scenario passes for
 Codex and Cursor; test-harness state leakage, because each example creates and
 removes an isolated temporary project; and output counting error, because both
 Claude subprocess outputs independently contain `terminal-handoff/v1`.
+
+### Post-main acceptance finding
+
+The older `generate-compliant-replies-without-rewrites` acceptance feature still
+builds terminal `Next` and `Need` paragraphs using the pre-v1 contract. Once the
+dogfood Stop hook was reconciled with the canonical template, the real Stop
+subprocess correctly rejected those fixtures, producing 42 acceptance failures.
+Direct parser scenarios in that feature also omitted substantive-handoff evidence,
+so verdict-free adversarial inputs were correctly treated as outside the v1
+contract even though the scenarios expected strict terminal validation.
+
+Confirmed by reproducing `A complete CONFIDENT brief finishes on the first Stop`
+locally: the hook requests the missing v1 action roles from `**Next:** Review the
+result.` Every CI failure belongs to the same legacy acceptance feature.
+
+Ruled out: Node 24 behavior, because the representative failure reproduces
+locally; a runtime regression from `main`, because the rejection names the new
+contract's missing roles; and parser nondeterminism, because repeated evaluations
+return the same result.
