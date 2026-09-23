@@ -302,7 +302,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED fe93232e9
 - [x] GREEN 6c495df09
-- [ ] REFACTOR
+- [x] REFACTOR 959ecc66c
 
 ### Scenario: Version drift fails parity for every delivered copy
 
