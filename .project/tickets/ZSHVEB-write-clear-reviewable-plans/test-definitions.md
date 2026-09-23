@@ -38,6 +38,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Product Plan sources reject project-specific requirements
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Complete v1 plans remain valid without rewriting them
 
 - [ ] RED
@@ -62,7 +68,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A v2 child names genuinely absent v1 concepts
+### Scenario: A v2 child names absent v1 concepts
 
 - [ ] RED
 - [ ] GREEN
@@ -95,6 +101,12 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: plan-implementability.TBU4.ZSHVEB.R3 — Implementation Plans decide design without sequencing work
 
 ### Scenario: The current design contract retains its decision and proof obligations
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Implementation Plan sources reject project-specific requirements
 
 - [ ] RED
 - [ ] GREEN
@@ -192,6 +204,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A plan contract cannot copy a writing lesson from the guide
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Domain examples do not count as copied writing guidance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Failure recovery inventory has one action per distinct result
 
 - [ ] RED
@@ -212,7 +236,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Project-specific or unsupported guidance is rejected
+### Scenario: Project-specific writing guidance is rejected
 
 - [ ] RED
 - [ ] GREEN

@@ -8,7 +8,7 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: Installation preserves the approved writing guide
       Given a package contains a canonical guide with all six required writing topics
       When Safeword installs and reconciles a project through its CLI
-      Then the installed guide has the same content as the canonical guide
+      Then the installed guide is byte-identical to the canonical guide
 
     @rejection
     Scenario Outline: An incomplete or extra topic fails the writing-guide contract
@@ -41,6 +41,17 @@ Feature: Make Safeword plans clear and reviewable
       When the child is created and reviewed through the CLI contract
       Then child-owned fields are authored in the child and parent-owned fields resolve through its accepted parent reference and digest without restating parent content
 
+    @rejection
+    Scenario Outline: Product Plan sources reject project-specific requirements
+      Given one canonical Product Plan template, author/review contract, or shared decision source contains <project_specific_content>
+      When Safeword checks every canonical Product Plan source for portability
+      Then the source containing the project-specific content is rejected with that content named
+
+      Examples:
+        | project_specific_content |
+        | an Arcade identifier |
+        | a company-specific approval ceremony without a prohibited name |
+
     Scenario: Complete v1 plans remain valid without rewriting them
       Given a complete accepted v1 Product Plan has matching markers
       When Safeword validates it under the version-selected contract
@@ -70,7 +81,7 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword resolves the child for review
       Then the child is blocked by the parent result until the parent is repaired
 
-    Scenario: A v2 child names genuinely absent v1 concepts
+    Scenario: A v2 child names absent v1 concepts
       Given a complete v1 parent lacks a persona outcome inventory and launch communication
       When Safeword reviews a v2 child against that parent
       Then the child maps available parent fields and marks only those two absent concepts as unavailable in v1
@@ -106,6 +117,17 @@ Feature: Make Safeword plans clear and reviewable
       Given accepted scenarios require architecture, interface, data, release, and proof choices
       When the Implementation Plan is authored and reviewed under the current contract
       Then it covers the thirteen required fields and retains decision evidence, applicability, proof scope, and confidence limits
+
+    @rejection
+    Scenario Outline: Implementation Plan sources reject project-specific requirements
+      Given one Implementation Plan template, author contract, or evaluated rubric contains <project_specific_content>
+      When Safeword checks every canonical Implementation Plan source for portability
+      Then the source containing the project-specific content is rejected with that content named
+
+      Examples:
+        | project_specific_content |
+        | an Arcade identifier |
+        | a company-specific approval ceremony without a prohibited name |
 
     @rejection
     Scenario Outline: Execution fields cannot satisfy Implementation Planning
@@ -217,6 +239,17 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword checks their active instructions
       Then only authoring, semantic-review, and hybrid sources carry the operative writing-guide directive
 
+    @rejection
+    Scenario: A plan contract cannot copy a writing lesson from the guide
+      Given a canonical plan artifact repeats a guide topic with its own Weak and Strong writing examples
+      When Safeword checks canonical plans and contracts for duplicated writing guidance
+      Then the artifact fails with the copied writing lesson named
+
+    Scenario: Domain examples do not count as copied writing guidance
+      Given a plan contract uses Weak and Strong labels for a domain example and a separate Source label for decision evidence
+      When Safeword checks it for duplicated writing guidance
+      Then the duplication check accepts that plan contract
+
     Scenario: Failure recovery inventory has one action per distinct result
       Given Product Plan, Implementation Plan, and writing-context failure fixtures name their typed results and reasons
       When Safeword generates the recovery inventory
@@ -235,18 +268,13 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: A general writing guide works without a project-specific service
       Given the guide states portable writing advice with suitable primary sources
       When Safeword installs and reviews it without external tracker configuration
-      Then the guide remains usable without a tracker, project-owned document, or outbound citation service
+      Then installation and review pass with byte-identical guide content, no project-owned document read, and no outbound citation request
 
     @rejection
-    Scenario Outline: Project-specific or unsupported guidance is rejected
-      Given the guide contains <nonportable_content>
-      When Safeword checks portability and source support
+    Scenario: Project-specific writing guidance is rejected
+      Given the guide requires a company-specific approval ceremony
+      When Safeword checks its portability
       Then the guide is rejected with the offending content named
-
-      Examples:
-        | nonportable_content |
-        | a required company-specific approval ceremony |
-        | a load-bearing writing claim unsupported by a primary source |
 
   @plan-implementability.TBU4.ZSHVEB.R6
   Rule: plan-implementability.TBU4.ZSHVEB.R6 — Product and Implementation Planning share one decision conversation
