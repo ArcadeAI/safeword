@@ -92,10 +92,16 @@ Feature: Make Safeword plans clear and reviewable
       When its v2 child claims that inventory is unavailable in v1
       Then the child fails review with the omitted parent field named
 
-    Scenario: Accepted implementation survives a contract upgrade on bound evidence
-      Given a feature is implementing an accepted plan with a valid exact-content continuation receipt
-      When Safeword encounters the new Product Plan contract
-      Then implementation continues against that accepted plan without claiming v2 approval
+    Scenario: A parent migration preserves bound child meaning
+      Given an implementing v1 child has an accepted continuation receipt and its parent gains only v2 fields without changing a bound concept
+      When Safeword resolves the child after the authorized parent migration
+      Then the child continues under its receipt without claiming v2 approval
+
+    @rejection
+    Scenario: Changing bound parent meaning ends child continuation
+      Given an implementing child has an accepted continuation receipt and its parent changes a Rule the child references
+      When Safeword resolves the child against the changed parent
+      Then continuation is refused with the child's base contract result and a return to planning
 
     @rejection
     Scenario: Missing history cannot manufacture a continuation receipt
@@ -253,7 +259,13 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: Failure recovery inventory has one action per distinct result
       Given Product Plan, Implementation Plan, and writing-context failure fixtures name their typed results and reasons
       When Safeword generates the recovery inventory
-      Then every result-and-reason pair has exactly one owner-facing recovery and owning rule
+      Then every named fixture result-and-reason pair appears in the inventory with exactly one owner-facing recovery and owning rule
+
+    @rejection
+    Scenario: A missing fixture result fails recovery-inventory generation
+      Given a Product Plan failure fixture names a typed result and reason absent from the recovery inventory
+      When Safeword checks the inventory against its failure fixtures
+      Then inventory generation fails with the missing result-and-reason pair named
 
     @rejection
     Scenario: A guide mention inside an example cannot satisfy the directive
@@ -304,15 +316,15 @@ Feature: Make Safeword plans clear and reviewable
 
     @rejection
     Scenario: An item-by-item questionnaire cannot replace a complete decision set
-      Given a checkpoint has several related choices and viable alternatives
-      When Safeword presents fields for approval one at a time before synthesizing the set
-      Then the checkpoint is rejected without an approval or completed plan record
+      Given a planning transcript asks approval for related choices one field at a time before presenting their alternatives
+      When Safeword reviews the transcript against the shared decision-conversation contract
+      Then the transcript is rejected without an approval or completed plan record
 
     @rejection
     Scenario: Approval waits for the complete decision set
-      Given a checkpoint omits its viable alternatives, tradeoffs, and proposed plan record
-      When Safeword requests confirmation
-      Then approval is withheld until the complete set is presented
+      Given a proposed checkpoint omits its viable alternatives, tradeoffs, and plan record
+      When Safeword checks the checkpoint before requesting confirmation
+      Then confirmation is withheld until the complete decision set is presented
 
     Scenario: User-only knowledge rejoins the current checkpoint
       Given a complete proposed decision set exposes one fact only the user can supply
@@ -368,6 +380,6 @@ Feature: Make Safeword plans clear and reviewable
 
     @rejection
     Scenario: Planning cannot demand a fifth substantive checkpoint
-      Given four substantive checkpoints have already been completed for one plan artifact
-      When Safeword proposes splitting the remaining related decisions into a fifth approval
-      Then that extra approval is refused and the decisions remain grouped within the existing checkpoint budget
+      Given a planning transcript has four completed checkpoints and proposes a fifth approval for remaining related decisions
+      When Safeword reviews the transcript against the shared decision-conversation contract
+      Then the fifth approval is rejected and the remaining decisions stay within the existing checkpoints

@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T02:53:44.000Z Independent scenario review `60ff33a2-dedc-424e-8ddb-854a74b99936` found two false passes in the revised source: parent migration versus bound-meaning change was not discriminated, and an empty recovery inventory could satisfy the success assertion. Revised R2 and R4 scenarios and ledger; clarified three R6 negative transcripts under the writing guide. Fresh exact-content review is required.
+
 - 2026-09-23T02:46:30.000Z Applied the Emergency Action Controls Technical Writing Guide to the scenario source: named observable results and exact content checks, removed an overlapping R5 example, and kept the scenarios concise. Independent scenario review `bd99009c-29d2-49ce-8eff-ae34898e9b5e` found two accepted-rule false passes; added R2/R3 portability and R4 single-authoritative-home examples with matching ledger entries. The revised exact bytes require a fresh independent review and user completeness/scope confirmation.
 
 - 2026-09-23T00:12:18.000Z Independent scenario review `f1898a9c-66f7-4d4c-8bd1-9a83f5402ab6` found three accepted-rule false passes: an invalid-marker outline hid the sole narrow v1 repair state, R4 lacked Markdown path and project-data classification proof, and R3 lacked its M1 synthetic adoption-instance proof. Added those representative cases and updated the ledger; the revised exact bytes require another independent review.

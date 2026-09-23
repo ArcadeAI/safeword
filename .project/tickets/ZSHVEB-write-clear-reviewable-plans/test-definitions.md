@@ -80,7 +80,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Accepted implementation survives a contract upgrade on bound evidence
+### Scenario: A parent migration preserves bound child meaning
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Changing bound parent meaning ends child continuation
 
 - [ ] RED
 - [ ] GREEN
@@ -217,6 +223,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Failure recovery inventory has one action per distinct result
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A missing fixture result fails recovery-inventory generation
 
 - [ ] RED
 - [ ] GREEN
