@@ -56,6 +56,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: The same marker gap outside the transition window requires v2 migration
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Other invalid Product Plan identities require v2 migration
 
 - [ ] RED

@@ -64,6 +64,12 @@ Feature: Make Safeword plans clear and reviewable
       Then it blocks with v1-ticket-marker-repair-required and names restoring only the matching v1 ticket marker
 
     @rejection
+    Scenario: The same marker gap outside the transition window requires v2 migration
+      Given a spec-v1 Product Plan lacks its ticket marker and full history proves first coexistence outside the pinned transition window
+      When Safeword resolves its contract version before review
+      Then it blocks until the owner authorizes v2 migration and current-contract review
+
+    @rejection
     Scenario Outline: Other invalid Product Plan identities require v2 migration
       Given a Product Plan has <marker_state>
       When Safeword resolves its contract version before review

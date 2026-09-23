@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T02:59:49.000Z Independent scenario review `c53a095a-9147-43c7-8b21-d8a7e46a7f53` found one accepted-rule false pass: spec-v1/ticket-absent marker repair lacked the opposite history-window case. Added the outside-window migration scenario and matching ledger entry; the revised source needs fresh independent review.
+
 - 2026-09-23T02:53:44.000Z Independent scenario review `60ff33a2-dedc-424e-8ddb-854a74b99936` found two false passes in the revised source: parent migration versus bound-meaning change was not discriminated, and an empty recovery inventory could satisfy the success assertion. Revised R2 and R4 scenarios and ledger; clarified three R6 negative transcripts under the writing guide. Fresh exact-content review is required.
 
 - 2026-09-23T02:46:30.000Z Applied the Emergency Action Controls Technical Writing Guide to the scenario source: named observable results and exact content checks, removed an overlapping R5 example, and kept the scenarios concise. Independent scenario review `bd99009c-29d2-49ce-8eff-ae34898e9b5e` found two accepted-rule false passes; added R2/R3 portability and R4 single-authoritative-home examples with matching ledger entries. The revised exact bytes require a fresh independent review and user completeness/scope confirmation.
