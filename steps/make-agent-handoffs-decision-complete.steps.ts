@@ -218,6 +218,8 @@ const parityCopyPath: Record<string, string> = {
   'canonical template': 'packages/cli/templates/hooks/lib/quality.ts',
   'generated Claude plugin': 'plugin/runtime/hooks/lib/quality.ts',
   'generated Codex plugin': 'packages/cli/codex-plugin/templates/hooks/lib/quality.ts',
+  // Cursor and customer installs receive this same canonical installed artifact;
+  // the repository release gate can inspect the shared source, not external projects.
   'Cursor delivery': '.safeword/hooks/lib/quality.ts',
   'customer installed': '.safeword/hooks/lib/quality.ts',
   'dogfood installed': '.safeword/hooks/lib/quality.ts',
@@ -282,19 +284,20 @@ function prepareParityFailure(
     rmSync(targetPath, { force: true });
   } else {
     const original = readFileSync(targetPath, 'utf8');
-    const content = contract.requires
-      .filter(requirement =>
-        kind === 'role' ? !requirement.includes('material tradeoff or consequences') : true,
-      )
-      .map(requirement =>
-        kind === 'version'
-          ? requirement.replace('terminal-handoff/v1', 'terminal-handoff/v0')
-          : requirement,
-      )
-      .join('\n');
-    assert.notEqual(content, contract.requires.join('\n'), `${kind} mutation changed nothing`);
+    const requirement = contract.requires.find(candidate =>
+      candidate.includes(
+        kind === 'version' ? 'terminal-handoff/v1' : 'material tradeoff or consequences',
+      ),
+    );
+    assert.ok(requirement, `production contract has no ${kind} requirement`);
+    const content =
+      kind === 'version'
+        ? original
+            .split(requirement)
+            .join(requirement.replace('terminal-handoff/v1', 'terminal-handoff/v0'))
+        : original.split(requirement).join('');
     assert.notEqual(content, original, `${kind} mutation left ${target} unchanged`);
-    writeFileSync(targetPath, `${content}\n`);
+    writeFileSync(targetPath, content);
   }
   const state = stateFor(world);
   state.parityRoot = root;
@@ -1232,6 +1235,14 @@ Then(
     const state = stateFor(this);
     assert.equal(state.parityStatus, 0, state.parityStderr);
     assert.match(state.nativeOutput ?? '', /contracts in sync/u);
+    const canonical = readFileSync(deliveredQualityCopies[0], 'utf8');
+    for (const copy of deliveredQualityCopies.slice(1)) {
+      assert.equal(
+        readFileSync(copy, 'utf8'),
+        canonical,
+        `${copy} drifted from canonical quality.ts`,
+      );
+    }
     for (const { reply, expected } of state.corpus ?? []) {
       const actual = evaluateDecisionBriefCompliance(reply);
       assert.equal(actual.compliant, expected.compliant);
@@ -1243,21 +1254,22 @@ Then(
 
 Then(
   /^parity fails and names the (.+) copy and its (version drift|missing decision role)$/u,
-  function (this: SafewordWorld, _copy: string, failureKind: string) {
+  function (this: SafewordWorld, copy: string, failureKind: string) {
     const state = stateFor(this);
     assert.equal(state.parityGateChecked, true);
     assert.equal(state.parityStatus, 1, state.parityStderr);
-    assert.match(
-      state.parityStderr ?? '',
-      new RegExp(state.parityTarget ?? ''),
-      `parity did not name ${state.parityTarget}`,
-    );
+    const target = state.parityTarget;
+    assert.ok(target, 'parity target was not prepared');
+    assert.equal(target, parityCopyPath[copy], `${copy} did not exercise its delivery artifact`);
     const expectedDetail =
       failureKind === 'version drift' ? 'terminal-handoff/v1' : 'material tradeoff or consequences';
-    assert.match(
-      state.parityStderr ?? '',
-      new RegExp(expectedDetail),
-      `parity did not name ${expectedDetail}`,
+    const contractFailure = (state.parityStderr ?? '')
+      .split('\n')
+      .find(line => line.includes(`[CONTRACT] Missing in ${target}:`));
+    assert.ok(contractFailure, `parity did not name ${target}`);
+    assert.ok(
+      contractFailure.includes(expectedDetail),
+      `parity did not name ${expectedDetail} in ${target}'s contract failure`,
     );
   },
 );
@@ -1268,15 +1280,11 @@ Then(
     const state = stateFor(this);
     assert.equal(state.parityGateChecked, true);
     assert.equal(state.parityStatus, 1, state.parityStderr);
-    assert.match(
-      state.parityStderr ?? '',
-      new RegExp(state.parityTarget ?? ''),
-      `parity did not name ${state.parityTarget}`,
-    );
-    assert.match(
-      state.parityStderr ?? '',
-      /Target file missing/u,
-      'parity did not report missing copy',
+    const target = state.parityTarget;
+    assert.ok(target, 'parity target was not prepared');
+    assert.ok(
+      (state.parityStderr ?? '').includes(`[CONTRACT] Target file missing: ${target}`),
+      `parity did not name ${target} as a missing contract copy`,
     );
   },
 );
