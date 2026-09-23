@@ -64,6 +64,23 @@ Feature: Make Safeword plans clear and reviewable
       Then child-owned fields are authored in the child and parent-owned fields resolve through its accepted parent reference and digest without restating parent content
 
     @rejection
+    Scenario Outline: Partial or ambiguous ticket pairs have named recoveries
+      Given a tracked ticket directory has <pair_state>
+      When Safeword classifies it before Product Plan version resolution
+      Then it returns <result> and names <recovery>
+
+      Examples:
+        | pair_state | result | recovery |
+        | a lone spec | incomplete-pair | restoring the tracked ticket or removing the orphan |
+        | a ticket whose sibling spec was deleted | incomplete-pair | restoring the tracked spec or removing the orphan |
+        | structure matching multiple ticket classes | ambiguous | restoring a recognized non-Product shape or owner-authorized v2 migration |
+
+    Scenario: A recognized non-Product ticket stays outside Product Planning
+      Given a lone tracked non-Product ticket has rename-aware history proving it never had a spec
+      When Safeword classifies it before Product Plan version resolution
+      Then it returns not-a-product-plan and leaves that ticket on its own contract
+
+    @rejection
     Scenario Outline: Product Plan sources reject project-specific requirements
       Given one canonical Product Plan template, author/review contract, or shared decision source contains <project_specific_content>
       When Safeword checks every canonical Product Plan source for portability
@@ -143,6 +160,12 @@ Feature: Make Safeword plans clear and reviewable
       Given a child's ticket frontmatter names a parent with no tracked ticket directory
       When Safeword resolves the child for review
       Then it returns parent-not-found and names correcting the reference or restoring the tracked parent
+
+    @rejection
+    Scenario: A receipt cannot continue work after its parent disappears
+      Given an implementing child has a previously valid continuation receipt but its frontmatter parent no longer resolves
+      When Safeword resolves the child for continued work
+      Then it blocks with parent-not-found and names correcting the reference or restoring the tracked parent
 
     @rejection
     Scenario: A spec cannot override the frontmatter parent

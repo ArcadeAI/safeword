@@ -62,6 +62,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Partial or ambiguous ticket pairs have named recoveries
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A recognized non-Product ticket stays outside Product Planning
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Product Plan sources reject project-specific requirements
 
 - [ ] RED
@@ -123,6 +135,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: A missing frontmatter parent blocks child review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A receipt cannot continue work after its parent disappears
 
 - [ ] RED
 - [ ] GREEN
