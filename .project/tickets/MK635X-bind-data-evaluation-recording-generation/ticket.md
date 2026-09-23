@@ -23,9 +23,9 @@ last_modified: 2026-09-23T02:08:53.000Z
 
 **Done When:**
 
-- [ ] Both evidence files carry the same collision-resistant per-run identity minted when recording begins; that identity is not derived solely from guide, case, rubric, prompt, or configuration bindings.
+- [ ] Both evidence files carry the same UUIDv4 per-run identity minted from platform cryptographic randomness when recording begins; that identity is not derived solely from guide, case, rubric, prompt, or configuration bindings.
 - [ ] Verification rejects different-generation pairs even when every guide, case, rubric, prompt, and configuration binding matches, and fails closed with a focused diagnostic when either identity is absent, empty, or malformed.
-- [ ] A failed or interrupted publish leaves either the previous complete pair or the new complete pair verifiable; the accepted pair changes at one atomic publication point on a supported filesystem, not through sequential replacement of the two live files. The implementation documents its atomic primitive and tested failure envelope.
+- [ ] A failed or interrupted publish leaves either the previous complete pair or the new complete pair verifiable; the accepted pair changes at one atomic publication point, not through sequential replacement of the two live files. The implementation names the supported filesystems, atomic primitive, and tested failure envelope.
 - [ ] Deterministic verification remains offline and dependency-free.
 
 **Tests:**

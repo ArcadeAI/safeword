@@ -26,7 +26,7 @@ last_modified: 2026-09-23T02:08:53.000Z
 - [ ] Cursor delivery verification inspects the union of freshly generated and reconciled asset paths and fails on missing, extra, or differing content; comparison may normalize line endings only and must retain all guide-copy bytes.
 - [ ] A bad planning reference seeded upstream of Cursor generation fails even when the reconciled copy is still clean.
 - [ ] OpenCode assets discovered from shipped files contain no data-architecture guide reference and match the independently generator-declared asset set, without reading ticket prose.
-- [ ] Product tests no longer depend on exact prose in a completed ticket; a standing check rejects ticket-file reads from the product-test boundary, while equivalent shipped-asset assertions retain any coverage the prose check provided.
+- [ ] `packages/cli/tests/data-architecture-delivery.test.ts` no longer reads completed-ticket prose; a standing check rejects ticket-file reads in that test, while shipped OpenCode inventory assertions replace its unaffected-profile coverage.
 - [ ] Existing guide-copy, missing-target, cross-surface, lifecycle, and release checks remain green.
 
 **Tests:**
@@ -34,7 +34,9 @@ last_modified: 2026-09-23T02:08:53.000Z
 - [ ] RED: a bad reference seeded upstream of generation and present only in generated Cursor output escapes the current two-file fixture.
 - [ ] GREEN: the same mutation fails when delivery verification consumes the real Cursor asset set.
 - [ ] GREEN: a reconciled-only stale Cursor asset with drift outside planning references fails delivery verification.
-- [ ] GREEN: product-test boundary does not read completed-ticket files.
+- [ ] GREEN: one generated-only path and one reconciled-only path each fail the Cursor set comparison.
+- [ ] GREEN: a seeded OpenCode guide reference fails the shipped-inventory assertion that replaces the ticket-prose check.
+- [ ] GREEN: a seeded ticket-file read in `packages/cli/tests/data-architecture-delivery.test.ts` fails the standing check.
 - [ ] REFACTOR: Cursor and OpenCode verification share shipped-artifact helpers without introducing another inventory.
 
 ## Work Log
