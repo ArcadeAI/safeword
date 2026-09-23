@@ -23,9 +23,9 @@ last_modified: 2026-09-23T02:08:53.000Z
 
 **Done When:**
 
-- [ ] Cursor delivery verification inspects freshly generated assets and fails if they differ from the reconciled assets users receive.
+- [ ] Cursor delivery verification inspects the union of freshly generated and reconciled asset paths and fails on missing, extra, or differing content; any normalization preserves planning references.
 - [ ] A bad planning reference seeded upstream of Cursor generation fails even when the reconciled copy is still clean.
-- [ ] Shipped OpenCode inventory contains no data-architecture guide reference and matches its expected asset set, without reading ticket prose.
+- [ ] Shipped OpenCode inventory contains no data-architecture guide reference and matches the generator-declared asset set, without reading ticket prose.
 - [ ] Product tests no longer depend on exact prose in a completed ticket.
 - [ ] Existing guide-copy, missing-target, cross-surface, lifecycle, and release checks remain green.
 
@@ -33,6 +33,8 @@ last_modified: 2026-09-23T02:08:53.000Z
 
 - [ ] RED: a bad reference seeded upstream of generation and present only in generated Cursor output escapes the current two-file fixture.
 - [ ] GREEN: the same mutation fails when delivery verification consumes the real Cursor asset set.
+- [ ] GREEN: a reconciled-only stale Cursor asset fails delivery verification.
+- [ ] GREEN: product-test boundary does not read completed-ticket files.
 - [ ] REFACTOR: Cursor and OpenCode verification share shipped-artifact helpers without introducing another inventory.
 
 ## Work Log
