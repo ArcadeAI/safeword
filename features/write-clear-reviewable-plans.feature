@@ -58,6 +58,12 @@ Feature: Make Safeword plans clear and reviewable
       When the plan is created and reviewed through the CLI contract
       Then its ticket and spec have matching v2 markers and every required product field is authored in that plan
 
+    @rejection
+    Scenario: Matching v2 markers cannot hide a missing product field
+      Given a Product Plan instance has matching v2 markers but lacks Launch communication
+      When Safeword validates that instance under the v2 Product Plan contract
+      Then review fails with the missing field named while its Product Plan class and v2 identity remain unchanged
+
     Scenario: A fresh child keeps parent-owned fields by reference
       Given Safeword is authoring a fresh child contribution under an accepted v2 parent
       When the child is created and reviewed through the CLI contract
@@ -133,10 +139,10 @@ Feature: Make Safeword plans clear and reviewable
         | an unknown marker version |
 
     @rejection
-    Scenario: A complete child cannot bypass an invalid parent
-      Given a child has complete v2 markers but its referenced parent is contract-invalid
+    Scenario: A child cannot inherit from a schema-incomplete parent
+      Given an implementing child has complete v2 markers and a receipt but its referenced v2 parent lacks Launch communication
       When Safeword resolves the child for review
-      Then the child is blocked by the parent result until the parent is repaired
+      Then it returns invalid-parent-contract without continuation and names completing the parent before child reconciliation
 
     @rejection
     Scenario Outline: A v1 child cannot newly enter planning under a v2 parent

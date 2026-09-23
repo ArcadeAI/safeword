@@ -56,6 +56,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Matching v2 markers cannot hide a missing product field
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A fresh child keeps parent-owned fields by reference
 
 - [ ] RED
@@ -116,7 +122,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A complete child cannot bypass an invalid parent
+### Scenario: A child cannot inherit from a schema-incomplete parent
 
 - [ ] RED
 - [ ] GREEN

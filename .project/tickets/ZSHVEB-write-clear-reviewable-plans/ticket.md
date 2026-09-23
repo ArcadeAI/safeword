@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T04:19:00.000Z Independent scenario review `708e245e-7468-4901-ab8e-74db03a28d1d` found that marker-complete v2 instances could pass despite missing required fields and serve as valid parents. Added an instance rejection and specialized the existing invalid-parent case to block that inheritance even with a receipt; updated the ledger. Fresh exact-content review remains required.
+
 - 2026-09-23T04:14:00.000Z Independent scenario review `56b69e40-8fed-4a76-9773-e3b08798e5b3` found that partial/ambiguous pair classification and never-continuable parent failure lacked acceptance proof. Added classification outcomes and a receipt-with-missing-parent rejection with matching ledger entries. Fresh exact-content review remains required.
 
 - 2026-09-23T04:07:00.000Z Independent scenario review `aaeda981-1529-45cf-a666-fa8c26a92769` found that incomplete history could still mint a receipt. Made the no-receipt and typed-result outcome explicit. Applied the writing guide to nearby ambiguous preconditions and result names, added a complete-guide acceptance counterpart, and covered the release-before-declaration case; updated the ledger. Fresh exact-content review remains required.
