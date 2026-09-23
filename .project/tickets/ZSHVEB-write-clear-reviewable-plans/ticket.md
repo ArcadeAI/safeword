@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T03:06:12.000Z Independent scenario review `18b19493-25db-4c5c-9dc8-ee2f600c53dc` found the missing-guide/package-digest failure path unbound. Added both R4 dispatch rejections with the typed reconciliation result; removed an R5 byte-identity assertion already owned by R1 and made the R4 project-data outcome describe the prepared request. Fresh exact-content review remains required.
+
 - 2026-09-23T02:59:49.000Z Independent scenario review `c53a095a-9147-43c7-8b21-d8a7e46a7f53` found one accepted-rule false pass: spec-v1/ticket-absent marker repair lacked the opposite history-window case. Added the outside-window migration scenario and matching ledger entry; the revised source needs fresh independent review.
 
 - 2026-09-23T02:53:44.000Z Independent scenario review `60ff33a2-dedc-424e-8ddb-854a74b99936` found two false passes in the revised source: parent migration versus bound-meaning change was not discriminated, and an empty recovery inventory could satisfy the success assertion. Revised R2 and R4 scenarios and ledger; clarified three R6 negative transcripts under the writing guide. Fresh exact-content review is required.

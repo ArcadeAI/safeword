@@ -198,6 +198,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A missing installed guide stops Markdown authoring
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A mismatched package guide digest stops Markdown authoring
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A stale installed guide stops dispatch
 
 - [ ] RED

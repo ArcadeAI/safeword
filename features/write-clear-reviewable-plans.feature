@@ -198,7 +198,7 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: Project plans and tickets remain data rather than workflow instructions
       Given tracked ticket, spec, and plan files are declared project-instance data
       When Safeword prepares a model request that reads those files
-      Then they carry no workflow role or load directive and contribute only reviewable data
+      Then the prepared request carries those files as reviewable data without an authoring role or load directive
 
     @rejection
     Scenario: An instruction role on project-instance data fails before dispatch
@@ -233,6 +233,18 @@ Feature: Make Safeword plans clear and reviewable
       Given a registered authoring request derives no targets from its typed request
       When Safeword prepares that model request
       Then it refuses dispatch with writing-target-set-invalid and names correcting the registered request mapping
+
+    @rejection
+    Scenario: A missing installed guide stops Markdown authoring
+      Given a registered authoring request declares a Markdown target but the installed writing guide is absent
+      When Safeword prepares the model request
+      Then it refuses dispatch with writing-guide-reconciliation-required and names reconciling from the shipped package
+
+    @rejection
+    Scenario: A mismatched package guide digest stops Markdown authoring
+      Given the shipped package's recorded guide digest differs from its canonical guide bytes
+      When Safeword prepares a Markdown authoring request
+      Then it refuses dispatch with writing-guide-reconciliation-required and names reconciling from the shipped package
 
     @rejection
     Scenario: A stale installed guide stops dispatch
@@ -286,7 +298,7 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: A general writing guide works without a project-specific service
       Given the guide states portable writing advice with suitable primary sources
       When Safeword installs and reviews it without external tracker configuration
-      Then installation and review pass with byte-identical guide content, no project-owned document read, and no outbound citation request
+      Then installation and review pass without reading a project-owned document or making an outbound citation request
 
     @rejection
     Scenario: Project-specific writing guidance is rejected
