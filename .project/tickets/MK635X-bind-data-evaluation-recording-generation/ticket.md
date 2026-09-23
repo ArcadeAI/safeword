@@ -23,18 +23,18 @@ last_modified: 2026-09-23T02:08:53.000Z
 
 **Done When:**
 
-- [ ] Both evidence files carry the same UUIDv4 per-run identity minted from platform cryptographic randomness when recording begins; that identity is not derived solely from guide, case, rubric, prompt, or configuration bindings.
+- [ ] Both evidence files carry the same UUIDv4 per-run identity minted from platform cryptographic randomness when recording begins; two consecutive runs in one process receive distinct identities, independent of guide, case, rubric, prompt, or configuration bindings.
 - [ ] Verification rejects different-generation pairs even when every guide, case, rubric, prompt, and configuration binding matches, and fails closed when either identity is absent, empty, or malformed. Diagnostics name the affected file and defect class.
-- [ ] A failed or interrupted publish leaves either the previous complete pair or the new complete pair verifiable; the accepted pair changes at one atomic publication point, not through sequential replacement of the two live files. The implementation names the supported filesystems, atomic primitive, and tested failure envelope.
+- [ ] A failed or interrupted publish leaves either the previous complete pair or the new complete pair verifiable; the accepted pair changes at one atomic publication point, not through sequential replacement of the two live files. The implementation documents its ordered stage/commit steps, supported filesystems, atomic primitive, and which interruption classes are covered by tests.
 - [ ] Deterministic verification remains offline and dependency-free; existing evidence consumers and release checks continue to resolve one accepted pair after any layout or indirection change, including when a read overlaps publication.
 
 **Tests:**
 
 - [ ] RED: a changed full response paired with the existing ablation record is accepted when all inputs remain unchanged.
-- [ ] GREEN: mixed-generation evidence fails with a focused diagnostic.
+- [ ] GREEN: two consecutive real recordings in one process produce distinct identities; a mixed pair fails with a diagnostic naming the mismatched files and defect class.
 - [ ] GREEN: a staged full-guide record from interrupted run A paired with run B's ablation fails using identities carried from recording despite identical input bindings, even if publication happens in one atomic step.
-- [ ] GREEN: evidence missing identity from one file or both files, or carrying an empty or malformed identity, fails with a focused diagnostic.
-- [ ] GREEN: failures injected at every staging and commit boundary, including immediately before and after the atomic publication point, preserve a complete valid pair.
+- [ ] GREEN: evidence missing identity from one file or both files, or carrying an empty or malformed identity, fails with a diagnostic naming the affected file and defect class.
+- [ ] GREEN: an enumerated failure-injection matrix covers every boundary in the documented stage/commit sequence, including immediately before and after the atomic publication point, and preserves a complete valid pair.
 - [ ] GREEN: deterministic verification runs offline without an added dependency.
 - [ ] GREEN: the minting call uses platform cryptographic randomness, and existing evidence consumers and release checks resolve the accepted pair after publication.
 - [ ] GREEN: a reader overlapping the publication point resolves one complete pair, never a straddled pair.
