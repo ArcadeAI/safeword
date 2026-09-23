@@ -275,7 +275,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Each installed native terminal boundary fails open on an unreadable payload
 
 - [x] RED skip: positive characterization is historically green; a fail-closed native-hook mutant supplies the discriminating RED
-- [ ] GREEN
+- [x] GREEN 3b015e5bc
 - [ ] REFACTOR
 
 ### Scenario: Each installed native terminal boundary fails open when evaluation cannot complete
