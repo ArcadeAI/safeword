@@ -2781,14 +2781,14 @@ Given(
         name: 'safeword',
         source: 'git',
         url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-        ref: `v${EXPECTED_VERSION}`,
+        ref: OFFICIAL_MARKETPLACE_REF,
       },
     ];
     state.marketplaceDeclarations = (['project', 'user'] as const).map(scope => ({
       name: 'safeword',
       source: 'git',
       url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-      ref: `v${EXPECTED_VERSION}`,
+      ref: OFFICIAL_MARKETPLACE_REF,
       ...scoped(scope),
     }));
     state.plugins = (['project', 'user'] as const).map(scope => ({
@@ -2825,7 +2825,7 @@ Given(
         name: 'safeword',
         source: 'git',
         url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-        ref: `v${EXPECTED_VERSION}`,
+        ref: OFFICIAL_MARKETPLACE_REF,
       },
     ];
     state.marketplaceDeclarations = [
@@ -2833,7 +2833,7 @@ Given(
         name: 'safeword',
         source: 'git',
         url: OFFICIAL_MARKETPLACE_SOURCE.split('#')[0],
-        ref: `v${EXPECTED_VERSION}`,
+        ref: OFFICIAL_MARKETPLACE_REF,
         scope: 'user',
       },
     ];
