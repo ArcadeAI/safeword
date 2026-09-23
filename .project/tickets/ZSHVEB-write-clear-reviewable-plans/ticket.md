@@ -10,7 +10,7 @@ scope:
   - add one shared technical-writing guide for Safeword workflows that author or review technical documents
   - make Product and Implementation Planning use one shared decision-conversation contract that synthesizes before asking, groups related choices into bounded checkpoints, asks once per complete set, and records every accepted, rejected, or unresolved decision in the owning plan
   - make the canonical Product Plan and Implementation Plan templates and author-review contracts satisfy the portable Arcade-derived requirements enumerated completely in this ticket's spec.md Rules R2 and R3
-  - define the Product Plan v2 contract and its backward-compatible state model at the Safeword CLI boundary: complete v1 remains valid, fresh plans emit v2, every partial or mixed state has one explicit result, and accepted work already in implementation may continue only under an exact receipt until it returns to planning; YCFFNC owns applying that contract to repository history in M2
+  - define the Product Plan v2 contract and its backward-compatible state model at the Safeword CLI boundary: complete v1 remains valid, fresh plans emit v2, every partial or mixed state has one explicit result, and M1's first-encounter migrator preserves accepted in-flight work under an exact receipt; YCFFNC owns later historical inventory and authorized content repair in M2
   - make every Safeword workflow that authors or semantically reviews a Markdown technical artifact load the shared guide, and keep the guide out of workflows that only execute code or tests or parse observable structure
   - route known model-bound workflow context through one audited prepared-context constructor and exhaustive typed transport registry so every statically discoverable production dispatch receives the exact installed writing-guide context or fails classification
   - define the exact M2 delivery and adoption acceptance contract consumed by YCFFNC without implementing installed-host delivery or existing-ticket migration in this M1 child
@@ -19,14 +19,14 @@ out_of_scope:
   - turning the guide into a standalone callable skill
   - adding a separate plan-writing extension
   - changing the Execution Plan artifact template or phase contract beyond making the active Execution Planning author/review workflow load the shared technical-writing guide
-  - installed-host delivery beyond the Safeword CLI contract demo, repository-wide migration or repair of existing tickets, and the 5F5ZZA compression adoption proof; YCFFNC owns those M2 obligations under its accepted delivery and migration scope
+  - installed-host delivery beyond the Safeword CLI contract demo, one-time historical inventory or content repair of existing tickets, and the 5F5ZZA compression adoption proof; YCFFNC owns those M2 obligations under its accepted delivery and migration scope
   - copying project history, Arcade-specific process, or project-specific implementation details into reusable guidance
   - making Safeword depend on Linear or any Arcade-owned document at runtime
   - copying shared writing rules into plan templates or contracts instead of loading the authoritative guide
   - rewriting accepted Product Plan v1 content or review stamps, or migrating complete v1 markers to v2 without owner authorization; the contract permits YCFFNC in M2 to add one missing matching v1 marker only for a provenance-proven transition-era pair
 done_when:
   - Rule R1's canonical shared writing guide, structural contract tests, and source-aware semantic review all pass
-  - Rule R2's exact v1/v2 Product Plan schemas, total resolver, one-time compatibility migration, portability checks, and backward/forward/mixed-version fixtures all pass
+  - Rule R2's exact v1/v2 Product Plan schemas, total resolver, real-Git first-encounter receipt migration and failure proof, portability checks, and backward/forward/mixed-version fixtures all pass
   - Rule R3's canonical and adoption-mode Implementation Plan contracts, execution-boundary checks, portability checks, semantic review, and compatibility fixtures all pass
   - Rule R4's exhaustive Markdown-role manifest, guide directive polarity, prepared-context boundary, canonical guide/rubric binding, transport registry, integration tests, and duplication checks all pass
   - Rule R5's static and semantic portability checks pass without adding a project-owned runtime or citation subsystem
@@ -49,6 +49,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 **See:** [spec.md](./spec.md) for this child contribution and Rules; personas, job, milestone, and outcomes are inherited from [the parent Product Plan](../82T411-plan-implementation-implementability/spec.md).
 
 ## Work Log
+
+- 2026-09-23T05:16:19.000Z Independent Product Plan review `260b8f4e-9e6e-48ba-9a72-9e2a4277b909` found conflicting M1/M2 ownership for real-repository history discovery: M1 enforcement could ship without minting in-flight receipts. R2 and ticket scope now assign first-encounter consumer-repository migration and real-Git CLI proof to M1, while YCFFNC M2 retains historical adoption inventory and authorized ticket-content repair. Strengthened existing positive and missing-history scenarios without adding a duplicate case. Fresh exact-content intake review remains required.
 
 - 2026-09-23T05:06:12.000Z Independent Product Plan review `d2ec4cac-6cc3-417a-89be-2303cc00ca73` found that a valid parent plus dangling child job reference and invalid child markers had no ordered result; the marker result could wrongly admit continuation. R2 now makes reference failure win before own-state selection, and one scenario and ledger entry prove the non-continuable outcome. The review's other suggestions are non-blocking; a fresh exact-content review is required.
 

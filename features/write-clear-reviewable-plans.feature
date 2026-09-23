@@ -195,8 +195,8 @@ Feature: Make Safeword plans clear and reviewable
       Then the child continues under its receipt without claiming v2 approval
 
     Scenario: A valid implementing child gets a latent receipt before parent migration
-      Given an implementing v1 child and its parent are valid under v1 with qualifying evidence at the consumer-local cutoff
-      When Safeword first encounters the v2 planning contract before any parent migration
+      Given an isolated real Git repository has an implementing v1 child and parent valid under v1 with qualifying evidence at its default-branch cutoff
+      When the Safeword CLI first encounters the v2 planning contract before any parent migration
       Then ordinary v1 admission succeeds and a latent receipt binds the pre-migration parent digest and normalized projection
       And tracked ticket, spec, and plan bytes remain unchanged
 
@@ -208,9 +208,9 @@ Feature: Make Safeword plans clear and reviewable
 
     @rejection
     Scenario: Missing history cannot manufacture a continuation receipt
-      Given an implementing legacy feature needs a continuation receipt but its checkout lacks required history
-      When Safeword resolves its Product Plan contract
-      Then it mints no receipt, returns planning-history-unavailable, preserves existing evidence, and names a full-history checkout as recovery
+      Given an isolated real Git checkout has an implementing legacy feature that needs a receipt but lacks its complete default-branch history
+      When the Safeword CLI first encounters the v2 planning contract
+      Then it mints no partial receipt, returns planning-history-unavailable, preserves existing evidence, and names a full-history checkout as recovery
 
     @rejection
     Scenario: Branch-only phase history cannot mint a continuation receipt
@@ -219,9 +219,9 @@ Feature: Make Safeword plans clear and reviewable
       Then it mints no receipt and returns legacy-unversioned with owner-authorized v2 migration and current review as recovery
 
     Scenario: A branch-only accepted review can mint a continuation receipt
-      Given an implementing legacy Product Plan has an accepted content-addressed review receipt on the caller's branch matching its current plan bytes
-      When Safeword first encounters the v2 planning contract
-      Then it mints a receipt bound to that review id and artifact digest and allows in-flight continuation
+      Given an isolated real Git repository has an implementing legacy Product Plan with an accepted content-addressed review receipt on the caller's branch matching its current plan bytes
+      When the Safeword CLI first encounters the v2 planning contract
+      Then it mints a receipt bound to that review id, artifact digest, and consumer default-branch cutoff and allows in-flight continuation
 
     @rejection
     Scenario: Changed Product Plan bytes cannot mint a continuation receipt
