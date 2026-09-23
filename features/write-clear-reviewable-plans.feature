@@ -27,6 +27,12 @@ Feature: Make Safeword plans clear and reviewable
         | a seventh writing topic with its own examples |
 
     @rejection
+    Scenario: Markers hidden in a comment cannot complete a writing topic
+      Given a required writing topic's Weak, Strong, and Source markers appear only in an HTML comment
+      When Safeword checks the writing-guide contract
+      Then the guide is rejected with that topic named
+
+    @rejection
     Scenario: An unsupported citation fails guide review
       Given a writing topic cites a source that does not support its load-bearing claim
       When the guide receives source-aware semantic review
@@ -68,6 +74,12 @@ Feature: Make Safeword plans clear and reviewable
       Given a canonical Product Plan source omits a required field that another canonical source contains
       When Safeword checks the v2 Product Plan contract
       Then the contract fails with the deficient source and field named
+
+    @rejection
+    Scenario: A commented Product Plan field is not authored
+      Given a required field marker appears only in an HTML comment in one canonical Product Plan source
+      When Safeword checks the v2 Product Plan contract
+      Then the contract fails with that source and field named
 
     Scenario: Complete v1 plans remain valid without rewriting them
       Given a complete accepted v1 Product Plan has matching markers

@@ -24,6 +24,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Markers hidden in a comment cannot complete a writing topic
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An unsupported citation fails guide review
 
 - [ ] RED
@@ -57,6 +63,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Product Plan fields cannot be supplied by another canonical file
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A commented Product Plan field is not authored
 
 - [ ] RED
 - [ ] GREEN
