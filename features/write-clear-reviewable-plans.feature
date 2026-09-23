@@ -47,14 +47,20 @@ Feature: Make Safeword plans clear and reviewable
       Then it remains v1 with its accepted content and parent digest unchanged
 
     @rejection
-    Scenario Outline: Invalid Product Plan identity cannot pass review
+    Scenario: Only a proven transition-era pair permits a matching v1 marker repair
+      Given a spec-v1 Product Plan lacks its ticket marker and full history proves first coexistence in the pinned transition window
+      When Safeword resolves its contract version before review
+      Then it blocks with v1-ticket-marker-repair-required and names restoring only the matching v1 ticket marker
+
+    @rejection
+    Scenario Outline: Other invalid Product Plan identities require v2 migration
       Given a Product Plan has <marker_state>
       When Safeword resolves its contract version before review
-      Then review is blocked with one named repair or migration action
+      Then it blocks until the owner authorizes v2 migration and current-contract review
 
       Examples:
         | marker_state |
-        | only a ticket or spec marker |
+        | a ticket-only v1 marker |
         | conflicting ticket and spec versions |
         | an unknown marker version |
 
@@ -124,8 +130,47 @@ Feature: Make Safeword plans clear and reviewable
       When a new design choice returns it to Implementation Planning
       Then the preserved plan becomes a draft that needs current-contract review
 
+    Scenario: An existing synthetic plan passes the adoption-instance contract
+      Given an existing synthetic Implementation Plan has all thirteen decision fields and no execution fields
+      When Safeword checks it in adoption-instance mode
+      Then the plan satisfies the same required and forbidden field contract as a fresh plan
+
+    @rejection
+    Scenario: Adoption-instance mode rejects a missing design field
+      Given an existing synthetic Implementation Plan lacks a required decision field
+      When Safeword checks it in adoption-instance mode
+      Then it returns implementation-plan-contract-invalid with the missing field named
+
+    @rejection
+    Scenario: Adoption-instance mode rejects execution sequencing
+      Given an existing synthetic Implementation Plan has all required fields but adds Build order
+      When Safeword checks it in adoption-instance mode
+      Then it returns implementation-plan-contract-invalid with the execution field named
+
   @plan-implementability.TBU4.ZSHVEB.R4
   Rule: plan-implementability.TBU4.ZSHVEB.R4 — Markdown work receives the guide at the right boundary
+
+    @rejection
+    Scenario Outline: An unclassified or ambiguous Markdown path stops dispatch
+      Given a discovered Markdown path <classification_defect>
+      When Safeword classifies it before model dispatch
+      Then it returns writing-target-classification-invalid and names correcting the schema or manifest declaration
+
+      Examples:
+        | classification_defect |
+        | matches no declared path class |
+        | matches two declared path classes |
+
+    Scenario: Project plans and tickets remain data rather than workflow instructions
+      Given tracked ticket, spec, and plan files are declared project-instance data
+      When Safeword prepares a model request that reads those files
+      Then they carry no workflow role or load directive and contribute only reviewable data
+
+    @rejection
+    Scenario: An instruction role on project-instance data fails before dispatch
+      Given a tracked ticket is project-instance data but a request assigns it an authoring instruction role
+      When Safeword prepares the model request
+      Then it returns writing-context-polarity-invalid and names rebuilding through the registered role
 
     @surface.safeword-cli
     Scenario Outline: Model work binds the guide only for Markdown targets

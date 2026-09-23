@@ -44,7 +44,13 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Invalid Product Plan identity cannot pass review
+### Scenario: Only a proven transition-era pair permits a matching v1 marker repair
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Other invalid Product Plan identities require v2 migration
 
 - [ ] RED
 - [ ] GREEN
@@ -112,7 +118,43 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An existing synthetic plan passes the adoption-instance contract
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Adoption-instance mode rejects a missing design field
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Adoption-instance mode rejects execution sequencing
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementability.TBU4.ZSHVEB.R4 — Markdown work receives the guide at the right boundary
+
+### Scenario: An unclassified or ambiguous Markdown path stops dispatch
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Project plans and tickets remain data rather than workflow instructions
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An instruction role on project-instance data fails before dispatch
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Model work binds the guide only for Markdown targets
 
