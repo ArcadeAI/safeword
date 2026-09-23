@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T05:06:12.000Z Independent Product Plan review `d2ec4cac-6cc3-417a-89be-2303cc00ca73` found that a valid parent plus dangling child job reference and invalid child markers had no ordered result; the marker result could wrongly admit continuation. R2 now makes reference failure win before own-state selection, and one scenario and ledger entry prove the non-continuable outcome. The review's other suggestions are non-blocking; a fresh exact-content review is required.
+
 - 2026-09-23T04:55:02.000Z Returned to Product Plan intake because scenario review exposed an undefined absent/stale generated-rubric result and recovery. R4 now names the exact review-rubric binding and two fail-closed results. Compressed duplicate lower-level scenario cases into named `dimensions.md` test placement, added representative rubric scenarios, and synced the R/G/R ledger. The prior scenario review no longer approves these changed inputs; rerun intake and scenario review before advancing.
 
 - 2026-09-23T04:26:00.000Z Independent scenario review `5ca8cfe8-2726-4fe5-b4e4-c362f7d87f92` found that a format-only parent digest validator could admit a v2 child bound to stale parent content. Added a digest-equality rejection with matching ledger entry. Fresh exact-content review remains required.

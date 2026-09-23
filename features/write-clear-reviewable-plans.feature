@@ -172,6 +172,12 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword resolves the child for review
       Then it returns child-parent-reference-invalid and names reconciling the spec reference to frontmatter
 
+    @rejection
+    Scenario: A dangling parent job cannot be hidden by invalid child markers
+      Given an implementing child has invalid version markers and a receipt but its Parent job no longer resolves under a schema-valid parent
+      When Safeword resolves the child for continued work
+      Then it returns only child-parent-reference-invalid without continuation and names correcting the child reference or restoring the accepted parent job
+
     Scenario: A v2 child names absent v1 concepts
       Given a complete v1 parent lacks a persona outcome inventory and launch communication
       When Safeword reviews a v2 child against that parent

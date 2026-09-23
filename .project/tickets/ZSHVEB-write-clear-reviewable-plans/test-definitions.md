@@ -152,6 +152,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A dangling parent job cannot be hidden by invalid child markers
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A v2 child names absent v1 concepts
 
 - [ ] RED
