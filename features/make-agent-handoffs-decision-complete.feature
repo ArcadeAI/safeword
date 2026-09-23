@@ -382,15 +382,18 @@ Feature: Decision-complete terminal handoffs
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Each installed native terminal boundary leaves short conversation alone
-      Given the installed Safeword configuration for <host> and a short conversational reply in its native Stop payload
+      Given the installed Safeword configuration for <host> and the short conversational reply "<reply>" in its native Stop payload
       When the registered Stop hook command is invoked
       Then the process exits successfully with no terminal-handoff correction
 
       Examples:
-        | host |
-        | Claude Code |
-        | OpenAI Codex |
-        | Cursor |
+        | host         | reply               |
+        | Claude Code  | Happy to help.      |
+        | Claude Code  | You're welcome.     |
+        | OpenAI Codex | Happy to help.      |
+        | OpenAI Codex | You're welcome.     |
+        | Cursor       | Happy to help.      |
+        | Cursor       | You're welcome.     |
 
   @make-agent-handoffs-decision-complete.SWM1.R4 @surface.safeword-cli
   Rule: make-agent-handoffs-decision-complete.SWM1.R4 — Every delivered copy stays aligned

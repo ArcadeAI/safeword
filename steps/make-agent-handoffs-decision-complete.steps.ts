@@ -9,6 +9,8 @@ import { Given, Then, When } from '@cucumber/cucumber';
 import * as quality from '../packages/cli/templates/hooks/lib/quality.js';
 import { evaluateDecisionBriefCompliance } from '../packages/cli/templates/hooks/lib/quality.js';
 import { runParity, type ParityResult } from '../packages/cli/src/parity.js';
+import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
+import { CURSOR_HOOKS, SETTINGS_HOOKS } from '../packages/cli/src/templates/config.js';
 import type { SafewordWorld } from './world.js';
 
 interface HandoffState {
@@ -30,6 +32,11 @@ interface HandoffState {
   parityResult?: ParityResult;
   parityRoot?: string;
   parityTarget?: string;
+  parityContractPath?: string;
+  parityFailureKind?: 'missing' | 'role' | 'version';
+  parityGateChecked?: boolean;
+  parityStatus?: number | null;
+  parityStderr?: string;
   evaluation?: ReturnType<typeof evaluateDecisionBriefCompliance> & {
     contractVersion?: string;
     form?: string;
@@ -206,8 +213,17 @@ const parityCopyPath: Record<string, string> = {
   'canonical template': 'packages/cli/templates/hooks/lib/quality.ts',
   'generated Claude plugin': 'plugin/runtime/hooks/lib/quality.ts',
   'generated Codex plugin': 'packages/cli/codex-plugin/templates/hooks/lib/quality.ts',
-  'Cursor delivery': '.safeword/hooks/lib/quality.ts',
+  'Cursor delivery': 'cursor/.safeword/hooks/lib/quality.ts',
   'customer installed': 'customer/.safeword/hooks/lib/quality.ts',
+  'dogfood installed': 'dogfood/.safeword/hooks/lib/quality.ts',
+};
+
+const parityContractPath: Record<string, string> = {
+  'canonical template': 'packages/cli/templates/hooks/lib/quality.ts',
+  'generated Claude plugin': 'plugin/runtime/hooks/lib/quality.ts',
+  'generated Codex plugin': 'packages/cli/codex-plugin/templates/hooks/lib/quality.ts',
+  'Cursor delivery': '.safeword/hooks/lib/quality.ts',
+  'customer installed': '.safeword/hooks/lib/quality.ts',
   'dogfood installed': '.safeword/hooks/lib/quality.ts',
 };
 
@@ -218,7 +234,9 @@ function prepareParityFailure(
 ) {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-handoff-parity-'));
   const target = parityCopyPath[label];
+  const contractPath = parityContractPath[label];
   assert.ok(target, `unknown parity copy ${label}`);
+  assert.ok(contractPath, `unknown parity contract ${label}`);
   const targetPath = nodePath.join(root, target);
   if (kind !== 'missing') {
     mkdirSync(nodePath.dirname(targetPath), { recursive: true });
@@ -234,6 +252,8 @@ function prepareParityFailure(
   const state = stateFor(world);
   state.parityRoot = root;
   state.parityTarget = target;
+  state.parityContractPath = contractPath;
+  state.parityFailureKind = kind;
   state.parityResult = runParity({
     rootDirectory: root,
     templatesDirectory: templates,
@@ -256,22 +276,68 @@ function prepareParityFailure(
   });
 }
 
-function nativeHookPath(host: string, project: string): string {
-  const hooks = nodePath.join(project, '.safeword/hooks');
-  if (host === 'Claude Code') return nodePath.join(hooks, 'stop-quality.ts');
-  if (host === 'OpenAI Codex') return nodePath.join(hooks, 'codex/stop.ts');
-  return nodePath.join(hooks, 'cursor/stop.ts');
+function registeredStopCommand(host: string, project: string): string {
+  if (host === 'Claude Code') {
+    const settings = JSON.parse(
+      readFileSync(nodePath.join(project, '.claude/settings.json'), 'utf8'),
+    );
+    const commands = settings.hooks.Stop.flatMap((entry: { hooks: Array<{ command: string }> }) =>
+      entry.hooks.map(hook => hook.command),
+    );
+    const command = commands.find((candidate: string) => candidate.includes('/stop-quality.ts'));
+    assert.ok(command, 'installed Claude Code Stop registration is missing stop-quality.ts');
+    return command;
+  }
+  if (host === 'Cursor') {
+    const settings = JSON.parse(readFileSync(nodePath.join(project, '.cursor/hooks.json'), 'utf8'));
+    const command = settings.hooks.stop.find((entry: { command: string }) =>
+      entry.command.includes('/cursor/stop.ts'),
+    )?.command;
+    assert.ok(command, 'installed Cursor Stop registration is missing cursor/stop.ts');
+    return command;
+  }
+  const manifest = JSON.parse(
+    readFileSync(nodePath.join(project, '.safeword/codex-plugin/hooks.json'), 'utf8'),
+  );
+  const commands = manifest.hooks.Stop.flatMap((entry: { hooks: Array<{ command: string }> }) =>
+    entry.hooks.map(hook => hook.command),
+  );
+  const command = commands.find((candidate: string) => candidate.includes('hook codex stop'));
+  assert.ok(command, 'installed Codex Stop registration is missing the packaged stop adapter');
+  return command;
 }
 
 function prepareNativeStop(world: SafewordWorld, host: string, reply: string): void {
   const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-handoff-'));
   mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(project, '.safeword/config.json'), '{}\n');
+  cpSync(
+    nodePath.join(process.cwd(), 'packages/cli/templates/SAFEWORD.md'),
+    nodePath.join(project, '.safeword/SAFEWORD.md'),
+  );
+  if (host === 'OpenAI Codex') {
+    cpSync(
+      nodePath.join(process.cwd(), 'packages/cli/codex-plugin'),
+      nodePath.join(project, '.safeword/codex-plugin'),
+      { recursive: true },
+    );
+  }
   cpSync(
     nodePath.join(process.cwd(), 'packages/cli/templates/hooks'),
     nodePath.join(project, '.safeword/hooks'),
     {
       recursive: true,
     },
+  );
+  mkdirSync(nodePath.join(project, '.claude'), { recursive: true });
+  writeFileSync(
+    nodePath.join(project, '.claude/settings.json'),
+    JSON.stringify({ hooks: SETTINGS_HOOKS }),
+  );
+  mkdirSync(nodePath.join(project, '.cursor'), { recursive: true });
+  writeFileSync(
+    nodePath.join(project, '.cursor/hooks.json'),
+    JSON.stringify({ version: 1, hooks: CURSOR_HOOKS }),
   );
   const transcriptPath = nodePath.join(project, 'transcript.jsonl');
   writeFileSync(
@@ -315,9 +381,14 @@ function setNativeReply(state: HandoffState, reply: string): void {
 
 function invokeNativeStop(state: HandoffState, payload = state.nativePayload): string {
   assert.ok(state.nativeHost && state.nativeProject && payload !== undefined);
-  const result = spawnSync('bun', [nativeHookPath(state.nativeHost, state.nativeProject)], {
+  const command = registeredStopCommand(state.nativeHost, state.nativeProject);
+  const result = spawnSync('/bin/sh', ['-c', command], {
     cwd: state.nativeProject,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: state.nativeProject },
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: state.nativeProject,
+      PLUGIN_ROOT: nodePath.join(state.nativeProject, '.safeword/codex-plugin'),
+    },
     input: typeof payload === 'string' ? payload : JSON.stringify(payload),
     encoding: 'utf8',
     timeout: 20_000,
@@ -707,9 +778,9 @@ Given(
 );
 
 Given(
-  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and a short conversational reply in its native Stop payload$/,
-  function (this: SafewordWorld, host: string) {
-    prepareNativeStop(this, host, corpusReply('short conversational reply'));
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and the short conversational reply "(.+)" in its native Stop payload$/,
+  function (this: SafewordWorld, host: string, reply: string) {
+    prepareNativeStop(this, host, reply);
   },
 );
 
@@ -742,9 +813,12 @@ Given(
   /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and a terminal-handoff evaluation that fails to complete$/,
   function (this: SafewordWorld, host: string) {
     prepareNativeStop(this, host, incompleteCorpusReply('observed decision omission'));
+    const state = stateFor(this);
     const qualityPath = nodePath.join(
-      stateFor(this).nativeProject ?? '',
-      '.safeword/hooks/lib/quality.ts',
+      state.nativeProject ?? '',
+      host === 'OpenAI Codex'
+        ? '.safeword/codex-plugin/templates/hooks/lib/quality.ts'
+        : '.safeword/hooks/lib/quality.ts',
     );
     const source = readFileSync(qualityPath, 'utf8');
     const needle = `): DecisionBriefCompliance {\n  const scan = scanTopLevelParagraphs(reply);`;
@@ -806,13 +880,22 @@ When(
   /^the release gate runs "bun scripts\/parity-check\.ts --mode=all"(?: against the fixed transcript corpus)?$/u,
   function (this: SafewordWorld) {
     const state = stateFor(this);
-    if (state.parityResult) return;
+    if (state.parityResult) {
+      assert.ok(
+        SAFEWORD_SCHEMA.contracts[state.parityContractPath ?? ''],
+        `production schema omitted ${state.parityContractPath}`,
+      );
+      state.parityGateChecked = true;
+      return;
+    }
     const result = spawnSync('bun', ['scripts/parity-check.ts', '--mode=all'], {
       cwd: process.cwd(),
       encoding: 'utf8',
     });
-    assert.equal(result.status, 0, result.stderr);
+    state.parityStatus = result.status;
+    state.parityStderr = result.stderr;
     state.nativeOutput = result.stdout;
+    state.parityGateChecked = true;
   },
 );
 
@@ -1107,7 +1190,9 @@ Then('the held-out reply is rejected as not concrete', function (this: SafewordW
 Then(
   'every copy exposes the canonical version and exactly the canonical five-role set in any order for each of Next and Need',
   function (this: SafewordWorld) {
-    assert.match(stateFor(this).nativeOutput ?? '', /contracts in sync/u);
+    const state = stateFor(this);
+    assert.equal(state.parityStatus, 0, state.parityStderr);
+    assert.match(state.nativeOutput ?? '', /contracts in sync/u);
     const canonical = readFileSync(deliveredQualityCopies[0], 'utf8');
     for (const copy of deliveredQualityCopies.slice(1)) {
       assert.equal(
@@ -1123,6 +1208,7 @@ Then(
   "every copy produces the corpus's recorded verdict and recorded missing-role set for every reply",
   function (this: SafewordWorld) {
     const state = stateFor(this);
+    assert.equal(state.parityStatus, 0, state.parityStderr);
     assert.match(state.nativeOutput ?? '', /contracts in sync/u);
     for (const { reply, expected } of state.corpus ?? []) {
       const actual = evaluateDecisionBriefCompliance(reply);
@@ -1135,14 +1221,16 @@ Then(
 
 Then(
   /^parity fails and names the (.+) copy and its (version drift|missing decision role)$/u,
-  function (this: SafewordWorld, _copy: string, _failure: string) {
+  function (this: SafewordWorld, _copy: string, failureKind: string) {
     const state = stateFor(this);
-    assert.ok((state.parityResult?.failures.length ?? 0) > 0);
-    assert.ok(
-      state.parityResult?.failures.some(failure =>
-        failure.message.includes(state.parityTarget ?? ''),
-      ),
+    assert.equal(state.parityGateChecked, true);
+    const failure = state.parityResult?.failures.find(candidate =>
+      candidate.message.includes(state.parityTarget ?? ''),
     );
+    assert.ok(failure, `parity did not name ${state.parityTarget}`);
+    const expectedDetail =
+      failureKind === 'version drift' ? 'terminal-handoff/v1' : 'material tradeoff or consequences';
+    assert.ok(failure.message.includes(expectedDetail), `parity did not name ${expectedDetail}`);
     if (state.parityRoot) rmSync(state.parityRoot, { recursive: true, force: true });
   },
 );
@@ -1151,11 +1239,12 @@ Then(
   'parity fails and names the missing generated Codex plugin copy',
   function (this: SafewordWorld) {
     const state = stateFor(this);
-    assert.ok(
-      state.parityResult?.failures.some(failure =>
-        failure.message.includes(state.parityTarget ?? ''),
-      ),
+    assert.equal(state.parityGateChecked, true);
+    const failure = state.parityResult?.failures.find(candidate =>
+      candidate.message.includes(state.parityTarget ?? ''),
     );
+    assert.ok(failure, `parity did not name ${state.parityTarget}`);
+    assert.ok(failure.message.includes('Target file missing'));
     if (state.parityRoot) rmSync(state.parityRoot, { recursive: true, force: true });
   },
 );
@@ -1220,9 +1309,20 @@ Then(
     const output = state.nativeOutput
       ? (JSON.parse(state.nativeOutput) as Record<string, unknown>)
       : {};
-    assert.equal(output.decision, undefined);
-    assert.equal(output.followup_message, undefined);
-    cleanNativeStop(state);
+    try {
+      assert.equal(
+        output.decision,
+        undefined,
+        `unexpected terminal-handoff correction: ${state.nativeOutput ?? '<empty>'}`,
+      );
+      assert.equal(
+        output.followup_message,
+        undefined,
+        `unexpected terminal-handoff correction: ${state.nativeOutput ?? '<empty>'}`,
+      );
+    } finally {
+      cleanNativeStop(state);
+    }
   },
 );
 
