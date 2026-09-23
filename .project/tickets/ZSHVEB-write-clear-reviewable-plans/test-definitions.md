@@ -104,6 +104,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A v1 child cannot newly enter planning under a v2 parent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A new child cannot proceed under an unversioned parent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A missing frontmatter parent blocks child review
 
 - [ ] RED
@@ -171,6 +183,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Planning cannot mint a receipt before activation is declared
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Invalid activation history blocks release
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A stale transition-history pin blocks release
 
 - [ ] RED
 - [ ] GREEN

@@ -117,6 +117,23 @@ Feature: Make Safeword plans clear and reviewable
       Then the child is blocked by the parent result until the parent is repaired
 
     @rejection
+    Scenario Outline: A v1 child cannot newly enter planning under a v2 parent
+      Given a <child_state> v1 child references a valid v2 parent without an active continuation receipt
+      When Safeword resolves the child for review
+      Then it returns child-version-migration-required and names owner-authorized v2 child migration and current-contract review
+
+      Examples:
+        | child_state |
+        | fresh |
+        | returned |
+
+    @rejection
+    Scenario: A new child cannot proceed under an unversioned parent
+      Given a new child references a legacy-unversioned parent
+      When Safeword resolves the child for review
+      Then it returns legacy-parent-blocked and names migrating the parent to v2 before child reconciliation
+
+    @rejection
     Scenario: A missing frontmatter parent blocks child review
       Given a child's ticket frontmatter names a parent with no tracked ticket directory
       When Safeword resolves the child for review
@@ -184,6 +201,23 @@ Feature: Make Safeword plans clear and reviewable
       Given a checkout lacks the planning-contract activation manifest declaration
       When Safeword evaluates a new Product Planning gate
       Then it returns planning-contract-activation-unavailable without minting a receipt and names checking out the declaration commit or a descendant
+
+    @rejection
+    Scenario Outline: Invalid activation history blocks release
+      Given a release candidate has <activation_defect>
+      When Safeword checks planning-contract activation history
+      Then release is blocked with the invalid activation identity named
+
+      Examples:
+        | activation_defect |
+        | a declaration SHA different from the computed activation commit |
+        | an activation commit whose first parent already contains the new planning gates |
+
+    @rejection
+    Scenario: A stale transition-history pin blocks release
+      Given a pinned Product Plan transition commit does not add its expected artifact relative to its first parent
+      When Safeword checks the pinned transition history for release
+      Then release is blocked until the pin is corrected and independently re-reviewed
 
     @rejection
     Scenario: Returning to planning ends legacy continuation

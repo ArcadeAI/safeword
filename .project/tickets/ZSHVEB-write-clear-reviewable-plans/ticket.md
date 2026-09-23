@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-23T04:00:00.000Z Independent scenario review `c3e6edde-1395-4842-bced-caee138bd306` found that fresh/returned children could bypass version-pair blocking and release could ignore activation or pinned-history proof. Added child-state and release-check rejections with matching ledger entries. Fresh exact-content review remains required.
+
 - 2026-09-23T03:54:00.000Z Independent scenario review `8fa6bb23-47d6-4314-947e-3da395b57ff9` found that a raw substring scan could count inert guide examples or Product Plan fields as active. Added one HTML-comment rejection in R1 and one in R2, with matching ledger entries. Fresh exact-content review remains required.
 
 - 2026-09-23T03:48:00.000Z Independent scenario review `98ce625d-87fa-4b6c-8c1c-e5e323320757` found that Markdown project-instance targets could miss the guide and child resolution could ignore authoritative frontmatter parent identity. Added the project-data guide-binding case and two parent-reference rejections with matching ledger entries. Fresh exact-content review remains required.
