@@ -17,7 +17,8 @@ Build in four slices:
 
 1. **Ready command and evidence gate.** Add a pure hook-lib classifier for the
    named `gh pr ready` and ready-by-default `gh pr create` argv shapes, including
-   shell segments, execution prefixes, `--undo`, and Draft flags. Extend quality
+   the documented `gh pr new` alias, repository flags before or between
+   subcommands, shell segments, execution prefixes, `--undo`, and Draft flags. Extend quality
    state with a recent completed-ticket ID when a ticket closes, retained after
    `activeTicket` auto-clears and also used as the pending receipt-finalization
    identity. After the

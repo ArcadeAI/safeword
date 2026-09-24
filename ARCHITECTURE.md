@@ -1059,7 +1059,8 @@ extension to [Deterministic Readiness Evidence Status](#deterministic-readiness-
 **Ticket:** `PY73VN`
 
 - **What:** Before a supported local agent runs `gh pr ready` or a
-  ready-by-default `gh pr create`, its blockable shell boundary revalidates the
+  ready-by-default `gh pr create` (including its documented `gh pr new` alias),
+  its blockable shell boundary revalidates the
   resolved ticket and verification artifact. A successful verified closure
   writes one ignored, worktree-local `readiness-ticket.json` receipt bound to the
   full current HEAD. Active ticket state takes precedence over recent completed
