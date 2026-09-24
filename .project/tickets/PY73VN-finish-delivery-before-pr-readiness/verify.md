@@ -1,13 +1,14 @@
 # Verify: Finish accepted changes before asking for PR review (PY73VN)
 
-Verified: 2026-09-24T15:04:33Z
+Verified: 2026-09-24T20:30:29Z
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 10413/10413 runnable tests pass across CLI, retro collector,
-and retro relay (15 skipped). The complete CLI rerun passed 10062/10062 after
-one non-reproducing temporary Git index failure; the isolated affected test and
-BDD proof rerun passed 59/59.
+**Test Suite:** ✓ The final post-review-gap CLI rerun passed 10072/10072
+runnable tests across 588 files (14 skipped). The focused guard, delivery-gate,
+install, continuation-contract, and lifecycle-fixture run passed 134/134. The
+earlier generated whole-project plan also passed 10413/10413 runnable tests
+across CLI, retro collector, and retro relay (15 skipped).
 **Gherkin:** ✅ Acceptance lanes pass: the repository lane completed 1504
 scenarios (1501 passed, 3 skipped), 68954 steps (68950 passed, 4 skipped), and 2
 hooks; the package lane completed 596/596 scenarios and 11118/11118 steps. The
@@ -20,7 +21,9 @@ including Astro diagnostics with 0 errors, warnings, or hints.
 **Scenarios:** ✅ All 61/61 accepted scenario checklist rows are complete.
 **Refactor:** ✅ Completed — the implementation and follow-up hardening commits
 remove duplicate host logic, stale readiness state, and redundant quality-state
-branching while preserving one shared gate.
+branching while preserving one shared gate. The final refactor pass found no
+further structural change worth the regression risk; it made only the behavior
+and proof corrections identified by review.
 **PR Scope:** ✅ The diff matches the ticket: uninterrupted delivery guidance,
 exact-HEAD completion evidence, shared Ready-command enforcement, Claude/Codex/
 Cursor adapters, install/schema parity, public docs, and the ticket's proof corpus.
@@ -72,11 +75,18 @@ partitions; configured documentation sources (`README.md` and website docs) are
 updated consistently with `ARCHITECTURE.md`.
 
 Independent Claude review first found an unenrolled-project scope blocker and
-several same-mechanism edge cases. Those were fixed and regression-tested. Final
-re-review (`869d190a-fa24-4196-a4e3-a6ab14b60a21`) reported no error-severity
-findings and accepted the gate and real-process host wiring. Remaining comments
-were non-blocking documentation, syntax-edge, performance, and live-host proof
-opportunities outside the accepted stop condition.
+several same-mechanism edge cases. Those were fixed and regression-tested, and
+re-review `869d190a-fa24-4196-a4e3-a6ab14b60a21` reported no error-severity
+findings. A later current-docs quality pass
+`c6f61955-ca34-4647-b9aa-10a760d35a7b` exposed one missing negative assertion
+and additional first-class GitHub CLI spellings: repository flags before or
+inside `gh pr`, the documented `gh pr new` alias, and bundled short Draft flags.
+The final candidate closes those gaps, regenerates the lifecycle fixtures, and
+documents that shell-wrapper forms remain outside the command classifier. Its
+focused 134-test run, complete 10072-test CLI run, build, lint, typecheck,
+Gherkin lint, dependency architecture, configuration, and principle-trace audit
+all pass. Remaining review observations concern intentional fail-closed scope,
+receipt ordering, and wrapper support rather than a correctness blocker.
 
 ## Done-When Reconciliation
 
