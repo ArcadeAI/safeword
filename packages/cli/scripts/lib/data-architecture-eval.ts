@@ -674,19 +674,18 @@ function responseDiagnostics(input: AblationPairInput): string[] {
   const attributableFailure =
     input.attributableDecisionIds.some(id => !ablatedDecisionIds.has(id)) ||
     input.attributableProofFactIds.some(id => !ablatedProofFactIds.has(id));
+  const fullGuidePasses = responsePasses(input.fullGuideRecord.response, input.rubric);
+  const ablatedGuidePasses = responsePasses(input.ablatedGuideRecord.response, input.rubric);
   return [
     ...forbiddenDiagnostics,
-    ...(!responsePasses(input.fullGuideRecord.response, input.rubric) &&
-    forbiddenDiagnostics.length === 0
+    ...(!fullGuidePasses && forbiddenDiagnostics.length === 0
       ? ['Full-guide response does not satisfy the evaluation rubric.']
       : []),
-    ...(responsePasses(input.ablatedGuideRecord.response, input.rubric)
-      ? ['Ablated response still satisfies the evaluation rubric.']
-      : []),
+    ...(ablatedGuidePasses ? ['Ablated response still satisfies the evaluation rubric.'] : []),
     ...(preservedAttributableDecisionIds.length > 0 && !preservedAttributableFailure
       ? ['Ablated response retains every attributable decision label preserved by the transform.']
       : []),
-    ...(!responsePasses(input.ablatedGuideRecord.response, input.rubric) && !attributableFailure
+    ...(!ablatedGuidePasses && !attributableFailure
       ? ['Ablated response failure does not implicate an expected ID from the removed guidance.']
       : []),
   ];
