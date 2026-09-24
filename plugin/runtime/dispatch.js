@@ -7,7 +7,6 @@ import {
   readFileSync as readFileSync6,
   realpathSync as realpathSync3,
 } from 'node:fs';
-import { homedir as homedir2 } from 'node:os';
 import nodePath10 from 'node:path';
 
 // ../../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
@@ -5384,12 +5383,10 @@ function acceptedLegacyHookFile(value, projectRoot) {
   return Object.values(value).some(child => acceptedLegacyHookFile(child, projectRoot));
 }
 function viableLegacyAuthority(event, projectRoot) {
-  const userConfigDirectory =
-    process.env.CLAUDE_CONFIG_DIR ?? nodePath10.join(homedir2(), '.claude');
   const settingsPaths = /* @__PURE__ */ new Set([
     nodePath10.join(projectRoot, '.claude/settings.json'),
     nodePath10.join(projectRoot, '.claude/settings.local.json'),
-    nodePath10.join(userConfigDirectory, 'settings.json'),
+    nodePath10.join(claudeConfigDirectory(), 'settings.json'),
   ]);
   return [...settingsPaths].some(settingsPath => {
     const settings = parseSettings(settingsPath);
@@ -5564,26 +5561,67 @@ function runFunctionalCommand(arguments_, input, captureOutput = false) {
     stdout: captureOutput ? (result.stdout?.toString('utf8') ?? '') : '',
   };
 }
-var TOOL_EVENTS = /* @__PURE__ */ new Set([
-  'PermissionDenied',
-  'PermissionRequest',
-  'PostToolUse',
-  'PostToolUseFailure',
-  'PreToolUse',
-]);
+var MATCHER_SUBJECT_FIELD_BY_EVENT = {
+  ConfigChange: 'source',
+  CwdChanged: false,
+  DirectoryAdded: 'source',
+  Elicitation: 'mcp_server_name',
+  ElicitationResult: 'mcp_server_name',
+  FileChanged: 'file_path',
+  InstructionsLoaded: 'load_reason',
+  MessageDisplay: false,
+  Notification: 'notification_type',
+  PermissionDenied: 'tool_name',
+  PermissionRequest: 'tool_name',
+  PostCompact: 'trigger',
+  PostModelSwitch: 'to_model',
+  PostToolBatch: false,
+  PostToolUse: 'tool_name',
+  PostToolUseFailure: 'tool_name',
+  PreCompact: 'trigger',
+  PreModelSwitch: 'to_model',
+  PreToolUse: 'tool_name',
+  SessionEnd: 'reason',
+  SessionStart: 'source',
+  Setup: 'trigger',
+  Stop: false,
+  StopFailure: 'error',
+  SubagentStart: 'agent_type',
+  SubagentStop: 'agent_type',
+  TaskCompleted: false,
+  TaskCreated: false,
+  TeammateIdle: false,
+  UserPromptExpansion: 'command_name',
+  UserPromptSubmit: false,
+  WorktreeCreate: false,
+  WorktreeRemove: false,
+};
+function eventMatcherSubject(event, input) {
+  const field = MATCHER_SUBJECT_FIELD_BY_EVENT[event];
+  if (field === void 0) {
+    throw new TypeError(`Safeword cannot evaluate a matcher for unknown Claude event: ${event}`);
+  }
+  if (field === false) return { supported: false };
+  const subject = input[field];
+  return {
+    supported: true,
+    value: event === 'FileChanged' && subject ? nodePath10.basename(subject) : subject,
+  };
+}
 function eventEntryMatches(event, entry, input) {
   if (entry.matcher === void 0 || ['', '*'].includes(entry.matcher)) return true;
-  const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
-  if (subject === void 0) return false;
+  const subject = eventMatcherSubject(event, input);
+  if (!subject.supported) return true;
+  if (subject.value === void 0) return false;
   const exactMatcherCharacters =
     event === 'FileChanged' || event === 'StopFailure' ? /^[\w|]+$/u : /^[\w\- ,|]+$/u;
   if (exactMatcherCharacters.test(entry.matcher)) {
     return entry.matcher
       .split(/[|,]/u)
       .map(candidate => candidate.trim())
-      .includes(subject);
+      .includes(subject.value);
   }
-  return new RegExp(entry.matcher, 'u').test(subject);
+  return new RegExp(entry.matcher, 'u').test(subject.value);
 }
 function readEventEntries(event, eventGroupsContent) {
   const value = JSON.parse(eventGroupsContent.toString('utf8'));
@@ -5598,7 +5636,7 @@ function readEventEntries(event, eventGroupsContent) {
 }
 function appendUniqueText(current, next) {
   if (typeof current !== 'string' || current === '') return next;
-  if (current.includes(next)) return current;
+  if (current.split('\n').includes(next)) return current;
   return `${current}
 ${next}`;
 }

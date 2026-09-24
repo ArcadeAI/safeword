@@ -1576,6 +1576,108 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
+  it.each([
+    ['PreCompact', 'trigger', 'manual'],
+    ['SessionEnd', 'reason', 'logout'],
+  ] as const)('matches aggregate %s hooks on the documented %s field', (event, field, value) => {
+    const projectDirectory = temporary(`safeword-plugin-${event}-matcher-project-`);
+    const pluginData = temporary(`safeword-plugin-${event}-matcher-data-`);
+    const configDirectory = temporary(`safeword-plugin-${event}-matcher-config-`);
+    const pluginRoot = nodePath.join(temporary(`safeword-plugin-${event}-matcher-root-`), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups[event] = [
+      {
+        matcher: value,
+        hooks: [{ type: 'command', command: String.raw`printf '{"systemMessage":"matched"}\n'` }],
+      },
+      {
+        matcher: 'different',
+        hooks: [{ type: 'command', command: String.raw`printf '{"systemMessage":"wrong"}\n'` }],
+      },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, event, {
+      event,
+      hookInput: { [field]: value },
+      pluginRoot,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({ systemMessage: 'matched' });
+  });
+
+  it('fails closed on a matcher-bearing event whose schema is unknown', () => {
+    const projectDirectory = temporary('safeword-plugin-unknown-matcher-project-');
+    const pluginData = temporary('safeword-plugin-unknown-matcher-data-');
+    const configDirectory = temporary('safeword-plugin-unknown-matcher-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-unknown-matcher-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.FutureEvent = [
+      { matcher: 'value', hooks: [{ type: 'command', command: 'exit 0' }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'unknown-matcher', {
+      event: 'FutureEvent',
+      pluginRoot,
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('cannot evaluate a matcher for unknown Claude event');
+  });
+
+  it('preserves distinct sibling messages when one is a substring of another', () => {
+    const projectDirectory = temporary('safeword-plugin-substring-message-project-');
+    const pluginData = temporary('safeword-plugin-substring-message-data-');
+    const configDirectory = temporary('safeword-plugin-substring-message-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-substring-message-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      {
+        hooks: [
+          { type: 'command', command: String.raw`printf '{"systemMessage":"repair now"}\n'` },
+        ],
+      },
+      { hooks: [{ type: 'command', command: String.raw`printf '{"systemMessage":"repair"}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(
+      projectDirectory,
+      pluginData,
+      configDirectory,
+      'substring-message',
+      {
+        pluginRoot,
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({ systemMessage: 'repair now\nrepair' });
+  });
+
   it('returns Claude blocking status for unmergeable blockable hook output', () => {
     const projectDirectory = temporary('safeword-plugin-unmergeable-output-project-');
     const pluginData = temporary('safeword-plugin-unmergeable-output-data-');

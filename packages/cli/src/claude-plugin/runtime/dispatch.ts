@@ -1,7 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
-import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { parse, type ParseError } from 'jsonc-parser';
@@ -56,10 +55,20 @@ interface PluginInventoryV1 {
 }
 
 interface HookInput {
+  readonly agent_type?: string;
+  readonly command_name?: string;
   readonly tool_name?: string;
   readonly cwd?: string;
+  readonly error?: string;
+  readonly file_path?: string;
+  readonly load_reason?: string;
+  readonly mcp_server_name?: string;
+  readonly notification_type?: string;
+  readonly reason?: string;
   readonly session_id?: string;
   readonly source?: string;
+  readonly to_model?: string;
+  readonly trigger?: string;
 }
 
 interface EventGroupEntryV1 {
@@ -142,11 +151,10 @@ function acceptedLegacyHookFile(value: unknown, projectRoot: string): boolean {
 }
 
 function viableLegacyAuthority(event: string, projectRoot: string): boolean {
-  const userConfigDirectory = process.env.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
   const settingsPaths = new Set([
     nodePath.join(projectRoot, '.claude/settings.json'),
     nodePath.join(projectRoot, '.claude/settings.local.json'),
-    nodePath.join(userConfigDirectory, 'settings.json'),
+    nodePath.join(claudeConfigDirectory(), 'settings.json'),
   ]);
   return [...settingsPaths].some(settingsPath => {
     const settings = parseSettings(settingsPath);
@@ -352,31 +360,77 @@ function runFunctionalCommand(
   };
 }
 
-const TOOL_EVENTS = new Set([
-  'PermissionDenied',
-  'PermissionRequest',
-  'PostToolUse',
-  'PostToolUseFailure',
-  'PreToolUse',
-]);
+const MATCHER_SUBJECT_FIELD_BY_EVENT: Readonly<Record<string, keyof HookInput | false>> = {
+  ConfigChange: 'source',
+  CwdChanged: false,
+  DirectoryAdded: 'source',
+  Elicitation: 'mcp_server_name',
+  ElicitationResult: 'mcp_server_name',
+  FileChanged: 'file_path',
+  InstructionsLoaded: 'load_reason',
+  MessageDisplay: false,
+  Notification: 'notification_type',
+  PermissionDenied: 'tool_name',
+  PermissionRequest: 'tool_name',
+  PostCompact: 'trigger',
+  PostModelSwitch: 'to_model',
+  PostToolBatch: false,
+  PostToolUse: 'tool_name',
+  PostToolUseFailure: 'tool_name',
+  PreCompact: 'trigger',
+  PreModelSwitch: 'to_model',
+  PreToolUse: 'tool_name',
+  SessionEnd: 'reason',
+  SessionStart: 'source',
+  Setup: 'trigger',
+  Stop: false,
+  StopFailure: 'error',
+  SubagentStart: 'agent_type',
+  SubagentStop: 'agent_type',
+  TaskCompleted: false,
+  TaskCreated: false,
+  TeammateIdle: false,
+  UserPromptExpansion: 'command_name',
+  UserPromptSubmit: false,
+  WorktreeCreate: false,
+  WorktreeRemove: false,
+};
+
+function eventMatcherSubject(
+  event: string,
+  input: HookInput,
+): { readonly supported: boolean; readonly value?: string } {
+  const field = MATCHER_SUBJECT_FIELD_BY_EVENT[event];
+  if (field === undefined) {
+    throw new TypeError(`Safeword cannot evaluate a matcher for unknown Claude event: ${event}`);
+  }
+  if (field === false) return { supported: false };
+  const subject = input[field];
+  return {
+    supported: true,
+    value: event === 'FileChanged' && subject ? nodePath.basename(subject) : subject,
+  };
+}
 
 function eventEntryMatches(event: string, entry: EventGroupEntryV1, input: HookInput): boolean {
   if (entry.matcher === undefined || ['', '*'].includes(entry.matcher)) return true;
-  const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
-  if (subject === undefined) return false;
+  const subject = eventMatcherSubject(event, input);
+  // Claude ignores matchers on events that do not support them.
+  if (!subject.supported) return true;
+  if (subject.value === undefined) return false;
   const exactMatcherCharacters =
     event === 'FileChanged' || event === 'StopFailure' ? /^[\w|]+$/u : /^[\w\- ,|]+$/u;
   if (exactMatcherCharacters.test(entry.matcher)) {
     return entry.matcher
       .split(/[|,]/u)
       .map(candidate => candidate.trim())
-      .includes(subject);
+      .includes(subject.value);
   }
   // Claude treats matchers containing other characters as unanchored regular
   // expressions. Keep the host semantics so aggregated plugin hooks select the
   // same handlers Claude would have selected individually.
   // eslint-disable-next-line security/detect-non-literal-regexp -- matcher is host-owned manifest syntax
-  return new RegExp(entry.matcher, 'u').test(subject);
+  return new RegExp(entry.matcher, 'u').test(subject.value);
 }
 
 function readEventEntries(event: string, eventGroupsContent: Buffer): readonly EventGroupEntryV1[] {
@@ -393,7 +447,7 @@ function readEventEntries(event: string, eventGroupsContent: Buffer): readonly E
 
 function appendUniqueText(current: unknown, next: string): string {
   if (typeof current !== 'string' || current === '') return next;
-  if (current.includes(next)) return current;
+  if (current.split('\n').includes(next)) return current;
   return `${current}\n${next}`;
 }
 

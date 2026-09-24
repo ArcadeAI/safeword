@@ -64193,15 +64193,69 @@ function pythonProjectIndex(directory, root) {
 function cargoWorkspaceOwns(workspaceDirectory, candidate) {
   try {
     const document2 = parse(readFileSync68(nodePath111.join(workspaceDirectory, "Cargo.toml"), "utf8"));
-    if (!document2.workspace || !Array.isArray(document2.workspace.members))
+    if (!document2.workspace)
       return false;
     const relative = nodePath111.relative(workspaceDirectory, candidate);
-    const members = document2.workspace.members.filter((member) => typeof member === "string");
+    const members = Array.isArray(document2.workspace.members) ? document2.workspace.members.filter((member) => typeof member === "string") : [];
     const excluded = Array.isArray(document2.workspace.exclude) ? document2.workspace.exclude.filter((member) => typeof member === "string") : [];
-    return members.some((pattern) => matchesWorkspacePattern(relative, pattern)) && excluded.every((pattern) => !matchesWorkspacePattern(relative, pattern));
+    if (excluded.some((pattern) => matchesWorkspacePattern(relative, pattern)))
+      return false;
+    return members.some((pattern) => matchesWorkspacePattern(relative, pattern)) || cargoImplicitMember(workspaceDirectory, candidate, members);
   } catch {
     return false;
   }
+}
+function cargoImplicitMember(workspaceDirectory, candidate, members) {
+  const queue = findAllInTree(workspaceDirectory, "Cargo.toml").filter((directory) => {
+    if (directory === workspaceDirectory)
+      return true;
+    const relative = nodePath111.relative(workspaceDirectory, directory);
+    return members.some((pattern) => matchesWorkspacePattern(relative, pattern));
+  });
+  const visited = new Set;
+  while (queue.length > 0) {
+    const directory = queue.shift();
+    if (directory === undefined)
+      break;
+    if (visited.has(directory))
+      continue;
+    visited.add(directory);
+    const manifest = parse(readFileSync68(nodePath111.join(directory, "Cargo.toml"), "utf8"));
+    const nested = cargoPathDependencyDirectories(manifest, directory).filter((path8) => path8.startsWith(`${workspaceDirectory}${nodePath111.sep}`));
+    if (nested.includes(candidate))
+      return true;
+    queue.push(...nested.filter((path8) => !visited.has(path8)));
+  }
+  return false;
+}
+function cargoPathDependencyDirectories(manifest, manifestDirectory) {
+  const baseTables = [
+    manifest.dependencies,
+    manifest["dev-dependencies"],
+    manifest["build-dependencies"]
+  ];
+  const workspace = manifest.workspace;
+  const targets = manifest.target;
+  const workspaceTables = objectRecord(workspace) ? [workspace.dependencies] : [];
+  const targetTables = objectRecord(targets) ? Object.values(targets).flatMap((target) => {
+    if (!objectRecord(target))
+      return [];
+    return [target.dependencies, target["dev-dependencies"], target["build-dependencies"]];
+  }) : [];
+  return [...baseTables, ...workspaceTables, ...targetTables].flatMap((table) => cargoDependencyTablePaths(table, manifestDirectory));
+}
+function objectRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function cargoDependencyTablePaths(table, manifestDirectory) {
+  if (!objectRecord(table))
+    return [];
+  return Object.values(table).flatMap((dependency) => {
+    if (!objectRecord(dependency))
+      return [];
+    const path8 = dependency.path;
+    return typeof path8 === "string" ? [nodePath111.resolve(manifestDirectory, path8)] : [];
+  });
 }
 function javascriptProjectDirectories(root) {
   const declaredPatterns = getWorkspacePatterns(root);
@@ -64300,11 +64354,21 @@ function resolveJs(projectDirectory, kind, isAvailable, packageManagerDirectory 
     return;
   const pm = detectPackageManager(packageManagerDirectory);
   if (kind === "deps") {
-    const command = pm === "yarn" ? "yarn npm audit" : `${pm} audit`;
+    const command = pm === "yarn" ? yarnAuditCommand(packageManagerDirectory) : `${pm} audit`;
     return entry("javascript", projectDirectory, command, pm, isAvailable(pm));
   }
   const script = selectedJsScript(scripts, kind);
   return script ? entry("javascript", projectDirectory, `${pm} run ${script}`, pm, isAvailable(pm)) : undefined;
+}
+function yarnAuditCommand(packageManagerDirectory) {
+  if (existsSync48(nodePath111.join(packageManagerDirectory, ".yarnrc.yml")))
+    return "yarn npm audit";
+  try {
+    const lockfile = readFileSync68(nodePath111.join(packageManagerDirectory, "yarn.lock"), "utf8");
+    return /^__metadata:\s*$/mu.test(lockfile) ? "yarn npm audit" : "yarn audit";
+  } catch {
+    return "yarn audit";
+  }
 }
 function firstScript(scripts, priority) {
   return priority.find((name) => Object.hasOwn(scripts, name));
