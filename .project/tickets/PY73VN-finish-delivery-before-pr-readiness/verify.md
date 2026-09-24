@@ -1,13 +1,17 @@
 # Verify: Finish accepted changes before asking for PR review (PY73VN)
 
-Verified: 2026-09-19T00:09:55Z
+Verified: 2026-09-24T15:04:33Z
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 10099/10099 runnable tests pass across CLI, retro collector,
-and retro relay (14 skipped).
-**Gherkin:** ✅ Acceptance lane passes: 1499 scenarios (1496 passed, 3 skipped),
-68735 steps (68731 passed, 4 skipped), and 1 hook passed.
+**Test Suite:** ✓ 10413/10413 runnable tests pass across CLI, retro collector,
+and retro relay (15 skipped). The complete CLI rerun passed 10062/10062 after
+one non-reproducing temporary Git index failure; the isolated affected test and
+BDD proof rerun passed 59/59.
+**Gherkin:** ✅ Acceptance lanes pass: the repository lane completed 1504
+scenarios (1501 passed, 3 skipped), 68954 steps (68950 passed, 4 skipped), and 2
+hooks; the package lane completed 596/596 scenarios and 11118/11118 steps. The
+BDD proof-tag suite passed 47/47.
 **Build:** ✅ Success — CLI, retro collector, retro relay, and website builds pass.
 **Lint:** ✅ Clean — ESLint, Gherkin lint, formatting checks, and TypeScript
 checks pass.
@@ -20,8 +24,8 @@ branching while preserving one shared gate.
 **PR Scope:** ✅ The diff matches the ticket: uninterrupted delivery guidance,
 exact-HEAD completion evidence, shared Ready-command enforcement, Claude/Codex/
 Cursor adapters, install/schema parity, public docs, and the ticket's proof corpus.
-**Dep Drift:** ✅ Clean — no manifest or lockfile changed; dependency-cruiser
-reports 0 violations across 391 modules and 598 dependencies.
+**Dep Drift:** ✅ Clean — the feature diff changes no manifest or lockfile;
+JavaScript and Python audits report no known vulnerabilities.
 **Parent Epic:** ZRJ9JJ has one local child, this ticket; 0/1 is done before the
 explicit closure decision.
 **Reconcile:** ✅ No pattern deviation — the implementation follows the approved
@@ -33,13 +37,11 @@ the worst step is the existing explicit authority check before a Ready mutation.
 Draft evidence remains available, and every denial names one plain-language
 recovery action.
 **Surface Evidence:** ✅ 4/4 affected surfaces have recorded proof.
-**Evidence limits:** ⚠️ `bun audit` reports the pre-existing moderate
-`devalue <5.9.1` advisory (GHSA-9rgm-9g3h-6x36) through Astro. The same version
-is present on `origin/main`; this ticket changes no dependency artifact. The
-independent source review is approved, but its phase stamp uses the documented
-skip escape hatch because 6.7 MiB of generated mirrors cannot fit the review
-coordinator's 1 MiB packet limit. Local hook-process and install tests prove
-native request/response wiring, but do not claim a live GitHub Ready mutation.
+**Evidence limits:** ✅ None. The earlier independent source-review stamp retains
+its documented 1 MiB packet-limit note for 6.7 MiB of generated mirrors; the
+post-merge automated evidence covers the complete generated tree and local
+Claude Code, Codex, and Cursor hook/install wiring without claiming a live
+GitHub Ready mutation.
 
 ## Surface Evidence
 
@@ -51,6 +53,16 @@ native request/response wiring, but do not claim a live GitHub Ready mutation.
 | Safeword CLI/install | Fresh, update, disabled-host, and unenrolled-project integration tests cover schema registration, reconciliation, transient receipt handling, and profile-scoped installs. |
 
 ## Audit and Review
+
+Post-main catch-up verification at merge commit `798fcbac7` reran the complete
+generated test plan. The first CLI pass encountered one local Git error while
+indexing a throwaway repository (`unable to create temporary file: Invalid
+argument`); the complete CLI suite immediately reran green at 10062/10062, and
+the exact affected test plus the BDD proof test passed together at 59/59. One
+duplicate proof invocation timed out waiting for another worktree's valid test
+lock; the same proof passed both earlier in the generated plan and in the final
+isolated rerun. Build, lint, typecheck, Astro diagnostics, and all JavaScript and
+Python dependency audits passed.
 
 Audit passed with no errors or warnings attributable to this diff. Config sync
 is current; dependency-cruiser reports no violations; principle and namespace
