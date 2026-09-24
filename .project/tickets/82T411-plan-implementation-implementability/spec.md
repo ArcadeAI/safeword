@@ -165,7 +165,7 @@
 
 #### plan-implementability.TBU1.R5 — Every Implementation Plan records architecture applicability inside the plan, including a justified skip when no architecture guidance applies
 
-#### plan-implementability.TBU1.R6 — Data guidance is applied when the approach changes a store, schema, entity relationship, source of truth, ownership, access, lifecycle, migration, backfill, or cross-system data flow
+#### plan-implementability.TBU1.R6 — Data guidance is applied when the approach changes a store, schema, entity relationship, source of truth, ownership, access, lifecycle, migration, backfill, cross-system data flow, or data-compliance obligation
 
 #### plan-implementability.TBU1.R7 — Feature-local, reversible decisions live in the Implementation Plan, while architecturally significant decisions are also recorded in and linked from the configured durable architecture record
 
@@ -376,7 +376,8 @@
 
 - **Outcome:** Implementation Planning owns accepted approach decisions;
   Execution Planning owns dependency-ordered build and test mechanics; both
-  have authoritative author-review contracts and explicit return paths; the
+  have authoritative author-review contracts, dispute routing, and explicit
+  return paths; the
   Execution Plan contract also owns the feature Delivery Checklist and coherent,
   independently reviewable pull-request slicing for large contributions.
 - **Non-goals:** Installed-host delivery beyond the Safeword CLI contract demo,
@@ -384,8 +385,9 @@
 
 ### M2 — Deliver and enforce the workflow everywhere Safeword runs
 
-- **Outcome:** The phase model, artifacts, review dispatch, provenance,
-  invalidation, fail-closed recovery, feature Delivery Checklist, reviewable-PR
+- **Outcome:** The phase model, artifacts, review dispatch, dispute routing,
+  provenance, invalidation, fail-closed recovery, feature Delivery Checklist,
+  reviewable-PR
   slicing, and in-flight-ticket migration work through the CLI and every
   affected agent surface; a plain feature prompt can traverse the complete
   workflow into a verified, review-ready pull request with contract-quality
@@ -451,8 +453,9 @@ Unaffected:
 - OpenAI Codex Cloud — it reads repository `AGENTS.md` but does not receive the
   packaged local Codex plugin or lifecycle hooks that own these planning phases;
   guidance delivered there must label the workflow advisory and must not claim
-  a review or approval, while extending the complete workflow requires a
-  separate delivery contract
+  a review or approval. The advisory label is verified at the CLI's generated
+  guidance boundary; no Cloud planning gate is claimed. Extending the complete
+  workflow requires a separate delivery contract
 - Closeout Cleanup Guard — this feature does not change destructive closeout
   authorization or cleanup targets
 - Retro Filer — this feature does not change retrospective transport or spool
