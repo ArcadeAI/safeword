@@ -197,13 +197,13 @@ receipt may advance the ticket to implementation.
 ## Exit: review before implementation
 
 Resolve the current scenarios, approved `impl-plan.md`, ticket scope, and
-`execution-plan.md`. Run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" project review-knowledge --json`
+`execution-plan.md`. Run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project review-knowledge --json`
 and use its configured paths for principles, personas, surfaces, and any
 dimensions; do not guess missing paths. Dispatch the shared coordinator with the Execution Plan as
 the sole work target and the accepted plans and scenarios as bounded context:
 
 ```bash
-SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" review run plan-execution --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file ticket-path/impl-plan.md principles-file personas-file surfaces-file dimensions-file-if-present testing-guide-file applicable-guide-files execution-plan-template-file -- ticket-path/execution-plan.md
+SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" review run plan-execution --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file ticket-path/impl-plan.md principles-file personas-file surfaces-file dimensions-file-if-present testing-guide-file applicable-guide-files execution-plan-template-file -- ticket-path/execution-plan.md
 ```
 
 **The dispatch is authorized; skipping it is not your call.** The configured
@@ -227,7 +227,7 @@ undispatched or otherwise degraded review cannot advance.
 After approval, stamp the exact review with its returned provenance:
 
 ```bash
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-execution
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.5/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-execution
 ```
 
 Run `safeword ticket coding-authorization <ticket-id>` before updating the

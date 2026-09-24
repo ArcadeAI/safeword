@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "e27fcaefe074fb46c7f3c929d65e22a728fd59e6f1ced4b18bba440cf659e28b"
+      "sha256": "cb7aceb61a243ab262fca740fb356cf5a9943e7f7ef304403052839faa723270"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "8b7f05ac5805707834332b5f3ad5e2950c6d731902d48ee6ac34a7ee90f24f9d"
+      "sha256": "53ef3d8ef19a29615fbada2087e1b37429a3fe38df0f326ca71b3180343f4d07"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b8cca26d1c7c859433c442783ba188774b965f8dfaa0d81043ae61ae296b0130"
+      "sha256": "7274da3e3d915634d199d780954cf04a66b79aa4a9b8e5d1c1598c6d5bdf28f6"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "f95b59f441e399401b6eda865bab1ff7cc5142abf1ef7b36c4c0dc6a8bf8ca01"
+      "sha256": "3a6d6e0b914c1ff69914ede2199c3e96b708cc8d8fb0f38df18f5a9b003ec318"
     },
     {
       "path": "runtime/event-groups.json",
@@ -343,7 +343,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "c9d7c7c7e7c98365824e73a8a8d98374753dd18c8ba0523db592b4aded5de631"
+      "sha256": "00e5112e00a7c3da0a88516f304454093b22c0b6ebc0353bc4b676524ef4a82f"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -387,11 +387,11 @@
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
-      "sha256": "06ab82594a5464c0d74f2e2c778e2aafdefc8404fcc61fd5418f38f48e500761"
+      "sha256": "90b533fdbf9ca6e6af8603488a483750e858696b9f540b5ec1bde98d2906368f"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "69a82679c2d796618497ab394e5ba16b2f31422ed559dd0cf9bb6de147252285"
+      "sha256": "3766ca92b78cb7ad2e9b4b99426ab545882dc2231677dcbfddc7cd5655501de8"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
@@ -595,7 +595,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "df9ac60b72278ee1f9669484f05cff54a53c81e4f404d8b4426f74f831248077"
+      "sha256": "5bdb79ce3d66b6a4eb384942d5115f2041fa9aa501f0d18af5aeaf35446742c3"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -639,7 +639,7 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "d8803f5403c96979275698bd2351dd7f88128aa618c341be5792dc77121d65dc"
+      "sha256": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -723,7 +723,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "8db9580a5bceee376c443524f62a82dfa4e05ca0fa853cf4afdc53b6a6223f87"
+      "sha256": "800fabc037ec4734e5ae206898f556f8f3b030d09da2c381f7741c89f81209ea"
     },
     {
       "path": "skills/self-review/SKILL.md",

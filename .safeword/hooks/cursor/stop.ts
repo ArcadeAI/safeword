@@ -11,10 +11,17 @@ import nodePath from 'node:path';
 
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { cursorEditedMarkerPath } from '../lib/cursor-state.ts';
-import { QUALITY_REVIEW_MESSAGE } from '../lib/quality.ts';
+import {
+  evaluateDecisionBriefCompliance,
+  QUALITY_REVIEW_MESSAGE,
+  renderDecisionBriefCorrection,
+} from '../lib/quality.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
 import { decideRetroFilingGate } from '../lib/retro-filing-gate.ts';
-import { isStopQualityReviewEnabled } from '../lib/review-ledger.ts';
+import {
+  isStopQualityReviewEnabled,
+  isTerminalHandoffCorrectionEnabled,
+} from '../lib/review-ledger.ts';
 import { resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
@@ -33,10 +40,51 @@ interface CursorInput {
   // Every Cursor hook (incl. stop) carries transcript_path to the conversation
   // transcript (official docs) — the earlier interface omitted it.
   transcript_path?: string;
+  loop_count?: number;
 }
 
 interface StopOutput {
   followup_message?: string;
+}
+
+function assistantText(record: unknown): string | undefined {
+  if (!record || typeof record !== 'object') return undefined;
+  const candidate = record as Record<string, unknown>;
+  const message =
+    candidate.message && typeof candidate.message === 'object'
+      ? (candidate.message as Record<string, unknown>)
+      : candidate;
+  if (
+    candidate.role !== 'assistant' &&
+    message.role !== 'assistant' &&
+    candidate.type !== 'assistant'
+  ) {
+    return undefined;
+  }
+  if (typeof message.content === 'string') return message.content;
+  if (!Array.isArray(message.content)) return undefined;
+  return message.content
+    .flatMap(item =>
+      item && typeof item === 'object' && (item as { type?: unknown }).type === 'text'
+        ? [String((item as { text?: unknown }).text ?? '')]
+        : [],
+    )
+    .join('\n');
+}
+
+async function readLastAssistantMessage(transcriptPath?: string): Promise<string> {
+  if (!transcriptPath) return '';
+  const transcript = await Bun.file(transcriptPath).text();
+  const lines = transcript.trim().split('\n');
+  for (let index = lines.length - 1; index >= 0; index--) {
+    try {
+      const text = assistantText(JSON.parse(lines[index] ?? ''));
+      if (text !== undefined) return text;
+    } catch {
+      // Skip unreadable records; malformed payloads fail open below.
+    }
+  }
+  return '';
 }
 
 /**
@@ -116,13 +164,47 @@ if (input.status !== 'completed') {
   process.exit(0);
 }
 
+const markerFile = cursorEditedMarkerPath(input);
+const hasCurrentTurnEdit = await Bun.file(markerFile).exists();
+
+// Cursor exposes a bounded resubmission count rather than stop_hook_active.
+// Correct only the original completed response; the continuation may stop freely.
+// This presentation repair intentionally consumes the first Stop continuation.
+// Keep the edit marker intact so architecture evidence and retro filing run on
+// the loop-1 Stop instead of being lost; Cursor permits only one followup_message.
+if ((input.loop_count ?? 0) === 0) {
+  try {
+    const rawConfig = await Bun.file(nodePath.join(process.cwd(), '.safeword', 'config.json'))
+      .text()
+      .catch(() => undefined);
+    if (isTerminalHandoffCorrectionEnabled(rawConfig)) {
+      const reply = await readLastAssistantMessage(input.transcript_path);
+      const evaluation = evaluateDecisionBriefCompliance(reply, undefined, {
+        substantiveEvidence: hasCurrentTurnEdit ? 'current-turn-edit' : 'none',
+      });
+      if (!evaluation.compliant) {
+        console.log(
+          JSON.stringify({
+            followup_message: renderDecisionBriefCorrection(
+              evaluation,
+              'Keep verified evidence intact.',
+            ),
+          } satisfies StopOutput),
+        );
+        process.exit(0);
+      }
+    }
+  } catch {
+    // Unreadable transcript/config/evaluator state fails open to existing Stop behavior.
+  }
+}
+
 // Cursor enforces max 5 auto-submissions, no additional limit needed
 
 // Check if any file edits occurred in this session by looking for marker file
 const runIdentity = resolveRunIdentity(input, { runtime: 'cursor' });
-const markerFile = cursorEditedMarkerPath(input);
 
-if (await Bun.file(markerFile).exists()) {
+if (hasCurrentTurnEdit) {
   // Clean up marker (best-effort; missing file or perm issue is non-fatal)
   await unlink(markerFile).catch(error => {
     if (process.env.DEBUG) console.error('[cursor/stop] marker cleanup failed:', error);

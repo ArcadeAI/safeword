@@ -714,6 +714,8 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 
 **Cross-agent Stop delivery (JN403D/P30CRP):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor uses a lighter local Stop adapter for continuation nudges (`cursor/stop.ts` appends `followup_message`). Codex uses the profile-scoped Safeword plugin, whose hook manifest calls the CLI bundled into that exact plugin version. It emits Codex continuation output (`decision: "block"`, `reason`) from queued project context. Codex Stop delivery is advisory continuation, not hard done-gate enforcement.
 
+**Decision-complete terminal handoffs (ASG60P/#4500):** One machine-readable `terminal-handoff/v1` contract in `hooks/lib/quality.ts` defines symmetric decision roles for `Next` and `Need`, plus a separate concise `Action` form when no human choice remains. Claude Code and Codex use their native Stop re-entry flag, while Cursor uses its loop count, to request at most one correction per response. Existing hard evidence gates keep precedence, malformed inputs and evaluator failures fail open, and `.safeword/config.json` may explicitly disable this default-on behavior with `"terminalHandoffCorrection": false`. Canonical templates generate the Claude and Codex plugin copies; parity checks keep generated and dogfood copies aligned.
+
 **Codex Desktop session identity (S2CWBE):** Hook payload `session_id` and a
 fresh Codex proof-bridge cache remain the preferred sources. When Codex Desktop
 code-mode does not deliver the documented PreToolUse bridge, the shared

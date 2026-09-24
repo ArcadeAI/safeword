@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
   countCompletedToolUsesCodex,
   countToolUsesCodex,
+  hasCompletedToolUseInCurrentCodexTurn,
   isSubstantial,
   resolveCodexSessionId,
   SUBSTANCE_THRESHOLD,
@@ -77,6 +78,39 @@ describe('countCompletedToolUsesCodex', () => {
     expect(countCompletedToolUsesCodex(events.map(event => JSON.stringify(event)).join('\n'))).toBe(
       3,
     );
+  });
+});
+
+describe('hasCompletedToolUseInCurrentCodexTurn', () => {
+  it('uses only completed tool pairs after the latest user-message boundary', () => {
+    const events = [
+      { payload: { type: 'function_call', call_id: 'old' } },
+      { payload: { type: 'function_call_output', call_id: 'old' } },
+      { payload: { type: 'user_message' } },
+      { payload: { type: 'function_call', call_id: 'current' } },
+      { payload: { type: 'function_call_output', call_id: 'current' } },
+    ];
+    expect(
+      hasCompletedToolUseInCurrentCodexTurn(events.map(event => JSON.stringify(event)).join('\n')),
+    ).toBe(true);
+    expect(
+      hasCompletedToolUseInCurrentCodexTurn(
+        events
+          .slice(0, 3)
+          .map(event => JSON.stringify(event))
+          .join('\n'),
+      ),
+    ).toBe(false);
+  });
+
+  it('falls back to exact turn tags without borrowing another turn', () => {
+    const events = ['old', 'current'].flatMap(turn_id => [
+      { type: 'function_call', call_id: turn_id, turn_id },
+      { type: 'function_call_output', call_id: turn_id, turn_id },
+    ]);
+    const rollout = events.map(event => JSON.stringify(event)).join('\n');
+    expect(hasCompletedToolUseInCurrentCodexTurn(rollout, 'current')).toBe(true);
+    expect(hasCompletedToolUseInCurrentCodexTurn(rollout, 'missing')).toBe(false);
   });
 });
 

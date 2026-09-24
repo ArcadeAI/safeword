@@ -1,17 +1,17 @@
 {
   "originMainCommit": "f22e2997ba8ef68d3d198ca2d937bfbf35fdab87",
   "fixtures": {
-    "claude-install": "002b88bf8d222750a33f3e2c11ca70edbfb9b6ef185ee7b76262f266c95e0b88",
-    "claude-check": "543fc57e87250b63235208ed9ca9375e213b832e249e375de479c9a2052d7d33",
-    "claude-upgrade": "42fc863ec10c0f9fdb3ecb4ff8d076dd8f01efa8791f136e2e0a5e346e595124",
+    "claude-install": "a9b6d053b99a5a878a8b23a75c414352b14f940f5d046f7aee5b4b386f928dd4",
+    "claude-check": "c43ae5729456705fe53a618de9bba6bcb7444edf80b390a774155e32e0b1a57e",
+    "claude-upgrade": "a398bc81836228ca4a193eba1b6131d9d38cc28682a21119fcdbccc1a0d361a0",
     "claude-uninstall": "7226020783f1892d66c22a55058088052e8bd94c759167623deb97fa6bcbbf38",
-    "codex-install": "ea008aec7d397e9f3daf6996b770a0a2aef0426ced182ba5ef73860227026588",
-    "codex-check": "0738ed0a8683cc1b99758ba917560df7f810f528a89dfadfde776988255950af",
-    "codex-upgrade": "4535b0a0ab5ffb58046d76fd9dade07676578f55b14aa152d2bfb7b586e26f8d",
+    "codex-install": "2fd0109156f1c857bd69dad2c2ec82bfa0d328edc54b73e4267bae30df569817",
+    "codex-check": "d46da3030e2e935c9cca9b4466ea955b3aa0ad2f253d292cbbecfa59d673ce1d",
+    "codex-upgrade": "345215295fc06225e8eb1a600e7129708d463736d079e125781dcb956d238a31",
     "codex-uninstall": "324e6790338fc0633848d8e6c5dc6e55d0d7c38cbf3fbe9cafaf18a154aa734b",
-    "cursor-install": "b21c23b034bb37478d1919bd860b5bc113b4f8bf1bf54e43abe64306ea1373b4",
-    "cursor-check": "d56b940363603bc102ab2bd8dc38b12dbb12832044caa7a4905692b5ecd0d9af",
-    "cursor-upgrade": "48f0907fef7e26fb25324218aa8930d40f048180d98502c23ce112126dade511",
-    "cursor-uninstall": "9efe1b1a80a5ceb929fd47e998bd24f43f534b76b02413426b19648162f2a964"
+    "cursor-install": "b8e19f9dc7bc384ded2fa12bb40018d86108ab05ed7fdca00aebd514216fa10c",
+    "cursor-check": "07fff446646e2e463bfc7fbcb8ca7e7502d93713334b1fd51696a928d1d7aea3",
+    "cursor-upgrade": "9efe8f09d2039e93024d834d00fd759a33a3a62726d16180dd0d32185a7f6db8",
+    "cursor-uninstall": "22b10964948ad84512314b3d6f77308dd0b99cbf2c4d6f57863d325a5e22fcc5"
   }
 }

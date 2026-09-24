@@ -24,7 +24,10 @@ describe('Stop Hook: Idle Review Suppression (1492)', () => {
 
   beforeEach(() => {
     projectDirectory = createTemporaryDirectory();
-    writeGateConfig(projectDirectory, { stopQualityReview: true });
+    writeGateConfig(projectDirectory, {
+      stopQualityReview: true,
+      terminalHandoffCorrection: false,
+    });
     mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
   });
 
