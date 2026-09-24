@@ -85,6 +85,10 @@ describe('remote workflow contract', () => {
         version: 9,
         normalizedSha256: '77d3cf2b3b3b3252f809b94f9321f6f46e4678eecf8a06f2eb9d3307445ec6e0',
       },
+      {
+        version: 10,
+        normalizedSha256: 'b0fe6b6d8fed927e7d9683f8bba64f5bdb62118538579754ecfaaa8fc5656820',
+      },
     ]);
     expect(fixtureHistory).toEqual(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1));
     expect(normalizedSha256(workflow)).toBe(
@@ -132,6 +136,11 @@ describe('remote workflow contract', () => {
   it('delegates project preparation to Safeword configuration', () => {
     expect(workflow).toContain('project test --lane "$LANE" --execution local --prepare-remote');
     expect(workflow).not.toContain('bun install --frozen-lockfile');
+  });
+
+  it('installs the Bun runtime required by generated project test plans', () => {
+    expect(workflow).toContain('oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6');
+    expect(workflow).toContain('bun-version-file: package.json');
   });
 
   it.each([

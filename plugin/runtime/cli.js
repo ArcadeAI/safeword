@@ -63359,7 +63359,7 @@ function evaluateRemoteTestWorkflow(source) {
   const uniqueViolations = [...new Set(violations)];
   return { accepted: uniqueViolations.length === 0, violations: uniqueViolations };
 }
-var import_yaml4, FULL_SHA, CHECKOUT = "actions/checkout", CHECKOUT_ACTION = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0", SETUP_NODE_ACTION = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", INPUT_SHA = "${{ inputs.target_sha }}", INPUT_LANE = "${{ inputs.lane }}", RESULT_FILE = "safeword-remote-test-result.json", UPLOAD_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", VALIDATE_COMMAND, VERIFY_COMMAND, REPORT_COMMAND_SHA256 = "b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9", STEP_SHAPES;
+var import_yaml4, FULL_SHA, CHECKOUT = "actions/checkout", CHECKOUT_ACTION = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0", SETUP_NODE_ACTION = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", SETUP_BUN_ACTION = "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6", INPUT_SHA = "${{ inputs.target_sha }}", INPUT_LANE = "${{ inputs.lane }}", RESULT_FILE = "safeword-remote-test-result.json", UPLOAD_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", VALIDATE_COMMAND, VERIFY_COMMAND, REPORT_COMMAND_SHA256 = "b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9", STEP_SHAPES;
 var init_remote_workflow_contract = __esm(() => {
   import_yaml4 = __toESM(require_dist(), 1);
   FULL_SHA = /^[0-9a-f]{40}$/u;
@@ -63378,6 +63378,11 @@ var init_remote_workflow_contract = __esm(() => {
       uses: SETUP_NODE_ACTION,
       keys: ["name", "uses", "with"],
       with: { "node-version": 24 }
+    },
+    {
+      uses: SETUP_BUN_ACTION,
+      keys: ["name", "uses", "with"],
+      with: { "bun-version-file": "package.json" }
     },
     { id: "tests", keys: ["name", "id", "env", "run"] },
     { id: "report", keys: ["name", "id", "if", "env", "run"] },
@@ -63733,6 +63738,10 @@ var init_remote_workflow_state = __esm(() => {
     {
       version: 9,
       normalizedSha256: "77d3cf2b3b3b3252f809b94f9321f6f46e4678eecf8a06f2eb9d3307445ec6e0"
+    },
+    {
+      version: 10,
+      normalizedSha256: "b0fe6b6d8fed927e7d9683f8bba64f5bdb62118538579754ecfaaa8fc5656820"
     }
   ];
   HISTORICAL_MANAGED_DIGESTS = new Set(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1).map((release) => release.normalizedSha256));
