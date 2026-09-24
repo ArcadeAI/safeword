@@ -18,9 +18,7 @@ describe('named RED action parsing', () => {
       writeTestFile(
         projectDirectory,
         '.project/tickets/PLAN01-gate/test-definitions.md',
-        ['### Scenario: first RED', '', '- [ ] RED', '- [ ] GREEN', '- [ ] REFACTOR'].join(
-          '\n',
-        ),
+        ['### Scenario: first RED', '', '- [ ] RED', '- [ ] GREEN', '- [ ] REFACTOR'].join('\n'),
       );
 
       expect(firstNamedRedAction(projectDirectory, 'PLAN01-gate')).toBeUndefined();
