@@ -288,7 +288,7 @@ function hasCanonicalOpenRoute(
   const value = openParagraph?.text ?? '';
   return (
     /^\*\*Open:\*\*\s+none\.?\s*$/iu.test(value) ||
-    /^\*\*Open:\*\*\s+human:\s+\S(?:.*\S)?\.?\s*$/iu.test(value)
+    /^\*\*Open:\*\*\s+human:\s+\S(?:.*\S)?\.?\s*$/isu.test(value)
   );
 }
 
@@ -347,7 +347,7 @@ function missingDecisionRequirements(terminalValue: string): TerminalHandoffRequ
         : [requirement];
     },
   );
-  if (leadingText !== '' && missing.length === 0) return ['concrete choice'];
+  if (leadingText !== '') missing.push('no extra context');
   const unexplainedTerm = clauses.find(termLacksPlainLanguageMeaning);
   if (unexplainedTerm) missing.push('plain-language meaning');
   return missing;
@@ -379,7 +379,7 @@ function actionIsConcrete(action: string, object: string): boolean {
     .filter(Boolean);
   return (
     actionWords.length > 0 &&
-    actionWords.every(word => !NON_SPECIFIC_OBJECT.has(word)) &&
+    actionWords.some(word => !NON_SPECIFIC_OBJECT.has(word)) &&
     objectWords.some(word => !NON_SPECIFIC_OBJECT.has(word))
   );
 }
@@ -391,7 +391,7 @@ function missingActionRequirements(terminalValue: string): TerminalHandoffRequir
   const objects = clauses.filter(clause => clause.role === 'Object');
   const reasons = clauses.filter(clause => clause.role === 'Reason');
   const decisionRoles = clauses.filter(
-    clause => clause.role !== 'Reason' && clause.role in DECISION_ROLE_REQUIREMENT,
+    clause => clause.role !== 'Reason' && Object.hasOwn(DECISION_ROLE_REQUIREMENT, clause.role),
   );
 
   const actionValue = actions[0]?.value ?? '';
@@ -836,10 +836,16 @@ export function renderDecisionBriefCorrection(
     const termShape = evaluation.requirements.includes('plain-language meaning')
       ? '\n\nWrite each necessary marked term as `Term: name = plain-language meaning`.'
       : '';
+    const routeShape = evaluation.requirements.includes('canonical Open route')
+      ? '\n\nAlso rewrite **Open:** as exactly `human: <one choice>` for a decision or `none` for an action.'
+      : '';
+    const rewriteScope = evaluation.requirements.includes('canonical Open route')
+      ? 'the Open and terminal paragraphs'
+      : 'only the terminal paragraph';
 
-    return `${header} Preserve the useful content and rewrite only the terminal paragraph in this exact ${evaluation.form} form:\n\n${
+    return `${header} Preserve the useful content and rewrite ${rewriteScope} in this exact ${evaluation.form} form:\n\n${
       evaluation.form === 'action' ? actionShape : decisionShape
-    }${termShape}\n\n${evidence}`;
+    }${routeShape}${termShape}\n\n${evidence}`;
   }
 
   const { problem, verdicts } = describeDecisionBriefViolation(evaluation.violation, grammar);

@@ -66,6 +66,9 @@ describe('terminal handoff contract', () => {
       form: 'decision',
       examinedCharacters: expect.any(Number),
     });
+    expect(evaluation.examinedCharacters).toBeLessThanOrEqual(
+      reply.length * quality.DECISION_BRIEF_MAX_WORK_FACTOR,
+    );
   });
 
   it('rejects the observed Next omission with every absent decision role named', () => {
@@ -87,6 +90,7 @@ describe('terminal handoff contract', () => {
         'controlling reason',
         'material tradeoff or consequences',
         'exact reply',
+        'canonical Open route',
       ],
     });
   });
@@ -141,6 +145,20 @@ describe('terminal handoff contract', () => {
     });
   });
 
+  it('accepts a multi-word imperative containing an article', () => {
+    const reply = [
+      '**CONFIDENT** — The implementation is ready.',
+      '**Decided:** Keep the focused patch.',
+      '**Open:** none.',
+      '**Next:** Action: Run the focused tests. Object: the terminal-handoff contract.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: true,
+      form: 'action',
+    });
+  });
+
   it('rejects a noun phrase that does not declare a specific Object', () => {
     const reply = [
       '**CONFIDENT** — The implementation is ready.',
@@ -164,10 +182,29 @@ describe('terminal handoff contract', () => {
       '**Next:** Choice: beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.',
     ].join('\n\n');
 
-    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+    const evaluation = quality.evaluateDecisionBriefCompliance(reply);
+    expect(evaluation).toMatchObject({
       compliant: false,
       form: 'decision',
       requirements: ['canonical Open route'],
+    });
+    const correction = quality.renderDecisionBriefCorrection(evaluation, 'Evidence stays intact.');
+    expect(correction).toContain('rewrite the Open and terminal paragraphs');
+    expect(correction).toContain('**Open:**');
+    expect(correction).toContain('human: <one choice>');
+  });
+
+  it('accepts a canonical human Open route across a soft line break', () => {
+    const reply = [
+      '**CONFIDENT** — The release channel requires a human choice.',
+      '**Decided:** Keep the release scoped to one channel.',
+      '**Open:** human: choose the\nrelease channel.',
+      '**Next:** Choice: beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: true,
+      form: 'decision',
     });
   });
 
@@ -183,6 +220,58 @@ describe('terminal handoff contract', () => {
       compliant: false,
       form: 'decision',
       requirements: ['recommendation'],
+    });
+  });
+
+  it('reports leading decision prose as extra context instead of a missing choice', () => {
+    const reply = [
+      '**CONFIDENT** — The release channel requires a human choice.',
+      '**Decided:** Keep the release scoped to one channel.',
+      '**Open:** human: choose the release channel.',
+      '**Next:** Here is the situation. Choice: beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: false,
+      form: 'decision',
+      requirements: ['no extra context'],
+    });
+  });
+
+  it('reports leading prose alongside missing roles and an unexplained marked term', () => {
+    const reply = [
+      '**CONFIDENT** — The release channel requires a human choice.',
+      '**Decided:** Keep the release scoped to one channel.',
+      '**Open:** human: choose the release channel.',
+      '**Next:** Here is the situation. Choice: beta or stable. Term: soak = TBD.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: false,
+      form: 'decision',
+      requirements: [
+        'recommendation',
+        'controlling reason',
+        'material tradeoff or consequences',
+        'exact reply',
+        'no extra context',
+        'plain-language meaning',
+      ],
+    });
+  });
+
+  it('rejects decision roles mixed into an otherwise complete action form', () => {
+    const reply = [
+      '**CONFIDENT** — The implementation is ready.',
+      '**Decided:** Keep the focused patch.',
+      '**Open:** none.',
+      '**Next:** Action: Run. Object: the focused tests. Reply: yes.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: false,
+      form: 'action',
+      requirements: ['concise action form'],
     });
   });
 

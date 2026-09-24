@@ -25,7 +25,12 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { DECISION_BRIEF_CONTRACT } from '../../templates/hooks/lib/quality.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, writeGateConfig } from '../helpers';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  spawnHookScript,
+  writeGateConfig,
+} from '../helpers';
 import {
   createEditTranscript,
   createStopHookTicket,
@@ -158,6 +163,20 @@ describe('Stop Hook: Done-gate fires without recent edit tools (AP3FGJ)', () => 
 });
 
 describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
+  it('fails open when the host omits the final assistant message', () => {
+    writeGateConfig(state.projectDirectory, {
+      stopQualityReview: true,
+      terminalHandoffCorrection: true,
+    });
+    const transcriptPath = createEditTranscript(state.projectDirectory);
+    const result = spawnHookScript(STOP_QUALITY, state.projectDirectory, {
+      transcript_path: transcriptPath,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
   it('corrects a structured final message when transcript evidence is unavailable', () => {
     writeGateConfig(state.projectDirectory, {
       stopQualityReview: true,

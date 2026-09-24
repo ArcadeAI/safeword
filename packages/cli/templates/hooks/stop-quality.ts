@@ -386,6 +386,7 @@ checkUsageLimit(lines);
 
 // Claude's last response text — provided directly by the hook runtime.
 const combinedText = input.last_assistant_message ?? '';
+const observedLastAssistantMessage = input.last_assistant_message !== undefined;
 
 // Get ticket info for phase-aware decision logic. Resolved BEFORE the edit-tools
 // gate so the done-phase branch runs on any stop at phase: done — closing and its
@@ -410,17 +411,12 @@ checkArchitectureReviewGate(ticketInfo);
 // recent window can be attributed to this turn. A byte-truncated tail retains
 // the prior bounded fallback. The done phase always falls through to its gate.
 const editsToReview = detectEditsToReview(lines);
-const currentTurnEditEvidence = detectToolUseInCurrentUserTurn(
-  lines,
-  name => name !== undefined && EDIT_TOOLS.has(name),
-);
 const currentTurnToolEvidence = detectToolUseInCurrentUserTurn(lines, () => true);
-const terminalHandoffEvidence =
-  currentTurnEditEvidence === true || editsToReview
-    ? 'current-turn-edit'
-    : currentTurnToolEvidence === true
-      ? 'current-turn-tool'
-      : 'none';
+const terminalHandoffEvidence = editsToReview
+  ? 'current-turn-edit'
+  : currentTurnToolEvidence === true
+    ? 'current-turn-tool'
+    : 'none';
 
 const stopReviewConfigPath = `${projectDir}/.safeword/config.json`;
 const stopReviewConfig = existsSync(stopReviewConfigPath)
@@ -428,7 +424,7 @@ const stopReviewConfig = existsSync(stopReviewConfigPath)
   : undefined;
 
 if (!editsToReview && currentPhase !== 'done') {
-  if (!stopHookActive) {
+  if (!stopHookActive && observedLastAssistantMessage) {
     enforceTerminalHandoffCorrection(stopReviewConfig, combinedText, terminalHandoffEvidence);
   }
   process.exit(0);
@@ -939,7 +935,9 @@ if (typecheckAdvice.advice !== null) {
 // judgment-based Stop review. Established evidence, done, navigation, and
 // typecheck gates above retain precedence; stop_hook_active was already handled
 // by the one-shot loop guard.
-enforceTerminalHandoffCorrection(stopReviewConfig, combinedText, terminalHandoffEvidence);
+if (observedLastAssistantMessage) {
+  enforceTerminalHandoffCorrection(stopReviewConfig, combinedText, terminalHandoffEvidence);
+}
 
 // Stop-time quality review (KHL52X): OFF unless `stopQualityReview: true`.
 // Everything ABOVE this line still runs — the done gate, the impl-plan,
@@ -988,6 +986,12 @@ recordStopReviewState(
     ? { stopQualityReviewAwaitingUserPrompt: true }
     : { lastReviewedPhase: currentPhase },
 );
+
+// The host did not expose the final reply, so its terminal shape is
+// unobservable. Preserve all earlier evidence gates and fail open here.
+if (!observedLastAssistantMessage) {
+  process.exit(0);
+}
 
 // Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
 // recent failure exists, append an explicit "CONFIDENT requires X first" line so

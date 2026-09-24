@@ -83,7 +83,11 @@ function decisionTerminal(
     .join(' ');
 }
 
-function decisionReply(paragraph: 'Next' | 'Need', terminal: string): string {
+function decisionReply(
+  paragraph: 'Next' | 'Need',
+  terminal: string,
+  open = 'human: choose the release channel',
+): string {
   return paragraph === 'Need'
     ? [
         '**BLOCKED** — The release channel requires a human choice.',
@@ -93,7 +97,7 @@ function decisionReply(paragraph: 'Next' | 'Need', terminal: string): string {
     : [
         '**CONFIDENT** — The release channel requires a human choice.',
         '**Decided:** Keep the release scoped to one channel.',
-        '**Open:** human: choose the release channel.',
+        `**Open:** ${open}.`,
         `**Next:** ${terminal}`,
       ].join('\n\n');
 }
@@ -108,8 +112,11 @@ function actionReply(terminal: string, open = 'none'): string {
 }
 
 function incompleteCorpusReply(corpusCase: string): string {
+  const completeEarlierProse =
+    'Earlier analysis stated Choice: beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.';
   if (corpusCase === 'vague blocked Need') {
     return [
+      completeEarlierProse,
       '**BLOCKED** — The release channel requires a human choice.',
       '**Tried:** Verified both release channels are available.',
       '**Need:** Choose the intended target.',
@@ -119,6 +126,7 @@ function incompleteCorpusReply(corpusCase: string): string {
     return decisionReply('Next', `${decisionTerminal()} Term: RPO.`);
   }
   return [
+    completeEarlierProse,
     '**CONFIDENT** — The implementation is complete and needs a direction.',
     '**Decided:** Keep the current change intact.',
     '**Open:** human: choose the next target.',
@@ -144,13 +152,14 @@ function corpusReply(corpusCase: string): string {
 function corpusRequirements(corpusCase: string): string[] {
   if (corpusCase === 'unexplained marked term') return ['plain-language meaning'];
   if (corpusCase === 'vague no-decision action') return ['one concrete action'];
-  return [
+  const missingDecisionRoles = [
     'concrete choice',
     'recommendation',
     'controlling reason',
     'material tradeoff or consequences',
     'exact reply',
   ];
+  return missingDecisionRoles;
 }
 
 const requiredDecisionRoles = [
@@ -166,7 +175,7 @@ function decisionContractFixture() {
   return {
     version: 'terminal-handoff/v1',
     decision: { Next: roles, Need: roles },
-    action: { role: 'Action', optionalReasonPrefix: 'Required because' },
+    action: { role: 'Action', objectRole: 'Object', optionalReasonPrefix: 'Required because' },
   };
 }
 
@@ -818,6 +827,18 @@ Given(
 );
 
 Given(
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and a legacy Open route in its native Stop payload$/,
+  function (this: SafewordWorld, host: string) {
+    prepareNativeStop(
+      this,
+      host,
+      decisionReply('Next', decisionTerminal(), 'Choose the release channel'),
+    );
+    stateFor(this).nativeExpectedRequirements = ['canonical Open route'];
+  },
+);
+
+Given(
   /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and an unreadable native Stop payload$/,
   function (this: SafewordWorld, host: string) {
     prepareNativeStop(this, host, '');
@@ -971,12 +992,18 @@ When(
 );
 
 Then('the decision handoff is accepted as self-contained', function (this: SafewordWorld) {
+  const state = stateFor(this);
+  assert.ok(state.reply);
   assert.deepEqual(stateFor(this).evaluation, {
     compliant: true,
     contractVersion: 'terminal-handoff/v1',
     form: 'decision',
     examinedCharacters: stateFor(this).evaluation?.examinedCharacters,
   });
+  assert.ok(
+    (state.evaluation?.examinedCharacters ?? Number.POSITIVE_INFINITY) <=
+      state.reply.length * quality.DECISION_BRIEF_MAX_WORK_FACTOR,
+  );
 });
 
 Then(
@@ -991,6 +1018,7 @@ Then(
       'controlling reason',
       'material tradeoff or consequences',
       'exact reply',
+      'canonical Open route',
     ]);
   },
 );
@@ -1110,7 +1138,7 @@ Then(
     const contract = state.contract as {
       version?: unknown;
       decision?: { Next?: unknown; Need?: unknown };
-      action?: { role?: unknown; optionalReasonPrefix?: unknown };
+      action?: { role?: unknown; objectRole?: unknown; optionalReasonPrefix?: unknown };
     };
     const expectedRoles = [
       'concrete choice',
@@ -1135,6 +1163,7 @@ Then(
     assert.deepEqual(roleNames(contract.decision?.Need), [...expectedRoles].sort());
     assert.deepEqual(contract.action, {
       role: 'Action',
+      objectRole: 'Object',
       optionalReasonPrefix: 'Required because',
     });
   },
@@ -1322,7 +1351,10 @@ Then(
     assert.ok(correction, `unexpected native continuation: ${state.nativeOutput}`);
     assert.match(correction, /terminal-handoff\/v1/u);
     for (const requirement of state.nativeExpectedRequirements ?? []) {
-      assert.ok(correction.includes(requirement), `correction omitted ${requirement}`);
+      assert.ok(
+        correction.includes(requirement),
+        `correction omitted ${requirement}: ${correction}`,
+      );
     }
     cleanNativeStop(state);
   },
