@@ -68,7 +68,10 @@ beforeAll(async () => {
   });
   // After setup: setup owns config.json creation, and a pre-seeded one fails the
   // run. These cases assert the Stop-time review fires, which is opt-in now.
-  writeGateConfig(shared.projectDirectory, { stopQualityReview: true });
+  writeGateConfig(shared.projectDirectory, {
+    stopQualityReview: true,
+    terminalHandoffCorrection: false,
+  });
 });
 
 afterAll(() => {
@@ -1405,16 +1408,28 @@ describe('E2E: Stop Hook', () => {
         { text: 'Let me edit that file.', toolUse: 'Edit' },
       ]);
 
-      const result = runStopHook(shared.projectDirectory, transcriptPath, {
-        last_assistant_message: 'Implemented and checked the requested change.',
+      writeGateConfig(shared.projectDirectory, {
+        stopQualityReview: true,
+        terminalHandoffCorrection: true,
       });
-      const output = parseStopOutput(result);
+      try {
+        const result = runStopHook(shared.projectDirectory, transcriptPath, {
+          session_id: 'installed-terminal-correction',
+          last_assistant_message: 'Implemented and checked the requested change.',
+        });
+        const output = parseStopOutput(result);
 
-      expect(result.exitCode).toBe(0);
-      expect(output.decision).toBe('block');
-      expect(output.reason).toContain('no recognized verdict');
-      expect(output.reason).not.toContain('Apply SAFEWORD.md');
-      expect(output.reason).not.toContain('Phase: implement');
+        expect(result.exitCode).toBe(0);
+        expect(output.decision).toBe('block');
+        expect(output.reason).toContain('no recognized verdict');
+        expect(output.reason).not.toContain('Apply SAFEWORD.md');
+        expect(output.reason).not.toContain('Phase: implement');
+      } finally {
+        writeGateConfig(shared.projectDirectory, {
+          stopQualityReview: true,
+          terminalHandoffCorrection: false,
+        });
+      }
     });
 
     it('repairs a null quality-state root so the next Stop review is deduplicated', () => {
@@ -1478,7 +1493,10 @@ describe('E2E: Stop Hook', () => {
         { text: 'Let me edit that file.', toolUse: 'Edit' },
       ]);
 
-      const result = runStopHook(shared.projectDirectory, transcriptPath);
+      const result = runStopHook(shared.projectDirectory, transcriptPath, {
+        session_id: 'edit-tool-review',
+        last_assistant_message: 'Implemented and checked the requested change.',
+      });
       const output = parseStopOutput(result);
 
       expect(result.exitCode).toBe(0);
@@ -1490,7 +1508,9 @@ describe('E2E: Stop Hook', () => {
       const text = 'I answered a question without making any changes.';
       const transcriptPath = createMockTranscript(shared.projectDirectory, text);
 
-      const result = runStopHook(shared.projectDirectory, transcriptPath);
+      const result = runStopHook(shared.projectDirectory, transcriptPath, {
+        session_id: 'no-edit-review',
+      });
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout.trim()).toBe('');
@@ -1521,7 +1541,10 @@ describe('E2E: Stop Hook', () => {
         { text: 'Done with the changes.' },
       ]);
 
-      const result = runStopHook(shared.projectDirectory, transcriptPath);
+      const result = runStopHook(shared.projectDirectory, transcriptPath, {
+        session_id: 'older-edit-tool-review',
+        last_assistant_message: 'Implemented and checked the requested change.',
+      });
       const output = parseStopOutput(result);
 
       expect(result.exitCode).toBe(0);
