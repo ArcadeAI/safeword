@@ -40,19 +40,20 @@ function emitAndExit(payload: Record<string, unknown>): never {
 const input = await readInput();
 const workspace = input.workspace_roots?.[0];
 if (workspace) process.chdir(workspace);
+if (!existsSync('.safeword')) emitAndExit({});
 
 // Cursor 3.21 can omit transcript_path from beforeShellExecution, then provide
-// it on postToolUse. Persist the first authoritative path we receive so the
+// it on postToolUse. Persist an authoritative path when received so the
 // next shell command (including `/retro`) is bound to this conversation.
 stashCursorTranscript(input);
 
 const claudeTool = mapCursorToolName(input.tool_name);
-if (!claudeTool || !existsSync('.safeword')) emitAndExit({});
+if (!claudeTool) emitAndExit({});
 
 const filePath = extractFilePath(input.tool_input);
 const translated: ClaudeGateInput = {
   session_id: input.conversation_id,
-  hook_event_name: 'PreToolUse',
+  hook_event_name: 'PostToolUse',
   tool_name: claudeTool,
   tool_input: filePath ? { ...input.tool_input, file_path: filePath } : { ...input.tool_input },
 };
