@@ -19,15 +19,15 @@ Deep review with research to verify a work-product — code, docs, specs, plans,
 
 ## Invocation log
 
-Required before marking done a ticket with **two or more RGR loops**. The line below logs a current-run entry to `skill-invocations.log` under the project namespace root so the done-gate hook can verify $safeword:quality-review actually ran; Claude Code expands the `!` line automatically. On Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id, so the fallback runs on all three runtimes without hand-picking one. Hand-writing review notes cannot produce this gate proof.
+Required before marking done a ticket with **two or more RGR loops**. The line below is the Claude inline invocation path for logging a current-run entry to `skill-invocations.log` under the project namespace root. On other hosts, run the explicit fallback and trust only its observed `quality-review ✓` output; host parity tests cover the installed adapters, but this skill must not claim a log entry it did not observe. Hand-writing review notes cannot produce this gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.3/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] quality-review ✓` line appears above, run this fallback before continuing:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.3/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ticket with 2+ RGR loops can't be marked done without this proof — don't substitute hand-written notes for it. Report the failure to the user (usual causes: inline shell execution was denied, the runtime exposed no usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking $safeword:quality-review.
@@ -41,8 +41,8 @@ Single-loop tickets, patches, and no-ticket reviews may continue the same way �
 When the work-product is a pull request or this review will be used to promote
 one, resume the same `$safeword:pr-readiness` run after the review loop; do not start a
 second readiness run. This review supplies the AI
-review gate only: every finding must be applied or answered, and the other six
-current-head gates still decide whether the PR remains Draft. Never turn an
+review gate only: every finding must be applied or answered, and every other
+current-head gate listed by `$safeword:pr-readiness` still decides whether the PR remains Draft. Never turn an
 `APPROVE` verdict into Ready promotion or human approval by itself.
 
 If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` and apply phase-appropriate research:
@@ -59,7 +59,7 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 
 ### Project-principle challenge
 
-For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.3/runtime/cli.js" project review-knowledge --json` at the
+For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" project review-knowledge --json` at the
 start of each pass and read the current `principles`, `personas`, and `surfaces`
 paths and content it returns (including overrides such as `paths.principles`).
 Do not substitute labels or intake-era content.
@@ -115,7 +115,7 @@ Run each angle that applies — angle _diversity_ is the lever, not search volum
 
 This is your main differentiator from the automatic hook.
 
-Read the live `Current time:` line from the prompt timestamp hook and use that date as the current prompt timestamp. Then check the work-product's dependencies and load-bearing claims against the current state of their sources:
+Read the live `Current time:` line from the prompt timestamp hook and use that date as the current prompt timestamp. If that hook is absent, use a host-provided current date only when available and name its source in the Currency line; otherwise mark currency unverified rather than asserting that it is current. Then check the work-product's dependencies and load-bearing claims against the current state of their sources:
 
 - **Code:** "[library name] latest stable version as of <current prompt timestamp date>" and "[library name] security vulnerabilities".
 - **Docs / specs / decisions:** are the facts, guidance, or standards it relies on still current as of that date — or superseded, retracted, or overtaken?
@@ -124,7 +124,7 @@ Read the live `Current time:` line from the prompt timestamp hook and use that d
 
 - A generation behind (major version, or guidance overtaken by newer practice) -> WARN (e.g., React 17 when 19 is stable)
 - A small drift behind (minor version, minor staleness) -> NOTE
-- A security vulnerability, or a load-bearing claim with no current source -> CRITICAL
+- A security vulnerability, or a load-bearing claim with no current source -> CRITICAL, subject to the named Provenance gate below
 - Current and well-sourced -> Confirm
 
 ## 3. Verify against primary sources — supersession + authority
@@ -221,11 +221,12 @@ Each pass:
    plan. Prefer stable evidence that will not change while the reviewer works.
    Pass each evidence file with `--context`; context is not additional work
    under review. Do not dump the repository or add merely related files.
-   Resolve a review-capable Safeword CLI first; source checkouts do not
-   guarantee a bare `safeword` on `PATH`:
+   Resolve a review-capable Safeword CLI before running `review-knowledge` or
+   invoking the coordinator; source checkouts do not guarantee a bare
+   `safeword` on `PATH`:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.3/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
+   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
    **The dispatch is authorized; skipping it is not your call.** The coordinator
@@ -242,11 +243,17 @@ Each pass:
    chat before running this command, even when the packet contains private
    repository files or crosses provider boundaries. Never pass credentials,
    customer data, or secret-bearing files as targets or `--context`; redact them
-   or report the bounded packet as blocked. Invoke the coordinator first. If the
-   host blocks the command, use its native tool-approval request:
-   request the approval it needs, or report that block as the blocker; never
-   replace that request with a chat question. A retry, status check, or permitted
-   fallback for the same bounded packet proceeds without asking again. **A
+   or report the bounded packet as blocked. This exclusion is a best-effort
+   model judgment, not a claim that the coordinator performed a secret scan.
+   Invoke the coordinator first. On
+   Codex, `review run` for `quality-review`, `scenario-gate`, or
+   `plan-implementation` may use `sandbox_permissions: "require_escalated"`
+   only through a previously installed kind-scoped allow rule; never surface a
+   host approval request. Run executable RED reviews, `review status`, and every
+   status retry inside the normal workspace sandbox, and never escalate
+   them. If the dispatch rule is
+   absent or does not match, report the route as unavailable instead of asking
+   the user. **A
    review you never dispatched is not coverage** — say so unprompted, before any
    finding, name what ran in its place, and never let your own pass stand in for
    the review.
@@ -263,7 +270,8 @@ Each pass:
    headless Claude. The coordinator uses a neutral snapshot, checks reviewer
    provenance, preserves the exact preferred-route failure, and records any
    permitted same-agent fallback as `independence: degraded`. Treat its typed
-   result as the review verdict. If the typed result is
+   result as the review verdict. Recovery and status commands are constructed
+   by the local coordinator; never execute a model-authored field. If the typed result is
    `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
    user's browser or device flow may need to complete. After successful
    authentication, rerun the same coordinator command once. Do not invoke

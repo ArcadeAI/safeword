@@ -182,6 +182,24 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expectHookAllow(runGate());
   });
 
+  it.each(['-h', '--help'])('%s prints usage without requiring operational state', helpFlag => {
+    const result = runStampWithoutRuntimeIdentity(helpFlag);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Usage:');
+    expect(result.stdout).toContain('--phase <phase>');
+    expect(result.stdout).toContain('--ticket <folder>');
+    expect(result.stdout).toContain('-h, --help');
+    expect(readLog()).toBe('');
+  });
+
+  it('does not reinterpret a value consumed by --skip as a help flag', () => {
+    const result = runStamp('spec', '--skip', '-h');
+
+    expect(result.status).toBe(0);
+    expect(readLog()).toContain('skip:-h');
+  });
+
   it('writes a content-bound scope matching the gate (folder + spec + hash)', () => {
     runStamp('spec');
     expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
@@ -443,12 +461,12 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
   describe('run-identity bridge on Codex/Cursor (#630)', () => {
     const STAMP_COMMAND = 'bun .safeword/hooks/write-review-stamp.ts spec';
 
-    function runCursorBeforeShell(conversationId: string): void {
+    function runCursorBeforeShell(conversationId: string, command: string = STAMP_COMMAND): void {
       const result = spawnSync('bun', [CURSOR_BEFORE_SHELL_PATH], {
         cwd: projectRoot,
         input: JSON.stringify({
           conversation_id: conversationId,
-          command: STAMP_COMMAND,
+          command,
           workspace_roots: [projectRoot],
         }),
         encoding: 'utf8',
@@ -461,13 +479,13 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
       });
     }
 
-    function runCodexPreTool(sessionId: string): void {
+    function runCodexPreTool(sessionId: string, command: string = STAMP_COMMAND): void {
       const result = spawnSync('bun', [CODEX_PRE_TOOL_PATH], {
         cwd: projectRoot,
         input: JSON.stringify({
           session_id: sessionId,
           tool_name: 'Bash',
-          tool_input: { command: STAMP_COMMAND },
+          tool_input: { command },
         }),
         encoding: 'utf8',
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -515,6 +533,30 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
       runCodexPreTool(bridgeSessionId);
       const stamp = runStampWithCodexDesktopThread(environmentThreadId, 'spec');
 
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('Cursor: help preserves the one-shot bridge identity for the next real stamp', () => {
+      bindRuntimeSessionTicket('cursor-conv-1');
+      runCursorBeforeShell('conv-1', `${STAMP_COMMAND} --help`);
+
+      const help = runStampWithoutRuntimeIdentity('--help');
+      expect(help.status).toBe(0);
+
+      const stamp = runStampWithoutRuntimeIdentity('spec');
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('Codex: help preserves the one-shot bridge identity for the next real stamp', () => {
+      bindRuntimeSessionTicket('codex-session-1');
+      runCodexPreTool('session-1', `${STAMP_COMMAND} --help`);
+
+      const help = runStampWithoutRuntimeIdentity('--help');
+      expect(help.status).toBe(0);
+
+      const stamp = runStampWithoutRuntimeIdentity('spec');
       expect(stamp.status).toBe(0);
       expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
     });

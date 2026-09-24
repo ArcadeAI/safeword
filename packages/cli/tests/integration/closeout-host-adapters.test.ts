@@ -616,7 +616,7 @@ else if (args[0] === 'retro' && args[1] === 'run') {
     expect(preview.status).toBe(2);
     expect(
       (JSON.parse(preview.stdout) as { plan: { blockers: string[] } }).plan.blockers,
-    ).toContain('local verification failed');
+    ).toContain('local verification failed: no verify verification command was resolved');
     expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
   }, 30_000);
 
@@ -1276,9 +1276,9 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
   }, 30_000);
 
-  it('blocks every cleanup operation when durable receipt publication fails', () => {
+  it('reports receipt publication failure after local verification succeeds', () => {
     const fixture = deliveryFixture();
-    installBoundaryFakes(fixture);
+    installBoundaryFakes(fixture, false);
     const sandbox = nodePath.dirname(fixture.bare);
     const id = 'claude-receipt-publication-failure';
     const transcript = nodePath.join(sandbox, `${id}.jsonl`);
@@ -1313,7 +1313,9 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         plan: { blockers: string[]; operations: unknown[] };
       }
     ).plan;
-    expect(plan.blockers).toContain('local verification failed');
+    expect(plan.blockers).toContain(
+      'local verification failed: the verification receipt could not be published',
+    );
     expect(plan.operations).toEqual([]);
     expect(existsSync(fixture.topic)).toBe(true);
   }, 30_000);
@@ -1367,12 +1369,13 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     writeFileSync(dirtyPath, 'requires a new verification\n');
 
     const failingCli = nodePath.join(fixture.bin, 'failing-safeword.ts');
+    const failingCommand = `${JSON.stringify(process.execPath)} -e "process.stdout.write('x'.repeat(9000) + 'actionable stdout'); process.stderr.write('useful failure'); process.exit(7)"`;
     executable(
       failingCli,
       `#!/usr/bin/env bun
 const args = process.argv.slice(2);
 if (args[0] === 'project' && args[1] === 'test-plan') {
-  console.log(JSON.stringify([{ cwd: process.cwd(), command: 'exit 1', available: true }]));
+  console.log(JSON.stringify([{ cwd: process.cwd(), command: ${JSON.stringify(failingCommand)}, runner: 'sh', available: true }]));
 } else if (args[0] === 'retro' && args[1] === 'run') {
   console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false }, errors: [] }));
 } else process.exit(1);
@@ -1387,14 +1390,53 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       id: failedId,
       transcript: transcriptFor(failedId, fixture.topic),
     });
-    expect(
-      spawnSync('bun', [topicGuard, '--pr', '42'], {
-        cwd: fixture.topic,
-        env: failingEnvironment,
-        encoding: 'utf8',
-      }).status,
-    ).toBe(2);
+    const failed = spawnSync('bun', [topicGuard, '--pr', '42'], {
+      cwd: fixture.topic,
+      env: failingEnvironment,
+      encoding: 'utf8',
+    });
+    expect(failed.status).toBe(2);
+    const failureBlockers = (JSON.parse(failed.stdout) as { plan: { blockers: string[] } }).plan
+      .blockers;
+    const commandFailure = failureBlockers.find(blocker =>
+      blocker.startsWith(
+        `local verification failed: command \`${failingCommand}\` failed in ${realpathSync(fixture.topic)} (exit 7):`,
+      ),
+    );
+    expect(commandFailure).toContain('actionable stdout');
+    expect(commandFailure).toContain('useful failure');
     expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
+
+    executable(
+      failingCli,
+      `#!/usr/bin/env bun
+const args = process.argv.slice(2);
+if (args[0] === 'project' && args[1] === 'test-plan') {
+  console.log(JSON.stringify([{ cwd: process.cwd(), command: 'uv run --locked mypy .', runner: 'uv', available: false }]));
+} else if (args[0] === 'retro' && args[1] === 'run') {
+  console.log(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: false }, errors: [] }));
+} else process.exit(1);
+`,
+    );
+    const unavailableId = 'claude-receipt-runner-unavailable';
+    bindHostSession({
+      runtime: 'claude',
+      fixture,
+      environment: failingEnvironment,
+      id: unavailableId,
+      transcript: transcriptFor(unavailableId, fixture.topic),
+    });
+    const unavailable = spawnSync('bun', [topicGuard, '--pr', '42'], {
+      cwd: fixture.topic,
+      env: failingEnvironment,
+      encoding: 'utf8',
+    });
+    expect(unavailable.status).toBe(2);
+    expect(
+      (JSON.parse(unavailable.stdout) as { plan: { blockers: string[] } }).plan.blockers,
+    ).toContain(
+      `local verification failed: runner \`uv\` is unavailable for \`uv run --locked mypy .\` in ${realpathSync(fixture.topic)}`,
+    );
 
     rmSync(dirtyPath, { force: true });
     runOrThrow('git', ['worktree', 'remove', fixture.topic], fixture.main);

@@ -6,7 +6,6 @@
     "packages/cli/templates/**",
     "packages/cli/tests/fixtures/bdd-proof-corpus/actor-adapter.ts",
     "packages/cli/tests/fixtures/bdd-proof-corpus/fixture-runner.ts",
-    "packages/cli/tests/fixtures/retry-safe-relay-cucumber.mjs",
     "packages/cli/src/claude-plugin/runtime/dispatch.ts",
     "experiments/**",
     "packages/cli/vitest.live.config.ts",
@@ -56,5 +55,10 @@
   ],
   "ignoreIssues": {
     "packages/cli/src/presets/typescript/index.ts": ["duplicates"]
+  },
+  "workspaces": {
+    "packages/website": {
+      "ignoreDependencies": ["satteri"]
+    }
   }
 }

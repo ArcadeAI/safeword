@@ -76,7 +76,8 @@ export const SAFEWORD_RELAY_BUILD_ATTESTATION: RelayBuildAttestation =
 const COMMIT_PATTERN = /^[\da-f]{40}$/u;
 const HASH_PATTERN = /^[\da-f]{64}$/u;
 const MAX_EVIDENCE_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const MIN_DRAIN_ACCEPTED_COUNT = 2;
+/** Floor below which a drain measurement is degenerate rather than evidence. */
+export const MIN_DRAIN_ACCEPTED_COUNT = 2;
 const MIN_DRAIN_BACKLOG_SIZE = 300;
 const MIN_RELAY_LATENCY_MS = 80;
 const MAX_DRAIN_DURATION_MS = 1000;

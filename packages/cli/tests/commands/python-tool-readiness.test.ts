@@ -53,6 +53,10 @@ dependencies = ["ruff>=0.8.0"]
           code: 'MISSING_PYTHON_TOOL',
           message: 'deadcode is not declared for this Python project.',
         }),
+        expect.objectContaining({
+          code: 'MISSING_PYTHON_TOOL',
+          message: 'pip-audit is not declared for this Python project.',
+        }),
       ]),
     );
   });
@@ -92,7 +96,7 @@ dependencies = ["ruff>=0.8.0"]
 name = "python-project"
 version = "0.1.0"
 dependencies = [
-  "ruff>=0.8.0", # TODO add "mypy" and "deadcode" later
+  "ruff>=0.8.0", # TODO add "mypy", "deadcode", and "pip-audit" later
 ]
 `,
     );
@@ -154,7 +158,7 @@ mypy = []
       `[project]
 name = "python-project"
 version = "0.1.0"
-dependencies = ["ruff>=0.8.0", "mypy", "deadcode"]
+dependencies = ["ruff>=0.8.0", "mypy", "deadcode", "pip-audit"]
 `,
     );
 
@@ -175,7 +179,7 @@ dependencies = ["ruff>=0.8.0", "mypy", "deadcode"]
       `[project]
 name = "api"
 version = "0.1.0"
-dependencies = ["ruff", "mypy", "deadcode"]
+dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
 `,
     );
 
@@ -227,6 +231,7 @@ ruff = "*"
 [dev-packages]
 mypy = "*"
 deadcode = "*"
+pip-audit = "*"
 `,
     );
 
@@ -302,10 +307,16 @@ dependencies = ["ruff"]
           code: 'SETUP_POSTCONDITION_ADVISORY',
           message: 'Missing Python tool: deadcode',
         }),
+        expect.objectContaining({
+          code: 'SETUP_POSTCONDITION_ADVISORY',
+          message: 'Missing Python tool: pip-audit',
+        }),
       ]),
     );
     expect(output.next_actions).toEqual(
-      expect.arrayContaining([expect.objectContaining({ command: 'pip install mypy deadcode' })]),
+      expect.arrayContaining([
+        expect.objectContaining({ command: 'pip install mypy deadcode pip-audit' }),
+      ]),
     );
   });
 
@@ -327,7 +338,7 @@ dependencies = ["ruff"]
       `[project]
 name = "python-project"
 version = "0.1.0"
-dependencies = ["ruff", "mypy", "deadcode"]
+dependencies = ["ruff", "mypy", "deadcode", "pip-audit"]
 `,
     );
     writeTestFile(projectDirectory, 'src/python_project/__init__.py', '');

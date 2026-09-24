@@ -571,35 +571,38 @@ describe('Claude marketplace update enrollment', () => {
     expect(readFileSync(log, 'utf8')).not.toContain('plugin list --json');
   });
 
-  it('replaces the stable marketplace ref before installing a requested prerelease', () => {
-    const { knownMarketplacePath, log, project, settingsPath } = fixture(
-      true,
-      'stable',
-      undefined,
-      { installedVersion: '0.83.1' },
-    );
+  it.skipIf(!SAFEWORD_SCHEMA.version.includes('-'))(
+    'replaces the stable marketplace ref before installing a requested prerelease',
+    () => {
+      const { knownMarketplacePath, log, project, settingsPath } = fixture(
+        true,
+        'stable',
+        undefined,
+        { installedVersion: '0.83.1' },
+      );
 
-    const result = installClaudePlugin(project);
-    const commands = readFileSync(log, 'utf8');
-    const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
-      unrelated: unknown;
-      extraKnownMarketplaces: { safeword: { source: { ref: string } } };
-    };
-    const registry = JSON.parse(readFileSync(knownMarketplacePath, 'utf8')) as {
-      safeword: { source: { ref: string } };
-    };
+      const result = installClaudePlugin(project);
+      const commands = readFileSync(log, 'utf8');
+      const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+        unrelated: unknown;
+        extraKnownMarketplaces: { safeword: { source: { ref: string } } };
+      };
+      const registry = JSON.parse(readFileSync(knownMarketplacePath, 'utf8')) as {
+        safeword: { source: { ref: string } };
+      };
 
-    expect(result.state, JSON.stringify(result)).toBe('action_required');
-    expect(commands).toContain('plugin marketplace remove safeword --scope project');
-    expect(commands).toContain(
-      `plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project`,
-    );
-    expect(commands).toContain('plugin install safeword@safeword --scope project');
-    expect(commands).not.toContain('plugin marketplace update safeword');
-    expect(settings.unrelated).toEqual({ keep: true });
-    expect(settings.extraKnownMarketplaces.safeword.source.ref).toBe(OFFICIAL_MARKETPLACE_REF);
-    expect(registry.safeword.source.ref).toBe(OFFICIAL_MARKETPLACE_REF);
-  });
+      expect(result.state, JSON.stringify(result)).toBe('action_required');
+      expect(commands).toContain('plugin marketplace remove safeword --scope project');
+      expect(commands).toContain(
+        `plugin marketplace add https://github.com/ArcadeAI/safeword.git#${OFFICIAL_MARKETPLACE_REF} --scope project`,
+      );
+      expect(commands).toContain('plugin install safeword@safeword --scope project');
+      expect(commands).not.toContain('plugin marketplace update safeword');
+      expect(settings.unrelated).toEqual({ keep: true });
+      expect(settings.extraKnownMarketplaces.safeword.source.ref).toBe(OFFICIAL_MARKETPLACE_REF);
+      expect(registry.safeword.source.ref).toBe(OFFICIAL_MARKETPLACE_REF);
+    },
+  );
 
   it('restores the prior Claude profile when replacement cannot add the requested ref', () => {
     const { installedPluginsPath, knownMarketplacePath, log, project, settingsPath } = fixture(

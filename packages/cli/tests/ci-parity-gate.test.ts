@@ -40,4 +40,13 @@ describe('CI dogfood parity gate', () => {
     );
     expect(fullHistoryCheckouts).toHaveLength(1);
   });
+
+  it('detects generated plugin additions, changes, and deletions without staging them', () => {
+    const workflow = readFileSync(workflowPath, 'utf8');
+
+    expect(workflow).toContain(
+      'if [ -n "$(git status --porcelain -- plugin packages/cli/codex-plugin)" ]; then',
+    );
+    expect(workflow).not.toContain('git add --all --intent-to-add');
+  });
 });

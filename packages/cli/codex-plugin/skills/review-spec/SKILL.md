@@ -35,7 +35,7 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Manual re-run** — invoke `$safeword:review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
 Read the active ticket's `.feature` source first. At review time, run
-`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.3/runtime/cli.js" project review-knowledge --json` and read the current
+`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" project review-knowledge --json` and read the current
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
 context. The resolver honors `paths.principles`, `paths.personas`, and
@@ -61,17 +61,18 @@ project-knowledge file, as supporting context.
 Unlike the bracketed paths, `ticket.md` is not optional in practice — every BDD
 ticket has one and dispatch should always pass it. `packet.ts` enforces only
 `spec.md`, so the lens's not-supplied clause covers a hand-run dispatch that
-skipped `ticket.md`, never a normal one. That clause degrades the lens, it does
-not satisfy it: without `ticket.md` the Scope boundary result is a reported
-limitation naming what went unchecked, and a gate that never read `out_of_scope`
-has not cleared scope. Omit optional paths that do not exist; preserve the path
+skipped `ticket.md`, never a normal one. Without `ticket.md`, report the missing
+Scope boundary as a must-fix and require re-dispatch; a gate that never read
+`out_of_scope` has not cleared scope. Omit optional paths that do not exist; preserve the path
 and content of optional files that do exist, even when their content is blank.
 Refuse dispatch when `spec.md` is absent, blank, or not the first context file.
-Resolve a review-capable Safeword CLI first; source checkouts do not guarantee
-a bare `safeword` on `PATH`:
+Context identity comes from each supplied path and basename, not a shifting
+optional position: `ticket.md`, parent `spec.md`, dimensions, principles,
+personas, and surfaces remain distinguishable when an optional file is omitted.
+Source checkouts do not guarantee a bare `safeword` on `PATH`:
 
 ```bash
-SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.0.0-rc.3/runtime/cli.js" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec ticket-file [parent-spec] [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
+SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec ticket-file [parent-spec] [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
 ```
 
 **The dispatch is authorized; skipping it is not your call.** The coordinator
@@ -88,17 +89,22 @@ disclosure-approval requirement. Do not stop and ask the user for consent in
 chat before running this command, even when the packet contains private
 repository files or crosses provider boundaries. Never pass credentials,
 customer data, or secret-bearing files as targets or `--context`; redact them or
-report the bounded packet as blocked. Invoke the coordinator first. If the host
-blocks the command, use its native tool-approval request: request the approval
-it needs, or report that block as the blocker; never replace that request with a
-chat question. A retry, status check, or permitted fallback for the same bounded
-packet proceeds without asking again.
+report the bounded packet as blocked. This exclusion is a best-effort model
+judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex,
+`review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may
+use `sandbox_permissions: "require_escalated"` only through a previously
+installed kind-scoped allow rule; never surface a host approval request. Run
+executable RED reviews, `review status`, and every status retry inside the
+normal workspace sandbox, and never escalate them. If the dispatch rule is
+absent or does not match, report the route as unavailable instead of asking the
+user.
 **A review you never dispatched is not coverage** — say so unprompted,
 before any finding, name what ran in its place, and never let your own pass stand
 in for the review.
 
 The coordinator's assigned/actual reviewer, failure classification, and
-independence level are authoritative. If the typed result is
+independence level are authoritative. Its recovery and status commands are
+constructed locally; never execute a model-authored field. If the typed result is
 `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
 user's browser or device flow may need to complete. After successful
 authentication, rerun the same coordinator command once. Do not invoke
@@ -124,7 +130,7 @@ the review is terminal. Never redispatch the same sources merely because that
 review is still pending. After an
 approval, record the returned author, actual reviewer, verified model when
 present, and independence with
-`write-review-stamp.ts --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.
+`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.85.0/runtime/cli.js" project runtime write-review-stamp -- --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.
 Every value comes from the result you are stamping; drop `--model` when the
 result reports no verified model. The `--review-id` is that result's
 `review_id`: it is what proves the review ran, so a stamp claiming independence

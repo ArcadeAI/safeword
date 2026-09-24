@@ -132,6 +132,112 @@ interface LedgerFingerprintContext {
   readonly missing: boolean;
 }
 
+const DELIVERY_CHECKLIST_MARKER = '<!-- safeword:delivery-checklist:v1 -->';
+const DELIVERY_CHECKLIST_COLUMNS = 9;
+const ORDINARY_PROGRESS_DISPOSITIONS = new Set(['open', 'complete']);
+
+function splitExecutionPlanRow(line: string): string[] | undefined {
+  if (!line.trimStart().startsWith('|') || !line.trimEnd().endsWith('|')) return undefined;
+  const cells: string[] = [];
+  let cell = '';
+  let escaped = false;
+  const body = line.trim().slice(1, -1);
+  for (const character of body) {
+    if (escaped) {
+      cell += character;
+      escaped = false;
+    } else if (character === '\\') {
+      escaped = true;
+    } else if (character === '|') {
+      cells.push(cell.trim());
+      cell = '';
+    } else {
+      cell += character;
+    }
+  }
+  if (escaped) cell += '\\';
+  cells.push(cell.trim());
+  return cells;
+}
+
+function unescapedPipeOffsets(line: string): number[] {
+  const offsets: number[] = [];
+  let escaped = false;
+  let index = 0;
+  while (index < line.length) {
+    const character = line[index];
+    if (escaped) {
+      escaped = false;
+    } else if (character === '\\') {
+      escaped = true;
+    } else if (character === '|') {
+      offsets.push(index);
+    }
+    index += 1;
+  }
+  return offsets;
+}
+
+function normalizeExecutionPlanProgress(line: string): string {
+  const cells = splitExecutionPlanRow(line);
+  if (
+    cells?.length !== DELIVERY_CHECKLIST_COLUMNS ||
+    !ORDINARY_PROGRESS_DISPOSITIONS.has(cells[5] ?? '')
+  ) {
+    return line;
+  }
+  const pipes = unescapedPipeOffsets(line);
+  if (pipes.length !== DELIVERY_CHECKLIST_COLUMNS + 1) return line;
+  const stableEnd = pipes[5];
+  const finalPipe = pipes[9];
+  if (stableEnd === undefined || finalPipe === undefined) return line;
+  return `${line.slice(0, stableEnd + 1)} <progress> | <progress> | <progress> | <progress> ${line.slice(finalPipe)}`;
+}
+
+function hasExecutionPlanDeliveryChecklist(content: string): boolean {
+  return content.split('\n').some(line => line.trim() === DELIVERY_CHECKLIST_MARKER);
+}
+
+function normalizedExecutionPlanDigest(content: string): string {
+  const lines = content.split('\n');
+  const markerIndex = lines.findIndex(line => line.trim() === DELIVERY_CHECKLIST_MARKER);
+  if (markerIndex !== -1) {
+    const headerIndex = lines.findIndex((line, index) => {
+      if (index <= markerIndex) return false;
+      const cells = splitExecutionPlanRow(line);
+      return (
+        cells?.length === DELIVERY_CHECKLIST_COLUMNS &&
+        cells[0] === 'ID' &&
+        cells[5] === 'Disposition'
+      );
+    });
+    for (let index = headerIndex + 1; headerIndex !== -1 && index < lines.length; index += 1) {
+      const line = lines[index];
+      if (line === undefined || splitExecutionPlanRow(line)?.length !== DELIVERY_CHECKLIST_COLUMNS)
+        break;
+      lines[index] = normalizeExecutionPlanProgress(line);
+    }
+  }
+  return createHash('sha256').update(lines.join('\n')).digest('hex');
+}
+
+function executionPlanReviewIdentity(content: string, projectDirectory: string): string {
+  const configPath = nodePath.join(projectDirectory, '.safeword', 'config.json');
+  let designApprovalGate = false;
+  if (existsSync(configPath)) {
+    const value: unknown = JSON.parse(readFileSync(configPath, 'utf8'));
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      throw new Error('Safeword config root is not an object');
+    }
+    designApprovalGate =
+      (value as { readonly designApprovalGate?: unknown }).designApprovalGate === true;
+  }
+  return JSON.stringify({
+    design_approval_gate: designApprovalGate,
+    normalized_digest: normalizedExecutionPlanDigest(content),
+  });
+}
+
 function ledgerFingerprintContext(
   cwd: string,
   targets: readonly string[],
@@ -168,13 +274,23 @@ function fingerprint(
   // rename could make an old receipt appear to cover a different scenario.
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
-    allowMissing: true,
+    allowMissingExecutableRedAttestation: true,
   });
   try {
     const hash = createHash('sha256');
     hash.update(`kind\0${kind}\0`);
     if (execution !== undefined) hash.update(`execution\0${JSON.stringify(execution)}\0`);
     if (ledger.missing) hash.update('ledger\0missing\0');
+    const executionPlanTarget =
+      kind === 'plan-execution'
+        ? prepared.packet.logical_files.find(file =>
+            hasExecutionPlanDeliveryChecklist(file.content),
+          )
+        : undefined;
+    const executionPlanFingerprint =
+      executionPlanTarget === undefined
+        ? undefined
+        : executionPlanReviewIdentity(executionPlanTarget.content, cwd);
     for (const [section, files] of [
       ['targets', prepared.packet.logical_files],
       ['context', prepared.packet.context_files ?? []],
@@ -183,7 +299,15 @@ function fingerprint(
       for (const file of files) {
         hash.update(file.path);
         hash.update('\0');
-        hash.update(file.content);
+        hash.update(
+          reviewFingerprintContent(
+            section,
+            file.path,
+            file.content,
+            executionPlanTarget?.path,
+            executionPlanFingerprint,
+          ),
+        );
         hash.update('\0');
       }
     }
@@ -191,6 +315,23 @@ function fingerprint(
   } finally {
     prepared.cleanup();
   }
+}
+
+function reviewFingerprintContent(
+  section: 'targets' | 'context',
+  path: string,
+  content: string,
+  executionPlanTargetPath: string | undefined,
+  executionPlanFingerprint: string | undefined,
+): string {
+  if (
+    section === 'targets' &&
+    path === executionPlanTargetPath &&
+    executionPlanFingerprint !== undefined
+  ) {
+    return executionPlanFingerprint;
+  }
+  return content;
 }
 
 function pathEscapes(root: string, candidate: string): boolean {
