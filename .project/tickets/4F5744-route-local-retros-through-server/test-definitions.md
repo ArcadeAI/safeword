@@ -226,8 +226,8 @@ This file mirrors the current feature's scenario titles and records their RED / 
 
 ### Scenario Outline: A real harness canary proves terminal production filing
 
-- [ ] CAPTURED — Claude Code and Codex are captured; Cursor needs a host-bound recapture with session scope
-- [ ] VERIFIED — Codex is verified; Claude Code still needs session-scope correlation and Cursor still needs recapture
+- [x] CAPTURED — Claude Code, Codex, and Cursor Desktop are captured with session scopes
+- [ ] VERIFIED — Codex is verified; Claude Code still needs session-scope correlation and Cursor needs protected-authority verification
 - [ ] LINKED IN READINESS MANIFEST
 
 ## Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance

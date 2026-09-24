@@ -44,7 +44,7 @@ export interface CursorShellInput extends CursorBaseInput {
 /** The Claude-shaped input understood by `pre-tool-quality.ts`. */
 export interface ClaudeGateInput {
   session_id?: string;
-  hook_event_name: 'PreToolUse';
+  hook_event_name: 'PreToolUse' | 'PostToolUse';
   tool_name: string;
   tool_input: Record<string, unknown>;
 }
