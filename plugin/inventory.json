@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "e27fcaefe074fb46c7f3c929d65e22a728fd59e6f1ced4b18bba440cf659e28b"
+      "sha256": "cb7aceb61a243ab262fca740fb356cf5a9943e7f7ef304403052839faa723270"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "161d432fdea6ed2a35b42f02424f11ee480116261aa5e29e6992ccee98f4651e"
+      "sha256": "a1bd8b7a54461970b0c001be2f1a4980bbf3d07e5149a47c2d4602e4f608306f"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b8972c56b8f6b8dbb54259a3796d94e91c06f57e8ee122d5a0ecb6429c19badc"
+      "sha256": "69e92fae7822c6d981557ee8f56a51bd402df430ed598fd8bfc302cfe3bd84c9"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "40a009de804477bbf502fc88fda4a36d4042ad62356f79d97af2d70a48bad95f"
+      "sha256": "4f9c90a196fcc8a137b40badf18c10416219a9e596708f70a20a30459d54e460"
     },
     {
       "path": "runtime/event-groups.json",
@@ -327,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "2fb8f5d7016878ed032fc6e70da0bc3128a81cb98bf341dc1692aaf714877925"
+      "sha256": "02c5de5fa183b4de29bbdcfcaf570398a69543a265b6c7199974937d1280129e"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -371,11 +371,11 @@
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
-      "sha256": "06ab82594a5464c0d74f2e2c778e2aafdefc8404fcc61fd5418f38f48e500761"
+      "sha256": "90b533fdbf9ca6e6af8603488a483750e858696b9f540b5ec1bde98d2906368f"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "69a82679c2d796618497ab394e5ba16b2f31422ed559dd0cf9bb6de147252285"
+      "sha256": "3766ca92b78cb7ad2e9b4b99426ab545882dc2231677dcbfddc7cd5655501de8"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
@@ -579,7 +579,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "df9ac60b72278ee1f9669484f05cff54a53c81e4f404d8b4426f74f831248077"
+      "sha256": "5bdb79ce3d66b6a4eb384942d5115f2041fa9aa501f0d18af5aeaf35446742c3"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -1051,7 +1051,7 @@
     },
     {
       "path": "templates/hooks/codex/stop.ts",
-      "sha256": "d48612ffedec5ab8aa7a7524f5aacdce79d00b1504f75cf70e822d99e61d073a"
+      "sha256": "864acac6b4b7b8881b8cd6fe2c386f6e765fedf5ed84996201f89e0a93868087"
     },
     {
       "path": "templates/hooks/cursor/after-file-edit.ts",
@@ -1079,7 +1079,7 @@
     },
     {
       "path": "templates/hooks/cursor/stop.ts",
-      "sha256": "838c2c24427ff62175621c966a59558e879100e0611f6181f3008d1c6406305c"
+      "sha256": "f8319f2b4a120dceafa15118a1273650e4988eb2cb676fc214d82a7c1e07d4d2"
     },
     {
       "path": "templates/hooks/dependency-bootstrap.ts",
@@ -1251,7 +1251,7 @@
     },
     {
       "path": "templates/hooks/lib/quality.ts",
-      "sha256": "2fb8f5d7016878ed032fc6e70da0bc3128a81cb98bf341dc1692aaf714877925"
+      "sha256": "02c5de5fa183b4de29bbdcfcaf570398a69543a265b6c7199974937d1280129e"
     },
     {
       "path": "templates/hooks/lib/re-entry.ts",
@@ -1295,11 +1295,11 @@
     },
     {
       "path": "templates/hooks/lib/retro-trigger.ts",
-      "sha256": "175b7df59888ac6845af3d308e904c66110b1ed8eff9f07d3ad3ed2d7e12994f"
+      "sha256": "87d86f6c27a309482f35ccf2e812ff831490b5c3cd8e8bf50a55ebbf2c8770d1"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",
-      "sha256": "69a82679c2d796618497ab394e5ba16b2f31422ed559dd0cf9bb6de147252285"
+      "sha256": "3766ca92b78cb7ad2e9b4b99426ab545882dc2231677dcbfddc7cd5655501de8"
     },
     {
       "path": "templates/hooks/lib/review-receipt.ts",
@@ -1503,7 +1503,7 @@
     },
     {
       "path": "templates/hooks/stop-quality.ts",
-      "sha256": "e9a9e9233e3d54246482f20e8381490d74ba39d99ab6dcc6c29a72812fd3e388"
+      "sha256": "1858b5639255295d82e17ca841df994e6a3ce876d93b3744cb515a42baae9bc6"
     },
     {
       "path": "templates/hooks/stop-reentry.ts",
@@ -1539,7 +1539,7 @@
     },
     {
       "path": "templates/SAFEWORD.md",
-      "sha256": "c655caab84e98906d8b85e56ed79ed9bf720d89d9a1ba53b0f52d49c129910bb"
+      "sha256": "2a10ebc38c3778c68d7ea82daeabec341759f249839915fcf73efa523976a2ab"
     },
     {
       "path": "templates/scripts/bisect-test-pollution.sh",

@@ -13,6 +13,7 @@ import {
   hashArtifact,
   isReviewGateEnabled,
   isStopQualityReviewEnabled,
+  isTerminalHandoffCorrectionEnabled,
   parseReviewStamps,
   readCrossAgentReviewPolicy,
   reviewGateAppliesToPhase,
@@ -413,6 +414,17 @@ describe('isStopQualityReviewEnabled (Stop-time review, off by default)', () => 
   it('is independent of the review gate flag', () => {
     expect(isStopQualityReviewEnabled('{"reviewGate": true}')).toBe(false);
     expect(isReviewGateEnabled('{"stopQualityReview": true}')).toBe(false);
+  });
+});
+
+describe('isTerminalHandoffCorrectionEnabled (native correction, on by default)', () => {
+  it('stays on unless the key is explicitly false', () => {
+    expect(isTerminalHandoffCorrectionEnabled()).toBe(true);
+    expect(isTerminalHandoffCorrectionEnabled('{}')).toBe(true);
+    expect(isTerminalHandoffCorrectionEnabled('not json {')).toBe(true);
+    expect(isTerminalHandoffCorrectionEnabled('{"terminalHandoffCorrection": true}')).toBe(true);
+    expect(isTerminalHandoffCorrectionEnabled('{"terminalHandoffCorrection": false}')).toBe(false);
+    expect(isTerminalHandoffCorrectionEnabled('{"terminalHandoffCorrection": "false"}')).toBe(true);
   });
 });
 
