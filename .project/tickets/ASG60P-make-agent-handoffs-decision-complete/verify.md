@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ The final focused evaluator and Stop-hook regression set passes 104/104. The earlier full CLI pass completed with 9,955 passing and 13 skipped; 4 unrelated tests timed out under host saturation. Serial isolation passed 27/32 selected cases; the remaining 5 were wall-clock artifacts (4 child-process timeouts with null exit status and 1 future-timestamp fixture that aged past its boundary). Earlier serial evidence on this branch covers all 9,972 CLI tests. Retro-relay passes 198 with 1 skipped; retro-collector passes 153.
+**Test Suite:** ⚠️ The final focused evaluator and Stop-hook regression set passes 105/105. The earlier full CLI pass completed with 9,955 passing and 13 skipped; 4 unrelated tests timed out under host saturation. Serial isolation passed 27/32 selected cases; the remaining 5 were wall-clock artifacts (4 child-process timeouts with null exit status and 1 future-timestamp fixture that aged past its boundary). Earlier serial evidence on this branch covers all 9,972 CLI tests. Retro-relay passes 198 with 1 skipped; retro-collector passes 153.
 **Gherkin:** ✅ Full native acceptance lane passes (1,617 scenarios, 3 skipped; 75,790 steps pass, 4 skipped), and the final feature-only rerun passes all 121 scenarios and 5,566 steps in `features/make-agent-handoffs-decision-complete.feature`. The build lane has prior 596/596 green evidence; the saturated rerun passed 595/596 and exceeded only the 5-second hook p95 budget.
 **Build:** ✅ Success
 **Lint:** ✅ Clean

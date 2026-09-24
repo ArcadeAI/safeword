@@ -166,6 +166,38 @@ describe('Stop Hook: Done-gate fires without recent edit tools (AP3FGJ)', () => 
 });
 
 describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
+  it('defaults correction on for a current-turn non-edit tool when optional review is absent', () => {
+    writeFileSync(nodePath.join(state.projectDirectory, '.safeword', 'config.json'), '{}\n');
+    const transcriptPath = nodePath.join(state.projectDirectory, 'current-turn-tool.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'text', text: 'Inspect the setting.' }] },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', name: 'Bash', id: 'toolu_read' }],
+          },
+        }),
+      ].join('\n'),
+    );
+    const result = runStopHook(
+      state.projectDirectory,
+      transcriptPath,
+      undefined,
+      'The setting is enabled.',
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
+  });
+
   it('fails open when the host omits the final assistant message', () => {
     writeGateConfig(state.projectDirectory, {
       stopQualityReview: true,
@@ -679,7 +711,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
-  it('shows quality review when active ticket at implement phase', () => {
+  it('corrects an active implement-phase handoff with phase evidence', () => {
     createStopHookTicket(state.projectDirectory, {
       id: '099',
       slug: 'test',
@@ -693,7 +725,8 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     // Should soft-block with quality review (edits were made)
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toMatch(/\*\*CONFIDENT\*\*|decision brief/i);
+    expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
+    expect(parsed.reason).toContain('Phase: implement');
   });
 
   it('defaults terminal-handoff correction on when the config key is absent', () => {
