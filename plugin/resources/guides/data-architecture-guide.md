@@ -1,202 +1,190 @@
-# Data Architecture Documentation Guide
+# Data Architecture Guide
+
+Use during Implementation Planning when work changes a store, schema, data relationship,
+source of truth, ownership, access, lifecycle, migration, backfill, or cross-system flow.
+One consequential entity is enough; file and entity counts are not skip rules. The
+feature's `impl-plan.md` is its design plan of record. This guide helps decide
+what belongs there and when a significant choice also needs the configured
+durable architecture record.
+
+## Universal contract
+
+Every applicable plan names these decisions:
+
+Decide each applicable subject at review depth: Purpose; Store and model;
+Schema and relationships; Source of truth; Ownership and access; Identity and
+integrity; Cross-system flow; Lifecycle and retention; Migration and backfill;
+Compliance; and Rollback. Compliance states the applicable privacy, retention,
+residency, and audit obligations or why none applies. State why any subject
+does not apply; a guide citation or generic "data covered" statement is not a
+decision.
+
+- source of truth and authoritative writer (Source of truth; Ownership and access)
+  `[decision.core.source-of-truth]`
+- identity, ownership, tenant/scope binding, and relationship invariants
+  (Ownership and access; Identity and integrity; Schema and relationships)
+  `[decision.core.identity-and-scope]`
+- accepted values, validation, compatibility, and conflict semantics
+  (Schema and relationships; Identity and integrity; Cross-system flow)
+  `[decision.core.value-contract]`
+- creation, mutation, retention, deletion, restore, and retry boundaries
+  (Lifecycle and retention; Migration and backfill; Rollback)
+  `[decision.core.lifecycle]`
+
+Record the chosen data contract, alternatives, reasons, and consequences in the
+Implementation Plan. Apply the architecture guide's significance test separately:
+shared structure or contracts, a key quality attribute, data ownership or lifecycle,
+migration or compatibility behavior, or another difficult-to-reverse constraint
+also requires a resolvable link to the configured durable architecture record.
+A routine, reversible field addition does not require one merely because it
+persists data. The durable record preserves the cross-feature rule; the feature
+plan explains its adoption without creating competing authority. Generated
+schemas or manifests represent a contract but never become another authority.
+The Execution Plan owns exact migration commands, file edits, test paths,
+backfill batches, and evidence collection.
+
+Use the interface contract guide for caller-visible requests, errors, and
+entry-point authorization; this guide covers the data beneath that interface.
+Use the release/recovery guide for live cutover policy and the testing guide
+for proof scope. These guides contribute to one plan rather than creating
+separate design authorities.
+
+### Mixed decision routing
+
+**Trigger:** the case mixes an architecturally significant data contract with
+reversible helper or control-flow choices.
+
+Record the identity and lifecycle decisions in the Implementation Plan and
+link their lasting shared constraints in the configured architecture record
+`[decision.routing.identity-architecture]` `[decision.routing.lifecycle-architecture]` and route
+reversible helpers and control flow to implementation planning
+`[decision.routing.helper-implementation]` `[decision.routing.control-flow-implementation]`.
+The separation itself is reviewable evidence `[proof.routing.durable-and-reversible-separated]`;
+significant contracts without that resolvable link `decision.routing.identity-implementation-only`, architecture-owned
+helpers `decision.routing.helper-architecture`, or collapsed evidence
+`proof.routing.durable-and-reversible-collapsed` fail review.
+
+### Artifact ownership
+
+**Trigger:** the case assigns or compares responsibilities across architecture, plans, generated
+representations, ADRs, or evidence.
+
+Assign one authority to each artifact role: durable data architecture
+`[decision.ownership.data-architecture]`, implementation plan
+`[decision.ownership.implementation-plan]`, generated representation
+`[decision.ownership.generated-representation]`, qualifying ADR `[decision.ownership.adr]`,
+and linked evidence `[decision.ownership.linked-evidence]`. Prove one authority
+`[proof.ownership.single-authority]`; duplicate authority
+`decision.ownership.duplicate-authority` fails.
+
+A cross-reference label is vocabulary, not guidance. Do not select
+`[decision.core.independent-proof]` unless this guide also contains the Independent proof module
+that defines its trigger and requirement.
+
+<!-- data-architecture-ablation:independent-proof:start -->
+
+## Independent proof
+
+**Trigger:** the case explicitly makes a completeness or coverage claim. Do not apply this module
+merely because ordinary verification would be useful; a performance threshold
+or correctness proof alone is not a completeness or coverage claim.
+
+Every completeness claim names an oracle maintained independently of the mechanism being checked.
+Apply this requirement as `[decision.core.independent-proof]`.
+Grade the intended and observed semantic IDs as exact sets: missing, forbidden, unknown, or duplicate
+IDs fail. Evidence must state the environment, boundary, controls, threshold, and conditions that
+require revalidation. A sibling generated output cannot prove another generated output complete.
+For generated-artifact completeness, compare the output with a hand-maintained intended-facet
+inventory `[proof.generated.independent-inventory]`.
+For generated artifacts, do not use sibling generated output as the oracle
+`proof.generated.sibling-output`. Before approving an explicit completeness or
+coverage claim, re-grade proof against the independent exact-set oracle.
+<!-- data-architecture-ablation:independent-proof:end -->
 
-**Context:** How to document data architecture decisions, models, and flows for software projects. Applies LLM instruction design principles for clarity and reliability.
+## Triggered modules
 
-**See:** `@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/llm-writing-guide.md` for comprehensive framework on writing LLM-consumable documentation.
+Apply only modules whose trigger fires.
 
----
+### Relational storage
 
-## When to Document Data Architecture
+**Trigger:** relational tables, constraints, joins, or query-performance claims.
 
-The first matching row applies (rows run general → specific, so when several fit,
-the earlier one wins):
+- record physical schema, keys, constraints, indexes, tenant-parent binding, and query contract
+  `[decision.relational.physical-schema]` `[decision.relational.query-contract]`
+- forbid cross-tenant parent binding `decision.relational.cross-tenant-parent-binding`
+- prove performance with engine/version `[proof.relational.engine-and-version]`, representative data
+  shape `[proof.relational.representative-data-shape]`, query shape
+  `[proof.relational.query-shape]`, threshold `[proof.relational.threshold]`, and revalidation trigger
+  `[proof.relational.revalidation-trigger]`
+- never infer coverage from a sibling-generated schema
+  `proof.relational.self-generated-coverage`
 
-| If the work is…                                           | Action                                                               |
-| --------------------------------------------------------- | -------------------------------------------------------------------- |
-| project initialization                                    | Create `DATA_ARCHITECTURE.md` or `ARCHITECTURE.md` with data section |
-| adding a new data store (database, cache, file system)    | Update architecture doc                                              |
-| changing the data model (schema, entities, relationships) | Update architecture doc                                              |
-| a data-flow integration (API, ETL, sync)                  | Update architecture doc                                              |
-| a single-feature implementation                           | Use design doc (reference architecture doc)                          |
+### Encryption and key lifecycle
 
-**Edge cases:**
+**Trigger:** application-managed encrypted fields, tokens, credentials, or scope-bound ciphertext.
 
-- Single feature but adds 3+ entities → Architecture doc (impacts data model)
-- Bug fix changes schema → Architecture doc (schema changes always documented)
-- Feature uses existing data model → Design doc only
+- record representation/versioning, canonical AAD identity, scope binding, and key dependencies
+  `[decision.encryption.representation]` `[decision.encryption.aad-binding]`
+  `[decision.encryption.key-lifecycle]`
+- prove canonical AAD identity `[proof.encryption.canonical-aad-identity]`, scope mutation failure
+  `[proof.encryption.scope-mutation-failure]`, and dependency rotation coverage
+  `[proof.encryption.key-dependency-rotation-coverage]`; generic encrypted-at-rest evidence
+  `proof.encryption.encrypted-at-rest` is insufficient
 
----
+### Live migration
 
-## Core Principles (Define First, Then Apply)
+**Trigger:** deployed data or mixed application versions must remain available during change.
 
-### 1. Data Quality
+- record deployed starting state, compatibility window, cutover, recovery, and restore behavior
+  `[decision.migration.deployed-state]` `[decision.migration.compatibility]`
+  `[decision.migration.cutover-and-recovery]`
+- prove deployed starting state `[proof.migration.deployed-starting-state]`, mixed-version
+  compatibility `[proof.migration.mixed-version-compatibility]`, cutover
+  `[proof.migration.cutover]`, recovery `[proof.migration.recovery]`, and restore behavior
+  `[proof.migration.restore-behavior]`; feature-branch-only evidence
+  `proof.migration.feature-branch-starting-state` is insufficient
 
-**What:** Ensure data is accurate, complete, consistent, and timely.
+### Temporal behavior
 
-**Why:** Poor data quality cascades to business logic bugs, corrupted state, and user-facing errors.
+**Trigger:** the case explicitly names validity, expiry, ordering, a time window, or a clock
+boundary. Do not infer this module from a generic event or lifecycle.
 
-**Document:**
+- record authoritative clock and exact equality behavior `[decision.temporal.clock-boundary]`
+- record delayed physical deletion and retry/restore semantics `[decision.temporal.deletion-lag]`
+- exercise the authoritative clock `[proof.temporal.authoritative-clock]`, exact equality
+  `[proof.temporal.exact-equality-behavior]`, retry `[proof.temporal.retry-behavior]`, and restore
+  `[proof.temporal.restore-behavior]` boundaries; non-boundary evidence
+  `proof.temporal.non-boundary` is insufficient
 
-- Validation rules (types, constraints, ranges)
-- Data source of truth (which store is canonical)
-- Quality checkpoints (where validation happens)
+### Erasure and retention
 
-**Example format:**
+**Trigger:** deletion, expiry, legal erasure, backups, indexes, caches, or derived copies apply.
 
-```markdown
-**[Entity] state** (source of truth: [storage type])
+- inventory every copy and record its deletion or retained disposition
+  `[decision.erasure.copy-disposition]`
+- record sibling-scope and different-owner isolation `[decision.erasure.isolation]`
+- prove copy inventory `[proof.erasure.copy-inventory]`, positive deletion
+  `[proof.erasure.positive-deletion]`, sibling-scope isolation
+  `[proof.erasure.sibling-scope-isolation]`, and different-owner isolation
+  `[proof.erasure.different-owner-isolation]`; primary-row-only evidence
+  `proof.erasure.primary-row-only` is insufficient
 
-- `field1`: constraint (e.g., 0-100 integer)
-- `field2[]`: max N entries, validation rule
-  **Validation checkpoint:** `validateFunction()` in `file.ts:line`
-```
+### Generated artifacts
 
-### 2. Data Governance
+**Trigger:** code, schemas, manifests, docs, or catalogues are generated from another source.
 
-**What:** Policies that govern data access, modification, and lifecycle.
+- name the authoritative source and generation boundary `[decision.generated.source]`
 
-**Why:** Prevents unauthorized access, conflicting writes, and data loss.
+## Evidence safety
 
-**Document:**
+Use synthetic placeholders such as `SYNTHETIC_TENANT_A` for mutable fixture values and use only
+checked-in equivalents or deployed read-only snapshots for migration evidence. Never require or
+store production credentials, tokens, keys, ciphertext, nonces, email addresses, plaintext customer
+data, or other secret-bearing high-entropy values.
 
-- Who can read/write each data entity
-- When data is created/updated/deleted
-- Conflict resolution strategies
+## Completion check
 
-**Example format:**
-
-```markdown
-**[Entity] state**:
-
-- Read: [roles with read access]
-- Write: [roles with write access] (via `updateFunction()`)
-- Delete: [strategy] (e.g., soft delete with `deletedAt`)
-- Conflict: [resolution strategy] (e.g., last-write-wins, CRDT merge)
-```
-
-### 3. Data Accessibility
-
-**What:** Ensure data is available when needed, performantly.
-
-**Why:** Users expect instant feedback; slow queries degrade UX.
-
-**Document:**
-
-- Access patterns (how data is queried)
-- Performance targets (max query time)
-- Caching strategies
-
-**Example format:**
-
-```markdown
-**[Entity] list** (accessed on [trigger]):
-
-- Target: <Nms load time
-- Strategy: [database index/optimization]
-- Cache: [caching approach] or "No cache needed"
-```
-
-### 4. Living Documentation
-
-**What:** Documentation stays current with code, not a one-time artifact.
-
-**Why:** Outdated docs are worse than no docs (mislead developers).
-
-**Document:**
-
-- Version/status (Production/Proposed)
-- Last updated date
-- Migration strategy when changing
-
-**Example format:**
-
-```markdown
-**Version:** X.Y
-**Status:** Production (vX) + Proposed (vY)
-**Last Updated:** YYYY-MM-DD
-
-## Current Schema (vX - Production)
-
-## Proposed Schema (vY - Feature Name)
-
-## Migration Strategy
-```
-
----
-
-## What to Document
-
-### 1. Data Models
-
-**Three levels (conceptual → logical → physical):**
-
-- **Conceptual**: High-level entities with descriptions (e.g., "User - person with account", "Order - purchase transaction")
-- **Logical**: Attributes, types, relationships, constraints (e.g., `userId: UUID`, `orders: Order[]` 1:N relationship)
-- **Physical**: Storage technology, tables/collections, indexes, WHY this tech (trade-offs) - see Core Principles → Data Quality for format
-  If the storage technology is not yet chosen, call `/figure-it-out` first — its output provides the evidence for 'WHY this tech'.
-
-### 2. Data Flows
-
-**Document:** Sources → Transformations → Destinations + Error Handling
-
-**Include:** Input validation, business logic transformations, persistence steps, UI updates, error handling for each step.
-
-**Example format:**
-
-```markdown
-**[Flow Name]** (trigger: [user action/event])
-
-1. **Input** → Validation (`validateFn()`) | Error: return 400
-2. **Transform** → Business logic | Error: rollback + notify
-3. **Persist** → Database write | Error: retry 3x, then fail
-4. **UI Update** → Optimistic update | Error: revert state
-```
-
-### 3. Data Policies
-
-**Document:** Access control (who reads/writes), validation rules, lifecycle (creation, updates, deletion, purging).
-
-### 4. Data Integration
-
-**Document:** External systems (APIs, files, services), sync strategies, conflict resolution, error handling.
-
----
-
-## Integration with TDD Workflow
-
-**See:** `@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/architecture-guide.md` for full TDD workflow integration.
-
-**Data-specific triggers for updating architecture doc:**
-
-- Adding new data entities
-- Changing schema (new fields, relationships)
-- Changing storage technology
-- Discovering performance bottlenecks
-
----
-
-## Common Mistakes
-
-❌ **No source of truth defined** → Conflicting data in multiple stores
-❌ **Missing validation rules** → Invalid data written to persistence
-❌ **No migration strategy** → Breaking changes brick user data
-❌ **Outdated documentation** → Schema and docs don't match (worse than no docs)
-❌ **Implementation details in architecture doc** → Save for design docs
-❌ **Ignoring performance targets** → Slow queries degrade UX
-
----
-
-## Best Practices Checklist
-
-Before finalizing data architecture doc:
-
-- [ ] Principles follow What/Why/Document/Example format (4 principles minimum)
-- [ ] All entities defined with descriptions (3+ entities for conceptual model)
-- [ ] Each entity has attributes, types, relationships (logical model complete)
-- [ ] Storage tech documented with WHY + trade-offs (physical model includes rationale)
-- [ ] Each data flow includes error handling (not just happy path)
-- [ ] Validation checkpoints specified with line numbers (where validation happens)
-- [ ] Performance targets use concrete numbers (<Nms, not "fast")
-- [ ] Migration strategy covers both additive and breaking changes
-- [ ] Version and status match codebase (verify with git/deployment)
-- [ ] Cross-referenced from root ARCHITECTURE.md or SAFEWORD.md (link exists)
+Before approval, verify the universal contract and each triggered module;
+confirm that each applicable decision appears in the Implementation Plan and
+that every significant decision has a resolvable durable-record link. Make
+referenced evidence and revalidation conditions resolvable.

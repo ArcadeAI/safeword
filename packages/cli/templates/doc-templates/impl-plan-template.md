@@ -14,20 +14,36 @@ leave one blank. Fill each section, then delete the guidance comments.
 
 ## Approach
 
-<!-- Open by naming the riskiest assumption this design rests on and the
+<!-- Open with architecture at a glance: the components and request/data path. -->
+
+<!-- After the architecture glance, name the riskiest assumption this design rests on and the
 cheapest scenario that proves it — concrete and scenario-bound, not vacuous;
 if no single slice is load-bearing, say so. Then record how each
 scenario/behavior will be satisfied: which component or layer owns it, the
 primary proof (`unit`, `integration`, `E2E`, or `eval`) chosen by
-`testing/SKILL.md`'s highest practical scope rule, the reason that proof is
+the installed testing guide's cheapest sufficient real-boundary rule, the reason that proof is
 enough, the real system boundary it exercises, its confidence limitation, any
-supporting proof needed for pure-logic edge cases, AI output
-quality, or entry-point wiring. Name the load-bearing proof to try first so a
+supporting proof needed for pure-logic edge cases or AI output
+quality. Name the load-bearing proof to try first so a
 wrong design is exposed cheaply; leave dependency-ordered tasks and test steps
-to the Execution Plan. Record the plan-implementation
+to the Execution Plan. Name a real wiring proof for each new entry point.
+For each affected surface in the accepted scenarios, name its proof or a
+specific `skip: <reason>`. Record the plan-implementation
 phase's proof strategy here. Link separately owned detailed
 evidence when useful. Do not copy test paths, commands, current hashes,
 individual results, or the verification ledger into this decision path. -->
+
+### Persona consequences
+
+<!-- For each accepted persona, name the design consequence and confidence
+limit for trust, operation, approval, and recovery where applicable. Use
+`skip: <reason>` only for a genuinely inapplicable consequence. -->
+
+### Current and target truth
+
+<!-- Keep proposed decisions, implemented facts, available proof, known defects,
+and pending human authority separate. An absent behavior is target work, not an
+implemented fact; a passing test is proof, not human approval. -->
 
 ## Decisions
 
@@ -37,8 +53,11 @@ the full depth, but never a second, separately authoritative feature design
 plan. For applicable choices, use the interface-contract, release-recovery,
 and measurement-design guides. Decide the contract, authorization and failure
 behavior, compatibility, rollout and rollback policy, and measurement origin
-and validity before Execution Planning; give a reason when a concern does not
-apply. -->
+and validity before Execution Planning. For a significant durable-state,
+authorization, concurrency, deletion, migration, or compatibility decision,
+also state its legal states and transitions, change authority, atomicity and
+crash boundary, retry or idempotency behavior, preserved evidence, and cutover
+policy where applicable. Give a reason when a concern does not apply. -->
 
 ### Implementation Inspiration
 
@@ -121,13 +140,22 @@ A dependency row then reads (shape, not real figures — look yours up):
 
 ### Data applicability
 
-<!-- If the feature changes a data contract, ownership, or lifecycle, record
-`Data applicability: <impact>` and the decisions at review depth: purpose; store and model; schema and
+<!-- If the feature changes a store, schema, relationship, source of truth,
+ownership, access, lifecycle, migration, backfill, or cross-system flow, record
+`Data applicability: <impact>` and the decisions at decision depth (choice,
+reason, and consequence): purpose; store and model; schema and
 relationships; source of truth; ownership and access; identity and integrity;
 cross-system flow; lifecycle and retention; migration and backfill; compliance;
-and rollback. Explain choices and consequences here. Move exact migration
+and rollback. For each subject, explain its choice and consequence or state
+why that subject does not apply. Move exact migration
 commands to Execution Planning. If none apply, write
 `Data applicability: skip: <reason>`. -->
+
+### Measurement applicability
+
+<!-- Name the accepted quantitative promise, measurement origin and method,
+validity safeguards, and failure behavior. If Product made no quantitative
+promise, write `Measurement applicability: skip: <reason>`. -->
 
 ## Design alignment
 
@@ -164,8 +192,9 @@ documented, not forbidden. If none: `skip: no deviations planned`. -->
 
 <!-- Which configured documentation sources (`docs.sources` in
 .safeword/config.json — README, docs sites, guides) do this feature's
-customer-visible changes touch? Enumerate each affected surface and fold the
-updates into the build order as tasks. Internal-only change with no
+customer-visible changes touch? Enumerate each affected surface and the
+required documentation outcome. The Execution Plan owns update tasks and
+their order. Internal-only change with no
 customer-visible behavior: `skip: <reason>`. -->
 
 ## Assessment triggers

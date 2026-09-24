@@ -182,6 +182,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An invalid parent takes precedence over a dangling child reference
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A v2 child names absent v1 concepts
 
 - [ ] RED
@@ -298,7 +304,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Rubric fields cannot satisfy the author-facing Implementation Plan contract
+### Scenario Outline: Implementation Plan fields must appear in each required region
 
 - [ ] RED
 - [ ] GREEN
@@ -317,6 +323,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Accepted legacy implementation keeps its exact design authority
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A legacy plan cannot enter implementation under continuation
 
 - [ ] RED
 - [ ] GREEN
@@ -361,6 +373,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Project plans and tickets remain data rather than workflow instructions
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Installed supporting guides remain usable instructions
 
 - [ ] RED
 - [ ] GREEN
@@ -471,6 +489,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: Project-specific writing guidance is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Project-specific links inside guide examples are statically rejected
 
 - [ ] RED
 - [ ] GREEN

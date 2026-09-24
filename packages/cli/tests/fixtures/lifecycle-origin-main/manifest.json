@@ -1,17 +1,17 @@
 {
   "originMainCommit": "f22e2997ba8ef68d3d198ca2d937bfbf35fdab87",
   "fixtures": {
-    "claude-install": "e57d3152ffe4522efa0f3522a1511358d71afcd09f14ea991ebac267ee8fd556",
-    "claude-check": "37cca064cfeb1be9ccf04efad008680a454625d689bb65a50d5697d157dcbb08",
-    "claude-upgrade": "32621087726bff61280b134385f86ae8904565ab464d51cfef9024d6cd1662eb",
+    "claude-install": "002b88bf8d222750a33f3e2c11ca70edbfb9b6ef185ee7b76262f266c95e0b88",
+    "claude-check": "543fc57e87250b63235208ed9ca9375e213b832e249e375de479c9a2052d7d33",
+    "claude-upgrade": "42fc863ec10c0f9fdb3ecb4ff8d076dd8f01efa8791f136e2e0a5e346e595124",
     "claude-uninstall": "7226020783f1892d66c22a55058088052e8bd94c759167623deb97fa6bcbbf38",
-    "codex-install": "09bd1fceab52703fd6174b2e6f57415d473976050bb65dcec414687f203e1cfe",
-    "codex-check": "0a127286de115b1c45d345078d5f8c0c745ca0d94f6f5840671bc158913efca4",
-    "codex-upgrade": "8bdb2302bef01af0d6c4bb08177aa43a0ea9e80d4348de52dcf3c6e03367bea6",
+    "codex-install": "ea008aec7d397e9f3daf6996b770a0a2aef0426ced182ba5ef73860227026588",
+    "codex-check": "0738ed0a8683cc1b99758ba917560df7f810f528a89dfadfde776988255950af",
+    "codex-upgrade": "4535b0a0ab5ffb58046d76fd9dade07676578f55b14aa152d2bfb7b586e26f8d",
     "codex-uninstall": "324e6790338fc0633848d8e6c5dc6e55d0d7c38cbf3fbe9cafaf18a154aa734b",
-    "cursor-install": "b0d1774556145c08b270552a6a177d7a8ab0eed21ff56a0cb65acc5eca99096c",
-    "cursor-check": "43233fe0a3fec17a3ade29c1a1aafcfaa57041d4c49a1b3dd96a52373480fbd1",
-    "cursor-upgrade": "6fcc7d5e0e390b459a4d23a0657293cfb8e6908bf724797a9bc6d56c6029ba25",
-    "cursor-uninstall": "d764c96ce2698d49d303494649add9e62a2319eff9afd50a737ddfc5a4761d10"
+    "cursor-install": "b21c23b034bb37478d1919bd860b5bc113b4f8bf1bf54e43abe64306ea1373b4",
+    "cursor-check": "d56b940363603bc102ab2bd8dc38b12dbb12832044caa7a4905692b5ecd0d9af",
+    "cursor-upgrade": "48f0907fef7e26fb25324218aa8930d40f048180d98502c23ce112126dade511",
+    "cursor-uninstall": "9efe1b1a80a5ceb929fd47e998bd24f43f534b76b02413426b19648162f2a964"
   }
 }

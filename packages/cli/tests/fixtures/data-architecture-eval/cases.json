@@ -1,0 +1,212 @@
+[
+  {
+    "id": "simple-key-value-preference",
+    "text": "Plan one routine, reversible field on an existing user profile to store preferred dashboard density. No shared data owner, lifecycle, interface, or compatibility rule changes.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle"
+      ],
+      "forbiddenDecisionIds": [
+        "decision.routing.identity-architecture",
+        "decision.routing.lifecycle-architecture"
+      ],
+      "expectedProofFactIds": [],
+      "forbiddenProofFactIds": []
+    }
+  },
+  {
+    "id": "multi-tenant-relational-event-store",
+    "text": "Plan a PostgreSQL-backed event store shared by multiple tenant accounts. Parent-child records must never cross tenant boundaries; prove high-volume query performance against representative data and an explicit threshold. Old and new application versions overlap during deployment, rollback and restore must work, and deleting one account must remove its primary and secondary copies without affecting sibling or different-owner data.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.relational.physical-schema",
+        "decision.relational.query-contract",
+        "decision.migration.deployed-state",
+        "decision.migration.compatibility",
+        "decision.migration.cutover-and-recovery",
+        "decision.erasure.copy-disposition",
+        "decision.erasure.isolation"
+      ],
+      "forbiddenDecisionIds": ["decision.relational.cross-tenant-parent-binding"],
+      "expectedProofFactIds": [
+        "proof.relational.engine-and-version",
+        "proof.relational.representative-data-shape",
+        "proof.relational.query-shape",
+        "proof.relational.threshold",
+        "proof.relational.revalidation-trigger",
+        "proof.migration.deployed-starting-state",
+        "proof.migration.mixed-version-compatibility",
+        "proof.migration.cutover",
+        "proof.migration.recovery",
+        "proof.migration.restore-behavior",
+        "proof.erasure.copy-inventory",
+        "proof.erasure.positive-deletion",
+        "proof.erasure.sibling-scope-isolation",
+        "proof.erasure.different-owner-isolation"
+      ],
+      "forbiddenProofFactIds": [
+        "proof.relational.self-generated-coverage",
+        "proof.migration.feature-branch-starting-state",
+        "proof.erasure.primary-row-only"
+      ]
+    }
+  },
+  {
+    "id": "encrypted-credential-record",
+    "text": "Plan a stored third-party credential whose ciphertext is bound to the canonical account and tenant identity. Moving it to another scope must fail, and dependent records must remain usable while keys rotate.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.encryption.representation",
+        "decision.encryption.aad-binding",
+        "decision.encryption.key-lifecycle"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": [
+        "proof.encryption.canonical-aad-identity",
+        "proof.encryption.scope-mutation-failure",
+        "proof.encryption.key-dependency-rotation-coverage"
+      ],
+      "forbiddenProofFactIds": ["proof.encryption.encrypted-at-rest"]
+    }
+  },
+  {
+    "id": "live-additive-migration",
+    "text": "Plan adding a required field while already-deployed old and new application versions overlap. Describe the starting state, compatibility window, cutover, rollback, recovery, and restored-data behavior.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.migration.deployed-state",
+        "decision.migration.compatibility",
+        "decision.migration.cutover-and-recovery"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": [
+        "proof.migration.deployed-starting-state",
+        "proof.migration.mixed-version-compatibility",
+        "proof.migration.cutover",
+        "proof.migration.recovery",
+        "proof.migration.restore-behavior"
+      ],
+      "forbiddenProofFactIds": ["proof.migration.feature-branch-starting-state"]
+    }
+  },
+  {
+    "id": "generated-manifest-missing-one-facet",
+    "text": "A manifest is generated from source definitions and is claimed to cover every facet in a separately maintained intended-facet inventory. Plan the durable source relationship and proof of complete coverage.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.generated.source",
+        "decision.core.independent-proof"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": ["proof.generated.independent-inventory"],
+      "forbiddenProofFactIds": ["proof.generated.sibling-output"]
+    }
+  },
+  {
+    "id": "erasure-across-secondary-copies",
+    "text": "One subject's records appear in the primary store, one cache, one replica, and one backup. Plan deletion behavior and prove sibling scopes and different owners remain untouched.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.erasure.copy-disposition",
+        "decision.erasure.isolation"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": [
+        "proof.erasure.copy-inventory",
+        "proof.erasure.positive-deletion",
+        "proof.erasure.sibling-scope-isolation",
+        "proof.erasure.different-owner-isolation"
+      ],
+      "forbiddenProofFactIds": ["proof.erasure.primary-row-only"]
+    }
+  },
+  {
+    "id": "time-equality-boundary",
+    "text": "Plan a record that becomes unusable exactly when the authoritative clock equals its expiry timestamp, while physical removal may happen later and retries or restores must not revive access. Remove primary, secondary, and restored copies without affecting sibling scopes or different owners.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.temporal.clock-boundary",
+        "decision.temporal.deletion-lag",
+        "decision.erasure.copy-disposition",
+        "decision.erasure.isolation"
+      ],
+      "forbiddenDecisionIds": [],
+      "expectedProofFactIds": [
+        "proof.temporal.authoritative-clock",
+        "proof.temporal.exact-equality-behavior",
+        "proof.temporal.retry-behavior",
+        "proof.temporal.restore-behavior",
+        "proof.erasure.copy-inventory",
+        "proof.erasure.positive-deletion",
+        "proof.erasure.sibling-scope-isolation",
+        "proof.erasure.different-owner-isolation"
+      ],
+      "forbiddenProofFactIds": ["proof.temporal.non-boundary", "proof.erasure.primary-row-only"]
+    }
+  },
+  {
+    "id": "mixed-decision-routing",
+    "text": "Plan a tenant-scoped session record shared by two services whose account ID is the authoritative identity. Both services must honor active/revoked status and the same creation and revocation lifecycle, so changing this contract would require coordinated migration. The parser library can be swapped locally and the retry order is local control flow.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.core.source-of-truth",
+        "decision.core.identity-and-scope",
+        "decision.core.value-contract",
+        "decision.core.lifecycle",
+        "decision.routing.identity-architecture",
+        "decision.routing.lifecycle-architecture",
+        "decision.routing.helper-implementation",
+        "decision.routing.control-flow-implementation"
+      ],
+      "forbiddenDecisionIds": [
+        "decision.routing.identity-implementation-only",
+        "decision.routing.helper-architecture"
+      ],
+      "expectedProofFactIds": ["proof.routing.durable-and-reversible-separated"],
+      "forbiddenProofFactIds": ["proof.routing.durable-and-reversible-collapsed"]
+    }
+  },
+  {
+    "id": "artifact-ownership",
+    "text": "A project has data-architecture, implementation-plan, generated-representation, ADR, and evidence artifact roles. Decide the authority boundaries among them so maintainers know which artifact to update.",
+    "rubric": {
+      "expectedDecisionIds": [
+        "decision.ownership.data-architecture",
+        "decision.ownership.implementation-plan",
+        "decision.ownership.generated-representation",
+        "decision.ownership.adr",
+        "decision.ownership.linked-evidence"
+      ],
+      "forbiddenDecisionIds": ["decision.ownership.duplicate-authority"],
+      "expectedProofFactIds": ["proof.ownership.single-authority"],
+      "forbiddenProofFactIds": []
+    }
+  }
+]

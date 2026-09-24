@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { ReviewerOutput } from '../../src/review/contract.js';
 import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 
-const DECISION_BOUNDARY_OBLIGATION = 'Decision ownership boundary';
+const DECISION_BOUNDARY_OBLIGATION = 'Guide applicability and decision ownership';
 const REQUIRED_CONTRACT_PHRASES = [
   'API and data contracts',
   'authorization',

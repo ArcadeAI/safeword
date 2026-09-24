@@ -137,9 +137,10 @@ Worked example — feature `oauth-flow`, persona Platform Operator (PLO), first 
 Scenario: Change association applies to subsequent auth
 ```
 
-A scenario with no lineage tag is left alone — it simply proves no criterion.
-`safeword doctor` reads the tags and reports coverage gaps for in-progress tickets
-as advisories (never a gate):
+A scenario with no lineage tag proves no criterion, and `doctor` reports it as a
+lineage defect. `safeword doctor` reads the tags and reports these gaps. While a
+ticket is in progress they are advisories and never block; `scenario-gate` exit is
+the one checkpoint that resolves them, under the disposition in Scenario Gate Exit:
 
 - **uncovered** — a Rule (or AC) in `spec.md` that no scenario references.
 - **stale ref** — a scenario whose JTBD exists but whose `R<#>`/`AC<#>` does not
@@ -192,18 +193,49 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 
 Load the **`$safeword:review-spec`** skill in **Review mode** — it is the independent gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Its final reconciliation maps material dimensions, affected surfaces, and declared public outcomes to scenarios or explicit deferrals, then challenges whether the planned proof exercises the boundary each load-bearing scenario claims.
 
-Triage the result before editing. If a Must Fix names missing review context, re-dispatch with that file before judging the scenarios. Apply only **Must Fix** findings that name a concrete false pass against an accepted Rule or dimension partition, including vacuous-pass and AODI failures. A Must Fix that says an existing scenario crosses the accepted scope edge is also actionable: drop the scenario, or return it to the user as a scope decision if changing `out_of_scope` is desired. **Should Strengthen** findings are non-blocking and change scenarios only when the user asks. If a finding would add a behavior, public API, threat boundary, lifecycle contract, or test matrix absent from the accepted Rules and dimensions, return it to the user as a scope decision; never incorporate it silently. Any scenario edit — including a user-requested Should Strengthen — invalidates the review stamp and requires a re-run. When the user declines an expansion without edits, record that disposition and re-run independent review against the unchanged accepted scope so the reviewer can evaluate the resolved boundary. Then complete the plain-language completeness check and exit below.
+Triage the result before editing. If a Must Fix names missing review context, re-dispatch with that file before judging the scenarios. Apply only **Must Fix** findings that name a concrete false pass against an accepted Rule or dimension partition, including vacuous-pass and AODI failures. A Must Fix that says an existing scenario crosses the accepted scope edge is also actionable: drop the scenario, or return it to the user as a scope decision if changing `out_of_scope` is desired. **Should Strengthen** findings are non-blocking and change scenarios only when the user asks. If a finding would add a behavior, public API, threat boundary, lifecycle contract, or test matrix absent from the accepted Rules and dimensions, return it to the user as a scope decision; never incorporate it silently.
+
+A scenario edit invalidates the review stamp, so the gate re-runs — but **the re-run's scope is the edit, not a fresh expansion.** The generative lenses (the adversarial pass and the cross-cutting _what's missing?_ lenses) run once per accepted scope, and re-run only when that scope itself changes: the user amends `out_of_scope`, or `spec.md` gains a Rule. Repairing a Must Fix cannot enlarge the accepted scope, so a repair re-run confirms the named defects are gone and the rewrites still prove the same Rules — it does not re-ask what else might be missing.
+
+**Let severity end the loop, not patience.** An adversarial reviewer re-reading the same prose reliably finds something, and past the first pass that something is mostly wording; `quality-review` applies the same rule to code. A re-run with no Must Fix is clean even when Should Strengthen findings remain — list them and move on. If two consecutive re-runs return only Should Strengthen findings, stop editing and hand the outstanding list to the user as a decision: rewriting accepted prose again is churn, not coverage.
+
+When the user declines an expansion without edits, record that disposition and re-run independent review against the unchanged accepted scope so the reviewer can evaluate the resolved boundary — pass the recorded disposition as context, so the resolved boundary is reviewed rather than re-proposed. Then complete the plain-language completeness check and exit below.
 
 ### Are the reviewed scenarios complete?
 
-Run this completeness check only if review edits scenarios or surfaces an unresolved scope or completeness decision. If review is clean and the scenarios are unchanged, keep the user's earlier confirmation; do not ask again. When the check is needed, ask both halves. Gaps: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** Then the edge: **Does any of these go past what we agreed not to build?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior; if it flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, the quality gate is complete.
+Run this completeness check only if review edits scenarios or surfaces an unresolved scope or completeness decision. If review is clean and the scenarios are unchanged, keep the user's earlier confirmation; do not ask again. When the check is needed, ask both halves. Gaps: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** Then the edge: **Does any of these go past what we agreed not to build?** If the **user** adds behavior or amends `out_of_scope`, loop back to define-behavior — the accepted scope changed, so the dimension table and the generative lenses are owed a fresh pass. A scenario the reviewer proposed inside the accepted scope is a scenario edit, not a scope change: fold it in and re-run under the triage rule above, without returning to define-behavior. If the check flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, the quality gate is complete.
 
 ### Scenario Gate Exit
 
 1. The independent `review-spec` Review-mode result confirms each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
 2. Adversarial pass + cross-cutting checks complete, including coverage reconciliation and the proof-claim challenge; findings presented in the findings format (or confirmed clean)
-3. The approved terminal result's provenance is recorded in the `scenario-gate` review stamp; a pending, failed, stale, rejected, or unstamped review cannot exit.
-4. **Check for one build-only kill-risk.** Run this checkpoint only here, after
+3. **The executable checks come back clean.** Run these before the stamp — they are the
+   only part of this gate that can return _nothing_, which is what lets it end:
+
+   ```bash
+   safeword project lint-gherkin <feature-file>
+   safeword doctor
+   ```
+
+   `lint-gherkin` is parser-backed: invalid Gherkin, an unnamed feature or scenario, a
+   duplicated scenario name, a `Scenario Outline` with no `Examples`, duplicate tags, a
+   `Rule:` whose name and lineage tag disagree. `doctor` reports lineage and coverage: a
+   scenario missing its single `@<jtbd-id>.R<#>` tag or carrying two, an uncovered Rule, a
+   stale ref, an orphan, an affected surface with no `@surface.*` tag. Neither judges
+   scenario _quality_ — vacuous-pass and AODI stay with `review-spec`, which is exactly why
+   these two are worth running: they are the external signal the reviewer's prose judgment
+   cannot talk itself out of. `lint-gherkin` findings are never skippable: source that cannot parse, or a
+   `Scenario Outline` with no `Examples`, cannot execute at all, so fix it and rerun
+   until the command is clean. `doctor`'s findings split by what they break. A lineage defect
+   (a scenario missing its tag or carrying two), a stale ref, or an orphan severs the
+   Rule-to-scenario link this gate exists to certify, so fix it. An untagged affected surface or a declared
+   Killer Demo may instead record an explicit `skip: <reason>` on the line this file
+   already grants one. An uncovered Rule is not skippable: every criterion needs at
+   least one scenario, so cover it or drop the Rule. A skip is a recorded
+   deferral of coverage, never a way past a structural failure.
+
+4. The approved terminal result's provenance is recorded in the `scenario-gate` review stamp; a pending, failed, stale, rejected, or unstamped review cannot exit.
+5. **Check for one build-only kill-risk.** Run this checkpoint only here, after
    scenario validation is complete — never during intake or define-behavior.
    Until scenario validation is complete, remain in `scenario-gate`. An
    eligible risk is one that documentation and
@@ -215,8 +247,8 @@ Run this completeness check only if review edits scenarios or surfaces an unreso
    ready to distill. If the user declines, proceed directly to the next item.
    If no eligible risk exists, continue without offering `$safeword:spike` and update
    frontmatter directly to `phase: plan-implementation` in the next item.
-5. **Update frontmatter:** `phase: plan-implementation` — implementation design (the accepted approach, proof boundaries, and any durable architecture records) happens there; see `PLAN_IMPLEMENTATION.md`. Execution Planning owns concrete build and proof order.
-6. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
+6. **Update frontmatter:** `phase: plan-implementation` — implementation design (the accepted approach, proof boundaries, and any durable architecture records) happens there; see `PLAN_IMPLEMENTATION.md`. Execution Planning owns concrete build and proof order.
+7. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
 
 ### Optional: codify the scenarios
 

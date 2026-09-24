@@ -28,8 +28,10 @@ Record the chosen contract, its alternative, the reason for the choice, and
 the consequence for each affected consumer in `impl-plan.md`. Include a compact
 example or link to subordinate protocol detail when it clarifies a decision.
 Put exact files, code steps, generated clients, and test commands in the
-Execution Plan. A public or shared contract that changes across features may
-also need a linked durable architecture decision.
+Execution Plan. A contract that changes shared structure, a key quality
+attribute, or another difficult-to-reverse constraint also needs a resolvable
+link to the configured durable architecture record. A routine, reversible
+feature-local interface change stays in the Implementation Plan.
 
 ## Check the boundary that matters
 

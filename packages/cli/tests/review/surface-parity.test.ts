@@ -157,12 +157,25 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   const { kind, section } = call;
   const context = `${relativePath}:${kind}`;
   const normalized = section.replaceAll(/\s+/gu, ' ');
+  if (relativePath.endsWith('PLAN_EXECUTION.md')) {
+    expect(normalized, context).toContain('--agent-handoff --json');
+    expect(normalized, context).toContain('REVIEW_PENDING');
+    expect(normalized, context).toContain('typed route exhaustion');
+    expect(normalized, context).toMatch(/approving `[^`]*finish-review` fallback/u);
+    expect(normalized, context).toContain('actual reduced independence');
+    return;
+  }
   expect(normalized, context).toContain('--agent-handoff --json');
   expect(normalized, context).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
   expect(normalized, context).toMatch(/execute its exact recovery command/iu);
   expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
   expect(section, context).toContain('REVIEW_PENDING');
-  expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
+  if (relativePath.endsWith('PLAN_IMPLEMENTATION.md')) {
+    expect(normalized, context).toMatch(/degraded result[^.]{0,320}REVIEW_ROUTES_EXHAUSTED/iu);
+    expect(normalized, context).toMatch(/actual reviewer was not independent/iu);
+  } else {
+    expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);
+  }
   expect(normalized, context).toContain(
     'Never substitute another surface-private reviewer or hand-written independent evidence.',
   );
@@ -180,9 +193,13 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   }
 
   if (kind !== 'quality-review') {
-    expect(normalized, context).toMatch(
-      /independence: degraded[^.]{0,240}do not stamp or advance/iu,
-    );
+    if (relativePath.endsWith('PLAN_IMPLEMENTATION.md')) {
+      expect(normalized, context).toContain('Otherwise do not stamp or advance');
+    } else {
+      expect(normalized, context).toMatch(
+        /independence: degraded[^.]{0,240}do not stamp or advance/iu,
+      );
+    }
   }
 
   expect(section, context).toContain('REVIEW_ROUTES_EXHAUSTED');
@@ -568,6 +585,7 @@ exit ${status}`,
     const lexical = (left: string, right: string): number => left.localeCompare(right);
     expect(callers.toSorted(lexical)).toEqual(
       [
+        'bdd/PLAN_EXECUTION.md',
         'bdd/PLAN_IMPLEMENTATION.md',
         'bdd/TDD.md',
         'quality-review/SKILL.md',
@@ -578,7 +596,19 @@ exit ${status}`,
       const calls = reviewCallSections(nodePath.join('skills', relativePath));
       expect(calls, relativePath).not.toHaveLength(0);
       for (const { kind, section } of calls) {
-        expectDispatchAuthorization(section, `${relativePath}:${kind}`);
+        if (relativePath.endsWith('PLAN_EXECUTION.md')) {
+          const normalized = section.replaceAll(/\s+/gu, ' ');
+          expect(normalized).toContain(
+            '**The dispatch is authorized; skipping it is not your call.**',
+          );
+          expect(normalized).toMatch(/do not stop and ask[^.]{0,80}consent in chat/iu);
+          expect(normalized).toContain(
+            'Never pass credentials, customer data, or secret-bearing files as targets or `--context`',
+          );
+          expect(normalized).toContain('Invoke the coordinator first');
+        } else {
+          expectDispatchAuthorization(section, `${relativePath}:${kind}`);
+        }
         expectTypedExhaustion(relativePath, { kind, section });
       }
     }
@@ -602,7 +632,17 @@ exit ${status}`,
         expect(calls, `${root}/${relativePath}`).not.toHaveLength(0);
         for (const call of calls) {
           const context = `${root}/${relativePath}:${call.kind}`;
-          expectDispatchAuthorization(call.section, context);
+          if (relativePath.endsWith('PLAN_EXECUTION.md')) {
+            const normalized = call.section.replaceAll(/\s+/gu, ' ');
+            expect(normalized, context).toContain(
+              '**The dispatch is authorized; skipping it is not your call.**',
+            );
+            expect(normalized, context).toContain(
+              'Never pass credentials, customer data, or secret-bearing files as targets or `--context`',
+            );
+          } else {
+            expectDispatchAuthorization(call.section, context);
+          }
           expectTypedExhaustion(`${root}/${relativePath}`, call);
         }
       }
@@ -682,6 +722,7 @@ exit ${status}`,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',
+          'bdd/PLAN_EXECUTION.md',
           'bdd/PLAN_IMPLEMENTATION.md',
           'bdd/TDD.md',
         ],
@@ -696,6 +737,7 @@ exit ${status}`,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',
+          'bdd/references/PLAN_EXECUTION.md',
           'bdd/references/PLAN_IMPLEMENTATION.md',
           'bdd/references/TDD.md',
         ],

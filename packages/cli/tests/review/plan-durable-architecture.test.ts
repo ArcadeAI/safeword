@@ -6,7 +6,7 @@ import type { ReviewerOutput } from '../../src/review/contract.js';
 import { PLAN_REVIEW_RUBRIC } from '../../src/review/plan-rubric.generated.js';
 
 const ROUTING_REQUIREMENT =
-  'Keep reversible feature-local choices in the Implementation Plan and link only difficult-to-reverse structural or shared-contract decisions to the configured durable architecture record';
+  'Keep reversible feature-local choices in the Implementation Plan and link significant shared structure or contracts, key quality attributes, data ownership or lifecycle, migration or compatibility behavior, and other difficult-to-reverse constraints to the configured durable architecture record';
 const BLOCKING_REQUIREMENT =
   'A significant decision without a resolvable durable architecture link blocks approval';
 const MISSING_ROUTING_FINDING = {
@@ -49,7 +49,7 @@ function reviewRecordingDestinations(
   resolvableRecords: ReadonlySet<string>,
 ): ReviewerOutput {
   const findings: { severity: 'error'; message: string }[] = [];
-  if (contract.includes(ROUTING_REQUIREMENT)) {
+  if (contract.replaceAll(/\s+/gu, ' ').includes(ROUTING_REQUIREMENT)) {
     for (const decision of plannedDecisions(plan)) {
       const significant = /difficult-to-reverse|shared-contract|structural/u.test(
         decision.significance,

@@ -35,8 +35,9 @@ mechanical edit can be routine. Use these questions:
 When all answers are no, give `Architecture applicability: skip: <reason>` or
 name the feature-local component consequence in `impl-plan.md`. When an answer
 is yes, record the choice, rejected credible alternative, rationale, tradeoff,
-affected consumers, and reversal condition in the plan and in the configured
-durable record. Resolve that link before requesting plan review.
+affected consumers, and reversal condition in the plan. Record the lasting
+shared constraint in the configured durable record, and resolve its link before
+requesting plan review. Do not maintain two competing versions of the rule.
 
 ## Compare the ideal with the existing system
 
@@ -56,9 +57,9 @@ repository's configured record format; keep the old rationale discoverable.
 
 Describe the actual layer and dependency boundaries of this project. Do not
 impose example `app/domain/infra` directories or a language-specific enforcement
-tool as a universal architecture. If a complex component interaction needs a
-diagram or detailed interface examples, the design-doc guide permits linked
-supporting detail. That detail cannot become a second feature design authority.
+tool as a universal architecture. Link a diagram or detailed interface example
+when it clarifies a named plan decision; it cannot become a second feature
+design authority.
 
 For data ownership, lifecycle, schema, and cross-system flow, use the data
 architecture guide. For a changed interface or access policy, use the

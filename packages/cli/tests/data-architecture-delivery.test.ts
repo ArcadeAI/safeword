@@ -1,0 +1,433 @@
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import {
+  type DataArchitectureDeliveryInput,
+  type DataArchitectureDeliveryInventory,
+  verifyDataArchitectureDelivery,
+} from '../scripts/lib/data-architecture-delivery.js';
+import { generateClaudePluginAssets } from '../src/claude-plugin/catalogue.js';
+import { generateOpenCodeCatalogueAssets } from '../src/opencode/catalogue.js';
+import { SAFEWORD_SCHEMA } from '../src/schema.js';
+import { setupReconcileTest } from './helpers.js';
+
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+const packageRoot = nodePath.join(repoRoot, 'packages/cli');
+const templatesRoot = nodePath.join(packageRoot, 'templates');
+const sourceRoot = nodePath.join(packageRoot, 'src');
+const ticketRelativePath = 'Z3C2SE-make-data-architecture-guidance-complete';
+const deliveryInventory: DataArchitectureDeliveryInventory = {
+  canonicalGuidePath: 'packages/cli/templates/guides/data-architecture-guide.md',
+  installedGuidePath: '.safeword/guides/data-architecture-guide.md',
+  managedGuidePaths: ['.safeword/guides/data-architecture-guide.md'],
+  claudeGuidePath: 'resources/guides/data-architecture-guide.md',
+  claudePlanningSourcePath: 'resources/SAFEWORD.md',
+  claudePlanningTarget: '"${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md',
+  projectPlanningTarget: './.safeword/guides/data-architecture-guide.md',
+  claudePathSubstitution: {
+    from: '@.safeword/guides/',
+    to: '@"${CLAUDE_PLUGIN_ROOT}"/resources/guides/',
+  },
+};
+
+function file(relativePath: string): string {
+  return readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
+}
+
+function ticketFile(filename: string): string {
+  const activePath = nodePath.join(repoRoot, '.project/tickets', ticketRelativePath, filename);
+  const path = existsSync(activePath)
+    ? activePath
+    : nodePath.join(repoRoot, '.project/tickets/completed', ticketRelativePath, filename);
+  return readFileSync(path, 'utf8');
+}
+
+function assetsByPath(
+  assets: readonly { readonly relativePath: string; readonly content: string }[],
+): Readonly<Record<string, string>> {
+  return Object.fromEntries(assets.map(asset => [asset.relativePath, asset.content]));
+}
+
+function treeAssets(root: string, directory = root): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    readdirSync(directory).flatMap(entry => {
+      const absolutePath = nodePath.join(directory, entry);
+      if (statSync(absolutePath).isDirectory()) {
+        return Object.entries(treeAssets(root, absolutePath));
+      }
+      return [[nodePath.relative(root, absolutePath), readFileSync(absolutePath, 'utf8')]];
+    }),
+  );
+}
+
+function replaceInAsset(
+  assets: Readonly<Record<string, string>>,
+  path: string,
+  from: string,
+  to: string,
+): Readonly<Record<string, string>> {
+  const content = assets[path];
+  if (content === undefined) throw new Error(`Fixture asset is missing at ${path}.`);
+  const replaced = content.replace(from, () => to);
+  if (replaced === content) throw new Error(`Fixture mutation anchor is missing from ${path}.`);
+  return { ...assets, [path]: replaced };
+}
+
+function deliveryFixture(): DataArchitectureDeliveryInput {
+  const claudeAssets = assetsByPath(
+    generateClaudePluginAssets({
+      cliBundle: 'export {};\n',
+      sourceRoot,
+      templatesRoot,
+      version: '0.0.0-test',
+    }),
+  );
+  // Inspect the complete checked-in payload produced by generate-codex-plugin.ts, including the
+  // catalogue, handbook, hooks, runtime helpers, and bundled runtime—not only catalogue assets.
+  const codexAssets = treeAssets(nodePath.join(packageRoot, 'codex-plugin'));
+  const openCodeAssets = assetsByPath(generateOpenCodeCatalogueAssets(templatesRoot));
+
+  return {
+    inventory: deliveryInventory,
+    canonicalGuide: file(deliveryInventory.canonicalGuidePath),
+    installedGuide: file(deliveryInventory.installedGuidePath),
+    actualManagedGuidePaths: [
+      ...Object.keys(SAFEWORD_SCHEMA.ownedFiles),
+      ...Object.keys(SAFEWORD_SCHEMA.managedFiles),
+    ].filter(path => path.endsWith('/data-architecture-guide.md')),
+    claude: {
+      assets: claudeAssets,
+      planningSourcePath: deliveryInventory.claudePlanningSourcePath,
+    },
+    codex: {
+      assets: codexAssets,
+      planningSourcePath: 'templates/SAFEWORD.md',
+    },
+    cursor: {
+      assets: {
+        '.safeword/SAFEWORD.md': file('.safeword/SAFEWORD.md'),
+        '.safeword/guides/data-architecture-guide.md': file(deliveryInventory.installedGuidePath),
+      },
+      planningSourcePath: '.safeword/SAFEWORD.md',
+    },
+    openCode: { assets: openCodeAssets },
+    projectAssets: {
+      [deliveryInventory.installedGuidePath]: file(deliveryInventory.installedGuidePath),
+    },
+  };
+}
+
+describe('data architecture guide delivery', () => {
+  it('resolves one coherent guide through every supported host delivery model', () => {
+    expect(verifyDataArchitectureDelivery(deliveryFixture())).toEqual({
+      accepted: true,
+      diagnostics: [],
+    });
+  });
+
+  it('installs the canonical guide through the supported reconciliation workflow', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-data-guide-'));
+    try {
+      await setupReconcileTest(projectDirectory);
+      expect(
+        readFileSync(nodePath.join(projectDirectory, deliveryInventory.installedGuidePath), 'utf8'),
+      ).toBe(file(deliveryInventory.canonicalGuidePath));
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    {
+      diagnostic: 'Managed guide is missing at .safeword/guides/data-architecture-guide.md.',
+      drift: 'a missing managed guide copy',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        actualManagedGuidePaths: [],
+      }),
+    },
+    {
+      diagnostic: 'Managed guide is unexpected at docs/data-architecture-guide.md.',
+      drift: 'an unexpected managed guide path',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        actualManagedGuidePaths: [
+          ...input.actualManagedGuidePaths,
+          'docs/data-architecture-guide.md',
+        ],
+      }),
+    },
+    {
+      diagnostic: 'Codex contains an unexpected guide copy at data-architecture-guide.md.',
+      drift: 'an extra Codex-managed guide copy',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        codex: {
+          ...input.codex,
+          assets: {
+            ...input.codex.assets,
+            'data-architecture-guide.md': input.canonicalGuide,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic: 'Claude guide content differs at resources/guides/data-architecture-guide.md.',
+      drift: 'Claude guide body drift',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        claude: {
+          ...input.claude,
+          assets: {
+            ...input.claude.assets,
+            [input.inventory.claudeGuidePath]:
+              `${input.claude.assets[input.inventory.claudeGuidePath]}\nDRIFT`,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic: 'Claude contains an unexpected guide copy at skills/data-architecture-guide.md.',
+      drift: 'an extra Claude-managed guide copy',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        claude: {
+          ...input.claude,
+          assets: {
+            ...input.claude.assets,
+            'skills/data-architecture-guide.md': input.canonicalGuide,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic: 'Claude guide content differs at resources/guides/data-architecture-guide.md.',
+      drift: 'a non-path Claude substitution',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        claude: {
+          ...input.claude,
+          assets: replaceInAsset(
+            input.claude.assets,
+            input.inventory.claudeGuidePath,
+            'Universal contract',
+            'Universal contracts',
+          ),
+        },
+      }),
+    },
+    {
+      diagnostic:
+        'Codex planning target is missing at .safeword/guides/data-architecture-guide.md.',
+      drift: 'a missing planning-reference target',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        projectAssets: {},
+      }),
+    },
+    {
+      diagnostic:
+        'Cursor planning reference does not resolve exactly once to ./.safeword/guides/data-architecture-guide.md.',
+      drift: 'an absent planning reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        cursor: {
+          ...input.cursor,
+          assets: replaceInAsset(
+            input.cursor.assets,
+            input.cursor.planningSourcePath,
+            input.inventory.projectPlanningTarget,
+            '',
+          ),
+        },
+      }),
+    },
+    {
+      diagnostic:
+        'Codex planning reference crosses surfaces to "${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md.',
+      drift: 'a cross-surface planning reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        codex: {
+          ...input.codex,
+          assets: {
+            ...replaceInAsset(
+              input.codex.assets,
+              input.codex.planningSourcePath,
+              input.inventory.projectPlanningTarget,
+              input.inventory.claudePlanningTarget,
+            ),
+            [input.inventory.claudePlanningTarget]: input.canonicalGuide,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic:
+        'Claude planning reference crosses surfaces to ./.safeword/guides/data-architecture-guide.md.',
+      drift: 'a Claude cross-surface planning reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        claude: {
+          ...input.claude,
+          assets: replaceInAsset(
+            input.claude.assets,
+            input.claude.planningSourcePath,
+            input.inventory.claudePlanningTarget,
+            input.inventory.projectPlanningTarget,
+          ),
+        },
+      }),
+    },
+    {
+      diagnostic:
+        'Cursor planning reference crosses surfaces to "${CLAUDE_PLUGIN_ROOT}"/resources/guides/data-architecture-guide.md.',
+      drift: 'a Cursor cross-surface planning reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        cursor: {
+          ...input.cursor,
+          assets: replaceInAsset(
+            input.cursor.assets,
+            input.cursor.planningSourcePath,
+            input.inventory.projectPlanningTarget,
+            input.inventory.claudePlanningTarget,
+          ),
+        },
+      }),
+    },
+    {
+      diagnostic:
+        'OpenCode contains an unexpected guide copy at guides/data-architecture-guide.md.',
+      drift: 'an OpenCode guide copy or reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        openCode: {
+          assets: {
+            ...input.openCode.assets,
+            'guides/data-architecture-guide.md': input.canonicalGuide,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic:
+        'OpenCode contains an unexpected delivery-specific guide reference at SAFEWORD.md.',
+      drift: 'an OpenCode delivery-specific guide reference',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        openCode: {
+          assets: {
+            ...input.openCode.assets,
+            'SAFEWORD.md': `Read @${input.inventory.claudePlanningTarget}.`,
+          },
+        },
+      }),
+    },
+    {
+      diagnostic: 'OpenCode contains an unexpected delivery-specific guide reference at AGENTS.md.',
+      drift: 'an OpenCode-specific guide path',
+      mutate: (input: DataArchitectureDeliveryInput): DataArchitectureDeliveryInput => ({
+        ...input,
+        openCode: {
+          assets: {
+            ...input.openCode.assets,
+            'AGENTS.md': 'Read @.opencode/guides/data-architecture-guide.md.',
+          },
+        },
+      }),
+    },
+  ])('rejects $drift with its mismatched path or content identified', ({ diagnostic, mutate }) => {
+    const result = verifyDataArchitectureDelivery(mutate(deliveryFixture()));
+
+    expect(result.accepted).toBe(false);
+    expect(result.diagnostics).toContain(diagnostic);
+  });
+
+  it('allows shared OpenCode workflow prose to name the project-owned guide', () => {
+    const input = deliveryFixture();
+
+    expect(
+      verifyDataArchitectureDelivery({
+        ...input,
+        openCode: {
+          assets: {
+            ...input.openCode.assets,
+            'SAFEWORD.md': 'Read @.safeword/guides/data-architecture-guide.md when applicable.',
+          },
+        },
+      }),
+    ).toEqual({ accepted: true, diagnostics: [] });
+  });
+
+  it('rejects planning references outside each surface planning source', () => {
+    const input = deliveryFixture();
+    const result = verifyDataArchitectureDelivery({
+      ...input,
+      claude: {
+        ...input.claude,
+        assets: {
+          ...input.claude.assets,
+          'skills/stray/SKILL.md': `Read @${input.inventory.claudePlanningTarget}.`,
+        },
+      },
+      codex: {
+        ...input.codex,
+        assets: {
+          ...input.codex.assets,
+          'skills/stray/SKILL.md': `Read @${input.inventory.claudePlanningTarget}.`,
+        },
+      },
+    });
+
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        `Claude planning reference does not resolve exactly once to ${input.inventory.claudePlanningTarget}.`,
+        `Codex planning reference crosses surfaces to ${input.inventory.claudePlanningTarget}.`,
+      ]),
+    );
+  });
+
+  it('records why OpenCode remains unaffected', () => {
+    expect(ticketFile('spec.md')).toContain(
+      'OpenCode — issue #4560 does not add or change an OpenCode guide or planning reference.',
+    );
+    expect(ticketFile('impl-plan.md')).toContain(
+      'Explicit unaffected proof: profile catalogue contains neither a data-architecture guide copy nor a delivery-specific planning path',
+    );
+  });
+
+  it('reports every unexpected copy and delivery-specific reference in one pass', () => {
+    const input = deliveryFixture();
+    const result = verifyDataArchitectureDelivery({
+      ...input,
+      codex: {
+        ...input.codex,
+        assets: {
+          ...input.codex.assets,
+          'guides/data-architecture-guide.md': input.canonicalGuide,
+          'templates/guides/data-architecture-guide.md': input.canonicalGuide,
+        },
+      },
+      openCode: {
+        assets: {
+          ...input.openCode.assets,
+          'AGENTS.md': 'Read @.opencode/guides/data-architecture-guide.md.',
+          'SAFEWORD.md': `Read @${input.inventory.claudePlanningTarget}.`,
+        },
+      },
+    });
+
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        'Codex contains an unexpected guide copy at guides/data-architecture-guide.md.',
+        'Codex contains an unexpected guide copy at templates/guides/data-architecture-guide.md.',
+        'OpenCode contains an unexpected delivery-specific guide reference at AGENTS.md.',
+        'OpenCode contains an unexpected delivery-specific guide reference at SAFEWORD.md.',
+      ]),
+    );
+  });
+});

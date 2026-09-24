@@ -11,7 +11,8 @@ Scaffold `execution-plan.md` next to `ticket.md` from
 ## Author the plan
 
 1. Read the approved scenarios, Implementation Plan, and applicable project
-   guides. Extract every accepted behavior, decision-derived implementation,
+   guides. Load the installed testing guide while turning each accepted proof
+   strategy into startable work. Extract every accepted behavior, decision-derived implementation,
    proof-strategy implementation, migration, rollout, rollback, documentation,
    affected-surface, and measurement-execution obligation. For an accepted
    quantitative contract, preserve its outcome, population, target, origin,
@@ -24,8 +25,10 @@ Scaffold `execution-plan.md` next to `ticket.md` from
    boundary, every prerequisite, its own proof, a concrete completion signal,
    and an explicit statement that it does not rely on an unmerged successor.
    Every merge must leave the repository in a safe supported state.
-4. Map every accepted obligation to one or more slices. Separately list work
-   delegated to another ticket so it cannot be mistaken for local ownership.
+4. Map every accepted obligation to one or more local slices; an accepted
+   obligation cannot be discharged by naming another ticket. Separately list
+   only excluded or later work, with its other ticket, under Deferred scope
+   ownership so it cannot be mistaken for accepted local scope.
 5. Account for every Recorded Decision in `impl-plan.md` as `unchanged`. If a
    decision changed or a new decision is needed, return to Implementation
    Planning, update and review that plan, then resume here.
@@ -41,8 +44,10 @@ Scaffold `execution-plan.md` next to `ticket.md` from
    Contributor items reference a real-boundary Proof ID. A genuinely irrelevant
    item is `not_applicable` with a concrete reviewed reason. Human-owned work is
    `pending_human` with a named dependency and no Required proof. Reflect the
-   live `designApprovalGate`: retain design approval as `pending_human` when
-   enabled and reviewed `not_applicable` when disabled.
+   live `designApprovalGate` in the plan's approval context, not as an invented
+   Delivery Checklist disposition. The `approve-plan` transition has already
+   settled this gate before Execution Planning begins; pending authority
+   cannot enter this phase.
 
 ## Shared author/reviewer contract
 
@@ -188,3 +193,45 @@ Fix every agent-owned finding within accepted scope, then review the corrected
 exact bytes. If a finding exposes a changed or missing implementation decision,
 return to `plan-implementation`; do not choose it here. Only a current approving
 receipt may advance the ticket to implementation.
+
+## Exit: review before implementation
+
+Resolve the current scenarios, approved `impl-plan.md`, ticket scope, and
+`execution-plan.md`. Run `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/resolve-project-knowledge.ts`
+and use its configured paths for principles, personas, surfaces, and any
+dimensions; do not guess missing paths. Dispatch the shared coordinator with the Execution Plan as
+the sole work target and the accepted plans and scenarios as bounded context:
+
+```bash
+bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/run-review.ts review run plan-execution --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file ticket-path/impl-plan.md principles-file personas-file surfaces-file dimensions-file-if-present testing-guide-file applicable-guide-files execution-plan-template-file -- ticket-path/execution-plan.md
+```
+
+**The dispatch is authorized; skipping it is not your call.** The configured
+coordinator enforces `crossAgentReview` before provider dispatch, so do not
+stop and ask for consent in chat. Never pass credentials, customer data, or
+secret-bearing files as targets or `--context`; omit or redact them, or report
+the bounded packet as blocked. Invoke the coordinator first. A review you never
+dispatched is not coverage.
+
+The coordinator's typed verdict and achieved independence are authoritative.
+Keep a `REVIEW_PENDING` review id and collect its returned status action; do not
+redispatch unchanged sources. Repair agent-owned findings at the destination
+named by `planning_destination`, then review the corrected exact bytes. Apply
+the shared review-route recovery rule in `PLAN_IMPLEMENTATION.md` for
+authentication and exhausted routes. `architectureReviewGate` applies to
+Implementation Planning's architecture requirement, not this Execution Plan
+review. A degraded result may advance only after
+typed route exhaustion and an approving `/finish-review` fallback; record its
+actual reduced independence and never call it independent coverage. An
+undispatched or otherwise degraded review cannot advance.
+After approval, stamp the exact review with its returned provenance:
+
+```bash
+bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-execution
+```
+
+Run `safeword ticket coding-authorization <ticket-id>` before updating the
+tracked ticket phase to `implement`. Unlike `approve-plan`, this is a
+read-only authorization check followed by a ticket phase edit; the phase gate
+enforces the current review and proof prerequisites on that edit. Never enter
+TDD on an unstamped or stale plan.
