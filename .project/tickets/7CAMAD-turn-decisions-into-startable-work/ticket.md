@@ -79,6 +79,8 @@ typed gate response.
 
 ## Work Log
 
+- 2026-09-24T23:15:00.000Z Closing verification remains red: full local CLI suites produced 9 and 16 failures under heavy load, while current-head CI reproduced only the three changed Cursor tree snapshots. The repository-wide acceptance lane showed failures and was stopped after nearly an hour; no completed Gherkin or child-closeout claim is made. Recorded exact limits and next checks in verify.md; ticket remains in verify.
+
 - 2026-09-20T19:43:43.000Z Retained live evidence — R13 slice ownership:
   reused the current Claude Opus admission for `all-obligations-assigned`,
   `one-coherent-change`, `several-ordered-changes`, and
