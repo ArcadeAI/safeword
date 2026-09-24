@@ -104,11 +104,12 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
       expect(QUALITY_REVIEW_MESSAGE).toContain('**Decided:**');
     });
 
-    it('template includes bolded Open label constrained to three terminal states', () => {
+    it('template includes bolded Open label constrained to evaluator-supported routes', () => {
       expect(QUALITY_REVIEW_MESSAGE).toContain('**Open:**');
-      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('resolved this turn');
-      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('deferred');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('human: <one choice>');
       expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toContain('none');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).not.toContain('resolved this turn');
+      expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).not.toContain('deferred to');
     });
 
     it('template makes Next understandable without prior conversation', () => {
@@ -131,7 +132,7 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
 
     it('template collapses Next to one action when no decision is required', () => {
       expect(QUALITY_REVIEW_MESSAGE.toLowerCase()).toMatch(
-        /if no decision is required, state only the next action/,
+        /if no decision is required, use exactly: action: <imperative>\. object: <specific object>/,
       );
     });
 

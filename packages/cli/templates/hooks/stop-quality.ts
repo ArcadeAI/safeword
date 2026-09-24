@@ -22,6 +22,7 @@ import {
   AUTHOR_MODEL_ENV,
   hashArtifact,
   isArchitectureReviewGateEnabled,
+  isTerminalHandoffCorrectionEnabled,
   isStopQualityReviewEnabled,
   isCrossModelReviewRequired,
   isSatisfyingCoordinatorReviewStamp,
@@ -39,6 +40,7 @@ import {
   getQualityEvidence,
   getQualityMessage,
   renderDecisionBriefCorrection,
+  type TerminalHandoffSubstantiveEvidence,
 } from './lib/quality.ts';
 import {
   EXPLAIN_HINT,
@@ -372,21 +374,19 @@ try {
 const stopHookActive = input.stop_hook_active ?? false;
 
 const transcriptPath = input.transcript_path;
-if (!transcriptPath) {
-  process.exit(0);
+let lines: string[] = [];
+if (transcriptPath) {
+  const transcriptFile = Bun.file(transcriptPath);
+  if (await transcriptFile.exists()) {
+    lines = await readBoundedTranscriptLines(transcriptFile);
+  }
 }
-
-const transcriptFile = Bun.file(transcriptPath);
-if (!(await transcriptFile.exists())) {
-  process.exit(0);
-}
-
-const lines = await readBoundedTranscriptLines(transcriptFile);
 
 checkUsageLimit(lines);
 
 // Claude's last response text — provided directly by the hook runtime.
 const combinedText = input.last_assistant_message ?? '';
+const observedLastAssistantMessage = input.last_assistant_message !== undefined;
 
 // Get ticket info for phase-aware decision logic. Resolved BEFORE the edit-tools
 // gate so the done-phase branch runs on any stop at phase: done — closing and its
@@ -411,7 +411,22 @@ checkArchitectureReviewGate(ticketInfo);
 // recent window can be attributed to this turn. A byte-truncated tail retains
 // the prior bounded fallback. The done phase always falls through to its gate.
 const editsToReview = detectEditsToReview(lines);
+const currentTurnToolEvidence = detectToolUseInCurrentUserTurn(lines, () => true);
+const terminalHandoffEvidence = editsToReview
+  ? 'current-turn-edit'
+  : currentTurnToolEvidence === true
+    ? 'current-turn-tool'
+    : 'none';
+
+const stopReviewConfigPath = `${projectDir}/.safeword/config.json`;
+const stopReviewConfig = existsSync(stopReviewConfigPath)
+  ? readFileSync(stopReviewConfigPath, 'utf8')
+  : undefined;
+
 if (!editsToReview && currentPhase !== 'done') {
+  if (!stopHookActive && observedLastAssistantMessage) {
+    enforceTerminalHandoffCorrection(stopReviewConfig, combinedText, terminalHandoffEvidence);
+  }
   process.exit(0);
 }
 
@@ -504,7 +519,18 @@ async function readBoundedTranscriptLines(
 function detectEditToolsUsedInCurrentUserTurn(
   transcriptLines: string[],
 ): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
-  let foundEdit = false;
+  return detectToolUseInCurrentUserTurn(
+    transcriptLines,
+    name => name !== undefined && EDIT_TOOLS.has(name),
+  );
+}
+
+/** Attribute matching tool use only to the user turn that currently ends the transcript. */
+function detectToolUseInCurrentUserTurn(
+  transcriptLines: string[],
+  matches: (name: string | undefined) => boolean,
+): boolean | typeof CURRENT_TURN_BOUNDARY_EXHAUSTED | undefined {
+  let foundTool = false;
   const firstRecord = Math.max(0, transcriptLines.length - MAX_CURRENT_TURN_SCAN_RECORDS);
   for (let i = transcriptLines.length - 1; i >= firstRecord; i--) {
     // An unparseable line is skipped, not a boundary: preserve the legacy
@@ -512,9 +538,11 @@ function detectEditToolsUsedInCurrentUserTurn(
     const message = parseTranscriptLine(transcriptLines[i]);
     if (message === undefined) continue;
     const precedingMessage = i > 0 ? parseTranscriptLine(transcriptLines[i - 1]) : undefined;
-    if (startsNewTurn(message, precedingMessage)) return foundEdit;
+    if (startsNewTurn(message, precedingMessage)) return foundTool;
     if (isAssistantMessage(message)) {
-      foundEdit ||= containsEditToolUse(normalizeContentItems(message.message?.content));
+      foundTool ||= normalizeContentItems(message.message?.content).some(
+        item => item.type === 'tool_use' && matches(item.name),
+      );
     }
   }
   if (firstRecord > 0) return CURRENT_TURN_BOUNDARY_EXHAUSTED;
@@ -675,6 +703,25 @@ function hardBlockDone(reason: string): never {
 function softBlock(reason: string): never {
   console.log(JSON.stringify({ decision: 'block', reason }));
   process.exit(0);
+}
+
+function enforceTerminalHandoffCorrection(
+  rawConfig: string | undefined,
+  reply: string,
+  substantiveEvidence: TerminalHandoffSubstantiveEvidence,
+  evidence = 'Keep verified evidence intact.',
+): void {
+  if (!isTerminalHandoffCorrectionEnabled(rawConfig)) return;
+  try {
+    const evaluation = evaluateDecisionBriefCompliance(reply, undefined, {
+      substantiveEvidence,
+    });
+    if (!evaluation.compliant) {
+      softBlock(renderDecisionBriefCorrection(evaluation, evidence));
+    }
+  } catch {
+    // A correction evaluator failure must never trap the host at Stop.
+  }
 }
 
 // Decision logic:
@@ -885,31 +932,59 @@ if (typecheckAdvice.advice !== null) {
   );
 }
 
+const stopQualityReviewEnabled = isStopQualityReviewEnabled(stopReviewConfig);
+
+// Derive phase context before terminal correction so the default-on contract
+// keeps the richer evidence and any disqualification when optional review is
+// also enabled.
+const tddStep =
+  currentPhase === 'implement' && ticketInfo.folder
+    ? deriveTddStep(projectDir, ticketInfo.folder)
+    : null;
+
+const phaseFailurePatterns: Record<string, string> = {
+  implement: 'loc-exceeded',
+  done: 'done-gate-tests-failed',
+};
+const relevantPattern = currentPhase ? (phaseFailurePatterns[currentPhase] ?? null) : null;
+const recentRelevant = relevantPattern
+  ? (sessionState?.recentFailures ?? []).find((f: FailureEntry) => f.pattern === relevantPattern)
+      ?.pattern
+  : undefined;
+const disqual = stopQualityReviewEnabled
+  ? getDisqualificationMessage({
+      pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
+      recentRelevantFailure: recentRelevant,
+    })
+  : undefined;
+const correctionEvidence = [
+  getQualityEvidence(currentPhase, tddStep),
+  ...(disqual ? [getQualityMessage(currentPhase, tddStep), disqual] : []),
+].join('\n\n');
+
+// One owner enforces terminal-handoff correction in every configuration. The
+// helper owns the off switch and fail-open behavior; review throttles below do
+// not suppress the default-on contract.
+if (observedLastAssistantMessage) {
+  enforceTerminalHandoffCorrection(
+    stopReviewConfig,
+    combinedText,
+    terminalHandoffEvidence,
+    correctionEvidence,
+  );
+}
+
 // Stop-time quality review (KHL52X): OFF unless `stopQualityReview: true`.
 // Everything ABOVE this line still runs — the done gate, the impl-plan,
-// architecture and cumulative-artifact gates, hierarchy navigation, and the
-// typecheck advisory. Those check evidence, and a Stop is a fine moment to
-// demand evidence. What stops here is the judgment-based review prompt and the
-// decision-brief ending contract: measured across 13 concurrent sessions
-// (~220 turn-ends) they produced one intervention, a reply reformat, and never
-// a code change.
-const stopReviewConfigPath = `${projectDir}/.safeword/config.json`;
-if (
-  !isStopQualityReviewEnabled(
-    existsSync(stopReviewConfigPath) ? readFileSync(stopReviewConfigPath, 'utf8') : undefined,
-  )
-) {
+// architecture and cumulative-artifact gates, hierarchy navigation, typecheck,
+// and the independently configured terminal-handoff correction.
+if (!stopQualityReviewEnabled) {
   process.exit(0);
 }
 
 // Boundary backstop: phase reviews are no longer LOC-throttled. Implement-step
 // TDD reviews are quiet by default; the real work still happens internally and
 // hard/anomaly gates above still surface when action is needed.
-// Derive TDD step from test-definitions.md (not cache)
-const tddStep =
-  currentPhase === 'implement' && ticketInfo.folder
-    ? deriveTddStep(projectDir, ticketInfo.folder)
-    : null;
 
 // No resolvable phase: dedupe a generic review against the next
 // UserPromptSubmit. This is broader than "no active ticket" — resolveStopPhase
@@ -931,6 +1006,12 @@ if (!fireReview) {
   process.exit(0);
 }
 
+// The host did not expose the final reply, so its terminal shape is
+// unobservable. Preserve all earlier evidence gates and fail open here.
+if (!observedLastAssistantMessage) {
+  process.exit(0);
+}
+
 recordStopReviewState(
   input.session_id,
   currentPhase === undefined
@@ -938,29 +1019,18 @@ recordStopReviewState(
     : { lastReviewedPhase: currentPhase },
 );
 
-// Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
-// recent failure exists, append an explicit "CONFIDENT requires X first" line so
-// the agent doesn't rubber-stamp confidence (143).
-const phaseFailurePatterns: Record<string, string> = {
-  implement: 'loc-exceeded',
-  done: 'done-gate-tests-failed',
-};
-const relevantPattern = currentPhase ? (phaseFailurePatterns[currentPhase] ?? null) : null;
-const recentRelevant = relevantPattern
-  ? (sessionState?.recentFailures ?? []).find((f: FailureEntry) => f.pattern === relevantPattern)
-      ?.pattern
-  : undefined;
-const disqual = getDisqualificationMessage({
-  pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
-  recentRelevantFailure: recentRelevant,
-});
 if (disqual) {
   softBlock(`${getQualityMessage(currentPhase, tddStep)}\n\n${disqual}`);
 }
-const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText);
-if (decisionBriefEvaluation.compliant) {
+let decisionBriefCompliant: boolean;
+try {
+  decisionBriefCompliant = evaluateDecisionBriefCompliance(combinedText, undefined, {
+    substantiveEvidence: terminalHandoffEvidence,
+  }).compliant;
+} catch {
   process.exit(0);
 }
-softBlock(
-  renderDecisionBriefCorrection(decisionBriefEvaluation, getQualityEvidence(currentPhase, tddStep)),
-);
+if (decisionBriefCompliant) {
+  process.exit(0);
+}
+softBlock(getQualityMessage(currentPhase, tddStep));

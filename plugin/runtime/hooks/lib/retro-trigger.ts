@@ -138,6 +138,49 @@ export function countCompletedToolUsesCodex(rolloutText: string): number {
 }
 
 /**
+ * Detect completed Codex tool work attributable to the current turn only.
+ * Prefer the latest documented user-message boundary; tagged rollout events are
+ * a bounded fallback when a host omits that boundary from the available tail.
+ */
+export function hasCompletedToolUseInCurrentCodexTurn(
+  rolloutText: string,
+  turnId?: string,
+): boolean {
+  const entries = [...iterateJsonlEntries(rolloutText)];
+  let lastUserBoundary = -1;
+  for (let index = 0; index < entries.length; index++) {
+    const raw = entries[index] as { type?: string; payload?: { type?: string } };
+    const event = raw.payload ?? raw;
+    if (event.type === 'user_message') lastUserBoundary = index;
+  }
+  if (lastUserBoundary >= 0) {
+    return (
+      countCompletedToolUsesCodex(
+        entries
+          .slice(lastUserBoundary + 1)
+          .map(entry => JSON.stringify(entry))
+          .join('\n'),
+      ) > 0
+    );
+  }
+  if (!turnId) return false;
+  return (
+    countCompletedToolUsesCodex(
+      entries
+        .filter(raw => {
+          const entry = raw as {
+            turn_id?: string;
+            payload?: { turn_id?: string };
+          };
+          return (entry.payload?.turn_id ?? entry.turn_id) === turnId;
+        })
+        .map(entry => JSON.stringify(entry))
+        .join('\n'),
+    ) > 0
+  );
+}
+
+/**
  * Whether the transcript crosses the substance threshold (inclusive `>=`), using
  * the supplied per-agent tool-use counter (defaults to the Claude counter so the
  * Claude path is unchanged).

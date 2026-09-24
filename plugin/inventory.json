@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "e27fcaefe074fb46c7f3c929d65e22a728fd59e6f1ced4b18bba440cf659e28b"
+      "sha256": "cb7aceb61a243ab262fca740fb356cf5a9943e7f7ef304403052839faa723270"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "161d432fdea6ed2a35b42f02424f11ee480116261aa5e29e6992ccee98f4651e"
+      "sha256": "a1bd8b7a54461970b0c001be2f1a4980bbf3d07e5149a47c2d4602e4f608306f"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "98fd066a317654d829de9bbf7b4b19cdcbe9af8806292bbbcee0308d816cc5a1"
+      "sha256": "10669ba7d91e067816fab08a7736a28c306ca60307b73a7215095cb8737f1048"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "28c33647a898a88d842e8ca717627108c4b1bca66980cd1c7134644b20ea115e"
+      "sha256": "ec962b6f318b5659c2955f7450c8efddb4c58bc064141897eef30e46542efe52"
     },
     {
       "path": "runtime/event-groups.json",
@@ -327,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "2fb8f5d7016878ed032fc6e70da0bc3128a81cb98bf341dc1692aaf714877925"
+      "sha256": "02c5de5fa183b4de29bbdcfcaf570398a69543a265b6c7199974937d1280129e"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -371,11 +371,11 @@
     },
     {
       "path": "runtime/hooks/lib/retro-trigger.ts",
-      "sha256": "06ab82594a5464c0d74f2e2c778e2aafdefc8404fcc61fd5418f38f48e500761"
+      "sha256": "90b533fdbf9ca6e6af8603488a483750e858696b9f540b5ec1bde98d2906368f"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "69a82679c2d796618497ab394e5ba16b2f31422ed559dd0cf9bb6de147252285"
+      "sha256": "3766ca92b78cb7ad2e9b4b99426ab545882dc2231677dcbfddc7cd5655501de8"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
@@ -579,7 +579,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "df9ac60b72278ee1f9669484f05cff54a53c81e4f404d8b4426f74f831248077"
+      "sha256": "5bdb79ce3d66b6a4eb384942d5115f2041fa9aa501f0d18af5aeaf35446742c3"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",

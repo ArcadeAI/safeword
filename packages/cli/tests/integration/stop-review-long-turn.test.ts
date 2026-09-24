@@ -24,7 +24,10 @@ const state: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeEach(() => {
   state.projectDirectory = createTemporaryDirectory();
-  writeGateConfig(state.projectDirectory, { stopQualityReview: true });
+  writeGateConfig(state.projectDirectory, {
+    stopQualityReview: true,
+    terminalHandoffCorrection: false,
+  });
   mkdirSync(nodePath.join(state.projectDirectory, '.safeword'), { recursive: true });
   createStopHookTicket(state.projectDirectory, {
     id: '099',
