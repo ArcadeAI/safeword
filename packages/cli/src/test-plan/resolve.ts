@@ -14,7 +14,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -80,7 +80,13 @@ const TREE_MANIFESTS = new Set<string>([
 function directManifestIndex(directory: string): ManifestIndex {
   return new Map(
     [...TREE_MANIFESTS]
-      .filter(name => existsSync(nodePath.join(directory, name)))
+      .filter(name => {
+        try {
+          return lstatSync(nodePath.join(directory, name)).isFile();
+        } catch {
+          return false;
+        }
+      })
       .map(name => [name, directory]),
   );
 }
@@ -263,7 +269,8 @@ function fakeToolProbe(spec: string): (tool: string) => boolean {
     const set = parseToolList(spec, 'none:');
     return tool => !set.has(tool);
   }
-  return allToolsAvailable; // 'all' or empty
+  if (spec === 'all' || spec === '') return allToolsAvailable;
+  throw new Error(`Invalid SAFEWORD_FAKE_TOOLS value: ${spec}`);
 }
 
 /** Parse the comma-separated tool list after a `only:` / `none:` prefix. */

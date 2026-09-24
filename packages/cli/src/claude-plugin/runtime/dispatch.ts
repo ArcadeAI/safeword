@@ -1041,7 +1041,7 @@ function startupFailure(event: string | undefined, error: unknown): number {
     process.stderr.write(`Safeword could not safely start its unknown hook: ${detail}\n`);
     return 2;
   }
-  const advisory = `Safeword could not safely complete its Claude hook: ${detail}`;
+  const advisory = `Safeword could not start its Claude hook: ${detail} No Safeword hook result was applied.`;
   return emitDamagedPlugin(degradedPluginResponse(event, advisory));
 }
 

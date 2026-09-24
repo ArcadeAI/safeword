@@ -64172,11 +64172,17 @@ var init_shell_segments = __esm(() => {
 
 // src/test-plan/resolve.ts
 import { spawnSync as spawnSync12 } from "child_process";
-import { existsSync as existsSync48, readFileSync as readFileSync68 } from "fs";
+import { existsSync as existsSync48, lstatSync as lstatSync25, readFileSync as readFileSync68 } from "fs";
 import nodePath111 from "path";
 import process17 from "process";
 function directManifestIndex(directory) {
-  return new Map([...TREE_MANIFESTS].filter((name) => existsSync48(nodePath111.join(directory, name))).map((name) => [name, directory]));
+  return new Map([...TREE_MANIFESTS].filter((name) => {
+    try {
+      return lstatSync25(nodePath111.join(directory, name)).isFile();
+    } catch {
+      return false;
+    }
+  }).map((name) => [name, directory]));
 }
 function directoriesWithAnyManifest(root, manifests) {
   return [...new Set(manifests.flatMap((manifest) => findAllInTree(root, manifest)))].toSorted((left, right) => left.localeCompare(right));
@@ -64286,7 +64292,9 @@ function fakeToolProbe(spec) {
     const set = parseToolList(spec, "none:");
     return (tool) => !set.has(tool);
   }
-  return allToolsAvailable;
+  if (spec === "all" || spec === "")
+    return allToolsAvailable;
+  throw new Error(`Invalid SAFEWORD_FAKE_TOOLS value: ${spec}`);
 }
 function parseToolList(spec, prefix) {
   return new Set(spec.slice(prefix.length).split(",").filter(Boolean));
@@ -66234,7 +66242,7 @@ var exports_drain_retro_spool = {};
 __export(exports_drain_retro_spool, {
   drainRetroSpool: () => drainRetroSpool
 });
-import { existsSync as existsSync56, lstatSync as lstatSync25, realpathSync as realpathSync17 } from "fs";
+import { existsSync as existsSync56, lstatSync as lstatSync26, realpathSync as realpathSync17 } from "fs";
 import nodePath124 from "path";
 function drainRetroSpool(inputPath, mode = "drain") {
   const spoolPath2 = nodePath124.resolve(inputPath);
@@ -66250,7 +66258,7 @@ function drainRetroSpool(inputPath, mode = "drain") {
   const sessionId = nodePath124.basename(spoolPath2, ".jsonl");
   const ackPath2 = ackFilePath(projectDirectory, sessionId);
   const protectedPaths = [safewordDirectory, draftsDirectory, spoolPath2, ackPath2];
-  if (protectedPaths.some((path8) => existsSync56(path8) && lstatSync25(path8).isSymbolicLink())) {
+  if (protectedPaths.some((path8) => existsSync56(path8) && lstatSync26(path8).isSymbolicLink())) {
     return {
       state: "refused",
       message: "Refusing a symlinked retro spool or acknowledgement path"
