@@ -2,6 +2,7 @@
 id: G45291
 slug: refactor-v1-release-candidate-work
 type: task
+subtype: bug-investigated
 phase: intake
 status: in_progress
 created: 2026-09-24T11:43:32.632Z
@@ -33,3 +34,13 @@ last_modified: 2026-09-24T11:43:32.632Z
 - Full suite: 9,915 passed, 13 skipped, 8 failed. Six failures came from child processes resolving Bun 1.4.0 instead of the pinned 1.3.14; pinning Bun first on PATH removed those. Two remaining failures reproduce in isolation: BDD proof discovery includes existing `.claude/worktrees/**` copies, and the Codex plugin artifact scan reads a directory as a file. Neither path was changed by this refactor.
 - Final code audit: 0 dependency boundary violations across 583 modules and 1,105 dependencies.
 - No generated mirrors changed.
+
+## Root Cause: full-suite discovery failures
+
+The proof test walked every directory under the repository root, including ignored `.claude/worktrees/` copies. Its expected list came from the canonical feature directories, so the two inventories disagreed. The plugin artifact test hashed all of `.claude`, including the same worktrees; a linked directory inside a worktree caused its file reader to throw `EISDIR`. Both failures reproduced with pinned Bun. This rules out Bun version as the cause of those two failures; pinning Bun separately removed the other six failures from the initial full run.
+
+## Follow-up fixes
+
+- `bdd-proof-tags.test.ts` now inventories tracked and non-ignored untracked manifests through Git, preserving detection of new repository proof files. Focused result: 46 passed.
+- `codex-plugin-version.test.ts` omits `.claude/worktrees` from the protected artifact snapshot and hashes symbolic links as links. Focused result: 19 passed.
+- Full suite with pinned Bun: 583 test files passed; 9,923 tests passed and 13 skipped (9,936 total).
