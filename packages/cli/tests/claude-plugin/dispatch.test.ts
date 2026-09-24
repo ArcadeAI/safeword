@@ -944,6 +944,26 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
+  it('keeps post-verification lifecycle failures on the fail-closed path', () => {
+    const projectDirectory = temporary('safeword-plugin-settings-read-failure-project-');
+    const pluginData = temporary('safeword-plugin-settings-read-failure-data-');
+    const configDirectory = temporary('safeword-plugin-settings-read-failure-config-');
+    mkdirSync(nodePath.join(projectDirectory, '.claude/settings.json'), { recursive: true });
+
+    const result = dispatchEvent(
+      projectDirectory,
+      pluginData,
+      configDirectory,
+      'settings-read-failure',
+      { event: 'SessionStart' },
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('could not safely combine its SessionStart hook output');
+    expect(result.stderr).not.toContain('could not start its Claude hook');
+  });
+
   it.each(['SessionStart', 'PostToolUse', 'Stop'])(
     'warns without blocking when %s starts without a plugin root',
     event => {

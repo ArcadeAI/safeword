@@ -869,8 +869,8 @@ function executeConfiguredHooks(input: {
   readonly projectRoot: string;
   readonly standardInput: Buffer;
 }): FunctionalCommandResult {
-  if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
   try {
+    if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
       : runFunctionalCommand(
@@ -914,6 +914,30 @@ function completeSuccessfulExecution(input: {
   );
 }
 
+function executeVerifiedPlugin(input: {
+  readonly event: string;
+  readonly mode: string | undefined;
+  readonly command: string[];
+  readonly pluginRoot: string;
+  readonly identity: PluginIdentityV1;
+  readonly eventGroupsContent: Buffer;
+  readonly hookInput: HookInput;
+  readonly projectRoot: string;
+  readonly standardInput: Buffer;
+}): FunctionalCommandResult {
+  try {
+    return completeSuccessfulExecution({
+      event: input.event,
+      pluginRoot: input.pluginRoot,
+      identity: input.identity,
+      hookInput: input.hookInput,
+      execution: executeConfiguredHooks(input),
+    });
+  } catch (error) {
+    return functionalExecutionFailure(input.event, error);
+  }
+}
+
 function mainUnsafe(event: string, mode: string | undefined, command: string[]): number {
   if (mode !== undefined && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
@@ -932,20 +956,16 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   const verification = verifyPlugin(event, pluginRoot);
   if (verification.kind === 'damaged') return emitDamagedPlugin(verification);
   const { eventGroupsContent, identity } = verification;
-  const execution = completeSuccessfulExecution({
+  const execution = executeVerifiedPlugin({
     event,
+    mode,
+    command,
     pluginRoot,
     identity,
+    eventGroupsContent,
     hookInput,
-    execution: executeConfiguredHooks({
-      event,
-      mode,
-      command,
-      eventGroupsContent,
-      hookInput,
-      projectRoot,
-      standardInput,
-    }),
+    projectRoot,
+    standardInput,
   });
   if (execution.status === 0 && execution.stdout !== '') process.stdout.write(execution.stdout);
   return execution.status;

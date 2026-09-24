@@ -381,7 +381,7 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
       'package.json': JSON.stringify({
         private: true,
         workspaces: ['packages/*'],
-        scripts: { test: 'bun run --cwd packages/api && test -f release-marker' },
+        scripts: { test: 'bun run --cwd packages/api && test' },
       }),
       'bun.lock': '',
       'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),

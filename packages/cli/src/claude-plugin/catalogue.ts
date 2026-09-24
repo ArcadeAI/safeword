@@ -566,9 +566,9 @@ export function generateClaudePluginAssets(
 }
 
 /**
- * Asserts a generated plugin tree matches its canonical sources exactly: every
- * expected asset present and byte-identical, and no unexpected generated file
- * left behind. Exercised by the delivery-schema suite.
+ * Asserts every expected asset is present and byte-identical, with no unexpected
+ * file inside generated directories. The generator owns whole-tree comparison.
+ * Exercised by the delivery-schema suite.
  */
 export function assertClaudePluginCatalogue(
   input: ClaudePluginCatalogueInput,
