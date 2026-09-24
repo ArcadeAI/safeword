@@ -143,6 +143,8 @@ A list is the usual way to tune this: it buys independent review where judgment 
 
 Each blocked exit names the phase, prints the exact `safeword review run` command for it, and says how to narrow the gate. `scenario-gate` and `plan-implementation` are reviewed by specialists whose rubrics are generated from the same skills that author those artifacts; every other exit is reviewed by the general `quality-review`. One review takes roughly half a minute on the default route.
 
+Terminal handoff correction is independent of review. It is on by default for Claude Code, Codex, and Cursor: when a substantive final reply does not satisfy the shared `terminal-handoff/v1` decision or action form, the native Stop boundary requests one terminal-paragraph rewrite. Set `terminalHandoffCorrection: false` to disable only that presentation correction. Missing or malformed values keep the safe default; evidence, completion, and safety gates are unaffected.
+
 Two further review knobs, both opt-in and default off:
 
 - `stopQualityReview: true` — restores the review prompt and the decision-brief reply contract that used to fire whenever the agent finished a turn. Off by default: measured across 13 concurrent sessions it intervened once in roughly 220 turn-ends, to reformat a reply, and never produced a code change — the moment an agent stops has no relationship to the work it just did. The Stop hook's evidence gates (done, impl-plan, architecture, cumulative artifacts, typecheck advisory) are unaffected and always run; so is the phase-exit review gate above, which fires when work actually moves between phases.

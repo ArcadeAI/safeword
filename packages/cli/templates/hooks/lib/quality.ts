@@ -74,7 +74,7 @@ export const DECISION_BRIEF_GRAMMAR: DecisionBriefGrammar = {
         },
         {
           label: 'Open',
-          placeholder: '<resolved this turn | deferred to <ticket-or-follow-up> | none>.',
+          placeholder: '<human: <one choice> | none>.',
         },
         {
           label: 'Next',
@@ -121,7 +121,7 @@ export function renderDecisionBriefContract(grammar = DECISION_BRIEF_GRAMMAR): s
 
 End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the verdict line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 
-Next or Need must stand alone under ${TERMINAL_HANDOFF_CONTRACT_VERSION}. Write for a reader who sees only this paragraph. When a decision is required, use exactly: Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>. Use specific nouns, verbs, paths, commands, amounts, and consequences. Write each necessary marked term as Term: <name> = <plain-language meaning>. Include a detail only if it could change the decision or action. Stop once the reader can decide or act without scrolling. If no decision is required, use exactly: Action: <imperative + specific object>. Optionally add only: Reason: Required because <essential reason>.
+Next or Need must stand alone under ${TERMINAL_HANDOFF_CONTRACT_VERSION}. Write for a reader who sees only this paragraph. When a decision is required, use exactly: Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>. Use specific nouns, verbs, paths, commands, amounts, and consequences. Write each necessary marked term as Term: <name> = <plain-language meaning>. Include a detail only if it could change the decision or action. Stop once the reader can decide or act without scrolling. If no decision is required, use exactly: Action: <imperative>. Object: <specific object>. Optionally add only: Reason: Required because <essential reason>.
 
 Implementation choices are yours. BLOCKED is for spec/scope/value decisions that need human input. Multiple unknowns: resolve the small ones, BLOCK on the largest.
 
@@ -138,6 +138,7 @@ export type TerminalHandoffSubstantiveEvidence =
 
 export interface TerminalHandoffEvaluationOptions {
   substantiveEvidence?: TerminalHandoffSubstantiveEvidence;
+  validationMode?: 'canonical' | 'structural';
 }
 
 export const TERMINAL_HANDOFF_DECISION_REQUIREMENTS = [
@@ -156,6 +157,7 @@ export interface TerminalHandoffContract {
   };
   action: {
     role: 'Action';
+    objectRole: 'Object';
     optionalReasonPrefix: 'Required because';
   };
 }
@@ -171,6 +173,7 @@ export const TERMINAL_HANDOFF_CONTRACT: TerminalHandoffContract = {
   },
   action: {
     role: 'Action',
+    objectRole: 'Object',
     optionalReasonPrefix: 'Required because',
   },
 };
@@ -218,7 +221,11 @@ export function validateTerminalHandoffContract(
     candidate.action && typeof candidate.action === 'object'
       ? (candidate.action as Record<string, unknown>)
       : {};
-  if (action.role !== 'Action' || action.optionalReasonPrefix !== 'Required because') {
+  if (
+    action.role !== 'Action' ||
+    action.objectRole !== 'Object' ||
+    action.optionalReasonPrefix !== 'Required because'
+  ) {
     requirements.push('no-decision action form');
   }
 
@@ -232,7 +239,8 @@ export type TerminalHandoffRequirement =
   | 'concise action form'
   | 'no extra context'
   | 'terminal paragraph'
-  | 'plain-language meaning';
+  | 'plain-language meaning'
+  | 'canonical Open route';
 
 export interface DecisionBriefCompliance {
   compliant: boolean;
@@ -269,9 +277,26 @@ function determineTerminalHandoffForm(
   return /^\*\*Open:\*\*\s+none\.?\s*$/iu.test(openParagraph?.text ?? '') ? 'action' : 'decision';
 }
 
-const TERMINAL_ROLE = /(?:^|\s)(Choice|Recommendation|Reason|Impact|Reply|Action|Term):\s*/giu;
-const CONTENT_FREE =
-  /^(?:tbd|todo|same|same as above|as above|see (?:the )?analysis|see above|described earlier|unknown|n\/?a|it|this|that|the work)[.!]?$/iu;
+function hasCanonicalOpenRoute(
+  verdict: DecisionBriefVerdict,
+  paragraphsAfterVerdict: readonly MarkdownParagraph[],
+): boolean {
+  if (verdict === 'BLOCKED') return true;
+  const openParagraph = paragraphsAfterVerdict.find(
+    paragraph => LABEL.exec(paragraph.text)?.[1] === 'Open',
+  );
+  const value = openParagraph?.text ?? '';
+  return (
+    /^\*\*Open:\*\*\s+none\.?\s*$/iu.test(value) ||
+    /^\*\*Open:\*\*\s+human:\s+\S(?:.*\S)?\.?\s*$/iu.test(value)
+  );
+}
+
+const TERMINAL_ROLE =
+  /(?:^|\s)(Choice|Recommendation|Reason|Impact|Reply|Action|Object|Term):\s*/giu;
+const CONTENT_FREE = /^(?:tbd|todo|unknown|n\/?a|it|this|that|the work)[.!]?$/iu;
+const BACK_REFERENCE =
+  /^(?:same(?: as above)?|as above|see (?:the )?analysis|see above|described earlier)\b/iu;
 const DECISION_ROLE_REQUIREMENT = {
   Choice: 'concrete choice',
   Recommendation: 'recommendation',
@@ -301,7 +326,15 @@ function parseTerminalRoleClauses(value: string): {
 
 function valueHasContent(value: string): boolean {
   const normalized = value.replaceAll(/[`*_]/gu, '').trim().toLowerCase();
-  return normalized.length > 0 && !CONTENT_FREE.test(normalized);
+  return (
+    normalized.length > 0 && !CONTENT_FREE.test(normalized) && !BACK_REFERENCE.test(normalized)
+  );
+}
+
+function termLacksPlainLanguageMeaning(clause: TerminalRoleClause): boolean {
+  if (clause.role !== 'Term') return false;
+  const [term, meaning, ...extra] = clause.value.split('=');
+  return extra.length > 0 || !valueHasContent(term ?? '') || !valueHasContent(meaning ?? '');
 }
 
 function missingDecisionRequirements(terminalValue: string): TerminalHandoffRequirement[] {
@@ -315,35 +348,11 @@ function missingDecisionRequirements(terminalValue: string): TerminalHandoffRequ
     },
   );
   if (leadingText !== '' && missing.length === 0) return ['concrete choice'];
-  const unexplainedTerm = clauses.find(clause => {
-    if (clause.role !== 'Term') return false;
-    const [term, meaning, ...extra] = clause.value.split('=');
-    return extra.length > 0 || !valueHasContent(term ?? '') || !valueHasContent(meaning ?? '');
-  });
+  const unexplainedTerm = clauses.find(termLacksPlainLanguageMeaning);
   if (unexplainedTerm) missing.push('plain-language meaning');
   return missing;
 }
 
-const IMPERATIVE_VERBS = new Set([
-  'add',
-  'apply',
-  'build',
-  'check',
-  'commit',
-  'create',
-  'deploy',
-  'document',
-  'fix',
-  'open',
-  'publish',
-  'review',
-  'run',
-  'send',
-  'ship',
-  'test',
-  'update',
-  'verify',
-]);
 const NON_SPECIFIC_OBJECT = new Set([
   'a',
   'an',
@@ -357,16 +366,20 @@ const NON_SPECIFIC_OBJECT = new Set([
   'work',
 ]);
 
-function actionIsConcrete(value: string): boolean {
-  const words = value
+function actionIsConcrete(action: string, object: string): boolean {
+  const actionWords = action
     .replaceAll(/[`*_.,;:!?()[\]{}]/gu, ' ')
     .toLowerCase()
     .split(/\s+/u)
     .filter(Boolean);
-  const [verb, ...objectWords] = words;
+  const objectWords = object
+    .replaceAll(/[`*_.,;:!?()[\]{}]/gu, ' ')
+    .toLowerCase()
+    .split(/\s+/u)
+    .filter(Boolean);
   return (
-    verb !== undefined &&
-    IMPERATIVE_VERBS.has(verb) &&
+    actionWords.length > 0 &&
+    actionWords.every(word => !NON_SPECIFIC_OBJECT.has(word)) &&
     objectWords.some(word => !NON_SPECIFIC_OBJECT.has(word))
   );
 }
@@ -375,25 +388,36 @@ function missingActionRequirements(terminalValue: string): TerminalHandoffRequir
   const { clauses, leadingText } = parseTerminalRoleClauses(terminalValue);
   const requirements: TerminalHandoffRequirement[] = [];
   const actions = clauses.filter(clause => clause.role === 'Action');
+  const objects = clauses.filter(clause => clause.role === 'Object');
   const reasons = clauses.filter(clause => clause.role === 'Reason');
   const decisionRoles = clauses.filter(
     clause => clause.role !== 'Reason' && clause.role in DECISION_ROLE_REQUIREMENT,
   );
 
   const actionValue = actions[0]?.value ?? '';
-  if (actions.length !== 1 || !actionIsConcrete(actionValue)) {
+  const objectValue = objects[0]?.value ?? '';
+  const reasonValue = reasons[0]?.value ?? '';
+  const reasonBody = reasonValue.replace(/^Required because\s+/u, '');
+  if (actions.length !== 1 || objects.length !== 1 || !actionIsConcrete(actionValue, objectValue)) {
     requirements.push('one concrete action');
   }
   if (
     reasons.length > 1 ||
-    (reasons.length === 1 && !/^Required because\s+\S[\s\S]*[.!]?$/u.test(reasons[0]?.value ?? ''))
+    (reasons.length === 1 &&
+      (!reasonValue.startsWith('Required because ') || !valueHasContent(reasonBody)))
   ) {
     requirements.push('one essential reason');
   }
   if (decisionRoles.length > 0) requirements.push('concise action form');
-  if (leadingText !== '' || /[.!?]\s+\S/u.test(actionValue)) {
+  if (
+    leadingText !== '' ||
+    /[.!?]\s+\S/u.test(actionValue) ||
+    /[.!?]\s+\S/u.test(objectValue) ||
+    /[.!?]\s+\S/u.test(reasonBody.replace(/[.!?]\s*$/u, ''))
+  ) {
     requirements.push('no extra context');
   }
+  if (clauses.some(termLacksPlainLanguageMeaning)) requirements.push('plain-language meaning');
   return requirements;
 }
 
@@ -676,6 +700,7 @@ export function evaluateDecisionBriefCompliance(
   const { index: verdictIndex, verdict: rawVerdict } = verdictEntry;
   const verdict = rawVerdict as DecisionBriefVerdict;
   form = determineTerminalHandoffForm(verdict, paragraphs.slice(verdictIndex + 1));
+  const canonicalOpenRoute = hasCanonicalOpenRoute(verdict, paragraphs.slice(verdictIndex + 1));
   const grammarLabels = new Set(
     Object.values(grammar.variants).flatMap(variant =>
       variant.paragraphs.map(paragraph => paragraph.label),
@@ -717,7 +742,7 @@ export function evaluateDecisionBriefCompliance(
       labels.includes(terminalLabel) ? undefined : ['terminal paragraph'],
     );
   }
-  if (grammar !== DECISION_BRIEF_GRAMMAR) return result(true);
+  if (options.validationMode === 'structural') return result(true);
 
   const terminalParagraph = paragraphs.at(-1)?.text ?? '';
   const terminalValue = terminalParagraph.replace(
@@ -727,6 +752,7 @@ export function evaluateDecisionBriefCompliance(
   if (terminalValue.trim() === '') return result(false, undefined, ['terminal paragraph']);
   if (form === 'decision') {
     const requirements = missingDecisionRequirements(terminalValue);
+    if (!canonicalOpenRoute) requirements.push('canonical Open route');
     return requirements.length > 0 ? result(false, undefined, requirements) : result(true);
   }
   const requirements = missingActionRequirements(terminalValue);
@@ -805,7 +831,7 @@ export function renderDecisionBriefCorrection(
 ): string {
   if (!evaluation.violation && evaluation.requirements && evaluation.requirements.length > 0) {
     const header = `${evaluation.contractVersion} correction. Missing: ${evaluation.requirements.join(', ')}.`;
-    const actionShape = `**Next:** Action: <imperative + specific object>. Reason: Required because <essential reason>.`;
+    const actionShape = `**Next:** Action: <imperative>. Object: <specific object>. Reason: Required because <essential reason>.`;
     const decisionShape = `**Next:** Choice: <concrete choice>. Recommendation: <recommended option>. Reason: <controlling reason>. Impact: <material tradeoff or consequences>. Reply: <exact reply>.\n\nFor BLOCKED, use the same five roles after **Need:**.`;
     const termShape = evaluation.requirements.includes('plain-language meaning')
       ? '\n\nWrite each necessary marked term as `Term: name = plain-language meaning`.'

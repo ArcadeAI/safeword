@@ -74,7 +74,7 @@ export const DECISION_BRIEF_GRAMMAR: DecisionBriefGrammar = {
         },
         {
           label: 'Open',
-          placeholder: '<resolved this turn | deferred to <ticket-or-follow-up> | none>.',
+          placeholder: '<human: <one choice> | none>.',
         },
         {
           label: 'Next',
@@ -138,6 +138,7 @@ export type TerminalHandoffSubstantiveEvidence =
 
 export interface TerminalHandoffEvaluationOptions {
   substantiveEvidence?: TerminalHandoffSubstantiveEvidence;
+  validationMode?: 'canonical' | 'structural';
 }
 
 export const TERMINAL_HANDOFF_DECISION_REQUIREMENTS = [
@@ -304,6 +305,12 @@ function valueHasContent(value: string): boolean {
   return normalized.length > 0 && !CONTENT_FREE.test(normalized);
 }
 
+function termLacksPlainLanguageMeaning(clause: TerminalRoleClause): boolean {
+  if (clause.role !== 'Term') return false;
+  const [term, meaning, ...extra] = clause.value.split('=');
+  return extra.length > 0 || !valueHasContent(term ?? '') || !valueHasContent(meaning ?? '');
+}
+
 function missingDecisionRequirements(terminalValue: string): TerminalHandoffRequirement[] {
   const { clauses, leadingText } = parseTerminalRoleClauses(terminalValue);
   const missing: TerminalHandoffRequirement[] = Object.entries(DECISION_ROLE_REQUIREMENT).flatMap(
@@ -315,35 +322,11 @@ function missingDecisionRequirements(terminalValue: string): TerminalHandoffRequ
     },
   );
   if (leadingText !== '' && missing.length === 0) return ['concrete choice'];
-  const unexplainedTerm = clauses.find(clause => {
-    if (clause.role !== 'Term') return false;
-    const [term, meaning, ...extra] = clause.value.split('=');
-    return extra.length > 0 || !valueHasContent(term ?? '') || !valueHasContent(meaning ?? '');
-  });
+  const unexplainedTerm = clauses.find(termLacksPlainLanguageMeaning);
   if (unexplainedTerm) missing.push('plain-language meaning');
   return missing;
 }
 
-const IMPERATIVE_VERBS = new Set([
-  'add',
-  'apply',
-  'build',
-  'check',
-  'commit',
-  'create',
-  'deploy',
-  'document',
-  'fix',
-  'open',
-  'publish',
-  'review',
-  'run',
-  'send',
-  'ship',
-  'test',
-  'update',
-  'verify',
-]);
 const NON_SPECIFIC_OBJECT = new Set([
   'a',
   'an',
@@ -366,7 +349,7 @@ function actionIsConcrete(value: string): boolean {
   const [verb, ...objectWords] = words;
   return (
     verb !== undefined &&
-    IMPERATIVE_VERBS.has(verb) &&
+    !NON_SPECIFIC_OBJECT.has(verb) &&
     objectWords.some(word => !NON_SPECIFIC_OBJECT.has(word))
   );
 }
@@ -381,19 +364,27 @@ function missingActionRequirements(terminalValue: string): TerminalHandoffRequir
   );
 
   const actionValue = actions[0]?.value ?? '';
+  const reasonValue = reasons[0]?.value ?? '';
+  const reasonBody = reasonValue.replace(/^Required because\s+/u, '');
   if (actions.length !== 1 || !actionIsConcrete(actionValue)) {
     requirements.push('one concrete action');
   }
   if (
     reasons.length > 1 ||
-    (reasons.length === 1 && !/^Required because\s+\S[\s\S]*[.!]?$/u.test(reasons[0]?.value ?? ''))
+    (reasons.length === 1 &&
+      (!reasonValue.startsWith('Required because ') || !valueHasContent(reasonBody)))
   ) {
     requirements.push('one essential reason');
   }
   if (decisionRoles.length > 0) requirements.push('concise action form');
-  if (leadingText !== '' || /[.!?]\s+\S/u.test(actionValue)) {
+  if (
+    leadingText !== '' ||
+    /[.!?]\s+\S/u.test(actionValue) ||
+    /[.!?]\s+\S/u.test(reasonBody.replace(/[.!?]\s*$/u, ''))
+  ) {
     requirements.push('no extra context');
   }
+  if (clauses.some(termLacksPlainLanguageMeaning)) requirements.push('plain-language meaning');
   return requirements;
 }
 
@@ -717,7 +708,7 @@ export function evaluateDecisionBriefCompliance(
       labels.includes(terminalLabel) ? undefined : ['terminal paragraph'],
     );
   }
-  if (grammar !== DECISION_BRIEF_GRAMMAR) return result(true);
+  if (options.validationMode === 'structural') return result(true);
 
   const terminalParagraph = paragraphs.at(-1)?.text ?? '';
   const terminalValue = terminalParagraph.replace(

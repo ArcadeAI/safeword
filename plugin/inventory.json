@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "161d432fdea6ed2a35b42f02424f11ee480116261aa5e29e6992ccee98f4651e"
+      "sha256": "d4252b99bfe15f7cc52d42987baf31256e31115873ccdf43bbf287cd0417454d"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -327,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "8fab7fb51b3565fa09687d485e3e33e636ccbfe11b78446c9a5867bbad7a37ef"
+      "sha256": "3c8a88c19e27030acf4bb67dfbe903f2fbc406c84305bb96288cf51bdd8605c6"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",

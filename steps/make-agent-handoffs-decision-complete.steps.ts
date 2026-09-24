@@ -134,7 +134,7 @@ function corpusReply(corpusCase: string): string {
     return decisionReply('Need', decisionTerminal());
   }
   if (corpusCase === 'concise no-decision action') {
-    return actionReply('Action: Run the focused terminal-handoff tests.');
+    return actionReply('Action: Run. Object: the focused terminal-handoff tests.');
   }
   if (corpusCase === 'vague no-decision action') return actionReply('Continue.');
   if (corpusCase === 'short conversational reply') return 'Happy to help.';
@@ -552,7 +552,7 @@ Given(
   'a substantive no-decision update ending in one concrete next action and one essential reason',
   function (this: SafewordWorld) {
     stateFor(this).reply = actionReply(
-      'Action: Run the release verification. Reason: Required because deployment is blocked until it passes.',
+      'Action: Run. Object: the release verification. Reason: Required because deployment is blocked until it passes.',
     );
   },
 );
@@ -560,7 +560,7 @@ Given(
 Given(
   'a substantive no-decision update ending in one concrete next action and no reason',
   function (this: SafewordWorld) {
-    stateFor(this).reply = actionReply('Action: Run the release verification.');
+    stateFor(this).reply = actionReply('Action: Run. Object: the release verification.');
   },
 );
 
@@ -568,7 +568,7 @@ Given(
   'a substantive no-decision update ending in one concrete action and one Required because reason clause that repeats earlier context inside the clause',
   function (this: SafewordWorld) {
     stateFor(this).reply = actionReply(
-      'Action: Run the release verification. Reason: Required because the release verification must pass before deployment.',
+      'Action: Run. Object: the release verification. Reason: Required because the release verification must pass before deployment.',
     );
   },
 );
@@ -577,7 +577,7 @@ Given(
   'a substantive no-decision update ending in one concrete action and two Required because reason clauses',
   function (this: SafewordWorld) {
     stateFor(this).reply = actionReply(
-      'Action: Run the release verification. Reason: Required because deployment is blocked. Reason: Required because telemetry is waiting.',
+      'Action: Run. Object: the release verification. Reason: Required because deployment is blocked. Reason: Required because telemetry is waiting.',
     );
   },
 );
@@ -593,7 +593,7 @@ Given(
   'a substantive no-decision update ending in a list of several concrete next actions',
   function (this: SafewordWorld) {
     stateFor(this).reply = actionReply(
-      'Action: Run the release verification. Action: Deploy the stable build.',
+      'Action: Run. Object: the release verification. Action: Deploy. Object: the stable build.',
     );
   },
 );
@@ -609,7 +609,7 @@ Given(
   'a substantive update declaring a human-owned release-target choice whose Next paragraph uses the action form',
   function (this: SafewordWorld) {
     stateFor(this).reply = actionReply(
-      'Action: Deploy the selected release.',
+      'Action: Deploy. Object: the selected release.',
       'human: choose beta or stable',
     );
   },
@@ -619,7 +619,7 @@ Given(
   'a substantive no-decision update ending in one concrete action and repeated context outside the Required because reason clause',
   function (this: SafewordWorld) {
     stateFor(this).reply = actionReply(
-      'Action: Run the release verification. The implementation is already complete.',
+      'Action: Run. Object: the release verification. The implementation is already complete.',
     );
   },
 );
@@ -747,7 +747,7 @@ Given(
         decisionTerminal({ Choice: 'ship the patch now or wait for the maintenance window' }),
       ),
       'the same choice disguised as an action': actionReply(
-        'Action: Ship the selected patch.',
+        'Action: Ship. Object: the selected patch.',
         'human: choose now or the maintenance window',
       ),
       'one marked unfamiliar necessary term explained inline': decisionReply(
@@ -759,13 +759,13 @@ Given(
         `${decisionTerminal()} Term: soak = TBD.`,
       ),
       'one concrete action with a Required because reason': actionReply(
-        'Action: Run the release smoke tests. Reason: Required because deployment waits for them.',
+        'Action: Run. Object: the release smoke tests. Reason: Required because deployment waits for them.',
       ),
       'one concrete action with explanation outside the Required because clause': actionReply(
-        'Action: Run the release smoke tests. Deployment waits for them.',
+        'Action: Run. Object: the release smoke tests. Deployment waits for them.',
       ),
       'one imperative action with a specific object': actionReply(
-        'Action: Publish the release candidate.',
+        'Action: Publish. Object: the release candidate.',
       ),
       'an imperative action with no specific object': actionReply('Action: Continue.'),
     };

@@ -169,6 +169,9 @@ const hasCurrentTurnEdit = await Bun.file(markerFile).exists();
 
 // Cursor exposes a bounded resubmission count rather than stop_hook_active.
 // Correct only the original completed response; the continuation may stop freely.
+// This presentation repair intentionally consumes the first Stop continuation.
+// Keep the edit marker intact so architecture evidence and retro filing run on
+// the loop-1 Stop instead of being lost; Cursor permits only one followup_message.
 if ((input.loop_count ?? 0) === 0) {
   try {
     const rawConfig = await Bun.file(nodePath.join(process.cwd(), '.safeword', 'config.json'))

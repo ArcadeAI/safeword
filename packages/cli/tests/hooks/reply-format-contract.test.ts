@@ -22,6 +22,7 @@ const STRUCTURAL_GRAMMAR = structuredClone(DECISION_BRIEF_GRAMMAR);
 const evaluateDecisionBriefCompliance = (reply: string) =>
   evaluateTerminalHandoffCompliance(reply, STRUCTURAL_GRAMMAR, {
     substantiveEvidence: 'structured-verdict',
+    validationMode: 'structural',
   });
 
 describe('proactive decision-brief contract', () => {
@@ -86,11 +87,13 @@ describe('proactive decision-brief contract', () => {
     expect(
       evaluateTerminalHandoffCompliance(changedReply, changed, {
         substantiveEvidence: 'structured-verdict',
+        validationMode: 'structural',
       }).compliant,
     ).toBe(true);
     expect(
       evaluateTerminalHandoffCompliance(brief(CONFIDENT), changed, {
         substantiveEvidence: 'structured-verdict',
+        validationMode: 'structural',
       }).compliant,
     ).toBe(false);
   });

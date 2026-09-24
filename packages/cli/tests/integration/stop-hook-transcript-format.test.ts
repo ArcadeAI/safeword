@@ -158,6 +158,30 @@ describe('Stop Hook: Done-gate fires without recent edit tools (AP3FGJ)', () => 
 });
 
 describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
+  it('corrects a structured final message when transcript evidence is unavailable', () => {
+    writeGateConfig(state.projectDirectory, {
+      stopQualityReview: true,
+      terminalHandoffCorrection: true,
+    });
+    const missingTranscript = nodePath.join(state.projectDirectory, 'missing-transcript.jsonl');
+    const result = runStopHook(
+      state.projectDirectory,
+      missingTranscript,
+      undefined,
+      [
+        '**CONFIDENT** — The change is ready.',
+        '**Decided:** Keep the focused patch.',
+        '**Open:** Choose a release channel.',
+        '**Next:** Choice: beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.',
+      ].join('\n\n'),
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('canonical Open route');
+  });
+
   it('detects edits and triggers quality review from real-format transcript', () => {
     // Simulate hook runtime providing last_assistant_message directly.
     // combinedText reads from this field instead of the transcript.

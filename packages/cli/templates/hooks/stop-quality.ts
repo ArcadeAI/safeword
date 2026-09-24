@@ -374,16 +374,13 @@ try {
 const stopHookActive = input.stop_hook_active ?? false;
 
 const transcriptPath = input.transcript_path;
-if (!transcriptPath) {
-  process.exit(0);
+let lines: string[] = [];
+if (transcriptPath) {
+  const transcriptFile = Bun.file(transcriptPath);
+  if (await transcriptFile.exists()) {
+    lines = await readBoundedTranscriptLines(transcriptFile);
+  }
 }
-
-const transcriptFile = Bun.file(transcriptPath);
-if (!(await transcriptFile.exists())) {
-  process.exit(0);
-}
-
-const lines = await readBoundedTranscriptLines(transcriptFile);
 
 checkUsageLimit(lines);
 

@@ -14,7 +14,7 @@ function contractFixture() {
   return {
     version: 'terminal-handoff/v1',
     decision: { Next: decisionRoles, Need: decisionRoles },
-    action: { role: 'Action', optionalReasonPrefix: 'Required because' },
+    action: { role: 'Action', objectRole: 'Object', optionalReasonPrefix: 'Required because' },
   };
 }
 
@@ -127,6 +127,103 @@ describe('terminal handoff contract', () => {
     });
   });
 
+  it('accepts concrete imperative verbs without a hidden allowlist', () => {
+    const reply = [
+      '**CONFIDENT** — The implementation is ready.',
+      '**Decided:** Keep the focused patch.',
+      '**Open:** none.',
+      '**Next:** Action: Merge. Object: the release branch.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: true,
+      form: 'action',
+    });
+  });
+
+  it('rejects a noun phrase that does not declare a specific Object', () => {
+    const reply = [
+      '**CONFIDENT** — The implementation is ready.',
+      '**Decided:** Keep the focused patch.',
+      '**Open:** none.',
+      '**Next:** Action: Release branch ready.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: false,
+      form: 'action',
+      requirements: ['one concrete action'],
+    });
+  });
+
+  it('rejects a noncanonical Open route even when every decision role is complete', () => {
+    const reply = [
+      '**CONFIDENT** — The release channel requires a human choice.',
+      '**Decided:** Keep the release scoped to one channel.',
+      '**Open:** Choose a release channel.',
+      '**Next:** Choice: beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: false,
+      form: 'decision',
+      requirements: ['canonical Open route'],
+    });
+  });
+
+  it('rejects content-free back-references with trailing filler', () => {
+    const reply = [
+      '**CONFIDENT** — The release channel requires a human choice.',
+      '**Decided:** Keep the release scoped to one channel.',
+      '**Open:** human: choose the release channel.',
+      '**Next:** Choice: beta or stable. Recommendation: see analysis for details. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: false,
+      form: 'decision',
+      requirements: ['recommendation'],
+    });
+  });
+
+  it('ships only evaluator-supported Open routes', () => {
+    const rendered = quality.renderDecisionBriefContract();
+
+    expect(rendered).toContain('**Open:** <human: <one choice> | none>.');
+    expect(rendered).not.toContain('resolved this turn');
+    expect(rendered).not.toContain('deferred to');
+  });
+
+  it('requires marked action-form terms to have a plain-language meaning', () => {
+    const reply = [
+      '**CONFIDENT** — The implementation is ready.',
+      '**Decided:** Keep the focused patch.',
+      '**Open:** none.',
+      '**Next:** Action: Run. Object: the RPO checks. Term: RPO = TBD.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: false,
+      form: 'action',
+      requirements: ['plain-language meaning'],
+    });
+  });
+
+  it('rejects extra prose after the one essential action reason', () => {
+    const reply = [
+      '**CONFIDENT** — The implementation is ready.',
+      '**Decided:** Keep the focused patch.',
+      '**Open:** none.',
+      '**Next:** Action: Run. Object: the focused tests. Reason: Required because CI is blocked. Here is background the reader does not need.',
+    ].join('\n\n');
+
+    expect(quality.evaluateDecisionBriefCompliance(reply)).toMatchObject({
+      compliant: false,
+      form: 'action',
+      requirements: ['no extra context'],
+    });
+  });
+
   it('renders a versioned correction naming only the missing requirements', () => {
     const evaluation = quality.evaluateDecisionBriefCompliance(
       [
@@ -165,7 +262,7 @@ describe('terminal handoff contract', () => {
 
     expect(correction).toContain('terminal-handoff/v1');
     expect(correction).toContain('Missing: one concrete action, no extra context.');
-    expect(correction).toContain('**Next:** Action: <imperative + specific object>.');
+    expect(correction).toContain('**Next:** Action: <imperative>. Object: <specific object>.');
     expect(correction).toContain('Reason: Required because <essential reason>.');
     expect(correction).not.toContain('Choice:');
   });
