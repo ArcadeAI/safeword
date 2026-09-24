@@ -33,6 +33,13 @@ Then(
     // directory itself as well as anything nested under it. A hand-rolled
     // startsWith here duplicated that and was strictly weaker, missing the
     // exact-equals-home case.
-    assertIsolatedHostProfile({ CLAUDE_CONFIG_DIR: this.observedHostProfile });
+    // Carry the live environment and override only the value this scenario
+    // observed: the guard checks every host variable, so a synthetic env
+    // holding one of them would fail on the others being absent rather than on
+    // anything this step is about.
+    assertIsolatedHostProfile({
+      ...process.env,
+      CLAUDE_CONFIG_DIR: this.observedHostProfile,
+    });
   },
 );

@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { defineConfig } from 'vitest/config';
 
-import { hostProfileSandbox } from './tests/helpers/host-profile-sandbox.ts';
+import { codexHomeSandbox, hostProfileSandbox } from './tests/helpers/host-profile-sandbox.ts';
 
 /**
  * Shared vitest settings for all test configs.
@@ -25,6 +25,10 @@ export const baseConfig = defineConfig({
     // instead of relying on each suite to remember.
     env: {
       CLAUDE_CONFIG_DIR: hostProfileSandbox(),
+      // CODEX_HOME for the same reason: `codex status` reads proof records whose
+      // recorded_at a live Codex hook rewrites, which made machine-contract's
+      // run-it-twice determinism check fail on the developer's own machine.
+      CODEX_HOME: codexHomeSandbox(),
       PATH: `${path.dirname(process.execPath)}:${process.env.PATH}`,
       GIT_CONFIG_COUNT: '1',
       GIT_CONFIG_KEY_0: 'commit.gpgsign',

@@ -6,7 +6,11 @@ import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { assertIsolatedHostProfile, hostProfileSandbox } from './helpers/host-profile-sandbox.ts';
+import {
+  assertIsolatedHostProfile,
+  codexHomeSandbox,
+  hostProfileSandbox,
+} from './helpers/host-profile-sandbox.ts';
 
 // Safeword's Claude install runs `claude plugin install` against the ambient
 // host profile. When a suite runs the real CLI in a $TMPDIR project, that call
@@ -14,6 +18,12 @@ import { assertIsolatedHostProfile, hostProfileSandbox } from './helpers/host-pr
 // directory that is deleted seconds later, and Claude Code never prunes it —
 // the file grew ~45x over five days of normal development (issue #4776).
 describe('host profile isolation (#4776)', () => {
+  it('keeps every vitest lane pointed at the sandboxed Codex home', () => {
+    // `codex status` reports a proof `recorded_at` that a live Codex hook
+    // rewrites, so a lane reading the real ~/.codex sees it change mid-suite.
+    expect(process.env.CODEX_HOME).toBe(codexHomeSandbox());
+  });
+
   it('keeps every vitest lane pointed at the sandbox, not the real plugin store', () => {
     // Runtime proof, not a config-shape assertion: this fails in whichever lane
     // loses the wiring, including lanes added after this test was written.
@@ -45,15 +55,32 @@ describe('host profile isolation (#4776)', () => {
   });
 
   it.each([
-    ['an unset profile directory', {}, /CLAUDE_CONFIG_DIR is unset/u],
-    ['a whitespace-only profile directory', { CLAUDE_CONFIG_DIR: ' ' }, /is unset/u],
+    ['an unset profile directory', { CLAUDE_CONFIG_DIR: undefined }, /CLAUDE_CONFIG_DIR is unset/u],
+    [
+      'a whitespace-only profile directory',
+      { CLAUDE_CONFIG_DIR: ' ' },
+      /CLAUDE_CONFIG_DIR is unset/u,
+    ],
     ['the home directory itself', { CLAUDE_CONFIG_DIR: homedir() }, /inside the home directory/u],
     [
       'the real profile nested under home',
       { CLAUDE_CONFIG_DIR: nodePath.join(homedir(), '.claude') },
       /inside the home directory/u,
     ],
-  ])('rejects %s', (_label, environment, expected) => {
+    ['an unset Codex home', { CODEX_HOME: undefined }, /CODEX_HOME is unset/u],
+    [
+      'the real Codex home',
+      { CODEX_HOME: nodePath.join(homedir(), '.codex') },
+      /CODEX_HOME points inside the home directory/u,
+    ],
+  ])('rejects %s', (_label, override, expected) => {
+    // Start from a fully isolated environment so each case proves ONE variable
+    // is rejected, rather than passing because some other guard fired first.
+    const environment = {
+      CLAUDE_CONFIG_DIR: hostProfileSandbox(),
+      CODEX_HOME: codexHomeSandbox(),
+      ...override,
+    };
     expect(() => {
       assertIsolatedHostProfile(environment);
     }).toThrow(expected);
@@ -63,7 +90,10 @@ describe('host profile isolation (#4776)', () => {
     // `${home}-scratch` is not under `${home}/`; a prefix check without the
     // separator would reject a legitimate sandbox, so this pins the separator.
     expect(() => {
-      assertIsolatedHostProfile({ CLAUDE_CONFIG_DIR: `${homedir()}-scratch` });
+      assertIsolatedHostProfile({
+        CLAUDE_CONFIG_DIR: `${homedir()}-scratch`,
+        CODEX_HOME: `${homedir()}-scratch`,
+      });
     }).not.toThrow();
   });
 });

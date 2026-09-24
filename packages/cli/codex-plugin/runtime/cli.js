@@ -63314,7 +63314,7 @@ function commandViolations(steps) {
     ...stepById(steps, "validate")?.run === VALIDATE_COMMAND ? [] : ["fixed_validation"],
     ...stepById(steps, "verify")?.run === VERIFY_COMMAND ? [] : ["fixed_revision_verification"]
   ];
-  return testRun === 'npx --yes safeword@1.0.0-rc.5 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
+  return testRun === 'npx --yes safeword@0.83.1 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
 }
 function executionViolations(steps) {
   return [
@@ -63750,6 +63750,10 @@ var init_remote_workflow_state = __esm(() => {
     {
       version: 8,
       normalizedSha256: "a47cd767a6e1fb31afd165bd3ba07dfa26535277bde66610858f89a558b9d06a"
+    },
+    {
+      version: 9,
+      normalizedSha256: "77d3cf2b3b3b3252f809b94f9321f6f46e4678eecf8a06f2eb9d3307445ec6e0"
     }
   ];
   HISTORICAL_MANAGED_DIGESTS = new Set(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1).map((release) => release.normalizedSha256));
