@@ -107,21 +107,90 @@ function cargoWorkspaceOwns(workspaceDirectory: string, candidate: string): bool
     ) as {
       workspace?: { members?: unknown; exclude?: unknown };
     };
-    if (!document.workspace || !Array.isArray(document.workspace.members)) return false;
+    if (!document.workspace) return false;
     const relative = nodePath.relative(workspaceDirectory, candidate);
-    const members = document.workspace.members.filter(
-      (member): member is string => typeof member === 'string',
-    );
+    const members = Array.isArray(document.workspace.members)
+      ? document.workspace.members.filter((member): member is string => typeof member === 'string')
+      : [];
     const excluded = Array.isArray(document.workspace.exclude)
       ? document.workspace.exclude.filter((member): member is string => typeof member === 'string')
       : [];
+    if (excluded.some(pattern => matchesWorkspacePattern(relative, pattern))) return false;
     return (
-      members.some(pattern => matchesWorkspacePattern(relative, pattern)) &&
-      excluded.every(pattern => !matchesWorkspacePattern(relative, pattern))
+      members.some(pattern => matchesWorkspacePattern(relative, pattern)) ||
+      cargoImplicitMember(workspaceDirectory, candidate, members)
     );
   } catch {
     return false;
   }
+}
+
+function cargoImplicitMember(
+  workspaceDirectory: string,
+  candidate: string,
+  members: readonly string[],
+): boolean {
+  // Cargo also makes path dependencies beneath the workspace root implicit
+  // members. Walk the path-dependency graph from the root package and every
+  // explicit member so those crates do not receive duplicate standalone lanes.
+  const queue = findAllInTree(workspaceDirectory, 'Cargo.toml').filter(directory => {
+    if (directory === workspaceDirectory) return true;
+    const relative = nodePath.relative(workspaceDirectory, directory);
+    return members.some(pattern => matchesWorkspacePattern(relative, pattern));
+  });
+  const visited = new Set<string>();
+  while (queue.length > 0) {
+    const directory = queue.shift();
+    if (directory === undefined) break;
+    if (visited.has(directory)) continue;
+    visited.add(directory);
+    const manifest = parse(readFileSync(nodePath.join(directory, 'Cargo.toml'), 'utf8')) as Record<
+      string,
+      unknown
+    >;
+    const nested = cargoPathDependencyDirectories(manifest, directory).filter(path =>
+      path.startsWith(`${workspaceDirectory}${nodePath.sep}`),
+    );
+    if (nested.includes(candidate)) return true;
+    queue.push(...nested.filter(path => !visited.has(path)));
+  }
+  return false;
+}
+
+function cargoPathDependencyDirectories(
+  manifest: Readonly<Record<string, unknown>>,
+  manifestDirectory: string,
+): string[] {
+  const baseTables: unknown[] = [
+    manifest.dependencies,
+    manifest['dev-dependencies'],
+    manifest['build-dependencies'],
+  ];
+  const workspace = manifest.workspace;
+  const targets = manifest.target;
+  const workspaceTables = objectRecord(workspace) ? [workspace.dependencies] : [];
+  const targetTables = objectRecord(targets)
+    ? Object.values(targets).flatMap(target => {
+        if (!objectRecord(target)) return [];
+        return [target.dependencies, target['dev-dependencies'], target['build-dependencies']];
+      })
+    : [];
+  return [...baseTables, ...workspaceTables, ...targetTables].flatMap(table =>
+    cargoDependencyTablePaths(table, manifestDirectory),
+  );
+}
+
+function objectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function cargoDependencyTablePaths(table: unknown, manifestDirectory: string): string[] {
+  if (!objectRecord(table)) return [];
+  return Object.values(table).flatMap(dependency => {
+    if (!objectRecord(dependency)) return [];
+    const path = dependency.path;
+    return typeof path === 'string' ? [nodePath.resolve(manifestDirectory, path)] : [];
+  });
 }
 
 function javascriptProjectDirectories(root: string): string[] {
@@ -153,7 +222,8 @@ function pythonProjectMarkers(kind: PlanKind): readonly string[] {
 /**
  * Kinds each non-Rust resolver opts out of, so a new PlanKind fails safe (the
  * language emits nothing) instead of falling through to a wrong command. `deps`
- * emits an ecosystem-native vulnerability scan for every supported language.
+ * emits an ecosystem-native vulnerability scan where this resolver has a
+ * supported scanner; SQL intentionally has no dependency-audit lane.
  * `typecheck` emits for JS/TS (`typecheck`
  * script), Python (mypy/pyright when configured), and Rust (clippy, in
  * resolveRust); Go's compiler covers it. `bdd` (Gherkin acceptance) emits for JS
@@ -284,13 +354,23 @@ function resolveJs(
   if (!scripts) return undefined;
   const pm = detectPackageManager(packageManagerDirectory);
   if (kind === 'deps') {
-    const command = pm === 'yarn' ? 'yarn npm audit' : `${pm} audit`;
+    const command = pm === 'yarn' ? yarnAuditCommand(packageManagerDirectory) : `${pm} audit`;
     return entry('javascript', projectDirectory, command, pm, isAvailable(pm));
   }
   const script = selectedJsScript(scripts, kind);
   return script
     ? entry('javascript', projectDirectory, `${pm} run ${script}`, pm, isAvailable(pm))
     : undefined;
+}
+
+function yarnAuditCommand(packageManagerDirectory: string): string {
+  if (existsSync(nodePath.join(packageManagerDirectory, '.yarnrc.yml'))) return 'yarn npm audit';
+  try {
+    const lockfile = readFileSync(nodePath.join(packageManagerDirectory, 'yarn.lock'), 'utf8');
+    return /^__metadata:\s*$/mu.test(lockfile) ? 'yarn npm audit' : 'yarn audit';
+  } catch {
+    return 'yarn audit';
+  }
 }
 
 /** Returns the first script name in `priority` that exists in `scripts`, or undefined. */

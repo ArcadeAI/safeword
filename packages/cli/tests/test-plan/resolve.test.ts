@@ -595,6 +595,20 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     ).toEqual([nodePath.join(root, 'sub')]);
   });
 
+  it('runs an implicit Cargo path-dependency member from its workspace root', () => {
+    const root = makeRepo({
+      'Cargo.toml':
+        '[package]\nname="root"\nversion="0.1.0"\n[workspace]\n[dependencies]\napi={path="crates/api"}\n',
+      'crates/api/Cargo.toml': '[package]\nname="api"\nversion="0.1.0"\n',
+    });
+
+    expect(
+      resolveTestPlan(root, { isToolAvailable: onlyTools('cargo') })
+        .filter(item => item.language === 'rust')
+        .map(item => item.cwd),
+    ).toEqual([root]);
+  });
+
   it('does not mistake a workspace subtable for a Rust workspace root', () => {
     const root = makeRepo({
       'Cargo.toml': '[package]\nname="root"\nversion="0.1.0"\n',
@@ -794,13 +808,28 @@ describe('resolveTestPlan — deps plan (kind: deps, supply-chain gate)', () => 
     expect(entryFor(plan, 'python')?.command).toBe('pip-audit -r requirements.txt');
   });
 
-  it('routes JavaScript audits through the detected package manager', () => {
+  it('uses the Yarn Classic audit command for a v1 lockfile', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
-      'yarn.lock': '',
+      'yarn.lock': '# yarn lockfile v1\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')?.command).toBe('yarn audit');
+  });
+
+  it('uses the modern Yarn audit command for a Berry lockfile', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'yarn.lock': '__metadata:\n  version: 8\n',
     });
     const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
     expect(entryFor(plan, 'javascript')?.command).toBe('yarn npm audit');
+  });
+
+  it('does not invent a dependency-audit lane for SQL projects', () => {
+    const root = makeRepo({ 'dbt_project.yml': 'name: warehouse\n' });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
+    expect(entryFor(plan, 'sql')).toBeUndefined();
   });
 
   it('keeps each missing supply-chain scanner visible', () => {
