@@ -64491,7 +64491,8 @@ function resolvePythonTest(index, cwd, isAvailable, nestedProjects) {
   if (index.has("tox.ini"))
     return entry("python", cwd, "tox", "tox", isAvailable("tox"));
   const hasPythonTests = findFileMatchingInTree(cwd, isPythonTestFile, 10, nestedProjects) !== undefined;
-  if (pytestConfigured(index) || hasPythonTests && isAvailable("pytest")) {
+  const projectManagedPytest = index.has("uv.lock") || index.has("poetry.lock");
+  if (pytestConfigured(index) || hasPythonTests && (projectManagedPytest || isAvailable("pytest"))) {
     const { command, runner } = pythonInvocation(index, "pytest");
     return entry("python", cwd, command, runner, isAvailable(runner));
   }
@@ -64501,7 +64502,7 @@ function resolvePythonTest(index, cwd, isAvailable, nestedProjects) {
   return entry("python", cwd, `${pythonBin} -m unittest discover`, "unittest", isAvailable(pythonBin));
 }
 function resolvePython(root, index, kind, isAvailable, nestedProjects = new Set) {
-  if (PYTHON_SKIP_KINDS.has(kind))
+  if (!PYTHON_PLAN_KINDS.has(kind))
     return;
   if (kind === "typecheck") {
     const cwd = firstDirectory(root, index, [
@@ -64526,16 +64527,20 @@ function resolvePython(root, index, kind, isAvailable, nestedProjects = new Set)
     const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
     if (index.has("uv.lock"))
       return entry("python", cwd, "uv audit", "uv", isAvailable("uv"));
-    if (index.has("requirements.txt"))
-      return entry("python", cwd, "pip-audit -r requirements.txt", "pip-audit", isAvailable("pip-audit"));
-    if (index.has("pyproject.toml"))
-      return entry("python", cwd, "pip-audit .", "pip-audit", isAvailable("pip-audit"));
+    if (index.has("requirements.txt")) {
+      const invocation = pythonInvocation(index, "pip-audit", "-r requirements.txt");
+      return entry("python", cwd, invocation.command, invocation.runner, isAvailable(invocation.runner));
+    }
+    if (index.has("pyproject.toml")) {
+      const invocation = pythonInvocation(index, "pip-audit", ".");
+      return entry("python", cwd, invocation.command, invocation.runner, isAvailable(invocation.runner));
+    }
     return entry("python", cwd, "pip-audit", "pip-audit", isAvailable("pip-audit"));
   }
   return resolvePythonTest(index, firstDirectory(root, index, PYTHON_MANIFESTS), isAvailable, nestedProjects);
 }
 function resolveGo(root, index, kind, isAvailable) {
-  if (GO_SKIP_KINDS.has(kind))
+  if (!GO_PLAN_KINDS.has(kind))
     return;
   if (!index.has("go.mod"))
     return;
@@ -64552,7 +64557,7 @@ function resolveGo(root, index, kind, isAvailable) {
   return entry("go", cwd, `go ${verb} ./...`, "go", isAvailable("go"));
 }
 function resolveRust(root, index, kind, isAvailable) {
-  if (kind === "bdd")
+  if (!RUST_PLAN_KINDS.has(kind))
     return;
   if (!index.has("Cargo.toml"))
     return;
@@ -64568,13 +64573,22 @@ function resolveRust(root, index, kind, isAvailable) {
   return entry("rust", cwd, "cargo test --workspace", "cargo", isAvailable("cargo"));
 }
 function resolveSql(root, index, kind, isAvailable) {
+  if (!SQL_PLAN_KINDS.has(kind))
+    return;
   if (SQL_PROJECT_MARKERS.every((marker) => !index.has(marker)))
     return;
   if (kind === "build" && index.has("dbt_project.yml")) {
     return entry("sql", root, "dbt build", "dbt", isAvailable("dbt"));
   }
   if (kind === "test" || kind === "verify") {
-    return entry("sql", root, "sqlfluff lint .", "sqlfluff", isAvailable("sqlfluff"));
+    if (index.has(".sqlfluff")) {
+      return entry("sql", root, "sqlfluff lint .", "sqlfluff", isAvailable("sqlfluff"));
+    }
+    if (index.has("dbt_project.yml")) {
+      const command = kind === "verify" ? "dbt build" : "dbt test";
+      return entry("sql", root, command, "dbt", isAvailable("dbt"));
+    }
+    return entry("sql", root, "sqlc compile", "sqlc", isAvailable("sqlc"));
   }
   return;
 }
@@ -64605,7 +64619,7 @@ function resolveTestPlan(root, options = {}) {
   const sql = directoriesWithAnyManifest(root, SQL_PROJECT_MARKERS).map((directory) => resolveSql(directory, directManifestIndex(directory), kind, isAvailable));
   return [...javascript, ...python, ...go, ...rust, ...sql].filter((planEntry) => planEntry !== undefined && isLanguageEnabled(planEntry.language, installedPacks2));
 }
-var PYTHON_MANIFESTS, SQL_PROJECT_MARKERS, MYPY_MARKER_FILES, PYRIGHT_MARKER_FILES, BEHAVE_MARKER_FILES, TREE_MANIFESTS, PYTHON_SKIP_KINDS, GO_SKIP_KINDS, JS_DIRECT_SCRIPT;
+var PYTHON_MANIFESTS, SQL_PROJECT_MARKERS, MYPY_MARKER_FILES, PYRIGHT_MARKER_FILES, BEHAVE_MARKER_FILES, TREE_MANIFESTS, PYTHON_PLAN_KINDS, GO_PLAN_KINDS, RUST_PLAN_KINDS, SQL_PLAN_KINDS, JS_DIRECT_SCRIPT;
 var init_resolve = __esm(() => {
   init_dist();
   init_shell_segments();
@@ -64632,8 +64646,22 @@ var init_resolve = __esm(() => {
     "Cargo.toml",
     ...SQL_PROJECT_MARKERS
   ]);
-  PYTHON_SKIP_KINDS = new Set(["build"]);
-  GO_SKIP_KINDS = new Set(["typecheck", "bdd"]);
+  PYTHON_PLAN_KINDS = new Set([
+    "test",
+    "verify",
+    "typecheck",
+    "deps",
+    "bdd"
+  ]);
+  GO_PLAN_KINDS = new Set(["test", "verify", "build", "deps"]);
+  RUST_PLAN_KINDS = new Set([
+    "test",
+    "verify",
+    "build",
+    "typecheck",
+    "deps"
+  ]);
+  SQL_PLAN_KINDS = new Set(["test", "verify", "build"]);
   JS_DIRECT_SCRIPT = {
     bdd: "test:bdd",
     typecheck: "typecheck",

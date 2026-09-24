@@ -402,6 +402,10 @@ function eventMatcherSubject(
 ): { readonly supported: boolean; readonly value?: string } {
   const field = MATCHER_SUBJECT_FIELD_BY_EVENT[event];
   if (field === undefined) {
+    // A verified manifest should never dispatch an event absent from this map.
+    // Stay strict here because guessing at matcher semantics could run the wrong
+    // verified hook; startup recovery is intentionally broader because it runs
+    // no configured hook at all.
     throw new TypeError(`Safeword cannot evaluate a matcher for unknown Claude event: ${event}`);
   }
   if (field === false) return { supported: false };

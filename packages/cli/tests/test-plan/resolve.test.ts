@@ -171,6 +171,20 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     expect(entryFor(plan, 'python')?.command).toBe('uv run --locked pytest');
   });
 
+  it('keeps pytest-style tests visible when pytest is managed by a uv lock', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'uv.lock': '',
+      'tests/test_example.py': 'def test_example():\n    assert True\n',
+    });
+    const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('uv') });
+    expect(entryFor(plan, 'python')).toMatchObject({
+      command: 'uv run --locked pytest',
+      runner: 'uv',
+      available: true,
+    });
+  });
+
   it('uses a workspace-root uv lock for nested Python projects', () => {
     const root = makeRepo({
       'pyproject.toml': '[tool.uv.workspace]\nmembers=["apps/*"]\n',
@@ -577,11 +591,11 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     expect(sql).toEqual([
       expect.objectContaining({
         cwd: nodePath.join(root, 'apps/warehouse'),
-        command: 'sqlfluff lint .',
+        command: 'dbt build',
       }),
       expect.objectContaining({
         cwd: nodePath.join(root, 'services/reporting'),
-        command: 'sqlfluff lint .',
+        command: 'sqlc compile',
       }),
     ]);
   });
@@ -644,12 +658,16 @@ describe('resolveTestPlan — verify plan (kind: verify)', () => {
   it('fails safe instead of treating a future plan kind as JavaScript tests', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
+      'pyproject.toml': '[tool.pytest.ini_options]\n',
+      'go.mod': 'module x\n',
+      'Cargo.toml': '[package]\nname="x"\n',
+      '.sqlfluff': '[sqlfluff]\ndialect = ansi\n',
     });
     const plan = resolveTestPlan(root, {
       kind: 'future-kind' as PlanKind,
       isToolAvailable: allTools,
     });
-    expect(entryFor(plan, 'javascript')).toBeUndefined();
+    expect(plan).toEqual([]);
   });
 
   it('prefers test:ci over test and test:done', () => {
@@ -822,6 +840,19 @@ describe('resolveTestPlan — deps plan (kind: deps, supply-chain gate)', () => 
     const root = makeRepo({ 'requirements.txt': 'requests==2.32.0\n' });
     const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
     expect(entryFor(plan, 'python')?.command).toBe('pip-audit -r requirements.txt');
+  });
+
+  it('runs pip-audit through Poetry for poetry-locked projects', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[tool.poetry]\nname="x"\nversion="0.1.0"\n',
+      'poetry.lock': '',
+    });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: onlyTools('poetry') });
+    expect(entryFor(plan, 'python')).toMatchObject({
+      command: 'poetry run pip-audit .',
+      runner: 'poetry',
+      available: true,
+    });
   });
 
   it('uses the Yarn Classic audit command for a v1 lockfile', () => {

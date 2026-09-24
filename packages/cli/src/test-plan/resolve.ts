@@ -231,8 +231,22 @@ function pythonProjectMarkers(kind: PlanKind): readonly string[] {
  * the native test lane, so those skip it. Frozen sets mirror the manifest-set
  * idiom above and keep the guards uniform.
  */
-const PYTHON_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['build']);
-const GO_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['typecheck', 'bdd']);
+const PYTHON_PLAN_KINDS: ReadonlySet<PlanKind> = new Set([
+  'test',
+  'verify',
+  'typecheck',
+  'deps',
+  'bdd',
+]);
+const GO_PLAN_KINDS: ReadonlySet<PlanKind> = new Set(['test', 'verify', 'build', 'deps']);
+const RUST_PLAN_KINDS: ReadonlySet<PlanKind> = new Set([
+  'test',
+  'verify',
+  'build',
+  'typecheck',
+  'deps',
+]);
+const SQL_PLAN_KINDS: ReadonlySet<PlanKind> = new Set(['test', 'verify', 'build']);
 
 /**
  * Parse the `SAFEWORD_FAKE_TOOLS` test seam (same spirit as `SAFEWORD_SKIP_INSTALL`):
@@ -565,7 +579,11 @@ function resolvePythonTest(
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
   const hasPythonTests =
     findFileMatchingInTree(cwd, isPythonTestFile, 10, nestedProjects) !== undefined;
-  if (pytestConfigured(index) || (hasPythonTests && isAvailable('pytest'))) {
+  const projectManagedPytest = index.has('uv.lock') || index.has('poetry.lock');
+  if (
+    pytestConfigured(index) ||
+    (hasPythonTests && (projectManagedPytest || isAvailable('pytest')))
+  ) {
     const { command, runner } = pythonInvocation(index, 'pytest');
     return entry('python', cwd, command, runner, isAvailable(runner));
   }
@@ -588,7 +606,7 @@ function resolvePython(
   isAvailable: ToolProbe,
   nestedProjects: ReadonlySet<string> = new Set(),
 ): PlanEntry | undefined {
-  if (PYTHON_SKIP_KINDS.has(kind)) return undefined; // build: no standard Python lane
+  if (!PYTHON_PLAN_KINDS.has(kind)) return undefined;
   // typecheck/bdd detect Python via their OWN config markers (mypy/pyright/behave
   // configs are Python-only), so they don't require a packaging manifest — a repo
   // carrying just `mypy.ini` or `behave.ini` still gets its lane, run in the dir the
@@ -619,16 +637,26 @@ function resolvePython(
     // evidence rather than tool availability so a missing scanner stays a
     // visible skip in the rendered plan instead of a false-green no-op.
     if (index.has('uv.lock')) return entry('python', cwd, 'uv audit', 'uv', isAvailable('uv'));
-    if (index.has('requirements.txt'))
+    if (index.has('requirements.txt')) {
+      const invocation = pythonInvocation(index, 'pip-audit', '-r requirements.txt');
       return entry(
         'python',
         cwd,
-        'pip-audit -r requirements.txt',
-        'pip-audit',
-        isAvailable('pip-audit'),
+        invocation.command,
+        invocation.runner,
+        isAvailable(invocation.runner),
       );
-    if (index.has('pyproject.toml'))
-      return entry('python', cwd, 'pip-audit .', 'pip-audit', isAvailable('pip-audit'));
+    }
+    if (index.has('pyproject.toml')) {
+      const invocation = pythonInvocation(index, 'pip-audit', '.');
+      return entry(
+        'python',
+        cwd,
+        invocation.command,
+        invocation.runner,
+        isAvailable(invocation.runner),
+      );
+    }
     // Legacy setup.py/setup.cfg/tox projects have no project-file input that
     // pip-audit understands. Auditing the active environment is the supported
     // fallback and remains visible if the scanner is unavailable.
@@ -648,9 +676,9 @@ function resolveGo(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  // Go skips typecheck/bdd (GO_SKIP_KINDS): the compiler is the type checker and
+  // Go skips typecheck/bdd: the compiler is the type checker and
   // godog runs as `go test` subtests.
-  if (GO_SKIP_KINDS.has(kind)) return undefined;
+  if (!GO_PLAN_KINDS.has(kind)) return undefined;
   if (!index.has('go.mod')) return undefined;
   if (kind === 'deps') {
     const cwd = existsSync(nodePath.join(root, 'go.work')) ? root : (index.get('go.mod') ?? root);
@@ -684,7 +712,7 @@ function resolveRust(
   // bdd folds into the native Rust lane: cucumber-rs runs under `cargo test` (a
   // harness=false test target), so no separate lane. (typecheck IS handled below —
   // clippy is the strict CI-lint gate, #436 — and deps runs cargo-deny.)
-  if (kind === 'bdd') return undefined;
+  if (!RUST_PLAN_KINDS.has(kind)) return undefined;
   if (!index.has('Cargo.toml')) return undefined;
   const cwd = index.get('Cargo.toml') ?? root;
   if (kind === 'deps')
@@ -736,12 +764,20 @@ function resolveSql(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
+  if (!SQL_PLAN_KINDS.has(kind)) return undefined;
   if (SQL_PROJECT_MARKERS.every(marker => !index.has(marker))) return undefined;
   if (kind === 'build' && index.has('dbt_project.yml')) {
     return entry('sql', root, 'dbt build', 'dbt', isAvailable('dbt'));
   }
   if (kind === 'test' || kind === 'verify') {
-    return entry('sql', root, 'sqlfluff lint .', 'sqlfluff', isAvailable('sqlfluff'));
+    if (index.has('.sqlfluff')) {
+      return entry('sql', root, 'sqlfluff lint .', 'sqlfluff', isAvailable('sqlfluff'));
+    }
+    if (index.has('dbt_project.yml')) {
+      const command = kind === 'verify' ? 'dbt build' : 'dbt test';
+      return entry('sql', root, command, 'dbt', isAvailable('dbt'));
+    }
+    return entry('sql', root, 'sqlc compile', 'sqlc', isAvailable('sqlc'));
   }
   return undefined;
 }
