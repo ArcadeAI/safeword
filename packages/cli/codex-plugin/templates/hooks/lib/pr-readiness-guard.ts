@@ -50,14 +50,33 @@ function hasDraftFlag(arguments_: string[]): boolean {
   return false;
 }
 
+function skipRepositoryOptions(words: string[], start: number): number {
+  let index = start;
+  while (index < words.length) {
+    const argument = words[index] ?? '';
+    if (argument === '--repo' || argument === '-R') {
+      index += 2;
+      continue;
+    }
+    if (argument.startsWith('--repo=') || /^-R.+/u.test(argument)) {
+      index += 1;
+      continue;
+    }
+    break;
+  }
+  return index;
+}
+
 function classifyArguments(words: string[]): PrReadinessCommand {
   if (nodePath.basename(words[0] ?? '') !== 'gh') return 'other';
-  if (words[1] !== 'pr') return 'other';
+  let index = skipRepositoryOptions(words, 1);
+  if (words[index] !== 'pr') return 'other';
 
-  const operation = words[2];
-  const arguments_ = words.slice(3);
+  index = skipRepositoryOptions(words, index + 1);
+  const operation = words[index];
+  const arguments_ = words.slice(index + 1);
   if (operation === 'ready') return arguments_.includes('--undo') ? 'draft' : 'ready';
-  if (operation !== 'create') return 'other';
+  if (operation !== 'create' && operation !== 'new') return 'other';
   return hasDraftFlag(arguments_) ? 'draft' : 'ready';
 }
 
