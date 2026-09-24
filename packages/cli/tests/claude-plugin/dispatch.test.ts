@@ -921,6 +921,29 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stdout).toContain(missingPluginRoot);
   });
 
+  it('asks for user approval when PreToolUse cannot resolve a stale plugin root', () => {
+    const missingPluginRoot = nodePath.join(
+      temporary('safeword-plugin-stale-pretool-root-'),
+      'missing-plugin',
+    );
+    const result = dispatchStartupEvent(
+      temporary('safeword-plugin-stale-pretool-project-'),
+      temporary('safeword-plugin-stale-pretool-data-'),
+      'PreToolUse',
+      missingPluginRoot,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'ask',
+        permissionDecisionReason: expect.stringContaining(missingPluginRoot),
+        additionalContext: expect.stringContaining('No Safeword hook result was applied'),
+      },
+    });
+  });
+
   it.each(['SessionStart', 'PostToolUse', 'Stop'])(
     'warns without blocking when %s starts without a plugin root',
     event => {

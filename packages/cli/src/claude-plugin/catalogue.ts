@@ -584,6 +584,8 @@ export function assertClaudePluginCatalogue(
     }
   }
   const expectedPaths = new Set(expectedAssets.map(asset => asset.relativePath));
+  // This helper owns generated directories; the generator's whole-tree comparison owns
+  // root-level extras because the published plugin intentionally retains README.md.
   for (const directory of [...GENERATED_DIRECTORIES, ...RETIRED_GENERATED_DIRECTORIES]) {
     const generatedDirectory = nodePath.join(pluginRoot, directory);
     const actualPaths = filesBeneath(generatedDirectory, directory);

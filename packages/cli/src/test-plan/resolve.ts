@@ -343,9 +343,17 @@ function scriptDelegatesToWorkspace(
 
   const segments = parseShellCommandList(body);
   return segments.some((segment, index) => {
-    const previousWords = index === 0 ? [] : commandWords(segments[index - 1]?.command ?? '');
+    const previousSegment = index === 0 ? undefined : segments[index - 1];
+    if (previousSegment?.operatorAfter === '||') return false;
+
+    const previousWords = commandWords(previousSegment?.command ?? '');
     const priorCommand = previousWords[0];
-    if (priorCommand !== undefined && ['[', '[[', 'test'].includes(priorCommand)) return false;
+    if (
+      previousSegment?.operatorAfter === '&&' &&
+      priorCommand !== undefined &&
+      ['[', '[[', 'test'].includes(priorCommand)
+    )
+      return false;
 
     const words = commandWords(segment.command);
     return patterns.some(pattern =>

@@ -429,6 +429,23 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     ).toEqual(['', 'packages/api']);
   });
 
+  it('retains a workspace lane behind an OR fallback', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'grep -q enabled config || bun run --cwd packages/api test' },
+      }),
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'test', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
   it('retains a workspace lane when the selected script names differ', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({
