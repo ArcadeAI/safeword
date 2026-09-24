@@ -269,17 +269,20 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
 });
 
 describe('resolveTestPlan — missing toolchains stay visible', () => {
-  it('rejects a malformed fake-tool specification instead of assuming every tool exists', () => {
-    const original = process.env.SAFEWORD_FAKE_TOOLS;
-    process.env.SAFEWORD_FAKE_TOOLS = 'onyl:go';
-    try {
-      const root = makeRepo({ 'go.mod': 'module x\n' });
-      expect(() => resolveTestPlan(root)).toThrow('Invalid SAFEWORD_FAKE_TOOLS value: onyl:go');
-    } finally {
-      if (original === undefined) delete process.env.SAFEWORD_FAKE_TOOLS;
-      else process.env.SAFEWORD_FAKE_TOOLS = original;
-    }
-  });
+  it.each(['onyl:go', ''])(
+    'rejects malformed fake-tool specification %j instead of assuming every tool exists',
+    spec => {
+      const original = process.env.SAFEWORD_FAKE_TOOLS;
+      process.env.SAFEWORD_FAKE_TOOLS = spec;
+      try {
+        const root = makeRepo({ 'go.mod': 'module x\n' });
+        expect(() => resolveTestPlan(root)).toThrow(`Invalid SAFEWORD_FAKE_TOOLS value: ${spec}`);
+      } finally {
+        if (original === undefined) delete process.env.SAFEWORD_FAKE_TOOLS;
+        else process.env.SAFEWORD_FAKE_TOOLS = original;
+      }
+    },
+  );
 
   it('a go repo with no go binary still appears, marked unavailable', () => {
     const root = makeRepo({ 'go.mod': 'module x\n' });

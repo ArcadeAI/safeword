@@ -64292,7 +64292,7 @@ function fakeToolProbe(spec) {
     const set = parseToolList(spec, "none:");
     return (tool) => !set.has(tool);
   }
-  if (spec === "all" || spec === "")
+  if (spec === "all")
     return allToolsAvailable;
   throw new Error(`Invalid SAFEWORD_FAKE_TOOLS value: ${spec}`);
 }

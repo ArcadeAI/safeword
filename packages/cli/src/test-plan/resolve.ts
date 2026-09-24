@@ -269,7 +269,7 @@ function fakeToolProbe(spec: string): (tool: string) => boolean {
     const set = parseToolList(spec, 'none:');
     return tool => !set.has(tool);
   }
-  if (spec === 'all' || spec === '') return allToolsAvailable;
+  if (spec === 'all') return allToolsAvailable;
   throw new Error(`Invalid SAFEWORD_FAKE_TOOLS value: ${spec}`);
 }
 

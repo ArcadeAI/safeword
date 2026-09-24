@@ -485,6 +485,8 @@ function mergeTextResponse(
   return true;
 }
 
+// Claude's documented sibling-hook precedence is deny > defer > ask > allow.
+// Keep the ascending order because mergePermissionDecision selects Math.max.
 const PERMISSION_DECISION_PRECEDENCE = ['allow', 'ask', 'defer', 'deny'] as const;
 
 function mergePermissionDecision(target: HookResponse, key: string, value: unknown): boolean {

@@ -1453,6 +1453,44 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
+  it('prefers defer over ask when sibling PreToolUse hooks disagree', () => {
+    const projectDirectory = temporary('safeword-plugin-defer-precedence-project-');
+    const pluginData = temporary('safeword-plugin-defer-precedence-data-');
+    const configDirectory = temporary('safeword-plugin-defer-precedence-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-defer-precedence-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.PreToolUse = ['ask', 'defer'].map(permissionDecision => ({
+      hooks: [
+        {
+          type: 'command',
+          command: String.raw`printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"${permissionDecision}"}}\n'`,
+        },
+      ],
+    }));
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchEvent(
+      projectDirectory,
+      pluginData,
+      configDirectory,
+      'defer-precedence',
+      { event: 'PreToolUse', pluginRoot },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'defer',
+      },
+    });
+  });
+
   it('does not let login-profile output corrupt an aggregate authorization decision', () => {
     const projectDirectory = temporary('safeword-plugin-login-profile-project-');
     const pluginData = temporary('safeword-plugin-login-profile-data-');
