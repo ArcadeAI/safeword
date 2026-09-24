@@ -62,6 +62,10 @@ function isDataArchitectureGuidePath(path: string): boolean {
   );
 }
 
+function guidePaths(assets: Readonly<Record<string, string>>): string[] {
+  return Object.keys(assets).filter(path => isDataArchitectureGuidePath(path));
+}
+
 function planningReferenceDiagnostic(
   surfaceName: string,
   surface: DeliverySurface,
@@ -105,9 +109,7 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
   if (input.installedGuide !== input.canonicalGuide) {
     diagnostics.push(`Installed guide content differs at ${inventory.installedGuidePath}.`);
   }
-  const claudeGuidePaths = Object.keys(input.claude.assets).filter(path =>
-    isDataArchitectureGuidePath(path),
-  );
+  const claudeGuidePaths = guidePaths(input.claude.assets);
   diagnostics.push(
     ...claudeGuidePaths
       .filter(path => path !== inventory.claudeGuidePath)
@@ -130,9 +132,7 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
 
 function openCodeDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[] {
   const diagnostics: string[] = [];
-  const openCodeGuidePaths = Object.keys(input.openCode.assets).filter(path =>
-    isDataArchitectureGuidePath(path),
-  );
+  const openCodeGuidePaths = guidePaths(input.openCode.assets);
   diagnostics.push(
     ...openCodeGuidePaths.map(path => `OpenCode contains an unexpected guide copy at ${path}.`),
   );
@@ -161,9 +161,7 @@ export function verifyDataArchitectureDelivery(
   const diagnostics = guideDeliveryDiagnostics(input);
   const { inventory } = input;
 
-  const codexGuidePaths = Object.keys(input.codex.assets).filter(path =>
-    isDataArchitectureGuidePath(path),
-  );
+  const codexGuidePaths = guidePaths(input.codex.assets);
   diagnostics.push(
     ...codexGuidePaths.map(path => `Codex contains an unexpected guide copy at ${path}.`),
   );
