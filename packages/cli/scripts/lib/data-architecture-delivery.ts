@@ -11,6 +11,10 @@ export interface DataArchitectureDeliveryInventory {
   readonly claudePlanningSourcePath: string;
   readonly claudePlanningTarget: string;
   readonly projectPlanningTarget: string;
+  readonly runtimeTemplateGuidePaths: {
+    readonly claude: string;
+    readonly codex: string;
+  };
   readonly claudePathSubstitution: {
     readonly from: string;
     readonly to: string;
@@ -67,24 +71,52 @@ function planningReferenceDiagnostic(
   surface: DeliverySurface,
   expectedTarget: string,
   crossSurfaceTargets: readonly string[] = [],
+  excludedAssetPrefixes: readonly string[] = [],
 ): string | undefined {
   const source = surface.assets[surface.planningSourcePath];
   if (source === undefined) {
     return `${surfaceName} planning source is missing at ${surface.planningSourcePath}.`;
   }
+  const referenceAssets = Object.entries(surface.assets).filter(
+    ([path]) =>
+      path === surface.planningSourcePath ||
+      excludedAssetPrefixes.every(prefix => !path.startsWith(`${prefix}/`)),
+  );
   const crossSurfaceTarget = crossSurfaceTargets.find(target =>
-    Object.values(surface.assets).some(content => content.includes(target)),
+    referenceAssets.some(([, content]) => content.includes(target)),
   );
   if (crossSurfaceTarget !== undefined) {
     return `${surfaceName} planning reference crosses surfaces to ${crossSurfaceTarget}.`;
   }
-  const totalExpectedReferences = Object.values(surface.assets).reduce(
-    (count, content) => count + occurrenceCount(content, expectedTarget),
+  const totalExpectedReferences = referenceAssets.reduce(
+    (count, [, content]) => count + occurrenceCount(content, expectedTarget),
     0,
   );
   return occurrenceCount(source, expectedTarget) === 1 && totalExpectedReferences === 1
     ? undefined
     : `${surfaceName} planning reference does not resolve exactly once to ${expectedTarget}.`;
+}
+
+function parentTree(path: string, childTree: string): string {
+  const marker = `/${childTree}/`;
+  const markerIndex = path.indexOf(marker);
+  if (markerIndex === -1) throw new Error(`Expected ${path} beneath a ${childTree}/ tree.`);
+  return path.slice(0, markerIndex);
+}
+
+function runtimeTemplateGuideDiagnostic(
+  surfaceName: string,
+  assets: Readonly<Record<string, string>>,
+  expectedPath: string,
+  canonicalGuide: string,
+): string | undefined {
+  const content = assets[expectedPath];
+  if (content === undefined) {
+    return `${surfaceName} runtime template guide is missing at ${expectedPath}.`;
+  }
+  return content === canonicalGuide
+    ? undefined
+    : `${surfaceName} runtime template guide content differs at ${expectedPath}.`;
 }
 
 function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[] {
@@ -110,7 +142,10 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
   );
   diagnostics.push(
     ...claudeGuidePaths
-      .filter(path => path !== inventory.claudeGuidePath)
+      .filter(
+        path =>
+          path !== inventory.claudeGuidePath && path !== inventory.runtimeTemplateGuidePaths.claude,
+      )
       .map(path => `Claude contains an unexpected guide copy at ${path}.`),
   );
   const claudeGuide = input.claude.assets[inventory.claudeGuidePath];
@@ -125,6 +160,13 @@ function guideDeliveryDiagnostics(input: DataArchitectureDeliveryInput): string[
   if (claudeGuide !== expectedClaudeGuide) {
     diagnostics.push(`Claude guide content differs at ${inventory.claudeGuidePath}.`);
   }
+  const runtimeTemplateDiagnostic = runtimeTemplateGuideDiagnostic(
+    'Claude',
+    input.claude.assets,
+    inventory.runtimeTemplateGuidePaths.claude,
+    input.canonicalGuide,
+  );
+  if (runtimeTemplateDiagnostic !== undefined) diagnostics.push(runtimeTemplateDiagnostic);
   return diagnostics;
 }
 
@@ -165,16 +207,34 @@ export function verifyDataArchitectureDelivery(
     isDataArchitectureGuidePath(path),
   );
   diagnostics.push(
-    ...codexGuidePaths.map(path => `Codex contains an unexpected guide copy at ${path}.`),
+    ...codexGuidePaths
+      .filter(path => path !== inventory.runtimeTemplateGuidePaths.codex)
+      .map(path => `Codex contains an unexpected guide copy at ${path}.`),
   );
+  const codexRuntimeTemplateDiagnostic = runtimeTemplateGuideDiagnostic(
+    'Codex',
+    input.codex.assets,
+    inventory.runtimeTemplateGuidePaths.codex,
+    input.canonicalGuide,
+  );
+  if (codexRuntimeTemplateDiagnostic !== undefined)
+    diagnostics.push(codexRuntimeTemplateDiagnostic);
 
   for (const diagnostic of [
-    planningReferenceDiagnostic('Claude', input.claude, inventory.claudePlanningTarget, [
-      inventory.projectPlanningTarget,
-    ]),
-    planningReferenceDiagnostic('Codex', input.codex, inventory.projectPlanningTarget, [
+    planningReferenceDiagnostic(
+      'Claude',
+      input.claude,
       inventory.claudePlanningTarget,
-    ]),
+      [inventory.projectPlanningTarget],
+      [parentTree(inventory.runtimeTemplateGuidePaths.claude, 'guides')],
+    ),
+    planningReferenceDiagnostic(
+      'Codex',
+      input.codex,
+      inventory.projectPlanningTarget,
+      [inventory.claudePlanningTarget],
+      [parentTree(inventory.runtimeTemplateGuidePaths.codex, 'guides')],
+    ),
     planningReferenceDiagnostic('Cursor', input.cursor, inventory.projectPlanningTarget, [
       inventory.claudePlanningTarget,
     ]),
