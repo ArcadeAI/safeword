@@ -49,7 +49,7 @@ const CONFIDENT = [
   '**CONFIDENT** — The change is complete.',
   '**Decided:** Keep the implementation focused.',
   '**Open:** none.',
-  '**Next:** Action: Review the completed change. Reason: Required because it is ready for review.',
+  '**Next:** Action: Review. Object: the completed change. Reason: Required because it is ready for review.',
 ];
 const BLOCKED = [
   '**BLOCKED** — A release target is required.',
@@ -610,18 +610,18 @@ Given(
     assert.equal(setup.status, 0, setup.stderr || setup.stdout);
     const installedGrammar = nodePath.join(projectDirectory, '.safeword/hooks/lib/quality.ts');
     const formerSource = readFileSync(installedGrammar, 'utf8');
-    const changedSource = formerSource.replace("label: 'Open',", "label: 'Risks',");
+    const changedSource = formerSource.replace("label: 'Rejected',", "label: 'Risks',");
     assert.notEqual(changedSource, formerSource, 'grammar fixture did not change');
     writeFileSync(installedGrammar, changedSource);
 
     state.projectDirectory = projectDirectory;
-    state.formerReply = brief(CONFIDENT);
-    state.reply = brief([
+    state.formerReply = brief([
       CONFIDENT[0],
       CONFIDENT[1],
-      '**Risks:** none.',
-      '**Next:** Choice: terminal contract shape. Recommendation: shape B. Reason: the installed grammar declares Risks. Impact: shape A is rejected; shape B is accepted. Reply: Use shape B.',
+      '**Rejected:** A broader rewrite.',
+      ...CONFIDENT.slice(2),
     ]);
+    state.reply = brief([CONFIDENT[0], CONFIDENT[1], '**Risks:** none.', ...CONFIDENT.slice(2)]);
     setReplyFormatState(this, {
       projectDirectory,
       reply: state.formerReply,
@@ -698,7 +698,7 @@ When(
 Then('SessionStart emits shape B', function (this: SafewordWorld) {
   const context = stateFor(this).context ?? '';
   assert.match(context, /\*\*Risks:\*\*/u);
-  assert.doesNotMatch(context, /\*\*Open:\*\*/u);
+  assert.doesNotMatch(context, /\*\*Rejected:\*\*/u);
 });
 
 Then('Stop accepts shape B and rejects the former shape A', function (this: SafewordWorld) {

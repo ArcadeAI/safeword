@@ -153,7 +153,7 @@ Given(
       '',
       '**Open:** none.',
       '',
-      '**Next:** Action: Review the completed change. Reason: Required because it is ready for review.',
+      '**Next:** Action: Review. Object: the completed change. Reason: Required because it is ready for review.',
     ].join('\n');
   },
 );
@@ -213,7 +213,7 @@ Given(
       '',
       '**Decided:** Keep the implementation focused.',
       '',
-      '**Next:** Action: Review the completed change. Reason: Required because it is ready for review.',
+      '**Next:** Action: Review. Object: the completed change. Reason: Required because it is ready for review.',
     ].join('\n');
   },
 );
