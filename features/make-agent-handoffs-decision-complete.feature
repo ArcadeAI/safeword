@@ -291,6 +291,18 @@ Feature: Decision-complete terminal handoffs
         | Cursor | unexplained marked term | followup message |
 
     @surface.claude-code @surface.openai-codex @surface.cursor @rejection
+    Scenario Outline: Each installed native terminal boundary explains how to repair a legacy Open route
+      Given the installed Safeword configuration for <host> and a legacy Open route in its native Stop payload
+      When the registered Stop hook command is invoked for the first time
+      Then the process emits one correction carrying the shared contract version and naming the missing requirements in the <continuation> shape
+
+      Examples:
+        | host | continuation |
+        | Claude Code | decision block reason |
+        | OpenAI Codex | decision block reason |
+        | Cursor | followup message |
+
+    @surface.claude-code @surface.openai-codex @surface.cursor @rejection
     Scenario Outline: Each installed native terminal boundary corrects a vague no-decision action once
       Given the installed Safeword configuration for <host> and the vague no-decision action from the long-form corpus in its native Stop payload
       When the registered Stop hook command is invoked for the first time
@@ -367,6 +379,17 @@ Feature: Decision-complete terminal handoffs
         | Claude Code |
         | OpenAI Codex |
         | Cursor |
+
+    @surface.claude-code @surface.openai-codex
+    Scenario Outline: A native terminal boundary fails open when the host omits the final reply
+      Given the installed Safeword configuration for <host> and a native Stop payload with no final assistant message
+      When the registered Stop hook command is invoked
+      Then the process exits successfully without a terminal-handoff correction
+
+      Examples:
+        | host |
+        | Claude Code |
+        | OpenAI Codex |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Each installed native terminal boundary fails open when evaluation cannot complete

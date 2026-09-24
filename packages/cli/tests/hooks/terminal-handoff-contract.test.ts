@@ -90,6 +90,7 @@ describe('terminal handoff contract', () => {
         'controlling reason',
         'material tradeoff or consequences',
         'exact reply',
+        'no extra context',
         'canonical Open route',
       ],
     });

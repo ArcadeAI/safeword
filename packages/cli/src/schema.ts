@@ -574,6 +574,7 @@ const TERMINAL_HANDOFF_CONTRACT_MARKERS = [
   "'material tradeoff or consequences'",
   "'exact reply'",
   "role: 'Action'",
+  "objectRole: 'Object'",
   "optionalReasonPrefix: 'Required because'",
   'evaluateDecisionBriefCompliance',
 ] as const;

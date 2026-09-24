@@ -159,7 +159,7 @@ function corpusRequirements(corpusCase: string): string[] {
     'material tradeoff or consequences',
     'exact reply',
   ];
-  return missingDecisionRoles;
+  return [...missingDecisionRoles, 'no extra context'];
 }
 
 const requiredDecisionRoles = [
@@ -183,7 +183,11 @@ function fixedCorpus(): NonNullable<HandoffState['corpus']> {
   return [
     {
       reply: incompleteCorpusReply('observed decision omission'),
-      expected: { compliant: false, form: 'decision', requirements: requiredDecisionRoles },
+      expected: {
+        compliant: false,
+        form: 'decision',
+        requirements: [...requiredDecisionRoles, 'no extra context'],
+      },
     },
     {
       reply: corpusReply('self-contained Next rewrite'),
@@ -191,7 +195,11 @@ function fixedCorpus(): NonNullable<HandoffState['corpus']> {
     },
     {
       reply: incompleteCorpusReply('vague blocked Need'),
-      expected: { compliant: false, form: 'decision', requirements: requiredDecisionRoles },
+      expected: {
+        compliant: false,
+        form: 'decision',
+        requirements: [...requiredDecisionRoles, 'no extra context'],
+      },
     },
     {
       reply: corpusReply('self-contained Need rewrite'),
@@ -847,6 +855,15 @@ Given(
 );
 
 Given(
+  /^the installed Safeword configuration for (Claude Code|OpenAI Codex) and a native Stop payload with no final assistant message$/,
+  function (this: SafewordWorld, host: string) {
+    prepareNativeStop(this, host, incompleteCorpusReply('observed decision omission'));
+    const payload = stateFor(this).nativePayload as Record<string, unknown>;
+    delete payload.last_assistant_message;
+  },
+);
+
+Given(
   /^the installed Safeword configuration for (Claude Code|OpenAI Codex|Cursor) and the short conversational reply "(.+)" in its native Stop payload$/,
   function (this: SafewordWorld, host: string, reply: string) {
     prepareNativeStop(this, host, reply);
@@ -1018,6 +1035,7 @@ Then(
       'controlling reason',
       'material tradeoff or consequences',
       'exact reply',
+      'no extra context',
       'canonical Open route',
     ]);
   },
@@ -1036,6 +1054,7 @@ Then('the blocked handoff is rejected as incomplete', function (this: SafewordWo
     'controlling reason',
     'material tradeoff or consequences',
     'exact reply',
+    'no extra context',
   ]);
 });
 
@@ -1214,7 +1233,10 @@ Then(
   'the corpus case is rejected with the decision roles named as missing despite their presence in earlier prose',
   function (this: SafewordWorld) {
     assert.equal(stateFor(this).evaluation?.compliant, false);
-    assert.deepEqual(stateFor(this).evaluation?.requirements, requiredDecisionRoles);
+    assert.deepEqual(stateFor(this).evaluation?.requirements, [
+      ...requiredDecisionRoles,
+      'no extra context',
+    ]);
   },
 );
 

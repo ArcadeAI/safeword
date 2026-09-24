@@ -16138,6 +16138,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
     "'material tradeoff or consequences'",
     "'exact reply'",
     "role: 'Action'",
+    "objectRole: 'Object'",
     "optionalReasonPrefix: 'Required because'",
     "evaluateDecisionBriefCompliance"
   ];

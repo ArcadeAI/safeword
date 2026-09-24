@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "d4252b99bfe15f7cc52d42987baf31256e31115873ccdf43bbf287cd0417454d"
+      "sha256": "a1bd8b7a54461970b0c001be2f1a4980bbf3d07e5149a47c2d4602e4f608306f"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "de23462badc450f22f127614280c964322d6d8b3121e34180e322eb02a541a13"
+      "sha256": "6191927f58cad62aa0efd5f4c58c4010b97510ea4a079f25431fb8759b0421b9"
     },
     {
       "path": "runtime/dispatch.js",
@@ -327,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "3c8a88c19e27030acf4bb67dfbe903f2fbc406c84305bb96288cf51bdd8605c6"
+      "sha256": "02c5de5fa183b4de29bbdcfcaf570398a69543a265b6c7199974937d1280129e"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -579,7 +579,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "6d1b27ffdba4b1c2a4f654cd4f128dc5d806112b7d2d600b32cfe21f17311a0c"
+      "sha256": "5bdb79ce3d66b6a4eb384942d5115f2041fa9aa501f0d18af5aeaf35446742c3"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",

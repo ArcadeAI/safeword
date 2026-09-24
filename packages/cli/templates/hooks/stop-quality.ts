@@ -709,6 +709,7 @@ function enforceTerminalHandoffCorrection(
   rawConfig: string | undefined,
   reply: string,
   substantiveEvidence: TerminalHandoffSubstantiveEvidence,
+  evidence = 'Keep verified evidence intact.',
 ): void {
   if (!isTerminalHandoffCorrectionEnabled(rawConfig)) return;
   try {
@@ -716,7 +717,7 @@ function enforceTerminalHandoffCorrection(
       substantiveEvidence,
     });
     if (!evaluation.compliant) {
-      softBlock(renderDecisionBriefCorrection(evaluation, 'Keep verified evidence intact.'));
+      softBlock(renderDecisionBriefCorrection(evaluation, evidence));
     }
   } catch {
     // A correction evaluator failure must never trap the host at Stop.
@@ -931,34 +932,59 @@ if (typecheckAdvice.advice !== null) {
   );
 }
 
-// Default-on native contract correction is independent of the optional
-// judgment-based Stop review. Established evidence, done, navigation, and
-// typecheck gates above retain precedence; stop_hook_active was already handled
-// by the one-shot loop guard.
+const stopQualityReviewEnabled = isStopQualityReviewEnabled(stopReviewConfig);
+
+// Derive phase context before terminal correction so the default-on contract
+// keeps the richer evidence and any disqualification when optional review is
+// also enabled.
+const tddStep =
+  currentPhase === 'implement' && ticketInfo.folder
+    ? deriveTddStep(projectDir, ticketInfo.folder)
+    : null;
+
+const phaseFailurePatterns: Record<string, string> = {
+  implement: 'loc-exceeded',
+  done: 'done-gate-tests-failed',
+};
+const relevantPattern = currentPhase ? (phaseFailurePatterns[currentPhase] ?? null) : null;
+const recentRelevant = relevantPattern
+  ? (sessionState?.recentFailures ?? []).find((f: FailureEntry) => f.pattern === relevantPattern)
+      ?.pattern
+  : undefined;
+const disqual = stopQualityReviewEnabled
+  ? getDisqualificationMessage({
+      pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
+      recentRelevantFailure: recentRelevant,
+    })
+  : undefined;
+const correctionEvidence = [
+  getQualityEvidence(currentPhase, tddStep),
+  ...(disqual ? [getQualityMessage(currentPhase, tddStep), disqual] : []),
+].join('\n\n');
+
+// One owner enforces terminal-handoff correction in every configuration. The
+// helper owns the off switch and fail-open behavior; review throttles below do
+// not suppress the default-on contract.
 if (observedLastAssistantMessage) {
-  enforceTerminalHandoffCorrection(stopReviewConfig, combinedText, terminalHandoffEvidence);
+  enforceTerminalHandoffCorrection(
+    stopReviewConfig,
+    combinedText,
+    terminalHandoffEvidence,
+    correctionEvidence,
+  );
 }
 
 // Stop-time quality review (KHL52X): OFF unless `stopQualityReview: true`.
 // Everything ABOVE this line still runs — the done gate, the impl-plan,
-// architecture and cumulative-artifact gates, hierarchy navigation, and the
-// typecheck advisory. Those check evidence, and a Stop is a fine moment to
-// demand evidence. What stops here is the judgment-based review prompt and the
-// decision-brief ending contract: measured across 13 concurrent sessions
-// (~220 turn-ends) they produced one intervention, a reply reformat, and never
-// a code change.
-if (!isStopQualityReviewEnabled(stopReviewConfig)) {
+// architecture and cumulative-artifact gates, hierarchy navigation, typecheck,
+// and the independently configured terminal-handoff correction.
+if (!stopQualityReviewEnabled) {
   process.exit(0);
 }
 
 // Boundary backstop: phase reviews are no longer LOC-throttled. Implement-step
 // TDD reviews are quiet by default; the real work still happens internally and
 // hard/anomaly gates above still surface when action is needed.
-// Derive TDD step from test-definitions.md (not cache)
-const tddStep =
-  currentPhase === 'implement' && ticketInfo.folder
-    ? deriveTddStep(projectDir, ticketInfo.folder)
-    : null;
 
 // No resolvable phase: dedupe a generic review against the next
 // UserPromptSubmit. This is broader than "no active ticket" — resolveStopPhase
@@ -980,6 +1006,12 @@ if (!fireReview) {
   process.exit(0);
 }
 
+// The host did not expose the final reply, so its terminal shape is
+// unobservable. Preserve all earlier evidence gates and fail open here.
+if (!observedLastAssistantMessage) {
+  process.exit(0);
+}
+
 recordStopReviewState(
   input.session_id,
   currentPhase === undefined
@@ -987,37 +1019,18 @@ recordStopReviewState(
     : { lastReviewedPhase: currentPhase },
 );
 
-// The host did not expose the final reply, so its terminal shape is
-// unobservable. Preserve all earlier evidence gates and fail open here.
-if (!observedLastAssistantMessage) {
-  process.exit(0);
-}
-
-// Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
-// recent failure exists, append an explicit "CONFIDENT requires X first" line so
-// the agent doesn't rubber-stamp confidence (143).
-const phaseFailurePatterns: Record<string, string> = {
-  implement: 'loc-exceeded',
-  done: 'done-gate-tests-failed',
-};
-const relevantPattern = currentPhase ? (phaseFailurePatterns[currentPhase] ?? null) : null;
-const recentRelevant = relevantPattern
-  ? (sessionState?.recentFailures ?? []).find((f: FailureEntry) => f.pattern === relevantPattern)
-      ?.pattern
-  : undefined;
-const disqual = getDisqualificationMessage({
-  pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
-  recentRelevantFailure: recentRelevant,
-});
 if (disqual) {
   softBlock(`${getQualityMessage(currentPhase, tddStep)}\n\n${disqual}`);
 }
-const decisionBriefEvaluation = evaluateDecisionBriefCompliance(combinedText, undefined, {
-  substantiveEvidence: terminalHandoffEvidence,
-});
-if (decisionBriefEvaluation.compliant) {
+let decisionBriefCompliant: boolean;
+try {
+  decisionBriefCompliant = evaluateDecisionBriefCompliance(combinedText, undefined, {
+    substantiveEvidence: terminalHandoffEvidence,
+  }).compliant;
+} catch {
   process.exit(0);
 }
-softBlock(
-  renderDecisionBriefCorrection(decisionBriefEvaluation, getQualityEvidence(currentPhase, tddStep)),
-);
+if (decisionBriefCompliant) {
+  process.exit(0);
+}
+softBlock(getQualityMessage(currentPhase, tddStep));
