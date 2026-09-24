@@ -615,10 +615,9 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     });
     mkdirSync(nodePath.join(root, 'Cargo.toml'));
 
-    expect(() => resolveTestPlan(root, { isToolAvailable: allTools })).not.toThrow();
-    expect(
-      entryFor(resolveTestPlan(root, { isToolAvailable: allTools }), 'javascript'),
-    ).toBeDefined();
+    const plan = resolveTestPlan(root, { isToolAvailable: allTools });
+
+    expect(entryFor(plan, 'javascript')).toMatchObject({ cwd: root, command: 'npm run test' });
   });
 });
 
