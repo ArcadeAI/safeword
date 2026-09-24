@@ -52,16 +52,8 @@ fi
 # config, that entry doesn't reliably resolve when committing from a worktree,
 # so bare `lint-staged` fails even though the binary exists on disk. The
 # explicit path has no PATH dependency.
-node_modules/.bin/lint-staged
+node_modules/.bin/lint-staged || exit 1
 
-# Template->mirror auto-heal (#768/#1146): lint-staged's `prettier --write` above
-# reformats packages/cli/templates/** but NOT the .claude/.agents/.safeword/.cursor
-# mirrors (they are prettier-ignored), silently desyncing the pair. Re-sync the
-# mirrors from the just-formatted templates and stage them — the same
-# auto-fix-and-restage model lint-staged already uses for eslint/prettier. Only
-# runs when a template is staged; parity:fix touches schema-registered pairs
-# only (repo-local skills like versioning have no template and are untouched).
-# Bypassable with --no-verify.
 PARITY_MIRROR_DIRS=".claude .agents .cursor .safeword packages/cli/codex-plugin"
 
 # Pre-existing working-tree changes in the mirror dirs — unstaged tracked edits

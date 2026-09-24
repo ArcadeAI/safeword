@@ -44,3 +44,5 @@ The proof test walked every directory under the repository root, including ignor
 - `bdd-proof-tags.test.ts` now inventories tracked and non-ignored untracked manifests through Git, preserving detection of new repository proof files. Focused result: 46 passed.
 - `codex-plugin-version.test.ts` omits `.claude/worktrees` from the protected artifact snapshot and hashes symbolic links as links. Focused result: 19 passed.
 - Full suite with pinned Bun: 583 test files passed; 9,923 tests passed and 13 skipped (9,936 total).
+- After merging current `origin/main`, full suite with pinned Bun: 584 test files passed; 9,950 tests passed and 14 skipped (9,964 total). Generated-surface check, formatting, and lint also passed.
+- Independent quality review of the branch changes found no blocking defect. Its actionable diagnostic and commit-gate suggestions were applied; a follow-up review approved those edits with non-blocking notes about staged-versus-working-tree checks and diagnostic coverage.

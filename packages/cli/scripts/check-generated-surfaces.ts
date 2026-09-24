@@ -53,11 +53,15 @@ type Failure = { readonly surface: string; readonly fix: string; readonly detail
  * drop the rest so a committer reads four short verdicts, not four stack dumps.
  */
 function significantLines(output: string): string {
-  return output
+  const lines = output
     .split('\n')
     .map(line => line.trim())
-    .filter(line => line.startsWith('error:') || line.startsWith('changed '))
-    .join('\n');
+    .filter(Boolean);
+  const significant = lines.filter(
+    line =>
+      line.startsWith('error:') || line.startsWith('changed ') || line.includes(' is stale; run '),
+  );
+  return (significant.length > 0 ? significant : lines.slice(-5)).join('\n');
 }
 
 async function checkScript({
@@ -154,8 +158,6 @@ if (process.argv.includes('--fix')) {
     console.log(`→ ${script}`);
     await runBunScript(script);
   }
-  console.log('Regenerated all 4 surfaces. Stage the result.');
-  process.exit(0);
 }
 
 const surfaceResults = await Promise.all([
@@ -182,10 +184,10 @@ const surfaceResults = await Promise.all([
 const failures = surfaceResults.filter((failure): failure is Failure => failure !== undefined);
 
 if (failures.length > 0) {
-  console.error('Generated surfaces are stale after a template change:\n');
+  console.error('Generated surface check failed:\n');
   for (const { surface, fix, detail } of failures) {
     console.error(`✗ ${surface}`);
-    console.error(`  Fix: (cd packages/cli && ${fix})`);
+    console.error(`  If stale, regenerate: (cd packages/cli && ${fix})`);
     if (detail) {
       console.error(
         detail
@@ -202,4 +204,8 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('All 4 generated surfaces current.');
+console.log(
+  process.argv.includes('--fix')
+    ? 'Regenerated all 4 surfaces and verified them. Stage the result.'
+    : 'All 4 generated surfaces current.',
+);
