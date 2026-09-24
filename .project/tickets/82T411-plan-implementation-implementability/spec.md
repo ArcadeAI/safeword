@@ -36,6 +36,14 @@
     standing approval authority merely by being non-technical; any separately
     assigned user or project authority remains explicit. Trust comes from plain,
     honest state descriptions. Recovery is the single concrete next action.
+  - **Safeword Maintainer:** Success means changing one canonical planning
+    contract and seeing its reviewer rubric and supported host copies agree.
+    Unsafe release of a missing or mismatched copy is refused. Failure means a
+    host silently uses stale guidance or an approval survives changed contract
+    bytes. Maintainers can repair the packaged source and regenerate it, but do
+    not gain product, design, or release approval authority from that role.
+    Trust comes from generated-copy and digest checks; recovery names the
+    mismatched copy and regeneration or reconciliation action.
 - **Expected outcome:** Safeword splits today's mixed planning step into two
   consecutive phases. **Implementation Plan** decides and explains the
   approach—architecture, contracts, responsibilities, tradeoffs, risks, and
