@@ -89,6 +89,10 @@ describe('remote workflow contract', () => {
         version: 10,
         normalizedSha256: 'b0fe6b6d8fed927e7d9683f8bba64f5bdb62118538579754ecfaaa8fc5656820',
       },
+      {
+        version: 11,
+        normalizedSha256: '5dfede6aee873fab6d61ab3d9dccc653527f5f3eae95724f28fdf2740110741b',
+      },
     ]);
     expect(fixtureHistory).toEqual(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1));
     expect(normalizedSha256(workflow)).toBe(
@@ -143,6 +147,11 @@ describe('remote workflow contract', () => {
     expect(workflow).toContain('bun-version-file: package.json');
   });
 
+  it('installs uv and checks out release history required by the full lane', () => {
+    expect(workflow).toContain('astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7');
+    expect(workflow).toContain('fetch-depth: 0');
+  });
+
   it.each([
     [
       'adds a trigger',
@@ -182,9 +191,15 @@ describe('remote workflow contract', () => {
     ],
     [
       'adds a checkout option',
-      '          fetch-depth: 1',
-      '          fetch-depth: 1\n          submodules: recursive',
+      '          fetch-depth: 0',
+      '          fetch-depth: 0\n          submodules: recursive',
       'exact_checkout_options',
+    ],
+    [
+      'uses a shallow checkout',
+      '          fetch-depth: 0',
+      '          fetch-depth: 1',
+      'full_history_checkout',
     ],
     [
       'overrides job permissions',

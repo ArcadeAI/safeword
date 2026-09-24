@@ -62,6 +62,10 @@ export const REMOTE_WORKFLOW_RELEASE_MANIFEST = [
     version: 10,
     normalizedSha256: 'b0fe6b6d8fed927e7d9683f8bba64f5bdb62118538579754ecfaaa8fc5656820',
   },
+  {
+    version: 11,
+    normalizedSha256: '5dfede6aee873fab6d61ab3d9dccc653527f5f3eae95724f28fdf2740110741b',
+  },
 ] as const;
 
 const HISTORICAL_MANAGED_DIGESTS = new Set<string>(
