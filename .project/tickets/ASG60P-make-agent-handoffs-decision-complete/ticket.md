@@ -3,8 +3,8 @@ id: ASG60P
 slug: make-agent-handoffs-decision-complete
 type: feature
 subtype: bug-investigated
-phase: implement
-status: in_progress
+phase: done
+status: done
 scope: |
   Define one versioned terminal-handoff contract for decision, blocked, and
   no-decision replies; enforce or evaluate it at a bounded terminal boundary;
@@ -32,8 +32,11 @@ phase_anchors:
   - define-behavior: .project/tickets/ASG60P-make-agent-handoffs-decision-complete/spec.md
   - scenario-gate: features/make-agent-handoffs-decision-complete.feature
   - plan-implementation: .project/tickets/ASG60P-make-agent-handoffs-decision-complete/impl-plan.md
+  - implement: .project/tickets/ASG60P-make-agent-handoffs-decision-complete/impl-plan.md
+  - verify: .project/tickets/ASG60P-make-agent-handoffs-decision-complete/test-definitions.md
+  - done: .project/tickets/ASG60P-make-agent-handoffs-decision-complete/verify.md
 created: 2026-09-12T19:59:43.436Z
-last_modified: 2026-09-12T20:54:42.000Z
+last_modified: 2026-09-24T14:03:00.000Z
 ---
 
 # Make agent handoffs decision-complete in real replies
@@ -59,6 +62,7 @@ last_modified: 2026-09-12T20:54:42.000Z
 - 2026-09-12T21:37:00.000Z Planned: Authored a parse-valid planned implementation plan with all five required sections, design documentation, a risk-first seven-slice build order, explicit native host fields, and contract-derived proof.
 - 2026-09-12T21:37:00.000Z Reviewed: Independent Claude plan-implementation review 04b609ef-c8a6-4c9e-8500-838300751994 approved the plan with no error findings.
 - 2026-09-12T21:37:00.000Z Advanced: Plan gate passed; implementation is unlocked.
+- 2026-09-24T14:03:00.000Z Done: Exact-head verification, native walkthrough, audit, generated-copy parity, independent Claude Opus review, and GitHub CI passed; PR #4538 carries the implementation and completion evidence.
 
 ## Root Cause
 

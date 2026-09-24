@@ -1,6 +1,6 @@
 # Impl Plan: Make terminal handoffs decision-complete
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
