@@ -6101,7 +6101,7 @@ function startupFailure(event, error) {
 `);
     return 2;
   }
-  const advisory = `Safeword could not start its Claude hook: ${detail} No Safeword hook result was applied.`;
+  const advisory = `Safeword could not safely complete its Claude hook: ${detail}`;
   return emitDamagedPlugin(degradedPluginResponse(event, advisory));
 }
 function main() {

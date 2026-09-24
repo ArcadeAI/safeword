@@ -4,7 +4,12 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { type Language, type PlanEntry, resolveTestPlan } from '../../src/test-plan/resolve';
+import {
+  type Language,
+  type PlanEntry,
+  type PlanKind,
+  resolveTestPlan,
+} from '../../src/test-plan/resolve';
 
 const temporaryDirectories: string[] = [];
 
@@ -636,6 +641,17 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
 });
 
 describe('resolveTestPlan — verify plan (kind: verify)', () => {
+  it('fails safe instead of treating a future plan kind as JavaScript tests', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
+    });
+    const plan = resolveTestPlan(root, {
+      kind: 'future-kind' as PlanKind,
+      isToolAvailable: allTools,
+    });
+    expect(entryFor(plan, 'javascript')).toBeUndefined();
+  });
+
   it('prefers test:ci over test and test:done', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({

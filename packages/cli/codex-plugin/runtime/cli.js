@@ -64386,7 +64386,11 @@ function selectedJsScript(scripts, kind) {
   if (directScript !== undefined) {
     return Object.hasOwn(scripts, directScript) ? directScript : undefined;
   }
-  return kind === "verify" ? pickVerifyScript(scripts) : pickTestScript(scripts);
+  if (kind === "verify")
+    return pickVerifyScript(scripts);
+  if (kind === "test")
+    return pickTestScript(scripts);
+  return;
 }
 function scriptDelegatesToWorkspace(body, relativeDirectory, script) {
   const patterns = [relativeDirectory, `./${relativeDirectory}`].flatMap((target) => [

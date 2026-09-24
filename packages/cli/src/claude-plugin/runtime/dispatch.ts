@@ -1006,8 +1006,8 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
     throw new Error('A direct hook command is required.');
   }
   const pluginRoot = realpathSync(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
-  // Never trust an inherited override: child hooks may address only the CLI
-  // inside the canonical plugin root whose inventory is verified below.
+  // Ignore inherited overrides: child hooks address the CLI inside the plugin
+  // root whose inventory is checked below for accidental cache corruption.
   process.env.SAFEWORD_PLUGIN_CLI = nodePath.join(pluginRoot, 'runtime', 'cli.js');
   exposePackagedSafewordContext(pluginRoot);
   const standardInput = readFileSync(0);
@@ -1037,7 +1037,7 @@ function startupFailure(event: string | undefined, error: unknown): number {
     process.stderr.write(`Safeword could not safely start its unknown hook: ${detail}\n`);
     return 2;
   }
-  const advisory = `Safeword could not start its Claude hook: ${detail} No Safeword hook result was applied.`;
+  const advisory = `Safeword could not safely complete its Claude hook: ${detail}`;
   return emitDamagedPlugin(degradedPluginResponse(event, advisory));
 }
 

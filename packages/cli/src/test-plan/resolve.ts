@@ -398,7 +398,9 @@ function selectedJsScript(scripts: Record<string, string>, kind: PlanKind): stri
   if (directScript !== undefined) {
     return Object.hasOwn(scripts, directScript) ? directScript : undefined;
   }
-  return kind === 'verify' ? pickVerifyScript(scripts) : pickTestScript(scripts);
+  if (kind === 'verify') return pickVerifyScript(scripts);
+  if (kind === 'test') return pickTestScript(scripts);
+  return undefined;
 }
 
 /**
