@@ -4,7 +4,7 @@ slug: refactor-v1-release-candidate-work
 type: task
 subtype: bug-investigated
 phase: intake
-status: in_progress
+status: done
 created: 2026-09-24T11:43:32.632Z
 last_modified: 2026-09-24T11:43:32.632Z
 ---
