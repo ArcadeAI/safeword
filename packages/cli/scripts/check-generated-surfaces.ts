@@ -30,6 +30,20 @@ const execFileAsync = promisify(execFile);
 
 const cliRoot = path.resolve(import.meta.dirname, '..');
 const repoRoot = path.resolve(cliRoot, '../..');
+const bunEnvironment = {
+  ...process.env,
+  PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH ?? ''}`,
+};
+
+function runBunScript(
+  script: string,
+  args: readonly string[] = [],
+): ReturnType<typeof execFileAsync> {
+  return execFileAsync(process.execPath, [path.join('scripts', script), ...args], {
+    cwd: cliRoot,
+    env: bunEnvironment,
+  });
+}
 
 type Failure = { readonly surface: string; readonly fix: string; readonly detail: string };
 
@@ -58,7 +72,7 @@ async function checkScript({
   readonly fix: string;
 }): Promise<Failure | undefined> {
   try {
-    await execFileAsync('bun', [path.join('scripts', script), ...args], { cwd: cliRoot });
+    await runBunScript(script, args);
     return undefined;
   } catch (error) {
     const { stdout = '', stderr = '' } = error as { stdout?: string; stderr?: string };
@@ -138,7 +152,7 @@ const GENERATORS_IN_ORDER = [
 if (process.argv.includes('--fix')) {
   for (const script of GENERATORS_IN_ORDER) {
     console.log(`→ ${script}`);
-    await execFileAsync('bun', [path.join('scripts', script)], { cwd: cliRoot });
+    await runBunScript(script);
   }
   console.log('Regenerated all 4 surfaces. Stage the result.');
   process.exit(0);
