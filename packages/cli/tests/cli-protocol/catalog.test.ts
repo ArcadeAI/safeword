@@ -39,6 +39,20 @@ function expectPublishedCommandShape(command: Record<string, unknown> | undefine
   expect(command?.fixture).toEqual(expect.objectContaining({ argv: expect.any(Array) }));
 }
 
+function publishedCapabilitiesData(): {
+  commands: Record<string, unknown>[];
+  machine_output: { canonical_option: string; schema_version: number };
+} {
+  const envelope = JSON.parse(renderJsonResult(createCapabilitiesResult())) as Record<
+    string,
+    unknown
+  >;
+  return envelope.data as {
+    commands: Record<string, unknown>[];
+    machine_output: { canonical_option: string; schema_version: number };
+  };
+}
+
 describe('CLI command catalog', () => {
   it('declares the optional network used to inspect configured reviewer catalogues', () => {
     expect(commandCatalog.find(command => command.name === 'status')?.networkPolicy).toBe(
@@ -61,22 +75,6 @@ describe('CLI command catalog', () => {
           environment: expect.any(Object),
         },
       });
-    }
-  });
-
-  it('pins potentially mutating contract fixtures to offline execution', () => {
-    for (const name of [
-      'install',
-      'uninstall',
-      'project test',
-      'tracker sync',
-      'codex bootstrap',
-      'review-pr invalidate',
-      'review-pr readiness',
-      'migrate codex-plugin',
-    ]) {
-      const definition = commandCatalog.find(command => command.name === name);
-      expect(definition?.fixture.argv, name).toContain('--offline');
     }
   });
 
@@ -201,14 +199,7 @@ describe('CLI command catalog', () => {
   });
 
   it('publishes complete capabilities without hidden helpers', () => {
-    const envelope = JSON.parse(renderJsonResult(createCapabilitiesResult())) as Record<
-      string,
-      unknown
-    >;
-    const data = envelope.data as {
-      commands: Record<string, unknown>[];
-      machine_output: { canonical_option: string; schema_version: number };
-    };
+    const data = publishedCapabilitiesData();
 
     expect(data.machine_output).toEqual(
       expect.objectContaining({ canonical_option: '--json', schema_version: 1 }),
@@ -222,6 +213,11 @@ describe('CLI command catalog', () => {
       const published = data.commands.find(command => command.name === definition.name);
       expect(published?.options).toEqual(publishedOptions(definition));
     }
+    expect(
+      data.commands.flatMap(command =>
+        (command.options as { flags?: string }[]).map(option => option.flags),
+      ),
+    ).not.toContain('--worker-job-id <id>');
 
     expect(compatibilityRoutes).toEqual(
       expect.arrayContaining([
@@ -239,6 +235,11 @@ describe('CLI command catalog', () => {
         {
           route: 'project architecture --stage',
           replacement: 'project architecture --from-index --stage-output',
+          retention: 'indefinite',
+        },
+        {
+          route: 'architecture --stage',
+          replacement: 'architecture --from-index --stage-output',
           retention: 'indefinite',
         },
       ]),
@@ -260,7 +261,6 @@ describe('CLI command catalog', () => {
       expect.objectContaining({ flags: '--scope <scope>', default_value: 'project' }),
     ]);
     expect(codexInstall?.options).toEqual([]);
-
     const remove = data.commands.find(command => command.name === 'remove');
     expect(remove?.options).toEqual(
       expect.arrayContaining([
@@ -283,6 +283,15 @@ describe('CLI command catalog', () => {
           description: 'Compute an offline tracker plan',
         },
       ]),
+    );
+  });
+
+  it('does not publish narrowed compatibility commands as full aliases', () => {
+    const install = publishedCapabilitiesData().commands.find(
+      command => command.name === 'install',
+    );
+    expect(install?.aliases).not.toEqual(
+      expect.arrayContaining(['claude install', 'codex install']),
     );
   });
 

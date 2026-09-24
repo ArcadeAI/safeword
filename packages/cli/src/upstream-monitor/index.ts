@@ -91,7 +91,7 @@ const MONITOR_SOURCES: readonly MonitorSource[] = [
     platformEpic: '8R54HV',
     snapshotPath: `${SNAPSHOT_DIRECTORY}/claude-code.txt`,
     url: 'https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md',
-    normalize: normalizeMarkdown,
+    normalize: normalizeWhitespace,
   },
   {
     key: 'codex-cli',
@@ -190,10 +190,6 @@ export function parseGitHubRepo(fullName: string): { owner: string; repo: string
   if (segments.length !== 2) return undefined;
   const [owner, repo] = segments;
   return owner && repo ? { owner, repo } : undefined;
-}
-
-function normalizeMarkdown(raw: string): string {
-  return normalizeWhitespace(raw);
 }
 
 export function normalizeReleaseAtom(raw: string): string {

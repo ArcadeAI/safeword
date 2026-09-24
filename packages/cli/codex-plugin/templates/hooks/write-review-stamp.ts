@@ -50,6 +50,28 @@ function fail(message: string): never {
   process.exit(1);
 }
 
+const HELP = `Usage:
+  bun write-review-stamp.ts [options] [<artifact>]
+  bun write-review-stamp.ts [options] --phase <phase>
+
+Options:
+  --ticket <folder>         Select the ticket folder to stamp
+  --model <id>              Record the verified reviewer model
+  --author-agent <agent>    Record claude, codex, or opencode as author
+  --reviewer-agent <agent>  Record claude, codex, or opencode as reviewer
+  --independence <level>    Record cross-agent, degraded, or none
+  --review-id <id>          Verify and record a coordinator review receipt
+  --skip <reason>           Record a deliberate skip instead of a review
+  -h, --help                Show this help message
+
+The artifact defaults to spec. A review pass takes no trailing free text.
+`;
+
+function showHelp(): never {
+  process.stdout.write(HELP);
+  process.exit(0);
+}
+
 // Codex and Cursor expose the session id only to their pre-shell hooks, not to
 // this helper's process env. Those hooks stash it in a short-lived cache right
 // before this command runs (mirroring record-skill-invocation.ts). Construct a
@@ -73,16 +95,6 @@ function readBridgedRunIdentity(): RunIdentity | undefined {
   return undefined;
 }
 
-const environmentIdentity = resolveRunIdentity({}, { env: process.env });
-const runIdentity =
-  // Claude exposes its session to this helper directly. Codex Desktop's
-  // CODEX_THREAD_ID is a cache-miss fallback, so a fresh pre-tool bridge must
-  // still win when one is available.
-  environmentIdentity.runtime === 'claude' && environmentIdentity.sessionKey !== null
-    ? environmentIdentity
-    : (readBridgedRunIdentity() ?? environmentIdentity);
-const sessionId = runIdentity.sessionKey ?? fail('missing run identity for review stamp');
-
 // Collapse all whitespace (incl. newlines) to single spaces. The log is one
 // stamp per line, so an un-collapsed reason could inject a second, forged line.
 function singleLine(text: string): string {
@@ -100,6 +112,7 @@ function bareName(value: string, label: string): string {
 }
 
 interface ParsedArguments {
+  help: boolean;
   positional: string[];
   explicitTicket: string | undefined;
   reviewerModel: string | undefined;
@@ -131,6 +144,7 @@ const VALUE_FLAGS = new Set([
 const REVIEW_ID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/iu;
 
 function parseArguments(argv: string[]): ParsedArguments {
+  let help = false;
   const positional: string[] = [];
   let explicitTicket: string | undefined;
   let reviewerModel: string | undefined;
@@ -144,6 +158,10 @@ function parseArguments(argv: string[]): ParsedArguments {
   for (let index = 2; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === undefined) fail('missing argument');
+    if (arg === '--help' || arg === '-h') {
+      help = true;
+      continue;
+    }
     if (!VALUE_FLAGS.has(arg)) {
       positional.push(arg);
       continue;
@@ -189,6 +207,7 @@ function parseArguments(argv: string[]): ParsedArguments {
   }
 
   return {
+    help,
     positional,
     explicitTicket,
     reviewerModel,
@@ -201,6 +220,7 @@ function parseArguments(argv: string[]): ParsedArguments {
 }
 
 const {
+  help,
   positional,
   explicitTicket,
   reviewerModel,
@@ -210,6 +230,20 @@ const {
   reviewId,
   skipReason,
 } = parseArguments(process.argv);
+
+if (help) showHelp();
+
+// Informational invocations return above before reading a one-shot Codex/Cursor
+// bridge identity or requiring any ticket state.
+const environmentIdentity = resolveRunIdentity({}, { env: process.env });
+const runIdentity =
+  // Claude exposes its session to this helper directly. Codex Desktop's
+  // CODEX_THREAD_ID is a cache-miss fallback, so a fresh pre-tool bridge must
+  // still win when one is available.
+  environmentIdentity.runtime === 'claude' && environmentIdentity.sessionKey !== null
+    ? environmentIdentity
+    : (readBridgedRunIdentity() ?? environmentIdentity);
+const sessionId = runIdentity.sessionKey ?? fail('missing run identity for review stamp');
 
 function formatTicketList(folders: string[]): string {
   const shown = folders.slice(0, 12).join(', ');

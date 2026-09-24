@@ -1,0 +1,119 @@
+# Test Definitions: Complete conditional data architecture guidance
+
+Feature source: `features/make-data-architecture-guidance-complete.feature`
+
+This file is the R/G/R progress ledger. The feature file is the behavior source of truth.
+
+## Rule: data-architecture-guidance.TBU1.R1 — Consequential data contracts are recorded while reversible code-local choices remain in implementation planning
+
+### Scenario: A mixed planning case keeps durable decisions separate from reversible helpers
+
+- [x] RED 6ff225ad5
+- [x] GREEN 945552266
+- [x] REFACTOR skip: canonical binding checks and exact-set grading are already isolated with no behavior-preserving simplification left
+
+### Scenario: Treating a consequential data contract as a reversible helper fails review
+
+- [x] RED 6ff225ad5
+- [x] GREEN 945552266
+- [x] REFACTOR skip: the shared exact-set grader already reports the missing durable decision directly with no scenario-specific branch to simplify
+
+## Rule: data-architecture-guidance.TBU1.R2 — Every plan answers the applicable universal questions and invokes only the conditional modules whose triggers fire
+
+### Scenario Outline: Each representative case selects exactly its applicable guidance
+
+- [x] RED 3bc52596e
+- [x] GREEN c56da116a
+- [x] REFACTOR skip: the corpus verifier is a single stable-order delegation to the existing record verifier with no duplicated grading logic to simplify
+
+### Scenario Outline: Invalid evaluation records fail deterministic verification
+
+- [x] RED d9a8274ad
+- [x] GREEN c56da116a
+- [x] REFACTOR skip: invalid-record diagnostics reuse the same record verifier and stable case-prefix path without scenario-specific branching
+
+## Rule: data-architecture-guidance.TBU1.R3 — Architecture, implementation plans, generated representations, ADRs, and linked evidence each retain a single explicit responsibility
+
+### Scenario: The artifact-ownership case assigns each decision to one owner
+
+- [x] RED d1ab3fd7b
+- [x] GREEN c56da116a
+- [x] REFACTOR skip: ownership uses the shared exact-set corpus path and adds no ownership-specific implementation branch to simplify
+
+### Scenario: Duplicating a contract as authority across artifacts fails review
+
+- [x] RED fd644bd7a
+- [x] GREEN 9041ba23f
+- [x] REFACTOR skip: the ownership grader is already a single pass over authoritative claims followed by stable per-contract diagnostics
+
+## Rule: data-architecture-guidance.TBU2.R1 — Every completeness claim names an oracle independent of the mechanism being checked
+
+### Scenario: An independent facet inventory exposes an omitted generated-manifest facet
+
+- [x] RED 7a8978a6b
+- [x] GREEN dc3daf19a
+- [x] REFACTOR skip: exact-set comparison is already a single stable boundary
+
+### Scenario: Agreement between sibling generated outputs cannot prove completeness
+
+- [x] RED 6eb359759
+- [x] GREEN d0c604791
+- [x] REFACTOR skip: oracle independence is already an explicit guard at the verifier boundary
+
+### Scenario: A discriminating guide-ablation pair validates independent proof
+
+- [x] RED 6c8a58562
+- [x] GREEN a2c4a49b2
+- [x] REFACTOR skip: verifier responsibilities are already isolated; the test edit belongs to a separate bootstrap-hang fix found by scenario-close verification
+
+### Scenario Outline: A non-discriminating guide-ablation pair fails evaluation
+
+- [x] RED ee4d80dde
+- [x] GREEN fda0a5e14
+- [x] REFACTOR skip: independent review strengthened the verifier; no further behavior-preserving refactor remained
+
+## Rule: data-architecture-guidance.TBU2.R2 — Conditional proof includes the environment, boundaries, controls, and revalidation conditions needed to falsify the claim
+
+### Scenario Outline: Conditional claims carry the facts that make them falsifiable
+
+- [x] RED 02f8f581b
+- [x] GREEN 0dfc41dbe
+- [x] REFACTOR skip: the typed claim registry and exact-set comparison are already isolated
+
+### Scenario Outline: A non-discriminating proof fails with a focused diagnostic
+
+- [x] RED 215482369
+- [x] GREEN 86abd0447
+- [x] REFACTOR skip: focused diagnostics already use a low-complexity ordered rule table
+
+## Rule: data-architecture-guidance.TBU2.R3 — Proof uses synthetic or read-only evidence and never requires secrets, plaintext customer data, or production credentials
+
+### Scenario: Synthetic placeholders and deployed read-only snapshots satisfy evidence needs
+
+- [x] RED b7aac38fe
+- [x] GREEN 0aa897eb5
+- [x] REFACTOR skip: recursive walk is already small and direct
+
+### Scenario Outline: Sensitive-looking evaluation values are refused
+
+- [x] RED 433ac1e29
+- [x] GREEN 71939322c
+- [x] REFACTOR skip: ordered classifiers and recursive traversal are already direct
+
+## Rule: data-architecture-guidance.SWM1.R1 — Post-install/generated guide paths equal an independent hand-maintained inventory exactly; seeded missing-copy, Codex-managed extra-copy, Claude body-drift, and non-path-substitution negatives fail; host path differences are separately maintained literal substitutions; and every planning reference resolves
+
+### Scenario: Supported hosts resolve one coherent guide through their existing delivery model
+
+- [x] RED 103119ac3
+- [x] GREEN ffe1105fa
+- [x] REFACTOR skip: guide, planning, and OpenCode checks are already separated by concern
+
+### Scenario Outline: Shipped guide drift fails delivery verification
+
+- [x] RED 084b82814
+- [x] GREEN 7ce541d2c
+- [x] REFACTOR skip: focused delivery diagnostics remain direct and separated by concern
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario 28170c113

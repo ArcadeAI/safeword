@@ -85,8 +85,8 @@ Feature: Generate compliant replies without correction loops
   Rule: generate-compliant-replies-without-rewrites.TBU1.R2 — Quiet TDD turns retain the lead-only cue instead of the full decision-brief demand
 
     @rejection
-    Scenario Outline: Every active TDD step rejects the full decision-brief demand
-      Given a feature is in the active <step> step
+    Scenario Outline: Every in-progress TDD cycle rejects the full decision-brief demand
+      Given a feature has most recently completed the <step> step
       When the user submits the next prompt
       Then the prompt context contains the lead-first cue
       And it contains no full decision-brief demand
@@ -109,7 +109,6 @@ Feature: Generate compliant replies without correction loops
     @rejection
     Scenario Outline: A hard gate wins on every Stop iteration
       Given Claude's final reply is structurally compliant
-      And every hard gate other than <gate> allows Stop
       And the <gate> gate has a failing verdict
       And the reply is on the <iteration> Stop iteration
       When the reply reaches the Stop hook
@@ -146,7 +145,6 @@ Feature: Generate compliant replies without correction loops
 
     Scenario: A compliant first Stop emits no redundant format correction
       Given Claude's final reply is structurally compliant
-      And every hard and advisory gate allows Stop
       And no Stop correction is active
       When the reply reaches the Stop hook
       Then no format-correction continuation is emitted
@@ -155,7 +153,7 @@ Feature: Generate compliant replies without correction loops
   Rule: generate-compliant-replies-without-rewrites.SWM1.R1 — One phase-neutral definition supplies both proactive context and terminal-format validation
 
     Scenario: Configured hooks follow one changed canonical contract
-      Given the canonical contract changes from distinct shape A to distinct shape B before installation
+      Given an installed contract is changed from distinct shape A to distinct shape B
       And Safeword is installed from its managed templates
       When the configured SessionStart and Stop commands are executed as subprocesses
       Then SessionStart emits shape B
@@ -170,7 +168,7 @@ Feature: Generate compliant replies without correction loops
       Examples:
         | drift                                                                  | validator                                      | result                                                        |
         | an installed hook differs from its canonical template                 | setup reconciliation                           | the installed hook is restored from the canonical template    |
-        | the canonical source changed while the committed plugin remains stale | Claude plugin generation and worktree diff gate | the committed plugin is rejected as drifted from its source    |
+        | a copied Claude plugin differs from canonical generation              | Claude plugin generation and worktree diff gate | the copied plugin is rejected as drifted from its source       |
         | a dogfood copy differs from its canonical template                    | template parity check                          | the dogfood copy fails with a pair-drift finding               |
 
   @generate-compliant-replies-without-rewrites.SWM1.R2

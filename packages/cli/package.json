@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "1.0.0-rc.3",
+  "version": "0.85.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -56,6 +56,8 @@
     "generate:plan-rubric": "bun scripts/generate-plan-rubric.ts",
     "generate:quality-rubric": "bun scripts/generate-quality-rubric.ts",
     "generate:red-rubric": "bun scripts/generate-red-rubric.ts",
+    "data-architecture:record": "bun scripts/data-architecture-eval.ts record",
+    "data-architecture:verify": "bun scripts/data-architecture-eval.ts verify",
     "generate:claude-historical-catalogue": "bun scripts/generate-claude-historical-catalogue.ts",
     "check:claude-historical-catalogue": "bun scripts/generate-claude-historical-catalogue.ts --check",
     "check:claude-plugin": "bun scripts/check-claude-plugin-release.ts",

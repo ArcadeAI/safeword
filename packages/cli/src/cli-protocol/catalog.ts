@@ -311,7 +311,8 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
       {
         flags: '--format <format>',
-        description: 'human, sh, or legacy raw json; use global --json for machine output',
+        description:
+          'human, sh, or legacy raw json; sh must be evaluated to obtain lane status; use global --json for machine output',
         defaultValue: 'human',
       },
     ],
@@ -371,6 +372,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('project record-skill-invocation', 'Record current-run workflow proof', 'mutate', {
     syntax: 'record-skill-invocation <skill> [session-id]',
+    fixture: {
+      argv: ['project', 'record-skill-invocation', 'verify'],
+      environment: MACHINE_ENVIRONMENT,
+    },
   }),
   command(
     'project runtime',
@@ -379,6 +384,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     {
       syntax: 'runtime <helper> [args...]',
       networkPolicy: 'declared',
+      fixture: {
+        argv: ['project', 'runtime', 'audit-principle-trace'],
+        environment: MACHINE_ENVIRONMENT,
+      },
     },
   ),
   command('project retro-drain', 'Drain acknowledged retro drafts from a spool', 'mutate', {
@@ -406,6 +415,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     'mutate',
     {
       syntax: 'public-retros <state>',
+      fixture: {
+        argv: ['project', 'public-retros', 'off'],
+        environment: MACHINE_ENVIRONMENT,
+      },
     },
   ),
   command(
@@ -453,6 +466,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     {
       promptPolicy: 'confirm',
       networkPolicy: 'declared',
+      fixture: { argv: ['codex', 'migrate', '--offline'], environment: MACHINE_ENVIRONMENT },
       commandOptions: [
         { flags: '--finalize', description: 'Finalize after current plugin-hook proof exists' },
         ...planConfirmationOptions({
@@ -580,7 +594,6 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       {
         flags: '--proof-cwd <path>',
         description: 'Project-contained working directory for the RED proof',
-        defaultValue: '.',
       },
       {
         flags: '--evidence-class <class>',
@@ -593,7 +606,6 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       {
         flags: '--execution-timeout <milliseconds>',
         description: 'Bounded RED proof execution time',
-        defaultValue: '120000',
       },
       {
         flags: '--execute <json-argv>',
@@ -676,7 +688,12 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     },
   }),
   command('review routes list', 'List effective ranked review routes', 'observe', {
-    commandOptions: [{ flags: '--author <author>', description: 'claude, codex, or opencode' }],
+    commandOptions: [
+      {
+        flags: '--author <author>',
+        description: 'claude, codex, or opencode; omit to list every author',
+      },
+    ],
     fixture: {
       argv: ['review', 'routes', 'list', '--author', 'claude'],
       environment: MACHINE_ENVIRONMENT,
@@ -717,7 +734,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
     fixture: { argv: ['review-pr', 'invalidate', '--offline'], environment: MACHINE_ENVIRONMENT },
   }),
-  command('review-pr readiness', 'Report whether readiness evidence matches the head', 'mutate', {
+  command('review-pr readiness', 'Publish readiness; verdict is in data.outcome', 'mutate', {
     networkPolicy: 'declared',
     fixture: { argv: ['review-pr', 'readiness', '--offline'], environment: MACHINE_ENVIRONMENT },
   }),
@@ -903,11 +920,17 @@ const HIDDEN_COMMANDS: readonly CommandDefinition[] = [
   hidden('boundary', {
     commandOptions: [{ flags: '--at <boundary>', description: 'which boundary: commit | push' }],
   }),
-  hidden('hook codex', {
-    syntax: 'codex <event>',
-    commandOptions: [{ flags: '--plugin-hook', description: '', hidden: true }],
-  }),
-  hidden('codex-hook', { syntax: 'codex-hook <event>' }),
+  {
+    ...hidden('hook codex', {
+      syntax: 'codex <event>',
+      commandOptions: [{ flags: '--plugin-hook', description: '', hidden: true }],
+    }),
+    fixture: { argv: ['hook', 'codex', 'SessionStart'], environment: MACHINE_ENVIRONMENT },
+  },
+  {
+    ...hidden('codex-hook', { syntax: 'codex-hook <event>' }),
+    fixture: { argv: ['codex-hook', 'SessionStart'], environment: MACHINE_ENVIRONMENT },
+  },
   hidden('feature-directories'),
 ];
 
@@ -978,14 +1001,10 @@ export interface CompatibilityRoute {
   readonly retention: 'indefinite';
 }
 
-export const compatibilityRoutes: readonly CompatibilityRoute[] = [
-  { route: 'bare safeword', replacement: 'status', retention: 'indefinite' },
-  ...ALIASES.map(definition => ({
-    route: definition.name,
-    replacement: definition.compatibility?.replacement ?? definition.aliasFor ?? '',
-    retention: 'indefinite' as const,
-  })),
-  ...CANONICAL_COMMANDS.flatMap(definition =>
+function optionCompatibilityRoutes(
+  definitions: readonly CommandDefinition[],
+): CompatibilityRoute[] {
+  return definitions.flatMap(definition =>
     definition.registration.options.flatMap(option =>
       option.compatibilityReplacement === undefined
         ? []
@@ -997,7 +1016,18 @@ export const compatibilityRoutes: readonly CompatibilityRoute[] = [
             },
           ],
     ),
-  ),
+  );
+}
+
+export const compatibilityRoutes: readonly CompatibilityRoute[] = [
+  { route: 'bare safeword', replacement: 'status', retention: 'indefinite' },
+  ...ALIASES.map(definition => ({
+    route: definition.name,
+    replacement: definition.compatibility?.replacement ?? definition.aliasFor ?? '',
+    retention: 'indefinite' as const,
+  })),
+  ...optionCompatibilityRoutes(CANONICAL_COMMANDS),
+  ...optionCompatibilityRoutes(ALIASES),
 ];
 
 const commandNames = new Set(commandCatalog.map(definition => definition.name));
@@ -1054,9 +1084,10 @@ export function findCommandDefinition(name: string): CommandDefinition {
 }
 
 function aliasesFor(name: string): string[] {
-  return ALIASES.filter(definition => definition.aliasFor === name).map(
-    definition => definition.name,
-  );
+  return ALIASES.filter(
+    definition =>
+      definition.aliasFor === name && definition.compatibility?.replacement === undefined,
+  ).map(definition => definition.name);
 }
 
 function capability(definition: CommandDefinition): Record<string, unknown> {
@@ -1070,6 +1101,11 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
     prompt_policy: definition.promptPolicy,
     network_policy: definition.networkPolicy,
     schema_versions: definition.schemaVersions,
+    ...(definition.exitPolicy !== undefined && {
+      exit_policy: {
+        action_required_as_success_option: definition.exitPolicy.actionRequiredAsSuccessOption,
+      },
+    }),
     fixture: definition.fixture,
     options: definition.registration.options
       .filter(option => option.hidden !== true)

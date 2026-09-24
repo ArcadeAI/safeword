@@ -42,27 +42,26 @@ function isTraceHeaderRow(line: string): boolean {
  * Collect the data lines of every trace table in the section.
  *
  * `sectionBody` strips blank lines, so tables cannot be separated by the gap
- * between them — the delimiter row is the only surviving structure. From each
- * delimiter, read downward while the lines still look like table rows: stop at
- * the first line without a pipe (prose after the table) and at the header of a
- * following table, recognised because a delimiter sits directly beneath it.
+ * between them. A trace table is therefore anchored by its exact header and
+ * delimiter pair; unrelated architecture-record tables in the same section
+ * must not be judged as principle traces. From each anchored delimiter, read
+ * downward while the lines still look like table rows.
  *
  * Every narrower rule tried here was a silent skip: dropping rows whose first
  * cell read `principle` hid a principle actually named `Principle`, requiring a
  * leading `|` hid whole tables since GFM makes the outer pipes optional, and
- * reading only the first delimiter hid a second table. A skipped row is worse
- * than a wrong verdict — the gate reports nothing at all. The converse also
- * bites: with no delimiter anywhere there is no table, and judging the section's
- * prose as rows reported findings against an ordinary sentence.
+ * reading only the first anchored table hid a second trace table. The exact
+ * header is part of the authored plan contract, so it distinguishes relevant
+ * rows without guessing from arbitrary table shapes.
  */
 function tableDataLines(lines: string[]): string[] {
   const rows: string[] = [];
   for (const [index, line] of lines.entries()) {
-    if (!isDelimiterRow(line)) continue;
+    if (!isDelimiterRow(line) || !isTraceHeaderRow(lines[index - 1] ?? '')) continue;
     for (let next = index + 1; next < lines.length; next += 1) {
       const candidate = lines[next] ?? '';
       if (!candidate.includes('|') || isDelimiterRow(candidate)) break;
-      if (isTraceHeaderRow(candidate) && isDelimiterRow(lines[next + 1] ?? '')) break;
+      if (isDelimiterRow(lines[next + 1] ?? '')) break;
       rows.push(candidate);
     }
   }
@@ -115,7 +114,8 @@ function principleNames(source: string | null): Set<string> {
 
 function proofTarget(proof: string): { path: string; fragment?: string } {
   const markdownTarget = proof.match(/\[[^\]]+\]\(([^)]+)\)/u)?.[1];
-  const target = (markdownTarget ?? proof).replaceAll('`', '').trim();
+  const inlineCodeTarget = proof.match(/`([^`]+)`/u)?.[1];
+  const target = (markdownTarget ?? inlineCodeTarget ?? proof).trim();
   const [path = '', fragment] = target.split('#', 2);
 
   return { path: path.replace(/:\d+$/u, ''), fragment };
@@ -179,7 +179,7 @@ function conflictRecorded(
   principle: string,
   names: Set<string> | undefined,
 ): boolean {
-  const target = principle.toLowerCase();
+  const target = normalizePrincipleName(principle);
   let remaining = deviations;
   for (const other of names ?? []) {
     if (other !== target && other.includes(target)) remaining = remaining.replaceAll(other, '');
@@ -208,7 +208,7 @@ export function checkPrincipleTrace(projectDirectory: string, implPlan: string):
       findings.push('[E010] Broken principle trace: row has no principle name');
       continue;
     }
-    if (names?.has(trace.principle.toLowerCase()) === false) {
+    if (names?.has(normalizePrincipleName(trace.principle)) === false) {
       findings.push(finding('missing source principle', trace.principle));
     }
     if (trace.consequence === '' || trace.proof === '') {

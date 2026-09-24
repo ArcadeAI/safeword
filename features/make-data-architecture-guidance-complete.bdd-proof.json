@@ -1,0 +1,99 @@
+{
+  "feature": "features/make-data-architecture-guidance-complete.feature",
+  "scenarios": {
+    "A mixed planning case keeps durable decisions separate from reversible helpers": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts the current mixed decision-routing record against the shipped guide"
+    ],
+    "Treating a consequential data contract as a reversible helper fails review": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects routing a consequential data contract only to implementation planning"
+    ],
+    "Each representative case selects exactly its applicable guidance": [
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "records $id against the canonical guide and rubric"
+      ]
+    ],
+    "Invalid evaluation records fail deterministic verification": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects corpus defect $name"
+    ],
+    "The artifact-ownership case assigns each decision to one owner": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts the current artifact-ownership record with one authority per role"
+    ],
+    "Duplicating a contract as authority across artifacts fails review": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects duplicate authoritative ownership in the checked-in corpus"
+    ],
+    "An independent facet inventory exposes an omitted generated-manifest facet": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects an omitted generated-manifest facet in the checked-in corpus"
+    ],
+    "Agreement between sibling generated outputs cannot prove completeness": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects a full-guide control response containing a forbidden proof fact"
+    ],
+    "A discriminating guide-ablation pair validates independent proof": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts the current recorder-produced independent-proof ablation"
+    ],
+    "A non-discriminating guide-ablation pair fails evaluation": [
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a pair when the ablated response still satisfies the rubric"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects an ablation whose failure is unrelated to the removed guidance"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a pair when the full-guide response fails its control rubric"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a pair recorded with different model configurations"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a stored ablation that was not derived from the canonical guide"
+      ],
+      [
+        "packages/cli/tests/data-architecture-eval.test.ts",
+        "rejects a named transform that removes a preserved decision label"
+      ]
+    ],
+    "Conditional claims carry the facts that make them falsifiable": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "accepts conditional proof corpus case: $caseId"
+    ],
+    "A non-discriminating proof fails with a focused diagnostic": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects conditional corpus defect: $defect"
+    ],
+    "Synthetic placeholders and deployed read-only snapshots satisfy evidence needs": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "safety-checks the current authored corpus"
+    ],
+    "Sensitive-looking evaluation values are refused": [
+      "packages/cli/tests/data-architecture-eval.test.ts",
+      "rejects authored corpus $valueClass"
+    ],
+    "Supported hosts resolve one coherent guide through their existing delivery model": [
+      [
+        "packages/cli/tests/data-architecture-delivery.test.ts",
+        "resolves one coherent guide through every supported host delivery model"
+      ],
+      [
+        "packages/cli/tests/data-architecture-delivery.test.ts",
+        "installs the canonical guide through the supported reconciliation workflow"
+      ]
+    ],
+    "Shipped guide drift fails delivery verification": [
+      "packages/cli/tests/data-architecture-delivery.test.ts",
+      "rejects $drift with its mismatched path or content identified"
+    ]
+  }
+}

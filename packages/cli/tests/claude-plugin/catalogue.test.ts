@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { normalizePluginCliBundle } from '../../scripts/lib/build-plugin-cli-bundle.js';
 import {
   assertClaudePluginAssetReferences,
+  CLAUDE_DISPATCHER_NODE_TARGET,
   generateClaudePluginAssets,
 } from '../../src/claude-plugin/catalogue.js';
 
@@ -66,7 +67,73 @@ describe('Claude plugin catalogue generation', () => {
 
     expect(packagedHandbook).toBeDefined();
     expect(packagedHandbook?.content.length).toBeGreaterThan(0);
-    expect(packagedHandbook?.content).not.toMatch(/\.safeword\/(?:guides|scripts)\//u);
+    expect(packagedHandbook?.content).not.toMatch(
+      /\.safeword\/(?:guides|hooks|scripts|skills|templates)\//u,
+    );
+  });
+
+  it('targets the oldest Node major the package declares as supported', () => {
+    const packageJson = JSON.parse(
+      readFileSync(nodePath.join(packageRoot, 'package.json'), 'utf8'),
+    ) as { engines?: { node?: string } };
+    const oldestMajor = /\d+/u.exec(packageJson.engines?.node ?? '')?.[0];
+    expect(CLAUDE_DISPATCHER_NODE_TARGET).toBe(`node${oldestMajor}`);
+  });
+
+  it('qualifies collision-prone workflows while preserving public skill references', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const tdd = assets.find(asset => asset.relativePath === 'skills/bdd/TDD.md');
+
+    expect(tdd?.content).toContain('run `/safeword:verify`, then `/audit`');
+    expect(tdd?.content).toContain('Run `/quality-review`');
+    expect(tdd?.content).not.toContain('/safeword:audit');
+    expect(tdd?.content).not.toContain('/safeword:quality-review');
+  });
+
+  it('removes project-root compatibility variables from generated inline commands', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const generatedSkills = assets.filter(asset => asset.relativePath.startsWith('skills/'));
+
+    expect(generatedSkills).not.toHaveLength(0);
+    const inlineCommands = generatedSkills.flatMap(asset =>
+      asset.content.split('\n').filter(line => line.includes('!`')),
+    );
+    expect(inlineCommands).not.toHaveLength(0);
+    expect(inlineCommands.join('\n')).not.toContain('$PROJECT_DIR');
+  });
+
+  it('retains only project-command matcher literals in the shared run-identity parser', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const matcher = assets.find(
+      asset => asset.relativePath === 'runtime/hooks/lib/cursor-run-identity.ts',
+    );
+    const executableFrameworkReferences = matcher?.content
+      .split('\n')
+      .filter(line => line.includes('.safeword/') && !line.trimStart().startsWith('//'));
+
+    expect(matcher?.content).toContain("from './namespace-root.js'");
+    expect(matcher?.content).toContain("from './shell-segments.js'");
+    expect(executableFrameworkReferences).toEqual([
+      "    normalized === '.safeword/hooks/record-skill-invocation.ts' ||",
+      "    normalized.endsWith('/.safeword/hooks/record-skill-invocation.ts')",
+      "    normalized === '.safeword/hooks/write-review-stamp.ts' ||",
+      "    normalized.endsWith('/.safeword/hooks/write-review-stamp.ts')",
+    ]);
   });
 
   it('packages the canonical template root consumed by the standalone CLI', () => {

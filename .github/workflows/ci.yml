@@ -150,8 +150,13 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: '.github/requirements-ci.txt'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: pyproject.toml
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -163,7 +168,9 @@ jobs:
         run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.10.1
 
       - name: Install Python tools
-        run: pip install -r .github/requirements-ci.txt
+        run: |
+          uv sync --locked
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install Poetry
         run: pipx install poetry
@@ -291,11 +298,9 @@ jobs:
         run: |
           bun run --cwd packages/cli generate:claude-plugin
           bun run --cwd packages/cli generate:codex-plugin
-          # --intent-to-add so a brand-new generated file counts as drift:
-          # `git diff` alone ignores untracked paths, which would report fresh
-          # and skip the artifact upload for the one case hardest to fix by hand.
-          git add --all --intent-to-add -- plugin packages/cli/codex-plugin
-          if ! git diff --quiet -- plugin packages/cli/codex-plugin; then
+          # Porcelain status covers generated additions, modifications, and
+          # deletions without staging them and accidentally hiding a deletion.
+          if [ -n "$(git status --porcelain -- plugin packages/cli/codex-plugin)" ]; then
             echo 'drifted=true' >> "$GITHUB_OUTPUT"
             echo "::error::Generated plugin trees drifted from canonical sources. Download this run's 'regenerated-plugin' artifact and commit it, or run 'bun run --cwd packages/cli generate:claude-plugin && bun run --cwd packages/cli generate:codex-plugin' and commit plugin/ and packages/cli/codex-plugin/. If the Claude historical catalogue is also stale, regenerate that first: it writes CLI source these bundles compile in, so rebuilding the bundles first only re-drifts them."
             exit 1

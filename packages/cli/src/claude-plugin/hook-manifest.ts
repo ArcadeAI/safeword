@@ -20,7 +20,7 @@ import { SETTINGS_HOOKS } from '../templates/config.js';
 const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
 const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
 const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
-const EVENT_GROUP_EVENTS = new Set(['UserPromptSubmit']);
+const EVENT_GROUP_EVENTS = new Set(['SessionStart', 'UserPromptSubmit']);
 
 export function pluginEventGroupEvents(): string[] {
   return [...EVENT_GROUP_EVENTS];
@@ -58,14 +58,7 @@ export function pluginSessionStartEntries(adapted: Record<string, unknown>): unk
     : [];
 }
 
-function pluginHookEntries(
-  event: string,
-  entries: unknown,
-  adapted: Record<string, unknown>,
-): unknown {
-  if (event === 'SessionStart') {
-    return wrapHookCommands(pluginSessionStartEntries(adapted), event);
-  }
+function pluginHookEntries(event: string, entries: unknown): unknown {
   if (EVENT_GROUP_EVENTS.has(event)) {
     return [
       {
@@ -88,10 +81,7 @@ function pluginHooks(): Record<string, unknown> {
     Setup: [{ matcher: 'init', hooks: [{ type: 'command', command: 'true' }] }],
   };
   return Object.fromEntries(
-    Object.entries(withSetup).map(([event, entries]) => [
-      event,
-      pluginHookEntries(event, entries, adapted),
-    ]),
+    Object.entries(withSetup).map(([event, entries]) => [event, pluginHookEntries(event, entries)]),
   );
 }
 
