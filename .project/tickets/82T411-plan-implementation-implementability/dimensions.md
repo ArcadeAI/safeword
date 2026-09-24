@@ -4,6 +4,7 @@
 | --- | --- | --- |
 | Phase responsibility | approach decision; execution sequencing; attempted leakage in either direction | TBU1.R1–R4, TBU2.R1–R5 |
 | Product definition | accepted persona success; refusal; failure; trust; approval; recovery; explicit inapplicability; known fact versus assumption or unresolved decision; technical-choice leakage | Product Bet, TBU1.R25, TBU4.R14, TBU4.R16 |
+| Writing and decision conversation | one portable guide across the three plans; shared Product/Implementation method; complete prior plan; partial or mixed transition | TBU4.R17 |
 | Decision completeness | complete choice; missing contract, ownership, failure, migration, rollout, rollback, or proof scope; out-of-scope proposal | TBU1.R10–R14, TBU4.R2, TBU4.R5–R8 |
 | Reviewability | concise decision summary; proportionate linked detail; execution manual obscuring decisions; explicit receipt pass/fail | TBU1.R3, TBU1.R17 |
 | Architecture and data routing | no applicable guidance; feature-local reversible choice; significant durable choice; state, transition, authority, crash, retry, and evidence decisions; each retained/retired legacy route | TBU1.R5–R9, TBU1.R18–R22 |
@@ -11,8 +12,8 @@
 | Review context | project override; installed default; missing, blank, unreadable, stale, unrelated cosmetic edit, relevant semantic edit | TBU4.R3–R4, TBU4.R9 |
 | Contract identity | exact canonical bytes; edited same-version copy; stale or missing copy; generated author/reviewer parity | TBU1.R2, TBU2.R3, TBU4.R1, TBU4.R10 |
 | Review availability | independent route succeeds; every route exhausted; degraded fallback; false independence claim | TBU2.R1, TBU2.R9, TBU4.R11 |
-| Change and return path | behavior change; design/proof-boundary change; sequencing-only change; out-of-scope idea; upstream or downstream edit | TBU2.R4, TBU2.R11, TBU3.R11–R12 |
-| Plan repair | incomplete approach; incorrect approach; multiple simultaneous defects; corrected exact bytes; pending external authority | TBU1.R11, TBU1.R17, TBU1.R28 |
+| Change and return path | behavior change; canonical contract-byte change; design/proof-boundary change; sequencing-only change; out-of-scope idea; upstream or downstream edit | TBU2.R4, TBU2.R11, TBU3.R11–R12 |
+| Plan repair | incomplete approach; incorrect approach; multiple simultaneous defects; corrected exact bytes; no material correction; pending external authority | TBU1.R11, TBU1.R17, TBU1.R28 |
 | Implementation-time replan | accepted design changes; execution-only mechanics change; still-valid proof; first invalidated obligation | TBU2.R11, TBU2.R17 |
 | Execution startability | fresh context; complete first step; unresolved decision; exact test setup/action/assertion/boundary/command | TBU2.R2, TBU2.R6–R8, TBU2.R10 |
 | Delivery truth | proposed decision; current implementation; target work; known defect; pending authority; retrofit discrepancy; current, earlier, partial, structural, or missing proof; downstream approval overclaim | TBU1.R26–R27, TBU2.R12–R14, TBU4.R14 |

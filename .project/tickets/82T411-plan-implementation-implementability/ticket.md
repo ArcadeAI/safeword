@@ -10,6 +10,7 @@ scope:
   - split feature planning into an Implementation Plan phase for approach decisions and an Execution Plan phase for startable build and test sequencing
   - give each phase one canonical author-review contract with fail-closed content identity, context, provenance, fallback, and invalidation checks
   - route architecture, data, and testing guidance into the phase where each decision belongs, while keeping one feature design plan of record
+  - give plan authors and reviewers one portable technical-writing guide and shared Product/Implementation decision-conversation method, with a safe versioned Product Plan transition
   - preserve early BDD decision discovery as a first-class, scope-bounded method and apply it proportionally to features, tasks, and patches
   - deliver and prove equivalent workflow behavior across every supported local agent host, applicable cloud host, and the Safeword CLI
   - migrate in-flight feature tickets without invalidating work that already entered implementation under the prior accepted workflow
@@ -30,6 +31,8 @@ done_when:
   - the Implementation Plan review receipt explicitly passes or fails whether its decision summary supports a focused 30–60 minute review and names any execution detail that obscures a decision
   - a required semantic review confirms that the Execution Plan maps every accepted obligation to dependency-ordered work whose first step can start without inventing or changing a decision
   - author and reviewer inputs carry a digest of the same canonical contract bytes, and missing, edited, or mismatched contracts or required context cannot produce approval
+  - changing canonical phase-contract bytes invalidates reviews approved against older bytes, with a plain explanation of which plan needs a fresh review
+  - plan authoring and semantic review load one portable writing guide, Product and Implementation Planning share one decision-conversation method, and versioned Product Plan transitions preserve complete accepted prior work while blocking partial or mixed states
   - changing accepted scope, behavior, an Implementation Plan, or an Execution Plan invalidates exactly the reviews that depend on that change
   - feature, task, and patch routing keeps small work lightweight while promoting unresolved consequential in-scope decisions to the appropriate feature phase
   - acceptance scenarios prove the workflow and recovery behavior on every affected surface or record a specific justified skip at the real surface boundary
@@ -43,7 +46,7 @@ done_when:
   - on every supported authoritative host, a plain feature request can traverse intake, behavior definition, both planning stages, TDD, verification, delivery checks, and pull-request preparation while leaving strong Product, Implementation, and Execution Plans behind
 product_plan_contract: v1
 created: 2026-09-08T05:11:31.804Z
-last_modified: 2026-09-10T18:43:58.353Z
+last_modified: 2026-09-24T21:44:25.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/4200
 children: ['G1C9PP', '7CAMAD', '5F5ZZA', 'K3EBHB', 'YCFFNC', '3EG00H', '6XW8H7', 'A639WN', '26FK42', 'ZSHVEB', 'CGRX0H']
 ---
@@ -56,6 +59,10 @@ workflow phases with distinct, canonical author-review contracts.
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
 ## Work Log
+
+- 2026-09-24T21:44:25.000Z Independent Product Plan review found two blocking lineage gaps. Bound each phase approval to the exact canonical contract digest so changed contract bytes require fresh dependent review, and made ZSHVEB's already accepted writing-guide and decision-conversation work an explicit parent scope, completion, and Rule obligation. The corrected exact packet requires fresh review; no approval is carried forward.
+
+- 2026-09-24T21:44:25.000Z Child accounting: The nine-child scenario set gained ZSHVEB as its tenth feature child and CGRX0H as an eleventh, supporting task. CGRX0H supplies reusable subject advice for existing TBU1.R5–R6 and R10–R14 decision and guide obligations; it does not add a new Product Plan job, phase, or approval.
 
 - 2026-09-10T18:43:58.353Z Scope linkage: Added ZSHVEB as the M1 child for GitHub issue #4366. It owns reusable technical-writing guidance plus the plan-specific extension consumed by Product, Implementation, and Execution Plan authoring and review; the existing phase contracts remain authoritative for behavior.
 

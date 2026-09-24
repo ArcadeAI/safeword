@@ -209,7 +209,7 @@
 
 #### plan-implementability.TBU1.R27 — A plan created or revised after implementation exists reconciles its claims against current behavior and records discrepancies without relabeling them as accepted, proven, or approved design
 
-#### plan-implementability.TBU1.R28 — When semantic review finds an incomplete or incorrect Implementation Plan, Safeword returns to Implementation Planning, surfaces the full current set of blocking defects, resolves missing decisions through the existing decision-discovery and authority rules, corrects the plan, and repeats review on the new exact bytes until the plan is complete and correct or an honestly named external decision remains pending; the repair loop is the workflow, not merely a terminal rejection
+#### plan-implementability.TBU1.R28 — When semantic review finds an incomplete or incorrect Implementation Plan, Safeword returns to Implementation Planning, surfaces the full current set of blocking defects, resolves missing decisions through the existing decision-discovery and authority rules, corrects the plan, and repeats review on the new exact bytes until the plan is complete and correct or an honestly named external decision remains pending; each pass must make a material correction, and when none is available Safeword stops with the remaining findings and owner rather than redispatching unchanged bytes; the repair loop is the workflow, not merely a terminal rejection
 
 #### plan-implementability.TBU1.R29 — On each supported authoritative host, a plain feature request can travel through intake, behavior definition, Implementation Planning, Execution Planning, TDD implementation, verification, Delivery Checklist completion, and pull-request preparation without requiring the user to manually invoke or recreate the workflow; the resulting Product Plan, Implementation Plan, and Execution Plan each satisfy their own approved contract, and the completed pull request remains subject to normal human review and merge authority
 
@@ -223,7 +223,7 @@
 
 #### plan-implementability.TBU2.R1 — Execution planning begins only from the current Implementation Plan after it passes the required semantic review under its canonical decision-quality contract and the review receipt records the achieved independence level
 
-#### plan-implementability.TBU2.R2 — Every execution step is startable without inventing a behavior-shaping contract
+#### plan-implementability.TBU2.R2 — An agent given only the accepted context and plans can start every execution step without inventing a behavior-shaping contract
 
 #### plan-implementability.TBU2.R3 — Execution Plan authors and reviewers apply one canonical implementability contract
 
@@ -241,7 +241,7 @@
 
 #### plan-implementability.TBU2.R10 — The Execution Plan maps every accepted scenario, decision, proof, affected surface, migration, rollout, rollback, and documentation obligation to dependency-ordered work with a concrete completion signal
 
-#### plan-implementability.TBU2.R11 — Changing load-bearing behavior or scope context invalidates the Implementation Plan review and every dependent Execution Plan review; changing an accepted Implementation Plan invalidates both plan reviews; changing only an Execution Plan invalidates only its own review
+#### plan-implementability.TBU2.R11 — Changing load-bearing behavior or scope context invalidates the Implementation Plan review and every dependent Execution Plan review; changing canonical contract bytes invalidates reviews of that phase and dependent downstream reviews; changing an accepted Implementation Plan invalidates both plan reviews; changing only an Execution Plan invalidates only its own review
 
 #### plan-implementability.TBU2.R12 — The Execution Plan distinguishes current implementation from target work and records whether each obligation has current-revision real-boundary proof, reusable earlier-revision proof, partial or structural proof, or no proof
 
@@ -319,7 +319,7 @@
 
 #### plan-implementability.TBU4.R8 — Guidance from architecture, data, testing, domain knowledge, and reviewers supplies candidate decisions inside the accepted boundary, not authority to expand it
 
-#### plan-implementability.TBU4.R9 — Review provenance binds the review kind, ticket, achieved independence level, exact reviewed plan bytes, and semantically normalized ticket-relevant slices of every load-bearing context input; normalization ignores formatting, comments, and unrelated persona or surface entries but not changed Rules, applicable principles, referenced personas, affected surfaces, accepted decisions, or scope, so only a semantic change to bound context invalidates that review and downstream reviews that relied on it
+#### plan-implementability.TBU4.R9 — Review provenance binds the review kind, ticket, achieved independence level, exact reviewed plan bytes, exact canonical phase-contract digest, and semantically normalized ticket-relevant slices of every other load-bearing context input; normalization ignores formatting, comments, and unrelated persona or surface entries but not changed Rules, applicable principles, referenced personas, affected surfaces, accepted decisions, or scope; any contract-byte change or semantic change to other bound context invalidates that review and downstream reviews that relied on it
 
 #### plan-implementability.TBU4.R10 — The exact bytes inside the packaged canonical contract markers are authoritative; generated reviewer rubrics and reconciled authoring copies carry a content-derived cryptographic digest that the gate recomputes from their contract bytes, and a version label alone cannot satisfy the check, so any missing, edited, stale, or mismatched copy blocks authoring or approval with a recovery path to regenerate or reconcile it
 
@@ -334,6 +334,8 @@
 #### plan-implementability.TBU4.R15 — A blocking finding cites the accepted contract, Rule, scenario, or decision it protects and states the defect, unresolved choice, and relevant constraints; a reviewer may offer illustrative options but may not select new product behavior or architecture unless an accepted decision makes the correction unique, optional strengthening stays nonblocking until the user accepts it into scope, and every corrected plan requires a fresh verdict bound to its exact bytes
 
 #### plan-implementability.TBU4.R16 — The Product Plan contract requires every accepted persona's consequential success, refusal, failure, approval, trust, and recovery outcomes to be inventoried or explicitly marked inapplicable and keeps known facts, assumptions, and unresolved product decisions visibly distinct; the scenario contract separately requires coverage of every applicable outcome before scenario-gate approval
+
+#### plan-implementability.TBU4.R17 — Product, Implementation, and Execution Plan authoring and semantic review use one portable technical-writing guide; Product and Implementation Planning use one shared decision-conversation method; a versioned Product Plan transition preserves complete accepted prior plans and stops on partial or mixed state rather than silently migrating it
 
 ### plan-implementability.TBU5 — Resolve disputed plan findings without review loops
 
@@ -364,7 +366,7 @@
 
 #### plan-implementability.NTB1.R1 — Every new fail-closed planning message states in plain language what is missing, stale, changed, or mismatched, why safe progress stopped, and the one concrete action that resumes the workflow; contract digests, review identifiers, and phase jargon are optional supporting detail rather than the primary explanation
 
-#### plan-implementability.NTB1.R2 — When a review becomes stale, Safeword names the user-visible decision or artifact that changed and which plan must be reviewed again instead of reporting only an invalid identifier or provenance mismatch
+#### plan-implementability.NTB1.R2 — When a review becomes stale, Safeword names the user-visible decision, plan, or planning contract that changed and which plan must be reviewed again instead of reporting only an invalid identifier or provenance mismatch
 
 #### plan-implementability.NTB1.R3 — When task work is promoted, Safeword explains the consequential decision it discovered, preserves completed test or investigation evidence, and names the phase where work will resume rather than presenting the promotion as lost progress
 
@@ -377,8 +379,8 @@
 - **Outcome:** Implementation Planning owns accepted approach decisions;
   Execution Planning owns dependency-ordered build and test mechanics; both
   have authoritative author-review contracts, dispute routing, and explicit
-  return paths; the
-  Execution Plan contract also owns the feature Delivery Checklist and coherent,
+  return paths; one portable writing guide and shared Product/Implementation
+  decision conversation support those contracts; the Execution Plan contract also owns the feature Delivery Checklist and coherent,
   independently reviewable pull-request slicing for large contributions.
 - **Non-goals:** Installed-host delivery beyond the Safeword CLI contract demo,
   migration of existing tickets, and task or patch routing changes.
