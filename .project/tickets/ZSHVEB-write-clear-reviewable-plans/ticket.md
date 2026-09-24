@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-24T04:27:39.000Z Independent scenario review `bf021a26-53f5-4fda-8eaa-6d3fe5894f6b` found that a job-level child receipt could be invalidated by an unreferenced sibling Rule while all scenarios passed. Added one continuation scenario for that boundary, made the paired invalidation example explicitly Rule-level, and named a lower-level parent-anchor matrix. Non-blocking suggestions did not change the accepted scope. Fresh exact-content review remains required.
+
 - 2026-09-24T04:21:01.000Z Independent scenario review `29fe1714-32ae-45c6-84e6-0e1a9d169d0f` found that legacy phase-history continuation could be omitted while receipt-based continuation passed, and that retained Implementation Plan obligations could be dropped behind the thirteen new fields. Added one positive and one rejection for cutoff-reachable historical evidence, and named R2/R3 historical-evidence plus retained-obligation removal matrices for lower-level proof. Fresh exact-content review remains required.
 
 - 2026-09-23T06:49:37.000Z Independent scenario review `e88fc6e7-2419-41f9-a977-12f9d1064fe2` found child-shaped and other invalid parent classes unproved. Added the distinct child-of-child hierarchy rejection and a named table-driven matrix for the full parent-classification set. Split the release-without-declaration case from invalid-activation-identity rows because its error must name the missing declaration, and named R3 missing-field and R4 recovery-inventory matrices rather than adding parser scenarios. Fresh exact-content review remains required.

@@ -218,6 +218,11 @@ Feature: Make Safeword plans clear and reviewable
       When Safeword resolves the child after the authorized parent migration
       Then the child continues under its receipt without claiming v2 approval
 
+    Scenario: An unreferenced sibling Rule does not interrupt a child
+      Given an implementing child has an accepted continuation receipt whose Parent job names a job-level id and its parent changes only a sibling Rule the child never references
+      When Safeword resolves the child for continued work
+      Then the child continues under its receipt without returning to planning
+
     @surface.safeword-cli
     Scenario: A valid implementing child gets a latent receipt before parent migration
       Given an isolated real Git repository has an implementing v1 child and parent valid under v1 with qualifying evidence at its default-branch cutoff
@@ -227,7 +232,7 @@ Feature: Make Safeword plans clear and reviewable
 
     @rejection
     Scenario: Changing bound parent meaning ends child continuation
-      Given an implementing child has an accepted continuation receipt and its parent changes a Rule the child references
+      Given an implementing child has an accepted continuation receipt whose Parent job names a Rule-level id and its parent changes that Rule's governed content
       When Safeword resolves the child against the changed parent
       Then continuation is refused with the child's base contract result and a return to planning
 

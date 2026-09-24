@@ -200,6 +200,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An unreferenced sibling Rule does not interrupt a child
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A valid implementing child gets a latent receipt before parent migration
 
 - [ ] RED
