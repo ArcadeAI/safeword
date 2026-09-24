@@ -46,10 +46,17 @@ describe('remote-test workflow version pin', () => {
     expect(pinnedVersion('src/test-execution/remote-workflow-contract.ts')).toBe(pinned);
   });
 
-  it(`names a released version no more than ${MAX_MINOR_LAG} minors behind the CLI`, () => {
+  it(`names a released version compatible with the CLI release line`, () => {
     const [pinMajor = -1, pinMinor = -1] = (pinned ?? '').split('.').map(Number);
     const [major = -1, minor = -1] = VERSION.split('.').map(Number);
-    expect(pinMajor, `pin ${pinned} is a different major than ${VERSION}`).toBe(major);
+    const sameReleaseLine = pinMajor === major;
+    const priorStableLineDuringMajorPrerelease =
+      VERSION.includes('-') && major > 0 && pinMajor === major - 1;
+    expect(
+      sameReleaseLine || priorStableLineDuringMajorPrerelease,
+      `pin ${pinned} is not a stable release line compatible with ${VERSION}`,
+    ).toBe(true);
+    if (!sameReleaseLine) return;
     // Ahead of the CLI would name a version npm has never published.
     expect(pinMinor, `pin ${pinned} is ahead of the CLI's own ${VERSION}`).toBeLessThanOrEqual(
       minor,
