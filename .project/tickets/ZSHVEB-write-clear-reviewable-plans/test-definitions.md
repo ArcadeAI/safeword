@@ -230,6 +230,18 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Cutoff-reachable legacy phase history preserves in-flight work
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A return to planning invalidates earlier legacy phase history
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Changed Product Plan bytes cannot mint a continuation receipt
 
 - [ ] RED

@@ -251,6 +251,19 @@ Feature: Make Safeword plans clear and reviewable
       When the Safeword CLI first encounters the v2 planning contract
       Then it mints a receipt bound to that review id, artifact digest, and consumer default-branch cutoff and allows in-flight continuation
 
+    @surface.safeword-cli
+    Scenario: Cutoff-reachable legacy phase history preserves in-flight work
+      Given an isolated real Git repository has an implementing legacy Product Plan whose current plan bytes match its latest cutoff-reachable implementation commit, with no later return to planning and no accepted review receipt
+      When the Safeword CLI first encounters the v2 planning contract
+      Then it mints a receipt bound to legacy-phase-evidence, the matching commit and blob, and the consumer default-branch cutoff and allows in-flight continuation
+
+    @rejection
+    @surface.safeword-cli
+    Scenario: A return to planning invalidates earlier legacy phase history
+      Given a legacy Product Plan's matching implementation commit precedes a cutoff-reachable return to planning and its later implementation re-entry exists only after that cutoff without an accepted review receipt
+      When the Safeword CLI first encounters the v2 planning contract
+      Then it mints no receipt and returns legacy-unversioned with owner-authorized v2 migration and current review as recovery
+
     @rejection
     Scenario: Changed Product Plan bytes cannot mint a continuation receipt
       Given an implementing legacy Product Plan differs from its matching historical blob and accepted review digest
@@ -299,7 +312,7 @@ Feature: Make Safeword plans clear and reviewable
     Scenario: The current design contract retains its decision and proof obligations
       Given accepted scenarios require architecture, interface, data, release, and proof choices
       When the Implementation Plan is authored and reviewed under the current contract
-      Then it covers the thirteen required fields and retains decision evidence, applicability, proof scope, and confidence limits
+      Then it covers the thirteen required fields and keeps every retained design, proof, alignment, persona, documentation, and reassessment obligation
 
     @rejection
     Scenario Outline: Implementation Plan sources reject project-specific requirements

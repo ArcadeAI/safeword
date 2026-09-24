@@ -50,6 +50,8 @@ parent_contract_digest: e022544f516847ee4a13685b5279e9dab6d78cc355e2c68bec9f42cd
 
 ## Work Log
 
+- 2026-09-24T04:21:01.000Z Independent scenario review `29fe1714-32ae-45c6-84e6-0e1a9d169d0f` found that legacy phase-history continuation could be omitted while receipt-based continuation passed, and that retained Implementation Plan obligations could be dropped behind the thirteen new fields. Added one positive and one rejection for cutoff-reachable historical evidence, and named R2/R3 historical-evidence plus retained-obligation removal matrices for lower-level proof. Fresh exact-content review remains required.
+
 - 2026-09-23T06:49:37.000Z Independent scenario review `e88fc6e7-2419-41f9-a977-12f9d1064fe2` found child-shaped and other invalid parent classes unproved. Added the distinct child-of-child hierarchy rejection and a named table-driven matrix for the full parent-classification set. Split the release-without-declaration case from invalid-activation-identity rows because its error must name the missing declaration, and named R3 missing-field and R4 recovery-inventory matrices rather than adding parser scenarios. Fresh exact-content review remains required.
 
 - 2026-09-23T06:41:32.000Z Independent scenario review `26dcc971-f819-4ebb-a995-453dd53159b7` found the accepted semantic-review rejection for an alternate-label seventh writing topic had no proof. Added one distinct acceptance scenario and ledger entry; placed source-suitability, exemplar-quality, and first-encounter migrator concurrency variations in named lower-level proof, and strengthened two existing resolver outcomes with their typed result. Fresh exact-content scenario review remains required.
