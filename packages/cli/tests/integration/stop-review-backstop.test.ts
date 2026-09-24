@@ -42,7 +42,7 @@ function transcriptLine(): string {
 
 function buildProject({ phase, testDefinitions, state }: BuildOptions): string {
   const cwd = createTemporaryDirectory();
-  writeGateConfig(cwd, { stopQualityReview: true });
+  writeGateConfig(cwd, { stopQualityReview: true, terminalHandoffCorrection: false });
   initGitRepo(cwd);
   writeTestFile(cwd, '.gitignore', 'quality-state-*.json\n');
   writeTestFile(cwd, '.safeword/.gitkeep', ''); // "is this a safeword project?" guard

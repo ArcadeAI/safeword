@@ -25,7 +25,12 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { DECISION_BRIEF_CONTRACT } from '../../templates/hooks/lib/quality.js';
-import { createTemporaryDirectory, removeTemporaryDirectory, writeGateConfig } from '../helpers';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  spawnHookScript,
+  writeGateConfig,
+} from '../helpers';
 import {
   createEditTranscript,
   createStopHookTicket,
@@ -36,6 +41,10 @@ import {
 // Run the hook directly from the safeword source tree — no runCli(['setup']) needed.
 // This matches the pattern used in quality-gates.test.ts.
 const FIXTURE_PATH = nodePath.join(import.meta.dirname, '../fixtures/stop-hook-transcript.jsonl');
+const STOP_QUALITY = nodePath.resolve(
+  import.meta.dirname,
+  '../../../../.safeword/hooks/stop-quality.ts',
+);
 const REAL_ENVELOPE = {
   isSidechain: false,
   userType: 'external',
@@ -79,7 +88,9 @@ const state: { projectDirectory: string } = { projectDirectory: '' };
 
 beforeEach(() => {
   state.projectDirectory = createTemporaryDirectory();
-  writeGateConfig(state.projectDirectory, { stopQualityReview: true });
+  writeGateConfig(state.projectDirectory, {
+    stopQualityReview: true,
+  });
   // Hook only requires .safeword/ to exist (checked with existsSync)
   mkdirSync(nodePath.join(state.projectDirectory, '.safeword'), { recursive: true });
 });
@@ -155,6 +166,76 @@ describe('Stop Hook: Done-gate fires without recent edit tools (AP3FGJ)', () => 
 });
 
 describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
+  it('defaults correction on for a current-turn non-edit tool when optional review is absent', () => {
+    writeFileSync(nodePath.join(state.projectDirectory, '.safeword', 'config.json'), '{}\n');
+    const transcriptPath = nodePath.join(state.projectDirectory, 'current-turn-tool.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'text', text: 'Inspect the setting.' }] },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', name: 'Bash', id: 'toolu_read' }],
+          },
+        }),
+      ].join('\n'),
+    );
+    const result = runStopHook(
+      state.projectDirectory,
+      transcriptPath,
+      undefined,
+      'The setting is enabled.',
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
+  });
+
+  it('fails open when the host omits the final assistant message', () => {
+    writeGateConfig(state.projectDirectory, {
+      stopQualityReview: true,
+      terminalHandoffCorrection: true,
+    });
+    const transcriptPath = createEditTranscript(state.projectDirectory);
+    const result = spawnHookScript(STOP_QUALITY, state.projectDirectory, {
+      transcript_path: transcriptPath,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('corrects a structured final message when transcript evidence is unavailable', () => {
+    writeGateConfig(state.projectDirectory, {
+      stopQualityReview: true,
+      terminalHandoffCorrection: true,
+    });
+    const missingTranscript = nodePath.join(state.projectDirectory, 'missing-transcript.jsonl');
+    const result = runStopHook(
+      state.projectDirectory,
+      missingTranscript,
+      undefined,
+      [
+        '**CONFIDENT** — The change is ready.',
+        '**Decided:** Keep the focused patch.',
+        '**Open:** Choose a release channel.',
+        '**Next:** Choice: beta or stable. Recommendation: choose beta. Reason: beta limits exposure. Impact: beta delays stable by one day. Reply: `beta` or `stable`.',
+      ].join('\n\n'),
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('canonical Open route');
+  });
+
   it('detects edits and triggers quality review from real-format transcript', () => {
     // Simulate hook runtime providing last_assistant_message directly.
     // combinedText reads from this field instead of the transcript.
@@ -630,7 +711,7 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
-  it('shows quality review when active ticket at implement phase', () => {
+  it('corrects an active implement-phase handoff with phase evidence', () => {
     createStopHookTicket(state.projectDirectory, {
       id: '099',
       slug: 'test',
@@ -644,10 +725,11 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     // Should soft-block with quality review (edits were made)
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toMatch(/\*\*CONFIDENT\*\*|decision brief/i);
+    expect(parsed.reason).toContain('terminal-handoff/v1 correction.');
+    expect(parsed.reason).toContain('Phase: implement');
   });
 
-  it('corrects a generic reply without repeating the full contract or inventing an implementation phase', () => {
+  it('defaults terminal-handoff correction on when the config key is absent', () => {
     // No ticket created — just .safeword/ dir (from beforeEach)
     const transcriptPath = createEditTranscript(state.projectDirectory);
     const result = runStopHook(
@@ -669,6 +751,26 @@ describe('Stop Hook: Ticket Resolution Context', () => {
     expect(parsed.reason.length).toBeLessThan(DECISION_BRIEF_CONTRACT.length);
   });
 
+  it('honors the terminal-handoff off switch while preserving optional review', () => {
+    writeGateConfig(state.projectDirectory, {
+      stopQualityReview: true,
+      terminalHandoffCorrection: false,
+    });
+    const transcriptPath = createEditTranscript(state.projectDirectory);
+    const result = runStopHook(
+      state.projectDirectory,
+      transcriptPath,
+      undefined,
+      'Defined the upload scope and checked its edge cases.',
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('Apply SAFEWORD.md');
+    expect(parsed.reason).not.toContain('terminal-handoff/v1 correction.');
+  });
+
   it('rejects prototype property names as verdicts without crashing', () => {
     const transcriptPath = createEditTranscript(state.projectDirectory);
     const result = runStopHook(
@@ -685,6 +787,10 @@ describe('Stop Hook: Ticket Resolution Context', () => {
   });
 
   it('uses the active phase evidence and only the recognized verdict shape', () => {
+    writeGateConfig(state.projectDirectory, {
+      stopQualityReview: true,
+      terminalHandoffCorrection: true,
+    });
     createStopHookTicket(state.projectDirectory, {
       id: '099',
       slug: 'define-upload-behavior',
@@ -721,6 +827,10 @@ describe('Stop Hook: Ticket Resolution Context', () => {
   });
 
   it('keeps the full review contract when a disqualification requires reconsideration', () => {
+    writeGateConfig(state.projectDirectory, {
+      stopQualityReview: true,
+      terminalHandoffCorrection: true,
+    });
     writeSessionState(state.projectDirectory, 'test-session', {
       learningsNudgesPending: ['novel-claim.md'],
     });

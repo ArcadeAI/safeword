@@ -257,6 +257,19 @@ export function isStopQualityReviewEnabled(rawConfig?: string): boolean {
   return configFlagIsTrue(rawConfig, 'stopQualityReview');
 }
 
+/** Default-on rollout switch for the one-shot native terminal-handoff correction. */
+export function isTerminalHandoffCorrectionEnabled(rawConfig?: string): boolean {
+  if (rawConfig === undefined) return true;
+  try {
+    const config: unknown = JSON.parse(rawConfig);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) return true;
+    return (config as Record<string, unknown>).terminalHandoffCorrection !== false;
+  } catch {
+    // Malformed config must not silently disable a user-facing correctness guard.
+    return true;
+  }
+}
+
 const PHASE_FIELD = /^phase:\s*(\S+)/m;
 
 /**

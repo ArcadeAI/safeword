@@ -89,7 +89,7 @@ describe('cursor/stop.ts retro path (KHYXY4)', () => {
 
   beforeEach(() => {
     dir = createTemporaryDirectory();
-    writeGateConfig(dir, { stopQualityReview: true });
+    writeGateConfig(dir, { stopQualityReview: true, terminalHandoffCorrection: false });
   });
   afterEach(() => {
     removeTemporaryDirectory(dir);

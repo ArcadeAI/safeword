@@ -49,12 +49,12 @@ const CONFIDENT = [
   '**CONFIDENT** — The change is complete.',
   '**Decided:** Keep the implementation focused.',
   '**Open:** none.',
-  '**Next:** Review the result.',
+  '**Next:** Action: Review. Object: the completed change. Reason: Required because it is ready for review.',
 ];
 const BLOCKED = [
   '**BLOCKED** — A release target is required.',
   '**Tried:** Checked the ticket and release configuration.',
-  '**Need:** Choose the intended release target.',
+  '**Need:** Choice: release target. Recommendation: production. Reason: the deployment requires one target. Impact: staging delays the release; production deploys it now. Reply: Use production.',
 ];
 const brief = (paragraphs: string[], separator = '\n\n') => paragraphs.join(separator);
 const nestedBulletBrief = brief(CONFIDENT.map(paragraph => '  ' + paragraph));
@@ -610,13 +610,18 @@ Given(
     assert.equal(setup.status, 0, setup.stderr || setup.stdout);
     const installedGrammar = nodePath.join(projectDirectory, '.safeword/hooks/lib/quality.ts');
     const formerSource = readFileSync(installedGrammar, 'utf8');
-    const changedSource = formerSource.replace("label: 'Open',", "label: 'Risks',");
+    const changedSource = formerSource.replace("label: 'Rejected',", "label: 'Risks',");
     assert.notEqual(changedSource, formerSource, 'grammar fixture did not change');
     writeFileSync(installedGrammar, changedSource);
 
     state.projectDirectory = projectDirectory;
-    state.formerReply = brief(CONFIDENT);
-    state.reply = brief([CONFIDENT[0], CONFIDENT[1], '**Risks:** none.', CONFIDENT[3]]);
+    state.formerReply = brief([
+      CONFIDENT[0],
+      CONFIDENT[1],
+      '**Rejected:** A broader rewrite.',
+      ...CONFIDENT.slice(2),
+    ]);
+    state.reply = brief([CONFIDENT[0], CONFIDENT[1], '**Risks:** none.', ...CONFIDENT.slice(2)]);
     setReplyFormatState(this, {
       projectDirectory,
       reply: state.formerReply,
@@ -693,7 +698,7 @@ When(
 Then('SessionStart emits shape B', function (this: SafewordWorld) {
   const context = stateFor(this).context ?? '';
   assert.match(context, /\*\*Risks:\*\*/u);
-  assert.doesNotMatch(context, /\*\*Open:\*\*/u);
+  assert.doesNotMatch(context, /\*\*Rejected:\*\*/u);
 });
 
 Then('Stop accepts shape B and rejects the former shape A', function (this: SafewordWorld) {
@@ -953,7 +958,9 @@ When('terminal-format compliance is evaluated repeatedly', function (this: Safew
   const state = stateFor(this);
   assert.ok(state.reply);
   state.evaluations = Array.from({ length: 3 }, () =>
-    evaluateDecisionBriefCompliance(state.reply ?? ''),
+    evaluateDecisionBriefCompliance(state.reply ?? '', undefined, {
+      substantiveEvidence: 'structured-verdict',
+    }),
   );
 });
 
@@ -988,7 +995,11 @@ Given('parser instrumentation counts examined input characters', function (this:
 When('each reply is evaluated in-process', function (this: SafewordWorld) {
   const state = stateFor(this);
   assert.ok(state.replies);
-  state.evaluations = state.replies.map(evaluateDecisionBriefCompliance);
+  state.evaluations = state.replies.map(reply =>
+    evaluateDecisionBriefCompliance(reply, undefined, {
+      substantiveEvidence: 'structured-verdict',
+    }),
+  );
 });
 
 Then('every reply is rejected', function (this: SafewordWorld) {

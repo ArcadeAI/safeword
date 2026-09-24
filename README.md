@@ -229,7 +229,7 @@ Project state remains local in `.safeword/` and the configured namespace root. C
 Safeword is built for people who ship software by directing an AI agent but don't read the code themselves. You stay in control by watching three things — no diff-reading required:
 
 - **When the agent gets stopped.** Safeword blocks the agent when it tries to skip a step — shipping code with no tests, or closing work it hasn't verified. A block is safeword protecting you, not an error: the message says what's needed and the next action to clear it.
-- **The end-of-turn verdict.** When the agent finishes a stretch of work it ends with a plain-English call — **CONFIDENT** (here's what I did and what's next) or **BLOCKED** (here's the one decision I need from you). That's your cue to continue, redirect, or step in.
+- **The end-of-turn verdict.** When the agent finishes a stretch of work it ends with a plain-English call — **CONFIDENT** (here's what I did and what's next) or **BLOCKED** (here's the one decision I need from you). A decision names the choice, recommendation, reason, impact, and exact reply in its final paragraph, so you can act without reconstructing the conversation. Claude Code, Codex, and Cursor ask the agent to rewrite an incomplete substantive handoff once; set `terminalHandoffCorrection: false` in `.safeword/config.json` only if you need to disable that presentation correction.
 - **`/explain`.** Any time a message doesn't make sense — a block, a verdict, or "where are we?" — type `/explain` for a plain-English version: what it means and what to do next. Works in Claude Code, Cursor, and Codex.
 
 You direct in plain language; safeword keeps the agent honest. Auditing the code is the job it's doing for you.
