@@ -13,6 +13,8 @@ import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { stashCursorTranscript } from '../lib/cursor-state.ts';
+
 import {
   type ClaudeGateInput,
   type CursorPreToolInput,
@@ -38,6 +40,11 @@ function emitAndExit(payload: Record<string, unknown>): never {
 const input = await readInput();
 const workspace = input.workspace_roots?.[0];
 if (workspace) process.chdir(workspace);
+
+// Cursor 3.21 can omit transcript_path from beforeShellExecution, then provide
+// it on postToolUse. Persist the first authoritative path we receive so the
+// next shell command (including `/retro`) is bound to this conversation.
+stashCursorTranscript(input);
 
 const claudeTool = mapCursorToolName(input.tool_name);
 if (!claudeTool || !existsSync('.safeword')) emitAndExit({});
