@@ -29,9 +29,10 @@ Scaffold `execution-plan.md` next to `ticket.md` from
    obligation cannot be discharged by naming another ticket. Separately list
    only excluded or later work, with its other ticket, under Deferred scope
    ownership so it cannot be mistaken for accepted local scope.
-5. Account for every Recorded Decision in `impl-plan.md` as `unchanged`. If a
-   decision changed or a new decision is needed, return to Implementation
-   Planning, update and review that plan, then resume here.
+5. Account for every Recorded Decision in `impl-plan.md` as `unchanged`, or
+   carry its explicit no-load-bearing-choice applicability decision when there
+   are none. If a decision changed or a new decision is needed, return to
+   Implementation Planning, update and review that plan, then resume here.
 6. Add exact RED/GREEN/REFACTOR tasks, targeted commands, and generated-asset
    order. Then define each retained proof in `## Proof specifications`. A
    command proof names project-contained `cwd` and `argv`; a review proof names
@@ -162,6 +163,8 @@ because the prose merely contains the expected labels.
 
 <!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_END -->
 
+The delivery-compatibility reviewer rubric is generated from this next block.
+
 <!-- SAFEWORD:DELIVERY_COMPATIBILITY_RUBRIC_START -->
 
 ## Earlier delivery-proof compatibility judgment
@@ -198,8 +201,9 @@ receipt may advance the ticket to implementation.
 
 Resolve the current scenarios, approved `impl-plan.md`, ticket scope, and
 `execution-plan.md`. Run `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/resolve-project-knowledge.ts`
-and use its configured paths for principles, personas, surfaces, and any
-dimensions; do not guess missing paths. Dispatch the shared coordinator with the Execution Plan as
+and use its configured paths for principles, personas, and surfaces. Include
+`ticket-path/dimensions.md` only when that ticket artifact exists; do not guess
+missing configured paths. Dispatch the shared coordinator with the Execution Plan as
 the sole work target and the accepted plans and scenarios as bounded context:
 
 ```bash
@@ -223,11 +227,11 @@ Implementation Planning's architecture requirement, not this Execution Plan
 review. A degraded result may advance only after
 typed route exhaustion and an approving `/finish-review` fallback; record its
 actual reduced independence and never call it independent coverage. An
-undispatched or otherwise degraded review cannot advance.
+undispatched review, or degradation without that approved fallback, cannot advance.
 After approval, stamp the exact review with its returned provenance:
 
 ```bash
-bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-execution
+bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "<author-agent>" --reviewer-agent "<actual-reviewer>" --independence "<independence>" --review-id "<review-id>" --phase plan-execution
 ```
 
 Run `safeword ticket coding-authorization <ticket-id>` before updating the

@@ -44,6 +44,9 @@ describe('Execution Plan contract generation', () => {
       'Scenario and approach coverage',
       'Proof quality',
       'Checklist completeness and applicability',
+      'Measurement execution',
+      'Discovery routing',
+      'Current-to-target truthfulness',
     ]) {
       expect(rubric).toContain(`- **${obligation}:**`);
     }
