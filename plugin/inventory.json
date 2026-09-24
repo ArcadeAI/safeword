@@ -1063,11 +1063,11 @@
     },
     {
       "path": "templates/hooks/cursor/gate-adapter.ts",
-      "sha256": "9ad8ffaa610cfffdf6007d147de9fcb12d95f285a3a133635ca6f7769110dc48"
+      "sha256": "85e7b324a7f5fb42b2d6a0e49474fe55066f40261650a49f15c8a4bb5c7daf65"
     },
     {
       "path": "templates/hooks/cursor/post-tool-quality.ts",
-      "sha256": "18f6d5bb4a0ea0d2da97b98eb127316cf49d3701632979b3abd192959bb1bbb2"
+      "sha256": "356f014b7a530dc1d3246a87c2d91109335b6c28f799f441cf3fc16b41836864"
     },
     {
       "path": "templates/hooks/cursor/post-tool-skill-nudge.ts",
