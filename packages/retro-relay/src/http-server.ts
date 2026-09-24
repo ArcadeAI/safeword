@@ -10,6 +10,7 @@ import { type RelayFaults, RelayService } from './service.js';
 import type { RelayStore } from './store.js';
 import {
   type FileRetroDraftRequest,
+  type FilingReceipt,
   isTerminalReceiptState,
   type RelayPrincipal,
 } from './types.js';
@@ -351,6 +352,20 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     });
   };
 
+  const recordFilingOutcome = (principal: RelayPrincipal, receipt: FilingReceipt): void => {
+    observability.logs.push({
+      event: 'retro_filing',
+      harness: principal.harness,
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
+    observability.metrics.push({
+      metric: 'retro_filing_outcome',
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
+  };
+
   const respondWithReconciliation = async (
     response: ServerResponse,
     receiptId: string,
@@ -388,17 +403,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       principal,
       (await readJson(request, maxBodyBytes)) as FileRetroDraftRequest,
     );
-    observability.logs.push({
-      event: 'retro_filing',
-      harness: principal.harness,
-      requestId: receipt.requestId,
-      state: receipt.state,
-    });
-    observability.metrics.push({
-      metric: 'retro_filing_outcome',
-      requestId: receipt.requestId,
-      state: receipt.state,
-    });
+    recordFilingOutcome(principal, receipt);
     try {
       afterReceiptCommit?.();
     } catch {
@@ -433,17 +438,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       filingPrincipal,
       collectorDraft(bytes, headers.requestId, principal, retryDeadlineAt),
     );
-    observability.logs.push({
-      event: 'retro_filing',
-      harness: principal.harness,
-      requestId: receipt.requestId,
-      state: receipt.state,
-    });
-    observability.metrics.push({
-      metric: 'retro_filing_outcome',
-      requestId: receipt.requestId,
-      state: receipt.state,
-    });
+    recordFilingOutcome(principal, receipt);
     sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);
   };
 
