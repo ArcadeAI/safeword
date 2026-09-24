@@ -944,10 +944,22 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
-  it('keeps post-verification lifecycle failures on the fail-closed path', () => {
+  it('ignores unreadable optional legacy settings without locking PreToolUse', () => {
     const projectDirectory = temporary('safeword-plugin-settings-read-failure-project-');
     const pluginData = temporary('safeword-plugin-settings-read-failure-data-');
     const configDirectory = temporary('safeword-plugin-settings-read-failure-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-settings-read-failure-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.PreToolUse = [];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
     mkdirSync(nodePath.join(projectDirectory, '.claude/settings.json'), { recursive: true });
 
     const result = dispatchEvent(
@@ -955,7 +967,40 @@ describe('Claude plugin dispatcher', () => {
       pluginData,
       configDirectory,
       'settings-read-failure',
-      { event: 'SessionStart' },
+      {
+        event: 'PreToolUse',
+        pluginRoot,
+        hookInput: { tool_name: 'Bash', tool_input: { command: 'echo verified-native-hook' } },
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).not.toContain('could not safely combine');
+  });
+
+  it('keeps post-verification lifecycle failures on the fail-closed path', () => {
+    const projectDirectory = temporary('safeword-plugin-functional-failure-project-');
+    const pluginData = temporary('safeword-plugin-functional-failure-data-');
+    const configDirectory = temporary('safeword-plugin-functional-failure-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-functional-failure-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.SessionStart = [{ hooks: [{ type: 'unsupported' }] }];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchEvent(
+      projectDirectory,
+      pluginData,
+      configDirectory,
+      'functional-failure',
+      { event: 'SessionStart', pluginRoot },
     );
 
     expect(result.status).toBe(2);
@@ -1186,7 +1231,7 @@ describe('Claude plugin dispatcher', () => {
     ];
     writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
     refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
-    const unlistedPath = nodePath.join(pluginRoot, 'resources/templates/unlisted.md');
+    const unlistedPath = nodePath.join(pluginRoot, 'templates/hooks/unlisted.ts');
     mkdirSync(nodePath.dirname(unlistedPath), { recursive: true });
     writeFileSync(unlistedPath, 'unexpected cache addition\n');
 
@@ -1203,7 +1248,7 @@ describe('Claude plugin dispatcher', () => {
         hookEventName: 'PreToolUse',
         permissionDecision: 'ask',
         permissionDecisionReason: expect.stringContaining(
-          'contains an unlisted asset: resources/templates/unlisted.md',
+          'contains an unlisted asset: templates/hooks/unlisted.ts',
         ),
         additionalContext: expect.stringContaining('Approve only a repair or diagnostic action'),
       },

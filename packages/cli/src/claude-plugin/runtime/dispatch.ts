@@ -97,17 +97,23 @@ type PluginVerification = VerifiedPlugin | DamagedPlugin;
 
 function parseSettings(path: string): Record<string, unknown> | undefined {
   if (!existsSync(path)) return undefined;
-  const errors: ParseError[] = [];
-  const parsed = parse(readFileSync(path, 'utf8'), errors, {
-    allowTrailingComma: true,
-    disallowComments: false,
-  }) as unknown;
-  return errors.length === 0 &&
-    typeof parsed === 'object' &&
-    parsed !== null &&
-    !Array.isArray(parsed)
-    ? (parsed as Record<string, unknown>)
-    : undefined;
+  try {
+    const errors: ParseError[] = [];
+    const parsed = parse(readFileSync(path, 'utf8'), errors, {
+      allowTrailingComma: true,
+      disallowComments: false,
+    }) as unknown;
+    return errors.length === 0 &&
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    // Legacy settings are only an optional duplicate-hook authority. If they
+    // cannot be read, keep the verified native plugin usable and ignore them.
+    return undefined;
+  }
 }
 
 function acceptedLegacyHookReference(value: string, projectRoot: string): boolean {

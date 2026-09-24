@@ -446,6 +446,23 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     ).toEqual(['', 'packages/api']);
   });
 
+  it('retains a workspace lane behind a command condition', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'grep -q enabled config && bun run --cwd packages/api test' },
+      }),
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'test', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
   it('retains a workspace lane when the selected script names differ', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({
@@ -576,6 +593,32 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
         .filter(item => item.language === 'rust')
         .map(item => item.cwd),
     ).toEqual([nodePath.join(root, 'sub')]);
+  });
+
+  it('does not mistake a workspace subtable for a Rust workspace root', () => {
+    const root = makeRepo({
+      'Cargo.toml': '[package]\nname="root"\nversion="0.1.0"\n',
+      'crates/api/Cargo.toml':
+        '[package]\nname="api"\nversion="0.1.0"\n[workspace.dependencies]\nserde="1"\n',
+    });
+
+    expect(
+      resolveTestPlan(root, { isToolAvailable: onlyTools('cargo') })
+        .filter(item => item.language === 'rust')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'crates/api']);
+  });
+
+  it('keeps other language lanes when a Cargo manifest cannot be read', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+    mkdirSync(nodePath.join(root, 'Cargo.toml'));
+
+    expect(() => resolveTestPlan(root, { isToolAvailable: allTools })).not.toThrow();
+    expect(
+      entryFor(resolveTestPlan(root, { isToolAvailable: allTools }), 'javascript'),
+    ).toBeDefined();
   });
 });
 

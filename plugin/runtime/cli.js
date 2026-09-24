@@ -64337,12 +64337,9 @@ function scriptDelegatesToWorkspace(body, relativeDirectory, script) {
   const segments = parseShellCommandList(body);
   return segments.some((segment, index) => {
     const previousSegment = index === 0 ? undefined : segments[index - 1];
-    if (previousSegment?.operatorAfter === "||")
+    if (previousSegment?.operatorAfter === "||" || previousSegment?.operatorAfter === "&&") {
       return false;
-    const previousWords = commandWords(previousSegment?.command ?? "");
-    const priorCommand = previousWords[0];
-    if (previousSegment?.operatorAfter === "&&" && priorCommand !== undefined && ["[", "[[", "test"].includes(priorCommand))
-      return false;
+    }
     const words = commandWords(segment.command);
     return patterns.some((pattern) => pattern.every((token, tokenIndex) => words[tokenIndex] === token));
   });
@@ -64528,7 +64525,13 @@ function resolveTestPlan(root, options = {}) {
   const hasGoWorkspace = existsSync48(nodePath111.join(root, "go.work"));
   const go = hasGoWorkspace ? [resolveGo(root, indexFilesInTree(root, TREE_MANIFESTS), kind, isAvailable)] : findAllInTree(root, "go.mod").map((directory) => resolveGo(directory, directManifestIndex(directory), kind, isAvailable));
   const cargoDirectories = findAllInTree(root, "Cargo.toml");
-  const cargoWorkspaceDirectories = cargoDirectories.filter((directory) => readFileSync68(nodePath111.join(directory, "Cargo.toml"), "utf8").includes("[workspace]"));
+  const cargoWorkspaceDirectories = cargoDirectories.filter((directory) => {
+    try {
+      return readFileSync68(nodePath111.join(directory, "Cargo.toml"), "utf8").split(/\r?\n/u).some((line) => line.split("#", 1)[0]?.trim() === "[workspace]");
+    } catch {
+      return false;
+    }
+  });
   const rustDirectories = cargoDirectories.filter((directory) => cargoWorkspaceDirectories.every((workspace) => workspace === directory || !cargoWorkspaceOwns(workspace, directory)));
   const rust = rustDirectories.map((directory) => resolveRust(directory, directManifestIndex(directory), kind, isAvailable));
   const sql = directoriesWithAnyManifest(root, SQL_PROJECT_MARKERS).map((directory) => resolveSql(directory, directManifestIndex(directory), kind, isAvailable));

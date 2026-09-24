@@ -5344,17 +5344,21 @@ function recoverClaudeCleanup(cwd) {
 // claude-plugin/runtime/dispatch.ts
 function parseSettings(path) {
   if (!existsSync7(path)) return void 0;
-  const errors = [];
-  const parsed = parse2(readFileSync6(path, 'utf8'), errors, {
-    allowTrailingComma: true,
-    disallowComments: false,
-  });
-  return errors.length === 0 &&
-    typeof parsed === 'object' &&
-    parsed !== null &&
-    !Array.isArray(parsed)
-    ? parsed
-    : void 0;
+  try {
+    const errors = [];
+    const parsed = parse2(readFileSync6(path, 'utf8'), errors, {
+      allowTrailingComma: true,
+      disallowComments: false,
+    });
+    return errors.length === 0 &&
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+      ? parsed
+      : void 0;
+  } catch {
+    return void 0;
+  }
 }
 function acceptedLegacyHookReference(value, projectRoot) {
   const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];

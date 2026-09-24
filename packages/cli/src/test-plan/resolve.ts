@@ -344,16 +344,9 @@ function scriptDelegatesToWorkspace(
   const segments = parseShellCommandList(body);
   return segments.some((segment, index) => {
     const previousSegment = index === 0 ? undefined : segments[index - 1];
-    if (previousSegment?.operatorAfter === '||') return false;
-
-    const previousWords = commandWords(previousSegment?.command ?? '');
-    const priorCommand = previousWords[0];
-    if (
-      previousSegment?.operatorAfter === '&&' &&
-      priorCommand !== undefined &&
-      ['[', '[[', 'test'].includes(priorCommand)
-    )
+    if (previousSegment?.operatorAfter === '||' || previousSegment?.operatorAfter === '&&') {
       return false;
+    }
 
     const words = commandWords(segment.command);
     return patterns.some(pattern =>
@@ -725,9 +718,15 @@ export function resolveTestPlan(root: string, options: ResolveOptions = {}): Pla
         resolveGo(directory, directManifestIndex(directory), kind, isAvailable),
       );
   const cargoDirectories = findAllInTree(root, 'Cargo.toml');
-  const cargoWorkspaceDirectories = cargoDirectories.filter(directory =>
-    readFileSync(nodePath.join(directory, 'Cargo.toml'), 'utf8').includes('[workspace]'),
-  );
+  const cargoWorkspaceDirectories = cargoDirectories.filter(directory => {
+    try {
+      return readFileSync(nodePath.join(directory, 'Cargo.toml'), 'utf8')
+        .split(/\r?\n/u)
+        .some(line => line.split('#', 1)[0]?.trim() === '[workspace]');
+    } catch {
+      return false;
+    }
+  });
   const rustDirectories = cargoDirectories.filter(directory =>
     cargoWorkspaceDirectories.every(
       workspace => workspace === directory || !cargoWorkspaceOwns(workspace, directory),

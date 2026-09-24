@@ -156,6 +156,20 @@ describe('Claude plugin catalogue generation', () => {
     }
   });
 
+  it('limits Claude skill discovery to the adapted native skill tree', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+    const manifest = JSON.parse(
+      assets.find(asset => asset.relativePath === '.claude-plugin/plugin.json')?.content ?? '{}',
+    ) as { skills?: unknown };
+
+    expect(manifest.skills).toEqual(['./skills']);
+  });
+
   it('packages event groups for exactly the manifest events dispatched as aggregates', () => {
     const assets = generateClaudePluginAssets({
       cliBundle: 'console.log("stub cli bundle");',
