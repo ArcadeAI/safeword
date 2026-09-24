@@ -24,6 +24,7 @@ describe('classifyPrReadinessCommand', () => {
     ['gh pr new --fill', 'documented create alias'],
     ['command gh pr create --fill', 'command prefix'],
     ['gh pr create --title "--draft" --fill', 'Draft-looking option value'],
+    ['gh pr create -Bd', 'value-bearing short flag whose value looks like Draft'],
     ['gh pr create --draft --fill && gh pr ready', 'Ready wins across chained segments'],
   ])('classifies %s as Ready-making (%s)', (command, _shape) => {
     expect(classifyPrReadinessCommand(command)).toBe('ready');
@@ -34,6 +35,8 @@ describe('classifyPrReadinessCommand', () => {
     ['gh pr new --draft', 'Draft flag on documented create alias'],
     ['gh pr -R ArcadeAI/safeword create --draft', 'Draft creation with repository flag'],
     ['gh pr create -d --fill', 'short Draft flag'],
+    ['gh pr create -dF body.md', 'combined Draft and body-file flags'],
+    ['gh pr create -fd', 'combined fill and Draft flags'],
     ['gh pr ready --undo', 'return to Draft'],
   ])('classifies %s as Draft-safe (%s)', (command, _shape) => {
     expect(classifyPrReadinessCommand(command)).toBe('draft');

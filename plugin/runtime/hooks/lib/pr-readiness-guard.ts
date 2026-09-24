@@ -46,6 +46,12 @@ function hasDraftFlag(arguments_: string[]): boolean {
       continue;
     }
     if (argument === '--draft' || argument === '-d') return true;
+    if (argument?.startsWith('-') && !argument.startsWith('--')) {
+      for (const shorthand of argument.slice(1)) {
+        if (shorthand === 'd') return true;
+        if (PR_CREATE_VALUE_OPTIONS.has(`-${shorthand}`)) break;
+      }
+    }
   }
   return false;
 }

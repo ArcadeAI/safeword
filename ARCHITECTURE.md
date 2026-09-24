@@ -1075,9 +1075,10 @@ extension to [Deterministic Readiness Evidence Status](#deterministic-readiness-
 - **Trade-off:** The receipt deliberately restores one schema-owned transient
   file inside the project namespace. It survives agent sessions in one worktree
   but not another clone or worktree, and any later commit invalidates it until
-  verification runs again. Web UI, `gh api`, direct REST/GraphQL, and cloud-agent
-  mutations remain outside this local boundary. The remote freshness observer
-  remains separate and unchanged.
+  verification runs again. Shell wrappers that hide `gh` in nested command
+  text, the web UI, `gh api`, direct REST/GraphQL, and cloud-agent mutations
+  remain outside this local boundary. The remote freshness observer remains
+  separate and unchanged.
 - **Alternatives considered:** Guidance alone was rejected because it is
   bypassable. Blocking every PR command was rejected because Draft evidence is
   part of delivery. Profile-global state was rejected because it crosses

@@ -121,6 +121,7 @@ describe('installed delivery continuation contract', () => {
       const prohibitedStep = cells[3] ?? '';
       expect(directive).toContain(current);
       expect(directive).toContain(evidence);
+      expect(directive.toLowerCase()).not.toContain(following.toLowerCase());
       expect(prohibitedStep.toLowerCase()).toContain(following.toLowerCase());
     }
   }

@@ -183,9 +183,10 @@ reversible extension of those accepted mechanisms.
 ## Known deviations
 
 - Enforcement is intentionally limited to the accepted local `gh pr ready` and
-  ready-by-default `gh pr create` argv shapes. `gh api`, direct REST/GraphQL,
-  GitHub web UI, and cloud-agent mutations remain outside this local hook's
-  boundary; the skill still requires explicit authority for any Ready change.
+  ready-by-default `gh pr create` argv shapes. Shell wrappers that hide `gh` in
+  nested command text (for example, `bash -lc` or `xargs`), `gh api`, direct
+  REST/GraphQL, GitHub web UI, and cloud-agent mutations remain outside this
+  local hook's boundary; the skill still requires explicit authority for any Ready change.
   This does not reverse **Deterministic Readiness Evidence Status**: that ADR
   rejected a CLI hook as a substitute for observing freshness of
   attacker-controlled PR-body attestation text. This gate instead validates
