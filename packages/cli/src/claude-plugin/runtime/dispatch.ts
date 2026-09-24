@@ -731,6 +731,35 @@ function postExecutionLifecycle(
   return automaticMigration(event, identity, execution, hookInput.session_id, hookInput.cwd);
 }
 
+function degradedPluginResponse(event: string, advisory: string): DamagedPlugin {
+  if (event === 'PreToolUse') {
+    const recovery = `${advisory} Approve only a repair or diagnostic action; run \`safeword claude status\` to get the exact repair action.`;
+    return {
+      kind: 'damaged',
+      status: 0,
+      stderr: '',
+      stdout: `${JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: event,
+          permissionDecision: 'ask',
+          permissionDecisionReason: recovery,
+          additionalContext: recovery,
+        },
+      })}\n`,
+    };
+  }
+  if (event !== 'UserPromptSubmit') {
+    return { kind: 'damaged', status: 0, stderr: `${advisory}\n`, stdout: '' };
+  }
+  const promptAdvisory = `${advisory} The prompt was not blocked.`;
+  return {
+    kind: 'damaged',
+    status: 0,
+    stderr: '',
+    stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
+  };
+}
+
 function verifyPlugin(event: string, pluginRoot: string): PluginVerification {
   try {
     const identity = readIdentity(pluginRoot);
@@ -743,33 +772,10 @@ function verifyPlugin(event: string, pluginRoot: string): PluginVerification {
     return { kind: 'verified', eventGroupsContent, identity };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    const advisory = `Safeword detected a damaged native plugin cache: ${detail} No Safeword hook result was applied.`;
-    if (event === 'PreToolUse') {
-      const recovery = `${advisory} Approve only a repair or diagnostic action; run \`safeword claude status\` to get the exact repair action.`;
-      return {
-        kind: 'damaged',
-        status: 0,
-        stderr: '',
-        stdout: `${JSON.stringify({
-          hookSpecificOutput: {
-            hookEventName: event,
-            permissionDecision: 'ask',
-            permissionDecisionReason: recovery,
-            additionalContext: recovery,
-          },
-        })}\n`,
-      };
-    }
-    if (event !== 'UserPromptSubmit') {
-      return { kind: 'damaged', status: 0, stderr: `${advisory}\n`, stdout: '' };
-    }
-    const promptAdvisory = `${advisory} The prompt was not blocked.`;
-    return {
-      kind: 'damaged',
-      status: 0,
-      stderr: '',
-      stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
-    };
+    return degradedPluginResponse(
+      event,
+      `Safeword detected a damaged native plugin cache: ${detail} No Safeword hook result was applied.`,
+    );
   }
 }
 
@@ -945,19 +951,14 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   return execution.status;
 }
 
-function startupFailure(event: string, error: unknown): number {
+function startupFailure(event: string | undefined, error: unknown): number {
   const detail = error instanceof Error ? error.message : String(error);
-  if (event === 'UserPromptSubmit') {
-    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked; no Safeword hook result was applied.`;
-    try {
-      process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
-    } catch {
-      // A startup failure must still leave prompt submission available.
-    }
-    return 0;
+  if (event === undefined) {
+    process.stderr.write(`Safeword could not safely start its unknown hook: ${detail}\n`);
+    return 2;
   }
-  process.stderr.write(`Safeword could not safely start its ${event} hook: ${detail}\n`);
-  return 2;
+  const advisory = `Safeword could not start its Claude hook: ${detail} No Safeword hook result was applied.`;
+  return emitDamagedPlugin(degradedPluginResponse(event, advisory));
 }
 
 function main(): number {
@@ -966,7 +967,7 @@ function main(): number {
     if (event === undefined) throw new Error('Claude hook event is required.');
     return mainUnsafe(event, mode, command);
   } catch (error) {
-    return startupFailure(event ?? 'unknown', error);
+    return startupFailure(event, error);
   }
 }
 

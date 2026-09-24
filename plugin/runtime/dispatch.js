@@ -5853,6 +5853,41 @@ function postExecutionLifecycle(event, pluginRoot, identity, hookInput, executio
   } catch {}
   return automaticMigration(event, identity, execution, hookInput.session_id, hookInput.cwd);
 }
+function degradedPluginResponse(event, advisory) {
+  if (event === 'PreToolUse') {
+    const recovery = `${advisory} Approve only a repair or diagnostic action; run \`safeword claude status\` to get the exact repair action.`;
+    return {
+      kind: 'damaged',
+      status: 0,
+      stderr: '',
+      stdout: `${JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: event,
+          permissionDecision: 'ask',
+          permissionDecisionReason: recovery,
+          additionalContext: recovery,
+        },
+      })}
+`,
+    };
+  }
+  if (event !== 'UserPromptSubmit') {
+    return {
+      kind: 'damaged',
+      status: 0,
+      stderr: `${advisory}
+`,
+      stdout: '',
+    };
+  }
+  const promptAdvisory = `${advisory} The prompt was not blocked.`;
+  return {
+    kind: 'damaged',
+    status: 0,
+    stderr: '',
+    stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
+  };
+}
 function verifyPlugin(event, pluginRoot) {
   try {
     const identity = readIdentity(pluginRoot);
@@ -5865,40 +5900,10 @@ function verifyPlugin(event, pluginRoot) {
     return { kind: 'verified', eventGroupsContent, identity };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    const advisory = `Safeword detected a damaged native plugin cache: ${detail} No Safeword hook result was applied.`;
-    if (event === 'PreToolUse') {
-      const recovery = `${advisory} Approve only a repair or diagnostic action; run \`safeword claude status\` to get the exact repair action.`;
-      return {
-        kind: 'damaged',
-        status: 0,
-        stderr: '',
-        stdout: `${JSON.stringify({
-          hookSpecificOutput: {
-            hookEventName: event,
-            permissionDecision: 'ask',
-            permissionDecisionReason: recovery,
-            additionalContext: recovery,
-          },
-        })}
-`,
-      };
-    }
-    if (event !== 'UserPromptSubmit') {
-      return {
-        kind: 'damaged',
-        status: 0,
-        stderr: `${advisory}
-`,
-        stdout: '',
-      };
-    }
-    const promptAdvisory = `${advisory} The prompt was not blocked.`;
-    return {
-      kind: 'damaged',
-      status: 0,
-      stderr: '',
-      stdout: safeAppendMigrationAdvisory(event, '', promptAdvisory),
-    };
+    return degradedPluginResponse(
+      event,
+      `Safeword detected a damaged native plugin cache: ${detail} No Safeword hook result was applied.`,
+    );
   }
 }
 function emitDamagedPlugin(response) {
@@ -6040,16 +6045,13 @@ function mainUnsafe(event, mode, command) {
 }
 function startupFailure(event, error) {
   const detail = error instanceof Error ? error.message : String(error);
-  if (event === 'UserPromptSubmit') {
-    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked; no Safeword hook result was applied.`;
-    try {
-      process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
-    } catch {}
-    return 0;
-  }
-  process.stderr.write(`Safeword could not safely start its ${event} hook: ${detail}
+  if (event === void 0) {
+    process.stderr.write(`Safeword could not safely start its unknown hook: ${detail}
 `);
-  return 2;
+    return 2;
+  }
+  const advisory = `Safeword could not start its Claude hook: ${detail} No Safeword hook result was applied.`;
+  return emitDamagedPlugin(degradedPluginResponse(event, advisory));
 }
 function main() {
   const [event, mode, ...command] = process.argv.slice(2);
@@ -6057,7 +6059,7 @@ function main() {
     if (event === void 0) throw new Error('Claude hook event is required.');
     return mainUnsafe(event, mode, command);
   } catch (error) {
-    return startupFailure(event ?? 'unknown', error);
+    return startupFailure(event, error);
   }
 }
 process.exitCode = main();

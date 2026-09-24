@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -16,6 +17,30 @@ import { describe, expect, it } from 'vitest';
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
 
 describe('native plugin resource contract', () => {
+  it('rejects an unexpected file at the Claude plugin root during generation checks', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-plugin-drift-'));
+    try {
+      const shippedPlugin = nodePath.join(fixture, 'plugin');
+      cpSync(nodePath.join(REPO_ROOT, 'plugin'), shippedPlugin, { recursive: true });
+      writeFileSync(nodePath.join(shippedPlugin, 'stray-root-file.txt'), 'unexpected\n');
+
+      const result = spawnSync(
+        'bun',
+        [nodePath.join(REPO_ROOT, 'packages/cli/scripts/generate-claude-plugin.ts'), '--check'],
+        {
+          cwd: nodePath.join(REPO_ROOT, 'packages/cli'),
+          encoding: 'utf8',
+          env: { ...process.env, SAFEWORD_CLAUDE_GENERATED_PLUGIN_ROOT: shippedPlugin },
+        },
+      );
+
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain('unexpected stray-root-file.txt');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     ['Claude', nodePath.join(REPO_ROOT, 'plugin')],
     ['Codex', nodePath.join(REPO_ROOT, 'packages/cli/codex-plugin')],

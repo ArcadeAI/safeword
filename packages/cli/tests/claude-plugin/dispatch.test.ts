@@ -161,6 +161,31 @@ function dispatchEvent(
   );
 }
 
+function dispatchStartupEvent(
+  projectDirectory: string,
+  pluginData: string,
+  event: string,
+  environmentPluginRoot?: string,
+) {
+  const environment = isolatedClaudeEnvironment(projectDirectory, pluginData);
+  if (environmentPluginRoot === undefined) delete environment.CLAUDE_PLUGIN_ROOT;
+  else environment.CLAUDE_PLUGIN_ROOT = environmentPluginRoot;
+  return spawnSync(
+    'bun',
+    [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'), event, '--event-group'],
+    {
+      cwd: projectDirectory,
+      env: environment,
+      encoding: 'utf8',
+      input: JSON.stringify({
+        cwd: projectDirectory,
+        hook_event_name: event,
+        session_id: `startup-${event}`,
+      }),
+    },
+  );
+}
+
 function refreshPluginIdentity(pluginRoot: string, changedAssets: readonly string[] = []): void {
   const inventoryPath = nodePath.join(pluginRoot, 'inventory.json');
   const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8')) as {
@@ -854,6 +879,76 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stderr).toBe(
       'Safeword could not safely start its unknown hook: Claude hook event is required.\n',
     );
+  });
+
+  it('asks for user approval when PreToolUse starts without a plugin root', () => {
+    const result = dispatchStartupEvent(
+      temporary('safeword-plugin-missing-root-project-'),
+      temporary('safeword-plugin-missing-root-data-'),
+      'PreToolUse',
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'ask',
+        permissionDecisionReason: expect.stringContaining('CLAUDE_PLUGIN_ROOT is required'),
+        additionalContext: expect.stringContaining('No Safeword hook result was applied'),
+      },
+    });
+  });
+
+  it('keeps prompt submission available when the plugin root cannot be resolved', () => {
+    const missingPluginRoot = nodePath.join(
+      temporary('safeword-plugin-unresolvable-root-'),
+      'missing-plugin',
+    );
+    const result = dispatchStartupEvent(
+      temporary('safeword-plugin-unresolvable-root-project-'),
+      temporary('safeword-plugin-unresolvable-root-data-'),
+      'UserPromptSubmit',
+      missingPluginRoot,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'UserPromptSubmit',
+        additionalContext: expect.stringContaining('The prompt was not blocked'),
+      },
+    });
+    expect(result.stdout).toContain(missingPluginRoot);
+  });
+
+  it.each(['SessionStart', 'PostToolUse', 'Stop'])(
+    'warns without blocking when %s starts without a plugin root',
+    event => {
+      const result = dispatchStartupEvent(
+        temporary('safeword-plugin-lifecycle-startup-project-'),
+        temporary('safeword-plugin-lifecycle-startup-data-'),
+        event,
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain(`could not start its Claude hook`);
+      expect(result.stderr).toContain('CLAUDE_PLUGIN_ROOT is required');
+      expect(result.stderr).toContain('No Safeword hook result was applied');
+    },
+  );
+
+  it('warns without blocking when a future event starts without a plugin root', () => {
+    const result = dispatchStartupEvent(
+      temporary('safeword-plugin-future-startup-project-'),
+      temporary('safeword-plugin-future-startup-data-'),
+      'FutureClaudeEvent',
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('could not start its Claude hook');
+    expect(result.stderr).toContain('CLAUDE_PLUGIN_ROOT is required');
   });
 
   it('does not execute an aggregate manifest omitted from the verified inventory', () => {
