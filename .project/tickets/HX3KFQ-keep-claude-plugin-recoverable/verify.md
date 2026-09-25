@@ -46,18 +46,23 @@ the standalone payload to contain every runtime resource it consumes.
 
 ## Hosted Verification
 
-- Workflow run: <https://github.com/ArcadeAI/safeword/actions/runs/36076647867>
-- Exact source revision: `19f5b93c8e9a4171226cdbfecc29e49289e2abd9`
+- Workflow run: <https://github.com/ArcadeAI/safeword/actions/runs/36080581036>
+- Exact source revision: `7712bcb92130777c9a93acc981904495acdda1ac`
 - Result: passed
 - CLI: 588 files passed; 10,011 tests passed and 47 skipped
 - Retro relay: 9 files and 199 tests passed
 - Retro collector: 4 files and 153 tests passed
 - Build, generated declarations, repository health, and result publication: passed
 
+This revision includes the final evidence commit and the current `origin/main` through
+`b70f3fb5a`. Main added generated-surface commit checks and adjusted the BDD proof and Codex plugin
+version tests; the merge was clean, and the full hosted lane passed the combined tree.
+
 The preceding hosted attempt exposed a scheduler-sensitive assertion in the relay measurement test.
 The production threshold was not changed. The test now preserves the real duration for a generous
 contention bound and normalizes only that timing field when proving producer-to-validator schema
-wiring. The corrected exact revision passed remotely.
+wiring. The corrected revision first passed in run `36076647867`; the later main-integrated
+revision above also passed remotely.
 
 ## Audit Detail
 

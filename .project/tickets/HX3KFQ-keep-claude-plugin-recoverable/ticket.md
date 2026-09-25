@@ -6,7 +6,7 @@ phase: done
 status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/4519
 created: 2026-09-13T04:03:46.412Z
-last_modified: 2026-09-25T00:41:50Z
+last_modified: 2026-09-25T01:24:03Z
 ---
 
 # Keep the Claude plugin installable and recoverable
@@ -136,3 +136,8 @@ anywhere in a script (an echoed example could falsely suppress a real test lane)
   tests passed, together with build and repository-health checks. Marked the ticket done; the only
   retained limitations are historical BDD-discovery and RED-first provenance that cannot be
   reconstructed after implementation.
+- 2026-09-25T01:24:03Z Caught up with origin main and reassessed impact: merged main through
+  `b70f3fb5a`, including stronger generated-surface checks and overlapping BDD/Codex plugin tests,
+  without semantic conflicts. Full exact-revision GitHub run `36080581036` passed against merge
+  commit `7712bcb92130777c9a93acc981904495acdda1ac` with 10,011 CLI tests, 199 relay tests, 153
+  collector tests, builds, declarations, and repository health all green.
