@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "10669ba7d91e067816fab08a7736a28c306ca60307b73a7215095cb8737f1048"
+      "sha256": "2daa98d36f4f7a7c480c39ae4197db94286d94b8905aed3a1a1ab190d9d98493"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "ec962b6f318b5659c2955f7450c8efddb4c58bc064141897eef30e46542efe52"
+      "sha256": "026563f38767727be2279cb48ac254cb816e6fc8e8406fb09a21bccca8a79503"
     },
     {
       "path": "runtime/event-groups.json",
@@ -302,6 +302,10 @@
       "sha256": "e33a81f3cbf144076fb3dfc3960b5e3660780317a82e74ac815f54165db00ff3"
     },
     {
+      "path": "runtime/hooks/lib/pr-readiness-guard.ts",
+      "sha256": "9f90b97b21ad89cdd2b1c7741604d391c9c20fc577acfc97748eb3053d310d5e"
+    },
+    {
       "path": "runtime/hooks/lib/principle-trace.ts",
       "sha256": "9b832dd9c81740be0158924e5f5d55a327e5c2412751933d78adebecec7da1ef"
     },
@@ -323,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality-state.ts",
-      "sha256": "fb6ddddca86d33991b184419f2e54e9b49dbe84d03a5ef53a73e95c76e99b774"
+      "sha256": "69ed2cd005be5571f40d186671b5baf6695b9bc5f4712bca7b6bf1c98de2b8d3"
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
@@ -451,7 +455,7 @@
     },
     {
       "path": "runtime/hooks/post-tool-quality.ts",
-      "sha256": "f5a8268809244c3c32fbeda75a028e6b6ae2218da6b75f11ed58acfaedbcef3d"
+      "sha256": "86b21bd8a6e4fdf39c12107a605dcf729674f46d109ee180cfc342fc07ff451e"
     },
     {
       "path": "runtime/hooks/post-tool-skill-nudge.ts",
@@ -483,7 +487,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "9803c785e5908b92dd8deb9fa3fb45b5718d585c210e128e68dbbc00639188a6"
+      "sha256": "f469c548028e0f661a54277648ad0d5a713f86041f3e5a90a4c0063ea1311c84"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -631,7 +635,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "1faa6b558980faa2fd9b91bf8fdb743f0301ceee6a959ec2496245916928db7a"
+      "sha256": "1ab3c7cb20825261b2e59148a9f842775a0d1417b01cb1d89657f270eac58474"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -683,7 +687,7 @@
     },
     {
       "path": "skills/pr-readiness/SKILL.md",
-      "sha256": "d498ddcccf3027161b8ed48bc576845e4e06ac28b914de31018597fdbd52bbb9"
+      "sha256": "8e4f9d9a73eca7b0d52fd4d3a0a733bf485abca2f8c9c6da2545adf0c4186894"
     },
     {
       "path": "skills/quality-review/SKILL.md",
