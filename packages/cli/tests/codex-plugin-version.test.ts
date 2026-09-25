@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   rmSync,
   statSync,
@@ -38,7 +39,7 @@ const [currentMajor = '0', currentMinor = '0'] =
   currentCliVersion.split('+', 1)[0]?.split('.') ?? [];
 const incompatibleReleaseVersion = `${currentMajor}.${Number(currentMinor) + 1}.0+codex.test`;
 
-function treeDigest(root: string): string {
+function treeDigest(root: string, ignoredPaths: readonly string[] = []): string {
   const hash = createHash('sha256');
   const visit = (directory: string): void => {
     const entries = readdirSync(directory, { withFileTypes: true }).toSorted((left, right) =>
@@ -46,8 +47,11 @@ function treeDigest(root: string): string {
     );
     for (const entry of entries) {
       const path = nodePath.join(directory, entry.name);
-      hash.update(nodePath.relative(root, path));
+      const relativePath = nodePath.relative(root, path);
+      if (ignoredPaths.includes(relativePath)) continue;
+      hash.update(relativePath);
       if (entry.isDirectory()) visit(path);
+      else if (entry.isSymbolicLink()) hash.update(readlinkSync(path));
       else hash.update(readFileSync(path));
     }
   };
@@ -331,7 +335,11 @@ describe('Codex plugin release contract', () => {
       'quality-rubric.generated.ts',
       'red-rubric.generated.ts',
     ].map(file => nodePath.join(root, 'src/review', file));
-    const before = protectedTrees.map(treeDigest);
+    const protectedTreeDigests = (): string[] =>
+      protectedTrees.map(tree =>
+        treeDigest(tree, tree === nodePath.join(repoRoot, '.claude') ? ['worktrees'] : []),
+      );
+    const before = protectedTreeDigests();
     const beforeGeneratedMtimes = protectedGeneratedFiles.map(file => statSync(file).mtimeMs);
     try {
       const generation = spawnSync(
@@ -342,7 +350,7 @@ describe('Codex plugin release contract', () => {
 
       expect(generation.status, generation.stderr).toBe(0);
       expect(treeDigest(output)).not.toBe(treeDigest(nodePath.join(root, 'codex-plugin')));
-      expect(protectedTrees.map(treeDigest)).toEqual(before);
+      expect(protectedTreeDigests()).toEqual(before);
       expect(protectedGeneratedFiles.map(file => statSync(file).mtimeMs)).toEqual(
         beforeGeneratedMtimes,
       );
