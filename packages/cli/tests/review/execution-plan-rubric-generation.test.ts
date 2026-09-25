@@ -4,6 +4,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 } from '../../src/review/execution-plan-rubric.generated.js';
+
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const skillPath = nodePath.join(packageRoot, 'templates/skills/bdd/PLAN_EXECUTION.md');
 const artifactPath = nodePath.join(
@@ -29,10 +31,8 @@ describe('Execution Plan contract generation', () => {
     const generated = readFileSync(generatedPath, 'utf8');
 
     expect(generated).toContain(JSON.stringify(rubric));
-    expect(generated).toContain(
-      `export const EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 = ${JSON.stringify(
-        createHash('sha256').update(rubric).digest('hex'),
-      )};`,
+    expect(EXECUTION_PLAN_REVIEW_RUBRIC_SHA256).toBe(
+      createHash('sha256').update(rubric).digest('hex'),
     );
     for (const obligation of [
       'Slicing decision',
