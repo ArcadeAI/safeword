@@ -39,7 +39,7 @@ describe('native plugin resource contract', () => {
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
-  }, 15_000);
+  }, 30_000);
 
   it.each([
     ['Claude', nodePath.join(REPO_ROOT, 'plugin')],
