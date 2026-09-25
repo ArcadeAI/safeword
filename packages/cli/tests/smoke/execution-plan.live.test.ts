@@ -42,6 +42,17 @@ it.each(EXECUTION_PLAN_CONFORMANCE_CASES)(
   },
 );
 
+it('keeps ordinary checklist progress out of live review identity', () => {
+  const plan = EXECUTION_PLAN_CONFORMANCE_CASES[0]?.execution_plan;
+  if (plan === undefined) throw new Error('Missing conformance fixture');
+  const progressed = plan.replace(
+    '| open | missing | | |',
+    '| complete | current_revision_real_boundary | rev-1 | passing receipt |',
+  );
+  expect(progressed).not.toBe(plan);
+  expect(normalizedFixtureDigest(progressed)).toBe(normalizedFixtureDigest(plan));
+});
+
 function tableRows(section: string, columns: number): string[][] {
   return section
     .split('\n')
@@ -94,6 +105,25 @@ function fixtureDefinition(plan: string): ExecutionPlanDeliveryDefinition {
   return { schema_version: 1, design_approval_gate: false, proof_specifications, checklist_items };
 }
 
+function normalizedFixtureDigest(plan: string): string {
+  const normalized = plan
+    .split('\n')
+    .map(line => {
+      const columns = line.slice(1, -1).split('|');
+      if (
+        !line.startsWith('| item-') ||
+        columns.length !== 9 ||
+        (columns[5]?.trim() !== 'open' && columns[5]?.trim() !== 'complete')
+      ) {
+        return line;
+      }
+      const stable = columns.slice(0, 5).join('|');
+      return `|${stable}| <progress> | <progress> | <progress> | <progress> |`;
+    })
+    .join('\n');
+  return createHash('sha256').update(normalized).digest('hex');
+}
+
 function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent): ReviewPacket {
   const identity =
     model === undefined ? `${assigned} runtime default` : `${assigned} model ${model}`;
@@ -108,10 +138,44 @@ function packetFor(testCase: ExecutionPlanConformanceCase, assigned: ReviewAgent
       { path: 'reviewer-identity.md', content: `Assigned reviewer: ${identity}.` },
     ],
     execution_plan_delivery_definition: fixtureDefinition(testCase.execution_plan),
-    execution_plan_normalized_digest: createHash('sha256')
-      .update(testCase.execution_plan)
-      .digest('hex'),
+    execution_plan_normalized_digest: normalizedFixtureDigest(testCase.execution_plan),
   };
+}
+
+function assertApproval(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
+  const record = output.execution_plan_record;
+  expect(record).toBeDefined();
+  expect(record).not.toBeNull();
+  expect(record?.slicing_decision).toBe(testCase.expectation.slicing_decision);
+  expect(record?.accepted_scenarios_covered).toBe(true);
+  expect(record?.accepted_approach_preserved).toBe(true);
+  expect(record?.slices.map(slice => slice.name)).toEqual(testCase.expectation.slice_names);
+  assertAcceptedCoverage(testCase, output);
+}
+
+function assertAcceptedCoverage(
+  testCase: ExecutionPlanConformanceCase,
+  output: ReviewerOutput,
+): void {
+  const record = output.execution_plan_record;
+  const obligations = testCase.expectation.obligations ?? [];
+  for (const obligation of obligations) {
+    expect(record?.obligation_owners.map(owner => owner.obligation)).toContain(obligation);
+  }
+  const decisions = testCase.expectation.decisions ?? [];
+  for (const decision of decisions) {
+    expect(record?.decision_statuses).toContainEqual({ decision, status: 'unchanged' });
+  }
+}
+
+function assertDenial(testCase: ExecutionPlanConformanceCase, output: ReviewerOutput): void {
+  expect(output.execution_plan_record).toBeNull();
+  const explanation =
+    `${output.summary}\n${output.findings.map(finding => finding.message).join('\n')}`.toLowerCase();
+  const findingTerms = testCase.expectation.finding_terms ?? [];
+  for (const term of findingTerms) {
+    expect(explanation).toContain(term.toLowerCase());
+  }
 }
 
 afterAll(() => {
@@ -145,22 +209,8 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
         expect(output.dispatch_id).toBe(packet.dispatch_id);
         expect(output.planning_destination).toBe(testCase.expectation.planning_destination);
         expect(output.verdict).toBe(testCase.expectation.verdict);
-        if (output.verdict === 'approve') {
-          expect(output.execution_plan_record?.slicing_decision).toBe(
-            testCase.expectation.slicing_decision,
-          );
-          expect(output.execution_plan_record?.slices.map(slice => slice.name)).toEqual(
-            testCase.expectation.slice_names,
-          );
-        } else {
-          expect(output.execution_plan_record).toBeNull();
-          const explanation =
-            `${output.summary}\n${output.findings.map(finding => finding.message).join('\n')}`.toLowerCase();
-          const findingTerms = testCase.expectation.finding_terms ?? [];
-          for (const term of findingTerms) {
-            expect(explanation).toContain(term.toLowerCase());
-          }
-        }
+        if (output.verdict === 'approve') assertApproval(testCase, output);
+        else assertDenial(testCase, output);
         passed = true;
       } finally {
         results.push({
