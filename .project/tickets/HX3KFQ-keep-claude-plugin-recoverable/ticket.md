@@ -67,6 +67,22 @@ failure).
 
 Related issue: https://github.com/ArcadeAI/safeword/issues/4520
 
+### Hosted verification follow-up
+
+The exact-revision GitHub run exposed a pre-existing timing assumption in the relay measurement
+test. The producer records real elapsed time, and the production validator intentionally rejects a
+measurement at or above one second. The test nevertheless required every shared runner to return
+`enabled: true`, so ordinary scheduler contention could fail the suite after the producer had
+correctly emitted and the validator had correctly rejected a slow measurement. The test now keeps
+a contention-tolerant upper bound on real elapsed time, then normalizes only that machine-speed
+field for a deterministic producer-to-validator schema proof. The production threshold is
+unchanged.
+
+Confirmed by the hosted failure reaching only the final validator assertion after the artifact's
+shape, accepted-count floor, and deadline bound had passed. Ruled out: malformed output (all shape
+assertions passed), insufficient accepted requests (the explicit floor passed), and a plugin-change
+regression (the failing relay files are outside this ticket's source diff).
+
 ### Verification-plan follow-up
 
 The aggregate verifier exposed a separate orchestration defect: the test-plan resolver emitted a
