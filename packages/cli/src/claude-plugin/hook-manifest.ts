@@ -20,6 +20,11 @@ import { SETTINGS_HOOKS } from '../templates/config.js';
 const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
 const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
 const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
+const EVENT_GROUP_EVENTS = new Set(['SessionStart', 'UserPromptSubmit']);
+
+export function pluginEventGroupEvents(): string[] {
+  return [...EVENT_GROUP_EVENTS];
+}
 
 export function adaptHookValue(value: unknown): unknown {
   if (typeof value === 'string') {
@@ -54,7 +59,7 @@ export function pluginSessionStartEntries(adapted: Record<string, unknown>): unk
 }
 
 function pluginHookEntries(event: string, entries: unknown): unknown {
-  if (event === 'SessionStart' || event === 'UserPromptSubmit') {
+  if (EVENT_GROUP_EVENTS.has(event)) {
     return [
       {
         hooks: [

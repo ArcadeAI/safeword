@@ -4,7 +4,12 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { type Language, type PlanEntry, resolveTestPlan } from '../../src/test-plan/resolve';
+import {
+  type Language,
+  type PlanEntry,
+  type PlanKind,
+  resolveTestPlan,
+} from '../../src/test-plan/resolve';
 
 const temporaryDirectories: string[] = [];
 
@@ -166,6 +171,20 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     expect(entryFor(plan, 'python')?.command).toBe('uv run --locked pytest');
   });
 
+  it('keeps pytest-style tests visible when pytest is managed by a uv lock', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'uv.lock': '',
+      'tests/test_example.py': 'def test_example():\n    assert True\n',
+    });
+    const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('uv') });
+    expect(entryFor(plan, 'python')).toMatchObject({
+      command: 'uv run --locked pytest',
+      runner: 'uv',
+      available: true,
+    });
+  });
+
   it('uses a workspace-root uv lock for nested Python projects', () => {
     const root = makeRepo({
       'pyproject.toml': '[tool.uv.workspace]\nmembers=["apps/*"]\n',
@@ -250,6 +269,21 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
 });
 
 describe('resolveTestPlan — missing toolchains stay visible', () => {
+  it.each(['onyl:go', ''])(
+    'rejects malformed fake-tool specification %j instead of assuming every tool exists',
+    spec => {
+      const original = process.env.SAFEWORD_FAKE_TOOLS;
+      process.env.SAFEWORD_FAKE_TOOLS = spec;
+      try {
+        const root = makeRepo({ 'go.mod': 'module x\n' });
+        expect(() => resolveTestPlan(root)).toThrow(`Invalid SAFEWORD_FAKE_TOOLS value: ${spec}`);
+      } finally {
+        if (original === undefined) delete process.env.SAFEWORD_FAKE_TOOLS;
+        else process.env.SAFEWORD_FAKE_TOOLS = original;
+      }
+    },
+  );
+
   it('a go repo with no go binary still appears, marked unavailable', () => {
     const root = makeRepo({ 'go.mod': 'module x\n' });
     const plan = resolveTestPlan(root, { isToolAvailable: onlyTools() });
@@ -331,6 +365,179 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     expect(javascript.map(item => item.command)).toEqual(['pnpm run test', 'yarn run test']);
   });
 
+  it.each([
+    ['verify', 'test', 'vitest'],
+    ['bdd', 'test:bdd', 'cucumber-js'],
+  ] as const)(
+    'does not duplicate a workspace %s lane already delegated by the root script',
+    (kind, scriptName, command) => {
+      const root = makeRepo({
+        'package.json': JSON.stringify({
+          private: true,
+          workspaces: ['packages/*'],
+          scripts: { [scriptName]: `bun run --cwd packages/cli ${scriptName}` },
+        }),
+        'bun.lock': '',
+        'packages/cli/package.json': JSON.stringify({ scripts: { [scriptName]: command } }),
+      });
+
+      const javascript = resolveTestPlan(root, { kind, isToolAvailable: allTools }).filter(
+        item => item.language === 'javascript',
+      );
+
+      expect(javascript).toEqual([
+        expect.objectContaining({ cwd: root, command: `bun run ${scriptName}` }),
+      ]);
+    },
+  );
+
+  it('retains workspace lanes that the selected root script does not delegate', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'bun run --cwd packages/api test' },
+      }),
+      'bun.lock': '',
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'packages/web/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/web']);
+  });
+
+  it('does not infer delegation across a shell-command boundary', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'bun run --cwd packages/api && test' },
+      }),
+      'bun.lock': '',
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
+  it('does not infer delegation from command text passed as an argument', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'echo bun run --cwd packages/api test' },
+      }),
+      'bun.lock': '',
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
+  it('retains a workspace lane behind a shell condition', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: '[ -n "$CI" ] && bun run --cwd packages/api test' },
+      }),
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'test', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
+  it('retains a workspace lane behind an OR fallback', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'grep -q enabled config || bun run --cwd packages/api test' },
+      }),
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'test', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
+  it('retains a workspace lane behind a command condition', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'grep -q enabled config && bun run --cwd packages/api test' },
+      }),
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'test', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
+  it('retains a workspace lane when the selected script names differ', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: 'bun run --cwd packages/api test' },
+      }),
+      'packages/api/package.json': JSON.stringify({
+        scripts: { test: 'vitest run', 'test:done': 'vitest run --changed' },
+      }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'test', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'packages/api']);
+  });
+
+  it.each([
+    ['a quoted workspace path', 'bun run --cwd "packages/api" test'],
+    ['an environment prefix', 'NODE_ENV=test bun run --cwd packages/api test'],
+    ['a package-manager launcher', 'corepack pnpm --dir packages/api run test'],
+  ])('recognizes workspace delegation through %s', (_case, rootScript) => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/*'],
+        scripts: { test: rootScript },
+      }),
+      'bun.lock': '',
+      'packages/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['']);
+  });
+
   it('does not verify excluded JavaScript workspace members', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({
@@ -399,11 +606,11 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     expect(sql).toEqual([
       expect.objectContaining({
         cwd: nodePath.join(root, 'apps/warehouse'),
-        command: 'sqlfluff lint .',
+        command: 'dbt build',
       }),
       expect.objectContaining({
         cwd: nodePath.join(root, 'services/reporting'),
-        command: 'sqlfluff lint .',
+        command: 'sqlc compile',
       }),
     ]);
   });
@@ -421,9 +628,64 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
         .map(item => item.cwd),
     ).toEqual([nodePath.join(root, 'sub')]);
   });
+
+  it('runs an implicit Cargo path-dependency member from its workspace root', () => {
+    const root = makeRepo({
+      'Cargo.toml':
+        '[package]\nname="root"\nversion="0.1.0"\n[workspace]\n[dependencies]\napi={path="crates/api"}\n',
+      'crates/api/Cargo.toml': '[package]\nname="api"\nversion="0.1.0"\n',
+    });
+
+    expect(
+      resolveTestPlan(root, { isToolAvailable: onlyTools('cargo') })
+        .filter(item => item.language === 'rust')
+        .map(item => item.cwd),
+    ).toEqual([root]);
+  });
+
+  it('does not mistake a workspace subtable for a Rust workspace root', () => {
+    const root = makeRepo({
+      'Cargo.toml': '[package]\nname="root"\nversion="0.1.0"\n',
+      'crates/api/Cargo.toml':
+        '[package]\nname="api"\nversion="0.1.0"\n[workspace.dependencies]\nserde="1"\n',
+    });
+
+    expect(
+      resolveTestPlan(root, { isToolAvailable: onlyTools('cargo') })
+        .filter(item => item.language === 'rust')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['', 'crates/api']);
+  });
+
+  it('keeps other language lanes when a Cargo manifest cannot be read', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+    mkdirSync(nodePath.join(root, 'Cargo.toml'));
+
+    const plan = resolveTestPlan(root, { isToolAvailable: allTools });
+
+    expect(entryFor(plan, 'javascript')).toMatchObject({ cwd: root, command: 'npm run test' });
+    expect(entryFor(plan, 'rust')).toBeUndefined();
+  });
 });
 
 describe('resolveTestPlan — verify plan (kind: verify)', () => {
+  it('fails safe instead of treating a future plan kind as JavaScript tests', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
+      'pyproject.toml': '[tool.pytest.ini_options]\n',
+      'go.mod': 'module x\n',
+      'Cargo.toml': '[package]\nname="x"\n',
+      '.sqlfluff': '[sqlfluff]\ndialect = ansi\n',
+    });
+    const plan = resolveTestPlan(root, {
+      kind: 'future-kind' as PlanKind,
+      isToolAvailable: allTools,
+    });
+    expect(plan).toEqual([]);
+  });
+
   it('prefers test:ci over test and test:done', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({
@@ -539,6 +801,21 @@ describe('resolveTestPlan — typecheck plan (kind: typecheck, #436)', () => {
 });
 
 describe('resolveTestPlan — deps plan (kind: deps, supply-chain gate)', () => {
+  it('audits a declared JavaScript workspace lockfile once from its root', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ private: true, workspaces: ['packages/*'] }),
+      'bun.lock': '',
+      'packages/cli/package.json': JSON.stringify({ scripts: {} }),
+      'packages/web/package.json': JSON.stringify({ scripts: {} }),
+    });
+
+    expect(
+      resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => nodePath.relative(root, item.cwd)),
+    ).toEqual(['']);
+  });
+
   it('emits the cargo-deny supply-chain check for Rust', () => {
     const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
     const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
@@ -581,13 +858,41 @@ describe('resolveTestPlan — deps plan (kind: deps, supply-chain gate)', () => 
     expect(entryFor(plan, 'python')?.command).toBe('pip-audit -r requirements.txt');
   });
 
-  it('routes JavaScript audits through the detected package manager', () => {
+  it('runs pip-audit through Poetry for poetry-locked projects', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[tool.poetry]\nname="x"\nversion="0.1.0"\n',
+      'poetry.lock': '',
+    });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: onlyTools('poetry') });
+    expect(entryFor(plan, 'python')).toMatchObject({
+      command: 'poetry run pip-audit .',
+      runner: 'poetry',
+      available: true,
+    });
+  });
+
+  it('uses the Yarn Classic audit command for a v1 lockfile', () => {
     const root = makeRepo({
       'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
-      'yarn.lock': '',
+      'yarn.lock': '# yarn lockfile v1\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')?.command).toBe('yarn audit');
+  });
+
+  it('uses the modern Yarn audit command for a Berry lockfile', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'yarn.lock': '__metadata:\n  version: 8\n',
     });
     const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
     expect(entryFor(plan, 'javascript')?.command).toBe('yarn npm audit');
+  });
+
+  it('does not invent a dependency-audit lane for SQL projects', () => {
+    const root = makeRepo({ 'dbt_project.yml': 'name: warehouse\n' });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
+    expect(entryFor(plan, 'sql')).toBeUndefined();
   });
 
   it('keeps each missing supply-chain scanner visible', () => {

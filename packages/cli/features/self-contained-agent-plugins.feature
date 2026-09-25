@@ -339,6 +339,22 @@ Feature: Every agent delivery is self-contained
   @self-contained-plugins.SWM1.R1
   Rule: self-contained-plugins.SWM1.R1 — Package authority is enforced at release boundaries
 
+    # Proof boundary: each generated bundle runs its real packaged CLI against an isolated temporary project.
+    @surface.safeword-cli @surface.openai-codex @surface.claude-code
+    Scenario: Native plugin bundles execute template-backed commands from shipped resources
+      Given generated Codex and Claude Code plugin bundles isolated from the source checkout
+      When the Safeword Maintainer runs template-backed commands through each bundled CLI
+      Then both commands succeed using only resources shipped inside their plugin bundle
+
+    # Proof boundary: the real dispatcher validates a copied plugin cache before reaching any aggregate hook command.
+    @rejection @surface.claude-code
+    Scenario: A damaged Claude Code plugin cache remains recoverable
+      Given an installed Claude Code plugin cache fails integrity validation
+      When a lifecycle event could execute a packaged Safeword hook
+      Then a blockable action asks for approval without applying a Safeword hook result
+      And non-blockable lifecycle events warn without applying a Safeword hook result
+      And a repair action remains available without executing the damaged cache
+
     @surface.safeword-cli
     Scenario: Complete agent catalogues pass executable-reference validation
       Given the generated Codex, Claude Code, OpenCode, and Cursor workflow catalogues

@@ -5,9 +5,16 @@ import nodePath from 'node:path';
 import { buildSync } from 'esbuild';
 
 import { generateOwnedPathsModule } from '../owned-paths.js';
+import { normalizePluginBundle } from '../plugin-bundle.js';
+import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { SETTINGS_HOOKS } from '../templates/config.js';
-import { adaptHookValue, pluginHookManifest, pluginSessionStartEntries } from './hook-manifest.js';
+import {
+  adaptHookValue,
+  pluginEventGroupEvents,
+  pluginHookManifest,
+  pluginSessionStartEntries,
+} from './hook-manifest.js';
 
 export interface GeneratedClaudePluginAsset {
   readonly relativePath: string;
@@ -23,6 +30,15 @@ interface ClaudePluginCatalogueInput {
 
 export const CLAUDE_DISPATCHER_NODE_TARGET = 'node22';
 
+const CANONICAL_TEMPLATE_ROOT = 'templates';
+
+function isCanonicalTemplateAsset(relativePath: string): boolean {
+  return (
+    relativePath === CANONICAL_TEMPLATE_ROOT ||
+    relativePath.startsWith(`${CANONICAL_TEMPLATE_ROOT}/`)
+  );
+}
+
 const GENERATED_DIRECTORIES = [
   '.claude-plugin',
   'agents',
@@ -30,6 +46,7 @@ const GENERATED_DIRECTORIES = [
   'resources',
   'runtime',
   'skills',
+  CANONICAL_TEMPLATE_ROOT,
 ] as const;
 const RETIRED_GENERATED_DIRECTORIES = ['commands'] as const;
 function filesBeneath(directory: string, prefix = ''): string[] {
@@ -221,7 +238,11 @@ function stripReferencePunctuation(value: string | undefined): string | undefine
 }
 
 function referencedPluginPaths(asset: GeneratedClaudePluginAsset): string[] {
-  if (asset.relativePath === 'runtime/cli.js' || asset.relativePath === 'runtime/dispatch.js') {
+  if (
+    isCanonicalTemplateAsset(asset.relativePath) ||
+    asset.relativePath === 'runtime/cli.js' ||
+    asset.relativePath === 'runtime/dispatch.js'
+  ) {
     return [];
   }
   const references = asset.content
@@ -268,6 +289,7 @@ function resolveReference(
 function isCatalogueRoot(asset: GeneratedClaudePluginAsset): boolean {
   return (
     /^(?:agents|skills)\//u.test(asset.relativePath) ||
+    isCanonicalTemplateAsset(asset.relativePath) ||
     asset.relativePath === '.claude-plugin/plugin.json' ||
     asset.relativePath === 'hooks/hooks.json' ||
     asset.relativePath === 'runtime/dispatch.js' ||
@@ -360,11 +382,10 @@ function claudeHookAssets(templatesRoot: string): GeneratedClaudePluginAsset[] {
 
 function pluginEventGroups(): string {
   const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
-  const sessionStart = pluginSessionStartEntries(adapted);
   const groups = Object.fromEntries(
-    ['SessionStart', 'UserPromptSubmit'].map(event => [
+    pluginEventGroupEvents().map(event => [
       event,
-      event === 'SessionStart' ? sessionStart : (adapted[event] ?? []),
+      event === 'SessionStart' ? pluginSessionStartEntries(adapted) : (adapted[event] ?? []),
     ]),
   );
   return `${JSON.stringify({ schema_version: 1, groups }, undefined, 2)}\n`;
@@ -458,7 +479,7 @@ function bundledDispatcher(sourceRoot: string): string {
   });
   const output = result.outputFiles[0]?.text;
   if (output === undefined) throw new Error('Claude plugin dispatcher bundle was not generated.');
-  return output;
+  return normalizePluginBundle(output);
 }
 
 export function generateClaudePluginAssets(
@@ -480,6 +501,11 @@ export function generateClaudePluginAssets(
     ...directoryAssets(nodePath.join(templatesRoot, 'skills'), 'skills', adaptClaudeSkill),
     ...directoryAssets(nodePath.join(templatesRoot, 'agents'), 'agents', adaptWorkflowText),
     ...claudeHookAssets(templatesRoot),
+    // The standalone CLI retains the npm package's flat templates/ contract.
+    // Keep this canonical tree separate from the host-adapted resources below:
+    // resources feed native Claude workflows, while templates feed CLI commands
+    // such as setup, ticket new, reconciliation, and remote-test planning.
+    ...directoryAssets(templatesRoot, CANONICAL_TEMPLATE_ROOT),
     {
       relativePath: 'runtime/hooks/lib/owned-paths.ts',
       content: generateOwnedPathsModule(SAFEWORD_SCHEMA),
@@ -514,6 +540,9 @@ export function generateClaudePluginAssets(
 
   const contentAssets = transitiveClaudePluginAssets(candidateAssets);
   assertClaudePluginAssetReferences(contentAssets);
+  assertNativePluginRuntimeAuthority(
+    contentAssets.filter(asset => /^(?:agents|skills)\//u.test(asset.relativePath)),
+  );
   const inventory = pluginInventory(
     contentAssets.toSorted((left, right) => left.relativePath.localeCompare(right.relativePath)),
   );
@@ -537,9 +566,9 @@ export function generateClaudePluginAssets(
 }
 
 /**
- * Asserts a generated plugin tree matches its canonical sources exactly: every
- * expected asset present and byte-identical, and no unexpected generated file
- * left behind. Exercised by the delivery-schema suite.
+ * Asserts every expected asset is present and byte-identical, with no unexpected
+ * file inside generated directories. The generator owns whole-tree comparison.
+ * Exercised by the delivery-schema suite.
  */
 export function assertClaudePluginCatalogue(
   input: ClaudePluginCatalogueInput,
@@ -555,6 +584,8 @@ export function assertClaudePluginCatalogue(
     }
   }
   const expectedPaths = new Set(expectedAssets.map(asset => asset.relativePath));
+  // This helper owns generated directories; the generator's whole-tree comparison owns
+  // root-level extras because the published plugin intentionally retains README.md.
   for (const directory of [...GENERATED_DIRECTORIES, ...RETIRED_GENERATED_DIRECTORIES]) {
     const generatedDirectory = nodePath.join(pluginRoot, directory);
     const actualPaths = filesBeneath(generatedDirectory, directory);

@@ -1,0 +1,407 @@
+// Safeword: two-tier review-enforcement decision core (ticket NMSD94). Pure, no
+// I/O. The PreToolUse / phase-advance gates wire these to the real
+// skill-invocation-log, which stores one review stamp per asset/phase.
+//
+// `.js` specifier (bun resolves it to the .ts source) so tsc accepts this module
+// when the test suite pulls it into the typecheck graph — the tested-lib rule.
+
+import { createHash } from 'node:crypto';
+
+import { isValidSkipReason } from './parse-annotation.js';
+
+export interface ReviewStamp {
+  /**
+   * The review's scope key — see {@link reviewScope}. Ticket-qualified and
+   * content-bound (`<ticket>:<artifact>@<hash>`), so a stamp matches the gate
+   * only for THIS ticket's artifact at THIS content (no cross-ticket or
+   * stale-after-edit false-allows).
+   */
+  scope: string;
+  /** Present → a skip (must be non-empty to satisfy the gate); absent → a real review. */
+  skipReason?: string;
+  /** The reviewing model, recorded by the orchestrator that assigned it (ticket MR5M3A). Absent on pre-MR5M3A stamps. */
+  model?: string;
+  /** Author runtime recorded from the validated coordinator result. */
+  author?: 'claude' | 'codex' | 'opencode';
+  /** Actual reviewer runtime recorded from the validated coordinator result. */
+  reviewer?: 'claude' | 'codex' | 'opencode';
+  /** Independence earned by the validated route. */
+  independence?: 'cross-agent' | 'degraded' | 'none';
+  /**
+   * The coordinator review this stamp cites (ticket PB1GMZ). Recorded so the
+   * claim stays checkable after the fact: `review status <id>` still reports
+   * whether that review approved and whether its sources have moved since.
+   */
+  reviewId?: string;
+}
+
+export type CrossAgentReviewPolicy = 'prefer' | 'require' | 'off';
+
+/** Short content hash binding a stamp to the reviewed artifact's exact state. */
+export function hashArtifact(content: string): string {
+  return createHash('sha1').update(content).digest('hex').slice(0, 12);
+}
+
+/**
+ * Canonical review-stamp scope: `<ticketId>:<artifact>@<contentHash>`. Both the
+ * gate and the stamp-earning step build keys this way so a review satisfies the
+ * gate only for the same ticket + artifact + content — a review of another
+ * ticket's spec, or of a now-edited spec, no longer matches.
+ */
+export function reviewScope(ticketId: string, artifact: string, contentHash: string): string {
+  return `${ticketId}:${artifact}@${contentHash}`;
+}
+
+export type GateVerdict = { ok: true } | { ok: false; reason: string };
+
+/** Levels that assert a coordinator ran and returned a verdict. */
+const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
+
+/** A stamp satisfies a gate when it's a real review, or a skip with a non-empty reason. */
+function isSatisfyingStamp(stamp: ReviewStamp, policy: CrossAgentReviewPolicy = 'prefer'): boolean {
+  const ordinarilySatisfying =
+    stamp.skipReason === undefined || isValidSkipReason(stamp.skipReason);
+  if (!ordinarilySatisfying) return false;
+
+  // A stamp claiming a coordinator verdict must cite the review that produced
+  // it — the same rule write-review-stamp.ts applies when writing one. Checked
+  // again on the reading side because the ledger is a plain text file: a line
+  // appended directly never passed through that hook, and an uncited claim of
+  // independence is exactly what this gate exists to refuse.
+  if (
+    stamp.skipReason === undefined &&
+    stamp.independence !== undefined &&
+    COORDINATOR_CLAIMS.has(stamp.independence) &&
+    stamp.reviewId === undefined
+  )
+    return false;
+
+  if (policy !== 'require') return true;
+  return (
+    stamp.skipReason === undefined &&
+    stamp.independence === 'cross-agent' &&
+    stamp.author !== undefined &&
+    stamp.reviewer !== undefined &&
+    stamp.author !== stamp.reviewer
+  );
+}
+
+/** Whether the ledger holds a satisfying review stamp for `id` (an asset or a phase). */
+function hasSatisfyingStamp(
+  id: string,
+  stamps: readonly ReviewStamp[],
+  policy: CrossAgentReviewPolicy = 'prefer',
+): boolean {
+  return stamps.some(stamp => stamp.scope === id && isSatisfyingStamp(stamp, policy));
+}
+
+/** Whether a phase stamp records a cited coordinator review that satisfies the active policy. */
+export function isSatisfyingCoordinatorReviewStamp(
+  id: string,
+  stamp: ReviewStamp,
+  policy: CrossAgentReviewPolicy,
+): boolean {
+  return (
+    stamp.scope === id &&
+    stamp.skipReason === undefined &&
+    stamp.reviewId !== undefined &&
+    stamp.independence !== undefined &&
+    COORDINATOR_CLAIMS.has(stamp.independence) &&
+    isSatisfyingStamp(stamp, policy)
+  );
+}
+
+/** Whether this exact scope carries the deliberate, reasoned escape hatch. */
+export function isSatisfyingSkipStamp(id: string, stamp: ReviewStamp): boolean {
+  return (
+    stamp.scope === id && stamp.skipReason !== undefined && isValidSkipReason(stamp.skipReason)
+  );
+}
+
+/** Phase exits require a cited coordinator review; only an explicit skip may bypass it. */
+function hasSatisfyingPhaseStamp(
+  id: string,
+  stamps: readonly ReviewStamp[],
+  policy: CrossAgentReviewPolicy,
+): boolean {
+  return stamps.some(
+    stamp =>
+      isSatisfyingSkipStamp(id, stamp) || isSatisfyingCoordinatorReviewStamp(id, stamp, policy),
+  );
+}
+
+/**
+ * Per-asset gate (TB1.AC1): authoring the next asset is allowed only when the
+ * prior asset carries a satisfying review stamp. The first asset (no prior) is
+ * never gated.
+ */
+export function reviewGateForNextAsset(
+  priorScope: string | undefined,
+  stamps: readonly ReviewStamp[],
+  policy: CrossAgentReviewPolicy = 'prefer',
+): GateVerdict {
+  if (priorScope === undefined) return { ok: true };
+  if (hasSatisfyingStamp(priorScope, stamps, policy)) return { ok: true };
+  return {
+    ok: false,
+    reason: `"${priorScope}" has not been reviewed — review it (or log a skip with a reason) before authoring the next asset`,
+  };
+}
+
+/**
+ * Phase-exit gate (TB2.AC1): advancing past a phase is allowed only when an
+ * independent review stamp for that phase exists. Unlike the per-asset gate
+ * there is no "first" exemption — every phase exit needs a stamp.
+ */
+export function gatePhaseAdvance(
+  phase: string,
+  stamps: readonly ReviewStamp[],
+  policy: CrossAgentReviewPolicy = 'prefer',
+): GateVerdict {
+  if (hasSatisfyingPhaseStamp(phase, stamps, policy)) return { ok: true };
+  return {
+    ok: false,
+    reason: `phase "${phase}" has no independent review stamp — run the phase-exit review (or log a skip with a reason) before advancing`,
+  };
+}
+
+// A review entry in the skill-invocation-log. Format contract (the
+// stamp-earning step writes exactly this): `review:<scope>` for a real review,
+// or `review:<scope> skip:<reason>` for a logged skip, where <scope> is a
+// space-free reviewScope() key. The line is `<timestamp> <session> <entry>`, so
+// the review token is matched at line end.
+//
+// Trust boundary: a stamp is only as trustworthy as the log file's integrity —
+// a crafted `review:<scope>` line satisfies this gate. That's by design: Tier 1
+// is the cheap, gameable floor; the ungameable check is Tier 2 (independent
+// fork review). The content-hash binding in <scope> at least defeats accidental
+// stale-after-edit passes, not deliberate spoofing.
+const REVIEW_LINE =
+  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
+
+/**
+ * Tier 1 (the per-asset inline stamp) is OFF unless `.safeword/config.json` sets
+ * `reviewGate: true`. It is per-asset, so it has no phase to select on and stays
+ * all-or-nothing; a phase list turns on Tier 2 only. Fail-safe to off on
+ * missing/malformed config — Tier 1 is a cheap, gameable floor, so a missed
+ * stamp costs far less than blocking every asset by accident.
+ *
+ * Tier 2's default moved the other way (see {@link reviewGateAppliesToPhase}).
+ * The original rollout guard shipped it inert so a self-applying blocking gate
+ * could not brick the dogfood or customers, "enabled deliberately once the
+ * stamp-earning step is in place". That step landed in #3769 — a stamp now cites
+ * the review that produced it — and this ticket made every exit satisfiable by a
+ * real review, so the guard has served its purpose.
+ */
+export function isReviewGateEnabled(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'reviewGate');
+}
+
+/**
+ * Whether the Tier 2 phase-exit review gate applies to the phase being left.
+ *
+ * ON at every exit by default — including when `.safeword/config.json` has no
+ * `reviewGate` key at all, which is what a fresh install looks like. A project
+ * narrows or disables it deliberately:
+ *
+ * - absent or `true` — every phase exit needs an independent review stamp.
+ *   `true` additionally turns on Tier 1 ({@link isReviewGateEnabled}).
+ * - `["define-behavior", "scenario-gate"]` — only the listed exits. The
+ *   selective posture ticket 2VCSZY sketched as "option c", for buying review
+ *   where judgment is load-bearing while skipping exits that machine evidence
+ *   already gates (implement -> verify has tests; verify -> done has the done gate).
+ * - `false` — off entirely.
+ *
+ * Unusable values (a bare string, a number, malformed JSON) keep the default
+ * rather than reading as "off": a typo should not quietly remove a gate. An
+ * empty list is a considered choice and does disable it. Non-string list entries
+ * are ignored rather than voiding the whole list.
+ */
+export function reviewGateAppliesToPhase(rawConfig: string | undefined, phase: string): boolean {
+  if (rawConfig === undefined) return true;
+  try {
+    const config: unknown = JSON.parse(rawConfig);
+    if (typeof config !== 'object' || config === null) return true;
+    const value = (config as Record<string, unknown>).reviewGate;
+    if (value === true || value === undefined) return true;
+    if (value === false) return false;
+    // Strict `includes` is the non-string filter: a numeric 7 never equals "7".
+    if (Array.isArray(value)) return value.includes(phase);
+    // Any other shape is a typo, not a considered "off" — keep the default.
+    return true;
+  } catch {
+    // Malformed config is pre-tool-config-guard's concern. A quality gate that
+    // silently disabled itself on a stray comma would be worse than a noisy one.
+    return true;
+  }
+}
+
+/**
+ * Whether the Stop-time quality review still runs. OFF unless
+ * `.safeword/config.json` sets `stopQualityReview: true`.
+ *
+ * Measured over 13 concurrent sessions (~220 turn-ends), the Stop review
+ * produced one intervention — a reply-format correction — and never a code
+ * change. A Stop event has no relationship to the work: five filters stand
+ * between the event and the check, and what survives them inspects the shape of
+ * the reply rather than the change. Ticket KHL52X carries the measurement.
+ *
+ * Turning it back on restores the phase-review prompt AND the decision-brief
+ * ending contract; both are advisory guidance from SessionStart and PostToolUse
+ * while this is off. The Stop hook's evidence gates (done, impl-plan,
+ * architecture, cumulative artifacts, typecheck advisory) are unaffected either
+ * way — a Stop is a fine moment to demand evidence, and a poor one to ask for
+ * judgment.
+ */
+export function isStopQualityReviewEnabled(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'stopQualityReview');
+}
+
+/** Default-on rollout switch for the one-shot native terminal-handoff correction. */
+export function isTerminalHandoffCorrectionEnabled(rawConfig?: string): boolean {
+  if (rawConfig === undefined) return true;
+  try {
+    const config: unknown = JSON.parse(rawConfig);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) return true;
+    return (config as Record<string, unknown>).terminalHandoffCorrection !== false;
+  } catch {
+    // Malformed config must not silently disable a user-facing correctness guard.
+    return true;
+  }
+}
+
+const PHASE_FIELD = /^phase:\s*(\S+)/m;
+
+/**
+ * Rollout guard for the architecture review gate (ticket MR5M3A): OFF unless
+ * `.safeword/config.json` sets `architectureReviewGate: true`. Same default-off,
+ * fail-safe-to-off-on-malformed posture as {@link isReviewGateEnabled}.
+ */
+export function isArchitectureReviewGateEnabled(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'architectureReviewGate');
+}
+
+/**
+ * Whether the architecture review must be performed by a different model than
+ * the author (ticket MR5M3A): true only when `.safeword/config.json` sets
+ * `crossModelReview: true`. Default-off — same-model fork is the floor.
+ */
+export function isCrossModelReviewRequired(rawConfig?: string): boolean {
+  return configFlagIsTrue(rawConfig, 'crossModelReview');
+}
+
+/**
+ * Cross-agent review routing policy. Missing, malformed, and unknown values use
+ * the product default (`prefer`), matching the public review coordinator.
+ */
+export function readCrossAgentReviewPolicy(rawConfig?: string): CrossAgentReviewPolicy {
+  if (rawConfig === undefined) return 'prefer';
+  try {
+    const config: unknown = JSON.parse(rawConfig);
+    if (typeof config !== 'object' || config === null) return 'prefer';
+    const value = (config as Record<string, unknown>).crossAgentReview;
+    return value === 'require' || value === 'off' ? value : 'prefer';
+  } catch {
+    return 'prefer';
+  }
+}
+
+/**
+ * Env var carrying the author/main-session model id, captured at SessionStart
+ * (`session-author-model.ts`) and read by the cross-model gate in stop-quality.ts
+ * (ticket MR5M3A). Shared so the writer and reader cannot drift.
+ */
+export const AUTHOR_MODEL_ENV = 'SAFEWORD_AUTHOR_MODEL';
+
+/**
+ * Whether a reviewer-model tag denotes the SAME model as the author-model tag
+ * (ticket MR5M3A) — the cross-model gate blocks when this is true. Comparison
+ * is trimmed and case-insensitive. An absent or empty tag on either side is
+ * indeterminate: it cannot establish independence, so it counts as a match and
+ * the gate fails closed (blocks) rather than waving the review through.
+ */
+export function modelsMatch(reviewerTag?: string, authorTag?: string): boolean {
+  const reviewer = reviewerTag?.trim().toLowerCase() ?? '';
+  const author = authorTag?.trim().toLowerCase() ?? '';
+  if (reviewer === '' || author === '') return true;
+  return reviewer === author;
+}
+
+/**
+ * Whether a top-level config key is strictly `true`. Shared default-off,
+ * fail-safe-on-malformed reader for the boolean rollout flags.
+ */
+function configFlagIsTrue(rawConfig: string | undefined, key: string): boolean {
+  if (rawConfig === undefined) return false;
+  try {
+    const config: unknown = JSON.parse(rawConfig);
+    return (
+      typeof config === 'object' &&
+      config !== null &&
+      (config as Record<string, unknown>)[key] === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The phase being EXITED by a ticket.md edit (Tier 2): the old phase, when the
+ * edit changes `phase:` to a different value. Returns undefined when the phase
+ * is unchanged or absent on either side (nothing to gate). Forward/backward
+ * ordering isn't distinguished — leaving any phase requires its exit review.
+ */
+export function detectPhaseAdvance(oldContent: string, newContent: string): string | undefined {
+  const from = PHASE_FIELD.exec(oldContent)?.[1];
+  const to = PHASE_FIELD.exec(newContent)?.[1];
+  if (from === undefined || to === undefined || from === to) return undefined;
+  return from;
+}
+
+/**
+ * Render a stamp token for the skill-invocation-log — the inverse of
+ * {@link parseReviewStamps}. The stamp-earning step (`write-review-stamp.ts`)
+ * prefixes `<timestamp> <session> ` and appends the result, so the gate reads
+ * back exactly this `scope`. A non-empty `skipReason` records a logged skip.
+ */
+export function formatReviewStamp(
+  scope: string,
+  skipReason?: string,
+  model?: string,
+  author?: ReviewStamp['author'],
+  reviewer?: ReviewStamp['reviewer'],
+  independence?: ReviewStamp['independence'],
+  reviewId?: string,
+): string {
+  const modelSegment = model === undefined ? '' : ` model:${model}`;
+  const authorSegment = author === undefined ? '' : ` author:${author}`;
+  const reviewerSegment = reviewer === undefined ? '' : ` reviewer:${reviewer}`;
+  const independenceSegment = independence === undefined ? '' : ` independence:${independence}`;
+  const reviewIdSegment = reviewId === undefined ? '' : ` review-id:${reviewId}`;
+  const skipSegment = skipReason === undefined ? '' : ` skip:${skipReason}`;
+  return `review:${scope}${modelSegment}${authorSegment}${reviewerSegment}${independenceSegment}${reviewIdSegment}${skipSegment}`;
+}
+
+/** Read review stamps from skill-invocation-log content (non-review lines ignored). */
+export function parseReviewStamps(logContent: string): ReviewStamp[] {
+  const stamps: ReviewStamp[] = [];
+  for (const line of logContent.split('\n')) {
+    const match = REVIEW_LINE.exec(line);
+    if (match?.[1] === undefined) continue;
+    const model = match[2];
+    const author = match[3] as ReviewStamp['author'];
+    const reviewer = match[4] as ReviewStamp['reviewer'];
+    const independence = match[5] as ReviewStamp['independence'];
+    const reviewId = match[6];
+    const skipReason = match[7];
+    const stamp: ReviewStamp = { scope: match[1] };
+    if (model !== undefined) stamp.model = model;
+    if (author !== undefined) stamp.author = author;
+    if (reviewer !== undefined) stamp.reviewer = reviewer;
+    if (independence !== undefined) stamp.independence = independence;
+    if (reviewId !== undefined) stamp.reviewId = reviewId;
+    if (skipReason !== undefined) stamp.skipReason = skipReason;
+    stamps.push(stamp);
+  }
+  return stamps;
+}

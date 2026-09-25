@@ -14,12 +14,13 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
 import { parse } from 'smol-toml';
 
+import { commandWords, parseShellCommandList } from '../../templates/hooks/lib/shell-segments.js';
 import { pythonWorkspaceOwns } from '../packs/python/setup.js';
 import { findAllInTree, findFileMatchingInTree, indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
@@ -79,7 +80,13 @@ const TREE_MANIFESTS = new Set<string>([
 function directManifestIndex(directory: string): ManifestIndex {
   return new Map(
     [...TREE_MANIFESTS]
-      .filter(name => existsSync(nodePath.join(directory, name)))
+      .filter(name => {
+        try {
+          return lstatSync(nodePath.join(directory, name)).isFile();
+        } catch {
+          return false;
+        }
+      })
       .map(name => [name, directory]),
   );
 }
@@ -106,21 +113,90 @@ function cargoWorkspaceOwns(workspaceDirectory: string, candidate: string): bool
     ) as {
       workspace?: { members?: unknown; exclude?: unknown };
     };
-    if (!document.workspace || !Array.isArray(document.workspace.members)) return false;
+    if (!document.workspace) return false;
     const relative = nodePath.relative(workspaceDirectory, candidate);
-    const members = document.workspace.members.filter(
-      (member): member is string => typeof member === 'string',
-    );
+    const members = Array.isArray(document.workspace.members)
+      ? document.workspace.members.filter((member): member is string => typeof member === 'string')
+      : [];
     const excluded = Array.isArray(document.workspace.exclude)
       ? document.workspace.exclude.filter((member): member is string => typeof member === 'string')
       : [];
+    if (excluded.some(pattern => matchesWorkspacePattern(relative, pattern))) return false;
     return (
-      members.some(pattern => matchesWorkspacePattern(relative, pattern)) &&
-      excluded.every(pattern => !matchesWorkspacePattern(relative, pattern))
+      members.some(pattern => matchesWorkspacePattern(relative, pattern)) ||
+      cargoImplicitMember(workspaceDirectory, candidate, members)
     );
   } catch {
     return false;
   }
+}
+
+function cargoImplicitMember(
+  workspaceDirectory: string,
+  candidate: string,
+  members: readonly string[],
+): boolean {
+  // Cargo also makes path dependencies beneath the workspace root implicit
+  // members. Walk the path-dependency graph from the root package and every
+  // explicit member so those crates do not receive duplicate standalone lanes.
+  const queue = findAllInTree(workspaceDirectory, 'Cargo.toml').filter(directory => {
+    if (directory === workspaceDirectory) return true;
+    const relative = nodePath.relative(workspaceDirectory, directory);
+    return members.some(pattern => matchesWorkspacePattern(relative, pattern));
+  });
+  const visited = new Set<string>();
+  while (queue.length > 0) {
+    const directory = queue.shift();
+    if (directory === undefined) break;
+    if (visited.has(directory)) continue;
+    visited.add(directory);
+    const manifest = parse(readFileSync(nodePath.join(directory, 'Cargo.toml'), 'utf8')) as Record<
+      string,
+      unknown
+    >;
+    const nested = cargoPathDependencyDirectories(manifest, directory).filter(path =>
+      path.startsWith(`${workspaceDirectory}${nodePath.sep}`),
+    );
+    if (nested.includes(candidate)) return true;
+    queue.push(...nested.filter(path => !visited.has(path)));
+  }
+  return false;
+}
+
+function cargoPathDependencyDirectories(
+  manifest: Readonly<Record<string, unknown>>,
+  manifestDirectory: string,
+): string[] {
+  const baseTables: unknown[] = [
+    manifest.dependencies,
+    manifest['dev-dependencies'],
+    manifest['build-dependencies'],
+  ];
+  const workspace = manifest.workspace;
+  const targets = manifest.target;
+  const workspaceTables = objectRecord(workspace) ? [workspace.dependencies] : [];
+  const targetTables = objectRecord(targets)
+    ? Object.values(targets).flatMap(target => {
+        if (!objectRecord(target)) return [];
+        return [target.dependencies, target['dev-dependencies'], target['build-dependencies']];
+      })
+    : [];
+  return [...baseTables, ...workspaceTables, ...targetTables].flatMap(table =>
+    cargoDependencyTablePaths(table, manifestDirectory),
+  );
+}
+
+function objectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function cargoDependencyTablePaths(table: unknown, manifestDirectory: string): string[] {
+  if (!objectRecord(table)) return [];
+  return Object.values(table).flatMap(dependency => {
+    if (!objectRecord(dependency)) return [];
+    const path = dependency.path;
+    return typeof path === 'string' ? [nodePath.resolve(manifestDirectory, path)] : [];
+  });
 }
 
 function javascriptProjectDirectories(root: string): string[] {
@@ -152,7 +228,8 @@ function pythonProjectMarkers(kind: PlanKind): readonly string[] {
 /**
  * Kinds each non-Rust resolver opts out of, so a new PlanKind fails safe (the
  * language emits nothing) instead of falling through to a wrong command. `deps`
- * emits an ecosystem-native vulnerability scan for every supported language.
+ * emits an ecosystem-native vulnerability scan where this resolver has a
+ * supported scanner; SQL intentionally has no dependency-audit lane.
  * `typecheck` emits for JS/TS (`typecheck`
  * script), Python (mypy/pyright when configured), and Rust (clippy, in
  * resolveRust); Go's compiler covers it. `bdd` (Gherkin acceptance) emits for JS
@@ -160,8 +237,22 @@ function pythonProjectMarkers(kind: PlanKind): readonly string[] {
  * the native test lane, so those skip it. Frozen sets mirror the manifest-set
  * idiom above and keep the guards uniform.
  */
-const PYTHON_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['build']);
-const GO_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['typecheck', 'bdd']);
+const PYTHON_PLAN_KINDS: ReadonlySet<PlanKind> = new Set([
+  'test',
+  'verify',
+  'typecheck',
+  'deps',
+  'bdd',
+]);
+const GO_PLAN_KINDS: ReadonlySet<PlanKind> = new Set(['test', 'verify', 'build', 'deps']);
+const RUST_PLAN_KINDS: ReadonlySet<PlanKind> = new Set([
+  'test',
+  'verify',
+  'build',
+  'typecheck',
+  'deps',
+]);
+const SQL_PLAN_KINDS: ReadonlySet<PlanKind> = new Set(['test', 'verify', 'build']);
 
 /**
  * Parse the `SAFEWORD_FAKE_TOOLS` test seam (same spirit as `SAFEWORD_SKIP_INSTALL`):
@@ -178,7 +269,8 @@ function fakeToolProbe(spec: string): (tool: string) => boolean {
     const set = parseToolList(spec, 'none:');
     return tool => !set.has(tool);
   }
-  return allToolsAvailable; // 'all' or empty
+  if (spec === 'all') return allToolsAvailable;
+  throw new Error(`Invalid SAFEWORD_FAKE_TOOLS value: ${spec}`);
 }
 
 /** Parse the comma-separated tool list after a `only:` / `none:` prefix. */
@@ -275,31 +367,31 @@ const JS_DIRECT_SCRIPT: Partial<Record<PlanKind, string>> = {
 
 function resolveJs(
   projectDirectory: string,
-  _index: ManifestIndex,
   kind: PlanKind,
   isAvailable: ToolProbe,
   packageManagerDirectory: string = projectDirectory,
 ): PlanEntry | undefined {
-  // JS is detected root-only: subdirectory package.json is too common to treat as a project root.
   const scripts = readRootScripts(projectDirectory);
   if (!scripts) return undefined;
   const pm = detectPackageManager(packageManagerDirectory);
   if (kind === 'deps') {
-    const command = pm === 'yarn' ? 'yarn npm audit' : `${pm} audit`;
+    const command = pm === 'yarn' ? yarnAuditCommand(packageManagerDirectory) : `${pm} audit`;
     return entry('javascript', projectDirectory, command, pm, isAvailable(pm));
   }
-  const directScript = JS_DIRECT_SCRIPT[kind];
-  if (directScript !== undefined) {
-    const command = scripts[directScript];
-    return command
-      ? entry('javascript', projectDirectory, `${pm} run ${directScript}`, pm, isAvailable(pm))
-      : undefined;
-  }
-  const pickScript = kind === 'verify' ? pickVerifyScript : pickTestScript;
-  const script = pickScript(scripts);
+  const script = selectedJsScript(scripts, kind);
   return script
     ? entry('javascript', projectDirectory, `${pm} run ${script}`, pm, isAvailable(pm))
     : undefined;
+}
+
+function yarnAuditCommand(packageManagerDirectory: string): string {
+  if (existsSync(nodePath.join(packageManagerDirectory, '.yarnrc.yml'))) return 'yarn npm audit';
+  try {
+    const lockfile = readFileSync(nodePath.join(packageManagerDirectory, 'yarn.lock'), 'utf8');
+    return /^__metadata:\s*$/mu.test(lockfile) ? 'yarn npm audit' : 'yarn audit';
+  } catch {
+    return 'yarn audit';
+  }
 }
 
 /** Returns the first script name in `priority` that exists in `scripts`, or undefined. */
@@ -318,6 +410,66 @@ function pickTestScript(scripts: Record<string, string>): string | undefined {
 /** For done-gate verification: prefer the authoritative full suite over fast subsets. */
 function pickVerifyScript(scripts: Record<string, string>): string | undefined {
   return firstScript(scripts, ['test:ci', 'test', 'test:done']);
+}
+
+/** Return the package script selected for a JavaScript plan kind, when one exists. */
+function selectedJsScript(scripts: Record<string, string>, kind: PlanKind): string | undefined {
+  if (kind === 'deps') return undefined;
+  const directScript = JS_DIRECT_SCRIPT[kind];
+  if (directScript !== undefined) {
+    return Object.hasOwn(scripts, directScript) ? directScript : undefined;
+  }
+  if (kind === 'verify') return pickVerifyScript(scripts);
+  if (kind === 'test') return pickTestScript(scripts);
+  return undefined;
+}
+
+/**
+ * True only for an explicit package-manager delegation to this workspace lane.
+ * This deliberately avoids guessing whether arbitrary shell commands happen to
+ * cover a child package; only an exact cwd + script invocation is deduplicated.
+ */
+function scriptDelegatesToWorkspace(
+  body: string,
+  relativeDirectory: string,
+  script: string,
+): boolean {
+  const patterns = [relativeDirectory, `./${relativeDirectory}`].flatMap(target => [
+    ['bun', 'run', '--cwd', target, script],
+    ['bun', '--cwd', target, 'run', script],
+    ['npm', '--prefix', target, 'run', script],
+    ['pnpm', '--dir', target, 'run', script],
+    ['pnpm', '-C', target, 'run', script],
+    ['yarn', '--cwd', target, script],
+    ['yarn', '--cwd', target, 'run', script],
+  ]);
+
+  const segments = parseShellCommandList(body);
+  return segments.some((segment, index) => {
+    const previousSegment = index === 0 ? undefined : segments[index - 1];
+    if (previousSegment?.operatorAfter === '||' || previousSegment?.operatorAfter === '&&') {
+      return false;
+    }
+
+    const words = commandWords(segment.command);
+    return patterns.some(pattern =>
+      pattern.every((token, tokenIndex) => words[tokenIndex] === token),
+    );
+  });
+}
+
+function rootScriptDelegatesToWorkspace(root: string, directory: string, kind: PlanKind): boolean {
+  const rootScripts = readRootScripts(root);
+  const workspaceScripts = readRootScripts(directory);
+  if (!rootScripts || !workspaceScripts) return false;
+  const rootScript = selectedJsScript(rootScripts, kind);
+  const workspaceScript = selectedJsScript(workspaceScripts, kind);
+  if (!rootScript || !workspaceScript) return false;
+  return scriptDelegatesToWorkspace(
+    rootScripts[rootScript] ?? '',
+    nodePath.relative(root, directory),
+    workspaceScript,
+  );
 }
 
 /** True when an indexed `file` contains `marker`. */
@@ -434,7 +586,11 @@ function resolvePythonTest(
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
   const hasPythonTests =
     findFileMatchingInTree(cwd, isPythonTestFile, 10, nestedProjects) !== undefined;
-  if (pytestConfigured(index) || (hasPythonTests && isAvailable('pytest'))) {
+  const projectManagedPytest = index.has('uv.lock') || index.has('poetry.lock');
+  if (
+    pytestConfigured(index) ||
+    (hasPythonTests && (projectManagedPytest || isAvailable('pytest')))
+  ) {
     const { command, runner } = pythonInvocation(index, 'pytest');
     return entry('python', cwd, command, runner, isAvailable(runner));
   }
@@ -457,7 +613,7 @@ function resolvePython(
   isAvailable: ToolProbe,
   nestedProjects: ReadonlySet<string> = new Set(),
 ): PlanEntry | undefined {
-  if (PYTHON_SKIP_KINDS.has(kind)) return undefined; // build: no standard Python lane
+  if (!PYTHON_PLAN_KINDS.has(kind)) return undefined;
   // typecheck/bdd detect Python via their OWN config markers (mypy/pyright/behave
   // configs are Python-only), so they don't require a packaging manifest — a repo
   // carrying just `mypy.ini` or `behave.ini` still gets its lane, run in the dir the
@@ -488,16 +644,26 @@ function resolvePython(
     // evidence rather than tool availability so a missing scanner stays a
     // visible skip in the rendered plan instead of a false-green no-op.
     if (index.has('uv.lock')) return entry('python', cwd, 'uv audit', 'uv', isAvailable('uv'));
-    if (index.has('requirements.txt'))
+    if (index.has('requirements.txt')) {
+      const invocation = pythonInvocation(index, 'pip-audit', '-r requirements.txt');
       return entry(
         'python',
         cwd,
-        'pip-audit -r requirements.txt',
-        'pip-audit',
-        isAvailable('pip-audit'),
+        invocation.command,
+        invocation.runner,
+        isAvailable(invocation.runner),
       );
-    if (index.has('pyproject.toml'))
-      return entry('python', cwd, 'pip-audit .', 'pip-audit', isAvailable('pip-audit'));
+    }
+    if (index.has('pyproject.toml')) {
+      const invocation = pythonInvocation(index, 'pip-audit', '.');
+      return entry(
+        'python',
+        cwd,
+        invocation.command,
+        invocation.runner,
+        isAvailable(invocation.runner),
+      );
+    }
     // Legacy setup.py/setup.cfg/tox projects have no project-file input that
     // pip-audit understands. Auditing the active environment is the supported
     // fallback and remains visible if the scanner is unavailable.
@@ -517,9 +683,9 @@ function resolveGo(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  // Go skips typecheck/bdd (GO_SKIP_KINDS): the compiler is the type checker and
+  // Go skips typecheck/bdd: the compiler is the type checker and
   // godog runs as `go test` subtests.
-  if (GO_SKIP_KINDS.has(kind)) return undefined;
+  if (!GO_PLAN_KINDS.has(kind)) return undefined;
   if (!index.has('go.mod')) return undefined;
   if (kind === 'deps') {
     const cwd = existsSync(nodePath.join(root, 'go.work')) ? root : (index.get('go.mod') ?? root);
@@ -553,7 +719,7 @@ function resolveRust(
   // bdd folds into the native Rust lane: cucumber-rs runs under `cargo test` (a
   // harness=false test target), so no separate lane. (typecheck IS handled below —
   // clippy is the strict CI-lint gate, #436 — and deps runs cargo-deny.)
-  if (kind === 'bdd') return undefined;
+  if (!RUST_PLAN_KINDS.has(kind)) return undefined;
   if (!index.has('Cargo.toml')) return undefined;
   const cwd = index.get('Cargo.toml') ?? root;
   if (kind === 'deps')
@@ -605,12 +771,20 @@ function resolveSql(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
+  if (!SQL_PLAN_KINDS.has(kind)) return undefined;
   if (SQL_PROJECT_MARKERS.every(marker => !index.has(marker))) return undefined;
   if (kind === 'build' && index.has('dbt_project.yml')) {
     return entry('sql', root, 'dbt build', 'dbt', isAvailable('dbt'));
   }
   if (kind === 'test' || kind === 'verify') {
-    return entry('sql', root, 'sqlfluff lint .', 'sqlfluff', isAvailable('sqlfluff'));
+    if (index.has('.sqlfluff')) {
+      return entry('sql', root, 'sqlfluff lint .', 'sqlfluff', isAvailable('sqlfluff'));
+    }
+    if (index.has('dbt_project.yml')) {
+      const command = kind === 'verify' ? 'dbt build' : 'dbt test';
+      return entry('sql', root, command, 'dbt', isAvailable('dbt'));
+    }
+    return entry('sql', root, 'sqlc compile', 'sqlc', isAvailable('sqlc'));
   }
   return undefined;
 }
@@ -623,24 +797,30 @@ export function resolveTestPlan(root: string, options: ResolveOptions = {}): Pla
   const kind = options.kind ?? 'test';
   const isAvailable = options.isToolAvailable ?? defaultIsToolAvailable;
   const installedPacks = readInstalledPacks(root);
-  const globalIndex = indexFilesInTree(root, TREE_MANIFESTS);
   const declaredJavascriptPatterns = getWorkspacePatterns(root);
-  const javascript = javascriptProjectDirectories(root).map(directory =>
-    resolveJs(
-      directory,
-      directManifestIndex(directory),
-      kind,
-      isAvailable,
-      directory !== root &&
-        declaredJavascriptPatterns.some(
-          pattern =>
-            !pattern.startsWith('!') &&
-            matchesWorkspacePattern(nodePath.relative(root, directory), pattern),
-        )
-        ? root
-        : directory,
-    ),
-  );
+  const isDeclaredJavascriptWorkspace = (directory: string): boolean =>
+    directory !== root &&
+    declaredJavascriptPatterns.some(
+      pattern =>
+        !pattern.startsWith('!') &&
+        matchesWorkspacePattern(nodePath.relative(root, directory), pattern),
+    );
+  const javascript = javascriptProjectDirectories(root)
+    .filter(
+      directory =>
+        directory === root ||
+        (kind === 'deps'
+          ? !isDeclaredJavascriptWorkspace(directory)
+          : !rootScriptDelegatesToWorkspace(root, directory, kind)),
+    )
+    .map(directory =>
+      resolveJs(
+        directory,
+        kind,
+        isAvailable,
+        isDeclaredJavascriptWorkspace(directory) ? root : directory,
+      ),
+    );
   const pythonDirectories = directoriesWithAnyManifest(root, pythonProjectMarkers(kind));
   const python = pythonDirectories.map(directory =>
     resolvePython(
@@ -656,15 +836,22 @@ export function resolveTestPlan(root: string, options: ResolveOptions = {}): Pla
       ),
     ),
   );
-  const go = existsSync(nodePath.join(root, 'go.work'))
-    ? [resolveGo(root, globalIndex, kind, isAvailable)]
+  const hasGoWorkspace = existsSync(nodePath.join(root, 'go.work'));
+  const go = hasGoWorkspace
+    ? [resolveGo(root, indexFilesInTree(root, TREE_MANIFESTS), kind, isAvailable)]
     : findAllInTree(root, 'go.mod').map(directory =>
         resolveGo(directory, directManifestIndex(directory), kind, isAvailable),
       );
   const cargoDirectories = findAllInTree(root, 'Cargo.toml');
-  const cargoWorkspaceDirectories = cargoDirectories.filter(directory =>
-    readFileSync(nodePath.join(directory, 'Cargo.toml'), 'utf8').includes('[workspace]'),
-  );
+  const cargoWorkspaceDirectories = cargoDirectories.filter(directory => {
+    try {
+      return readFileSync(nodePath.join(directory, 'Cargo.toml'), 'utf8')
+        .split(/\r?\n/u)
+        .some(line => line.split('#', 1)[0]?.trim() === '[workspace]');
+    } catch {
+      return false;
+    }
+  });
   const rustDirectories = cargoDirectories.filter(directory =>
     cargoWorkspaceDirectories.every(
       workspace => workspace === directory || !cargoWorkspaceOwns(workspace, directory),

@@ -80,7 +80,7 @@ const MAX_EVIDENCE_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 export const MIN_DRAIN_ACCEPTED_COUNT = 2;
 const MIN_DRAIN_BACKLOG_SIZE = 300;
 const MIN_RELAY_LATENCY_MS = 80;
-const MAX_DRAIN_DURATION_MS = 1000;
+export const MAX_DRAIN_DURATION_MS = 1000;
 
 function validDate(value: string): Date | undefined {
   const date = new Date(value);
