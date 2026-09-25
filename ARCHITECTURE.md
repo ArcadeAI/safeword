@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.23
-**Last Updated:** 2026-09-10
+**Version:** 1.24
+**Last Updated:** 2026-09-18
 **Status:** Production
 
 ---
@@ -981,6 +981,9 @@ convergence path.
 **Status:** Accepted
 **Date:** 2026-08-02
 **Supersedes:** [Generated Native Claude Plugin with Live Proof and Project Contraction](#generated-native-claude-plugin-with-live-proof-and-project-contraction)
+**Superseded in part:** The prohibition on project-local transient proof and its
+retired ignore/untrack carve-out are narrowly superseded by the local delivery
+extension to [Deterministic Readiness Evidence Status](#deterministic-readiness-evidence-status).
 
 | Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -1050,6 +1053,47 @@ convergence path.
 | Alternatives   | Relocate the job to its own workflow to satisfy the original clause: rejected because branch protection matches required checks by context-name string, not by workflow file, so relocation leaves the capability identical and would have been compliance in appearance only. Fold the verdict into the existing comment receipt: rejected because a comment cannot be required even by an owner who wants the signal to bind. A local PreToolUse hook blocking `gh pr ready`: rejected because it covers only the CLI path, misses the GitHub UI button entirely, and would block on text it cannot validate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Reassess when  | GitHub gives the draft-to-ready transition its own gateable rule; a mechanism appears that can verify an attestation rather than its freshness; or demand appears for the status in repositories that do not run the advisory reviewer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Implementation | Ticket `522E5Z`; `packages/cli/src/pr-review/readiness.ts` (pure evaluator), `packages/cli/src/commands/review-pr-readiness.ts`, the `review-pr readiness` protocol entry, the `readiness` job in `templates/workflows/pr-review.yml`, and `packages/cli/tests/pr-review/readiness.test.ts` including a mutation-verified success-path publication test.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+
+#### Local delivery completion extension
+
+**Status:** Accepted
+**Date:** 2026-09-18
+**Ticket:** `PY73VN`
+
+- **What:** Before a supported local agent runs `gh pr ready` or a
+  ready-by-default `gh pr create` (including its documented `gh pr new` alias),
+  its blockable shell boundary revalidates the
+  resolved ticket and verification artifact. A successful verified closure
+  writes one ignored, worktree-local `readiness-ticket.json` receipt bound to the
+  full current HEAD. Active ticket state takes precedence over recent completed
+  session state, which takes precedence over the durable receipt. Draft creation
+  remains available for CI and review evidence. Claude Code, OpenAI Codex, and
+  Cursor use the same evaluator through native adapters.
+- **Why:** The remote status above can prove that PR-body evidence is current,
+  but it cannot prevent a local agent from requesting review before delivery is
+  complete. Ticket status, `verify.md`, and local HEAD are readable at the
+  irreversible command boundary, so this narrower invariant can be enforced
+  deterministically without trusting model compliance.
+- **Trade-off:** The receipt deliberately restores one schema-owned transient
+  file inside the project namespace. It survives agent sessions in one worktree
+  but not another clone or worktree, and any later commit invalidates it until
+  verification runs again. Shell wrappers that hide `gh` in nested command
+  text, the web UI, `gh api`, direct REST/GraphQL, and cloud-agent mutations
+  remain outside this local boundary. The remote freshness observer remains
+  separate and unchanged.
+- **Alternatives considered:** Guidance alone was rejected because it is
+  bypassable. Blocking every PR command was rejected because Draft evidence is
+  part of delivery. Profile-global state was rejected because it crosses
+  worktree identity. Reusing the remote PR-body status was rejected because it
+  observes a different trust boundary and cannot validate local ticket closure.
+- **Implementation:** `packages/cli/templates/hooks/lib/pr-readiness-guard.ts`,
+  `packages/cli/templates/hooks/pre-tool-quality.ts`,
+  `packages/cli/templates/hooks/post-tool-quality.ts`, generated host adapters,
+  schema registration, and the `pr-readiness-*` plus
+  `delivery-continuation-contract` tests.
+- **Reassess when:** GitHub adds another first-class Ready mutation, a supported
+  host loses its blockable local shell boundary, or readiness must transfer
+  across worktrees or machines.
 
 ### Transactional Claude Marketplace Ref Replacement
 
