@@ -168,6 +168,10 @@ export interface ReviewPacket {
     readonly path: string;
     readonly content: string;
   }[];
+  /** Trusted definition the Execution Plan reviewer must copy exactly. */
+  readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;
+  /** Digest of the plan with ordinary checklist progress normalized out. */
+  readonly execution_plan_normalized_digest?: string;
   /** Trusted process evidence, present only for executable RED review. */
   readonly execution_attestation?: RedExecutionAttestation;
 }
