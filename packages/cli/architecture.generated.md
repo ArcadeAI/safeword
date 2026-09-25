@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e
+fingerprint: b0d812365fe70b1317ced7d3eb216a3c67f6d1a467053eac66370478efc3537d
 ---
 
 # Architecture
@@ -15,6 +15,8 @@ fingerprint: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e
 
 Evaluates architectural boundary evidence and dependency-policy compliance.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### claude-plugin
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -22,6 +24,8 @@ Evaluates architectural boundary evidence and dependency-policy compliance.
 `src/claude-plugin`
 
 Owns native Claude plugin delivery, exact execution proof, historical ownership classification, and non-blocking transactional legacy contraction.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### cli
 
@@ -31,6 +35,8 @@ Owns native Claude plugin delivery, exact execution proof, historical ownership 
 
 Composes the executable and registers public, compatibility, and hidden hook commands.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### cli-protocol
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -38,6 +44,8 @@ Composes the executable and registers public, compatibility, and hidden hook com
 `src/cli-protocol`
 
 Defines the typed command catalogue, effect policy, plans, results, rendering, and execution adapters.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### codex-plugin
 
@@ -47,6 +55,8 @@ Defines the typed command catalogue, effect policy, plans, results, rendering, a
 
 Owns Codex profile-plugin installation, proof, legacy authority, migration, finalization, and recovery.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### commands
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -55,6 +65,8 @@ Owns Codex profile-plugin installation, proof, legacy authority, migration, fina
 
 Implements domain handlers for removal, project workflows, tickets, Codex, and retrospectives; the install/status/doctor lifecycle lives in `src/lifecycle`.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### cursor-wrappers
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -62,6 +74,16 @@ Implements domain handlers for removal, project workflows, tickets, Codex, and r
 `src/cursor-wrappers.ts`
 
 Generates thin Cursor command and rule wrappers from canonical workflow templates.
+
+> ⚠ stale: structure changed since this section was reconciled.
+
+### execution-plan
+
+<!-- reconciled: b0d812365fe70b1317ced7d3eb216a3c67f6d1a467053eac66370478efc3537d -->
+
+`src/execution-plan`
+
+No description yet — awaiting prose.
 
 ### health
 
@@ -73,6 +95,8 @@ Generates thin Cursor command and rule wrappers from canonical workflow template
 
 Config-health verification core (ticket 3293WH).
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### index
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -80,6 +104,8 @@ Config-health verification core (ticket 3293WH).
 `src/index.ts`
 
 Exposes the stable library API for version, detection, reconciliation, and ESLint consumers.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### learning-sync
 
@@ -91,6 +117,8 @@ Exposes the stable library API for version, detection, reconciliation, and ESLin
 
 Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md` files in that folder so agents can navigate learnings via a Karpathy-style LLM Wiki index (plain markdown + grep)…
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### lifecycle
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -99,6 +127,8 @@ Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md
 
 Orchestrates the unified install, plan, status, doctor, and uninstall lifecycle across the project and its selected agent integrations.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### opencode
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -106,6 +136,8 @@ Orchestrates the unified install, plan, status, doctor, and uninstall lifecycle 
 `src/opencode`
 
 Owns OpenCode profile discovery, bounded evidence records, and collision-safe reconciliation.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### owned-paths
 
@@ -117,6 +149,8 @@ Owns OpenCode profile discovery, bounded evidence records, and collision-safe re
 
 Derive the set of top-level path prefixes that safeword may write to, sourced from SAFEWORD_SCHEMA at build time.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### packs
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -124,6 +158,8 @@ Derive the set of top-level path prefixes that safeword may write to, sourced fr
 `src/packs`
 
 Detects supported languages and supplies their files, packages, and setup behavior.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### parity
 
@@ -133,6 +169,8 @@ Detects supported languages and supplies their files, packages, and setup behavi
 
 Checks canonical templates, dogfood mirrors, generated catalogues, and one-way content contracts for drift.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### plugin-bundle
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -141,6 +179,8 @@ Checks canonical templates, dogfood mirrors, generated catalogues, and one-way c
 
 Normalizes generated plugin JavaScript so machine-specific Bun install paths do not change bundle
 bytes or integrity hashes.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### plugin-runtime-authority
 
@@ -152,6 +192,8 @@ bytes or integrity hashes.
 
 Enforces packaged-runtime authority for native plugin workflow assets.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### pr-review
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -160,6 +202,8 @@ Enforces packaged-runtime authority for native plugin workflow assets.
 
 Reviews pull-request evidence, applies conservative routing, and separates model inspection from merge-neutral GitHub publication.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### presets
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -167,6 +211,8 @@ Reviews pull-request evidence, applies conservative routing, and separates model
 `src/presets`
 
 Publishes conditional JavaScript and TypeScript ESLint presets through the package export.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### project-runtime-helpers
 
@@ -178,6 +224,8 @@ Publishes conditional JavaScript and TypeScript ESLint presets through the packa
 
 Dependency-free inventory of helpers the packaged project runtime may execute.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### project-state
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -187,6 +235,8 @@ Dependency-free inventory of helpers the packaged project runtime may execute.
 <!-- seeded-purpose: 4465ec9ae17dbbf1256d87b2df1b8a6dfd5a9f7b4e2152babdf8f58cdb8146c3 -->
 
 Exposes lazy transient-state ignore management to the packaged CLI runtime.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### reconcile
 
@@ -198,6 +248,8 @@ Exposes lazy transient-state ignore management to the packaged CLI runtime.
 
 Reconciliation Engine
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### retro
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -206,6 +258,8 @@ Reconciliation Engine
 
 Sanitizes, deduplicates, triages, reconciles, and files retrospective findings.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### review
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -213,6 +267,8 @@ Sanitizes, deduplicates, triages, reconciles, and files retrospective findings.
 `src/review`
 
 Coordinates independent adversarial reviews across Claude and Codex, including runtime discovery, neutral packet construction, policy enforcement, fallback handling, and provenance.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### schema
 
@@ -224,6 +280,8 @@ Coordinates independent adversarial reviews across Claude and Codex, including r
 
 SAFEWORD Schema - Single Source of Truth
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### self-report-capture
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -234,6 +292,8 @@ SAFEWORD Schema - Single Source of Truth
 
 CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### skills
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -242,6 +302,8 @@ CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
 
 Installs optional third-party language coding skills without owning Safeword workflow skills.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### templates
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -249,6 +311,8 @@ Installs optional third-party language coding skills without owning Safeword wor
 `src/templates`
 
 Builds dynamic configuration and legacy-cleanup content consumed by reconciliation.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### test-execution
 
@@ -260,6 +324,8 @@ Builds dynamic configuration and legacy-cleanup content consumed by reconciliati
 
 Resolves Safeword's local versus remote-preferred test-execution choice, including private worktree configuration and its fail-closed validation.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### test-plan
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -267,6 +333,8 @@ Resolves Safeword's local versus remote-preferred test-execution choice, includi
 `src/test-plan`
 
 Resolves and renders the canonical test, build, typecheck, BDD, and dependency plan for a project.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### ticket-create
 
@@ -278,6 +346,8 @@ Resolves and renders the canonical test, build, typecheck, BDD, and dependency p
 
 Route `ticket new` between the local-id path and issue-first creation (KKNFZA TB1). provider:none → the local minter (today's behavior, no tracker client built).
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### ticket-sync
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -287,6 +357,8 @@ Route `ticket new` between the local-id path and issue-first creation (KKNFZA TB
 <!-- seeded-purpose: 5fdae57e79b128bcbf454f6c3fe43a4055247db3add218f54aa2008dc911d08c -->
 
 Ticket sync — generates capability-discovery indexes over the ticket corpus: `<namespace-root>/tickets/INDEX.md` (active tickets, grouped by epic) and `INDEX-completed.md` (the `completed/` archive).
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### tracker-connect
 
@@ -298,6 +370,8 @@ Ticket sync — generates capability-discovery indexes over the ticket corpus: `
 
 The connect orchestration (2TK5AD) — the single flow `setup` and `connect` both run.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### tracker-sync
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -308,6 +382,8 @@ The connect orchestration (2TK5AD) — the single flow `setup` and `connect` bot
 
 The sync-tracker orchestrator — the single call site that projects the ticket corpus one-way into the configured tracker (JS5K5G).
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### upstream-monitor
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -315,6 +391,8 @@ The sync-tracker orchestrator — the single call site that projects the ticket 
 `src/upstream-monitor`
 
 Tracks upstream Claude Code, Codex CLI, and Cursor release signals for compatibility review.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### utils
 
@@ -324,6 +402,8 @@ Tracks upstream Claude Code, Codex CLI, and Cursor release signals for compatibi
 
 Provides shared architecture, manifest, filesystem, Git, path, detection, Gherkin, and ticket primitives.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### version
 
 <!-- reconciled: a97ee766ef9e4f188f5393c3425b709efcc920df410cb2a6b35a06a0b836f34e -->
@@ -331,3 +411,5 @@ Provides shared architecture, manifest, filesystem, Git, path, detection, Gherki
 `src/version.ts`
 
 Reads the Safeword release version from package metadata.
+
+> ⚠ stale: structure changed since this section was reconciled.
