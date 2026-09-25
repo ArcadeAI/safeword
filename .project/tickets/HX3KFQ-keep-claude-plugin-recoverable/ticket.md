@@ -2,11 +2,11 @@
 id: HX3KFQ
 slug: keep-claude-plugin-recoverable
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/4519
 created: 2026-09-13T04:03:46.412Z
-last_modified: 2026-09-13T23:31:10Z
+last_modified: 2026-09-25T00:41:50Z
 ---
 
 # Keep the Claude plugin installable and recoverable
@@ -129,3 +129,10 @@ anywhere in a script (an echoed example could falsely suppress a real test lane)
   and dependency audits. Independent quality review and remote GitHub verification were attempted
   but blocked by outbound/push policy; a current-primary-source local review found no remaining
   error-level issue.
+- 2026-09-25T00:41:50Z Independently reviewed and remotely verified: external review
+  `588086e6-60b4-4fb1-9fa6-78fb1201a0d8` approved the final change with no error-level findings.
+  GitHub Actions run `36076647867` passed against exact revision
+  `19f5b93c8e9a4171226cdbfecc29e49289e2abd9`: 10,011 CLI tests, 199 relay tests, and 153 collector
+  tests passed, together with build and repository-health checks. Marked the ticket done; the only
+  retained limitations are historical BDD-discovery and RED-first provenance that cannot be
+  reconstructed after implementation.

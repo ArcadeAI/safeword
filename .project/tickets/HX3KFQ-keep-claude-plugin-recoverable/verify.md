@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✅ Final current-head run: 10,002 passed and 14 skipped across CLI, retro-relay, and retro-collector (CLI: 9,651 passed/13 skipped; relay: 198 passed/1 skipped; collector: 153 passed)
+**Test Suite:** ✅ Final exact-revision GitHub run: CLI 10,011 passed/47 skipped; retro-relay 199 passed; retro-collector 153 passed. Final local focused runs: dispatcher/resolver 163/163, relay 144/144, and release 77/77.
 **Gherkin:** ✅ Dedicated BDD lane: 595/595 scenarios and 11,100/11,100 steps passed; proof tags: 45/45
 **Build:** ✅ CLI, retro packages, and website build successfully
 **Lint:** ✅ ESLint, Prettier, Gherkin lint, and TypeScript checks pass
@@ -14,7 +14,7 @@
 **Reconcile:** ✅ Generated Claude and Codex payload checks pass
 **Experience:** ⏭️ N/A — internal plugin packaging and recovery plumbing
 **Surface Evidence:** ✅ Both bundled CLIs execute real commands; damaged-cache behavior is proven for prompt, PreToolUse, SessionStart, PostToolUse, and Stop paths
-**Evidence limits:** ⚠️ The final independent quality-review dispatch was rejected by the environment's outbound-data policy, so the post-refactor source-backed pass is not independent coverage. Remote GitHub verification was also unavailable because publishing the unpushed branch was not authorized. Historical BDD discovery and RED-first provenance remain unrecoverable. The exact final verifier encountered another worktree's package-test lock only for its standalone proof-tag invocation; that same test had passed in the full suite and its dedicated retry passed 45/45 after the lock cleared. Retro-relay's socket tests require local port/process-lock permissions; their unrestricted run passed 198 tests with 1 skip.
+**Evidence limits:** ⚠️ Historical BDD discovery and RED-first provenance remain unrecoverable. The final independent review and exact-revision GitHub run now cover the completed implementation, but they cannot retroactively prove that the original work began behavior-first or test-first.
 
 ## BDD and TDD Quality Assessment
 
@@ -28,34 +28,36 @@ The review checked the current Claude hook contract and plugin packaging constra
 
 The first terminal pass found one proof gap: non-prompt damaged-cache lifecycle behavior was changed but not directly tested. Added SessionStart, PostToolUse, and Stop cases and reran the focused and full CLI suites.
 
-The follow-up coordinator again exhausted all independent routes. Its permitted fresh-context
-same-agent fallback requested changes for two release-relevant proof gaps: plugin tests still lived
-under the source checkout, and delegation tokens could match inside another command's arguments.
-Both were corrected. The executable resource proof now copies bundles to an unrelated temporary
-root, and command matching requires a shell command boundary; a deceptive `echo bun run ...` case
-pins the latter. Focused and release verification pass after both fixes. This supplemental feedback
-is not independent review evidence, and the fallback was not rerun after the corrections.
+Early review attempts exhausted or were blocked by available routes. Their actionable findings were
+implemented: executable plugin tests now run outside the source checkout, delegated commands match
+only at shell boundaries, and lifecycle recovery has direct no-execution coverage.
 
-> Supplemental feedback came from a fresh context of the same agent. It used
-> live worktree content; source integrity was not revalidated. Host-mandated
-> project context may have loaded; this is not packet-only isolation.
+The final external independent review (`588086e6-60b4-4fb1-9fa6-78fb1201a0d8`) reviewed the complete
+change and returned **APPROVE** with no error-level findings. It specifically confirmed that the
+validator remains fail-closed and that the relay test correction separates machine timing from the
+schema proof without weakening production behavior. Its remaining warnings concern pre-existing,
+ticket-external relay diagnostics and readiness policy, so they are recorded but do not block this
+delivery.
 
-- Coordinator: `REVIEW_ROUTES_EXHAUSTED`
-- Assurance: fresh-context, live-worktree same-agent supplemental review
-- Independence: `none`
-- Policy: `prefer`
-- State: independent routes exhausted; requested changes implemented and objectively verified
-- Verdict: no post-fix independent verdict available
-- Findings: both supplemental findings fixed; no unresolved known finding
+The source-backed review used the current official Claude hook contract. For `PreToolUse`, the
+permission precedence is deny, defer, ask, then allow; the degraded response therefore uses an
+explicit `ask` and never executes an unverified hook. The plugin cache boundary likewise requires
+the standalone payload to contain every runtime resource it consumes.
 
-The final post-refactor coordinator dispatch was blocked before execution by the environment's
-outbound-data policy. A local review therefore checked the final implementation against current
-primary sources but cannot be represented as an independent verdict. Claude's current plugin
-reference confirms that marketplace plugins are copied into a versioned cache and cannot reference
-files outside their plugin directory. Claude's current hook reference confirms that an exit-0
-`PreToolUse` response may return `hookSpecificOutput.permissionDecision: "ask"`; Bun's current
-runtime reference confirms `--cwd` changes the process working directory. No new error-level issue
-was found in that local pass.
+## Hosted Verification
+
+- Workflow run: <https://github.com/ArcadeAI/safeword/actions/runs/36076647867>
+- Exact source revision: `19f5b93c8e9a4171226cdbfecc29e49289e2abd9`
+- Result: passed
+- CLI: 588 files passed; 10,011 tests passed and 47 skipped
+- Retro relay: 9 files and 199 tests passed
+- Retro collector: 4 files and 153 tests passed
+- Build, generated declarations, repository health, and result publication: passed
+
+The preceding hosted attempt exposed a scheduler-sensitive assertion in the relay measurement test.
+The production threshold was not changed. The test now preserves the real duration for a generous
+contention bound and normalizes only that timing field when proving producer-to-validator schema
+wiring. The corrected exact revision passed remotely.
 
 ## Audit Detail
 
