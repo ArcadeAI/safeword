@@ -9,9 +9,9 @@
     "codex-check": "d46da3030e2e935c9cca9b4466ea955b3aa0ad2f253d292cbbecfa59d673ce1d",
     "codex-upgrade": "345215295fc06225e8eb1a600e7129708d463736d079e125781dcb956d238a31",
     "codex-uninstall": "324e6790338fc0633848d8e6c5dc6e55d0d7c38cbf3fbe9cafaf18a154aa734b",
-    "cursor-install": "b8e19f9dc7bc384ded2fa12bb40018d86108ab05ed7fdca00aebd514216fa10c",
-    "cursor-check": "07fff446646e2e463bfc7fbcb8ca7e7502d93713334b1fd51696a928d1d7aea3",
-    "cursor-upgrade": "9efe8f09d2039e93024d834d00fd759a33a3a62726d16180dd0d32185a7f6db8",
+    "cursor-install": "4edfa7e1c6e6b6ea1c4fe75d406390e059a68af36d1057d7eb2f954dbb40be30",
+    "cursor-check": "f14638b9ecb07296f1d69475aadd0f466fbc4e409381433bb79d754ebb65a0b7",
+    "cursor-upgrade": "106a40597d9f03e6a2ba052b5451ee65c47823dbc93e8b36138635c79476e95a",
     "cursor-uninstall": "22b10964948ad84512314b3d6f77308dd0b99cbf2c4d6f57863d325a5e22fcc5"
   }
 }

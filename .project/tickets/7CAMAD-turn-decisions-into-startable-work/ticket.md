@@ -79,6 +79,14 @@ typed gate response.
 
 ## Work Log
 
+- 2026-09-25T00:24:00.000Z With user approval, refreshed the three
+  Cursor lifecycle tree snapshots after confirming the new
+  `bdd-plan-execution.mdc` wrapper is intentional and follows the existing
+  plan-implementation rule. Only those tree hashes and their manifest hashes
+  changed; all result hashes and other host fixtures stayed fixed. The focused
+  lifecycle contract passed 13/13 in normal mode. Broader acceptance and
+  full-suite timeout failures remain unresolved.
+
 - 2026-09-24T23:15:00.000Z Closing verification remains red: full local CLI suites produced 9 and 16 failures under heavy load, while current-head CI reproduced only the three changed Cursor tree snapshots. The repository-wide acceptance lane showed failures and was stopped after nearly an hour; no completed Gherkin or child-closeout claim is made. Recorded exact limits and next checks in verify.md; ticket remains in verify.
 
 - 2026-09-20T19:43:43.000Z Retained live evidence — R13 slice ownership:
