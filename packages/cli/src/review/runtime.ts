@@ -20,10 +20,12 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-categories.js';
 import { warn } from '../utils/output.js';
 import type {
   ReviewAgent,
   ReviewFailure,
+  ReviewKind,
   ReviewPacket,
   UnverifiedReviewerOutput,
 } from './contract.js';
@@ -66,6 +68,201 @@ const REVIEW_OUTPUT_SCHEMA_SHAPE = {
 } as const;
 
 const REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
+const JSON_NULL = JSON.parse('null') as null;
+const EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    proof_id: { type: 'string' },
+    method: { type: 'string', enum: ['command', 'review_receipt'] },
+    scope: { type: 'string', enum: ['unit', 'integration', 'E2E', 'eval'] },
+    boundary_exercised: { type: 'string' },
+    qualifies_as: { type: 'string', enum: ['real_boundary', 'partial_or_structural'] },
+    currency: {
+      type: 'string',
+      enum: ['current_required', 'compatible_earlier_allowed'],
+    },
+    invocation: {
+      oneOf: [
+        {
+          type: 'object',
+          properties: {
+            type: { type: 'string', enum: ['command'] },
+            cwd: { type: 'string' },
+            argv: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['type', 'cwd', 'argv'],
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          properties: {
+            type: { type: 'string', enum: ['review_receipt'] },
+            kind: { type: 'string' },
+            targets: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['type', 'kind', 'targets'],
+          additionalProperties: false,
+        },
+      ],
+    },
+  },
+  required: [
+    'proof_id',
+    'method',
+    'scope',
+    'boundary_exercised',
+    'qualifies_as',
+    'currency',
+    'invocation',
+  ],
+  additionalProperties: false,
+} as const;
+
+const EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    category: { type: 'string', enum: DELIVERY_CHECKLIST_CATEGORIES },
+    obligation: { type: 'string' },
+    owner: { type: 'string', enum: ['contributor', 'human'] },
+    required_proof: { type: 'string' },
+    reviewed_disposition: {
+      type: ['string', 'null'],
+      enum: ['not_applicable', 'pending_human', JSON_NULL],
+    },
+    reviewed_detail: { type: ['string', 'null'] },
+  },
+  required: [
+    'id',
+    'category',
+    'obligation',
+    'owner',
+    'required_proof',
+    'reviewed_disposition',
+    'reviewed_detail',
+  ],
+  additionalProperties: false,
+} as const;
+
+const EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA = {
+  type: 'object',
+  properties: {
+    schema_version: { type: 'integer', enum: [1] },
+    design_approval_gate: { type: 'boolean' },
+    proof_specifications: {
+      type: 'array',
+      items: EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA,
+    },
+    checklist_items: { type: 'array', items: EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA },
+  },
+  required: ['schema_version', 'design_approval_gate', 'proof_specifications', 'checklist_items'],
+  additionalProperties: false,
+} as const;
+
+const EXECUTION_PLAN_RECORD_SCHEMA = {
+  anyOf: [
+    { type: 'null' },
+    {
+      type: 'object',
+      properties: {
+        slicing_decision: {
+          type: 'string',
+          enum: ['one_pull_request', 'multiple_pull_requests'],
+        },
+        rationale: { type: 'string' },
+        slices: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              purpose: { type: 'string' },
+              boundary: { type: 'string' },
+              prerequisites: { type: 'array', items: { type: 'string' } },
+              proof: { type: 'string' },
+              completion_signal: { type: 'string' },
+              relies_on_unmerged_successor: { type: 'boolean' },
+            },
+            required: [
+              'name',
+              'purpose',
+              'boundary',
+              'prerequisites',
+              'proof',
+              'completion_signal',
+              'relies_on_unmerged_successor',
+            ],
+            additionalProperties: false,
+          },
+        },
+        obligation_owners: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              obligation: { type: 'string' },
+              slices: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['obligation', 'slices'],
+            additionalProperties: false,
+          },
+        },
+        decision_statuses: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              decision: { type: 'string' },
+              status: { type: 'string', enum: ['unchanged'] },
+            },
+            required: ['decision', 'status'],
+            additionalProperties: false,
+          },
+        },
+        accepted_scenarios_covered: { type: 'boolean', enum: [true] },
+        accepted_approach_preserved: { type: 'boolean', enum: [true] },
+        normalized_plan_digest: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+        delivery_definition: EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA,
+      },
+      required: [
+        'slicing_decision',
+        'rationale',
+        'slices',
+        'obligation_owners',
+        'decision_statuses',
+        'accepted_scenarios_covered',
+        'accepted_approach_preserved',
+        'normalized_plan_digest',
+        'delivery_definition',
+      ],
+      additionalProperties: false,
+    },
+  ],
+} as const;
+
+const EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
+  ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+  properties: {
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+    planning_destination: {
+      type: 'string',
+      enum: ['plan-execution', 'plan-implementation'],
+    },
+    execution_plan_record: EXECUTION_PLAN_RECORD_SCHEMA,
+  },
+  required: [
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE.required,
+    'planning_destination',
+    'execution_plan_record',
+  ],
+} as const;
+
+/** Select the provider contract without changing any existing review-kind bytes. */
+export function reviewOutputSchema(kind: ReviewKind): string {
+  return kind === 'plan-execution'
+    ? JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE)
+    : REVIEW_OUTPUT_SCHEMA;
+}
 const CLAUDE_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
 /**
@@ -119,6 +316,28 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   opencode: ['run', '--format', 'json', '--pure'],
 };
 
+function baseReviewerArguments(reviewer: ReviewAgent, kind: ReviewKind): string[] {
+  const base = [...ARGUMENTS[reviewer]];
+  if (reviewer !== 'claude') return base;
+  const schemaIndex = base.indexOf('--json-schema') + 1;
+  base[schemaIndex] = reviewOutputSchema(kind);
+  return base;
+}
+
+function reviewerExtraArguments(
+  reviewer: ReviewAgent,
+  model: string | undefined,
+  schemaPath: string | undefined,
+  environment: Readonly<Record<string, string | undefined>>,
+): string[] {
+  const extra: string[] = [];
+  if (model !== undefined) extra.push('--model', model);
+  const effort = reviewer === 'claude' ? configuredClaudeEffort(environment) : undefined;
+  if (effort !== undefined) extra.push('--effort', effort);
+  if (reviewer === 'codex' && schemaPath !== undefined) extra.push('--output-schema', schemaPath);
+  return extra;
+}
+
 /**
  * Codex reads its prompt from stdin via a trailing `-`, so a model flag has to
  * land before it. Claude takes the prompt on stdin with no positional marker,
@@ -129,15 +348,10 @@ export function reviewerArguments(
   model: string | undefined,
   schemaPath: string | undefined,
   environment: Readonly<Record<string, string | undefined>> = process.env,
+  kind: ReviewKind = 'quality-review',
 ): string[] {
-  const base = [...ARGUMENTS[reviewer]];
-  const extra: string[] = [];
-  if (model !== undefined) extra.push('--model', model);
-  if (reviewer === 'claude') {
-    const effort = configuredClaudeEffort(environment);
-    if (effort !== undefined) extra.push('--effort', effort);
-  }
-  if (reviewer === 'codex' && schemaPath !== undefined) extra.push('--output-schema', schemaPath);
+  const base = baseReviewerArguments(reviewer, kind);
+  const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
   if (extra.length === 0) return base;
   if (reviewer !== 'codex') return [...base, ...extra];
   const stdinMarker = base.length - 1;
@@ -380,9 +594,8 @@ function reviewerVerdictMatchesFindings(verdict: unknown, findings: readonly unk
   );
 }
 
-function hasValidReviewerOutputBody(value: unknown): boolean {
-  if (!isRecord(value)) return false;
-  const allowedOutputKeys = new Set([
+function reviewerOutputKeys(kind: ReviewKind): Set<string> {
+  const keys = new Set([
     'schema_version',
     'dispatch_id',
     'reviewer_agent',
@@ -390,12 +603,32 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
     'summary',
     'findings',
   ]);
+  if (kind === 'plan-execution') {
+    keys.add('planning_destination');
+    keys.add('execution_plan_record');
+  }
+  return keys;
+}
+
+function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewKind): boolean {
+  return (
+    kind !== 'plan-execution' ||
+    ((value.planning_destination === 'plan-execution' ||
+      value.planning_destination === 'plan-implementation') &&
+      Object.hasOwn(value, 'execution_plan_record'))
+  );
+}
+
+function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): boolean {
+  if (!isRecord(value)) return false;
+  const allowedOutputKeys = reviewerOutputKeys(kind);
   if (
     Object.keys(value).some(key => !allowedOutputKeys.has(key)) ||
     value.schema_version !== 1 ||
     (value.verdict !== 'approve' && value.verdict !== 'request_changes') ||
     typeof value.summary !== 'string' ||
-    !Array.isArray(value.findings)
+    !Array.isArray(value.findings) ||
+    !hasKindSpecificOutput(value, kind)
   ) {
     return false;
   }
@@ -421,12 +654,13 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
 export function parseReviewerOutput(
   reviewer: ReviewAgent,
   stdout: string,
+  kind: ReviewKind = 'quality-review',
 ): UnverifiedReviewerOutput {
   let output: unknown;
   if (reviewer === 'claude') output = parseClaudeOutput(stdout);
   else if (reviewer === 'codex') output = parseCodexOutput(stdout);
   else output = parseOpenCodeOutput(stdout);
-  if (!hasValidReviewerOutputBody(output)) throw new Error('invalid reviewer output');
+  if (!hasValidReviewerOutputBody(output, kind)) throw new Error('invalid reviewer output');
   // Identity fields cross a separate trust boundary in coordinator.ts, which
   // reports missing and contradictory provenance as distinct public failures.
   return output as UnverifiedReviewerOutput;
@@ -1174,13 +1408,17 @@ async function runCandidate(
   timeoutMs: number,
 ): Promise<UnverifiedReviewerOutput> {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
-  const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath), {
-    cwd,
-    env: reviewerEnvironment(reviewer),
-    stdio: ['pipe', 'pipe', 'pipe'],
-    // Its own process group, so cleanup can reach descendants.
-    detached: process.platform !== 'win32',
-  });
+  const child = spawn(
+    executable,
+    reviewerArguments(reviewer, model, schemaPath, process.env, packet.kind),
+    {
+      cwd,
+      env: reviewerEnvironment(reviewer),
+      stdio: ['pipe', 'pipe', 'pipe'],
+      // Its own process group, so cleanup can reach descendants.
+      detached: process.platform !== 'win32',
+    },
+  );
   const terminateReviewer = (): void => {
     void stopReviewer(child).finally(() => process.exit(143));
   };
@@ -1259,7 +1497,7 @@ async function runCandidate(
               return;
             }
             try {
-              resolve(parseReviewerOutput(reviewer, stdout));
+              resolve(parseReviewerOutput(reviewer, stdout, packet.kind));
             } catch {
               reject(
                 new ReviewRuntimeError(
@@ -1362,7 +1600,7 @@ export async function runHeadlessReviewer(
   // temporary path.
   let contract: ContractFile | undefined;
   try {
-    contract = reviewer === 'codex' ? writeContractFile() : undefined;
+    contract = reviewer === 'codex' ? writeContractFile(packet.kind) : undefined;
   } catch {
     throw new ReviewRuntimeError('process_failed', `The ${reviewer} review could not be prepared`);
   }
@@ -1382,10 +1620,10 @@ interface ContractFile {
   readonly cleanup: () => void;
 }
 
-function writeContractFile(): ContractFile {
+function writeContractFile(kind: ReviewKind): ContractFile {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-contract-'));
   const path = nodePath.join(directory, 'review-result.schema.json');
-  writeFileSync(path, REVIEW_OUTPUT_SCHEMA, { mode: 0o600 });
+  writeFileSync(path, reviewOutputSchema(kind), { mode: 0o600 });
   return {
     path,
     cleanup: () => {

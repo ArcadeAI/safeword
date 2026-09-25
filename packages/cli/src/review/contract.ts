@@ -68,6 +68,71 @@ interface ReviewFinding {
   readonly message: string;
 }
 
+export interface ExecutionPlanSlice {
+  readonly name: string;
+  readonly purpose: string;
+  readonly boundary: string;
+  readonly prerequisites: readonly string[];
+  readonly proof: string;
+  readonly completion_signal: string;
+  readonly relies_on_unmerged_successor: boolean;
+}
+
+export interface ExecutionPlanObligationOwner {
+  readonly obligation: string;
+  readonly slices: readonly string[];
+}
+
+export interface ExecutionPlanDecisionStatus {
+  readonly decision: string;
+  readonly status: 'unchanged';
+}
+
+export interface ExecutionPlanProofSpecification {
+  readonly proof_id: string;
+  readonly method: 'command' | 'review_receipt';
+  readonly scope: 'unit' | 'integration' | 'E2E' | 'eval';
+  readonly boundary_exercised: string;
+  readonly qualifies_as: 'real_boundary' | 'partial_or_structural';
+  readonly currency: 'current_required' | 'compatible_earlier_allowed';
+  readonly invocation:
+    | { readonly type: 'command'; readonly cwd: string; readonly argv: readonly string[] }
+    | {
+        readonly type: 'review_receipt';
+        readonly kind: string;
+        readonly targets: readonly string[];
+      };
+}
+
+export interface ExecutionPlanChecklistDefinitionItem {
+  readonly id: string;
+  readonly category: string;
+  readonly obligation: string;
+  readonly owner: 'contributor' | 'human';
+  readonly required_proof: string;
+  readonly reviewed_disposition: 'not_applicable' | 'pending_human' | null;
+  readonly reviewed_detail: string | null;
+}
+
+export interface ExecutionPlanDeliveryDefinition {
+  readonly schema_version: 1;
+  readonly design_approval_gate: boolean;
+  readonly proof_specifications: readonly ExecutionPlanProofSpecification[];
+  readonly checklist_items: readonly ExecutionPlanChecklistDefinitionItem[];
+}
+
+export interface ExecutionPlanRecord {
+  readonly slicing_decision: 'one_pull_request' | 'multiple_pull_requests';
+  readonly rationale: string;
+  readonly slices: readonly ExecutionPlanSlice[];
+  readonly obligation_owners: readonly ExecutionPlanObligationOwner[];
+  readonly decision_statuses: readonly ExecutionPlanDecisionStatus[];
+  readonly accepted_scenarios_covered: true;
+  readonly accepted_approach_preserved: true;
+  readonly normalized_plan_digest: string;
+  readonly delivery_definition: ExecutionPlanDeliveryDefinition;
+}
+
 export interface ReviewerOutput {
   readonly schema_version: 1;
   readonly dispatch_id: string;
@@ -75,6 +140,8 @@ export interface ReviewerOutput {
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly planning_destination?: 'plan-execution' | 'plan-implementation';
+  readonly execution_plan_record?: ExecutionPlanRecord | null;
 }
 
 export interface UnverifiedReviewerOutput {
@@ -84,6 +151,8 @@ export interface UnverifiedReviewerOutput {
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];
+  readonly planning_destination?: unknown;
+  readonly execution_plan_record?: unknown;
 }
 
 export interface ReviewPacket {
