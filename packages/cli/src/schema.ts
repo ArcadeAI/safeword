@@ -307,6 +307,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'skill-invocations.log',
   're-entry.md',
   'dependency-readiness.json',
+  'readiness-ticket.json',
 ];
 
 /**
@@ -863,6 +864,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/review-ledger.ts': { template: 'hooks/lib/review-ledger.ts' },
     '.safeword/hooks/lib/review-receipt.ts': { template: 'hooks/lib/review-receipt.ts' },
     '.safeword/hooks/lib/read-receipt.ts': { template: 'hooks/lib/read-receipt.ts' },
+    '.safeword/hooks/lib/pr-readiness-guard.ts': {
+      template: 'hooks/lib/pr-readiness-guard.ts',
+    },
     '.safeword/hooks/lib/verify-stamp-claims.ts': { template: 'hooks/lib/verify-stamp-claims.ts' },
     '.safeword/hooks/lib/lint-config.ts': { template: 'hooks/lib/lint-config.ts' },
     '.safeword/hooks/lib/typecheck-gate.ts': { template: 'hooks/lib/typecheck-gate.ts' },

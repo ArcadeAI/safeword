@@ -216,9 +216,9 @@ flowchart TD
 
 - **Clarify** — the agent proposes a direction and converges with you before building. For features, this writes the product framing first: Jobs To Be Done → Product Inspiration (who does this exceptionally well, what customers value, and what principle transfers) → Rules → engineering scope.
 - **Classify** — sizes the work as a **patch** (fix directly), **task** (TDD), or **feature** (BDD).
-- **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop, with features defining behavior scenarios and an implementation plan first.
-- **Verify** — the agent runs the relevant tests itself, never handing you something untested.
-- **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket.
+- **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop, with features defining behavior scenarios and an implementation plan first. After a successful GREEN, the agent continues through refactor and the next incomplete scenario without a routine handoff.
+- **Verify** — after the final scenario, the agent continues through whole-ticket review, plan reconciliation, verification, audit, and recorded ticket closure, stopping only at a real authority, safety, dependency, or scope boundary.
+- **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket. Draft pull requests remain available for CI or review evidence, but Claude Code, Codex, and Cursor block first-class GitHub CLI Ready commands until the ticket is verified done; Ready promotion still requires your explicit authorization.
 
 Project state remains local in `.safeword/` and the configured namespace root. Claude Code, Codex, and OpenCode load framework workflows from versioned profile deliveries; Cursor keeps its project-local rules and hooks. Missing transient state and its precise ignore rule are created on first use after enrollment, without running installation. Guides, principles, and learnings remain authored in-repo and are never invented by that lazy initialization.
 

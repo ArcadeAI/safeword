@@ -3609,7 +3609,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "3770f019f5a83fd4ad6dcb2322528595a39545f61cf1106a2f606a8137036d9d",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "35fe432ae627e433e7644011432d5f6523b0ee34c8197afe9a992c0368103016",
+        ".claude/skills/bdd/TDD.md": "6c9142c4a7cc63fb6054d2b5335f942a77a1322f3a7e269b6e8654f4d7435702",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -3622,7 +3622,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/REVIEWER.md": "7575d91eb96a1c4930c8e68da1f4bb982d052c5e89f75fb38ed6422a8df96562",
         ".claude/skills/finish-review/SKILL.md": "fdb8800d140467f1747f7b0ee067137386026003126ff17c00758940766dd07a",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
-        ".claude/skills/pr-readiness/SKILL.md": "0e289cf59b11c72486d7d7fd9f73d5ff94f2ccccc1b116b0c77339c0cc9e949a",
+        ".claude/skills/pr-readiness/SKILL.md": "4cc987da39efb1b9b682aff67988c975e8ff56a2c3eed0cfe3a1f3e8caf0d80b",
         ".claude/skills/quality-review/SKILL.md": "61f9053cdd8007f2ebfd17684fb18cf8dfd068fbcdfbc85ad7ff7ec565a81461",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
@@ -3639,7 +3639,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
         ".safeword/hooks/post-tool-dependency-readiness.ts": "21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4",
         ".safeword/hooks/post-tool-lint.ts": "f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa",
-        ".safeword/hooks/post-tool-quality.ts": "f5a8268809244c3c32fbeda75a028e6b6ae2218da6b75f11ed58acfaedbcef3d",
+        ".safeword/hooks/post-tool-quality.ts": "86b21bd8a6e4fdf39c12107a605dcf729674f46d109ee180cfc342fc07ff451e",
         ".safeword/hooks/post-tool-skill-nudge.ts": "a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4",
         ".safeword/hooks/post-tool-sync-learnings.ts": "bc272acc87b1d52db960b2c96ac36ea553e21fdf161122312b74cd61157acb82",
         ".safeword/hooks/post-tool-work-log.ts": "f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978",
@@ -3647,7 +3647,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "f515a7ba8eb9b9db87b09e3be35e234d35d997da8882beb6084061927e6df2be",
+        ".safeword/hooks/pre-tool-quality.ts": "3287da635c2683ab34edf8e09bc5a18f1ccd055d2acdba650433b8d3b4f13ea5",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -16123,7 +16123,8 @@ var init_schema = __esm(() => {
     "failure-counts.json",
     "skill-invocations.log",
     "re-entry.md",
-    "dependency-readiness.json"
+    "dependency-readiness.json",
+    "readiness-ticket.json"
   ];
   SAFEWORD_TRANSIENT_PATHS = [
     "**/architecture.generated.md",
@@ -16390,6 +16391,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/lib/review-ledger.ts": { template: "hooks/lib/review-ledger.ts" },
       ".safeword/hooks/lib/review-receipt.ts": { template: "hooks/lib/review-receipt.ts" },
       ".safeword/hooks/lib/read-receipt.ts": { template: "hooks/lib/read-receipt.ts" },
+      ".safeword/hooks/lib/pr-readiness-guard.ts": {
+        template: "hooks/lib/pr-readiness-guard.ts"
+      },
       ".safeword/hooks/lib/verify-stamp-claims.ts": { template: "hooks/lib/verify-stamp-claims.ts" },
       ".safeword/hooks/lib/lint-config.ts": { template: "hooks/lib/lint-config.ts" },
       ".safeword/hooks/lib/typecheck-gate.ts": { template: "hooks/lib/typecheck-gate.ts" },
