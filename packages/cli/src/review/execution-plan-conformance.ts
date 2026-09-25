@@ -1133,12 +1133,12 @@ export const EXECUTION_PLAN_CONFORMANCE_CASES: readonly ExecutionPlanConformance
   {
     ...denied(
       'vague-data-ownership',
-      'A vague store reference is denied and reported as an unnamed accepted data decision.',
+      'A vague store reference is denied and the missing accepted store and owner are named.',
       withDecisionAccounting(
         ONE_PLAN,
         '- One shared authorization service owns permission checks for every transport: unchanged\n- Host-neutral dependency order keeps every intermediate merge supported: unchanged\n- Use the appropriate store and ownership contract during implementation.',
       ),
-      ['data', 'unnamed'],
+      ['delivery.db', 'deliverystateservice'],
     ),
     implementation_plan: DATA_IMPLEMENTATION_PLAN,
   },

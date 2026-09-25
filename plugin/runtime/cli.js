@@ -35275,7 +35275,7 @@ var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
     contract_sha256: "f6ed238d92e2b929d6c07b51ffd9b92447f7dba7e7c6875759573adab931f024",
-    corpus_sha256: "833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309",
+    corpus_sha256: "c27223f7166b2f224a94d6fa38d757db9c6e39a2dadb5afd6840ec24f8469bfc",
     identities: [
       {
         reviewer: "claude",
@@ -36220,9 +36220,9 @@ ${OBLIGATIONS.map((obligation) => `- ${obligation}`).join(`
     approved("all-obligations-assigned", "Every accepted obligation has an owner.", OBLIGATION_PLAN, "multiple_pull_requests", ["Contract owner", "Release owner"]),
     approved("all-decisions-unchanged", "Every accepted decision remains unchanged.", UNCHANGED_DECISIONS_PLAN, "one_pull_request", ["Complete delivery"]),
     {
-      ...denied("vague-data-ownership", "A vague store reference is denied and reported as an unnamed accepted data decision.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
+      ...denied("vague-data-ownership", "A vague store reference is denied and the missing accepted store and owner are named.", withDecisionAccounting(ONE_PLAN, `- One shared authorization service owns permission checks for every transport: unchanged
 - Host-neutral dependency order keeps every intermediate merge supported: unchanged
-- Use the appropriate store and ownership contract during implementation.`), ["data", "unnamed"]),
+- Use the appropriate store and ownership contract during implementation.`), ["delivery.db", "deliverystateservice"]),
       implementation_plan: DATA_IMPLEMENTATION_PLAN
     },
     {
