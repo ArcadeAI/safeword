@@ -79,6 +79,16 @@ typed gate response.
 
 ## Work Log
 
+- 2026-09-25T01:20:00.000Z Merged current main and regenerated the Cursor
+  lifecycle fixtures from the combined source; the contract passed 13/13. The
+  merge commit initially failed the new generated-surface hook because this
+  shell found Bun 1.4.0 while the repo pins 1.3.14. The pinned binary was
+  already installed; running the hook with that binary passed all four
+  generated-surface checks. On the merged head, the child feature passed 65/65
+  Gherkin scenarios and 3060/3060 steps. A four-file local acceptance packet
+  had two subprocess failures under concurrent load; each passed alone, and
+  Node 22 CI passed. Node 24 CI and repository-wide acceptance remain open.
+
 - 2026-09-25T00:24:00.000Z With user approval, refreshed the three
   Cursor lifecycle tree snapshots after confirming the new
   `bdd-plan-execution.mdc` wrapper is intentional and follows the existing
