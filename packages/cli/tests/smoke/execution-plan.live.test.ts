@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import process from 'node:process';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type {
   ExecutionPlanChecklistDefinitionItem,
@@ -185,6 +185,20 @@ afterAll(() => {
 });
 
 describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
+  const testClaudeConfigDirectory = process.env.CLAUDE_CONFIG_DIR;
+
+  beforeAll(() => {
+    // The base Vitest profile deliberately has no login. An opt-in live review
+    // must use the operator's authenticated Claude profile, not that fixture.
+    if (reviewer === 'claude') delete process.env.CLAUDE_CONFIG_DIR;
+  });
+
+  afterAll(() => {
+    if (testClaudeConfigDirectory !== undefined) {
+      process.env.CLAUDE_CONFIG_DIR = testClaudeConfigDirectory;
+    }
+  });
+
   it('requires an explicit reviewer and results destination', () => {
     expect(['claude', 'codex']).toContain(reviewer);
     expect(resultsPath).toBeTypeOf('string');
