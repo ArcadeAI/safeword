@@ -54,6 +54,11 @@ canonical commands below.
 | `ticket list`                           | observe     | List project tickets                                                                                        |
 | `ticket new`                            | mutate      | Create a project ticket                                                                                     |
 | `ticket reconcile-parent`               | mutate      | Record the current parent Product Plan contract                                                             |
+| `ticket approve-plan`                   | mutate      | Record human authority for the current reviewed Implementation Plan                                         |
+| `ticket delivery-checklist`             | observe     | Report feature delivery readiness                                                                           |
+| `ticket execution-prerequisite`         | observe     | Check whether feature execution planning is admitted                                                        |
+| `ticket coding-authorization`           | observe     | Check whether current reviewed plans authorize coding                                                       |
+| `ticket record-delivery-proof`          | mutate      | Run and retain one reviewed delivery proof                                                                  |
 | `review run`                            | mutate      | Run an independent adversarial review                                                                       |
 | `review status`                         | mutate      | Collect a durable independent review                                                                        |
 | `review gate executable-red`            | observe     | Check whether a scenario may claim GREEN                                                                    |
@@ -90,6 +95,23 @@ Use `safeword capabilities --json --no-input` to discover command effects,
 prompt and network policy, aliases, schema versions, and executable fixtures.
 The published result contract is available as
 `safeword/schemas/cli-result-v1.json`.
+
+## Feature execution prerequisite
+
+Run `safeword ticket execution-prerequisite <ticketId>` before starting a
+planned feature. It checks, in order, for accepted scenarios, an accepted
+Implementation Plan (plus human design approval when configured), and an
+admitted Execution Plan Delivery Checklist.
+
+A ready feature returns `healthy` with
+`data.prerequisite_status: "satisfied"`. Tasks, patches, and legacy features
+already underway without the new planning artifacts return `"not_applicable"`.
+Missing prerequisites return `action_required`, list every gap in planning
+order, and give one concrete repair command per gap.
+
+This command is deny-only: success allows the caller to consider the planning
+prerequisite satisfied, but `data.grants_authority` is always `false`. It never
+authorizes coding, human approval, merging, or rollout.
 
 When a tracker is connected, `ticket new` creates or adopts the tracker issue
 before writing its local project record. `--offline` refuses that declared

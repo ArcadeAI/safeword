@@ -9,7 +9,7 @@ last_modified: YYYY-MM-DDTHH:MM:SSZ
 
 <!--
 type: patch | task | feature | epic
-phase: intake | define-behavior | scenario-gate | plan-implementation | implement | verify | done
+phase: intake | define-behavior | scenario-gate | plan-implementation | plan-execution | implement | verify | done
   - patch/task: typically start at 'implement' or omit phase
   - feature: progresses through all phases via BDD workflow
   - on close: status: done → phase: done; status: cancelled | superseded → preserve last-active phase
@@ -76,7 +76,8 @@ Relations (all optional, omit when none):
 
 - ./test-definitions.md (BDD scenarios - features only)
 - ./spec.md (feature spec, auto-created at intake - features only)
-- ./design.md (design doc - complex features only)
+- ./impl-plan.md (reviewed implementation approach - features only)
+- ./execution-plan.md (reviewed startable work and proof order - features only)
 
 ### Scope
 

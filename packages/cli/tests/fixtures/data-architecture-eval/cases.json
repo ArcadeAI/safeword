@@ -1,7 +1,7 @@
 [
   {
     "id": "simple-key-value-preference",
-    "text": "Plan how to store each user's preferred dashboard density as one user-scoped value that may be replaced by a later selection.",
+    "text": "Plan one routine, reversible field on an existing user profile to store preferred dashboard density. No shared data owner, lifecycle, interface, or compatibility rule changes.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -9,14 +9,17 @@
         "decision.core.value-contract",
         "decision.core.lifecycle"
       ],
-      "forbiddenDecisionIds": [],
+      "forbiddenDecisionIds": [
+        "decision.routing.identity-architecture",
+        "decision.routing.lifecycle-architecture"
+      ],
       "expectedProofFactIds": [],
       "forbiddenProofFactIds": []
     }
   },
   {
     "id": "multi-tenant-relational-event-store",
-    "text": "Plan a PostgreSQL-backed event store shared by multiple tenant accounts. Parent-child records must never cross tenant boundaries, old and new application versions overlap during deployment, rollback and restore must work, and deleting one account must remove its primary and secondary copies without affecting sibling or different-owner data.",
+    "text": "Plan a PostgreSQL-backed event store shared by multiple tenant accounts. Parent-child records must never cross tenant boundaries; prove high-volume query performance against representative data and an explicit threshold. Old and new application versions overlap during deployment, rollback and restore must work, and deleting one account must remove its primary and secondary copies without affecting sibling or different-owner data.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",
@@ -170,7 +173,7 @@
   },
   {
     "id": "mixed-decision-routing",
-    "text": "Plan a tenant-scoped session record whose account ID is the authoritative identity, whose status is active or revoked, and whose creation and revocation define lifecycle. The parser library can be swapped locally and the retry order is local control flow.",
+    "text": "Plan a tenant-scoped session record shared by two services whose account ID is the authoritative identity. Both services must honor active/revoked status and the same creation and revocation lifecycle, so changing this contract would require coordinated migration. The parser library can be swapped locally and the retry order is local control flow.",
     "rubric": {
       "expectedDecisionIds": [
         "decision.core.source-of-truth",

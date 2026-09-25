@@ -213,8 +213,8 @@ describe('data architecture guide delivery', () => {
           assets: replaceInAsset(
             input.claude.assets,
             input.inventory.claudeGuidePath,
-            input.inventory.claudePathSubstitution.to,
-            '@./.safeword/guides/',
+            'Universal contract',
+            'Universal contracts',
           ),
         },
       }),

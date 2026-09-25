@@ -109,7 +109,9 @@ if (existsSync(stateFile)) {
           'scenario-gate':
             'Phase: scenario-gate. Run review-spec as an independent review and require it to pass before exit. If new scenarios are found, loop back to define-behavior; else advance to plan-implementation.',
           'plan-implementation':
-            'Phase: plan-implementation. Author impl-plan.md (scaffold from "\${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md); map installed language/component skills to the scenarios; independent review before advancing to implement.',
+            'Phase: plan-implementation. Author impl-plan.md (scaffold from "\${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md); map installed language/component skills to the scenarios; independent review before advancing to plan-execution.',
+          'plan-execution':
+            'Phase: plan-execution. Turn the approved implementation approach into dependency-ordered, independently reviewable PR slices with owned proof; independent review before implementation.',
           implement: tddStep
             ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
             : 'Phase: implement.',

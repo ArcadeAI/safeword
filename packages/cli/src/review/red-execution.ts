@@ -75,7 +75,7 @@ class StreamEvidence {
   #tail = '';
   #matched = false;
 
-  constructor(private readonly expected: string) {}
+  constructor(private readonly expected?: string) {}
 
   add(chunk: Buffer): void {
     this.#hash.update(chunk);
@@ -85,7 +85,7 @@ class StreamEvidence {
       this.#chunks.push(retained);
       this.#retained += retained.length;
     }
-    if (!this.#matched) {
+    if (this.expected !== undefined && !this.#matched) {
       const text = this.#tail + chunk.toString('utf8');
       this.#matched = text.includes(this.expected);
       this.#tail = text.slice(-Math.max(0, this.expected.length - 1));
@@ -106,15 +106,36 @@ class StreamEvidence {
   }
 }
 
-export async function executeRedProof(input: {
+export interface NoShellExecutionResult {
+  readonly argv: readonly string[];
+  readonly cwd: string;
+  readonly environment: RedExecutionAttestation['environment'];
+  readonly startedAt: string;
+  readonly finishedAt: string;
+  readonly durationMs: number;
+  readonly termination: {
+    readonly exitCode: number | null;
+    readonly signal: NodeJS.Signals | null;
+    readonly timedOut: boolean;
+  };
+  readonly stdout: RedExecutionStream;
+  readonly stderr: RedExecutionStream;
+  readonly expectedOutputMatched: boolean;
+}
+
+export async function executeNoShellCommand(input: {
   readonly projectRoot: string;
-  readonly request: RedExecutionRequest;
-  readonly sourceFingerprint: string;
-}): Promise<RedExecutionAttestation> {
-  const cwd = containedWorkingDirectory(input.projectRoot, input.request.cwd);
+  readonly argv: readonly string[];
+  readonly cwd: string;
+  readonly timeoutMs: number;
+  readonly expectedOutput?: string;
+}): Promise<NoShellExecutionResult> {
+  const cwd = containedWorkingDirectory(input.projectRoot, input.cwd);
+  const executable = input.argv[0];
+  if (executable === undefined) throw new Error('Proof argv must name an executable');
   const started = Date.now();
-  const stdout = new StreamEvidence(input.request.expectedFailure);
-  const stderr = new StreamEvidence(input.request.expectedFailure);
+  const stdout = new StreamEvidence(input.expectedOutput);
+  const stderr = new StreamEvidence(input.expectedOutput);
   const environment = proofEnvironment();
   const termination = await new Promise<{
     exitCode: number | null;
@@ -122,7 +143,7 @@ export async function executeRedProof(input: {
     timedOut: boolean;
   }>((resolve, reject) => {
     let timedOut = false;
-    const child = spawn(input.request.argv[0], input.request.argv.slice(1), {
+    const child = spawn(executable, input.argv.slice(1), {
       cwd,
       detached: process.platform !== 'win32',
       env: environment,
@@ -139,14 +160,14 @@ export async function executeRedProof(input: {
     const clearTimers = (): void => {
       clearTimeout(timer);
     };
-    child.once('error', error => {
+    child.once('error', (error: Error) => {
       clearTimers();
       reject(error);
     });
     const timer = setTimeout(() => {
       timedOut = true;
       terminateProofTree(child);
-    }, input.request.timeoutMs);
+    }, input.timeoutMs);
     child.once('close', (exitCode, signal) => {
       clearTimers();
       if (!timedOut) terminateProofTree(child);
@@ -157,26 +178,52 @@ export async function executeRedProof(input: {
   const stdoutEvidence = stdout.finish();
   const stderrEvidence = stderr.finish();
   return {
-    schema_version: 1,
-    argv: [...input.request.argv],
+    argv: [...input.argv],
+    cwd: input.cwd,
+    environment: environmentIdentity(environment),
+    startedAt: new Date(started).toISOString(),
+    finishedAt: new Date(finished).toISOString(),
+    durationMs: finished - started,
+    termination,
+    stdout: stdoutEvidence,
+    stderr: stderrEvidence,
+    expectedOutputMatched: stdout.matched || stderr.matched,
+  };
+}
+
+export async function executeRedProof(input: {
+  readonly projectRoot: string;
+  readonly request: RedExecutionRequest;
+  readonly sourceFingerprint: string;
+}): Promise<RedExecutionAttestation> {
+  const observation = await executeNoShellCommand({
+    projectRoot: input.projectRoot,
+    argv: input.request.argv,
     cwd: input.request.cwd,
+    timeoutMs: input.request.timeoutMs,
+    expectedOutput: input.request.expectedFailure,
+  });
+  return {
+    schema_version: 1,
+    argv: [...observation.argv],
+    cwd: observation.cwd,
     evidence_class: input.request.evidenceClass,
     expected_failure: {
       literal: input.request.expectedFailure,
-      matched: stdout.matched || stderr.matched,
+      matched: observation.expectedOutputMatched,
     },
     timeout_ms: input.request.timeoutMs,
     source_fingerprint: input.sourceFingerprint,
-    environment: environmentIdentity(environment),
-    started_at: new Date(started).toISOString(),
-    finished_at: new Date(finished).toISOString(),
-    duration_ms: finished - started,
+    environment: observation.environment,
+    started_at: observation.startedAt,
+    finished_at: observation.finishedAt,
+    duration_ms: observation.durationMs,
     termination: {
-      exit_code: termination.exitCode,
-      signal: termination.signal,
-      timed_out: termination.timedOut,
+      exit_code: observation.termination.exitCode,
+      signal: observation.termination.signal,
+      timed_out: observation.termination.timedOut,
     },
-    stdout: stdoutEvidence,
-    stderr: stderrEvidence,
+    stdout: observation.stdout,
+    stderr: observation.stderr,
   };
 }

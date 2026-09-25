@@ -45,6 +45,14 @@ last_modified: 2026-07-07T05:10:18.049Z
 
 ## Design Decision — anchor-value semantics (/figure-it-out, 2026-07-08)
 
+**Current phase-contract note (2026-09-20):** this ticket's `phase_anchors` and
+phase log are historical evidence from the five-phase workflow under which the
+ticket shipped. They remain grandfathered audit history and are not the current
+phase-to-artifact map. Epic 82T411 subsequently split planning into
+`plan-implementation` and `plan-execution`; the current authoritative map is the
+seven-row table in spec.md and the executable Scenario Outline in
+`features/artifact-content-phase-anchors.feature`.
+
 **Chosen: bare artifact path, tree-verified.** `- <phase-entered>:
 <repo-relative-path>` of the exited phase's exit artifact; detection and the
 boundary verify existence + the artifact's existing shape predicate against the

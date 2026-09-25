@@ -330,6 +330,8 @@ describe('Codex plugin release contract', () => {
     const protectedGeneratedFiles = [
       'scenario-rubric.generated.ts',
       'plan-rubric.generated.ts',
+      'execution-plan-rubric.generated.ts',
+      'delivery-compatibility-rubric.generated.ts',
       'quality-rubric.generated.ts',
       'red-rubric.generated.ts',
     ].map(file => nodePath.join(root, 'src/review', file));

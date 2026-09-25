@@ -16,7 +16,7 @@
 // skips never reach the coordinator at all.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { createReviewReceiptReader } from './read-receipt.js';
@@ -79,10 +79,29 @@ function currentWorkFiles(projectDirectory: string): string[] {
 export function reviewClaimContext(
   projectDirectory: string,
   ticketDirectory: string,
-): Pick<StampClaim, 'intakeArtifact' | 'implementationFiles'> {
+): Pick<StampClaim, 'intakeArtifact' | 'implementationFiles' | 'scenarioArtifact'> {
+  const ledgerPath = nodePath.join(ticketDirectory, 'test-definitions.md');
+  const scenarioArtifact = (() => {
+    if (!existsSync(ledgerPath)) return undefined;
+    try {
+      const match = readFileSync(ledgerPath, 'utf8').match(
+        /^\s*(?:\*\*)?Feature source:(?:\*\*)?\s*`([^`]+)`/imu,
+      );
+      const declared = match?.[1]?.trim();
+      if (!declared) return undefined;
+      const resolved = nodePath.resolve(projectDirectory, declared);
+      const relative = nodePath.relative(projectDirectory, resolved);
+      return relative === '' || relative === '..' || relative.startsWith(`..${nodePath.sep}`)
+        ? undefined
+        : resolved;
+    } catch {
+      return undefined;
+    }
+  })();
   return {
     intakeArtifact: existsSync(nodePath.join(ticketDirectory, 'spec.md')) ? 'spec.md' : 'ticket.md',
     implementationFiles: currentWorkFiles(projectDirectory),
+    ...(scenarioArtifact !== undefined && { scenarioArtifact }),
   };
 }
 

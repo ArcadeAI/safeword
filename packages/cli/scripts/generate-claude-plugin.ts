@@ -9,6 +9,8 @@ import {
   sealClaudePluginCatalogue,
   writeClaudePluginCatalogue,
 } from '../src/claude-plugin/catalogue.js';
+import { generateDeliveryCompatibilityRubric } from './generate-delivery-compatibility-rubric.js';
+import { generateExecutionPlanRubric } from './generate-execution-plan-rubric.js';
 import { generatePlanRubric } from './generate-plan-rubric.js';
 import { generateQualityRubric } from './generate-quality-rubric.js';
 import { generateRedRubric } from './generate-red-rubric.js';
@@ -22,6 +24,8 @@ const checkOnly = process.argv.includes('--check');
 const rubricResults = [
   generateScenarioRubric(checkOnly),
   generatePlanRubric(checkOnly),
+  generateExecutionPlanRubric(checkOnly),
+  generateDeliveryCompatibilityRubric(checkOnly),
   generateQualityRubric(checkOnly),
   generateRedRubric(checkOnly),
 ];

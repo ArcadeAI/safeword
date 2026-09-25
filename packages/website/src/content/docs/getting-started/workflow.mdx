@@ -78,7 +78,7 @@ Safeword runs hooks every turn to track which phase the agent is in. Four of the
 
 - **Phase gate** — can't start TDD without `test-definitions.md`; can't write that file without `scope` / `out_of_scope` / `done_when` in the ticket.
 - **Inspiration gates** — newly scaffolded features can't leave intake or planning without a current reference record (or a specific unsuccessful-search record). External material is treated as untrusted evidence: it cannot replace requirements, disclose private context, or authorize execution or copying.
-- **Plan gate** — a feature can't enter the implement phase without a valid `impl-plan.md` (written in the plan-implementation phase), and can't reach verify until that plan is reconciled against what actually shipped.
+- **Planning gates** — a feature can't enter Execution Planning without a current reviewed Implementation Plan, or enter implementation without a current reviewed Execution Plan. It can't reach verification until the Implementation Plan is reconciled against what actually shipped.
 - **LOC gate** — commit roughly every 400 lines of project code, so no single change grows an unreviewable blast radius.
 - **Done gate** — can't close a ticket without `verify.md`.
 

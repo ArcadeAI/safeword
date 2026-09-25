@@ -9,6 +9,8 @@ import {
 } from '../src/codex-plugin/catalogue.js';
 import { PROJECT_RUNTIME_SCRIPT_PATHS } from '../src/project-runtime-helpers.js';
 import { VERSION } from '../src/version.js';
+import { generateDeliveryCompatibilityRubric } from './generate-delivery-compatibility-rubric.js';
+import { generateExecutionPlanRubric } from './generate-execution-plan-rubric.js';
 import { generatePlanRubric } from './generate-plan-rubric.js';
 import { generateQualityRubric } from './generate-quality-rubric.js';
 import { generateRedRubric } from './generate-red-rubric.js';
@@ -39,6 +41,8 @@ if (
 const rubricResults = [
   generateScenarioRubric(options.checkOnly),
   generatePlanRubric(options.checkOnly),
+  generateExecutionPlanRubric(options.checkOnly),
+  generateDeliveryCompatibilityRubric(options.checkOnly),
   generateQualityRubric(options.checkOnly),
   generateRedRubric(options.checkOnly),
 ];

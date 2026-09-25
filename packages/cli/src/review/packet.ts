@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   constants,
+  existsSync,
   fstatSync,
   lstatSync,
   mkdirSync,
@@ -16,7 +17,23 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import type { RedExecutionAttestation, ReviewKind, ReviewPacket } from './contract.js';
+import {
+  createExecutionPlanDeliveryDefinition,
+  hasCanonicalDeliveryContractIdentity,
+  normalizedExecutionPlanDigest,
+  parseDeliveryPlanContract,
+} from '../execution-plan/delivery-checklist.js';
+import type {
+  ExecutionPlanDeliveryDefinition,
+  PlanContractPair,
+  RedExecutionAttestation,
+  ReviewKind,
+  ReviewPacket,
+} from './contract.js';
+import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
+import { extractExecutionPlanReviewRubric } from './execution-plan-rubric.js';
+import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
+import { extractPlanReviewRubric } from './plan-rubric.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -86,6 +103,99 @@ function requirePlanWorkArtifact(
   }
 }
 
+function requireExecutionPlanWorkArtifact(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly path: string; readonly content: string }[],
+  contextFiles: readonly { readonly path: string; readonly content: string }[],
+): void {
+  if (kind !== 'plan-execution') return;
+  const plan = logicalFiles[0];
+  if (
+    logicalFiles.length !== 1 ||
+    plan === undefined ||
+    nodePath.basename(plan.path) !== 'execution-plan.md' ||
+    plan.content.trim() === ''
+  ) {
+    throw new ReviewPacketError(
+      'Plan-execution review requires one non-blank execution-plan.md work file; pass supporting evidence with --context',
+    );
+  }
+  const implementationPlan = contextFiles.find(
+    file => nodePath.basename(file.path) === 'impl-plan.md' && file.content.trim() !== '',
+  );
+  const scenarios = contextFiles.find(
+    file => nodePath.extname(file.path) === '.feature' && file.content.trim() !== '',
+  );
+  if (implementationPlan === undefined || scenarios === undefined) {
+    throw new ReviewPacketError(
+      'Plan-execution review requires a non-blank impl-plan.md and approved .feature scenarios as context',
+    );
+  }
+}
+
+function designApprovalGate(root: string): boolean {
+  const configPath = nodePath.join(root, '.safeword', 'config.json');
+  if (!existsSync(configPath)) return false;
+  try {
+    const value: unknown = JSON.parse(readFileSync(configPath, 'utf8'));
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      throw new Error('configuration root is not an object');
+    }
+    return (value as { readonly designApprovalGate?: unknown }).designApprovalGate === true;
+  } catch {
+    throw new ReviewPacketError(
+      'Plan-execution review cannot read designApprovalGate from .safeword/config.json.',
+    );
+  }
+}
+
+function retainedDeliveryDefinition(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly content: string }[],
+  root: string,
+): ExecutionPlanDeliveryDefinition | undefined {
+  if (kind !== 'plan-execution') return undefined;
+  if (!hasCanonicalDeliveryContractIdentity()) {
+    throw new ReviewPacketError(
+      'Plan-execution review refused: installed package differs from the canonical delivery-contract identity.',
+    );
+  }
+  const plan = logicalFiles[0];
+  if (plan === undefined) return undefined;
+  const parsed = parseDeliveryPlanContract(plan.content);
+  if (!parsed.ok) throw new ReviewPacketError(`Plan-execution review refused: ${parsed.message}`);
+  return createExecutionPlanDeliveryDefinition(parsed, designApprovalGate(root));
+}
+
+function designApprovalConfigChanged(
+  kind: ReviewKind,
+  root: string,
+  retained: ExecutionPlanDeliveryDefinition | undefined,
+): boolean {
+  if (kind !== 'plan-execution' || retained === undefined) return false;
+  try {
+    return designApprovalGate(root) !== retained.design_approval_gate;
+  } catch {
+    return true;
+  }
+}
+
+function packetDeliveryDefinition(definition: ExecutionPlanDeliveryDefinition | undefined): {
+  readonly execution_plan_delivery_definition?: ExecutionPlanDeliveryDefinition;
+} {
+  return definition === undefined ? {} : { execution_plan_delivery_definition: definition };
+}
+
+function packetNormalizedPlanDigest(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly content: string }[],
+): { readonly execution_plan_normalized_digest?: string } {
+  const plan = logicalFiles[0];
+  return kind === 'plan-execution' && plan !== undefined
+    ? { execution_plan_normalized_digest: normalizedExecutionPlanDigest(plan.content) }
+    : {};
+}
+
 function requireExecutableRedAttestation(
   kind: ReviewKind,
   attestation: RedExecutionAttestation | undefined,
@@ -102,6 +212,7 @@ function requireExecutableRedAttestation(
 
 interface ReviewPacketExecution {
   readonly attestation?: RedExecutionAttestation;
+  readonly planContract?: PlanContractPair;
   /** Fingerprint preparation only: no review is dispatched from this packet. */
   readonly allowMissingExecutableRedAttestation?: boolean;
 }
@@ -118,6 +229,86 @@ function checkedExecutionAttestation(
 
 function digest(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
+}
+
+function planObligations(contract: string): string[] {
+  return Array.from(contract.matchAll(/^- \*\*([^*]+):\*\*/gmu), match => match[1]?.trim() ?? '');
+}
+
+/** Build the byte identities shared by plan authors and reviewers. */
+export function assemblePlanContract(
+  authorRubric?: string,
+  reviewerRubric?: string,
+): PlanContractPair {
+  if (authorRubric === undefined || authorRubric.trim() === '') {
+    throw new ReviewPacketError('The authoring contract copy is missing or blank.');
+  }
+  if (reviewerRubric === undefined || reviewerRubric.trim() === '') {
+    throw new ReviewPacketError('The generated reviewer contract copy is missing or blank.');
+  }
+  return {
+    author: { sha256: digest(authorRubric), obligations: planObligations(authorRubric) },
+    reviewer: { sha256: digest(reviewerRubric), obligations: planObligations(reviewerRubric) },
+  };
+}
+
+function packageRoot(): string {
+  const runtimeDirectory = nodePath.basename(import.meta.dirname);
+  return runtimeDirectory === 'dist' || runtimeDirectory === 'runtime'
+    ? nodePath.dirname(import.meta.dirname)
+    : nodePath.resolve(import.meta.dirname, '../..');
+}
+
+function packagedPlanAuthorRubric(): string {
+  const root = packageRoot();
+  const contractPath = [
+    nodePath.join(root, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
+    nodePath.join(root, 'skills/bdd/PLAN_IMPLEMENTATION.md'),
+    nodePath.join(root, 'skills/bdd/references/PLAN_IMPLEMENTATION.md'),
+  ].find(candidate => existsSync(candidate));
+  try {
+    if (contractPath === undefined) throw new Error('contract file is absent');
+    return extractPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+  } catch {
+    throw new ReviewPacketError(
+      'The packaged decision-quality contract is unavailable, so Safeword cannot author or approve an Implementation Plan. Run `bun run generate:plan-rubric`, rebuild the Safeword package, and retry.',
+    );
+  }
+}
+
+function packagedExecutionPlanAuthorRubric(): string {
+  const root = packageRoot();
+  const contractPath = [
+    nodePath.join(root, 'templates/skills/bdd/PLAN_EXECUTION.md'),
+    nodePath.join(root, 'skills/bdd/PLAN_EXECUTION.md'),
+    nodePath.join(root, 'skills/bdd/references/PLAN_EXECUTION.md'),
+  ].find(candidate => existsSync(candidate));
+  try {
+    if (contractPath === undefined) throw new Error('contract file is absent');
+    return extractExecutionPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+  } catch {
+    throw new ReviewPacketError(
+      'The packaged Execution Planning authoring contract copy is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.',
+    );
+  }
+}
+
+export function packagedPlanContract(
+  kind: 'plan-implementation' | 'plan-execution',
+): PlanContractPair {
+  const authorRubric =
+    kind === 'plan-execution' ? packagedExecutionPlanAuthorRubric() : packagedPlanAuthorRubric();
+  const reviewerRubric =
+    kind === 'plan-execution' ? EXECUTION_PLAN_REVIEW_RUBRIC : PLAN_REVIEW_RUBRIC;
+  return assemblePlanContract(authorRubric, reviewerRubric);
+}
+
+function packetPlanContract(
+  kind: ReviewKind,
+  configured: PlanContractPair | undefined,
+): { readonly plan_contract?: PlanContractPair } {
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
+  return { plan_contract: configured ?? packagedPlanContract(kind) };
 }
 
 function fileDigest(path: string): string | undefined {
@@ -228,6 +419,7 @@ function prepareReviewPacketUnsafe(
   const expectedSnapshotEntries = new Set<string>();
   let logicalFiles: { path: string; content: string }[];
   let contextFiles: { path: string; content: string }[];
+  let deliveryDefinition: ExecutionPlanDeliveryDefinition | undefined;
   try {
     let packetBytes = 0;
     const captureFiles = (files: readonly string[]): { path: string; content: string }[] =>
@@ -283,6 +475,8 @@ function prepareReviewPacketUnsafe(
     contextFiles = captureFiles(context);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
+    requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
+    deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;
@@ -293,6 +487,9 @@ function prepareReviewPacketUnsafe(
     kind,
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
+    ...packetPlanContract(kind, execution.planContract),
+    ...packetDeliveryDefinition(deliveryDefinition),
+    ...packetNormalizedPlanDigest(kind, logicalFiles),
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
   };
   if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {
@@ -303,7 +500,9 @@ function prepareReviewPacketUnsafe(
     packet,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some(file => sourceFileChanged(file)),
+    sourceChanged: () =>
+      tracked.some(file => sourceFileChanged(file)) ||
+      designApprovalConfigChanged(kind, canonicalRoot, deliveryDefinition),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
       try {

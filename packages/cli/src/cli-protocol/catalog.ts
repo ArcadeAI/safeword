@@ -566,6 +566,69 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       { flags: '--accept', description: 'Accept a changed parent contract after intake' },
     ],
   }),
+  command(
+    'ticket approve-plan',
+    'Record human authority for the current reviewed Implementation Plan',
+    'mutate',
+    {
+      promptPolicy: 'confirm',
+      syntax: 'approve-plan <ticketId>',
+      fixture: {
+        argv: ['ticket', 'approve-plan', 'fixture', '--no-input'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command('ticket delivery-checklist', 'Report feature delivery readiness', 'observe', {
+    syntax: 'delivery-checklist <ticketId>',
+    fixture: {
+      argv: ['ticket', 'delivery-checklist', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command(
+    'ticket execution-prerequisite',
+    'Check whether feature execution planning is admitted',
+    'observe',
+    {
+      syntax: 'execution-prerequisite <ticketId>',
+      fixture: {
+        argv: ['ticket', 'execution-prerequisite', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command(
+    'ticket coding-authorization',
+    'Check whether current reviewed plans authorize coding',
+    'observe',
+    {
+      syntax: 'coding-authorization <ticketId>',
+      fixture: {
+        argv: ['ticket', 'coding-authorization', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
+  command('ticket record-delivery-proof', 'Run and retain one reviewed delivery proof', 'mutate', {
+    networkPolicy: 'declared',
+    syntax: 'record-delivery-proof <ticketId> <itemId> <proofId>',
+    commandOptions: [
+      { flags: '--receipt <id>', description: 'Reuse an earlier delivery-proof receipt' },
+      {
+        flags: '--compatible-reason <reason>',
+        description: 'Explain why the earlier proof remains compatible',
+      },
+      {
+        flags: '--confirm-egress',
+        description: 'Confirm sending the complete contribution diff to the configured reviewer',
+      },
+    ],
+    fixture: {
+      argv: ['ticket', 'record-delivery-proof', 'fixture', 'item', 'proof'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
   command('review run', 'Run an independent adversarial review', 'mutate', {
     networkPolicy: 'declared',
     syntax: 'run <kind> <targets...>',

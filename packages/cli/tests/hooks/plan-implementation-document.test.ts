@@ -78,8 +78,8 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
 
   it('bounds the ADR offer to significant decisions and routine ones to the table (TB1.R4)', () => {
     for (const { path, text } of planCopies) {
-      expect(text, path).toMatch(/structure, key quality attributes/i);
-      expect(text, path).toMatch(/difficult to reverse/i);
+      expect(text, path).toMatch(/shared structure or contracts, key quality attributes/i);
+      expect(text, path).toMatch(/difficult-to-reverse constraint/i);
       expect(text, path).toMatch(/Decisions table/i);
     }
   });
@@ -122,10 +122,12 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
     }
   });
 
-  it('closes the stored artifact set to plan + ADRs + existing design lanes (TB2.R1)', () => {
+  it('keeps one feature design plan with subordinate detail and significant durable records (TB2.R1)', () => {
     for (const { path, text } of planCopies) {
-      expect(text, path).toMatch(/design-doc/i);
-      expect(text, path).toMatch(/no (new|novel) artifact kinds|novel artifact/i);
+      expect(text, path).toMatch(/single feature design plan of record/i);
+      expect(text, path).toMatch(/supporting detail cannot become a second design/i);
+      expect(text, path).toMatch(/significant choices[\s\S]*durable architecture record/i);
+      expect(text, path).not.toContain('design-doc-template.md');
     }
   });
 
@@ -160,10 +162,31 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
     }
   });
 
-  it('routes deep design through the existing design lanes (TB3.R2)', () => {
+  it('routes design through one plan and focused supporting guides (TB3.R2)', () => {
     for (const { path, text } of planCopies) {
-      expect(text, path).toContain('design-doc-template.md');
+      expect(text, path).toMatch(/single feature design plan of record/i);
       expect(text, path).toMatch(/data-architecture-guide/i);
+      expect(text, path).toMatch(/testing-guide/i);
+    }
+  });
+
+  it('checks relevant guides at authoring and supplies them at independent review', () => {
+    for (const { path, text } of planCopies) {
+      for (const guide of [
+        'architecture-guide.md',
+        'data-architecture-guide.md',
+        'interface-contract-guide.md',
+        'release-recovery-guide.md',
+        'measurement-design-guide.md',
+        'testing-guide.md',
+      ]) {
+        expect(text, path).toContain(guide);
+      }
+      expect(text, path).toMatch(/guide applicability and decision ownership/i);
+      expect(text, path).toMatch(
+        /installed testing guide.*every other guide.*bounded review context/i,
+      );
+      expect(text, path).toContain('testing-guide-file applicable-guide-files');
     }
   });
 
@@ -271,7 +294,7 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
       expect(text, path).toContain('PLAN_IMPLEMENTATION.md');
       expect(text, path).toMatch(/plan-implementation.*PLAN_IMPLEMENTATION\.md/s);
       expect(text, path).toMatch(
-        /intake \| define-behavior \| scenario-gate \| plan-implementation \| implement \| verify \| done/,
+        /intake \| define-behavior \| scenario-gate \| plan-implementation \| plan-execution \| implement \| verify \| done/,
       );
     }
   });

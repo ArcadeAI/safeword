@@ -1,36 +1,66 @@
 # Data Architecture Guide
 
-Use this guide when work creates or changes a durable data contract. Record only
-consequential decisions here; keep reversible, code-local choices in the implementation plan.
-
-See `@.safeword/guides/llm-writing-guide.md` for concise agent-facing documentation style.
+Use during Implementation Planning when work changes a store, schema, data relationship,
+source of truth, ownership, access, lifecycle, migration, backfill, or cross-system flow.
+One consequential entity is enough; file and entity counts are not skip rules. The
+feature's `impl-plan.md` is its design plan of record. This guide helps decide
+what belongs there and when a significant choice also needs the configured
+durable architecture record.
 
 ## Universal contract
 
 Every applicable plan names these decisions:
 
-- source of truth and authoritative writer `[decision.core.source-of-truth]`
+Decide each applicable subject at review depth: Purpose; Store and model;
+Schema and relationships; Source of truth; Ownership and access; Identity and
+integrity; Cross-system flow; Lifecycle and retention; Migration and backfill;
+Compliance; and Rollback. Compliance states the applicable privacy, retention,
+residency, and audit obligations or why none applies. State why any subject
+does not apply; a guide citation or generic "data covered" statement is not a
+decision.
+
+- source of truth and authoritative writer (Source of truth; Ownership and access)
+  `[decision.core.source-of-truth]`
 - identity, ownership, tenant/scope binding, and relationship invariants
+  (Ownership and access; Identity and integrity; Schema and relationships)
   `[decision.core.identity-and-scope]`
 - accepted values, validation, compatibility, and conflict semantics
+  (Schema and relationships; Identity and integrity; Cross-system flow)
   `[decision.core.value-contract]`
 - creation, mutation, retention, deletion, restore, and retry boundaries
+  (Lifecycle and retention; Migration and backfill; Rollback)
   `[decision.core.lifecycle]`
 
-Architecture owns durable contracts. Implementation plans own reversible sequencing and helper
-choices. Generated schemas or manifests represent a contract but never become a second authority.
-Use an ADR only for a qualifying cross-cutting decision, and link evidence rather than copying it.
+Record the chosen data contract, alternatives, reasons, and consequences in the
+Implementation Plan. Apply the architecture guide's significance test separately:
+shared structure or contracts, a key quality attribute, data ownership or lifecycle,
+migration or compatibility behavior, or another difficult-to-reverse constraint
+also requires a resolvable link to the configured durable architecture record.
+A routine, reversible field addition does not require one merely because it
+persists data. The durable record preserves the cross-feature rule; the feature
+plan explains its adoption without creating competing authority. Generated
+schemas or manifests represent a contract but never become another authority.
+The Execution Plan owns exact migration commands, file edits, test paths,
+backfill batches, and evidence collection.
+
+Use the interface contract guide for caller-visible requests, errors, and
+entry-point authorization; this guide covers the data beneath that interface.
+Use the release/recovery guide for live cutover policy and the testing guide
+for proof scope. These guides contribute to one plan rather than creating
+separate design authorities.
 
 ### Mixed decision routing
 
-**Trigger:** the case mixes durable contracts with reversible helper or control-flow choices.
+**Trigger:** the case mixes an architecturally significant data contract with
+reversible helper or control-flow choices.
 
-Route durable identity and lifecycle contracts to architecture
+Record the identity and lifecycle decisions in the Implementation Plan and
+link their lasting shared constraints in the configured architecture record
 `[decision.routing.identity-architecture]` `[decision.routing.lifecycle-architecture]` and route
 reversible helpers and control flow to implementation planning
 `[decision.routing.helper-implementation]` `[decision.routing.control-flow-implementation]`.
 The separation itself is reviewable evidence `[proof.routing.durable-and-reversible-separated]`;
-implementation-only durable contracts `decision.routing.identity-implementation-only`, architecture-owned
+significant contracts without that resolvable link `decision.routing.identity-implementation-only`, architecture-owned
 helpers `decision.routing.helper-architecture`, or collapsed evidence
 `proof.routing.durable-and-reversible-collapsed` fail review.
 
@@ -39,7 +69,7 @@ helpers `decision.routing.helper-architecture`, or collapsed evidence
 **Trigger:** the case assigns or compares responsibilities across architecture, plans, generated
 representations, ADRs, or evidence.
 
-Assign one authority to each artifact role: data architecture
+Assign one authority to each artifact role: durable data architecture
 `[decision.ownership.data-architecture]`, implementation plan
 `[decision.ownership.implementation-plan]`, generated representation
 `[decision.ownership.generated-representation]`, qualifying ADR `[decision.ownership.adr]`,
@@ -56,7 +86,8 @@ that defines its trigger and requirement.
 ## Independent proof
 
 **Trigger:** the case explicitly makes a completeness or coverage claim. Do not apply this module
-merely because ordinary verification would be useful.
+merely because ordinary verification would be useful; a performance threshold
+or correctness proof alone is not a completeness or coverage claim.
 
 Every completeness claim names an oracle maintained independently of the mechanism being checked.
 Apply this requirement as `[decision.core.independent-proof]`.
@@ -65,6 +96,9 @@ IDs fail. Evidence must state the environment, boundary, controls, threshold, an
 require revalidation. A sibling generated output cannot prove another generated output complete.
 For generated-artifact completeness, compare the output with a hand-maintained intended-facet
 inventory `[proof.generated.independent-inventory]`.
+For generated artifacts, do not use sibling generated output as the oracle
+`proof.generated.sibling-output`. Before approving an explicit completeness or
+coverage claim, re-grade proof against the independent exact-set oracle.
 <!-- data-architecture-ablation:independent-proof:end -->
 
 ## Triggered modules
@@ -140,8 +174,6 @@ boundary. Do not infer this module from a generic event or lifecycle.
 **Trigger:** code, schemas, manifests, docs, or catalogues are generated from another source.
 
 - name the authoritative source and generation boundary `[decision.generated.source]`
-- apply the independent-proof module whenever completeness or coverage is claimed
-- do not use sibling generated output as the oracle `proof.generated.sibling-output`
 
 ## Evidence safety
 
@@ -152,6 +184,7 @@ data, or other secret-bearing high-entropy values.
 
 ## Completion check
 
-Before approval, verify the universal contract and each triggered module, confirm every durable
-decision has one owner, re-grade proof against independent exact-set oracles, and make all referenced
-evidence and revalidation conditions resolvable.
+Before approval, verify the universal contract and each triggered module;
+confirm that each applicable decision appears in the Implementation Plan and
+that every significant decision has a resolvable durable-record link. Make
+referenced evidence and revalidation conditions resolvable.

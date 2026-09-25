@@ -8,11 +8,11 @@ How to write specs, user stories, and test definitions before implementation.
 
 **Triage first — the first matching row sets the level:**
 
-| Question                                 | Level       | Artifacts                                                        |
-| ---------------------------------------- | ----------- | ---------------------------------------------------------------- |
-| User-facing feature with business value? | **feature** | Feature Spec + Test Definitions + Impl Plan (+ Design Doc if 3+) |
-| Bug, improvement, internal, or refactor? | **task**    | Task Spec with inline tests                                      |
-| Typo, config, or trivial change?         | **patch**   | Minimal Task Spec, existing tests                                |
+| Question                                 | Level       | Artifacts                                                              |
+| ---------------------------------------- | ----------- | ---------------------------------------------------------------------- |
+| User-facing feature with business value? | **feature** | Product Plan + scenarios/ledger + Implementation Plan + Execution Plan |
+| Bug, improvement, internal, or refactor? | **task**    | Task Spec with inline tests                                            |
+| Typo, config, or trivial change?         | **patch**   | Minimal Task Spec, existing tests                                      |
 
 **Location:** `<namespace-root>/tickets/{ID}-{slug}/`
 
@@ -21,8 +21,8 @@ Ticket artifacts live in the ticket folder:
 - `ticket.md` - Ticket definition
 - `test-definitions.md` - R/G/R ledger for BDD scenarios
 - `spec.md` - Feature spec, auto-created at intake (features only)
-- `impl-plan.md` - Implementation design record for new-flow features — authored during the plan-implementation phase (after scenarios validate, before TDD), scaffolded from `.safeword/templates/impl-plan-template.md`; the plan gate blocks `implement` until it parses valid (see the bdd skill's `PLAN_IMPLEMENTATION.md`)
-- `design.md` - Design doc (complex features)
+- `impl-plan.md` - reviewed approach decisions for new-flow features — architecture, contracts, tradeoffs, risks, rollout, and proof boundaries; authored during `plan-implementation` from `.safeword/templates/impl-plan-template.md`
+- `execution-plan.md` - reviewed dependency order, concrete proof work, pull-request slices, and delivery checklist; authored during `plan-execution` from `.safeword/templates/execution-plan-template.md`; coding stays locked until this plan is current and approved
 
 Executable BDD scenarios live at `features/<slug>.feature` (or under the
 configured `paths.features` directory), rooted at the app or package that owns
@@ -39,7 +39,8 @@ the behavior.
 | feature spec                    | `spec-template.md` (templates directory)          |
 | task/patch spec                 | `.safeword/templates/task-spec-template.md`       |
 | feature Test definitions        | `.safeword/templates/test-definitions-feature.md` |
-| Complex feature design          | `.safeword/templates/design-doc-template.md`      |
+| feature Implementation Plan     | `.safeword/templates/impl-plan-template.md`       |
+| feature Execution Plan          | `.safeword/templates/execution-plan-template.md`  |
 | Architectural decision          | `.safeword/templates/architecture-template.md`    |
 | Context anchor for complex work | `.safeword/templates/ticket-template.md`          |
 | Execution scratch pad           | `.safeword/templates/work-log-template.md`        |

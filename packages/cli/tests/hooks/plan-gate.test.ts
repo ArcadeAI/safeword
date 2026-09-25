@@ -2,11 +2,31 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { evaluateImplementEntry } from '../../templates/hooks/lib/plan-gate.js';
+import {
+  evaluateImplementEntry,
+  firstNamedRedAction,
+} from '../../templates/hooks/lib/plan-gate.js';
 import { validImplementationInspiration } from '../fixtures/inspiration.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, writeTestFile } from '../helpers.js';
 
 const VALID_INSPIRATION = validImplementationInspiration('2026-08-09', 'parser');
+
+describe('named RED action parsing', () => {
+  it('does not treat the next unchecked ledger row as a RED action', () => {
+    const projectDirectory = createTemporaryDirectory();
+    try {
+      writeTestFile(
+        projectDirectory,
+        '.project/tickets/PLAN01-gate/test-definitions.md',
+        ['### Scenario: first RED', '', '- [ ] RED', '- [ ] GREEN', '- [ ] REFACTOR'].join('\n'),
+      );
+
+      expect(firstNamedRedAction(projectDirectory, 'PLAN01-gate')).toBeUndefined();
+    } finally {
+      removeTemporaryDirectory(projectDirectory);
+    }
+  });
+});
 
 function plan(
   inspiration: string,

@@ -21,6 +21,11 @@ import nodePath from 'node:path';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { createBestEffortByteSink } from '../cli-protocol/policy.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import {
+  executionPlanReviewIdentity,
+  hasExecutionPlanDeliveryChecklist,
+} from '../execution-plan/review-identity.js';
+import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
@@ -67,6 +72,11 @@ function integrityKeyPath(): string {
       ? testRoot
       : (process.env.XDG_STATE_HOME ?? nodePath.join(homedir(), '.local', 'state'));
   return nodePath.join(stateRoot, 'safeword', 'review-integrity.key');
+}
+
+/** Whether review jobs can be authenticated without creating observe-time state. */
+export function reviewIntegrityKeyExists(): boolean {
+  return existsSync(integrityKeyPath());
 }
 
 function readOrCreateIntegrityKey(): Buffer {
@@ -132,112 +142,6 @@ interface LedgerFingerprintContext {
   readonly missing: boolean;
 }
 
-const DELIVERY_CHECKLIST_MARKER = '<!-- safeword:delivery-checklist:v1 -->';
-const DELIVERY_CHECKLIST_COLUMNS = 9;
-const ORDINARY_PROGRESS_DISPOSITIONS = new Set(['open', 'complete']);
-
-function splitExecutionPlanRow(line: string): string[] | undefined {
-  if (!line.trimStart().startsWith('|') || !line.trimEnd().endsWith('|')) return undefined;
-  const cells: string[] = [];
-  let cell = '';
-  let escaped = false;
-  const body = line.trim().slice(1, -1);
-  for (const character of body) {
-    if (escaped) {
-      cell += character;
-      escaped = false;
-    } else if (character === '\\') {
-      escaped = true;
-    } else if (character === '|') {
-      cells.push(cell.trim());
-      cell = '';
-    } else {
-      cell += character;
-    }
-  }
-  if (escaped) cell += '\\';
-  cells.push(cell.trim());
-  return cells;
-}
-
-function unescapedPipeOffsets(line: string): number[] {
-  const offsets: number[] = [];
-  let escaped = false;
-  let index = 0;
-  while (index < line.length) {
-    const character = line[index];
-    if (escaped) {
-      escaped = false;
-    } else if (character === '\\') {
-      escaped = true;
-    } else if (character === '|') {
-      offsets.push(index);
-    }
-    index += 1;
-  }
-  return offsets;
-}
-
-function normalizeExecutionPlanProgress(line: string): string {
-  const cells = splitExecutionPlanRow(line);
-  if (
-    cells?.length !== DELIVERY_CHECKLIST_COLUMNS ||
-    !ORDINARY_PROGRESS_DISPOSITIONS.has(cells[5] ?? '')
-  ) {
-    return line;
-  }
-  const pipes = unescapedPipeOffsets(line);
-  if (pipes.length !== DELIVERY_CHECKLIST_COLUMNS + 1) return line;
-  const stableEnd = pipes[5];
-  const finalPipe = pipes[9];
-  if (stableEnd === undefined || finalPipe === undefined) return line;
-  return `${line.slice(0, stableEnd + 1)} <progress> | <progress> | <progress> | <progress> ${line.slice(finalPipe)}`;
-}
-
-function hasExecutionPlanDeliveryChecklist(content: string): boolean {
-  return content.split('\n').some(line => line.trim() === DELIVERY_CHECKLIST_MARKER);
-}
-
-function normalizedExecutionPlanDigest(content: string): string {
-  const lines = content.split('\n');
-  const markerIndex = lines.findIndex(line => line.trim() === DELIVERY_CHECKLIST_MARKER);
-  if (markerIndex !== -1) {
-    const headerIndex = lines.findIndex((line, index) => {
-      if (index <= markerIndex) return false;
-      const cells = splitExecutionPlanRow(line);
-      return (
-        cells?.length === DELIVERY_CHECKLIST_COLUMNS &&
-        cells[0] === 'ID' &&
-        cells[5] === 'Disposition'
-      );
-    });
-    for (let index = headerIndex + 1; headerIndex !== -1 && index < lines.length; index += 1) {
-      const line = lines[index];
-      if (line === undefined || splitExecutionPlanRow(line)?.length !== DELIVERY_CHECKLIST_COLUMNS)
-        break;
-      lines[index] = normalizeExecutionPlanProgress(line);
-    }
-  }
-  return createHash('sha256').update(lines.join('\n')).digest('hex');
-}
-
-function executionPlanReviewIdentity(content: string, projectDirectory: string): string {
-  const configPath = nodePath.join(projectDirectory, '.safeword', 'config.json');
-  let designApprovalGate = false;
-  if (existsSync(configPath)) {
-    const value: unknown = JSON.parse(readFileSync(configPath, 'utf8'));
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      throw new Error('Safeword config root is not an object');
-    }
-    designApprovalGate =
-      (value as { readonly designApprovalGate?: unknown }).designApprovalGate === true;
-  }
-  return JSON.stringify({
-    design_approval_gate: designApprovalGate,
-    normalized_digest: normalizedExecutionPlanDigest(content),
-  });
-}
-
 function ledgerFingerprintContext(
   cwd: string,
   targets: readonly string[],
@@ -269,9 +173,9 @@ function fingerprint(
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
 ): string {
-  // A GREEN receipt is bound to the ledger state that the reviewer approved,
-  // not just to the human-readable scenario label. Otherwise a later heading
-  // rename could make an old receipt appear to cover a different scenario.
+  // A GREEN receipt is bound to the reviewed scenario's ledger block, not just
+  // its human-readable label. Other scenarios share this progress ledger, so
+  // their later GREEN/REFACTOR updates are outputs rather than proof inputs.
   const ledger = ledgerFingerprintContext(cwd, targets, context, execution);
   const prepared = prepareReviewPacket(cwd, kind, targets, ledger.context, {
     allowMissingExecutableRedAttestation: true,
@@ -300,13 +204,11 @@ function fingerprint(
         hash.update(file.path);
         hash.update('\0');
         hash.update(
-          reviewFingerprintContent(
-            section,
-            file.path,
-            file.content,
-            executionPlanTarget?.path,
+          reviewFingerprintContent(section, file.path, file.content, {
+            executionPlanTargetPath: executionPlanTarget?.path,
             executionPlanFingerprint,
-          ),
+            executableRedScenario: executableRedScenarioForFile(cwd, file.path, execution),
+          }),
         );
         hash.update('\0');
       }
@@ -317,21 +219,84 @@ function fingerprint(
   }
 }
 
+interface ReviewFingerprintOptions {
+  readonly executionPlanTargetPath?: string;
+  readonly executionPlanFingerprint?: string;
+  readonly executableRedScenario?: string;
+}
+
 function reviewFingerprintContent(
   section: 'targets' | 'context',
   path: string,
   content: string,
-  executionPlanTargetPath: string | undefined,
-  executionPlanFingerprint: string | undefined,
+  options: ReviewFingerprintOptions,
 ): string {
   if (
     section === 'targets' &&
-    path === executionPlanTargetPath &&
-    executionPlanFingerprint !== undefined
+    path === options.executionPlanTargetPath &&
+    options.executionPlanFingerprint !== undefined
   ) {
-    return executionPlanFingerprint;
+    return options.executionPlanFingerprint;
+  }
+  if (options.executableRedScenario !== undefined) {
+    return executableRedLedgerIdentity(content, options.executableRedScenario);
   }
   return content;
+}
+
+function executableRedScenarioForFile(
+  cwd: string,
+  file: string,
+  execution: RedExecutionRequest | undefined,
+): string | undefined {
+  if (execution === undefined) return undefined;
+  return nodePath.resolve(cwd, file) === nodePath.resolve(cwd, execution.ledger)
+    ? execution.scenario
+    : undefined;
+}
+
+interface LedgerHeading {
+  readonly index: number;
+  readonly level: number;
+  readonly text: string;
+  readonly line: string;
+}
+
+function ledgerHeadings(lines: readonly string[], skipped: readonly boolean[]): LedgerHeading[] {
+  return lines.flatMap((line, index) => {
+    if (skipped.at(index) === true) return [];
+    const heading = parseHeading(line);
+    return heading === undefined ? [] : [{ index, line, ...heading }];
+  });
+}
+
+function executableRedLedgerIdentity(content: string, scenario: string): string {
+  const lines = content.split('\n');
+  const skipped = computeSkipMask(lines);
+  const headings = ledgerHeadings(lines, skipped);
+  const featureSources = lines.filter(
+    (line, index) =>
+      skipped.at(index) !== true && /^\s*(?:\*\*)?Feature source:(?:\*\*)?\s*`[^`]+`/iu.test(line),
+  );
+  const matches = headings.filter(heading => heading.text === scenario);
+
+  // Missing or duplicate bindings are ambiguous. Hash the whole ledger so no
+  // normalization can make a stale receipt look current.
+  if (matches.length !== 1) return content;
+  const [match] = matches;
+  if (match === undefined) return content;
+  const end =
+    headings.find(heading => heading.index > match.index && heading.level <= match.level)?.index ??
+    lines.length;
+  const parent = headings.findLast(
+    heading => heading.index < match.index && heading.level < match.level,
+  );
+  const rule = parent?.text.startsWith('Rule:') === true ? parent.line : undefined;
+  return [
+    ...featureSources,
+    ...(rule === undefined ? [] : [rule]),
+    ...lines.slice(match.index, end),
+  ].join('\n');
 }
 
 function pathEscapes(root: string, candidate: string): boolean {
@@ -580,6 +545,60 @@ function readJob(cwd: string, id: string): ReviewJobRecord {
   if (!isReviewJobRecord(parsed) || parsed.id !== id || !hasValidIntegrity(cwd, parsed))
     throw new Error('invalid review job record');
   return parsed;
+}
+
+function plainRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function authenticatedTerminalReceipt(
+  cwd: string,
+  id: string,
+):
+  | {
+      readonly kind: ReviewKind;
+      readonly targets: readonly string[];
+      readonly result: unknown;
+    }
+  | undefined {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(jobPath(cwd, id), 'utf8'));
+    const candidate = plainRecord(parsed);
+    if (
+      candidate?.id !== id ||
+      candidate.state !== 'completed' ||
+      !hasReviewJobIdentity(candidate) ||
+      !hasValidIntegrity(cwd, candidate as unknown as ReviewJobRecord)
+    ) {
+      return undefined;
+    }
+    return {
+      kind: candidate.kind as ReviewKind,
+      targets: candidate.targets as readonly string[],
+      result: candidate.result,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Read authenticated terminal receipt data without requiring a valid reviewer payload. */
+function authenticatedReviewReceiptData(
+  cwd: string,
+  id: string,
+): Record<string, unknown> | undefined {
+  const receipt = authenticatedTerminalReceipt(cwd, id);
+  const result = plainRecord(receipt?.result);
+  const data = plainRecord(result?.data);
+  if (receipt === undefined || data === undefined) return undefined;
+  return {
+    ...data,
+    review_id: id,
+    review_kind: receipt.kind,
+    review_targets: receipt.targets,
+  };
 }
 
 function pendingResult(record: ReviewJobRecord): CliResult {
@@ -906,9 +925,7 @@ export async function startReviewJob(input: {
   const reserved = withFileLock(nodePath.join(jobsDirectory(input.cwd), 'start.lock'), () => {
     const existing =
       runningJob(input.cwd, input.kind, sourceFingerprint) ??
-      (input.kind === 'executable-red'
-        ? reusableApprovedExecutableRedJob(input.cwd, sourceFingerprint)
-        : undefined);
+      reusableApprovedJob(input.cwd, input.kind, sourceFingerprint);
     if (existing !== undefined) return { existing: true as const, record: existing };
     const now = new Date().toISOString();
     const record: ReviewJobRecord = {
@@ -1269,6 +1286,43 @@ function reusableApprovedExecutableRedJob(
   return undefined;
 }
 
+function reusableApprovedJob(
+  cwd: string,
+  kind: ReviewKind,
+  sourceFingerprint: string,
+): ReviewJobRecord | undefined {
+  if (kind === 'executable-red') return reusableApprovedExecutableRedJob(cwd, sourceFingerprint);
+  if (kind === 'delivery-compatibility')
+    return reusableApprovedCompatibilityJob(cwd, sourceFingerprint);
+  return undefined;
+}
+
+function reusableApprovedCompatibilityJob(
+  cwd: string,
+  sourceFingerprint: string,
+): ReviewJobRecord | undefined {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory)) return undefined;
+  for (const name of readdirSync(directory)) {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name)) continue;
+    try {
+      const record = readJob(cwd, name.slice(0, -5));
+      const data = record.result?.data as Record<string, unknown> | undefined;
+      if (
+        record.kind === 'delivery-compatibility' &&
+        record.source_fingerprint === sourceFingerprint &&
+        record.state === 'completed' &&
+        hasIndependentApproval(data)
+      ) {
+        return record;
+      }
+    } catch {
+      // Invalid receipts cannot cover a new compatibility request.
+    }
+  }
+  return undefined;
+}
+
 function hasIndependentApproval(data: Record<string, unknown> | undefined): boolean {
   const reviewerOutput = data?.reviewer_output as Record<string, unknown> | undefined;
   const actualReviewer = data?.actual_reviewer;
@@ -1395,22 +1449,7 @@ function isActiveReviewJob(record: ReviewJobRecord): boolean {
   return record.state === 'running' && inspectReviewWorker(record.pid, record.id) !== 'mismatch';
 }
 
-export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
-  let id: string | undefined;
-  try {
-    id = requestedId ?? latestJobId(cwd);
-  } catch {
-    id = requestedId;
-  }
-  if (id === undefined) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        { code: 'REVIEW_JOB_NOT_FOUND', message: 'No review job was found.', retryable: false },
-      ],
-      data: { command: 'review status' },
-    });
-  }
+function validatedReviewJobStatus(cwd: string, id: string): CliResult {
   let record: ReviewJobRecord;
   try {
     record = readJob(cwd, id);
@@ -1444,6 +1483,33 @@ export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
       data: { command: 'review status', status: 'blocked', review_id: id },
     });
   }
+}
+
+export function reviewJobStatus(
+  cwd: string,
+  requestedId?: string,
+  options: { readonly allowMalformedReviewerOutput?: boolean } = {},
+): CliResult {
+  let id: string | undefined;
+  try {
+    id = requestedId ?? latestJobId(cwd);
+  } catch {
+    id = requestedId;
+  }
+  if (id === undefined) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        { code: 'REVIEW_JOB_NOT_FOUND', message: 'No review job was found.', retryable: false },
+      ],
+      data: { command: 'review status' },
+    });
+  }
+  if (options.allowMalformedReviewerOutput === true) {
+    const data = authenticatedReviewReceiptData(cwd, id);
+    if (data !== undefined) return createResult({ state: 'healthy', data });
+  }
+  return validatedReviewJobStatus(cwd, id);
 }
 
 export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {

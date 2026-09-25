@@ -343,6 +343,75 @@ async function namespaceRootHandler(invocation: CommandInvocation): Promise<CliR
   return observeNamespaceRoot(invocation.cwd, invocation.options);
 }
 
+async function ticketApprovePlanHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket approve-plan', 'ticket id must be non-empty text.');
+  }
+  const { approvePlanResult } = await import('../commands/plan-approval.js');
+  return approvePlanResult(invocation.cwd, ticket, { noInput: invocation.noInput });
+}
+
+async function deliveryChecklistHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket delivery-checklist', 'ticket id must be non-empty text.');
+  }
+  const { observeDeliveryChecklist } = await import('../commands/delivery-checklist.js');
+  return observeDeliveryChecklist(invocation.cwd, ticket);
+}
+
+async function executionPrerequisiteHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket execution-prerequisite', 'ticket id must be non-empty text.');
+  }
+  const { evaluateExecutionPrerequisite } = await import('../commands/execution-prerequisite.js');
+  return evaluateExecutionPrerequisite(invocation.cwd, ticket);
+}
+
+async function codingAuthorizationHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const ticket = invocation.operands[0];
+  if (typeof ticket !== 'string' || ticket === '') {
+    return invalidOperand('ticket coding-authorization', 'ticket id must be non-empty text.');
+  }
+  const { evaluateCodingAuthorization } = await import('../commands/coding-authorization.js');
+  return evaluateCodingAuthorization(invocation.cwd, ticket);
+}
+
+async function recordDeliveryProofHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const [ticket, item, proof] = invocation.operands;
+  if ([ticket, item, proof].some(value => typeof value !== 'string' || value === '')) {
+    return invalidOperand(
+      'ticket record-delivery-proof',
+      'ticket id, checklist item id, and proof id must be non-empty text.',
+    );
+  }
+  const receipt = stringOption(invocation.options, 'receipt');
+  const compatibleReason = stringOption(invocation.options, 'compatibleReason');
+  if ((receipt === undefined) !== (compatibleReason === undefined)) {
+    return invalidOperand(
+      'ticket record-delivery-proof',
+      '--receipt and --compatible-reason must be supplied together.',
+    );
+  }
+  if (invocation.offline) return onlineRequired('ticket record-delivery-proof');
+  if (receipt !== undefined && compatibleReason !== undefined) {
+    const { reuseEarlierDeliveryProof } = await import('../commands/delivery-checklist.js');
+    return reuseEarlierDeliveryProof({
+      cwd: invocation.cwd,
+      ticketId: ticket as string,
+      itemId: item as string,
+      proofId: proof as string,
+      receipt,
+      reason: compatibleReason,
+      confirmEgress: invocation.options.confirmEgress === true,
+    });
+  }
+  const { recordDeliveryProof } = await import('../commands/delivery-checklist.js');
+  return recordDeliveryProof(invocation.cwd, ticket as string, item as string, proof as string);
+}
+
 async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeReviewKnowledge } = await import('../commands/review-knowledge.js');
   return observeReviewKnowledge(invocation.cwd);
@@ -479,6 +548,11 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
   'ticket reconcile-parent': ticketReconcileParentHandler,
+  'ticket approve-plan': ticketApprovePlanHandler,
+  'ticket delivery-checklist': deliveryChecklistHandler,
+  'ticket execution-prerequisite': executionPrerequisiteHandler,
+  'ticket coding-authorization': codingAuthorizationHandler,
+  'ticket record-delivery-proof': recordDeliveryProofHandler,
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,
   'review status': reviewStatusHandler,

@@ -314,7 +314,7 @@ describe('write-time annotation gate', () => {
 
     it('Scenario 3: skip with non-empty reason passes', () => {
       const setup = setupProject(
-        '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+        '### Scenario: example\n\n- [x] RED abc1234\n- [x] GREEN def5678\n- [ ] REFACTOR\n',
       );
       projectDirectory = setup.cwd;
       const result = runEditHook(
@@ -456,6 +456,25 @@ describe('write-time annotation gate', () => {
       expectHookDeny(result, 'executable RED');
     });
 
+    it.each([
+      ['before RED', '- [ ] RED'],
+      ['after RED', '- [x] RED abc1234'],
+    ])('blocks REFACTOR %s until GREEN records the passing proof', (_state, redRow) => {
+      const setup = setupProject(
+        `### Scenario: ordered loop\n\n${redRow}\n- [ ] GREEN\n- [ ] REFACTOR\n`,
+      );
+      projectDirectory = setup.cwd;
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] REFACTOR',
+        '- [x] REFACTOR skip: no structural improvement needed',
+      );
+      expect(result.status).toBe(0);
+      expect(result.stdout, 'hook allowed the out-of-order REFACTOR edit').not.toBe('');
+      expectHookDeny(result, 'Cannot mark REFACTOR before GREEN');
+    });
+
     it('does not let an unclosed fence hide a GREEN transition', () => {
       const setup = setupProject(
         '### Scenario: example\n\n- [x] RED abc1234\n- [ ] GREEN\n- [ ] REFACTOR\n',
@@ -475,9 +494,14 @@ describe('write-time annotation gate', () => {
       'allows GREEN when prior %s RED evidence names a durable record',
       mode => {
         const setup = setupProject(
-          `### Scenario: example\n\n- [x] RED skip: ${mode} — see timestamped work log\n- [ ] GREEN\n- [ ] REFACTOR\n`,
+          `Feature source: \`features/example.feature\`\n\n### Scenario: example\n\n- [x] RED skip: ${mode} — see timestamped work log\n- [ ] GREEN\n- [ ] REFACTOR\n`,
         );
         projectDirectory = setup.cwd;
+        writeTestFile(
+          setup.cwd,
+          'features/example.feature',
+          `Feature: Example\n\n  @${mode}\n  Scenario: example\n    Then it works\n`,
+        );
         const result = runEditHook(
           setup.cwd,
           setup.testDefinitionsPath,
@@ -563,9 +587,14 @@ describe('write-time annotation gate', () => {
 
     it('pins the intentional two-call manual evidence escape path', () => {
       const setup = setupProject(
-        '### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
+        'Feature source: `features/example.feature`\n\n### Scenario: example\n\n- [ ] RED\n- [ ] GREEN\n- [ ] REFACTOR\n',
       );
       projectDirectory = setup.cwd;
+      writeTestFile(
+        setup.cwd,
+        'features/example.feature',
+        'Feature: Example\n\n  @manual\n  Scenario: example\n    Then it works\n',
+      );
       const redResult = runEditHook(
         setup.cwd,
         setup.testDefinitionsPath,
@@ -576,7 +605,7 @@ describe('write-time annotation gate', () => {
       writeTestFile(
         setup.cwd,
         '.safeword-project/tickets/TST001/test-definitions.md',
-        '### Scenario: example\n\n- [x] RED skip: manual — see timestamped work log\n- [ ] GREEN\n- [ ] REFACTOR\n',
+        'Feature source: `features/example.feature`\n\n### Scenario: example\n\n- [x] RED skip: manual — see timestamped work log\n- [ ] GREEN\n- [ ] REFACTOR\n',
       );
 
       const greenResult = runEditHook(
@@ -871,6 +900,44 @@ describe('write-time annotation gate', () => {
         '- [x] GREEN def5678',
         { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'healthy') },
       );
+      expectHookAllow(result);
+    });
+
+    it('uses the separate evidence path for a live scenario with a recorded live RED', () => {
+      const setup = setupProject(
+        [
+          'Feature source: `features/example.feature`',
+          '',
+          '### Scenario: live boundary',
+          '',
+          '- [x] RED skip: live — external matrix recorded in the work log',
+          '- [ ] GREEN',
+          '- [ ] REFACTOR',
+          '',
+        ].join('\n'),
+      );
+      projectDirectory = setup.cwd;
+      writeTestFile(
+        setup.cwd,
+        'features/example.feature',
+        [
+          'Feature: Example',
+          '',
+          '  @live',
+          '  Scenario: live boundary',
+          '    Then it works',
+          '',
+        ].join('\n'),
+      );
+
+      const result = runEditHook(
+        setup.cwd,
+        setup.testDefinitionsPath,
+        '- [ ] GREEN',
+        '- [x] GREEN def5678',
+        { SAFEWORD_PLUGIN_CLI: gateStub(setup.cwd, 'action_required') },
+      );
+
       expectHookAllow(result);
     });
 
