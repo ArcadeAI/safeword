@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "safeword_review": {
+      "command": "bun",
+      "args": ["runtime/review-mcp.js"],
+      "cwd": "."
+    }
+  }
+}

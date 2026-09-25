@@ -139,6 +139,8 @@ function installReviewerAndPackageShim(): { bin: string; log: string } {
   const log = nodePath.join(root, 'review.log');
   mkdirSync(bin, { recursive: true });
   const reviewer = nodePath.join(bin, 'codex');
+  const escapedSingleQuote = String.raw`'\''`;
+  const quotedLog = `'${log.replaceAll("'", () => escapedSingleQuote)}'`;
   writeFileSync(
     reviewer,
     `#!/bin/sh
@@ -147,7 +149,7 @@ if [ "\${1-}" = "--version" ]; then printf 'codex 1.0.0\\n'; exit 0; fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')
-printf 'codex\\n' >> "$SAFEWORD_REVIEW_LOG"
+printf 'codex\\n' >> ${quotedLog}
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"codex","verdict":"approve","summary":"reviewed","findings":[]}\\n' "$dispatch_id"
 `,
     { mode: 0o755 },
@@ -183,7 +185,7 @@ function runnableReviewCommand(skillPath: string): string {
 function runReviewWorkflow(
   project: string,
   command: string,
-  options: { bin: string; log: string; extraEnvironment?: NodeJS.ProcessEnv },
+  options: { bin: string; extraEnvironment?: NodeJS.ProcessEnv },
 ) {
   return spawnSync('bash', ['-c', command], {
     cwd: project,
@@ -195,7 +197,6 @@ function runReviewWorkflow(
       PROJECT_DIR: project,
       SAFEWORD_AGENT_RUNTIME: 'claude',
       SAFEWORD_NO_UPDATE_CHECK: '1',
-      SAFEWORD_REVIEW_LOG: options.log,
       SAFEWORD_TEST_CLI: CLI,
       ...options.extraEnvironment,
     },

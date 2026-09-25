@@ -13,7 +13,7 @@ import { generateQualityRubric } from './generate-quality-rubric.js';
 import { generateRedRubric } from './generate-red-rubric.js';
 import { generateScenarioRubric } from './generate-scenario-rubric.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
-import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
+import { buildPluginCliBundle, normalizePluginCliBundle } from './lib/build-plugin-cli-bundle.js';
 import {
   parseCodexPluginGenerationOptions,
   publishFreshDirectory,
@@ -21,7 +21,7 @@ import {
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const shippedRoot = nodePath.join(packageRoot, 'codex-plugin');
-const authoredShippedFiles = ['.codex-plugin/plugin.json', 'hooks.json'] as const;
+const authoredShippedFiles = ['.codex-plugin/plugin.json', '.mcp.json', 'hooks.json'] as const;
 const options = parseCodexPluginGenerationOptions(process.argv.slice(2), VERSION);
 
 const outputRelativeToShippedRoot =
@@ -46,6 +46,28 @@ if (options.checkOnly && rubricResults.includes('stale')) {
   throw new Error('Cannot check the Codex plugin while a generated runtime rubric is stale.');
 }
 
+async function buildReviewMcpBundle(builtVersion: string | undefined): Promise<string> {
+  // @ts-expect-error -- plugin generators execute under Bun.
+  const mcpBundle = await Bun.build({
+    entrypoints: [nodePath.join(packageRoot, 'src/codex-plugin/review-mcp.ts')],
+    define: {
+      'process.env.NODE_ENV': JSON.stringify('development'),
+      ...(builtVersion !== undefined && {
+        __SAFEWORD_VERSION__: JSON.stringify(builtVersion),
+      }),
+    },
+    format: 'esm',
+    packages: 'bundle',
+    splitting: false,
+    target: 'bun',
+    write: false,
+  });
+  if (!mcpBundle.success || mcpBundle.outputs.length !== 1 || mcpBundle.outputs[0] === undefined) {
+    throw new Error(`Failed to bundle the Codex review MCP server: ${mcpBundle.logs.join('\n')}`);
+  }
+  return normalizePluginCliBundle(await mcpBundle.outputs[0].text());
+}
+
 async function generatePlugin(
   generatedRoot: string,
   includeAuthoredFiles: boolean,
@@ -68,6 +90,11 @@ async function generatePlugin(
   const runtimeDirectory = nodePath.join(generatedRoot, 'runtime');
   mkdirSync(runtimeDirectory, { recursive: true });
   writeFileSync(nodePath.join(runtimeDirectory, 'cli.js'), cliBundle, { mode: 0o755 });
+  writeFileSync(
+    nodePath.join(runtimeDirectory, 'review-mcp.js'),
+    await buildReviewMcpBundle(builtVersion),
+    { mode: 0o755 },
+  );
   writeFileSync(
     nodePath.join(generatedRoot, 'package.json'),
     `${JSON.stringify(
@@ -113,6 +140,7 @@ async function generatePlugin(
       `${JSON.stringify(manifest, undefined, 2)}\n`,
     );
     cpSync(nodePath.join(shippedRoot, 'hooks.json'), nodePath.join(generatedRoot, 'hooks.json'));
+    cpSync(nodePath.join(shippedRoot, '.mcp.json'), nodePath.join(generatedRoot, '.mcp.json'));
   }
 
   return assets.length;

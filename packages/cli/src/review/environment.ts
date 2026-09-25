@@ -119,7 +119,7 @@ function filteredEnvironment(
     [
       ...PROCESS_VARIABLES,
       ...REVIEWER_CONTROL_VARIABLES,
-      ...((source.NODE_ENV ?? process.env.NODE_ENV) === 'test' ? REVIEWER_FIXTURE_VARIABLES : []),
+      ...(process.env.NODE_ENV === 'test' ? REVIEWER_FIXTURE_VARIABLES : []),
       ...(reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer]),
     ].map(name => normalize(name)),
   );
@@ -137,6 +137,10 @@ export function reviewerEnvironment(
   platform: NodeJS.Platform = process.platform,
 ): NodeJS.ProcessEnv {
   const environment = filteredEnvironment(reviewer, source, platform);
+  if (reviewer === 'claude') {
+    // Reviews need the model endpoint, not Claude's optional update or telemetry hosts.
+    return { ...environment, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' };
+  }
   if (reviewer !== 'opencode') return environment;
   let inlineConfig: Record<string, unknown> = {};
   try {
