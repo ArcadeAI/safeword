@@ -339,5 +339,3 @@ Provides shared architecture, manifest, filesystem, Git, path, detection, Gherki
 `src/version.ts`
 
 Reads the Safeword release version from package metadata.
-
-> ⚠ stale: structure changed since this section was reconciled.
