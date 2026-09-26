@@ -8,7 +8,7 @@ Then it enters Execution Planning without another artifact stamp
 
 - [x] RED d17892b68
 - [x] GREEN 14878b34a
-- [ ] REFACTOR
+- [x] REFACTOR skip: removed the duplicate check and its unused imports; authentication stays in its existing owner
 
 ## Scenario: Refusals report actual evidence failures and rejection findings
 
