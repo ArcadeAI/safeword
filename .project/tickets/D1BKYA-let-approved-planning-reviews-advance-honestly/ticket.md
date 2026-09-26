@@ -49,3 +49,10 @@ Targeted checks: `plan-design-approval.test.ts`, `plan-transition-gate.test.ts`,
 - User-requested toolchain repair: repository launcher and Git hook now resolve
   pinned Bun/Node for child processes. The personal shell-profile workaround was
   reverted. This explicit additional scope does not change planning authority.
+
+- Scoped delivery continuation: this checkout contains only D1BKYA and its
+  required generated guidance, lifecycle fingerprints and acceptance counts,
+  stacked on the separately scoped repository-toolchain branch. Review IDs and
+  RED/GREEN commit IDs above describe the original continuation checkout; no
+  authenticated receipt or review key was copied here. Fresh local verification
+  and independent review are required before any delivery completion claim.

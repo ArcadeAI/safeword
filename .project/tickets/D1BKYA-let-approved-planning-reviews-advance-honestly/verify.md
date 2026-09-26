@@ -90,3 +90,46 @@ passed. This includes the three launcher tests, seven previously failing Bun
 cases, lifecycle checks without update mode, the existing tool-pin sync assertion,
 and the planning approval/admission/guidance/provenance regressions. No filtering
 or update-mode environment was used for this run.
+
+## Isolated delivery checkout
+
+Historical review IDs and original-suite observations above belong to the
+original continuation checkout. They are not authenticated receipts for this
+worktree; none was copied.
+
+**PR Scope:** ✅ The isolated branch above `codex/4200-repo-toolchain` contains
+D1's approval/rendering repair, its real CLI regressions, canonical guidance and
+required generated surfaces, matching lifecycle fingerprints, and only the two
+acceptance counts affected by the added admission tests. The toolchain repair
+is a separate parent PR, and broader 5F5ZZA planning/proof changes are absent.
+
+Fresh targeted verification passed 150 tests in six actual files. The first
+command also named two nonexistent paths, which Vitest did not select; these
+are not counted. The intended degraded-explanation and lifecycle suites were
+then selected by their correct paths and passed all 15 tests. All four generated
+surfaces passed their check.
+
+The first complete CLI run in this fresh worktree failed: 643 files, 622 passed
+and 21 failed; 10,554 tests passed, 21 failed, 13 skipped. Each of those 21
+failures reports the missing `packages/retro-relay/dist/index.js` during
+Cucumber support-code loading. The monorepo build had not been run after the
+fresh dependency install (which builds only the CLI). A complete monorepo build
+now succeeds; a fresh complete CLI rerun is required before calling that check
+green. The original failed result remains retained at
+`/tmp/4200-planning-approval-full-cli.log`.
+
+The parent PR's historical six acceptance failures and 585 undefined scenarios
+remain visible. The continuation's later zero-failure / 586-undefined result is
+not verification of this isolated head. Full acceptance here remains pending.
+
+### Full CLI retry after monorepo build
+
+The retry completed with **10,574 passed, 1 failed, 13 skipped** in 643 files (642 passed, 1 failed). The failure was `hierarchy-navigation.test.ts > allows stop when parent directory is missing`: the fixture fell through to published `bunx safeword`, which failed to load `eslint-visitor-keys` from its temporary cache. The unchanged isolated file subsequently passed all six tests; this does not erase the failed full result or establish a stable full pass. The toolchain branch is binding that fixture to its existing local built-CLI override, followed by fresh targeted verification. Current isolated full acceptance remains pending; the parent’s six acceptance failures and 585 undefined scenarios remain preserved.
+
+### Full CLI with the hierarchy fixture binding
+
+This complete run retained **10,573 passed, 2 failed, 13 skipped** in 643 files. The failures were `stop-hook-transcript-format.test.ts > shows done-phase hard block when active ticket at done phase` and `codex-stop-retro.test.ts > codex-done-gate.SWM1.R1.returns_filing_after_success_without_an_advisory`. Both invoked published `bunx safeword` and reported dependency-link `EEXIST` errors in the shared temporary cache. The hierarchy binding passed its cases. The toolchain branch is centralizing that existing local CLI override for source-hook fixtures, followed by new scoped/full verification. This failed result remains recorded; no full-pass or isolated-acceptance claim is made.
+
+### Full CLI with shared source-hook fixture environment
+
+The complete CLI retry passed: **643/643 files; 10,575 tests passed, 13 existing skips**, 663.63 seconds. The run used the repository launcher and the rebuilt checkout CLI, with no test-name filtering or snapshot update mode. The source-hook fixtures share their existing explicit local CLI override; consumer hook behavior remains unchanged. The previous 21-, 1-, and 2-failure runs above remain historical evidence. This passing CLI run does not establish a full acceptance pass: the separate complete acceptance lane is running, with its full result still pending. Log: `/tmp/4200-D1-full-cli-shared-source-fixtures.log`.
