@@ -1,5 +1,30 @@
 # Dimensions: Keep plan reviews current and trustworthy
 
+## R6 reviewer-capability proof placement
+
+The capability outlines are representative scenarios. The complete capability
+matrix is lower-level integration proof through the real coordinator, status,
+stamp, and admission entry points in
+`packages/cli/tests/integration/planning-review-fallback.test.ts` and the actual
+installed host boundaries in
+`packages/cli/tests/integration/planning-review-host-gates.test.ts` (Execution
+Plan PR 4 tasks 1–2). These are required planned proofs, not completed tests.
+
+| Capability partition                                                                                                                      | Required observable result                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Exact confirmed identities and a current qualified not-weaker ordered pair                                                                | Independent route is eligible; an approved verdict may retain cross-agent independence.                                                                      |
+| Qualified weaker ordered pair                                                                                                             | Route cannot grant independent approval; its verdict is discarded before the ordered ladder continues.                                                       |
+| Reviewer exact identity unconfirmed, including aliases, runtime defaults, missing confirmation, or configured/launched/confirmed mismatch | Route cannot grant independent approval; the real reviewer identity uncertainty and recovery are retained.                                                   |
+| Trusted host cannot establish the author capability                                                                                       | A successful different-agent review under `prefer` is admitted only as `reduced` with the actual reviewer and reason; `require` retains findings and blocks. |
+| Exact models individually pass the corpus floor but their ordered-pair comparison is missing or unqualified                               | Return `reviewer_capability_unknown`; scalar ranks, overlays, transitive paths, and reversed pairs cannot grant independence.                                |
+| Reviewer verdict claims its own model identity or comparative capability                                                                  | Those claims remain authority-inert and cannot repair an unestablished comparison.                                                                           |
+
+The matrix crosses `prefer` and `require` and exercises each missing identity
+source independently; choosing only one unknown source does not prove the others.
+No case of unestablished capability is treated as “not weaker.”
+
+## Other dimensions
+
 | Dimension                        | Partitions and boundaries                                                                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Contract identity                | exact bytes; edited bytes with same version; missing generated copy                                                                                                                                                                                                                                                                                                                                                   |
