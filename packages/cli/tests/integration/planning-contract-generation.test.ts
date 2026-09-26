@@ -175,10 +175,19 @@ describe('Planning contract shared-clause generation', () => {
         result.status,
         'real CLI reconciliation must reject a missing generated shared clause',
       ).not.toBe(0);
-      const response = `${result.stdout}\n${result.stderr}`;
-      expect(response).toContain('missing_generated_shared_clause');
-      expect(response).toContain('scopeAuthority');
-      expect(response).toContain(file);
+      const response = JSON.parse(result.stdout) as {
+        errors: readonly { code: string }[];
+        findings: readonly { code: string; metadata?: Record<string, unknown> }[];
+      };
+      expect(response.errors).toContainEqual(
+        expect.objectContaining({ code: 'missing_generated_shared_clause' }),
+      );
+      expect(response.findings).toContainEqual(
+        expect.objectContaining({
+          code: 'missing_generated_shared_clause',
+          metadata: { clause_id: 'scopeAuthority', contract_path: `skills/bdd/${file}` },
+        }),
+      );
     },
   );
 
