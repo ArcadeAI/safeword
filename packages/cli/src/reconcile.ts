@@ -8,6 +8,7 @@
 import { lstatSync, readdirSync, readlinkSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { assertGeneratedSharedClauses } from './planning/shared-clause-integrity.js';
 import type {
   FileDefinition,
   JsonMergeDefinition,
@@ -16,6 +17,7 @@ import type {
   SafewordSchema,
   TextPatchDefinition,
 } from './schema.js';
+import { PLANNING_CONTRACT_TEMPLATE_PATHS } from './schema.js';
 import {
   NAMESPACE_ROOT_LEGACY,
   readConfiguredPath,
@@ -42,6 +44,9 @@ import { getWorkspacePackageNames } from './utils/workspaces.js';
 // ============================================================================
 
 const HUSKY_DIR = '.husky';
+const PLANNING_CONTRACT_TEMPLATES: ReadonlySet<string> = new Set(
+  Object.values(PLANNING_CONTRACT_TEMPLATE_PATHS),
+);
 
 /**
  * Directories containing executable scripts that need chmod +x.
@@ -1249,7 +1254,11 @@ function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): st
 
   if (definition.template) {
     const templatesDirectory = getTemplatesDirectory();
-    return readFile(nodePath.join(templatesDirectory, definition.template));
+    const content = readFile(nodePath.join(templatesDirectory, definition.template));
+    if (PLANNING_CONTRACT_TEMPLATES.has(definition.template)) {
+      assertGeneratedSharedClauses(content, definition.template);
+    }
+    return content;
   }
 
   if (definition.content) {

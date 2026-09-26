@@ -51,6 +51,13 @@ import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
 import { VERSION } from './version.js';
 
+/** Closed planning-template classifier; registered templates stay literal for catalogue extraction. */
+export const PLANNING_CONTRACT_TEMPLATE_PATHS = {
+  product: 'skills/bdd/DISCOVERY.md',
+  implementation: 'skills/bdd/PLAN_IMPLEMENTATION.md',
+  execution: 'skills/bdd/PLAN_EXECUTION.md',
+} as const;
+
 export interface TextPatchDefinition {
   operation: 'prepend' | 'append';
   // Static string, or a factory resolved with ctx at plan time so the block can

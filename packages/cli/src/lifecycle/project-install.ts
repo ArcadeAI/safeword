@@ -69,6 +69,7 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { rustToolingTargets } from '../packs/rust/setup.js';
+import { MissingGeneratedSharedClauseError } from '../planning/shared-clause-integrity.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
 import {
   ensurePublicRetroProjectConfig,
@@ -1719,6 +1720,33 @@ function verifiedSetupResult(
   };
 }
 
+function setupFailureDetails(setupError: unknown): Pick<CliResult, 'findings' | 'errors'> {
+  const cause = setupError instanceof SetupApplyError ? setupError.cause : setupError;
+  if (cause instanceof MissingGeneratedSharedClauseError) {
+    return {
+      findings: [
+        {
+          code: cause.code,
+          message: cause.message,
+          severity: 'error',
+          metadata: { clause_id: cause.clauseId, contract_path: cause.contractPath },
+        },
+      ],
+      errors: [{ code: cause.code, message: cause.message, retryable: false }],
+    };
+  }
+  return {
+    findings: [],
+    errors: [
+      {
+        code: 'SETUP_FAILED',
+        message: setupError instanceof Error ? setupError.message : String(setupError),
+        retryable: true,
+      },
+    ],
+  };
+}
+
 function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): CliResult {
   const reconciliationEffects =
     setupError instanceof ReconcileExecutionError
@@ -1738,13 +1766,7 @@ function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): Cl
     state: 'failed',
     changed,
     effects,
-    errors: [
-      {
-        code: 'SETUP_FAILED',
-        message: setupError instanceof Error ? setupError.message : String(setupError),
-        retryable: true,
-      },
-    ],
+    ...setupFailureDetails(setupError),
     recovery: [
       ...(applyRecovery ?? []),
       {
