@@ -168,7 +168,7 @@ process.stdin.on('end', () => {
   return { project, ticketPath, run, advance };
 }
 
-describe('Installed planning copy admission', () => {
+describe('Cursor installed planning copy admission', () => {
   it.each(['public approval', 'installed hook'] as const)(
     'refuses project-copy drift at %s after an authenticated review',
     { timeout: 90_000 },
@@ -182,30 +182,41 @@ describe('Installed planning copy admission', () => {
       if (boundary === 'public approval') {
         expect(JSON.parse(canonical.stdout)).toMatchObject({ ok: true });
         expect(readFileSync(project.ticketPath, 'utf8')).toContain('phase: plan-execution');
-        const ticket = readFileSync(project.ticketPath, 'utf8');
-        writeFileSync(
-          project.ticketPath,
-          ticket.replace('phase: plan-execution', 'phase: plan-implementation'),
+      } else {
+        expect(canonical.stdout.trim(), 'canonical installed hook must allow the transition').toBe(
+          '',
+        );
+        expect(`${canonical.stdout}\n${canonical.stderr}`).not.toContain(
+          'canonical_contract_copy_mismatch',
         );
       }
-      const asset = nodePath.join(project.project, '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
+      const driftProject = fixture();
+      const asset = nodePath.join(
+        driftProject.project,
+        '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md',
+      );
       writeFileSync(
         asset,
         `<!-- installed-copy drift outside reviewer block -->\n${readFileSync(asset, 'utf8')}`,
       );
       const drifted =
         boundary === 'public approval'
-          ? project.run(['ticket', 'approve-plan', 'CPY123'])
-          : project.advance();
+          ? driftProject.run(['ticket', 'approve-plan', 'CPY123'])
+          : driftProject.advance();
+      const refused =
+        boundary === 'public approval'
+          ? drifted.status !== 0
+          : drifted.stdout.trim() !== '' &&
+            JSON.parse(drifted.stdout).hookSpecificOutput?.permissionDecision === 'deny';
       expect(
-        drifted.status,
+        refused,
         'installed lifecycle must refuse project author-copy drift after authenticated approval',
-      ).not.toBe(0);
+      ).toBe(true);
       expect(`${drifted.stdout}\n${drifted.stderr}`).toContain('canonical_contract_copy_mismatch');
       expect(`${drifted.stdout}\n${drifted.stderr}`).toContain(
         '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md',
       );
-      expect(readFileSync(project.ticketPath, 'utf8')).toContain('phase: plan-implementation');
+      expect(readFileSync(driftProject.ticketPath, 'utf8')).toContain('phase: plan-implementation');
     },
   );
 });
