@@ -13,6 +13,8 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { PLANNING_SHARED_CLAUSES } from '../../src/planning/shared-contract.js';
+
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const temporaryDirectories: string[] = [];
 
@@ -83,12 +85,8 @@ function generatePhaseContracts(distribution: string): void {
   }
 }
 
-function reconcileProject(
-  distribution: string,
-  project: string,
-  mode: 'install' | 'upgrade',
-): void {
-  const result = spawnSync(
+function reconciliationResult(distribution: string, project: string, mode: 'install' | 'upgrade') {
+  return spawnSync(
     'bun',
     [
       nodePath.join(distribution, 'src/cli.ts'),
@@ -108,6 +106,14 @@ function reconcileProject(
       env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
     },
   );
+}
+
+function reconcileProject(
+  distribution: string,
+  project: string,
+  mode: 'install' | 'upgrade',
+): void {
+  const result = reconciliationResult(distribution, project, mode);
   expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
 }
 
@@ -135,8 +141,46 @@ describe('Planning contract shared-clause generation', () => {
         'real reconciliation must propagate the changed canonical shared clause',
       ).toContain(changed);
       expect(installed).not.toContain(original);
+      if (name === 'PLAN_IMPLEMENTATION.md') {
+        expect(installed).toContain('Direction and completeness');
+        expect(installed).not.toContain('Startable steps:');
+      } else {
+        expect(installed).toContain('Startable steps:');
+        expect(installed).not.toContain('Direction and completeness');
+      }
     }
   });
+
+  it.each(['PLAN_IMPLEMENTATION.md', 'PLAN_EXECUTION.md', 'DISCOVERY.md'] as const)(
+    'blocks reconciliation when %s omits a generated shared clause',
+    file => {
+      const distribution = sourceDistribution();
+      const project = nodePath.join(distribution, 'project');
+      mkdirSync(project);
+      writeFileSync(
+        nodePath.join(project, 'package.json'),
+        JSON.stringify({ name: 'planning-fixture', private: true }),
+      );
+      generatePhaseContracts(distribution);
+      reconcileProject(distribution, project, 'install');
+      const contractPath = nodePath.join(distribution, 'templates/skills/bdd', file);
+      const contract = readFileSync(contractPath, 'utf8');
+      const start = contract.indexOf('<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:scopeAuthority -->');
+      const end = contract.indexOf('<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:trust -->', start);
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+      writeFileSync(contractPath, contract.slice(0, start) + contract.slice(end));
+      const result = reconciliationResult(distribution, project, 'upgrade');
+      expect(
+        result.status,
+        'real CLI reconciliation must reject a missing generated shared clause',
+      ).not.toBe(0);
+      const response = `${result.stdout}\n${result.stderr}`;
+      expect(response).toContain('missing_generated_shared_clause');
+      expect(response).toContain('scopeAuthority');
+      expect(response).toContain(file);
+    },
+  );
 
   it('emits the canonical shared authority block in both real phase-rubric outputs', () => {
     const rubrics = (['implementation', 'execution'] as const).map(generatedRubric);
@@ -146,6 +190,7 @@ describe('Planning contract shared-clause generation', () => {
         'canonical shared authority clauses must be generated for both planning phases',
       ).toContain('<!-- SAFEWORD:PLANNING_SHARED_START -->');
       expect(rubric).toContain('<!-- SAFEWORD:PLANNING_SHARED_END -->');
+      for (const clause of Object.values(PLANNING_SHARED_CLAUSES)) expect(rubric).toContain(clause);
     }
   });
 
