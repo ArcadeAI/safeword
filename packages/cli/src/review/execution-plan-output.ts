@@ -164,6 +164,15 @@ function isProjectContainedPath(value: string): boolean {
   return !value.split(/[\\/]/u).includes('..');
 }
 
+function isValidCommandArgv(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    isNonblank(value[0]) &&
+    value.every(argument => typeof argument === 'string')
+  );
+}
+
 function isValidProofInvocation(
   value: unknown,
   method: ExecutionPlanProofSpecification['method'],
@@ -174,7 +183,7 @@ function isValidProofInvocation(
       hasExactKeys(value, ['type', 'cwd', 'argv']) &&
       typeof value.cwd === 'string' &&
       isProjectContainedPath(value.cwd) &&
-      uniqueNonblankStrings(value.argv, false)
+      isValidCommandArgv(value.argv)
     );
   }
   return (
@@ -314,7 +323,7 @@ function contributorProofsAreReal(definition: ExecutionPlanDeliveryDefinition): 
   );
 }
 
-function hasValidDeliveryDefinition(definition: ExecutionPlanDeliveryDefinition): boolean {
+export function hasValidDeliveryDefinition(definition: ExecutionPlanDeliveryDefinition): boolean {
   if (!hasValidDeliveryDefinitionHeader(definition)) return false;
   if (definition.proof_specifications.some(proof => !isValidProofSpecification(proof))) {
     return false;

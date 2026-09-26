@@ -16,7 +16,18 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import type { RedExecutionAttestation, ReviewKind, ReviewPacket } from './contract.js';
+import { executionPlanDeliveryDefinition } from '../execution-plan/delivery-definition.js';
+import {
+  executionPlanDesignApprovalGate,
+  normalizedExecutionPlanDigest,
+} from '../execution-plan/review-identity.js';
+import { resolveTicketsDirectory } from '../utils/configured-paths.js';
+import type {
+  ExecutionPlanDeliveryDefinition,
+  RedExecutionAttestation,
+  ReviewKind,
+  ReviewPacket,
+} from './contract.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -83,6 +94,103 @@ function requirePlanWorkArtifact(
     throw new ReviewPacketError(
       'Plan-implementation review requires one non-blank impl-plan.md work file; pass supporting evidence with --context',
     );
+  }
+}
+
+function isTicketOwnedExecutionPlan(root: string, path: string): boolean {
+  const relative = nodePath.relative(resolveTicketsDirectory(root), nodePath.join(root, path));
+  const parts = relative.split(nodePath.sep);
+  return (
+    parts.length === 2 && parts[0] !== '..' && parts[0] !== '' && parts[1] === 'execution-plan.md'
+  );
+}
+
+function hasTicketContext(
+  contextFiles: readonly { readonly path: string; readonly content: string }[],
+  directory: string,
+  matchingPath: (path: string) => boolean,
+): boolean {
+  return contextFiles.some(
+    file =>
+      nodePath.dirname(file.path) === directory &&
+      matchingPath(file.path) &&
+      file.content.trim() !== '',
+  );
+}
+
+function isInsideTicket(ticketDirectory: string, path: string): boolean {
+  const relative = nodePath.relative(ticketDirectory, path);
+  return relative !== '' && relative !== '..' && !relative.startsWith(`..${nodePath.sep}`);
+}
+
+function requireExecutionPlanWorkArtifact(
+  kind: ReviewKind,
+  root: string,
+  logicalFiles: readonly { readonly path: string; readonly content: string }[],
+  contextFiles: readonly { readonly path: string; readonly content: string }[],
+): void {
+  if (kind !== 'plan-execution') return;
+  const plan = logicalFiles[0];
+  if (
+    logicalFiles.length !== 1 ||
+    plan === undefined ||
+    plan.content.trim() === '' ||
+    !isTicketOwnedExecutionPlan(root, plan.path)
+  ) {
+    throw new ReviewPacketError(
+      'Plan-execution review requires one ticket-owned execution-plan.md work file',
+    );
+  }
+  const ticketDirectory = nodePath.dirname(plan.path);
+  const hasImplementationPlan = hasTicketContext(
+    contextFiles,
+    ticketDirectory,
+    path => nodePath.basename(path) === 'impl-plan.md',
+  );
+  const hasScenarios = contextFiles.some(
+    file =>
+      isInsideTicket(ticketDirectory, file.path) &&
+      nodePath.extname(file.path) === '.feature' &&
+      file.content.trim() !== '',
+  );
+  if (!hasImplementationPlan || !hasScenarios) {
+    throw new ReviewPacketError(
+      'Plan-execution review requires a non-blank impl-plan.md and approved .feature scenarios as context',
+    );
+  }
+}
+
+function executionPlanMetadata(
+  kind: ReviewKind,
+  root: string,
+  logicalFiles: readonly { readonly content: string }[],
+): {
+  readonly gate?: boolean;
+  readonly definition?: ExecutionPlanDeliveryDefinition;
+  readonly digest?: string;
+} {
+  if (kind !== 'plan-execution') return {};
+  const plan = logicalFiles[0];
+  if (plan === undefined) throw new ReviewPacketError('Execution Plan work file is missing');
+  try {
+    const gate = executionPlanDesignApprovalGate(root);
+    return {
+      gate,
+      definition: executionPlanDeliveryDefinition(plan.content, gate),
+      digest: normalizedExecutionPlanDigest(plan.content),
+    };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'invalid delivery definition';
+    throw new ReviewPacketError(`Plan-execution review refused: ${reason}`);
+  }
+}
+
+function executionPlanConfigChanged(root: string, gate: boolean | undefined): boolean {
+  if (gate === undefined) return false;
+  try {
+    return executionPlanDesignApprovalGate(root) !== gate;
+  } catch {
+    return true;
   }
 }
 
@@ -211,6 +319,12 @@ function snapshotEntries(root: string, directory = root): string[] {
   });
 }
 
+function requireBoundedFileCount(targets: readonly string[], context: readonly string[]): void {
+  if (targets.length + context.length > MAX_FILE_COUNT) {
+    throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
+  }
+}
+
 function prepareReviewPacketUnsafe(
   cwd: string,
   kind: ReviewKind,
@@ -218,9 +332,7 @@ function prepareReviewPacketUnsafe(
   context: readonly string[] = [],
   execution: ReviewPacketExecution = {},
 ): PreparedReviewPacket {
-  if (targets.length + context.length > MAX_FILE_COUNT) {
-    throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
-  }
+  requireBoundedFileCount(targets, context);
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync(cwd);
   const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
@@ -228,6 +340,7 @@ function prepareReviewPacketUnsafe(
   const expectedSnapshotEntries = new Set<string>();
   let logicalFiles: { path: string; content: string }[];
   let contextFiles: { path: string; content: string }[];
+  let executionPlan: ReturnType<typeof executionPlanMetadata>;
   try {
     let packetBytes = 0;
     const captureFiles = (files: readonly string[]): { path: string; content: string }[] =>
@@ -283,6 +396,8 @@ function prepareReviewPacketUnsafe(
     contextFiles = captureFiles(context);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
+    requireExecutionPlanWorkArtifact(kind, canonicalRoot, logicalFiles, contextFiles);
+    executionPlan = executionPlanMetadata(kind, canonicalRoot, logicalFiles);
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;
@@ -293,6 +408,10 @@ function prepareReviewPacketUnsafe(
     kind,
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
+    ...(executionPlan.definition !== undefined && {
+      execution_plan_delivery_definition: executionPlan.definition,
+      execution_plan_normalized_digest: executionPlan.digest,
+    }),
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
   };
   if (Buffer.byteLength(JSON.stringify(packet), 'utf8') > MAX_PACKET_BYTES) {
@@ -303,7 +422,10 @@ function prepareReviewPacketUnsafe(
     packet,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some(file => sourceFileChanged(file)),
+    sourceChanged: () => {
+      if (tracked.some(file => sourceFileChanged(file))) return true;
+      return executionPlanConfigChanged(canonicalRoot, executionPlan.gate);
+    },
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
       try {

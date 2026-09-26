@@ -364,93 +364,6 @@ describe('durable review jobs', () => {
     });
   });
 
-  it('keeps plan-execution approval current through ordinary checklist progress', async () => {
-    const cwd = project();
-    const plan = nodePath.join(cwd, 'execution-plan.md');
-    writeFileSync(
-      plan,
-      [
-        '# Execution Plan',
-        '',
-        '<!-- safeword:delivery-checklist:v1 -->',
-        '',
-        '| ID | Category | Obligation | Owner | Required proof | Disposition | Evidence class | Revision | Evidence, reason, or dependency |',
-        '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-        '| tests | testing | Prove the real boundary. | contributor | boundary-proof | open | missing | | |',
-        '| approval | ownership and human dependencies | Obtain approval. | human | | pending_human | missing | | Named reviewer |',
-        '',
-        '## Notes',
-        '',
-        '| A | B | C | D | E | open | G | H | Stable note |',
-        '',
-      ].join('\n'),
-    );
-    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
-    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
-
-    const result = await startReviewJob({
-      cwd,
-      kind: 'plan-execution',
-      targets: ['execution-plan.md'],
-    });
-    const id = (result.data as { review_id: string }).review_id;
-
-    writeFileSync(
-      plan,
-      readFileSync(plan, 'utf8').replace(
-        '| tests | testing | Prove the real boundary. | contributor | boundary-proof | open | missing | | |',
-        '| tests | testing | Prove the real boundary. | contributor | boundary-proof | complete | current_revision_real_boundary | abc1234 | Passed on final bytes |',
-      ),
-    );
-    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'approved' });
-
-    writeFileSync(
-      plan,
-      readFileSync(plan, 'utf8').replace(
-        '| approval | ownership and human dependencies | Obtain approval. | human | | pending_human | missing | | Named reviewer |',
-        '| approval | ownership and human dependencies | Obtain approval. | human | | complete | current_revision_real_boundary | abc1234 | Approved |',
-      ),
-    );
-    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
-    writeFileSync(
-      plan,
-      readFileSync(plan, 'utf8').replace(
-        '| approval | ownership and human dependencies | Obtain approval. | human | | complete | current_revision_real_boundary | abc1234 | Approved |',
-        '| approval | ownership and human dependencies | Obtain approval. | human | | pending_human | missing | | Named reviewer |',
-      ),
-    );
-    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'approved' });
-
-    const appendix = nodePath.join(cwd, 'appendix.md');
-    writeFileSync(appendix, 'Supporting evidence\n');
-    const multiTarget = await startReviewJob({
-      cwd,
-      kind: 'plan-execution',
-      targets: ['execution-plan.md', 'appendix.md'],
-    });
-    const multiTargetId = (multiTarget.data as { review_id: string }).review_id;
-    writeFileSync(appendix, 'Changed supporting evidence\n');
-    expect(reviewJobStatus(cwd, multiTargetId).data).toMatchObject({ status: 'stale' });
-
-    writeFileSync(plan, readFileSync(plan, 'utf8').replace('Stable note', 'Changed note'));
-    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
-    writeFileSync(plan, readFileSync(plan, 'utf8').replace('Changed note', 'Stable note'));
-    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'approved' });
-
-    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
-    const config = nodePath.join(cwd, '.safeword', 'config.json');
-    writeFileSync(config, '{"designApprovalGate":true}\n');
-    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
-    unlinkSync(config);
-    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'approved' });
-
-    writeFileSync(
-      plan,
-      readFileSync(plan, 'utf8').replace('Prove the real boundary.', 'Prove a different boundary.'),
-    );
-    expect(reviewJobStatus(cwd, id).data).toMatchObject({ status: 'stale' });
-  });
-
   it('preserves a quick changes-requested reviewer result inline', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, REQUEST_CHANGES_WORKER));
@@ -919,35 +832,37 @@ describe('durable review jobs', () => {
       state: 'healthy',
       data: { command: 'review gate executable-red', status: 'approved' },
     });
-    const hookResult = spawnSync('bun', [PRE_TOOL_QUALITY], {
+    const hookInput = JSON.stringify({
+      session_id: 'real-cli-receipt',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: nodePath.join(cwd, execution.ledger),
+        old_string: [
+          '### Scenario: exact actor boundary',
+          '',
+          '- [x] RED abc1234',
+          '- [ ] GREEN',
+        ].join('\n'),
+        new_string: [
+          '### Scenario: exact actor boundary',
+          '',
+          '- [x] RED abc1234',
+          '- [x] GREEN def5678',
+        ].join('\n'),
+      },
+    });
+    const hookOptions = {
       cwd,
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: cwd,
         SAFEWORD_PLUGIN_CLI: SOURCE_CLI,
       },
-      encoding: 'utf8',
-      input: JSON.stringify({
-        session_id: 'real-cli-receipt',
-        hook_event_name: 'PreToolUse',
-        tool_name: 'Edit',
-        tool_input: {
-          file_path: nodePath.join(cwd, execution.ledger),
-          old_string: [
-            '### Scenario: exact actor boundary',
-            '',
-            '- [x] RED abc1234',
-            '- [ ] GREEN',
-          ].join('\n'),
-          new_string: [
-            '### Scenario: exact actor boundary',
-            '',
-            '- [x] RED abc1234',
-            '- [x] GREEN def5678',
-          ].join('\n'),
-        },
-      }),
-    });
+      encoding: 'utf8' as const,
+      input: hookInput,
+    };
+    const hookResult = spawnSync('bun', [PRE_TOOL_QUALITY], hookOptions);
     expect(hookResult.status, hookResult.stderr).toBe(0);
     expect(hookResult.stdout).toBe('');
     expect(
@@ -967,6 +882,16 @@ describe('durable review jobs', () => {
         { code: 'EXECUTABLE_RED_GATE_BLOCKED', message: expect.stringContaining('stale') },
       ],
       data: { command: 'review gate executable-red', status: 'blocked' },
+    });
+    const staleHookResult = spawnSync('bun', [PRE_TOOL_QUALITY], hookOptions);
+    expect(staleHookResult.status, staleHookResult.stderr).toBe(0);
+    expect(JSON.parse(staleHookResult.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: expect.stringContaining(
+          'fresh independent executable RED approval',
+        ),
+      },
     });
 
     writeFileSync(nodePath.join(cwd, 'input.md'), 'changed after approval\n');

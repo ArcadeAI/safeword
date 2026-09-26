@@ -12,7 +12,9 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { executionPlanDeliveryDefinition } from '../../src/execution-plan/delivery-definition.js';
 import type { RedExecutionAttestation } from '../../src/review/contract.js';
+import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../../src/review/execution-plan-conformance.js';
 import { prepareReviewPacket } from '../../src/review/packet.js';
 
 const temporaryDirectories: string[] = [];
@@ -58,6 +60,29 @@ afterEach(() => {
 });
 
 describe('review packet containment and change accounting', () => {
+  it.each([
+    {
+      caseId: 'explicitly-inapplicable-obligations',
+      disposition: 'not_applicable',
+      detail: 'accepted approach',
+    },
+    {
+      caseId: 'pending-human-authority-is-not-complete',
+      disposition: 'pending_human',
+      detail: 'Security approval',
+    },
+  ])('retains reviewed $disposition checklist detail', ({ caseId, disposition, detail }) => {
+    const source = EXECUTION_PLAN_CONFORMANCE_CASES.find(testCase => testCase.id === caseId);
+    if (source === undefined) throw new Error(`Missing fixture ${caseId}`);
+    const definition = executionPlanDeliveryDefinition(source.execution_plan, false);
+    expect(definition.checklist_items).toContainEqual(
+      expect.objectContaining({
+        reviewed_disposition: disposition,
+        reviewed_detail: expect.stringContaining(detail),
+      }),
+    );
+  });
+
   it('refuses executable RED review without Safeword execution evidence', () => {
     const root = temporaryDirectory();
     writeFileSync(nodePath.join(root, 'proof.md'), 'missing behavior\n');
@@ -117,6 +142,118 @@ describe('review packet containment and change accounting', () => {
     expect(() =>
       prepareReviewPacket(root, 'plan-implementation', ['impl-plan.md', 'spec.md']),
     ).toThrow('one non-blank impl-plan.md work file');
+  });
+
+  it('requires one ticket-owned Execution Plan as the only work file', () => {
+    const root = temporaryDirectory();
+    const ticket = nodePath.join(root, '.project', 'tickets', 'TEST-plan');
+    mkdirSync(ticket, { recursive: true });
+    const plan = nodePath.join(ticket, 'execution-plan.md');
+    writeFileSync(plan, EXECUTION_PLAN_CONFORMANCE_CASES[0]?.execution_plan ?? '');
+    writeFileSync(nodePath.join(root, 'execution-plan.md'), '# Wrong location\n');
+
+    expect(() => prepareReviewPacket(root, 'plan-execution', ['execution-plan.md'])).toThrow(
+      'ticket-owned execution-plan.md',
+    );
+    expect(() =>
+      prepareReviewPacket(root, 'plan-execution', [
+        nodePath.relative(root, plan),
+        'execution-plan.md',
+      ]),
+    ).toThrow('one ticket-owned execution-plan.md');
+  });
+
+  it('requires the accepted Implementation Plan and scenarios as Execution Plan context', () => {
+    const root = temporaryDirectory();
+    const ticket = nodePath.join(root, '.project', 'tickets', 'TEST-plan');
+    mkdirSync(ticket, { recursive: true });
+    const plan = nodePath.relative(root, nodePath.join(ticket, 'execution-plan.md'));
+    writeFileSync(
+      nodePath.join(root, plan),
+      EXECUTION_PLAN_CONFORMANCE_CASES[0]?.execution_plan ?? '',
+    );
+    writeFileSync(nodePath.join(ticket, 'impl-plan.md'), '# Accepted approach\n');
+    const feature = nodePath.join(ticket, 'features', 'behavior.feature');
+    mkdirSync(nodePath.dirname(feature));
+    writeFileSync(feature, 'Feature: accepted behavior\n');
+    const otherTicket = nodePath.join(root, '.project', 'tickets', 'OTHER-plan');
+    mkdirSync(otherTicket);
+    writeFileSync(nodePath.join(otherTicket, 'behavior.feature'), 'Feature: wrong ticket\n');
+
+    expect(() => prepareReviewPacket(root, 'plan-execution', [plan])).toThrow(
+      'impl-plan.md and approved .feature scenarios',
+    );
+    expect(() =>
+      prepareReviewPacket(
+        root,
+        'plan-execution',
+        [plan],
+        [
+          nodePath.relative(root, nodePath.join(ticket, 'impl-plan.md')),
+          nodePath.relative(root, nodePath.join(otherTicket, 'behavior.feature')),
+        ],
+      ),
+    ).toThrow('impl-plan.md and approved .feature scenarios');
+    const prepared = prepareReviewPacket(
+      root,
+      'plan-execution',
+      [plan],
+      [
+        nodePath.relative(root, nodePath.join(ticket, 'impl-plan.md')),
+        nodePath.relative(root, feature),
+      ],
+    );
+    try {
+      expect(prepared.packet.logical_files.map(file => file.path)).toEqual([plan]);
+      expect(prepared.packet.execution_plan_delivery_definition).toBeDefined();
+      expect(prepared.packet.execution_plan_normalized_digest).toMatch(/^[a-f0-9]{64}$/u);
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
+  it('rejects malformed delivery definitions before dispatch', () => {
+    const root = temporaryDirectory();
+    const ticket = nodePath.join(root, '.project', 'tickets', 'TEST-plan');
+    mkdirSync(ticket, { recursive: true });
+    const plan = nodePath.relative(root, nodePath.join(ticket, 'execution-plan.md'));
+    const source = EXECUTION_PLAN_CONFORMANCE_CASES[0]?.execution_plan ?? '';
+    writeFileSync(
+      nodePath.join(root, plan),
+      source.replace('| plan-integrity |', '| behavior-boundary |'),
+    );
+    writeFileSync(nodePath.join(ticket, 'impl-plan.md'), '# Accepted approach\n');
+    writeFileSync(nodePath.join(ticket, 'behavior.feature'), 'Feature: accepted behavior\n');
+
+    expect(() =>
+      prepareReviewPacket(
+        root,
+        'plan-execution',
+        [plan],
+        [
+          nodePath.relative(root, nodePath.join(ticket, 'impl-plan.md')),
+          nodePath.relative(root, nodePath.join(ticket, 'behavior.feature')),
+        ],
+      ),
+    ).toThrow('delivery definition is invalid');
+    writeFileSync(
+      nodePath.join(root, plan),
+      source.replace(
+        '<!-- safeword:delivery-checklist:v1 -->',
+        'Checklist marker: <!-- safeword:delivery-checklist:v1 -->',
+      ),
+    );
+    expect(() =>
+      prepareReviewPacket(
+        root,
+        'plan-execution',
+        [plan],
+        [
+          nodePath.relative(root, nodePath.join(ticket, 'impl-plan.md')),
+          nodePath.relative(root, nodePath.join(ticket, 'behavior.feature')),
+        ],
+      ),
+    ).toThrow('versioned Delivery Checklist');
   });
   it('rejects a target that escapes through a symlinked parent directory', () => {
     const project = temporaryDirectory();
