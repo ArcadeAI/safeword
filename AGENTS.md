@@ -166,7 +166,7 @@ Bun and Node for the command and its child processes in non-interactive shells. 
 
 Invoke the launcher from the repository root, or use `../../scripts/dev` from
 `packages/cli`. It preserves the working directory, arguments, and exit status.
-The commit hook uses it too. This applies to the Bun commands below. Do not repair a repository tool mismatch
+The commit and pre-push hooks use it too. This applies to the Bun commands below. Do not repair a repository tool mismatch
 by changing a contributor's shell profile or upgrading the pinned version.
 
 ### Test Execution
