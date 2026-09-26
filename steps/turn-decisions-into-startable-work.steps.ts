@@ -35,12 +35,12 @@ interface Proof {
 
 const proofs: Record<string, Proof> = {
   'Implementation Plan review state controls Execution Planning': {
-    expectedTests: 8,
+    expectedTests: 13,
     selector: 'Implementation Plan review admission controls Execution Planning',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
   'Review routes preserve their actual provenance': {
-    expectedTests: 8,
+    expectedTests: 13,
     selector: 'Implementation Plan review admission controls Execution Planning',
     testFile: 'tests/integration/plan-design-approval.test.ts',
   },
