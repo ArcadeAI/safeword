@@ -5,6 +5,7 @@
       "options": [
         "--agents <agents>",
         "--scope <scope>",
+        "--approve-reviews",
         "--no-modify",
         "--migrate-namespace",
         "--no-migrate-namespace",
@@ -17,7 +18,7 @@
     },
     "codex install": {
       "syntax": "install",
-      "options": []
+      "options": ["--approve-reviews"]
     },
     "remove": {
       "syntax": "remove",

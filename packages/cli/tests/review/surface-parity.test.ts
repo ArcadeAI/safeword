@@ -181,7 +181,7 @@ function expectTypedExhaustion(relativePath: string, call: ReviewCallSection): v
   const normalized = section.replaceAll(/\s+/gu, ' ');
   expect(normalized, context).toContain('--agent-handoff --json');
   expect(normalized, context).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
-  expect(normalized, context).toMatch(/execute its exact recovery command/iu);
+  expect(normalized, context).toMatch(/(?:execute|run) its exact recovery command/iu);
   expect(normalized, context).toMatch(/rerun the same coordinator command once/iu);
   expect(section, context).toContain('REVIEW_PENDING');
   expect(normalized, context).toMatch(/independence: degraded[^.]{0,240}not independent/iu);

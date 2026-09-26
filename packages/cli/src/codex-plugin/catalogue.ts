@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 import { parse, stringify } from 'yaml';
 
 import { assertNativePluginRuntimeAuthority } from '../plugin-runtime-authority.js';
+import { adaptReviewerLoginGuidance } from '../review/login-guidance.js';
 
 export interface GeneratedPluginAsset {
   relativePath: string;
@@ -355,24 +356,30 @@ function adaptWorkflowMarkdown(
 ): string {
   let adapted = adaptCodexWorkflowInvocations(markdown, knownSkillNames);
   adapted = adaptCodexNativeRuntimeInvocations(adapted, version);
-  if (reviewRoute === 'mcp') adapted = adaptCodexReviewInstructions(adapted);
+  if (reviewRoute === 'mcp') {
+    adapted = adaptCodexReviewInstructions(adapted);
+    adapted = adaptReviewerLoginGuidance(adapted);
+  }
 
   return formatMarkdownTables(adapted);
 }
 
 const CODEX_REVIEW_ROUTE =
-  'On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation.';
+  'On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. The user can approve only `start_review` once with `safeword codex install --approve-reviews` and restart Codex. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation.';
 
 function adaptCodexReviewInstructions(markdown: string): string {
   let adapted = markdown.replaceAll(
     /(?<indent>^[ \t]*)```bash\r?\n[^\n]*review run (?<kind>quality-review|scenario-gate|plan-implementation)[^\n]*\n[ \t]*```/gmu,
     (_match, indent: string, kind: string) =>
-      `${indent}Call \`mcp__safeword_review__start_review\` with \`kind: "${kind}"\`, the absolute project root, relative targets, and relative context.`,
+      `${indent}Call \`mcp__safeword_review__start_review\` with \`kind: "${kind}"\`, the absolute project root, relative targets, and relative context.${kind === 'scenario-gate' ? ' Include spec.md and ticket.md in context so the reviewer can check out_of_scope.' : ''}`,
   );
   let start = adapted.search(/On\s+Codex,\s+`review run` for `quality-review`/u);
   while (start !== -1) {
     const tail = adapted.slice(start);
-    const ending = /If the dispatch rule is\s+absent or does not match, report the route as\s+unavailable instead of asking\s+the\s+user\./u.exec(tail);
+    const ending =
+      /If the dispatch rule is\s+absent or does not match, report the route as\s+unavailable instead of asking\s+the\s+user\./u.exec(
+        tail,
+      );
     if (ending?.index === undefined) throw new Error('Codex review guidance has no rule ending');
     const end = start + ending.index + ending[0].length;
     const old = adapted.slice(start, end);
@@ -627,7 +634,12 @@ export function generateCodexPluginAssets(
   });
   const referenceAssets = packagedReferences.map(({ skill, filename, source }) => ({
     relativePath: nodePath.join('skills', skill, 'references', filename),
-    content: adaptWorkflowMarkdown(readFileSync(source, 'utf8'), knownSkillNames, version, reviewRoute),
+    content: adaptWorkflowMarkdown(
+      readFileSync(source, 'utf8'),
+      knownSkillNames,
+      version,
+      reviewRoute,
+    ),
   }));
   return [...skillAssets, ...referenceAssets];
 }

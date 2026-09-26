@@ -94,7 +94,9 @@ describe('when an alternate independent route exposes expired authentication', (
     expect(result.exitCode, result.stdout).toBe(2);
     expect(payload.findings[0]?.code).toBe('REVIEW_AUTHENTICATION_REQUIRED');
     expect(explanation).toMatch(/reauthenticate Codex/iu);
-    expect(payload.recovery).toEqual([expect.objectContaining({ command: 'codex login' })]);
+    expect(payload.recovery).toEqual([
+      expect.objectContaining({ command: 'codex login --device-auth' }),
+    ]);
     expect(payload.data).toMatchObject({
       preferred_failure: 'timed_out',
       alternate_model: 'vendor-model-2',

@@ -1,4 +1,4 @@
-# Test Definitions: Run independent Codex reviews without permission setup
+# Test Definitions: Run independent Codex reviews after one narrow approval
 
 Feature source: `packages/cli/features/prompt-free-codex-reviews.feature`
 
@@ -86,7 +86,7 @@ Feature source: `packages/cli/features/prompt-free-codex-reviews.feature`
 
 ## Rule: prompt-free-codex-reviews.TBU1.R3
 
-### Scenario: Independent review finishes without a prompt under workspace permissions
+### Scenario: Independent review finishes without repeat prompts after narrow approval
 
 - [ ] RED
 - [ ] GREEN
@@ -123,6 +123,32 @@ Feature source: `packages/cli/features/prompt-free-codex-reviews.feature`
 - [ ] REFACTOR
 
 ### Scenario: Edited review receipts cannot claim independent approval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: prompt-free-codex-reviews.TBU1.R4
+
+### Scenario: Reviewer sign-in uses the exact URL printed by the assigned CLI
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Codex device sign-in displays its one-time code
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Unsupported or mismatched sign-in URLs are rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Hosts without MCP Apps try the default browser and retain a clickable link
 
 - [ ] RED
 - [ ] GREEN

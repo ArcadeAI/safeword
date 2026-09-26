@@ -229,7 +229,7 @@ function agentName(agent: ReviewAgent): string {
 
 /** The vendor-owned interactive login flow for a reviewer profile. */
 function reviewerLoginCommand(agent: ReviewAgent): string {
-  if (agent === 'codex') return 'codex login';
+  if (agent === 'codex') return 'codex login --device-auth';
   if (agent === 'opencode') return 'opencode auth login';
   return 'claude auth login';
 }

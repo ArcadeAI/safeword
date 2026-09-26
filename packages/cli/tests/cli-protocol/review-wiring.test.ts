@@ -1473,7 +1473,7 @@ describe('cross-agent review public-command wiring', () => {
       author: 'claude',
       reviewer: 'codex',
       reviewerName: 'Codex',
-      loginCommand: 'codex login',
+      loginCommand: 'codex login --device-auth',
     },
     {
       author: 'codex',
@@ -2277,7 +2277,7 @@ describe('cross-agent review public-command wiring', () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'action_required',
       findings: [{ code: 'REVIEW_AUTHENTICATION_REQUIRED' }],
-      recovery: [{ command: 'codex login', requires_human: true }],
+      recovery: [{ command: 'codex login --device-auth', requires_human: true }],
       data: {
         status: 'blocked',
         assigned_reviewer: 'codex',
@@ -3930,7 +3930,7 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(log, 'utf8')).toBe('codex\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
       findings: [{ code: 'REVIEW_AUTHENTICATION_REQUIRED' }],
-      recovery: [{ command: 'codex login', requires_human: true }],
+      recovery: [{ command: 'codex login --device-auth', requires_human: true }],
       data: {
         assigned_reviewer: 'codex',
         preferred_model: 'model-a',

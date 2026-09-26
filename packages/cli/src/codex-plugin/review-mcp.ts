@@ -4,6 +4,7 @@ import readline from 'node:readline';
 
 import type { ReviewKind } from '../review/contract.js';
 import { reviewJobStatus, startReviewJob } from '../review/job.js';
+import { REVIEW_LOGIN_HTML, REVIEW_LOGIN_URI } from './review-login-ui.js';
 
 const REVIEW_KINDS = new Set<ReviewKind>([
   'quality-review',
@@ -88,6 +89,55 @@ function reviewStatus(args: unknown): Record<string, unknown> {
   });
 }
 
+// The signed review, reviewer, URL, and optional device code are checked together.
+// eslint-disable-next-line complexity -- All authentication fields must be validated together.
+function showReviewerLogin(args: unknown): Record<string, unknown> {
+  if (
+    !isRecord(args) ||
+    typeof args.project_root !== 'string' ||
+    !nodePath.isAbsolute(args.project_root) ||
+    typeof args.review_id !== 'string' ||
+    typeof args.auth_url !== 'string'
+  ) {
+    throw new Error('project_root, review_id, and auth_url are required');
+  }
+  const result = reviewJobStatus(realpathSync(args.project_root), args.review_id);
+  const reviewer = isRecord(result.data) ? result.data.assigned_reviewer : undefined;
+  if (
+    result.findings.every(finding => finding.code !== 'REVIEW_AUTHENTICATION_REQUIRED') ||
+    (reviewer !== 'claude' && reviewer !== 'codex')
+  ) {
+    throw new Error('The review is not waiting for Claude or Codex authentication');
+  }
+  const url = new URL(args.auth_url);
+  const allowedHosts =
+    reviewer === 'claude'
+      ? new Set(['claude.com', 'platform.claude.com'])
+      : new Set(['auth.openai.com', 'chatgpt.com']);
+  if (url.protocol !== 'https:' || !allowedHosts.has(url.hostname) || url.href.length > 8000) {
+    throw new Error('auth_url must be an HTTPS sign-in URL for the assigned reviewer');
+  }
+  const deviceCode = args.device_code;
+  if (
+    deviceCode !== undefined &&
+    (reviewer !== 'codex' ||
+      typeof deviceCode !== 'string' ||
+      !/^[A-Z\d]{5}-[A-Z\d]{5}$/u.test(deviceCode))
+  ) {
+    throw new Error('device_code must be a Codex device sign-in code');
+  }
+  const value = {
+    reviewer,
+    auth_url: url.href,
+    ...(deviceCode !== undefined && { device_code: deviceCode }),
+    message:
+      reviewer === 'claude'
+        ? 'Open the sign-in link, then paste any requested code into the waiting Claude login command. Retry the same review after sign-in.'
+        : 'Open the sign-in link, enter the device code, then retry the same review after sign-in.',
+  };
+  return { content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value };
+}
+
 const tools = [
   {
     name: 'start_review',
@@ -118,28 +168,76 @@ const tools = [
       required: ['project_root', 'review_id'],
     },
   },
+  {
+    name: 'show_reviewer_login',
+    description:
+      'After a review reports REVIEW_AUTHENTICATION_REQUIRED, display the sign-in URL printed by the foreground reviewer CLI login command. Keep that command running until sign-in finishes, then retry the same review. The result also contains a plain link for hosts without MCP Apps UI.',
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    _meta: { ui: { resourceUri: REVIEW_LOGIN_URI } },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_root: { type: 'string', description: 'Absolute project directory' },
+        review_id: { type: 'string' },
+        auth_url: {
+          type: 'string',
+          description: 'Exact HTTPS URL printed by the reviewer login CLI',
+        },
+        device_code: {
+          type: 'string',
+          description: 'Codex device code, when printed by codex login --device-auth',
+        },
+      },
+      required: ['project_root', 'review_id', 'auth_url'],
+    },
+  },
 ] as const;
 
 async function callTool(name: unknown, args: unknown): Promise<Record<string, unknown>> {
   if (name === 'start_review') return startReview(args);
   if (name === 'review_status') return reviewStatus(args);
+  if (name === 'show_reviewer_login') return showReviewerLogin(args);
   return textResult({ error: 'Unknown tool' }, true);
 }
 
+// MCP dispatch has one branch for each protocol method and its validation path.
+// eslint-disable-next-line complexity -- MCP method dispatch covers the complete server surface.
 export async function handleReviewMcpRequest(request: unknown): Promise<unknown> {
   if (!isRecord(request) || !('id' in request)) return undefined;
   const id = request.id;
   const method = request.method;
   let result: unknown;
   try {
+    // Protocol methods are intentionally checked in order because resources/read has a parameter guard.
+    // eslint-disable-next-line unicorn/prefer-switch -- resources/read needs a parameter guard.
     if (method === 'initialize') {
       result = {
         protocolVersion: '2025-06-18',
-        capabilities: { tools: {} },
+        capabilities: { tools: {}, resources: {} },
         serverInfo: { name: 'safeword-review', version: '1' },
       };
     } else if (method === 'tools/list') {
       result = { tools };
+    } else if (method === 'resources/list') {
+      result = {
+        resources: [
+          {
+            uri: REVIEW_LOGIN_URI,
+            name: 'Reviewer sign-in',
+            mimeType: 'text/html;profile=mcp-app',
+          },
+        ],
+      };
+    } else if (
+      method === 'resources/read' &&
+      isRecord(request.params) &&
+      request.params.uri === REVIEW_LOGIN_URI
+    ) {
+      result = {
+        contents: [
+          { uri: REVIEW_LOGIN_URI, mimeType: 'text/html;profile=mcp-app', text: REVIEW_LOGIN_HTML },
+        ],
+      };
     } else if (method === 'tools/call' && isRecord(request.params)) {
       const { name, arguments: args } = request.params;
       result = await callTool(name, args);
@@ -153,7 +251,7 @@ export async function handleReviewMcpRequest(request: unknown): Promise<unknown>
 }
 
 if (import.meta.main) {
-  process.env.SAFEWORD_AGENT_RUNTIME = 'codex';
+  process.env.SAFEWORD_AGENT_RUNTIME = process.argv.includes('--claude') ? 'claude' : 'codex';
   process.env.SAFEWORD_REVIEW_FOREGROUND_MS = '0';
   const input = readline.createInterface({ input: process.stdin });
   for await (const line of input) {

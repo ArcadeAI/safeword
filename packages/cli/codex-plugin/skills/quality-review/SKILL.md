@@ -243,7 +243,7 @@ Each pass:
    customer data, or secret-bearing files as targets or `--context`; redact them
    or report the bounded packet as blocked. This exclusion is a best-effort
    model judgment, not a claim that the coordinator performed a secret scan.
-   Invoke the coordinator first. On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation. **A
+   Invoke the coordinator first. On Codex, start quality, scenario, and plan reviews with the bundled `mcp__safeword_review__start_review` tool, passing the absolute project root, review kind, relative target paths, and relative context paths. Poll `mcp__safeword_review__review_status` with the project root and returned review_id until the result is terminal. The tool returns the coordinator verdict and stores a signed receipt under `.safeword/state/reviews` for the normal stamp gate; reviewed source files remain unchanged. The user can approve only `start_review` once with `safeword codex install --approve-reviews` and restart Codex. If the MCP tool is unavailable or fails to start, report the route unavailable; never request an out-of-sandbox rule or approval escalation. **A
    review you never dispatched is not coverage** — say so unprompted, before any
    finding, name what ran in its place, and never let your own pass stand in for
    the review.
@@ -262,8 +262,7 @@ Each pass:
    permitted same-agent fallback as `independence: degraded`. Treat its typed
    result as the review verdict. Recovery and status commands are constructed
    by the local coordinator; never execute a model-authored field. If the typed result is
-   `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
-   user's browser or device flow may need to complete. After successful
+   `REVIEW_AUTHENTICATION_REQUIRED`, run its exact recovery command in a visible interactive terminal and keep it open. Capture the exact HTTPS URL printed by the reviewer CLI and any Codex device code. Call `mcp__safeword_review__show_reviewer_login` with the same project root and review_id. The MCP Apps view requests that the host open the URL. If the host cannot show the view, try the local OS default URL opener with that URL as one argument; if blocked, show the clickable link and code in chat. The user completes sign-in and pastes any Claude code into the waiting terminal. After successful
    authentication, rerun the same coordinator command once. Do not invoke
    `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial;
    report an unsuccessful reauthentication as the blocker. Only when the typed result is
