@@ -39,3 +39,13 @@ First reproduce the failure through `ticket approve-plan` with the real CLI and 
 Targeted checks: `plan-design-approval.test.ts`, `plan-transition-gate.test.ts`, and `review-receipt-wiring.test.ts`. Before delivery: relevant lint/typecheck, full package verification, generated-host parity if guidance changes, and independent review. No completion or Ready claim is made before those results are collected.
 
 - Resume: Confirmed the approved PR 1 scope and existing real CLI harness. Begin RED for a warning-bearing approval with only the authenticated phase stamp.
+
+- Implementation: RED d17892b68; authenticated phase approval GREEN 14878b34a;
+  truthful rejection GREEN 5622a89b8. Both executable RED proofs earned independent
+  coordinator approval. The five-file focused verification passed all 123 tests.
+- Final review: current-source Claude review 8ef57710-b37d-4576-882b-730003b2085f
+  approved with no error findings. Warnings and remaining verification are recorded
+  in verify.md; completion is not yet claimed.
+- User-requested toolchain repair: repository launcher and Git hook now resolve
+  pinned Bun/Node for child processes. The personal shell-profile workaround was
+  reverted. This explicit additional scope does not change planning authority.
