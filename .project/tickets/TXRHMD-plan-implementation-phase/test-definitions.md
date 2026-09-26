@@ -6,19 +6,19 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: plan-implementation-phase.TB1.R1 — a new-flow feature cannot enter implement without a valid implementation plan
 
-### Scenario: Feature with a valid plan advances into implement
+### Scenario: Feature with a valid plan advances into Execution Planning
 
 - [x] RED skip: over-blocking guard — allow-path passed pre-gate by design (#928); pinned in 93e792e0
 - [x] GREEN 34110654
 - [x] REFACTOR skip: shared slice-2 loop
 
-### Scenario: Feature without a plan is denied entry to implement
+### Scenario: Feature without a plan is denied entry to Execution Planning
 
 - [x] RED 93e792e0
 - [x] GREEN 34110654
 - [x] REFACTOR skip: shared slice-2 loop
 
-### Scenario: Feature with an incomplete plan is denied entry to implement
+### Scenario: Feature with an incomplete plan is denied entry to Execution Planning
 
 - [x] RED 93e792e0
 - [x] GREEN 34110654
@@ -326,7 +326,7 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [x] GREEN 21570ca2
 - [x] REFACTOR skip: assertion-only pin
 
-### Scenario: A jump from intake to done names all five skipped phases
+### Scenario: A jump from intake to done names all six skipped phases
 
 - [x] RED 82aa9ad0
 - [x] GREEN ea3c5113

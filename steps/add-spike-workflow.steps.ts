@@ -195,11 +195,12 @@ Then('plan-implementation creates impl-plan.md', function (this: SpikeWorkflowWo
 });
 
 Then('it maps evidence to the Approach proof', function (this: SpikeWorkflowWorld) {
-  assert.match(this.bddPlanningGuidance ?? '', /evidence → Approach proof/i);
+  assert.match(this.bddPlanningGuidance ?? '', /evidence → a linked Approach proof reference/i);
+  assert.match(this.bddPlanningGuidance ?? '', /command and output in the Execution Plan/i);
 });
 
 Then('it maps shortcuts to the build order', function (this: SpikeWorkflowWorld) {
-  assert.match(this.bddPlanningGuidance ?? '', /shortcuts → Approach build order/i);
+  assert.match(this.bddPlanningGuidance ?? '', /shortcuts → Execution Plan build order/i);
 });
 
 Then('it maps the decision to Decisions', function (this: SpikeWorkflowWorld) {
