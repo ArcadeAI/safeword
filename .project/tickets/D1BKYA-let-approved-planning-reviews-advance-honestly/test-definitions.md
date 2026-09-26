@@ -7,7 +7,7 @@ When the installed CLI approves the Implementation Plan
 Then it enters Execution Planning without another artifact stamp
 
 - [x] RED d17892b68
-- [ ] GREEN
+- [x] GREEN 14878b34a
 - [ ] REFACTOR
 
 ## Scenario: Refusals report actual evidence failures and rejection findings
