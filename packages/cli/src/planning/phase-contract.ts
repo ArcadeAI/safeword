@@ -1,5 +1,10 @@
 export type PlanningPhase = 'product-plan' | 'plan-implementation' | 'plan-execution';
 
+export interface PlanningAuthorCopyIdentity {
+  readonly relativePath: string;
+  readonly sha256: string;
+}
+
 export type UpstreamImplementationInvalidation = 'both_plan_reviews' | 'implementation_review_only';
 
 const fieldLabels = {

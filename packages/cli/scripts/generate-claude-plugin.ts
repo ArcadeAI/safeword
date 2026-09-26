@@ -17,6 +17,7 @@ import { generateRedRubric } from './generate-red-rubric.js';
 import { generateScenarioRubric } from './generate-scenario-rubric.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
+import { planningAuthorCopies } from './lib/planning-author-copies.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
@@ -84,6 +85,18 @@ try {
         .join('\n'),
     );
   }
+  // Hash final formatted author assets. Seal only after embedding their identities
+  // in the replacement runtime; the catalogue sealer reads those final bytes.
+  writeFileSync(
+    nodePath.join(pluginRoot, 'runtime/cli.js'),
+    await buildPluginCliBundle(
+      packageRoot,
+      rootPackageJson.packageManager,
+      'Claude',
+      undefined,
+      planningAuthorCopies(pluginRoot, 'claude'),
+    ),
+  );
   sealClaudePluginCatalogue(pluginRoot, packageJson.version);
 
   if (checkOnly) {

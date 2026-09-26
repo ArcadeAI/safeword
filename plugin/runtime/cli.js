@@ -32511,6 +32511,9 @@ var init_delivery_checklist = __esm(() => {
   JSON_NULL = JSON.parse("null");
 });
 
+// src/planning/contracts.generated.ts
+var init_contracts_generated = () => {};
+
 // src/utils/frontmatter.ts
 function readFrontmatterScalar(content, field) {
   const lines = content?.split(/\r?\n/) ?? [];
@@ -32993,7 +32996,8 @@ __export(exports_packet, {
   prepareReviewPacket: () => prepareReviewPacket,
   packagedPlanContract: () => packagedPlanContract,
   assemblePlanContract: () => assemblePlanContract,
-  ReviewPacketError: () => ReviewPacketError
+  ReviewPacketError: () => ReviewPacketError,
+  PlanningContractCopyError: () => PlanningContractCopyError
 });
 import { createHash as createHash18, randomUUID as randomUUID9 } from "crypto";
 import {
@@ -33013,6 +33017,20 @@ import {
 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
 import nodePath45 from "path";
+function packagedPlanningAuthor(phase) {
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "5cfa76ab6f3798449f2f667b7c4d71642f343cb03942c0e2ff39091232c44646" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "5118b9a31a9dc63a08e051d234f98fcf2d4ef7bd987d73a3246c5e74b9b91b37" } };
+  const identity = copies[phase];
+  let bytes;
+  try {
+    bytes = readFileSync31(nodePath45.join(packageRoot(), identity.relativePath));
+  } catch {
+    throw new PlanningContractCopyError("missing_generated_contract_copy", phase, identity.relativePath);
+  }
+  if (digest2(bytes) !== identity.sha256) {
+    throw new PlanningContractCopyError("canonical_contract_copy_mismatch", phase, identity.relativePath);
+  }
+  return bytes.toString("utf8");
+}
 function requireScenarioTicketSpec(kind, contextFiles) {
   if (kind !== "scenario-gate")
     return;
@@ -33123,31 +33141,17 @@ function packageRoot() {
   return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath45.dirname(import.meta.dirname) : nodePath45.resolve(import.meta.dirname, "../..");
 }
 function packagedPlanAuthorRubric() {
-  const root = packageRoot();
-  const contractPath = [
-    nodePath45.join(root, "templates/skills/bdd/PLAN_IMPLEMENTATION.md"),
-    nodePath45.join(root, "skills/bdd/PLAN_IMPLEMENTATION.md"),
-    nodePath45.join(root, "skills/bdd/references/PLAN_IMPLEMENTATION.md")
-  ].find((candidate) => existsSync16(candidate));
+  const source = packagedPlanningAuthor("plan-implementation");
   try {
-    if (contractPath === undefined)
-      throw new Error("contract file is absent");
-    return extractPlanReviewRubric(readFileSync31(contractPath, "utf8"));
+    return extractPlanReviewRubric(source);
   } catch {
     throw new ReviewPacketError("The packaged decision-quality contract is unavailable, so Safeword cannot author or approve an Implementation Plan. Run `bun run generate:plan-rubric`, rebuild the Safeword package, and retry.");
   }
 }
 function packagedExecutionPlanAuthorRubric() {
-  const root = packageRoot();
-  const contractPath = [
-    nodePath45.join(root, "templates/skills/bdd/PLAN_EXECUTION.md"),
-    nodePath45.join(root, "skills/bdd/PLAN_EXECUTION.md"),
-    nodePath45.join(root, "skills/bdd/references/PLAN_EXECUTION.md")
-  ].find((candidate) => existsSync16(candidate));
+  const source = packagedPlanningAuthor("plan-execution");
   try {
-    if (contractPath === undefined)
-      throw new Error("contract file is absent");
-    return extractExecutionPlanReviewRubric(readFileSync31(contractPath, "utf8"));
+    return extractExecutionPlanReviewRubric(source);
   } catch {
     throw new ReviewPacketError("The packaged Execution Planning authoring contract copy is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.");
   }
@@ -33179,24 +33183,15 @@ function productPlanOwner(ticket, folder) {
   return id !== undefined && (folder === id || folder.startsWith(`${id}-`)) && readFrontmatterScalar(ticket, "product_plan_contract") === "v1";
 }
 function packagedProductPlanContract() {
-  const root = packageRoot();
-  const template = PLANNING_CONTRACT_TEMPLATE_PATHS.product;
-  const contractPath = [
-    nodePath45.join(root, "templates", template),
-    nodePath45.join(root, template),
-    nodePath45.join(root, nodePath45.dirname(template), "references", nodePath45.basename(template))
-  ].find((candidate) => existsSync16(candidate));
-  if (contractPath === undefined) {
-    throw new ReviewPacketError("The packaged Product Planning authoring contract copy is missing.");
-  }
-  return assemblePlanContract(extractProductPlanReviewRubric(readFileSync31(contractPath, "utf8")), PRODUCT_PLAN_REVIEW_RUBRIC);
+  return assemblePlanContract(extractProductPlanReviewRubric(packagedPlanningAuthor("product-plan")), PRODUCT_PLAN_REVIEW_RUBRIC);
 }
 function packetPlanContract(kind, configured, productTarget) {
   if (productTarget)
     return { planning_phase: "product-plan", plan_contract: packagedProductPlanContract() };
   if (kind !== "plan-implementation" && kind !== "plan-execution")
     return {};
-  return { plan_contract: configured ?? packagedPlanContract(kind) };
+  const canonical = packagedPlanContract(kind);
+  return { plan_contract: configured ?? canonical };
 }
 function fileDigest(path7) {
   try {
@@ -33280,6 +33275,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
   let logicalFiles;
   let contextFiles;
   let deliveryDefinition;
+  let planningContract;
   try {
     let packetBytes = 0;
     const captureFiles = (files) => files.map((target) => {
@@ -33331,6 +33327,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
     deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
+    planningContract = packetPlanContract(kind, execution.planContract, productPlanWorkTarget(canonicalRoot, kind, logicalFiles));
   } catch (error2) {
     rmSync7(workspace, { recursive: true, force: true });
     throw error2;
@@ -33341,7 +33338,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     kind,
     logical_files: logicalFiles,
     ...contextFiles.length > 0 && { context_files: contextFiles },
-    ...packetPlanContract(kind, execution.planContract, productPlanWorkTarget(canonicalRoot, kind, logicalFiles)),
+    ...planningContract,
     ...packetDeliveryDefinition(deliveryDefinition),
     ...packetNormalizedPlanDigest(kind, logicalFiles),
     ...executionAttestation !== undefined && { execution_attestation: executionAttestation }
@@ -33380,10 +33377,10 @@ function prepareReviewPacket(cwd, kind, targets, context = [], execution = {}) {
     throw new ReviewPacketError(message.startsWith("Review ") ? message : "Review packet could not be prepared. Check that every target and context path exists and is readable.");
   }
 }
-var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES, HIGH_CONFIDENCE_SECRET_PATTERNS, ReviewPacketError;
+var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES, HIGH_CONFIDENCE_SECRET_PATTERNS, ReviewPacketError, PlanningContractCopyError;
 var init_packet = __esm(() => {
   init_delivery_checklist();
-  init_schema();
+  init_contracts_generated();
   init_configured_paths();
   MAX_FILE_BYTES = 256 * 1024;
   MAX_PACKET_BYTES = 1024 * 1024;
@@ -33397,6 +33394,17 @@ var init_packet = __esm(() => {
   ];
   ReviewPacketError = class ReviewPacketError extends Error {
     name = "ReviewPacketError";
+  };
+  PlanningContractCopyError = class PlanningContractCopyError extends ReviewPacketError {
+    code;
+    phase;
+    contractPath;
+    constructor(code, phase, contractPath) {
+      super(`The ${phase} authoring contract copy at ${contractPath} ${code === "missing_generated_contract_copy" ? "is unavailable" : "differs from the canonical contract-byte identity"}. Reconcile the canonical generated contract and retry.`);
+      this.code = code;
+      this.phase = phase;
+      this.contractPath = contractPath;
+    }
   };
 });
 
@@ -77836,10 +77844,21 @@ function withExecutionAttestation(result, attestation, input) {
     }
   };
 }
-function failedReviewWorker(error2, reviewId) {
+function planningCopyFindings(error2) {
+  return error2 === undefined ? [] : [
+    {
+      code: error2.code,
+      message: error2.message,
+      severity: "error",
+      metadata: { planning_phase: error2.phase, contract_path: error2.contractPath }
+    }
+  ];
+}
+function failedReviewWorker(error2, reviewId, copyError) {
   return createResult({
     state: "failed",
     errors: [error2],
+    findings: planningCopyFindings(copyError),
     data: {
       command: "review run",
       status: "failed",
@@ -77863,7 +77882,11 @@ async function runReviewWorker(invocation) {
       retryable: false
     });
   }
-  const [{ runReview: runReview2 }, { completeReviewJob: completeReviewJob2, reviewJobWorkerInput: reviewJobWorkerInput2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
+  const [
+    { runReview: runReview2 },
+    { completeReviewJob: completeReviewJob2, reviewJobWorkerInput: reviewJobWorkerInput2 },
+    { ReviewPacketError: ReviewPacketError2, PlanningContractCopyError: PlanningContractCopyError2 }
+  ] = await Promise.all([
     Promise.resolve().then(() => (init_coordinator(), exports_coordinator)),
     Promise.resolve().then(() => (init_job(), exports_job)),
     Promise.resolve().then(() => (init_packet(), exports_packet))
@@ -77900,7 +77923,7 @@ async function runReviewWorker(invocation) {
     });
   } catch (error2) {
     const packetError = error2 instanceof ReviewPacketError2;
-    result = reviewExecutionFailure(error2, packetError);
+    result = reviewExecutionFailure(error2, packetError, error2 instanceof PlanningContractCopyError2 ? error2 : undefined);
   }
   try {
     completeReviewJob2(invocation.cwd, id, result);
@@ -77913,15 +77936,15 @@ async function runReviewWorker(invocation) {
   }
   return result;
 }
-function reviewExecutionFailure(error2, packetError) {
+function reviewExecutionFailure(error2, packetError, copyError) {
   return failedReviewWorker({
     code: packetError ? "REVIEW_PACKET_INVALID" : "REVIEW_WORKER_FAILED",
     message: error2 instanceof Error ? error2.message : "The review worker failed.",
     retryable: !packetError
-  });
+  }, undefined, copyError);
 }
 async function startReviewInBackground(invocation, kind, targets, context, execution) {
-  const [{ startReviewJob: startReviewJob2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
+  const [{ startReviewJob: startReviewJob2 }, { ReviewPacketError: ReviewPacketError2, PlanningContractCopyError: PlanningContractCopyError2 }] = await Promise.all([
     Promise.resolve().then(() => (init_job(), exports_job)),
     Promise.resolve().then(() => (init_packet(), exports_packet))
   ]);
@@ -77936,12 +77959,13 @@ async function startReviewInBackground(invocation, kind, targets, context, execu
     });
   } catch (error2) {
     const packetError = error2 instanceof ReviewPacketError2;
-    return reviewStartFailure(error2, packetError);
+    return reviewStartFailure(error2, packetError, error2 instanceof PlanningContractCopyError2 ? error2 : undefined);
   }
 }
-function reviewStartFailure(error2, packetError) {
+function reviewStartFailure(error2, packetError, copyError) {
   return createResult({
     state: "failed",
+    findings: planningCopyFindings(copyError),
     errors: [
       {
         code: packetError ? "REVIEW_PACKET_INVALID" : "REVIEW_JOB_START_FAILED",

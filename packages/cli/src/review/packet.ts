@@ -23,7 +23,8 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
-import { PLANNING_CONTRACT_TEMPLATE_PATHS } from '../schema.js';
+import { PLANNING_AUTHOR_COPIES } from '../planning/contracts.generated.js';
+import type { PlanningAuthorCopyIdentity, PlanningPhase } from '../planning/phase-contract.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import type {
@@ -63,6 +64,47 @@ export interface PreparedReviewPacket {
 
 export class ReviewPacketError extends Error {
   readonly name = 'ReviewPacketError';
+}
+
+export class PlanningContractCopyError extends ReviewPacketError {
+  constructor(
+    readonly code: 'canonical_contract_copy_mismatch' | 'missing_generated_contract_copy',
+    readonly phase: PlanningPhase,
+    readonly contractPath: string,
+  ) {
+    super(
+      `The ${phase} authoring contract copy at ${contractPath} ${code === 'missing_generated_contract_copy' ? 'is unavailable' : 'differs from the canonical contract-byte identity'}. Reconcile the canonical generated contract and retry.`,
+    );
+  }
+}
+
+declare const __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__:
+  Readonly<Record<PlanningPhase, PlanningAuthorCopyIdentity>> | undefined;
+
+function packagedPlanningAuthor(phase: PlanningPhase): string {
+  const copies =
+    typeof __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__ === 'object'
+      ? __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__
+      : PLANNING_AUTHOR_COPIES;
+  const identity = copies[phase];
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(nodePath.join(packageRoot(), identity.relativePath));
+  } catch {
+    throw new PlanningContractCopyError(
+      'missing_generated_contract_copy',
+      phase,
+      identity.relativePath,
+    );
+  }
+  if (digest(bytes) !== identity.sha256) {
+    throw new PlanningContractCopyError(
+      'canonical_contract_copy_mismatch',
+      phase,
+      identity.relativePath,
+    );
+  }
+  return bytes.toString('utf8');
 }
 
 interface CapturedFile {
@@ -265,15 +307,9 @@ function packageRoot(): string {
 }
 
 function packagedPlanAuthorRubric(): string {
-  const root = packageRoot();
-  const contractPath = [
-    nodePath.join(root, 'templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
-    nodePath.join(root, 'skills/bdd/PLAN_IMPLEMENTATION.md'),
-    nodePath.join(root, 'skills/bdd/references/PLAN_IMPLEMENTATION.md'),
-  ].find(candidate => existsSync(candidate));
+  const source = packagedPlanningAuthor('plan-implementation');
   try {
-    if (contractPath === undefined) throw new Error('contract file is absent');
-    return extractPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+    return extractPlanReviewRubric(source);
   } catch {
     throw new ReviewPacketError(
       'The packaged decision-quality contract is unavailable, so Safeword cannot author or approve an Implementation Plan. Run `bun run generate:plan-rubric`, rebuild the Safeword package, and retry.',
@@ -282,15 +318,9 @@ function packagedPlanAuthorRubric(): string {
 }
 
 function packagedExecutionPlanAuthorRubric(): string {
-  const root = packageRoot();
-  const contractPath = [
-    nodePath.join(root, 'templates/skills/bdd/PLAN_EXECUTION.md'),
-    nodePath.join(root, 'skills/bdd/PLAN_EXECUTION.md'),
-    nodePath.join(root, 'skills/bdd/references/PLAN_EXECUTION.md'),
-  ].find(candidate => existsSync(candidate));
+  const source = packagedPlanningAuthor('plan-execution');
   try {
-    if (contractPath === undefined) throw new Error('contract file is absent');
-    return extractExecutionPlanReviewRubric(readFileSync(contractPath, 'utf8'));
+    return extractExecutionPlanReviewRubric(source);
   } catch {
     throw new ReviewPacketError(
       'The packaged Execution Planning authoring contract copy is unavailable, so Safeword cannot author or approve an Execution Plan. Run `bun run generate:execution-plan-rubric`, rebuild the Safeword package, and retry.',
@@ -335,20 +365,8 @@ function productPlanOwner(ticket: string, folder: string): boolean {
 }
 
 function packagedProductPlanContract(): PlanContractPair {
-  const root = packageRoot();
-  const template = PLANNING_CONTRACT_TEMPLATE_PATHS.product;
-  const contractPath = [
-    nodePath.join(root, 'templates', template),
-    nodePath.join(root, template),
-    nodePath.join(root, nodePath.dirname(template), 'references', nodePath.basename(template)),
-  ].find(candidate => existsSync(candidate));
-  if (contractPath === undefined) {
-    throw new ReviewPacketError(
-      'The packaged Product Planning authoring contract copy is missing.',
-    );
-  }
   return assemblePlanContract(
-    extractProductPlanReviewRubric(readFileSync(contractPath, 'utf8')),
+    extractProductPlanReviewRubric(packagedPlanningAuthor('product-plan')),
     PRODUCT_PLAN_REVIEW_RUBRIC,
   );
 }
@@ -361,7 +379,8 @@ function packetPlanContract(
   if (productTarget)
     return { planning_phase: 'product-plan', plan_contract: packagedProductPlanContract() };
   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
-  return { plan_contract: configured ?? packagedPlanContract(kind) };
+  const canonical = packagedPlanContract(kind);
+  return { plan_contract: configured ?? canonical };
 }
 
 function fileDigest(path: string): string | undefined {
@@ -473,6 +492,7 @@ function prepareReviewPacketUnsafe(
   let logicalFiles: { path: string; content: string }[];
   let contextFiles: { path: string; content: string }[];
   let deliveryDefinition: ExecutionPlanDeliveryDefinition | undefined;
+  let planningContract: ReturnType<typeof packetPlanContract>;
   try {
     let packetBytes = 0;
     const captureFiles = (files: readonly string[]): { path: string; content: string }[] =>
@@ -530,6 +550,11 @@ function prepareReviewPacketUnsafe(
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
     deliveryDefinition = retainedDeliveryDefinition(kind, logicalFiles, canonicalRoot);
+    planningContract = packetPlanContract(
+      kind,
+      execution.planContract,
+      productPlanWorkTarget(canonicalRoot, kind, logicalFiles),
+    );
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;
@@ -540,11 +565,7 @@ function prepareReviewPacketUnsafe(
     kind,
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
-    ...packetPlanContract(
-      kind,
-      execution.planContract,
-      productPlanWorkTarget(canonicalRoot, kind, logicalFiles),
-    ),
+    ...planningContract,
     ...packetDeliveryDefinition(deliveryDefinition),
     ...packetNormalizedPlanDigest(kind, logicalFiles),
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),

@@ -17,6 +17,7 @@ import type {
   RedExecutionRequest,
   ReviewKind,
 } from '../review/contract.js';
+import type { PlanningContractCopyError } from '../review/packet.js';
 import { ReviewConfigReadError, ReviewUserConfigPathError } from '../review/preferences.js';
 import { ReviewRouteConfigError } from '../review/route-config.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
@@ -436,10 +437,28 @@ function withExecutionAttestation(
   };
 }
 
-function failedReviewWorker(error: CliResult['errors'][number], reviewId?: string): CliResult {
+function planningCopyFindings(error?: PlanningContractCopyError): CliResult['findings'] {
+  return error === undefined
+    ? []
+    : [
+        {
+          code: error.code,
+          message: error.message,
+          severity: 'error',
+          metadata: { planning_phase: error.phase, contract_path: error.contractPath },
+        },
+      ];
+}
+
+function failedReviewWorker(
+  error: CliResult['errors'][number],
+  reviewId?: string,
+  copyError?: PlanningContractCopyError,
+): CliResult {
   return createResult({
     state: 'failed',
     errors: [error],
+    findings: planningCopyFindings(copyError),
     data: {
       command: 'review run',
       status: 'failed',
@@ -464,12 +483,15 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
       retryable: false,
     });
   }
-  const [{ runReview }, { completeReviewJob, reviewJobWorkerInput }, { ReviewPacketError }] =
-    await Promise.all([
-      import('../review/coordinator.js'),
-      import('../review/job.js'),
-      import('../review/packet.js'),
-    ]);
+  const [
+    { runReview },
+    { completeReviewJob, reviewJobWorkerInput },
+    { ReviewPacketError, PlanningContractCopyError },
+  ] = await Promise.all([
+    import('../review/coordinator.js'),
+    import('../review/job.js'),
+    import('../review/packet.js'),
+  ]);
   let persistedInput: ReturnType<typeof reviewJobWorkerInput>;
   try {
     persistedInput = reviewJobWorkerInput(invocation.cwd, id);
@@ -514,7 +536,11 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
     );
   } catch (error) {
     const packetError = error instanceof ReviewPacketError;
-    result = reviewExecutionFailure(error, packetError);
+    result = reviewExecutionFailure(
+      error,
+      packetError,
+      error instanceof PlanningContractCopyError ? error : undefined,
+    );
   }
   try {
     completeReviewJob(invocation.cwd, id, result);
@@ -534,12 +560,20 @@ async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult
   return result;
 }
 
-function reviewExecutionFailure(error: unknown, packetError: boolean): CliResult {
-  return failedReviewWorker({
-    code: packetError ? 'REVIEW_PACKET_INVALID' : 'REVIEW_WORKER_FAILED',
-    message: error instanceof Error ? error.message : 'The review worker failed.',
-    retryable: !packetError,
-  });
+function reviewExecutionFailure(
+  error: unknown,
+  packetError: boolean,
+  copyError?: PlanningContractCopyError,
+): CliResult {
+  return failedReviewWorker(
+    {
+      code: packetError ? 'REVIEW_PACKET_INVALID' : 'REVIEW_WORKER_FAILED',
+      message: error instanceof Error ? error.message : 'The review worker failed.',
+      retryable: !packetError,
+    },
+    undefined,
+    copyError,
+  );
 }
 
 async function startReviewInBackground(
@@ -549,7 +583,7 @@ async function startReviewInBackground(
   context: readonly string[],
   execution?: RedExecutionRequest,
 ): Promise<CliResult> {
-  const [{ startReviewJob }, { ReviewPacketError }] = await Promise.all([
+  const [{ startReviewJob }, { ReviewPacketError, PlanningContractCopyError }] = await Promise.all([
     import('../review/job.js'),
     import('../review/packet.js'),
   ]);
@@ -564,13 +598,22 @@ async function startReviewInBackground(
     });
   } catch (error) {
     const packetError = error instanceof ReviewPacketError;
-    return reviewStartFailure(error, packetError);
+    return reviewStartFailure(
+      error,
+      packetError,
+      error instanceof PlanningContractCopyError ? error : undefined,
+    );
   }
 }
 
-function reviewStartFailure(error: unknown, packetError: boolean): CliResult {
+function reviewStartFailure(
+  error: unknown,
+  packetError: boolean,
+  copyError?: PlanningContractCopyError,
+): CliResult {
   return createResult({
     state: 'failed',
+    findings: planningCopyFindings(copyError),
     errors: [
       {
         code: packetError ? 'REVIEW_PACKET_INVALID' : 'REVIEW_JOB_START_FAILED',
