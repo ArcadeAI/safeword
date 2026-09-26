@@ -151,9 +151,13 @@ describe('Planning contract shared-clause generation', () => {
     }
   });
 
-  it.each(['PLAN_IMPLEMENTATION.md', 'PLAN_EXECUTION.md', 'DISCOVERY.md'] as const)(
-    'blocks reconciliation when %s omits a generated shared clause',
-    file => {
+  it.each(
+    (['PLAN_IMPLEMENTATION.md', 'PLAN_EXECUTION.md', 'DISCOVERY.md'] as const).flatMap(file =>
+      (['entire-clause', 'body-only'] as const).map(omission => ({ file, omission })),
+    ),
+  )(
+    'blocks reconciliation when $file omits a generated shared clause ($omission)',
+    ({ file, omission }) => {
       const distribution = sourceDistribution();
       const project = nodePath.join(distribution, 'project');
       mkdirSync(project);
@@ -165,11 +169,16 @@ describe('Planning contract shared-clause generation', () => {
       reconcileProject(distribution, project, 'install');
       const contractPath = nodePath.join(distribution, 'templates/skills/bdd', file);
       const contract = readFileSync(contractPath, 'utf8');
-      const start = contract.indexOf('<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:scopeAuthority -->');
+      const marker = '<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:scopeAuthority -->';
+      const start = contract.indexOf(marker);
       const end = contract.indexOf('<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:trust -->', start);
       expect(start).toBeGreaterThanOrEqual(0);
       expect(end).toBeGreaterThan(start);
-      writeFileSync(contractPath, contract.slice(0, start) + contract.slice(end));
+      const prefix =
+        omission === 'body-only'
+          ? `${contract.slice(0, start + marker.length)}\n\n`
+          : contract.slice(0, start);
+      writeFileSync(contractPath, prefix + contract.slice(end));
       const result = reconciliationResult(distribution, project, 'upgrade');
       expect(
         result.status,
