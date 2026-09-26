@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { PLANNING_SHARED_CLAUSES } from '../src/planning/shared-contract.js';
+import { extractProductPlanReviewRubric } from '../src/review/product-plan-rubric.js';
 import {
+  defineGeneratedRubric,
   isDirectGeneratorInvocation,
   reconcileGeneratedFile,
 } from './lib/reconcile-generated-file.js';
@@ -15,6 +17,17 @@ const authors = [
   { file: 'PLAN_EXECUTION.md', anchor: '<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_START -->' },
   { file: 'DISCOVERY.md', anchor: '## Scope and gates' },
 ] as const;
+
+const generateProductReviewer = defineGeneratedRubric({
+  digestExportName: 'PRODUCT_PLAN_REVIEW_RUBRIC_SHA256',
+  exportName: 'PRODUCT_PLAN_REVIEW_RUBRIC',
+  extract: extractProductPlanReviewRubric,
+  generateCommand: 'generate:planning-contracts',
+  generatorEntrypoint: import.meta.filename,
+  label: 'product-plan-review',
+  output: 'src/review/product-plan-rubric.generated.ts',
+  source: 'templates/skills/bdd/DISCOVERY.md',
+});
 
 function sharedBlock(): string {
   return [
@@ -61,6 +74,9 @@ export function generatePlanningContracts(check = false): void {
         `${author.file} shared planning clauses are stale; run generate:planning-contracts`,
       );
     }
+  }
+  if (generateProductReviewer(check) === 'stale') {
+    throw new Error('Product reviewer contract is stale; run generate:planning-contracts');
   }
 }
 

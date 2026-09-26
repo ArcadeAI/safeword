@@ -3602,7 +3602,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470",
         ".claude/skills/audit/SKILL.md": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880",
-        ".claude/skills/bdd/DISCOVERY.md": "21ed65a18325da297a8750e590825b60ab905cf9a790972313142cfa3ae1dbe7",
+        ".claude/skills/bdd/DISCOVERY.md": "b914910e5cbdd04c6ec25f44315554a6382f974fc8c91c04ed56782758176922",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "1a509b677ecb9f1c8fb7d2efc005f18b9fe4ecb5c1f4d72a51b4493a72bf2290",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "311985baa85b156821d590fc7d667d4705affee238a4d5d87b0834a5375e5592",
