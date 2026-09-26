@@ -2,7 +2,7 @@
 id: D1BKYA
 slug: let-approved-planning-reviews-advance-honestly
 type: task
-phase: intake
+phase: implement
 status: in_progress
 subtype: bug-investigated
 scope: Repair the redundant planning-approval prerequisite and misleading rejection rendering diagnosed in 5F5ZZA PR 1.
@@ -37,3 +37,5 @@ The approved plan records the exact reproduction: a coordinator approval with wa
 First reproduce the failure through `ticket approve-plan` with the real CLI and coordinator, mocking only the reviewer process. Prove a current approved review with warnings advances without the extra artifact stamp, an actual rejection reports its findings, and missing or stale evidence reports its admission failure rather than approved findings. Then remove the duplicate check, keep current authentication/digest enforcement, and update the canonical review/stamp/approve guidance without adding another receipt path.
 
 Targeted checks: `plan-design-approval.test.ts`, `plan-transition-gate.test.ts`, and `review-receipt-wiring.test.ts`. Before delivery: relevant lint/typecheck, full package verification, generated-host parity if guidance changes, and independent review. No completion or Ready claim is made before those results are collected.
+
+- Resume: Confirmed the approved PR 1 scope and existing real CLI harness. Begin RED for a warning-bearing approval with only the authenticated phase stamp.

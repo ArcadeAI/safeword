@@ -178,7 +178,7 @@ interface Fixture {
   readonly reviewId?: string;
 }
 
-type ReviewState = 'approved' | 'missing' | 'rejected';
+type ReviewState = 'approved' | 'approved-warning' | 'missing' | 'rejected';
 
 const fixtures: string[] = [];
 
@@ -264,6 +264,7 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
         SAFEWORD_REVIEW_FOREGROUND_MS: '5000',
         SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
         SAFEWORD_REVIEW_FAKE_VERDICT: reviewState === 'rejected' ? 'request_changes' : 'approve',
+        SAFEWORD_REVIEW_FAKE_FINDING: reviewState === 'approved-warning' ? '1' : '',
       },
     },
   );
@@ -534,6 +535,8 @@ if printf '%s' "$payload" | /usr/bin/grep -Fq '"kind":"plan-execution"'; then
 fi
 if [ "${'$'}{SAFEWORD_REVIEW_FAKE_VERDICT:-approve}" = "request_changes" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"plan is blocked","findings":[{"severity":"error","message":"Authorization boundary is missing."}]}\n' "$dispatch_id"
+elif [ "${'$'}{SAFEWORD_REVIEW_FAKE_FINDING:-}" = "1" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved with advice","findings":[{"severity":"warning","message":"Consider documenting the optional recovery example."}]}\n' "$dispatch_id"
 else
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"plan is approved","findings":[]}\n' "$dispatch_id"
 fi
@@ -808,6 +811,93 @@ describe('an accepted design enters Execution Planning', () => {
 });
 
 describe('Implementation Plan review admission controls Execution Planning', () => {
+  it('advances an approved warning with only its authenticated phase stamp', async () => {
+    const project = fixture(false, 'approved-warning');
+    writeFileSync(
+      project.ledgerPath,
+      readFileSync(project.ledgerPath, 'utf8')
+        .split('\n')
+        .filter(line => !line.includes('review:') || line.includes(':phase@plan-implementation'))
+        .join('\n'),
+    );
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    const reviewed = await runCli(['--json', 'review', 'status', project.reviewId ?? ''], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+    expect(JSON.parse(reviewed.stdout)).toMatchObject({
+      data: { status: 'approved', reviewer_output: { findings: [{ severity: 'warning' }] } },
+    });
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(phase(project.ticketPath)).toBe('plan-execution');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: { approval_status: 'not-required', achieved_independence: 'cross-agent' },
+    });
+    expect(result.stdout).not.toContain('Implementation Plan review is blocked');
+  });
+
+  it.each(['missing-phase-stamp', 'stale-plan', 'invalid-plan'] as const)(
+    'reports %s without rendering approved warnings as rejection findings',
+    async evidence => {
+      const project = fixture(false, 'approved-warning');
+      if (evidence === 'missing-phase-stamp') {
+        writeFileSync(
+          project.ledgerPath,
+          readFileSync(project.ledgerPath, 'utf8')
+            .split('\n')
+            .filter(line => !line.includes(':phase@plan-implementation'))
+            .join('\n'),
+        );
+      } else {
+        const plan =
+          evidence === 'stale-plan'
+            ? `${PLAN}\nA later unreviewed decision.\n`
+            : PLAN.replace('## Approach', '## Missing approach');
+        writeFileSync(nodePath.join(project.ticketDirectory, 'impl-plan.md'), plan);
+      }
+
+      const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+        cwd: project.root,
+        env: reviewEnvironment(project),
+      });
+
+      expect(result.exitCode, result.stdout).toBe(2);
+      expect(phase(project.ticketPath)).toBe('plan-implementation');
+      expect(result.stdout).not.toContain('Consider documenting the optional recovery example.');
+      expect(result.stdout).not.toContain('Implementation Plan review is blocked');
+      expect(result.stdout).toContain(
+        evidence === 'invalid-plan'
+          ? 'Approach'
+          : 'has no current authenticated Implementation Plan review receipt',
+      );
+    },
+  );
+
+  it('reports only actual rejection findings without a phase stamp', async () => {
+    const project = fixture(false, 'rejected');
+    writeFileSync(project.ledgerPath, '');
+
+    const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
+      cwd: project.root,
+      env: reviewEnvironment(project),
+    });
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(phase(project.ticketPath)).toBe('plan-implementation');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      findings: [
+        { message: 'Implementation Plan review is blocked: Authorization boundary is missing.' },
+      ],
+    });
+    expect(result.stdout).not.toContain('A different agent');
+    expect(result.stdout).not.toContain('plan is blocked');
+  });
+
   it('blocks when the project-local Implementation Plan is absent', async () => {
     const project = fixture(false);
     rmSync(nodePath.join(project.ticketDirectory, 'impl-plan.md'));
