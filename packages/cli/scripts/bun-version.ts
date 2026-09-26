@@ -9,7 +9,7 @@ export function requirePinnedBunVersion(
   if (actualVersion !== expectedVersion) {
     throw new Error(
       `Claude plugin generation requires Bun ${expectedVersion} from root package.json; ` +
-        `found ${actualVersion}. Install the pinned version and ensure it is first on PATH.`,
+        `found ${actualVersion}. Run \`mise install\`, then retry the command with \`mise exec --\` (for example, \`mise exec -- bun run fix:generated-surfaces\`).`,
     );
   }
   return expectedVersion;

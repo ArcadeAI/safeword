@@ -739,6 +739,21 @@ These tools enhance development scripts but are not required:
 
 Without these binaries, the scripts print a message and skip.
 
+### Pinned Development Tools
+
+Install [mise](https://mise.jdx.dev/getting-started), then run:
+
+```bash
+mise install
+mise exec -- bun install --frozen-lockfile
+```
+
+Prefix the development commands below with `mise exec --`, for example
+`mise exec -- bun run test:all`. This loads the repository's Bun and Node pins
+from `mise.toml` in terminals, IDEs, and non-interactive agent shells without
+changing your shell profile. A bare `bun` can still select a different global
+version even though `package.json` declares `packageManager`.
+
 ### Development Workflow
 
 **Editing Source Templates:**

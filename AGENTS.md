@@ -154,6 +154,19 @@ Full procedure (bump → PR → admin-merge → annotated tag → workflow runs 
 
 Local `bun publish` is still gated by `packages/cli/scripts/check-bun-publish.js` (refuses without matching `v$VERSION` tag on HEAD) — defense in depth, not the canonical path.
 
+### Local Toolchain
+
+Run repository development commands through `mise exec --` so `mise.toml` selects
+Bun and Node even in non-interactive agent shells. Shell activation and the root
+`packageManager` declaration alone do not make a bare `bun` honor the pin.
+
+- Setup: `mise install`, then `mise exec -- bun install --frozen-lockfile`
+- Tests: `mise exec -- bun run test tests/foo.test.ts`
+- Generators: `mise exec -- bun packages/cli/scripts/check-generated-surfaces.ts --fix`
+
+This applies to the Bun commands below. Do not repair a repository tool mismatch
+by changing a contributor's shell profile or upgrading the pinned version.
+
 ### Test Execution
 
 - **Never run more than one vitest process.** If a test run is backgrounded, wait for the completion notification — do not retry.
