@@ -69948,7 +69948,7 @@ function currentReview(context) {
   }
   return {
     ok: false,
-    reason: "The current Implementation Plan has no current authenticated Implementation Plan review receipt."
+    reason: latestReviewRejection(context) ?? "The current Implementation Plan has no current authenticated Implementation Plan review receipt."
   };
 }
 function reviewsPlan(data, context) {
@@ -70037,10 +70037,10 @@ function latestReviewRejection(context) {
     return;
   }
   const data = review.data;
-  if (data.review_kind !== "plan-implementation" || !reviewsPlan(data, context)) {
+  if (data.status !== "changes_requested" || data.review_kind !== "plan-implementation" || !reviewsPlan(data, context)) {
     return;
   }
-  const messages3 = review.findings.map((finding2) => finding2.message).filter(Boolean);
+  const messages3 = review.findings.filter((finding2) => finding2.code === "REVIEWER_FINDING").map((finding2) => finding2.message).filter(Boolean);
   return messages3.length > 0 ? `Implementation Plan review is blocked: ${messages3.join(" ")}` : "The Implementation Plan review requested changes.";
 }
 function appendReceipt(context, status) {

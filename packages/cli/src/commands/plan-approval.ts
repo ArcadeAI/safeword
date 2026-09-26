@@ -111,6 +111,7 @@ function currentReview(
   return {
     ok: false,
     reason:
+      latestReviewRejection(context) ??
       'The current Implementation Plan has no current authenticated Implementation Plan review receipt.',
   };
 }
@@ -234,10 +235,17 @@ function latestReviewRejection(context: ApprovalContext): string | undefined {
     return undefined;
   }
   const data = review.data as Record<string, unknown>;
-  if (data.review_kind !== 'plan-implementation' || !reviewsPlan(data, context)) {
+  if (
+    data.status !== 'changes_requested' ||
+    data.review_kind !== 'plan-implementation' ||
+    !reviewsPlan(data, context)
+  ) {
     return undefined;
   }
-  const messages = review.findings.map(finding => finding.message).filter(Boolean);
+  const messages = review.findings
+    .filter(finding => finding.code === 'REVIEWER_FINDING')
+    .map(finding => finding.message)
+    .filter(Boolean);
   return messages.length > 0
     ? `Implementation Plan review is blocked: ${messages.join(' ')}`
     : 'The Implementation Plan review requested changes.';
