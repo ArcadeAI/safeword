@@ -162,6 +162,27 @@ Each phase contract declares its purpose, entry criteria, required content, proh
 
 <!-- SAFEWORD:PLANNING_SHARED_END -->
 
+### Implementation Planning decision
+
+- **Purpose:** Decide a coherent implementation approach within accepted behavior.
+- **Entry criteria:** Accepted Product Plan Rules and scenarios, with current
+  ticket and project boundaries, principles, personas, affected surfaces,
+  dimensions when present, configured architecture records, and triggered data guidance.
+- **Required content:** Approach decisions, affected contracts and surfaces,
+  concrete failure behavior, proof strategy and confidence limits, risks,
+  rollout and rollback, recorded choices, and applicable architecture and data consequences.
+- **Prohibited content:** Delivery task ordering, a second execution checklist,
+  invented product scope, implementation results, or claims of downstream approval.
+- **Review question:** Is the accepted approach complete and coherent enough
+  to sequence delivery without inventing another design or widening user-owned scope?
+- **Approval meaning:** The approach is ready for Execution Planning. This
+  does not approve delivery sequencing, coding, verification, merge, or deployment.
+- **Invalidation:** Changed Implementation Plan bytes or decision-bearing
+  behavior and scope require fresh approach review. Dependent Execution review
+  follows the invalidation direction declared by its canonical owner.
+- **Return path:** Repair approach decisions in Implementation Planning;
+  unresolved product behavior returns to intake or scenario definition before fresh review.
+
 ## Shared implementation-plan judgment standard
 
 This block is the complete plan-quality standard used by both the author and

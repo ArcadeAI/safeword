@@ -17,10 +17,13 @@ must emit the Product reviewer copy and propagate every canonical shared clause,
 including both shared-block markers, after a canonical edit. The primary target is
 `packages/cli/tests/integration/planning-contract-generation.test.ts`; invoke
 `scripts/dev bun run --cwd packages/cli test tests/integration/planning-contract-generation.test.ts`.
-The current missing behavior is Product reviewer emission only. Implementation
-and Execution propagation and the omission partitions already pass; this step
-does not claim installed Product dispatch or admission, which remain unfinished.
-Keep the full scenario unchecked until every approved boundary is proved.
+This supporting loop initially lacked Product reviewer emission. Independent
+review `dda87835-1abd-4eb3-9205-6ca36a6aa04b` approved the tightened RED before
+implementation; the generator then passed 21 focused tests and 172 broader
+cases. All four shared clauses and both block markers propagate into the Product
+reviewer output. This generation proof does not claim complete installed Product
+dispatch or admission. Keep the full scenario unchecked until every approved
+boundary is proved.
 
 ### Scenario: Phase-only clauses remain in their owning contract
 

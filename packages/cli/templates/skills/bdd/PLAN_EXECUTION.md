@@ -79,6 +79,29 @@ Each phase contract declares its purpose, entry criteria, required content, proh
 
 <!-- SAFEWORD:PLANNING_SHARED_END -->
 
+### Execution Planning decision
+
+- **Purpose:** Turn the accepted approach into startable, dependency-ordered delivery.
+- **Entry criteria:** Current accepted Implementation Plan and scenarios,
+  with current ticket and project boundaries, principles, personas, affected
+  surfaces, dimensions when present, configured architecture records, and triggered data guidance.
+- **Required content:** Startable tasks and prerequisites, dependency order,
+  concrete proof specifications, pull-request slicing, reviewed delivery
+  obligations, honest evidence classes, and explicit pending human authority.
+- **Prohibited content:** A competing approach, expanded product scope,
+  unreviewed design choices, or completion claims unsupported by current real-boundary proof.
+- **Review question:** Can delivery start and finish from this sequence
+  without inventing an approach, proof boundary, or additional scope?
+- **Approval meaning:** The reviewed sequence authorizes its bounded coding
+  work when the configured authority permits it. It does not establish implementation,
+  verification, merge, promotion, or deployment completion.
+- **Invalidation:** Load-bearing behavior or scope changes and accepted
+  Implementation Plan changes invalidate both plan reviews. Execution-only
+  decision changes invalidate its own review; ordinary checklist progress retains it.
+  The upstream direction is `upstreamImplementationInvalidation: both_plan_reviews`.
+- **Return path:** Repair sequencing in Execution Planning. A changed or
+  missing accepted approach returns through Implementation Planning and dependent execution review.
+
 Review the Execution Plan against the exact approved scenarios and
 Implementation Plan supplied in the bounded packet. Do not substitute a
 reviewer-created baseline, reopen an accepted decision, or infer an obligation
