@@ -745,13 +745,15 @@ Install [mise](https://mise.jdx.dev/getting-started), then run:
 
 ```bash
 mise install
-mise exec -- bun install --frozen-lockfile
+scripts/dev bun install --frozen-lockfile
 ```
 
-Prefix the development commands below with `mise exec --`, for example
-`mise exec -- bun run test:all`. This loads the repository's Bun and Node pins
-from `mise.toml` in terminals, IDEs, and non-interactive agent shells without
-changing your shell profile. A bare `bun` can still select a different global
+Prefix the development commands below with `scripts/dev`, for example
+`scripts/dev bun run test:all` from the repository root (or use
+`../../scripts/dev` from `packages/cli`). The launcher resolves Bun and Node
+from `mise.toml` and puts their directories first on PATH for the command and
+its child processes. The commit hook uses the same launcher. This works in
+terminals, IDEs, and non-interactive agent shells without changing your shell profile. A bare `bun` can still select a different global
 version even though `package.json` declares `packageManager`.
 
 ### Development Workflow
