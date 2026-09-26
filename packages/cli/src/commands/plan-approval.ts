@@ -12,12 +12,6 @@ import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
 
 import { evaluateExecutionPlanningEntry } from '../../templates/hooks/lib/plan-gate.js';
-import {
-  gatePhaseAdvance,
-  hashArtifact,
-  parseReviewStamps,
-  reviewScope,
-} from '../../templates/hooks/lib/review-ledger.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { appendDesignDecision, currentDesignDecision } from '../review/approval-ledger.js';
 import { reviewJobStatus } from '../review/job.js';
@@ -100,15 +94,6 @@ function currentReview(
   });
   if (!gate.ok) return { ok: false, reason: latestReviewRejection(context) ?? gate.reason };
   const ledger = existsSync(context.ledgerPath) ? readFileSync(context.ledgerPath, 'utf8') : '';
-  const scope = reviewScope(
-    nodePath.basename(context.ticketDirectory),
-    'impl-plan',
-    hashArtifact(context.plan),
-  );
-  const artifactReview = gatePhaseAdvance(scope, parseReviewStamps(ledger));
-  if (!artifactReview.ok) {
-    return { ok: false, reason: latestReviewRejection(context) ?? artifactReview.reason };
-  }
   const admission = phaseReviewAdmission({
     cwd: context.cwd,
     ticketDirectory: context.ticketDirectory,
