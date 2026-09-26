@@ -25,6 +25,32 @@ reviewer output. This generation proof does not claim complete installed Product
 dispatch or admission. Keep the full scenario unchecked until every approved
 boundary is proved.
 
+Supporting complete author-copy identity generation proof: the real family
+generator must emit a closed three-phase `PLANNING_AUTHOR_COPIES` map from
+schema-owned canonical owner files. Each entry names its package-relative path
+and SHA-256 of the complete raw asset, including authoring instructions outside
+reviewer-safe blocks. A canonical shared-clause edit and comments outside those
+blocks must update every corresponding whole-copy identity; assert all four
+changed clauses in all three generated author contracts. This supports the
+accepted exact-copy boundary, not a new receipt or semantic policy. Existing
+catalogue producers own native transformations; package-specific native
+identities must come from final generated assets, including Claude's formatting
+pass, rather than an editable adjacent inventory or stale checked-in copies.
+The pinned Bun 1.3.14 builder's existing global-literal mechanism was checked
+against current primary documentation and a disposable API check: runtime
+globals/environment cannot replace the embedded identity. See the bounded
+investigation `/tmp/4200-planning-copy-integrity-investigation.md` for options,
+evidence and the formatting pre-mortem.
+The primary target remains
+`packages/cli/tests/integration/planning-contract-generation.test.ts`; execute
+the complete unfiltered file with `scripts/dev bun run --cwd packages/cli test
+tests/integration/planning-contract-generation.test.ts`. Initial RED is one
+intended failure and 22 passes (23 tests), because generation does not emit the
+required complete-author identity export. The expected literal is
+`real planning-family generation must emit complete author-copy identities`;
+its local log is `/tmp/4200-whole-author-copy-identity-generation-red.log`.
+Independent executable RED approval is required before implementation.
+
 ### Scenario: Phase-only clauses remain in their owning contract
 
 - [ ] RED

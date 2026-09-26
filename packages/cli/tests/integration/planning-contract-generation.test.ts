@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   cpSync,
   existsSync,
@@ -15,6 +16,7 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { PLANNING_SHARED_CLAUSES } from '../../src/planning/shared-contract.js';
+import { PLANNING_CONTRACT_TEMPLATE_PATHS } from '../../src/schema.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 const temporaryDirectories: string[] = [];
@@ -269,6 +271,70 @@ describe('Planning contract shared-clause generation', () => {
       }
     },
   );
+
+  it('emits complete author-copy identities from every schema-owned phase contract', () => {
+    const distribution = sourceDistribution();
+    generatePhaseContracts(distribution);
+    const output = nodePath.join(distribution, 'src/planning/contracts.generated.ts');
+    expect(
+      readFileSync(output, 'utf8'),
+      'real planning-family generation must emit complete author-copy identities',
+    ).toContain('export const PLANNING_AUTHOR_COPIES');
+    const paths = {
+      'product-plan': `templates/${PLANNING_CONTRACT_TEMPLATE_PATHS.product}`,
+      'plan-implementation': `templates/${PLANNING_CONTRACT_TEMPLATE_PATHS.implementation}`,
+      'plan-execution': `templates/${PLANNING_CONTRACT_TEMPLATE_PATHS.execution}`,
+    };
+    const readCopies = () => {
+      const result = spawnSync(
+        'bun',
+        [
+          '-e',
+          `import { PLANNING_AUTHOR_COPIES } from ${JSON.stringify(output)}; process.stdout.write(JSON.stringify(PLANNING_AUTHOR_COPIES));`,
+        ],
+        { cwd: distribution, encoding: 'utf8', timeout: 30_000, env: process.env },
+      );
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+      return JSON.parse(result.stdout) as Record<string, { relativePath: string; sha256: string }>;
+    };
+    const expectedCopies = () =>
+      Object.fromEntries(
+        Object.entries(paths).map(
+          ([phase, relativePath]) =>
+            [
+              phase,
+              {
+                relativePath,
+                sha256: createHash('sha256')
+                  .update(readFileSync(nodePath.join(distribution, relativePath)))
+                  .digest('hex'),
+              },
+            ] as const,
+        ),
+      );
+    const before = readCopies();
+    expect(before).toEqual(expectedCopies());
+    const changedClauses = writeCanonicalClause(
+      distribution,
+      'Only the user can change the accepted generated scope.',
+    );
+    for (const [phase, relativePath] of Object.entries(paths)) {
+      const source = nodePath.join(distribution, relativePath);
+      writeFileSync(
+        source,
+        `<!-- Full author-copy fixture: ${phase} -->\n\n${readFileSync(source, 'utf8')}`,
+      );
+    }
+    generatePhaseContracts(distribution);
+    for (const relativePath of Object.values(paths)) {
+      const canonical = readFileSync(nodePath.join(distribution, relativePath), 'utf8');
+      for (const clause of Object.values(changedClauses)) expect(canonical).toContain(clause);
+    }
+    const after = readCopies();
+    expect(after).toEqual(expectedCopies());
+    for (const phase of Object.keys(paths))
+      expect(after[phase]?.sha256).not.toBe(before[phase]?.sha256);
+  });
 
   it.each(['both_plan_reviews', 'implementation_review_only'] as const)(
     'emits typed phase contracts including the owner-decided $0 Execution invalidation direction',
