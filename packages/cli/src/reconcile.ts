@@ -8,7 +8,9 @@
 import { lstatSync, readdirSync, readlinkSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { parsePlanningContract } from './planning/phase-contract.js';
 import { assertGeneratedSharedClauses } from './planning/shared-clause-integrity.js';
+import { extractExecutionPlanReviewRubric } from './review/execution-plan-rubric.js';
 import type {
   FileDefinition,
   JsonMergeDefinition,
@@ -1257,6 +1259,9 @@ function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): st
     const content = readFile(nodePath.join(templatesDirectory, definition.template));
     if (PLANNING_CONTRACT_TEMPLATES.has(definition.template)) {
       assertGeneratedSharedClauses(content, definition.template);
+    }
+    if (definition.template === PLANNING_CONTRACT_TEMPLATE_PATHS.execution) {
+      parsePlanningContract('plan-execution', extractExecutionPlanReviewRubric(content));
     }
     return content;
   }

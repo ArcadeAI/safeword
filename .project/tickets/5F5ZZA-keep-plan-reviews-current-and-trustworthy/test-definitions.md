@@ -284,6 +284,27 @@ passing this proof. The strengthened unfiltered local run retains seven
 intended failures and 15 passes; its log is
 `/tmp/4200-atomic-invalidation-reconciliation-red.log`.
 
+Current executable RED `012b8333-df81-4e89-a4be-ef54bf4f5799` approved with
+cross-agent evidence and no error findings before production changes. GREEN
+validates the schema-owned canonical Execution reference while computing the
+reconciliation plan, before applying writes. An absent Invalidation field and
+an empty duplicate return the same typed undecidable-contract error; the CLI
+reports its Execution phase and canonical source path as a nonretryable failure.
+All 22 primary tests pass in
+`/tmp/4200-atomic-invalidation-reconciliation-green.log`; all 184 tests in the
+six-file generator/schema/parity/reconciliation regression pass in
+`/tmp/4200-atomic-invalidation-broader-green.log`. ESLint and TypeScript pass,
+and all four generated surfaces were rebuilt and verified.
+The write-before-validation mutation failed all seven rejection cases at
+`DISCOVERY.md must remain unchanged` (15 tests excluded), retained in
+`/tmp/4200-invalidation-write-before-validation-mutation.log`; exact source
+restoration preceded the passing full 184-test regression. This proves the
+atomicity assertion discriminates the defect identified by the earlier review.
+The complete acceptance lane still has 587 undefined and three skipped
+scenarios; lifecycle copy checks, semantic identity and judged proof remain
+unfinished. All 55 scenario ledgers stay unchecked. This bounded CLI loop is
+not an epic completion claim or a substitute for those remaining boundaries.
+
 ### Scenario: An approving receipt is valid only for its own ticket and review kind
 
 - [ ] RED

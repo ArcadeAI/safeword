@@ -56,14 +56,27 @@ function decisionField(source: string, label: string): string {
   return value;
 }
 
+function executionInvalidationField(source: string): string {
+  try {
+    return decisionField(source, 'Invalidation');
+  } catch {
+    throw new InvalidInvalidationContractError();
+  }
+}
+
 /** Read the closed eight-field grammar inside a phase owner's reviewer-safe block. */
 export function parsePlanningContract(phase: PlanningPhase, source: string): PlanningContract {
   const fields = Object.fromEntries(
-    Object.entries(fieldLabels).map(([field, label]) => [field, decisionField(source, label)]),
+    Object.entries(fieldLabels).map(([field, label]) => [
+      field,
+      phase === 'plan-execution' && field === 'invalidation'
+        ? executionInvalidationField(source)
+        : decisionField(source, label),
+    ]),
   ) as DecisionFields;
   if (phase !== 'plan-execution') return { phase, ...fields };
   const declarations = fields.invalidation
-    .matchAll(/upstreamImplementationInvalidation:\s*([^\s`]+)/gu)
+    .matchAll(/upstreamImplementationInvalidation:\s*([^\s`]*)/gu)
     .toArray();
   const mode = declarations[0]?.[1];
   if (

@@ -46063,6 +46063,72 @@ var init_registry = __esm(() => {
   };
 });
 
+// src/planning/phase-contract.ts
+function decisionField(source, label) {
+  const declarations = [];
+  let current;
+  for (const line of source.split(`
+`)) {
+    const declaration = /^- \*\*([^:]+):\*\*(.*)$/u.exec(line);
+    if (declaration?.[1] === label) {
+      current = [declaration[2] ?? ""];
+      declarations.push(current);
+    } else if (current !== undefined && /^[ \t]/u.test(line)) {
+      current.push(line.trim());
+    } else {
+      current = undefined;
+    }
+  }
+  const [parts = []] = declarations;
+  const value = parts.join(" ").replaceAll(/\s+/gu, " ").trim();
+  if (declarations.length !== 1 || value === "") {
+    throw new Error(`Planning contract must declare exactly one nonempty ${label} field.`);
+  }
+  return value;
+}
+function executionInvalidationField(source) {
+  try {
+    return decisionField(source, "Invalidation");
+  } catch {
+    throw new InvalidInvalidationContractError;
+  }
+}
+function parsePlanningContract(phase, source) {
+  const fields = Object.fromEntries(Object.entries(fieldLabels).map(([field, label]) => [
+    field,
+    phase === "plan-execution" && field === "invalidation" ? executionInvalidationField(source) : decisionField(source, label)
+  ]));
+  if (phase !== "plan-execution")
+    return { phase, ...fields };
+  const declarations = fields.invalidation.matchAll(/upstreamImplementationInvalidation:\s*([^\s`]*)/gu).toArray();
+  const mode = declarations[0]?.[1];
+  if (declarations.length !== 1 || mode !== "both_plan_reviews" && mode !== "implementation_review_only") {
+    throw new InvalidInvalidationContractError;
+  }
+  return { phase, ...fields, upstreamImplementationInvalidation: mode };
+}
+var fieldLabels, InvalidInvalidationContractError;
+var init_phase_contract = __esm(() => {
+  fieldLabels = {
+    purpose: "Purpose",
+    entryCriteria: "Entry criteria",
+    requiredContent: "Required content",
+    prohibitedContent: "Prohibited content",
+    reviewQuestion: "Review question",
+    approvalMeaning: "Approval meaning",
+    invalidation: "Invalidation",
+    returnPath: "Return path"
+  };
+  InvalidInvalidationContractError = class InvalidInvalidationContractError extends Error {
+    code = "invalid_invalidation_contract";
+    phase = "plan-execution";
+    constructor() {
+      super("Execution Planning must declare exactly one supported upstream invalidation direction.");
+      this.name = "InvalidInvalidationContractError";
+    }
+  };
+});
+
 // src/planning/shared-contract.ts
 var PLANNING_SHARED_CLAUSES;
 var init_shared_contract = __esm(() => {
@@ -46883,6 +46949,9 @@ function resolveFileContent(definition, ctx) {
     if (PLANNING_CONTRACT_TEMPLATES.has(definition.template)) {
       assertGeneratedSharedClauses(content, definition.template);
     }
+    if (definition.template === PLANNING_CONTRACT_TEMPLATE_PATHS.execution) {
+      parsePlanningContract("plan-execution", extractExecutionPlanReviewRubric(content));
+    }
     return content;
   }
   if (definition.content) {
@@ -47092,6 +47161,7 @@ function shouldRemoveTextPatchTarget(content, definition) {
 }
 var HUSKY_DIR = ".husky", PLANNING_CONTRACT_TEMPLATES, CHMOD_PATHS, PRETTIER_PACKAGES, INVERTED_PACKAGE_CONDITIONS, ReconcileExecutionError;
 var init_reconcile2 = __esm(() => {
+  init_phase_contract();
   init_shared_clause_integrity();
   init_schema();
   init_configured_paths();
@@ -65209,6 +65279,22 @@ function verifiedSetupResult(applied, health, wasConfigured) {
 }
 function setupFailureDetails(setupError) {
   const cause = setupError instanceof SetupApplyError ? setupError.cause : setupError;
+  if (cause instanceof InvalidInvalidationContractError) {
+    return {
+      findings: [
+        {
+          code: cause.code,
+          message: cause.message,
+          severity: "error",
+          metadata: {
+            planning_phase: cause.phase,
+            contract_path: PLANNING_CONTRACT_TEMPLATE_PATHS.execution
+          }
+        }
+      ],
+      errors: [{ code: cause.code, message: cause.message, retryable: false }]
+    };
+  }
   if (cause instanceof MissingGeneratedSharedClauseError) {
     return {
       findings: [
@@ -65289,9 +65375,11 @@ var init_project_install = __esm(() => {
   init_setup();
   init_registry();
   init_setup2();
+  init_phase_contract();
   init_shared_clause_integrity();
   init_reconcile2();
   init_public_config();
+  init_schema();
   init_context();
   init_fs();
   init_hook_nudge();
