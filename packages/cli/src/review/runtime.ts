@@ -650,7 +650,7 @@ export function parseReviewerOutput(
 }
 
 function reviewPrompt(reviewer: ReviewAgent, packet: ReviewPacket): string {
-  return `${reviewerPromptInstructions(packet.kind, reviewer)}\n${JSON.stringify(packet)}`;
+  return `${reviewerPromptInstructions(packet.kind, reviewer, packet.planning_phase)}\n${JSON.stringify(packet)}`;
 }
 
 function executionPlanIdentityConflicts(contract: PlanContractPair): string[] {

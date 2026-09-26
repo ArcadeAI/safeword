@@ -23,6 +23,9 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../execution-plan/delivery-checklist.js';
+import { PLANNING_CONTRACT_TEMPLATE_PATHS } from '../schema.js';
+import { resolveTicketsDirectory } from '../utils/configured-paths.js';
+import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import type {
   ExecutionPlanDeliveryDefinition,
   PlanContractPair,
@@ -34,6 +37,8 @@ import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.
 import { extractExecutionPlanReviewRubric } from './execution-plan-rubric.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { extractPlanReviewRubric } from './plan-rubric.js';
+import { PRODUCT_PLAN_REVIEW_RUBRIC } from './product-plan-rubric.generated.js';
+import { extractProductPlanReviewRubric } from './product-plan-rubric.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -303,10 +308,58 @@ export function packagedPlanContract(
   return assemblePlanContract(authorRubric, reviewerRubric);
 }
 
+function productPlanWorkTarget(
+  root: string,
+  kind: ReviewKind,
+  files: readonly { readonly path: string }[],
+): boolean {
+  if (kind !== 'quality-review' || files.length !== 1) return false;
+  const target = files[0];
+  if (target === undefined || nodePath.basename(target.path) !== 'spec.md') return false;
+  const ticketDirectory = nodePath.dirname(nodePath.resolve(root, target.path));
+  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(root)) return false;
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  if (!existsSync(ticketPath)) return false;
+  return productPlanOwner(readFileSync(ticketPath, 'utf8'), nodePath.basename(ticketDirectory));
+}
+
+function productPlanOwner(ticket: string, folder: string): boolean {
+  const type = readFrontmatterScalar(ticket, 'type');
+  if (type !== 'feature' && type !== 'epic') return false;
+  const id = readFrontmatterScalar(ticket, 'id');
+  return (
+    id !== undefined &&
+    (folder === id || folder.startsWith(`${id}-`)) &&
+    readFrontmatterScalar(ticket, 'product_plan_contract') === 'v1'
+  );
+}
+
+function packagedProductPlanContract(): PlanContractPair {
+  const root = packageRoot();
+  const template = PLANNING_CONTRACT_TEMPLATE_PATHS.product;
+  const contractPath = [
+    nodePath.join(root, 'templates', template),
+    nodePath.join(root, template),
+    nodePath.join(root, nodePath.dirname(template), 'references', nodePath.basename(template)),
+  ].find(candidate => existsSync(candidate));
+  if (contractPath === undefined) {
+    throw new ReviewPacketError(
+      'The packaged Product Planning authoring contract copy is missing.',
+    );
+  }
+  return assemblePlanContract(
+    extractProductPlanReviewRubric(readFileSync(contractPath, 'utf8')),
+    PRODUCT_PLAN_REVIEW_RUBRIC,
+  );
+}
+
 function packetPlanContract(
   kind: ReviewKind,
   configured: PlanContractPair | undefined,
-): { readonly plan_contract?: PlanContractPair } {
+  productTarget: boolean,
+): { readonly planning_phase?: 'product-plan'; readonly plan_contract?: PlanContractPair } {
+  if (productTarget)
+    return { planning_phase: 'product-plan', plan_contract: packagedProductPlanContract() };
   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
   return { plan_contract: configured ?? packagedPlanContract(kind) };
 }
@@ -487,7 +540,11 @@ function prepareReviewPacketUnsafe(
     kind,
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
-    ...packetPlanContract(kind, execution.planContract),
+    ...packetPlanContract(
+      kind,
+      execution.planContract,
+      productPlanWorkTarget(canonicalRoot, kind, logicalFiles),
+    ),
     ...packetDeliveryDefinition(deliveryDefinition),
     ...packetNormalizedPlanDigest(kind, logicalFiles),
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),
