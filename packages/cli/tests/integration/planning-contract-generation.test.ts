@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -118,6 +119,29 @@ function reconcileProject(
 }
 
 describe('Planning contract shared-clause generation', () => {
+  it('generates the Product reviewer copy through the real planning-family generator', () => {
+    const distribution = sourceDistribution();
+    const original = 'Accepted scope belongs to the user; original Product review boundary.';
+    const changed = 'Accepted scope belongs to the user; changed Product review boundary.';
+    writeCanonicalClause(distribution, original);
+    generatePhaseContracts(distribution);
+    const output = nodePath.join(distribution, 'src/review/product-plan-rubric.generated.ts');
+    expect(
+      existsSync(output),
+      'real planning-family generation must emit the Product reviewer contract',
+    ).toBe(true);
+    const before = readFileSync(output, 'utf8');
+    expect(before).toContain(original);
+    writeCanonicalClause(distribution, changed);
+    generatePhaseContracts(distribution);
+    const after = readFileSync(output, 'utf8');
+    expect(after).toContain(changed);
+    expect(after).not.toContain(original);
+    expect(after).toContain('Product Plan');
+    expect(after).not.toContain('Startable steps:');
+    expect(after).not.toContain('Direction and completeness');
+  });
+
   it('reconciles a canonical shared-clause edit into both installed phase contracts', () => {
     const distribution = sourceDistribution();
     const project = nodePath.join(distribution, 'project');
