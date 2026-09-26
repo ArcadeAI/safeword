@@ -6,7 +6,7 @@ Given a current coordinator approval with a warning and only its phase stamp
 When the installed CLI approves the Implementation Plan
 Then it enters Execution Planning without another artifact stamp
 
-- [ ] RED
+- [x] RED d17892b68
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -16,7 +16,7 @@ Given rejected, missing, or stale planning evidence
 When the installed CLI approves the Implementation Plan
 Then only a current rejection reports reviewer findings and other refusals name the evidence failure
 
-- [ ] RED
+- [x] RED d17892b68
 - [ ] GREEN
 - [ ] REFACTOR
 

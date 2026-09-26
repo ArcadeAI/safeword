@@ -35,6 +35,15 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
     return { path, text: readFileSync(path, 'utf8') };
   });
 
+  it('documents the single authenticated phase-stamp approval path (D1BKYA)', () => {
+    for (const { path, text } of planCopies) {
+      const approval = text.slice(text.indexOf('2. **Use the canonical approval boundary.**'));
+      expect(approval, path).toMatch(/authenticated phase stamp/iu);
+      expect(approval, path).toMatch(/no additional artifact self-stamp/iu);
+      expect(approval, path).toMatch(/approved warnings.*not.*rejection/iu);
+    }
+  });
+
   it('owns the impl-plan authoring steps with all six design sections (TB1.R3)', () => {
     for (const { path, text } of planCopies) {
       expect(text, path).toContain('impl-plan.md');
