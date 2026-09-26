@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -165,10 +166,88 @@ process.stdin.on('end', () => {
         },
       }),
     });
-  return { project, ticketPath, run, advance };
+  return { project, ticketPath, run, advance, root, distribution, environment };
 }
 
 describe('Cursor installed planning copy admission', () => {
+  it.each([
+    { state: 'canonical', permission: 'allow' },
+    { state: 'comment drift', permission: 'deny' },
+    { state: 'project-writable cached runtime', permission: 'deny' },
+  ] as const)(
+    'checks $state at the installed Cursor adapter without plugin variables',
+    { timeout: 90_000 },
+    ({ state, permission }) => {
+      const installed = fixture();
+      const version = readFileSync(
+        nodePath.join(installed.project, '.safeword/version'),
+        'utf8',
+      ).trim();
+      const untrusted = state === 'project-writable cached runtime';
+      const cacheHome = nodePath.join(
+        untrusted ? installed.project : installed.root,
+        'owned-cache',
+      );
+      const versionRoot = nodePath.join(cacheHome, 'plugins/cache/safeword/safeword', version);
+      const marker = nodePath.join(installed.project, 'untrusted-runtime-executed');
+      if (untrusted) {
+        mkdirSync(nodePath.join(versionRoot, 'runtime'), { recursive: true });
+        writeFileSync(
+          nodePath.join(versionRoot, 'runtime/cli.js'),
+          `
+import { writeFileSync } from 'node:fs';
+writeFileSync(${JSON.stringify(marker)}, 'executed');
+console.log(JSON.stringify({ schema_version: 1, ok: true, state: 'healthy', data: {
+  command: 'ticket planning-contract-check', status: 'current', planning_phase: 'plan-implementation'
+}}));
+`,
+        );
+      } else {
+        mkdirSync(nodePath.dirname(versionRoot), { recursive: true });
+        symlinkSync(installed.distribution, versionRoot, 'dir');
+      }
+      const asset = nodePath.join(installed.project, '.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
+      if (state === 'comment drift') {
+        writeFileSync(asset, `<!-- cached-runtime copy drift -->\n${readFileSync(asset, 'utf8')}`);
+      }
+      const environment: NodeJS.ProcessEnv = { ...installed.environment, CODEX_HOME: cacheHome };
+      delete environment.SAFEWORD_PLUGIN_CLI;
+      delete environment.CLAUDE_PLUGIN_ROOT;
+      const checked = spawnSync(
+        'bun',
+        [nodePath.join(installed.project, '.safeword/hooks/cursor/pre-tool-quality.ts')],
+        {
+          cwd: installed.project,
+          encoding: 'utf8',
+          timeout: 15_000,
+          env: environment,
+          input: JSON.stringify({
+            conversation_id: 'cursor-copy-admission',
+            tool_name: 'Write',
+            workspace_roots: [installed.project],
+            tool_input: {
+              file_path: installed.ticketPath,
+              content: readFileSync(installed.ticketPath, 'utf8').replace(
+                'phase: plan-implementation',
+                'phase: plan-execution',
+              ),
+            },
+          }),
+        },
+      );
+      expect(checked.status, `${checked.stdout}\n${checked.stderr}`).toBe(0);
+      expect(
+        JSON.parse(checked.stdout).permission,
+        `installed Cursor hook must resolve trusted CLI without plugin variables\n${checked.stdout}\n${checked.stderr}`,
+      ).toBe(permission);
+      if (state === 'comment drift') {
+        expect(checked.stdout).toContain('canonical_contract_copy_mismatch');
+        expect(checked.stdout).toContain('.safeword/skills/bdd/PLAN_IMPLEMENTATION.md');
+      }
+      expect(existsSync(marker), 'project-writable authority must never execute').toBe(false);
+    },
+  );
+
   it.each(['public approval', 'installed hook'] as const)(
     'refuses project-copy drift at %s after an authenticated review',
     { timeout: 90_000 },
