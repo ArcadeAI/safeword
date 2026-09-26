@@ -133,3 +133,26 @@ This complete run retained **10,573 passed, 2 failed, 13 skipped** in 643 files.
 ### Full CLI with shared source-hook fixture environment
 
 The complete CLI retry passed: **643/643 files; 10,575 tests passed, 13 existing skips**, 663.63 seconds. The run used the repository launcher and the rebuilt checkout CLI, with no test-name filtering or snapshot update mode. The source-hook fixtures share their existing explicit local CLI override; consumer hook behavior remains unchanged. The previous 21-, 1-, and 2-failure runs above remain historical evidence. This passing CLI run does not establish a full acceptance pass: the separate complete acceptance lane is running, with its full result still pending. Log: `/tmp/4200-D1-full-cli-shared-source-fixtures.log`.
+
+### Complete isolated acceptance and lint
+
+The unfiltered configured acceptance lane completed with **2,372 scenarios: 1,784 passed, 3 existing skips, 585 undefined, zero failed**; **110,463 steps: 108,700 passed, 4 skipped, 1,759 undefined**. It exited 1 because undefined scenarios remain. This is not a passing acceptance lane. The parent's historical six failures remain recorded above; they did not recur in this complete isolated stacked-checkout run. No undefined steps were supplied, skipped, filtered, or weakened by this patch. Log: `/tmp/4200-D1-full-acceptance.log`.
+
+Root lint passed ESLint, Gherkin validation and CLI TypeScript. Log: `/tmp/4200-D1-final-lint.log`. Current native final review `89c8e5dd-a98e-4102-85e6-7a2ba6d81a99` remains approved after the final supporting-evidence commit.
+
+## Verify Checklist
+
+**Test Suite:** ✓ 10575/10575 executed tests pass; 13 existing skips
+**Gherkin:** ❌ Failed — 585 undefined scenarios; zero failed scenarios in the current complete lane
+**Build:** ✅ Success — complete monorepo build
+**Lint:** ✅ Clean
+**Typecheck:** ✅ Clean
+**Scenarios:** All 2 D1 scenarios marked complete in their TDD ledger; epic scenarios remain unfinished
+**Refactor:** ✅ No change warranted — duplicate authority and unused imports removed; existing phase-admission owner reused
+**PR Scope:** ✅ Diff matches D1 scope above its separate repository-toolchain parent
+**Dep Drift:** ✅ Clean — no runtime dependency changes
+**Parent Epic:** #4200 — incomplete; no sibling-completion claim
+**Reconcile:** ✅ No pattern deviation
+**Experience:** ⏭️ N/A — CLI approval admission mechanics; native manual walkthrough pending
+**Surface Evidence:** ✅ Real CLI regressions and generated guidance checks pass; no live-host UI claim
+**Evidence limits:** ⚠️ Acceptance retains 585 undefined scenarios and 3 existing skips; the standalone manual walkthrough remains pending
