@@ -17,9 +17,9 @@ When the installed CLI approves the Implementation Plan
 Then only a current rejection reports reviewer findings and other refusals name the evidence failure
 
 - [x] RED d17892b68
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 5622a89
+- [x] REFACTOR skip: the existing authenticated status query owns freshness; rendering filters only actual rejection findings
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: both loops share the existing phase-admission service; no new authority or abstraction is needed
