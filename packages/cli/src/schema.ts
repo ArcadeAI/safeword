@@ -264,6 +264,15 @@ const CURSOR_SHARED_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.f
   ]),
 );
 
+/** Select the active Cursor-owned asset from the managed-file schema. */
+export function cursorPlanningContractPath(template: string): string {
+  const owned = Object.entries(CURSOR_SHARED_SKILL_OWNED_FILES).find(
+    ([, definition]) => definition.template === template,
+  );
+  if (owned === undefined) throw new Error(`No Cursor planning contract owns ${template}.`);
+  return owned[0];
+}
+
 const CURSOR_SHARED_SKILL_DIRS = [
   '.safeword/skills',
   ...new Set(CURSOR_SHARED_SKILL_FILES.map(path => `.safeword/skills/${path.split('/', 1)[0]}`)),

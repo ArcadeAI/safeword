@@ -312,6 +312,53 @@ function safewordCliCommand(): [string, ...string[]] | 'project-writable' | unde
   }
 }
 
+function assertCursorPlanningContractCopy(ticket: string, phase: string): void {
+  if (process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor') return;
+  const command = safewordCliCommand();
+  if (command === undefined || command === 'project-writable') {
+    deny(
+      'Safeword cannot authenticate its installed planning contract checker.',
+      'Reinstall the trusted Safeword runtime and retry.',
+    );
+  }
+  const [executable, ...prefix] = command;
+  const checked = spawnSync(
+    executable,
+    [
+      ...prefix,
+      '--json',
+      '--no-input',
+      '--cwd',
+      projectDirectory,
+      'ticket',
+      'planning-contract-check',
+      ticket,
+      phase,
+    ],
+    { cwd: projectDirectory, encoding: 'utf8', timeout: 5000 },
+  );
+  if (checked.status === 0) {
+    try {
+      const result = JSON.parse(checked.stdout) as {
+        data?: { status?: unknown; planning_phase?: unknown };
+        state?: unknown;
+      };
+      if (
+        result.state === 'healthy' &&
+        result.data?.status === 'current' &&
+        result.data.planning_phase === phase
+      )
+        return;
+    } catch {
+      /* Fail closed on an unreadable checker response. */
+    }
+  }
+  deny(
+    `Safeword refused planning admission because active author-copy integrity could not be established. ${checked.stdout || checked.stderr}`,
+    'Reconcile the installed planning contract copy and retry.',
+  );
+}
+
 function executableRedGateDenial(scenario: string, ledger: string): string | undefined {
   const commandParts = safewordCliCommand();
   if (commandParts === undefined) {
@@ -926,6 +973,7 @@ if (isCanonicalTicketEdit) {
     proposedPhase === 'plan-execution'
   ) {
     const ticketDirectory = nodePath.dirname(editedFile);
+    assertCursorPlanningContractCopy(nodePath.basename(ticketDirectory), 'plan-implementation');
     const verdict = evaluateExecutionPlanningEntry(ticketDirectory, { projectDirectory });
     if (!verdict.ok) deny(verdict.reason, verdict.remediation);
 

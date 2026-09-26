@@ -15,10 +15,12 @@ import { evaluateExecutionPlanningEntry } from '../../templates/hooks/lib/plan-g
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { appendDesignDecision, currentDesignDecision } from '../review/approval-ledger.js';
 import { reviewJobStatus } from '../review/job.js';
+import { assertActivePlanningAuthorCopy, PlanningContractCopyError } from '../review/packet.js';
 import { phaseReviewAdmission } from '../review/phase-admission.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
+import { planningContractCopyFailure } from './planning-contract-check.js';
 
 type ApprovalStatus = 'approved' | 'declined' | 'not-required' | 'pending';
 
@@ -489,6 +491,7 @@ function currentApprovalResult(
 }
 
 async function approve(context: ApprovalContext, noInput: boolean): Promise<CliResult> {
+  assertActivePlanningAuthorCopy(context.cwd, 'plan-implementation');
   const executionDiscovery = currentExecutionDiscovery(context);
   if (executionDiscovery !== undefined) {
     return applyExecutionDiscovery(context, executionDiscovery);
@@ -542,6 +545,8 @@ export async function approvePlanResult(
   try {
     return await approve(readContext(cwd, ticketId), options.noInput);
   } catch (error) {
+    if (error instanceof PlanningContractCopyError)
+      return planningContractCopyFailure(error, 'ticket approve-plan');
     return createResult({
       state: 'failed',
       errors: [

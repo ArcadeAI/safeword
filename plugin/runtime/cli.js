@@ -3647,7 +3647,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "3287da635c2683ab34edf8e09bc5a18f1ccd055d2acdba650433b8d3b4f13ea5",
+        ".safeword/hooks/pre-tool-quality.ts": "82faa3f9377841fd955bd3fcfe53f8597947fad17943cf0e4d69763161f94aa0",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -15891,6 +15891,12 @@ var init_install = __esm(() => {
 
 // src/schema.ts
 import nodePath21 from "path";
+function cursorPlanningContractPath(template) {
+  const owned = Object.entries(CURSOR_SHARED_SKILL_OWNED_FILES).find(([, definition]) => definition.template === template);
+  if (owned === undefined)
+    throw new Error(`No Cursor planning contract owns ${template}.`);
+  return owned[0];
+}
 function skipCodexRuntimeAssetInstall() {
   return;
 }
@@ -32512,7 +32518,23 @@ var init_delivery_checklist = __esm(() => {
 });
 
 // src/planning/contracts.generated.ts
-var init_contracts_generated = () => {};
+var PLANNING_AUTHOR_COPIES;
+var init_contracts_generated = __esm(() => {
+  PLANNING_AUTHOR_COPIES = {
+    "product-plan": {
+      relativePath: "templates/skills/bdd/DISCOVERY.md",
+      sha256: "b914910e5cbdd04c6ec25f44315554a6382f974fc8c91c04ed56782758176922"
+    },
+    "plan-implementation": {
+      relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
+      sha256: "4a5093d7034459c06fe23b4f2960e7244561292becef19eb52ac2908d2c4bce0"
+    },
+    "plan-execution": {
+      relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
+      sha256: "9de74f10759b2bb104e7e27e626e7f7bae97509f9503bc2bfe3b26c755e9d527"
+    }
+  };
+});
 
 // src/utils/frontmatter.ts
 function readFrontmatterScalar(content, field) {
@@ -32995,6 +33017,7 @@ var exports_packet = {};
 __export(exports_packet, {
   prepareReviewPacket: () => prepareReviewPacket,
   packagedPlanContract: () => packagedPlanContract,
+  assertActivePlanningAuthorCopy: () => assertActivePlanningAuthorCopy,
   assemblePlanContract: () => assemblePlanContract,
   ReviewPacketError: () => ReviewPacketError,
   PlanningContractCopyError: () => PlanningContractCopyError
@@ -33017,12 +33040,11 @@ import {
 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
 import nodePath45 from "path";
-function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "5cfa76ab6f3798449f2f667b7c4d71642f343cb03942c0e2ff39091232c44646" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "5118b9a31a9dc63a08e051d234f98fcf2d4ef7bd987d73a3246c5e74b9b91b37" } };
-  const identity = copies[phase];
+import process10 from "process";
+function readPlanningAuthor(root, phase, identity) {
   let bytes;
   try {
-    bytes = readFileSync31(nodePath45.join(packageRoot(), identity.relativePath));
+    bytes = readFileSync31(nodePath45.join(root, identity.relativePath));
   } catch {
     throw new PlanningContractCopyError("missing_generated_contract_copy", phase, identity.relativePath);
   }
@@ -33030,6 +33052,21 @@ function packagedPlanningAuthor(phase) {
     throw new PlanningContractCopyError("canonical_contract_copy_mismatch", phase, identity.relativePath);
   }
   return bytes.toString("utf8");
+}
+function packagedPlanningAuthor(phase) {
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "5cfa76ab6f3798449f2f667b7c4d71642f343cb03942c0e2ff39091232c44646" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "5118b9a31a9dc63a08e051d234f98fcf2d4ef7bd987d73a3246c5e74b9b91b37" } };
+  return readPlanningAuthor(packageRoot(), phase, copies[phase]);
+}
+function assertActivePlanningAuthorCopy(cwd, phase) {
+  packagedPlanningAuthor(phase);
+  if (process10.env.SAFEWORD_AGENT_RUNTIME !== "cursor")
+    return;
+  const identity = PLANNING_AUTHOR_COPIES[phase];
+  const template = identity.relativePath.replace(/^templates\//u, "");
+  readPlanningAuthor(cwd, phase, {
+    relativePath: cursorPlanningContractPath(template),
+    sha256: identity.sha256
+  });
 }
 function requireScenarioTicketSpec(kind, contextFiles) {
   if (kind !== "scenario-gate")
@@ -33381,6 +33418,7 @@ var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES, HIGH_CONFIDENCE_SECRE
 var init_packet = __esm(() => {
   init_delivery_checklist();
   init_contracts_generated();
+  init_schema();
   init_configured_paths();
   MAX_FILE_BYTES = 256 * 1024;
   MAX_PACKET_BYTES = 1024 * 1024;
@@ -39432,7 +39470,7 @@ __export(exports_review_pr, {
 });
 import { readFileSync as readFileSync36, writeFileSync as writeFileSync15 } from "fs";
 import nodePath51 from "path";
-import process10 from "process";
+import process11 from "process";
 function isRecord9(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -39627,7 +39665,7 @@ function receiptEvidence(artifacts) {
 async function inspectPullRequestCommand(options) {
   const config = parseConfig(options.cwd);
   const input = parseInput(options.inputPath);
-  const credentials = credentialValues(process10.env);
+  const credentials = credentialValues(process11.env);
   let credentialRedacted = false;
   const receiptArtifacts = input.artifacts.map((artifact) => {
     const sanitizedPath = redactCredentials(artifact.path, credentials);
@@ -39642,7 +39680,7 @@ async function inspectPullRequestCommand(options) {
         const textEvidence = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
         const noReviewableEvidence = textEvidence.evidence.length === 0;
         const review = noReviewableEvidence ? { findings: [], tokenUsage: {} } : await (options.provider ?? productionProvider)({
-          apiKey: process10.env.OPENAI_API_KEY,
+          apiKey: process11.env.OPENAI_API_KEY,
           ...textEvidence.context.length > 0 && { context: textEvidence.context },
           evidence: textEvidence.evidence,
           model: config.model
@@ -39751,12 +39789,12 @@ var init_review_pr = __esm(() => {
 });
 
 // src/pr-review/github-request.ts
-import process11 from "process";
+import process12 from "process";
 function isRecord10(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function requiredEnvironment(name) {
-  const value = process11.env[name];
+  const value = process12.env[name];
   if (!value)
     throw new Error(`review-pr: ${name} is required`);
   return value;
@@ -40532,12 +40570,12 @@ var exports_prompt = {};
 __export(exports_prompt, {
   createPrompt: () => createPrompt
 });
-import process12 from "process";
+import process13 from "process";
 import { createInterface } from "readline/promises";
 function createPrompt() {
   return {
     async confirm(question, defaultValue) {
-      const rl = createInterface({ input: process12.stdin, output: process12.stdout });
+      const rl = createInterface({ input: process13.stdin, output: process13.stdout });
       try {
         const raw = await rl.question(`${question} ${defaultValue ? "[Y/n]" : "[y/N]"} `);
         const answer = raw.trim().toLowerCase();
@@ -40604,13 +40642,13 @@ var exports_run = {};
 __export(exports_run, {
   runConnect: () => runConnect
 });
-import process13 from "process";
+import process14 from "process";
 async function runConnect(provider, target, log, options = {}) {
   const envVariable = CREDENTIAL_ENV_VAR[provider];
-  const token = envVariable ? process13.env[envVariable] : undefined;
+  const token = envVariable ? process14.env[envVariable] : undefined;
   try {
     return await connectTracker({
-      cwd: options.cwd ?? process13.cwd(),
+      cwd: options.cwd ?? process14.cwd(),
       provider,
       target,
       token,
@@ -41633,7 +41671,7 @@ __export(exports_sync_tracker, {
   applyTrackerSyncResults: () => applyTrackerSyncResults
 });
 import { existsSync as existsSync24, readFileSync as readFileSync43 } from "fs";
-import process14 from "process";
+import process15 from "process";
 function planTrackerSync(cwd, config) {
   const provider = supportedProvider(config.provider);
   if (provider === undefined) {
@@ -41719,7 +41757,7 @@ function runPlan(cwd, config) {
     fail("internal tracker planning mode mismatch");
     return;
   }
-  process14.stdout.write(`${JSON.stringify(result.plan, undefined, 2)}
+  process15.stdout.write(`${JSON.stringify(result.plan, undefined, 2)}
 `);
 }
 function runApply(cwd, config, filePath) {
@@ -41729,12 +41767,12 @@ function runApply(cwd, config, filePath) {
 }
 function note(message) {
   const suffix = /[.!?]$/.test(message) ? "" : ".";
-  process14.stderr.write(`sync-tracker: ${message}${suffix}
+  process15.stderr.write(`sync-tracker: ${message}${suffix}
 `);
 }
 function fail(reason) {
   note(reason);
-  process14.exitCode = 1;
+  process15.exitCode = 1;
 }
 function egressVisibility(provider, body, repo) {
   return provider === "github" && body === "full" ? resolveRepoVisibility(repo) : undefined;
@@ -41742,14 +41780,14 @@ function egressVisibility(provider, body, repo) {
 function ghCliCredential(provider) {
   if (provider !== "github")
     return;
-  return resolveGhCliToken(process14.env);
+  return resolveGhCliToken(process15.env);
 }
 async function syncTrackerCommand(options = {}) {
   if (options.plan === true && options.applyResults !== undefined) {
     fail("--plan and --apply-results are mutually exclusive");
     return;
   }
-  const cwd = process14.cwd();
+  const cwd = process15.cwd();
   const config = readTicketBridgeConfig(cwd);
   if (options.plan === true) {
     runPlan(cwd, config);
@@ -41765,7 +41803,7 @@ async function runLiveSync(cwd, config, options) {
   const provider = supportedProvider(config.provider);
   if (provider === "linear") {
     note(LINEAR_LIVE_PROJECTION_GUIDANCE);
-    process14.exitCode = 1;
+    process15.exitCode = 1;
     return;
   }
   const dependencies = {
@@ -41773,11 +41811,11 @@ async function runLiveSync(cwd, config, options) {
     tickets: provider === undefined ? [] : readCorpus(cwd, config.target?.repo),
     sidecarPath: trackerMapPath(cwd),
     writers: provider === undefined ? {} : buildWriterRegistry(provider, config.target),
-    env: process14.env,
+    env: process15.env,
     keychain: ghCliCredential,
     resetTrackerMap: options.resetTrackerMap,
-    nonInteractive: process14.env.CI !== undefined,
-    arcadeUserId: process14.env.ARCADE_USER_ID,
+    nonInteractive: process15.env.CI !== undefined,
+    arcadeUserId: process15.env.ARCADE_USER_ID,
     repoVisibility: egressVisibility(provider, config.body, config.target?.repo),
     log: (message) => {
       console.log(message);
@@ -41786,11 +41824,11 @@ async function runLiveSync(cwd, config, options) {
   try {
     const result = await syncTracker(dependencies);
     if (result.exitCode !== 0)
-      process14.exitCode = result.exitCode;
+      process15.exitCode = result.exitCode;
   } catch (error2) {
-    process14.stderr.write(`sync-tracker failed: ${error2.message}
+    process15.stderr.write(`sync-tracker failed: ${error2.message}
 `);
-    process14.exitCode = 1;
+    process15.exitCode = 1;
   }
 }
 var init_sync_tracker = __esm(() => {
@@ -42459,7 +42497,7 @@ __export(exports_ticket_new, {
   createTicketResult: () => createTicketResult
 });
 import nodePath62 from "path";
-import process15 from "process";
+import process16 from "process";
 async function createTicketResult(slug, options, cwd) {
   let type;
   let normalizedSlug;
@@ -42591,7 +42629,7 @@ function resolveType(value) {
   return VALID_TYPES.has(value) ? value : "invalid";
 }
 function resolveMinter() {
-  const override = process15.env.SAFEWORD_TICKET_ID_OVERRIDE;
+  const override = process16.env.SAFEWORD_TICKET_ID_OVERRIDE;
   if (override !== undefined && override !== "") {
     return { mint: () => override };
   }
@@ -67781,7 +67819,7 @@ var init_remote_workflow_lifecycle = __esm(() => {
 import { spawnSync as spawnSync12 } from "child_process";
 import { existsSync as existsSync50, readFileSync as readFileSync71 } from "fs";
 import nodePath112 from "path";
-import process17 from "process";
+import process18 from "process";
 function directManifestIndex(directory) {
   return new Map([...TREE_MANIFESTS].filter((name) => existsSync50(nodePath112.join(directory, name))).map((name) => [name, directory]));
 }
@@ -67848,10 +67886,10 @@ function allToolsAvailable() {
   return true;
 }
 function defaultIsToolAvailable(tool) {
-  const fake = process17.env.NODE_ENV === "test" ? process17.env.SAFEWORD_FAKE_TOOLS : undefined;
+  const fake = process18.env.NODE_ENV === "test" ? process18.env.SAFEWORD_FAKE_TOOLS : undefined;
   if (fake !== undefined)
     return fakeToolProbe(fake)(tool);
-  if (process17.platform === "win32") {
+  if (process18.platform === "win32") {
     return spawnSync12("where.exe", [tool], { stdio: "ignore" }).status === 0;
   }
   return spawnSync12("/bin/sh", ["-c", 'command -v "$1"', "safeword-tool-probe", tool], {
@@ -70232,6 +70270,57 @@ var init_phase_admission = __esm(() => {
   init_job();
 });
 
+// src/commands/planning-contract-check.ts
+var exports_planning_contract_check = {};
+__export(exports_planning_contract_check, {
+  planningContractCopyFailure: () => planningContractCopyFailure,
+  checkPlanningContractCopy: () => checkPlanningContractCopy
+});
+function planningContractCopyFailure(error2, command) {
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: error2.code,
+        message: error2.message,
+        severity: "error",
+        metadata: { planning_phase: error2.phase, contract_path: error2.contractPath }
+      }
+    ],
+    data: { command, status: "blocked" }
+  });
+}
+function checkPlanningContractCopy(cwd, ticket, phase) {
+  if (resolveTicketDirectory(cwd, ticket) === undefined) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "TICKET_NOT_FOUND",
+          message: `Ticket "${ticket}" does not resolve.`,
+          retryable: false
+        }
+      ]
+    });
+  }
+  try {
+    assertActivePlanningAuthorCopy(cwd, phase);
+    return createResult({
+      state: "healthy",
+      data: { command: "ticket planning-contract-check", status: "current", planning_phase: phase }
+    });
+  } catch (error2) {
+    if (!(error2 instanceof PlanningContractCopyError))
+      throw error2;
+    return planningContractCopyFailure(error2, "ticket planning-contract-check");
+  }
+}
+var init_planning_contract_check = __esm(() => {
+  init_result();
+  init_packet();
+  init_product_plan_contract();
+});
+
 // src/commands/plan-approval.ts
 var exports_plan_approval = {};
 __export(exports_plan_approval, {
@@ -70247,11 +70336,11 @@ import {
   writeFileSync as writeFileSync30
 } from "fs";
 import nodePath124 from "path";
-import process18 from "process";
+import process19 from "process";
 import { createInterface as createInterface2 } from "readline/promises";
 function interruptApprovalForTest(boundary) {
-  if (process18.env.NODE_ENV === "test" && process18.env.SAFEWORD_APPROVAL_TEST_INTERRUPT === boundary) {
-    process18.exit(86);
+  if (process19.env.NODE_ENV === "test" && process19.env.SAFEWORD_APPROVAL_TEST_INTERRUPT === boundary) {
+    process19.exit(86);
   }
 }
 function planDigest(content) {
@@ -70437,7 +70526,7 @@ function replaceTicketPhase(context, from, to) {
   if (updated === ticket) {
     throw new Error(`Ticket phase "${from}" could not be updated safely.`);
   }
-  const temporary = `${context.ticketPath}.${process18.pid}.${randomUUID16()}.tmp`;
+  const temporary = `${context.ticketPath}.${process19.pid}.${randomUUID16()}.tmp`;
   writeFileSync30(temporary, updated);
   renameSync16(temporary, context.ticketPath);
   return true;
@@ -70516,10 +70605,10 @@ function result(context, status, changedFiles, finding2, options = {}) {
   });
 }
 async function askForApproval(plan) {
-  process18.stdout.write(`${plan.replace(/\n?$/u, `
+  process19.stdout.write(`${plan.replace(/\n?$/u, `
 `)}
 `);
-  const prompt = createInterface2({ input: process18.stdin, output: process18.stdout });
+  const prompt = createInterface2({ input: process19.stdin, output: process19.stdout });
   try {
     const answer = await prompt.question("Approve this reviewed Implementation Plan? [y/N] ");
     return ["y", "yes"].includes(answer.trim().toLowerCase());
@@ -70565,6 +70654,7 @@ function currentApprovalResult(context, achievedIndependence) {
   return result(context, "approved", reconciled.changedFiles, `Existing approval remains current for ${nodePath124.relative(context.cwd, context.planPath)} at ${context.digest}.`, { severity: "info", achievedIndependence });
 }
 async function approve(context, noInput) {
+  assertActivePlanningAuthorCopy(context.cwd, "plan-implementation");
   const executionDiscovery = currentExecutionDiscovery(context);
   if (executionDiscovery !== undefined) {
     return applyExecutionDiscovery(context, executionDiscovery);
@@ -70586,7 +70676,7 @@ async function approve(context, noInput) {
   if (existingApproval !== undefined)
     return existingApproval;
   const returnedToPlanning = replaceTicketPhase(context, "plan-execution", "plan-implementation");
-  if (noInput || !process18.stdin.isTTY || !process18.stdout.isTTY) {
+  if (noInput || !process19.stdin.isTTY || !process19.stdout.isTTY) {
     appendReceipt(context, "pending");
     return result(context, "pending", [ledgerTarget, ...returnedToPlanning ? [ticketTarget] : []], "Human design approval is pending; the ticket remains in Implementation Planning.", { achievedIndependence: review.independence });
   }
@@ -70597,6 +70687,8 @@ async function approvePlanResult(cwd, ticketId, options) {
   try {
     return await approve(readContext2(cwd, ticketId), options.noInput);
   } catch (error2) {
+    if (error2 instanceof PlanningContractCopyError)
+      return planningContractCopyFailure(error2, "ticket approve-plan");
     return createResult({
       state: "failed",
       errors: [
@@ -70615,9 +70707,11 @@ var init_plan_approval = __esm(() => {
   init_result();
   init_approval_ledger();
   init_job();
+  init_packet();
   init_phase_admission();
   init_configured_paths();
   init_product_plan_contract();
+  init_planning_contract_check();
 });
 
 // src/execution-plan/delivery-admission.ts
@@ -72355,14 +72449,14 @@ var init_skill_invocation_log = __esm(() => {
 // templates/hooks/record-skill-invocation.ts
 import { appendFileSync as appendFileSync5 } from "fs";
 import nodePath134 from "path";
-import process19 from "process";
+import process20 from "process";
 function resolveProofSessionKey(input) {
   const { projectDirectory, skillName: skillName2, explicitSessionId } = input;
   if (explicitSessionId !== undefined && explicitSessionId.trim().length > 0) {
     return explicitSessionId.trim();
   }
-  if (process19.env.CLAUDE_SESSION_ID || process19.env.CLAUDE_CODE_SESSION_ID) {
-    return resolveRunIdentity({}, { runtime: "claude", env: process19.env }).sessionKey ?? undefined;
+  if (process20.env.CLAUDE_SESSION_ID || process20.env.CLAUDE_CODE_SESSION_ID) {
+    return resolveRunIdentity({}, { runtime: "claude", env: process20.env }).sessionKey ?? undefined;
   }
   const codexSessionKey = readFreshCodexRunIdentity({ projectDirectory, skillName: skillName2 });
   if (codexSessionKey !== undefined) {
@@ -72372,7 +72466,7 @@ function resolveProofSessionKey(input) {
   if (cursorSessionKey !== undefined) {
     return cursorSessionKey;
   }
-  return resolveRunIdentity({}, { env: process19.env }).sessionKey ?? undefined;
+  return resolveRunIdentity({}, { env: process20.env }).sessionKey ?? undefined;
 }
 function recordSkillInvocation(projectDirectory, skillName2, sessionId) {
   if (!SKILL_NAME_PATTERN.test(skillName2)) {
@@ -73299,7 +73393,7 @@ __export(exports_boundary, {
 import { execFileSync as execFileSync11 } from "child_process";
 import { appendFileSync as appendFileSync6, existsSync as existsSync68, mkdirSync as mkdirSync27 } from "fs";
 import nodePath141 from "path";
-import process22 from "process";
+import process23 from "process";
 function tryGit(cwd, args) {
   try {
     return execFileSync11("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -73442,7 +73536,7 @@ function reconcileBoundary(cwd, at) {
 function boundary(options) {
   try {
     const at = options.at === "push" ? "push" : "commit";
-    const cwd = process22.cwd();
+    const cwd = process23.cwd();
     if (existsSync68(nodePath141.join(cwd, ".safeword"))) {
       reconcileBoundary(cwd, at);
     }
@@ -73484,12 +73578,12 @@ import {
 } from "fs";
 import { tmpdir as tmpdir7 } from "os";
 import nodePath142 from "path";
-import process23 from "process";
+import process24 from "process";
 async function readStdin() {
   stdinCache.body ??= (async () => {
     let body = "";
-    process23.stdin.setEncoding("utf8");
-    for await (const chunk of process23.stdin)
+    process24.stdin.setEncoding("utf8");
+    for await (const chunk of process24.stdin)
       body += String(chunk);
     return body;
   })();
@@ -73688,12 +73782,12 @@ ${EXPLAIN_HINT}`
 }
 function deny(reason) {
   const output = buildDenyOutput(reason);
-  if (process23.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
-    process23.stderr.write(`${output.hookSpecificOutput.permissionDecisionReason}
+  if (process24.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+    process24.stderr.write(`${output.hookSpecificOutput.permissionDecisionReason}
 `);
-    process23.exit(2);
+    process24.exit(2);
   }
-  process23.stdout.write(`${JSON.stringify(output)}
+  process24.stdout.write(`${JSON.stringify(output)}
 `);
 }
 function readPackagedSafewordInstructions() {
@@ -73720,16 +73814,16 @@ function resolvePackagedHook(relativePath) {
   return findPackagedTemplate(nodePath142.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
-  const runtime = process23.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process23.execPath : "bun";
+  const runtime = process24.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process24.execPath : "bun";
   const result2 = spawnSync19(runtime, [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: "utf8",
     env: {
-      ...process23.env,
+      ...process24.env,
       CLAUDE_PROJECT_DIR: projectDirectory,
-      SAFEWORD_AGENT_RUNTIME: process23.env.SAFEWORD_AGENT_RUNTIME ?? "codex",
-      SAFEWORD_PLUGIN_CLI: process23.env.SAFEWORD_PLUGIN_CLI ?? process23.argv[1],
+      SAFEWORD_AGENT_RUNTIME: process24.env.SAFEWORD_AGENT_RUNTIME ?? "codex",
+      SAFEWORD_PLUGIN_CLI: process24.env.SAFEWORD_PLUGIN_CLI ?? process24.argv[1],
       SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath
     },
     stdio: ["pipe", "pipe", "pipe"]
@@ -73774,7 +73868,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   }
 }
 function embeddedOpenCodePreToolHooks() {
-  if (process23.env.SAFEWORD_AGENT_RUNTIME !== "opencode")
+  if (process24.env.SAFEWORD_AGENT_RUNTIME !== "opencode")
     return;
   if (typeof __SAFEWORD_OPENCODE_CODEX_PRE_TOOL_SOURCE__ !== "string" || typeof __SAFEWORD_OPENCODE_PRE_TOOL_SOURCE__ !== "string") {
     return;
@@ -73790,7 +73884,7 @@ function snapshotEmbeddedOpenCodePreToolHook(relativePath) {
   const embedded = embeddedOpenCodePreToolHooks();
   if (!embedded)
     return;
-  const directory = mkdtempSync9(nodePath142.join(tmpdir7(), `safeword-opencode-hook-snapshot-${process23.pid}-`));
+  const directory = mkdtempSync9(nodePath142.join(tmpdir7(), `safeword-opencode-hook-snapshot-${process24.pid}-`));
   const hooksDirectory = nodePath142.join(directory, "hooks");
   const codexDirectory = nodePath142.join(hooksDirectory, "codex");
   mkdirSync28(codexDirectory, { recursive: true });
@@ -73846,12 +73940,12 @@ function snapshotPackagedHook(relativePath) {
       error: new Error(`Safeword packaged hook is missing: ${relativePath}`)
     };
   }
-  const directory = mkdtempSync9(nodePath142.join(tmpdir7(), `safeword-codex-hook-snapshot-${process23.pid}-`));
+  const directory = mkdtempSync9(nodePath142.join(tmpdir7(), `safeword-codex-hook-snapshot-${process24.pid}-`));
   const stagingHooksDirectory = nodePath142.join(directory, "hooks-copying");
   const snapshotHooksDirectory = nodePath142.join(directory, "hooks");
   try {
     cpSync5(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
-    if (process23.env.SAFEWORD_AGENT_RUNTIME === "opencode") {
+    if (process24.env.SAFEWORD_AGENT_RUNTIME === "opencode") {
       rewriteSnapshotImportsForNode(stagingHooksDirectory);
     }
     renameSync17(stagingHooksDirectory, snapshotHooksDirectory);
@@ -73869,35 +73963,35 @@ function hookFailureDetail(result2) {
 }
 function denyForPackagedHookFailure(result2) {
   const detail = hookFailureDetail(result2);
-  if (process23.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE && result2.status === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE) {
-    process23.stderr.write(`${detail}
+  if (process24.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE && result2.status === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE) {
+    process24.stderr.write(`${detail}
 `);
-    process23.exit(INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE);
+    process24.exit(INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE);
   }
-  process23.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}
+  process24.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}
 `);
-  process23.exit(2);
+  process24.exit(2);
 }
 function emitPackagedPreToolResult(result2) {
   if (result2.error || result2.status !== 0)
     denyForPackagedHookFailure(result2);
   if (result2.stdout.trim() === "")
     return false;
-  if (process23.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+  if (process24.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
     try {
       const output = JSON.parse(result2.stdout);
       const reason = output.hookSpecificOutput?.permissionDecisionReason;
       if (output.hookSpecificOutput?.permissionDecision === "deny" && reason) {
-        process23.stderr.write(`${reason}
+        process24.stderr.write(`${reason}
 `);
-        process23.exit(2);
+        process24.exit(2);
       }
     } catch {}
-    process23.stderr.write(`Safeword packaged PreToolUse hook returned unsupported output in exit-code mode.
+    process24.stderr.write(`Safeword packaged PreToolUse hook returned unsupported output in exit-code mode.
 `);
-    process23.exit(2);
+    process24.exit(2);
   }
-  process23.stdout.write(result2.stdout);
+  process24.stdout.write(result2.stdout);
   return true;
 }
 function readProjectTextFile(projectDirectory, relativePath) {
@@ -73905,7 +73999,7 @@ function readProjectTextFile(projectDirectory, relativePath) {
   return existsSync69(filePath) ? readFileSync87(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
-  process23.stdout.write(`${JSON.stringify(output)}
+  process24.stdout.write(`${JSON.stringify(output)}
 `);
 }
 function currentTimestampContext(now = new Date) {
@@ -73938,11 +74032,11 @@ function packagedAdditionalContext(result2, hookEventName) {
   }
 }
 function emitStopNoop() {
-  process23.stdout.write(`{}
+  process24.stdout.write(`{}
 `);
 }
 function emitStopContinuation(output) {
-  process23.stdout.write(`${JSON.stringify(output)}
+  process24.stdout.write(`${JSON.stringify(output)}
 `);
 }
 function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
@@ -73993,7 +74087,7 @@ async function runSessionStart(projectDirectory) {
   const rawInput = await readStdin();
   const packagedResult = runPackagedHook("session-codex-start.ts", rawInput, projectDirectory);
   if (packagedResult.stdout.trim() !== "") {
-    process23.stdout.write(packagedResult.stdout);
+    process24.stdout.write(packagedResult.stdout);
     return;
   }
   const input = parseCodexHookInput(rawInput);
@@ -74090,7 +74184,7 @@ async function runStop(projectDirectory) {
   const packagedResult = runPackagedHook("codex/stop.ts", rawInput, projectDirectory);
   const packaged = classifyPackagedStopOutput(packagedResult.stdout);
   if (packaged === "block") {
-    process23.stdout.write(packagedResult.stdout);
+    process24.stdout.write(packagedResult.stdout);
     return;
   }
   const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
@@ -74099,7 +74193,7 @@ async function runStop(projectDirectory) {
     return;
   }
   if (packaged === "noop") {
-    process23.stdout.write(packagedResult.stdout);
+    process24.stdout.write(packagedResult.stdout);
     return;
   }
   emitStopNoop();
@@ -74107,7 +74201,7 @@ async function runStop(projectDirectory) {
 async function codexHook(event, options = {}) {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) {
-    process23.stderr.write(`Safeword ignored unknown Codex hook event: ${event}
+    process24.stderr.write(`Safeword ignored unknown Codex hook event: ${event}
 `);
     return;
   }
@@ -74116,7 +74210,7 @@ async function codexHook(event, options = {}) {
     try {
       const rawInput = await readStdin();
       const input = parseCodexHookInput(rawInput);
-      recordCodexHookProof(normalized, process23.env, new Date, {
+      recordCodexHookProof(normalized, process24.env, new Date, {
         projectDirectory,
         sessionId: input?.session_id
       });
@@ -74173,10 +74267,10 @@ var init_feature_directories = __esm(() => {
 });
 
 // src/cli.ts
-import process25 from "process";
+import process26 from "process";
 
 // src/cli-protocol/program.ts
-import process24 from "process";
+import process25 from "process";
 
 // ../../node_modules/.bun/commander@15.0.0/node_modules/commander/lib/error.js
 class CommanderError extends Error {
@@ -78117,7 +78211,7 @@ async function reviewPrPublicationHandler(stage, invocation) {
 init_configured_paths();
 init_online_required();
 import { existsSync as existsSync29, readdirSync as readdirSync15, readFileSync as readFileSync48 } from "fs";
-import process16 from "process";
+import process17 from "process";
 init_result();
 function trackerConnectReplayCommand(provider, invocation) {
   return buildReplayCommand({
@@ -78183,7 +78277,7 @@ async function runTrackerConnect(invocation) {
     messages2.push(message);
   }, {
     cwd: invocation.cwd,
-    prompt: !invocation.noInput && process16.stdin.isTTY ? createPrompt2() : { confirm: () => Promise.resolve(false) }
+    prompt: !invocation.noInput && process17.stdin.isTTY ? createPrompt2() : { confirm: () => Promise.resolve(false) }
   });
   return trackerConnectResult(provider, result, messages2, invocation);
 }
@@ -78276,8 +78370,8 @@ async function runTrackerSync(invocation) {
     tickets: provider === undefined ? [] : readCorpus2(invocation.cwd, config.target?.repo),
     sidecarPath,
     writers,
-    env: process16.env,
-    keychain: (candidate) => candidate === "github" ? resolveGhCliToken2(process16.env) : undefined,
+    env: process17.env,
+    keychain: (candidate) => candidate === "github" ? resolveGhCliToken2(process17.env) : undefined,
     resetTrackerMap: invocation.options.resetTrackerMap === true,
     nonInteractive: invocation.noInput,
     repoVisibility,
@@ -78607,6 +78701,15 @@ async function ticketApprovePlanHandler(invocation) {
   const { approvePlanResult: approvePlanResult2 } = await Promise.resolve().then(() => (init_plan_approval(), exports_plan_approval));
   return approvePlanResult2(invocation.cwd, ticket, { noInput: invocation.noInput });
 }
+async function planningContractCheckHandler(invocation) {
+  const ticket = invocation.operands[0];
+  const phase = invocation.operands[1];
+  if (typeof ticket !== "string" || ticket === "" || phase !== "product-plan" && phase !== "plan-implementation" && phase !== "plan-execution") {
+    return invalidOperand("ticket planning-contract-check", "Supply a ticket id and a canonical planning phase.");
+  }
+  const { checkPlanningContractCopy: checkPlanningContractCopy2 } = await Promise.resolve().then(() => (init_planning_contract_check(), exports_planning_contract_check));
+  return checkPlanningContractCopy2(invocation.cwd, ticket, phase);
+}
 async function deliveryChecklistHandler(invocation) {
   const ticket = invocation.operands[0];
   if (typeof ticket !== "string" || ticket === "") {
@@ -78774,6 +78877,7 @@ var HANDLERS = {
   "ticket new": ticketNewHandler,
   "ticket reconcile-parent": ticketReconcileParentHandler,
   "ticket approve-plan": ticketApprovePlanHandler,
+  "ticket planning-contract-check": planningContractCheckHandler,
   "ticket delivery-checklist": deliveryChecklistHandler,
   "ticket execution-prerequisite": executionPrerequisiteHandler,
   "ticket coding-authorization": codingAuthorizationHandler,
@@ -79215,6 +79319,13 @@ var CANONICAL_COMMANDS = [
     syntax: "approve-plan <ticketId>",
     fixture: {
       argv: ["ticket", "approve-plan", "fixture", "--no-input"],
+      environment: MACHINE_ENVIRONMENT
+    }
+  }),
+  command("ticket planning-contract-check", "Check active planning author-copy integrity", "observe", {
+    syntax: "planning-contract-check <ticketId> <phase>",
+    fixture: {
+      argv: ["ticket", "planning-contract-check", "fixture", "plan-implementation"],
       environment: MACHINE_ENVIRONMENT
     }
   }),
@@ -79774,7 +79885,7 @@ function createCapabilitiesResult() {
 
 // src/cli-protocol/execute.ts
 import nodePath140 from "path";
-import process20 from "process";
+import process21 from "process";
 init_policy();
 init_result();
 var GLOBAL_OPTION_KEYS = new Set(["json", "input", "cwd", "quiet", "offline", "verbose"]);
@@ -79799,7 +79910,7 @@ function readGlobalOptions(command2) {
   return {
     json: options.json === true,
     noInput: options.input === false,
-    cwd: nodePath140.resolve(process20.cwd(), options.cwd ?? "."),
+    cwd: nodePath140.resolve(process21.cwd(), options.cwd ?? "."),
     quiet: options.quiet === true,
     offline: options.offline === true,
     verbose: options.verbose === true
@@ -79832,7 +79943,7 @@ function reportResult(result2, options, commandName, delivery) {
     }
   }
   if (options.json) {
-    process20.stdout.write(`${renderJsonResult(reportableResult)}
+    process21.stdout.write(`${renderJsonResult(reportableResult)}
 `);
   } else {
     const rendered = renderHumanStreams(reportableResult, {
@@ -79840,13 +79951,13 @@ function reportResult(result2, options, commandName, delivery) {
       verbose: options.verbose
     });
     if (rendered.stdout !== "")
-      process20.stdout.write(`${rendered.stdout}
+      process21.stdout.write(`${rendered.stdout}
 `);
     if (rendered.stderr !== "")
-      process20.stderr.write(`${rendered.stderr}
+      process21.stderr.write(`${rendered.stderr}
 `);
   }
-  process20.exitCode = delivery?.actionRequiredAsSuccess === true && reportableResult.state === "action_required" ? 0 : exitStatusFor(reportableResult);
+  process21.exitCode = delivery?.actionRequiredAsSuccess === true && reportableResult.state === "action_required" ? 0 : exitStatusFor(reportableResult);
 }
 
 // src/cli-protocol/machine-output.ts
@@ -79862,7 +79973,7 @@ function machineOutputRequested(arguments_) {
 
 // src/cli-protocol/register.ts
 import { writeSync as writeSync5 } from "fs";
-import process21 from "process";
+import process22 from "process";
 init_plan();
 init_policy();
 init_result();
@@ -79982,7 +80093,7 @@ function withCompatibilityDeprecation(result2, definition, commandOptions = {}, 
   return withDeprecation(result2, alias2.name, alias2.compatibility.replacement ?? alias2.aliasFor, alias2.compatibility, commandOptions);
 }
 function commandProgress(definition, options) {
-  const managedProgressRequested = consumeManagedProgressSignal(process21.env);
+  const managedProgressRequested = consumeManagedProgressSignal(process22.env);
   const managedReview = managedProgressRequested && definition.name === "review run";
   if (!shouldReportProgress({ ...options, managedReview }))
     return;
@@ -80104,7 +80215,7 @@ function registerInternalCommands(program2) {
   const featureDirectoriesDefinition = findCommandDefinition("feature-directories");
   program2.command(featureDirectoriesDefinition.registration.syntax, { hidden: true }).description(featureDirectoriesDefinition.description).action(async () => {
     const { featureDirectories: featureDirectories2 } = await Promise.resolve().then(() => (init_feature_directories(), exports_feature_directories));
-    featureDirectories2(process24.cwd());
+    featureDirectories2(process25.cwd());
   });
 }
 function createCliProgram(invocation = {}) {
@@ -80165,14 +80276,14 @@ async function runCli(argv) {
   configureCliOutput(program2, {
     writeErr: (output) => {
       if (!machineOutput)
-        process24.stderr.write(output);
+        process25.stderr.write(output);
     }
   });
   try {
     await program2.parseAsync(normalized.argv);
   } catch (parseError) {
     if (isCommanderError(parseError) && parseError.exitCode === 0) {
-      process24.exitCode = 0;
+      process25.exitCode = 0;
     } else if (machineOutput && isCommanderError(parseError)) {
       const result2 = createResult({
         state: "failed",
@@ -80184,17 +80295,17 @@ async function runCli(argv) {
           }
         ]
       });
-      process24.stdout.write(`${renderJsonResult(result2)}
+      process25.stdout.write(`${renderJsonResult(result2)}
 `);
-      process24.exitCode = 1;
+      process25.exitCode = 1;
     } else if (isCommanderError(parseError)) {
-      process24.exitCode = parseError.exitCode;
+      process25.exitCode = parseError.exitCode;
     } else {
       error(parseError instanceof Error ? parseError.message : String(parseError));
-      process24.exitCode = 1;
+      process25.exitCode = 1;
     }
   }
 }
 
 // src/cli.ts
-await runCli(process25.argv);
+await runCli(process26.argv);

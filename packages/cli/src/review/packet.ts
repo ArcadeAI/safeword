@@ -16,6 +16,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import {
   createExecutionPlanDeliveryDefinition,
@@ -25,6 +26,7 @@ import {
 } from '../execution-plan/delivery-checklist.js';
 import { PLANNING_AUTHOR_COPIES } from '../planning/contracts.generated.js';
 import type { PlanningAuthorCopyIdentity, PlanningPhase } from '../planning/phase-contract.js';
+import { cursorPlanningContractPath } from '../schema.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import type {
@@ -81,15 +83,14 @@ export class PlanningContractCopyError extends ReviewPacketError {
 declare const __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__:
   Readonly<Record<PlanningPhase, PlanningAuthorCopyIdentity>> | undefined;
 
-function packagedPlanningAuthor(phase: PlanningPhase): string {
-  const copies =
-    typeof __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__ === 'object'
-      ? __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__
-      : PLANNING_AUTHOR_COPIES;
-  const identity = copies[phase];
+function readPlanningAuthor(
+  root: string,
+  phase: PlanningPhase,
+  identity: PlanningAuthorCopyIdentity,
+): string {
   let bytes: Buffer;
   try {
-    bytes = readFileSync(nodePath.join(packageRoot(), identity.relativePath));
+    bytes = readFileSync(nodePath.join(root, identity.relativePath));
   } catch {
     throw new PlanningContractCopyError(
       'missing_generated_contract_copy',
@@ -105,6 +106,26 @@ function packagedPlanningAuthor(phase: PlanningPhase): string {
     );
   }
   return bytes.toString('utf8');
+}
+
+function packagedPlanningAuthor(phase: PlanningPhase): string {
+  const copies =
+    typeof __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__ === 'object'
+      ? __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__
+      : PLANNING_AUTHOR_COPIES;
+  return readPlanningAuthor(packageRoot(), phase, copies[phase]);
+}
+
+/** Raw author-copy integrity is separate from the authenticated reviewer verdict. */
+export function assertActivePlanningAuthorCopy(cwd: string, phase: PlanningPhase): void {
+  packagedPlanningAuthor(phase);
+  if (process.env.SAFEWORD_AGENT_RUNTIME !== 'cursor') return;
+  const identity = PLANNING_AUTHOR_COPIES[phase];
+  const template = identity.relativePath.replace(/^templates\//u, '');
+  readPlanningAuthor(cwd, phase, {
+    relativePath: cursorPlanningContractPath(template),
+    sha256: identity.sha256,
+  });
 }
 
 interface CapturedFile {
