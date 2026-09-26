@@ -238,6 +238,17 @@ Keep the full scenario unchecked until every approved boundary is proved.
 - [ ] GREEN
 - [ ] REFACTOR
 
+Supporting Product dispatch proof: invoke the real `review run quality-review`
+command against a v1 feature or epic Product Plan under the resolved namespace.
+The reviewer process must receive the canonical Product phase, matched author and
+reviewer identity, and bounded behavior-review instructions. A configured namespace
+is honored; an unrelated same-named file, task spec, or Product Plan supplied only
+as context must retain ordinary quality review. The primary target is
+`packages/cli/tests/cli-protocol/review-wiring.test.ts`; invoke
+`scripts/dev bun run --cwd packages/cli test tests/cli-protocol/review-wiring.test.ts -t "Product planning contract"`.
+Only the external reviewer process is simulated. Admission and the other phases'
+eight-field completeness remain unproved here, so keep the scenario unchecked.
+
 ### Scenario: An incomplete planning contract cannot pass completeness checking
 
 - [ ] RED
