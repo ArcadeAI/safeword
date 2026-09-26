@@ -233,7 +233,13 @@ The missing generated record is the expected RED. This supporting proof does not
 claim runtime dependency invalidation or rejection of malformed contracts; those
 boundaries remain required before the scenario can be checked.
 
-Supporting invalidation-contract rejection proof: install a fresh Cursor project
+### Scenario: An undecidable Execution invalidation contract blocks reconciliation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+Invalidation-contract rejection proof: install a fresh Cursor project
 through the real source CLI, then mutate only its distribution's canonical
 Execution invalidation declaration. A real upgrade must reject missing, unknown,
 unknown-suffix, duplicate, and contradictory directions with
