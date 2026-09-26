@@ -267,6 +267,23 @@ still pass. Review `0a63b905-ce92-45b8-84da-fdccaf41df7b` remains a rejected
 wrong-scenario binding, not GREEN authority. A fresh independent executable
 review must attest this exact reconciliation scenario before production changes.
 
+Review `d774deea-0513-47bc-a9d2-ad99a8b74530` approved the correctly bound,
+unfiltered executable RED before any production change. Its atomicity warning
+identified a material proof gap: snapshotting only the Execution file could
+miss earlier writes to other phase contracts. Strengthen the same accepted
+scenario by generating a canonical shared-clause change before introducing the
+invalid direction, confirming all three canonical phase contracts differ from
+the installed snapshots, then requiring all installed bytes to remain unchanged
+on rejection. This discriminates a write-before-validation implementation.
+The primary proof changed, so a fresh attestation is required before GREEN;
+the approved prior review is historical evidence, not current authority.
+The supported-mode siblings also exercise real installation and assert the
+installed owner declaration, preventing a reconciler that rejects every
+canonical mode or silently hardcodes one of the two supported values from
+passing this proof. The strengthened unfiltered local run retains seven
+intended failures and 15 passes; its log is
+`/tmp/4200-atomic-invalidation-reconciliation-red.log`.
+
 ### Scenario: An approving receipt is valid only for its own ticket and review kind
 
 - [ ] RED

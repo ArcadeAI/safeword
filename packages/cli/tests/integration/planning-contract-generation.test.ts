@@ -331,6 +331,16 @@ describe('Planning contract shared-clause generation', () => {
       expect(contracts['plan-implementation']).not.toHaveProperty(
         'upstreamImplementationInvalidation',
       );
+      const project = nodePath.join(distribution, 'project');
+      mkdirSync(project);
+      writeFileSync(
+        nodePath.join(project, 'package.json'),
+        JSON.stringify({ name: 'decided-invalidation-fixture', private: true }),
+      );
+      reconcileProject(distribution, project, 'install');
+      expect(
+        readFileSync(nodePath.join(project, '.safeword/skills/bdd/PLAN_EXECUTION.md'), 'utf8'),
+      ).toContain(`upstreamImplementationInvalidation: ${mode}`);
     },
   );
 
@@ -367,8 +377,22 @@ describe('Planning contract shared-clause generation', () => {
     );
     generatePhaseContracts(distribution);
     reconcileProject(distribution, project, 'install');
-    const installedPath = nodePath.join(project, '.safeword/skills/bdd/PLAN_EXECUTION.md');
-    const installed = readFileSync(installedPath, 'utf8');
+    const installed = ['DISCOVERY.md', 'PLAN_IMPLEMENTATION.md', 'PLAN_EXECUTION.md'].map(name => {
+      const path = nodePath.join(project, '.safeword/skills/bdd', name);
+      return { name, path, bytes: readFileSync(path, 'utf8') };
+    });
+    writeCanonicalClause(
+      distribution,
+      'Accepted scope remains user-owned after this canonical edit.',
+    );
+    generatePhaseContracts(distribution);
+    for (const snapshot of installed) {
+      const canonical = readFileSync(
+        nodePath.join(distribution, 'templates/skills/bdd', snapshot.name),
+        'utf8',
+      );
+      expect(canonical).not.toBe(snapshot.bytes);
+    }
     const contractPath = nodePath.join(distribution, 'templates/skills/bdd/PLAN_EXECUTION.md');
     const contract = readFileSync(contractPath, 'utf8');
     const direction = 'upstreamImplementationInvalidation: both_plan_reviews';
@@ -400,7 +424,11 @@ describe('Planning contract shared-clause generation', () => {
         },
       }),
     );
-    expect(readFileSync(installedPath, 'utf8')).toBe(installed);
+    for (const snapshot of installed) {
+      expect(readFileSync(snapshot.path, 'utf8'), `${snapshot.name} must remain unchanged`).toBe(
+        snapshot.bytes,
+      );
+    }
   });
 
   it('preserves the existing distinct phase-only judgment in generated outputs', () => {
