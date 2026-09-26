@@ -249,6 +249,16 @@ as context must retain ordinary quality review. The primary target is
 Only the external reviewer process is simulated. Admission and the other phases'
 eight-field completeness remain unproved here, so keep the scenario unchecked.
 
+Supporting contract-shape proof: invoke the real planning-family/rubric generators
+for all three phases and require exactly one nonempty declaration of Purpose,
+Entry criteria, Required content, Prohibited content, Review question, Approval
+meaning, Invalidation, and Return path. The primary target is
+`packages/cli/tests/integration/planning-contract-generation.test.ts`; invoke
+`scripts/dev bun run --cwd packages/cli test tests/integration/planning-contract-generation.test.ts`.
+Product already declares these fields; Implementation and Execution are the
+missing behavior. This proves generated shape, not semantic judgment or phase
+admission. Keep the full scenario unchecked until its remaining boundaries pass.
+
 ### Scenario: An incomplete planning contract cannot pass completeness checking
 
 - [ ] RED

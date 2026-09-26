@@ -24,12 +24,15 @@ afterEach(() => {
   temporaryDirectories.length = 0;
 });
 
-function generatedRubric(phase: 'implementation' | 'execution'): string {
+function generatedRubric(phase: 'product' | 'implementation' | 'execution'): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-planning-generation-'));
   temporaryDirectories.push(directory);
   const output = nodePath.join(directory, 'rubric.ts');
-  const script =
-    phase === 'implementation' ? 'generate-plan-rubric.ts' : 'generate-execution-plan-rubric.ts';
+  const script = {
+    product: 'generate-planning-contracts.ts',
+    implementation: 'generate-plan-rubric.ts',
+    execution: 'generate-execution-plan-rubric.ts',
+  }[phase];
   const result = spawnSync(
     'bun',
     [nodePath.join(packageRoot, 'scripts', script), '--output', output],
@@ -227,17 +230,45 @@ describe('Planning contract shared-clause generation', () => {
     },
   );
 
-  it('emits the canonical shared authority block in both real phase-rubric outputs', () => {
-    const rubrics = (['implementation', 'execution'] as const).map(generatedRubric);
+  it('emits the canonical shared authority block in all three real phase-rubric outputs', () => {
+    const rubrics = (['product', 'implementation', 'execution'] as const).map(generatedRubric);
     for (const rubric of rubrics) {
       expect(
         rubric,
-        'canonical shared authority clauses must be generated for both planning phases',
+        'canonical shared authority clauses must be generated for all three planning phases',
       ).toContain('<!-- SAFEWORD:PLANNING_SHARED_START -->');
       expect(rubric).toContain('<!-- SAFEWORD:PLANNING_SHARED_END -->');
       for (const clause of Object.values(PLANNING_SHARED_CLAUSES)) expect(rubric).toContain(clause);
     }
   });
+
+  it.each(['product', 'implementation', 'execution'] as const)(
+    'declares eight nonempty bounded-decision fields in the real %s reviewer contract',
+    phase => {
+      const rubric = generatedRubric(phase);
+      const declarations = Array.from(rubric.matchAll(/^- \*\*([^*]+):\*\*([^\n]*)/gmu), match => ({
+        name: match[1]?.trim(),
+        value: match[2]?.trim(),
+      }));
+      for (const field of [
+        'Purpose',
+        'Entry criteria',
+        'Required content',
+        'Prohibited content',
+        'Review question',
+        'Approval meaning',
+        'Invalidation',
+        'Return path',
+      ]) {
+        const matches = declarations.filter(declaration => declaration.name === field);
+        expect(matches, `Each planning phase must declare ${field} exactly once`).toHaveLength(1);
+        expect(
+          matches[0]?.value,
+          `Each planning phase must give ${field} a nonempty value`,
+        ).not.toBe('');
+      }
+    },
+  );
 
   it('preserves the existing distinct phase-only judgment in generated outputs', () => {
     const implementation = generatedRubric('implementation');
