@@ -14,8 +14,13 @@ export class MissingGeneratedSharedClauseError extends Error {
 }
 
 export function assertGeneratedSharedClauses(content: string, contractPath: string): void {
-  for (const clauseId of Object.keys(PLANNING_SHARED_CLAUSES)) {
-    if (!content.includes(`<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:${clauseId} -->`)) {
+  const block =
+    /<!-- SAFEWORD:PLANNING_SHARED_START -->([\s\S]*?)<!-- SAFEWORD:PLANNING_SHARED_END -->/u.exec(
+      content,
+    )?.[1] ?? '';
+  for (const [clauseId, text] of Object.entries(PLANNING_SHARED_CLAUSES)) {
+    const clause = `<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:${clauseId} -->\n\n${text}\n\n`;
+    if (!block.includes(clause)) {
       throw new MissingGeneratedSharedClauseError(clauseId, contractPath);
     }
   }

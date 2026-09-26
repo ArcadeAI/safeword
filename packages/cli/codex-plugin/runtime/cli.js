@@ -45922,8 +45922,14 @@ var init_shared_contract = __esm(() => {
 
 // src/planning/shared-clause-integrity.ts
 function assertGeneratedSharedClauses(content, contractPath) {
-  for (const clauseId of Object.keys(PLANNING_SHARED_CLAUSES)) {
-    if (!content.includes(`<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:${clauseId} -->`)) {
+  const block = /<!-- SAFEWORD:PLANNING_SHARED_START -->([\s\S]*?)<!-- SAFEWORD:PLANNING_SHARED_END -->/u.exec(content)?.[1] ?? "";
+  for (const [clauseId, text] of Object.entries(PLANNING_SHARED_CLAUSES)) {
+    const clause = `<!-- SAFEWORD:PLANNING_SHARED_CLAUSE:${clauseId} -->
+
+${text}
+
+`;
+    if (!block.includes(clause)) {
       throw new MissingGeneratedSharedClauseError(clauseId, contractPath);
     }
   }
