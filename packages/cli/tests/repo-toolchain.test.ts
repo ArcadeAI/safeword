@@ -17,16 +17,20 @@ describe('repository toolchain launcher', () => {
     try {
       const scripts = nodePath.join(directory, 'scripts');
       const global = nodePath.join(directory, 'global');
-      const pinned = nodePath.join(directory, 'pinned');
+      const pinnedBun = nodePath.join(directory, 'pinned-bun');
+      const pinnedNode = nodePath.join(directory, 'pinned-node');
       const cwd = nodePath.join(directory, 'package');
-      for (const path of [scripts, global, pinned, cwd]) mkdirSync(path);
+      for (const path of [scripts, global, pinnedBun, pinnedNode, cwd]) mkdirSync(path);
       const command = nodePath.join(scripts, 'dev');
       copyFileSync(launcher, command);
       executable(nodePath.join(global, 'bun'), 'echo global-bun');
       executable(nodePath.join(global, 'node'), 'echo global-node');
-      executable(nodePath.join(pinned, 'bun'), 'echo pinned-bun');
-      executable(nodePath.join(pinned, 'node'), 'echo pinned-node');
-      executable(nodePath.join(global, 'mise'), String.raw`printf "%s/pinned/%s\n" "$2" "$4"`);
+      executable(nodePath.join(pinnedBun, 'bun'), 'echo pinned-bun');
+      executable(nodePath.join(pinnedNode, 'node'), 'echo pinned-node');
+      executable(
+        nodePath.join(global, 'mise'),
+        String.raw`printf "%s/pinned-%s/%s\n" "$2" "$4" "$4"`,
+      );
       const result = spawnSync(
         command,
         [
@@ -45,8 +49,8 @@ describe('repository toolchain launcher', () => {
       });
       expect(pathResult.status).toBe(0);
       expect(pathResult.stdout.trim().split(nodePath.delimiter)).toEqual([
-        pinned,
-        pinned,
+        pinnedBun,
+        pinnedNode,
         global,
         '/usr/bin',
         '/bin',
