@@ -80,7 +80,11 @@ function runStopHook(projectDirectory: string, transcriptPath: string, lastAssis
       last_assistant_message: lastAssistantMessage,
     }),
     cwd: projectDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: projectDirectory,
+      SAFEWORD_CLI: nodePath.join(SAFEWORD_ROOT, 'packages/cli/dist/cli.js'),
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });

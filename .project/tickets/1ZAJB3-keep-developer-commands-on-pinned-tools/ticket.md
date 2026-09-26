@@ -44,3 +44,7 @@ the Node lookup with a second Bun lookup fails the corrected fixture; the
 original launcher was restored in a finally block. The mutation result is
 retained at `/tmp/4200-toolchain-node-lookup-mutation.log`. Draft PR #4990
 remains unpromoted; no final approval of the corrected bytes is claimed.
+
+- Full D1 verification exposed another Bun-related repo-test dependency: the hierarchy hook fixture fell through to published `bunx safeword` and hit an incomplete temporary ESLint cache. The unchanged isolated test then passed all six cases, so the failed full result is retained as intermittent. Bind that fixture to the repository’s actual built CLI via the existing `SAFEWORD_CLI` override; no hook behavior or assertions change, and no cache deletion or personal configuration is required. Fresh scoped tests/review are required for this fixture correction.
+
+- Fixture correction verification: all 21 targeted tests in four files pass. Removing the local CLI binding while making published `bunx` unavailable fails all six hierarchy assertions; restored the real built-CLI binding afterward. Both deliberate mutations are retained as evidence, not normal failures of the final code.
