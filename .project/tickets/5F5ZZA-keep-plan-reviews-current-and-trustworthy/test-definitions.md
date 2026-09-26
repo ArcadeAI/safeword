@@ -12,6 +12,16 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+Supporting Product reviewer-generation proof: the real planning-family generator
+must emit the Product reviewer copy and propagate every canonical shared clause,
+including both shared-block markers, after a canonical edit. The primary target is
+`packages/cli/tests/integration/planning-contract-generation.test.ts`; invoke
+`scripts/dev bun run --cwd packages/cli test tests/integration/planning-contract-generation.test.ts`.
+The current missing behavior is Product reviewer emission only. Implementation
+and Execution propagation and the omission partitions already pass; this step
+does not claim installed Product dispatch or admission, which remain unfinished.
+Keep the full scenario unchecked until every approved boundary is proved.
+
 ### Scenario: Phase-only clauses remain in their owning contract
 
 - [ ] RED
