@@ -153,6 +153,10 @@ Root lint passed ESLint, Gherkin validation and CLI TypeScript. Log: `/tmp/4200-
 **Dep Drift:** ✅ Clean — no runtime dependency changes
 **Parent Epic:** #4200 — incomplete; no sibling-completion claim
 **Reconcile:** ✅ No pattern deviation
-**Experience:** ⏭️ N/A — CLI approval admission mechanics; native manual walkthrough pending
+**Experience:** ✅ No new friction — walked Tool Builder through native review and CLI rejection; worst step = waiting for the independent reviewer; new steps versus before = 0. This walk covers rejection, not native approving warnings.
 **Surface Evidence:** ✅ Real CLI regressions and generated guidance checks pass; no live-host UI claim
-**Evidence limits:** ⚠️ Acceptance retains 585 undefined scenarios and 3 existing skips; the standalone manual walkthrough remains pending
+**Evidence limits:** ⚠️ Acceptance retains 585 undefined scenarios and 3 existing skips; native manual walkthrough covers rejection; approval-with-warning proof mocks only the external reviewer process
+
+### Native manual rejection walkthrough
+
+At unchanged production head `e2c661f38`, a first attempted installation under `/tmp/4200-D1-manual-walk` was correctly refused as a nested project because `/tmp` was already configured. This is a setup failure, not a successful walk. A fresh system-temporary project then installed the real built CLI with Cursor, offline and without application-tool modifications. A native Claude Implementation review (`1bc97291-4d2f-4151-9d07-c7b9e446344d`) actually requested changes to the example plan. Ordinary `ticket approve-plan WALK01 --no-input --json` returned action-required, left `phase: plan-implementation`, and emitted exactly the current review's `REVIEWER_FINDING` messages. The independent-assurance sentence was absent. No fake reviewer, copied authenticated receipt, or hand-written review stamp was used. Approval without the extra stamp remains separately proven by the automated real-coordinator regression; no native approval claim is made here. Logs: `/tmp/4200-D1-native-walk-install.json`, `/tmp/4200-D1-native-walk-review-status.json`, `/tmp/4200-D1-native-walk-approval.json`.
