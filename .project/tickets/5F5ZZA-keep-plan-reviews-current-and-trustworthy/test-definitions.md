@@ -242,14 +242,30 @@ boundaries remain required before the scenario can be checked.
 Invalidation-contract rejection proof: install a fresh Cursor project
 through the real source CLI, then mutate only its distribution's canonical
 Execution invalidation declaration. A real upgrade must reject missing, unknown,
-unknown-suffix, duplicate, and contradictory directions with
+unknown-suffix, duplicate (including an empty duplicate), and contradictory directions with
 `invalid_invalidation_contract`, the Execution phase and canonical contract path,
 and unchanged installed contract bytes. The primary target is
 `packages/cli/tests/integration/planning-contract-generation.test.ts`; invoke
-`scripts/dev bun run --cwd packages/cli test tests/integration/planning-contract-generation.test.ts -t "blocks reconciliation for a"`.
+`scripts/dev bun run --cwd packages/cli test tests/integration/planning-contract-generation.test.ts`.
 Only external dependency/skills downloads are disabled. The expected RED is
 `real CLI reconciliation must reject an invalid Execution invalidation contract`.
 This proves reconciliation rejection, not runtime review dependency invalidation.
+
+After the plan repair, current authenticated scenario review
+`d715e7cd-82e1-4251-8a72-1bea2d154d83`, Implementation review
+`3bd93757-8ffc-4a9f-93f5-fde00fb2c656`, and Execution review
+`5f12374c-b953-4020-9671-14e4ac798b22` approved with no error findings;
+the actual read-only CLI reported coding authorized with cross-agent evidence.
+The complete unfiltered primary proof then returned seven intended failures
+and 15 passes (22 tests), retained in
+`/tmp/4200-complete-invalidation-reconciliation-red.log`.
+Missing includes both an absent declaration and an absent entire Invalidation
+field. The real generator also preserves either supported owner-decided mode.
+All seven failures are the real upgrade succeeding instead of rejecting its
+malformed canonical source; existing generation, shape, and shared-clause proofs
+still pass. Review `0a63b905-ce92-45b8-84da-fdccaf41df7b` remains a rejected
+wrong-scenario binding, not GREEN authority. A fresh independent executable
+review must attest this exact reconciliation scenario before production changes.
 
 ### Scenario: An approving receipt is valid only for its own ticket and review kind
 

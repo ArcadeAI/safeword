@@ -270,66 +270,73 @@ describe('Planning contract shared-clause generation', () => {
     },
   );
 
-  it('emits typed phase contracts including the owner-decided Execution invalidation direction', () => {
-    const distribution = sourceDistribution();
-    const executionSource = nodePath.join(distribution, 'templates/skills/bdd/PLAN_EXECUTION.md');
-    const purpose = 'Sequence the accepted delivery without reopening its design.';
-    writeFileSync(
-      executionSource,
-      readFileSync(executionSource, 'utf8').replace(
-        /^(- \*\*Purpose:\*\*)[^\n]+/mu,
-        (_match, label: string) => `${label} ${purpose}`,
-      ),
-    );
-    generatePhaseContracts(distribution);
-    const output = nodePath.join(distribution, 'src/planning/contracts.generated.ts');
-    expect(
-      existsSync(output),
-      'real planning-family generation must emit typed phase contracts',
-    ).toBe(true);
-    const result = spawnSync(
-      'bun',
-      [
-        '-e',
-        `import { PLANNING_CONTRACTS } from ${JSON.stringify(output)}; process.stdout.write(JSON.stringify(PLANNING_CONTRACTS));`,
-      ],
-      { cwd: distribution, encoding: 'utf8', timeout: 30_000, env: process.env },
-    );
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
-    const contracts = JSON.parse(result.stdout) as Record<string, Record<string, unknown>>;
-    expect(Object.keys(contracts).toSorted((left, right) => left.localeCompare(right))).toEqual([
-      'plan-execution',
-      'plan-implementation',
-      'product-plan',
-    ]);
-    for (const [phase, contract] of Object.entries(contracts)) {
-      expect(contract.phase).toBe(phase);
-      for (const field of [
-        'purpose',
-        'entryCriteria',
-        'requiredContent',
-        'prohibitedContent',
-        'reviewQuestion',
-        'approvalMeaning',
-        'invalidation',
-        'returnPath',
-      ]) {
-        expect(contract[field]).toBeTypeOf('string');
-        expect((contract[field] as string).trim()).not.toBe('');
+  it.each(['both_plan_reviews', 'implementation_review_only'] as const)(
+    'emits typed phase contracts including the owner-decided $0 Execution invalidation direction',
+    mode => {
+      const distribution = sourceDistribution();
+      const executionSource = nodePath.join(distribution, 'templates/skills/bdd/PLAN_EXECUTION.md');
+      const purpose = 'Sequence the accepted delivery without reopening its design.';
+      writeFileSync(
+        executionSource,
+        readFileSync(executionSource, 'utf8')
+          .replace(
+            /^(- \*\*Purpose:\*\*)[^\n]+/mu,
+            (_match, label: string) => `${label} ${purpose}`,
+          )
+          .replace(
+            'upstreamImplementationInvalidation: both_plan_reviews',
+            () => `upstreamImplementationInvalidation: ${mode}`,
+          ),
+      );
+      generatePhaseContracts(distribution);
+      const output = nodePath.join(distribution, 'src/planning/contracts.generated.ts');
+      expect(
+        existsSync(output),
+        'real planning-family generation must emit typed phase contracts',
+      ).toBe(true);
+      const result = spawnSync(
+        'bun',
+        [
+          '-e',
+          `import { PLANNING_CONTRACTS } from ${JSON.stringify(output)}; process.stdout.write(JSON.stringify(PLANNING_CONTRACTS));`,
+        ],
+        { cwd: distribution, encoding: 'utf8', timeout: 30_000, env: process.env },
+      );
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+      const contracts = JSON.parse(result.stdout) as Record<string, Record<string, unknown>>;
+      expect(Object.keys(contracts).toSorted((left, right) => left.localeCompare(right))).toEqual([
+        'plan-execution',
+        'plan-implementation',
+        'product-plan',
+      ]);
+      for (const [phase, contract] of Object.entries(contracts)) {
+        expect(contract.phase).toBe(phase);
+        for (const field of [
+          'purpose',
+          'entryCriteria',
+          'requiredContent',
+          'prohibitedContent',
+          'reviewQuestion',
+          'approvalMeaning',
+          'invalidation',
+          'returnPath',
+        ]) {
+          expect(contract[field]).toBeTypeOf('string');
+          expect((contract[field] as string).trim()).not.toBe('');
+        }
       }
-    }
-    expect(contracts['plan-execution']?.upstreamImplementationInvalidation).toBe(
-      'both_plan_reviews',
-    );
-    expect(contracts['plan-execution']?.purpose).toBe(purpose);
-    expect(contracts['product-plan']).not.toHaveProperty('upstreamImplementationInvalidation');
-    expect(contracts['plan-implementation']).not.toHaveProperty(
-      'upstreamImplementationInvalidation',
-    );
-  });
+      expect(contracts['plan-execution']?.upstreamImplementationInvalidation).toBe(mode);
+      expect(contracts['plan-execution']?.purpose).toBe(purpose);
+      expect(contracts['product-plan']).not.toHaveProperty('upstreamImplementationInvalidation');
+      expect(contracts['plan-implementation']).not.toHaveProperty(
+        'upstreamImplementationInvalidation',
+      );
+    },
+  );
 
   it.each([
     { case: 'missing', declaration: '' },
+    { case: 'missing entire field', declaration: undefined },
     { case: 'unknown', declaration: 'upstreamImplementationInvalidation: either_plan_review' },
     {
       case: 'unknown suffix',
@@ -344,6 +351,11 @@ describe('Planning contract shared-clause generation', () => {
       case: 'contradictory',
       declaration:
         'upstreamImplementationInvalidation: both_plan_reviews upstreamImplementationInvalidation: implementation_review_only',
+    },
+    {
+      case: 'empty duplicate',
+      declaration:
+        'upstreamImplementationInvalidation: both_plan_reviews upstreamImplementationInvalidation:',
     },
   ])('blocks reconciliation for a $case Execution invalidation direction', ({ declaration }) => {
     const distribution = sourceDistribution();
@@ -361,10 +373,12 @@ describe('Planning contract shared-clause generation', () => {
     const contract = readFileSync(contractPath, 'utf8');
     const direction = 'upstreamImplementationInvalidation: both_plan_reviews';
     expect(contract).toContain(direction);
-    writeFileSync(
-      contractPath,
-      contract.replace(direction, () => declaration),
-    );
+    const invalidContract =
+      declaration === undefined
+        ? contract.replace(/^- \*\*Invalidation:\*\*[\s\S]+?(?=^- \*\*Return path:)/mu, '')
+        : contract.replace(direction, () => declaration);
+    expect(invalidContract).not.toBe(contract);
+    writeFileSync(contractPath, invalidContract);
     const result = reconciliationResult(distribution, project, 'upgrade');
     expect(
       result.status,
