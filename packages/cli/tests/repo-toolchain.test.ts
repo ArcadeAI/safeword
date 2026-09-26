@@ -28,9 +28,8 @@ describe('repository toolchain launcher', () => {
       executable(nodePath.join(pinned, 'node'), 'echo pinned-node');
       executable(nodePath.join(global, 'mise'), String.raw`printf "%s/pinned/%s\n" "$2" "$4"`);
       const result = spawnSync(
-        '/bin/sh',
+        command,
         [
-          command,
           'sh',
           '-c',
           String.raw`bun --version; node --version; printf "%s\n" "$1"; pwd; exit 7`,
@@ -39,6 +38,19 @@ describe('repository toolchain launcher', () => {
         ],
         { cwd, env: { ...process.env, PATH: `${global}:/usr/bin:/bin` }, encoding: 'utf8' },
       );
+      const pathResult = spawnSync(command, ['--print-path'], {
+        cwd,
+        env: { ...process.env, PATH: `${global}:/usr/bin:/bin` },
+        encoding: 'utf8',
+      });
+      expect(pathResult.status).toBe(0);
+      expect(pathResult.stdout.trim().split(nodePath.delimiter)).toEqual([
+        pinned,
+        pinned,
+        global,
+        '/usr/bin',
+        '/bin',
+      ]);
       expect(result.status).toBe(7);
       expect(result.stdout.trim().split('\n')).toEqual([
         'pinned-bun',
@@ -46,6 +58,21 @@ describe('repository toolchain launcher', () => {
         'argument with spaces',
         realpathSync(cwd),
       ]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('explains how to install unavailable pinned tools', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-toolchain-'));
+    try {
+      executable(nodePath.join(directory, 'mise'), 'exit 1');
+      const result = spawnSync('/bin/sh', [launcher, 'bun', '--version'], {
+        env: { ...process.env, PATH: `${directory}:/usr/bin:/bin` },
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('Pinned Bun/Node unavailable. Run mise install');
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

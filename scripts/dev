@@ -13,8 +13,11 @@ if ! command -v mise >/dev/null 2>&1; then
 fi
 
 safeword_repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-safeword_bun=$(mise -C "$safeword_repo_root" which bun)
-safeword_node=$(mise -C "$safeword_repo_root" which node)
+if ! safeword_bun=$(mise -C "$safeword_repo_root" which bun) ||
+  ! safeword_node=$(mise -C "$safeword_repo_root" which node); then
+  echo 'Pinned Bun/Node unavailable. Run mise install from the repository root.' >&2
+  exit 1
+fi
 PATH="$(dirname -- "$safeword_bun"):$(dirname -- "$safeword_node"):$PATH"
 export PATH
 
