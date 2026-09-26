@@ -4,7 +4,7 @@ Feature source: `features/plan-implementation-phase.feature`
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: plan-implementation-phase.TB1.R1 — a new-flow feature cannot enter implement without a valid implementation plan
+## Rule: plan-implementation-phase.TB1.R1 — a new-flow feature cannot enter Execution Planning without a valid implementation plan
 
 ### Scenario: Feature with a valid plan advances into Execution Planning
 

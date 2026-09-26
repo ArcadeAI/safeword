@@ -4,7 +4,7 @@ Feature: plan-implementation phase before TDD
   authoring; a transition gate keeps TDD RED from starting before a valid plan.
 
   @plan-implementation-phase.TB1.R1
-  Rule: plan-implementation-phase.TB1.R1 — a new-flow feature cannot enter implement without a valid implementation plan
+  Rule: plan-implementation-phase.TB1.R1 — a new-flow feature cannot enter Execution Planning without a valid implementation plan
 
     @surface.claude-code
     Scenario: Feature with a valid plan advances into Execution Planning

@@ -33,6 +33,7 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { missingPhases } from './support/provenance-denial.js';
 import { REVIEWER_CAPABILITIES } from '../packages/cli/tests/review-fixtures.ts';
 import {
   COMPLETE_DATA_PLAN,
@@ -2468,10 +2469,10 @@ Then('the denial names the scaffold template to author the plan from', function 
 Then(
   'the denial names plan-implementation and plan-execution as the skipped phases',
   function (this: PlanWorld) {
-    const text = this.verdict?.text ?? '';
-    assert.match(text, /plan-implementation/);
-    assert.match(text, /plan-execution/);
-    assert.match(text, /skip|justification/i);
+    assert.deepEqual(missingPhases(this.verdict?.text ?? ''), [
+      'plan-implementation',
+      'plan-execution',
+    ]);
   },
 );
 

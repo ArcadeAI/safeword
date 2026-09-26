@@ -21,6 +21,7 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { missingPhases } from './support/provenance-denial.js';
 import type { SafewordWorld } from './world.js';
 
 const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -466,11 +467,12 @@ Then(
 Then(
   'the denial names define-behavior, scenario-gate, plan-implementation, and plan-execution as the phases still needing justification',
   function (this: ProvenanceWorld) {
-    const text = this.verdict?.text ?? '';
-    assert.match(text, /define-behavior/);
-    assert.match(text, /scenario-gate/);
-    assert.match(text, /plan-implementation/);
-    assert.match(text, /plan-execution/);
+    assert.deepEqual(missingPhases(this.verdict?.text ?? ''), [
+      'define-behavior',
+      'scenario-gate',
+      'plan-implementation',
+      'plan-execution',
+    ]);
   },
 );
 
@@ -478,10 +480,7 @@ Then('the denial does not name intake', function (this: ProvenanceWorld) {
   // The denial must list only unjustified phases. "intake" may appear inside
   // remediation prose (e.g. "start at intake"), so assert against the named
   // missing-phase list rather than the whole text.
-  const text = this.verdict?.text ?? '';
-  const listMatch = text.match(/justification[^:]*:\s*([^.]*)/i);
-  const namedList = listMatch?.[1] ?? text;
-  assert.doesNotMatch(namedList, /\bintake\b/);
+  assert.ok(!missingPhases(this.verdict?.text ?? '').includes('intake'));
 });
 
 Then(
@@ -494,24 +493,26 @@ Then(
 Then(
   'the denial names define-behavior, scenario-gate, plan-implementation, and plan-execution as the skipped phases',
   function (this: ProvenanceWorld) {
-    const text = this.verdict?.text ?? '';
-    assert.match(text, /define-behavior/);
-    assert.match(text, /scenario-gate/);
-    assert.match(text, /plan-implementation/);
-    assert.match(text, /plan-execution/);
+    assert.deepEqual(missingPhases(this.verdict?.text ?? ''), [
+      'define-behavior',
+      'scenario-gate',
+      'plan-implementation',
+      'plan-execution',
+    ]);
   },
 );
 
 Then(
   'the denial names define-behavior, scenario-gate, plan-implementation, plan-execution, implement, and verify as the skipped phases',
   function (this: ProvenanceWorld) {
-    const text = this.verdict?.text ?? '';
-    assert.match(text, /define-behavior/);
-    assert.match(text, /scenario-gate/);
-    assert.match(text, /plan-implementation/);
-    assert.match(text, /plan-execution/);
-    assert.match(text, /\bimplement\b/);
-    assert.match(text, /\bverify\b/);
+    assert.deepEqual(missingPhases(this.verdict?.text ?? ''), [
+      'define-behavior',
+      'scenario-gate',
+      'plan-implementation',
+      'plan-execution',
+      'implement',
+      'verify',
+    ]);
   },
 );
 
@@ -535,7 +536,17 @@ Then(
   'the denial explains that becoming a feature past intake requires phase_skips justifications',
   function (this: ProvenanceWorld) {
     const text = this.verdict?.text ?? '';
-    assert.match(text, /feature/i);
+    assert.match(
+      text,
+      /Feature tickets are born at phase: intake[^.]*become a feature[^.]*without provenance/u,
+    );
+    assert.deepEqual(missingPhases(text), [
+      'intake',
+      'define-behavior',
+      'scenario-gate',
+      'plan-implementation',
+      'plan-execution',
+    ]);
     assert.match(text, /phase_skips/);
   },
 );
