@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.24
-**Last Updated:** 2026-09-18
+**Version:** 1.25
+**Last Updated:** 2026-09-25
 **Status:** Production
 
 ---
@@ -876,6 +876,19 @@ non-independent evidence therefore cannot earn GREEN credit.
 Proof commands run as trusted same-user project processes, not inside an OS security sandbox. The
 worker removes internal review variables from their environment, terminates remaining descendants,
 and invalidates preemptively completed jobs; hostile-code isolation would be a separate design.
+
+### Conformance-Gated Execution Plan Review
+
+**Status:** Accepted
+**Date:** 2026-09-25
+
+| Field          | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | The existing review coordinator runs `plan-execution` only for one ticket-owned `execution-plan.md`, with that ticket's accepted Implementation Plan and scenarios as context. It dispatches only exact reviewer/model identities admitted by a complete, current semantic conformance matrix. An approval retains a typed slicing and obligation record, the stable delivery definition, and a digest of the reviewed plan that excludes only ordinary checklist progress. |
+| Why            | Valid JSON cannot prove that a reviewer understood safe PR boundaries or preserved accepted decisions. The retained judgment and review-job identity make approval auditable against the plan actually reviewed.                                                                                                                                                                                                                                                            |
+| Trade-off      | Admission is specific to the packaged contract, corpus, and model identity; changes require another live matrix. A vendor's runtime-default model can later drift, so runtime-default identities need explicit admission rather than inheriting a named model's proof.                                                                                                                                                                                                      |
+| Alternatives   | A generic plan reviewer was rejected because it cannot establish slicing judgment. A separate review engine or signing system was rejected because the existing coordinator, bounded packet, and integrity-checked job already provide the needed authority boundary.                                                                                                                                                                                                       |
+| Implementation | `packages/cli/src/review/`, `packages/cli/src/execution-plan/`, and ticket 6XW8H7. Coding-transition enforcement and later review-currency rules remain separate work.                                                                                                                                                                                                                                                                                                      |
 
 ### Profile-Scoped Generated Codex Plugin and Staged Hook Migration
 
