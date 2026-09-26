@@ -2601,7 +2601,11 @@ Then('it directs authoring impl-plan.md with the five design sections', function
 Then(
   'it directs consulting the architecture record before filling the alignment section',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /paths\.architecture/, /before/i);
+    matchDocs(
+      this.docs,
+      /Then survey what exists[^\n]*after sketching the ideal and comparing candidates[^\n]*decision record \(resolved from `paths\.architecture`\)/i,
+      /\*\*Design alignment\*\*[^\n]*Then consult the architecture record/i,
+    );
   },
 );
 
@@ -2615,7 +2619,10 @@ Then(
 Then(
   'it directs amending or superseding the contradicted ADR rather than recording the deviation alone',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /supersed/i);
+    matchDocs(
+      this.docs,
+      /A changed or contradicted decision gets a new record marked "supersedes", and the old one "superseded by"[^\n]*linked both directions, nothing deleted/i,
+    );
   },
 );
 
@@ -2634,7 +2641,10 @@ Then(
 Then(
   "it directs recording routine choices in the plan's decisions table alone",
   function (this: PlanWorld) {
-    matchDocs(this.docs, /Decisions table/i);
+    matchDocs(
+      this.docs,
+      /Routine choices live and die in the plan's Decisions table[^\n]*no ceremony records/i,
+    );
   },
 );
 
@@ -2654,8 +2664,7 @@ Then(
   function (this: PlanWorld) {
     matchDocs(
       this.docs,
-      /architecture\.generated\.md|generated architecture state/i,
-      /never|not a destination|don't write/i,
+      /\*\*Never into generated structure\.\*\*[^\n]*Never put decision records in either place[^\n]*configured architecture record[^\n]*is the destination/i,
     );
   },
 );
@@ -2663,8 +2672,11 @@ Then(
 Then(
   'they direct updating the plan and superseding any affected ADR when implementation contradicts a planned decision, before verify',
   function (this: PlanWorld) {
-    matchDocs(this.planDocs, /during implement|mid-flight|proven wrong/i, /supersed/i);
-    matchDocs(this.tddDocs, /reconcile the plan/i);
+    matchDocs(
+      this.planDocs,
+      /when implementation disproves an accepted decision[^\n]*stop coding and return to `plan-implementation`[^\n]*Revise the plan[^\n]*supersede any affected ADR[^\n]*review the new exact plan bytes/i,
+    );
+    matchDocs(this.tddDocs, /reconcile `impl-plan\.md`[^\n]*before[^\n]*advancing to verify/i);
   },
 );
 
@@ -2689,18 +2701,21 @@ Then(
 Then(
   'it directs recording, for each surface the spec lists as affected, the proof that covers it or a per-surface skip with a reason',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /affected surface/i, /skip/i);
+    matchDocs(
+      this.docs,
+      /Cover each \*\*affected surface\*\* the spec lists[^\n]*name the proof that covers it or a per-surface `skip: <reason>`/i,
+    );
   },
 );
 
 Then('it states a brief plan is correct for a small feature', function (this: PlanWorld) {
-  matchDocs(this.docs, /brief plan is correct|small feature/i);
+  matchDocs(this.docs, /A brief plan is correct for a small feature/i);
 });
 
 Then(
   'it directs deeper treatment for hard-to-reverse or cross-cutting work',
   function (this: PlanWorld) {
-    matchDocs(this.docs, /hard-to-reverse|cross-cutting/i);
+    matchDocs(this.docs, /hard-to-reverse or cross-cutting work compels depth/i);
   },
 );
 
@@ -2721,7 +2736,7 @@ Then('it directs keeping each ADR to a page or two', function (this: PlanWorld) 
 });
 
 Then('it warns against mega-records and design guides in disguise', function (this: PlanWorld) {
-  matchDocs(this.docs, /mega/i);
+  matchDocs(this.docs, /no mega-ADRs or second feature design plans/i);
 });
 
 Then(

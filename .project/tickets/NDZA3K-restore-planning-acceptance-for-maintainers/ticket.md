@@ -46,7 +46,16 @@ remain unfinished work, not environment failure or proof of completion.
 
 ## Verification
 
-- Acceptance: 145 scenarios and 6,768 steps passed across the four affected feature files.
+- Acceptance command: `NODE_OPTIONS='--import tsx' node_modules/.bin/cucumber-js features/phase-provenance.feature features/plan-implementation-phase.feature features/add-spike-workflow.feature features/architecture-state-docs.feature --tags 'not @wip and not @proof.vitest and not @manual and not @live' --format summary`. Actual runner summary:
+
+  ```text
+  2 hooks (2 passed)
+  145 scenarios (145 passed)
+  6769 steps (6769 passed)
+  0m 11.21s (0m 10.720s executing your code)
+  ```
+
 - Discovery: configured dry-run preserves 585 undefined scenarios; discovery is not execution proof. No scenarios were skipped or supplied placeholder steps.
 - CLI suite: 642 files passed; 10,566 tests passed and 13 skipped. CLI typecheck, changed Gherkin lint, formatting, and diff whitespace checks passed.
-- Independent Claude reviews `afdca9a3-3ded-41a5-8602-dfb6381044d3` and `206f8536-ce9b-44ac-9747-ef1ab617040a` requested changes. Fixed incomplete phase lists, a permissive stop assertion, ADR scaffold coverage, and the stale documentation-task ownership claim. Final review and latest acceptance rerun remain pending; this ticket is not complete.
+- Independent Claude reviews `afdca9a3-3ded-41a5-8602-dfb6381044d3`, `206f8536-ce9b-44ac-9747-ef1ab617040a`, `4d041573-451e-4097-84ec-22a0b5bf70d3`, `203bc4b8-6522-4a95-907e-ddd02cd25156`, and `f7c3d0a6-d82e-4873-b8bf-60cf112b4aa0` requested changes. Fixed incomplete phase lists, a permissive stop assertion, ADR scaffold coverage, the stale documentation-task ownership claim, and weak denial/guide assertions. Exact missing-phase extraction rejects a mutation that omits a phase even when recovery advice lists it. Changed guide checks bind the instruction itself rather than unrelated keywords. Final review remains pending; this ticket is not complete.
+- Full configured acceptance lane: 2372 scenarios (1778 passed, 3 skipped, 585 undefined, 6 failed); 110463 steps (108693 passed, 5 skipped, 1759 undefined, 6 failed). Failures are four automatic-Claude-migration scenarios, one contract-drift scenario, and one native-plugin generation scenario. These are outside this fixture repair; the full lane is not green.
