@@ -221,6 +221,18 @@ boundary is proved.
 - [ ] GREEN
 - [ ] REFACTOR
 
+Supporting typed-contract generation proof: invoke the real planning-family
+generators against a copied source distribution. All three emitted phase records
+must expose the eight bounded-decision fields; changing the owning Execution
+contract's purpose must change its emitted value. Execution must expose the
+owner-decided `upstreamImplementationInvalidation: both_plan_reviews`, while the
+other phases must not acquire that field. The primary target is
+`packages/cli/tests/integration/planning-contract-generation.test.ts`; invoke
+`scripts/dev bun run --cwd packages/cli test tests/integration/planning-contract-generation.test.ts -t "emits typed phase contracts"`.
+The missing generated record is the expected RED. This supporting proof does not
+claim runtime dependency invalidation or rejection of malformed contracts; those
+boundaries remain required before the scenario can be checked.
+
 ### Scenario: An approving receipt is valid only for its own ticket and review kind
 
 - [ ] RED
