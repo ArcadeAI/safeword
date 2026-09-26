@@ -233,6 +233,18 @@ The missing generated record is the expected RED. This supporting proof does not
 claim runtime dependency invalidation or rejection of malformed contracts; those
 boundaries remain required before the scenario can be checked.
 
+Supporting invalidation-contract rejection proof: install a fresh Cursor project
+through the real source CLI, then mutate only its distribution's canonical
+Execution invalidation declaration. A real upgrade must reject missing, unknown,
+unknown-suffix, duplicate, and contradictory directions with
+`invalid_invalidation_contract`, the Execution phase and canonical contract path,
+and unchanged installed contract bytes. The primary target is
+`packages/cli/tests/integration/planning-contract-generation.test.ts`; invoke
+`scripts/dev bun run --cwd packages/cli test tests/integration/planning-contract-generation.test.ts -t "blocks reconciliation for a"`.
+Only external dependency/skills downloads are disabled. The expected RED is
+`real CLI reconciliation must reject an invalid Execution invalidation contract`.
+This proves reconciliation rejection, not runtime review dependency invalidation.
+
 ### Scenario: An approving receipt is valid only for its own ticket and review kind
 
 - [ ] RED

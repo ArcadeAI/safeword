@@ -328,6 +328,67 @@ describe('Planning contract shared-clause generation', () => {
     );
   });
 
+  it.each([
+    { case: 'missing', declaration: '' },
+    { case: 'unknown', declaration: 'upstreamImplementationInvalidation: either_plan_review' },
+    {
+      case: 'unknown suffix',
+      declaration: 'upstreamImplementationInvalidation: both_plan_reviewsWrong',
+    },
+    {
+      case: 'duplicate',
+      declaration:
+        'upstreamImplementationInvalidation: both_plan_reviews upstreamImplementationInvalidation: both_plan_reviews',
+    },
+    {
+      case: 'contradictory',
+      declaration:
+        'upstreamImplementationInvalidation: both_plan_reviews upstreamImplementationInvalidation: implementation_review_only',
+    },
+  ])('blocks reconciliation for a $case Execution invalidation direction', ({ declaration }) => {
+    const distribution = sourceDistribution();
+    const project = nodePath.join(distribution, 'project');
+    mkdirSync(project);
+    writeFileSync(
+      nodePath.join(project, 'package.json'),
+      JSON.stringify({ name: 'invalidation-fixture', private: true }),
+    );
+    generatePhaseContracts(distribution);
+    reconcileProject(distribution, project, 'install');
+    const installedPath = nodePath.join(project, '.safeword/skills/bdd/PLAN_EXECUTION.md');
+    const installed = readFileSync(installedPath, 'utf8');
+    const contractPath = nodePath.join(distribution, 'templates/skills/bdd/PLAN_EXECUTION.md');
+    const contract = readFileSync(contractPath, 'utf8');
+    const direction = 'upstreamImplementationInvalidation: both_plan_reviews';
+    expect(contract).toContain(direction);
+    writeFileSync(
+      contractPath,
+      contract.replace(direction, () => declaration),
+    );
+    const result = reconciliationResult(distribution, project, 'upgrade');
+    expect(
+      result.status,
+      'real CLI reconciliation must reject an invalid Execution invalidation contract',
+    ).not.toBe(0);
+    const response = JSON.parse(result.stdout) as {
+      errors: readonly { code: string }[];
+      findings: readonly { code: string; metadata?: Record<string, unknown> }[];
+    };
+    expect(response.errors).toContainEqual(
+      expect.objectContaining({ code: 'invalid_invalidation_contract' }),
+    );
+    expect(response.findings).toContainEqual(
+      expect.objectContaining({
+        code: 'invalid_invalidation_contract',
+        metadata: {
+          planning_phase: 'plan-execution',
+          contract_path: 'skills/bdd/PLAN_EXECUTION.md',
+        },
+      }),
+    );
+    expect(readFileSync(installedPath, 'utf8')).toBe(installed);
+  });
+
   it('preserves the existing distinct phase-only judgment in generated outputs', () => {
     const implementation = generatedRubric('implementation');
     const execution = generatedRubric('execution');
