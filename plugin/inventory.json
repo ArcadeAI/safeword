@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "ca9e13518cb7e8fce8211c72669f046e9cebeedaf831e5b082b61a90734c7e50"
+      "sha256": "f81f8147c2211ae173ccbf084be416973e6b6baccc0520e9d50dc1ae7e85916c"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "51f9f7931cc24a60ca462be6e01e9eaaf18c539297008c077147a8316465a016"
+      "sha256": "d2dd17e86c430f1ac47a18c3ee83f8955ae3cce136198ce4c77f8ecb24737fd3"
     },
     {
       "path": "runtime/event-groups.json",
@@ -503,7 +503,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "e18ba20294e7605b4a9a21bfa9df926b63bc5a8c2dd5ee6cd8710d4dbde75270"
+      "sha256": "664879e4e7c5a18c99bee1069114d9851bfd3c2bdb67ef41032b9b83f222852f"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",

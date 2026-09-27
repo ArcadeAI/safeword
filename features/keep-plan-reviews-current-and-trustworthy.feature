@@ -183,6 +183,7 @@ Feature: Keep plan reviews current and trustworthy
       Examples:
         | reviewer_identity | result |
         | a different agent in a separate process using a model at least as capable as the author | cross-agent independence is accepted |
+        | a different agent in the same process using a model at least as capable as the author | independent approval is refused |
         | the authoring agent in the same process | independent approval is refused |
         | a different agent using a weaker model than the author | independent approval is refused |
 

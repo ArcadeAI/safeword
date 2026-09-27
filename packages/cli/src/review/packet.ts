@@ -74,8 +74,13 @@ export class PlanningContractCopyError extends ReviewPacketError {
     readonly phase: PlanningPhase,
     readonly contractPath: string,
   ) {
+    const generator = {
+      'product-plan': 'generate:planning-contracts',
+      'plan-implementation': 'generate:plan-rubric',
+      'plan-execution': 'generate:execution-plan-rubric',
+    }[phase];
     super(
-      `The ${phase} authoring contract copy at ${contractPath} ${code === 'missing_generated_contract_copy' ? 'is unavailable' : 'differs from the canonical contract-byte identity'}. Reconcile the canonical generated contract and retry.`,
+      `The ${phase} authoring contract copy at ${contractPath} ${code === 'missing_generated_contract_copy' ? 'is unavailable' : 'differs from the canonical contract-byte identity'}. Restore the packaged decision-quality contract by reinstalling or reconciling the intact Safeword distribution and retry. For source builds, restore the canonical authoring contract, run \`bun run ${generator}\` and \`bun run fix:generated-surfaces\`, then rebuild and reinstall.`,
     );
   }
 }

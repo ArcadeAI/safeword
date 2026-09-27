@@ -876,11 +876,23 @@ cannot, so those hosts return `author_capability_unknown`: `prefer` may reach an
 authenticated `reduced` receipt immediately from a successful different-agent,
 separate-process review, while `require` retains the findings but blocks. Claude
 reviewers confirm the requested exact selector through canonical model data in
-their trusted JSON envelope. Codex reviewers use the coordinator-owned exact
-`--model` argv plus successful completion after a versioned selector-contract
-probe; its JSONL does not echo model identity. OpenCode remains unverified until
-live adapter proof establishes trusted provider/model metadata, and no packaged
-independent default depends on it. Existing runtime-default reviewer routes
+their trusted JSON envelope. Codex independent review uses the installed CLI's
+app-server stdio protocol: `thread/start` supplies the effective model/provider,
+and `model/rerouted` reports service substitution correlated to the thread and
+turn. The coordinator owns the exact non-alias request, accepts no turn-level
+model override, and binds identity, terminal success and actual findings to that
+one ephemeral review. Missing or mismatched identity, unsupported protocol,
+incomplete execution or any reroute cannot grant independent approval. Legacy
+exec routes remain readable for best-available review; exact argv and startup
+banners alone are not confirmation. This supersedes this proposal's earlier
+argv-plus-selector-probe assumption, which could not distinguish supported-model
+substitution. It keeps Claude-author/Codex-reviewer independence reachable while
+non-Claude author metadata remains explicitly unverified. Both transports trust
+their provider's declared model metadata rather than claiming backend-weight
+verification. OpenCode remains unverified until live adapter proof establishes
+trusted provider/model metadata, and no packaged independent default depends on
+it. Revisit this decision when the native CLI protocol changes or exec exposes
+equivalent correlated model identity and reroute metadata. Existing runtime-default reviewer routes
 remain readable and attempted but earn cross-agent classification only when the
 adapter-specific proof resolves an exact ranked model. Upgrade never rewrites
 user route lists. Existing `off` configurations block at planning review until

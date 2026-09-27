@@ -626,6 +626,7 @@ function reviewStartFailure(
           {
             command: 'safeword review run <kind> <targets...>',
             description:
+              copyError?.message ??
               'Correct the review target and context paths or reduce the packet, then run the review again.',
             requiresHuman: true,
           },
