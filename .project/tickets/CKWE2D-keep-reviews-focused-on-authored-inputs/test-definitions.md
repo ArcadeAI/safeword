@@ -253,7 +253,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 
 ### Scenario: A final-component symlink escaping the project cannot reach Git attribute lookup
 
-- [ ] RED
+- [x] RED bda48ce26
 - [ ] GREEN
 - [ ] REFACTOR
 
