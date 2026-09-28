@@ -11,7 +11,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 
 ### Scenario: Generated artifacts one byte over the per-target packet limit leave authored input reviewable and visible
 
-- [ ] RED
+- [x] RED 5ade00069
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -63,6 +63,78 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An oversized generated sparse target is omitted without reading or decoding its bytes
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Generated omission retains a review exactly at the aggregate packet limit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Git attribute lookup safely keeps generated paths project-relative
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Git attribute lookup preserves special generated paths as one literal NUL-delimited stdin value
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Git attribute lookup preserves a generated filename containing an actual newline code point
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Project Git info attributes cannot override a committed generated marker
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Attribute classification ignores a working-tree marker removal
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Hostile project Git configuration and inherited environment cannot redirect committed classification
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Distinct hard-linked generated targets remain distinct exclusions
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The CLI returns the reduced scope in its JSON stdout envelope
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A reviewer failure after packet finalization reports the reduced scope
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A committed marker selects an arbitrary generated path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: focused-review.TBU1.R2
 
 ### Scenario: A non-true generated attribute does not launch a reviewer
@@ -101,13 +173,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An oversized generated sparse target is omitted without reading or decoding its bytes
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An oversized generated target changed after metadata validation fails before omission
+### Scenario: An oversized generated target changed after classification fails before omission
 
 - [ ] RED
 - [ ] GREEN
@@ -161,13 +227,37 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Generated omission retains a review exactly at the aggregate packet limit
+### Scenario: Generated omission cannot weaken the aggregate packet limit
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Generated omission cannot weaken the aggregate packet limit
+### Scenario: Attribute classification ignores an uncommitted marker addition
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: External Git attributes cannot create a generated exception
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A target outside the project cannot reach Git attribute lookup
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A project-relative symlink escaping the project cannot reach Git attribute lookup
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unmarked runtime-shaped path cannot be excluded by its filename
 
 - [ ] RED
 - [ ] GREEN
@@ -189,91 +279,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 
 ## Rule: focused-review.SWM1.R2
 
-### Scenario: A Git-marked generated target is selected without a path heuristic
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Git attribute lookup safely keeps generated paths project-relative
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Git attribute lookup preserves special generated paths as one literal NUL-delimited stdin value
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Git attribute lookup preserves a generated filename containing an actual newline code point
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Project Git info attributes cannot override a committed generated marker
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Attribute classification ignores a working-tree marker removal
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Attribute classification ignores an uncommitted marker addition
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: External Git attributes cannot create a generated exception
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Hostile project Git configuration and inherited environment cannot redirect committed classification
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Distinct hard-linked generated targets remain distinct exclusions
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: The CLI returns the reduced scope in its JSON stdout envelope
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A reviewer failure after packet finalization reports the reduced scope
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A target outside the project cannot reach Git attribute lookup
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A project-relative symlink escaping the project cannot reach Git attribute lookup
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Safeword's generated plugin runtime declares the same marker
+### Scenario: A maintainer can review authored input alongside Safeword's generated runtime
 
 - [ ] RED
 - [ ] GREEN
