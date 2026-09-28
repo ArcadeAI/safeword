@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { PLANNING_CONTRACT_TEMPLATE_PATHS } from '../../src/schema.js';
 import { VERSION } from '../../src/version.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -60,6 +61,7 @@ describe('Complete native planning author-copy dispatch', () => {
       const project = nodePath.join(root, 'project');
       const ticket = nodePath.join(project, '.project/tickets/NAT123-native-copy');
       mkdirSync(ticket, { recursive: true });
+      writePlanningInventories(project);
       writeFileSync(
         nodePath.join(ticket, 'ticket.md'),
         '---\nid: NAT123\ntype: feature\nphase: plan-implementation\nstatus: in_progress\n---\n',

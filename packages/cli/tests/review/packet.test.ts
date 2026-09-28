@@ -20,6 +20,18 @@ const temporaryDirectories: string[] = [];
 
 function temporaryDirectory(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-packet-test-'));
+  mkdirSync(nodePath.join(directory, '.project'));
+  const inventories = {
+    principles:
+      '# Principles\n\n## Preserve approval authority\n\nCurrent authenticated approval controls advancement.\n',
+    personas:
+      '# Personas\n\n## Builder (BU)\n\n**Role:** A builder requesting planning approval.\n**Context:** Needs current authenticated approval before advancement.\n',
+    surfaces:
+      '# Surfaces\n\n## Safeword CLI\n\n**Kind:** CLI\n**Description:** Requests and presents planning approval.\n**Audience:** Builder (BU)\n',
+  };
+  for (const [role, content] of Object.entries(inventories)) {
+    writeFileSync(nodePath.join(directory, '.project', `${role}.md`), content);
+  }
   temporaryDirectories.push(directory);
   return directory;
 }
@@ -134,7 +146,12 @@ describe('review packet containment and change accounting', () => {
     );
     try {
       expect(prepared.packet.logical_files.map(file => file.path)).toEqual(['impl-plan.md']);
-      expect(prepared.packet.context_files?.map(file => file.path)).toEqual(['spec.md']);
+      expect(prepared.packet.context_files?.map(file => file.path)).toEqual([
+        'spec.md',
+        '.project/principles.md',
+        '.project/personas.md',
+        '.project/surfaces.md',
+      ]);
       expect(prepared.packet.plan_contract?.author).toEqual(
         prepared.packet.plan_contract?.reviewer,
       );
@@ -173,6 +190,9 @@ describe('review packet containment and change accounting', () => {
       expect(prepared.packet.context_files?.map(file => file.path)).toEqual([
         'impl-plan.md',
         'behavior.feature',
+        '.project/principles.md',
+        '.project/personas.md',
+        '.project/surfaces.md',
       ]);
       expect(prepared.packet.plan_contract?.author).toEqual(
         prepared.packet.plan_contract?.reviewer,

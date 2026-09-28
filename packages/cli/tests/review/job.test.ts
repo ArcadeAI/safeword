@@ -29,6 +29,7 @@ import {
   reviewJobStatus,
   startReviewJob,
 } from '../../src/review/job.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -150,6 +151,7 @@ function executionPlanWithDeliveryContract(): string {
 
 function executionPlanProject(): string {
   const cwd = project();
+  writePlanningInventories(cwd);
   mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
   writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), '{"designApprovalGate":false}\n');
   writeFileSync(nodePath.join(cwd, 'execution-plan.md'), executionPlanWithDeliveryContract());

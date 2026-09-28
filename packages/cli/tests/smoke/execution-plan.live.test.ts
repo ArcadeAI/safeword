@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
 import process from 'node:process';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -16,7 +18,12 @@ import {
   type ExecutionPlanConformanceResult,
 } from '../../src/review/execution-plan-conformance.js';
 import { reviewTimeoutMilliseconds, runHeadlessReviewer } from '../../src/review/runtime.js';
-import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+import {
+  assertTestCliFresh,
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  runCli,
+} from '../helpers.js';
 
 const CAN_RUN = process.env.SAFEWORD_RUN_EXECUTION_PLAN_LIVE === '1';
 const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
@@ -92,6 +99,13 @@ function assertCase(
 ): void {
   expect(output.reviewer_agent).toBe(assigned);
   expect(output.dispatch_id).toBe(dispatchId);
+  assertSemanticOutcome(testCase, output);
+}
+
+function assertSemanticOutcome(
+  testCase: ExecutionPlanConformanceCase,
+  output: ReviewerOutput,
+): void {
   expect(output.planning_destination).toBe(testCase.expectation.planning_destination);
   if (testCase.expectation.verdict === 'approve') assertApproval(testCase, output);
   else assertDenial(testCase, output);
@@ -145,5 +159,146 @@ describe.skipIf(!CAN_RUN)('live Execution Plan semantic conformance', () => {
       }
     },
     LIVE_TEST_TIMEOUT_MS,
+  );
+});
+
+// Exercise the public coordinator as well as the external semantic judgment.
+// This is deliberately opt-in: default acceptance must not masquerade as a live eval.
+const CLI_LIVE = process.env.SAFEWORD_RUN_EXECUTION_PLAN_CLI_LIVE === '1';
+const CLI_CASES = process.env.SAFEWORD_EXECUTION_PLAN_CLI_LIVE_CASES?.split(',') ?? [];
+const selectedCases = EXECUTION_PLAN_CONFORMANCE_CASES.filter(testCase =>
+  CLI_CASES.includes(testCase.id),
+);
+if (
+  CLI_LIVE &&
+  (CLI_CASES.length === 0 ||
+    new Set(CLI_CASES).size !== CLI_CASES.length ||
+    selectedCases.length !== CLI_CASES.length)
+) {
+  throw new Error('CLI live proof requires unique named conformance cases');
+}
+
+const CLI_REVIEW_BOUND_MS = 240_000;
+
+describe.skipIf(!CLI_LIVE)('installed CLI semantic conformance', () => {
+  it.each(selectedCases)(
+    '$id',
+    // eslint-disable-next-line complexity -- One bounded public CLI journey owns dispatch, pending status, judgment, and cancellation.
+    async testCase => {
+      assertTestCliFresh();
+      expect(reviewer).toBe('claude');
+      expect(model).toBeTruthy();
+      if (reviewer !== 'claude' || model === undefined) {
+        throw new Error('CLI live proof requires an explicit Claude reviewer and model');
+      }
+      const liveProfile = process.env.SAFEWORD_EXECUTION_PLAN_LIVE_CLAUDE_CONFIG_DIR;
+      if (!liveProfile)
+        throw new Error('CLI live proof requires its explicitly authenticated Claude profile');
+      const directory = createTemporaryDirectory();
+      const env = {
+        // Only this opt-in review subprocess uses the supplied profile; lifecycle fixtures stay sandboxed.
+        CLAUDE_CONFIG_DIR: liveProfile,
+        SAFEWORD_AGENT_RUNTIME: 'codex',
+        SAFEWORD_REVIEW_FOREGROUND_MS: '100',
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+        SAFEWORD_REVIEW_RUN_BOUND_MS: String(CLI_REVIEW_BOUND_MS),
+        SAFEWORD_REVIEW_TIMEOUT_MS: String(CLI_REVIEW_BOUND_MS - 60_000),
+      };
+      let pendingId: string | undefined;
+      const invoke = (args: string[]) =>
+        runCli(['--json', '--no-input', 'review', ...args, '--cwd', directory], {
+          cwd: directory,
+          env,
+          timeout: 30_000,
+          // Empty selects cwd in Claude; remove the override for its default profile.
+          unsetEnv: liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : [],
+        });
+      try {
+        mkdirSync(nodePath.join(directory, '.safeword'));
+        writeFileSync(
+          nodePath.join(directory, '.safeword/config.json'),
+          JSON.stringify({
+            crossAgentReviewRoutes: { codex: [{ reviewer, model }] },
+          }),
+        );
+        const ticketPath = '.project/tickets/LIVE01-semantic-proof';
+        mkdirSync(nodePath.join(directory, ticketPath), { recursive: true });
+        writeFileSync(
+          nodePath.join(directory, ticketPath, 'ticket.md'),
+          '---\nid: LIVE01\ntype: feature\nphase: plan-execution\nstatus: in_progress\n---\n',
+        );
+        writeFileSync(
+          nodePath.join(directory, ticketPath, 'execution-plan.md'),
+          testCase.execution_plan,
+        );
+        writeFileSync(
+          nodePath.join(directory, ticketPath, 'impl-plan.md'),
+          testCase.implementation_plan,
+        );
+        writeFileSync(nodePath.join(directory, 'scenario.feature'), testCase.scenario);
+        let result = await invoke([
+          'run',
+          'plan-execution',
+          `${ticketPath}/execution-plan.md`,
+          '--context',
+          `${ticketPath}/impl-plan.md`,
+          '--context',
+          'scenario.feature',
+        ]);
+        let response = JSON.parse(result.stdout);
+        const deadline = Date.now() + CLI_REVIEW_BOUND_MS + 15_000;
+        while (response.data?.status === 'pending') {
+          pendingId = response.data.review_id;
+          if (typeof pendingId !== 'string') throw new Error('Pending review omitted its ID');
+          if (Date.now() >= deadline)
+            throw new Error(`Live review ${pendingId} exceeded its bound`);
+          await delay(1000);
+          result = await invoke(['status', pendingId]);
+          response = JSON.parse(result.stdout);
+        }
+        pendingId = undefined;
+        process.stdout.write(`Live CLI evidence ${testCase.id}: ${JSON.stringify(response)}\n`);
+        expect(result.timedOut).toBe(false);
+        expect(response.errors, JSON.stringify(response)).toEqual([]);
+        expect(response.data?.actual_reviewer).toBe(reviewer);
+        expect(response.data?.independence).toBe('cross-agent');
+        expect(response.data?.status).toBe(
+          testCase.expectation.verdict === 'approve' ? 'approved' : 'changes_requested',
+        );
+        const output = response.data?.reviewer_output as ReviewerOutput;
+        expect(output, JSON.stringify(response)).toBeDefined();
+        expect(output.reviewer_agent).toBe(reviewer);
+        assertSemanticOutcome(testCase, output);
+        if (testCase.id.includes('discovery-returns-to-implementation-planning')) {
+          const applied = await runCli(
+            ['--json', '--no-input', 'ticket', 'approve-plan', 'LIVE01', '--cwd', directory],
+            {
+              cwd: directory,
+              env,
+              timeout: 30_000,
+              unsetEnv: liveProfile === 'default' ? ['CLAUDE_CONFIG_DIR'] : [],
+            },
+          );
+          const transition = JSON.parse(applied.stdout);
+          expect(transition.errors, applied.stdout).toEqual([]);
+          expect(transition.findings).toContainEqual(
+            expect.objectContaining({ code: 'EXECUTION_DISCOVERY_APPLIED' }),
+          );
+          expect(transition.data.planning_destination).toBe('plan-implementation');
+          expect(readFileSync(nodePath.join(directory, ticketPath, 'ticket.md'), 'utf8')).toContain(
+            'phase: plan-implementation',
+          );
+        }
+      } finally {
+        // The fixture owns exactly one job, including when initial dispatch times out
+        // before returning its ID. Cancel the latest local job before removing it.
+        const cancelled = await invoke(
+          pendingId === undefined ? ['cancel'] : ['cancel', pendingId],
+        );
+        expect(cancelled.timedOut, 'cancellation must settle before fixture cleanup').toBe(false);
+        removeTemporaryDirectory(directory);
+      }
+    },
+    CLI_REVIEW_BOUND_MS + 60_000,
   );
 });

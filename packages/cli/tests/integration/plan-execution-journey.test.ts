@@ -19,6 +19,7 @@ import {
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
 import { assertTestCliFresh, expectHookAllow, expectHookDeny, runCli } from '../helpers.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -41,7 +42,7 @@ const CATEGORIES = [
 const REVIEW_CONTRACT_SIGNAL = 'Every executable step must name its exact action';
 const CONCRETE_PROOF_CONTRACT_SIGNAL =
   'A test step must name its fixture, command, edit action, expected exit or assertion, and real actor boundary.';
-const RED_COMMAND = ['node', 'tests/denied-request.cjs'] as const;
+const RED_COMMAND = ['bun', 'tests/denied-request.cjs'] as const;
 const PACKAGED_CLI = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 const WRITE_REVIEW_STAMP = nodePath.resolve(
   import.meta.dirname,
@@ -266,13 +267,14 @@ describe('Execution Plan cold-start journey', () => {
     cleanupTrustedReviewerDirectories();
   });
 
-  it('rejects an unstartable fourth step through the installed CLI, then reaches the named RED', async () => {
+  it('rejects an unstartable fourth step through the installed CLI, then reaches the named RED and completes GREEN and REFACTOR', async () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-plan-journey-'));
     try {
       const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'START1-feature');
       const plan = executionPlan();
       mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
       mkdirSync(ticketDirectory, { recursive: true });
+      writePlanningInventories(root);
       mkdirSync(nodePath.join(root, 'features'), { recursive: true });
       mkdirSync(nodePath.join(root, 'tests'), { recursive: true });
       mkdirSync(nodePath.join(root, 'src'), { recursive: true });
@@ -358,10 +360,22 @@ describe('Execution Plan cold-start journey', () => {
         nodePath.join(root, 'features', 'feature.feature'),
         'Feature: Authorization\n\n  Scenario: denied request\n    Then the request is denied\n',
       );
-      writeFileSync(nodePath.join(root, 'src', 'auth.ts'), 'export const policy = "pending";\n');
+      const authorization =
+        'export const authorize = () => ({ status: policy === "denied" ? 403 : 200 });';
+      writeFileSync(
+        nodePath.join(root, 'src', 'auth.ts'),
+        `export const policy = "pending";\n${authorization}\n`,
+      );
       writeFileSync(
         nodePath.join(root, 'tests', 'denied-request.cjs'),
-        'process.stderr.write("denied request is not implemented\\n"); process.exit(1);\n',
+        [
+          'const { authorize } = require("../src/auth.ts");',
+          'if (authorize().status !== 403) {',
+          String.raw`  process.stderr.write("denied request is not implemented\n");`,
+          '  process.exit(1);',
+          '}',
+          'console.log("denied request returns 403");',
+        ].join('\n'),
       );
       writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), '');
       writeFileSync(
@@ -606,6 +620,45 @@ describe('Execution Plan cold-start journey', () => {
         () => checkedRed,
       );
       writeFileSync(ledgerPath, observedLedger);
+      const redReview = await runCli(
+        [
+          '--json',
+          '--no-input',
+          'review',
+          'run',
+          'executable-red',
+          'tests/denied-request.cjs',
+          '--scenario',
+          'Scenario: denied request',
+          '--ledger',
+          '.project/tickets/START1-feature/test-definitions.md',
+          '--proof-cwd',
+          '.',
+          '--evidence-class',
+          'pure-contract',
+          '--expected-failure',
+          'denied request is not implemented',
+          '--execute',
+          JSON.stringify(RED_COMMAND),
+        ],
+        {
+          cwd: root,
+          env: {
+            PATH: `${reviewerBin}:${process.env.PATH}`,
+            SAFEWORD_AGENT_RUNTIME: 'codex',
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+            SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
+          },
+        },
+      );
+      expect(redReview.exitCode, `${redReview.stdout}\n${redReview.stderr}`).toBe(0);
+      expect(JSON.parse(redReview.stdout).data).toMatchObject({
+        status: 'approved',
+        execution_attestation: {
+          termination: { exit_code: 1, timed_out: false },
+          expected_failure: { matched: true },
+        },
+      });
       const productionEditAfterRed = runPreTool(
         root,
         {
@@ -620,6 +673,90 @@ describe('Execution Plan cold-start journey', () => {
         receiptPluginRoot,
       );
       expectHookAllow(productionEditAfterRed);
+      const sourcePath = nodePath.join(root, 'src', 'auth.ts');
+      writeFileSync(
+        sourcePath,
+        readFileSync(sourcePath, 'utf8').replace('policy = "pending"', 'policy = "denied"'),
+      );
+
+      function passingNamedProof(): void {
+        const proof = spawnSync(RED_COMMAND[0], RED_COMMAND.slice(1), {
+          cwd: root,
+          encoding: 'utf8',
+        });
+        expect(proof.status, `${proof.stdout}\n${proof.stderr}`).toBe(0);
+        expect(proof.stdout).toContain('denied request returns 403');
+      }
+
+      function recordStep(step: 'GREEN' | 'REFACTOR'): string {
+        const commit = spawnSync(
+          'git',
+          [
+            '-c',
+            'commit.gpgsign=false',
+            '-c',
+            'user.name=Safeword Test',
+            '-c',
+            'user.email=test@safeword.local',
+            'commit',
+            '-am',
+            `fixture ${step}`,
+          ],
+          { cwd: root, encoding: 'utf8' },
+        );
+        expect(commit.status, `${commit.stdout}\n${commit.stderr}`).toBe(0);
+        const revision = spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
+          cwd: root,
+          encoding: 'utf8',
+        }).stdout.trim();
+        const before = readFileSync(ledgerPath, 'utf8');
+        const oldLine = `- [ ] ${step}`;
+        const newLine = `- [x] ${step} ${revision}`;
+        const admission = runPreTool(
+          root,
+          {
+            tool_name: 'Edit',
+            tool_input: { file_path: ledgerPath, old_string: oldLine, new_string: newLine },
+          },
+          reviewKeyRoot,
+          receiptPluginRoot,
+        );
+        expectHookAllow(admission);
+        writeFileSync(
+          ledgerPath,
+          before.replace(oldLine, () => newLine),
+        );
+        return newLine;
+      }
+
+      passingNamedProof();
+      const greenLine = recordStep('GREEN');
+      const refactored =
+        'export function authorize() { return { status: policy === "denied" ? 403 : 200 }; }';
+      expectHookAllow(
+        runPreTool(
+          root,
+          {
+            tool_name: 'Edit',
+            tool_input: {
+              file_path: sourcePath,
+              old_string: authorization,
+              new_string: refactored,
+            },
+          },
+          reviewKeyRoot,
+          receiptPluginRoot,
+        ),
+      );
+      writeFileSync(
+        sourcePath,
+        readFileSync(sourcePath, 'utf8').replace(authorization, () => refactored),
+      );
+      passingNamedProof();
+      const refactorLine = recordStep('REFACTOR');
+      expect(readFileSync(ledgerPath, 'utf8')).toContain(checkedRed);
+      expect(readFileSync(ledgerPath, 'utf8')).toContain(greenLine);
+      expect(readFileSync(ledgerPath, 'utf8')).toContain(refactorLine);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -631,6 +768,7 @@ describe('Execution Plan cold-start journey', () => {
       const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'START1-feature');
       mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
       mkdirSync(ticketDirectory, { recursive: true });
+      writePlanningInventories(root);
       mkdirSync(nodePath.join(root, 'features'), { recursive: true });
       mkdirSync(nodePath.join(root, 'tests'), { recursive: true });
       writeFileSync(

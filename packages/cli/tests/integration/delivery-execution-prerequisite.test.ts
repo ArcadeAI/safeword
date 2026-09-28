@@ -16,13 +16,13 @@ import nodePath from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { findCommandDefinition } from '../../src/cli-protocol/catalog.js';
-import type { CliResult } from '../../src/cli-protocol/result.js';
 import {
   createExecutionPlanDeliveryDefinition,
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
-import { assertTestCliFresh, runCli } from '../helpers.js';
+import { assertTestCliFresh, runCli, testCliPath } from '../helpers.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -80,8 +80,10 @@ function featureFixture(designApprovalGate = false, phase = 'plan-execution'): s
   const executionPath = nodePath.join(ticketDirectory, 'execution-plan.md');
   const plan = executionPlan();
   mkdirSync(ticketDirectory, { recursive: true });
+  writePlanningInventories(root);
   mkdirSync(nodePath.dirname(featurePath), { recursive: true });
   mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(root, '.gitignore'), '.safeword/state/\n.review-keys/\n');
   writeFileSync(
     nodePath.join(root, '.safeword', 'config.json'),
     `${JSON.stringify({
@@ -147,66 +149,6 @@ fi
   return bin;
 }
 
-function admitPlanExecutionFixture(
-  root: string,
-  reviewId: string,
-  target: string,
-  executionPlanRecord: Record<string, unknown>,
-): void {
-  const path = nodePath.join(root, '.safeword', 'state', 'reviews', `${reviewId}.json`);
-  const record = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-  const { integrity: _integrity, ...unsigned } = record;
-  const result: CliResult = {
-    schemaVersion: 1,
-    ok: true,
-    state: 'healthy',
-    changed: false,
-    findings: [],
-    effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
-    errors: [],
-    recovery: [],
-    nextActions: [],
-    data: {
-      command: 'review run',
-      status: 'approved',
-      review_kind: 'plan-execution',
-      review_targets: [target],
-      author_agent: 'codex',
-      actual_reviewer: 'claude',
-      independence: 'cross-agent',
-      reviewer_output: {
-        schema_version: 1,
-        dispatch_id: 'plan-execution-fixture',
-        reviewer_agent: 'claude',
-        verdict: 'approve',
-        summary: 'approved fixture',
-        findings: [],
-        planning_destination: 'plan-execution',
-        execution_plan_record: executionPlanRecord,
-      },
-    },
-  };
-  const completed = {
-    ...unsigned,
-    state: 'completed',
-    updated_at: '2026-09-13T00:00:00.000Z',
-    result,
-  };
-  const key = Buffer.from(
-    readFileSync(
-      nodePath.join(root, '.review-keys', 'safeword', 'review-integrity.key'),
-      'utf8',
-    ).trim(),
-    'hex',
-  );
-  const integrity = createHmac('sha256', key)
-    .update(realpathSync.native(root))
-    .update('\0')
-    .update(JSON.stringify(completed))
-    .digest('hex');
-  writeFileSync(path, `${JSON.stringify({ ...completed, integrity })}\n`);
-}
-
 function rejectAdmittedScenarioReview(root: string): void {
   const ledger = readFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), 'utf8');
   const reviewId = /phase@scenario-gate[^\n]*review-id:(\S+)/.exec(ledger)?.[1];
@@ -240,25 +182,6 @@ function rejectAdmittedScenarioReview(root: string): void {
   writeFileSync(path, `${JSON.stringify({ ...changed, integrity })}\n`);
 }
 
-function admittedReviewId(
-  root: string,
-  reviewKind: PlanningReviewKind,
-  target: string,
-  executionPlanRecord: Record<string, unknown>,
-  reviewed: Awaited<ReturnType<typeof runCli>>,
-): string {
-  const result = JSON.parse(reviewed.stdout) as { data?: { review_id?: string } };
-  const id = result.data?.review_id;
-  if (id === undefined) throw new Error(`${reviewKind} review id missing`);
-  if (reviewKind === 'plan-execution' && reviewed.exitCode === 2) {
-    expect(reviewed.stdout).toContain('REVIEW_ROUTES_EXHAUSTED');
-    admitPlanExecutionFixture(root, id, target, executionPlanRecord);
-  } else {
-    expect(reviewed.exitCode, reviewed.stdout).toBe(0);
-  }
-  return id;
-}
-
 async function admitThroughInstalledCli(
   root: string,
   admitted: readonly PlanningReviewKind[] = [
@@ -268,9 +191,9 @@ async function admitThroughInstalledCli(
   ],
   designApprovalGate = false,
   slicingDecision: 'one_pull_request' | 'multiple_pull_requests' = 'one_pull_request',
-): Promise<void> {
+): Promise<string> {
   const ticketDirectory = nodePath.join(root, '.project', 'tickets', 'ABC123-feature');
-  const plan = executionPlan();
+  const plan = readFileSync(nodePath.join(ticketDirectory, 'execution-plan.md'), 'utf8');
   const parsed = parseDeliveryPlanContract(plan);
   if (!parsed.ok) throw new Error(parsed.message);
   const slices =
@@ -375,12 +298,85 @@ async function admitThroughInstalledCli(
         },
       },
     );
-    const id = admittedReviewId(root, reviewKind, target, record, reviewed);
+    expect(reviewed.exitCode, reviewed.stdout).toBe(0);
+    const id = (JSON.parse(reviewed.stdout) as { data: { review_id: string } }).data.review_id;
+    expect(id).toBeTypeOf('string');
     stamps.push(
       `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
     );
   }
   writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${stamps.join('\n')}\n`);
+  return bin;
+}
+
+type DeliveryState = 'missing' | 'current' | 'earlier' | 'defect' | 'human';
+
+function prepareDeliveryState(root: string, planPath: string, state: DeliveryState): void {
+  const argv = [
+    process.execPath,
+    testCliPath,
+    state === 'defect' ? 'unknown-proof-command' : '--version',
+  ];
+  const plan = executionPlan()
+    .replace(JSON.stringify([process.execPath, '--version']), () => JSON.stringify(argv))
+    .split('\n')
+    .map(line => {
+      if (!/^\| item-\d+ \|/u.test(line) || line.startsWith('| item-4 |')) return line;
+      if (state === 'human' && line.startsWith('| item-11 |')) {
+        return '| item-11 | completion evidence | Accept security authority. | human |  | pending_human | missing |  | security-review |';
+      }
+      return line.replace(
+        /\| contributor \| proof \| open \| missing \| {2}\| {2}\|$/u,
+        '| contributor |  | not_applicable | missing |  | No applicable delivery work. |',
+      );
+    })
+    .join('\n');
+  writeFileSync(planPath, plan);
+  if (state !== 'missing')
+    writeFileSync(nodePath.join(root, 'implementation.txt'), 'Current implementation exists.\n');
+}
+
+async function assertDeliveryState(
+  root: string,
+  state: DeliveryState,
+  env: Record<string, string>,
+): Promise<void> {
+  const observed = await runCli(
+    ['ticket', 'delivery-checklist', 'ABC123', '--json', '--cwd', root],
+    { cwd: root, env },
+  );
+  const data = (
+    JSON.parse(observed.stdout) as {
+      data: {
+        readiness_state: string;
+        merge_authorization: string;
+        pending_human_items: string[];
+        contributor_evidence: {
+          item_id: string;
+          status: string;
+          evidence_class: string;
+          limitations: string[];
+        }[];
+      };
+    }
+  ).data;
+  expect(data.merge_authorization).toBe('pending');
+  const item = data.contributor_evidence.find(row => row.item_id === 'item-4');
+  if (state === 'current' || state === 'human') {
+    expect(item).toMatchObject({
+      status: 'complete',
+      evidence_class: 'current_revision_real_boundary',
+    });
+    expect(data.readiness_state).toBe(
+      state === 'human' ? 'ready_for_human_review' : 'contributor_work_complete',
+    );
+  } else {
+    expect(item?.status).toBe('open');
+    expect(data.readiness_state).toBe('contributor_work_incomplete');
+    expect(item?.evidence_class).toBe(state === 'earlier' ? 'partial_or_structural' : 'missing');
+    if (state === 'earlier') expect(item?.limitations).toContain('earlier_revision');
+  }
+  if (state === 'human') expect(data.pending_human_items).toEqual(['item-11']);
 }
 
 describe('delivery execution prerequisite', () => {
@@ -764,6 +760,153 @@ describe('delivery execution prerequisite', () => {
       });
     },
   );
+
+  it.each(['missing', 'current', 'earlier', 'defect', 'human'] as const)(
+    'records current-to-target delivery state through the installed CLI: %s',
+    async state => {
+      const root = featureFixture();
+      const planPath = nodePath.join(root, '.project/tickets/ABC123-feature/execution-plan.md');
+      prepareDeliveryState(root, planPath, state);
+      await admitThroughInstalledCli(root);
+      const git = (args: string[]): void => {
+        execFileSync('git', args, { cwd: root });
+      };
+      git(['init', '--quiet']);
+      git(['config', 'user.email', 'proof@example.com']);
+      git(['config', 'user.name', 'Proof Test']);
+      git(['config', 'commit.gpgsign', 'false']);
+      git(['add', '.']);
+      git(['commit', '--quiet', '-m', 'accepted target and current implementation']);
+      const env = {
+        NODE_ENV: 'test',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+      };
+      if (state !== 'missing') {
+        const recorded = await runCli(
+          ['ticket', 'record-delivery-proof', 'ABC123', 'item-4', 'proof', '--json', '--cwd', root],
+          { cwd: root, env },
+        );
+        expect(recorded.exitCode, recorded.stdout).toBe(state === 'defect' ? 2 : 0);
+        if (state === 'earlier') {
+          writeFileSync(
+            nodePath.join(root, 'implementation.txt'),
+            'Current implementation changed after proof.\n',
+          );
+          git(['add', '.']);
+          git(['commit', '--quiet', '-m', 'change implementation after authenticated proof']);
+        }
+      }
+      await assertDeliveryState(root, state, env);
+      rmSync(root, { recursive: true, force: true });
+    },
+  );
+
+  it.each(['partial_or_structural', 'reusable_earlier_revision'] as const)(
+    'records canonical delivery evidence through the installed CLI: %s',
+    async evidenceClass => {
+      const root = featureFixture();
+      const planPath = nodePath.join(root, '.project/tickets/ABC123-feature/execution-plan.md');
+      const argv = JSON.stringify([process.execPath, testCliPath, '--version']);
+      let plan = executionPlan().replace(
+        JSON.stringify([process.execPath, '--version']),
+        () => argv,
+      );
+      plan = plan.replace('current_required', 'compatible_earlier_allowed');
+      if (evidenceClass === 'partial_or_structural') {
+        const supporting = `| supporting-proof | command | unit | metadata shape only | partial_or_structural | current_required | {"type":"command","cwd":".","argv":[${JSON.stringify(process.execPath)},"-e","if (!require('node:fs').readFileSync('.project/tickets/ABC123-feature/execution-plan.md','utf8').includes('Delivery checklist')) process.exit(1)"]} |`;
+        plan = plan.replace(
+          '\n\n## Delivery checklist',
+          () => `\n${supporting}\n\n## Delivery checklist`,
+        );
+      }
+      writeFileSync(planPath, plan);
+      const bin = await admitThroughInstalledCli(root);
+      const git = (args: string[]): void => {
+        execFileSync('git', args, { cwd: root });
+      };
+      git(['init', '--quiet']);
+      git(['config', 'user.email', 'proof@example.com']);
+      git(['config', 'user.name', 'Proof Test']);
+      git(['config', 'commit.gpgsign', 'false']);
+      git(['add', '.']);
+      git(['commit', '--quiet', '-m', 'accepted proof boundary']);
+      const env = {
+        NODE_ENV: 'test',
+        SAFEWORD_AGENT_RUNTIME: 'codex',
+        SAFEWORD_REVIEW_KEY_ROOT: nodePath.join(root, '.review-keys'),
+        PATH: `${bin}:/usr/bin:/bin`,
+      };
+      const proofId = evidenceClass === 'partial_or_structural' ? 'supporting-proof' : 'proof';
+      const recorded = await runCli(
+        ['ticket', 'record-delivery-proof', 'ABC123', 'item-4', proofId, '--json', '--cwd', root],
+        { cwd: root, env },
+      );
+      expect(recorded.exitCode, recorded.stdout).toBe(0);
+      if (evidenceClass === 'reusable_earlier_revision') {
+        const receipt = (JSON.parse(recorded.stdout) as { data: { receipt_id: string } }).data
+          .receipt_id;
+        expect(receipt).toBeTypeOf('string');
+        writeFileSync(nodePath.join(root, 'documentation.md'), '# Documentation-only change\n');
+        git(['add', '.']);
+        git(['commit', '--quiet', '-m', 'documentation-only revision']);
+        const reused = await runCli(
+          [
+            'ticket',
+            'record-delivery-proof',
+            'ABC123',
+            'item-4',
+            'proof',
+            '--receipt',
+            receipt,
+            '--compatible-reason',
+            'Only documentation changed; accepted boundary is unchanged.',
+            '--confirm-egress',
+            '--json',
+            '--cwd',
+            root,
+          ],
+          { cwd: root, env },
+        );
+        expect(reused.exitCode, reused.stdout).toBe(0);
+        expect(
+          readFileSync(nodePath.join(root, '.project/skill-invocations.log'), 'utf8'),
+        ).toContain('delivery-compatibility:v1:');
+      }
+      const observed = await runCli(
+        ['ticket', 'delivery-checklist', 'ABC123', '--json', '--cwd', root],
+        { cwd: root, env },
+      );
+      const data = (
+        JSON.parse(observed.stdout) as {
+          data: {
+            contributor_evidence: { item_id: string; status: string; evidence_class: string }[];
+          };
+        }
+      ).data;
+      expect(data.contributor_evidence.find(item => item.item_id === 'item-4')).toMatchObject({
+        evidence_class: evidenceClass,
+        status: evidenceClass === 'partial_or_structural' ? 'open' : 'complete',
+      });
+      rmSync(root, { recursive: true, force: true });
+    },
+  );
+
+  it('rejects partial structural proof through the installed CLI readiness command', async () => {
+    const root = featureFixture();
+    const planPath = nodePath.join(root, '.project/tickets/ABC123-feature/execution-plan.md');
+    writeFileSync(planPath, executionPlan().replaceAll('real_boundary', 'partial_or_structural'));
+    const observed = await runCli(
+      ['ticket', 'delivery-checklist', 'ABC123', '--json', '--cwd', root],
+      { cwd: root, env: { NODE_ENV: 'test' } },
+    );
+    expect(observed.exitCode).toBe(2);
+    expect(JSON.parse(observed.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: [expect.objectContaining({ code: 'required_proof_not_real_boundary' })],
+    });
+    expect(readFileSync(planPath, 'utf8')).not.toContain('| complete |');
+    rmSync(root, { recursive: true, force: true });
+  });
 
   it.each(['task', 'patch'] as const)('keeps %s work outside the feature contract', async type => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-prerequisite-small-'));

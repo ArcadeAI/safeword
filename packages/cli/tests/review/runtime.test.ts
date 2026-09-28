@@ -33,6 +33,7 @@ import {
   runHeadlessReviewer,
   scenarioReviewRubric,
 } from '../../src/review/runtime.js';
+import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -617,6 +618,7 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       chmodSync(executable, 0o755);
       vi.stubEnv('PATH', bin);
       writeFileSync(nodePath.join(project, 'impl-plan.md'), '# Plan\n');
+      writePlanningInventories(project);
 
       const baseline = prepareReviewPacket(project, 'plan-implementation', ['impl-plan.md']);
       const authorContract = baseline.packet.plan_contract?.author;
