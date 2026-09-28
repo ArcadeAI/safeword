@@ -6,6 +6,7 @@ import {
   renameSync,
   rmSync,
   symlinkSync,
+  truncateSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -221,6 +222,17 @@ describe('review packet containment and change accounting', () => {
 
     expect(prepared.snapshotChanged()).toBe(true);
     expect(prepared.sourceChanged()).toBe(false);
+    prepared.cleanup();
+  });
+
+  it('treats an oversized reviewer snapshot as changed without digesting it', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'input.md'), 'original\n');
+    const prepared = prepareReviewPacket(project, 'quality-review', ['input.md']);
+
+    truncateSync(nodePath.join(prepared.workspace, 'input.md'), 8 * 1024 * 1024 * 1024);
+
+    expect(prepared.snapshotChanged()).toBe(true);
     prepared.cleanup();
   });
 

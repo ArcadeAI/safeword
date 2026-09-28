@@ -7,6 +7,7 @@ phase_anchors:
   - define-behavior: .project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/spec.md
   - scenario-gate: packages/cli/features/keep-reviews-focused-on-authored-inputs.feature
   - plan-implementation: .project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/impl-plan.md
+  - implement: .project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/impl-plan.md
 status: in_progress
 scope:
   - recognise an oversized target only when the repository explicitly marks it linguist-generated=true
@@ -65,3 +66,6 @@ last_modified: 2026-09-28T02:18:43Z
 - 2026-09-28T01:32:00Z Combined feature-and-ledger review `1279e723-fb86-4cfc-8048-8e0a53f6d1ba` found the dogfood proof covered only the Claude runtime. Expanded it into a two-row outline for both shipped generated runtimes (`plugin/runtime/cli.js` and `packages/cli/codex-plugin/runtime/cli.js`); updated the dimensions map. Re-review required.
 - 2026-09-28T01:42:37Z Independent Claude/Opus review `009c785f-fb0b-41f9-a7ed-54b19047b52f` approved all 45 scenario definitions and the synchronized ticket ledger. Corrected rule lineage and added an unmarked runtime-shaped rejection after the preceding review. Stamped the scenario gate and advanced to implementation planning.
 - 2026-09-28T02:18:43Z Independent Claude/Opus plan review `bf252280-0822-4a26-85b9-c63781b01b5a` approved the plan after corrections for environment isolation, source races, every post-finalization result, JSON contracts, scenario bindings, and lazy Git lookup. Stamped the plan gate and advanced to implementation.
+
+- 2026-09-28T04:00:00Z Independent Claude/Opus scenario review `4d844122-ad37-4db8-8ad2-091a72a08436` approved the corrected 46-scenario feature and ledger, including intermediate-symlink containment and both packet byte limits. Plan re-review `5b1557bc-91e4-4dea-9b90-bee668d25a99` approved the matching implementation plan; both phase stamps were recorded.
+- 2026-09-28T04:00:00Z Implemented committed-HEAD generated classification, bounded packet capture, typed preflight failures, ordered error selection, reduced-scope reporting, public CLI and dogfood runtime proofs, and the updated published CLI contract. The implementation remains in progress pending remaining scenario proof, full verification, and independent implementation review.

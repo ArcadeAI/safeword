@@ -9,7 +9,6 @@ import {
   mkdtempSync,
   openSync,
   readdirSync,
-  readFileSync,
   readSync,
   realpathSync,
   rmSync,
@@ -178,18 +177,55 @@ function generatedTargets(root: string, files: readonly OversizedFile[]): Set<st
   }
 }
 
-function oversizedChanged(root: string, file: OversizedFile): boolean {
+function oversizedState(root: string, file: OversizedFile): 'same' | 'outside' | 'changed' {
   try {
     const observed = lstatSync(file.source);
-    return (
+    if (escapes(root, realpathSync(file.source))) return 'outside';
+    if (
       !observed.isFile() ||
       observed.dev !== file.device ||
       observed.ino !== file.inode ||
-      observed.size !== file.size ||
-      escapes(root, realpathSync(file.source))
-    );
+      observed.size !== file.size
+    )
+      return 'changed';
+    return 'same';
   } catch {
-    return true;
+    return 'changed';
+  }
+}
+
+function collectOversizedOutcomes(
+  root: string,
+  files: readonly OversizedFile[],
+  marked: ReadonlySet<string>,
+  errors: { index: number; error: unknown }[],
+  excluded: string[],
+): void {
+  for (const file of files) {
+    const state = oversizedState(root, file);
+    if (state !== 'same') {
+      errors.push({
+        index: file.index,
+        error: new ReviewPacketError(
+          state === 'outside'
+            ? `Review target escapes the project: ${file.relative}`
+            : `Review target changed while it was being classified: ${file.relative}`,
+          state === 'outside' ? 'REVIEW_TARGET_OUTSIDE_PROJECT' : 'REVIEW_TARGET_CHANGED',
+        ),
+      });
+      continue;
+    }
+    if (!marked.has(file.relative)) {
+      errors.push({
+        index: file.index,
+        error: new ReviewPacketError(
+          `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`,
+          'REVIEW_TARGET_TOO_LARGE',
+        ),
+      });
+      continue;
+    }
+    excluded.push(file.relative);
   }
 }
 
@@ -263,12 +299,19 @@ function digest(content: string | Buffer): string {
 }
 
 function fileDigest(path: string): string | undefined {
+  let descriptor: number | undefined;
   try {
-    return digest(readFileSync(path));
+    descriptor = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    const stat = fstatSync(descriptor);
+    if (!stat.isFile() || stat.size > MAX_FILE_BYTES) return undefined;
+    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    return bytes === undefined ? undefined : digest(bytes);
   } catch {
     // Integrity checks fail closed: deletion and unreadability both mean the
     // source can no longer be proven equal to the captured packet.
     return undefined;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
   }
 }
 
@@ -528,29 +571,7 @@ function prepareReviewPacketUnsafe(
     contextFiles = captureFiles(context, false, uniqueTargets.length);
     requireStableSources(canonicalRoot, tracked);
     const marked = generatedTargets(canonicalRoot, oversized);
-    for (const file of oversized) {
-      if (oversizedChanged(canonicalRoot, file)) {
-        targetErrors.push({
-          index: file.index,
-          error: new ReviewPacketError(
-            `Review target changed while it was being classified: ${file.relative}`,
-            'REVIEW_TARGET_CHANGED',
-          ),
-        });
-        continue;
-      }
-      if (!marked.has(file.relative)) {
-        targetErrors.push({
-          index: file.index,
-          error: new ReviewPacketError(
-            `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`,
-            'REVIEW_TARGET_TOO_LARGE',
-          ),
-        });
-        continue;
-      }
-      excludedTargets.push(file.relative);
-    }
+    collectOversizedOutcomes(canonicalRoot, oversized, marked, targetErrors, excludedTargets);
     requireStableSources(canonicalRoot, tracked);
     throwFirstTargetError(targetErrors);
     if (logicalFiles.length === 0) {
@@ -587,7 +608,7 @@ function prepareReviewPacketUnsafe(
     workspace,
     sourceChanged: () =>
       tracked.some(file => sourceFileChanged(canonicalRoot, file)) ||
-      oversized.some(file => oversizedChanged(canonicalRoot, file)),
+      oversized.some(file => oversizedState(canonicalRoot, file) !== 'same'),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
       try {

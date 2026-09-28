@@ -457,4 +457,83 @@ exec "${gitExecutable}" "$@"
     expect(envelope.data.excluded_targets).toBeUndefined();
     expect(existsSync(promptLog)).toBe(false);
   });
+
+  it('rejects an oversized target that becomes an outside symlink during classification', async () => {
+    const directory = createTemporaryDirectory();
+    const outside = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    const generated = nodePath.join(directory, 'large.js');
+    const outsideFile = nodePath.join(outside, 'large.js');
+    writeFileSync(nodePath.join(directory, 'authored.md'), 'review this\n');
+    writeFileSync(generated, 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(outsideFile, 'outside\n');
+    writeFileSync(nodePath.join(directory, '.gitattributes'), 'large.js linguist-generated=true\n');
+    git(directory, 'init', '-q');
+    git(directory, 'add', '.gitattributes', 'authored.md');
+    git(
+      directory,
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    );
+    const gitExecutable = spawnSync('which', ['git'], { encoding: 'utf8' }).stdout.trim();
+    expect(gitExecutable).not.toBe('');
+    const bin = fakeReviewer();
+    const fakeGit = nodePath.join(bin, 'git');
+    writeFileSync(
+      fakeGit,
+      `#!/bin/sh
+for argument in "$@"; do
+  if [ "$argument" = check-attr ]; then
+    "${gitExecutable}" "$@"
+    status=$?
+    /bin/mv "${generated}" "${generated}.old"
+    /bin/ln -s "${outsideFile}" "${generated}"
+    exit "$status"
+  fi
+done
+exec "${gitExecutable}" "$@"
+`,
+      { mode: 0o755 },
+    );
+    chmodSync(fakeGit, 0o755);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'authored.md',
+        'large.js',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      errors: { code: string }[];
+      data: { excluded_targets?: string[] };
+    };
+    expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_OUTSIDE_PROJECT');
+    expect(envelope.data.excluded_targets).toBeUndefined();
+    expect(existsSync(promptLog)).toBe(false);
+  });
 });
