@@ -100,6 +100,28 @@ afterEach(() => {
 });
 
 describe('review packet containment and change accounting', () => {
+  it.each([
+    ['missing ticket', undefined],
+    ['malformed ticket', '---\nid: LEG123\nid: DUP123\n---\n'],
+  ])('keeps a generic spec review available beside a %s', (_case, ticketSource) => {
+    const root = temporaryDirectory();
+    const directory = nodePath.join(root, '.project', 'tickets', 'LEG123-legacy');
+    mkdirSync(directory, { recursive: true });
+    if (ticketSource !== undefined)
+      writeFileSync(nodePath.join(directory, 'ticket.md'), ticketSource);
+    writeFileSync(nodePath.join(directory, 'spec.md'), '# Generic spec\n');
+
+    const prepared = prepareReviewPacket(root, 'quality-review', [
+      '.project/tickets/LEG123-legacy/spec.md',
+    ]);
+    try {
+      expect(prepared.packet.planning_phase).toBeUndefined();
+      expect(prepared.packet.plan_contract).toBeUndefined();
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
   it('refuses executable RED review without Safeword execution evidence', () => {
     const root = temporaryDirectory();
     writeFileSync(nodePath.join(root, 'proof.md'), 'missing behavior\n');

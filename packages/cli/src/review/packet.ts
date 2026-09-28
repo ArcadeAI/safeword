@@ -585,7 +585,12 @@ function productPlanWorkTarget(
   if (kind !== 'quality-review' || files.length !== 1) return false;
   const target = files[0];
   if (target === undefined || nodePath.basename(target.path) !== 'spec.md') return false;
-  return ownedPlanningTicket(root, target.path);
+  try {
+    return ownedPlanningTicket(root, target.path);
+  } catch (error) {
+    if (error instanceof PlanningContextError) return false;
+    throw error;
+  }
 }
 
 function ownedPlanningTicket(root: string, target: string): boolean {

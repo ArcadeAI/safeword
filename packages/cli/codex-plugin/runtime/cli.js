@@ -51930,7 +51930,13 @@ function productPlanWorkTarget(root, kind, files) {
   const target = files[0];
   if (target === undefined || nodePath51.basename(target.path) !== "spec.md")
     return false;
-  return ownedPlanningTicket(root, target.path);
+  try {
+    return ownedPlanningTicket(root, target.path);
+  } catch (error2) {
+    if (error2 instanceof PlanningContextError)
+      return false;
+    throw error2;
+  }
 }
 function ownedPlanningTicket(root, target) {
   const ticketDirectory = nodePath51.dirname(nodePath51.resolve(root, target));
