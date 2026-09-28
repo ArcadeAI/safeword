@@ -392,12 +392,12 @@ Review keeps the existing Claude↔Codex pairing first, then tries OpenCode as a
 second independent runtime before same-agent headless review. OpenCode-authored
 work routes to Claude and then Codex, so OpenCode self-review is never counted
 as independent. If those routes cannot complete, a foreground agent makes one
-best-effort fresh-context host review and then one bounded self-review. Those
-last two routes are useful feedback, not independent evidence; `require` stays
-blocked and no independent stamp is written. Both read the live worktree, so
-their assurance says source integrity was not revalidated. Project-owned Claude
-reviewer assets also support Claude Code Cloud when no external agent CLI is
-available.
+best-effort fresh-context host review and then one bounded self-review. For
+planning reviews, those fallback tiers use the coordinator's immutable packet;
+an admitted approval records the actual reviewer and `reduced independence`
+after stronger routes are exhausted. `require` remains blocked. Other review
+kinds retain their own gate requirements. Project-owned Claude reviewer assets
+also support Claude Code Cloud when no external agent CLI is available.
 
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 

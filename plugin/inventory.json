@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "db2a6d1b874aac7cac494bb865ec109d36023b5f763ae48ab5de7df329a9f124"
+      "sha256": "81b856ca5e9c3c6eaa6b5c123e081e7e92950bcc2765be1146a31b56d1fa6df9"
     },
     {
       "path": "runtime/dispatch.js",
@@ -395,11 +395,11 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "3766ca92b78cb7ad2e9b4b99426ab545882dc2231677dcbfddc7cd5655501de8"
+      "sha256": "a856bbe9d4ecee5e97421c207ec72c31d3d3dd31e38abeb05de2003dd534464b"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "56e298de4a2fca08ebdc32457d6ae4868c5498b80b3f6d2b28a7617c1b84320e"
+      "sha256": "d3cd0fee1b59e69202cb8b2ff9b9a7528fb221324308e86f05aad8b2c6f55716"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "a0d6e63d0bbb8cbc8e223f07ce74db1340257a4af9eb94a554eb9d5cbc4a8f52"
+      "sha256": "cbbe268ab3498568be42f2e6b7be72f1091d9a3162939e57a80e22424665c40b"
     },
     {
       "path": "skills/audit/SKILL.md",
