@@ -9,7 +9,7 @@ const DEFAULT_BASE_REFS = [
 ] as const;
 
 type BaseResolution =
-  { state: 'found'; sha: string } | { state: 'missing-ref' | 'missing-merge-base' };
+  { state: 'found'; sha: string } | { state: 'missing-ref' } | { state: 'missing-merge-base' };
 
 function git(projectDirectory: string, args: string[]): string | undefined {
   const result = spawnSync('git', ['-C', projectDirectory, ...args], { encoding: 'utf8' });

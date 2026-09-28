@@ -203,7 +203,7 @@
     },
     {
       "path": "runtime/hooks/lib/closest-base-ref.ts",
-      "sha256": "727493e71e0e2b603b0934fe81ce8acd1c030c7575b3f07bcbb52b87b85dfb57"
+      "sha256": "c01914237e7d70a571f8462c15681bd5f94b77654b99e9851144332186d38d12"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -1139,7 +1139,7 @@
     },
     {
       "path": "templates/hooks/lib/closest-base-ref.ts",
-      "sha256": "727493e71e0e2b603b0934fe81ce8acd1c030c7575b3f07bcbb52b87b85dfb57"
+      "sha256": "c01914237e7d70a571f8462c15681bd5f94b77654b99e9851144332186d38d12"
     },
     {
       "path": "templates/hooks/lib/cursor-run-identity.ts",
