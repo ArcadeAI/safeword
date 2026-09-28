@@ -78,6 +78,6 @@ describe('Implementation Product context ownership', () => {
   ])('preserves generic %s reviews', (_label, ticket) => {
     const root = fixture(ticket);
     rmSync(nodePath.join(root, folder, 'spec.md'));
-    expect(context(root)).not.toContain(`${folder}/ticket.md`);
+    expect(context(root) ?? []).not.toContain(`${folder}/ticket.md`);
   });
 });

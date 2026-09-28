@@ -51936,13 +51936,26 @@ function productPlanWorkTarget(root, kind, files) {
   const target = files[0];
   if (target === undefined || nodePath51.basename(target.path) !== "spec.md")
     return false;
+  const ticketDirectory = nodePath51.dirname(nodePath51.resolve(root, target.path));
+  if (nodePath51.dirname(ticketDirectory) !== resolveTicketsDirectory(root))
+    return false;
+  const ticketPath = nodePath51.join(ticketDirectory, "ticket.md");
+  const relativeTicketPath = nodePath51.relative(root, ticketPath);
+  const markedProductPlan = target.content.includes("<!-- safeword:product-plan-contract:v1 -->");
+  let metadata;
   try {
-    return ownedPlanningTicket(root, target.path);
-  } catch (error2) {
-    if (error2 instanceof PlanningContextError)
-      return false;
-    throw error2;
+    metadata = parseTicketMetadata(readFileSync33(ticketPath, "utf8")).metadata;
+  } catch {
+    if (markedProductPlan)
+      throw new PlanningContextError("ticket", relativeTicketPath);
+    return false;
   }
+  if (metadata.product_plan_contract !== "v1") {
+    if (markedProductPlan)
+      throw new PlanningContextError("ticket", relativeTicketPath);
+    return false;
+  }
+  return planningTicketOwner(metadata, nodePath51.basename(ticketDirectory), relativeTicketPath);
 }
 function ownedPlanningTicket(root, target) {
   const ticketDirectory = nodePath51.dirname(nodePath51.resolve(root, target));

@@ -580,17 +580,28 @@ export function packagedPlanContract(
 function productPlanWorkTarget(
   root: string,
   kind: ReviewKind,
-  files: readonly { readonly path: string }[],
+  files: readonly { readonly path: string; readonly content: string }[],
 ): boolean {
   if (kind !== 'quality-review' || files.length !== 1) return false;
   const target = files[0];
   if (target === undefined || nodePath.basename(target.path) !== 'spec.md') return false;
+  const ticketDirectory = nodePath.dirname(nodePath.resolve(root, target.path));
+  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(root)) return false;
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  const relativeTicketPath = nodePath.relative(root, ticketPath);
+  const markedProductPlan = target.content.includes('<!-- safeword:product-plan-contract:v1 -->');
+  let metadata: Record<string, unknown>;
   try {
-    return ownedPlanningTicket(root, target.path);
-  } catch (error) {
-    if (error instanceof PlanningContextError) return false;
-    throw error;
+    metadata = parseTicketMetadata(readFileSync(ticketPath, 'utf8')).metadata;
+  } catch {
+    if (markedProductPlan) throw new PlanningContextError('ticket', relativeTicketPath);
+    return false;
   }
+  if (metadata.product_plan_contract !== 'v1') {
+    if (markedProductPlan) throw new PlanningContextError('ticket', relativeTicketPath);
+    return false;
+  }
+  return planningTicketOwner(metadata, nodePath.basename(ticketDirectory), relativeTicketPath);
 }
 
 function ownedPlanningTicket(root: string, target: string): boolean {
