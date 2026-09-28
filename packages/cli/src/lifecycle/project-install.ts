@@ -69,6 +69,8 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { rustToolingTargets } from '../packs/rust/setup.js';
+import { InvalidInvalidationContractError } from '../planning/phase-contract.js';
+import { MissingGeneratedSharedClauseError } from '../planning/shared-clause-integrity.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
 import {
   ensurePublicRetroProjectConfig,
@@ -76,6 +78,7 @@ import {
   validatePublicRetroProjectConfig,
 } from '../retro/public-config.js';
 import type { SafewordSchema } from '../schema.js';
+import { PLANNING_CONTRACT_TEMPLATE_PATHS } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
@@ -1719,6 +1722,49 @@ function verifiedSetupResult(
   };
 }
 
+function setupFailureDetails(setupError: unknown): Pick<CliResult, 'findings' | 'errors'> {
+  const cause = setupError instanceof SetupApplyError ? setupError.cause : setupError;
+  if (cause instanceof InvalidInvalidationContractError) {
+    return {
+      findings: [
+        {
+          code: cause.code,
+          message: cause.message,
+          severity: 'error',
+          metadata: {
+            planning_phase: cause.phase,
+            contract_path: PLANNING_CONTRACT_TEMPLATE_PATHS.execution,
+          },
+        },
+      ],
+      errors: [{ code: cause.code, message: cause.message, retryable: false }],
+    };
+  }
+  if (cause instanceof MissingGeneratedSharedClauseError) {
+    return {
+      findings: [
+        {
+          code: cause.code,
+          message: cause.message,
+          severity: 'error',
+          metadata: { clause_id: cause.clauseId, contract_path: cause.contractPath },
+        },
+      ],
+      errors: [{ code: cause.code, message: cause.message, retryable: false }],
+    };
+  }
+  return {
+    findings: [],
+    errors: [
+      {
+        code: 'SETUP_FAILED',
+        message: setupError instanceof Error ? setupError.message : String(setupError),
+        retryable: true,
+      },
+    ],
+  };
+}
+
 function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): CliResult {
   const reconciliationEffects =
     setupError instanceof ReconcileExecutionError
@@ -1738,13 +1784,7 @@ function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): Cl
     state: 'failed',
     changed,
     effects,
-    errors: [
-      {
-        code: 'SETUP_FAILED',
-        message: setupError instanceof Error ? setupError.message : String(setupError),
-        retryable: true,
-      },
-    ],
+    ...setupFailureDetails(setupError),
     recovery: [
       ...(applyRecovery ?? []),
       {

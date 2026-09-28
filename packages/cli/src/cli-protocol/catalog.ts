@@ -579,6 +579,18 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       },
     },
   ),
+  command(
+    'ticket planning-contract-check',
+    'Check active planning author-copy integrity',
+    'observe',
+    {
+      syntax: 'planning-contract-check <ticketId> <phase>',
+      fixture: {
+        argv: ['ticket', 'planning-contract-check', 'fixture', 'plan-implementation'],
+        environment: MACHINE_ENVIRONMENT,
+      },
+    },
+  ),
   command('ticket delivery-checklist', 'Report feature delivery readiness', 'observe', {
     syntax: 'delivery-checklist <ticketId>',
     fixture: {

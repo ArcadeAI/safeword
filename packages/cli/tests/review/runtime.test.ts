@@ -618,10 +618,14 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       vi.stubEnv('PATH', bin);
       writeFileSync(nodePath.join(project, 'impl-plan.md'), '# Plan\n');
 
-      const authorContract = {
-        sha256: 'author-contract',
-        obligations: ['record architecture consequences', 'exclude execution sequencing'],
-      };
+      const baseline = prepareReviewPacket(project, 'plan-implementation', ['impl-plan.md']);
+      const authorContract = baseline.packet.plan_contract?.author;
+      baseline.cleanup();
+      if (authorContract === undefined) throw new Error('Packaged plan contract is missing');
+      const omittedObligation = authorContract.obligations[0];
+      const retainedObligation = authorContract.obligations[1];
+      if (omittedObligation === undefined || retainedObligation === undefined)
+        throw new Error('Packaged plan contract needs two obligations for this proof');
       const contradictory = prepareReviewPacket(
         project,
         'plan-implementation',
@@ -632,7 +636,7 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
             author: authorContract,
             reviewer: {
               sha256: 'reviewer-contract',
-              obligations: ['record architecture consequences', 'require execution sequencing'],
+              obligations: [...authorContract.obligations.slice(1), 'require execution sequencing'],
             },
           },
         },
@@ -655,14 +659,12 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
         untrustedRoot,
       );
       expect(result.verdict).toBe('request_changes');
-      expect(result.findings).toHaveLength(2);
+      expect(result.findings).toHaveLength(3);
       expect(result.findings.every(finding => finding.severity === 'error')).toBe(true);
       const messages = result.findings.map(finding => finding.message);
-      expect(messages.some(message => message.includes('exclude execution sequencing'))).toBe(true);
+      expect(messages.some(message => message.includes(omittedObligation))).toBe(true);
       expect(messages.some(message => message.includes('require execution sequencing'))).toBe(true);
-      expect(messages.some(message => message.includes('record architecture consequences'))).toBe(
-        false,
-      );
+      expect(messages.some(message => message.includes(retainedObligation))).toBe(false);
     },
   );
 

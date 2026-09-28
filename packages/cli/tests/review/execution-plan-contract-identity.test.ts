@@ -24,6 +24,7 @@ import {
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from '../../src/review/execution-plan-rubric.generated.js';
 import { extractExecutionPlanReviewRubric } from '../../src/review/execution-plan-rubric.js';
 import { assemblePlanContract } from '../../src/review/packet.js';
+import { extractPlanReviewRubric } from '../../src/review/plan-rubric.js';
 import { reviewPromptContract } from '../../src/review/review-rubric.js';
 import { reconcilePlanContract } from '../../src/review/runtime.js';
 import {
@@ -90,9 +91,16 @@ function packet(authorRubric: string, reviewerRubric: string): ReviewPacket {
   };
 }
 
-function patchInstalledReviewerRubric(distribution: string, rubric: string): void {
+function patchInstalledReviewerRubric(
+  distribution: string,
+  rubric: string,
+  exportName = 'EXECUTION_PLAN_REVIEW_RUBRIC',
+): void {
   const distribution_ = nodePath.join(distribution, 'dist');
-  const declaration = /var EXECUTION_PLAN_REVIEW_RUBRIC = "(?:[^"\\]|\\.)*";/u;
+  const declaration =
+    exportName === 'PLAN_REVIEW_RUBRIC'
+      ? /var PLAN_REVIEW_RUBRIC = "(?:[^"\\]|\\.)*";/u
+      : /var EXECUTION_PLAN_REVIEW_RUBRIC = "(?:[^"\\]|\\.)*";/u;
   const module = readdirSync(distribution_)
     .filter(path => path.endsWith('.js'))
     .map(path => nodePath.join(distribution_, path))
@@ -101,10 +109,7 @@ function patchInstalledReviewerRubric(distribution: string, rubric: string): voi
   const source = readFileSync(module, 'utf8');
   writeFileSync(
     module,
-    source.replace(
-      declaration,
-      () => `var EXECUTION_PLAN_REVIEW_RUBRIC = ${JSON.stringify(rubric)};`,
-    ),
+    source.replace(declaration, () => `var ${exportName} = ${JSON.stringify(rubric)};`),
   );
 }
 
@@ -195,6 +200,10 @@ process.stdin.on('end', () => {
       delivery_definition: packet.execution_plan_delivery_definition
     }
   };
+  if (packet.kind === 'plan-implementation') {
+    delete output.planning_destination;
+    delete output.execution_plan_record;
+  }
   process.stdout.write(JSON.stringify({ structured_output: output }));
 });
 `,
@@ -204,36 +213,51 @@ process.stdin.on('end', () => {
   return root;
 }
 
-type InstalledContractState =
+type InstalledExecutionContractState =
   | 'canonical'
   | 'missing-author'
+  | 'edited-author'
   | 'missing-reviewer'
   | 'stale-reviewer'
   | 'stale-slicing-contract'
   | 'incomplete-pair'
   | 'stale-delivery-taxonomy';
 
-function runInstalledReview(state: InstalledContractState) {
-  const distribution = temporaryDirectory('safeword-contract-distribution-');
-  cpSync(nodePath.join(packageRoot, 'dist'), nodePath.join(distribution, 'dist'), {
-    recursive: true,
-  });
-  cpSync(nodePath.join(packageRoot, 'templates'), nodePath.join(distribution, 'templates'), {
-    recursive: true,
-  });
-  cpSync(nodePath.join(packageRoot, 'package.json'), nodePath.join(distribution, 'package.json'));
-  symlinkSync(
-    nodePath.join(packageRoot, 'node_modules'),
-    nodePath.join(distribution, 'node_modules'),
-  );
+type InstalledContractState =
+  InstalledExecutionContractState | 'canonical-implementation' | 'drifted-implementation-pair';
 
-  const installedAuthor = nodePath.join(distribution, 'templates/skills/bdd/PLAN_EXECUTION.md');
+function mutateImplementationContract(distribution: string, installedAuthor: string): void {
+  const reference = readFileSync(installedAuthor, 'utf8');
+  const canonical = extractPlanReviewRubric(reference);
+  const changed = `${canonical}\nTreat advisory cleanup as nonblocking.`;
+  writeFileSync(
+    installedAuthor,
+    reference.replace(canonical, () => changed),
+  );
+  patchInstalledReviewerRubric(distribution, changed, 'PLAN_REVIEW_RUBRIC');
+}
+
+function mutateInstalledContract(
+  distribution: string,
+  installedAuthor: string,
+  state: InstalledExecutionContractState,
+): void {
   switch (state) {
     case 'canonical': {
       break;
     }
     case 'missing-author': {
       rmSync(installedAuthor);
+      break;
+    }
+    case 'edited-author': {
+      writeFileSync(
+        installedAuthor,
+        canonicalReference.replace(
+          canonicalRubric,
+          () => `${canonicalRubric}\nEdited author-only text.`,
+        ),
+      );
       break;
     }
     case 'missing-reviewer': {
@@ -270,6 +294,38 @@ function runInstalledReview(state: InstalledContractState) {
       break;
     }
   }
+}
+
+function runInstalledReview(
+  state: InstalledContractState,
+  editAuthor?: (source: string) => string,
+) {
+  const distribution = temporaryDirectory('safeword-contract-distribution-');
+  cpSync(nodePath.join(packageRoot, 'dist'), nodePath.join(distribution, 'dist'), {
+    recursive: true,
+  });
+  cpSync(nodePath.join(packageRoot, 'templates'), nodePath.join(distribution, 'templates'), {
+    recursive: true,
+  });
+  cpSync(nodePath.join(packageRoot, 'package.json'), nodePath.join(distribution, 'package.json'));
+  symlinkSync(
+    nodePath.join(packageRoot, 'node_modules'),
+    nodePath.join(distribution, 'node_modules'),
+  );
+
+  const implementation =
+    state === 'canonical-implementation' || state === 'drifted-implementation-pair';
+  const installedAuthor = nodePath.join(
+    distribution,
+    'templates/skills/bdd',
+    implementation ? 'PLAN_IMPLEMENTATION.md' : 'PLAN_EXECUTION.md',
+  );
+  if (state === 'drifted-implementation-pair')
+    mutateImplementationContract(distribution, installedAuthor);
+  mutateInstalledContract(distribution, installedAuthor, implementation ? 'canonical' : state);
+  if (editAuthor !== undefined) {
+    writeFileSync(installedAuthor, editAuthor(readFileSync(installedAuthor, 'utf8')));
+  }
 
   const project = temporaryDirectory('safeword-contract-project-');
   const ticket = nodePath.join(project, '.project/tickets/T1-feature');
@@ -290,10 +346,14 @@ function runInstalledReview(state: InstalledContractState) {
       nodePath.join(distribution, 'dist/cli.js'),
       'review',
       'run',
-      'plan-execution',
-      '.project/tickets/T1-feature/execution-plan.md',
+      implementation ? 'plan-implementation' : 'plan-execution',
+      implementation
+        ? '.project/tickets/T1-feature/impl-plan.md'
+        : '.project/tickets/T1-feature/execution-plan.md',
       '--context',
-      '.project/tickets/T1-feature/impl-plan.md',
+      implementation
+        ? '.project/tickets/T1-feature/ticket.md'
+        : '.project/tickets/T1-feature/impl-plan.md',
       '--context',
       '.project/tickets/T1-feature/behavior.feature',
       '--json',
@@ -362,6 +422,7 @@ describe('Execution Plan review-contract identity', () => {
 
   it.each([
     ['missing-author', 'authoring contract copy'],
+    ['edited-author', 'authoring contract copy'],
     ['missing-reviewer', 'generated reviewer contract copy'],
     ['stale-reviewer', 'stale generated reviewer contract'],
     ['stale-slicing-contract', 'canonical contract-byte identity'],
@@ -395,5 +456,60 @@ describe('Execution Plan review-contract identity', () => {
       state: 'healthy',
       data: { status: 'approved', review_kind: 'plan-execution' },
     });
+  });
+});
+
+describe('Canonical planning contract generation', () => {
+  it.each(['canonical-implementation', 'canonical'] as const)(
+    'blocks complete author-copy drift outside the reviewer block for %s through the installed CLI',
+    state => {
+      const result = runInstalledReview(
+        state,
+        source => `<!-- Installed author-copy drift outside the reviewer block -->\n${source}`,
+      );
+      expect(
+        result.status,
+        'installed CLI must refuse author-copy drift outside the reviewer block',
+      ).not.toBe(0);
+      const output = JSON.parse(result.stdout) as {
+        findings?: { code: string; metadata?: Record<string, unknown> }[];
+      };
+      expect(output.findings).toContainEqual(
+        expect.objectContaining({
+          code: 'canonical_contract_copy_mismatch',
+          metadata: expect.objectContaining({
+            contract_path: `templates/skills/bdd/${state === 'canonical' ? 'PLAN_EXECUTION.md' : 'PLAN_IMPLEMENTATION.md'}`,
+          }),
+        }),
+      );
+    },
+  );
+
+  it('admits a canonical Implementation contract through the installed CLI', () => {
+    const result = runInstalledReview('canonical-implementation');
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: { status: 'approved', review_kind: 'plan-implementation' },
+    });
+  });
+
+  it('refuses matching noncanonical Implementation copies through the installed CLI', () => {
+    const result = runInstalledReview('drifted-implementation-pair');
+    expect(
+      JSON.parse(result.stdout),
+      'matching installed copies cannot replace the canonical Implementation contract',
+    ).toMatchObject({
+      data: { status: 'blocked' },
+      findings: expect.arrayContaining([
+        expect.objectContaining({
+          code: 'canonical_contract_copy_mismatch',
+          metadata: {
+            planning_phase: 'plan-implementation',
+            contract_path: 'templates/skills/bdd/PLAN_IMPLEMENTATION.md',
+          },
+        }),
+      ]),
+    });
+    expect(result.status).not.toBe(0);
   });
 });

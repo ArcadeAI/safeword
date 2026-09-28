@@ -174,6 +174,8 @@ export interface ReviewPacket {
   readonly schema_version: 1;
   readonly dispatch_id: string;
   readonly kind: ReviewKind;
+  /** Canonical Product decision attached only to its owned work target. */
+  readonly planning_phase?: 'product-plan';
   readonly logical_files: readonly {
     readonly path: string;
     readonly content: string;

@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "1bce45273c4e540c932d9c7483f1aa066d57db3000b6de2ee94702d10e55bb86"
+      "sha256": "cc5dd8d51edb998d5b849baaf4d712f15ec75684c84ae41409266ec19bf56a5a"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "db68b8076f79db26875800c04ce9125af85d1016975cd80f4712f06b291752a2"
+      "sha256": "d2dd17e86c430f1ac47a18c3ee83f8955ae3cce136198ce4c77f8ecb24737fd3"
     },
     {
       "path": "runtime/event-groups.json",
@@ -503,7 +503,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "9e6e64235e241e34bb4a9829f288922c8af0e890db156056edc3dede02315e29"
+      "sha256": "664879e4e7c5a18c99bee1069114d9851bfd3c2bdb67ef41032b9b83f222852f"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -627,7 +627,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "6cd8341056cfce8655f1a87fd6cf2fa9b73e2609f985fb7a45423a7fa9270564"
+      "sha256": "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -635,11 +635,11 @@
     },
     {
       "path": "skills/bdd/PLAN_EXECUTION.md",
-      "sha256": "34c1580e70b87e27ea688136cbd53bacf5ac48a1682772d36ae094fe2a8a8a91"
+      "sha256": "5118b9a31a9dc63a08e051d234f98fcf2d4ef7bd987d73a3246c5e74b9b91b37"
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "a08270c39f9f922e65fb9931ce7ac74aa51a0e9ae711010614315819ce9e9aa9"
+      "sha256": "5cfa76ab6f3798449f2f667b7c4d71642f343cb03942c0e2ff39091232c44646"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",

@@ -1,5 +1,9 @@
 import nodePath from 'node:path';
 
+import type {
+  PlanningAuthorCopyIdentity,
+  PlanningPhase,
+} from '../../src/planning/phase-contract.js';
 import { requirePinnedBunVersion } from '../bun-version.js';
 
 const BUN_INSTALL_INSTANCE_PATH =
@@ -24,6 +28,7 @@ export async function buildPluginCliBundle(
   packageManager: string,
   pluginName: string,
   builtVersion?: string,
+  planningCopies?: Readonly<Record<PlanningPhase, PlanningAuthorCopyIdentity>>,
 ): Promise<string> {
   // @ts-expect-error -- plugin generators execute under Bun; the CLI's
   // Node-targeted tsconfig intentionally does not expose Bun globals elsewhere.
@@ -39,6 +44,9 @@ export async function buildPluginCliBundle(
       'process.env.NODE_ENV': JSON.stringify('development'),
       ...(builtVersion !== undefined && {
         __SAFEWORD_VERSION__: JSON.stringify(builtVersion),
+      }),
+      ...(planningCopies !== undefined && {
+        __SAFEWORD_PACKAGE_PLANNING_AUTHOR_COPIES__: JSON.stringify(planningCopies),
       }),
     },
     format: 'esm',

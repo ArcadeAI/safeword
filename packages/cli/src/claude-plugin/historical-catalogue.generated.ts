@@ -10,13 +10,13 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880',
       '.claude/skills/bdd/DISCOVERY.md':
-        'c88ae677ac877afca87745f13403f06e7c2dab86efc7934979d430e03837bf76',
+        'b914910e5cbdd04c6ec25f44315554a6382f974fc8c91c04ed56782758176922',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_EXECUTION.md':
-        '4cf9fd3c73c7f0489d49c4f56af0251ea7ed8effa1415182e970f16fe764f47c',
+        '9de74f10759b2bb104e7e27e626e7f7bae97509f9503bc2bfe3b26c755e9d527',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '248b11fd40cd23d7a6ac6f9bb8a6be7cc5d762f882ac3006b3f30ed0603858b8',
+        '4a5093d7034459c06fe23b4f2960e7244561292becef19eb52ac2908d2c4bce0',
       '.claude/skills/bdd/SCENARIOS.md':
         '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
       '.claude/skills/bdd/SKILL.md':
@@ -98,7 +98,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '3287da635c2683ab34edf8e09bc5a18f1ccd055d2acdba650433b8d3b4f13ea5',
+        '579979942ee5c645624545e2c9f7dad73b36db061375838a1f0f6b88563098fc',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
