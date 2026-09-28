@@ -261,7 +261,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 
 - [x] RED c77a0dc30
 - [x] GREEN affd3f97d
-- [ ] REFACTOR
+- [x] REFACTOR skip: typed preflight errors are kept adjacent until the remaining error codes and precedence rules are covered
 
 ## Rule: focused-review.SWM1.R1
 
