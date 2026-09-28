@@ -374,14 +374,20 @@ function prepareReviewPacketUnsafe(
         const source = nodePath.resolve(canonicalRoot, target);
         const relative = nodePath.relative(canonicalRoot, source);
         if (escapes(canonicalRoot, source)) {
-          throw new Error(`Review target escapes the project: ${target}`);
+          throw new ReviewPacketError(
+            `Review target escapes the project: ${target}`,
+            'REVIEW_TARGET_OUTSIDE_PROJECT',
+          );
         }
         const stats = lstatSync(source);
         if (!stats.isFile()) {
           throw new Error(`Review target is not a regular file: ${target}`);
         }
         if (escapes(canonicalRoot, realpathSync(source))) {
-          throw new Error(`Review target escapes the project: ${target}`);
+          throw new ReviewPacketError(
+            `Review target escapes the project: ${target}`,
+            'REVIEW_TARGET_OUTSIDE_PROJECT',
+          );
         }
         if (stats.size > MAX_FILE_BYTES) {
           if (!allowGenerated) {
