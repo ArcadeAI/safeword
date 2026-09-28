@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 10200/10200 tests pass (13 skipped); the final full run passed 593/593 files, and the strengthened public-command test passed 26/26 afterward.
+**Test Suite:** ⚠️ Final full suite has not been rerun after the supplemental probe fix. The previous full run passed 10200/10200 tests (13 skipped), and the current targeted command and packet suites pass 64/64.
 **Gherkin:** ✅ Acceptance lane passes (596 scenarios, 11118 steps); proof lane passes (47 tests).
 **Build:** ✅ Success
 **Lint:** ✅ Clean
@@ -15,6 +15,6 @@
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ⚠️ 1 friction point — a builder without a committed Git tree sees a generic attribute-resolution error. Walked a builder through a review containing authored input and generated runtime output; worst step = diagnosing that Git error; new steps vs before = 0.
 **Surface Evidence:** ✅ 1/1 affected CLI surface has recorded public-command proof. Claude Code and Codex host-specific flows are explicitly skipped in the spec because they invoke the same CLI contract.
-**Evidence limits:** ⚠️ Most scenario ledger rows remain unchecked. The intermediate-symlink historical GREEN cited a smaller fixture without a Git-call probe; a later passing test adds the oversized file and probe, but the historical checkbox is immutable under Safeword's edit guard.
+**Evidence limits:** ⚠️ Most scenario ledger rows remain unchecked. The intermediate-symlink historical GREEN cited a smaller fixture without a Git-call probe. A separate current public-command test now includes an oversized fixture and a discriminating Git-call probe, approved by independent review `1055cc2d-fddd-47cb-b473-8fe2dcaf7316`; the historical checkbox remains unchanged. No trusted executable-RED receipt exists for the first unchecked scenario, and the installed workflow has no retrospective passing-proof mode for already implemented executable scenarios.
 
 Audit passed — diff-scoped architecture/dependency checks, changed-test inspection, configured documentation impact, domain-doc reconciliation, and principle-trace integrity found no new blocking issue.
