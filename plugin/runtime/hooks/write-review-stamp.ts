@@ -59,7 +59,7 @@ Options:
   --model <id>              Record the verified reviewer model
   --author-agent <agent>    Record claude, codex, or opencode as author
   --reviewer-agent <agent>  Record claude, codex, or opencode as reviewer
-  --independence <level>    Record cross-agent, degraded, or none
+  --independence <level>    Record cross-agent, reduced, degraded, or none
   --review-id <id>          Verify and record a coordinator review receipt
   --skip <reason>           Record a deliberate skip instead of a review
   -h, --help                Show this help message
@@ -118,7 +118,7 @@ interface ParsedArguments {
   reviewerModel: string | undefined;
   authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
   reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
-  independence: 'cross-agent' | 'degraded' | 'none' | undefined;
+  independence: 'cross-agent' | 'reduced' | 'degraded' | 'none' | undefined;
   reviewId: string | undefined;
   skipReason: string | undefined;
 }
@@ -150,7 +150,7 @@ function parseArguments(argv: string[]): ParsedArguments {
   let reviewerModel: string | undefined;
   let authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
   let reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
-  let independence: 'cross-agent' | 'degraded' | 'none' | undefined;
+  let independence: 'cross-agent' | 'reduced' | 'degraded' | 'none' | undefined;
   let reviewId: string | undefined;
   let skipReason: string | undefined;
   const seen = new Set<string>();
@@ -188,10 +188,10 @@ function parseArguments(argv: string[]): ParsedArguments {
       if (/\s/.test(value)) fail('--model id must not contain whitespace');
       reviewerModel = value;
     } else if (flag === '--independence') {
-      if (!['cross-agent', 'degraded', 'none'].includes(value)) {
-        fail('--independence must be cross-agent, degraded, or none');
+      if (!['cross-agent', 'reduced', 'degraded', 'none'].includes(value)) {
+        fail('--independence must be cross-agent, reduced, degraded, or none');
       }
-      independence = value as 'cross-agent' | 'degraded' | 'none';
+      independence = value as 'cross-agent' | 'reduced' | 'degraded' | 'none';
     } else if (flag === '--review-id') {
       if (!REVIEW_ID.test(value))
         fail('--review-id must be the review_id the coordinator returned');

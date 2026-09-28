@@ -154,6 +154,7 @@ function verifyProvenance(
 function independentReviewResult(input: {
   readonly cwd: string;
   readonly author: ReviewAuthor;
+  readonly policy: ReviewPolicy;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
@@ -168,7 +169,7 @@ function independentReviewResult(input: {
   readonly alternateModel?: string;
   readonly alternateFailure?: ReviewFailure;
 }): CliResult {
-  return createResult({
+  const result = createResult({
     state: input.output.verdict === 'approve' ? 'healthy' : 'action_required',
     findings: [
       {
@@ -211,6 +212,37 @@ function independentReviewResult(input: {
       reviewer_output: input.output,
     },
   });
+  return withPlanningAuthorCapability(input, result);
+}
+
+function withPlanningAuthorCapability(
+  input: {
+    readonly kind: ReviewKind;
+    readonly author: ReviewAuthor;
+    readonly policy: ReviewPolicy;
+  },
+  result: CliResult,
+): CliResult {
+  if (!isPlanningReview(input.kind) || input.author === 'claude') return result;
+  return {
+    ...result,
+    state: input.policy === 'require' ? 'action_required' : result.state,
+    findings: [
+      {
+        code: 'AUTHOR_CAPABILITY_UNKNOWN',
+        message: 'This host did not provide a verified exact author model for the planning review.',
+        severity: 'warning',
+      },
+      ...result.findings.filter(finding => finding.code !== 'REVIEW_INDEPENDENCE'),
+    ],
+    data: {
+      ...(result.data as Record<string, unknown>),
+      status:
+        input.policy === 'require' ? 'blocked' : (result.data as Record<string, unknown>).status,
+      independence: input.policy === 'require' ? 'none' : 'reduced',
+      capability_failure: 'author_capability_unknown',
+    },
+  };
 }
 
 /** Project validated reviewer feedback into the public result as well as typed metadata. */
@@ -523,6 +555,34 @@ function degradedIndependenceMessage(
   return `This review was not independent: ${agentName(author)} checked its own work${suffix}.${detail}`;
 }
 
+function isPlanningReview(kind: ReviewKind): boolean {
+  return ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind);
+}
+
+function fallbackIndependence(kind: ReviewKind): 'reduced' | 'degraded' {
+  return isPlanningReview(kind) ? 'reduced' : 'degraded';
+}
+
+function rankedFallbackFinding(
+  kind: ReviewKind,
+  author: ReviewAgent,
+  reviewer: ReviewAgent,
+  evidence: readonly RankedRouteEvidence[],
+): Finding {
+  if (isPlanningReview(kind)) {
+    return {
+      code: 'REVIEW_INDEPENDENCE_REDUCED',
+      message: `Independent reviewer routes were exhausted; ${agentName(reviewer)} reviewed this plan in a separate headless process with reduced independence.`,
+      severity: 'warning',
+    };
+  }
+  return {
+    code: 'REVIEW_INDEPENDENCE_DEGRADED',
+    message: degradedIndependenceMessage(author, evidence),
+    severity: 'warning',
+  };
+}
+
 function rankedFailureExplanation(evidence: readonly RankedRouteEvidence[]): string {
   return evidence
     .filter(
@@ -552,11 +612,12 @@ function rankedExhaustedResult(input: {
     return createResult({
       state: input.degraded.output.verdict === 'approve' ? 'healthy' : 'action_required',
       findings: [
-        {
-          code: 'REVIEW_INDEPENDENCE_DEGRADED',
-          message: degradedIndependenceMessage(input.author, input.evidence),
-          severity: 'warning',
-        },
+        rankedFallbackFinding(
+          input.kind,
+          input.author,
+          input.degraded.route.reviewer,
+          input.evidence,
+        ),
         ...reviewerFeedback(input.degraded.output),
       ],
       effects: { network: rankedNetworkEffects(input.evidence) },
@@ -569,7 +630,7 @@ function rankedExhaustedResult(input: {
         ...(input.degraded.route.model !== undefined && {
           reviewer_model: input.degraded.route.model,
         }),
-        independence: 'degraded',
+        independence: fallbackIndependence(input.kind),
         review_routes: input.evidence,
         reviewer_output: input.degraded.output,
       },
@@ -580,6 +641,7 @@ function rankedExhaustedResult(input: {
     ['attempted', 'unavailable'].includes(route.status),
   );
   const hasDegraded = input.degraded !== undefined;
+  const achievedIndependence = hasDegraded ? fallbackIndependence(input.kind) : 'none';
   const evaluatedLabel = evaluated.length === 1 ? 'route was' : 'routes were';
   const code = hasDegraded ? 'REVIEW_INDEPENDENCE_REQUIRED' : 'REVIEW_ROUTES_EXHAUSTED';
   const failureExplanation = rankedFailureExplanation(input.evidence);
@@ -614,7 +676,7 @@ function rankedExhaustedResult(input: {
       status: 'blocked',
       author_agent: input.author,
       review_policy: input.policy,
-      independence: hasDegraded ? 'degraded' : 'none',
+      independence: achievedIndependence,
       review_routes: input.evidence,
       ...(input.degraded !== undefined && {
         assigned_reviewer: input.degraded.route.reviewer,
@@ -780,19 +842,44 @@ async function runRankedRoutes(
   policy: ReviewPolicy,
   routes: readonly ReviewRoute[],
 ): Promise<CliResult> {
+  if (isPlanningReview(input.kind) && routes.every(route => route.independence !== 'cross-agent')) {
+    return rankedExhaustedResult({
+      author,
+      policy,
+      kind: input.kind,
+      targets: input.targets,
+      context: input.context,
+      evidence: routes.map(route => ({ ...route, status: 'unattempted' })),
+    });
+  }
+  return runConfiguredRankedRoutes(input, author, policy, routes);
+}
+
+async function runConfiguredRankedRoutes(
+  input: ReviewRunInput,
+  author: ReviewAgent,
+  policy: ReviewPolicy,
+  routes: readonly ReviewRoute[],
+): Promise<CliResult> {
   const evidence: RankedRouteEvidence[] = [];
   const unavailable = new Set<ReviewAgent>();
   let degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
   const runDeadline = Date.now() + runBoundMs();
+  const orderedRoutes = orderedReviewRoutes(input.kind, routes);
 
-  for (const [index, route] of routes.entries()) {
+  for (const [index, route] of orderedRoutes.entries()) {
     if (shouldSkipRankedRoute(route, degraded, unavailable)) {
       evidence.push({ ...route, status: 'skipped' });
       continue;
     }
-    if (!canFundRoute(runDeadline)) {
+    if (
+      !canFundRoute(runDeadline) ||
+      planningFallbackLacksIndependentAttempt(input.kind, route, evidence)
+    ) {
       evidence.push(
-        ...routes.slice(index).map(remaining => ({ ...remaining, status: 'unattempted' as const })),
+        ...orderedRoutes
+          .slice(index)
+          .map(remaining => ({ ...remaining, status: 'unattempted' as const })),
       );
       break;
     }
@@ -819,7 +906,7 @@ async function runRankedRoutes(
         author,
         policy,
         route,
-        remainingRoutes: routes.slice(index + 1),
+        remainingRoutes: orderedRoutes.slice(index + 1),
         failure: assessment,
         evidence,
         unavailable,
@@ -834,6 +921,7 @@ async function runRankedRoutes(
       const result = independentReviewResult({
         cwd: input.cwd,
         author,
+        policy,
         kind: input.kind,
         targets: input.targets,
         context: input.context,
@@ -859,6 +947,31 @@ async function runRankedRoutes(
     evidence,
     degraded,
   });
+}
+
+function orderedReviewRoutes(
+  kind: ReviewKind,
+  routes: readonly ReviewRoute[],
+): readonly ReviewRoute[] {
+  if (!isPlanningReview(kind)) return routes;
+  return [
+    ...routes.filter(route => route.independence === 'cross-agent'),
+    ...routes.filter(route => route.independence === 'degraded'),
+  ];
+}
+
+function planningFallbackLacksIndependentAttempt(
+  kind: ReviewKind,
+  route: ReviewRoute,
+  evidence: readonly RankedRouteEvidence[],
+): boolean {
+  return (
+    isPlanningReview(kind) &&
+    route.independence === 'degraded' &&
+    evidence.every(
+      candidate => candidate.independence !== 'cross-agent' || candidate.status !== 'attempted',
+    )
+  );
 }
 
 function shouldSkipRankedRoute(
@@ -1185,6 +1298,27 @@ function degradedFallbackNetworkEffects(
   });
 }
 
+function fallbackAssurance(kind: ReviewKind, reviewer: ReviewAgent, input: DegradedReviewInput) {
+  if (isPlanningReview(kind)) {
+    return {
+      independence: 'reduced',
+      finding: {
+        code: 'REVIEW_INDEPENDENCE_REDUCED',
+        message: `Independent reviewer routes were exhausted; ${agentName(reviewer)} reviewed this plan in a separate headless process with reduced independence.`,
+        severity: 'warning',
+      },
+    } as const;
+  }
+  return {
+    independence: 'degraded',
+    finding: {
+      code: 'REVIEW_INDEPENDENCE_DEGRADED',
+      message: degradedDescription(input.assignedReviewer, reviewer, input.preferredFailure),
+      severity: 'warning',
+    },
+  } as const;
+}
+
 async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResult> {
   const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
@@ -1249,6 +1383,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
     });
   }
   const completedOutput = assessment.output;
+  const assurance = fallbackAssurance(input.kind, completedOutput.reviewer_agent, input);
 
   if (input.policy === 'require') {
     return createResult({
@@ -1279,7 +1414,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
         actual_reviewer: completedOutput.reviewer_agent,
         ...routeFailureData(input),
         review_policy: input.policy,
-        independence: 'degraded',
+        independence: assurance.independence,
         reviewer_output: completedOutput,
       },
     });
@@ -1287,18 +1422,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
 
   return createResult({
     state: completedOutput.verdict === 'approve' ? 'healthy' : 'action_required',
-    findings: [
-      {
-        code: 'REVIEW_INDEPENDENCE_DEGRADED',
-        message: degradedDescription(
-          input.assignedReviewer,
-          completedOutput.reviewer_agent,
-          input.preferredFailure,
-        ),
-        severity: 'warning',
-      },
-      ...reviewerFeedback(completedOutput),
-    ],
+    findings: [assurance.finding, ...reviewerFeedback(completedOutput)],
     effects: {
       network: degradedFallbackNetworkEffects(input, { kind: 'completed' }),
     },
@@ -1309,7 +1433,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
       assigned_reviewer: input.assignedReviewer,
       actual_reviewer: completedOutput.reviewer_agent,
       ...routeFailureData(input),
-      independence: 'degraded',
+      independence: assurance.independence,
       reviewer_output: completedOutput,
     },
   });
@@ -1386,6 +1510,7 @@ async function runAlternateModelRoute(
   const result = independentReviewResult({
     cwd: input.cwd,
     author: input.author,
+    policy: input.policy,
     kind: input.kind,
     targets: input.targets,
     context: input.context,
@@ -1409,6 +1534,7 @@ async function runIndependentFallback(
     readonly preferredFailure: ReviewFailure;
     readonly alternateFailure?: ReviewFailure;
     readonly alternateModel?: string;
+    readonly policy: ReviewPolicy;
     readonly runDeadline: number;
   },
 ): Promise<
@@ -1433,7 +1559,7 @@ async function runIndependentFallback(
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.reviewer,
-    policy: readReviewPolicy(input.cwd),
+    policy: input.policy,
     kind: input.kind,
     targets: input.targets,
     context: input.context,
@@ -1460,6 +1586,7 @@ async function runIndependentFallback(
     result: independentReviewResult({
       cwd: input.cwd,
       author: input.author,
+      policy: input.policy,
       kind: input.kind,
       targets: input.targets,
       context: input.context,
@@ -1819,6 +1946,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   return independentReviewResult({
     cwd: input.cwd,
     author: routes.author,
+    policy,
     kind: input.kind,
     targets: input.targets,
     context: input.context,

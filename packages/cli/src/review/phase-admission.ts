@@ -7,7 +7,7 @@ import { reviewJobStatus } from './job.js';
 export interface ReviewProvenance {
   readonly authorAgent: string;
   readonly reviewerAgent: string;
-  readonly independence: 'cross-agent' | 'degraded';
+  readonly independence: 'cross-agent' | 'reduced' | 'degraded';
 }
 
 export type PhaseReviewAdmission =
@@ -74,7 +74,7 @@ function isCurrentReceipt(cwd: string, reviewId: string): boolean {
 function assuranceMatches(
   candidate: ReviewCandidate,
   stamp: ReturnType<typeof parseReviewStamps>[number],
-  independence: 'cross-agent' | 'degraded',
+  independence: 'cross-agent' | 'reduced' | 'degraded',
 ): boolean {
   const { data, output } = candidate;
   return [
@@ -94,7 +94,7 @@ function assuranceAdmission(
 ): PhaseReviewAdmission {
   const { data } = candidate;
   const independence = data.independence;
-  if (independence !== 'cross-agent' && independence !== 'degraded') {
+  if (independence !== 'cross-agent' && independence !== 'reduced' && independence !== 'degraded') {
     return {
       kind: 'unearned_assurance',
       message: `The ${label} review has no validated achieved independence.`,

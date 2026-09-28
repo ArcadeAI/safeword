@@ -26,7 +26,7 @@ export interface ReviewStamp {
   /** Actual reviewer runtime recorded from the validated coordinator result. */
   reviewer?: 'claude' | 'codex' | 'opencode';
   /** Independence earned by the validated route. */
-  independence?: 'cross-agent' | 'degraded' | 'none';
+  independence?: 'cross-agent' | 'reduced' | 'degraded' | 'none';
   /**
    * The coordinator review this stamp cites (ticket PB1GMZ). Recorded so the
    * claim stays checkable after the fact: `review status <id>` still reports
@@ -55,7 +55,7 @@ export function reviewScope(ticketId: string, artifact: string, contentHash: str
 export type GateVerdict = { ok: true } | { ok: false; reason: string };
 
 /** Levels that assert a coordinator ran and returned a verdict. */
-const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
+const COORDINATOR_CLAIMS = new Set(['cross-agent', 'reduced', 'degraded']);
 
 /** A stamp satisfies a gate when it's a real review, or a skip with a non-empty reason. */
 function isSatisfyingStamp(stamp: ReviewStamp, policy: CrossAgentReviewPolicy = 'prefer'): boolean {
@@ -177,7 +177,7 @@ export function gatePhaseAdvance(
 // fork review). The content-hash binding in <scope> at least defeats accidental
 // stale-after-edit passes, not deliberate spoofing.
 const REVIEW_LINE =
-  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
+  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|reduced|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
 
 /**
  * Tier 1 (the per-asset inline stamp) is OFF unless `.safeword/config.json` sets
