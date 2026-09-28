@@ -7,7 +7,14 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -174,6 +181,27 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     );
   }
 
+  function commitFeature(): void {
+    expect(spawnSync('git', ['-C', projectRoot, 'add', 'packages/cli/src/feature.ts']).status).toBe(
+      0,
+    );
+    expect(
+      spawnSync('git', [
+        '-C',
+        projectRoot,
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Safeword Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'feature work',
+      ]).status,
+    ).toBe(0);
+  }
+
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'phase-gate-'));
     pluginRoot = mkdtempSync(nodePath.join(tmpdir(), 'phase-gate-cli-'));
@@ -241,6 +269,183 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
   it('allows the advance once a phase-exit stamp exists', () => {
     stampVerifiedPhase('define-behavior');
     expectHookAllow(runGateWrite('scenario-gate'));
+  });
+
+  it.each(['local', 'remote'] as const)(
+    'accepts an implement review when the %s default ref is closer to HEAD',
+    closerReference => {
+      const baseline = spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).stdout.trim();
+      const historicalFile = nodePath.join(projectRoot, 'historical.txt');
+      writeFileSync(historicalFile, 'unrelated history\n');
+      expect(spawnSync('git', ['-C', projectRoot, 'add', 'historical.txt']).status).toBe(0);
+      expect(
+        spawnSync('git', [
+          '-C',
+          projectRoot,
+          '-c',
+          'commit.gpgsign=false',
+          '-c',
+          'user.name=Safeword Test',
+          '-c',
+          'user.email=test@example.com',
+          'commit',
+          '-m',
+          'unrelated history',
+        ]).status,
+      ).toBe(0);
+      const newer = spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).stdout.trim();
+      expect(spawnSync('git', ['-C', projectRoot, 'checkout', '-b', 'feature/review']).status).toBe(
+        0,
+      );
+      if (closerReference === 'remote') {
+        expect(
+          spawnSync('git', ['-C', projectRoot, 'update-ref', 'refs/heads/main', baseline]).status,
+        ).toBe(0);
+        expect(
+          spawnSync('git', ['-C', projectRoot, 'update-ref', 'refs/remotes/origin/main', newer])
+            .status,
+        ).toBe(0);
+      } else {
+        expect(
+          spawnSync('git', ['-C', projectRoot, 'update-ref', 'refs/remotes/origin/main', baseline])
+            .status,
+        ).toBe(0);
+      }
+      expect(
+        spawnSync('git', [
+          '-C',
+          projectRoot,
+          'symbolic-ref',
+          'refs/remotes/origin/HEAD',
+          'refs/remotes/origin/main',
+        ]).status,
+      ).toBe(0);
+      writeFileSync(
+        nodePath.join(projectRoot, 'packages/cli/src/feature.ts'),
+        'export const value = 3;\n',
+      );
+      commitFeature();
+      writeFileSync(ticketFile, ticketBody('implement'));
+
+      stampVerifiedPhase('implement');
+      expectHookAllow(runGateEdit('implement', 'verify'));
+    },
+  );
+
+  it('keeps an incomplete implement review blocked when default refs diverge', () => {
+    const baseline = spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).stdout.trim();
+    writeFileSync(nodePath.join(projectRoot, 'historical.txt'), 'local default history\n');
+    expect(spawnSync('git', ['-C', projectRoot, 'add', 'historical.txt']).status).toBe(0);
+    expect(
+      spawnSync('git', [
+        '-C',
+        projectRoot,
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Safeword Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'local default history',
+      ]).status,
+    ).toBe(0);
+    expect(spawnSync('git', ['-C', projectRoot, 'checkout', '-b', 'feature/review']).status).toBe(
+      0,
+    );
+    expect(
+      spawnSync('git', ['-C', projectRoot, 'checkout', '-b', 'remote-snapshot', baseline]).status,
+    ).toBe(0);
+    writeFileSync(nodePath.join(projectRoot, 'remote.txt'), 'remote default history\n');
+    expect(spawnSync('git', ['-C', projectRoot, 'add', 'remote.txt']).status).toBe(0);
+    expect(
+      spawnSync('git', [
+        '-C',
+        projectRoot,
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Safeword Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'remote default history',
+      ]).status,
+    ).toBe(0);
+    expect(
+      spawnSync('git', ['-C', projectRoot, 'update-ref', 'refs/remotes/origin/main', 'HEAD'])
+        .status,
+    ).toBe(0);
+    expect(
+      spawnSync('git', [
+        '-C',
+        projectRoot,
+        'symbolic-ref',
+        'refs/remotes/origin/HEAD',
+        'refs/remotes/origin/main',
+      ]).status,
+    ).toBe(0);
+    expect(spawnSync('git', ['-C', projectRoot, 'checkout', 'feature/review']).status).toBe(0);
+    writeFileSync(
+      nodePath.join(projectRoot, 'packages/cli/src/feature.ts'),
+      'export const value = 3;\n',
+    );
+    commitFeature();
+    writeFileSync(ticketFile, ticketBody('implement'));
+
+    stampVerifiedPhase('implement');
+    const responsePath = nodePath.join(
+      pluginRoot,
+      'response-b3f1c2d4-0000-4000-8000-000000000003.json',
+    );
+    const response = JSON.parse(readFileSync(responsePath, 'utf8')) as {
+      data: { review_targets: string[] };
+    };
+    response.data.review_targets = ['.safeword/config.json'];
+    writeFileSync(responsePath, JSON.stringify(response));
+
+    expectHookDeny(runGateEdit('implement', 'verify'), 'no independent review stamp');
+  });
+
+  it('does not accept an empty implementation claim after main reaches the feature commit', () => {
+    expect(spawnSync('git', ['-C', projectRoot, 'checkout', '-b', 'feature/review']).status).toBe(
+      0,
+    );
+    writeFileSync(
+      nodePath.join(projectRoot, 'packages/cli/src/feature.ts'),
+      'export const value = 3;\n',
+    );
+    writeFileSync(ticketFile, ticketBody('implement'));
+    expect(spawnSync('git', ['-C', projectRoot, 'add', '.']).status).toBe(0);
+    expect(
+      spawnSync('git', [
+        '-C',
+        projectRoot,
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Safeword Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'feature work',
+      ]).status,
+    ).toBe(0);
+    stampVerifiedPhase('implement');
+    expect(
+      spawnSync('git', ['-C', projectRoot, 'update-ref', 'refs/heads/main', 'HEAD']).status,
+    ).toBe(0);
+
+    expectHookDeny(runGateEdit('implement', 'verify'), 'no independent review stamp');
   });
 
   it('allows phase advancement with ABSENT demand after the required review', () => {
