@@ -33,6 +33,8 @@ import type {
 import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 } from './execution-plan-rubric.generated.js';
+import { PLAN_REVIEW_RUBRIC_SHA256 } from './plan-rubric.generated.js';
+import { PRODUCT_PLAN_REVIEW_RUBRIC_SHA256 } from './product-plan-rubric.generated.js';
 import { reviewerPromptInstructions } from './review-rubric.js';
 
 export {
@@ -653,14 +655,14 @@ function reviewPrompt(reviewer: ReviewAgent, packet: ReviewPacket): string {
   return `${reviewerPromptInstructions(packet.kind, reviewer, packet.planning_phase)}\n${JSON.stringify(packet)}`;
 }
 
-function executionPlanIdentityConflicts(contract: PlanContractPair): string[] {
-  const authorIsCanonical = contract.author.sha256 === EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
+function planningIdentityConflicts(contract: PlanContractPair, canonicalDigest: string): string[] {
+  const authorIsCanonical = contract.author.sha256 === canonicalDigest;
   if (!authorIsCanonical && contract.author.sha256 === contract.reviewer.sha256) {
     return [
       'Matching author and reviewer copies differ from the packaged canonical contract-byte identity.',
     ];
   }
-  const reviewerIsCanonical = contract.reviewer.sha256 === EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
+  const reviewerIsCanonical = contract.reviewer.sha256 === canonicalDigest;
   return [
     ...(authorIsCanonical
       ? []
@@ -675,21 +677,25 @@ function executionPlanIdentityConflicts(contract: PlanContractPair): string[] {
   ];
 }
 
+function canonicalPlanningDigest(packet: ReviewPacket): string | undefined {
+  if (packet.planning_phase === 'product-plan') return PRODUCT_PLAN_REVIEW_RUBRIC_SHA256;
+  if (packet.kind === 'plan-implementation') return PLAN_REVIEW_RUBRIC_SHA256;
+  if (packet.kind === 'plan-execution') return EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
+  return undefined;
+}
+
 export function reconcilePlanContract(
   packet: ReviewPacket,
   output: UnverifiedReviewerOutput,
 ): UnverifiedReviewerOutput {
   const contract = packet.plan_contract;
-  if (
-    (packet.kind !== 'plan-implementation' && packet.kind !== 'plan-execution') ||
-    contract === undefined
-  )
-    return output;
+  if (contract === undefined) return output;
+  const canonicalDigest = canonicalPlanningDigest(packet);
+  if (canonicalDigest === undefined) return output;
 
   const author = new Set(contract.author.obligations);
   const reviewer = new Set(contract.reviewer.obligations);
-  const conflicts =
-    packet.kind === 'plan-execution' ? executionPlanIdentityConflicts(contract) : [];
+  const conflicts = planningIdentityConflicts(contract, canonicalDigest);
   conflicts.push(
     ...[...author]
       .filter(obligation => !reviewer.has(obligation))

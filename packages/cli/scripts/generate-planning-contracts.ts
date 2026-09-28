@@ -20,7 +20,7 @@ const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const authors = [
   { file: 'PLAN_IMPLEMENTATION.md', anchor: '<!-- SAFEWORD:PLAN_RUBRIC_START -->' },
   { file: 'PLAN_EXECUTION.md', anchor: '<!-- SAFEWORD:EXECUTION_PLAN_RUBRIC_START -->' },
-  { file: 'DISCOVERY.md', anchor: '## Scope and gates' },
+  { file: 'DISCOVERY.md', anchor: '<!-- SAFEWORD:PRODUCT_PLAN_RUBRIC_START -->' },
 ] as const;
 
 const generateProductReviewer = defineGeneratedRubric({
