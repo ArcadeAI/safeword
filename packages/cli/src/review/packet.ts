@@ -497,16 +497,16 @@ function prepareReviewPacketUnsafe(
             );
           }
           const stats = lstatSync(source);
-          if (!stats.isFile()) {
-            throw new ReviewPacketError(
-              `Review target is not a regular file: ${target}`,
-              'REVIEW_TARGET_NOT_REGULAR',
-            );
-          }
           if (escapes(canonicalRoot, realpathSync(source))) {
             throw new ReviewPacketError(
               `Review target escapes the project: ${target}`,
               'REVIEW_TARGET_OUTSIDE_PROJECT',
+            );
+          }
+          if (!stats.isFile()) {
+            throw new ReviewPacketError(
+              `Review target is not a regular file: ${target}`,
+              'REVIEW_TARGET_NOT_REGULAR',
             );
           }
           if (stats.size > MAX_FILE_BYTES) {
