@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  linkSync,
   mkdirSync,
   mkdtempSync,
   renameSync,
@@ -189,6 +190,23 @@ describe('review packet containment and change accounting', () => {
 
     unlinkSync(source);
     symlinkSync(replacement, source);
+
+    expect(prepared.sourceChanged()).toBe(true);
+    prepared.cleanup();
+  });
+
+  it('detects a parent symlink escape even when it reaches the same file through a hard link', () => {
+    const project = temporaryDirectory();
+    const outside = temporaryDirectory();
+    const directory = nodePath.join(project, 'inside');
+    mkdirSync(directory);
+    const source = nodePath.join(directory, 'input.md');
+    writeFileSync(source, 'same bytes\n');
+    linkSync(source, nodePath.join(outside, 'input.md'));
+    const prepared = prepareReviewPacket(project, 'quality-review', ['inside/input.md']);
+
+    renameSync(directory, nodePath.join(project, 'moved'));
+    symlinkSync(outside, directory);
 
     expect(prepared.sourceChanged()).toBe(true);
     prepared.cleanup();

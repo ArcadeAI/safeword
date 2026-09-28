@@ -283,18 +283,28 @@ function readBounded(descriptor: number, maxBytes: number): Buffer | undefined {
   return undefined;
 }
 
-function sourceFileChanged(file: CapturedFile): boolean {
+function sourceFileChanged(root: string, file: CapturedFile): boolean {
   let descriptor: number | undefined;
   try {
     descriptor = openSync(file.source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
     const current = fstatSync(descriptor);
     if (!current.isFile() || current.dev !== file.device || current.ino !== file.inode) return true;
+    if (escapes(root, realpathSync(file.source))) return true;
     const bytes = readBounded(descriptor, MAX_FILE_BYTES);
     return bytes === undefined || digest(bytes) !== file.sha256;
   } catch {
     return true;
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+function requireStableSources(root: string, files: readonly CapturedFile[]): void {
+  if (files.some(file => sourceFileChanged(root, file))) {
+    throw new ReviewPacketError(
+      'Review target changed after packet capture',
+      'REVIEW_TARGET_CHANGED',
+    );
   }
 }
 
@@ -501,6 +511,7 @@ function prepareReviewPacketUnsafe(
     for (const target of context) rejectDuplicate(target);
     logicalFiles = captureFiles(uniqueTargets, true);
     contextFiles = captureFiles(context, false);
+    requireStableSources(canonicalRoot, tracked);
     const marked = generatedTargets(canonicalRoot, oversized);
     for (const file of oversized) {
       if (oversizedChanged(canonicalRoot, file)) {
@@ -517,6 +528,7 @@ function prepareReviewPacketUnsafe(
       }
       excludedTargets.push(file.relative);
     }
+    requireStableSources(canonicalRoot, tracked);
     if (logicalFiles.length === 0) {
       throw new ReviewPacketError(
         'Review has no eligible targets after generated outputs are excluded',
@@ -550,7 +562,7 @@ function prepareReviewPacketUnsafe(
     sourceRoot: canonicalRoot,
     workspace,
     sourceChanged: () =>
-      tracked.some(file => sourceFileChanged(file)) ||
+      tracked.some(file => sourceFileChanged(canonicalRoot, file)) ||
       oversized.some(file => oversizedChanged(canonicalRoot, file)),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
