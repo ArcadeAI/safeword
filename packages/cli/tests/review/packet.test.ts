@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
@@ -214,9 +215,37 @@ describe('review packet containment and change accounting', () => {
     expect(prepared.snapshotChanged()).toBe(true);
   });
 
-  it('rejects an individual target that is too large for a bounded review', () => {
+  it('refuses an oversized target when the project has no committed generated marker source', () => {
     const project = temporaryDirectory();
     writeFileSync(nodePath.join(project, 'large.md'), 'x'.repeat(256 * 1024 + 1));
+
+    expect(() => prepareReviewPacket(project, 'quality-review', ['large.md'])).toThrow(
+      'Git attributes could not be resolved',
+    );
+  });
+
+  it('retains the size limit for an oversized target without a committed generated marker', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, '.gitattributes'), 'other/** linguist-generated=true\n');
+    writeFileSync(nodePath.join(project, 'large.md'), 'x'.repeat(256 * 1024 + 1));
+    for (const args of [
+      ['init', '-q'],
+      ['add', '.gitattributes'],
+      [
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-qm',
+        'fixture',
+      ],
+    ]) {
+      const result = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
+      expect(result.status, result.stderr).toBe(0);
+    }
 
     expect(() => prepareReviewPacket(project, 'quality-review', ['large.md'])).toThrow(
       '262144-byte limit',

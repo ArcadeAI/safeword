@@ -34,7 +34,8 @@ fi
 payload=$(cat)
 printf '%s' "$payload" > "$SAFEWORD_REVIEW_PROMPT_LOG"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^" ]*\)".*/\1/p')
-printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text":"{\"schema_version\":1,\"dispatch_id\":\"%s\",\"reviewer_agent\":\"codex\",\"verdict\":\"approve\",\"summary\":\"reviewed\",\"findings\":[]}"}}\n' "$dispatch_id"
+escaped=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"codex","verdict":"approve","summary":"reviewed","findings":[]}' "$dispatch_id" | sed 's/"/\\"/g')
+printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text":"%s"}}\n' "$escaped"
 `,
     { mode: 0o755 },
   );

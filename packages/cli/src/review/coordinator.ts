@@ -22,6 +22,7 @@ import {
   reviewRoutePlan,
 } from './policy.js';
 import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
+import { withReviewScope } from './scope.js';
 
 /** The command runner owns reporter shutdown; review routing only updates it. */
 type ReviewProgress = Pick<ProgressReporter, 'start' | 'heartbeat'>;
@@ -1623,7 +1624,7 @@ function runAfterPrimaryFailure(
   });
 }
 
-export async function runReview(input: ReviewRunInput): Promise<CliResult> {
+async function runReviewCore(input: ReviewRunInput): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
   if (policy === 'off') {
@@ -1735,4 +1736,14 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     preferredModel,
     preferredModelFailure,
   });
+}
+
+export async function runReview(input: ReviewRunInput): Promise<CliResult> {
+  const { result, scope } = await withReviewScope(() => runReviewCore(input));
+  if (scope.excludedTargets === undefined) return result;
+  const data = result.data as Record<string, unknown> | undefined;
+  return {
+    ...result,
+    data: { ...data, excluded_targets: scope.excludedTargets },
+  };
 }

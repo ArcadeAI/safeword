@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
@@ -17,6 +18,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import type { RedExecutionAttestation, ReviewKind, ReviewPacket } from './contract.js';
+import { recordFinalizedScope } from './scope.js';
 
 const MAX_FILE_COUNT = 64;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -32,6 +34,7 @@ const HIGH_CONFIDENCE_SECRET_PATTERNS = [
 
 export interface PreparedReviewPacket {
   readonly packet: ReviewPacket;
+  readonly excludedTargets: readonly string[];
   readonly sourceRoot: string;
   readonly workspace: string;
   readonly sourceChanged: () => boolean;
@@ -49,6 +52,119 @@ interface CapturedFile {
   readonly sha256: string;
   readonly device: number;
   readonly inode: number;
+}
+
+interface OversizedFile {
+  readonly source: string;
+  readonly relative: string;
+  readonly device: number;
+  readonly inode: number;
+  readonly size: number;
+}
+
+function gitEnvironment(alternateObjects?: string): NodeJS.ProcessEnv {
+  return {
+    PATH: process.env.PATH,
+    ...(process.platform === 'win32' && { SystemRoot: process.env.SystemRoot }),
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_ATTR_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    ...(alternateObjects !== undefined && { GIT_ALTERNATE_OBJECT_DIRECTORIES: alternateObjects }),
+  };
+}
+
+function gitOutput(args: readonly string[], env: NodeJS.ProcessEnv): Buffer {
+  const result = spawnSync('git', [...args], {
+    env,
+    encoding: 'buffer',
+    timeout: 5000,
+    maxBuffer: 256 * 1024,
+  });
+  if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+    throw new ReviewPacketError(
+      'Git attributes could not be resolved for an oversized review target',
+    );
+  }
+  return result.stdout;
+}
+
+// The Git process and its exact binary response are one fail-closed trust boundary.
+// eslint-disable-next-line complexity -- Each process and tuple check rejects unsafe classification.
+function generatedTargets(root: string, files: readonly OversizedFile[]): Set<string> {
+  if (files.length === 0) return new Set();
+  const env = gitEnvironment();
+  const commit = gitOutput(['-C', root, 'rev-parse', '--verify', 'HEAD^{commit}'], env)
+    .toString('utf8')
+    .trim();
+  if (!/^[0-9a-f]{40,64}$/u.test(commit)) {
+    throw new ReviewPacketError(
+      'Git attributes could not be resolved for an oversized review target',
+    );
+  }
+  const objectsPath = gitOutput(['-C', root, 'rev-parse', '--git-path', 'objects'], env)
+    .toString('utf8')
+    .trim();
+  const objects = realpathSync(nodePath.resolve(root, objectsPath));
+  const bare = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-git-'));
+  try {
+    gitOutput(['init', '--bare', '-q', bare], env);
+    const result = spawnSync(
+      'git',
+      [
+        '--git-dir',
+        bare,
+        '-c',
+        `core.attributesFile=${process.platform === 'win32' ? 'NUL' : '/dev/null'}`,
+        'check-attr',
+        `--source=${commit}`,
+        '-z',
+        '--stdin',
+        'linguist-generated',
+      ],
+      {
+        env: gitEnvironment(objects),
+        input: Buffer.from(`${files.map(file => file.relative).join('\0')}\0`),
+        encoding: 'buffer',
+        timeout: 5000,
+        maxBuffer: 256 * 1024,
+      },
+    );
+    if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+      throw new ReviewPacketError(
+        'Git attributes could not be resolved for an oversized review target',
+      );
+    }
+    const fields = result.stdout.toString('utf8').split('\0');
+    if (fields.pop() !== '' || fields.length !== files.length * 3) {
+      throw new ReviewPacketError('Git attributes returned an invalid response');
+    }
+    const marked = new Set<string>();
+    for (const [index, file] of files.entries()) {
+      const offset = index * 3;
+      if (fields[offset] !== file.relative || fields[offset + 1] !== 'linguist-generated') {
+        throw new ReviewPacketError('Git attributes returned an invalid response');
+      }
+      if (fields[offset + 2] === 'true') marked.add(file.relative);
+    }
+    return marked;
+  } finally {
+    rmSync(bare, { recursive: true, force: true });
+  }
+}
+
+function oversizedChanged(root: string, file: OversizedFile): boolean {
+  try {
+    const observed = lstatSync(file.source);
+    return (
+      !observed.isFile() ||
+      observed.dev !== file.device ||
+      observed.ino !== file.inode ||
+      observed.size !== file.size ||
+      escapes(root, realpathSync(file.source))
+    );
+  } catch {
+    return true;
+  }
 }
 
 function requireScenarioTicketSpec(
@@ -211,6 +327,8 @@ function snapshotEntries(root: string, directory = root): string[] {
   });
 }
 
+// Keep validation, generated classification, and packet capture in one atomic preflight.
+// eslint-disable-next-line complexity -- A partial packet must never escape this boundary.
 function prepareReviewPacketUnsafe(
   cwd: string,
   kind: ReviewKind,
@@ -225,13 +343,18 @@ function prepareReviewPacketUnsafe(
   const canonicalRoot = realpathSync(cwd);
   const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
   const tracked: CapturedFile[] = [];
+  const oversized: OversizedFile[] = [];
+  const excludedTargets: string[] = [];
   const expectedSnapshotEntries = new Set<string>();
   let logicalFiles: { path: string; content: string }[];
   let contextFiles: { path: string; content: string }[];
   try {
     let packetBytes = 0;
-    const captureFiles = (files: readonly string[]): { path: string; content: string }[] =>
-      files.map(target => {
+    const captureFiles = (
+      files: readonly string[],
+      allowGenerated: boolean,
+    ): { path: string; content: string }[] =>
+      files.flatMap(target => {
         const source = nodePath.resolve(canonicalRoot, target);
         const relative = nodePath.relative(canonicalRoot, source);
         if (escapes(canonicalRoot, source)) {
@@ -240,6 +363,22 @@ function prepareReviewPacketUnsafe(
         const stats = lstatSync(source);
         if (!stats.isFile()) {
           throw new Error(`Review target is not a regular file: ${target}`);
+        }
+        if (escapes(canonicalRoot, realpathSync(source))) {
+          throw new Error(`Review target escapes the project: ${target}`);
+        }
+        if (stats.size > MAX_FILE_BYTES) {
+          if (!allowGenerated) {
+            throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+          }
+          oversized.push({
+            source,
+            relative,
+            device: stats.dev,
+            inode: stats.ino,
+            size: stats.size,
+          });
+          return [];
         }
         // A hard link inside the project is intentionally treated as a regular
         // in-project file; containment is path-based, and its bytes are copied.
@@ -267,7 +406,7 @@ function prepareReviewPacketUnsafe(
         }
         expectedSnapshotEntries.add(`file:${relative}`);
         tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
-        return { path: relative, content };
+        return [{ path: relative, content }];
       });
     const seen = new Set<string>();
     const rejectDuplicate = (target: string): void => {
@@ -277,10 +416,35 @@ function prepareReviewPacketUnsafe(
       }
       seen.add(relative);
     };
-    for (const target of targets) rejectDuplicate(target);
+    const uniqueTargets: string[] = [];
+    for (const target of targets) {
+      const relative = nodePath.relative(canonicalRoot, nodePath.resolve(canonicalRoot, target));
+      if (seen.has(relative)) continue;
+      rejectDuplicate(target);
+      uniqueTargets.push(target);
+    }
     for (const target of context) rejectDuplicate(target);
-    logicalFiles = captureFiles(targets);
-    contextFiles = captureFiles(context);
+    logicalFiles = captureFiles(uniqueTargets, true);
+    contextFiles = captureFiles(context, false);
+    const marked = generatedTargets(canonicalRoot, oversized);
+    for (const file of oversized) {
+      if (oversizedChanged(canonicalRoot, file)) {
+        throw new ReviewPacketError(
+          `Review target changed while it was being classified: ${file.relative}`,
+        );
+      }
+      if (!marked.has(file.relative)) {
+        throw new ReviewPacketError(
+          `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`,
+        );
+      }
+      excludedTargets.push(file.relative);
+    }
+    if (logicalFiles.length === 0) {
+      throw new ReviewPacketError(
+        'Review has no eligible targets after generated outputs are excluded',
+      );
+    }
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
   } catch (error) {
@@ -301,9 +465,12 @@ function prepareReviewPacketUnsafe(
   }
   return {
     packet,
+    excludedTargets,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some(file => sourceFileChanged(file)),
+    sourceChanged: () =>
+      tracked.some(file => sourceFileChanged(file)) ||
+      oversized.some(file => oversizedChanged(canonicalRoot, file)),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
       try {
@@ -330,7 +497,9 @@ export function prepareReviewPacket(
   execution: ReviewPacketExecution = {},
 ): PreparedReviewPacket {
   try {
-    return prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
+    const prepared = prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
+    recordFinalizedScope(prepared.excludedTargets);
+    return prepared;
   } catch (error) {
     if (error instanceof ReviewPacketError) throw error;
     const message = error instanceof Error ? error.message : '';
