@@ -51714,10 +51714,12 @@ function requiredDownstreamProductContext(cwd, targets, planName) {
   const target = targets[0];
   if (targets.length !== 1 || target === undefined || nodePath51.basename(target) !== planName)
     return [];
-  if (!ownedPlanningTicket(cwd, target))
-    return [];
-  const inherited = requiredProductParentContext(cwd, targets);
   const ticketDirectory = nodePath51.dirname(nodePath51.resolve(cwd, target));
+  if (nodePath51.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd))
+    return [];
+  if (!ownedPlanningTicket(cwd, target))
+    return;
+  const inherited = requiredProductParentContext(cwd, targets);
   const product = requiredPlanningSource(cwd, "project", nodePath51.join(ticketDirectory, "spec.md"));
   const upstream = planName === "execution-plan.md" ? [
     requiredPlanningSource(cwd, "accepted-upstream-plan", nodePath51.join(ticketDirectory, "impl-plan.md"))

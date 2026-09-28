@@ -162,6 +162,31 @@ describe('review packet containment and change accounting', () => {
     }
   });
 
+  it('does not require planning inventories for a ticket without the planning contract', () => {
+    const root = temporaryDirectory();
+    const ticket = nodePath.join(root, '.project', 'tickets', 'LEG123-legacy');
+    mkdirSync(ticket, { recursive: true });
+    writeFileSync(nodePath.join(ticket, 'ticket.md'), '---\nid: LEG123\ntype: task\n---\n');
+    writeFileSync(nodePath.join(ticket, 'impl-plan.md'), '# Implementation Plan\n');
+    writeFileSync(nodePath.join(ticket, 'spec.md'), '# Legacy spec\n');
+    unlinkSync(nodePath.join(root, '.project', 'surfaces.md'));
+
+    const prepared = prepareReviewPacket(
+      root,
+      'plan-implementation',
+      ['.project/tickets/LEG123-legacy/impl-plan.md'],
+      ['.project/tickets/LEG123-legacy/spec.md'],
+    );
+    try {
+      expect(prepared.packet.planning_context).toBeUndefined();
+      expect(prepared.packet.context_files?.map(file => file.path)).toEqual([
+        '.project/tickets/LEG123-legacy/spec.md',
+      ]);
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
   it('rejects supporting evidence supplied as plan-review work', () => {
     const root = temporaryDirectory();
     writeFileSync(nodePath.join(root, 'impl-plan.md'), '# Plan\n');

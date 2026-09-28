@@ -198,13 +198,14 @@ function requiredDownstreamProductContext(
   cwd: string,
   targets: readonly string[],
   planName: 'impl-plan.md' | 'execution-plan.md',
-): string[] {
+): string[] | undefined {
   const target = targets[0];
   if (targets.length !== 1 || target === undefined || nodePath.basename(target) !== planName)
     return [];
-  if (!ownedPlanningTicket(cwd, target)) return [];
-  const inherited = requiredProductParentContext(cwd, targets);
   const ticketDirectory = nodePath.dirname(nodePath.resolve(cwd, target));
+  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd)) return [];
+  if (!ownedPlanningTicket(cwd, target)) return undefined;
+  const inherited = requiredProductParentContext(cwd, targets);
   const product = requiredPlanningSource(cwd, 'project', nodePath.join(ticketDirectory, 'spec.md'));
   const upstream =
     planName === 'execution-plan.md'
