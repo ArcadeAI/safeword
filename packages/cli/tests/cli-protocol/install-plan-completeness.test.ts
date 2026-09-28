@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { codexMarketplaceReplacementOperation } from '../../src/codex-plugin/migration-error.js';
 import { VERSION } from '../../src/version.js';
 import {
   createTemporaryDirectory,
@@ -329,7 +330,7 @@ describe('install plan completeness', () => {
       {
         kind: 'replace',
         target: 'Safeword Codex marketplace',
-        operation: 'stable-channel',
+        operation: codexMarketplaceReplacementOperation(),
       },
     ]);
 
@@ -350,7 +351,7 @@ describe('install plan completeness', () => {
     expect(installEnvelope.effects.destructive).toContainEqual({
       kind: 'replace',
       target: 'Safeword Codex marketplace',
-      operation: 'stable-channel',
+      operation: codexMarketplaceReplacementOperation(),
     });
     for (const category of [
       'files',
@@ -567,7 +568,7 @@ describe('install plan completeness', () => {
     expect(envelope.effects.destructive).toContainEqual({
       kind: 'replace',
       target: 'Safeword Codex marketplace',
-      operation: 'stable-channel',
+      operation: codexMarketplaceReplacementOperation(),
     });
     const plannedConfig = new Set(
       (planEnvelope.data.plan.effects.configuration ?? []).map(effectIdentity),

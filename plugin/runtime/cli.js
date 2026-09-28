@@ -17131,6 +17131,9 @@ var init_migration = __esm(() => {
 });
 
 // src/codex-plugin/migration-error.ts
+function codexMarketplaceReplacementOperation() {
+  return SAFEWORD_SCHEMA.version.includes("-") ? "prerelease-tag" : "stable-channel";
+}
 function marketplaceRestorationFailed(error2) {
   return error2 instanceof CodexMigrationError && error2.code === "PLUGIN_MARKETPLACE_FAILED" && error2.profileChanged;
 }
@@ -17172,12 +17175,13 @@ function codexProfileFailureDestructiveEffects(error2) {
     {
       kind: "replace",
       target: "Safeword Codex marketplace",
-      operation: "stable-channel"
+      operation: codexMarketplaceReplacementOperation()
     }
   ] : [];
 }
 var CodexMigrationError;
 var init_migration_error = __esm(() => {
+  init_schema();
   CodexMigrationError = class CodexMigrationError extends Error {
     code;
     marketplaceReplaced;
@@ -19581,14 +19585,18 @@ function exactVersionReference(ref) {
   const version = ref.startsWith("v") ? ref.slice(1) : ref;
   return isSafePackageVersion(version) ? version : undefined;
 }
-function replaceCodexMarketplaceWithStable(configured) {
+function requiredMarketplaceReference() {
+  return SAFEWORD_SCHEMA.version.includes("-") ? `v${SAFEWORD_SCHEMA.version}` : "stable";
+}
+function replaceCodexMarketplace(configured) {
   const source = configured.source ?? MARKETPLACE_SOURCE;
+  const requiredReference = requiredMarketplaceReference();
   runCodexMarketplace(["remove", "safeword", "--json"], "Could not replace the Safeword marketplace");
   try {
-    runCodexMarketplace(marketplaceAddArguments(MARKETPLACE_SOURCE, "stable"), "Could not enroll the Safeword stable marketplace channel");
+    runCodexMarketplace(marketplaceAddArguments(MARKETPLACE_SOURCE, requiredReference), `Could not enroll the Safeword ${requiredReference} marketplace channel`);
   } catch (error2) {
     try {
-      runCodexMarketplace(marketplaceAddArguments(source, configured.ref ?? "main"), "Could not restore the previous Safeword marketplace after stable enrollment failed");
+      runCodexMarketplace(marketplaceAddArguments(source, configured.ref ?? "main"), "Could not restore the previous Safeword marketplace after enrollment failed");
     } catch (restorationError) {
       const restoreCommand = [
         "codex",
@@ -19596,7 +19604,7 @@ function replaceCodexMarketplaceWithStable(configured) {
         "marketplace",
         ...marketplaceAddArguments(source, configured.ref ?? "main", false)
       ].map((argument) => shellQuote2(argument)).join(" ");
-      throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `Stable marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Stable error: ${String(error2)}. Restore error: ${String(restorationError)}`, { cause: error2, profileChanged: true, recoveryCommand: restoreCommand });
+      throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", `Safeword ${requiredReference} marketplace enrollment failed and the previous Safeword marketplace could not be restored. The profile no longer has that marketplace; restore it with \`${restoreCommand}\`. Enrollment error: ${String(error2)}. Restore error: ${String(restorationError)}`, { cause: error2, profileChanged: true, recoveryCommand: restoreCommand });
     }
     throw error2;
   }
@@ -19608,6 +19616,13 @@ function assertMarketplacePinIsNotNewer(ref, pinnedVersion) {
   }
   throw new CodexMigrationError("PLUGIN_NEWER_PIN_PRESERVED", `Codex is pinned to newer Safeword ${ref}; Safeword left that explicit profile pin unchanged.`);
 }
+function marketplaceNeedsReplacement(ref, pinnedVersion) {
+  if (ref === "main")
+    return true;
+  if (ref === requiredMarketplaceReference())
+    return false;
+  return pinnedVersion !== undefined || requiredMarketplaceReference() !== "stable";
+}
 function refreshOfficialGitMarketplace(marketplace, environment) {
   const source = marketplace.marketplaceSource?.source;
   if (!isOfficialSafewordGitSource(source)) {
@@ -19617,8 +19632,8 @@ function refreshOfficialGitMarketplace(marketplace, environment) {
   const ref = configured?.ref;
   const pinnedVersion = ref === undefined ? undefined : exactVersionReference(ref);
   assertMarketplacePinIsNotNewer(ref, pinnedVersion);
-  if (ref === "main" || pinnedVersion !== undefined) {
-    return replaceCodexMarketplaceWithStable({
+  if (marketplaceNeedsReplacement(ref, pinnedVersion)) {
+    return replaceCodexMarketplace({
       ...configured,
       source: configured?.source ?? source
     });
@@ -19640,7 +19655,7 @@ function refreshOrAddCodexMarketplace(marketplaceSource, environment = process.e
   runCodexMarketplace([
     "add",
     marketplaceSource ?? MARKETPLACE_SOURCE,
-    ...marketplaceSource === undefined ? ["--ref", "stable"] : [],
+    ...marketplaceSource === undefined ? ["--ref", requiredMarketplaceReference()] : [],
     "--sparse",
     ".agents/plugins",
     "--sparse",
@@ -60733,7 +60748,7 @@ function plannedCodexProfileInstallEffects() {
       {
         kind: "replace",
         target: "Safeword Codex marketplace",
-        operation: "stable-channel"
+        operation: codexMarketplaceReplacementOperation()
       }
     ]
   };
@@ -61604,7 +61619,7 @@ function migrateLegacyCodexDuringSetup(cwd, completedEffects, offline) {
       completedEffects.destructive.push({
         kind: "replace",
         target: "Safeword Codex marketplace",
-        operation: "stable-channel"
+        operation: codexMarketplaceReplacementOperation()
       });
     }
     return [
@@ -70798,7 +70813,7 @@ function runCodexInstall(invocation, migration) {
         {
           kind: "replace",
           target: "Safeword Codex marketplace",
-          operation: "stable-channel"
+          operation: codexMarketplaceReplacementOperation()
         }
       ] : []
     }
