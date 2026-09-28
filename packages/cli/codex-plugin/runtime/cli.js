@@ -32908,7 +32908,7 @@ records as context around the one \`impl-plan.md\` work artifact.
   coverage, while blast radius and reversibility determine necessary depth.
 
 An error requires \`request_changes\`; approval is valid only when no error
-findings remain. Return findings through the typed reviewer result contract.`, PLAN_REVIEW_RUBRIC_SHA256 = "874c8ed960ebefe5ffa725201b2a5fc360754e2bee684225f48c9092b5228d89";
+findings remain. Return findings through the typed reviewer result contract.`;
 
 // src/review/plan-rubric.ts
 function extractPlanReviewRubric(skill) {
@@ -34274,14 +34274,14 @@ function reviewPrompt(reviewer, packet) {
   return `${reviewerPromptInstructions(packet.kind, reviewer, packet.planning_phase)}
 ${JSON.stringify(packet)}`;
 }
-function planIdentityConflicts(contract, canonicalDigest) {
-  const authorIsCanonical = contract.author.sha256 === canonicalDigest;
+function executionPlanIdentityConflicts(contract) {
+  const authorIsCanonical = contract.author.sha256 === EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
   if (!authorIsCanonical && contract.author.sha256 === contract.reviewer.sha256) {
     return [
       "Matching author and reviewer copies differ from the packaged canonical contract-byte identity."
     ];
   }
-  const reviewerIsCanonical = contract.reviewer.sha256 === canonicalDigest;
+  const reviewerIsCanonical = contract.reviewer.sha256 === EXECUTION_PLAN_REVIEW_RUBRIC_SHA256;
   return [
     ...authorIsCanonical ? [] : [
       "The authoring contract copy differs from the packaged canonical contract-byte identity."
@@ -34297,7 +34297,7 @@ function reconcilePlanContract(packet, output) {
     return output;
   const author = new Set(contract.author.obligations);
   const reviewer = new Set(contract.reviewer.obligations);
-  const conflicts = planIdentityConflicts(contract, packet.kind === "plan-execution" ? EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 : PLAN_REVIEW_RUBRIC_SHA256);
+  const conflicts = packet.kind === "plan-execution" ? executionPlanIdentityConflicts(contract) : [];
   conflicts.push(...[...author].filter((obligation) => !reviewer.has(obligation)).map((obligation) => `Author contract requires "${obligation}" but reviewer contract does not.`), ...[...reviewer].filter((obligation) => !author.has(obligation)).map((obligation) => `Reviewer contract requires "${obligation}" but author contract does not.`));
   const identitiesMatch = contract.author.sha256 === contract.reviewer.sha256;
   if (identitiesMatch && conflicts.length === 0)
