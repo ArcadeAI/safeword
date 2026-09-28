@@ -2,10 +2,11 @@
 id: CKWE2D
 slug: keep-reviews-focused-on-authored-inputs
 type: feature
-phase: scenario-gate
+phase: implement
 phase_anchors:
   - define-behavior: .project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/spec.md
   - scenario-gate: packages/cli/features/keep-reviews-focused-on-authored-inputs.feature
+  - plan-implementation: .project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs/impl-plan.md
 status: in_progress
 scope:
   - recognise an oversized target only when the repository explicitly marks it linguist-generated=true
@@ -23,7 +24,7 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/2121
 inspiration_contract: v1
 inspiration_contract_scaffold: v1
 created: 2026-08-12T15:10:06.430Z
-last_modified: 2026-08-12T16:31:10Z
+last_modified: 2026-09-28T02:18:43Z
 ---
 
 # Keep reviews focused on authored changes
@@ -56,3 +57,11 @@ last_modified: 2026-08-12T16:31:10Z
 - 2026-08-12T16:03:02Z Define-behavior → scenario-gate → plan-implementation: the final bounded review approved the scenarios. Claude timed out, and the accepted typed Codex fallback is recorded as degraded (`author=codex`, `reviewer=codex`, `independence=degraded`).
 - 2026-08-12T16:07:36Z Plan review requested changes. Added content-backed stability checks before Git and launch, separated real Git protocol tests from injected malformed-result tests, and made post-launch results retain finalized reduced scope; re-review required.
 - 2026-08-12T16:31:10Z Revalidated the plan with local Git experiments: normal, cached, and `--source=HEAD` project lookups inherit `.git/info/attributes`. Reframed generated classification around an isolated bare Git directory and the committed `HEAD` tree, which rejects local overrides and working-tree marker drift. Repeated scenario reviews remain degraded because the preferred Claude route timed out; the latest pass added canonical lexical identity, order preservation, and bounded Git lookup coverage. Ticket remains at the scenario gate pending a fresh independent approval before RED tests and implementation.
+- 2026-09-28T01:02:59Z Resumed to unblock #5018. Current Git documentation and local Git 2.54.0 still support the planned committed-tree NUL protocol; the generated plugin runtimes are 2,699,284 bytes and already marked `linguist-generated=true`. Independent Claude/Opus scenario review `b2e450d2-acb0-44d9-966d-8c9ad7cdb03d` found three blocking gaps: contradictory all-excluded behavior, missing survivor-order proof, and a post-classification race. Corrected those examples, added authored targets to three fixtures, reduced two parser matrices, and made host-level scenario skips explicit. Re-review required before implementation.
+- 2026-09-28T01:09:00Z Independent re-review `2582ce55-3d99-4671-9384-4c655790aca4` found two further proof gaps: the real generated runtime was not sent through the public review command, and successful zero-exclusion results did not require an explicit empty list. Corrected both in the scenario source. Re-review required.
+- 2026-09-28T01:15:00Z Independent re-review `7fb5bcfc-fe86-4f8f-a03b-deef75a25bb4` found the bare `linguist-generated` Git attribute state had been removed from the acceptance partition even though it must not qualify for exclusion. Restored that discriminating row. Re-review required.
+- 2026-09-28T01:20:00Z Independent re-review `a1eddf30-e0d9-492f-845f-58fd54d4ecc5` found the pre-lookup drift assertion vacuous without a second oversized target that would otherwise need classification. Added that target and removed an incidental no-lookup assertion from the target-failure ordering outline. Re-review required.
+- 2026-09-28T01:26:00Z Independent Claude/Opus scenario review `ea8c8167-9cc0-4408-94e8-1b3f182954aa` approved the 44 scenario definitions with no blocking findings. The phase stamp could not use that receipt because the feature source is outside the ticket folder; aligned the in-folder R/G/R ledger's two renamed headings and will review both targets for a stampable receipt.
+- 2026-09-28T01:32:00Z Combined feature-and-ledger review `1279e723-fb86-4cfc-8048-8e0a53f6d1ba` found the dogfood proof covered only the Claude runtime. Expanded it into a two-row outline for both shipped generated runtimes (`plugin/runtime/cli.js` and `packages/cli/codex-plugin/runtime/cli.js`); updated the dimensions map. Re-review required.
+- 2026-09-28T01:42:37Z Independent Claude/Opus review `009c785f-fb0b-41f9-a7ed-54b19047b52f` approved all 45 scenario definitions and the synchronized ticket ledger. Corrected rule lineage and added an unmarked runtime-shaped rejection after the preceding review. Stamped the scenario gate and advanced to implementation planning.
+- 2026-09-28T02:18:43Z Independent Claude/Opus plan review `bf252280-0822-4a26-85b9-c63781b01b5a` approved the plan after corrections for environment isolation, source races, every post-finalization result, JSON contracts, scenario bindings, and lazy Git lookup. Stamped the plan gate and advanced to implementation.

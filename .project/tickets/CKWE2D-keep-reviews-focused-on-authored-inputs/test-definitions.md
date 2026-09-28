@@ -251,11 +251,17 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A project-relative symlink escaping the project cannot reach Git attribute lookup
+### Scenario: A final-component symlink escaping the project cannot reach Git attribute lookup
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+### Scenario: An intermediate symlink directory escaping the project cannot reach Git attribute lookup
+
+- [x] RED 1eb8ee36f
+- [x] GREEN f74fe196b
+- [x] REFACTOR skip: the shared containment checks remain adjacent to file capture until the remaining typed packet errors are covered
 
 ### Scenario: An unmarked runtime-shaped path cannot be excluded by its filename
 

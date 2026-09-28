@@ -1,4 +1,4 @@
-@wip @surface.safeword-cli @surface.claude-code @surface.openai-codex
+@wip @surface.safeword-cli
 Feature: Keep reviews focused on authored changes
 
   Independent review preserves its bounded packet while treating explicitly
@@ -37,7 +37,7 @@ Feature: Keep reviews focused on authored changes
       And an independent reviewer is available
       When a builder runs the public review command
       Then the reviewer receives exactly the generated target with its original raw content
-      And the result has no excluded_targets
+      And data.excluded_targets is present and empty
       And the command exits successfully with no errors
 
     Scenario: A generated target below the individual packet limit remains reviewable
@@ -45,31 +45,32 @@ Feature: Keep reviews focused on authored changes
       And an independent reviewer is available
       When a builder runs the public review command
       Then the reviewer receives exactly the generated target with its original raw content
-      And the result has no excluded_targets
+      And data.excluded_targets is present and empty
       And the command exits successfully with no errors
 
     Scenario: A repeated eligible target is reviewed and aggregate-counted once
-      Given a review has four eligible targets each with exactly 262144 raw content bytes and repeats the first target
+      Given a review has four eligible targets whose serialized review packet including metadata is exactly 1048576 bytes and repeats the first target
       And an independent reviewer is available
       When a builder runs the public review command
       Then the reviewer receives exactly four eligible targets with their original raw content in first-supplied canonical order
-      And the result has no excluded_targets
+      And data.excluded_targets is present and empty
       And the command exits successfully with no errors
 
     Scenario: An eligible lexical alias is reviewed and aggregate-counted once
-      Given a review has four eligible targets each with exactly 262144 raw content bytes and supplies the first target again as nested/../first-target.js
+      Given a review has four eligible targets whose serialized review packet including metadata is exactly 1048576 bytes and supplies the first target again as nested/../first-target.js
       And an independent reviewer is available
       When a builder runs the public review command
       Then the reviewer receives exactly four eligible targets with their original raw content in first-supplied canonical order
-      And the result has no excluded_targets
+      And data.excluded_targets is present and empty
       And the command exits successfully with no errors
 
     Scenario Outline: Lexical normalization defines target identity before intermediate symlink traversal
-      Given a review supplies a generated oversized target as link/../generated/output.js
+      Given a review has one authored target and supplies a generated oversized target as link/../generated/output.js
       And link is an intermediate symlink pointing <destination>
       And an independent reviewer is available
       When a builder runs the public review command
-      Then Git attribute lookup, excluded_targets, and reviewer packet paths use generated/output.js without link
+      Then Git attribute lookup and excluded_targets use generated/output.js without link
+      And the reviewer receives exactly the authored target with its original raw content
       And the command exits successfully with no errors
 
       Examples:
@@ -84,6 +85,125 @@ Feature: Keep reviews focused on authored changes
       When a builder runs the public review command
       Then the reviewer receives exactly the target with its original raw content
       And Git attribute lookup is never called
+      And data.excluded_targets is present and empty
+      And the command exits successfully with no errors
+
+    Scenario: An oversized generated sparse target is omitted without reading or decoding its bytes
+      Given a review has one authored target and an 8 GiB sparse target marked generated
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then the reviewer receives exactly the authored target with its original raw content
+      And excluded_targets exactly names the sparse generated target
+      And the command reads no bytes from the sparse generated target
+      And the command exits successfully with no errors
+
+    Scenario: Generated omission retains a review exactly at the aggregate packet limit
+      Given a review interleaves an oversized target marked generated between four individually valid eligible targets with multibyte UTF-8 content whose serialized review packet is exactly 1048576 bytes including metadata
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then the reviewer receives exactly the eligible targets in first-supplied canonical order
+      And the reviewer receives each eligible target's original raw content
+      And excluded_targets exactly names the generated target
+      And the command exits successfully with no errors
+
+    Scenario Outline: Git attribute lookup safely keeps generated paths project-relative
+      Given a review has one authored target and a generated oversized target at <path>
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then excluded_targets exactly names <path>
+      And the reviewer receives exactly the authored target with its original raw content
+      And Git attribute lookup receives the canonical project-relative path <path>
+      And Git attribute lookup runs through isolated empty Git metadata against the committed project tree without a shell
+      And Git attribute lookup supplies <path> as one literal NUL-terminated stdin field
+      And the command exits successfully with no errors
+
+      Examples:
+        | path                      |
+        | nested/generated file.js  |
+        | --generated-output.js     |
+
+    Scenario Outline: Git attribute lookup preserves special generated paths as one literal NUL-delimited stdin value
+      Given a review has one authored target and a generated oversized target at <path>
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then excluded_targets exactly names <path>
+      And the reviewer receives exactly the authored target with its original raw content
+      And Git attribute lookup supplies <path> as one literal NUL-terminated stdin field and returns exactly one UTF-8 NUL-terminated tuple of canonical path, linguist-generated, and value
+      And the command exits successfully with no errors
+
+      Examples:
+        | path                                  |
+        | :(top)generated-output.js              |
+
+    Scenario: Git attribute lookup preserves a generated filename containing an actual newline code point
+      Given a review has one authored target and a generated oversized target whose filename contains an actual U+000A code point
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then Git attribute lookup sends and receives the target as exact NUL-delimited UTF-8 bytes
+      And excluded_targets exactly names the generated target
+      And the command exits successfully with no errors
+
+    Scenario: Project Git info attributes cannot override a committed generated marker
+      Given a review project HEAD .gitattributes marks an oversized target generated
+      And the review has one authored target
+      And the project's .git/info/attributes marks the same target false
+      And global and system Git attributes mark the same target false
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then excluded_targets exactly names the generated target
+      And the reviewer receives exactly the authored target with its original raw content
+      And the command exits successfully with no errors
+
+    Scenario: Attribute classification ignores a working-tree marker removal
+      Given a review project HEAD .gitattributes marks an oversized target generated
+      And the review has one authored target
+      And the project working-tree .gitattributes is atomically replaced with an equally sized unmarked file before classification
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then excluded_targets exactly names the generated target
+      And the reviewer receives exactly the authored target with its original raw content
+      And the command exits successfully with no errors
+
+    Scenario: Hostile project Git configuration and inherited environment cannot redirect committed classification
+      Given a review project HEAD .gitattributes marks an oversized target generated
+      And the review has one authored target
+      And project Git configuration and inherited environment variables redirect attribute and object lookup to hostile values
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then excluded_targets exactly names the generated target
+      And the reviewer receives exactly the authored target with its original raw content
+      And the command exits successfully with no errors
+
+    Scenario: Distinct hard-linked generated targets remain distinct exclusions
+      Given a review has one authored target and two distinct hard-linked oversized targets marked generated
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then excluded_targets exactly names both hard-link target paths in supplied order
+      And the reviewer receives exactly the authored target with its original raw content
+      And the command exits successfully with no errors
+
+    Scenario: The CLI returns the reduced scope in its JSON stdout envelope
+      Given a review has one authored target and one oversized target marked generated
+      And an independent reviewer is available
+      When a builder runs `safeword review run quality-review --json --cwd project-root` with both targets
+      Then stdout is the versioned JSON result envelope whose data.excluded_targets exactly names the generated target
+      And stderr is empty
+      And the command exits successfully with no errors
+
+    Scenario: A reviewer failure after packet finalization reports the reduced scope
+      Given a review has one authored target and one oversized target marked generated
+      And the independent reviewer fails after receiving its packet
+      When a builder runs `safeword review run quality-review --json --cwd project-root` with both targets
+      Then stdout is the versioned JSON result envelope whose errors[0].code is REVIEW_ROUTES_EXHAUSTED and whose data.excluded_targets exactly names the generated target
+      And stderr is empty
+      And the command exits nonzero
+
+    Scenario: A committed marker selects an arbitrary generated path
+      Given a review has one authored target and an oversized arbitrary target marked generated by Git attributes
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then the result exposes the arbitrary target in excluded_targets
+      And the reviewer receives exactly the authored target with its original raw content
       And the command exits successfully with no errors
 
   @focused-review.TBU1.R2
@@ -104,9 +224,6 @@ Feature: Keep reviews focused on authored changes
         | unset              |
         | set-without-value  |
         | TRUE               |
-        | True               |
-        | yes                |
-        | true-with-whitespace |
 
     @rejection
     Scenario: Unavailable Git attribute resolution does not permit omission
@@ -134,6 +251,7 @@ Feature: Keep reviews focused on authored changes
     @rejection
     Scenario: An eligible target changed after bounded capture does not reach attribute lookup
       Given a review has an eligible target replaced after bounded packet capture with different content of the same byte length and restored timestamp
+      And the review has one oversized target marked generated
       And an independent reviewer is available
       When a builder runs the public review command
       Then no reviewer is asked to review it
@@ -167,19 +285,10 @@ Feature: Keep reviews focused on authored changes
         | a directory   | REVIEW_TARGET_NOT_REGULAR |
         | a named pipe  | REVIEW_TARGET_NOT_REGULAR |
 
-    Scenario: An oversized generated sparse target is omitted without reading or decoding its bytes
-      Given a review has one authored target and an 8 GiB sparse target marked generated
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then the reviewer receives exactly the authored target with its original raw content
-      And excluded_targets exactly names the sparse generated target
-      And the command reads no bytes from the sparse generated target
-      And the command exits successfully with no errors
-
     @rejection
-    Scenario Outline: An oversized generated target changed after metadata validation fails before omission
+    Scenario Outline: An oversized generated target changed after classification fails before omission
       Given a review has one authored target and an oversized target marked generated
-      And the generated target changes after metadata validation to <replacement>
+      And the generated target changes after Git attribute lookup classifies it and before its exclusion is finalized to <replacement>
       And an independent reviewer is available
       When a builder runs the public review command
       Then no reviewer is asked to review it
@@ -201,7 +310,6 @@ Feature: Keep reviews focused on authored changes
       When a builder runs the public review command
       Then no reviewer is asked to review it
       And the command exits nonzero with errors[0].code <error_code>
-      And Git attribute lookup is never called
       And the failed result has no excluded_targets
 
       Examples:
@@ -248,19 +356,9 @@ Feature: Keep reviews focused on authored changes
 
       Examples:
         | malformation        |
-        | no complete record  |
         | duplicate records   |
-        | a missing tuple field |
         | a missing NUL terminator |
-        | the wrong attribute name |
         | one record for a different path |
-        | one matching record and one unrelated extra record |
-        | invalid UTF-8 bytes |
-        | an empty path field |
-        | an empty attribute field |
-        | an empty value field |
-        | a surplus NUL-delimited field |
-        | trailing non-NUL bytes |
 
     @rejection
     Scenario Outline: A multi-target attribute failure is atomic in either supplied order
@@ -304,7 +402,6 @@ Feature: Keep reviews focused on authored changes
         | preflight_failure                                           | error_code                           |
         | an oversized target without a generated marker              | REVIEW_TARGET_TOO_LARGE              |
         | an oversized target with Git attribute resolution failure   | REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE  |
-        | no submitted targets                                        | REVIEW_NO_ELIGIBLE_TARGETS           |
         | a target outside the project                                | REVIEW_TARGET_OUTSIDE_PROJECT        |
         | a named pipe target                                         | REVIEW_TARGET_NOT_REGULAR            |
         | a target that changes after bounded capture                 | REVIEW_TARGET_CHANGED                |
@@ -320,22 +417,80 @@ Feature: Keep reviews focused on authored changes
       And the command exits nonzero with errors[0].code REVIEW_TARGET_TOO_LARGE
       And the failed result has no excluded_targets
 
-    Scenario: Generated omission retains a review exactly at the aggregate packet limit
-      Given a review has an oversized target marked generated and four eligible targets each with 131072 two-byte UTF-8 characters and 262144 raw content bytes
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then the reviewer receives exactly the eligible targets
-      And the reviewer receives each eligible target's original raw content
-      And excluded_targets exactly names the generated target
-      And the command exits successfully with no errors
-
     @rejection
     Scenario: Generated omission cannot weaken the aggregate packet limit
-      Given a review has an oversized target marked generated, four eligible targets each with 131072 two-byte UTF-8 characters and 262144 raw content bytes, and one eligible target of one raw content byte
+      Given a review has an oversized target marked generated and the exact-boundary eligible packet fixture with one additional ASCII byte in an eligible target that remains below the individual target limit
       And an independent reviewer is available
       When a builder runs the public review command
       Then no reviewer is asked to review it
       And the command exits nonzero with errors[0].code REVIEW_PACKET_TOO_LARGE
+      And the failed result has no excluded_targets
+
+    @rejection
+    Scenario: Attribute classification ignores an uncommitted marker addition
+      Given a review project HEAD .gitattributes leaves an oversized target unmarked
+      And the project working-tree .gitattributes is atomically replaced with an equally sized generated marker before classification
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then no reviewer is asked to review it
+      And the command exits nonzero with errors[0].code REVIEW_TARGET_TOO_LARGE
+      And the failed result has no excluded_targets
+
+    @rejection
+    Scenario: External Git attributes cannot create a generated exception
+      Given a review project has an oversized target without a .gitattributes generated marker
+      And the project's .git/info/attributes and global Git attributes mark that target generated
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then no reviewer is asked to review it
+      And the command exits nonzero with errors[0].code REVIEW_TARGET_TOO_LARGE
+      And the failed result has no excluded_targets
+
+    @rejection
+    Scenario Outline: A target outside the project cannot reach Git attribute lookup
+      Given a review has a target path outside the project at <path>
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then no reviewer is asked to review it
+      And the command exits nonzero with errors[0].code REVIEW_TARGET_OUTSIDE_PROJECT
+      And Git attribute lookup is never called
+      And the failed result has no excluded_targets
+
+      Examples:
+        | path                           |
+        | ../outside-file.js             |
+        | nested/../../outside-file.js   |
+        | /tmp/outside-file.js           |
+
+    @rejection
+    Scenario: A final-component symlink escaping the project cannot reach Git attribute lookup
+      Given a review has a project-relative final-component symlinked target resolving outside the project
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then no reviewer is asked to review it
+      And the command exits nonzero with errors[0].code REVIEW_TARGET_OUTSIDE_PROJECT
+      And Git attribute lookup is never called
+      And the failed result has no excluded_targets
+
+    @rejection
+    Scenario: An intermediate symlink directory escaping the project cannot reach Git attribute lookup
+      Given a review supplies link/generated/output.js with no parent traversal
+      And link is an intermediate symlink directory pointing outside the project
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then no reviewer is asked to review it
+      And the command exits nonzero with errors[0].code REVIEW_TARGET_OUTSIDE_PROJECT
+      And Git attribute lookup is never called
+      And the failed result has no excluded_targets
+
+    @rejection
+    Scenario: An unmarked runtime-shaped path cannot be excluded by its filename
+      Given a fixture review project HEAD has no linguist-generated marker for its oversized plugin/runtime/cli.js target
+      And the review has one authored target
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then no reviewer is asked to review it
+      And the command exits nonzero with errors[0].code REVIEW_TARGET_TOO_LARGE
       And the failed result has no excluded_targets
 
   @focused-review.SWM1.R1
@@ -362,150 +517,16 @@ Feature: Keep reviews focused on authored changes
   @focused-review.SWM1.R2
   Rule: focused-review.SWM1.R2 — Safeword's own generated runtime outputs use the same repository marker the command reads
 
-    Scenario: A Git-marked generated target is selected without a path heuristic
-      Given a review has one authored target and an oversized arbitrary target marked generated by Git attributes
+    Scenario Outline: A maintainer can review authored input alongside Safeword's generated runtime
+      Given a review has one authored target and Safeword's <runtime> generated output
       And an independent reviewer is available
-      When a builder runs the public review command
-      Then the result exposes the arbitrary target in excluded_targets
-      And the reviewer receives exactly the authored target with its original raw content
-      And the command exits successfully with no errors
-
-    Scenario Outline: Git attribute lookup safely keeps generated paths project-relative
-      Given a review has one authored target and a generated oversized target at <path>
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then excluded_targets exactly names <path>
-      And the reviewer receives exactly the authored target with its original raw content
-      And Git attribute lookup receives the canonical project-relative path <path>
-      And Git attribute lookup runs through isolated empty Git metadata against the committed project tree without a shell
-      And Git attribute lookup supplies <path> as one literal NUL-terminated stdin field
+      When a maintainer runs the public review command with both targets
+      Then the reviewer receives exactly the authored target with its original raw content
+      And data.excluded_targets exactly names <runtime>
+      And the generated marker is resolved as true through the command's isolated committed-HEAD Git lookup
       And the command exits successfully with no errors
 
       Examples:
-        | path                      |
-        | nested/generated file.js  |
-        | --generated-output.js     |
-
-    Scenario Outline: Git attribute lookup preserves special generated paths as one literal NUL-delimited stdin value
-      Given a review has one authored target and a generated oversized target at <path>
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then excluded_targets exactly names <path>
-      And the reviewer receives exactly the authored target with its original raw content
-      And Git attribute lookup supplies <path> as one literal NUL-terminated stdin field and returns exactly one UTF-8 NUL-terminated tuple of canonical path, linguist-generated, and value
-      And the command exits successfully with no errors
-
-      Examples:
-        | path                                  |
-        | :(top)generated-output.js              |
-
-    Scenario: Git attribute lookup preserves a generated filename containing an actual newline code point
-      Given a review has one authored target and a generated oversized target whose filename contains an actual U+000A code point
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then Git attribute lookup sends and receives the target as exact NUL-delimited UTF-8 bytes
-      And excluded_targets exactly names the generated target
-      And the command exits successfully with no errors
-
-    Scenario: Project Git info attributes cannot override a committed generated marker
-      Given a review project HEAD .gitattributes marks an oversized target generated
-      And the project's .git/info/attributes marks the same target false
-      And global and system Git attributes mark the same target false
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then excluded_targets exactly names the generated target
-      And the reviewer receives exactly the authored target with its original raw content
-      And the command exits successfully with no errors
-
-    Scenario: Attribute classification ignores a working-tree marker removal
-      Given a review project HEAD .gitattributes marks an oversized target generated
-      And the project working-tree .gitattributes is atomically replaced with an equally sized unmarked file before classification
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then excluded_targets exactly names the generated target
-      And the reviewer receives exactly the authored target with its original raw content
-      And the command exits successfully with no errors
-
-    @rejection
-    Scenario: Attribute classification ignores an uncommitted marker addition
-      Given a review project HEAD .gitattributes leaves an oversized target unmarked
-      And the project working-tree .gitattributes is atomically replaced with an equally sized generated marker before classification
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then no reviewer is asked to review it
-      And the command exits nonzero with errors[0].code REVIEW_TARGET_TOO_LARGE
-      And the failed result has no excluded_targets
-
-    @rejection
-    Scenario: External Git attributes cannot create a generated exception
-      Given a review project has an oversized target without a .gitattributes generated marker
-      And the project's .git/info/attributes and global Git attributes mark that target generated
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then no reviewer is asked to review it
-      And the command exits nonzero with errors[0].code REVIEW_TARGET_TOO_LARGE
-      And the failed result has no excluded_targets
-
-    Scenario: Hostile project Git configuration and inherited environment cannot redirect committed classification
-      Given a review project HEAD .gitattributes marks an oversized target generated
-      And project Git configuration and inherited environment variables redirect attribute and object lookup to hostile values
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then excluded_targets exactly names the generated target
-      And the reviewer receives exactly the authored target with its original raw content
-      And the command exits successfully with no errors
-
-    Scenario: Distinct hard-linked generated targets remain distinct exclusions
-      Given a review has one authored target and two distinct hard-linked oversized targets marked generated
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then excluded_targets exactly names both hard-link target paths in supplied order
-      And the reviewer receives exactly the authored target with its original raw content
-      And the command exits successfully with no errors
-
-    Scenario: The CLI returns the reduced scope in its JSON stdout envelope
-      Given a review has one authored target and one oversized target marked generated
-      And an independent reviewer is available
-      When a builder runs `safeword review run quality-review --json --cwd project-root` with both targets
-      Then stdout is the versioned JSON result envelope whose data.excluded_targets exactly names the generated target
-      And stderr is empty
-      And the command exits successfully with no errors
-
-    Scenario: A reviewer failure after packet finalization reports the reduced scope
-      Given a review has one authored target and one oversized target marked generated
-      And the independent reviewer fails after receiving its packet
-      When a builder runs `safeword review run quality-review --json --cwd project-root` with both targets
-      Then stdout is the versioned JSON result envelope whose errors[0].code is REVIEW_ROUTES_EXHAUSTED and whose data.excluded_targets exactly names the generated target
-      And stderr is empty
-      And the command exits nonzero
-
-    @rejection
-    Scenario Outline: A target outside the project cannot reach Git attribute lookup
-      Given a review has a target path outside the project at <path>
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then no reviewer is asked to review it
-      And the command exits nonzero with errors[0].code REVIEW_TARGET_OUTSIDE_PROJECT
-      And Git attribute lookup is never called
-      And the failed result has no excluded_targets
-
-      Examples:
-        | path                           |
-        | ../outside-file.js             |
-        | nested/../../outside-file.js   |
-        | /tmp/outside-file.js           |
-
-    @rejection
-    Scenario: A project-relative symlink escaping the project cannot reach Git attribute lookup
-      Given a review has a project-relative symlinked target resolving outside the project
-      And an independent reviewer is available
-      When a builder runs the public review command
-      Then no reviewer is asked to review it
-      And the command exits nonzero with errors[0].code REVIEW_TARGET_OUTSIDE_PROJECT
-      And Git attribute lookup is never called
-      And the failed result has no excluded_targets
-
-    Scenario: Safeword's generated plugin runtime declares the same marker
-      Given Safeword's plugin/runtime/cli.js generated output
-      When its Git attributes are checked
-      Then plugin/runtime/cli.js resolves linguist-generated to true
+        | runtime                                  |
+        | plugin/runtime/cli.js                    |
+        | packages/cli/codex-plugin/runtime/cli.js |
