@@ -12,7 +12,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 ### Scenario: Generated artifacts one byte over the per-target packet limit leave authored input reviewable and visible
 
 - [x] RED 5ade00069
-- [ ] GREEN
+- [x] GREEN 8a3b80703
 - [ ] REFACTOR
 
 ### Scenario: A repeated generated target has one ordered exclusion
