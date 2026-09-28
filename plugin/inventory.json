@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "b2fb3af9dc456615f9bcd52d226ca4d03215b8d38ee746c73ce677b4077c6fbd"
+      "sha256": "42d74cbe1439af181cc5e0ece6a4d7e9bf8de4705f6dae280078f247c985b15a"
     },
     {
       "path": "runtime/dispatch.js",
@@ -200,6 +200,10 @@
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
       "sha256": "9a7e35d35ed97bec61ce010f6d6fbe5256f34e9d425729a318287589f29ae5f8"
+    },
+    {
+      "path": "runtime/hooks/lib/closest-base-ref.ts",
+      "sha256": "c01914237e7d70a571f8462c15681bd5f94b77654b99e9851144332186d38d12"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -431,7 +435,7 @@
     },
     {
       "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "cd97e0b706fad3f13d3e442784dbc21f8b5e0c3f6d4af75e1e06de2415eda8ce"
+      "sha256": "8e0d42f23aa8ad511e19db3d91c622ad9e619cb813e82b2b390aafd4e92fe626"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -519,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/resolve-verify-ticket.ts",
-      "sha256": "6f53b7c07b28cb94cce44a09188912ba0eb902adf765f13f2fe47d90c4c8fd1c"
+      "sha256": "8b3b91bb24b4b25beef22740c31520b0ddf338c601197630933c2a896bfe7588"
     },
     {
       "path": "runtime/hooks/run-review.ts",
@@ -1134,6 +1138,10 @@
       "sha256": "d6b974800d50b058e88a77daf8a27f4c60591f96ec3c381bfda1ac6bd3246df5"
     },
     {
+      "path": "templates/hooks/lib/closest-base-ref.ts",
+      "sha256": "c01914237e7d70a571f8462c15681bd5f94b77654b99e9851144332186d38d12"
+    },
+    {
       "path": "templates/hooks/lib/cursor-run-identity.ts",
       "sha256": "c004c494786f13f5858450dcf196c640e82e9210aa93a7359788a4f7563dd416"
     },
@@ -1359,7 +1367,7 @@
     },
     {
       "path": "templates/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "cd97e0b706fad3f13d3e442784dbc21f8b5e0c3f6d4af75e1e06de2415eda8ce"
+      "sha256": "8e0d42f23aa8ad511e19db3d91c622ad9e619cb813e82b2b390aafd4e92fe626"
     },
     {
       "path": "templates/hooks/lib/version.ts",
@@ -1447,7 +1455,7 @@
     },
     {
       "path": "templates/hooks/resolve-verify-ticket.ts",
-      "sha256": "6f53b7c07b28cb94cce44a09188912ba0eb902adf765f13f2fe47d90c4c8fd1c"
+      "sha256": "8b3b91bb24b4b25beef22740c31520b0ddf338c601197630933c2a896bfe7588"
     },
     {
       "path": "templates/hooks/run-review.ts",
