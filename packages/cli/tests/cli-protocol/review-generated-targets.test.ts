@@ -311,4 +311,52 @@ exec "${gitExecutable}" "$@"
     expect(envelope.data.excluded_targets).toBeUndefined();
     expect(existsSync(promptLog)).toBe(false);
   });
+
+  it.each([
+    { targets: ['invalid.md', 'large.js'], code: 'REVIEW_TARGET_INVALID_TEXT' },
+    { targets: ['large.js', 'invalid.md'], code: 'REVIEW_TARGET_TOO_LARGE' },
+  ])('reports the first target failure for $targets', async ({ targets, code }) => {
+    const directory = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    writeFileSync(nodePath.join(directory, 'invalid.md'), Buffer.from([0xff]));
+    writeFileSync(nodePath.join(directory, 'large.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(nodePath.join(directory, '.gitattributes'), 'other/** linguist-generated=true\n');
+    git(directory, 'init', '-q');
+    git(directory, 'add', '.gitattributes');
+    git(
+      directory,
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    );
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', ...targets, '--json', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      errors: { code: string }[];
+      data: { excluded_targets?: string[] };
+    };
+    expect(envelope.errors[0]?.code).toBe(code);
+    expect(envelope.data.excluded_targets).toBeUndefined();
+    expect(existsSync(promptLog)).toBe(false);
+  });
 });

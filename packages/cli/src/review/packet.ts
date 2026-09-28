@@ -63,6 +63,7 @@ interface CapturedFile {
 }
 
 interface OversizedFile {
+  readonly index: number;
   readonly source: string;
   readonly relative: string;
   readonly device: number;
@@ -308,6 +309,12 @@ function requireStableSources(root: string, files: readonly CapturedFile[]): voi
   }
 }
 
+function throwFirstTargetError(errors: { index: number; error: unknown }[]): void {
+  if (errors.length === 0) return;
+  errors.sort((left, right) => left.index - right.index);
+  throw errors[0]?.error;
+}
+
 // eslint-disable-next-line complexity -- Each validation rejects a distinct unsafe capture state.
 function readContainedText(
   root: string,
@@ -417,6 +424,7 @@ function prepareReviewPacketUnsafe(
   const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
   const tracked: CapturedFile[] = [];
   const oversized: OversizedFile[] = [];
+  const targetErrors: { index: number; error: unknown }[] = [];
   const excludedTargets: string[] = [];
   const expectedSnapshotEntries = new Set<string>();
   let logicalFiles: { path: string; content: string }[];
@@ -426,72 +434,79 @@ function prepareReviewPacketUnsafe(
     const captureFiles = (
       files: readonly string[],
       allowGenerated: boolean,
+      offset: number,
     ): { path: string; content: string }[] =>
-      files.flatMap(target => {
-        const source = nodePath.resolve(canonicalRoot, target);
-        const relative = nodePath.relative(canonicalRoot, source);
-        if (escapes(canonicalRoot, source)) {
-          throw new ReviewPacketError(
-            `Review target escapes the project: ${target}`,
-            'REVIEW_TARGET_OUTSIDE_PROJECT',
+      files.flatMap((target, index) => {
+        try {
+          const source = nodePath.resolve(canonicalRoot, target);
+          const relative = nodePath.relative(canonicalRoot, source);
+          if (escapes(canonicalRoot, source)) {
+            throw new ReviewPacketError(
+              `Review target escapes the project: ${target}`,
+              'REVIEW_TARGET_OUTSIDE_PROJECT',
+            );
+          }
+          const stats = lstatSync(source);
+          if (!stats.isFile()) {
+            throw new ReviewPacketError(
+              `Review target is not a regular file: ${target}`,
+              'REVIEW_TARGET_NOT_REGULAR',
+            );
+          }
+          if (escapes(canonicalRoot, realpathSync(source))) {
+            throw new ReviewPacketError(
+              `Review target escapes the project: ${target}`,
+              'REVIEW_TARGET_OUTSIDE_PROJECT',
+            );
+          }
+          if (stats.size > MAX_FILE_BYTES) {
+            if (!allowGenerated) {
+              throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+            }
+            oversized.push({
+              index: offset + index,
+              source,
+              relative,
+              device: stats.dev,
+              inode: stats.ino,
+              size: stats.size,
+            });
+            return [];
+          }
+          // A hard link inside the project is intentionally treated as a regular
+          // in-project file; containment is path-based, and its bytes are copied.
+          const { bytes, content, device, inode } = readContainedText(
+            canonicalRoot,
+            source,
+            target,
+            MAX_PACKET_BYTES - packetBytes,
           );
-        }
-        const stats = lstatSync(source);
-        if (!stats.isFile()) {
-          throw new ReviewPacketError(
-            `Review target is not a regular file: ${target}`,
-            'REVIEW_TARGET_NOT_REGULAR',
-          );
-        }
-        if (escapes(canonicalRoot, realpathSync(source))) {
-          throw new ReviewPacketError(
-            `Review target escapes the project: ${target}`,
-            'REVIEW_TARGET_OUTSIDE_PROJECT',
-          );
-        }
-        if (stats.size > MAX_FILE_BYTES) {
-          if (!allowGenerated) {
+          const fileBytes = bytes.byteLength;
+          if (fileBytes > MAX_FILE_BYTES) {
             throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
           }
-          oversized.push({
-            source,
-            relative,
-            device: stats.dev,
-            inode: stats.ino,
-            size: stats.size,
-          });
+          packetBytes += fileBytes;
+          if (packetBytes > MAX_PACKET_BYTES) {
+            throw new ReviewPacketError(
+              `Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`,
+              'REVIEW_PACKET_TOO_LARGE',
+            );
+          }
+          const snapshot = nodePath.join(workspace, relative);
+          mkdirSync(nodePath.dirname(snapshot), { recursive: true });
+          writeFileSync(snapshot, bytes, { mode: 0o600 });
+          let parent = nodePath.dirname(relative);
+          while (parent !== '.') {
+            expectedSnapshotEntries.add(`directory:${parent}`);
+            parent = nodePath.dirname(parent);
+          }
+          expectedSnapshotEntries.add(`file:${relative}`);
+          tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
+          return [{ path: relative, content }];
+        } catch (error) {
+          targetErrors.push({ index: offset + index, error });
           return [];
         }
-        // A hard link inside the project is intentionally treated as a regular
-        // in-project file; containment is path-based, and its bytes are copied.
-        const { bytes, content, device, inode } = readContainedText(
-          canonicalRoot,
-          source,
-          target,
-          MAX_PACKET_BYTES - packetBytes,
-        );
-        const fileBytes = bytes.byteLength;
-        if (fileBytes > MAX_FILE_BYTES) {
-          throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
-        }
-        packetBytes += fileBytes;
-        if (packetBytes > MAX_PACKET_BYTES) {
-          throw new ReviewPacketError(
-            `Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`,
-            'REVIEW_PACKET_TOO_LARGE',
-          );
-        }
-        const snapshot = nodePath.join(workspace, relative);
-        mkdirSync(nodePath.dirname(snapshot), { recursive: true });
-        writeFileSync(snapshot, bytes, { mode: 0o600 });
-        let parent = nodePath.dirname(relative);
-        while (parent !== '.') {
-          expectedSnapshotEntries.add(`directory:${parent}`);
-          parent = nodePath.dirname(parent);
-        }
-        expectedSnapshotEntries.add(`file:${relative}`);
-        tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
-        return [{ path: relative, content }];
       });
     const seen = new Set<string>();
     const rejectDuplicate = (target: string): void => {
@@ -509,26 +524,35 @@ function prepareReviewPacketUnsafe(
       uniqueTargets.push(target);
     }
     for (const target of context) rejectDuplicate(target);
-    logicalFiles = captureFiles(uniqueTargets, true);
-    contextFiles = captureFiles(context, false);
+    logicalFiles = captureFiles(uniqueTargets, true, 0);
+    contextFiles = captureFiles(context, false, uniqueTargets.length);
     requireStableSources(canonicalRoot, tracked);
     const marked = generatedTargets(canonicalRoot, oversized);
     for (const file of oversized) {
       if (oversizedChanged(canonicalRoot, file)) {
-        throw new ReviewPacketError(
-          `Review target changed while it was being classified: ${file.relative}`,
-          'REVIEW_TARGET_CHANGED',
-        );
+        targetErrors.push({
+          index: file.index,
+          error: new ReviewPacketError(
+            `Review target changed while it was being classified: ${file.relative}`,
+            'REVIEW_TARGET_CHANGED',
+          ),
+        });
+        continue;
       }
       if (!marked.has(file.relative)) {
-        throw new ReviewPacketError(
-          `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`,
-          'REVIEW_TARGET_TOO_LARGE',
-        );
+        targetErrors.push({
+          index: file.index,
+          error: new ReviewPacketError(
+            `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`,
+            'REVIEW_TARGET_TOO_LARGE',
+          ),
+        });
+        continue;
       }
       excludedTargets.push(file.relative);
     }
     requireStableSources(canonicalRoot, tracked);
+    throwFirstTargetError(targetErrors);
     if (logicalFiles.length === 0) {
       throw new ReviewPacketError(
         'Review has no eligible targets after generated outputs are excluded',
