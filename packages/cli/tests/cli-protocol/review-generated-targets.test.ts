@@ -25,6 +25,15 @@ function git(cwd: string, ...args: string[]): void {
   expect(result.status, result.stderr).toBe(0);
 }
 
+function installGitProbe(bin: string, logPath: string): void {
+  const quotedLogPath = ["'", logPath.replaceAll("'", String.raw`'\''`), "'"].join('');
+  writeFileSync(
+    nodePath.join(bin, 'git'),
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> ${quotedLogPath}\nexec /usr/bin/git "$@"\n`,
+    { mode: 0o755 },
+  );
+}
+
 function fakeReviewer(): string {
   const root = createTrustedReviewerDirectory('safeword-generated-review-');
   const bin = nodePath.join(root, 'bin');
@@ -98,6 +107,8 @@ describe('generated review targets', () => {
       'fixture',
     );
     const bin = fakeReviewer();
+    const gitLog = nodePath.join(directory, 'git.log');
+    installGitProbe(bin, gitLog);
 
     const result = await runCli(
       [
@@ -130,6 +141,7 @@ describe('generated review targets', () => {
     expect(prompt).toContain('review this authored change');
     expect(prompt).not.toContain('generated/first.js');
     expect(prompt).not.toContain('generated/second.js');
+    expect(readFileSync(gitLog, 'utf8')).toContain('check-attr');
   });
 
   it('uses repository-relative paths for a project nested below the Git root', async () => {
@@ -316,11 +328,7 @@ describe('generated review targets', () => {
       const promptLog = nodePath.join(root, 'prompt.log');
       const gitLog = nodePath.join(root, 'git.log');
       const bin = fakeReviewer();
-      writeFileSync(
-        nodePath.join(bin, 'git'),
-        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SAFEWORD_GIT_LOG"\nexec /usr/bin/git "$@"\n',
-        { mode: 0o755 },
-      );
+      installGitProbe(bin, gitLog);
 
       const result = await runCli(
         ['review', 'run', 'quality-review', target, '--json', '--no-input', '--cwd', project],
@@ -330,7 +338,6 @@ describe('generated review targets', () => {
             PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
-            SAFEWORD_GIT_LOG: gitLog,
             SAFEWORD_NO_UPDATE_CHECK: '1',
           },
         },
@@ -357,11 +364,7 @@ describe('generated review targets', () => {
     writeFileSync(nodePath.join(outside, 'generated', 'output.js'), 'x'.repeat(256 * 1024 + 1));
     symlinkSync(outside, nodePath.join(directory, 'link'), 'dir');
     const bin = fakeReviewer();
-    writeFileSync(
-      nodePath.join(bin, 'git'),
-      '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SAFEWORD_GIT_LOG"\nexec /usr/bin/git "$@"\n',
-      { mode: 0o755 },
-    );
+    installGitProbe(bin, gitLog);
 
     const result = await runCli(
       [
@@ -380,7 +383,6 @@ describe('generated review targets', () => {
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
-          SAFEWORD_GIT_LOG: gitLog,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
@@ -406,11 +408,7 @@ describe('generated review targets', () => {
     writeFileSync(outsideFile, 'x'.repeat(256 * 1024 + 1));
     symlinkSync(outsideFile, nodePath.join(directory, 'link.js'));
     const bin = fakeReviewer();
-    writeFileSync(
-      nodePath.join(bin, 'git'),
-      '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SAFEWORD_GIT_LOG"\nexec /usr/bin/git "$@"\n',
-      { mode: 0o755 },
-    );
+    installGitProbe(bin, gitLog);
 
     const result = await runCli(
       ['review', 'run', 'quality-review', 'link.js', '--json', '--no-input', '--cwd', directory],
@@ -420,7 +418,6 @@ describe('generated review targets', () => {
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
-          SAFEWORD_GIT_LOG: gitLog,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
