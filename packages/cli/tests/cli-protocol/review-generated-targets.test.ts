@@ -230,6 +230,38 @@ describe('generated review targets', () => {
     expect(existsSync(promptLog)).toBe(false);
   });
 
+  it('rejects a final-component symlink outside the project with the containment code', async () => {
+    const directory = createTemporaryDirectory();
+    const outside = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    const outsideFile = nodePath.join(outside, 'output.js');
+    writeFileSync(outsideFile, 'outside content\n');
+    symlinkSync(outsideFile, nodePath.join(directory, 'link.js'));
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', 'link.js', '--json', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      errors: { code: string }[];
+      data: { excluded_targets?: string[] };
+    };
+    expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_OUTSIDE_PROJECT');
+    expect(envelope.data.excluded_targets).toBeUndefined();
+    expect(existsSync(promptLog)).toBe(false);
+  });
+
   it('reports invalid UTF-8 as a typed preflight failure without launching a reviewer', async () => {
     const directory = createTemporaryDirectory();
     const promptLog = nodePath.join(directory, 'prompt.log');
