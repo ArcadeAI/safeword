@@ -19,8 +19,8 @@ import { assertActivePlanningAuthorCopy, PlanningContractCopyError } from '../re
 import { phaseReviewAdmission } from '../review/phase-admission.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
+import { planningContractCopyFailure } from '../utils/planning-contract-copy-failure.js';
 import { resolveTicketDirectory } from '../utils/product-plan-contract.js';
-import { planningContractCopyFailure } from './planning-contract-check.js';
 
 type ApprovalStatus = 'approved' | 'declined' | 'not-required' | 'pending';
 
