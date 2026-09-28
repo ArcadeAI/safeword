@@ -70287,12 +70287,7 @@ var init_phase_admission = __esm(() => {
   init_job();
 });
 
-// src/commands/planning-contract-check.ts
-var exports_planning_contract_check = {};
-__export(exports_planning_contract_check, {
-  planningContractCopyFailure: () => planningContractCopyFailure,
-  checkPlanningContractCopy: () => checkPlanningContractCopy
-});
+// src/utils/planning-contract-copy-failure.ts
 function planningContractCopyFailure(error2, command) {
   return createResult({
     state: "action_required",
@@ -70307,35 +70302,8 @@ function planningContractCopyFailure(error2, command) {
     data: { command, status: "blocked" }
   });
 }
-function checkPlanningContractCopy(cwd, ticket, phase) {
-  if (resolveTicketDirectory(cwd, ticket) === undefined) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "TICKET_NOT_FOUND",
-          message: `Ticket "${ticket}" does not resolve.`,
-          retryable: false
-        }
-      ]
-    });
-  }
-  try {
-    assertActivePlanningAuthorCopy(cwd, phase);
-    return createResult({
-      state: "healthy",
-      data: { command: "ticket planning-contract-check", status: "current", planning_phase: phase }
-    });
-  } catch (error2) {
-    if (!(error2 instanceof PlanningContractCopyError))
-      throw error2;
-    return planningContractCopyFailure(error2, "ticket planning-contract-check");
-  }
-}
-var init_planning_contract_check = __esm(() => {
+var init_planning_contract_copy_failure = __esm(() => {
   init_result();
-  init_packet();
-  init_product_plan_contract();
 });
 
 // src/commands/plan-approval.ts
@@ -70727,8 +70695,45 @@ var init_plan_approval = __esm(() => {
   init_packet();
   init_phase_admission();
   init_configured_paths();
+  init_planning_contract_copy_failure();
   init_product_plan_contract();
-  init_planning_contract_check();
+});
+
+// src/commands/planning-contract-check.ts
+var exports_planning_contract_check = {};
+__export(exports_planning_contract_check, {
+  checkPlanningContractCopy: () => checkPlanningContractCopy
+});
+function checkPlanningContractCopy(cwd, ticket, phase) {
+  if (resolveTicketDirectory(cwd, ticket) === undefined) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "TICKET_NOT_FOUND",
+          message: `Ticket "${ticket}" does not resolve.`,
+          retryable: false
+        }
+      ]
+    });
+  }
+  try {
+    assertActivePlanningAuthorCopy(cwd, phase);
+    return createResult({
+      state: "healthy",
+      data: { command: "ticket planning-contract-check", status: "current", planning_phase: phase }
+    });
+  } catch (error2) {
+    if (!(error2 instanceof PlanningContractCopyError))
+      throw error2;
+    return planningContractCopyFailure(error2, "ticket planning-contract-check");
+  }
+}
+var init_planning_contract_check = __esm(() => {
+  init_result();
+  init_packet();
+  init_planning_contract_copy_failure();
+  init_product_plan_contract();
 });
 
 // src/execution-plan/delivery-admission.ts
