@@ -16,7 +16,7 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { RedExecutionAttestation } from '../../src/review/contract.js';
-import { prepareReviewPacket } from '../../src/review/packet.js';
+import { prepareReviewPacket, toReviewPath } from '../../src/review/packet.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -61,6 +61,12 @@ afterEach(() => {
 });
 
 describe('review packet containment and change accounting', () => {
+  it('uses forward slashes for Git attribute paths on Windows', () => {
+    expect(toReviewPath(String.raw`generated\nested\output.js`, nodePath.win32.sep)).toBe(
+      'generated/nested/output.js',
+    );
+  });
+
   it('refuses executable RED review without Safeword execution evidence', () => {
     const root = temporaryDirectory();
     writeFileSync(nodePath.join(root, 'proof.md'), 'missing behavior\n');
@@ -280,6 +286,16 @@ describe('review packet containment and change accounting', () => {
     expect(() => prepareReviewPacket(project, 'quality-review', ['large.md'])).toThrow(
       '262144-byte limit',
     );
+  });
+
+  it('reports an oversized context file with a typed size-limit error', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'authored.md'), 'review me\n');
+    writeFileSync(nodePath.join(project, 'large.md'), 'x'.repeat(256 * 1024 + 1));
+
+    expect(() =>
+      prepareReviewPacket(project, 'quality-review', ['authored.md'], ['large.md']),
+    ).toThrow(expect.objectContaining({ code: 'REVIEW_TARGET_TOO_LARGE' }));
   });
 
   it('rejects more files than a bounded review can safely carry', () => {

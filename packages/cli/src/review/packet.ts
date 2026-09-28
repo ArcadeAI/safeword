@@ -380,7 +380,10 @@ function readContainedText(
       );
     }
     if (opened.size > MAX_FILE_BYTES) {
-      throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+      throw new ReviewPacketError(
+        `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`,
+        'REVIEW_TARGET_CHANGED',
+      );
     }
     if (opened.size > packetBytesRemaining) {
       throw new ReviewPacketError(
@@ -434,6 +437,10 @@ function escapes(root: string, candidate: string): boolean {
   return (
     relative === '..' || relative.startsWith(`..${nodePath.sep}`) || nodePath.isAbsolute(relative)
   );
+}
+
+export function toReviewPath(relative: string, separator = nodePath.sep): string {
+  return relative.split(separator).join('/');
 }
 
 function snapshotEntries(root: string, directory = root): string[] {
@@ -504,12 +511,15 @@ function prepareReviewPacketUnsafe(
           }
           if (stats.size > MAX_FILE_BYTES) {
             if (!allowGenerated) {
-              throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+              throw new ReviewPacketError(
+                `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`,
+                'REVIEW_TARGET_TOO_LARGE',
+              );
             }
             oversized.push({
               index: offset + index,
               source,
-              relative,
+              relative: toReviewPath(relative),
               device: stats.dev,
               inode: stats.ino,
               size: stats.size,
@@ -545,7 +555,7 @@ function prepareReviewPacketUnsafe(
           }
           expectedSnapshotEntries.add(`file:${relative}`);
           tracked.push({ source, snapshot, sha256: digest(bytes), device, inode });
-          return [{ path: relative, content }];
+          return [{ path: toReviewPath(relative), content }];
         } catch (error) {
           targetErrors.push({ index: offset + index, error });
           return [];

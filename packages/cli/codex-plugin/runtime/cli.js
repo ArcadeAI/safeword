@@ -31672,6 +31672,7 @@ var init_scope = __esm(() => {
 // src/review/packet.ts
 var exports_packet = {};
 __export(exports_packet, {
+  toReviewPath: () => toReviewPath,
   prepareReviewPacket: () => prepareReviewPacket,
   ReviewPacketError: () => ReviewPacketError
 });
@@ -31901,7 +31902,7 @@ function readContainedText(root, source, target, packetBytesRemaining) {
       throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
     }
     if (opened.size > MAX_FILE_BYTES) {
-      throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+      throw new ReviewPacketError(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`, "REVIEW_TARGET_CHANGED");
     }
     if (opened.size > packetBytesRemaining) {
       throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
@@ -31935,6 +31936,9 @@ function readContainedText(root, source, target, packetBytesRemaining) {
 function escapes(root, candidate) {
   const relative = nodePath44.relative(root, candidate);
   return relative === ".." || relative.startsWith(`..${nodePath44.sep}`) || nodePath44.isAbsolute(relative);
+}
+function toReviewPath(relative, separator = nodePath44.sep) {
+  return relative.split(separator).join("/");
 }
 function snapshotEntries(root, directory = root) {
   return readdirSync8(directory).flatMap((name) => {
@@ -31980,12 +31984,12 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
         }
         if (stats.size > MAX_FILE_BYTES) {
           if (!allowGenerated) {
-            throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+            throw new ReviewPacketError(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`, "REVIEW_TARGET_TOO_LARGE");
           }
           oversized.push({
             index: offset + index,
             source,
-            relative,
+            relative: toReviewPath(relative),
             device: stats.dev,
             inode: stats.ino,
             size: stats.size
@@ -32011,7 +32015,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
         }
         expectedSnapshotEntries.add(`file:${relative}`);
         tracked.push({ source, snapshot, sha256: digest2(bytes), device, inode });
-        return [{ path: relative, content }];
+        return [{ path: toReviewPath(relative), content }];
       } catch (error2) {
         targetErrors.push({ index: offset + index, error: error2 });
         return [];
@@ -72969,7 +72973,7 @@ var CANONICAL_COMMANDS = [
       { flags: "--accept", description: "Accept a changed parent contract after intake" }
     ]
   }),
-  command("review run", "Run an independent adversarial review", "mutate", {
+  command("review run", "Run an independent adversarial review; report data.excluded_targets and REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE or REVIEW_NO_ELIGIBLE_TARGETS errors", "mutate", {
     networkPolicy: "declared",
     syntax: "run <kind> [targets...]",
     commandOptions: [

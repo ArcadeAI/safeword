@@ -50,6 +50,26 @@ printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text"
   return bin;
 }
 
+function failingReviewer(): string {
+  const root = createTrustedReviewerDirectory('safeword-generated-review-failure-');
+  const bin = nodePath.join(root, 'bin');
+  mkdirSync(bin);
+  const executable = nodePath.join(bin, 'codex');
+  writeFileSync(
+    executable,
+    String.raw`#!/bin/sh
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  printf '%s\n' '${REVIEWER_CAPABILITIES.codex}'
+  exit 0
+fi
+exit 7
+`,
+    { mode: 0o755 },
+  );
+  chmodSync(executable, 0o755);
+  return bin;
+}
+
 describe('generated review targets', () => {
   it('reviews authored input while reporting both generated targets one byte over the limit', async () => {
     const directory = createTemporaryDirectory();
@@ -535,5 +555,283 @@ exec "${gitExecutable}" "$@"
     expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_OUTSIDE_PROJECT');
     expect(envelope.data.excluded_targets).toBeUndefined();
     expect(existsSync(promptLog)).toBe(false);
+  });
+
+  it('uses committed generated status despite local Git info and working-tree overrides', async () => {
+    const directory = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    mkdirSync(nodePath.join(directory, 'generated'));
+    writeFileSync(nodePath.join(directory, 'authored.md'), 'review committed policy\n');
+    writeFileSync(nodePath.join(directory, 'generated', 'large.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(
+      nodePath.join(directory, '.gitattributes'),
+      'generated/** linguist-generated=true\n',
+    );
+    git(directory, 'init', '-q');
+    git(directory, 'add', '.gitattributes', 'authored.md');
+    git(
+      directory,
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    );
+    writeFileSync(
+      nodePath.join(directory, '.git', 'info', 'attributes'),
+      'generated/** -linguist-generated\n',
+    );
+    writeFileSync(nodePath.join(directory, '.gitattributes'), 'generated/** -linguist-generated\n');
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'authored.md',
+        'generated/large.js',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          GIT_DIR: nodePath.join(directory, 'missing-git-dir'),
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const envelope = JSON.parse(result.stdout) as { data: { excluded_targets: string[] } };
+    expect(envelope.data.excluded_targets).toEqual(['generated/large.js']);
+    expect(readFileSync(promptLog, 'utf8')).toContain('review committed policy');
+  });
+
+  it('does not let uncommitted attribute additions make an oversized target omittable', async () => {
+    const directory = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    mkdirSync(nodePath.join(directory, 'generated'));
+    writeFileSync(nodePath.join(directory, 'authored.md'), 'review committed policy\n');
+    writeFileSync(nodePath.join(directory, 'generated', 'large.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(nodePath.join(directory, '.gitattributes'), 'other/** linguist-generated=true\n');
+    git(directory, 'init', '-q');
+    git(directory, 'add', '.gitattributes', 'authored.md');
+    git(
+      directory,
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    );
+    writeFileSync(
+      nodePath.join(directory, '.git', 'info', 'attributes'),
+      'generated/** linguist-generated=true\n',
+    );
+    writeFileSync(
+      nodePath.join(directory, '.gitattributes'),
+      'generated/** linguist-generated=true\n',
+    );
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'authored.md',
+        'generated/large.js',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+          GIT_CONFIG_COUNT: '1',
+          GIT_CONFIG_KEY_0: 'core.attributesFile',
+          GIT_CONFIG_VALUE_0: nodePath.join(directory, '.git', 'info', 'attributes'),
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      errors: { code: string }[];
+      data: { excluded_targets?: string[] };
+    };
+    expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_TOO_LARGE');
+    expect(envelope.data.excluded_targets).toBeUndefined();
+    expect(existsSync(promptLog)).toBe(false);
+  });
+
+  it('retains the excluded target list when the reviewer route fails', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'authored.md'), 'review this\n');
+    writeFileSync(nodePath.join(directory, 'large.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(nodePath.join(directory, '.gitattributes'), 'large.js linguist-generated=true\n');
+    git(directory, 'init', '-q');
+    git(directory, 'add', '.gitattributes', 'authored.md');
+    git(
+      directory,
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    );
+    const bin = failingReviewer();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'authored.md',
+        'large.js',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      data: { excluded_targets?: string[]; status?: string };
+    };
+    expect(envelope.data.status).not.toBe('approved');
+    expect(envelope.data.excluded_targets).toEqual(['large.js']);
+  });
+
+  it.each([
+    { extraByte: false, label: 'exact serialized packet boundary' },
+    { extraByte: true, label: 'one byte beyond the serialized packet boundary' },
+  ])('keeps the aggregate limit with generated omission at $label', async ({ extraByte }) => {
+    const directory = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    const paths = ['first.md', 'second.md', 'third.md', 'fourth.md'];
+    const contents = paths.map(() => 'é'.repeat(131_000));
+    const examplePacket = {
+      schema_version: 1,
+      dispatch_id: '0'.repeat(36),
+      kind: 'quality-review',
+      logical_files: paths.map((path, index) => ({ path, content: contents[index] })),
+    };
+    let remaining = 1024 * 1024 - Buffer.byteLength(JSON.stringify(examplePacket), 'utf8');
+    expect(remaining).toBeGreaterThanOrEqual(0);
+    for (const index of paths.keys()) {
+      const fill = Math.min(144, remaining);
+      contents[index] = (contents[index] ?? '') + 'x'.repeat(fill);
+      remaining -= fill;
+    }
+    expect(remaining).toBe(0);
+    const boundaryPacket = {
+      ...examplePacket,
+      logical_files: paths.map((path, index) => ({ path, content: contents[index] })),
+    };
+    const boundaryBytes = Buffer.byteLength(JSON.stringify(boundaryPacket), 'utf8');
+    expect(boundaryBytes).toBe(1024 * 1024);
+    if (extraByte) {
+      const index = contents.findIndex(content => Buffer.byteLength(content, 'utf8') < 256 * 1024);
+      expect(index).toBeGreaterThanOrEqual(0);
+      contents[index] = `${contents[index] ?? ''}x`;
+    }
+    for (const [index, path] of paths.entries()) {
+      const content = contents[index];
+      if (content === undefined) throw new Error(`Missing aggregate fixture for ${path}`);
+      writeFileSync(nodePath.join(directory, path), content);
+    }
+    writeFileSync(nodePath.join(directory, 'generated.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(
+      nodePath.join(directory, '.gitattributes'),
+      'generated.js linguist-generated=true\n',
+    );
+    git(directory, 'init', '-q');
+    git(directory, 'add', '.gitattributes');
+    git(
+      directory,
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    );
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        ...paths,
+        'generated.js',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const envelope = JSON.parse(result.stdout) as {
+      errors: { code: string }[];
+      data: { excluded_targets?: string[] };
+    };
+    if (extraByte) {
+      expect(result.exitCode).not.toBe(0);
+      expect(envelope.errors[0]?.code).toBe('REVIEW_PACKET_TOO_LARGE');
+      expect(envelope.data.excluded_targets).toBeUndefined();
+      expect(existsSync(promptLog)).toBe(false);
+    } else {
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(envelope.data.excluded_targets).toEqual(['generated.js']);
+      expect(readFileSync(promptLog, 'utf8')).toContain('first.md');
+      expect(readFileSync(promptLog, 'utf8')).not.toContain('generated.js');
+    }
   });
 });

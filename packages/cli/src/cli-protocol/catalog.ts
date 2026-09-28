@@ -566,58 +566,63 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       { flags: '--accept', description: 'Accept a changed parent contract after intake' },
     ],
   }),
-  command('review run', 'Run an independent adversarial review', 'mutate', {
-    networkPolicy: 'declared',
-    syntax: 'run <kind> [targets...]',
-    commandOptions: [
-      {
-        flags: '--context <paths...>',
-        description: 'Bounded supporting evidence that is not work under review',
+  command(
+    'review run',
+    'Run an independent adversarial review; report data.excluded_targets and REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE or REVIEW_NO_ELIGIBLE_TARGETS errors',
+    'mutate',
+    {
+      networkPolicy: 'declared',
+      syntax: 'run <kind> [targets...]',
+      commandOptions: [
+        {
+          flags: '--context <paths...>',
+          description: 'Bounded supporting evidence that is not work under review',
+        },
+        {
+          flags: '--agent-handoff',
+          description: 'Treat action-required output as a successful author-agent handoff',
+        },
+        {
+          flags: '--worker-job-id <id>',
+          description: 'Internal detached-worker identity',
+          hidden: true,
+        },
+        {
+          flags: '--scenario <name>',
+          description: 'Exact scenario identity covered by this RED proof',
+        },
+        {
+          flags: '--ledger <path>',
+          description: 'Project-relative test-definitions ledger containing the scenario',
+        },
+        {
+          flags: '--proof-cwd <path>',
+          description: 'Project-contained working directory for the RED proof',
+        },
+        {
+          flags: '--evidence-class <class>',
+          description: 'pure-contract, simulated-host, local-live-host, or external-live-host',
+        },
+        {
+          flags: '--expected-failure <literal>',
+          description: 'Literal output that identifies the intended RED failure',
+        },
+        {
+          flags: '--execution-timeout <milliseconds>',
+          description: 'Bounded RED proof execution time',
+        },
+        {
+          flags: '--execute <json-argv>',
+          description: 'Exact JSON argv array; runs directly without a shell',
+        },
+      ],
+      exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
+      fixture: {
+        argv: ['review', 'run', 'quality-review', 'fixture'],
+        environment: MACHINE_ENVIRONMENT,
       },
-      {
-        flags: '--agent-handoff',
-        description: 'Treat action-required output as a successful author-agent handoff',
-      },
-      {
-        flags: '--worker-job-id <id>',
-        description: 'Internal detached-worker identity',
-        hidden: true,
-      },
-      {
-        flags: '--scenario <name>',
-        description: 'Exact scenario identity covered by this RED proof',
-      },
-      {
-        flags: '--ledger <path>',
-        description: 'Project-relative test-definitions ledger containing the scenario',
-      },
-      {
-        flags: '--proof-cwd <path>',
-        description: 'Project-contained working directory for the RED proof',
-      },
-      {
-        flags: '--evidence-class <class>',
-        description: 'pure-contract, simulated-host, local-live-host, or external-live-host',
-      },
-      {
-        flags: '--expected-failure <literal>',
-        description: 'Literal output that identifies the intended RED failure',
-      },
-      {
-        flags: '--execution-timeout <milliseconds>',
-        description: 'Bounded RED proof execution time',
-      },
-      {
-        flags: '--execute <json-argv>',
-        description: 'Exact JSON argv array; runs directly without a shell',
-      },
-    ],
-    exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
-    fixture: {
-      argv: ['review', 'run', 'quality-review', 'fixture'],
-      environment: MACHINE_ENVIRONMENT,
     },
-  }),
+  ),
   command('review status', 'Collect a durable independent review', 'mutate', {
     syntax: 'status [review-id]',
     fixture: {
