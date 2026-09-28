@@ -67,7 +67,7 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-async function review(missing?: 'ticket' | 'principles', explicit = false) {
+async function review(missing?: 'ticket' | 'principles', explicit = false, multiple = false) {
   const project = createTemporaryDirectory();
   projects.push(project);
   await createConfiguredProject(project);
@@ -80,6 +80,12 @@ async function review(missing?: 'ticket' | 'principles', explicit = false) {
     nodePath.join(project, target),
     'Feature: Trust approval\n  Scenario: Current approval\n    Given an authenticated approval\n    When the Builder requests advancement\n    Then current approval advances\n',
   );
+  const secondTarget = 'features/rejection.feature';
+  if (multiple)
+    writeFileSync(
+      nodePath.join(project, secondTarget),
+      'Feature: Refuse stale approval\n  Scenario: Changed approval\n    Given changed approval evidence\n    When the Builder requests advancement\n    Then Safeword refuses it\n',
+    );
   if (missing === 'principles') rmSync(nodePath.join(project, '.project/principles.md'));
   const reviewer = createTrustedReviewerDirectory('safeword-standalone-context-');
   const capture = nodePath.join(reviewer, 'packet.json');
@@ -113,6 +119,7 @@ process.stdin.on('end', () => {
       'run',
       'scenario-gate',
       target,
+      ...(multiple ? [secondTarget] : []),
       ...context,
       '--cwd',
       project,
@@ -121,7 +128,7 @@ process.stdin.on('end', () => {
     ],
     { cwd: project, env: { PATH: `${reviewer}:/usr/bin:/bin`, SAFEWORD_AGENT_RUNTIME: 'codex' } },
   );
-  return { capture, result };
+  return { capture, result, project };
 }
 
 function capturedPacket(capture: string) {
@@ -130,6 +137,18 @@ function capturedPacket(capture: string) {
 }
 
 describe('owned scenario review resolves required context', () => {
+  it('persists a readable current record for two reviewed feature targets', async () => {
+    const { result, capture, project } = await review(undefined, false, true);
+    expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(capturedPacket(capture).logical_files).toHaveLength(2);
+    const reviewId = (JSON.parse(result.stdout).data as { review_id: string }).review_id;
+    const status = await runCli(['review', 'status', reviewId, '--cwd', project, '--json'], {
+      cwd: project,
+    });
+    expect(status.exitCode, `${status.stdout}\n${status.stderr}`).toBe(0);
+    expect(JSON.parse(status.stdout).data.status).toBe('approved');
+  });
+
   it('preserves explicitly supplied required sources as a control', async () => {
     const { result, capture } = await review(undefined, true);
     expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);

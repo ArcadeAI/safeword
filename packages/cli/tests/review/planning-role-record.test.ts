@@ -35,6 +35,29 @@ function identity() {
 }
 
 describe('stored planning identity admission', () => {
+  it('accepts distinct scenario-gate targets in one protected review record', () => {
+    const first = identity();
+    const scenario = {
+      ...first,
+      review_kind: 'scenario-gate',
+      targets: [
+        { path: 'features/approval.feature', digest },
+        { path: 'features/rejection.feature', digest },
+      ],
+    };
+    expect(isPlanningReviewIdentity(scenario)).toBe(true);
+    expect(isPlanningReviewIdentity({ ...scenario, targets: [scenario.targets[0]] })).toBe(true);
+    expect(
+      isPlanningReviewIdentity({
+        ...scenario,
+        targets: [scenario.targets[0], scenario.targets[0]],
+      }),
+    ).toBe(false);
+    expect(isPlanningReviewIdentity({ ...scenario, review_kind: 'plan-implementation' })).toBe(
+      false,
+    );
+  });
+
   it('accepts a complete known record and multiple distinct records for one role', () => {
     const value = identity();
     expect(isPlanningReviewIdentity(value)).toBe(true);

@@ -554,14 +554,20 @@ function identityHeader(value: Record<string, unknown>): boolean {
   );
 }
 function identityRows(value: Record<string, unknown>): boolean {
+  const targetPaths = new Set<string>();
   return (
     Array.isArray(value.dependencies) &&
     value.dependencies.every(dependency) &&
     Array.isArray(value.absences) &&
     value.absences.every(absence) &&
     Array.isArray(value.targets) &&
-    value.targets.length === 1 &&
-    value.targets.every(exactTarget)
+    value.targets.length > 0 &&
+    (value.review_kind === 'scenario-gate' || value.targets.length === 1) &&
+    value.targets.every((target: unknown) => {
+      if (!exactTarget(target) || targetPaths.has(target.path)) return false;
+      targetPaths.add(target.path);
+      return true;
+    })
   );
 }
 /** Unknown versions and incomplete role records cannot become approval authority. */

@@ -51452,7 +51452,13 @@ function identityHeader(value) {
   return value.schema_version === 1 && planningReviewKinds.has(value.review_kind) && nonblank(value.ticket_id) && nonblank(value.ticket_path) && digest2(value.canonical_contract_digest);
 }
 function identityRows(value) {
-  return Array.isArray(value.dependencies) && value.dependencies.every(dependency) && Array.isArray(value.absences) && value.absences.every(absence) && Array.isArray(value.targets) && value.targets.length === 1 && value.targets.every(exactTarget);
+  const targetPaths = new Set;
+  return Array.isArray(value.dependencies) && value.dependencies.every(dependency) && Array.isArray(value.absences) && value.absences.every(absence) && Array.isArray(value.targets) && value.targets.length > 0 && (value.review_kind === "scenario-gate" || value.targets.length === 1) && value.targets.every((target) => {
+    if (!exactTarget(target) || targetPaths.has(target.path))
+      return false;
+    targetPaths.add(target.path);
+    return true;
+  });
 }
 function isPlanningReviewIdentity(value) {
   if (!recordWithKeys(value, [
