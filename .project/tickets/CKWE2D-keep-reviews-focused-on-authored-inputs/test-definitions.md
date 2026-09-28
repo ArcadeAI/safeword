@@ -260,7 +260,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 ### Scenario: An unmarked runtime-shaped path cannot be excluded by its filename
 
 - [x] RED c77a0dc30
-- [ ] GREEN
+- [x] GREEN affd3f97d
 - [ ] REFACTOR
 
 ## Rule: focused-review.SWM1.R1
