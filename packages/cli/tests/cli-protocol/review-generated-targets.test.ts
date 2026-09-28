@@ -209,4 +209,34 @@ describe('generated review targets', () => {
     expect(envelope.data.excluded_targets).toBeUndefined();
     expect(existsSync(promptLog)).toBe(false);
   });
+
+  it('reports invalid UTF-8 as a typed preflight failure without launching a reviewer', async () => {
+    const directory = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    writeFileSync(nodePath.join(directory, 'invalid.md'), Buffer.from([0xff]));
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', 'invalid.md', '--json', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toBe('');
+    const envelope = JSON.parse(result.stdout) as {
+      errors: { code: string }[];
+      data: { excluded_targets?: string[] };
+    };
+    expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_INVALID_TEXT');
+    expect(envelope.data.excluded_targets).toBeUndefined();
+    expect(existsSync(promptLog)).toBe(false);
+  });
 });
