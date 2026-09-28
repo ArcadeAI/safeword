@@ -101,71 +101,79 @@ function gitOutput(args: readonly string[], env: NodeJS.ProcessEnv): Buffer {
 // eslint-disable-next-line complexity -- Each process and tuple check rejects unsafe classification.
 function generatedTargets(root: string, files: readonly OversizedFile[]): Set<string> {
   if (files.length === 0) return new Set();
-  const env = gitEnvironment();
-  const commit = gitOutput(['-C', root, 'rev-parse', '--verify', 'HEAD^{commit}'], env)
-    .toString('utf8')
-    .trim();
-  if (!/^[0-9a-f]{40,64}$/u.test(commit)) {
-    throw new ReviewPacketError(
-      'Git attributes could not be resolved for an oversized review target',
-      'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
-    );
-  }
-  const objectsPath = gitOutput(['-C', root, 'rev-parse', '--git-path', 'objects'], env)
-    .toString('utf8')
-    .trim();
-  const objects = realpathSync(nodePath.resolve(root, objectsPath));
-  const bare = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-git-'));
   try {
-    gitOutput(['init', '--bare', '-q', bare], env);
-    const result = spawnSync(
-      'git',
-      [
-        '--git-dir',
-        bare,
-        '-c',
-        `core.attributesFile=${process.platform === 'win32' ? 'NUL' : '/dev/null'}`,
-        'check-attr',
-        `--source=${commit}`,
-        '-z',
-        '--stdin',
-        'linguist-generated',
-      ],
-      {
-        env: gitEnvironment(objects),
-        input: Buffer.from(`${files.map(file => file.relative).join('\0')}\0`),
-        encoding: 'buffer',
-        timeout: 5000,
-        maxBuffer: 256 * 1024,
-      },
-    );
-    if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+    const env = gitEnvironment();
+    const commit = gitOutput(['-C', root, 'rev-parse', '--verify', 'HEAD^{commit}'], env)
+      .toString('utf8')
+      .trim();
+    if (!/^[0-9a-f]{40,64}$/u.test(commit)) {
       throw new ReviewPacketError(
         'Git attributes could not be resolved for an oversized review target',
         'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
       );
     }
-    const fields = result.stdout.toString('utf8').split('\0');
-    if (fields.pop() !== '' || fields.length !== files.length * 3) {
-      throw new ReviewPacketError(
-        'Git attributes returned an invalid response',
-        'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+    const objectsPath = gitOutput(['-C', root, 'rev-parse', '--git-path', 'objects'], env)
+      .toString('utf8')
+      .trim();
+    const objects = realpathSync(nodePath.resolve(root, objectsPath));
+    const bare = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-git-'));
+    try {
+      gitOutput(['init', '--bare', '-q', bare], env);
+      const result = spawnSync(
+        'git',
+        [
+          '--git-dir',
+          bare,
+          '-c',
+          `core.attributesFile=${process.platform === 'win32' ? 'NUL' : '/dev/null'}`,
+          'check-attr',
+          `--source=${commit}`,
+          '-z',
+          '--stdin',
+          'linguist-generated',
+        ],
+        {
+          env: gitEnvironment(objects),
+          input: Buffer.from(`${files.map(file => file.relative).join('\0')}\0`),
+          encoding: 'buffer',
+          timeout: 5000,
+          maxBuffer: 256 * 1024,
+        },
       );
-    }
-    const marked = new Set<string>();
-    for (const [index, file] of files.entries()) {
-      const offset = index * 3;
-      if (fields[offset] !== file.relative || fields[offset + 1] !== 'linguist-generated') {
+      if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+        throw new ReviewPacketError(
+          'Git attributes could not be resolved for an oversized review target',
+          'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+        );
+      }
+      const fields = new TextDecoder('utf-8', { fatal: true }).decode(result.stdout).split('\0');
+      if (fields.pop() !== '' || fields.length !== files.length * 3) {
         throw new ReviewPacketError(
           'Git attributes returned an invalid response',
           'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
         );
       }
-      if (fields[offset + 2] === 'true') marked.add(file.relative);
+      const marked = new Set<string>();
+      for (const [index, file] of files.entries()) {
+        const offset = index * 3;
+        if (fields[offset] !== file.relative || fields[offset + 1] !== 'linguist-generated') {
+          throw new ReviewPacketError(
+            'Git attributes returned an invalid response',
+            'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+          );
+        }
+        if (fields[offset + 2] === 'true') marked.add(file.relative);
+      }
+      return marked;
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
     }
-    return marked;
-  } finally {
-    rmSync(bare, { recursive: true, force: true });
+  } catch (error) {
+    if (error instanceof ReviewPacketError) throw error;
+    throw new ReviewPacketError(
+      'Git attributes could not be resolved for an oversized review target',
+      'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+    );
   }
 }
 
