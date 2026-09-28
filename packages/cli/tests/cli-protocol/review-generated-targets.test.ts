@@ -359,4 +359,102 @@ exec "${gitExecutable}" "$@"
     expect(envelope.data.excluded_targets).toBeUndefined();
     expect(existsSync(promptLog)).toBe(false);
   });
+
+  it.each(['plugin/runtime/cli.js', 'packages/cli/codex-plugin/runtime/cli.js'])(
+    'reviews authored input beside the shipped generated runtime %s',
+    async runtime => {
+      const project = nodePath.resolve(process.cwd(), '../..');
+      const directory = createTemporaryDirectory();
+      const promptLog = nodePath.join(directory, 'prompt.log');
+      const bin = fakeReviewer();
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'README.md',
+          runtime,
+          '--json',
+          '--no-input',
+          '--cwd',
+          project,
+        ],
+        {
+          cwd: project,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(0);
+      const envelope = JSON.parse(result.stdout) as { data: { excluded_targets: string[] } };
+      expect(envelope.data.excluded_targets).toEqual([runtime]);
+      const prompt = readFileSync(promptLog, 'utf8');
+      expect(prompt).toContain('# SAFEWORD - AI Agent Configuration CLI');
+      expect(prompt).not.toContain(runtime);
+    },
+  );
+
+  it('keeps a generated target below the individual limit in the reviewer packet', async () => {
+    const directory = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    writeFileSync(nodePath.join(directory, 'small.js'), 'generated but reviewable\n');
+    writeFileSync(nodePath.join(directory, '.gitattributes'), 'small.js linguist-generated=true\n');
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', 'small.js', '--json', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const envelope = JSON.parse(result.stdout) as { data: { excluded_targets: string[] } };
+    expect(envelope.data.excluded_targets).toEqual([]);
+    expect(readFileSync(promptLog, 'utf8')).toContain('generated but reviewable');
+  });
+
+  it.each([
+    { label: 'all generated targets excluded', targets: ['plugin/runtime/cli.js'] },
+    { label: 'no submitted targets', targets: [] },
+  ])('refuses $label before reviewer launch', async ({ targets }) => {
+    const project = nodePath.resolve(process.cwd(), '../..');
+    const directory = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', ...targets, '--json', '--no-input', '--cwd', project],
+      {
+        cwd: project,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      errors: { code: string }[];
+      data: { excluded_targets?: string[] };
+    };
+    expect(envelope.errors[0]?.code).toBe('REVIEW_NO_ELIGIBLE_TARGETS');
+    expect(envelope.data.excluded_targets).toBeUndefined();
+    expect(existsSync(promptLog)).toBe(false);
+  });
 });

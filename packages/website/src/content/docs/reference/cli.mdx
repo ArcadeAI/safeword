@@ -54,7 +54,7 @@ canonical commands below.
 | `ticket list`                           | observe     | List project tickets                                                                                        |
 | `ticket new`                            | mutate      | Create a project ticket                                                                                     |
 | `ticket reconcile-parent`               | mutate      | Record the current parent Product Plan contract                                                             |
-| `review run`                            | mutate      | Run an independent adversarial review                                                                       |
+| `review run`                            | mutate      | Review bounded inputs and report excluded generated output                                                  |
 | `review status`                         | mutate      | Collect a durable independent review                                                                        |
 | `review gate executable-red`            | observe     | Check whether a scenario may claim GREEN                                                                    |
 | `review cancel`                         | mutate      | Cancel a durable independent review                                                                         |
@@ -233,7 +233,7 @@ safeword tracker sync [--plan | --apply-results <file>]
 safeword ticket list
 safeword ticket new <slug> [--type <type>] [--title <title>]
 
-safeword review run <kind> <targets...>
+safeword review run <kind> [targets...]
 
 safeword retro run
 safeword retro signals
@@ -249,6 +249,13 @@ work is sent to Claude and then Codex; OpenCode self-review is never accepted as
 independent evidence. OpenCode is invoked one-shot with JSON events, a stdin
 prompt, `--pure`, deny-all tool permissions, and the shared review deadline and
 integrity checks.
+
+Review packets retain their 256 KiB per-target and 1 MiB aggregate limits.
+An oversized target is omitted only when the committed repository attributes
+mark it `linguist-generated=true`. The result reports its path in
+`data.excluded_targets`; every eligible authored target still reaches the
+reviewer unchanged. An unmarked oversized target or a review with no eligible
+targets fails before reviewer launch.
 
 Supported local Claude Code, Codex, and Cursor installs can quietly send sanitized
 retrospective findings to SafeWord's durable public collector. Collection requires

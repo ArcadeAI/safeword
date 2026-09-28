@@ -566,9 +566,9 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       { flags: '--accept', description: 'Accept a changed parent contract after intake' },
     ],
   }),
-  command('review run', 'Run an independent adversarial review', 'mutate', {
+  command('review run', 'Review bounded inputs and report excluded generated output', 'mutate', {
     networkPolicy: 'declared',
-    syntax: 'run <kind> <targets...>',
+    syntax: 'run <kind> [targets...]',
     commandOptions: [
       {
         flags: '--context <paths...>',
