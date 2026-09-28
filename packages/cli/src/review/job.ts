@@ -29,6 +29,11 @@ import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
+import {
+  createPlanningReviewIdentity,
+  productParentContextIdentity,
+} from './planning-context-identity.js';
+import { isPlanningReviewIdentity, type PlanningReviewIdentity } from './planning-role-context.js';
 import { reviewWorkerRunBoundMs } from './runtime.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
@@ -43,6 +48,7 @@ interface ReviewJobRecord {
   readonly context?: readonly string[];
   readonly execution?: RedExecutionRequest;
   readonly source_fingerprint: string;
+  readonly review_identity?: PlanningReviewIdentity;
   readonly started_at: string;
   readonly updated_at: string;
   readonly deadline_at?: string;
@@ -173,6 +179,32 @@ function fingerprint(
   context: readonly string[] = [],
   execution?: RedExecutionRequest,
 ): string {
+  return reviewInputs(cwd, kind, targets, context, execution).sourceFingerprint;
+}
+
+function planningFingerprintContext(
+  packet: Parameters<typeof productParentContextIdentity>[0],
+  reviewIdentity: PlanningReviewIdentity | undefined,
+): ReadonlyMap<string, string> | undefined {
+  if (reviewIdentity === undefined) return productParentContextIdentity(packet);
+  // The complete identity already binds each role's semantic digest. Hashing its
+  // captured raw bytes again would turn cosmetic changes into false staleness.
+  return new Map(
+    reviewIdentity.dependencies.map(source => [source.path, 'planning-role-dependency']),
+  );
+}
+
+function planningIdentityFingerprint(identity: PlanningReviewIdentity | undefined): string {
+  return identity === undefined ? '' : `planning-review-identity-v1\0${JSON.stringify(identity)}\0`;
+}
+
+function reviewInputs(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[] = [],
+  execution?: RedExecutionRequest,
+): { readonly sourceFingerprint: string; readonly reviewIdentity?: PlanningReviewIdentity } {
   // A GREEN receipt is bound to the reviewed scenario's ledger block, not just
   // its human-readable label. Other scenarios share this progress ledger, so
   // their later GREEN/REFACTOR updates are outputs rather than proof inputs.
@@ -181,8 +213,11 @@ function fingerprint(
     allowMissingExecutableRedAttestation: true,
   });
   try {
+    const reviewIdentity = createPlanningReviewIdentity(prepared.packet);
+    const projectedContext = planningFingerprintContext(prepared.packet, reviewIdentity);
     const hash = createHash('sha256');
     hash.update(`kind\0${kind}\0`);
+    hash.update(planningIdentityFingerprint(reviewIdentity));
     if (execution !== undefined) hash.update(`execution\0${JSON.stringify(execution)}\0`);
     if (ledger.missing) hash.update('ledger\0missing\0');
     const executionPlanTarget =
@@ -205,6 +240,7 @@ function fingerprint(
         hash.update('\0');
         hash.update(
           reviewFingerprintContent(section, file.path, file.content, {
+            projectedContext,
             executionPlanTargetPath: executionPlanTarget?.path,
             executionPlanFingerprint,
             executableRedScenario: executableRedScenarioForFile(cwd, file.path, execution),
@@ -213,13 +249,14 @@ function fingerprint(
         hash.update('\0');
       }
     }
-    return hash.digest('hex');
+    return { sourceFingerprint: hash.digest('hex'), reviewIdentity };
   } finally {
     prepared.cleanup();
   }
 }
 
 interface ReviewFingerprintOptions {
+  readonly projectedContext?: ReadonlyMap<string, string>;
   readonly executionPlanTargetPath?: string;
   readonly executionPlanFingerprint?: string;
   readonly executableRedScenario?: string;
@@ -241,6 +278,7 @@ function reviewFingerprintContent(
   if (options.executableRedScenario !== undefined) {
     return executableRedLedgerIdentity(content, options.executableRedScenario);
   }
+  if (section === 'context') return options.projectedContext?.get(path) ?? content;
   return content;
 }
 
@@ -322,7 +360,7 @@ function withJobLock<T>(cwd: string, id: string, operation: () => T): T {
   return withFileLock(`${jobPath(cwd, id)}.lock`, operation);
 }
 
-function withFileLock<T>(lock: string, operation: () => T): T {
+export function withFileLock<T>(lock: string, operation: () => T): T {
   const deadline = Date.now() + JOB_LOCK_WAIT_MS;
   let descriptor: number | undefined;
   while (descriptor === undefined) {
@@ -398,6 +436,17 @@ function isReviewJobRecord(value: unknown): value is ReviewJobRecord {
   return hasReviewJobIdentity(candidate) && hasReviewJobLifecycle(candidate);
 }
 
+function hasMatchingPlanningIdentity(candidate: Record<string, unknown>): boolean {
+  const identity = candidate.review_identity;
+  if (identity === undefined) return true;
+  return (
+    isPlanningReviewIdentity(identity) &&
+    identity.review_kind === candidate.kind &&
+    JSON.stringify(identity.targets.map(target => target.path)) ===
+      JSON.stringify(candidate.targets)
+  );
+}
+
 function hasReviewJobIdentity(candidate: Record<string, unknown>): boolean {
   const hasStrings = ['id', 'source_fingerprint', 'started_at', 'updated_at'].every(
     key => typeof candidate[key] === 'string',
@@ -407,6 +456,7 @@ function hasReviewJobIdentity(candidate: Record<string, unknown>): boolean {
     hasStrings &&
     isStringArray(candidate.targets) &&
     isOptional(candidate.context, isStringArray) &&
+    hasMatchingPlanningIdentity(candidate) &&
     (candidate.kind === 'executable-red'
       ? isRedExecutionRequest(candidate.execution)
       : candidate.execution === undefined) &&
@@ -654,7 +704,12 @@ function staleResult(record: ReviewJobRecord): CliResult {
         requiresHuman: false,
       },
     ],
-    data: { command: 'review status', status: 'stale', review_id: record.id },
+    data: {
+      command: 'review status',
+      status: 'stale',
+      review_id: record.id,
+      ...(record.review_identity !== undefined && { review_identity: record.review_identity }),
+    },
   });
 }
 
@@ -767,6 +822,7 @@ function withReviewProvenance(record: ReviewJobRecord, result: CliResult): CliRe
       review_id: record.id,
       review_kind: record.kind,
       review_targets: record.targets,
+      ...(record.review_identity !== undefined && { review_identity: record.review_identity }),
     },
   };
 }
@@ -905,6 +961,13 @@ function announceBackgroundProgress(
   progress?.heartbeat?.('Still waiting for the independent review…');
 }
 
+function canonicalReviewTargets(
+  identity: PlanningReviewIdentity | undefined,
+  requested: readonly string[],
+): readonly string[] {
+  return identity === undefined ? requested : identity.targets.map(target => target.path);
+}
+
 export async function startReviewJob(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
@@ -914,13 +977,14 @@ export async function startReviewJob(input: {
   readonly progress?: Pick<ProgressReporter, 'heartbeat' | 'managed' | 'start'>;
 }): Promise<CliResult> {
   const context = input.context ?? [];
-  const sourceFingerprint = fingerprint(
+  const { sourceFingerprint, reviewIdentity } = reviewInputs(
     input.cwd,
     input.kind,
     input.targets,
     context,
     input.execution,
   );
+  const targets = canonicalReviewTargets(reviewIdentity, input.targets);
   mkdirSync(jobsDirectory(input.cwd), { recursive: true, mode: 0o700 });
   const reserved = withFileLock(nodePath.join(jobsDirectory(input.cwd), 'start.lock'), () => {
     const existing =
@@ -933,10 +997,11 @@ export async function startReviewJob(input: {
       id: randomUUID(),
       state: 'launching',
       kind: input.kind,
-      targets: input.targets,
+      targets,
       context,
       execution: input.execution,
       source_fingerprint: sourceFingerprint,
+      ...(reviewIdentity !== undefined && { review_identity: reviewIdentity }),
       started_at: now,
       updated_at: now,
       deadline_at: new Date(Date.now() + reviewWorkerRunBoundMs()).toISOString(),
@@ -957,7 +1022,7 @@ export async function startReviewJob(input: {
     id,
     kind: input.kind,
     managedProgress,
-    targets: input.targets,
+    targets,
   });
   const closeManagedProgress = relayManagedWorkerStderr(child, managedProgress);
   const launchSettled = workerLaunchSettled(child);

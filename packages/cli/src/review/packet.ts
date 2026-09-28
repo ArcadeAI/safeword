@@ -27,8 +27,8 @@ import {
 import { PLANNING_AUTHOR_COPIES } from '../planning/contracts.generated.js';
 import type { PlanningAuthorCopyIdentity, PlanningPhase } from '../planning/phase-contract.js';
 import { cursorPlanningContractPath } from '../schema.js';
-import { resolveTicketsDirectory } from '../utils/configured-paths.js';
-import { readFrontmatterScalar } from '../utils/frontmatter.js';
+import { resolveConfiguredPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
+import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type {
   ExecutionPlanDeliveryDefinition,
   PlanContractPair,
@@ -36,6 +36,13 @@ import type {
   ReviewKind,
   ReviewPacket,
 } from './contract.js';
+import { ReviewPacketError } from './packet-error.js';
+import { reviewDispositionContext } from './planning-accepted-boundary.js';
+import { PlanningContextError, type PlanningContextRole } from './planning-context-error.js';
+import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning-role-context.js';
+import { planningTicketOwner } from './planning-ticket-owner.js';
+export { ReviewPacketError } from './packet-error.js';
+export { PlanningContextError } from './planning-context-error.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC } from './execution-plan-rubric.generated.js';
 import { extractExecutionPlanReviewRubric } from './execution-plan-rubric.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
@@ -64,8 +71,206 @@ export interface PreparedReviewPacket {
   readonly cleanup: () => void;
 }
 
-export class ReviewPacketError extends Error {
-  readonly name = 'ReviewPacketError';
+const PLANNING_KNOWLEDGE_ROLES = ['principles', 'personas', 'surfaces'] as const;
+type PlanningKnowledgeRole = (typeof PLANNING_KNOWLEDGE_ROLES)[number];
+type RequiredPlanningContextRole = PlanningContextRole;
+
+function planningOverrides(
+  cwd: string,
+  role: PlanningKnowledgeRole,
+): Record<string, unknown> | undefined {
+  const configPath = nodePath.join(cwd, '.safeword/config.json');
+  if (!existsSync(configPath)) return undefined;
+  let config: unknown;
+  try {
+    config = JSON.parse(readFileSync(configPath, 'utf8'));
+  } catch {
+    throw new PlanningContextError(role, '.safeword/config.json');
+  }
+  if (!planningConfigRecord(config)) throw new PlanningContextError(role, '.safeword/config.json');
+  const overrides = config.paths;
+  if (overrides === undefined) return undefined;
+  if (!planningConfigRecord(overrides))
+    throw new PlanningContextError(role, '.safeword/config.json:paths');
+  return overrides;
+}
+function planningConfigRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+function requireValidPlanningOverride(cwd: string, role: PlanningKnowledgeRole): void {
+  const overrides = planningOverrides(cwd, role);
+  if (overrides !== undefined && Object.hasOwn(overrides, role)) {
+    const value = overrides[role];
+    if (typeof value !== 'string' || value.trim() === '')
+      throw new PlanningContextError(role, `.safeword/config.json:paths.${role}`);
+  }
+}
+
+function requiredPlanningKnowledgeSource(cwd: string, role: PlanningKnowledgeRole): string {
+  requireValidPlanningOverride(cwd, role);
+  return requiredPlanningSource(cwd, role, resolveConfiguredPath(cwd, role));
+}
+
+function requiredPlanningSource(
+  cwd: string,
+  role: RequiredPlanningContextRole,
+  source: string,
+): string {
+  const relative = nodePath.relative(cwd, source);
+  try {
+    if (escapes(cwd, source) || !lstatSync(source).isFile()) {
+      throw new PlanningContextError(role, relative);
+    }
+    if (readFileSync(source, 'utf8').trim() === '') {
+      throw new PlanningContextError(role, relative);
+    }
+  } catch {
+    throw new PlanningContextError(role, relative);
+  }
+  return relative;
+}
+
+function planningTicketMetadata(
+  cwd: string,
+  source: string,
+  role: 'ticket' | 'parent',
+): Record<string, unknown> {
+  const relative = requiredPlanningSource(cwd, role, source);
+  try {
+    return parseTicketMetadata(readFileSync(source, 'utf8')).metadata;
+  } catch {
+    throw new PlanningContextError(role, relative);
+  }
+}
+
+function declaredPlanningParent(
+  ticket: Record<string, unknown>,
+  ticketPath: string,
+): string | undefined {
+  if (!Object.hasOwn(ticket, 'parent')) return undefined;
+  const parent = ticket.parent;
+  if (
+    typeof parent !== 'string' ||
+    parent.trim() === '' ||
+    parent !== parent.trim() ||
+    /[\\/]/u.test(parent) ||
+    parent === '.' ||
+    parent === '..' ||
+    parent === ticket.id
+  ) {
+    throw new PlanningContextError('parent', `${ticketPath}:parent`);
+  }
+  return parent;
+}
+
+function requiredProductParentContext(cwd: string, targets: readonly string[]): string[] {
+  const target = targets[0];
+  if (target === undefined) return [];
+  const ticketSource = nodePath.join(nodePath.dirname(nodePath.resolve(cwd, target)), 'ticket.md');
+  const ticket = planningTicketMetadata(cwd, ticketSource, 'ticket');
+  const parent = declaredPlanningParent(ticket, nodePath.relative(cwd, ticketSource));
+  if (parent === undefined) return [nodePath.relative(cwd, ticketSource)];
+  const tickets = resolveTicketsDirectory(cwd);
+  const candidates = readdirSync(tickets, { withFileTypes: true }).filter(
+    entry => entry.isDirectory() && (entry.name === parent || entry.name.startsWith(`${parent}-`)),
+  );
+  const directory = candidates[0];
+  if (candidates.length !== 1 || directory === undefined) {
+    throw new PlanningContextError(
+      'parent',
+      nodePath.relative(cwd, nodePath.join(tickets, parent, 'spec.md')),
+    );
+  }
+  const parentTicket = nodePath.join(tickets, directory.name, 'ticket.md');
+  const parentMetadata = planningTicketMetadata(cwd, parentTicket, 'parent');
+  if (parentMetadata.id !== parent || parentMetadata.type !== 'epic') {
+    throw new PlanningContextError('parent', nodePath.relative(cwd, parentTicket));
+  }
+  const parentSpec = requiredPlanningSource(
+    cwd,
+    'parent',
+    nodePath.join(tickets, directory.name, 'spec.md'),
+  );
+  return [nodePath.relative(cwd, ticketSource), nodePath.relative(cwd, parentTicket), parentSpec];
+}
+
+function requiredDownstreamProductContext(
+  cwd: string,
+  targets: readonly string[],
+  planName: 'impl-plan.md' | 'execution-plan.md',
+): string[] | undefined {
+  const target = targets[0];
+  if (targets.length !== 1 || target === undefined || nodePath.basename(target) !== planName)
+    return [];
+  const ticketDirectory = nodePath.dirname(nodePath.resolve(cwd, target));
+  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(cwd)) return [];
+  if (!ownedPlanningTicket(cwd, target)) return undefined;
+  const inherited = requiredProductParentContext(cwd, targets);
+  const product = requiredPlanningSource(cwd, 'project', nodePath.join(ticketDirectory, 'spec.md'));
+  const upstream =
+    planName === 'execution-plan.md'
+      ? [
+          requiredPlanningSource(
+            cwd,
+            'accepted-upstream-plan',
+            nodePath.join(ticketDirectory, 'impl-plan.md'),
+          ),
+        ]
+      : [];
+  return [...inherited, product, ...upstream];
+}
+
+function requiredPlanningBoundaryContext(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[],
+  productPlan: boolean,
+): string[] | undefined {
+  if (productPlan) return requiredProductParentContext(cwd, targets);
+  if (kind === 'scenario-gate') {
+    const spec = context[0];
+    if (
+      spec === undefined ||
+      nodePath.basename(spec) !== 'spec.md' ||
+      !ownedPlanningTicket(cwd, spec)
+    )
+      return undefined;
+    const inherited = requiredProductParentContext(cwd, [spec]);
+    requiredPlanningSource(cwd, 'project', nodePath.resolve(cwd, spec));
+    return inherited;
+  }
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return undefined;
+  const planName = kind === 'plan-implementation' ? 'impl-plan.md' : 'execution-plan.md';
+  return requiredDownstreamProductContext(cwd, targets, planName);
+}
+
+function resolvedPlanningContext(
+  cwd: string,
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[],
+  productPlan = false,
+): readonly string[] {
+  const inherited = requiredPlanningBoundaryContext(cwd, kind, targets, context, productPlan);
+  if (inherited === undefined) return context;
+  const included = new Set([...targets, ...context].map(path => nodePath.resolve(cwd, path)));
+  const resolved = [...context];
+  const required = [
+    ...inherited,
+    ...PLANNING_KNOWLEDGE_ROLES.map(role => requiredPlanningKnowledgeSource(cwd, role)),
+  ];
+  for (const path of required) {
+    const absolute = nodePath.resolve(cwd, path);
+    if (!included.has(absolute)) {
+      resolved.push(path);
+      included.add(absolute);
+    }
+  }
+  if (targets.length + resolved.length > MAX_FILE_COUNT) {
+    throw new ReviewPacketError(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
+  }
+  return resolved;
 }
 
 export class PlanningContractCopyError extends ReviewPacketError {
@@ -300,6 +505,14 @@ function checkedExecutionAttestation(
   return execution.attestation;
 }
 
+export function planningPacketError(
+  error: unknown,
+): PlanningContractCopyError | PlanningContextError | undefined {
+  return error instanceof PlanningContractCopyError || error instanceof PlanningContextError
+    ? error
+    : undefined;
+}
+
 function digest(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
 }
@@ -367,7 +580,7 @@ export function packagedPlanContract(
 function productPlanWorkTarget(
   root: string,
   kind: ReviewKind,
-  files: readonly { readonly path: string }[],
+  files: readonly { readonly path: string; readonly content: string }[],
 ): boolean {
   if (kind !== 'quality-review' || files.length !== 1) return false;
   const target = files[0];
@@ -375,18 +588,31 @@ function productPlanWorkTarget(
   const ticketDirectory = nodePath.dirname(nodePath.resolve(root, target.path));
   if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(root)) return false;
   const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
-  if (!existsSync(ticketPath)) return false;
-  return productPlanOwner(readFileSync(ticketPath, 'utf8'), nodePath.basename(ticketDirectory));
+  const relativeTicketPath = nodePath.relative(root, ticketPath);
+  const markedProductPlan = target.content.includes('<!-- safeword:product-plan-contract:v1 -->');
+  let metadata: Record<string, unknown>;
+  try {
+    metadata = parseTicketMetadata(readFileSync(ticketPath, 'utf8')).metadata;
+  } catch {
+    if (markedProductPlan) throw new PlanningContextError('ticket', relativeTicketPath);
+    return false;
+  }
+  if (metadata.product_plan_contract !== 'v1') {
+    if (markedProductPlan) throw new PlanningContextError('ticket', relativeTicketPath);
+    return false;
+  }
+  return planningTicketOwner(metadata, nodePath.basename(ticketDirectory), relativeTicketPath);
 }
 
-function productPlanOwner(ticket: string, folder: string): boolean {
-  const type = readFrontmatterScalar(ticket, 'type');
-  if (type !== 'feature' && type !== 'epic') return false;
-  const id = readFrontmatterScalar(ticket, 'id');
-  return (
-    id !== undefined &&
-    (folder === id || folder.startsWith(`${id}-`)) &&
-    readFrontmatterScalar(ticket, 'product_plan_contract') === 'v1'
+function ownedPlanningTicket(root: string, target: string): boolean {
+  const ticketDirectory = nodePath.dirname(nodePath.resolve(root, target));
+  if (nodePath.dirname(ticketDirectory) !== resolveTicketsDirectory(root)) return false;
+  const ticketPath = nodePath.join(ticketDirectory, 'ticket.md');
+  const metadata = planningTicketMetadata(root, ticketPath, 'ticket');
+  return planningTicketOwner(
+    metadata,
+    nodePath.basename(ticketDirectory),
+    nodePath.relative(root, ticketPath),
   );
 }
 
@@ -401,12 +627,23 @@ function packetPlanContract(
   kind: ReviewKind,
   configured: PlanContractPair | undefined,
   productTarget: boolean,
-): { readonly planning_phase?: 'product-plan'; readonly plan_contract?: PlanContractPair } {
+  cwd: string,
+  targets: readonly string[],
+): Pick<ReviewPacket, 'planning_phase' | 'plan_contract'> {
   if (productTarget)
     return { planning_phase: 'product-plan', plan_contract: packagedProductPlanContract() };
   if (kind !== 'plan-implementation' && kind !== 'plan-execution') return {};
   const canonical = packagedPlanContract(kind);
-  return { plan_contract: configured ?? canonical };
+  const target = targets.length === 1 ? targets[0] : undefined;
+  const expected = kind === 'plan-implementation' ? 'impl-plan.md' : 'execution-plan.md';
+  const planningTarget =
+    target !== undefined &&
+    nodePath.basename(target) === expected &&
+    ownedPlanningTicket(cwd, target);
+  return {
+    ...(planningTarget && { planning_phase: kind }),
+    plan_contract: configured ?? canonical,
+  };
 }
 
 function fileDigest(path: string): string | undefined {
@@ -500,6 +737,56 @@ function snapshotEntries(root: string, directory = root): string[] {
   });
 }
 
+function planningRoleSources(
+  cwd: string,
+  context: PlanningRoleContext | undefined,
+  included: ReadonlySet<string>,
+): string[] {
+  const sources = context?.dependencies.map(source =>
+    requiredPlanningSource(cwd, source.role, nodePath.resolve(cwd, source.path)),
+  );
+  return [...new Set(sources).difference(included)];
+}
+
+function requirePacketFileCount(count: number): void {
+  if (count > MAX_FILE_COUNT)
+    throw new ReviewPacketError(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
+}
+
+function packetPlanningContext(context: PlanningRoleContext | undefined): Partial<ReviewPacket> {
+  return context === undefined ? {} : { planning_context: context };
+}
+
+function packetRoleFile(
+  context: PlanningRoleContext | undefined,
+  files: readonly { readonly path: string; readonly content: string }[],
+  role: 'ticket' | 'project',
+): { readonly path: string; readonly content: string } | undefined {
+  const path = context?.dependencies.find(source => source.role === role)?.path;
+  if (path === undefined) return undefined;
+  const file = files.find(candidate => candidate.path === path);
+  if (file === undefined) throw new PlanningContextError(role, path);
+  return file;
+}
+
+function packetDispositionContext(
+  kind: ReviewKind,
+  context: PlanningRoleContext | undefined,
+  files: readonly { readonly path: string; readonly content: string }[],
+): Partial<ReviewPacket> {
+  const ticket = packetRoleFile(context, files, 'ticket');
+  if (ticket === undefined) return {};
+  if (parseTicketMetadata(ticket.content).metadata.review_dispositions === undefined) return {};
+  const project = packetRoleFile(context, files, 'project');
+  if (project === undefined) throw new PlanningContextError('project', 'spec.md');
+  try {
+    const disposition = reviewDispositionContext(ticket.content, project.content, kind);
+    return disposition === undefined ? {} : { review_disposition_context: disposition };
+  } catch {
+    throw new PlanningContextError('ticket', ticket.path);
+  }
+}
+
 function prepareReviewPacketUnsafe(
   cwd: string,
   kind: ReviewKind,
@@ -519,6 +806,7 @@ function prepareReviewPacketUnsafe(
   let contextFiles: { path: string; content: string }[];
   let deliveryDefinition: ExecutionPlanDeliveryDefinition | undefined;
   let planningContract: ReturnType<typeof packetPlanContract>;
+  let planningContext: PlanningRoleContext | undefined;
   try {
     let packetBytes = 0;
     const captureFiles = (files: readonly string[]): { path: string; content: string }[] =>
@@ -569,8 +857,10 @@ function prepareReviewPacketUnsafe(
       seen.add(relative);
     };
     for (const target of targets) rejectDuplicate(target);
-    for (const target of context) rejectDuplicate(target);
     logicalFiles = captureFiles(targets);
+    const productPlan = productPlanWorkTarget(canonicalRoot, kind, logicalFiles);
+    context = resolvedPlanningContext(canonicalRoot, kind, targets, context, productPlan);
+    for (const target of context) rejectDuplicate(target);
     contextFiles = captureFiles(context);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
@@ -579,8 +869,20 @@ function prepareReviewPacketUnsafe(
     planningContract = packetPlanContract(
       kind,
       execution.planContract,
-      productPlanWorkTarget(canonicalRoot, kind, logicalFiles),
+      productPlan,
+      canonicalRoot,
+      targets,
     );
+    planningContext = resolvePlanningRoleContext(
+      canonicalRoot,
+      kind,
+      planningContract.planning_phase,
+      logicalFiles,
+      contextFiles,
+    );
+    const additional = planningRoleSources(canonicalRoot, planningContext, seen);
+    requirePacketFileCount(targets.length + context.length + additional.length);
+    contextFiles.push(...captureFiles(additional));
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;
@@ -592,6 +894,8 @@ function prepareReviewPacketUnsafe(
     logical_files: logicalFiles,
     ...(contextFiles.length > 0 && { context_files: contextFiles }),
     ...planningContract,
+    ...packetPlanningContext(planningContext),
+    ...packetDispositionContext(kind, planningContext, [...logicalFiles, ...contextFiles]),
     ...packetDeliveryDefinition(deliveryDefinition),
     ...packetNormalizedPlanDigest(kind, logicalFiles),
     ...(executionAttestation !== undefined && { execution_attestation: executionAttestation }),

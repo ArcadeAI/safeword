@@ -51,6 +51,12 @@ required complete-author identity export. The expected literal is
 its local log is `/tmp/4200-whole-author-copy-identity-generation-red.log`.
 Independent executable RED approval is required before implementation.
 
+Independent review `ce6ffa64-1a6f-4d16-af6a-ec75a806065b` requested changes:
+the missing generated export alone does not prove an actor-facing installed
+copy gate. No production implementation followed that rejection. Retain this
+generator assertion as supporting coverage; the corrected primary RED below
+crosses installed CLI dispatch.
+
 ### Scenario: Phase-only clauses remain in their owning contract
 
 - [ ] RED
@@ -67,11 +73,35 @@ Independent executable RED approval is required before implementation.
 
 ### Scenario: A review packet cannot omit required phase context
 
+Bounded primary proof: `packages/cli/tests/integration/planning-review-identity.test.ts`
+uses a fresh installed distribution and the public `review run plan-implementation`
+command. Only the external reviewer process is mocked. The caller supplies the
+plan and accepted spec; the reviewer approves only when its actual packet contains
+the current configured principles. Removing only that file must produce a typed
+`principles` context-role refusal before reviewer execution. This paired proof
+covers configured principles, not every phase role, semantic identity, native host,
+or receipt admission. Evidence class: simulated-host (real CLI/coordinator,
+synthetic external reviewer). All completion boxes remain open pending review.
+
+The next paired installed-CLI controls assert the actual current personas and
+surfaces in the captured reviewer packet and remove each required source in
+isolation. Removal must refuse before reviewer execution. The companion
+`packages/cli/tests/review/planning-context.test.ts` repeats those role-resolution
+variants at packet preparation for fast diagnosis; it does not substitute for
+the installed primary boundary. These controls still do not prove the remaining
+phase roles, semantic identity, native host parity, or receipt admission.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Installed dispatch cannot bypass packet completeness
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Canonical phase entry requirements bind every required input
 
 - [ ] RED
 - [ ] GREEN
@@ -102,6 +132,230 @@ Independent executable RED approval is required before implementation.
 ## Rule: plan-implementability.TBU4.5F5ZZA.R5 — Contract identity binds exact canonical bytes
 
 ### Scenario: Installed contract identity controls authoring and approval
+
+Supporting complete-author dispatch loop: install a copied actual CLI package,
+change only a comment outside the reviewer-safe block in its Implementation or
+Execution authoring asset, and invoke real `review run` with an approving fake
+external reviewer. Both actual commands currently approve instead of refusing
+the edited complete copy. Canonical positive controls in the same unfiltered
+file approve. The required refusal names `canonical_contract_copy_mismatch`
+and the affected package-relative contract path. The primary target is
+`packages/cli/tests/review/execution-plan-contract-identity.test.ts`; generator
+identity coverage in `planning-contract-generation.test.ts` is supporting
+evidence, not the actor-facing claim. Execute
+`scripts/dev bun run --cwd packages/cli test tests/review/execution-plan-contract-identity.test.ts tests/integration/planning-contract-generation.test.ts`.
+The complete run has three intended failures and 37 passes (40 tests): two
+actual dispatch refusals are missing, and complete canonical identity emission
+is absent. Expected actor-facing literal:
+`installed CLI must refuse author-copy drift outside the reviewer block`.
+Log: `/tmp/4200-complete-author-copy-cli-red.log`. Independent RED approval is
+required before production changes. This bounded loop does not complete the
+installed host authoring/admission partitions, Product dispatch, or native
+asset ownership. Keep the scenario unchecked.
+
+Independent RED review `fa0e5668-c9a5-482d-878c-4dd0de556b3a` approved
+the corrected actor-facing proof before production changes. The implementation
+now validates complete packaged author bytes before launching a reviewer and
+returns a typed missing-copy or mismatch finding with phase and contract path.
+Source packages use generated canonical identities; Codex uses its actual
+emitted references; Claude hashes its final formatted assets before sealing
+the rebuilt runtime. Expected native identities are compiled literals, rather
+than a mutable adjacent inventory. Packet failures clean their temporary
+workspace. No approval receipt is fabricated by this refusal.
+
+The original 40-test run now has 39 passes and one retained failure: the older
+matching noncanonical Implementation-copy test expects `changes_requested`,
+while the earlier gate correctly returns `blocked` before any reviewer runs.
+The six-file broader check has 91 passes and the same one failure (92 total),
+with no exclusions. Human approval to strengthen this assertion to `blocked`
+plus the typed mismatch finding is pending under the current testing guide;
+the existing assertion has not been changed or skipped. Typechecking and
+changed-file ESLint pass, and all four generated surfaces were regenerated
+and verified. Real copied Codex and Claude package checks each approve a
+pristine Implementation asset and block an outside-rubric comment change,
+naming the native asset path. These four checks mock only the external reviewer
+process; they do not prove host lifecycle authoring/admission or Product parity.
+Logs: `/tmp/4200-complete-author-copy-cli-green.log`,
+`/tmp/4200-complete-author-copy-broader-check.log`, and
+`/tmp/4200-native-author-copy-dispatch-check.json`.
+This loop is not declared GREEN or complete while that existing test fails.
+
+Implementation review `5e946611-cef2-404c-b12b-832aecc2e2fc` requested
+changes because native identity wiring was backed only by the disposable
+package checks. Added durable
+`packages/cli/tests/integration/native-planning-copy-dispatch.test.ts`: run each
+real plugin generator into a fresh distribution, approve its pristine final
+Implementation asset through the copied native CLI, then alter a comment
+outside the rubric and assert the typed native-path refusal with no second
+reviewer launch. Both host tests pass. The first fixture attempt failed on
+generator setup (Claude requires an existing output root; Codex custom output
+requires its matching version flag); those failures are not behavior RED.
+A mutation that overwrites the selected native identities with source-template
+identities fails both canonical native approval controls. Original source was
+restored byte-for-byte. Logs:
+`/tmp/4200-native-author-copy-durable-test.log` and
+`/tmp/4200-native-author-copy-source-fallback-mutation.log`.
+The copy check now also runs when an internal caller supplies a precomputed
+contract pair, and Claude's formatting/hash/sealing order is documented beside
+the final runtime build. Root-layout changes and broader worker-correlation
+cleanup remain outside this bounded loop.
+
+After restoration and regeneration, the complete eight-file check has 160
+passes, two existing skips, and the same one retained status-assertion failure
+(163 tests). Typecheck, changed-file ESLint, diff hygiene, and all four generated
+surfaces pass. Log:
+`/tmp/4200-complete-author-copy-final-broader-check.log`.
+The pending assertion approval still prevents declaring this loop GREEN.
+
+On 2026-09-26 the user explicitly approved the proposed stronger existing
+assertion. The matching noncanonical Implementation-copy test now requires
+`blocked` and the actual `canonical_contract_copy_mismatch` finding, including
+Implementation phase and canonical package-relative path. Its nonzero exit
+assertion remains. Review `cb76afb8-3189-4291-913d-979f18b27451` had requested
+this correction as its sole error; the durable native proof gap was resolved.
+After the approved edit, the complete unfiltered eight-file run passes: 161
+passed, two existing skips, 163 total. Log:
+`/tmp/4200-complete-author-copy-approved-assertion-check.log`.
+This establishes GREEN for the bounded complete-author dispatch loop. It does
+not complete R5: installed authoring/admission, remaining Product and native
+partitions, and the full scenario are still unfinished. All scenario checkboxes
+remain unchecked. Historical failing runs above are retained as observed.
+
+Independent Claude review `28c9f7d1-3c09-48be-a5a4-40076537816b` approved
+that finalized bounded dispatch implementation and corrected assertion with
+zero errors and five nonblocking warnings. It precedes the new supporting RED
+below; its frozen context is preserved as historical approval rather than a
+claim that later ledger changes remain covered. The subsequent full CLI run
+has five failures, 10614 passes, and 13 skips across 645 files (10632 tests).
+One runtime-parity assertion rejects the intentional single host-specific
+identity literal; three Cursor lifecycle fixtures have changed tree digests
+with unchanged result digests; missing-contract recovery lost its required
+regeneration wording. No failure was filtered or hidden. Log:
+`/tmp/4200-complete-author-copy-full-cli.log`.
+
+Supporting installed-project admission RED: the primary target is
+`packages/cli/tests/integration/installed-planning-copy-admission.test.ts`.
+Invoke `scripts/dev bun run --cwd packages/cli test
+tests/integration/installed-planning-copy-admission.test.ts` unfiltered.
+A real CLI install creates Cursor project-owned author assets; the real copied
+CLI coordinator authenticates an approving external-reviewer fixture. The
+canonical public approval command and installed shared pre-tool hook both
+allow advancement. Altering only an outside-rubric comment in the project
+author copy still allows both boundaries, instead of naming
+`canonical_contract_copy_mismatch` and the active `.safeword/skills/bdd` path.
+Both tests fail at the intended nonzero-exit assertion. Expected literal:
+`installed lifecycle must refuse project author-copy drift after authenticated approval`.
+Log: `/tmp/4200-installed-copy-admission-red-corrected.log`. The first run
+included an incorrect canonical-control expectation of `healthy` rather than
+the successful mutation's `changed` result; that fixture failure is not RED.
+The corrected control asserts success and actual Execution phase advancement.
+Only the external reviewer is mocked; no receipt authentication is fabricated.
+This proves shared installed-hook/CLI behavior, not Cursor adapter envelope
+parity, native Claude/Codex/OpenCode authoring, or the complete R5 scenario.
+Independent executable RED approval is required before production changes.
+
+Review `5023291c-7c78-4b3a-9b83-be365be3d2d9` independently approved
+the installed-project RED, with no errors. Its surface warning confirms that
+the shared-hook proof must not be labeled native Claude coverage. Strengthened
+the authority chain following its other warning: both artifact and phase
+stamps now come from the actual installed `write-review-stamp.ts`, which asks
+the trusted copied CLI to authenticate the real coordinator receipt. No stamp
+line is hand-written. Both canonical controls still pass and both drift cases
+still fail at the intended assertion (two failures, two tests). Log:
+`/tmp/4200-installed-copy-real-stamp-red.log`. Refresh executable RED review
+against these stronger current test bytes before GREEN.
+
+Supporting Cursor project-copy admission loop: review
+`b2efc39b-544e-4cd7-a645-b059fb460122` approved the real-stamp RED but
+warned about structured hook denial and a composite post-approval fixture.
+Corrected the newly authored proof to use fresh pre-approval drift fixtures.
+Review `74598b29-706c-4d00-af47-efbaa1947113` requested changes because
+its canonical hook control could accept an always-denying hook. Added an
+explicit empty-output canonical allow control. Review
+`8a13f604-d95c-4a9a-82ab-0c3917c0a34a` approved the paired executable
+RED. Preserve its warnings: clause-deletion/unrelated-file partitions,
+native lifecycle envelopes, delivery proof-spec binding, and parse diagnostics
+remain open. The runtime symlink is used by the real stamp writer's trusted
+receipt reader; direct CLI commands use the actual installed dist entry.
+
+The bounded implementation reuses the raw canonical copy checker, chooses
+Cursor's active asset through the owned-file schema, exposes a closed read-only
+`ticket planning-contract-check <ticketId> <phase>` query, and calls the checker
+before public approval or installed shared-hook Implementation phase admission.
+Copy refusal has typed code/phase/path and `blocked` status; it does not change
+or manufacture an authenticated reviewer verdict, and adds no review stamp.
+Two primary tests pass in `/tmp/4200-cursor-copy-admission-green.log`.
+Disabling the active Cursor copy check makes both refusal assertions fail:
+`/tmp/4200-cursor-copy-admission-mutation.log`; production source was restored
+byte-for-byte. Remaining host/phase partitions prevent whole-scenario credit.
+The corrected paired proof is committed as `3190765f9`, separate from its
+production guard. Unfiltered six-file regressions: 97 tests pass (six files),
+`/tmp/4200-cursor-copy-admission-regressions.log`. Typecheck and changed-file
+ESLint pass. All four generated surfaces are current and all 272 mirror pairs
+plus 11 contracts match after schema-driven dogfood reconciliation. This is a
+bounded GREEN implementation; all scenario checkboxes remain unchecked.
+Full CLI is not claimed green: the earlier run has five failures (runtime
+identity assertion, three Cursor tree golden expectations, and missing-contract
+recovery message), 10,614 passes and 13 skips. Test expectation corrections
+remain pending explicit user approval; the recovery regression remains open.
+
+
+Cursor adapter availability follow-on RED: the installed adapter receives its
+native Write payload without plugin CLI variables. Its same-environment paired
+cases cover canonical allowance, comment drift with typed copy refusal, and a
+project-writable cached checker that must never execute. Current primary run
+has two intended failures and three passes (five tests),
+`/tmp/4200-cursor-cache-paired-proof-red.log`. Independent executable RED
+`13972d15-ab83-4a70-9416-50ca2c2c22d5` approved the frozen corrected
+proof with explicit resolver and hook-configuration context. Earlier
+`339b1fa2-2fd7-4ddc-a717-85e119158590` requested the paired negative
+and trust-boundary cases; they are now present. No fallback production change
+is applied: its reviewed parent-boundary scenario correction still requires
+user completeness confirmation, and coding authorization reports
+`missing_accepted_scenarios`. Existing scenario checkboxes remain unchecked.
+
+Current full acceptance is incomplete: 2374 scenarios, 1777 passed, three
+skipped, 587 undefined, seven failed; exit 1. Log:
+`/tmp/4200-cursor-copy-full-acceptance.log`. Six failures select ten passing
+identity tests but require exactly eight; their one-line expectation correction
+is proposed and awaits explicit approval. The seventh requires the missing
+packaged-contract recovery action; independent RED
+`03819332-648c-4dbe-b771-c3d2917b0fdd` approved that existing failing
+proof without modifying its test. The production recovery fix remains pending
+current coding authority. Neither these failures nor the original six-failure,
+585-unfinished baseline is hidden or reclassified as completion.
+
+Supporting Implementation-copy TDD loop (2026-09-26): RED commit
+`b4e23dc6c` reproduced matching edited author/reviewer copies receiving approval
+through a copied installed CLI; its canonical control passed. The initial harness
+attempt was blocked by a duplicate target/context path and is not counted as RED.
+After correction, the intended failure was `approved` instead of refusal.
+Independent executable RED review `23e043bf-4b2c-4f3c-a365-a0d1ec3d073a`
+approved that observed failure. Its scenario label names the adjacent local
+dispatch obligation; this proof itself crosses CLI review dispatch, not the
+installed lifecycle transition or a retained current receipt. It is supporting
+evidence, not completion of that lifecycle scenario.
+
+GREEN adds the same generated canonical-digest check already used by Execution
+to Implementation. An old positive unit fixture used arbitrary matching hashes;
+it now derives the actual packaged canonical pair. The negative fixture retains
+its contradictory obligations and additionally asserts both canonical-copy
+failures. The first broader check exposed that obsolete positive fixture; after
+repair the three focused files passed 91 tests with two existing skips. Shared
+clause generation, all authoring/admission boundaries, Product coverage, and
+cosmetic currency remain unfinished. No scenario checkbox is completed by this
+supporting loop.
+
+Independent GREEN review `96b15ada-4d1f-449d-8df8-6e4852e1010c` approved
+the current implementation and tests with no errors. An additional four-suite
+admission check passed all 111 tests. Typecheck and changed-file ESLint passed,
+and all four generated surfaces were regenerated and verified. The public
+coding-authorization check remains authorized with cross-agent assurance; it
+still grants no authority outside the ordinary TDD gates. No additional
+REFACTOR change is needed for this supporting loop: the existing identity helper
+now accepts the canonical digest and serves both phases, avoiding duplicated
+verification logic. Whole-scenario RED/GREEN/REFACTOR checkboxes remain open until
+the remaining accepted partitions and actual lifecycle boundary are proved.
 
 - [ ] RED
 - [ ] GREEN
@@ -235,7 +489,7 @@ Independent executable RED approval is required before implementation.
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R9 — Review invalidation follows the dependency direction specified by the Execution Planning contract; this child implements the shared provenance and invalidation mechanics rather than defining a second dependency matrix
 
-### Scenario: A changed artifact invalidates exactly its dependent reviews
+### Scenario: A declared change invalidates exactly its dependent reviews
 
 - [ ] RED
 - [ ] GREEN
@@ -453,6 +707,12 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 - [ ] REFACTOR
 
 ### Scenario: An undecided optional suggestion cannot alter or block the plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Installed re-review retains a declined optional strengthening
 
 - [ ] RED
 - [ ] GREEN

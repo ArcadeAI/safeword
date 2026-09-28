@@ -802,6 +802,39 @@ from `intake`, before `define-behavior` and scenario-quality review. Its
 approval is authority only for the bounded behavior decision; it grants no
 scenario, design, execution, human, merge, or release authority.
 
+**5F5ZZA accepted Product behavior projection:** The `project` context role owns
+both project non-goals and the owning Product Plan's complete Product Bet behavior
+frame: Expected outcome, Persona outcome inventory, Known facts, Assumptions,
+Unresolved product decisions, and Success threshold. It resolves the parent's
+Product Plan for a child and the feature's own Product Plan for a standalone
+feature, for every planning review kind. The `parent` role retains the complete
+selected parent job and milestone boundaries; the `rules` role owns inherited
+Rule IDs/text. A child inherits framing rather than copying it. Missing required
+framing fails closed; explicit `none` remains a value. Global Product Bet changes
+invalidate dependent reviews, while unrelated parent jobs and unreferenced
+persona/surface inventory entries do not. R4/R9 mutation proof covers both layouts,
+and R16 proves inherited epistemic fields reach the real child reviewer packet.
+Scenario-gate consumes the same identity path using its existing rubric and exact
+scenario target; its required contexts include the accepted Product inventory
+through the project role, Rules and declared boundaries, principles, personas,
+and affected surfaces. Inventory/applicability changes stale an approved coverage
+receipt and require fresh coverage review before phase admission; cosmetic
+inventory formatting and unreferenced persona edits retain approval. Product
+review output is evidence of the authoritative inventory, never a replacement
+source or fourth planning contract.
+
+**5F5ZZA contract-directed upstream edge:** Required Execution review context
+always includes the accepted Implementation Plan. Its currency edge is read
+from the canonical Execution Planning contract owned by 7CAMAD: the closed
+`upstreamImplementationInvalidation` field declares `both_plan_reviews` or
+`implementation_review_only`. Only that upstream role may be snapshot-only in
+the latter mode; immutable packet integrity and required-source validation still
+apply, while later upstream content changes do not stale the Execution receipt.
+The contract mode remains semantic currency, and missing/invalid modes fail
+closed. The former mode binds the upstream semantic digest. All other applicable
+role bindings remain fixed; no general dependency graph is added. R9 proves both
+modes through the same real resolver, coordinator status, and admission path.
+
 **5F5ZZA user-disposition extension:** A user-declined optional strengthening
 is stored as versioned ticket context, not as reviewer authority or a new
 ledger claim. The record binds an authenticated nonblocking finding fingerprint
@@ -833,11 +866,17 @@ preserve the unknown ticket field but derive no authority from it.
 | Implementation | Ticket `5F5ZZA`; coordinator recovery jobs, authenticated result persistence, review stamps, phase admission, and installed host recovery guidance.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 **5F5ZZA capability-classification extension:** Cross-agent independence also
-requires a verified reviewer model whose capability rank is at least the
-verified author model's rank. A versioned packaged exact-model catalogue
-provides fire-and-forget defaults for supported models; the existing project/
-user review-route configuration authority may overlay explicit ranks. Each
-packaged rank records its evidence date and revision. Current provider
+requires verified exact author/reviewer model IDs and a current qualified
+`not_weaker` record for that exact ordered pair. A versioned packaged comparison
+catalogue supplies supported defaults. Each record retains the directional
+result, qualification method, evidence source/date, and applicable catalogue,
+corpus, rubric, settings, and results digests. Individual model floors, scalar
+ranks, other admitted pairs, and transitive paths never establish qualification.
+Missing, stale, conflicting, or unqualified pairs fail with
+`reviewer_capability_unknown`; qualified weaker pairs fail with
+`reviewer_capability_weaker`. Project/user rank overlays affect route preference
+only and cannot mint or override qualification. The release maintainer owns
+qualification, not every possible combination of configured models. Current provider
 documentation may establish an explicit within-family order; cross-provider
 ordering requires a pinned Safeword planning-review eval. Missing, conflicting,
 or stale evidence leaves the pair unrankable. Unknown, unverified, or
@@ -894,7 +933,7 @@ trusted provider/model metadata, and no packaged independent default depends on
 it. Revisit this decision when the native CLI protocol changes or exec exposes
 equivalent correlated model identity and reroute metadata. Existing runtime-default reviewer routes
 remain readable and attempted but earn cross-agent classification only when the
-adapter-specific proof resolves an exact ranked model. Upgrade never rewrites
+adapter-specific proof resolves an exact model with a qualified comparison to the verified author. Upgrade never rewrites
 user route lists. Existing `off` configurations block at planning review until
 the user selects `prefer` or `require`; non-Claude `require` configurations block
 until the host exposes verified author identity. Safeword never weakens policy

@@ -852,6 +852,16 @@ Given(
   function (this: PlanWorld) {
     createProject(this);
     seedTicket(this, { phase: 'plan-implementation', spec: true });
+    for (const [role, content] of Object.entries({
+      principles:
+        '# Principles\n\n## Preserve approval authority\n\nCurrent authenticated approval controls advancement.\n',
+      personas:
+        '# Personas\n\n## Builder (BU)\n\n**Role:** A builder requesting planning approval.\n**Context:** Needs current authenticated approval before advancement.\n',
+      surfaces:
+        '# Surfaces\n\n## Safeword CLI\n\n**Kind:** CLI\n**Description:** Requests and presents planning approval.\n**Audience:** Builder (BU)\n',
+    })) {
+      writeFileSync(nodePath.join(this.projectDirectory!, '.project', `${role}.md`), content);
+    }
     writeFileSync(ticketArtifact(this, 'impl-plan.md'), VALID_PLAN);
     const controlPluginRoot = nodePath.join(this.projectDirectory!, 'control-codex-plugin');
     const missingPluginRoot = nodePath.join(this.projectDirectory!, 'missing-codex-plugin');

@@ -1,3 +1,5 @@
+import type { ReviewDispositionContext } from './planning-accepted-boundary.js';
+import type { PlanningRoleContext } from './planning-role-context.js';
 export type ReviewAgent = 'claude' | 'codex' | 'opencode';
 export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
 export type ReviewKind =
@@ -175,7 +177,10 @@ export interface ReviewPacket {
   readonly dispatch_id: string;
   readonly kind: ReviewKind;
   /** Canonical Product decision attached only to its owned work target. */
-  readonly planning_phase?: 'product-plan';
+  readonly planning_phase?: 'product-plan' | 'plan-implementation' | 'plan-execution';
+  readonly planning_context?: PlanningRoleContext;
+  /** Captured user declines annotated against the current accepted boundary. */
+  readonly review_disposition_context?: ReviewDispositionContext;
   readonly logical_files: readonly {
     readonly path: string;
     readonly content: string;
