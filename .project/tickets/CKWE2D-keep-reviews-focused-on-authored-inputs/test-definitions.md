@@ -259,7 +259,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 
 ### Scenario: An unmarked runtime-shaped path cannot be excluded by its filename
 
-- [ ] RED
+- [x] RED c77a0dc30
 - [ ] GREEN
 - [ ] REFACTOR
 
