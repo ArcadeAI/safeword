@@ -16,6 +16,15 @@ Feature: Keep reviews focused on authored changes
       And excluded_targets exactly names both generated target paths in supplied order
       And the command exits successfully with no errors
 
+    Scenario: A nested project uses its committed generated marker
+      Given a project lives below the Git repository root
+      And its own committed .gitattributes marks an oversized generated target
+      And the review also has one authored target and an independent reviewer is available
+      When a builder runs the public review command from the project directory
+      Then the reviewer receives exactly the authored target with its original raw content
+      And excluded_targets names the generated target relative to the project
+      And the command exits successfully with no errors
+
     Scenario: A repeated generated target has one ordered exclusion
       Given a review has one authored target and the same oversized generated target twice
       And an independent reviewer is available
@@ -210,6 +219,15 @@ Feature: Keep reviews focused on authored changes
   Rule: focused-review.TBU1.R2 — An oversized target without an explicit generated marker still prevents the review from running
 
     @rejection
+    Scenario: A nested project does not inherit an unrelated root marker
+      Given a project lives below the Git repository root
+      And a root .gitattributes marks a different generated path while the project's committed .gitattributes denies the marker for its oversized target
+      And the review also has one authored target and an independent reviewer is available
+      When a builder runs the public review command from the project directory
+      Then the command fails with REVIEW_TARGET_TOO_LARGE before reviewer launch
+      And no excluded_targets list is reported
+
+    @rejection
     Scenario Outline: A non-true generated attribute does not launch a reviewer
       Given a review has an oversized target with linguist-generated <attribute>
       And an independent reviewer is available
@@ -389,6 +407,20 @@ Feature: Keep reviews focused on authored changes
         | attribute-resolution failure then unmarked |
 
     @rejection
+    Scenario Outline: An earlier target failure outranks a later Git attribute failure
+      Given a review has an outside-project target and an oversized target whose Git attribute resolution fails in <order>
+      And an independent reviewer is available
+      When a builder runs the public review command
+      Then no reviewer is asked to review it
+      And the command exits nonzero with errors[0].code <error_code>
+      And the failed result has no excluded_targets
+
+      Examples:
+        | order                                  | error_code                          |
+        | outside-project then Git failure       | REVIEW_TARGET_OUTSIDE_PROJECT       |
+        | Git failure then outside-project       | REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE |
+
+    @rejection
     Scenario Outline: The public CLI reports each preflight failure as a JSON envelope
       Given <preflight_failure>
       And an independent reviewer is available
@@ -448,7 +480,7 @@ Feature: Keep reviews focused on authored changes
 
     @rejection
     Scenario Outline: A target outside the project cannot reach Git attribute lookup
-      Given a review has a target path outside the project at <path>
+      Given a review has an oversized target path outside the project at <path> that would otherwise require generated classification
       And an independent reviewer is available
       When a builder runs the public review command
       Then no reviewer is asked to review it
@@ -464,7 +496,7 @@ Feature: Keep reviews focused on authored changes
 
     @rejection
     Scenario: A final-component symlink escaping the project cannot reach Git attribute lookup
-      Given a review has a project-relative final-component symlinked target resolving outside the project
+      Given a review has a project-relative final-component symlinked target resolving to an oversized file outside the project
       And an independent reviewer is available
       When a builder runs the public review command
       Then no reviewer is asked to review it
@@ -474,7 +506,7 @@ Feature: Keep reviews focused on authored changes
 
     @rejection
     Scenario: An intermediate symlink directory escaping the project cannot reach Git attribute lookup
-      Given a review supplies link/generated/output.js with no parent traversal
+      Given a review supplies link/generated/output.js with no parent traversal and an oversized resolved file
       And link is an intermediate symlink directory pointing outside the project
       And an independent reviewer is available
       When a builder runs the public review command

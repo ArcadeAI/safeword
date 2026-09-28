@@ -31716,6 +31716,15 @@ function gitOutput(args, env2) {
   }
   return result.stdout;
 }
+function readRepoPrefix(root, env2) {
+  const output = new TextDecoder("utf-8", { fatal: true }).decode(gitOutput(["-C", root, "rev-parse", "--show-prefix"], env2));
+  const prefix = output.slice(0, -1);
+  if (!output.endsWith(`
+`) || prefix.startsWith("/") || prefix !== "" && !prefix.endsWith("/") || prefix.split("/").includes("..")) {
+    throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+  }
+  return prefix;
+}
 function generatedTargets(root, files) {
   if (files.length === 0)
     return new Set;
@@ -31727,9 +31736,14 @@ function generatedTargets(root, files) {
     }
     const objectsPath = gitOutput(["-C", root, "rev-parse", "--git-path", "objects"], env2).toString("utf8").trim();
     const objects = realpathSync7(nodePath44.resolve(root, objectsPath));
-    const bare = mkdtempSync5(nodePath44.join(tmpdir3(), "safeword-review-git-"));
+    const repoPrefix = readRepoPrefix(root, env2);
+    const repoPaths = files.map((file) => `${repoPrefix}${file.relative}`);
+    const isolatedGit = mkdtempSync5(nodePath44.join(tmpdir3(), "safeword-review-git-"));
     try {
-      gitOutput(["init", "--bare", "-q", bare], env2);
+      const bare = nodePath44.join(isolatedGit, "bare");
+      const emptyTemplate = nodePath44.join(isolatedGit, "template");
+      mkdirSync11(emptyTemplate);
+      gitOutput(["init", "--bare", "-q", `--template=${emptyTemplate}`, bare], env2);
       const result = spawnSync5("git", [
         "--git-dir",
         bare,
@@ -31742,7 +31756,7 @@ function generatedTargets(root, files) {
         "linguist-generated"
       ], {
         env: gitEnvironment(objects),
-        input: Buffer.from(`${files.map((file) => file.relative).join("\x00")}\x00`),
+        input: Buffer.from(`${repoPaths.join("\x00")}\x00`),
         encoding: "buffer",
         timeout: 5000,
         maxBuffer: 256 * 1024
@@ -31757,7 +31771,7 @@ function generatedTargets(root, files) {
       const marked = new Set;
       for (const [index, file] of files.entries()) {
         const offset = index * 3;
-        if (fields[offset] !== file.relative || fields[offset + 1] !== "linguist-generated") {
+        if (fields[offset] !== repoPaths[index] || fields[offset + 1] !== "linguist-generated") {
           throw new ReviewPacketError("Git attributes returned an invalid response", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
         }
         if (fields[offset + 2] === "true")
@@ -31765,7 +31779,7 @@ function generatedTargets(root, files) {
       }
       return marked;
     } finally {
-      rmSync7(bare, { recursive: true, force: true });
+      rmSync7(isolatedGit, { recursive: true, force: true });
     }
   } catch (error2) {
     if (error2 instanceof ReviewPacketError)
@@ -31902,7 +31916,7 @@ function readContainedText(root, source, target, packetBytesRemaining) {
       throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
     }
     if (opened.size > MAX_FILE_BYTES) {
-      throw new ReviewPacketError(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`, "REVIEW_TARGET_CHANGED");
+      throw new ReviewPacketError(`Review target changed while it was being captured: ${target}`, "REVIEW_TARGET_CHANGED");
     }
     if (opened.size > packetBytesRemaining) {
       throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
@@ -31953,9 +31967,6 @@ function snapshotEntries(root, directory = root) {
   });
 }
 function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}) {
-  if (targets.length + context.length > MAX_FILE_COUNT) {
-    throw new ReviewPacketError(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`, "REVIEW_PACKET_TOO_LARGE");
-  }
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync7(cwd);
   const workspace = mkdtempSync5(nodePath44.join(tmpdir3(), "safeword-review-"));
@@ -31976,11 +31987,11 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
           throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
         }
         const stats = lstatSync9(source);
-        if (!stats.isFile()) {
-          throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
-        }
         if (escapes(canonicalRoot, realpathSync7(source))) {
           throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
+        }
+        if (!stats.isFile()) {
+          throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
         }
         if (stats.size > MAX_FILE_BYTES) {
           if (!allowGenerated) {
@@ -32039,15 +32050,25 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     }
     for (const target of context)
       rejectDuplicate(target);
+    if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
+      throw new ReviewPacketError(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`, "REVIEW_PACKET_TOO_LARGE");
+    }
     logicalFiles = captureFiles(uniqueTargets, true, 0);
     contextFiles = captureFiles(context, false, uniqueTargets.length);
     requireStableSources(canonicalRoot, tracked);
-    const marked = generatedTargets(canonicalRoot, oversized);
+    let marked;
+    try {
+      marked = generatedTargets(canonicalRoot, oversized);
+    } catch (error2) {
+      const firstOversizedIndex = oversized[0]?.index ?? Infinity;
+      const earlierFailure = targetErrors.filter((failure) => failure.index < firstOversizedIndex).toSorted((left, right) => left.index - right.index)[0];
+      throw earlierFailure?.error ?? error2;
+    }
     collectOversizedOutcomes(canonicalRoot, oversized, marked, targetErrors, excludedTargets);
     requireStableSources(canonicalRoot, tracked);
     throwFirstTargetError(targetErrors);
     if (logicalFiles.length === 0) {
-      throw new ReviewPacketError("Review has no eligible targets after generated outputs are excluded", "REVIEW_NO_ELIGIBLE_TARGETS");
+      throw new ReviewPacketError(targets.length === 0 ? "Review has no submitted targets" : "Review has no eligible targets after generated outputs are excluded", "REVIEW_NO_ELIGIBLE_TARGETS");
     }
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
@@ -32072,7 +32093,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     excludedTargets,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some((file) => sourceFileChanged(canonicalRoot, file)) || oversized.some((file) => oversizedState(canonicalRoot, file) !== "same"),
+    sourceChanged: () => tracked.some((file) => sourceFileChanged(canonicalRoot, file)),
     snapshotChanged: () => {
       if (tracked.some((file) => fileDigest(file.snapshot) !== file.sha256))
         return true;

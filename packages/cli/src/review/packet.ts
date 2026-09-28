@@ -97,6 +97,25 @@ function gitOutput(args: readonly string[], env: NodeJS.ProcessEnv): Buffer {
   return result.stdout;
 }
 
+function readRepoPrefix(root: string, env: NodeJS.ProcessEnv): string {
+  const output = new TextDecoder('utf-8', { fatal: true }).decode(
+    gitOutput(['-C', root, 'rev-parse', '--show-prefix'], env),
+  );
+  const prefix = output.slice(0, -1);
+  if (
+    !output.endsWith('\n') ||
+    prefix.startsWith('/') ||
+    (prefix !== '' && !prefix.endsWith('/')) ||
+    prefix.split('/').includes('..')
+  ) {
+    throw new ReviewPacketError(
+      'Git attributes could not be resolved for an oversized review target',
+      'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+    );
+  }
+  return prefix;
+}
+
 // The Git process and its exact binary response are one fail-closed trust boundary.
 // eslint-disable-next-line complexity -- Each process and tuple check rejects unsafe classification.
 function generatedTargets(root: string, files: readonly OversizedFile[]): Set<string> {
@@ -116,9 +135,14 @@ function generatedTargets(root: string, files: readonly OversizedFile[]): Set<st
       .toString('utf8')
       .trim();
     const objects = realpathSync(nodePath.resolve(root, objectsPath));
-    const bare = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-git-'));
+    const repoPrefix = readRepoPrefix(root, env);
+    const repoPaths = files.map(file => `${repoPrefix}${file.relative}`);
+    const isolatedGit = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-git-'));
     try {
-      gitOutput(['init', '--bare', '-q', bare], env);
+      const bare = nodePath.join(isolatedGit, 'bare');
+      const emptyTemplate = nodePath.join(isolatedGit, 'template');
+      mkdirSync(emptyTemplate);
+      gitOutput(['init', '--bare', '-q', `--template=${emptyTemplate}`, bare], env);
       const result = spawnSync(
         'git',
         [
@@ -134,7 +158,7 @@ function generatedTargets(root: string, files: readonly OversizedFile[]): Set<st
         ],
         {
           env: gitEnvironment(objects),
-          input: Buffer.from(`${files.map(file => file.relative).join('\0')}\0`),
+          input: Buffer.from(`${repoPaths.join('\0')}\0`),
           encoding: 'buffer',
           timeout: 5000,
           maxBuffer: 256 * 1024,
@@ -156,7 +180,7 @@ function generatedTargets(root: string, files: readonly OversizedFile[]): Set<st
       const marked = new Set<string>();
       for (const [index, file] of files.entries()) {
         const offset = index * 3;
-        if (fields[offset] !== file.relative || fields[offset + 1] !== 'linguist-generated') {
+        if (fields[offset] !== repoPaths[index] || fields[offset + 1] !== 'linguist-generated') {
           throw new ReviewPacketError(
             'Git attributes returned an invalid response',
             'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
@@ -166,7 +190,7 @@ function generatedTargets(root: string, files: readonly OversizedFile[]): Set<st
       }
       return marked;
     } finally {
-      rmSync(bare, { recursive: true, force: true });
+      rmSync(isolatedGit, { recursive: true, force: true });
     }
   } catch (error) {
     if (error instanceof ReviewPacketError) throw error;
@@ -381,7 +405,7 @@ function readContainedText(
     }
     if (opened.size > MAX_FILE_BYTES) {
       throw new ReviewPacketError(
-        `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`,
+        `Review target changed while it was being captured: ${target}`,
         'REVIEW_TARGET_CHANGED',
       );
     }
@@ -463,12 +487,6 @@ function prepareReviewPacketUnsafe(
   context: readonly string[] = [],
   execution: ReviewPacketExecution = {},
 ): PreparedReviewPacket {
-  if (targets.length + context.length > MAX_FILE_COUNT) {
-    throw new ReviewPacketError(
-      `Review packet exceeds the ${MAX_FILE_COUNT}-file limit`,
-      'REVIEW_PACKET_TOO_LARGE',
-    );
-  }
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync(cwd);
   const workspace = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-'));
@@ -577,16 +595,33 @@ function prepareReviewPacketUnsafe(
       uniqueTargets.push(target);
     }
     for (const target of context) rejectDuplicate(target);
+    if (uniqueTargets.length + context.length > MAX_FILE_COUNT) {
+      throw new ReviewPacketError(
+        `Review packet exceeds the ${MAX_FILE_COUNT}-file limit`,
+        'REVIEW_PACKET_TOO_LARGE',
+      );
+    }
     logicalFiles = captureFiles(uniqueTargets, true, 0);
     contextFiles = captureFiles(context, false, uniqueTargets.length);
     requireStableSources(canonicalRoot, tracked);
-    const marked = generatedTargets(canonicalRoot, oversized);
+    let marked: Set<string>;
+    try {
+      marked = generatedTargets(canonicalRoot, oversized);
+    } catch (error) {
+      const firstOversizedIndex = oversized[0]?.index ?? Infinity;
+      const earlierFailure = targetErrors
+        .filter(failure => failure.index < firstOversizedIndex)
+        .toSorted((left, right) => left.index - right.index)[0];
+      throw earlierFailure?.error ?? error;
+    }
     collectOversizedOutcomes(canonicalRoot, oversized, marked, targetErrors, excludedTargets);
     requireStableSources(canonicalRoot, tracked);
     throwFirstTargetError(targetErrors);
     if (logicalFiles.length === 0) {
       throw new ReviewPacketError(
-        'Review has no eligible targets after generated outputs are excluded',
+        targets.length === 0
+          ? 'Review has no submitted targets'
+          : 'Review has no eligible targets after generated outputs are excluded',
         'REVIEW_NO_ELIGIBLE_TARGETS',
       );
     }
@@ -616,9 +651,7 @@ function prepareReviewPacketUnsafe(
     excludedTargets,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () =>
-      tracked.some(file => sourceFileChanged(canonicalRoot, file)) ||
-      oversized.some(file => oversizedState(canonicalRoot, file) !== 'same'),
+    sourceChanged: () => tracked.some(file => sourceFileChanged(canonicalRoot, file)),
     snapshotChanged: () => {
       if (tracked.some(file => fileDigest(file.snapshot) !== file.sha256)) return true;
       try {

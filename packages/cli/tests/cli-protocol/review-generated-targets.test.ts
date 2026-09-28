@@ -132,6 +132,123 @@ describe('generated review targets', () => {
     expect(prompt).not.toContain('generated/second.js');
   });
 
+  it('uses repository-relative paths for a project nested below the Git root', async () => {
+    const repo = createTemporaryDirectory();
+    const project = nodePath.join(repo, 'packages', 'cli');
+    const generated = nodePath.join(project, 'generated');
+    mkdirSync(generated, { recursive: true });
+    writeFileSync(nodePath.join(project, 'authored.md'), 'review this authored change\n');
+    writeFileSync(nodePath.join(generated, 'output.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(
+      nodePath.join(project, '.gitattributes'),
+      'generated/** linguist-generated=true\n',
+    );
+    git(repo, 'init', '-q');
+    git(repo, 'add', 'packages/cli/.gitattributes', 'packages/cli/authored.md');
+    git(
+      repo,
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    );
+    const promptLog = nodePath.join(repo, 'prompt.log');
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'authored.md',
+        'generated/output.js',
+        '--json',
+        '--no-input',
+        '--cwd',
+        project,
+      ],
+      {
+        cwd: project,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const envelope = JSON.parse(result.stdout) as { data: { excluded_targets: string[] } };
+    expect(envelope.data.excluded_targets).toEqual(['generated/output.js']);
+    const prompt = readFileSync(promptLog, 'utf8');
+    expect(prompt).toContain('review this authored change');
+    expect(prompt).not.toContain('generated/output.js');
+  });
+
+  it('does not apply a repository-root generated marker to a nested project target', async () => {
+    const repo = createTemporaryDirectory();
+    const project = nodePath.join(repo, 'packages', 'cli');
+    const generated = nodePath.join(project, 'generated');
+    mkdirSync(generated, { recursive: true });
+    writeFileSync(nodePath.join(project, 'authored.md'), 'review this authored change\n');
+    writeFileSync(nodePath.join(generated, 'output.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(nodePath.join(repo, '.gitattributes'), 'generated/** linguist-generated=true\n');
+    writeFileSync(
+      nodePath.join(project, '.gitattributes'),
+      'generated/** linguist-generated=false\n',
+    );
+    git(repo, 'init', '-q');
+    git(repo, 'add', '.gitattributes', 'packages/cli/.gitattributes');
+    git(
+      repo,
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    );
+    const promptLog = nodePath.join(repo, 'prompt.log');
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'authored.md',
+        'generated/output.js',
+        '--json',
+        '--no-input',
+        '--cwd',
+        project,
+      ],
+      {
+        cwd: project,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    const envelope = JSON.parse(result.stdout) as { errors: { code: string }[] };
+    expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_TOO_LARGE');
+    expect(existsSync(promptLog)).toBe(false);
+  });
+
   it('rejects an unmarked oversized runtime-shaped file with the size-limit code', async () => {
     const directory = createTemporaryDirectory();
     const promptLog = nodePath.join(directory, 'prompt.log');
@@ -189,14 +306,62 @@ describe('generated review targets', () => {
     expect(existsSync(promptLog)).toBe(false);
   });
 
+  it.each(['../outside-file.js', 'nested/../../outside-file.js'])(
+    'rejects an oversized lexical escape %s before Git lookup',
+    async target => {
+      const root = createTemporaryDirectory();
+      const project = nodePath.join(root, 'project');
+      mkdirSync(nodePath.join(project, 'nested'), { recursive: true });
+      writeFileSync(nodePath.join(root, 'outside-file.js'), 'x'.repeat(256 * 1024 + 1));
+      const promptLog = nodePath.join(root, 'prompt.log');
+      const gitLog = nodePath.join(root, 'git.log');
+      const bin = fakeReviewer();
+      writeFileSync(
+        nodePath.join(bin, 'git'),
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SAFEWORD_GIT_LOG"\nexec /usr/bin/git "$@"\n',
+        { mode: 0o755 },
+      );
+
+      const result = await runCli(
+        ['review', 'run', 'quality-review', target, '--json', '--no-input', '--cwd', project],
+        {
+          cwd: project,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+            SAFEWORD_GIT_LOG: gitLog,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode).not.toBe(0);
+      const envelope = JSON.parse(result.stdout) as {
+        errors: { code: string }[];
+        data: { excluded_targets?: string[] };
+      };
+      expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_OUTSIDE_PROJECT');
+      expect(envelope.data.excluded_targets).toBeUndefined();
+      expect(existsSync(promptLog)).toBe(false);
+      expect(existsSync(gitLog)).toBe(false);
+    },
+  );
+
   it('rejects a target reached through an intermediate symlink outside the project', async () => {
     const directory = createTemporaryDirectory();
     const outside = createTemporaryDirectory();
     const promptLog = nodePath.join(directory, 'prompt.log');
+    const gitLog = nodePath.join(directory, 'git.log');
     mkdirSync(nodePath.join(outside, 'generated'));
-    writeFileSync(nodePath.join(outside, 'generated', 'output.js'), 'outside content\n');
+    writeFileSync(nodePath.join(outside, 'generated', 'output.js'), 'x'.repeat(256 * 1024 + 1));
     symlinkSync(outside, nodePath.join(directory, 'link'), 'dir');
     const bin = fakeReviewer();
+    writeFileSync(
+      nodePath.join(bin, 'git'),
+      '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SAFEWORD_GIT_LOG"\nexec /usr/bin/git "$@"\n',
+      { mode: 0o755 },
+    );
 
     const result = await runCli(
       [
@@ -215,6 +380,7 @@ describe('generated review targets', () => {
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_GIT_LOG: gitLog,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
@@ -228,15 +394,54 @@ describe('generated review targets', () => {
     expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_OUTSIDE_PROJECT');
     expect(envelope.data.excluded_targets).toBeUndefined();
     expect(existsSync(promptLog)).toBe(false);
+    expect(existsSync(gitLog)).toBe(false);
   });
 
   it('rejects a final-component symlink outside the project with the containment code', async () => {
     const directory = createTemporaryDirectory();
     const outside = createTemporaryDirectory();
     const promptLog = nodePath.join(directory, 'prompt.log');
+    const gitLog = nodePath.join(directory, 'git.log');
     const outsideFile = nodePath.join(outside, 'output.js');
-    writeFileSync(outsideFile, 'outside content\n');
+    writeFileSync(outsideFile, 'x'.repeat(256 * 1024 + 1));
     symlinkSync(outsideFile, nodePath.join(directory, 'link.js'));
+    const bin = fakeReviewer();
+    writeFileSync(
+      nodePath.join(bin, 'git'),
+      '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SAFEWORD_GIT_LOG"\nexec /usr/bin/git "$@"\n',
+      { mode: 0o755 },
+    );
+
+    const result = await runCli(
+      ['review', 'run', 'quality-review', 'link.js', '--json', '--no-input', '--cwd', directory],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_GIT_LOG: gitLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      errors: { code: string }[];
+      data: { excluded_targets?: string[] };
+    };
+    expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_OUTSIDE_PROJECT');
+    expect(envelope.data.excluded_targets).toBeUndefined();
+    expect(existsSync(promptLog)).toBe(false);
+    expect(existsSync(gitLog)).toBe(false);
+  });
+
+  it('keeps an in-project final-component symlink distinct from an escape', async () => {
+    const directory = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    writeFileSync(nodePath.join(directory, 'original.js'), 'local content\n');
+    symlinkSync('original.js', nodePath.join(directory, 'link.js'));
     const bin = fakeReviewer();
 
     const result = await runCli(
@@ -253,12 +458,8 @@ describe('generated review targets', () => {
     );
 
     expect(result.exitCode).not.toBe(0);
-    const envelope = JSON.parse(result.stdout) as {
-      errors: { code: string }[];
-      data: { excluded_targets?: string[] };
-    };
-    expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_OUTSIDE_PROJECT');
-    expect(envelope.data.excluded_targets).toBeUndefined();
+    const envelope = JSON.parse(result.stdout) as { errors: { code: string }[] };
+    expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_NOT_REGULAR');
     expect(existsSync(promptLog)).toBe(false);
   });
 
@@ -412,6 +613,70 @@ exec "${gitExecutable}" "$@"
     expect(existsSync(promptLog)).toBe(false);
   });
 
+  it.each([
+    {
+      targets: ['../outside.js', 'large.js'],
+      code: 'REVIEW_TARGET_OUTSIDE_PROJECT',
+    },
+    {
+      targets: ['large.js', '../outside.js'],
+      code: 'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+    },
+  ])(
+    'keeps attribute lookup failure in supplied-target order for $targets',
+    async ({ targets, code }) => {
+      const directory = createTemporaryDirectory();
+      const promptLog = nodePath.join(directory, 'prompt.log');
+      writeFileSync(nodePath.join(directory, 'large.js'), 'x'.repeat(256 * 1024 + 1));
+      writeFileSync(
+        nodePath.join(directory, '.gitattributes'),
+        'large.js linguist-generated=true\n',
+      );
+      git(directory, 'init', '-q');
+      git(directory, 'add', '.gitattributes');
+      git(
+        directory,
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-qm',
+        'fixture',
+      );
+      const bin = fakeReviewer();
+      writeFileSync(
+        nodePath.join(bin, 'git'),
+        '#!/bin/sh\nfor argument in "$@"; do\n  if [ "$argument" = check-attr ]; then exit 42; fi\ndone\nexec /usr/bin/git "$@"\n',
+        { mode: 0o755 },
+      );
+
+      const result = await runCli(
+        ['review', 'run', 'quality-review', ...targets, '--json', '--no-input', '--cwd', directory],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode).not.toBe(0);
+      const envelope = JSON.parse(result.stdout) as {
+        errors: { code: string }[];
+        data: { excluded_targets?: string[] };
+      };
+      expect(envelope.errors[0]?.code).toBe(code);
+      expect(envelope.data.excluded_targets).toBeUndefined();
+      expect(existsSync(promptLog)).toBe(false);
+    },
+  );
+
   it.each(['plugin/runtime/cli.js', 'packages/cli/codex-plugin/runtime/cli.js'])(
     'reviews authored input beside the shipped generated runtime %s',
     async runtime => {
@@ -479,9 +744,13 @@ exec "${gitExecutable}" "$@"
   });
 
   it.each([
-    { label: 'all generated targets excluded', targets: ['plugin/runtime/cli.js'] },
-    { label: 'no submitted targets', targets: [] },
-  ])('refuses $label before reviewer launch', async ({ targets }) => {
+    {
+      label: 'all generated targets excluded',
+      targets: ['plugin/runtime/cli.js'],
+      message: 'generated outputs are excluded',
+    },
+    { label: 'no submitted targets', targets: [], message: 'no submitted targets' },
+  ])('refuses $label before reviewer launch', async ({ targets, message }) => {
     const project = nodePath.resolve(process.cwd(), '../..');
     const directory = createTemporaryDirectory();
     const promptLog = nodePath.join(directory, 'prompt.log');
@@ -502,10 +771,11 @@ exec "${gitExecutable}" "$@"
 
     expect(result.exitCode).not.toBe(0);
     const envelope = JSON.parse(result.stdout) as {
-      errors: { code: string }[];
+      errors: { code: string; message: string }[];
       data: { excluded_targets?: string[] };
     };
     expect(envelope.errors[0]?.code).toBe('REVIEW_NO_ELIGIBLE_TARGETS');
+    expect(envelope.errors[0]?.message).toContain(message);
     expect(envelope.data.excluded_targets).toBeUndefined();
     expect(existsSync(promptLog)).toBe(false);
   });

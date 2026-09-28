@@ -288,6 +288,48 @@ describe('review packet containment and change accounting', () => {
     );
   });
 
+  it('does not stale an authored review when an excluded generated output changes later', () => {
+    const project = temporaryDirectory();
+    writeFileSync(
+      nodePath.join(project, '.gitattributes'),
+      'generated/** linguist-generated=true\n',
+    );
+    writeFileSync(nodePath.join(project, 'authored.md'), 'review me\n');
+    mkdirSync(nodePath.join(project, 'generated'));
+    const generated = nodePath.join(project, 'generated', 'output.js');
+    writeFileSync(generated, 'x'.repeat(256 * 1024 + 1));
+    for (const args of [
+      ['init', '-q'],
+      ['add', '.gitattributes'],
+      [
+        '-c',
+        'commit.gpgsign=false',
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-qm',
+        'fixture',
+      ],
+    ]) {
+      const result = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
+      expect(result.status, result.stderr).toBe(0);
+    }
+
+    const prepared = prepareReviewPacket(project, 'quality-review', [
+      'authored.md',
+      'generated/output.js',
+    ]);
+    try {
+      expect(prepared.excludedTargets).toEqual(['generated/output.js']);
+      writeFileSync(generated, 'y'.repeat(256 * 1024 + 2));
+      expect(prepared.sourceChanged()).toBe(false);
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
   it('reports an oversized context file with a typed size-limit error', () => {
     const project = temporaryDirectory();
     writeFileSync(nodePath.join(project, 'authored.md'), 'review me\n');
@@ -303,6 +345,22 @@ describe('review packet containment and change accounting', () => {
     const targets = Array.from({ length: 65 }, (_, index) => `input-${index}.md`);
 
     expect(() => prepareReviewPacket(project, 'quality-review', targets)).toThrow('64-file limit');
+  });
+
+  it('counts repeated target spellings once toward the file limit', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'input.md'), 'review me\n');
+
+    const prepared = prepareReviewPacket(
+      project,
+      'quality-review',
+      Array.from({ length: 65 }, () => 'input.md'),
+    );
+    try {
+      expect(prepared.packet.logical_files).toHaveLength(1);
+    } finally {
+      prepared.cleanup();
+    }
   });
 
   it('applies the file-count bound across targets and supporting context', () => {

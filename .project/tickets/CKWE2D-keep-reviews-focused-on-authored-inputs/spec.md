@@ -61,7 +61,9 @@ Unaffected:
   any final or intermediate symlink leading outside the root is rejected.
   Symlink components removed by lexical normalization are not traversed. Distinct hard links
   remain distinct target paths; only duplicate lexical paths and lexical
-  aliases collapse.
+  aliases collapse. Git lookup prefixes this identity with the project's
+  repository-relative directory when the project sits below the Git root;
+  reviewer paths and `excluded_targets` remain project-relative.
 - **Reduced scope:** The eligible targets actually presented to a reviewer after explicitly generated oversized targets are omitted.
 - **Packet byte limits:** Each target's raw file contents are at most 262144
   bytes. Eligible raw contents together must fit within 1048576 bytes, and the

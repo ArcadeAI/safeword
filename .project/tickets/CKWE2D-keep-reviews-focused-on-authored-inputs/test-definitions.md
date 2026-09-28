@@ -15,6 +15,12 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [x] GREEN 8a3b80703
 - [x] REFACTOR skip: no behavior-preserving extraction is safe until the remaining Git failure contracts are implemented
 
+### Scenario: A nested project uses its committed generated marker
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A repeated generated target has one ordered exclusion
 
 - [ ] RED
@@ -137,6 +143,12 @@ builder-visible command path with a real temporary project and fake reviewer.
 
 ## Rule: focused-review.TBU1.R2
 
+### Scenario: A nested project does not inherit an unrelated root marker
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A non-true generated attribute does not launch a reviewer
 
 - [ ] RED
@@ -210,6 +222,12 @@ builder-visible command path with a real temporary project and fake reviewer.
 - [ ] REFACTOR
 
 ### Scenario: Attribute-resolution failure takes precedence over an unmarked oversized target in either order
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An earlier target failure outranks a later Git attribute failure
 
 - [ ] RED
 - [ ] GREEN
