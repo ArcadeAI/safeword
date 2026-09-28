@@ -101,7 +101,7 @@ function addDisposition(
       reason: request.reason,
     },
   ]);
-  return `${match[1]}${String(document).trimEnd()}${match[3]}${content.slice(match[0].length)}`;
+  return `${match[1]}${document.toString({ lineWidth: 0 }).trimEnd()}${match[3]}${content.slice(match[0].length)}`;
 }
 
 async function confirm(

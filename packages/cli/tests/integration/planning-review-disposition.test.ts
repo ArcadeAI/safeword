@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
 import { createConfiguredProject, createTemporaryDirectory, runCli } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import {
@@ -160,6 +161,30 @@ sys.exit(child.wait())`,
 }
 
 describe('user-owned planning review disposition', () => {
+  it('preserves long ticket lists for the installed hook reader after a decline', async () => {
+    const project = await reviewedProject();
+    const longScope =
+      'Preserve the authenticated approval of a planning review even when a contributor has written a detailed implementation note about the accepted behavior.';
+    writeFileSync(
+      project.ticketPath,
+      readFileSync(project.ticketPath, 'utf8').replace(
+        '  - preserve current approval',
+        () =>
+          `  - ${longScope}\n  - preserve current approval\nphase_skips:\n  - 'intake → define-behavior: approved scope already exists'\n  - 'scenario-gate → plan-implementation: accepted scenarios already exist'`,
+      ),
+    );
+    const fresh = await project.run(['review', 'run', 'quality-review', target]);
+    expect(fresh.exitCode, fresh.stdout).toBe(0);
+    const reviewId = (JSON.parse(fresh.stdout).data as { review_id: string }).review_id;
+
+    const confirmed = project.terminal('y', reviewId);
+    expect(confirmed.status, `${confirmed.stdout}\n${confirmed.stderr}`).toBe(0);
+    const frontmatter = readFileSync(project.ticketPath, 'utf8').split('---', 2)[1] ?? '';
+    const parsed = parseFrontmatter(frontmatter);
+    expect(parsed.scope).toEqual([longScope, 'preserve current approval']);
+    expect(parsed.phase_skips).toHaveLength(2);
+  });
+
   it('leaves an authenticated optional finding pending in noninteractive mode', async () => {
     const project = await reviewedProject();
     const before = readFileSync(project.ticketPath, 'utf8');

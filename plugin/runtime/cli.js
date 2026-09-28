@@ -79403,7 +79403,7 @@ function addDisposition(content, request, kind, finding2, boundaryDigest) {
       reason: request.reason
     }
   ]);
-  return `${match[1]}${String(document2).trimEnd()}${match[3]}${content.slice(match[0].length)}`;
+  return `${match[1]}${document2.toString({ lineWidth: 0 }).trimEnd()}${match[3]}${content.slice(match[0].length)}`;
 }
 async function confirm(finding2, boundaryDigest, reason) {
   process20.stderr.write(`Finding (${finding2.severity}): ${finding2.message}
