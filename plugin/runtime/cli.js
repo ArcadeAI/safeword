@@ -31653,12 +31653,29 @@ var init_policy = __esm(() => {
   };
 });
 
+// src/review/scope.ts
+import { AsyncLocalStorage } from "async_hooks";
+function withReviewScope(run2) {
+  const scope = {};
+  return reviewScope.run(scope, async () => ({ result: await run2(), scope }));
+}
+function recordFinalizedScope(excludedTargets) {
+  const scope = reviewScope.getStore();
+  if (scope !== undefined)
+    scope.excludedTargets = [...excludedTargets];
+}
+var reviewScope;
+var init_scope = __esm(() => {
+  reviewScope = new AsyncLocalStorage;
+});
+
 // src/review/packet.ts
 var exports_packet = {};
 __export(exports_packet, {
   prepareReviewPacket: () => prepareReviewPacket,
   ReviewPacketError: () => ReviewPacketError
 });
+import { spawnSync as spawnSync5 } from "child_process";
 import { createHash as createHash16, randomUUID as randomUUID8 } from "crypto";
 import {
   closeSync as closeSync4,
@@ -31670,12 +31687,100 @@ import {
   openSync as openSync4,
   readdirSync as readdirSync8,
   readFileSync as readFileSync29,
+  readSync as readSync2,
   realpathSync as realpathSync7,
   rmSync as rmSync7,
   writeFileSync as writeFileSync11
 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
 import nodePath44 from "path";
+function gitEnvironment(alternateObjects) {
+  return {
+    PATH: process.env.PATH,
+    ...process.platform === "win32" && { SystemRoot: process.env.SystemRoot },
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_ATTR_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+    ...alternateObjects !== undefined && { GIT_ALTERNATE_OBJECT_DIRECTORIES: alternateObjects }
+  };
+}
+function gitOutput(args, env2) {
+  const result = spawnSync5("git", [...args], {
+    env: env2,
+    encoding: "buffer",
+    timeout: 5000,
+    maxBuffer: 256 * 1024
+  });
+  if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+    throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+  }
+  return result.stdout;
+}
+function generatedTargets(root, files) {
+  if (files.length === 0)
+    return new Set;
+  try {
+    const env2 = gitEnvironment();
+    const commit = gitOutput(["-C", root, "rev-parse", "--verify", "HEAD^{commit}"], env2).toString("utf8").trim();
+    if (!/^[0-9a-f]{40,64}$/u.test(commit)) {
+      throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+    }
+    const objectsPath = gitOutput(["-C", root, "rev-parse", "--git-path", "objects"], env2).toString("utf8").trim();
+    const objects = realpathSync7(nodePath44.resolve(root, objectsPath));
+    const bare = mkdtempSync5(nodePath44.join(tmpdir3(), "safeword-review-git-"));
+    try {
+      gitOutput(["init", "--bare", "-q", bare], env2);
+      const result = spawnSync5("git", [
+        "--git-dir",
+        bare,
+        "-c",
+        `core.attributesFile=${process.platform === "win32" ? "NUL" : "/dev/null"}`,
+        "check-attr",
+        `--source=${commit}`,
+        "-z",
+        "--stdin",
+        "linguist-generated"
+      ], {
+        env: gitEnvironment(objects),
+        input: Buffer.from(`${files.map((file) => file.relative).join("\x00")}\x00`),
+        encoding: "buffer",
+        timeout: 5000,
+        maxBuffer: 256 * 1024
+      });
+      if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
+        throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+      }
+      const fields = new TextDecoder("utf-8", { fatal: true }).decode(result.stdout).split("\x00");
+      if (fields.pop() !== "" || fields.length !== files.length * 3) {
+        throw new ReviewPacketError("Git attributes returned an invalid response", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+      }
+      const marked = new Set;
+      for (const [index, file] of files.entries()) {
+        const offset = index * 3;
+        if (fields[offset] !== file.relative || fields[offset + 1] !== "linguist-generated") {
+          throw new ReviewPacketError("Git attributes returned an invalid response", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+        }
+        if (fields[offset + 2] === "true")
+          marked.add(file.relative);
+      }
+      return marked;
+    } finally {
+      rmSync7(bare, { recursive: true, force: true });
+    }
+  } catch (error2) {
+    if (error2 instanceof ReviewPacketError)
+      throw error2;
+    throw new ReviewPacketError("Git attributes could not be resolved for an oversized review target", "REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE");
+  }
+}
+function oversizedChanged(root, file) {
+  try {
+    const observed = lstatSync9(file.source);
+    return !observed.isFile() || observed.dev !== file.device || observed.ino !== file.inode || observed.size !== file.size || escapes(root, realpathSync7(file.source));
+  } catch {
+    return true;
+  }
+}
 function requireScenarioTicketSpec(kind, contextFiles) {
   if (kind !== "scenario-gate")
     return;
@@ -31716,12 +31821,28 @@ function fileDigest(path7) {
     return;
   }
 }
-function sourceFileChanged(file) {
+function readBounded(descriptor, maxBytes) {
+  const buffer = Buffer.allocUnsafe(maxBytes + 1);
+  let length = 0;
+  while (length < buffer.length) {
+    const read = readSync2(descriptor, buffer, length, buffer.length - length, null);
+    if (read === 0)
+      return buffer.subarray(0, length);
+    length += read;
+  }
+  return;
+}
+function sourceFileChanged(root, file) {
   let descriptor;
   try {
     descriptor = openSync4(file.source, constants2.O_RDONLY | (constants2.O_NOFOLLOW ?? 0));
     const current = fstatSync2(descriptor);
-    return !current.isFile() || current.dev !== file.device || current.ino !== file.inode || digest2(readFileSync29(descriptor)) !== file.sha256;
+    if (!current.isFile() || current.dev !== file.device || current.ino !== file.inode)
+      return true;
+    if (escapes(root, realpathSync7(file.source)))
+      return true;
+    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    return bytes === undefined || digest2(bytes) !== file.sha256;
   } catch {
     return true;
   } finally {
@@ -31729,31 +31850,47 @@ function sourceFileChanged(file) {
       closeSync4(descriptor);
   }
 }
+function requireStableSources(root, files) {
+  if (files.some((file) => sourceFileChanged(root, file))) {
+    throw new ReviewPacketError("Review target changed after packet capture", "REVIEW_TARGET_CHANGED");
+  }
+}
+function throwFirstTargetError(errors) {
+  if (errors.length === 0)
+    return;
+  errors.sort((left, right) => left.index - right.index);
+  throw errors[0]?.error;
+}
 function readContainedText(root, source, target, packetBytesRemaining) {
   const descriptor = openSync4(source, constants2.O_RDONLY | (constants2.O_NOFOLLOW ?? 0));
   try {
     const opened = fstatSync2(descriptor);
-    if (!opened.isFile())
-      throw new Error(`Review target is not a regular file: ${target}`);
+    if (!opened.isFile()) {
+      throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
+    }
     if (opened.size > MAX_FILE_BYTES) {
       throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
     }
     if (opened.size > packetBytesRemaining) {
-      throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+      throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
     }
     const resolved = realpathSync7(source);
-    if (escapes(root, resolved))
-      throw new Error(`Review target escapes the project: ${target}`);
+    if (escapes(root, resolved)) {
+      throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
+    }
     const observed = lstatSync9(resolved);
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
-      throw new Error(`Review target changed while it was being captured: ${target}`);
+      throw new ReviewPacketError(`Review target changed while it was being captured: ${target}`, "REVIEW_TARGET_CHANGED");
     }
-    const bytes = readFileSync29(descriptor);
+    const bytes = readBounded(descriptor, MAX_FILE_BYTES);
+    if (bytes?.byteLength !== opened.size) {
+      throw new ReviewPacketError(`Review target changed while it was being captured: ${target}`, "REVIEW_TARGET_CHANGED");
+    }
     let content;
     try {
       content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     } catch {
-      throw new Error(`Review target is not valid UTF-8 text: ${target}`);
+      throw new ReviewPacketError(`Review target is not valid UTF-8 text: ${target}`, "REVIEW_TARGET_INVALID_TEXT");
     }
     if (HIGH_CONFIDENCE_SECRET_PATTERNS.some((pattern) => pattern.test(content))) {
       throw new Error(`Review packet rejected a high-confidence credential in ${target}; redact it before dispatch`);
@@ -31781,47 +31918,72 @@ function snapshotEntries(root, directory = root) {
 }
 function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}) {
   if (targets.length + context.length > MAX_FILE_COUNT) {
-    throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
+    throw new ReviewPacketError(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`, "REVIEW_PACKET_TOO_LARGE");
   }
   const executionAttestation = checkedExecutionAttestation(kind, execution);
   const canonicalRoot = realpathSync7(cwd);
   const workspace = mkdtempSync5(nodePath44.join(tmpdir3(), "safeword-review-"));
   const tracked = [];
+  const oversized = [];
+  const targetErrors = [];
+  const excludedTargets = [];
   const expectedSnapshotEntries = new Set;
   let logicalFiles;
   let contextFiles;
   try {
     let packetBytes = 0;
-    const captureFiles = (files) => files.map((target) => {
-      const source = nodePath44.resolve(canonicalRoot, target);
-      const relative = nodePath44.relative(canonicalRoot, source);
-      if (escapes(canonicalRoot, source)) {
-        throw new Error(`Review target escapes the project: ${target}`);
+    const captureFiles = (files, allowGenerated, offset) => files.flatMap((target, index) => {
+      try {
+        const source = nodePath44.resolve(canonicalRoot, target);
+        const relative = nodePath44.relative(canonicalRoot, source);
+        if (escapes(canonicalRoot, source)) {
+          throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
+        }
+        const stats = lstatSync9(source);
+        if (!stats.isFile()) {
+          throw new ReviewPacketError(`Review target is not a regular file: ${target}`, "REVIEW_TARGET_NOT_REGULAR");
+        }
+        if (escapes(canonicalRoot, realpathSync7(source))) {
+          throw new ReviewPacketError(`Review target escapes the project: ${target}`, "REVIEW_TARGET_OUTSIDE_PROJECT");
+        }
+        if (stats.size > MAX_FILE_BYTES) {
+          if (!allowGenerated) {
+            throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+          }
+          oversized.push({
+            index: offset + index,
+            source,
+            relative,
+            device: stats.dev,
+            inode: stats.ino,
+            size: stats.size
+          });
+          return [];
+        }
+        const { bytes, content, device, inode } = readContainedText(canonicalRoot, source, target, MAX_PACKET_BYTES - packetBytes);
+        const fileBytes = bytes.byteLength;
+        if (fileBytes > MAX_FILE_BYTES) {
+          throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
+        }
+        packetBytes += fileBytes;
+        if (packetBytes > MAX_PACKET_BYTES) {
+          throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
+        }
+        const snapshot = nodePath44.join(workspace, relative);
+        mkdirSync11(nodePath44.dirname(snapshot), { recursive: true });
+        writeFileSync11(snapshot, bytes, { mode: 384 });
+        let parent = nodePath44.dirname(relative);
+        while (parent !== ".") {
+          expectedSnapshotEntries.add(`directory:${parent}`);
+          parent = nodePath44.dirname(parent);
+        }
+        expectedSnapshotEntries.add(`file:${relative}`);
+        tracked.push({ source, snapshot, sha256: digest2(bytes), device, inode });
+        return [{ path: relative, content }];
+      } catch (error2) {
+        targetErrors.push({ index: offset + index, error: error2 });
+        return [];
       }
-      const stats = lstatSync9(source);
-      if (!stats.isFile()) {
-        throw new Error(`Review target is not a regular file: ${target}`);
-      }
-      const { bytes, content, device, inode } = readContainedText(canonicalRoot, source, target, MAX_PACKET_BYTES - packetBytes);
-      const fileBytes = bytes.byteLength;
-      if (fileBytes > MAX_FILE_BYTES) {
-        throw new Error(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${target}`);
-      }
-      packetBytes += fileBytes;
-      if (packetBytes > MAX_PACKET_BYTES) {
-        throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
-      }
-      const snapshot = nodePath44.join(workspace, relative);
-      mkdirSync11(nodePath44.dirname(snapshot), { recursive: true });
-      writeFileSync11(snapshot, bytes, { mode: 384 });
-      let parent = nodePath44.dirname(relative);
-      while (parent !== ".") {
-        expectedSnapshotEntries.add(`directory:${parent}`);
-        parent = nodePath44.dirname(parent);
-      }
-      expectedSnapshotEntries.add(`file:${relative}`);
-      tracked.push({ source, snapshot, sha256: digest2(bytes), device, inode });
-      return { path: relative, content };
     });
     const seen = new Set;
     const rejectDuplicate = (target) => {
@@ -31831,12 +31993,42 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
       }
       seen.add(relative);
     };
-    for (const target of targets)
+    const uniqueTargets = [];
+    for (const target of targets) {
+      const relative = nodePath44.relative(canonicalRoot, nodePath44.resolve(canonicalRoot, target));
+      if (seen.has(relative))
+        continue;
       rejectDuplicate(target);
+      uniqueTargets.push(target);
+    }
     for (const target of context)
       rejectDuplicate(target);
-    logicalFiles = captureFiles(targets);
-    contextFiles = captureFiles(context);
+    logicalFiles = captureFiles(uniqueTargets, true, 0);
+    contextFiles = captureFiles(context, false, uniqueTargets.length);
+    requireStableSources(canonicalRoot, tracked);
+    const marked = generatedTargets(canonicalRoot, oversized);
+    for (const file of oversized) {
+      if (oversizedChanged(canonicalRoot, file)) {
+        targetErrors.push({
+          index: file.index,
+          error: new ReviewPacketError(`Review target changed while it was being classified: ${file.relative}`, "REVIEW_TARGET_CHANGED")
+        });
+        continue;
+      }
+      if (!marked.has(file.relative)) {
+        targetErrors.push({
+          index: file.index,
+          error: new ReviewPacketError(`Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`, "REVIEW_TARGET_TOO_LARGE")
+        });
+        continue;
+      }
+      excludedTargets.push(file.relative);
+    }
+    requireStableSources(canonicalRoot, tracked);
+    throwFirstTargetError(targetErrors);
+    if (logicalFiles.length === 0) {
+      throw new ReviewPacketError("Review has no eligible targets after generated outputs are excluded", "REVIEW_NO_ELIGIBLE_TARGETS");
+    }
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
   } catch (error2) {
@@ -31853,13 +32045,14 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
   };
   if (Buffer.byteLength(JSON.stringify(packet), "utf8") > MAX_PACKET_BYTES) {
     rmSync7(workspace, { recursive: true, force: true });
-    throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
+    throw new ReviewPacketError(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`, "REVIEW_PACKET_TOO_LARGE");
   }
   return {
     packet,
+    excludedTargets,
     sourceRoot: canonicalRoot,
     workspace,
-    sourceChanged: () => tracked.some((file) => sourceFileChanged(file)),
+    sourceChanged: () => tracked.some((file) => sourceFileChanged(canonicalRoot, file)) || oversized.some((file) => oversizedChanged(canonicalRoot, file)),
     snapshotChanged: () => {
       if (tracked.some((file) => fileDigest(file.snapshot) !== file.sha256))
         return true;
@@ -31877,7 +32070,9 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
 }
 function prepareReviewPacket(cwd, kind, targets, context = [], execution = {}) {
   try {
-    return prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
+    const prepared = prepareReviewPacketUnsafe(cwd, kind, targets, context, execution);
+    recordFinalizedScope(prepared.excludedTargets);
+    return prepared;
   } catch (error2) {
     if (error2 instanceof ReviewPacketError)
       throw error2;
@@ -31887,6 +32082,7 @@ function prepareReviewPacket(cwd, kind, targets, context = [], execution = {}) {
 }
 var MAX_FILE_COUNT = 64, MAX_FILE_BYTES, MAX_PACKET_BYTES, HIGH_CONFIDENCE_SECRET_PATTERNS, ReviewPacketError;
 var init_packet = __esm(() => {
+  init_scope();
   MAX_FILE_BYTES = 256 * 1024;
   MAX_PACKET_BYTES = 1024 * 1024;
   HIGH_CONFIDENCE_SECRET_PATTERNS = [
@@ -31898,7 +32094,12 @@ var init_packet = __esm(() => {
     /\bAIza[\w-]{35}\b/u
   ];
   ReviewPacketError = class ReviewPacketError extends Error {
+    code;
     name = "ReviewPacketError";
+    constructor(message, code = "REVIEW_PACKET_INVALID") {
+      super(message);
+      this.code = code;
+    }
   };
 });
 
@@ -33144,7 +33345,7 @@ __export(exports_job, {
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob
 });
-import { spawn as spawn2, spawnSync as spawnSync5 } from "child_process";
+import { spawn as spawn2, spawnSync as spawnSync6 } from "child_process";
 import { createHash as createHash18, createHmac, randomBytes, randomUUID as randomUUID9, timingSafeEqual } from "crypto";
 import {
   closeSync as closeSync6,
@@ -33935,7 +34136,7 @@ function terminateUnactivatedWorker(record, pid) {
 }
 function terminateReviewWorker(pid) {
   if (process.platform === "win32") {
-    spawnSync5(processTool("taskkill"), ["/PID", String(pid), "/T", "/F"], {
+    spawnSync6(processTool("taskkill"), ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       timeout: 5000,
       windowsHide: true
@@ -34282,12 +34483,12 @@ function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
 }
 function inspectReviewWorker(pid, id) {
-  const inspected = process.platform === "win32" ? spawnSync5(processTool("powershell.exe"), [
+  const inspected = process.platform === "win32" ? spawnSync6(processTool("powershell.exe"), [
     "-NoProfile",
     "-NonInteractive",
     "-Command",
     `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`
-  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync5(processTool("ps"), ["-ww", "-p", String(pid), "-o", "command="], {
+  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync6(processTool("ps"), ["-ww", "-p", String(pid), "-o", "command="], {
     encoding: "utf8",
     timeout: 1000
   });
@@ -34474,13 +34675,13 @@ var exports_red_execution = {};
 __export(exports_red_execution, {
   executeRedProof: () => executeRedProof
 });
-import { spawn as spawn3, spawnSync as spawnSync6 } from "child_process";
+import { spawn as spawn3, spawnSync as spawnSync7 } from "child_process";
 import { createHash as createHash19 } from "crypto";
 import { realpathSync as realpathSync10 } from "fs";
 import nodePath48 from "path";
 function terminateProofTree(child) {
   if (process.platform === "win32" && child.pid !== undefined) {
-    const terminated = spawnSync6("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
+    const terminated = spawnSync7("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
       stdio: "ignore",
       timeout: 1000,
       windowsHide: true
@@ -35662,7 +35863,7 @@ function runAfterPrimaryFailure(input, details) {
     runDeadline: details.runDeadline
   });
 }
-async function runReview(input) {
+async function runReviewCore(input) {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
   if (policy === "off") {
@@ -35766,6 +35967,16 @@ async function runReview(input) {
     preferredModelFailure
   });
 }
+async function runReview(input) {
+  const { result, scope } = await withReviewScope(() => runReviewCore(input));
+  if (scope.excludedTargets === undefined)
+    return result;
+  const data = result.data;
+  return {
+    ...result,
+    data: { ...data, excluded_targets: scope.excludedTargets }
+  };
+}
 var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, RUNTIME_WIDE_FAILURES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {
   init_run_identity();
@@ -35773,6 +35984,7 @@ var init_coordinator = __esm(() => {
   init_packet();
   init_policy2();
   init_runtime();
+  init_scope();
   FAILURE_CAUSES = {
     process_failed: "exited before returning a review",
     timed_out: "ran out of time",
@@ -41513,7 +41725,7 @@ import {
   lstatSync as lstatSync13,
   openSync as openSync7,
   readdirSync as readdirSync16,
-  readSync as readSync2,
+  readSync as readSync3,
   realpathSync as realpathSync11
 } from "fs";
 import nodePath64 from "path";
@@ -41527,7 +41739,7 @@ function readSmallDescriptor(descriptor) {
   const buffer = Buffer.alloc(MAX_CLAUDE_CACHE_METADATA_BYTES + 1);
   let offset = 0;
   while (offset < buffer.length) {
-    const count = readSync2(descriptor, buffer, offset, buffer.length - offset, offset);
+    const count = readSync3(descriptor, buffer, offset, buffer.length - offset, offset);
     if (count === 0)
       break;
     offset += count;
@@ -41681,13 +41893,13 @@ var init_inventory2 = __esm(() => {
 });
 
 // src/claude-plugin/project-root.ts
-import { spawnSync as spawnSync7 } from "child_process";
+import { spawnSync as spawnSync8 } from "child_process";
 function canonicalClaudeProjectRoot(cwd) {
   const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
   const environmentRoot = configuredRoot === undefined ? undefined : configuredRoot.trim();
   let candidate = environmentRoot === "" ? undefined : environmentRoot;
   if (candidate === undefined) {
-    const result = spawnSync7("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
+    const result = spawnSync8("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
       encoding: "utf8"
     });
     const gitRoot = result.status === 0 ? result.stdout?.trim() : undefined;
@@ -54735,7 +54947,7 @@ __export(exports_profile, {
   installClaudePlugin: () => installClaudePlugin,
   claudeInstallRequiresMutation: () => claudeInstallRequiresMutation
 });
-import { spawnSync as spawnSync8 } from "child_process";
+import { spawnSync as spawnSync9 } from "child_process";
 import { createHash as createHash24 } from "crypto";
 import {
   closeSync as closeSync8,
@@ -54756,7 +54968,7 @@ function runClaude(cwd, arguments_, effects) {
   const outputDescriptor = openSync8(outputPath, "w");
   let outputOpen = true;
   try {
-    const result = spawnSync8("claude", arguments_, {
+    const result = spawnSync9("claude", arguments_, {
       cwd,
       encoding: "utf8",
       maxBuffer: MAXIMUM_CLAUDE_OUTPUT_BYTES,
@@ -57468,7 +57680,7 @@ var init_profile2 = __esm(() => {
 });
 
 // src/opencode/conformance-fixture.ts
-import { spawn as spawn4, spawnSync as spawnSync9 } from "child_process";
+import { spawn as spawn4, spawnSync as spawnSync10 } from "child_process";
 import { randomUUID as randomUUID11 } from "crypto";
 import {
   chmodSync as chmodSync4,
@@ -57526,7 +57738,7 @@ function prepareCatalogueFixture(root, profile, fault) {
   return project;
 }
 function runHost(executable, args, cwd, environment) {
-  return spawnSync9(executable, args, {
+  return spawnSync10(executable, args, {
     cwd,
     encoding: "utf8",
     env: environment,
@@ -57816,7 +58028,7 @@ __export(exports_conformance, {
   runOpenCodeConformance: () => runOpenCodeConformance,
   observeOpenCodeVersion: () => observeOpenCodeVersion
 });
-import { spawnSync as spawnSync10 } from "child_process";
+import { spawnSync as spawnSync11 } from "child_process";
 import { createHash as createHash27 } from "crypto";
 import { accessSync as accessSync3, constants as constants4, lstatSync as lstatSync18, readFileSync as readFileSync56, realpathSync as realpathSync15, statSync as statSync7 } from "fs";
 import nodePath90 from "path";
@@ -57902,7 +58114,7 @@ function observeOpenCodeVersion(environment) {
   const executable = resolveExecutable(environment);
   if (executable === undefined)
     return;
-  const version2 = spawnSync10(executable, ["--version"], {
+  const version2 = spawnSync11(executable, ["--version"], {
     encoding: "utf8",
     env: { ...environment, OPENCODE_DISABLE_AUTOUPDATE: "true" },
     timeout: 1e4
@@ -57916,7 +58128,7 @@ function executableBoundary(environment) {
       result: executableRemediation("OPENCODE_EXECUTABLE_UNRESOLVED", "OpenCode is not executable from PATH.")
     };
   }
-  const version2 = spawnSync10(executable, ["--version"], {
+  const version2 = spawnSync11(executable, ["--version"], {
     encoding: "utf8",
     env: { ...environment, OPENCODE_DISABLE_AUTOUPDATE: "true" },
     timeout: 1e4
@@ -59594,7 +59806,7 @@ import {
   openSync as openSync9,
   readdirSync as readdirSync31,
   readFileSync as readFileSync60,
-  readSync as readSync3,
+  readSync as readSync4,
   renameSync as renameSync11,
   rmdirSync as rmdirSync6,
   rmSync as rmSync14
@@ -59801,7 +60013,7 @@ function readSafeNamespaceConfig(path8) {
     const buffer = Buffer.alloc(MAX_NAMESPACE_CONFIG_BYTES + 1);
     let offset = 0;
     while (offset < buffer.length) {
-      const count = readSync3(descriptor, buffer, offset, buffer.length - offset, offset);
+      const count = readSync4(descriptor, buffer, offset, buffer.length - offset, offset);
       if (count === 0)
         break;
       offset += count;
@@ -60354,7 +60566,7 @@ import {
   readdirSync as readdirSync34,
   readFileSync as readFileSync64,
   readlinkSync as readlinkSync4,
-  readSync as readSync4
+  readSync as readSync5
 } from "fs";
 import nodePath104 from "path";
 function ensurePackageJson(cwd) {
@@ -60909,7 +61121,7 @@ function isSameProjectVersionFile(before, opened, after) {
 }
 function readProjectVersionDescriptor(descriptor) {
   const buffer = Buffer.alloc(MAX_PROJECT_VERSION_BYTES + 1);
-  const count = readSync4(descriptor, buffer, 0, buffer.length, 0);
+  const count = readSync5(descriptor, buffer, 0, buffer.length, 0);
   const final = fstatSync7(descriptor);
   if (count > MAX_PROJECT_VERSION_BYTES || final.size > MAX_PROJECT_VERSION_BYTES) {
     return;
@@ -62152,7 +62364,7 @@ import {
   mkdirSync as mkdirSync20,
   openSync as openSync11,
   readFileSync as readFileSync65,
-  readSync as readSync5,
+  readSync as readSync6,
   renameSync as renameSync12,
   rmdirSync as rmdirSync7,
   writeSync as writeSync2
@@ -62332,7 +62544,7 @@ function descriptorSha256(descriptor, size) {
   const bytes = Buffer.alloc(size);
   let offset = 0;
   while (offset < bytes.length) {
-    const count = readSync5(descriptor, bytes, offset, bytes.length - offset, offset);
+    const count = readSync6(descriptor, bytes, offset, bytes.length - offset, offset);
     if (count === 0)
       break;
     offset += count;
@@ -62637,7 +62849,7 @@ function readTransactionBytes(path8) {
     const buffer = Buffer.alloc(MAX_CLAUDE_TRANSACTION_BYTES + 1);
     let offset = 0;
     while (offset < buffer.length) {
-      const count = readSync5(descriptor, buffer, offset, buffer.length - offset, offset);
+      const count = readSync6(descriptor, buffer, offset, buffer.length - offset, offset);
       if (count === 0)
         break;
       offset += count;
@@ -63029,7 +63241,7 @@ var init_cleanup_command = __esm(() => {
 });
 
 // src/test-execution/config.ts
-import { spawnSync as spawnSync11 } from "child_process";
+import { spawnSync as spawnSync12 } from "child_process";
 import {
   closeSync as closeSync12,
   constants as constants5,
@@ -63106,10 +63318,10 @@ function validatePersonalDirectory(cwd, path8) {
 }
 function validateGitPrivacy(cwd, path8) {
   const relativePath = nodePath106.relative(cwd, path8);
-  const ignored = spawnSync11("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], {
+  const ignored = spawnSync12("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], {
     stdio: "ignore"
   });
-  const tracked = spawnSync11("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], {
+  const tracked = spawnSync12("git", ["-C", cwd, "ls-files", "--error-unmatch", "--", relativePath], {
     stdio: "ignore"
   });
   if (ignored.error !== undefined || tracked.error !== undefined || ignored.status === null || tracked.status === null) {
@@ -64175,7 +64387,7 @@ var init_shell_segments = __esm(() => {
 });
 
 // src/test-plan/resolve.ts
-import { spawnSync as spawnSync12 } from "child_process";
+import { spawnSync as spawnSync13 } from "child_process";
 import { existsSync as existsSync48, lstatSync as lstatSync25, readFileSync as readFileSync68 } from "fs";
 import nodePath111 from "path";
 import process17 from "process";
@@ -64311,9 +64523,9 @@ function defaultIsToolAvailable(tool) {
   if (fake !== undefined)
     return fakeToolProbe(fake)(tool);
   if (process17.platform === "win32") {
-    return spawnSync12("where.exe", [tool], { stdio: "ignore" }).status === 0;
+    return spawnSync13("where.exe", [tool], { stdio: "ignore" }).status === 0;
   }
-  return spawnSync12("/bin/sh", ["-c", 'command -v "$1"', "safeword-tool-probe", tool], {
+  return spawnSync13("/bin/sh", ["-c", 'command -v "$1"', "safeword-tool-probe", tool], {
     stdio: "ignore"
   }).status === 0;
 }
@@ -64691,7 +64903,7 @@ __export(exports_test_execution, {
   observeRemoteWorkflowStatus: () => observeRemoteWorkflowStatus,
   disableManagedRemoteWorkflow: () => disableManagedRemoteWorkflow
 });
-import { spawnSync as spawnSync13 } from "child_process";
+import { spawnSync as spawnSync14 } from "child_process";
 import { readFileSync as readFileSync69 } from "fs";
 import nodePath112 from "path";
 function shellInvocation(command) {
@@ -64702,7 +64914,7 @@ function shellInvocation(command) {
 }
 function spawnPlanEntry(entry2, captureOutput) {
   const [executable, arguments_] = shellInvocation(entry2.command);
-  return spawnSync13(executable, arguments_, {
+  return spawnSync14(executable, arguments_, {
     cwd: entry2.cwd,
     env: process.env,
     encoding: "utf8",
@@ -64846,7 +65058,7 @@ function prepareRemoteProject(cwd, command, delivery) {
   if (command === undefined)
     return;
   const [executable, arguments_] = shellInvocation(command);
-  const result = spawnSync13(executable, arguments_, {
+  const result = spawnSync14(executable, arguments_, {
     cwd,
     env: process.env,
     encoding: "utf8",
@@ -65944,14 +66156,14 @@ var init_cursor_run_identity = __esm(() => {
 });
 
 // templates/hooks/lib/project-state.ts
-import { spawnSync as spawnSync14 } from "child_process";
+import { spawnSync as spawnSync15 } from "child_process";
 import { appendFileSync as appendFileSync3, existsSync as existsSync54, mkdirSync as mkdirSync23, readFileSync as readFileSync76, writeFileSync as writeFileSync29 } from "fs";
 import nodePath121 from "path";
 function gitAlreadyIgnores(cwd, path8) {
   const relativePath = nodePath121.relative(cwd, path8);
   if (relativePath.startsWith("..") || nodePath121.isAbsolute(relativePath))
     return false;
-  return spawnSync14("git", ["check-ignore", "--no-index", "--quiet", "--", relativePath], {
+  return spawnSync15("git", ["check-ignore", "--no-index", "--quiet", "--", relativePath], {
     cwd,
     stdio: "ignore"
   }).status === 0;
@@ -66126,7 +66338,7 @@ var exports_project_runtime = {};
 __export(exports_project_runtime, {
   runProjectRuntime: () => runProjectRuntime
 });
-import { spawnSync as spawnSync15 } from "child_process";
+import { spawnSync as spawnSync16 } from "child_process";
 import { existsSync as existsSync55 } from "fs";
 import nodePath123 from "path";
 function completedResult(helper, status, stdout, stderr) {
@@ -66167,7 +66379,7 @@ function projectRuntimeEnvironment(projectDirectory) {
     environment.SAFEWORD_PLUGIN_CLI = reentrantCli;
   return environment;
 }
-function runProjectRuntime(cwd, helper, args, runner = spawnSync15) {
+function runProjectRuntime(cwd, helper, args, runner = spawnSync16) {
   const definition = projectRuntimeHelperDefinition(helper);
   if (helper === undefined || definition === undefined)
     return Promise.resolve(createResult({
@@ -67104,7 +67316,7 @@ __export(exports_codex_hook, {
   commandInvokesWriteReviewStamp: () => commandInvokesWriteReviewStamp,
   codexHook: () => codexHook
 });
-import { spawnSync as spawnSync16 } from "child_process";
+import { spawnSync as spawnSync17 } from "child_process";
 import {
   cpSync as cpSync5,
   existsSync as existsSync60,
@@ -67355,7 +67567,7 @@ function resolvePackagedHook(relativePath) {
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
   const runtime = process22.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process22.execPath : "bun";
-  const result = spawnSync16(runtime, [hookPath], {
+  const result = spawnSync17(runtime, [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: "utf8",
@@ -71518,8 +71730,7 @@ async function runReviewWorker(invocation) {
       context: persistedInput.context
     });
   } catch (error2) {
-    const packetError = error2 instanceof ReviewPacketError2;
-    result = reviewExecutionFailure(error2, packetError);
+    result = reviewExecutionFailure(error2, ReviewPacketError2);
   }
   try {
     completeReviewJob2(invocation.cwd, id, result);
@@ -71532,9 +71743,10 @@ async function runReviewWorker(invocation) {
   }
   return result;
 }
-function reviewExecutionFailure(error2, packetError) {
+function reviewExecutionFailure(error2, PacketError) {
+  const packetError = error2 instanceof PacketError;
   return failedReviewWorker({
-    code: packetError ? "REVIEW_PACKET_INVALID" : "REVIEW_WORKER_FAILED",
+    code: packetError ? error2.code : "REVIEW_WORKER_FAILED",
     message: error2 instanceof Error ? error2.message : "The review worker failed.",
     retryable: !packetError
   });
@@ -71554,16 +71766,16 @@ async function startReviewInBackground(invocation, kind, targets, context, execu
       progress: invocation.progress
     });
   } catch (error2) {
-    const packetError = error2 instanceof ReviewPacketError2;
-    return reviewStartFailure(error2, packetError);
+    return reviewStartFailure(error2, ReviewPacketError2);
   }
 }
-function reviewStartFailure(error2, packetError) {
+function reviewStartFailure(error2, PacketError) {
+  const packetError = error2 instanceof PacketError;
   return createResult({
     state: "failed",
     errors: [
       {
-        code: packetError ? "REVIEW_PACKET_INVALID" : "REVIEW_JOB_START_FAILED",
+        code: packetError ? error2.code : "REVIEW_JOB_START_FAILED",
         message: error2 instanceof Error ? error2.message : "The review job could not be started.",
         retryable: !packetError
       }
@@ -72741,9 +72953,9 @@ var CANONICAL_COMMANDS = [
       { flags: "--accept", description: "Accept a changed parent contract after intake" }
     ]
   }),
-  command("review run", "Run an independent adversarial review", "mutate", {
+  command("review run", "Review bounded inputs and report excluded generated output", "mutate", {
     networkPolicy: "declared",
-    syntax: "run <kind> <targets...>",
+    syntax: "run <kind> [targets...]",
     commandOptions: [
       {
         flags: "--context <paths...>",
