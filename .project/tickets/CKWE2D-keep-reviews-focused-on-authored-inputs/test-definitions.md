@@ -13,7 +13,7 @@ builder-visible command path with a real temporary project and fake reviewer.
 
 - [x] RED 5ade00069
 - [x] GREEN 8a3b80703
-- [ ] REFACTOR
+- [x] REFACTOR skip: no behavior-preserving extraction is safe until the remaining Git failure contracts are implemented
 
 ### Scenario: A repeated generated target has one ordered exclusion
 
