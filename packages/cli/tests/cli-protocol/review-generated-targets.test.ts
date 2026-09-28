@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
@@ -103,5 +103,62 @@ describe('generated review targets', () => {
     expect(prompt).toContain('review this authored change');
     expect(prompt).not.toContain('generated/first.js');
     expect(prompt).not.toContain('generated/second.js');
+  });
+
+  it('rejects an unmarked oversized runtime-shaped file with the size-limit code', async () => {
+    const directory = createTemporaryDirectory();
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    const runtime = nodePath.join(directory, 'plugin', 'runtime');
+    mkdirSync(runtime, { recursive: true });
+    writeFileSync(nodePath.join(directory, 'authored.md'), 'review this authored change\n');
+    writeFileSync(nodePath.join(runtime, 'cli.js'), 'x'.repeat(256 * 1024 + 1));
+    writeFileSync(nodePath.join(directory, '.gitattributes'), 'other/** linguist-generated=true\n');
+    git(directory, 'init', '-q');
+    git(directory, 'add', '.gitattributes', 'authored.md');
+    git(
+      directory,
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.com',
+      'commit',
+      '-qm',
+      'fixture',
+    );
+    const bin = fakeReviewer();
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'authored.md',
+        'plugin/runtime/cli.js',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      errors: { code: string }[];
+      data: { excluded_targets?: string[] };
+    };
+    expect(envelope.errors[0]?.code).toBe('REVIEW_TARGET_TOO_LARGE');
+    expect(envelope.data.excluded_targets).toBeUndefined();
+    expect(existsSync(promptLog)).toBe(false);
   });
 });
