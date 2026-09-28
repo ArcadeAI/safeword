@@ -44,6 +44,13 @@ export interface PreparedReviewPacket {
 
 export class ReviewPacketError extends Error {
   readonly name = 'ReviewPacketError';
+
+  constructor(
+    message: string,
+    readonly code = 'REVIEW_PACKET_INVALID',
+  ) {
+    super(message);
+  }
 }
 
 interface CapturedFile {
@@ -83,6 +90,7 @@ function gitOutput(args: readonly string[], env: NodeJS.ProcessEnv): Buffer {
   if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
     throw new ReviewPacketError(
       'Git attributes could not be resolved for an oversized review target',
+      'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
     );
   }
   return result.stdout;
@@ -99,6 +107,7 @@ function generatedTargets(root: string, files: readonly OversizedFile[]): Set<st
   if (!/^[0-9a-f]{40,64}$/u.test(commit)) {
     throw new ReviewPacketError(
       'Git attributes could not be resolved for an oversized review target',
+      'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
     );
   }
   const objectsPath = gitOutput(['-C', root, 'rev-parse', '--git-path', 'objects'], env)
@@ -132,17 +141,24 @@ function generatedTargets(root: string, files: readonly OversizedFile[]): Set<st
     if (result.status !== 0 || result.error !== undefined || !Buffer.isBuffer(result.stdout)) {
       throw new ReviewPacketError(
         'Git attributes could not be resolved for an oversized review target',
+        'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
       );
     }
     const fields = result.stdout.toString('utf8').split('\0');
     if (fields.pop() !== '' || fields.length !== files.length * 3) {
-      throw new ReviewPacketError('Git attributes returned an invalid response');
+      throw new ReviewPacketError(
+        'Git attributes returned an invalid response',
+        'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+      );
     }
     const marked = new Set<string>();
     for (const [index, file] of files.entries()) {
       const offset = index * 3;
       if (fields[offset] !== file.relative || fields[offset + 1] !== 'linguist-generated') {
-        throw new ReviewPacketError('Git attributes returned an invalid response');
+        throw new ReviewPacketError(
+          'Git attributes returned an invalid response',
+          'REVIEW_TARGET_ATTRIBUTE_UNAVAILABLE',
+        );
       }
       if (fields[offset + 2] === 'true') marked.add(file.relative);
     }
@@ -431,11 +447,13 @@ function prepareReviewPacketUnsafe(
       if (oversizedChanged(canonicalRoot, file)) {
         throw new ReviewPacketError(
           `Review target changed while it was being classified: ${file.relative}`,
+          'REVIEW_TARGET_CHANGED',
         );
       }
       if (!marked.has(file.relative)) {
         throw new ReviewPacketError(
           `Review target exceeds the ${MAX_FILE_BYTES}-byte limit: ${file.relative}`,
+          'REVIEW_TARGET_TOO_LARGE',
         );
       }
       excludedTargets.push(file.relative);
@@ -443,6 +461,7 @@ function prepareReviewPacketUnsafe(
     if (logicalFiles.length === 0) {
       throw new ReviewPacketError(
         'Review has no eligible targets after generated outputs are excluded',
+        'REVIEW_NO_ELIGIBLE_TARGETS',
       );
     }
     requireScenarioTicketSpec(kind, contextFiles);
