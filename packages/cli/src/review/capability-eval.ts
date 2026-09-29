@@ -109,11 +109,14 @@ export function compareSealedCapabilityResults(
 }
 
 export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRun): boolean {
+  const findings = run.findings.map(finding => finding.toLowerCase().replaceAll(/\s+/gu, ' '));
+  const contains = (phrase: string): boolean =>
+    findings.some(finding => finding.includes(phrase.toLowerCase().replaceAll(/\s+/gu, ' ')));
   return (
     run.fixture_id === fixture.id &&
     run.verdict === fixture.verdict &&
-    fixture.required.every(finding => run.findings.includes(finding)) &&
-    fixture.forbidden.every(finding => !run.findings.includes(finding))
+    fixture.required.every(finding => contains(finding)) &&
+    fixture.forbidden.every(finding => !contains(finding))
   );
 }
 

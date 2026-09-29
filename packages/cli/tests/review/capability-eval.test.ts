@@ -93,6 +93,12 @@ describe('reviewer capability evaluation', () => {
     const run = runs()[3];
     if (fixture === undefined || run === undefined) throw new Error('Missing test fixture');
     expect(scoreCapabilityRun(fixture, run)).toBe(true);
+    expect(
+      scoreCapabilityRun(fixture, {
+        ...run,
+        findings: ['The builder plan has a MISSING-OUTCOME for recovery.'],
+      }),
+    ).toBe(true);
     expect(scoreCapabilityRun(fixture, { ...run, verdict: 'approve' })).toBe(false);
     expect(scoreCapabilityRun(fixture, { ...run, findings: [] })).toBe(false);
     expect(
