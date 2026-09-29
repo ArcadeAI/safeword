@@ -427,6 +427,7 @@ describe('durable review jobs', () => {
     );
     expect(submitted.exitCode).toBe(0);
     expect(JSON.parse(submitted.stdout)).toMatchObject({
+      effects: { network: [] },
       data: { status: 'approved', review_id: publicId, independence: 'reduced' },
     });
     expect(reviewJobStatus(cwd, publicId).data).toMatchObject({
@@ -459,6 +460,9 @@ describe('durable review jobs', () => {
     );
     expect(unavailable.exitCode).toBe(2);
     expect(JSON.parse(unavailable.stdout)).toMatchObject({
+      state: 'action_required',
+      effects: { network: [] },
+      errors: [],
       data: {
         status: 'continuation_required',
         continuation: { tier: 'self-review' },
