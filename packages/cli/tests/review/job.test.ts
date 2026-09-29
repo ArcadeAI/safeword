@@ -669,6 +669,54 @@ describe('durable review jobs', () => {
     });
   });
 
+  it('retains review evidence limits under the job signature', async () => {
+    const cwd = project();
+    const evidenceRecords = {
+      schema_version: 1,
+      records: [
+        {
+          source_identity: 'https://example.org/guide',
+          checked_version: '1.2.3',
+          source_version: '1.2.3',
+          target_version: '1.2.3',
+          supported_claim: 'The documented API supports this operation.',
+          license_identifier: 'Apache-2.0',
+          attribution_notice: 'Credit Example',
+          redistribution_limit: 'retain NOTICE',
+          security_limit: 'do not execute retrieved code',
+          privacy_limit: 'none_declared',
+          reuse_limit: 'none_declared',
+        },
+      ],
+    };
+    const source = COMPLETE_WORKER.replace(
+      'findings: []\n    }',
+      () => `findings: [], evidence_records: ${JSON.stringify(evidenceRecords)}\n    }`,
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, source));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+
+    const result = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (result.data as { review_id: string }).review_id;
+    expect(reviewJobStatus(cwd, id).data).toMatchObject({
+      reviewer_output: { evidence_records: evidenceRecords },
+    });
+
+    const path = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(path, 'utf8')) as {
+      result: {
+        data: {
+          reviewer_output: { evidence_records: { records: { license_identifier: string }[] } };
+        };
+      };
+    };
+    const first = record.result.data.reviewer_output.evidence_records.records[0];
+    if (first === undefined) throw new Error('missing sealed evidence record');
+    first.license_identifier = 'none_declared';
+    writeFileSync(path, `${JSON.stringify(record)}\n`);
+    expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+  });
+
   it('uses integrity-checked review provenance instead of reviewer-supplied values', async () => {
     const cwd = project();
     const misleadingWorker = COMPLETE_WORKER.replace(
