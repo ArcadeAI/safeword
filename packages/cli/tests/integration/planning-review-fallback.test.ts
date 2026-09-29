@@ -228,6 +228,12 @@ describe('planning fallback after independent route exhaustion', () => {
       },
     };
     if (author === 'opencode') {
+      const unclaimed = [...stampArguments];
+      unclaimed.splice(unclaimed.indexOf('--independence'), 2);
+      unclaimed[unclaimed.indexOf('--review-id') + 1] = '00000000-0000-4000-8000-000000000000';
+      const missingClaim = spawnSync('bun', unclaimed, stampOptions);
+      expect(missingClaim.status).not.toBe(0);
+      expect(missingClaim.stdout).toContain('missing run identity');
       const skipped = spawnSync(
         'bun',
         [...stampArguments, '--skip', 'review is unnecessary'],

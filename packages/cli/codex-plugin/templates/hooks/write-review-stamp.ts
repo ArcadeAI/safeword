@@ -37,7 +37,11 @@ import {
 import { readSessionState } from './lib/quality-state.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
 import { readReviewReceipt } from './lib/read-receipt.ts';
-import { receiptGateVerdict, type StampClaim } from './lib/review-receipt.ts';
+import {
+  claimsCoordinatorVerdict,
+  receiptGateVerdict,
+  type StampClaim,
+} from './lib/review-receipt.ts';
 import { reviewClaimContext } from './lib/verify-stamp-claims.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
@@ -249,7 +253,10 @@ const runIdentity =
 // authenticate it before anything is written.
 const sessionId =
   runIdentity.sessionKey ??
-  (runIdentity.runtime === 'opencode' && reviewId !== undefined && skipReason === undefined
+  (runIdentity.runtime === 'opencode' &&
+  reviewId !== undefined &&
+  skipReason === undefined &&
+  claimsCoordinatorVerdict(independence)
     ? `opencode-review-${reviewId}`
     : fail('missing run identity for review stamp'));
 
