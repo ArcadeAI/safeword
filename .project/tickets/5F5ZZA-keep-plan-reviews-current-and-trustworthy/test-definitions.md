@@ -115,6 +115,16 @@ outlines remain open, so the rule's R/G/R boxes stay unchecked.
 
 ### Scenario: Canonical phase entry requirements bind every required input
 
+The three phase examples now execute fresh packet preparation with each named
+input removed separately: ticket, Product frame and epistemic state, numbered
+Rules, declared parent and milestone, principles, personas, surfaces, and (for
+downstream plans) scenarios, present dimensions, applicable architecture and
+data guidance, and the accepted Implementation Plan. The first run exposed a
+real gap: deleting all Rules still entered review. The resolver now refuses
+that case with the `rules` role named. Targeted Cucumber result: 3 scenarios,
+144 steps passed. This packet-boundary proof does not replace the separate
+installed-dispatch outline or full feature verification, so R/G/R remains open.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
