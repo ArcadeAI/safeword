@@ -1,27 +1,31 @@
 {
   "provider": "anthropic",
   "model": "claude-opus-5",
-  "corpus_digest": "f76edddd71868835e161d06987bce170fb395a71849412dd96c2b6d18c698b24",
-  "rubric_digest": "b9d97005601dcaaa38caefb84716497d792170da6d5d4a0076b039691df9594f",
+  "corpus_digest": "9625362c688a1eb641c0a504cd75d1977c0f9ee05980c0e233a57a76bd99ba92",
+  "rubric_digest": "f7a11ed5b1bca5f46e527892f2bfd2cefc77521e0bcede7974c5c6ea5e7aeb66",
   "settings_digest": "acd5a69993710ae8483c78771a67a6d61e061707f39f450a24a9a10511f7bf4d",
   "evidence_date": "2026-09-29",
   "runs": [
     {
       "fixture_id": "product-approve",
       "run": 1,
-      "verdict": "request_changes",
+      "verdict": "approve",
       "findings": [
         {
-          "severity": "error",
-          "message": "Undefined display for a concluded review with no blocking findings and no valid authenticated receipt. The plan defines Pending as \"the current review has not finished\", Approved as requiring \"an authenticated approval receipt\", and Rejected as \"concluded with blocking findings\". The done state explicitly contemplates that a receipt may be \"missing or stale\", so the state of a finished review whose receipt is absent or fails authentication is reachable within accepted scope, yet it matches none of the three definitions. Triggering condition: the review job completes producing no blocking findings while no authenticated receipt is available. Two reasonable implementations follow — display Pending, or display Rejected — and both falsely report the accepted claim. Pending tells the builder the review has not finished when it has, so the builder waits indefinitely instead of exercising the accepted repair-and-retry path; Rejected promises \"those actual findings\" when none exist, breaking the accepted done-state requirement that a rejected review shows the actual blocking findings. Define the product behavior for this state (for example, an explicit fourth outcome, or an accepted mapping onto one existing status with its definition widened to match) so the display cannot claim a status whose own accepted definition is false."
+          "severity": "warning",
+          "message": "spec.md narrows accepted scope with an exclusion the ticket does not state: \"The display begins only after a review is requested; a never-requested state is outside this ticket.\" The ticket's goal is that a builder can distinguish Pending, Approved, and Rejected plan reviews, and it lists exclusions (approval authority, storage, notification channel) that do not include the never-requested state. Declaring that carve-out in the plan rather than in the authoritative ticket is a reviewer- or author-authored scope subtraction; it should be confirmed by the user in the ticket or dropped. This is non-blocking because the excluded state is plausibly outside the accepted three-status behavior and the exclusion is stated openly rather than silently assumed."
         },
         {
           "severity": "warning",
-          "message": "The staleness boundary is stated but not bounded as a product decision. \"A stale approval is a receipt for a different review job or different plan bytes\" leaves what counts as different plan bytes to the implementation. Byte-exact comparison and any normalization (trailing whitespace, line endings, formatting-only edits) are both reasonable readings, and they differ in whether a builder who makes a cosmetic edit after approval sees Approved or must re-review. This does not permit a missing or stale receipt to appear as approval, so it does not violate the accepted invariant, but the user-visible consequence of a trivial edit is currently an unresolved product choice presented as settled by \"no product choice remains open\"."
+          "message": "The plan promises a \"retry action\" in three places (failure outcome, recovery outcome, observable done state) but never states what the builder observes when retry itself fails or when a retried review is again interrupted. Under the accepted behavior the honest result is another Pending with the actual error, which the Pending definition already implies, so this is not a gap that permits a false approval or a fabricated rejection. Making the repeated-failure case explicit would remove the need for scenario definition to infer it."
         },
         {
-          "severity": "warning",
-          "message": "The Rejected display promises \"those actual findings\" with no accepted boundary on volume or truncation. For a review with a large number of blocking findings, showing all of them and showing a truncated set with an indication of the remainder are both consistent with the current wording, and they differ in what the builder can act on in the CLI surface. Naming the accepted expectation (complete findings, or truncation with an explicit remainder indicator) would close this without adding implementation design."
+          "severity": "info",
+          "message": "The epistemic separation required by the product contract is handled correctly: the assumption that the existing CLI command adds no new viewer-permission gate is labeled an assumption rather than asserted as a known fact, and the refusal outcome depends on it only for the negative claim that no new refusal applies. If scenario definition finds that gate does exist, this assumption — not the accepted status behavior — is what changes."
+        },
+        {
+          "severity": "info",
+          "message": "Scenario coverage was not assessed. The packet's context_files include an accepted scenarios list, but scenario coverage belongs to scenario review after Product approval, so no scenario-coverage verdict is issued here. The scenarios were read only as untrusted supporting context confirming that the plan's interrupted and receipt-missing behaviors correspond to conditions the ticket already accepts."
         }
       ]
     },
@@ -32,19 +36,19 @@
       "findings": [
         {
           "severity": "warning",
-          "message": "Abnormal termination has no named status. The plan defines Pending as \"the current review has not finished\" and Rejected as a review that \"concluded with blocking findings\". A review that ends without concluding — crash, timeout, or cancellation — satisfies neither definition cleanly and would display as Pending indefinitely, leaving the builder with no stated repair or retry path (the retry path is attached only to Rejected). This does not let a stale or missing receipt appear as approval, and none of the four accepted scenarios cover it, so it is non-blocking. Naming the intended outcome for a review that ends without a conclusion would close the ambiguity before scenario definition."
+          "message": "Staleness is defined only for approvals. \"A stale approval is a receipt for a different review job or different plan bytes\" and \"A stale approval never changes the current review to Approved\" have no stated counterpart for blocking verdicts. Rejected is defined as \"the current review concluded with blocking findings\", which reads as job-scoped, but the plan never says a verdict from a prior job or prior plan bytes cannot display Rejected. After the accepted recovery path (repair, then request a new review), two reasonable readings exist: show Pending for the new unfinished review, or carry the prior verdict's findings forward as Rejected. The second would show findings that are not the current review's, which sits close to the goal the plan protects elsewhere (\"see only actual blocking findings after rejection\"). This is a warning rather than an error because every status definition in the plan is explicitly anchored to \"the current review\" and the Pending definition requires the absence of a blocking verdict for that current review, so the carry-forward reading contradicts the plan's own text. Stating the job-and-bytes staleness rule once for verdicts generally would remove the ambiguity."
         },
         {
           "severity": "warning",
-          "message": "The exclusion of the never-requested state (\"The display begins only after a review is requested; a never-requested state is outside this ticket\") is asserted by the plan, not traceable to the ticket or the accepted scenarios, which are silent on it. Accepted scope and exclusions belong to the user, so an exclusion originating in the plan should be confirmed as a user decision rather than recorded as settled; the plan's claim that \"no product choice remains open\" currently absorbs it without that confirmation."
+          "message": "The exclusion \"The display begins only after a review is requested; a never-requested state is outside this ticket\" appears in the Accepted behavior section rather than in Scope and exclusions, which lists only notifications and automatic repair. The ticket, scenarios, and non-goals context do not mention a never-requested state either way, so this is a plan-authored boundary. It does not expand scope and is a defensible reading of a ticket whose scenarios all presuppose a requested review, but a reader checking accepted boundaries against the exclusions section would not see it. Moving it there keeps the user-owned scope boundary in one place."
         },
         {
           "severity": "info",
-          "message": "Scenario 4's stale-approval case is fully covered by the plan's definition of stale (\"a receipt for a different review job or different plan bytes\"): such a receipt is by construction not the current review's, so the current review is either unfinished (Pending) or concluded with blocking findings (Rejected). There is no unmapped concluded-but-unapproved state arising from staleness."
+          "message": "The refusal outcome is marked inapplicable with a specific reason rather than omitted (\"no new viewer-permission refusal applies to this existing CLI command\"), and the supporting epistemic status is honest about it: the same claim is carried in Evidence and decisions as an assumption, not a known fact. That is the correct handling under the outcome-inventory and epistemic-distinctness requirements. Noting it so the assumption is confirmed against the existing command's permission behavior before scenario definition; it needs no change to this plan."
         },
         {
           "severity": "info",
-          "message": "Prohibited content check is clean: the plan names no storage schema, display component, delivery task order, or ordering of implementation work, and it does not claim that scenarios, downstream plans, or implementation are approved. Existing approval authority and storage are correctly framed as untouched constraints rather than as work being accepted here."
+          "message": "Scenario coverage was not assessed and no scenario-coverage verdict is issued here. The context packet includes an accepted scenarios file, but scenario review follows Product approval, so this review is limited to whether the Product Plan completely and honestly defines the accepted behavior, its outcome inventory, and its epistemic status."
         }
       ]
     },
@@ -55,15 +59,19 @@
       "findings": [
         {
           "severity": "warning",
-          "message": "The plan enumerates exactly three current outcomes but does not say how a review that terminates without a decision (for example, a review that fails or aborts and produces no blocking findings) is presented. Two reasonable readings exist: such a review stays Pending indefinitely, or it is shown as Rejected with an empty findings list. The second reading would violate the plan's own statement that Rejected means 'concluded with blocking findings' and would show a builder an empty findings view. This is a warning rather than an error because the accepted scope names three statuses and the ticket does not claim coverage of abnormal termination; naming the intended outcome (or explicitly excluding it) in the plan would remove the ambiguity before scenario definition."
+          "message": "The refusal outcome is closed out by an assumption, not a supported fact: \"the existing CLI command adds no new viewer-permission gate.\" The assumption is correctly labeled as such in Evidence and decisions, and the plan does not present it as known, so this is not an epistemic-status defect. But the plan does not state what follows if the assumption is false — whether a permission-denied read would be a refusal outcome distinct from Pending, or would fall into the Pending-with-actual-error path. Under the current text an implementer who discovers a gate has no accepted behavior to build to. Recommend either confirming the assumption against the existing command before scenario definition, or stating that any permission failure is covered by the Pending-with-actual-error-and-retry rule, which appears to be the intent."
         },
         {
           "severity": "warning",
-          "message": "'Evidence and decisions' mixes a supported project constraint (the existing authenticated receipt), a non-promise ('No quantitative target is promised'), and a closure claim ('no product choice remains open') in three sentences without separating supported facts from assumptions. The contract asks that supported facts, assumptions, and unresolved decisions be kept distinct. Nothing here appears mislabeled, but the section carries no assumption list at all, which makes the closure claim unverifiable from the plan alone."
+          "message": "Recovery is specified as \"retry the interrupted or receipt-missing review,\" but the plan does not enumerate the outcome when the retry itself fails or is again interrupted. The Pending rule is written generally enough (\"An interrupted review or a finished review without a valid approval receipt stays Pending with its actual error and a retry action\") that a repeated failure plausibly re-enters the same state, so this is not an omission that permits a false Approved or a fabricated Rejected. Making the repeat case explicit would remove the residual ambiguity about whether the retry action stays available indefinitely."
         },
         {
           "severity": "info",
-          "message": "The exclusion of the never-requested state is scoped narrowly and consistently ('the display begins only after a review is requested'), which matches the ticket goal of distinguishing review outcomes rather than describing pre-review UI. Worth confirming during scenario definition that no accepted scenario implicitly starts from a never-requested state, since scenario 4's 'request a new review' step brushes against that edge."
+          "message": "The plan declares the never-requested state outside this ticket (\"The display begins only after a review is requested\"). The ticket does not mention that state either way, so this is a boundary the plan draws rather than one it inherits. Drawing it is reasonable and conservative — it narrows rather than expands scope — but it is a product boundary the user owns, and it is worth confirming in the authoritative ticket so a later reviewer does not read the exclusion as reviewer-authored scope narrowing."
+        },
+        {
+          "severity": "info",
+          "message": "Prohibited-content check is clean. The phrase \"local presentation mapper\" appears only in the untrusted context file .project/tickets/CAP100/boundaries.md, not in spec.md; the plan itself stays at the level of observable status, findings display, and retry availability without naming components, sequencing delivery, or claiming that scenarios, design, or implementation are approved."
         }
       ]
     },
@@ -74,19 +82,27 @@
       "findings": [
         {
           "severity": "error",
-          "message": "spec.md omits the Rejected status entirely. The ticket goal states a builder must distinguish Pending, Approved, and Rejected, and that rejected reviews show the actual blocking findings and permit repair and retry; accepted scenario 3 requires a completed review with blocking findings to display Rejected with those findings. With only 'Pending means the review has not finished' and 'Approved means ... approval receipt' accepted, a completed-and-rejected review is not covered: an implementation may display it as Pending (it never reached approval) and still satisfy every accepted statement in the plan. Observable consequence: a builder sees a blocked review as still in progress, with no findings to repair, while the implementation reports the accepted behavior as satisfied. The plan must accept the Rejected state, the display of the actual blocking findings, and the repair-and-retry outcome, or explicitly exclude them from user-owned scope — which the ticket does not permit."
+          "message": "spec.md omits the Rejected outcome entirely. The accepted ticket scope (.project/tickets/CAP100/ticket.md) states a builder must distinguish Pending, Approved, and Rejected, and that rejected reviews show the actual blocking findings and permit repair and retry. The plan's Accepted behavior section defines only Pending and Approved, and does not mark Rejected inapplicable with a specific reason. This is an in-scope omission of the Builder persona's consequential refusal and recovery outcomes: the behavior cannot proceed to scenario definition because the plan does not define what a builder sees, or what findings are surfaced, when a review completes with blocking findings."
         },
         {
           "severity": "error",
-          "message": "The Approved definition has no currency requirement: 'Approved means the review has an authenticated approval receipt.' Accepted scenario 2 requires a *current* authenticated approval, and scenario 4 requires that after a plan is repaired a stale approval cannot approve it. As written, two reasonable implementations are permitted — one that checks receipt currency against the reviewed plan and one that checks only that some authenticated receipt exists. The second displays Approved for a plan that has been changed since the receipt was issued, falsely reporting the accepted user-facing claim. The plan must state that Approved requires the authenticated approval receipt to correspond to the current plan state, and that a superseded receipt does not display Approved."
+          "message": "The Pending contract in spec.md is under-defined for the accepted failure cases. 'Pending means the review has not finished' does not cover a finished review that lacks a valid approval receipt, which the ticket requires to stay Pending with its actual receipt error and a retry action, and which must not invent rejection findings. With the plan as written, two reasonable implementations exist: one classifies finished-without-valid-receipt as Pending, and another classifies it as Rejected and fabricates blocking findings. The second reports the accepted user-facing claim (actual findings, no invented rejection) as satisfied while it is false. Define this case, and its distinction from Approved, in the owning plan."
+        },
+        {
+          "severity": "error",
+          "message": "The interrupted-review outcome is absent from spec.md. The ticket requires an interrupted review to display Pending with its actual error and permit retry without inventing rejection findings. The plan states no error-surfacing behavior, no retry affordance, and no constraint that retry leaves plan bytes unchanged, so an implementation could silently show a bare Pending with no error and no recovery path and still satisfy every statement in the plan. This is an omitted consequential failure and recovery outcome for the accepted Builder persona."
+        },
+        {
+          "severity": "error",
+          "message": "The observable done state in spec.md ('A builder can distinguish Pending from Approved') is narrower than the accepted done state in the ticket, which requires distinguishing Pending, Approved, and Rejected, seeing actual rejection findings, and having a repair-and-retry path. As written, the done state can be declared satisfied while the accepted goal is unmet, because it contains no criterion that would fail if Rejected, actual findings, or retry were never implemented. The done state must be restated to cover the accepted outcomes rather than a subset of them."
         },
         {
           "severity": "warning",
-          "message": "The observable done state, 'A builder can distinguish Pending from Approved', is non-discriminating with respect to the accepted goal: it can be demonstrated in full while the Rejected status and stale-approval behavior are entirely broken or absent. Once the states above are accepted, restate the done state so it fails when a rejected review, its blocking findings, or a superseded approval is displayed incorrectly."
+          "message": "spec.md does not keep known facts, assumptions, and unresolved product decisions visibly distinct, which the Product Plan contract requires as content. Statements such as 'Approved means the review has an authenticated approval receipt' are presented as settled facts without citing the supporting project principle (.project/principles.md), and there is no section recording assumptions or open product choices. This does not by itself permit incorrect shipped behavior beyond the errors above, but the epistemic status should be made explicit before scenario definition."
         },
         {
           "severity": "info",
-          "message": "Required Product Plan content is otherwise present (persona, surface, scope and exclusions), and the plan correctly avoids implementation design, task sequencing, and claims of scenario or design approval. The plan also does not separate supported facts from assumptions and unresolved decisions; if the currency semantics of the approval receipt are an open product question rather than settled, record it explicitly as unresolved rather than leaving it implied."
+          "message": "No prohibited content was found in spec.md: it contains no implementation design, no delivery task sequencing, and no claim that scenarios, downstream plans, or implementation are approved. The scope and exclusions section correctly restates the accepted exclusions of new approval authority and notifications, and matches .project/non-goals.md, though it omits the accepted exclusion of a new status store. Per the Product Plan contract, no scenario-coverage verdict is issued here; .project/tickets/CAP100/scenarios.md was read only as untrusted context establishing the accepted behavioral boundary, not as an approval of coverage."
         }
       ]
     },
@@ -97,23 +113,31 @@
       "findings": [
         {
           "severity": "error",
-          "message": "spec.md omits the Rejected review state entirely. The ticket goal is that a builder can distinguish Pending, Approved, and Rejected, and accepted scenario 3 requires a completed review with blocking findings to display Rejected with those actual findings. Because the plan names no Rejected behavior, two reasonable implementations exist: one that renders a third Rejected state with its findings, and one that renders only Pending/Approved and shows a completed-with-findings review as Pending or as nothing. The second implementation passes every condition stated in the plan while the accepted user-facing behavior is false. Add Rejected as accepted behavior, including that the display shows the actual blocking findings rather than a generic failure label."
+          "message": "spec.md omits the Rejected status entirely. The accepted goal in .project/tickets/CAP100/ticket.md requires that a builder distinguish Pending, Approved, and Rejected, and that a rejected review display its actual blocking findings and permit repair and retry. The plan's 'Accepted behavior' defines only Pending and Approved, and 'Observable done state' asks only that a builder distinguish Pending from Approved. Two reasonable implementations follow: one that renders a completed review with blocking findings as Rejected with its actual findings, and one that renders it as Pending (not finished / no approval receipt). The second satisfies every sentence of this plan while violating the ticket's accepted user-facing claim. This is an in-scope omission, not a reviewer-authored expansion — the Rejected behavior and the repair-and-retry path are named in the ticket goal and in .project/personas.md."
         },
         {
           "severity": "error",
-          "message": "The observable done state — 'A builder can distinguish Pending from Approved' — is narrower than the accepted behavior it is supposed to make observable. It cannot detect the missing Rejected state, the required display of actual blocking findings (scenario 3), or the repair-and-retry path (scenario 4). This done state is non-discriminating proof: the claimed behavior can be entirely broken for rejected reviews while the stated done condition still holds. Restate the done state so it fails when any of the three statuses, the findings display, or retry after repair is absent."
+          "message": "The definition 'Pending means the review has not finished' does not cover the two accepted conditions where a finished review must still read Pending: an interrupted review, and a finished nonblocking review without a valid approval receipt. The ticket states both stay Pending with their actual error and a retry action, and that neither invents rejection findings. Under the plan as written, a finished review lacking a valid receipt is neither 'not finished' (so not Pending) nor holder of an 'authenticated approval receipt' (so not Approved), leaving the outcome unspecified; an implementation may display Rejected with fabricated findings, or suppress the receipt error, and still conform to this plan. Specify, at product level, that a finished-but-unapproved or interrupted review reports Pending with its actual error and a retry action that does not alter plan bytes."
         },
         {
           "severity": "error",
-          "message": "'Approved means the review has an authenticated approval receipt' states no currency boundary, but accepted scenario 4 requires that after a plan is repaired, a stale approval cannot approve it. Without that condition in the accepted behavior, an implementation that checks only receipt authenticity — not whether the receipt corresponds to the current plan — would display Approved for a changed plan. That is a path that reports the accepted user-facing claim (this review is approved) as satisfied when it is not. Specify that Approved requires an authenticated approval receipt for the current plan, and that changing the plan returns it to a non-approved state."
+          "message": "No consequential-outcome inventory exists for the one accepted persona (Builder, per .project/personas.md). Success (Approved) and one partial in-progress state are stated; refusal/blocking (Rejected with actual findings), failure (interrupted review, receipt validation error), trust (the receipt as the sole approval authority per .project/principles.md), and recovery (repair, request a new review, stale approval cannot approve the repaired plan) are neither defined nor marked inapplicable with a specific reason. Because these outcomes are named in the accepted ticket scope, their absence permits materially different shipped behavior on each of them — most consequentially, a stale receipt approving a repaired plan, which would defeat the accepted approval-authority boundary."
         },
         {
           "severity": "warning",
-          "message": "Scope and exclusions cover new approval authority and notifications, but the ticket also excludes any new storage system. Since the currency requirement above may imply persisting what a receipt was issued against, the plan should carry the ticket's storage exclusion forward explicitly so the boundary is not quietly expanded during design."
+          "message": "The plan does not keep known facts, assumptions, and unresolved product decisions visibly distinct. Statements such as 'Approved means the review has an authenticated approval receipt' are presented as settled without citing the supporting accepted principle, and it is not evident whether the exclusion of Rejected is an unresolved decision or an oversight. Adding this separation would make the omissions above self-evident during intake repair."
+        },
+        {
+          "severity": "warning",
+          "message": "The observable done state ('A builder can distinguish Pending from Approved') is non-discriminating with respect to the accepted goal: the Rejected path, the actual-findings requirement, and the retry path can all be broken while this done state is fully satisfied. Restate the done state so it fails when any accepted status or its actual error/findings payload is wrong."
         },
         {
           "severity": "info",
-          "message": "The plan does not separate supported facts from assumptions and unresolved decisions as the Product Plan contract requires. Nothing in the current text appears to be an unstated assumption, but if the Rejected state or the approval-currency rule depends on behavior not yet confirmed in the CLI, record that distinction rather than presenting it as settled."
+          "message": "The exclusions section names 'new approval authority and notifications' but omits the 'storage system' / 'status store' non-goal recorded in .project/non-goals.md and the ticket. Restating it verbatim would keep the plan's boundary aligned with the accepted one. Non-blocking: the omission narrows nothing the plan asserts."
+        },
+        {
+          "severity": "info",
+          "message": "Scope and surface as stated are consistent with .project/surfaces.md (the existing CLI review-status command) and .project/tickets/CAP100/boundaries.md (no parent or milestone boundary, no applicable architecture record). No out-of-scope addition was found in spec.md."
         }
       ]
     },
@@ -124,19 +148,31 @@
       "findings": [
         {
           "severity": "error",
-          "message": "spec.md omits the Rejected state entirely. The ticket's goal is that a builder can distinguish Pending, Approved, and Rejected, that Rejected reviews show the actual blocking findings, and that repair and retry are permitted; none of this appears in Accepted behavior or in Scope and exclusions, and Rejected is not listed as an exclusion either. The observable done state is narrowed to 'distinguish Pending from Approved', so an implementation that renders a completed review with blocking findings as Pending (not finished approving) or as an unlabelled terminal state would satisfy every stated criterion while the accepted user-facing claim — the builder can tell a rejected review from an unfinished one and see why — is false. Two reasonable implementations are permitted and one falsely reports the accepted behavior as met. Restore Rejected, the display of the actual blocking findings, and the repair/retry outcome to the accepted behavior and to the observable done state, or state explicitly and with justification that the user has excluded them."
+          "message": "spec.md omits the Rejected outcome, which is inside accepted scope. The ticket goal states the builder must distinguish Pending, Approved, and Rejected, and that rejected reviews show the actual blocking findings. spec.md's 'Accepted behavior' defines only Pending and Approved, and 'Observable done state' says only 'A builder can distinguish Pending from Approved.' Triggering condition: a completed review that carries blocking findings. Observable consequence: the plan defines no status or content for that review, so an implementation may display it as Pending (or as Approved-absent, or as an unspecified third label with no findings) and still satisfy every stated done-state claim, while the accepted user-facing claim that the builder can distinguish a rejected review and see its actual blocking findings is false. Repair: define the Rejected outcome, its required content (the actual blocking findings, not substitutes), and extend the observable done state to all three statuses."
         },
         {
           "severity": "error",
-          "message": "spec.md defines 'Approved means the review has an authenticated approval receipt' with no requirement that the receipt be current for the plan under review. The ticket preserves the existing authenticated approval receipt but the plan's own heading is 'Show current review status', and the plan nowhere binds a receipt to the reviewed plan revision. Under this wording an implementation that retains an approval receipt issued against a prior plan revision and continues to display Approved after the plan changes is conformant, which would present an unreviewed plan as approved to the builder. This is a trust-boundary failure in the accepted surface, not speculative hardening: the plan must state that Approved requires an authenticated approval receipt that is current for the plan revision being displayed, and that a superseded receipt does not display Approved."
+          "message": "spec.md's definition 'Pending means the review has not finished' does not cover the accepted case of a finished review that lacks a valid approval receipt, leaving an omitted contract that two reasonable implementations resolve differently. The ticket requires that a finished review without a valid approval receipt stays Pending with its actual error and a retry action, and explicitly that this condition must not invent rejection findings. Triggering condition: a review that completes with no blocking findings but whose approval receipt is missing, expired, or fails authentication. Under spec.md as written, that review is neither 'not finished' (so not Pending) nor holder of 'an authenticated approval receipt' (so not Approved). Observable consequence: one implementation shows it as Pending with the actual receipt error, another synthesizes rejection findings that no reviewer produced and presents them to the builder as blocking findings; the second violates the ticket's stated prohibition while still passing any check derived from spec.md. Repair: define Pending to include a finished review without a valid receipt, require surfacing the actual underlying error, and state the prohibition on invented rejection findings."
+        },
+        {
+          "severity": "error",
+          "message": "spec.md inventories no failure or recovery outcome for the accepted Builder persona, and does not mark either inapplicable with a reason. .project/personas.md states the builder needs actual rejection findings and a repair-and-retry path, and the ticket accepts that an interrupted review stays Pending with its actual error and permits retry. Triggering conditions: (a) a review interrupted before completion, and (b) a builder who has repaired a rejected plan and wants a new review. Observable consequence: the plan leaves undefined whether an interrupted review reports its actual error or a generic/empty state, and whether a repaired plan can obtain a new review at all, so an implementation can report the accepted done state as satisfied while a builder is left with a terminal status and no path forward. The accepted exclusion of new approval authority does not exclude these outcomes; the ticket places them in scope and requires that a stale approval cannot approve a re-requested review. Repair: inventory the failure (interrupted, and error-surfacing) and recovery (repair, re-request, stale-approval non-reuse) outcomes for the Builder persona, or record a specific reason for any that is genuinely inapplicable."
         },
         {
           "severity": "warning",
-          "message": "spec.md does not separate supported facts from assumptions and unresolved decisions, which the Product Plan contract requires as distinct content. In particular the display treatment for a review whose approval has been superseded, and whether an in-flight retry after repair renders as Pending or as a distinct state, are left implicit rather than recorded as open product choices. This does not by itself permit a wrong shipped outcome once the two errors above are repaired, but the omissions should be recorded so scenario definition does not have to infer them."
+          "message": "spec.md does not keep known facts, assumptions, and unresolved product decisions visibly distinct; every line is asserted flatly. In particular, 'Approved means the review has an authenticated approval receipt' is supported by .project/principles.md, whereas the scoping claim 'Only the status display changes' is an unsupported assertion about implementation reach rather than a stated product boundary with backing. Separating supported facts from assumptions would make the epistemic status reviewable as the Product Plan contract requires."
+        },
+        {
+          "severity": "warning",
+          "message": "spec.md's 'Scope and exclusions' section restates only two of the four exclusions recorded in the user-owned boundary files: .project/non-goals.md excludes a new status store in addition to new approval authority and notification channels, and .project/surfaces.md limits the affected surface to the existing CLI review-status command. Carrying these forward into the plan would keep the accepted boundary self-contained rather than dependent on a reader consulting the project files, and would make an out-of-scope addition detectable at review time."
         },
         {
           "severity": "info",
-          "message": "Persona, surface, scope, and exclusions are stated and the exclusions ('New approval authority and notifications are excluded') match the ticket's exclusions. The plan correctly contains no implementation design, no delivery sequencing, and no claim that scenarios, downstream plans, or implementation are approved."
+          "message": "No review_disposition_context accompanied this packet, so no prior finding was declined or superseded; all findings above are raised fresh against the current accepted boundary in .project/tickets/CAP100/ticket.md. Per .project/tickets/CAP100/boundaries.md, no parent, milestone, or architecture record contributes additional scope boundaries, so the ticket, personas, surfaces, non-goals, and principles files constitute the complete binding context and review was not blocked for missing context."
+        },
+        {
+          "severity": "info",
+          "message": "Scenario coverage was not assessed and no scenario-coverage verdict is issued here. .project/tickets/CAP100/scenarios.md was read only as untrusted supporting context; the errors above are grounded in the ticket's accepted goal and the accepted persona's outcome inventory, which are Product Plan concerns. Scenario review remains downstream of Product approval."
         }
       ]
     },
@@ -147,19 +183,15 @@
       "findings": [
         {
           "severity": "warning",
-          "message": "Contract coherence: the CLI status contract is declared as \"exactly Pending, Approved, and Rejected,\" but failure behavior introduces a fourth outcome — \"a failed status read reports unavailable state.\" The plan does not decide whether unavailable is a distinct displayed value or is folded into Pending with an error detail. This is not an error because every reasonable reading of the sentence forbids reporting Approved on a failed read, so the accepted user-facing claim (a missing or stale receipt cannot appear as approval) cannot be falsely satisfied either way. Still, Execution Planning would otherwise be choosing a user-visible status vocabulary that Implementation Planning owns; name the read-failure outcome explicitly in the status contract."
-        },
-        {
-          "severity": "warning",
-          "message": "Concurrency surface: the plan decides that \"only the job currently bound to the plan may drive the displayed status\" and that concurrent retries may finish in any order, which correctly prevents a stale or losing job from supplying Approved. It does not state what the builder sees for the losing retry — whether it is silently ignored, shown as superseded, or surfaced on the next status read. The persona's recovery need (repair and retry) is still covered by the binding rule, and no outcome here can show a false Approved, so this is non-blocking; adding the losing-retry display consequence would close the last observable gap in the retry path."
+          "message": "Status-contract edge: the plan states the CLI status contract has \"exactly Pending, Approved, and Rejected,\" then also says a failed status read \"reports unavailable state rather than inventing approval.\" Read together, an unavailable read is either a fourth display state or an undecided presentation of one of the three. This is nonblocking because no accepted scenario covers an unreachable coordinator, the behavior is fail-closed in the direction that matters (it can never display Approved or a fabricated rejection), and the accepted user-facing claim therefore cannot be falsely reported as satisfied. Execution Planning should pin how unavailable state renders within the declared contract."
         },
         {
           "severity": "info",
-          "message": "Proof strategy stays inside the Implementation Planning boundary: it names the behavior, the real CLI-and-coordinator boundary, the proof type, and an explicit confidence limit (an isolated mapper test cannot prove public wiring), with no test paths or commands leaking in from Execution Planning. The stale-receipt and actual-rejection-findings cases are discriminating rather than ceremonial — a mapper that synthesized rejection text or honored a prior receipt would fail them."
+          "message": "Focused reviewability: pass. The mental model is first, decision-bearing contracts and operational risks (retry binding atomicity, concurrent-retry ordering, crash boundary, stale-receipt rejection) are in the main path, and no obscuring step-by-step coding detail or repeated test evidence was found to name for removal."
         },
         {
           "severity": "info",
-          "message": "Applicability skips are justified rather than bare: the Data skip enumerates the subjects it disclaims (store, schema, ownership, retention, migration, cross-system flow) and is consistent with the plan creating no second store, and the Measurement skip is grounded in the Product Plan's stated absence of a quantitative target. The no-durable-architecture-record judgment matches the significance rule — this is a reversible feature-local presentation change that adds no shared API and moves no data owner."
+          "message": "Proof discrimination is adequate for the two fail-closed scenarios: the plan requires asserting Pending, the actual error, absence of invented rejection findings, and a working retry that binds a new current job without changing plan bytes. Those assertions cannot all pass while the accepted claim is broken, which is what separates this from a non-discriminating proof."
         }
       ]
     },
@@ -170,23 +202,19 @@
       "findings": [
         {
           "severity": "warning",
-          "message": "Internal inconsistency in the declared status contract. The plan states \"The CLI status contract has exactly Pending, Approved, and Rejected\" and then, one sentence later, \"A failed status read reports unavailable state rather than inventing approval.\" Unavailable is a fourth user-visible outcome that the enumerated contract excludes. This is not an error because the safe direction is preserved (a read failure cannot produce Approved, and the Product Plan's done state is not violated), but two reasonable implementations follow from the text as written: one surfaces a distinct unavailable state, another collapses read failure into Pending. Those differ for the builder, who in the collapsed case sees Pending for a review that may already be terminal. Owner: Implementation Planning. Resolve by either enumerating unavailable in the contract or stating explicitly that read failure presents as Pending with its actual error state, consistent with the earlier 'running or interrupted review' decision."
+          "message": "Retry actor is left implicit. The plan decides retry semantics thoroughly (new job identifier and plan digest, atomic binding, concurrent-retry ordering, unchanged plan bytes for the interrupted and receipt-missing cases) and states that authorization stays with the existing authenticated receipt, but that sentence governs who can grant Approved, not who may trigger a retry. The ticket and spec place repair-and-retry with the Builder on an existing CLI command that the spec says adds no new viewer-permission gate, so the reasonable reading is that retry inherits the existing command's access with no new gate. This is a warning rather than an error because both readings produce the same shipped behavior on the accepted surface — retry creates a new review bound to a new job and digest, and no reading can yield a false Approved — so no outcome here violates the accepted claim. Suggested non-blocking improvement: state in one clause that retry carries the existing CLI command's access and introduces no new permission decision."
         },
         {
           "severity": "warning",
-          "message": "Project principles are neither named nor dismissed in the plan, and the configured principles file was not supplied in this packet, so I could not verify whether an applicable principle was missed. The rubric requires challenging whether the plan identified the actually applicable principles using that supplied file; with the file absent I can only record the gap. Owner: whoever assembles the review packet. One action that resumes this check: supply the configured principles file alongside spec.md so the principle-to-consequence-to-proof chain can be verified."
-        },
-        {
-          "severity": "warning",
-          "message": "The configured personas file and surfaces file were not supplied in this packet. I resolved the persona (the builder requesting a plan review) and surface (the CLI review status display) from spec.md only, and against that source the coverage is complete: trust (stale receipt cannot approve), operation (three current outcomes), approval (existing authenticated receipt is sole source), and recovery (repair and retry with the old rejection demoted to history), each with a named design consequence and a stated confidence limit on the integration proof. If the configured files enumerate any additional persona or surface for this ticket, that coverage is unverified here."
+          "message": "Rollback is stated as an action without a detection signal. The plan says to roll back the presentation mapper if the user-visible state is wrong, which is a real and reversible rollback for a local presentation change, but it does not name what observation would trigger that decision. Because the mapper creates no durable state and no new store, an incorrect rollback trigger cannot corrupt coordinator records or strand a review, so the omission does not permit a materially different shipped outcome and is non-blocking. Suggested non-blocking improvement: name the observable trigger — for example, a status that disagrees with the coordinator's current job and receipt for the bound plan digest."
         },
         {
           "severity": "info",
-          "message": "Load-bearing risk ordering is correct: the plan leads with job-identifier and plan-digest binding, which is the mechanism that carries the ticket's central trust claim, rather than with presentation mechanics. The 'no load-bearing external library choice' skip does not contradict the plan's own load-bearing choice, because the one significant choice (read existing trusted coordinator records versus persist a separate CLI status) is recorded with its rejected alternative and the reason it lost, and it introduces no third-party dependency requiring version, license, or security evidence."
+          "message": "Focused reviewability receipt: pass. The plan leads with an architecture-at-a-glance model and keeps decision-bearing contracts, the atomicity and crash boundaries, the compatibility policy, and the rejected alternative in the main review path. No step-by-step coding instructions, repeated test evidence, verification-ledger detail, or test paths and commands obscure the decisions, so there is no obscuring detail to name for removal to Execution Planning."
         },
         {
           "severity": "info",
-          "message": "The judgment that no durable architecture record is needed holds under the significance test applied to behavioral consequences rather than file count: no shared API, data owner, or migration compatibility change occurs, the coordinator record and CLI exit codes are explicitly unchanged, the added Rejected label is additive, and the mapper is a reversible feature-local presentation choice."
+          "message": "Scope check produced no in-scope omission and no out-of-scope addition. All six accepted scenarios map to stated decisions; the non-goals (no new approval authority, status store, or notification channel) are honored, and the rejected alternative is rejected on grounds consistent with the status-store non-goal. The skip of a load-bearing external library choice does not contradict the plan's own load-bearing choice, because that choice is the read-existing-trusted-records design, which is recorded with its credible alternative and the reason that alternative lost."
         }
       ]
     },
@@ -196,16 +224,28 @@
       "verdict": "approve",
       "findings": [
         {
+          "severity": "info",
+          "message": "Focused reviewability: PASS. The plan leads with the mental model, then keeps decision-bearing contracts, the concurrency and crash boundary, failure behavior, and proof strategy in the main path. No step-by-step coding instructions, no repeated test evidence, and no verification-ledger detail obscure the choices; the deletion test surfaces no text removable without information loss."
+        },
+        {
+          "severity": "info",
+          "message": "Scope conformance: the plan adds no approval authority, no status store, and no notification channel, matching .project/non-goals.md and the ticket's stated exclusions. The one additive user-visible element (the Rejected label) is declared as additive to the human-readable status with exit codes unchanged, so it is an in-scope consequence of accepted scenario 3 rather than a reviewer- or author-introduced expansion."
+        },
+        {
+          "severity": "info",
+          "message": "Persona coverage (Builder, the only accepted persona): trust is covered by receipt-plus-digest binding, operation by the three-value status contract, approval by the authenticated-receipt-only rule, and recovery by the retry path for rejected, interrupted, and receipt-missing states. The confidence limit is explicit — an isolated mapper test cannot prove public wiring, so the CLI integration proof carries that burden."
+        },
+        {
           "severity": "warning",
-          "message": "Status contract enumerates exactly Pending, Approved, and Rejected, but failure behavior adds a fourth observable outcome: \"A failed status read reports unavailable state rather than inventing approval.\" The plan does not say whether unavailable is rendered as Pending or as an out-of-band message distinct from the three values, so two reasonable implementations exist. This is a warning rather than an error because both readings satisfy the accepted user-facing claim — neither can display Approved without a current authenticated receipt — so no path reports the accepted claim falsely. Naming which of the two the mapper produces would close the gap without widening scope."
+          "message": "The evidence skip is phrased narrowly as 'No load-bearing external library choice is needed,' while the plan does record a real design choice (read existing trusted coordinator records versus persisting a separate CLI status). That choice is recorded with its losing alternative and its reason, and it is a reversible feature-local presentation choice whose alternative is independently barred by the project non-goals, so the skip does not contradict a load-bearing choice and does not block. Stating the skip as 'no external dependency or version-sensitive evidence applies' would remove the ambiguity for a future reader comparing the skip against the recorded decision."
         },
         {
-          "severity": "info",
-          "message": "Persona coverage is complete for the single accepted persona (the builder requesting a plan review): trust is bound by job identifier and plan digest, operation and approval by the authenticated receipt as sole Approved source, and recovery by the retry path that creates a new review for repaired bytes while prior rejections stay historical evidence. The Product Plan's out-of-scope never-requested display state is correctly left unaddressed rather than silently designed."
+          "severity": "warning",
+          "message": "Plan-state truthfulness is implicit rather than labeled. Nothing in the plan claims implementation, proof, or human approval, and no implementation defect is asserted that would contradict a proposed decision, so the required separation is not violated. Still, the approach decisions are written in the present indicative ('The coordinator atomically binds each retry...') describing behavior that is proposed, not yet built. An explicit proposed-state label would prevent a downstream reader from treating the atomic-binding and crash-boundary sentences as implemented facts."
         },
         {
-          "severity": "info",
-          "message": "Plan-state truthfulness holds: every statement is phrased as a proposed decision or a stated existing constraint (the coordinator's receipt and job records), with no implemented-fact, proof-obtained, or downstream-approval claims asserted. Approval here establishes readiness for Execution Planning only and does not approve delivery sequencing, coding, verification, merge, or deployment."
+          "severity": "warning",
+          "message": "Rollback is scoped to reverting the presentation mapper when user-visible state is wrong. That is proportionate to a local, reversible presentation change with no data or schema consequence. It does not state behavior for a partially released state where the new Rejected label ships but the mapper is reverted; because exit codes and the coordinator record are unchanged, the worst outcome is a stale human-readable label rather than a false approval, so this remains non-blocking."
         }
       ]
     },
@@ -216,15 +256,15 @@
       "findings": [
         {
           "severity": "error",
-          "message": "Approach decision contradicts accepted product behavior and permits false approval. impl-plan.md states \"The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists.\" The accepted Product Plan states \"Approved means the current review has an authenticated approval receipt\" and \"A missing or stale receipt cannot appear as approval\"; the ticket states \"Approval still requires the existing authenticated approval receipt.\" The plan also contradicts itself: its contract paragraph says \"Missing or stale receipt means no approval,\" and its Pending decision says an interrupted review without a terminal receipt never displays Approved. Two reasonable implementations follow from these conflicting statements, and one displays Approved for a review with no authenticated receipt — falsely reporting the accepted user-facing claim as satisfied, and effectively creating a second approval authority the ticket excludes. The named proof (\"a stale receipt and actual rejection findings\") does not discriminate here: an implementation that approves on verdict alone can still pass a stale-receipt case, because the stale-receipt case tests receipt binding rather than receipt presence. Missing/incorrect decision: the single authority for Approved. Accepted decision owner: the user, via the already-accepted spec — this is not an open product choice, so the plan must conform rather than the user re-deciding. Consequence of leaving it unresolved: the CLI can display Approved for a plan that was never authenticated, defeating the ticket's core guarantee. Action that resumes review: remove the verdict-suffices decision, state that Approved requires a current authenticated approval receipt bound to the current job identifier and plan digest, and add a proof case where a terminal approve verdict exists with no receipt and the display must remain Pending."
+          "message": "impl-plan.md, Approach decisions: \"The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists.\" This contradicts the accepted boundary in three places — spec.md (\"Approved means the current review has an authenticated approval receipt\"; \"only the authenticated receipt for the current job and plan bytes can display Approved\"), ticket.md (\"Approval still requires the existing authenticated approval receipt\"), and principles.md (\"Existing authenticated receipts remain the only approval authority\"). Triggering condition: a reviewer returns a nonblocking verdict and no valid receipt is issued (scenario 6, or a receipt-issuance failure). Observable consequence: the CLI displays Approved, so an unapproved plan reports the accepted user-facing approval claim as satisfied and the builder loses the Pending + actual receipt error + retry path that scenario 6 requires. This also constitutes a new approval authority, which non-goals.md excludes. Missing/incorrect decision: the Approved precondition. Decision owner: this Implementation Plan (the accepted behavior is already decided by the user; no user choice is open). Repair: state that Approved requires a valid authenticated approval receipt bound to the current job identifier and plan digest, and that a verdict alone never displays Approved."
         },
         {
           "severity": "warning",
-          "message": "The contract paragraph declares \"exactly Pending, Approved, and Rejected\" but then says a failed status read \"reports unavailable state,\" which is a fourth displayed outcome not present in the accepted three-status contract. The direction is safe (it never fabricates approval), so this is non-blocking, but the plan should either name unavailable as an explicit fourth display state with its user-visible consequence or state that read failure surfaces as Pending with an error detail. The same ambiguity appears in \"displays Pending with its actual error state,\" which does not say whether the error detail is part of the status value or adjacent output."
+          "message": "impl-plan.md carries two mutually exclusive rules for the same state without labeling either as superseded or defective: the Approach section says a verdict alone yields Approved, while the Contracts section says \"Missing or stale receipt means no approval\" and a finished nonblocking review without a valid receipt \"displays Pending with the actual receipt error.\" Under the plan-state-truthfulness rule, an implementer could satisfy either reading. When repairing the error above, remove the superseded sentence rather than leaving both statements in the plan of record."
         },
         {
-          "severity": "warning",
-          "message": "Architecture applicability names the CLI-to-coordinator contract as affected yet concludes no durable architecture record is needed, justified only as \"a reversible local presentation change.\" The reasoning is credible for a presentation mapper, but the plan does not say whether the CLI status vocabulary itself is a consumed contract (for example by scripts keying on output). If it is, the additive Rejected label is a compatibility-relevant shared-contract change rather than a purely local one. The plan already asserts exit codes are unchanged, which likely contains the blast radius; a one-line statement that no machine-readable consumer keys on the human-readable status label would close this."
+          "severity": "info",
+          "message": "impl-plan.md, decision record: the plan names one credible alternative (a separately persisted CLI status) and why it lost, and justifies the no-load-bearing-external-choice skip. The skip is consistent — the load-bearing choice (read existing trusted coordinator records) involves no external dependency. No change requested."
         }
       ]
     },
@@ -235,15 +275,15 @@
       "findings": [
         {
           "severity": "error",
-          "message": "Approach decision creates approval authority the user did not accept. The plan states \"The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists.\" The accepted Product Plan defines Approved as \"the current review has an authenticated approval receipt,\" and the ticket scope says \"Approval still requires the existing authenticated approval receipt. No new approval authority ... is in scope.\" Triggering condition: a reviewer completes with a non-blocking verdict and no authenticated receipt has been issued. Observable consequence: the CLI displays Approved, so scenario 2 and the invariant \"A missing or stale receipt cannot appear as approval\" are both violated while the feature reports success — independent review is presented as human approval. This also contradicts the plan's own later sentence \"Missing or stale receipt means no approval,\" so two reasonable implementations exist and one falsely reports the accepted user-facing claim. Decision owner: the user (accepted scope). Repair: delete this decision and state that Approved requires the current authenticated approval receipt bound to the current job identifier and plan digest; a terminal reviewer verdict without that receipt displays Pending. Resuming action: restate the Approved precondition in impl-plan.md as receipt-bound and resubmit for approach review."
+          "message": "Contradicted approval authority: the Approach decision \"The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists\" conflicts with the accepted Product Plan (\"Approved means the current review has an authenticated approval receipt\"; \"only the authenticated receipt for the current job and plan bytes can display Approved\"), the project principle that existing authenticated receipts remain the only approval authority, the ticket exclusion of any new approval authority, and accepted scenario 6. It also contradicts the plan's own later statement that a finished nonblocking review without a valid receipt displays Pending. Missing/incorrect decision: which signal is authoritative for Approved. Accepted decision owner: the user, via the Product Plan and principles, which already decided it is the authenticated receipt — so the plan's decision, not the accepted scope, is the defect. Consequence if unresolved: the contract permits two reasonable implementations, and the verdict-driven one displays Approved for a review with no authenticated receipt, creating a new de facto approval authority and letting the CLI report the accepted user-facing claim (\"this plan is approved\") as satisfied when it is false. Action that resumes review: restate the decision so that only the authenticated approval receipt bound to the current job identifier and plan digest yields Approved, with a reviewer verdict alone mapping to Pending plus its actual error and retry action, and align the proof for scenarios 2 and 6 to discriminate the two cases."
         },
         {
           "severity": "warning",
-          "message": "The status contract is declared as \"exactly Pending, Approved, and Rejected,\" but failure behavior says \"A failed status read reports unavailable state rather than inventing approval.\" The plan does not decide whether unavailable is a fourth displayed value, a mapping onto Pending, or a non-zero-exit error path. It cannot produce a false Approved, so it is non-blocking, but two implementations differ visibly to the builder; name the resolved representation in the contract section."
+          "message": "Status contract coherence: the contract declares \"exactly Pending, Approved, and Rejected\", but failure behavior says a failed status read \"reports unavailable state\". Whether unavailable is a fourth displayed value, a presentation of Pending, or a non-status error channel is undecided, and no scenario proves it. This does not permit a false Approved, so it is nonblocking, but naming the intended mapping would remove the ambiguity."
         },
         {
           "severity": "info",
-          "message": "Proof coverage is stated as a single sentence spanning all accepted scenarios plus a real CLI/coordinator wiring proof with a named confidence limit, which satisfies the proof-strategy boundary. Naming the real boundary per scenario — specifically the stale-receipt case in scenario 4 — would make the non-discriminating-proof risk easier to rule out without adding execution detail."
+          "message": "Proof strategy stays at the decision level (real CLI-and-coordinator boundary, named confidence limit, no test paths or commands), and the retry/concurrency section makes the atomic binding, crash boundary, and evidence-retention decisions explicit rather than relying on a component label."
         }
       ]
     },
@@ -254,15 +294,15 @@
       "findings": [
         {
           "severity": "error",
-          "message": "Contradictory and scope-violating approval contract. Approach decisions state \"The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists,\" while the contracts section states \"Missing or stale receipt means no approval.\" Two reasonable implementations satisfy this plan, and one displays Approved for a review with no authenticated receipt. That outcome violates the accepted spec (\"Approved means the current review has an authenticated approval receipt\"), the ticket constraint (\"Approval still requires the existing authenticated approval receipt\"), and the observable done state (\"A missing or stale receipt cannot appear as approval\"), and it creates the new approval authority the ticket excludes. Missing/incorrect decision: which single artifact authorizes the Approved label. Decision owner: the user, via the accepted Product Plan, which has already decided it is the authenticated receipt — the plan author must conform, not re-decide. Consequence if unresolved: the CLI can report a plan as Approved when no human approval authority exists, which is the exact trust failure this ticket was written to prevent. Resuming action: delete the reviewer-verdict-is-enough decision and state that Approved requires the current job's authenticated approval receipt bound to the current plan digest, with scenario 2 proved across the real CLI-plus-coordinator boundary using a review that has a reviewer verdict but no receipt."
+          "message": "impl-plan.md, Approach decisions: \"The reviewer output verdict is enough to display Approved, even before an authenticated approval receipt exists.\" This contradicts the accepted boundary in spec.md (\"Approved means the current review has an authenticated approval receipt\"; \"only the authenticated receipt for the current job and plan bytes can display Approved\"), the ticket goal (\"Approval still requires the existing authenticated approval receipt\"), the project principle (\"Existing authenticated receipts remain the only approval authority\"), and the plan's own contract section (\"Missing or stale receipt means no approval\"). Triggering condition: a review finishes with a nonblocking reviewer verdict but no valid receipt is written (the exact state scenario 6 covers). Consequence: the plan authorizes two reasonable implementations — one displays Pending with the receipt error and retry, the other displays Approved — and the second falsely reports the accepted user-facing claim that approval exists, creating a second approval authority the non-goals exclude. The proof strategy compounds this: it asserts Pending for the receipt-missing case but names no discriminating check that a reviewer verdict without a receipt cannot display Approved, so the contradictory decision could ship while every named check passes. Decision owner: this is an Implementation Planning error against an already-accepted user decision, not an open user choice — remove the verdict-alone approval decision, state that Approved requires the authenticated receipt bound to the current job identifier and plan digest, and add a proof asserting a nonblocking verdict without a valid receipt displays Pending and never Approved."
         },
         {
           "severity": "warning",
-          "message": "Asserted concurrency and crash invariants have no matching proof. The plan claims the coordinator \"atomically binds each retry to its new job identifier and plan digest,\" that only the currently bound job may drive the display under out-of-order concurrent retries, and that a crash before binding leaves the prior terminal state visible and never falsely Approved. The proof strategy only names per-scenario CLI-and-coordinator exercises including a stale receipt and actual findings; nothing discriminates the interleaved-retry or pre-binding-crash paths, so those invariants could be broken while every named check passes. Either name a proof that orders two retries and one that interrupts before binding, or state these as confidence limits rather than established behavior."
+          "message": "impl-plan.md leaves the two Pending-with-error cases (interrupted review, finished-without-receipt review) sharing one described display treatment. The accepted scenarios distinguish them by their actual error text, but the plan does not say whether the CLI must let a builder tell the two apart. Both readings satisfy the stated scenarios, so this is a clarity risk rather than a violated requirement."
         },
         {
           "severity": "info",
-          "message": "Plan-state labeling is uniformly proposed-tense with no implemented-fact or independent-review claims, and the durable-record skip is justified as a reversible local presentation change, which is consistent with the reversibility standard. Data, Measurement, Architecture applicability, doc impact, deviations, and the reassessment trigger are each present with concrete reasons, and the deletion test finds little removable text."
+          "message": "Non-blocking observations: the no-load-bearing-external-choice skip is consistent with the plan (no library or shared-structure choice is made); Data, Measurement, and Architecture applicability each carry a concrete reason or consequence as required; the proof strategy correctly stays free of test paths and commands and states its wiring confidence limit; rollout, rollback, doc impact, and the revisit trigger are present and proportionate to a local presentation change."
         }
       ]
     },
@@ -272,16 +312,16 @@
       "verdict": "approve",
       "findings": [
         {
+          "severity": "info",
+          "message": "All eleven checklist obligations resolve to the single proof `cli-status-integration`. That is acceptable because the proof is classified real_boundary and the accepted Implementation Plan places the whole contract at the CLI-to-coordinator boundary, but one fixture failure blocks every obligation's evidence simultaneously."
+        },
+        {
+          "severity": "info",
+          "message": "The Implementation Plan's stated limit — an isolated mapper test cannot prove the public wiring — is honored: every obligation routes through the CLI entry point rather than a unit-level mapper check."
+        },
+        {
           "severity": "warning",
-          "message": "The documentation obligation (status-9, 'Update CLI status help text for all three states') resolves to the same cli-status-integration proof, but the step list only says to 'update CLI help text and rerun the integration proof' without naming an assertion on the help-text output. The slice completion signal does require that the help text name all three states, so the obligation is owned and signalled; still, the integration fixture should carry an explicit help-text assertion so this obligation is discriminating rather than resting on inference. This is an execution mechanic inside the unchanged accepted proof boundary and is non-blocking."
-        },
-        {
-          "severity": "info",
-          "message": "The accepted Implementation Plan records data applicability as skip (no store, schema, retention, or migration change), while the checklist retains status-5 for coordinator storage and CLI exit-code compatibility. Keeping that item matches the accepted compatibility statement and is not a scope expansion."
-        },
-        {
-          "severity": "info",
-          "message": "This approval covers only the Execution Planning phase decision: it authorizes the bounded delivery of Slice 1 and does not establish implementation, verification, merge, promotion, or deployment completion. The plan states this and keeps contributor work separate from any later human merge authority (status-10)."
+          "message": "The RED narrative enumerates the harder cases explicitly but leaves scenarios 1 and 2 (unfinished-current Pending, current authenticated Approved) to the completion signal's reference to 'all six accepted scenarios'. The reference is unambiguous, so this is non-blocking, but the two simplest states rest on that reference rather than on individually named assertions."
         }
       ]
     },
@@ -291,12 +331,16 @@
       "verdict": "approve",
       "findings": [
         {
-          "severity": "info",
-          "message": "Decision statuses and the obligation owner are recorded as a closing prose sentence rather than a table. The content is complete and readable (all seven accepted decisions named as unchanged, Slice 1 named as owner), so this is a presentation note only."
+          "severity": "warning",
+          "message": "status-8 (rollout and rollback) and status-9 (documentation) both resolve to the single cli-status-integration proof. The fixture can plausibly assert the help text names all three states, but release sequencing and the mapper revert path are not directly exercised by any command. This is acceptable because the accepted Implementation Plan scopes rollout to \"the existing CLI release\" and rollback to reverting a local presentation mapper, so no additional proof boundary is required; it is noted only so the implementer does not treat a passing integration run as evidence that the revert path was rehearsed."
         },
         {
           "severity": "info",
-          "message": "Scenarios 1 and 2 (Pending for an unfinished current review, Approved for a current authenticated receipt) are covered by the completion signal's 'all four accepted scenarios' plus the receipt-bound assertions, but are less explicitly enumerated in the step narrative than scenarios 3 and 4. Non-blocking."
+          "message": "The slice narrative bundles many required assertions into one paragraph (concurrent retry binding, crash-before-binding, failed status read, three distinct stale-receipt shapes, exit-code and byte-identity checks). Each names its actor boundary and expected result, so the steps remain startable, but the implementer should enumerate them as discrete test cases in tests/integration/review-status.test.ts rather than a single case, or the RED signal will not distinguish which accepted scenario is unmet."
+        },
+        {
+          "severity": "info",
+          "message": "Data and measurement categories are recorded as inapplicable by the accepted Implementation Plan (\"skip: no store, schema, ownership, retention, migration, or cross-system flow changes\" and \"skip: the Product Plan promises no quantitative target\"). status-5 correctly narrows to coordinator-storage and exit-code compatibility rather than inventing a migration obligation, and no quantitative contract exists to instrument."
         }
       ]
     },
@@ -306,12 +350,12 @@
       "verdict": "approve",
       "findings": [
         {
-          "severity": "info",
-          "message": "The plan correctly records the accepted Implementation Plan's stated proof limit (an isolated mapper test cannot prove public wiring) by routing every obligation through the CLI integration boundary rather than a unit-level substitute."
+          "severity": "warning",
+          "message": "Documentation obligation status-9 (\"Update CLI status help text for all three states\") and the slice completion signal (\"the status help text names all three states\") both resolve to the single cli-status-integration proof, but the enumerated RED assertions for tests/integration/review-status.test.ts never name a help-text assertion. As written, the help text could omit or misname a state while the integration command still exits 0. Adding an explicit help-output assertion to the same fixture would make the documentation obligation discriminating; this is an execution mechanic and does not change any accepted proof boundary."
         },
         {
           "severity": "info",
-          "message": "Data and measurement categories were recorded as inapplicable by the accepted Implementation Plan; the execution checklist correspondingly carries compatibility (status-5) rather than inventing placeholder migration or measurement tasks. This is consistent with the accepted scope and is not a coverage gap."
+          "message": "Scenarios 1 (unfinished current review displays Pending) and 2 (current authenticated approval displays Approved) are covered only through the completion signal and status-4 obligation (\"Prove all six accepted scenarios through the CLI and coordinator\"), while the RED narrative enumerates the harder failure and staleness cases individually. Coverage is bound, but naming those two cases alongside the others would remove any implementer ambiguity."
         }
       ]
     },
@@ -322,23 +366,27 @@
       "findings": [
         {
           "severity": "error",
-          "message": "Slice 1's completion signal covers only two accepted states: \"Pending and Approved pass through the CLI entry point and the status help text names those two states.\" Accepted scenarios 3 (Rejected displays the actual blocking findings) and 4 (repair and retry; a stale approval cannot approve the new review) have no completion signal in any slice. A contributor can satisfy every stated signal while Rejected and retry behavior is absent, so accepted behavior obligations status-1, status-7 and status-9 are only partially mapped."
+          "message": "Slice 1 states \"The integration fixture covers Pending and Approved states\" and its completion signal is \"Pending and Approved pass through the CLI entry point\". Accepted scenarios 3-6 (Rejected with actual recorded findings, stale receipt cannot approve, interrupted review Pending with actual error plus retry, finished review without a valid receipt Pending with actual receipt error and no invented rejection findings) are never exercised by any named step or signal. The only supplied proof, cli-status-integration, is therefore non-discriminating for those scenarios: an implementation that synthesizes rejection findings, accepts a stale receipt as Approved, or omits the retry path can pass the named command and satisfy the stated completion signal while the accepted user-facing claim is false."
         },
         {
           "severity": "error",
-          "message": "The supplied proof is non-discriminating. The only proof, cli-status-integration, is described as \"The integration fixture covers Pending and Approved states.\" Checklist status-4 claims it will \"Prove all four accepted scenarios through the CLI and coordinator\" and status-7 claims it will \"Reject stale or missing approval receipts and preserve actual findings,\" but the named command (bun run test tests/integration/review-status.test.ts in packages/cli) as scoped cannot fail when a stale receipt displays Approved or when recorded rejection findings are synthesized or hidden. The Implementation Plan's accepted invariant that a missing or stale receipt never appears as approval can be broken while the single named check still passes. Enumerate per-scenario fixture cases — Pending, Approved, terminal Rejected with verbatim recorded findings, and retry where the prior job's receipt does not approve the new plan digest — and state each expected assertion."
+          "message": "Checklist items status-4 (\"Prove all six accepted scenarios through the CLI and coordinator\") and status-7 (\"Reject stale or missing approval receipts and preserve actual findings\") resolve to cli-status-integration, but the slice's executable steps define that fixture as covering only Pending and Approved. These applicable obligations are mapped in name only; no step names the fixture setup, command, edit action, or expected assertion for a stale receipt, verbatim rejection findings, interrupted retry, or receipt-missing retry, leaving the proof content for the implementer to invent."
         },
         {
           "severity": "error",
-          "message": "The first RED step is not startable for the full accepted behavior. It names the fixture, the command, and a pre-edit failure observation, but its stated failure signal is only \"the missing Pending/Approved assertions fail.\" The highest-risk accepted behavior is the stale-receipt approval boundary, not the Pending/Approved happy path. The RED step must name the stale-receipt and Rejected-findings assertions and their expected failure signal before any production edit, or the implementer invents that proof boundary coverage."
+          "message": "Documentation obligation status-9 requires CLI status help text for all three states, but the slice's completion signal requires only that \"the status help text names those two states\". Completion can be reported with help text that omits Rejected, contradicting the accepted Product Plan's three-status contract and the Implementation Plan's stated documentation impact."
+        },
+        {
+          "severity": "error",
+          "message": "Only one decision-status entry is recorded (\"the existing coordinator/receipt source of truth is unchanged\"). The accepted Implementation Plan records further load-bearing decisions that are unaccounted for: binding the display to the current job identifier and plan digest; supplying recorded rejection findings verbatim without synthesis; retry creating a new review for repaired or unchanged bytes while old rejections and receipts remain historical evidence; and the atomic retry binding under which a crash before binding leaves the prior terminal state visible and retryable rather than falsely Approved. Every applicable Recorded Decision must be accounted for with the readable status \"unchanged\"."
         },
         {
           "severity": "warning",
-          "message": "Internal contradiction in documentation scope: checklist status-9 requires \"Update CLI status help text for all three states,\" while Slice 1's completion signal requires the help text to name only \"those two states.\" Resolve to the three accepted statuses."
+          "message": "The first RED is concrete (add tests/integration/review-status.test.ts, run `bun run test tests/integration/review-status.test.ts` from packages/cli, observe the missing assertions fail before any production edit), but it does not start at the highest-risk named behavior. The accepted trust boundary risk is the stale or missing approval receipt, so the first RED should fail on that path."
         },
         {
           "severity": "info",
-          "message": "The slicing decision (one_pull_request, one slice, relies_on_unmerged_successor false), the prerequisite list, the proof-specification table placement before the checklist, and the decision-status note that the coordinator/receipt source of truth is unchanged are all acceptable as written; no accepted decision is reopened and no product scope is expanded. Only proof coverage and completion signals block approval."
+          "message": "The slicing decision (one_pull_request with exactly one slice, no unmerged successor dependency) and the placement of the Proof specifications table before the Delivery Checklist are acceptable as written; the blocking defects are scenario coverage, completion-signal truthfulness, and decision accounting, all repairable within Execution Planning."
         }
       ]
     },
@@ -349,27 +397,27 @@
       "findings": [
         {
           "severity": "error",
-          "message": "Non-discriminating proof for accepted scenarios 3 and 4. Slice 1 states \"The integration fixture covers Pending and Approved states\" and its completion signal is \"Pending and Approved pass through the CLI entry point.\" The only proof, cli-status-integration, is therefore specified to exercise two of the four accepted scenarios. Checklist items status-1, status-4, and status-7 claim Rejected with actual blocking findings, retry after repair, and rejection of stale or missing receipts, all resolving to that same proof. As written, an implementation that never renders Rejected, synthesizes rejection text instead of passing the coordinator's recorded findings verbatim, or lets a stale receipt display Approved would still satisfy every named check and the stated completion signal. Extend the fixture and completion signal to exercise a terminal rejected job with its recorded findings and a retry where a receipt bound to a different job identifier or different plan digest does not yield Approved."
+          "message": "Slice 1 proof coverage is narrower than the accepted scope: its startable steps state \"The integration fixture covers Pending and Approved states\" while accepted scenarios 3-6 (Rejected with the actual blocking findings, stale approval that must not approve, interrupted review Pending-with-error and retry, finished review without a valid receipt Pending-with-actual-receipt-error and no invented rejection findings) are never exercised. The only Required proof for all eleven checklist items is cli-status-integration, so a mapper that synthesizes rejection reasons, honors a stale receipt as Approved, or shows a fabricated Rejected after an interrupted review would still pass `bun run test tests/integration/review-status.test.ts` with exit 0. This is non-discriminating proof for the accepted user-facing claim; the fixture must name assertions for all six scenarios."
         },
         {
           "severity": "error",
-          "message": "The first RED does not begin with the highest-risk case. The plan instructs the implementer to \"observe the missing Pending/Approved assertions fail before editing production code.\" The highest-risk accepted behavior in this ticket is the stale-receipt invariant (\"A stale approval never changes the current review to Approved\") and verbatim rejection findings. The named RED must state the fixture, command, and failure signal for that case before any production edit."
+          "message": "Slice 1's completion signal is weaker than the accepted behavior it must close: \"Pending and Approved pass through the CLI entry point and the status help text names those two states.\" The Product Plan and ticket accept exactly three statuses, and checklist item status-1 obligates Pending, Approved, and Rejected with actual blocking findings and retry. As written the slice can be declared complete while Rejected is unimplemented, so the completion signal must assert all three states plus the actual-findings and retry paths."
         },
         {
           "severity": "error",
-          "message": "Recorded Decisions are only partially accounted for. The plan supplies one decision status: \"the Implementation Plan's existing coordinator/receipt source of truth is unchanged.\" The accepted Implementation Plan records further load-bearing decisions: binding the display to the current job identifier and plan digest; supplying terminal rejected findings verbatim without synthesis or suppression; retry creating a new review with the old rejection and receipt as historical evidence only; atomic retry binding with concurrent retries and crash-before-binding never displaying Approved; and a running or interrupted review without a terminal receipt displaying Pending with its actual error state. Each needs an explicit status entry of `unchanged`."
+          "message": "The documentation step contradicts checklist item status-9. The slice step says \"update CLI help text\" with a completion signal naming only two states, while status-9 obligates \"Update CLI status help text for all three states.\" Two reasonable implementations are permitted and one satisfies the slice while leaving the accepted documentation obligation unmet. Name the three-state help text in the step's expected observable result."
         },
         {
           "severity": "error",
-          "message": "The documentation obligation conflicts with the slice completion signal. Checklist item status-9 requires updating CLI status help text \"for all three states,\" while Slice 1's completion signal requires only that \"the status help text names those two states.\" The completion signal can be satisfied with help text that omits Rejected, leaving status-9 unproven. Align the completion signal with the three-state contract."
+          "message": "Decision-status coverage is partially mapped. The plan records one entry (\"the Implementation Plan's existing coordinator/receipt source of truth is unchanged\"), but the accepted Implementation Plan records additional load-bearing decisions that are unaccounted for: binding the display to the current job identifier and plan digest; supplying terminal rejected findings verbatim without synthesis; retry semantics for repaired, interrupted, and receipt-failed bytes; the coordinator's atomic retry binding under concurrent retries with a crash before binding leaving the prior terminal state visible and never falsely Approved; and the rejection of a separately persisted CLI status store. Each applicable Recorded Decision needs an explicit `unchanged` status entry."
         },
         {
           "severity": "warning",
-          "message": "Checklist item status-6 (\"Report status-read failures without inventing approval\") and the Implementation Plan's \"A failed status read reports unavailable state rather than inventing approval\" have no named step or fixture case in Slice 1. Name the failure-injection case in the integration fixture so this obligation has a discriminating check rather than relying on the same happy-path assertions."
+          "message": "Obligation-owner mapping is thin: a single line (\"Obligation owner: Current review status, Slice 1\") is asserted for all eleven checklist categories. With one slice this is structurally valid, but the rollout/rollback (status-8) and monitoring (status-6) obligations have no distinct completion signal of their own, so their satisfaction cannot be observed independently of the integration command."
         },
         {
           "severity": "info",
-          "message": "The slicing decision, one-slice count, `relies_on_unmerged_successor: false`, empty prerequisite list, proof specifications table placed before the Delivery Checklist, and the versioned checklist with unique IDs across all eleven default categories are each present and internally consistent. The rationale is grounded in conceptual cohesion rather than size."
+          "message": "The slicing decision, its cohesion-and-independent-proof rationale, the empty prerequisite list with `relies_on_unmerged_successor: false`, the RED-first ordering naming the fixture path, command, cwd, and pre-edit failure signal, and the Proof specifications table preceding the versioned Delivery Checklist all satisfy the execution-planning contract. No accepted decision is reopened and no product scope is expanded, which is why the return path stays in plan-execution rather than plan-implementation."
         }
       ]
     },
@@ -380,30 +428,26 @@
       "findings": [
         {
           "severity": "error",
-          "message": "Non-discriminating proof for accepted scenarios 3 and 4. Slice 1 states \"The integration fixture covers Pending and Approved states,\" and cli-status-integration is the only proof. Scenario 3 (a completed review with blocking findings displays Rejected and those actual findings) and scenario 4 (retry a repaired plan; a stale approval cannot approve it) are never exercised. The mapper could synthesize or drop rejection findings, or display Approved from a stale receipt bound to a different job identifier or plan digest, and `bun run test tests/integration/review-status.test.ts` would still exit 0. Specify fixture cases in that same integration file for a terminal rejected job with recorded error findings asserted verbatim, and for a retry that binds a new job identifier and plan digest while a prior receipt is present and must not yield Approved."
+          "message": "Slice 1 states \"The integration fixture covers Pending and Approved states.\" while checklist status-4 obligates proving all six accepted scenarios through the CLI and coordinator. Accepted scenarios 3-6 (Rejected with actual findings, stale approval not approving a repaired plan, interrupted review showing Pending with its actual error and retry, and a finished nonblocking review without a valid receipt showing Pending with the actual receipt error and no invented rejection findings) have no fixture coverage. The single proof cli-status-integration can pass in full while a mapper synthesizes rejection findings, hides a real blocking finding, or displays Approved from a stale receipt — exactly the failures the Implementation Plan forbids. The supplied proof is non-discriminating for the accepted claim."
         },
         {
           "severity": "error",
-          "message": "Checklist item status-4 (\"Prove all four accepted scenarios through the CLI and coordinator\") cites cli-status-integration, but the plan's own description of that fixture covers two scenarios. As written the obligation can be recorded satisfied while two accepted scenarios are unproven. Either the fixture description must name all four scenario cases or status-4 must cite a proof that does."
+          "message": "Slice 1's completion signal (\"Pending and Approved pass through the CLI entry point and the status help text names those two states\") contradicts the accepted three-state contract and checklist status-9 (\"Update CLI status help text for all three states\"). As written, the slice can be signaled complete with Rejected absent from both behavior and help text, which would ship a status display that cannot express the accepted Rejected outcome. Two reasonable implementations satisfy this signal and one violates the ticket goal."
         },
         {
           "severity": "error",
-          "message": "Checklist item status-7 (security and privacy: \"Reject stale or missing approval receipts and preserve actual findings\") resolves to the same fixture, which exercises neither a stale receipt nor a missing receipt nor rejection findings. The Implementation Plan makes \"a stale approval never changes the current review to Approved\" a load-bearing contract; with no case exercising it, the accepted user-facing claim can be false while the named check passes."
-        },
-        {
-          "severity": "error",
-          "message": "Slice 1's completion signal is narrower than its own obligations and internally contradictory: it reads \"Pending and Approved pass through the CLI entry point and the status help text names those two states,\" while status-9 requires help text for all three states and status-1 requires Rejected with actual blocking findings and retry. A contributor satisfying the stated completion signal would ship without Rejected. Restate the completion signal to cover all three displayed states, the verbatim rejection findings, and the retry/stale-receipt path."
+          "message": "Slice 1's step sequence leaves the Rejected path's execution mechanics unspecified: the RED step names only the missing Pending/Approved assertions, and no step names a fixture, command, expected assertion, or real actor boundary for the recorded rejection findings, the stale-receipt binding (current job identifier and plan digest), or the retry that binds a new current job without changing plan bytes. The implementer must invent those proof fixtures and orderings, so the step is not startable for the majority of the accepted behavior."
         },
         {
           "severity": "warning",
-          "message": "The first RED is named and startable (add the failing fixture, run the stated command from packages/cli, observe the missing assertions fail before production edits), but it names only the Pending/Approved assertions as the failure signal. Once the Rejected and stale-receipt cases are added, the highest-risk RED should be the stale-approval case, since that is the invariant whose violation is unrecoverable for the user."
+          "message": "Decision status and obligation ownership appear only as trailing prose (\"Decision status: the Implementation Plan's existing coordinator/receipt source of truth is unchanged. Obligation owner: Current review status, Slice 1.\"). The Implementation Plan records several load-bearing decisions (job/digest binding, receipt as sole approval source, verbatim rejection findings, retry semantics, crash-before-binding behavior); a single aggregate sentence does not account for each one with a readable status. Enumerate them so a later change to any one decision is visibly tracked."
         },
         {
           "severity": "info",
-          "message": "Non-blocking and correct as supplied: exactly one slice matching the one_pull_request decision with a rationale grounded in conceptual cohesion rather than size; no prerequisites and relies_on_unmerged_successor: false, consistent with a single slice; the proof specifications table precedes the delivery checklist; the v1 checklist marker, unique IDs, and all eleven default categories are present with honest open/missing dispositions; and the decision-status line preserves the coordinator/receipt source of truth without reopening it. No accepted decision is changed, which is why routing is plan-execution rather than plan-implementation."
+          "message": "The slicing decision is explicit (one_pull_request) with a cohesion-grounded rationale, exactly one slice, no prerequisites, and relies_on_unmerged_successor false; the proof specifications table precedes the versioned delivery checklist and its single proof is classified real_boundary with current_required currency. Those structural requirements are satisfied; only scenario coverage and completion-signal truthfulness block approval."
         }
       ]
     }
   ],
-  "results_digest": "9085e0194fa82420b5e87f67fae1b5d361747cd6064379ab0730b32a9d814078"
+  "results_digest": "32b41424396dc25f6006a482c0042b6eb3f088f244c6310a34599a7820b253ec"
 }

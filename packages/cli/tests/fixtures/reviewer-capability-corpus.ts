@@ -25,7 +25,7 @@ export const REVIEWER_CAPABILITY_RUBRICS = {
 
 const ticket = `# Ticket: Show current review status to builders
 
-Goal: A builder can distinguish Pending, Approved, and Rejected plan reviews in the CLI. Rejected reviews show the actual blocking findings and permit repair and retry. Approval still requires the existing authenticated approval receipt. No new approval authority, storage system, or notification channel is in scope.`;
+Goal: A builder can distinguish Pending, Approved, and Rejected plan reviews in the CLI. Rejected reviews show the actual blocking findings and permit repair and retry. An interrupted review or a finished review without a valid approval receipt stays Pending with its actual error and a retry action; neither condition invents rejection findings. Approval still requires the existing authenticated approval receipt. No new approval authority, storage system, or notification channel is in scope.`;
 
 const productPlan = `# Product Plan: Show current review status
 
@@ -33,11 +33,19 @@ const productPlan = `# Product Plan: Show current review status
 
 - Persona: the builder requesting a plan review.
 - Surface: the CLI review status display.
-- Pending means the current review has not finished.
+- Pending means the current review has no completed, authenticated approval or blocking reviewer verdict. A running review shows its running state. An interrupted review or a finished review without a valid approval receipt stays Pending with its actual error and a retry action; it never invents rejection findings.
 - Approved means the current review has an authenticated approval receipt.
 - Rejected means the current review concluded with blocking findings. Show those actual findings, and allow the builder to repair the plan and start a new review.
 - A stale approval never changes the current review to Approved.
 - A stale approval is a receipt for a different review job or different plan bytes. The display begins only after a review is requested; a never-requested state is outside this ticket.
+
+## Builder outcomes
+
+- Success: a current authenticated receipt displays Approved.
+- Refusal: a reviewer verdict with blocking findings displays Rejected and those findings; no new viewer-permission refusal applies to this existing CLI command.
+- Failure: interruption or a missing valid receipt displays Pending with the actual error and retry action, not a fabricated rejection.
+- Approval and trust: only the authenticated receipt for the current job and plan bytes can display Approved.
+- Recovery: repair and retry after Rejected, or retry the interrupted or receipt-missing review without changing plan scope.
 
 ## Scope and exclusions
 
@@ -45,11 +53,11 @@ Only the status display and retry path change. Existing approval authority and s
 
 ## Evidence and decisions
 
-The existing authenticated receipt is a supported project constraint. No quantitative target is promised. The user has accepted these three statuses; no product choice remains open.
+Known facts: the ticket accepts three statuses and the existing authenticated receipt is the only approval authority. Assumption: the existing CLI command adds no new viewer-permission gate. Unresolved product decisions: none; the ticket specifies interrupted and receipt-missing behavior. No quantitative target is promised.
 
 ## Observable done state
 
-A builder can distinguish all three current outcomes, see the actual blocking findings after rejection, and retry a repaired plan. A missing or stale receipt cannot appear as approval.`;
+A builder can distinguish all three current outcomes, see only actual blocking findings after rejection, and retry a repaired or interrupted review. A missing or stale receipt cannot appear as approval or create a false rejection.`;
 
 const productWithoutRejection = `# Product Plan: Show current review status
 
@@ -73,7 +81,9 @@ const scenarios = `# Accepted scenarios
 1. An unfinished current review displays Pending.
 2. A current authenticated approval displays Approved.
 3. A completed review with blocking findings displays Rejected and those actual findings.
-4. After repairing a rejected plan, the builder can request a new review; a stale approval cannot approve it.`;
+4. After repairing a rejected plan, the builder can request a new review; a stale approval cannot approve it.
+5. An interrupted review displays Pending with its actual error and permits retry without changing plan bytes.
+6. A finished nonblocking review without a valid receipt displays Pending with its actual receipt error, no invented rejection findings, and permits retry without changing plan bytes.`;
 
 const implementationPlan = `# Implementation Plan: Show current review status
 
@@ -86,15 +96,16 @@ The CLI reads the existing coordinator's current job and authenticated receipt. 
 - Use the current job identifier and plan digest to bind the display to the active review. A previous job or receipt cannot supply Approved for changed plan bytes.
 - The coordinator's authenticated approval receipt is the only source of Approved. Reviewer prose and an unauthenticated verdict cannot grant approval.
 - A terminal rejected job supplies its recorded error findings verbatim to the CLI. The mapper does not synthesize rejection reasons or hide a real blocking finding.
-- Retry creates a new review for repaired plan bytes; the old rejection and receipt remain historical evidence, never current authority.
+- Retry creates a new review for repaired plan bytes, or for unchanged bytes after interruption or receipt failure; the old rejection and receipt remain historical evidence, never current authority.
 - The coordinator atomically binds each retry to its new job identifier and plan digest. Concurrent retries may finish in any order; only the job currently bound to the plan may drive the displayed status. A crash before that binding leaves the prior terminal state visible and retryable, never falsely Approved.
-- A running or interrupted review without a terminal receipt displays Pending with its actual error state; it never displays Approved.
+- A running review displays Pending. An interrupted review displays Pending with its actual error and a retry action for unchanged bytes; it never displays Approved.
+- A finished nonblocking review without a valid approval receipt displays Pending with the actual receipt error and a retry action; it never invents a rejection finding.
 
 The alternative of persisting a separate CLI status loses synchronization with the coordinator after a retry or plan edit, so the mapper reads existing trusted records instead. This is a reversible local presentation change; no durable architecture record is needed.
 
 ## Contracts, failure behavior, and proof
 
-The CLI status contract has exactly Pending, Approved, and Rejected. Missing or stale receipt means no approval. A failed status read reports unavailable state rather than inventing approval. Exercise each accepted scenario through the real CLI and coordinator boundary, including a stale receipt and actual rejection findings. An isolated mapper test cannot prove the public wiring; the CLI integration proof has that limit. Roll out with the existing CLI release, and roll back the presentation mapper if the user-visible state is wrong.
+The CLI status contract has exactly Pending, Approved, and Rejected. Missing or stale receipt means no approval. A failed status read reports unavailable state rather than inventing approval. Exercise all six accepted scenarios through the real CLI and coordinator boundary, including a stale receipt, actual rejection findings, interrupted retry, and finished receipt-missing retry. For both failure cases assert Pending, the actual error, no invented rejection findings, and a working retry that binds a new current job without changing plan bytes. An isolated mapper test cannot prove the public wiring; the CLI integration proof has that limit. Roll out with the existing CLI release, and roll back the presentation mapper if the user-visible state is wrong.
 
 Architecture applicability: the CLI-to-coordinator contract is affected; no shared API or data owner changes. Data applicability: skip: no store, schema, ownership, retention, migration, or cross-system flow changes. Compatibility: the existing coordinator record and CLI exit codes stay unchanged; the new displayed Rejected label is additive to the human-readable status. Measurement applicability: skip: the Product Plan promises no quantitative target. Authorization stays with the existing authenticated receipt. Documentation impact: update the CLI status help text. Known deviations: none. Revisit the mapper only if the coordinator's receipt or job contract changes. No load-bearing external library choice is needed.`;
 
@@ -114,7 +125,7 @@ const checklistObligations = [
   'Show Pending, Approved, and Rejected with actual blocking findings and retry.',
   'Keep the authenticated receipt as the only approval authority.',
   'Complete the one status slice without a later merge dependency.',
-  'Prove all four accepted scenarios through the CLI and coordinator.',
+  'Prove all six accepted scenarios through the CLI and coordinator.',
   'Preserve coordinator storage and CLI exit-code compatibility.',
   'Report status-read failures without inventing approval.',
   'Reject stale or missing approval receipts and preserve actual findings.',
@@ -126,19 +137,19 @@ const checklistObligations = [
 
 function executionPlan(includeRejection: boolean): string {
   const completionSignal = includeRejection
-    ? 'all four accepted scenarios pass through the CLI entry point and the status help text names all three states'
+    ? 'all six accepted scenarios pass through the CLI entry point and the status help text names all three states'
     : 'Pending and Approved pass through the CLI entry point and the status help text names those two states';
   const redSignal = includeRejection
     ? 'the missing Rejected/receipt-bound assertions fail'
     : 'the missing Pending/Approved assertions fail';
   const rejectionStep = includeRejection
-    ? 'The same integration fixture must assert that a terminal rejection displays its actual error findings, that a repaired plan starts a new review, and that a concurrently completed non-current job cannot drive the displayed status. Simulate a crash before retry binding and assert the prior terminal state remains visible and retryable; simulate an interrupted review and assert Pending with its actual error state; simulate a failed status read and assert unavailable rather than Approved.'
+    ? 'The same integration fixture must assert that a terminal rejection displays its actual error findings, that a repaired plan starts a new review, and that a concurrently completed non-current job cannot drive the displayed status. Simulate a crash before retry binding and assert the prior terminal state remains visible and retryable. For an interrupted review and a finished nonblocking review without a valid receipt, assert Pending, the actual error, no invented rejection findings, and a working retry that binds a new current job without changing plan bytes. Simulate a failed status read and assert unavailable rather than Approved.'
     : 'The integration fixture covers Pending and Approved states.';
   const authorityStep = includeRejection
-    ? 'Through the CLI and coordinator, test a receipt for another job, a receipt for a different plan digest under the current job, and an unauthenticated approval verdict without a receipt; each must remain non-Approved. Assert unchanged CLI process exit codes for successful and failed reads against the pre-change baseline, and assert status reads leave coordinator records byte-identical.'
+    ? 'Through the CLI and coordinator, test a receipt for another job, a receipt for a different plan digest under the current job, and an unauthenticated approval verdict without a receipt; each must remain non-Approved. For a finished nonblocking job without a valid receipt, assert Pending with its actual receipt error and retry action. Assert unchanged CLI process exit codes for successful and failed reads against the pre-change baseline, and assert status reads leave coordinator records byte-identical.'
     : '';
   const decisionStatus = includeRejection
-    ? 'Decision status: current job-and-digest binding, receipt-only approval, verbatim rejection findings, retry as a new review, atomic concurrent retry binding and crash behavior, interrupted Pending with its error, and failed-read unavailability remain unchanged from the Implementation Plan.'
+    ? 'Decision status: current job-and-digest binding, receipt-only approval, verbatim rejection findings, retry as a new review, atomic concurrent retry binding and crash behavior, interrupted and finished receipt-missing Pending with actual errors and unchanged-byte retry, and failed-read unavailability remain unchanged from the Implementation Plan.'
     : "Decision status: the Implementation Plan's existing coordinator/receipt source of truth is unchanged.";
   return `# Execution Plan: Show current review status
 
@@ -172,6 +183,30 @@ ${decisionStatus} Obligation owner: Current review status, Slice 1. The plan doe
 const commonContext = [
   { path: '.project/tickets/CAP100/ticket.md', content: ticket },
   { path: '.project/tickets/CAP100/scenarios.md', content: scenarios },
+  {
+    path: '.project/principles.md',
+    content:
+      'Existing authenticated receipts remain the only approval authority. Keep changes local and reversible.',
+  },
+  {
+    path: '.project/personas.md',
+    content:
+      'Accepted persona: Builder. The builder needs current CLI status, actual rejection findings, and a repair and retry path.',
+  },
+  {
+    path: '.project/surfaces.md',
+    content:
+      'Affected surface: the existing CLI review-status command. No other user surface is in this ticket.',
+  },
+  {
+    path: '.project/non-goals.md',
+    content: 'No new approval authority, status store, or notification channel.',
+  },
+  {
+    path: '.project/tickets/CAP100/boundaries.md',
+    content:
+      'This ticket has no parent or milestone with additional scope boundaries. No architecture record applies to the local presentation mapper.',
+  },
 ];
 
 function packet(
@@ -233,7 +268,7 @@ export const REVIEWER_CAPABILITY_MANIFEST: CapabilityManifest = {
       label: {
         id: 'product-reject',
         verdict: 'request_changes',
-        required: ['rejected'],
+        required: ['reject'],
         forbidden: [],
       },
       packet: packet(
@@ -283,7 +318,7 @@ export const REVIEWER_CAPABILITY_MANIFEST: CapabilityManifest = {
       label: {
         id: 'execution-reject',
         verdict: 'request_changes',
-        required: ['rejected'],
+        required: ['reject'],
         forbidden: [],
       },
       packet: packet(
