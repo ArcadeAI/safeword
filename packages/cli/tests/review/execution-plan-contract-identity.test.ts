@@ -181,6 +181,7 @@ process.stdin.on('end', () => {
     planning_destination: 'plan-execution',
     summary: 'approved',
     findings: [],
+    evidence_records: { schema_version: 1, records: [] },
     execution_plan_record: {
       slicing_decision: 'one_pull_request',
       rationale: 'One coherent change.',
