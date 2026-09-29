@@ -27,7 +27,7 @@ interface InstalledContextState {
 }
 const states = new WeakMap<SafewordWorld, InstalledContextState>();
 
-function fixtureProject(): string {
+export function fixtureProject(): string {
   const root = mkdtempSync(path.join(tmpdir(), 'safeword-r3-installed-'));
   writePlanningInventories(root);
   mkdirSync(path.join(root, ticketRoot), { recursive: true });
@@ -68,7 +68,7 @@ function configure(root: string, override: string): void {
   );
 }
 
-function reviewerExecutable(reviewer: string): void {
+export function reviewerExecutable(reviewer: string): void {
   writeFileSync(
     path.join(reviewer, 'opencode'),
     String.raw`#!${process.execPath}
