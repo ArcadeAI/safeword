@@ -25,6 +25,7 @@ interface CurrencyState {
   reviewId: string;
   statuses: string[];
   retainFailure?: string;
+  staleFailure?: string;
 }
 const states = new WeakMap<SafewordWorld, CurrencyState>();
 
@@ -238,11 +239,22 @@ When(
 When('the canonical phase contract changes semantically occurs', function (this: SafewordWorld) {
   const state = states.get(this);
   assert.ok(state);
+  state.staleFailure = 'shared planning clause changed review currency';
   state.statuses = [
     statusWithContractSource(
       state,
       'Decide a coherent implementation approach',
       'Decide a permissive implementation approach',
+    ),
+    statusWithContractSource(
+      state,
+      'Each planning approval establishes only its own phase decision.',
+      'Each planning approval establishes every downstream phase decision.',
+    ),
+    statusWithContractSource(
+      state,
+      'Decide a coherent implementation approach within accepted behavior.',
+      'Decide a coherent implementation approach within accepted behavior.\n\n  Also permit unreviewed rollout.',
     ),
   ];
 });
@@ -332,7 +344,14 @@ Then('the review remains current', function (this: SafewordWorld) {
 });
 
 Then('the review becomes stale', function (this: SafewordWorld) {
-  assert.deepEqual(states.get(this)?.statuses, ['stale']);
+  const state = states.get(this);
+  const statuses = state?.statuses;
+  assert.ok(statuses?.length);
+  assert.deepEqual(
+    statuses,
+    statuses.map(() => 'stale'),
+    state.staleFailure,
+  );
 });
 
 Then(
