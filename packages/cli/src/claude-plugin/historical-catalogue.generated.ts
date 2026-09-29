@@ -6,7 +6,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/agents/safeword-retro-filer.md':
         '008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904',
       '.claude/agents/safeword-reviewer.md':
-        '13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470',
+        '54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf',
       '.claude/skills/audit/SKILL.md':
         '4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880',
       '.claude/skills/bdd/DISCOVERY.md':
@@ -14,9 +14,9 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_EXECUTION.md':
-        '9de74f10759b2bb104e7e27e626e7f7bae97509f9503bc2bfe3b26c755e9d527',
+        '6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '4a5093d7034459c06fe23b4f2960e7244561292becef19eb52ac2908d2c4bce0',
+        '32067faf4e8f95926142aea815b5ce7b04e66a1cd0df9f64ae3436df4ad940ba',
       '.claude/skills/bdd/SCENARIOS.md':
         '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
       '.claude/skills/bdd/SKILL.md':
@@ -24,7 +24,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '6c9142c4a7cc63fb6054d2b5335f942a77a1322f3a7e269b6e8654f4d7435702',
+        '5cbbca305b337c2fdf18310e4fccb20979dbc731d873b4f4cec0b036bed816b1',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -44,15 +44,15 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/figure-it-out/SKILL.md':
         '18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d',
       '.claude/skills/finish-review/REVIEWER.md':
-        '7575d91eb96a1c4930c8e68da1f4bb982d052c5e89f75fb38ed6422a8df96562',
+        '9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7',
       '.claude/skills/finish-review/SKILL.md':
-        'fdb8800d140467f1747f7b0ee067137386026003126ff17c00758940766dd07a',
+        '7d907162daa0e6f51111ac8173d02a2b21e632532a3d736ccc02a91fb6973fb9',
       '.claude/skills/lint/SKILL.md':
         'f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14',
       '.claude/skills/pr-readiness/SKILL.md':
         '4cc987da39efb1b9b682aff67988c975e8ff56a2c3eed0cfe3a1f3e8caf0d80b',
       '.claude/skills/quality-review/SKILL.md':
-        '61f9053cdd8007f2ebfd17684fb18cf8dfd068fbcdfbc85ad7ff7ec565a81461',
+        'ef63c3ca21b2c383c46d143fec48d229b4e17675015a77e858638dbefbdcfbac',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
@@ -60,7 +60,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         'da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb',
       '.claude/skills/review-spec/SKILL.md':
-        'bca4e90c57cd4868219ebe9366fbca8c126837f1289671a3e7b495bca894b052',
+        '2d39641656e0d91d8c6788fba4fdf1981b77ef53852715c58b5df75fcc56762d',
       '.claude/skills/self-review/SKILL.md':
         '7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc',
       '.claude/skills/spike/SKILL.md':
@@ -132,7 +132,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
       '.safeword/hooks/stop-quality.ts':
-        '1858b5639255295d82e17ca841df994e6a3ce876d93b3744cb515a42baae9bc6',
+        '72cdede9a591ff0ae66b2b129af190b51f6629837962374ae2bed82aa8293c97',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':

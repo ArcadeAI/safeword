@@ -25,6 +25,7 @@ import {
 import {
   executableRedGateHandler,
   reviewCancelHandler,
+  reviewContinueHandler,
   reviewPrInspectHandler,
   reviewPrPublicationHandler,
   reviewPrReadinessHandler,
@@ -599,6 +600,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'review run': reviewRunHandler,
   'review gate executable-red': executableRedGateHandler,
   'review status': reviewStatusHandler,
+  'review continue': reviewContinueHandler,
   'review routes set': reviewRoutesSetHandler,
   'review routes list': reviewRoutesListHandler,
   'review routes reset': reviewRoutesResetHandler,

@@ -392,12 +392,29 @@ Review keeps the existing Claude↔Codex pairing first, then tries OpenCode as a
 second independent runtime before same-agent headless review. OpenCode-authored
 work routes to Claude and then Codex, so OpenCode self-review is never counted
 as independent. If those routes cannot complete, a foreground agent makes one
-best-effort fresh-context host review and then one bounded self-review. Those
-last two routes are useful feedback, not independent evidence; `require` stays
-blocked and no independent stamp is written. Both read the live worktree, so
-their assurance says source integrity was not revalidated. Project-owned Claude
-reviewer assets also support Claude Code Cloud when no external agent CLI is
-available.
+best-effort fresh-context host review and then one bounded self-review. For
+planning reviews, those fallback tiers use the coordinator's immutable packet;
+an admitted approval records the actual reviewer and `reduced independence`
+after stronger routes are exhausted. `require` remains blocked. Other review
+kinds retain their own gate requirements. Project-owned Claude reviewer assets
+also support Claude Code Cloud when no external agent CLI is available.
+Cursor-authored planning work tries Claude and Codex as external reviewers;
+Cursor itself has no headless reviewer route. If those routes fail under
+`prefer`, the Cursor host can review the same sealed packet and record a
+reduced-independence receipt. A current receipt is still required at the phase
+gate. Cursor cannot satisfy `require` until trusted exact author-model metadata
+is available.
+The stock reviewer routes are attempted in their configured order, but an
+unselected runtime-default model cannot earn a qualified cross-agent comparison.
+Projects that select `require` must configure exact reviewer model selectors in
+`crossAgentReviewRoutes` and use a currently qualified author/reviewer pair;
+otherwise the review remains blocked. `prefer` can admit the completed review
+with its actual reviewer and reduced independence.
+The opt-in `architectureReviewGate` separately requires verified independent
+design review before implementation finishes. A reduced planning receipt does
+not clear it. Hosts without trusted exact author-model metadata cannot
+automatically satisfy that claim today; the existing reasoned skip remains an
+auditable escape hatch, without relabeling fallback as independent.
 
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 

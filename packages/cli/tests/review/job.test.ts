@@ -28,7 +28,9 @@ import {
   relayManagedWorkerStderr,
   reviewJobStatus,
   startReviewJob,
+  submitReviewContinuation,
 } from '../../src/review/job.js';
+import { runCli } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
@@ -87,6 +89,32 @@ const REQUEST_CHANGES_WORKER = COMPLETE_WORKER.replace(
   .replace("status: 'approved'", "status: 'changes_requested'")
   .replace("verdict: 'approve'", "verdict: 'request_changes'")
   .replace('findings: []', "findings: [{ severity: 'error', message: 'Unsafe retry' }]");
+
+const CONTINUATION_WORKER = `${COMPLETE_WORKER.slice(0, COMPLETE_WORKER.indexOf('record.result = {'))}
+record.result = {
+  schemaVersion: 1, ok: true, state: 'action_required', changed: false,
+  findings: [{ code: 'REVIEW_CONTINUATION_REQUIRED', message: 'Fresh-context review is next.', severity: 'warning' }],
+  effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
+  errors: [], recovery: [], nextActions: [],
+  data: {
+    command: 'review run', status: 'continuation_required',
+    author_agent: 'claude', review_policy: 'prefer', independence: 'none',
+    continuation: {
+      tier: 'fresh-context',
+      instructions: 'Review only the bounded files in this packet.',
+      packet: {
+        schema_version: 1, dispatch_id: 'fixture-dispatch', kind: record.kind,
+        planning_phase: 'product-plan',
+        logical_files: record.targets.map(path => ({ path, content: readFileSync(path, 'utf8') })),
+      },
+    },
+    review_routes: [
+      { reviewer: 'codex', independence: 'cross-agent', status: 'attempted', failure: 'process_failed' },
+      { reviewer: 'claude', independence: 'degraded', status: 'attempted', failure: 'process_failed' },
+    ],
+  },
+};
+${COMPLETE_WORKER.slice(COMPLETE_WORKER.indexOf('const canonicalProject'))}`;
 
 const APPROVED_RED_ATTESTATION =
   'execution_attestation: { source_fingerprint: record.source_fingerprint, expected_failure: { matched: true }, termination: { exit_code: 1, timed_out: false } }, reviewer_output: {';
@@ -231,6 +259,262 @@ afterEach(() => {
 });
 
 describe('durable review jobs', () => {
+  it('retains a packet-bound host continuation in the authenticated job result', async () => {
+    const cwd = project();
+    writePlanningInventories(cwd);
+    const ticket = '.project/tickets/CON123-host-continuation';
+    mkdirSync(nodePath.join(cwd, ticket), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, ticket, 'ticket.md'),
+      '---\nid: CON123\ntype: feature\nphase: intake\nstatus: in_progress\nproduct_plan_contract: v1\nscope: truthful review\nout_of_scope: unverified independence\ndone_when: host continuation is authenticated\n---\n',
+    );
+    writeFileSync(
+      nodePath.join(cwd, ticket, 'spec.md'),
+      '# Product Plan: Truthful review\n\n<!-- safeword:product-plan-contract:v1 -->\n\n## Product Bet\n\n- **Problem / Why now:** Builders need trustworthy planning review.\n- **Expected outcome:** Only current approval advances.\n- **Success threshold:** Host continuation retains packet identity.\n- **Project non-goals:** Inventing independent assurance.\n- **Persona outcome inventory:** Builder receives approval or refusal.\n- **Known facts:** This fixture has one Builder.\n- **Assumptions:** none\n- **Unresolved product decisions:** none\n\n## Jobs To Be Done\n\n### review.BU1 — Trust review\n\n**Persona:** Builder (BU)\n\n> When I request review, I want current evidence, so I can trust the result.\n\n#### review.BU1.R1 — Preserve review provenance\n\nOnly current review advances.\n\n## Shape\n\n### M1 — Trust review\n\n- **Outcome:** Current review is authenticated.\n- **Non-goals:** Unqualified independence.\n\n## Surfaces\n\nAffected:\n- Safeword CLI\n',
+    );
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, CONTINUATION_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const result = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: [`${ticket}/spec.md`],
+    });
+
+    expect(result.state).toBe('action_required');
+    expect(result.data).toMatchObject({
+      status: 'continuation_required',
+      continuation: {
+        tier: 'fresh-context',
+        packet: {
+          dispatch_id: 'fixture-dispatch',
+          planning_phase: 'product-plan',
+          logical_files: [{ path: `${ticket}/spec.md` }],
+        },
+      },
+    });
+    expect(reviewJobStatus(cwd, (result.data as { review_id: string }).review_id).data).toEqual(
+      result.data,
+    );
+    const id = (result.data as { review_id: string }).review_id;
+    const specPath = nodePath.join(cwd, ticket, 'spec.md');
+    const original = readFileSync(specPath, 'utf8');
+    writeFileSync(specPath, `${original}\n## Changed decision\n\nA new boundary.\n`);
+    expect(reviewJobStatus(cwd, id).findings[0]?.code).toBe('REVIEW_STALE');
+    expect(
+      submitReviewContinuation(
+        cwd,
+        id,
+        'fresh-context',
+        {
+          schema_version: 1,
+          dispatch_id: 'fixture-dispatch',
+          reviewer_agent: 'claude',
+          verdict: 'approve',
+          summary: 'Stale approval',
+          findings: [],
+        },
+        { origin: 'claude' },
+      ).findings[0]?.code,
+    ).toBe('REVIEW_STALE');
+    writeFileSync(specPath, original);
+
+    const recordPath = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
+    const sealedRecord = readFileSync(recordPath, 'utf8');
+    const record = JSON.parse(sealedRecord) as {
+      result: { data: { continuation: { packet: { dispatch_id: string } } } };
+    };
+    record.result.data.continuation.packet.dispatch_id = 'forged-dispatch';
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+    expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+    writeFileSync(recordPath, sealedRecord);
+
+    const baseOutput = {
+      schema_version: 1 as const,
+      dispatch_id: 'fixture-dispatch',
+      reviewer_agent: 'claude' as const,
+      verdict: 'approve' as const,
+      summary: 'The saved product decision is coherent.',
+      findings: [],
+    };
+    const completed = submitReviewContinuation(cwd, id, 'fresh-context', baseOutput, {
+      origin: 'claude',
+    });
+    expect(completed.data).toMatchObject({
+      status: 'approved',
+      independence: 'reduced',
+      actual_reviewer: 'claude',
+      reviewer_output: { dispatch_id: 'fixture-dispatch' },
+    });
+    expect(reviewJobStatus(cwd, id).data).toEqual(completed.data);
+    expect(
+      submitReviewContinuation(
+        cwd,
+        id,
+        'fresh-context',
+        {
+          schema_version: 1,
+          dispatch_id: 'fixture-dispatch',
+          reviewer_agent: 'claude',
+          verdict: 'approve',
+          summary: 'Replay',
+          findings: [],
+        },
+        { origin: 'claude' },
+      ).errors[0]?.code,
+    ).toBe('REVIEW_CONTINUATION_ALREADY_USED');
+
+    const next = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: [`${ticket}/spec.md`],
+    });
+    const nextId = (next.data as { review_id: string }).review_id;
+    const escalated = submitReviewContinuation(
+      cwd,
+      nextId,
+      'fresh-context',
+      {
+        ...baseOutput,
+        dispatch_id: 'wrong-dispatch',
+      },
+      { origin: 'claude' },
+    );
+    expect(escalated.data).toMatchObject({
+      status: 'continuation_required',
+      continuation: { tier: 'self-review', packet: { dispatch_id: 'fixture-dispatch' } },
+    });
+    expect(reviewJobStatus(cwd, nextId).data).toEqual(escalated.data);
+    expect(
+      submitReviewContinuation(cwd, nextId, 'fresh-context', baseOutput, { origin: 'claude' })
+        .errors[0]?.code,
+    ).toBe('REVIEW_CONTINUATION_TIER_INVALID');
+    const final = submitReviewContinuation(
+      cwd,
+      nextId,
+      'self-review',
+      {
+        ...baseOutput,
+        findings: [{ severity: 'error', message: 'Blocking defect' }],
+      },
+      { origin: 'claude' },
+    );
+    expect(final.data).toMatchObject({ status: 'blocked', independence: 'none' });
+    expect(reviewJobStatus(cwd, nextId).data).toEqual(final.data);
+
+    const publicJob = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: [`${ticket}/spec.md`],
+    });
+    const publicId = (publicJob.data as { review_id: string }).review_id;
+    writeFileSync(nodePath.join(cwd, 'host-review.json'), `${JSON.stringify(baseOutput)}\n`);
+    const submitted = await runCli(
+      [
+        'review',
+        'continue',
+        publicId,
+        '--tier',
+        'fresh-context',
+        '--output',
+        'host-review.json',
+        '--offline',
+        '--json',
+        '--no-input',
+        '--cwd',
+        cwd,
+      ],
+      { cwd, env: { SAFEWORD_AGENT_RUNTIME: 'claude' } },
+    );
+    expect(submitted.exitCode).toBe(0);
+    expect(JSON.parse(submitted.stdout)).toMatchObject({
+      effects: { network: [] },
+      data: { status: 'approved', review_id: publicId, independence: 'reduced' },
+    });
+    expect(reviewJobStatus(cwd, publicId).data).toMatchObject({
+      status: 'approved',
+      independence: 'reduced',
+    });
+
+    const unavailableJob = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: [`${ticket}/spec.md`],
+    });
+    const unavailableId = (unavailableJob.data as { review_id: string }).review_id;
+    const unavailable = await runCli(
+      [
+        'review',
+        'continue',
+        unavailableId,
+        '--tier',
+        'fresh-context',
+        '--failure',
+        'unsupported',
+        '--offline',
+        '--json',
+        '--no-input',
+        '--cwd',
+        cwd,
+      ],
+      { cwd, env: { SAFEWORD_AGENT_RUNTIME: 'claude' } },
+    );
+    expect(unavailable.exitCode).toBe(2);
+    expect(JSON.parse(unavailable.stdout)).toMatchObject({
+      state: 'action_required',
+      effects: { network: [] },
+      errors: [],
+      data: {
+        status: 'continuation_required',
+        continuation: { tier: 'self-review' },
+        continuation_attempts: [{ tier: 'fresh-context', failure: 'unsupported' }],
+      },
+    });
+  });
+
+  it('does not admit a host Execution Plan approval with an invalid delivery record', async () => {
+    const cwd = executionPlanProject();
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(
+        cwd,
+        CONTINUATION_WORKER.replace(
+          "planning_phase: 'product-plan'",
+          "planning_phase: 'plan-execution'",
+        ),
+      ),
+    );
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const pending = await startReviewJob({
+      cwd,
+      kind: 'plan-execution',
+      targets: ['execution-plan.md'],
+      context: ['impl-plan.md', 'behavior.feature'],
+    });
+    const id = (pending.data as { review_id: string }).review_id;
+
+    const result = submitReviewContinuation(
+      cwd,
+      id,
+      'fresh-context',
+      {
+        schema_version: 1,
+        dispatch_id: 'fixture-dispatch',
+        reviewer_agent: 'claude',
+        verdict: 'approve',
+        summary: 'Looks complete.',
+        findings: [],
+        planning_destination: 'plan-execution',
+        execution_plan_record: {},
+      },
+      { origin: 'claude' },
+    );
+    expect(result.data).toMatchObject({
+      status: 'continuation_required',
+      independence: 'none',
+      continuation: { tier: 'self-review' },
+    });
+  });
+
   it('contains managed child-stderr errors and removes the scoped listener on close', async () => {
     const stderr = new PassThrough();
     const child = { stderr } as unknown as ChildProcess;

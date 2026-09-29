@@ -433,6 +433,42 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
+  it('rejects a host continuation without an enforced local agent origin', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-output.json'), '{}\n');
+
+    const result = await runCli(
+      [
+        'review',
+        'continue',
+        'not-a-review-id',
+        '--tier',
+        'fresh-context',
+        '--output',
+        'review-output.json',
+        '--offline',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          SAFEWORD_AGENT_RUNTIME: 'unknown',
+          CODEX_THREAD_ID: '',
+          CLAUDE_SESSION_ID: '',
+          CLAUDE_CODE_SESSION_ID: '',
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      errors: [{ code: 'REVIEW_CONTINUATION_ORIGIN_UNVERIFIED' }],
+    });
+  });
+
   it('dispatches delivery compatibility through the real review command', async () => {
     const directory = createTemporaryDirectory();
     const request = nodePath.join(directory, 'compatibility-request.md');

@@ -288,8 +288,8 @@ function fixture(designApprovalGate: boolean, reviewState: ReviewState = 'approv
   writeFileSync(
     ledgerPath,
     `${existingLedger}${[
-      `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
-      `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-11T00:00:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+      `2026-09-11T00:00:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
       '',
     ].join('\n')}`,
   );
@@ -364,8 +364,8 @@ function appendCurrentReview(project: Fixture, plan: string): void {
   writeFileSync(
     project.ledgerPath,
     `${readFileSync(project.ledgerPath, 'utf8')}${[
-      `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
-      `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+      `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
       '',
     ].join('\n')}`,
   );
@@ -464,8 +464,8 @@ function addReviewedTicket(project: Fixture, ticketId: string, suffix: string): 
   writeFileSync(
     project.ledgerPath,
     `${readFileSync(project.ledgerPath, 'utf8')}${[
-      `2026-09-11T00:02:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
-      `2026-09-11T00:02:01.000Z fixture review:${folder}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${reviewId}`,
+      `2026-09-11T00:02:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
+      `2026-09-11T00:02:01.000Z fixture review:${folder}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${reviewId}`,
       '',
     ].join('\n')}`,
   );
@@ -578,7 +578,7 @@ describe('installed CLI human design authority follows configuration', () => {
     const payload = JSON.parse(result.stdout) as { data?: Record<string, unknown> };
     expect(payload.data).toMatchObject({
       approval_status: 'not-required',
-      achieved_independence: 'cross-agent',
+      achieved_independence: 'reduced',
     });
     expect(readFileSync(project.ledgerPath, 'utf8')).toContain('human-approval:not-required');
     expect(approvalEvents(project.ledgerPath)).toEqual([]);
@@ -847,7 +847,7 @@ describe('Implementation Plan review admission controls Execution Planning', () 
     expect(result.exitCode, result.stdout).toBe(0);
     expect(phase(project.ticketPath)).toBe('plan-execution');
     expect(JSON.parse(result.stdout)).toMatchObject({
-      data: { approval_status: 'not-required', achieved_independence: 'cross-agent' },
+      data: { approval_status: 'not-required', achieved_independence: 'reduced' },
     });
     expect(result.stdout).not.toContain('Implementation Plan review is blocked');
   });
@@ -952,8 +952,8 @@ describe('Implementation Plan review admission controls Execution Planning', () 
     writeFileSync(
       project.ledgerPath,
       `${readFileSync(project.ledgerPath, 'utf8')}${[
-        `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${project.reviewId}`,
-        `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:cross-agent review-id:${project.reviewId}`,
+        `2026-09-11T00:01:00.000Z fixture review:${scope} author:codex reviewer:claude independence:reduced review-id:${project.reviewId}`,
+        `2026-09-11T00:01:01.000Z fixture review:${TICKET_FOLDER}:phase@plan-implementation author:codex reviewer:claude independence:reduced review-id:${project.reviewId}`,
         '',
       ].join('\n')}`,
     );
@@ -1003,7 +1003,7 @@ describe('Implementation Plan review admission controls Execution Planning', () 
   it('rejects assurance text that disagrees with the authenticated review', async () => {
     const project = fixture(false);
     rewriteReviewStamps(project, line =>
-      line.replace('independence:cross-agent', 'independence:degraded'),
+      line.replace('independence:reduced', 'independence:degraded'),
     );
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
@@ -1024,9 +1024,12 @@ describe('Implementation Plan review admission controls Execution Planning', () 
       ...data,
       author_agent: 'claude',
       actual_reviewer: 'claude',
+      independence: 'cross-agent',
     }));
     rewriteReviewStamps(project, line =>
-      line.replace('author:codex reviewer:claude', 'author:claude reviewer:claude'),
+      line
+        .replace('author:codex reviewer:claude', 'author:claude reviewer:claude')
+        .replace('independence:reduced', 'independence:cross-agent'),
     );
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {
@@ -1045,7 +1048,7 @@ describe('Implementation Plan review admission controls Execution Planning', () 
     const project = fixture(false);
     mutateReview(project, data => ({ ...data, independence: 'degraded' }));
     rewriteReviewStamps(project, line =>
-      line.replace('independence:cross-agent', 'independence:degraded'),
+      line.replace('independence:reduced', 'independence:degraded'),
     );
 
     const result = await runCli(['--json', '--no-input', 'ticket', 'approve-plan', TICKET_ID], {

@@ -14,11 +14,11 @@ export type ExecutionPlanAdmission =
       readonly kind: 'admitted';
       readonly reviewId: string;
       readonly record: ExecutionPlanRecord;
-      readonly independence: 'cross-agent' | 'degraded';
+      readonly independence: 'cross-agent' | 'reduced' | 'degraded';
       readonly provenance: {
         readonly authorAgent: string;
         readonly reviewerAgent: string;
-        readonly independence: 'cross-agent' | 'degraded';
+        readonly independence: 'cross-agent' | 'reduced' | 'degraded';
       };
     }
   | { readonly kind: 'missing_verdict' }
@@ -64,9 +64,10 @@ function achievedIndependence(
   data: Record<string, unknown>,
   output: Record<string, unknown>,
   stamp: ReturnType<typeof parseReviewStamps>[number],
-): 'cross-agent' | 'degraded' | undefined {
+): 'cross-agent' | 'reduced' | 'degraded' | undefined {
   const independence = data.independence;
-  if (independence !== 'cross-agent' && independence !== 'degraded') return undefined;
+  if (independence !== 'cross-agent' && independence !== 'reduced' && independence !== 'degraded')
+    return undefined;
   if (
     stamp.independence !== independence ||
     stamp.author !== data.author_agent ||

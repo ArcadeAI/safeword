@@ -2,17 +2,17 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { readCrossAgentReviewPolicy } from '../../templates/hooks/lib/review-ledger.js';
-import type { ReviewAgent, ReviewAuthor, ReviewPolicy } from './contract.js';
+import type { ReviewAgent, ReviewAuthor, ReviewPolicy, SupportedReviewAuthor } from './contract.js';
 import { effectiveConfiguredRoutes } from './preferences.js';
 import { MODEL_NAME, type ReviewRoute } from './route-config.js';
 
 export type { ReviewRoute } from './route-config.js';
 
 export interface ReviewRoutePlan {
-  readonly author: ReviewAgent;
+  readonly author: SupportedReviewAuthor;
   readonly preferred: ReviewAgent;
   readonly independentFallback: ReviewAgent;
-  readonly degradedFallback: ReviewAgent;
+  readonly degradedFallback?: ReviewAgent;
 }
 
 export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefined {
@@ -40,6 +40,13 @@ export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefin
       degradedFallback: author,
     };
   }
+  if (author === 'cursor') {
+    return {
+      author,
+      preferred: 'claude',
+      independentFallback: 'codex',
+    };
+  }
   return undefined;
 }
 
@@ -55,7 +62,10 @@ export function readConfiguredReviewRoutes(
   return effectiveConfiguredRoutes(cwd, author)?.routes;
 }
 
-export function builtInReviewRoutes(cwd: string, author: ReviewAuthor): readonly ReviewRoute[] {
+export function builtInReviewRoutes(
+  cwd: string,
+  author: SupportedReviewAuthor,
+): readonly ReviewRoute[] {
   const plan = reviewRoutePlan(author);
   if (plan === undefined) return [];
   const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
@@ -70,7 +80,9 @@ export function builtInReviewRoutes(cwd: string, author: ReviewAuthor): readonly
       ? [{ reviewer: plan.preferred, model: alternateModel, independence: 'cross-agent' as const }]
       : []),
     { reviewer: plan.independentFallback, independence: 'cross-agent' },
-    { reviewer: plan.degradedFallback, independence: 'degraded' },
+    ...(plan.degradedFallback === undefined
+      ? []
+      : [{ reviewer: plan.degradedFallback, independence: 'degraded' as const }]),
   ];
 }
 

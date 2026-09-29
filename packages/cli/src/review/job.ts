@@ -27,14 +27,28 @@ import {
 } from '../execution-plan/review-identity.js';
 import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
 import { retryCommand } from './command.js';
-import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
+import {
+  isReviewKind,
+  type RedExecutionRequest,
+  type ReviewerOutput,
+  type ReviewFailure,
+  type ReviewKind,
+  type ReviewPacket,
+  type SupportedReviewAuthor,
+} from './contract.js';
+import { hostContinuationCompletion } from './coordinator.js';
+import { validateExecutionPlanOutput } from './execution-plan-output.js';
 import { prepareReviewPacket } from './packet.js';
 import {
   createPlanningReviewIdentity,
   productParentContextIdentity,
 } from './planning-context-identity.js';
 import { isPlanningReviewIdentity, type PlanningReviewIdentity } from './planning-role-context.js';
-import { reviewWorkerRunBoundMs } from './runtime.js';
+import {
+  hasValidReviewerOutputBody,
+  reconcilePlanContract,
+  reviewWorkerRunBoundMs,
+} from './runtime.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
 type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
@@ -509,7 +523,29 @@ function isCoherentTerminalResult(candidate: Record<string, unknown>, failed: bo
   return (
     isCliResult(candidate.result) &&
     (candidate.result.state === 'failed') === failed &&
+    hasContinuationJobIdentity(candidate) &&
     typeof candidate.integrity === 'string'
+  );
+}
+
+// eslint-disable-next-line complexity -- Persisted continuation identity must bind the packet to this planning job.
+function hasContinuationJobIdentity(record: Record<string, unknown>): boolean {
+  const result = plainRecord(record.result);
+  const data = plainRecord(result?.data);
+  if (data?.status !== 'continuation_required') return true;
+  const continuation = plainRecord(data.continuation);
+  const packet = plainRecord(continuation?.packet);
+  const logicalFiles = packet?.logical_files;
+  const targets = record.targets;
+  return (
+    packet?.kind === record.kind &&
+    (record.kind === 'scenario-gate' ||
+      record.kind === 'plan-implementation' ||
+      record.kind === 'plan-execution' ||
+      (record.kind === 'quality-review' && packet?.planning_phase === 'product-plan')) &&
+    Array.isArray(targets) &&
+    Array.isArray(logicalFiles) &&
+    JSON.stringify(logicalFiles.map(file => plainRecord(file)?.path)) === JSON.stringify(targets)
   );
 }
 
@@ -563,9 +599,62 @@ function isReviewResultData(value: unknown, state: unknown): boolean {
   if (!['review run', 'review status'].includes(String(data.command))) return false;
   if (typeof data.status !== 'string') return false;
   if (data.command === 'review status') return ['failed', 'stale'].includes(data.status);
+  if (data.status === 'continuation_required') return isContinuationResultData(data, state);
   if (data.status !== 'approved' && data.status !== 'changes_requested')
     return ['blocked', 'existing_route', 'failed', 'stale'].includes(data.status);
   return isCompletedReviewData(data, state);
+}
+
+// eslint-disable-next-line complexity -- Every required field is part of the sealed continuation contract.
+function isContinuationResultData(data: Record<string, unknown>, state: unknown): boolean {
+  const continuation = plainRecord(data.continuation);
+  const packet = plainRecord(continuation?.packet);
+  const files = packet?.logical_files;
+  return (
+    state === 'action_required' &&
+    data.review_policy === 'prefer' &&
+    data.independence === 'none' &&
+    ['claude', 'codex', 'cursor', 'opencode'].includes(String(data.author_agent)) &&
+    ['fresh-context', 'self-review'].includes(String(continuation?.tier)) &&
+    typeof continuation?.instructions === 'string' &&
+    continuation.instructions.length > 0 &&
+    packet?.schema_version === 1 &&
+    typeof packet.dispatch_id === 'string' &&
+    packet.dispatch_id.length > 0 &&
+    Array.isArray(files) &&
+    files.length > 0 &&
+    files.every(
+      file =>
+        typeof plainRecord(file)?.path === 'string' &&
+        typeof plainRecord(file)?.content === 'string',
+    ) &&
+    hasExhaustedRoutesForHostContinuation(data.review_routes)
+  );
+}
+
+function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
+  if (!Array.isArray(value)) return false;
+  const routes = value.map(route => plainRecord(route));
+  const attemptedIndependent = routes.some(
+    route =>
+      route?.independence === 'cross-agent' &&
+      route.status === 'attempted' &&
+      typeof route.failure === 'string',
+  );
+  const exhausted = routes.every(
+    route =>
+      route !== undefined &&
+      route.status !== 'unattempted' &&
+      (route.status === 'skipped' || typeof route.failure === 'string'),
+  );
+  const headlessFailed = routes.some(
+    route =>
+      route?.independence === 'degraded' &&
+      ['attempted', 'unavailable'].includes(String(route.status)) &&
+      typeof route.failure === 'string',
+  );
+  const headlessRoute = routes.some(route => route?.independence === 'degraded');
+  return attemptedIndependent && exhausted && (!headlessRoute || headlessFailed);
 }
 
 function isCompletedReviewData(data: Record<string, unknown>, state: unknown): boolean {
@@ -586,7 +675,7 @@ function hasReviewerIdentity(reviewer: Record<string, unknown>): boolean {
   return (
     typeof reviewer.dispatch_id === 'string' &&
     reviewer.dispatch_id.length > 0 &&
-    ['claude', 'codex', 'opencode'].includes(String(reviewer.reviewer_agent))
+    ['claude', 'codex', 'cursor', 'opencode'].includes(String(reviewer.reviewer_agent))
   );
 }
 
@@ -1171,6 +1260,139 @@ export function completeReviewJob(cwd: string, id: string, result: CliResult): v
   });
 }
 
+function continuationFailure(id: string, code: string, message: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ code, message, retryable: false }],
+    data: { command: 'review status', status: 'failed', review_id: id },
+  });
+}
+
+function failedHostContinuation(
+  record: ReviewJobRecord,
+  tier: 'fresh-context' | 'self-review',
+  failure: ReviewFailure,
+): CliResult {
+  const data = record.result?.data as Record<string, unknown>;
+  const continuation = data.continuation as Record<string, unknown>;
+  const nextTier = tier === 'fresh-context' ? 'self-review' : undefined;
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: nextTier === undefined ? 'REVIEW_ROUTES_EXHAUSTED' : 'REVIEW_SELF_REVIEW_REQUIRED',
+        message:
+          nextTier === undefined
+            ? 'The final host review did not return valid output; this review remains blocked.'
+            : 'The fresh-context review did not return valid output. One self-review of the same sealed packet remains.',
+        severity: 'warning',
+      },
+    ],
+    effects: { ...record.result?.effects, network: [] },
+    data: {
+      ...data,
+      status: nextTier === undefined ? 'blocked' : 'continuation_required',
+      independence: 'none',
+      continuation: { ...continuation, ...(nextTier !== undefined && { tier: nextTier }) },
+      continuation_attempts: [
+        ...((data.continuation_attempts as readonly unknown[] | undefined) ?? []),
+        { tier, failure },
+      ],
+    },
+  });
+}
+
+function validatedHostOutput(
+  value: unknown,
+  kind: ReviewKind,
+  packet: Record<string, unknown>,
+  author: unknown,
+): ReviewerOutput | undefined {
+  if (!hasValidReviewerOutputBody(value, kind)) return undefined;
+  const reviewer = value as ReviewerOutput;
+  if (reviewer.dispatch_id !== packet.dispatch_id || reviewer.reviewer_agent !== author)
+    return undefined;
+  const sealedPacket = packet as unknown as ReviewPacket;
+  if (kind !== 'plan-execution')
+    return reconcilePlanContract(sealedPacket, reviewer) as ReviewerOutput;
+  const validated = validateExecutionPlanOutput(
+    reviewer,
+    sealedPacket.execution_plan_delivery_definition,
+    sealedPacket.execution_plan_normalized_digest,
+  );
+  if (validated.kind === 'invalid_output') return undefined;
+  return reconcilePlanContract(sealedPacket, validated.output) as ReviewerOutput;
+}
+
+/** Atomically consume one authenticated, current host continuation. */
+export function submitReviewContinuation(
+  cwd: string,
+  id: string,
+  tier: 'fresh-context' | 'self-review',
+  output: unknown,
+  options: { readonly origin: SupportedReviewAuthor; readonly failure?: ReviewFailure },
+): CliResult {
+  try {
+    // eslint-disable-next-line complexity -- Each refusal protects a distinct authenticated continuation invariant.
+    return withJobLock(cwd, id, () => {
+      const record = readJob(cwd, id);
+      const pending = record.result;
+      if (pending === undefined) return invalidJobResult(id);
+      const data = plainRecord(pending.data);
+      if (data?.status !== 'continuation_required')
+        return continuationFailure(
+          id,
+          'REVIEW_CONTINUATION_ALREADY_USED',
+          'This review has no pending continuation.',
+        );
+      if (!hasCurrentFingerprint(cwd, record)) return staleResult(record);
+      if (data.author_agent !== options.origin)
+        return continuationFailure(
+          id,
+          'REVIEW_CONTINUATION_ORIGIN_UNVERIFIED',
+          'The current agent origin does not match the review author.',
+        );
+      const continuation = plainRecord(data.continuation);
+      const packet = plainRecord(continuation?.packet);
+      if (continuation?.tier !== tier || packet === undefined)
+        return continuationFailure(
+          id,
+          'REVIEW_CONTINUATION_TIER_INVALID',
+          'This continuation tier is not pending.',
+        );
+      const validated =
+        options.failure === undefined
+          ? validatedHostOutput(output, record.kind, packet, data.author_agent)
+          : undefined;
+      if (validated === undefined) {
+        const result = failedHostContinuation(record, tier, options.failure ?? 'invalid_output');
+        const updated = writeJob(cwd, {
+          ...record,
+          result,
+          updated_at: new Date().toISOString(),
+        });
+        return withReviewProvenance(updated, result);
+      }
+      const result = hostContinuationCompletion({
+        pending,
+        output: validated,
+        tier,
+        cwd,
+        kind: record.kind,
+        targets: record.targets,
+      });
+      const completed = writeJob(cwd, {
+        ...record,
+        result,
+        updated_at: new Date().toISOString(),
+      });
+      return withReviewProvenance(completed, result);
+    });
+  } catch {
+    return invalidJobResult(id);
+  }
+}
+
 export function reviewJobWorkerInput(
   cwd: string,
   id: string,
@@ -1395,7 +1617,7 @@ function hasIndependentApproval(data: Record<string, unknown> | undefined): bool
     data?.status === 'approved',
     data?.independence === 'cross-agent',
     typeof data?.author_agent === 'string',
-    ['claude', 'codex', 'opencode'].includes(actualReviewer as string),
+    ['claude', 'codex', 'cursor', 'opencode'].includes(actualReviewer as string),
     data?.author_agent !== actualReviewer,
     reviewerOutput?.reviewer_agent === actualReviewer,
   ].every(Boolean);

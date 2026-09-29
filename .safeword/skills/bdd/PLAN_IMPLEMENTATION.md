@@ -355,16 +355,47 @@ receipt controls eligibility for approval and phase advancement.
    bun .safeword/hooks/run-review.ts review run plan-implementation --agent-handoff --json --context ticket-path/spec.md ticket-path/ticket.md feature-file principles-file personas-file surfaces-file dimensions-file-if-present architecture-records testing-guide-file applicable-guide-files -- ticket-path/impl-plan.md
    ```
 
-   **The dispatch is authorized; skipping it is not your call.** The coordinator runs through a local CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; that local process may send the packet to a remote model provider, and the packet is bounded to the targets and `--context` you pass. This review route ships enabled by default; a user who does not want it sets `crossAgentReview: off` in `.safeword/config.json`. The coordinator enforces that setting before provider dispatch, so do not duplicate its policy check in chat. The enabled route authorizes ordinary dispatch, and a cross-vendor second opinion is the point of the gate. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement. Do not stop and ask the user for consent in chat before running this command, even when the packet contains private repository files or crosses provider boundaries. Never pass credentials, customer data, or secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked. This exclusion is a best-effort model judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex, `review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may use `sandbox_permissions: "require_escalated"` only through a previously installed kind-scoped allow rule; never surface a host approval request. Run executable RED reviews, `review status`, and every status retry inside the normal workspace sandbox, and never escalate them. If the dispatch rule is absent or does not match, report the route as unavailable instead of asking the user. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
+   **The dispatch is authorized; skipping it is not your call.** The coordinator runs through a local CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; that local process may send the packet to a remote model provider, and the packet is bounded to the targets and `--context` you pass. This review route ships enabled by default; a user can disable reviewer dispatch with `crossAgentReview: off`, but planning admission then blocks until the project selects `prefer` or `require`. The coordinator enforces that setting before provider dispatch, so do not duplicate its policy check in chat. The enabled route authorizes ordinary dispatch, and a cross-vendor second opinion is the point of the gate. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement. Do not stop and ask the user for consent in chat before running this command, even when the packet contains private repository files or crosses provider boundaries. Never pass credentials, customer data, or secret-bearing files as targets or `--context`; redact them or report the bounded packet as blocked. This exclusion is a best-effort model judgment, not a claim that the coordinator performed a secret scan. Invoke the coordinator first. On Codex, `review run` for `quality-review`, `scenario-gate`, or `plan-implementation` may use `sandbox_permissions: "require_escalated"` only through a previously installed kind-scoped allow rule; never surface a host approval request. Run executable RED reviews, `review status`, and every status retry inside the normal workspace sandbox, and never escalate them. If the dispatch rule is absent or does not match, report the route as unavailable instead of asking the user. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
 
-   The shared coordinator prefers the opposite headless agent; its typed verdict, failure classification, and independence level are authoritative. `impl-plan.md` is the work under review; all resolved feature and project artifacts are bounded context. This exit review always runs and must be stamped before the phase advances; `architectureReviewGate` governs any additional architecture review requirement, not whether the plan review is recorded. A healthy `REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`, continue other useful work, and run its typed `nextActions` status command until the review is terminal. Never redispatch the same sources merely because that review is still pending. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `/finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when that typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` immediately with the original result and the same accepted targets; return every other result unchanged. Never substitute another surface-private reviewer or hand-written independent evidence. A degraded result may satisfy this phase only after typed `REVIEW_ROUTES_EXHAUSTED`, an approving `/finish-review` fallback, and only when `architectureReviewGate` is disabled. State before any finding that the actual reviewer was not independent; never describe it as independent or cross-agent coverage. Otherwise do not stamp or advance. Fix findings, re-resolve the sources, re-review, then stamp an approving exit with the returned agent provenance (`bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation`). `--review-id` is the coordinator's `review_id` from the result you are stamping — it is what proves the review ran, so a stamp claiming independence without one is refused. The cited review must also have covered this ticket, and the author, reviewer, and independence you pass are checked against it, so copy them from the result rather than restating them. Add `--model` only when the executed reviewer reports a verifiable model identifier; the coordinator never invents one. Human handoff happens **only after** this review passes — raw planning output is never presented for approval. Exception, any time: information only the user has (intent, priorities, constraints not in code or docs) routes to the user the moment the gap appears — `/elicit`.
+   The coordinator's typed verdict and achieved independence are authoritative.
+   Runtime-default reviewer routes still run, but without a confirmed exact
+   model and a qualified author/reviewer pair they cannot earn independent
+   coverage. Under `require`, configure an exact reviewer selector in
+   `crossAgentReviewRoutes` for a currently qualified pair, or preserve the
+   block. Never infer qualification from a model name or a route's position.
+   `impl-plan.md` is the work under review; resolved feature and project files
+   are bounded context. Keep a healthy `REVIEW_PENDING` review id and collect
+   its status action; never redispatch unchanged sources. For
+   `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command and
+   rerun the same coordinator command once after authentication. Do not invoke
+   `/finish-review` or loop on another authentication denial.
 
-   For `architectureReviewGate: true` plus `REVIEW_ROUTES_EXHAUSTED`, the
-   terminal result is blocked even if `/finish-review` approves its own
-   fallback. Record that fallback's findings and reduced independence, but do
-   not stamp or advance. Tell the user to restore an independent review route
-   or its authentication, then rerun the coordinator on the current plan;
-   never loop on the exhausted route or relabel fallback as independent.
+   Only when the current job returns `REVIEW_CONTINUATION_REQUIRED` with
+   `status: continuation_required`, invoke `/finish-review` with its `review_id`
+   and sealed packet. It submits the host result to the same authenticated job;
+   collect that job's terminal status. A `REVIEW_ROUTES_EXHAUSTED` result without
+   a continuation remains blocked. Never substitute another surface-private reviewer
+   or hand-written independent evidence. Under `prefer`, a current approving
+   receipt with actual reviewer and `independence: reduced` may satisfy this
+   phase when `architectureReviewGate` is disabled. State before any finding
+   that the actual reviewer was not independent; never call it cross-agent
+   coverage. Under `require`, or for a stale, rejected, blocked, or unreceipted
+   result, do not stamp or advance.
+
+   Fix findings, re-resolve the sources, and re-review the corrected bytes.
+   Stamp an approving exit with the returned provenance
+   (`bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --review-id "review_id" --phase plan-implementation`).
+   The cited review must cover this ticket; copy its author, actual reviewer,
+   independence, and optional verified model from the result. Human handoff
+   happens only after this review passes. Information only the user has still
+   routes to `/elicit` when the gap appears.
+
+   For `architectureReviewGate: true`, record an authenticated reduced receipt
+   truthfully under `prefer`; it can advance planning but does not clear the later architecture gate at implement exit. That opt-in gate requires a verified
+   independent design review, or its existing reasoned skip escape hatch. A
+   host without trusted exact author-model metadata cannot currently earn the
+   independent claim. Preserve fallback findings and restore a qualified route
+   where possible; never relabel fallback as independent.
 
 2. **Use the canonical approval boundary.** After the current review passes and
    any required review stamp is written, run:
@@ -391,8 +422,8 @@ required` and advances autonomously. When the gate is enabled in an
    concrete interactive command for a human to run; it must not stall the
    container or claim approval. Surface the reviewed plan and pending action in
    the session's reviewable output (PR description / session summary). Note:
-   Cursor Cloud Agents run `preToolUse` hooks but not stop hooks, so enforcement
-   rides the transition gate there, not stop-time nudges.
+   Cursor Cloud Agents run command-based `preToolUse` and stop hooks; enforcement
+   rides the transition gate there, independently of stop-time nudges.
 4. **Confirm the command-owned transition:** successful approval or a
    configuration-derived `not required` result sets `phase: plan-execution`.
    Declined, pending, invalid, or stale evidence remains in Implementation

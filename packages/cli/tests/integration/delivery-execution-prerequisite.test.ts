@@ -302,7 +302,7 @@ async function admitThroughInstalledCli(
     const id = (JSON.parse(reviewed.stdout) as { data: { review_id: string } }).data.review_id;
     expect(id).toBeTypeOf('string');
     stamps.push(
-      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:cross-agent review-id:${id}`,
+      `2026-09-13T00:00:00.000Z fixture review:ABC123-feature:phase@${reviewKind} author:codex reviewer:claude independence:reduced review-id:${id}`,
     );
   }
   writeFileSync(nodePath.join(root, '.project', 'skill-invocations.log'), `${stamps.join('\n')}\n`);
