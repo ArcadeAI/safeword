@@ -712,6 +712,25 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command('review continue', 'Complete a sealed planning review continuation', 'mutate', {
+    syntax: 'continue <review-id>',
+    commandOptions: [
+      { flags: '--tier <tier>', description: 'Pending fresh-context or self-review tier' },
+      { flags: '--output <path>', description: 'JSON reviewer result for the sealed packet' },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'continue',
+        'missing-review',
+        '--tier',
+        'fresh-context',
+        '--output',
+        'missing.json',
+      ],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
   command('review gate executable-red', 'Check whether a scenario may claim GREEN', 'observe', {
     syntax: 'executable-red',
     commandOptions: [

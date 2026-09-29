@@ -627,7 +627,7 @@ function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewKind)
   );
 }
 
-function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): boolean {
+export function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): boolean {
   if (!isRecord(value)) return false;
   const allowedOutputKeys = reviewerOutputKeys(kind);
   if (

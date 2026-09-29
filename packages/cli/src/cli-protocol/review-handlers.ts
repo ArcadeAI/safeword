@@ -7,9 +7,10 @@
  * behind dynamic imports.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { retryCommand } from '../review/command.js';
 import type {
   RedEvidenceClass,
@@ -18,6 +19,7 @@ import type {
   ReviewKind,
 } from '../review/contract.js';
 import type { PlanningContextError, PlanningContractCopyError } from '../review/packet.js';
+import { reviewRoutePlan } from '../review/policy.js';
 import { ReviewConfigReadError, ReviewUserConfigPathError } from '../review/preferences.js';
 import { ReviewRouteConfigError } from '../review/route-config.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
@@ -637,6 +639,55 @@ export async function reviewStatusHandler(invocation: CommandInvocation): Promis
   const id = typeof invocation.operands[0] === 'string' ? invocation.operands[0] : undefined;
   const { reviewJobStatus } = await import('../review/job.js');
   return reviewJobStatus(invocation.cwd, id);
+}
+
+// eslint-disable-next-line complexity -- All local origin, argument, and file checks guard a receipt mutation.
+export async function reviewContinueHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const origin = reviewRoutePlan(resolveRunIdentity({}, { env: process.env }).runtime)?.author;
+  if (origin === undefined)
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_CONTINUATION_ORIGIN_UNVERIFIED',
+          message: 'A supported local agent origin is required to continue this review.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'review continue' },
+    });
+  const id = invocation.operands[0];
+  const tier = invocation.options.tier;
+  const outputPath = invocation.options.output;
+  if (
+    typeof id !== 'string' ||
+    (tier !== 'fresh-context' && tier !== 'self-review') ||
+    typeof outputPath !== 'string' ||
+    outputPath.trim() === ''
+  )
+    return invalidOperand(
+      'review continue',
+      'Provide a review id, --tier fresh-context|self-review, and --output <json-file>.',
+    );
+  let output: unknown;
+  try {
+    const path = nodePath.resolve(invocation.cwd, outputPath);
+    const file = statSync(path);
+    if (!file.isFile() || file.size > 1024 * 1024) throw new Error('invalid output file');
+    const body = readFileSync(path, 'utf8');
+    try {
+      output = JSON.parse(body) as unknown;
+    } catch {
+      output = undefined;
+    }
+  } catch {
+    return invalidOperand(
+      'review continue',
+      'The reviewer output must be a readable JSON file under 1 MiB.',
+    );
+  }
+  const { submitReviewContinuation } = await import('../review/job.js');
+  return submitReviewContinuation(invocation.cwd, id, tier, output, origin);
 }
 
 export async function reviewCancelHandler(invocation: CommandInvocation): Promise<CliResult> {

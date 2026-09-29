@@ -27,14 +27,21 @@ import {
 } from '../execution-plan/review-identity.js';
 import { computeSkipMask, parseHeading } from '../utils/markdown-sections.js';
 import { retryCommand } from './command.js';
-import { isReviewKind, type RedExecutionRequest, type ReviewKind } from './contract.js';
+import {
+  isReviewKind,
+  type RedExecutionRequest,
+  type ReviewAgent,
+  type ReviewerOutput,
+  type ReviewKind,
+} from './contract.js';
+import { hostContinuationCompletion } from './coordinator.js';
 import { prepareReviewPacket } from './packet.js';
 import {
   createPlanningReviewIdentity,
   productParentContextIdentity,
 } from './planning-context-identity.js';
 import { isPlanningReviewIdentity, type PlanningReviewIdentity } from './planning-role-context.js';
-import { reviewWorkerRunBoundMs } from './runtime.js';
+import { hasValidReviewerOutputBody, reviewWorkerRunBoundMs } from './runtime.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
 type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
@@ -601,7 +608,7 @@ function isContinuationResultData(data: Record<string, unknown>, state: unknown)
     data.review_policy === 'prefer' &&
     data.independence === 'none' &&
     ['claude', 'codex', 'opencode'].includes(String(data.author_agent)) &&
-    continuation?.tier === 'fresh-context' &&
+    ['fresh-context', 'self-review'].includes(String(continuation?.tier)) &&
     packet?.schema_version === 1 &&
     typeof packet.dispatch_id === 'string' &&
     packet.dispatch_id.length > 0 &&
@@ -1241,6 +1248,117 @@ export function completeReviewJob(cwd: string, id: string, result: CliResult): v
     };
     writeJob(cwd, completed);
   });
+}
+
+function continuationFailure(id: string, code: string, message: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ code, message, retryable: false }],
+    data: { command: 'review status', status: 'failed', review_id: id },
+  });
+}
+
+function failedHostContinuation(
+  record: ReviewJobRecord,
+  tier: 'fresh-context' | 'self-review',
+): CliResult {
+  const data = record.result?.data as Record<string, unknown>;
+  const continuation = data.continuation as Record<string, unknown>;
+  const nextTier = tier === 'fresh-context' ? 'self-review' : undefined;
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: nextTier === undefined ? 'REVIEW_ROUTES_EXHAUSTED' : 'REVIEW_SELF_REVIEW_REQUIRED',
+        message:
+          nextTier === undefined
+            ? 'The final host review did not return valid output; this review remains blocked.'
+            : 'The fresh-context review did not return valid output. One self-review of the same sealed packet remains.',
+        severity: 'warning',
+      },
+    ],
+    effects: record.result?.effects,
+    data: {
+      ...data,
+      status: nextTier === undefined ? 'blocked' : 'continuation_required',
+      independence: 'none',
+      continuation: { ...continuation, ...(nextTier !== undefined && { tier: nextTier }) },
+      continuation_attempts: [
+        ...((data.continuation_attempts as readonly unknown[] | undefined) ?? []),
+        { tier, failure: 'invalid_output' },
+      ],
+    },
+  });
+}
+
+/** Atomically consume one authenticated, current host continuation. */
+export function submitReviewContinuation(
+  cwd: string,
+  id: string,
+  tier: 'fresh-context' | 'self-review',
+  output: unknown,
+  origin: ReviewAgent,
+): CliResult {
+  try {
+    // eslint-disable-next-line complexity -- Each refusal protects a distinct authenticated continuation invariant.
+    return withJobLock(cwd, id, () => {
+      const record = readJob(cwd, id);
+      const pending = record.result;
+      if (pending === undefined) return invalidJobResult(id);
+      const data = plainRecord(pending.data);
+      if (data?.status !== 'continuation_required')
+        return continuationFailure(
+          id,
+          'REVIEW_CONTINUATION_ALREADY_USED',
+          'This review has no pending continuation.',
+        );
+      if (!hasCurrentFingerprint(cwd, record)) return staleResult(record);
+      if (data.author_agent !== origin)
+        return continuationFailure(
+          id,
+          'REVIEW_CONTINUATION_ORIGIN_UNVERIFIED',
+          'The current agent origin does not match the review author.',
+        );
+      const continuation = plainRecord(data.continuation);
+      const packet = plainRecord(continuation?.packet);
+      if (continuation?.tier !== tier || packet === undefined)
+        return continuationFailure(
+          id,
+          'REVIEW_CONTINUATION_TIER_INVALID',
+          'This continuation tier is not pending.',
+        );
+      const reviewer = plainRecord(output);
+      if (
+        !hasValidReviewerOutputBody(output, record.kind) ||
+        reviewer?.dispatch_id !== packet.dispatch_id ||
+        reviewer?.reviewer_agent !== data.author_agent
+      ) {
+        const result = failedHostContinuation(record, tier);
+        const updated = writeJob(cwd, {
+          ...record,
+          result,
+          updated_at: new Date().toISOString(),
+        });
+        return withReviewProvenance(updated, result);
+      }
+      const result = hostContinuationCompletion({
+        pending,
+        output: output as ReviewerOutput,
+        tier,
+        cwd,
+        kind: record.kind,
+        targets: record.targets,
+      });
+      const completed = writeJob(cwd, {
+        ...record,
+        result,
+        updated_at: new Date().toISOString(),
+      });
+      return withReviewProvenance(completed, result);
+    });
+  } catch {
+    return invalidJobResult(id);
+  }
 }
 
 export function reviewJobWorkerInput(

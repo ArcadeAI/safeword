@@ -28,7 +28,9 @@ import {
   relayManagedWorkerStderr,
   reviewJobStatus,
   startReviewJob,
+  submitReviewContinuation,
 } from '../../src/review/job.js';
+import { runCli } from '../helpers.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
@@ -297,15 +299,136 @@ describe('durable review jobs', () => {
     const original = readFileSync(specPath, 'utf8');
     writeFileSync(specPath, `${original}\n## Changed decision\n\nA new boundary.\n`);
     expect(reviewJobStatus(cwd, id).findings[0]?.code).toBe('REVIEW_STALE');
+    expect(
+      submitReviewContinuation(
+        cwd,
+        id,
+        'fresh-context',
+        {
+          schema_version: 1,
+          dispatch_id: 'fixture-dispatch',
+          reviewer_agent: 'claude',
+          verdict: 'approve',
+          summary: 'Stale approval',
+          findings: [],
+        },
+        'claude',
+      ).findings[0]?.code,
+    ).toBe('REVIEW_STALE');
     writeFileSync(specPath, original);
 
     const recordPath = nodePath.join(cwd, '.safeword/state/reviews', `${id}.json`);
-    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
+    const sealedRecord = readFileSync(recordPath, 'utf8');
+    const record = JSON.parse(sealedRecord) as {
       result: { data: { continuation: { packet: { dispatch_id: string } } } };
     };
     record.result.data.continuation.packet.dispatch_id = 'forged-dispatch';
     writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
     expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+    writeFileSync(recordPath, sealedRecord);
+
+    const baseOutput = {
+      schema_version: 1 as const,
+      dispatch_id: 'fixture-dispatch',
+      reviewer_agent: 'claude' as const,
+      verdict: 'approve' as const,
+      summary: 'The saved product decision is coherent.',
+      findings: [],
+    };
+    const completed = submitReviewContinuation(cwd, id, 'fresh-context', baseOutput, 'claude');
+    expect(completed.data).toMatchObject({
+      status: 'approved',
+      independence: 'reduced',
+      actual_reviewer: 'claude',
+      reviewer_output: { dispatch_id: 'fixture-dispatch' },
+    });
+    expect(reviewJobStatus(cwd, id).data).toEqual(completed.data);
+    expect(
+      submitReviewContinuation(
+        cwd,
+        id,
+        'fresh-context',
+        {
+          schema_version: 1,
+          dispatch_id: 'fixture-dispatch',
+          reviewer_agent: 'claude',
+          verdict: 'approve',
+          summary: 'Replay',
+          findings: [],
+        },
+        'claude',
+      ).errors[0]?.code,
+    ).toBe('REVIEW_CONTINUATION_ALREADY_USED');
+
+    const next = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: [`${ticket}/spec.md`],
+    });
+    const nextId = (next.data as { review_id: string }).review_id;
+    const escalated = submitReviewContinuation(
+      cwd,
+      nextId,
+      'fresh-context',
+      {
+        ...baseOutput,
+        dispatch_id: 'wrong-dispatch',
+      },
+      'claude',
+    );
+    expect(escalated.data).toMatchObject({
+      status: 'continuation_required',
+      continuation: { tier: 'self-review', packet: { dispatch_id: 'fixture-dispatch' } },
+    });
+    expect(reviewJobStatus(cwd, nextId).data).toEqual(escalated.data);
+    expect(
+      submitReviewContinuation(cwd, nextId, 'fresh-context', baseOutput, 'claude').errors[0]?.code,
+    ).toBe('REVIEW_CONTINUATION_TIER_INVALID');
+    const final = submitReviewContinuation(
+      cwd,
+      nextId,
+      'self-review',
+      {
+        ...baseOutput,
+        findings: [{ severity: 'error', message: 'Blocking defect' }],
+      },
+      'claude',
+    );
+    expect(final.data).toMatchObject({ status: 'blocked', independence: 'none' });
+    expect(reviewJobStatus(cwd, nextId).data).toEqual(final.data);
+
+    const publicJob = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: [`${ticket}/spec.md`],
+    });
+    const publicId = (publicJob.data as { review_id: string }).review_id;
+    writeFileSync(nodePath.join(cwd, 'host-review.json'), `${JSON.stringify(baseOutput)}\n`);
+    const submitted = await runCli(
+      [
+        'review',
+        'continue',
+        publicId,
+        '--tier',
+        'fresh-context',
+        '--output',
+        'host-review.json',
+        '--offline',
+        '--json',
+        '--no-input',
+        '--cwd',
+        cwd,
+      ],
+      { cwd, env: { SAFEWORD_AGENT_RUNTIME: 'claude' } },
+    );
+    expect(submitted.exitCode).toBe(0);
+    expect(JSON.parse(submitted.stdout)).toMatchObject({
+      data: { status: 'approved', review_id: publicId, independence: 'reduced' },
+    });
+    expect(reviewJobStatus(cwd, publicId).data).toMatchObject({
+      status: 'approved',
+      independence: 'reduced',
+    });
   });
 
   it('contains managed child-stderr errors and removes the scoped listener on close', async () => {

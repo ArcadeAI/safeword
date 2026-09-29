@@ -288,6 +288,46 @@ function reviewerFeedback(output: ReviewerOutput): readonly Finding[] {
   ];
 }
 
+/** Convert a job-bound same-agent host review into an honestly reduced receipt. */
+export function hostContinuationCompletion(input: {
+  readonly pending: CliResult;
+  readonly output: ReviewerOutput;
+  readonly tier: 'fresh-context' | 'self-review';
+  readonly cwd: string;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+}): CliResult {
+  const data = input.pending.data as Record<string, unknown>;
+  return createResult({
+    state: input.output.verdict === 'approve' ? 'healthy' : 'action_required',
+    findings: [
+      {
+        code: 'REVIEW_INDEPENDENCE_REDUCED',
+        message:
+          input.tier === 'fresh-context'
+            ? 'A fresh context of the author agent reviewed the sealed packet; independence is reduced.'
+            : 'The author agent reviewed the sealed packet in its own context; independence is reduced.',
+        severity: 'warning',
+      },
+      ...reviewerFeedback(input.output),
+    ],
+    effects: input.pending.effects,
+    recovery: planExecutionRecovery({
+      cwd: input.cwd,
+      kind: input.kind,
+      targets: input.targets,
+      output: input.output,
+    }),
+    data: {
+      ...data,
+      status: input.output.verdict === 'approve' ? 'approved' : 'changes_requested',
+      actual_reviewer: input.output.reviewer_agent,
+      independence: 'reduced',
+      reviewer_output: input.output,
+    },
+  });
+}
+
 const MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000;
 
 function terminalSafeReviewerText(value: string): string {
