@@ -700,9 +700,52 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
       expect(runBoundRetro(root, binding, runner)).toMatchObject({
         complete: false,
-        failure: 'unknown',
+        failure: 'growth',
       });
       expect(runs).toBe(3);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('previews persistent transcript growth as distinct from extraction or filing failure', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-growth-preview-'));
+    const id = 'codex-growth-preview';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const binding = {
+        runtime: 'codex' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        const text = `new turn ${runs}`;
+        writeFileSync(transcript, `${JSON.stringify({ role: 'user', text })}\n`, {
+          flag: 'a',
+        });
+        return completedRetroResult();
+      };
+
+      const retro = runBoundRetro(root, binding, runner);
+      const plan = buildCleanupPlan(safeObservation({ retro }));
+
+      expect(runs).toBe(3);
+      expect(retro).toMatchObject({ complete: false, failure: 'growth', pendingDrafts: 0 });
+      expect(plan.advisories).toContain(
+        'the session transcript changed during retrospective extraction; retry preview',
+      );
+      expect(plan.advisories).not.toContain(
+        'retrospective extraction failed; resolve the extraction failure',
+      );
+      expect(plan.advisories).not.toContain(
+        'retrospective filing failed; resolve the filing failure',
+      );
+      expect(plan.blockers).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -783,6 +826,15 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
           transcript,
           `${[
             JSON.stringify({ type: 'event_msg', payload: { type: 'token_count' } }),
+            JSON.stringify({ type: 'token_usage_record', payload: { total_tokens: 100 } }),
+            JSON.stringify({
+              type: 'event_msg',
+              payload: {
+                type: 'item_completed',
+                turn_id: turnId,
+                item: { type: 'Reasoning' },
+              },
+            }),
             JSON.stringify({
               type: 'response_item',
               payload: {
@@ -824,6 +876,58 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
       expect(runBoundRetro(root, binding, runner).complete).toBe(true);
       expect(runs).toBe(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('re-extracts a reasoning completion from another Codex turn', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-other-reasoning-'));
+    const id = 'codex-other-reasoning';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(
+        transcript,
+        `${[
+          JSON.stringify({ type: 'session_meta', payload: { id, cwd: root } }),
+          JSON.stringify({
+            type: 'response_item',
+            payload: {
+              type: 'reasoning',
+              internal_chat_message_metadata_passthrough: { turn_id: 'closeout-turn' },
+            },
+          }),
+        ].join('\n')}\n`,
+      );
+      const binding = {
+        runtime: 'codex' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        if (runs === 1) {
+          writeFileSync(
+            transcript,
+            `${JSON.stringify({
+              type: 'event_msg',
+              payload: {
+                type: 'item_completed',
+                turn_id: 'later-turn',
+                item: { type: 'Reasoning' },
+              },
+            })}\n`,
+            { flag: 'a' },
+          );
+        }
+        return completedRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(2);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -1770,6 +1874,11 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'retrospective filing failed; resolve the filing failure',
     ],
     [
+      'transcript growth during retro',
+      { retro: { ...safeObservation().retro, complete: false, failure: 'growth' } },
+      'the session transcript changed during retrospective extraction; retry preview',
+    ],
+    [
       'pending drafts',
       { retro: { ...safeObservation().retro, pendingDrafts: 2 } },
       'the current session filing spool has pending drafts',
@@ -1901,12 +2010,15 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
           ...preview.retro,
           complete: false,
           evidenceHash: 'retro-appended-not-reviewed',
+          failure: 'growth',
         },
       }),
     );
 
     expect(refreshed.blockers).toEqual([]);
-    expect(refreshed.advisories).toContain('the current session retrospective is incomplete');
+    expect(refreshed.advisories).toContain(
+      'the session transcript changed during retrospective extraction; retry preview',
+    );
     expect(cleanupPlanDigest(refreshed)).toBe(cleanupPlanDigest(plan));
   });
 
