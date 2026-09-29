@@ -626,7 +626,9 @@ Then(
 
 Then('dispatch is blocked with reconciliation named', function (this: SafewordWorld) {
   const state = current(this);
-  assert.equal(state.packet, undefined);
+  assert.equal(state.packet, undefined, 'Stale planning override produced a review packet');
+  assert.equal((state.failure as { code?: string })?.code, 'missing_planning_context');
+  assert.equal((state.failure as { contextRole?: string })?.contextRole, 'principles');
   assert.match(String(state.failure), /reconcil/iu);
   assert.match(String(state.failure), /paths\.principles/u);
 });
