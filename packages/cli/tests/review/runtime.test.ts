@@ -809,6 +809,74 @@ esac
     },
   );
 
+  it.skipIf(process.platform === 'win32')(
+    'confirms a Codex planning model only through an app-server turn',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'codex');
+      const codexOutput = { ...output, reviewer_agent: 'codex' };
+      writeFileSync(
+        executable,
+        `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('codex 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? '--stdio --config' : ${JSON.stringify(REVIEWER_CAPABILITIES.codex)}); process.exit(0); }\nif (!process.argv.includes('app-server')) process.exit(7);\nlet buffer = '';\nprocess.stdin.setEncoding('utf8');\nprocess.stdin.on('data', chunk => { buffer += chunk; let index; while ((index = buffer.indexOf('\\n')) !== -1) { const line = buffer.slice(0, index); buffer = buffer.slice(index + 1); const message = JSON.parse(line); if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} })); if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } })); if (message.id === 3) { console.log(JSON.stringify({ id: 3, result: { turn: { id: 'turn-1' } } })); console.log(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed', items: [{ type: 'agentMessage', phase: 'final_answer', text: JSON.stringify(${JSON.stringify(codexOutput)}) }] } } })); } } });\n`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewerWithProvenance(
+          'codex',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'scenario-gate',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+          { model: 'gpt-6-astra' },
+        ),
+      ).resolves.toMatchObject({
+        output: { dispatch_id: 'dispatch-1', verdict: 'approve' },
+        confirmedModel: { provider: 'openai', model: 'gpt-6-astra' },
+      });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'reports a rejected Codex turn without waiting for the review deadline',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'codex');
+      writeFileSync(
+        executable,
+        `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('codex 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(process.argv.includes('app-server') ? '--stdio --config' : ${JSON.stringify(REVIEWER_CAPABILITIES.codex)}); process.exit(0); }\nlet buffer = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { buffer += chunk; let index; while ((index = buffer.indexOf('\\n')) !== -1) { const line = buffer.slice(0, index); buffer = buffer.slice(index + 1); const message = JSON.parse(line); if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} })); if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } })); if (message.id === 3) console.log(JSON.stringify({ id: 3, error: { code: -32000, message: 'turn rejected' } })); } });\n`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewerWithProvenance(
+          'codex',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'scenario-gate',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+          { model: 'gpt-6-astra', runDeadline: Date.now() + 3000 },
+        ),
+      ).rejects.toMatchObject({ failure: 'process_failed' });
+    },
+  );
+
   it.skipIf(process.platform === 'win32').each([
     {
       name: 'unsupported capabilities',

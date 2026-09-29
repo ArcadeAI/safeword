@@ -52254,6 +52254,69 @@ var init_packet = __esm(() => {
   };
 });
 
+// src/review/codex-app-server-proof.ts
+function record(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function unique(messages3, predicate) {
+  const matches = messages3.filter((message) => record(message) && predicate(message));
+  return matches.length === 1 ? matches[0] : undefined;
+}
+function startedTurn(messages3) {
+  const start = unique(messages3, (message) => message.id === 2);
+  const turnStart = unique(messages3, (message) => message.id === 3);
+  if (!record(start?.result) || !record(start.result.thread) || !record(turnStart?.result))
+    return;
+  const threadId = start.result.thread.id;
+  const turn = turnStart.result.turn;
+  if (typeof threadId !== "string" || !record(turn) || typeof turn.id !== "string")
+    return;
+  return { threadId, turnId: turn.id, start: start.result };
+}
+function completedTurn(messages3, threadId, turnId) {
+  const completed = unique(messages3, (message) => message.method === "turn/completed" && record(message.params) && message.params.threadId === threadId && record(message.params.turn) && message.params.turn.id === turnId);
+  if (!record(completed?.params) || !record(completed.params.turn))
+    return;
+  const finishedTurn = completed.params.turn;
+  if (finishedTurn.status !== "completed" || !Array.isArray(finishedTurn.items))
+    return;
+  return finishedTurn;
+}
+function finalAnswer(turn) {
+  if (!Array.isArray(turn.items))
+    return;
+  const answers = turn.items.filter((item) => record(item) && item.type === "agentMessage" && item.phase === "final_answer" && typeof item.text === "string");
+  if (answers.length !== 1 || typeof answers[0]?.text !== "string")
+    return;
+  return answers[0].text;
+}
+function wasRerouted(messages3, threadId, turnId) {
+  return messages3.some((message) => record(message) && message.method === "model/rerouted" && record(message.params) && message.params.threadId === threadId && message.params.turnId === turnId);
+}
+function confirmedModel(start, selectedModel) {
+  const model = start.model;
+  const provider = start.modelProvider;
+  if (typeof model !== "string" || model === "" || typeof provider !== "string" || provider === "" || selectedModel !== undefined && selectedModel !== model)
+    return;
+  return { provider, model };
+}
+function codexAppServerProof(messages3, selectedModel) {
+  const started = startedTurn(messages3);
+  if (started === undefined)
+    return;
+  const completed = completedTurn(messages3, started.threadId, started.turnId);
+  if (completed === undefined)
+    return;
+  const text = finalAnswer(completed);
+  if (text === undefined)
+    return;
+  const model = wasRerouted(messages3, started.threadId, started.turnId) ? undefined : confirmedModel(started.start, selectedModel);
+  return {
+    text,
+    ...model && { confirmedModel: model }
+  };
+}
+
 // src/review/environment.ts
 function filteredEnvironment(reviewer, source = process.env, platform2 = process.platform) {
   const normalize = (name) => platform2 === "win32" ? name.toUpperCase() : name;
@@ -52445,9 +52508,9 @@ function decisionTripwireFinding(value, index) {
   const name = isNonblank(value.decision) ? value.decision : `decision ${index + 1}`;
   return `Execution Plan decision "${name}" has status "${value.status}" instead of unchanged.`;
 }
-function readableTripwireFindings(record) {
-  const sliceFindings = Array.isArray(record.slices) ? record.slices.map((slice, index) => successorTripwireFinding(slice, index)).filter((finding) => finding !== undefined) : [];
-  const decisionFindings = Array.isArray(record.decision_statuses) ? record.decision_statuses.map((decision, index) => decisionTripwireFinding(decision, index)).filter((finding) => finding !== undefined) : [];
+function readableTripwireFindings(record2) {
+  const sliceFindings = Array.isArray(record2.slices) ? record2.slices.map((slice, index) => successorTripwireFinding(slice, index)).filter((finding) => finding !== undefined) : [];
+  const decisionFindings = Array.isArray(record2.decision_statuses) ? record2.decision_statuses.map((decision, index) => decisionTripwireFinding(decision, index)).filter((finding) => finding !== undefined) : [];
   return [...sliceFindings, ...decisionFindings];
 }
 function isValidSlice(value) {
@@ -52578,9 +52641,9 @@ function hasValidDeliveryDefinition(definition) {
   }
   return hasUniqueDefinitionIds(definition) && hasEveryDefinitionCategory(definition) && contributorProofsAreReal(definition);
 }
-function hasValidSliceGraph(record) {
-  const slices = record.slices;
-  const countMatchesDecision = record.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
+function hasValidSliceGraph(record2) {
+  const slices = record2.slices;
+  const countMatchesDecision = record2.slicing_decision === "one_pull_request" ? slices.length === 1 : slices.length >= 2;
   const sliceNames = slices.map((slice) => slice.name);
   const namesAreUnique = new Set(sliceNames).size === sliceNames.length;
   const prerequisitesAreEarlier = slices.every((slice, index) => {
@@ -52601,22 +52664,22 @@ function isValidObligationOwner(value, sliceNames, seen) {
   seen.add(value.obligation);
   return true;
 }
-function hasValidObligationOwners(record) {
-  if (record.obligation_owners.length === 0)
+function hasValidObligationOwners(record2) {
+  if (record2.obligation_owners.length === 0)
     return false;
-  const sliceNames = record.slices.map((slice) => slice.name);
+  const sliceNames = record2.slices.map((slice) => slice.name);
   const seen = new Set;
-  const valid = record.obligation_owners.every((owner) => isValidObligationOwner(owner, sliceNames, seen));
+  const valid = record2.obligation_owners.every((owner) => isValidObligationOwner(owner, sliceNames, seen));
   if (!valid)
     return false;
-  const owned = new Set(record.obligation_owners.flatMap((owner) => owner.slices));
+  const owned = new Set(record2.obligation_owners.flatMap((owner) => owner.slices));
   return sliceNames.every((slice) => owned.has(slice));
 }
-function hasValidDecisionStatuses(record) {
-  if (record.decision_statuses.length === 0)
+function hasValidDecisionStatuses(record2) {
+  if (record2.decision_statuses.length === 0)
     return false;
   const seen = new Set;
-  return record.decision_statuses.every((decision) => {
+  return record2.decision_statuses.every((decision) => {
     if (!isRecord7(decision) || !hasExactKeys3(decision, ["decision", "status"]))
       return false;
     if (!isNonblank(decision.decision) || seen.has(decision.decision))
@@ -52630,8 +52693,8 @@ function hasValidDecisionStatuses(record) {
 function isValidExecutionPlanRecord(value) {
   if (!isRecord7(value) || !hasValidRecordHeader(value))
     return false;
-  const record = value;
-  return hasValidSliceGraph(record) && hasValidObligationOwners(record) && hasValidDecisionStatuses(record) && hasValidDeliveryDefinition(record.delivery_definition);
+  const record2 = value;
+  return hasValidSliceGraph(record2) && hasValidObligationOwners(record2) && hasValidDecisionStatuses(record2) && hasValidDeliveryDefinition(record2.delivery_definition);
 }
 function hasValidPlanningDestination(output) {
   const destination = output.planning_destination;
@@ -52682,6 +52745,7 @@ import {
   realpathSync as realpathSync8,
   renameSync as renameSync7,
   rmSync as rmSync8,
+  symlinkSync,
   writeFileSync as writeFileSync13
 } from "fs";
 import { homedir as homedir5, tmpdir as tmpdir4 } from "os";
@@ -52704,6 +52768,10 @@ function baseReviewerArguments(reviewer, kind) {
     return base;
   const schemaIndex = base.indexOf("--json-schema") + 1;
   base[schemaIndex] = reviewOutputSchema(kind);
+  if (["scenario-gate", "plan-implementation", "plan-execution"].includes(kind)) {
+    base[base.indexOf("--output-format") + 1] = "stream-json";
+    base.push("--verbose");
+  }
   return base;
 }
 function reviewerExtraArguments(reviewer, model, schemaPath, environment) {
@@ -52759,7 +52827,12 @@ function parseJson(value) {
   return JSON.parse(value);
 }
 function parseClaudeOutput(stdout) {
-  const envelope = parseJson(stdout);
+  let envelope;
+  try {
+    envelope = parseJson(stdout);
+  } catch {
+    envelope = ndjsonEvents(stdout).findLast((event) => isRecord8(event) && event.type === "result" && event.subtype === "success");
+  }
   if (isRecord8(envelope) && isRecord8(envelope.structured_output)) {
     return envelope.structured_output;
   }
@@ -52840,6 +52913,25 @@ function parseReviewerOutput(reviewer, stdout, kind = "quality-review") {
   if (!hasValidReviewerOutputBody(output, kind))
     throw new Error("invalid reviewer output");
   return output;
+}
+function confirmedClaudeAssistantModel(stdout) {
+  const events = ndjsonEvents(stdout);
+  const result = events.findLast((event) => isRecord8(event) && event.type === "result" && event.subtype === "success");
+  const models = new Set(events.flatMap((event) => isRecord8(event) && event.type === "assistant" && isRecord8(event.message) && typeof event.message.model === "string" ? [event.message.model] : []));
+  if (models.size !== 1 || !isRecord8(result) || !isRecord8(result.modelUsage))
+    return;
+  const model = [...models][0];
+  if (model === undefined)
+    return;
+  const usage = result.modelUsage[model];
+  if (!isRecord8(usage) || usage.provider !== "firstParty" || usage.canonicalModel !== model)
+    return;
+  return { provider: "anthropic", model };
+}
+function parseReviewerExecution(reviewer, stdout, kind = "quality-review") {
+  const output = parseReviewerOutput(reviewer, stdout, kind);
+  const confirmedModel2 = reviewer === "claude" ? confirmedClaudeAssistantModel(stdout) : undefined;
+  return confirmedModel2 === undefined ? { output } : { output, confirmedModel: confirmedModel2 };
 }
 function reviewPrompt(reviewer, packet) {
   return `${reviewerPromptInstructions(packet.kind, reviewer, packet.planning_phase)}
@@ -53141,7 +53233,9 @@ async function inspectReviewRoute(reviewer, model, cwd, timeoutMs = 5000, skipCa
       inspectionUnavailable = true;
       break;
     }
-    const capability = await supportsReviewContract(reviewer, candidate, tmpdir4(), remaining, model);
+    const capability = await supportsReviewContract(reviewer, candidate, tmpdir4(), remaining, {
+      model
+    });
     if (capability.kind === "failed") {
       inspectionUnavailable ||= capability.failure !== "unsupported";
       continue;
@@ -53157,8 +53251,8 @@ async function inspectReviewRoute(reviewer, model, cwd, timeoutMs = 5000, skipCa
     catalogue: "unavailable"
   };
 }
-async function supportsReviewContract(reviewer, executable, cwd, timeoutMs, model) {
-  const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
+async function supportsReviewContract(reviewer, executable, cwd, timeoutMs, options) {
+  const child = spawn(executable, options.arguments ?? HELP_ARGUMENTS[reviewer], {
     cwd,
     env: reviewerProbeEnvironment(),
     stdio: ["ignore", "pipe", "pipe"],
@@ -53198,7 +53292,7 @@ async function supportsReviewContract(reviewer, executable, cwd, timeoutMs, mode
       const advertisedFlags = new Set;
       for (const match of help.matchAll(/--[\w-]+/gu))
         advertisedFlags.add(match[0]);
-      const requiredCapabilities = model === undefined ? REQUIRED_CAPABILITIES[reviewer] : [...REQUIRED_CAPABILITIES[reviewer], "--model"];
+      const requiredCapabilities = options.required ?? (options.model === undefined ? REQUIRED_CAPABILITIES[reviewer] : [...REQUIRED_CAPABILITIES[reviewer], "--model"]);
       finish(requiredCapabilities.every((flag) => advertisedFlags.has(flag)) ? { kind: "supported" } : { kind: "failed", failure: "unsupported" });
     });
   });
@@ -53356,7 +53450,189 @@ async function stopReviewerOnce(child) {
   }
   return groupIsStopped();
 }
+function isolatedCodexHome() {
+  const path7 = mkdtempSync6(nodePath52.join(tmpdir4(), "safeword-codex-review-"));
+  chmodSync3(path7, 448);
+  const source = nodePath52.join(process.env.CODEX_HOME ?? nodePath52.join(homedir5(), ".codex"), "auth.json");
+  try {
+    accessSync2(source, constants4.R_OK);
+    symlinkSync(source, nodePath52.join(path7, "auth.json"));
+  } catch {}
+  return {
+    path: path7,
+    cleanup: () => {
+      rmSync8(path7, { recursive: true, force: true });
+    }
+  };
+}
+function codexAppServerReviewOutput(packet, text, confirmedModel2) {
+  const event = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text } });
+  const output = parseReviewerOutput("codex", event, packet.kind);
+  if (packet.kind !== "plan-execution")
+    return { output, confirmedModel: confirmedModel2 };
+  const validation = validateExecutionPlanOutput(output, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
+  if (validation.kind === "invalid_output")
+    throw new Error("invalid reviewer output");
+  return { output: validation.output, confirmedModel: confirmedModel2 };
+}
+function installReviewerTerminationHandler(child) {
+  const terminateReviewer = () => {
+    stopReviewer(child).finally(() => process.exit(143));
+  };
+  process.once("SIGTERM", terminateReviewer);
+  return () => process.off("SIGTERM", terminateReviewer);
+}
+async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
+  const isolatedHome = isolatedCodexHome();
+  const child = spawn(executable, ["app-server", "--stdio", "--config", "mcp_servers={}"], {
+    cwd: attempt.cwd,
+    env: { ...reviewerEnvironment("codex"), CODEX_HOME: isolatedHome.path },
+    stdio: ["pipe", "pipe", "pipe"],
+    detached: process.platform !== "win32"
+  });
+  const removeTerminationHandler = installReviewerTerminationHandler(child);
+  try {
+    const execution = await new Promise((resolve, reject) => {
+      const messages3 = [];
+      let pending = "";
+      let stdout = "";
+      let stderr = "";
+      let stdoutBytes = 0;
+      let stderrBytes = 0;
+      let settled = false;
+      const settle = (finish) => {
+        if (settled)
+          return;
+        settled = true;
+        clearTimeout(timeout);
+        finish();
+      };
+      const send = (message) => {
+        child.stdin.write(`${JSON.stringify(message)}
+`);
+      };
+      const timeout = setTimeout(() => {
+        settle(() => {
+          reject(new ReviewRuntimeError("timed_out", "codex review timed out"));
+        });
+      }, timeoutMs);
+      const startTurn = (result) => {
+        if (!isRecord8(result) || !isRecord8(result.thread))
+          throw new Error("thread start failed");
+        send({
+          id: 3,
+          method: "turn/start",
+          params: {
+            threadId: result.thread.id,
+            input: [{ type: "text", text: reviewPrompt("codex", attempt.packet) }],
+            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind))
+          }
+        });
+      };
+      const handle = (message) => {
+        if (!isRecord8(message))
+          return;
+        messages3.push(message);
+        if (message.id === 1) {
+          if (message.error !== undefined)
+            throw new Error("initialize failed");
+          send({ method: "initialized" });
+          send({
+            id: 2,
+            method: "thread/start",
+            params: {
+              cwd: attempt.cwd,
+              ephemeral: true,
+              sandbox: "read-only",
+              approvalPolicy: "never",
+              ...attempt.model !== undefined && { model: attempt.model }
+            }
+          });
+        } else if (message.id === 2) {
+          startTurn(message.result);
+        } else if (message.id === 3 && message.error !== undefined) {
+          throw new ReviewRuntimeError("process_failed", "codex turn was rejected");
+        } else if (message.method === "turn/completed") {
+          const proof = codexAppServerProof(messages3, attempt.model);
+          if (proof === undefined)
+            return;
+          const parsed2 = codexAppServerReviewOutput(attempt.packet, proof.text, proof.confirmedModel);
+          settle(() => {
+            resolve(parsed2);
+          });
+        }
+      };
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (chunk) => {
+        const appended = appendBounded(stdout, stdoutBytes, chunk);
+        stdout = appended.value;
+        stdoutBytes = appended.bytes;
+        if (appended.overflow) {
+          settle(() => {
+            reject(new ReviewRuntimeError("invalid_output", "codex output exceeded limit"));
+          });
+          return;
+        }
+        pending += chunk;
+        let newline;
+        while ((newline = pending.indexOf(`
+`)) !== -1 && !settled) {
+          const line = pending.slice(0, newline);
+          pending = pending.slice(newline + 1);
+          try {
+            handle(JSON.parse(line));
+          } catch (error2) {
+            settle(() => {
+              reject(error2 instanceof ReviewRuntimeError ? error2 : new ReviewRuntimeError("invalid_output", "codex protocol failed"));
+            });
+          }
+        }
+      });
+      child.stderr.on("data", (chunk) => {
+        const appended = appendBounded(stderr, stderrBytes, chunk);
+        stderr = appended.value;
+        stderrBytes = appended.bytes;
+      });
+      child.stdin.on("error", () => {});
+      child.on("error", (error2) => {
+        settle(() => {
+          reject(new ReviewRuntimeError("process_failed", error2.message));
+        });
+      });
+      child.on("close", () => {
+        settle(() => {
+          reject(new ReviewRuntimeError(classifyExit(stdout, stderr, "unsupported"), "codex app-server did not complete the review"));
+        });
+      });
+      send({
+        id: 1,
+        method: "initialize",
+        params: { clientInfo: { name: "safeword", version: "1" } }
+      });
+    });
+    await stopReviewerOrThrow(child, "codex", false);
+    return { ...execution, output: reconcilePlanContract(attempt.packet, execution.output) };
+  } catch (error2) {
+    await stopReviewerOrThrow(child, "codex");
+    throw error2;
+  } finally {
+    removeTerminationHandler();
+    isolatedHome.cleanup();
+  }
+}
 async function runCandidate(executable, attempt, timeoutMs) {
+  if (attempt.reviewer === "codex" && ["scenario-gate", "plan-implementation", "plan-execution"].includes(attempt.packet.kind)) {
+    const appServer = await supportsReviewContract("codex", executable, attempt.cwd, Math.min(5000, timeoutMs), { arguments: ["app-server", "--help"], required: ["--stdio", "--config"] });
+    if (appServer.kind === "supported") {
+      try {
+        return await runCodexAppServerCandidate(executable, attempt, timeoutMs);
+      } catch (error2) {
+        if (!(error2 instanceof ReviewRuntimeError) || error2.failure !== "unsupported")
+          throw error2;
+      }
+    }
+  }
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
   const child = spawn(executable, reviewerArguments(reviewer, model, schemaPath, process.env, packet.kind), {
     cwd,
@@ -53364,14 +53640,11 @@ async function runCandidate(executable, attempt, timeoutMs) {
     stdio: ["pipe", "pipe", "pipe"],
     detached: process.platform !== "win32"
   });
-  const terminateReviewer = () => {
-    stopReviewer(child).finally(() => process.exit(143));
-  };
-  process.once("SIGTERM", terminateReviewer);
+  const removeTerminationHandler = installReviewerTerminationHandler(child);
   try {
-    let output;
+    let execution;
     try {
-      output = await new Promise((resolve, reject) => {
+      execution = await new Promise((resolve, reject) => {
         let overflow = false;
         let settled = false;
         const settle = (finish) => {
@@ -53427,15 +53700,15 @@ async function runCandidate(executable, attempt, timeoutMs) {
               return;
             }
             try {
-              const parsed2 = parseReviewerOutput(reviewer, stdout, packet.kind);
+              const parsed2 = parseReviewerExecution(reviewer, stdout, packet.kind);
               if (packet.kind !== "plan-execution") {
                 resolve(parsed2);
                 return;
               }
-              const validation = validateExecutionPlanOutput(parsed2, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
+              const validation = validateExecutionPlanOutput(parsed2.output, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
               if (validation.kind === "invalid_output")
                 throw new Error("invalid reviewer output");
-              resolve(validation.output);
+              resolve({ ...parsed2, output: validation.output });
             } catch {
               reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
             }
@@ -53448,9 +53721,9 @@ async function runCandidate(executable, attempt, timeoutMs) {
       throw error2;
     }
     await stopReviewerOrThrow(child, reviewer, false);
-    return reconcilePlanContract(packet, output);
+    return { ...execution, output: reconcilePlanContract(packet, execution.output) };
   } finally {
-    process.off("SIGTERM", terminateReviewer);
+    removeTerminationHandler();
   }
 }
 async function runReviewerCandidates(attempt, candidates, deadline) {
@@ -53463,7 +53736,9 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
     const untried = candidates.length - index;
     const candidateDeadline = Date.now() + remainingMs / untried;
     const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
-    const assessment = await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, attempt.model);
+    const assessment = await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, {
+      model: attempt.model
+    });
     if (assessment.kind === "failed") {
       lastProbeFailure = new ReviewRuntimeError(assessment.failure, `${reviewer} capability probe failed: ${assessment.failure}`);
       continue;
@@ -53486,7 +53761,7 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
   }
   throw lastFailure ?? new ReviewRuntimeError("process_failed", `${reviewer} review failed`);
 }
-async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = process.cwd(), options = {}) {
+async function runHeadlessReviewerWithProvenance(reviewer, packet, cwd, untrustedRoot = process.cwd(), options = {}) {
   const { model, runDeadline } = options;
   const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
@@ -53886,26 +54161,26 @@ function decodeIntegrityKey(value) {
     throw new Error("invalid review integrity key");
   return Buffer.from(encoded, "hex");
 }
-function unsignedRecord(record) {
-  const { integrity: _integrity, ...unsigned } = record;
+function unsignedRecord(record2) {
+  const { integrity: _integrity, ...unsigned } = record2;
   return unsigned;
 }
-function recordIntegrity(cwd, record) {
-  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync9.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record))).digest("hex");
+function recordIntegrity(cwd, record2) {
+  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync9.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
 }
-function hasValidIntegrity(cwd, record) {
-  if (record.integrity === undefined || !/^[a-f\d]{64}$/u.test(record.integrity))
+function hasValidIntegrity(cwd, record2) {
+  if (record2.integrity === undefined || !/^[a-f\d]{64}$/u.test(record2.integrity))
     return false;
   try {
-    const actual = Buffer.from(record.integrity, "hex");
-    const expected = Buffer.from(recordIntegrity(cwd, record), "hex");
+    const actual = Buffer.from(record2.integrity, "hex");
+    const expected = Buffer.from(recordIntegrity(cwd, record2), "hex");
     return timingSafeEqual(actual, expected);
   } catch {
     return false;
   }
 }
-function withRecordIntegrity(cwd, record) {
-  const unsigned = { ...record, integrity: undefined };
+function withRecordIntegrity(cwd, record2) {
+  const unsigned = { ...record2, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
 function ledgerFingerprintContext(cwd, targets, context, execution) {
@@ -54023,8 +54298,8 @@ function pathEscapes(root, candidate) {
   const relative = nodePath53.relative(root, candidate);
   return relative === ".." || relative.startsWith(`..${nodePath53.sep}`) || nodePath53.isAbsolute(relative);
 }
-function writeJob(cwd, record) {
-  const secured = withRecordIntegrity(cwd, record);
+function writeJob(cwd, record2) {
+  const secured = withRecordIntegrity(cwd, record2);
   if (!isReviewJobRecord(secured))
     throw new Error("invalid review job record");
   const directory = jobsDirectory(cwd);
@@ -54236,7 +54511,7 @@ function authenticatedReviewReceiptData(cwd, id2) {
     review_targets: receipt.targets
   };
 }
-function pendingResult(record) {
+function pendingResult(record2) {
   return createResult({
     state: "action_required",
     findings: [
@@ -54248,7 +54523,7 @@ function pendingResult(record) {
     ],
     nextActions: [
       {
-        command: reviewStatusCommand(record.id),
+        command: reviewStatusCommand(record2.id),
         mutates: false,
         requiresHuman: false
       }
@@ -54256,8 +54531,8 @@ function pendingResult(record) {
     data: {
       command: "review run",
       status: "pending",
-      review_id: record.id,
-      started_at: record.started_at
+      review_id: record2.id,
+      started_at: record2.started_at
     }
   });
 }
@@ -54269,7 +54544,7 @@ function shellQuote4(value) {
 function reviewStatusCommand(id2) {
   return `${shellQuote4(process.execPath)} ${shellQuote4(cliEntrypoint())} review status ${id2}`;
 }
-function staleResult(record) {
+function staleResult(record2) {
   return createResult({
     state: "action_required",
     findings: [
@@ -54281,7 +54556,7 @@ function staleResult(record) {
     ],
     nextActions: [
       {
-        command: retryCommand(record.kind, record.targets, record.context, record.execution),
+        command: retryCommand(record2.kind, record2.targets, record2.context, record2.execution),
         mutates: true,
         requiresHuman: false
       }
@@ -54289,40 +54564,40 @@ function staleResult(record) {
     data: {
       command: "review status",
       status: "stale",
-      review_id: record.id,
-      ...record.review_identity !== undefined && { review_identity: record.review_identity }
+      review_id: record2.id,
+      ...record2.review_identity !== undefined && { review_identity: record2.review_identity }
     }
   });
 }
-function currentResult(cwd, record) {
-  if (isActiveJobPastDeadline(record))
-    return failTimedOutJob(cwd, record);
-  if (record.state === "launching") {
-    if (record.pid !== undefined && processExists(record.pid))
-      return pendingResult(record);
-    return failExitedJob(cwd, record);
+function currentResult(cwd, record2) {
+  if (isActiveJobPastDeadline(record2))
+    return failTimedOutJob(cwd, record2);
+  if (record2.state === "launching") {
+    if (record2.pid !== undefined && processExists(record2.pid))
+      return pendingResult(record2);
+    return failExitedJob(cwd, record2);
   }
-  if (record.state === "running") {
-    if (workerDefinitelyMismatches(record)) {
-      return failExitedJob(cwd, record);
+  if (record2.state === "running") {
+    if (workerDefinitelyMismatches(record2)) {
+      return failExitedJob(cwd, record2);
     }
-    return pendingResult(record);
+    return pendingResult(record2);
   }
-  return terminalResult(cwd, record);
+  return terminalResult(cwd, record2);
 }
-function isActiveJobPastDeadline(record) {
-  if (record.state !== "launching" && record.state !== "running")
+function isActiveJobPastDeadline(record2) {
+  if (record2.state !== "launching" && record2.state !== "running")
     return false;
-  const deadline = record.deadline_at === undefined ? NaN : Date.parse(record.deadline_at);
+  const deadline = record2.deadline_at === undefined ? NaN : Date.parse(record2.deadline_at);
   return Number.isFinite(deadline) && Date.now() >= deadline;
 }
-function failActiveJob(cwd, record, error2) {
+function failActiveJob(cwd, record2, error2) {
   const failed = createResult({
     state: "failed",
     errors: [{ code: error2.code, message: error2.message, retryable: true }],
-    data: { command: "review status", status: "failed", review_id: record.id }
+    data: { command: "review status", status: "failed", review_id: record2.id }
   });
-  const latest = updateActiveJob(cwd, record.id, (current) => ({
+  const latest = updateActiveJob(cwd, record2.id, (current) => ({
     ...current,
     state: "failed",
     result: failed,
@@ -54330,59 +54605,59 @@ function failActiveJob(cwd, record, error2) {
   }));
   return latest.state === "failed" && latest.result === failed ? failed : terminalResult(cwd, latest);
 }
-function failTimedOutJob(cwd, record) {
-  if (record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === "match") {
-    terminateReviewWorker(record.pid);
+function failTimedOutJob(cwd, record2) {
+  if (record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "match") {
+    terminateReviewWorker(record2.pid);
   }
-  return failActiveJob(cwd, record, {
+  return failActiveJob(cwd, record2, {
     code: "REVIEW_WORKER_TIMED_OUT",
     message: "The background review worker exceeded its deadline before recording a result."
   });
 }
-function failExitedJob(cwd, record) {
-  return failActiveJob(cwd, record, {
+function failExitedJob(cwd, record2) {
+  return failActiveJob(cwd, record2, {
     code: "REVIEW_WORKER_EXITED",
     message: "The background review worker exited before recording a result."
   });
 }
-function terminalResult(cwd, record) {
-  if (!hasValidIntegrity(cwd, record))
-    return invalidJobResult(record.id);
-  if (record.state === "canceled") {
+function terminalResult(cwd, record2) {
+  if (!hasValidIntegrity(cwd, record2))
+    return invalidJobResult(record2.id);
+  if (record2.state === "canceled") {
     return createResult({
       state: "action_required",
       findings: [
         { code: "REVIEW_CANCELED", message: "The review was canceled.", severity: "warning" }
       ],
-      data: { command: "review status", status: "canceled", review_id: record.id }
+      data: { command: "review status", status: "canceled", review_id: record2.id }
     });
   }
   try {
-    if (fingerprint(cwd, record.kind, record.targets, record.context, record.execution) !== record.source_fingerprint)
-      return staleResult(record);
+    if (fingerprint(cwd, record2.kind, record2.targets, record2.context, record2.execution) !== record2.source_fingerprint)
+      return staleResult(record2);
   } catch {
-    return staleResult(record);
+    return staleResult(record2);
   }
-  if (record.result !== undefined)
-    return withReviewProvenance(record, record.result);
+  if (record2.result !== undefined)
+    return withReviewProvenance(record2, record2.result);
   return createResult({
     state: "failed",
     errors: [
       { code: "REVIEW_JOB_INVALID", message: "The review job has no result.", retryable: true }
     ],
-    data: { command: "review status", status: "failed", review_id: record.id }
+    data: { command: "review status", status: "failed", review_id: record2.id }
   });
 }
-function withReviewProvenance(record, result) {
+function withReviewProvenance(record2, result) {
   const data = typeof result.data === "object" && result.data !== null && !Array.isArray(result.data) ? result.data : {};
   return {
     ...result,
     data: {
       ...data,
-      review_id: record.id,
-      review_kind: record.kind,
-      review_targets: record.targets,
-      ...record.review_identity !== undefined && { review_identity: record.review_identity }
+      review_id: record2.id,
+      review_kind: record2.kind,
+      review_targets: record2.targets,
+      ...record2.review_identity !== undefined && { review_identity: record2.review_identity }
     }
   };
 }
@@ -54506,7 +54781,7 @@ async function startReviewJob(input) {
     if (existing !== undefined)
       return { existing: true, record: existing };
     const now = new Date().toISOString();
-    const record2 = {
+    const record3 = {
       schema_version: 1,
       id: randomUUID10(),
       state: "launching",
@@ -54521,13 +54796,13 @@ async function startReviewJob(input) {
       deadline_at: new Date(Date.now() + reviewWorkerRunBoundMs()).toISOString(),
       pid: process.pid
     };
-    writeJob(input.cwd, record2);
-    return { existing: false, record: record2 };
+    writeJob(input.cwd, record3);
+    return { existing: false, record: record3 };
   });
   if (reserved.existing)
     return currentResult(input.cwd, reserved.record);
-  const record = reserved.record;
-  const id2 = record.id;
+  const record2 = reserved.record;
+  const id2 = record2.id;
   const entrypoint = cliEntrypoint();
   const managedProgress = input.progress?.managed === true;
   const child = launchReviewWorker({
@@ -54577,7 +54852,7 @@ async function startReviewJob(input) {
         data: { command: "review run", status: "failed", review_id: id2 }
       });
       writeJob(input.cwd, {
-        ...record,
+        ...record2,
         state: "failed",
         result: failed,
         updated_at: new Date().toISOString()
@@ -54616,14 +54891,14 @@ async function startReviewJob(input) {
     closeManagedProgress();
   }
 }
-function isActivatedChild(record, pid) {
-  return record.state === "running" && record.pid === pid;
+function isActivatedChild(record2, pid) {
+  return record2.state === "running" && record2.pid === pid;
 }
-function workerDefinitelyMismatches(record) {
-  return record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === "mismatch";
+function workerDefinitelyMismatches(record2) {
+  return record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "mismatch";
 }
-function terminateUnactivatedWorker(record, pid) {
-  if (record.state !== "completed" && record.state !== "failed" && inspectReviewWorker(pid, record.id) === "match")
+function terminateUnactivatedWorker(record2, pid) {
+  if (record2.state !== "completed" && record2.state !== "failed" && inspectReviewWorker(pid, record2.id) === "match")
     terminateReviewWorker(pid);
 }
 function terminateReviewWorker(pid) {
@@ -54641,8 +54916,8 @@ function terminateReviewWorker(pid) {
 }
 function completeReviewJob(cwd, id2, result) {
   withJobLock(cwd, id2, () => {
-    const record = readJob(cwd, id2);
-    if (record.state === "completed") {
+    const record2 = readJob(cwd, id2);
+    if (record2.state === "completed") {
       const invalidated = createResult({
         state: "failed",
         errors: [
@@ -54655,17 +54930,17 @@ function completeReviewJob(cwd, id2, result) {
         data: { command: "review run", status: "failed", review_id: id2 }
       });
       writeJob(cwd, {
-        ...record,
+        ...record2,
         state: "failed",
         result: invalidated,
         updated_at: new Date().toISOString()
       });
       return;
     }
-    if (record.state !== "launching" && record.state !== "running")
+    if (record2.state !== "launching" && record2.state !== "running")
       return;
     const completed = {
-      ...record,
+      ...record2,
       state: result.state === "failed" ? "failed" : "completed",
       result,
       updated_at: new Date().toISOString()
@@ -54674,7 +54949,7 @@ function completeReviewJob(cwd, id2, result) {
   });
 }
 function reviewJobWorkerInput(cwd, id2) {
-  const record = withJobLock(cwd, id2, () => {
+  const record2 = withJobLock(cwd, id2, () => {
     const current = readJob(cwd, id2);
     if (current.state !== "launching" && current.state !== "running")
       throw new Error("review job is not active");
@@ -54688,11 +54963,11 @@ function reviewJobWorkerInput(cwd, id2) {
     return claimed;
   });
   return {
-    kind: record.kind,
-    targets: record.targets,
-    context: record.context ?? [],
-    execution: record.execution,
-    sourceFingerprint: record.source_fingerprint
+    kind: record2.kind,
+    targets: record2.targets,
+    context: record2.context ?? [],
+    execution: record2.execution,
+    sourceFingerprint: record2.source_fingerprint
   };
 }
 function latestJobId(cwd) {
@@ -54729,14 +55004,14 @@ function routeProofFromValue(value, actualReviewer, observedAt) {
     observed_at: observedAt
   };
 }
-function routeProofsFromRecord(record) {
-  const data = record.result?.data;
+function routeProofsFromRecord(record2) {
+  const data = record2.result?.data;
   if (typeof data !== "object" || data === null || Array.isArray(data))
     return [];
   const resultData = data;
   const routes = resultData.review_routes;
   return Array.isArray(routes) ? routes.flatMap((value) => {
-    const proof = routeProofFromValue(value, resultData.actual_reviewer, record.updated_at);
+    const proof = routeProofFromValue(value, resultData.actual_reviewer, record2.updated_at);
     return proof === undefined ? [] : [proof];
   }) : [];
 }
@@ -54760,8 +55035,8 @@ function readReviewRouteProofs(cwd) {
     }
   }).toSorted((left, right) => right.updated_at.localeCompare(left.updated_at));
   const proofs = new Map;
-  for (const record of records) {
-    for (const proof of routeProofsFromRecord(record)) {
+  for (const record2 of records) {
+    for (const proof of routeProofsFromRecord(record2)) {
       const key = `${proof.reviewer}\x00${proof.model ?? "<runtime-default>"}`;
       if (!proofs.has(key))
         proofs.set(key, proof);
@@ -54777,9 +55052,9 @@ function runningJob(cwd, kind, sourceFingerprint) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       continue;
     try {
-      const record = readJob(cwd, name.slice(0, -5));
-      if (isActiveReviewJob(record) && record.kind === kind && record.source_fingerprint === sourceFingerprint) {
-        return record;
+      const record2 = readJob(cwd, name.slice(0, -5));
+      if (isActiveReviewJob(record2) && record2.kind === kind && record2.source_fingerprint === sourceFingerprint) {
+        return record2;
       }
     } catch {}
   }
@@ -54793,9 +55068,9 @@ function reusableApprovedExecutableRedJob(cwd, sourceFingerprint) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       continue;
     try {
-      const record = readJob(cwd, name.slice(0, -5));
-      if (record.kind === "executable-red" && record.source_fingerprint === sourceFingerprint && approvedCrossAgentReceipt(record))
-        return record;
+      const record2 = readJob(cwd, name.slice(0, -5));
+      if (record2.kind === "executable-red" && record2.source_fingerprint === sourceFingerprint && approvedCrossAgentReceipt(record2))
+        return record2;
     } catch {}
   }
   return;
@@ -54815,10 +55090,10 @@ function reusableApprovedCompatibilityJob(cwd, sourceFingerprint) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       continue;
     try {
-      const record = readJob(cwd, name.slice(0, -5));
-      const data = record.result?.data;
-      if (record.kind === "delivery-compatibility" && record.source_fingerprint === sourceFingerprint && record.state === "completed" && hasIndependentApproval(data)) {
-        return record;
+      const record2 = readJob(cwd, name.slice(0, -5));
+      const data = record2.result?.data;
+      if (record2.kind === "delivery-compatibility" && record2.source_fingerprint === sourceFingerprint && record2.state === "completed" && hasIndependentApproval(data)) {
+        return record2;
       }
     } catch {}
   }
@@ -54847,10 +55122,10 @@ function hasFailingExecutionAttestation(attestation, sourceFingerprint) {
     termination?.timed_out === false
   ].every(Boolean);
 }
-function approvedCrossAgentReceipt(record) {
-  const data = record.result?.data;
+function approvedCrossAgentReceipt(record2) {
+  const data = record2.result?.data;
   const attestation = data?.execution_attestation;
-  return record.state === "completed" && (record.pid === undefined || inspectReviewWorker(record.pid, record.id) !== "match") && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record.source_fingerprint);
+  return record2.state === "completed" && (record2.pid === undefined || inspectReviewWorker(record2.pid, record2.id) !== "match") && hasIndependentApproval(data) && hasFailingExecutionAttestation(attestation, record2.source_fingerprint);
 }
 function executableRedJobsForScenario(cwd, scenario, ledger) {
   const directory = jobsDirectory(cwd);
@@ -54860,21 +55135,21 @@ function executableRedJobsForScenario(cwd, scenario, ledger) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       return [];
     try {
-      const record = readJob(cwd, name.slice(0, -5));
-      return record.kind === "executable-red" && record.execution?.scenario === scenario && nodePath53.resolve(cwd, record.execution.ledger) === nodePath53.resolve(cwd, ledger) ? [record] : [];
+      const record2 = readJob(cwd, name.slice(0, -5));
+      return record2.kind === "executable-red" && record2.execution?.scenario === scenario && nodePath53.resolve(cwd, record2.execution.ledger) === nodePath53.resolve(cwd, ledger) ? [record2] : [];
     } catch {
       return [];
     }
   });
 }
-function hasCurrentFingerprint(cwd, record) {
+function hasCurrentFingerprint(cwd, record2) {
   try {
-    return fingerprint(cwd, record.kind, record.targets, record.context, record.execution) === record.source_fingerprint;
+    return fingerprint(cwd, record2.kind, record2.targets, record2.context, record2.execution) === record2.source_fingerprint;
   } catch {
     return false;
   }
 }
-function approvedExecutableRedGateResult(record, scenario, ledger) {
+function approvedExecutableRedGateResult(record2, scenario, ledger) {
   return createResult({
     state: "healthy",
     findings: [
@@ -54887,7 +55162,7 @@ function approvedExecutableRedGateResult(record, scenario, ledger) {
     data: {
       command: "review gate executable-red",
       status: "approved",
-      review_id: record.id,
+      review_id: record2.id,
       scenario,
       ledger
     }
@@ -54895,8 +55170,8 @@ function approvedExecutableRedGateResult(record, scenario, ledger) {
 }
 function executableRedGate(cwd, scenario, ledger) {
   const matching = executableRedJobsForScenario(cwd, scenario, ledger);
-  const current = matching.filter((record) => hasCurrentFingerprint(cwd, record));
-  const approved = current.find((record) => approvedCrossAgentReceipt(record));
+  const current = matching.filter((record2) => hasCurrentFingerprint(cwd, record2));
+  const approved = current.find((record2) => approvedCrossAgentReceipt(record2));
   if (approved !== undefined)
     return approvedExecutableRedGateResult(approved, scenario, ledger);
   let reason = matching.length > 0 ? `The current executable RED review for ${scenario} is not an approved independent receipt.` : `No trusted executable RED receipt matches ${scenario}.`;
@@ -54907,17 +55182,17 @@ function executableRedGate(cwd, scenario, ledger) {
     data: { command: "review gate executable-red", status: "blocked", scenario, ledger }
   });
 }
-function isActiveReviewJob(record) {
-  if (record.pid === undefined)
+function isActiveReviewJob(record2) {
+  if (record2.pid === undefined)
     return false;
-  if (record.state === "launching")
-    return processExists(record.pid);
-  return record.state === "running" && inspectReviewWorker(record.pid, record.id) !== "mismatch";
+  if (record2.state === "launching")
+    return processExists(record2.pid);
+  return record2.state === "running" && inspectReviewWorker(record2.pid, record2.id) !== "mismatch";
 }
 function validatedReviewJobStatus(cwd, id2) {
-  let record;
+  let record2;
   try {
-    record = readJob(cwd, id2);
+    record2 = readJob(cwd, id2);
   } catch {
     const exists3 = isJobId(id2) && existsSync20(jobPath(cwd, id2));
     return createResult({
@@ -54933,7 +55208,7 @@ function validatedReviewJobStatus(cwd, id2) {
     });
   }
   try {
-    const result = currentResult(cwd, record);
+    const result = currentResult(cwd, record2);
     return { ...result, effects: { ...result.effects, network: [] } };
   } catch {
     return createResult({
@@ -54978,14 +55253,14 @@ function cancelReviewJob(cwd, requestedId) {
     if (id2 === undefined)
       return asCancelResult(reviewJobStatus(cwd, id2));
     const canceled = withJobLock(cwd, id2, () => {
-      const record = readJob(cwd, id2);
-      if (record.state !== "launching" && record.state !== "running")
-        return record;
-      if (record.state === "running" && record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === "match") {
-        terminateReviewWorker(record.pid);
+      const record2 = readJob(cwd, id2);
+      if (record2.state !== "launching" && record2.state !== "running")
+        return record2;
+      if (record2.state === "running" && record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "match") {
+        terminateReviewWorker(record2.pid);
       }
       const next = {
-        ...record,
+        ...record2,
         state: "canceled",
         updated_at: new Date().toISOString()
       };
@@ -56599,6 +56874,9 @@ function planExecutionRecovery(input) {
     }
   ];
 }
+function confirmedReviewerData(model) {
+  return model === undefined ? {} : { confirmed_reviewer_model: model };
+}
 function canFundRoute(runDeadline) {
   return runDeadline - Date.now() >= minimumRouteMs();
 }
@@ -56639,6 +56917,7 @@ function independentReviewResult(input) {
       assigned_reviewer: input.reviewer,
       actual_reviewer: input.output.reviewer_agent,
       ...input.model !== undefined && { reviewer_model: input.model },
+      ...confirmedReviewerData(input.confirmedModel),
       ...input.preferredModel !== undefined && { preferred_model: input.preferredModel },
       ...input.preferredModelFailure !== undefined && {
         preferred_model_failure: input.preferredModelFailure
@@ -56700,8 +56979,8 @@ function terminalSafeReviewerText(value) {
 async function executeReview(reviewer, prepared, model, runDeadline) {
   let outcome;
   try {
-    const output = await runHeadlessReviewer(reviewer, prepared.packet, prepared.workspace, prepared.sourceRoot, { model, runDeadline });
-    outcome = { kind: "completed", output };
+    const execution = await runHeadlessReviewerWithProvenance(reviewer, prepared.packet, prepared.workspace, prepared.sourceRoot, { model, runDeadline });
+    outcome = { kind: "completed", ...execution };
   } catch (error2) {
     if (!(error2 instanceof ReviewRuntimeError)) {
       prepared.cleanup();
@@ -56723,7 +57002,7 @@ function assessReviewOutcome(outcome, reviewer, dispatchId) {
   if (outcome.kind === "failed")
     return outcome;
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
-  return provenance.kind === "failed" ? { kind: "failed", failure: provenance.code, terminal: false } : { kind: "completed", output: provenance.output };
+  return provenance.kind === "failed" ? { kind: "failed", failure: provenance.code, terminal: false } : { kind: "completed", output: provenance.output, confirmedModel: outcome.confirmedModel };
 }
 function agentName(agent) {
   if (agent === "codex")
@@ -57107,7 +57386,8 @@ async function runConfiguredRankedRoutes(input, author, policy, routes) {
         context: input.context,
         reviewer: route.reviewer,
         output: assessment.output,
-        model: route.model
+        model: route.model,
+        confirmedModel: assessment.confirmedModel
       });
       return {
         ...result,
@@ -57830,6 +58110,7 @@ async function runReview(input) {
     reviewer,
     output,
     model: completedModel,
+    confirmedModel: outcome.confirmedModel,
     preferredModel,
     preferredModelFailure
   });
@@ -61580,21 +61861,21 @@ function narrativeEvidenceRecord(recordedDecisions) {
   return { present, values };
 }
 function validateNarrativeImplementationEvidence(recordedDecisions, baseline, evaluationDate) {
-  const record = narrativeEvidenceRecord(recordedDecisions);
-  if (!record.present)
+  const record2 = narrativeEvidenceRecord(recordedDecisions);
+  if (!record2.present)
     return;
-  if (record.duplicate) {
-    return evidenceFailure(`Implementation decision evidence repeats the ${record.duplicate}. Keep exactly one value.`);
+  if (record2.duplicate) {
+    return evidenceFailure(`Implementation decision evidence repeats the ${record2.duplicate}. Keep exactly one value.`);
   }
   for (const field of NARRATIVE_EVIDENCE_FIELDS) {
-    if (record.values[field] === undefined) {
+    if (record2.values[field] === undefined) {
       return evidenceFailure(`Implementation decision evidence is missing the ${field}.`);
     }
   }
-  if (!isHttpsUrl(record.values["evidence reference"])) {
+  if (!isHttpsUrl(record2.values["evidence reference"])) {
     return evidenceFailure("Implementation evidence references must be absolute HTTPS URLs.");
   }
-  if (!dateInRange(record.values["retrieval date"], baseline, evaluationDate)) {
+  if (!dateInRange(record2.values["retrieval date"], baseline, evaluationDate)) {
     return evidenceFailure("Implementation evidence retrieval dates must fall between planning and evaluation.");
   }
   return { ok: true, path: "reference" };
@@ -63854,9 +64135,9 @@ function readSmallMetadataFile(path7) {
 function isLeaseRecord(value, expectedPid) {
   if (typeof value !== "object" || value === null || Array.isArray(value))
     return false;
-  const record = value;
-  const hasExactFields = Object.keys(record).length === 2 && Object.hasOwn(record, "pid") && Object.hasOwn(record, "procStart");
-  return hasExactFields && Number.isSafeInteger(record.pid) && record.pid === expectedPid && typeof record.procStart === "string" && record.procStart.length > 0;
+  const record2 = value;
+  const hasExactFields = Object.keys(record2).length === 2 && Object.hasOwn(record2, "pid") && Object.hasOwn(record2, "procStart");
+  return hasExactFields && Number.isSafeInteger(record2.pid) && record2.pid === expectedPid && typeof record2.procStart === "string" && record2.procStart.length > 0;
 }
 function leaseMarkerPid(name) {
   const infix = name.indexOf(LEASE_TEMP_INFIX);
@@ -68931,16 +69212,16 @@ var init_catalogue2 = __esm(() => {
 function exactRecord(value, requiredKeys, optionalKeys = []) {
   if (typeof value !== "object" || value === null || Array.isArray(value))
     return;
-  const record = value;
+  const record2 = value;
   const allowed = new Set([...requiredKeys, ...optionalKeys]);
-  const keys = Object.keys(record);
-  if (requiredKeys.some((key) => !Object.hasOwn(record, key)) || keys.some((key) => !allowed.has(key))) {
+  const keys = Object.keys(record2);
+  if (requiredKeys.some((key) => !Object.hasOwn(record2, key)) || keys.some((key) => !allowed.has(key))) {
     return;
   }
-  return record;
+  return record2;
 }
-function matchesRecord(record, validators) {
-  return record !== undefined && Object.entries(validators).every(([key, validate]) => validate(record[key]));
+function matchesRecord(record2, validators) {
+  return record2 !== undefined && Object.entries(validators).every(([key, validate]) => validate(record2[key]));
 }
 function isSha2563(value) {
   return typeof value === "string" && /^[a-f\d]{64}$/u.test(value);
@@ -68969,12 +69250,12 @@ function isConformanceResult(value) {
 function optional(value, validate) {
   return value === undefined || validate(value);
 }
-function hasValidActivationBindings(record) {
-  const event = record.event;
-  return optional(record.opencode_version, isNonEmptyString) && optional(record.session_id_sha256, isSha2563) && optional(record.call_id_sha256, isSha2563) && (!SESSION_BOUND_EVENTS.has(event) || Boolean(record.session_id_sha256)) && (!CALL_BOUND_EVENTS.has(event) || Boolean(record.call_id_sha256));
+function hasValidActivationBindings(record2) {
+  const event = record2.event;
+  return optional(record2.opencode_version, isNonEmptyString) && optional(record2.session_id_sha256, isSha2563) && optional(record2.call_id_sha256, isSha2563) && (!SESSION_BOUND_EVENTS.has(event) || Boolean(record2.session_id_sha256)) && (!CALL_BOUND_EVENTS.has(event) || Boolean(record2.call_id_sha256));
 }
 function parseOpenCodeActivation(value) {
-  const record = exactRecord(value, [
+  const record2 = exactRecord(value, [
     "schema_version",
     "safeword_version",
     "plugin_sha256",
@@ -68982,7 +69263,7 @@ function parseOpenCodeActivation(value) {
     "event",
     "observed_at"
   ], ["opencode_version", "session_id_sha256", "call_id_sha256"]);
-  if (!matchesRecord(record, {
+  if (!matchesRecord(record2, {
     schema_version: isSchemaVersion,
     safeword_version: isNonEmptyString,
     plugin_sha256: isSha2563,
@@ -68991,12 +69272,12 @@ function parseOpenCodeActivation(value) {
     observed_at: isTimestamp
   }))
     return;
-  if (!hasValidActivationBindings(record))
+  if (!hasValidActivationBindings(record2))
     return;
-  return record;
+  return record2;
 }
 function parseOpenCodeConformance(value) {
-  const record = exactRecord(value, [
+  const record2 = exactRecord(value, [
     "schema_version",
     "safeword_version",
     "opencode_version",
@@ -69011,7 +69292,7 @@ function parseOpenCodeConformance(value) {
     "checked_at",
     "result"
   ]);
-  if (!matchesRecord(record, {
+  if (!matchesRecord(record2, {
     schema_version: isSchemaVersion,
     safeword_version: isNonEmptyString,
     opencode_version: isNonEmptyString,
@@ -69027,7 +69308,7 @@ function parseOpenCodeConformance(value) {
     result: isConformanceResult
   }))
     return;
-  return record;
+  return record2;
 }
 function writePassingOpenCodeConformance(directory, value) {
   const evidence = parseOpenCodeConformance(value);
@@ -69040,14 +69321,14 @@ function writePassingOpenCodeConformance(directory, value) {
   return path8;
 }
 function parseOpenCodeProfileError(value) {
-  const record = exactRecord(value, [
+  const record2 = exactRecord(value, [
     "schema_version",
     "safeword_version",
     "plugin_sha256",
     "error_code",
     "observed_at"
   ]);
-  if (!matchesRecord(record, {
+  if (!matchesRecord(record2, {
     schema_version: isSchemaVersion,
     safeword_version: isNonEmptyString,
     plugin_sha256: isSha2563,
@@ -69055,7 +69336,7 @@ function parseOpenCodeProfileError(value) {
     observed_at: isTimestamp
   }))
     return;
-  return record;
+  return record2;
 }
 var ACTIVATION_EVENTS, CALL_BOUND_EVENTS, SESSION_BOUND_EVENTS;
 var init_evidence = __esm(() => {
@@ -69087,20 +69368,20 @@ var init_evidence = __esm(() => {
 // src/opencode/identity.ts
 import nodePath91 from "path";
 function isManagedAsset(value) {
-  const record = exactRecord(value, ["path", "sha256"]);
-  return record !== undefined && isNonEmptyString(record.path) && !nodePath91.isAbsolute(record.path) && !record.path.split(/[\\/]/u).includes("..") && isSha2563(record.sha256);
+  const record2 = exactRecord(value, ["path", "sha256"]);
+  return record2 !== undefined && isNonEmptyString(record2.path) && !nodePath91.isAbsolute(record2.path) && !record2.path.split(/[\\/]/u).includes("..") && isSha2563(record2.sha256);
 }
-function hasValidAssets(record) {
-  return !("assets" in record) || Array.isArray(record.assets) && record.assets.every(isManagedAsset);
+function hasValidAssets(record2) {
+  return !("assets" in record2) || Array.isArray(record2.assets) && record2.assets.every(isManagedAsset);
 }
-function isIdentityRecord(record) {
-  return record?.schema_version === 1 && record.plugin_path === "plugins/safeword.js" && isNonEmptyString(record.safeword_version) && isSha2563(record.plugin_sha256) && isNonEmptyString(record.runtime_path) && isNonEmptyString(record.dispatcher_path) && isSha2563(record.dispatcher_sha256);
+function isIdentityRecord(record2) {
+  return record2?.schema_version === 1 && record2.plugin_path === "plugins/safeword.js" && isNonEmptyString(record2.safeword_version) && isSha2563(record2.plugin_sha256) && isNonEmptyString(record2.runtime_path) && isNonEmptyString(record2.dispatcher_path) && isSha2563(record2.dispatcher_sha256);
 }
 function parseOpenCodeIdentity(value) {
-  const record = exactRecord(value, CURRENT_IDENTITY_KEYS) ?? exactRecord(value, IDENTITY_KEYS);
-  if (!isIdentityRecord(record) || record === undefined || !hasValidAssets(record))
+  const record2 = exactRecord(value, CURRENT_IDENTITY_KEYS) ?? exactRecord(value, IDENTITY_KEYS);
+  if (!isIdentityRecord(record2) || record2 === undefined || !hasValidAssets(record2))
     return;
-  return record;
+  return record2;
 }
 var IDENTITY_KEYS, CURRENT_IDENTITY_KEYS;
 var init_identity = __esm(() => {
@@ -69609,16 +69890,16 @@ function readEvidence(directory, parse5) {
 }
 function hasCurrentActivation(directory, identity2, now, expectedProjectSha256) {
   const maximumAge = 7 * 24 * 60 * 60 * 1000;
-  return readEvidence(directory, parseOpenCodeActivation).some((record) => {
-    const observedAt = Date.parse(record.value.observed_at);
+  return readEvidence(directory, parseOpenCodeActivation).some((record2) => {
+    const observedAt = Date.parse(record2.value.observed_at);
     const age = now - observedAt;
-    return record.name === `${record.value.project_sha256}-${record.value.event}.json` && record.value.safeword_version === identity2.safeword_version && record.value.plugin_sha256 === identity2.plugin_sha256 && (record.value.event === "plugin_load" || record.value.event === "pre_tool") && (expectedProjectSha256 === undefined || record.value.project_sha256 === expectedProjectSha256) && age >= 0 && age <= maximumAge;
+    return record2.name === `${record2.value.project_sha256}-${record2.value.event}.json` && record2.value.safeword_version === identity2.safeword_version && record2.value.plugin_sha256 === identity2.plugin_sha256 && (record2.value.event === "plugin_load" || record2.value.event === "pre_tool") && (expectedProjectSha256 === undefined || record2.value.project_sha256 === expectedProjectSha256) && age >= 0 && age <= maximumAge;
   });
 }
-function isPassingConformance(record, identity2, opencodeVersion) {
-  const evidence = record.value;
+function isPassingConformance(record2, identity2, opencodeVersion) {
+  const evidence = record2.value;
   return [
-    record.name === `${evidence.opencode_version}-${identity2.plugin_sha256}.json`,
+    record2.name === `${evidence.opencode_version}-${identity2.plugin_sha256}.json`,
     evidence.opencode_version.startsWith("1."),
     opencodeVersion === undefined || evidence.opencode_version === opencodeVersion,
     evidence.safeword_version === identity2.safeword_version,
@@ -69634,7 +69915,7 @@ function isPassingConformance(record, identity2, opencodeVersion) {
   ].every(Boolean);
 }
 function hasPassingConformance(directory, identity2, opencodeVersion) {
-  return readEvidence(directory, parseOpenCodeConformance).some((record) => isPassingConformance(record, identity2, opencodeVersion));
+  return readEvidence(directory, parseOpenCodeConformance).some((record2) => isPassingConformance(record2, identity2, opencodeVersion));
 }
 function observeProtectionEvidence(paths, identity2, input) {
   let expectedProjectSha256;
@@ -75248,7 +75529,7 @@ function readTransactionBytes(path8) {
       closeSync12(descriptor);
   }
 }
-function record(value) {
+function record2(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("Claude cleanup transaction is malformed.");
   }
@@ -75297,7 +75578,7 @@ function hasValidQuarantinePath(entry, deleting) {
   return entry.quarantine_path.startsWith(".safeword/claude-plugin/quarantine/") && entry.quarantine_path.endsWith(".retired") && !nodePath109.isAbsolute(entry.quarantine_path) && !entry.quarantine_path.split("/").includes("..");
 }
 function validateCleanupEntry(value) {
-  const entry = record(value);
+  const entry = record2(value);
   const before = canonicalBase64(entry.before_base64);
   if (!hasValidBeforeImage(entry, before)) {
     throw new Error("Claude cleanup entry is malformed.");
@@ -75330,7 +75611,7 @@ function hasValidPluginModeMetadata(pluginMode) {
   return typeof pluginMode.plugin_version === "string" && Array.isArray(pluginMode.unresolved_paths) && pluginMode.unresolved_paths.every((path8) => typeof path8 === "string") && (pluginMode.advisory === undefined || typeof pluginMode.advisory === "string");
 }
 function validatePluginMode(value) {
-  const pluginMode = record(value);
+  const pluginMode = record2(value);
   const expectedKeys = expectedPluginModeKeys(pluginMode);
   if (!hasExactKeys5(pluginMode, expectedKeys) || !hasValidPluginModeDigests(pluginMode) || !hasValidPluginModeMetadata(pluginMode)) {
     throw new Error("Claude cleanup plugin mode is malformed.");
@@ -75354,7 +75635,7 @@ function hasValidTransactionEntries(value) {
 function parseTransaction(cwd) {
   const bytes = readTransactionBytes(transactionPath(cwd));
   const parsed2 = JSON.parse(bytes.toString("utf8"));
-  const value = record(parsed2);
+  const value = record2(parsed2);
   if (!hasValidTransactionHeader(value) || !hasValidTransactionEntries(value)) {
     throw new Error("Claude cleanup transaction is malformed.");
   }
@@ -75735,13 +76016,13 @@ function parsePersonalPreference(content, path8) {
   if (parsed2 === null || Array.isArray(parsed2) || typeof parsed2 !== "object") {
     return { path: path8, error: "must be a JSON object" };
   }
-  const record2 = parsed2;
-  if (Object.keys(record2).length !== 1 || !Object.hasOwn(record2, "testExecution")) {
+  const record3 = parsed2;
+  if (Object.keys(record3).length !== 1 || !Object.hasOwn(record3, "testExecution")) {
     return { path: path8, error: "must contain only testExecution" };
   }
-  if (!isExecutionMode(record2.testExecution))
+  if (!isExecutionMode(record3.testExecution))
     return { path: path8, error: "uses an unsupported execution mode" };
-  return { path: path8, mode: record2.testExecution };
+  return { path: path8, mode: record3.testExecution };
 }
 function readPersonalExecutionPreference(cwd) {
   const path8 = personalPath(cwd);
@@ -82609,8 +82890,8 @@ function parseCodexHookInput(raw) {
     return;
   }
 }
-function optionalString(record2, key) {
-  return typeof record2[key] === "string" ? record2[key] : undefined;
+function optionalString(record3, key) {
+  return typeof record3[key] === "string" ? record3[key] : undefined;
 }
 function normalizeToolInput(value) {
   if (typeof value !== "object" || value === null)

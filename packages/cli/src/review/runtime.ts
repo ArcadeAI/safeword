@@ -15,6 +15,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -22,6 +23,7 @@ import nodePath from 'node:path';
 
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
 import { warn } from '../utils/output.js';
+import { codexAppServerProof } from './codex-app-server-proof.js';
 import type {
   PlanContractPair,
   ReviewAgent,
@@ -1184,13 +1186,9 @@ export async function inspectReviewRoute(
       inspectionUnavailable = true;
       break;
     }
-    const capability = await supportsReviewContract(
-      reviewer,
-      candidate,
-      tmpdir(),
-      remaining,
+    const capability = await supportsReviewContract(reviewer, candidate, tmpdir(), remaining, {
       model,
-    );
+    });
     if (capability.kind === 'failed') {
       inspectionUnavailable ||= capability.failure !== 'unsupported';
       continue;
@@ -1211,9 +1209,13 @@ async function supportsReviewContract(
   executable: string,
   cwd: string,
   timeoutMs: number,
-  model: string | undefined,
+  options: {
+    readonly model?: string;
+    readonly arguments?: readonly string[];
+    readonly required?: readonly string[];
+  },
 ): Promise<CapabilityAssessment> {
-  const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
+  const child = spawn(executable, options.arguments ?? HELP_ARGUMENTS[reviewer], {
     cwd,
     env: reviewerProbeEnvironment(),
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -1251,9 +1253,10 @@ async function supportsReviewContract(
       const advertisedFlags = new Set<string>();
       for (const match of help.matchAll(/--[\w-]+/gu)) advertisedFlags.add(match[0]);
       const requiredCapabilities =
-        model === undefined
+        options.required ??
+        (options.model === undefined
           ? REQUIRED_CAPABILITIES[reviewer]
-          : [...REQUIRED_CAPABILITIES[reviewer], '--model'];
+          : [...REQUIRED_CAPABILITIES[reviewer], '--model']);
       finish(
         requiredCapabilities.every(flag => advertisedFlags.has(flag))
           ? { kind: 'supported' }
@@ -1516,11 +1519,229 @@ async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolea
   return groupIsStopped();
 }
 
+function isolatedCodexHome(): { readonly path: string; readonly cleanup: () => void } {
+  const path = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-review-'));
+  chmodSync(path, 0o700);
+  const source = nodePath.join(
+    process.env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'),
+    'auth.json',
+  );
+  try {
+    accessSync(source, constants.R_OK);
+    symlinkSync(source, nodePath.join(path, 'auth.json'));
+  } catch {
+    // API-key and keychain profiles may not have an auth.json file.
+  }
+  return {
+    path,
+    cleanup: () => {
+      rmSync(path, { recursive: true, force: true });
+    },
+  };
+}
+
+function codexAppServerReviewOutput(
+  packet: ReviewPacket,
+  text: string,
+  confirmedModel: ConfirmedReviewerModel | undefined,
+): ReviewerExecution {
+  const event = JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text } });
+  const output = parseReviewerOutput('codex', event, packet.kind);
+  if (packet.kind !== 'plan-execution') return { output, confirmedModel };
+  const validation = validateExecutionPlanOutput(
+    output,
+    packet.execution_plan_delivery_definition,
+    packet.execution_plan_normalized_digest,
+  );
+  if (validation.kind === 'invalid_output') throw new Error('invalid reviewer output');
+  return { output: validation.output, confirmedModel };
+}
+
+function installReviewerTerminationHandler(child: ReturnType<typeof spawn>): () => void {
+  const terminateReviewer = (): void => {
+    void stopReviewer(child).finally(() => process.exit(143));
+  };
+  process.once('SIGTERM', terminateReviewer);
+  return () => process.off('SIGTERM', terminateReviewer);
+}
+
+async function runCodexAppServerCandidate(
+  executable: string,
+  attempt: ReviewAttempt,
+  timeoutMs: number,
+): Promise<ReviewerExecution> {
+  const isolatedHome = isolatedCodexHome();
+  const child = spawn(executable, ['app-server', '--stdio', '--config', 'mcp_servers={}'], {
+    cwd: attempt.cwd,
+    env: { ...reviewerEnvironment('codex'), CODEX_HOME: isolatedHome.path },
+    stdio: ['pipe', 'pipe', 'pipe'],
+    detached: process.platform !== 'win32',
+  });
+  const removeTerminationHandler = installReviewerTerminationHandler(child);
+  try {
+    const execution = await new Promise<ReviewerExecution>((resolve, reject) => {
+      const messages: unknown[] = [];
+      let pending = '';
+      let stdout = '';
+      let stderr = '';
+      let stdoutBytes = 0;
+      let stderrBytes = 0;
+      let settled = false;
+      const settle = (finish: () => void): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        finish();
+      };
+      const send = (message: unknown): void => {
+        child.stdin.write(`${JSON.stringify(message)}\n`);
+      };
+      const timeout = setTimeout(() => {
+        settle(() => {
+          reject(new ReviewRuntimeError('timed_out', 'codex review timed out'));
+        });
+      }, timeoutMs);
+      const startTurn = (result: unknown): void => {
+        if (!isRecord(result) || !isRecord(result.thread)) throw new Error('thread start failed');
+        send({
+          id: 3,
+          method: 'turn/start',
+          params: {
+            threadId: result.thread.id,
+            input: [{ type: 'text', text: reviewPrompt('codex', attempt.packet) }],
+            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind)) as unknown,
+          },
+        });
+      };
+      const handle = (message: unknown): void => {
+        if (!isRecord(message)) return;
+        messages.push(message);
+        if (message.id === 1) {
+          if (message.error !== undefined) throw new Error('initialize failed');
+          send({ method: 'initialized' });
+          send({
+            id: 2,
+            method: 'thread/start',
+            params: {
+              cwd: attempt.cwd,
+              ephemeral: true,
+              sandbox: 'read-only',
+              approvalPolicy: 'never',
+              ...(attempt.model !== undefined && { model: attempt.model }),
+            },
+          });
+        } else if (message.id === 2) {
+          startTurn(message.result);
+        } else if (message.id === 3 && message.error !== undefined) {
+          throw new ReviewRuntimeError('process_failed', 'codex turn was rejected');
+        } else if (message.method === 'turn/completed') {
+          const proof = codexAppServerProof(messages, attempt.model);
+          if (proof === undefined) return;
+          const parsed = codexAppServerReviewOutput(
+            attempt.packet,
+            proof.text,
+            proof.confirmedModel,
+          );
+          settle(() => {
+            resolve(parsed);
+          });
+        }
+      };
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
+      child.stdout.on('data', (chunk: string) => {
+        const appended = appendBounded(stdout, stdoutBytes, chunk);
+        stdout = appended.value;
+        stdoutBytes = appended.bytes;
+        if (appended.overflow) {
+          settle(() => {
+            reject(new ReviewRuntimeError('invalid_output', 'codex output exceeded limit'));
+          });
+          return;
+        }
+        pending += chunk;
+        let newline: number;
+        while ((newline = pending.indexOf('\n')) !== -1 && !settled) {
+          const line = pending.slice(0, newline);
+          pending = pending.slice(newline + 1);
+          try {
+            handle(JSON.parse(line) as unknown);
+          } catch (error) {
+            settle(() => {
+              reject(
+                error instanceof ReviewRuntimeError
+                  ? error
+                  : new ReviewRuntimeError('invalid_output', 'codex protocol failed'),
+              );
+            });
+          }
+        }
+      });
+      child.stderr.on('data', (chunk: string) => {
+        const appended = appendBounded(stderr, stderrBytes, chunk);
+        stderr = appended.value;
+        stderrBytes = appended.bytes;
+      });
+      child.stdin.on('error', () => {
+        // The child close handler classifies an early exit.
+      });
+      child.on('error', error => {
+        settle(() => {
+          reject(new ReviewRuntimeError('process_failed', error.message));
+        });
+      });
+      child.on('close', () => {
+        settle(() => {
+          reject(
+            new ReviewRuntimeError(
+              classifyExit(stdout, stderr, 'unsupported'),
+              'codex app-server did not complete the review',
+            ),
+          );
+        });
+      });
+      send({
+        id: 1,
+        method: 'initialize',
+        params: { clientInfo: { name: 'safeword', version: '1' } },
+      });
+    });
+    await stopReviewerOrThrow(child, 'codex', false);
+    return { ...execution, output: reconcilePlanContract(attempt.packet, execution.output) };
+  } catch (error) {
+    await stopReviewerOrThrow(child, 'codex');
+    throw error;
+  } finally {
+    removeTerminationHandler();
+    isolatedHome.cleanup();
+  }
+}
+
 async function runCandidate(
   executable: string,
   attempt: ReviewAttempt,
   timeoutMs: number,
 ): Promise<ReviewerExecution> {
+  if (
+    attempt.reviewer === 'codex' &&
+    ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(attempt.packet.kind)
+  ) {
+    const appServer = await supportsReviewContract(
+      'codex',
+      executable,
+      attempt.cwd,
+      Math.min(5000, timeoutMs),
+      { arguments: ['app-server', '--help'], required: ['--stdio', '--config'] },
+    );
+    if (appServer.kind === 'supported') {
+      try {
+        return await runCodexAppServerCandidate(executable, attempt, timeoutMs);
+      } catch (error) {
+        if (!(error instanceof ReviewRuntimeError) || error.failure !== 'unsupported') throw error;
+      }
+    }
+    // Older Codex CLIs can still return readable review evidence through exec.
+  }
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
   const child = spawn(
     executable,
@@ -1533,10 +1754,7 @@ async function runCandidate(
       detached: process.platform !== 'win32',
     },
   );
-  const terminateReviewer = (): void => {
-    void stopReviewer(child).finally(() => process.exit(143));
-  };
-  process.once('SIGTERM', terminateReviewer);
+  const removeTerminationHandler = installReviewerTerminationHandler(child);
   try {
     let execution: ReviewerExecution;
     try {
@@ -1545,6 +1763,7 @@ async function runCandidate(
         // One outcome per attempt, settled once. A late answer arriving after a
         // deadline never changes a verdict that is already decided.
         let settled = false;
+        // eslint-disable-next-line sonarjs/no-identical-functions -- Each reviewer process owns its timeout and settlement state.
         const settle = (finish: () => void): void => {
           if (settled) return;
           settled = true;
@@ -1646,7 +1865,7 @@ async function runCandidate(
     await stopReviewerOrThrow(child, reviewer, false);
     return { ...execution, output: reconcilePlanContract(packet, execution.output) };
   } finally {
-    process.off('SIGTERM', terminateReviewer);
+    removeTerminationHandler();
   }
 }
 
@@ -1664,13 +1883,9 @@ async function runReviewerCandidates(
     const untried = candidates.length - index;
     const candidateDeadline = Date.now() + remainingMs / untried;
     const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
-    const assessment = await supportsReviewContract(
-      reviewer,
-      candidate,
-      attempt.cwd,
-      probeBudget,
-      attempt.model,
-    );
+    const assessment = await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, {
+      model: attempt.model,
+    });
     if (assessment.kind === 'failed') {
       lastProbeFailure = new ReviewRuntimeError(
         assessment.failure,
