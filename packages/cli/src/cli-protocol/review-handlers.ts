@@ -16,6 +16,7 @@ import type {
   RedEvidenceClass,
   RedExecutionAttestation,
   RedExecutionRequest,
+  ReviewFailure,
   ReviewKind,
 } from '../review/contract.js';
 import type { PlanningContextError, PlanningContractCopyError } from '../review/packet.js';
@@ -659,19 +660,34 @@ export async function reviewContinueHandler(invocation: CommandInvocation): Prom
   const id = invocation.operands[0];
   const tier = invocation.options.tier;
   const outputPath = invocation.options.output;
+  const failure = invocation.options.failure;
+  const hostFailure =
+    typeof failure === 'string' &&
+    ['not_installed', 'unsupported', 'launch_failed', 'process_failed', 'timed_out'].includes(
+      failure,
+    )
+      ? (failure as ReviewFailure)
+      : undefined;
   if (
     typeof id !== 'string' ||
     (tier !== 'fresh-context' && tier !== 'self-review') ||
-    typeof outputPath !== 'string' ||
-    outputPath.trim() === ''
+    (failure !== undefined && hostFailure === undefined) ||
+    (typeof outputPath !== 'string' || outputPath.trim() === '') === (hostFailure === undefined)
   )
     return invalidOperand(
       'review continue',
-      'Provide a review id, --tier fresh-context|self-review, and --output <json-file>.',
+      'Provide a review id, --tier fresh-context|self-review, and exactly one of --output <json-file> or --failure <kind>.',
     );
+  if (hostFailure !== undefined) {
+    const { submitReviewContinuation } = await import('../review/job.js');
+    return submitReviewContinuation(invocation.cwd, id, tier, undefined, {
+      origin,
+      failure: hostFailure,
+    });
+  }
   let output: unknown;
   try {
-    const path = nodePath.resolve(invocation.cwd, outputPath);
+    const path = nodePath.resolve(invocation.cwd, outputPath as string);
     const file = statSync(path);
     if (!file.isFile() || file.size > 1024 * 1024) throw new Error('invalid output file');
     const body = readFileSync(path, 'utf8');
@@ -687,7 +703,7 @@ export async function reviewContinueHandler(invocation: CommandInvocation): Prom
     );
   }
   const { submitReviewContinuation } = await import('../review/job.js');
-  return submitReviewContinuation(invocation.cwd, id, tier, output, origin);
+  return submitReviewContinuation(invocation.cwd, id, tier, output, { origin });
 }
 
 export async function reviewCancelHandler(invocation: CommandInvocation): Promise<CliResult> {

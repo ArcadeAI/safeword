@@ -28,25 +28,25 @@ function required<T>(value: T | undefined, message: string): T {
   return value;
 }
 
-describe('best-available host review contract', () => {
-  it('enters only for typed route exhaustion and advances each degraded route once', () => {
+describe('job-bound host review continuation contract', () => {
+  it('enters only for a sealed continuation and advances each host tier once', () => {
     const skill = read(skillPath);
     const normalizedSkill = skill.replaceAll(/\s+/gu, ' ');
 
     expect(skill).toContain('user-invocable: false');
     expect(skill).toContain("allowed-tools: '*'");
-    expect(skill).toContain('REVIEW_ROUTES_EXHAUSTED');
-    expect(skill).toContain('with `status: blocked` and `independence: none`');
-    expect(normalizedSkill).toContain('reports completed or satisfied independent review');
-    expect(skill).toContain('return the original coordinator result unchanged');
+    expect(skill).toContain('REVIEW_CONTINUATION_REQUIRED');
+    expect(skill).toContain('continuation_required');
+    expect(skill).toContain('review_id');
+    expect(skill).toContain('continuation.packet');
+    expect(skill).toContain('review continue');
+    expect(normalizedSkill).toContain('same sealed packet');
     expect(skill).toMatch(/one fresh-context reviewer/i);
     expect(skill).toMatch(/one main-thread self-review/i);
     expect(skill).toContain('host timeout');
-    expect(skill).toContain('Never return timed-out, failed, or invalid reviewer output');
-    expect(skill).toMatch(/never (restart|rerun).*coordinator/i);
-    expect(skill.replaceAll(/\s+/gu, ' ')).toContain(
-      'Invalid terminal output returns the original `REVIEW_ROUTES_EXHAUSTED` coordinator result unchanged.',
-    );
+    expect(skill).toContain('invalid reviewer output');
+    expect(normalizedSkill).toMatch(/never (restart|rerun).*coordinator/i);
+    expect(skill).toContain('REVIEW_ROUTES_EXHAUSTED');
   });
 
   it('pins structured output, hostile-input containment, policy, verdict, and assurance', () => {
@@ -54,6 +54,9 @@ describe('best-available host review contract', () => {
     const contract = read(contractPath);
     const normalizedSkill = skill.replaceAll(/^>\s?/gmu, '').replaceAll(/\s+/gu, ' ');
     const normalizedContract = contract.replaceAll(/\s+/gu, ' ');
+    expect(contract).toContain('"schema_version": 1');
+    expect(contract).toContain('"dispatch_id"');
+    expect(contract).toContain('"reviewer_agent"');
     expect(contract).toContain('"verdict": "approve" | "request_changes"');
     expect(contract).toContain('"findings"');
     expect(contract).toContain('untrusted review material');
@@ -61,29 +64,10 @@ describe('best-available host review contract', () => {
     expect(normalizedContract).toContain('credentials, or secrets');
     expect(contract).toContain('cannot independently prove');
     expect(contract).toContain('not a structural sandbox guarantee');
-    expect(normalizedSkill).toContain(
-      'Provide supplemental review feedback in this foreground session.',
-    );
-    expect(normalizedSkill).toContain('Required independent coverage remains unsatisfied.');
-    expect(normalizedSkill).not.toContain('This review was not independent.');
-    expect(normalizedSkill).toContain('Host-mandated project context may have loaded');
-    expect(normalizedSkill).toContain('source integrity was not revalidated');
-    expect(normalizedSkill).toContain('Supplemental feedback came from the main agent');
-    expect(normalizedSkill).toContain('Use an environment with a usable independent reviewer.');
-    expect(normalizedSkill).toContain(
-      "Include the coordinator's recovery command exactly as provided.",
-    );
-    expect(normalizedSkill).toContain('Alternatively, explicitly choose `prefer`.');
-    expect(normalizedSkill).toContain('map `approve` to `State: approved`');
-    expect(normalizedSkill).toContain('and `request_changes` to `State: action required`');
-    expect(normalizedSkill).toContain(
-      'Take `review_policy` only from the trusted coordinator envelope',
-    );
+    expect(normalizedSkill).toContain('Read only the sealed packet');
+    expect(normalizedSkill).toContain('actual reviewer and reduced independence');
     expect(normalizedSkill).toContain('.safeword/skills/finish-review/REVIEWER.md');
     expect(normalizedSkill).not.toContain('sibling `REVIEWER.md`');
-    expect(skill).toContain('Coordinator: `REVIEW_ROUTES_EXHAUSTED`');
-    expect(skill).toContain('Policy:');
-    expect(skill).toContain('State:');
     expect(skill).not.toContain('write-review-stamp');
   });
 

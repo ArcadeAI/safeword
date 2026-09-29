@@ -717,6 +717,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     commandOptions: [
       { flags: '--tier <tier>', description: 'Pending fresh-context or self-review tier' },
       { flags: '--output <path>', description: 'JSON reviewer result for the sealed packet' },
+      {
+        flags: '--failure <kind>',
+        description: 'Typed host failure when no reviewer result exists',
+      },
     ],
     fixture: {
       argv: [

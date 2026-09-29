@@ -33,6 +33,7 @@ import {
   readReviewPolicy,
   reviewRoutePlan,
 } from './policy.js';
+import { reviewerPromptInstructions } from './review-rubric.js';
 import {
   type ConfirmedReviewerModel,
   minimumRouteMs,
@@ -1197,7 +1198,15 @@ function hostContinuationResult(input: {
       review_policy: 'prefer',
       independence: 'none',
       review_routes: input.evidence,
-      continuation: { tier: 'fresh-context', packet: input.prepared.packet },
+      continuation: {
+        tier: 'fresh-context',
+        instructions: reviewerPromptInstructions(
+          input.input.kind,
+          input.author,
+          input.prepared.packet.planning_phase,
+        ),
+        packet: input.prepared.packet,
+      },
     },
   });
 }

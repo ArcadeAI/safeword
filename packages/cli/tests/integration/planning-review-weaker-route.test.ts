@@ -231,7 +231,11 @@ it('discards a weaker approval and continues to the next independent route', asy
   expect(continuation.data).toMatchObject({
     status: 'continuation_required',
     independence: 'none',
-    continuation: { tier: 'fresh-context', packet: { dispatch_id: expect.any(String) } },
+    continuation: {
+      tier: 'fresh-context',
+      instructions: expect.stringContaining('Review only the bounded files in this packet.'),
+      packet: { dispatch_id: expect.any(String) },
+    },
     review_routes: [
       { reviewer: 'codex', status: 'attempted', failure: 'process_failed' },
       { reviewer: 'claude', status: 'attempted', failure: 'process_failed' },

@@ -101,6 +101,7 @@ record.result = {
     author_agent: 'claude', review_policy: 'prefer', independence: 'none',
     continuation: {
       tier: 'fresh-context',
+      instructions: 'Review only the bounded files in this packet.',
       packet: {
         schema_version: 1, dispatch_id: 'fixture-dispatch', kind: record.kind,
         planning_phase: 'product-plan',
@@ -312,7 +313,7 @@ describe('durable review jobs', () => {
           summary: 'Stale approval',
           findings: [],
         },
-        'claude',
+        { origin: 'claude' },
       ).findings[0]?.code,
     ).toBe('REVIEW_STALE');
     writeFileSync(specPath, original);
@@ -335,7 +336,9 @@ describe('durable review jobs', () => {
       summary: 'The saved product decision is coherent.',
       findings: [],
     };
-    const completed = submitReviewContinuation(cwd, id, 'fresh-context', baseOutput, 'claude');
+    const completed = submitReviewContinuation(cwd, id, 'fresh-context', baseOutput, {
+      origin: 'claude',
+    });
     expect(completed.data).toMatchObject({
       status: 'approved',
       independence: 'reduced',
@@ -356,7 +359,7 @@ describe('durable review jobs', () => {
           summary: 'Replay',
           findings: [],
         },
-        'claude',
+        { origin: 'claude' },
       ).errors[0]?.code,
     ).toBe('REVIEW_CONTINUATION_ALREADY_USED');
 
@@ -374,7 +377,7 @@ describe('durable review jobs', () => {
         ...baseOutput,
         dispatch_id: 'wrong-dispatch',
       },
-      'claude',
+      { origin: 'claude' },
     );
     expect(escalated.data).toMatchObject({
       status: 'continuation_required',
@@ -382,7 +385,8 @@ describe('durable review jobs', () => {
     });
     expect(reviewJobStatus(cwd, nextId).data).toEqual(escalated.data);
     expect(
-      submitReviewContinuation(cwd, nextId, 'fresh-context', baseOutput, 'claude').errors[0]?.code,
+      submitReviewContinuation(cwd, nextId, 'fresh-context', baseOutput, { origin: 'claude' })
+        .errors[0]?.code,
     ).toBe('REVIEW_CONTINUATION_TIER_INVALID');
     const final = submitReviewContinuation(
       cwd,
@@ -392,7 +396,7 @@ describe('durable review jobs', () => {
         ...baseOutput,
         findings: [{ severity: 'error', message: 'Blocking defect' }],
       },
-      'claude',
+      { origin: 'claude' },
     );
     expect(final.data).toMatchObject({ status: 'blocked', independence: 'none' });
     expect(reviewJobStatus(cwd, nextId).data).toEqual(final.data);
@@ -428,6 +432,82 @@ describe('durable review jobs', () => {
     expect(reviewJobStatus(cwd, publicId).data).toMatchObject({
       status: 'approved',
       independence: 'reduced',
+    });
+
+    const unavailableJob = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: [`${ticket}/spec.md`],
+    });
+    const unavailableId = (unavailableJob.data as { review_id: string }).review_id;
+    const unavailable = await runCli(
+      [
+        'review',
+        'continue',
+        unavailableId,
+        '--tier',
+        'fresh-context',
+        '--failure',
+        'unsupported',
+        '--offline',
+        '--json',
+        '--no-input',
+        '--cwd',
+        cwd,
+      ],
+      { cwd, env: { SAFEWORD_AGENT_RUNTIME: 'claude' } },
+    );
+    expect(unavailable.exitCode).toBe(2);
+    expect(JSON.parse(unavailable.stdout)).toMatchObject({
+      data: {
+        status: 'continuation_required',
+        continuation: { tier: 'self-review' },
+        continuation_attempts: [{ tier: 'fresh-context', failure: 'unsupported' }],
+      },
+    });
+  });
+
+  it('does not admit a host Execution Plan approval with an invalid delivery record', async () => {
+    const cwd = executionPlanProject();
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(
+        cwd,
+        CONTINUATION_WORKER.replace(
+          "planning_phase: 'product-plan'",
+          "planning_phase: 'plan-execution'",
+        ),
+      ),
+    );
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const pending = await startReviewJob({
+      cwd,
+      kind: 'plan-execution',
+      targets: ['execution-plan.md'],
+      context: ['impl-plan.md', 'behavior.feature'],
+    });
+    const id = (pending.data as { review_id: string }).review_id;
+
+    const result = submitReviewContinuation(
+      cwd,
+      id,
+      'fresh-context',
+      {
+        schema_version: 1,
+        dispatch_id: 'fixture-dispatch',
+        reviewer_agent: 'claude',
+        verdict: 'approve',
+        summary: 'Looks complete.',
+        findings: [],
+        planning_destination: 'plan-execution',
+        execution_plan_record: {},
+      },
+      { origin: 'claude' },
+    );
+    expect(result.data).toMatchObject({
+      status: 'continuation_required',
+      independence: 'none',
+      continuation: { tier: 'self-review' },
     });
   });
 
