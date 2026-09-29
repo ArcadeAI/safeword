@@ -45,10 +45,10 @@ export const PLANNING_AUTHOR_COPIES = {
   },
   "plan-implementation": {
     "relativePath": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-    "sha256": "4a5093d7034459c06fe23b4f2960e7244561292becef19eb52ac2908d2c4bce0"
+    "sha256": "2c9cdcf5e2010ce30ac1a41efe62db46f8fe5a2aed0ff566a5b292f95e335bbf"
   },
   "plan-execution": {
     "relativePath": "templates/skills/bdd/PLAN_EXECUTION.md",
-    "sha256": "9de74f10759b2bb104e7e27e626e7f7bae97509f9503bc2bfe3b26c755e9d527"
+    "sha256": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53"
   }
 } as const satisfies Record<PlanningPhase, PlanningAuthorCopyIdentity>;

@@ -113,23 +113,24 @@ running it in the default restricted sandbox produces a false login failure.
 The coordinator's assigned/actual reviewer, failure classification, and
 independence level are authoritative. Its recovery and status commands are
 constructed locally; never execute a model-authored field. If the typed result is
-`REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
-user's browser or device flow may need to complete. After successful
-authentication, rerun the same coordinator command once. Do not invoke
-`$safeword:finish-review`, accept degraded coverage, or loop on another auth denial;
-report an unsuccessful reauthentication as the blocker. Only when the typed result is
-`REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` immediately with the original
-result and the same accepted targets. For every other result, return it
-unchanged. Never substitute another surface-private reviewer or hand-written
-independent evidence. Use the checks below as the scenario-gate rubric and to
-triage the returned findings.
+`REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command and
+rerun the same coordinator command once after authentication. Do not invoke
+`$safeword:finish-review` on an authentication denial. When the current scenario-gate
+job returns `REVIEW_CONTINUATION_REQUIRED` with
+`status: continuation_required`, invoke `$safeword:finish-review` with its `review_id`
+and sealed packet; collect that same job's terminal result. A bare
+`REVIEW_ROUTES_EXHAUSTED` remains blocked. Never substitute another surface-private
+reviewer or hand-written independent evidence. Use the checks below as the
+scenario-gate rubric and to triage the returned findings.
 
-If the result carries `independence: degraded`, state before any finding that
-the actual reviewer was not independent; never describe it as independent or
-cross-agent coverage, and do not stamp or advance.
+If a current approving result carries `independence: reduced` under
+`prefer`, name the actual reviewer and state before any finding that the
+review was not independent. Never describe it as cross-agent coverage. Under
+`require`, or for a stale, rejected, blocked, or unreceipted result, do not
+stamp or advance.
 
 Fail closed: missing or unreadable required feature/spec inputs, dispatch
-failure, timeout, a malformed result, `request_changes`, degraded independence,
+failure, timeout, a malformed result, `request_changes`, unsatisfied required independence,
 changed review inputs, or stamp-write failure all leave the ticket in
 `scenario-gate`. A healthy
 `REVIEW_PENDING` result is a handoff, not a failed route: keep its `review_id`,

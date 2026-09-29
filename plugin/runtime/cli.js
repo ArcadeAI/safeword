@@ -3604,12 +3604,12 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880",
         ".claude/skills/bdd/DISCOVERY.md": "b914910e5cbdd04c6ec25f44315554a6382f974fc8c91c04ed56782758176922",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_EXECUTION.md": "9de74f10759b2bb104e7e27e626e7f7bae97509f9503bc2bfe3b26c755e9d527",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "4a5093d7034459c06fe23b4f2960e7244561292becef19eb52ac2908d2c4bce0",
+        ".claude/skills/bdd/PLAN_EXECUTION.md": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "2c9cdcf5e2010ce30ac1a41efe62db46f8fe5a2aed0ff566a5b292f95e335bbf",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "3770f019f5a83fd4ad6dcb2322528595a39545f61cf1106a2f606a8137036d9d",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "6c9142c4a7cc63fb6054d2b5335f942a77a1322f3a7e269b6e8654f4d7435702",
+        ".claude/skills/bdd/TDD.md": "5cbbca305b337c2fdf18310e4fccb20979dbc731d873b4f4cec0b036bed816b1",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -3623,11 +3623,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/SKILL.md": "0b9838e1b4872bb1934d1b01ea7838fb519ec6c755beb761e513ad736670e23e",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
         ".claude/skills/pr-readiness/SKILL.md": "4cc987da39efb1b9b682aff67988c975e8ff56a2c3eed0cfe3a1f3e8caf0d80b",
-        ".claude/skills/quality-review/SKILL.md": "61f9053cdd8007f2ebfd17684fb18cf8dfd068fbcdfbc85ad7ff7ec565a81461",
+        ".claude/skills/quality-review/SKILL.md": "ef63c3ca21b2c383c46d143fec48d229b4e17675015a77e858638dbefbdcfbac",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "c437336466eedacbac427d85841e6137757a4d81864fefc9317569412c0ebc78",
         ".claude/skills/retro/SKILL.md": "da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb",
-        ".claude/skills/review-spec/SKILL.md": "bca4e90c57cd4868219ebe9366fbca8c126837f1289671a3e7b495bca894b052",
+        ".claude/skills/review-spec/SKILL.md": "2d39641656e0d91d8c6788fba4fdf1981b77ef53852715c58b5df75fcc56762d",
         ".claude/skills/self-review/SKILL.md": "7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "fb05b617ffb02bb6d06897d12fb5f121fc553536701f27b8696160041cb5269c",
@@ -34578,11 +34578,11 @@ var init_contracts_generated = __esm(() => {
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      sha256: "4a5093d7034459c06fe23b4f2960e7244561292becef19eb52ac2908d2c4bce0"
+      sha256: "2c9cdcf5e2010ce30ac1a41efe62db46f8fe5a2aed0ff566a5b292f95e335bbf"
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
-      sha256: "9de74f10759b2bb104e7e27e626e7f7bae97509f9503bc2bfe3b26c755e9d527"
+      sha256: "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53"
     }
   };
 });
@@ -53175,7 +53175,7 @@ function readPlanningAuthor(root, phase, identity2) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "5cfa76ab6f3798449f2f667b7c4d71642f343cb03942c0e2ff39091232c44646" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "5118b9a31a9dc63a08e051d234f98fcf2d4ef7bd987d73a3246c5e74b9b91b37" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "a2fbbc0b1c27638cf91681d82a384b8167a373ce849283c927be89a017850437" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "277a6029ec4017089facf0698a436fb2c642d7205316a0e716303acc661b1cd3" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {

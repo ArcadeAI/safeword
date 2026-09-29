@@ -267,12 +267,15 @@ Keep a `REVIEW_PENDING` review id and collect its returned status action; do not
 redispatch unchanged sources. Repair agent-owned findings at the destination
 named by `planning_destination`, then review the corrected exact bytes. Apply
 the shared review-route recovery rule in `PLAN_IMPLEMENTATION.md` for
-authentication and exhausted routes. `architectureReviewGate` applies to
-Implementation Planning's architecture requirement, not this Execution Plan
-review. A degraded result may advance only after
-typed route exhaustion and an approving `$safeword:finish-review` fallback; record its
-actual reduced independence and never call it independent coverage. An
-undispatched review, or degradation without that approved fallback, cannot advance.
+authentication. When the current job returns `REVIEW_CONTINUATION_REQUIRED`
+with `status: continuation_required`, invoke `$safeword:finish-review` with its
+`review_id` and sealed packet; collect that same job's terminal result. A
+`REVIEW_ROUTES_EXHAUSTED` result without a continuation remains blocked.
+`architectureReviewGate` applies to Implementation Planning's architecture
+requirement, not this Execution Plan review. An approving current receipt with
+authenticated reduced independence may advance under `prefer`; record its
+actual reviewer and never call it independent coverage. An undispatched review,
+or degradation without that authenticated receipt, cannot advance.
 After approval, stamp the exact review with its returned provenance:
 
 ```bash

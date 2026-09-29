@@ -14,9 +14,9 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_EXECUTION.md':
-        '9de74f10759b2bb104e7e27e626e7f7bae97509f9503bc2bfe3b26c755e9d527',
+        '6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '4a5093d7034459c06fe23b4f2960e7244561292becef19eb52ac2908d2c4bce0',
+        '2c9cdcf5e2010ce30ac1a41efe62db46f8fe5a2aed0ff566a5b292f95e335bbf',
       '.claude/skills/bdd/SCENARIOS.md':
         '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
       '.claude/skills/bdd/SKILL.md':
@@ -24,7 +24,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '6c9142c4a7cc63fb6054d2b5335f942a77a1322f3a7e269b6e8654f4d7435702',
+        '5cbbca305b337c2fdf18310e4fccb20979dbc731d873b4f4cec0b036bed816b1',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -52,7 +52,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/pr-readiness/SKILL.md':
         '4cc987da39efb1b9b682aff67988c975e8ff56a2c3eed0cfe3a1f3e8caf0d80b',
       '.claude/skills/quality-review/SKILL.md':
-        '61f9053cdd8007f2ebfd17684fb18cf8dfd068fbcdfbc85ad7ff7ec565a81461',
+        'ef63c3ca21b2c383c46d143fec48d229b4e17675015a77e858638dbefbdcfbac',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
@@ -60,7 +60,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         'da1244dd4e210480e3754763b982b1f9614c493b9534ea03151a9aafbdd89adb',
       '.claude/skills/review-spec/SKILL.md':
-        'bca4e90c57cd4868219ebe9366fbca8c126837f1289671a3e7b495bca894b052',
+        '2d39641656e0d91d8c6788fba4fdf1981b77ef53852715c58b5df75fcc56762d',
       '.claude/skills/self-review/SKILL.md':
         '7ecb6e4475627e703d09e67c377d70b83acc4e32fa8ad41b6dd34174381b46cc',
       '.claude/skills/spike/SKILL.md':
