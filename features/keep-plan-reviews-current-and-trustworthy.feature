@@ -59,7 +59,7 @@ Feature: Keep plan reviews current and trustworthy
     @surface.claude-code @rejection
     Scenario Outline: Installed dispatch cannot bypass packet completeness
       Given a <phase> review packet <packet_state>
-      When actual lifecycle dispatch from installed local project hooks prepares the review with real configuration and collaborators, mocking only the reviewer process boundary
+      When the Claude Code plugin review hook dispatches from an installed local project with real configuration and collaborators, mocking only the reviewer process boundary
       Then <dispatch_result>
 
       Examples:
@@ -67,7 +67,7 @@ Feature: Keep plan reviews current and trustworthy
         | Implementation Plan | omits the current personas inventory | dispatch remains blocked until the current personas inventory is included |
         | Implementation Plan | includes the current personas inventory and every other required input | dispatch proceeds to the semantic reviewer |
         | Execution Plan | omits the accepted Implementation Plan | dispatch remains blocked until the accepted Implementation Plan is included |
-        | Execution Plan | includes the accepted Implementation Plan and every other required input | dispatch proceeds to the semantic reviewer |
+        | Execution Plan | includes the accepted Implementation Plan and every other required input | the complete packet reaches reviewer route selection without a context refusal |
 
   @plan-implementability.TBU4.5F5ZZA.R3
   Rule: plan-implementability.TBU4.5F5ZZA.R3 — Required context resolves or fails closed
