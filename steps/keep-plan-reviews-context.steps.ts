@@ -17,6 +17,7 @@ interface ContextState {
   root?: string;
   packet?: ReturnType<typeof prepareReviewPacket>['packet'];
   failure?: unknown;
+  roleFailures?: { role: string; failure: unknown }[];
 }
 
 const states = new WeakMap<SafewordWorld, ContextState>();
@@ -69,6 +70,121 @@ function current(world: SafewordWorld): ContextState {
   return state;
 }
 
+function replaceFile(root: string, file: string, before: string, after: string): void {
+  const source = path.join(root, file);
+  const content = readFileSync(source, 'utf8');
+  assert.ok(content.includes(before), `${file} must contain the fixture text being changed.`);
+  writeFileSync(source, content.replace(before, after));
+}
+
+function missingEntryCases(phase: Phase): { role: string; remove: (root: string) => void }[] {
+  const shared = [
+    {
+      role: 'ticket',
+      remove: (root: string) => rmSync(path.join(root, ticketDirectory, 'ticket.md')),
+    },
+    {
+      role: 'project',
+      remove: (root: string) =>
+        replaceFile(root, `${ticketDirectory}/spec.md`, '**Expected outcome:**', '**Other:**'),
+    },
+    {
+      role: 'rules',
+      remove: (root: string) => {
+        const source = `${ticketDirectory}/spec.md`;
+        const content = readFileSync(path.join(root, source), 'utf8');
+        writeFileSync(
+          path.join(root, source),
+          content.replace(/## Jobs To Be Done[\s\S]*?(?=## Surfaces)/u, ''),
+        );
+      },
+    },
+    {
+      role: 'parent',
+      remove: (root: string) =>
+        replaceFile(
+          root,
+          `${ticketDirectory}/ticket.md`,
+          'id: CTX123',
+          'id: CTX123\nparent: PAR123',
+        ),
+    },
+    {
+      role: 'milestone',
+      remove: (root: string) => {
+        const parent = path.join(root, '.project/tickets/PAR123-parent-context');
+        mkdirSync(parent, { recursive: true });
+        writeFileSync(path.join(parent, 'ticket.md'), '---\nid: PAR123\ntype: epic\n---\n');
+        writeFileSync(
+          path.join(parent, 'spec.md'),
+          readFileSync(path.join(root, ticketDirectory, 'spec.md')),
+        );
+        replaceFile(
+          root,
+          `${ticketDirectory}/ticket.md`,
+          'id: CTX123',
+          'id: CTX123\nparent: PAR123\nparent_job: approval.BU1',
+        );
+      },
+    },
+    ...(['principles', 'personas', 'surfaces'] as const).map(role => ({
+      role,
+      remove: (root: string) => rmSync(path.join(root, `.project/${role}.md`)),
+    })),
+  ];
+  if (phase === 'Product Plan')
+    return [
+      ...shared,
+      {
+        role: 'project',
+        remove: (root: string) =>
+          replaceFile(
+            root,
+            `${ticketDirectory}/spec.md`,
+            '**Assumptions:**',
+            '**Other assumptions:**',
+          ),
+      },
+    ];
+  const downstream = [
+    {
+      role: 'scenarios',
+      remove: (root: string) => rmSync(path.join(root, 'features/current-context.feature')),
+    },
+    {
+      role: 'dimensions',
+      remove: (root: string) =>
+        writeFileSync(path.join(root, ticketDirectory, 'dimensions.md'), ''),
+    },
+    {
+      role: 'architecture',
+      remove: (root: string) =>
+        replaceFile(
+          root,
+          `${ticketDirectory}/impl-plan.md`,
+          'skip: No durable architecture records apply.',
+          'An architecture record applies.',
+        ),
+    },
+    {
+      role: 'data',
+      remove: (root: string) =>
+        replaceFile(
+          root,
+          `${ticketDirectory}/impl-plan.md`,
+          'skip: No product data is stored.',
+          'Product data is stored.',
+        ),
+    },
+  ];
+  if (phase === 'Execution Plan')
+    downstream.push({
+      role: 'accepted-upstream-plan',
+      remove: (root: string) => rmSync(path.join(root, ticketDirectory, 'impl-plan.md')),
+    });
+  return [...shared, ...downstream];
+}
+
 After(function (this: SafewordWorld) {
   const state = states.get(this);
   if (state?.root) rmSync(state.root, { recursive: true, force: true });
@@ -81,6 +197,58 @@ Given(
     states.set(this, { phase, packetState });
   },
 );
+
+Given(
+  /^the canonical (Product Plan|Implementation Plan|Execution Plan) contract requires (.+) as review entry context$/,
+  function (this: SafewordWorld, phase: Phase, inventory: string) {
+    assert.ok(inventory.includes('ticket') && inventory.includes('principles'));
+    states.set(this, { phase, packetState: 'missing each required entry role' });
+  },
+);
+
+When(
+  'review dispatch receives a packet missing any listed required role',
+  function (this: SafewordWorld) {
+    const state = current(this);
+    state.roleFailures = missingEntryCases(state.phase).map(({ role, remove }) => {
+      const root = createProject();
+      try {
+        remove(root);
+        const selected = target(state.phase);
+        const context =
+          state.phase === 'Execution Plan' && role !== 'scenarios'
+            ? ['features/current-context.feature']
+            : [];
+        try {
+          const prepared = prepareReviewPacket(root, selected.kind, [selected.path], context);
+          prepared.cleanup();
+          return { role, failure: undefined };
+        } catch (failure) {
+          return { role, failure };
+        }
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+  },
+);
+
+Then('dispatch is blocked with the missing role named', function (this: SafewordWorld) {
+  const failures = current(this).roleFailures;
+  assert.ok(failures);
+  for (const { role, failure } of failures) {
+    if (role === 'scenarios' && current(this).phase === 'Execution Plan') {
+      assert.match(String(failure), /approved \.feature scenarios as context/u);
+      continue;
+    }
+    assert.equal(
+      (failure as { code?: string } | undefined)?.code,
+      'missing_planning_context',
+      `${role}: ${String(failure)}`,
+    );
+    assert.equal((failure as { contextRole?: string }).contextRole, role);
+  }
+});
 
 When('review dispatch is prepared', function (this: SafewordWorld) {
   const state = current(this);
