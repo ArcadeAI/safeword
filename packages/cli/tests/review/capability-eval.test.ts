@@ -109,6 +109,16 @@ describe('reviewer capability evaluation', () => {
     ).toBe(false);
     expect(scoreCapabilityRun(fixture, { ...run, verdict: 'approve' })).toBe(false);
     expect(scoreCapabilityRun(fixture, { ...run, findings: [] })).toBe(false);
+    const approvingFixture = fixtures[0];
+    if (approvingFixture === undefined) throw new Error('Missing approval fixture');
+    expect(
+      scoreCapabilityRun(approvingFixture, {
+        fixture_id: approvingFixture.id,
+        run: 1,
+        verdict: 'approve',
+        findings: [{ severity: 'error', message: 'A real blocking defect.' }],
+      }),
+    ).toBe(false);
     expect(
       scoreCapabilityRun(fixture, {
         ...run,

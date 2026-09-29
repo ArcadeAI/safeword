@@ -125,6 +125,8 @@ export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRu
   return (
     run.fixture_id === fixture.id &&
     run.verdict === fixture.verdict &&
+    (run.verdict === 'request_changes') ===
+      normalizedFindings.some(finding => finding.severity === 'error') &&
     fixture.required.every(finding => contains(finding, true)) &&
     fixture.forbidden.every(finding => !contains(finding, false))
   );
