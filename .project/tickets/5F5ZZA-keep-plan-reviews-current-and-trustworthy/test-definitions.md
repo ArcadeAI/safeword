@@ -789,3 +789,7 @@ admission. Keep the full scenario unchecked until its remaining boundaries pass.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
