@@ -3605,7 +3605,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DISCOVERY.md": "b914910e5cbdd04c6ec25f44315554a6382f974fc8c91c04ed56782758176922",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "f19222d583468c6a8dd773d84789b72aa885db1fd00af54922eb3734e8ec56c8",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "32067faf4e8f95926142aea815b5ce7b04e66a1cd0df9f64ae3436df4ad940ba",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "3770f019f5a83fd4ad6dcb2322528595a39545f61cf1106a2f606a8137036d9d",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
@@ -34586,7 +34586,7 @@ var init_contracts_generated = __esm(() => {
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      sha256: "f19222d583468c6a8dd773d84789b72aa885db1fd00af54922eb3734e8ec56c8"
+      sha256: "32067faf4e8f95926142aea815b5ce7b04e66a1cd0df9f64ae3436df4ad940ba"
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
@@ -53183,7 +53183,7 @@ function readPlanningAuthor(root, phase, identity2) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "0d01884de531c33e513d97961859f2c62b6cdecba9852d355c25bf24eff6e589" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "277a6029ec4017089facf0698a436fb2c642d7205316a0e716303acc661b1cd3" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "71bc151079386336167dde29c3e14bd18d71920ca8056678eabe741f290c27e9" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "277a6029ec4017089facf0698a436fb2c642d7205316a0e716303acc661b1cd3" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {

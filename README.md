@@ -410,6 +410,11 @@ Projects that select `require` must configure exact reviewer model selectors in
 `crossAgentReviewRoutes` and use a currently qualified author/reviewer pair;
 otherwise the review remains blocked. `prefer` can admit the completed review
 with its actual reviewer and reduced independence.
+The opt-in `architectureReviewGate` separately requires verified independent
+design review before implementation finishes. A reduced planning receipt does
+not clear it. Hosts without trusted exact author-model metadata cannot
+automatically satisfy that claim today; the existing reasoned skip remains an
+auditable escape hatch, without relabeling fallback as independent.
 
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 

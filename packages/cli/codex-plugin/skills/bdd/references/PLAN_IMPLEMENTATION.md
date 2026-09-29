@@ -390,10 +390,12 @@ receipt controls eligibility for approval and phase advancement.
    happens only after this review passes. Information only the user has still
    routes to `$safeword:elicit` when the gap appears.
 
-   For `architectureReviewGate: true`, a reduced receipt does not satisfy the
-   additional independent architecture requirement. Preserve its findings,
-   but do not stamp or advance. Restore an independent route and rerun the
-   coordinator on the current plan; never relabel fallback as independent.
+   For `architectureReviewGate: true`, record an authenticated reduced receipt
+   truthfully under `prefer`; it can advance planning but does not clear the later architecture gate at implement exit. That opt-in gate requires a verified
+   independent design review, or its existing reasoned skip escape hatch. A
+   host without trusted exact author-model metadata cannot currently earn the
+   independent claim. Preserve fallback findings and restore a qualified route
+   where possible; never relabel fallback as independent.
 
 2. **Use the canonical approval boundary.** After the current review passes and
    any required review stamp is written, run:

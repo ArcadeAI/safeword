@@ -23,6 +23,17 @@ describe('planning fallback documentation', () => {
     expect(readme).toContain('Cursor itself has no headless reviewer route');
     expect(readme).toContain('A current receipt is still required at the phase');
     expect(readme).not.toContain('Both read the live worktree, so');
+    expect(readme).toContain('opt-in `architectureReviewGate`');
+    expect(readme).toContain('reasoned skip');
+  });
+
+  it('distinguishes planning approval from the later independent architecture gate', () => {
+    const guidance = readFileSync(
+      nodePath.join(root, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
+      'utf8',
+    );
+    expect(guidance).toMatch(/does not clear\s+the later architecture gate/u);
+    expect(guidance).toContain('reasoned skip');
   });
 
   it('describes the Cursor Cloud transition boundary without claiming stop hooks are absent', () => {
