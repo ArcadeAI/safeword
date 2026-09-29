@@ -133,11 +133,12 @@ it('discards a weaker approval and continues to the next independent route', asy
     context: [`${ticket}/spec.md`],
   });
   expect(exhausted.data).toMatchObject({
-    status: 'blocked',
-    capability_failure: 'reviewer_capability_weaker',
+    status: 'continuation_required',
+    continuation: { tier: 'fresh-context' },
+    review_routes: [{ model: 'gpt-6-luna', failure: 'reviewer_capability_weaker' }],
   });
   expect(exhausted.findings).toContainEqual(
-    expect.objectContaining({ code: 'REVIEWER_CAPABILITY_WEAKER' }),
+    expect.objectContaining({ code: 'REVIEW_CONTINUATION_REQUIRED' }),
   );
   expect(JSON.stringify(exhausted)).not.toContain('Weak approval.');
 

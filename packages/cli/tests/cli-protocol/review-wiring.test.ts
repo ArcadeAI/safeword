@@ -452,7 +452,15 @@ describe('cross-agent review public-command wiring', () => {
         '--cwd',
         directory,
       ],
-      { cwd: directory, env: { SAFEWORD_AGENT_RUNTIME: 'cursor' } },
+      {
+        cwd: directory,
+        env: {
+          SAFEWORD_AGENT_RUNTIME: 'unknown',
+          CODEX_THREAD_ID: '',
+          CLAUDE_SESSION_ID: '',
+          CLAUDE_CODE_SESSION_ID: '',
+        },
+      },
     );
 
     expect(result.exitCode).toBe(1);

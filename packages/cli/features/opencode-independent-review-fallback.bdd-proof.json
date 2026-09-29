@@ -113,7 +113,7 @@
       ],
       [
         "packages/cli/tests/review/policy.test.ts",
-        "keeps unsupported author %s outside review routing"
+        "rejects unknown author keys instead of silently ignoring a typo"
       ]
     ]
   }
