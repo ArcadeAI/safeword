@@ -163,7 +163,7 @@ installed-dispatch outline or full feature verification, so R/G/R remains open.
 
 ### Scenario: Context identity ignores cosmetic and unrelated edits
 
-- [ ] RED
+- [x] RED 1ec6d2e09
 - [ ] GREEN
 - [ ] REFACTOR
 
