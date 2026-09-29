@@ -628,11 +628,11 @@ function isContinuationResultData(data: Record<string, unknown>, state: unknown)
         typeof plainRecord(file)?.path === 'string' &&
         typeof plainRecord(file)?.content === 'string',
     ) &&
-    hasExhaustedRoutesForHostContinuation(data.review_routes, data.author_agent === 'cursor')
+    hasExhaustedRoutesForHostContinuation(data.review_routes)
   );
 }
 
-function hasExhaustedRoutesForHostContinuation(value: unknown, cursorAuthor: boolean): boolean {
+function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
   if (!Array.isArray(value)) return false;
   const routes = value.map(route => plainRecord(route));
   const attemptedIndependent = routes.some(
@@ -653,7 +653,8 @@ function hasExhaustedRoutesForHostContinuation(value: unknown, cursorAuthor: boo
       ['attempted', 'unavailable'].includes(String(route.status)) &&
       typeof route.failure === 'string',
   );
-  return attemptedIndependent && exhausted && (headlessFailed || cursorAuthor);
+  const headlessRoute = routes.some(route => route?.independence === 'degraded');
+  return attemptedIndependent && exhausted && (!headlessRoute || headlessFailed);
 }
 
 function isCompletedReviewData(data: Record<string, unknown>, state: unknown): boolean {

@@ -3605,7 +3605,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DISCOVERY.md": "b914910e5cbdd04c6ec25f44315554a6382f974fc8c91c04ed56782758176922",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "07129dce26ca9670ac3d6b3cbac3b0106474dec17aafd1a7c1295189b348d3d3",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "f19222d583468c6a8dd773d84789b72aa885db1fd00af54922eb3734e8ec56c8",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "3770f019f5a83fd4ad6dcb2322528595a39545f61cf1106a2f606a8137036d9d",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
@@ -3664,7 +3664,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "1858b5639255295d82e17ca841df994e6a3ce876d93b3744cb515a42baae9bc6",
+        ".safeword/hooks/stop-quality.ts": "b091485a1c632c168cebe6c30cc5c37fa0dd468c41147ad4341d76829c64e379",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "5b0767121376bac1ad9f2b57765f0e705b1c34bff72724133014d31e39c0b916",
@@ -34586,7 +34586,7 @@ var init_contracts_generated = __esm(() => {
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      sha256: "07129dce26ca9670ac3d6b3cbac3b0106474dec17aafd1a7c1295189b348d3d3"
+      sha256: "f19222d583468c6a8dd773d84789b72aa885db1fd00af54922eb3734e8ec56c8"
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
@@ -53183,7 +53183,7 @@ function readPlanningAuthor(root, phase, identity2) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "4278a467be605e6aad145eda057c80377d6c0c364107f5e8f5757bb9245ea4f6" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "277a6029ec4017089facf0698a436fb2c642d7205316a0e716303acc661b1cd3" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/DISCOVERY.md", sha256: "5397b95c0f1c9b6a4b0bdba66acddbc4a7d6d200497fe92462e2c5118625cd77" }, "plan-implementation": { relativePath: "skills/bdd/PLAN_IMPLEMENTATION.md", sha256: "0d01884de531c33e513d97961859f2c62b6cdecba9852d355c25bf24eff6e589" }, "plan-execution": { relativePath: "skills/bdd/PLAN_EXECUTION.md", sha256: "277a6029ec4017089facf0698a436fb2c642d7205316a0e716303acc661b1cd3" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
@@ -56205,14 +56205,15 @@ function hostContinuationResult(input) {
   const attemptedIndependent = input.evidence.some((route) => route.independence === "cross-agent" && route.status === "attempted" && route.failure !== undefined);
   const strongerExhausted = input.evidence.every((route) => route.status !== "unattempted");
   const headlessFailed = input.evidence.some((route) => route.independence === "degraded" && ["attempted", "unavailable"].includes(route.status) && route.failure !== undefined);
-  if (!attemptedIndependent || !strongerExhausted || !headlessFailed && input.author !== "cursor")
+  const headlessRoute = input.evidence.some((route) => route.independence === "degraded");
+  if (!attemptedIndependent || !strongerExhausted || headlessRoute && !headlessFailed)
     return;
   return createResult({
     state: "action_required",
     findings: [
       {
         code: "REVIEW_CONTINUATION_REQUIRED",
-        message: input.author === "cursor" ? "The independent routes did not complete, and Cursor has no headless reviewer route. A fresh-context review of the sealed packet is next." : "The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next.",
+        message: headlessRoute ? "The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next." : "The independent routes did not complete, and no headless reviewer route was configured. A fresh-context review of the sealed packet is next.",
         severity: "warning"
       },
       ...input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output)
@@ -57452,16 +57453,17 @@ function isContinuationResultData(data, state) {
   const continuation = plainRecord2(data.continuation);
   const packet = plainRecord2(continuation?.packet);
   const files = packet?.logical_files;
-  return state === "action_required" && data.review_policy === "prefer" && data.independence === "none" && ["claude", "codex", "cursor", "opencode"].includes(String(data.author_agent)) && ["fresh-context", "self-review"].includes(String(continuation?.tier)) && typeof continuation?.instructions === "string" && continuation.instructions.length > 0 && packet?.schema_version === 1 && typeof packet.dispatch_id === "string" && packet.dispatch_id.length > 0 && Array.isArray(files) && files.length > 0 && files.every((file) => typeof plainRecord2(file)?.path === "string" && typeof plainRecord2(file)?.content === "string") && hasExhaustedRoutesForHostContinuation(data.review_routes, data.author_agent === "cursor");
+  return state === "action_required" && data.review_policy === "prefer" && data.independence === "none" && ["claude", "codex", "cursor", "opencode"].includes(String(data.author_agent)) && ["fresh-context", "self-review"].includes(String(continuation?.tier)) && typeof continuation?.instructions === "string" && continuation.instructions.length > 0 && packet?.schema_version === 1 && typeof packet.dispatch_id === "string" && packet.dispatch_id.length > 0 && Array.isArray(files) && files.length > 0 && files.every((file) => typeof plainRecord2(file)?.path === "string" && typeof plainRecord2(file)?.content === "string") && hasExhaustedRoutesForHostContinuation(data.review_routes);
 }
-function hasExhaustedRoutesForHostContinuation(value, cursorAuthor) {
+function hasExhaustedRoutesForHostContinuation(value) {
   if (!Array.isArray(value))
     return false;
   const routes = value.map((route) => plainRecord2(route));
   const attemptedIndependent = routes.some((route) => route?.independence === "cross-agent" && route.status === "attempted" && typeof route.failure === "string");
   const exhausted = routes.every((route) => route !== undefined && route.status !== "unattempted" && (route.status === "skipped" || typeof route.failure === "string"));
   const headlessFailed = routes.some((route) => route?.independence === "degraded" && ["attempted", "unavailable"].includes(String(route.status)) && typeof route.failure === "string");
-  return attemptedIndependent && exhausted && (headlessFailed || cursorAuthor);
+  const headlessRoute = routes.some((route) => route?.independence === "degraded");
+  return attemptedIndependent && exhausted && (!headlessRoute || headlessFailed);
 }
 function isCompletedReviewData(data, state) {
   const output = data.reviewer_output;

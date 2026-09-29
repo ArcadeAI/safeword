@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "a4e955d249d1aee979765fc40f535e0e524d9fdd2e5c00a5b1d7bdedf2ed3708"
+      "sha256": "4a02cd4e4882b17b3fa3cc780c9462df9f620424652de1c43000204efde63123"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "a55515a82b1badb4c7b2e21c632af71333c2d0e445c66ae6a45b37d5f3d69134"
+      "sha256": "3ef07ce866c80335290d8318164bba1c67eb40686025650267d2f7a2ba77d2e1"
     },
     {
       "path": "runtime/event-groups.json",
@@ -395,7 +395,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "13aed63ba766551a8170d3a2dbe78f1710f4d84b554d90466df025583f75dfa9"
+      "sha256": "58e4bd7ebf6d9a3f80427b4525c2da1502563cf1061fd6cc23a0c7a16e26d3de"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
@@ -599,7 +599,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "5bdb79ce3d66b6a4eb384942d5115f2041fa9aa501f0d18af5aeaf35446742c3"
+      "sha256": "3a33b501beb7af2ce8d0da72f01cc09512df374ae6b8630e64eecd0e17ff6cb7"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -639,7 +639,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "4278a467be605e6aad145eda057c80377d6c0c364107f5e8f5757bb9245ea4f6"
+      "sha256": "0d01884de531c33e513d97961859f2c62b6cdecba9852d355c25bf24eff6e589"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",

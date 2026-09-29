@@ -16,7 +16,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/PLAN_EXECUTION.md':
         '6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '07129dce26ca9670ac3d6b3cbac3b0106474dec17aafd1a7c1295189b348d3d3',
+        'f19222d583468c6a8dd773d84789b72aa885db1fd00af54922eb3734e8ec56c8',
       '.claude/skills/bdd/SCENARIOS.md':
         '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
       '.claude/skills/bdd/SKILL.md':
@@ -132,7 +132,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
       '.safeword/hooks/stop-quality.ts':
-        '1858b5639255295d82e17ca841df994e6a3ce876d93b3744cb515a42baae9bc6',
+        'b091485a1c632c168cebe6c30cc5c37fa0dd468c41147ad4341d76829c64e379',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':

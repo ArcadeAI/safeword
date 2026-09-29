@@ -86,7 +86,7 @@ it.each([
   ['claude', 'require', 'claude-opus-5', true],
 ] as const)(
   'labels a %s-authored planning review under %s with author model %s and confirmed reviewer %s',
-  // eslint-disable-next-line complexity -- The host, policy, and model matrix shares one real CLI fixture.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- The host matrix keeps routing and admission assertions on one installed fixture.
   async (author, policy, authorModel, confirmedReviewer) => {
     const reviewerAgent = author === 'claude' ? 'codex' : 'claude';
     const project = createTemporaryDirectory();
@@ -162,24 +162,35 @@ it.each([
     const unknownAuthor = authorModel === undefined;
     const qualified = authorModel !== undefined && confirmedReviewer;
     const admitted = qualified || (unknownAuthor && policy === 'prefer');
+    const continuationRequired =
+      author === 'claude' && policy === 'prefer' && authorModel !== undefined && !confirmedReviewer;
+    let expectedStatus = admitted ? 'approved' : 'blocked';
+    if (continuationRequired) expectedStatus = 'continuation_required';
     expect(reviewed.exitCode).toBe(admitted ? 0 : 2);
     expect(output.state).toBe(admitted ? 'healthy' : 'action_required');
     expect(output.data).toMatchObject({
-      status: admitted ? 'approved' : 'blocked',
+      status: expectedStatus,
       independence: admitted ? 'reduced' : 'none',
       ...(qualified && { independence: 'cross-agent' }),
-      actual_reviewer: reviewerAgent,
+      ...(!continuationRequired && { actual_reviewer: reviewerAgent }),
       ...(reviewerAgent === 'claude' && {
         confirmed_reviewer_model: { provider: 'anthropic', model: 'claude-opus-5' },
       }),
-      ...(!qualified && {
-        capability_failure: unknownAuthor
-          ? 'author_capability_unknown'
-          : 'reviewer_capability_unknown',
-      }),
+      ...(!qualified &&
+        !continuationRequired && {
+          capability_failure: unknownAuthor
+            ? 'author_capability_unknown'
+            : 'reviewer_capability_unknown',
+        }),
     });
+    if (continuationRequired) {
+      expect(output.data.continuation).toMatchObject({ tier: 'fresh-context' });
+      expect(output.data.review_routes).toContainEqual(
+        expect.objectContaining({ failure: 'reviewer_capability_unknown' }),
+      );
+    }
     if (author === 'cursor') expect(output.data.review_routes).toHaveLength(1);
-    expectCapabilityFinding(output, qualified, unknownAuthor);
+    if (!continuationRequired) expectCapabilityFinding(output, qualified, unknownAuthor);
     expect(output.findings).toContainEqual(
       expect.objectContaining({ code: 'REVIEWER_FINDING', message: 'Check the migration note.' }),
     );

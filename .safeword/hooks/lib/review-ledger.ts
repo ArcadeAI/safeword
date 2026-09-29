@@ -148,6 +148,22 @@ export function reviewGateForNextAsset(
   };
 }
 
+/** The opt-in architecture gate requires independent design review or a reasoned skip. */
+export function reviewGateForIndependentDesign(
+  scope: string,
+  stamps: readonly ReviewStamp[],
+): GateVerdict {
+  if (
+    stamps.some(
+      stamp =>
+        isSatisfyingSkipStamp(scope, stamp) ||
+        isSatisfyingCoordinatorReviewStamp(scope, stamp, 'require'),
+    )
+  )
+    return { ok: true };
+  return { ok: false, reason: `"${scope}" has no independent design review` };
+}
+
 /**
  * Phase-exit gate (TB2.AC1): advancing past a phase is allowed only when an
  * independent review stamp for that phase exists. Unlike the per-asset gate

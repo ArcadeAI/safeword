@@ -404,6 +404,12 @@ Cursor itself has no headless reviewer route. If those routes fail under
 reduced-independence receipt. A current receipt is still required at the phase
 gate. Cursor cannot satisfy `require` until trusted exact author-model metadata
 is available.
+The stock reviewer routes are attempted in their configured order, but an
+unselected runtime-default model cannot earn a qualified cross-agent comparison.
+Projects that select `require` must configure exact reviewer model selectors in
+`crossAgentReviewRoutes` and use a currently qualified author/reviewer pair;
+otherwise the review remains blocked. `prefer` can admit the completed review
+with its actual reviewer and reduced independence.
 
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 

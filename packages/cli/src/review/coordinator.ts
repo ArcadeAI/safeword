@@ -1178,17 +1178,17 @@ function hostContinuationResult(input: {
       ['attempted', 'unavailable'].includes(route.status) &&
       route.failure !== undefined,
   );
-  if (!attemptedIndependent || !strongerExhausted || (!headlessFailed && input.author !== 'cursor'))
+  const headlessRoute = input.evidence.some(route => route.independence === 'degraded');
+  if (!attemptedIndependent || !strongerExhausted || (headlessRoute && !headlessFailed))
     return undefined;
   return createResult({
     state: 'action_required',
     findings: [
       {
         code: 'REVIEW_CONTINUATION_REQUIRED',
-        message:
-          input.author === 'cursor'
-            ? 'The independent routes did not complete, and Cursor has no headless reviewer route. A fresh-context review of the sealed packet is next.'
-            : 'The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next.',
+        message: headlessRoute
+          ? 'The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next.'
+          : 'The independent routes did not complete, and no headless reviewer route was configured. A fresh-context review of the sealed packet is next.',
         severity: 'warning',
       },
       ...(input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output)),

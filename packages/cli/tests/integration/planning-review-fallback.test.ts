@@ -27,14 +27,27 @@ afterEach(() => {
 });
 
 describe('planning fallback after independent route exhaustion', () => {
+  // eslint-disable-next-line complexity -- The fixture exercises one end-to-end review and admission path across host variants.
   async function reviewThroughAdmission(
     hostContinuation: boolean,
     author: 'claude' | 'cursor' | 'opencode' = 'claude',
+    independentOnly = false,
   ): Promise<Record<string, unknown>> {
     const project = createTemporaryDirectory();
     projects.push(project);
     await createConfiguredProject(project);
     writePlanningInventories(project);
+    if (independentOnly) {
+      const configPath = nodePath.join(project, '.safeword/config.json');
+      const config = JSON.parse(readFileSync(configPath, 'utf8'));
+      writeFileSync(
+        configPath,
+        JSON.stringify({
+          ...config,
+          crossAgentReviewRoutes: { [author]: [{ reviewer: 'codex', model: 'gpt-6-astra' }] },
+        }),
+      );
+    }
     const ticket = '.project/tickets/FAL123-fallback';
     mkdirSync(nodePath.join(project, ticket), { recursive: true });
     writeFileSync(
@@ -221,6 +234,12 @@ describe('planning fallback after independent route exhaustion', () => {
 
   it('admits a sealed fresh-host review only after independent and headless routes fail', async () => {
     expect(await reviewThroughAdmission(true)).toMatchObject({ achieved_independence: 'reduced' });
+  });
+
+  it('admits fresh-host review after all configured independent routes fail without a headless route', async () => {
+    expect(await reviewThroughAdmission(true, 'claude', true)).toMatchObject({
+      achieved_independence: 'reduced',
+    });
   });
 
   it('admits a Cursor host review after independent routes fail without inventing a Cursor CLI', async () => {
