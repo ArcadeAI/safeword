@@ -56070,7 +56070,7 @@ function cannotAttemptRankedRoute(planning, route, evidence, deadline) {
 }
 function rankedReviewerCapabilityFailure(planning, author, route, confirmedModel2) {
   const authorModel = process.env[AUTHOR_MODEL_ENV];
-  if (!planning || author !== "claude" || authorModel === undefined)
+  if (!planning || author !== "claude" || authorModel === undefined || authorModel.trim() === "")
     return;
   return reviewerCapabilityFailure({ provider: "anthropic", model: authorModel }, route.model, confirmedModel2, PACKAGED_CAPABILITY_REVISION2, PACKAGED_CAPABILITY_PAIRS2);
 }
@@ -56200,7 +56200,7 @@ function rankedTerminalResult(input) {
   });
 }
 function hostContinuationResult(input) {
-  if (!input.planning || input.policy !== "prefer")
+  if (!input.planning || input.policy !== "prefer" || input.degraded !== undefined)
     return;
   const attemptedIndependent = input.evidence.some((route) => route.independence === "cross-agent" && route.status === "attempted" && route.failure !== undefined);
   const strongerExhausted = input.evidence.every((route) => route.status !== "unattempted");

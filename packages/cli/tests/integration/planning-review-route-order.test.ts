@@ -73,16 +73,18 @@ ${review}
 }
 
 it.each([
-  ['claude', 'codex', false, false, false],
-  ['codex', 'claude', false, false, false],
-  ['claude', 'codex', true, false, false],
-  ['codex', 'claude', true, false, false],
-  ['codex', 'claude', false, true, false],
-  ['codex', 'claude', false, true, true],
+  ['claude', 'codex', false, 'absent', false],
+  ['claude', 'codex', false, 'empty', false],
+  ['codex', 'claude', false, 'absent', false],
+  ['claude', 'codex', true, 'absent', false],
+  ['codex', 'claude', true, 'absent', false],
+  ['codex', 'claude', false, 'known', false],
+  ['codex', 'claude', false, 'known', true],
 ] as const)(
-  'tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author is known %s, and model is confirmed %s',
+  'tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author model is %s, and model is confirmed %s',
   // eslint-disable-next-line complexity -- The route-order matrix shares one real CLI fixture.
-  async (first, second, codexFails, authorKnown, codexConfirmed) => {
+  async (first, second, codexFails, authorModelState, codexConfirmed) => {
+    const authorKnown = authorModelState === 'known';
     const project = createTemporaryDirectory();
     projects.push(project);
     await createConfiguredProject(project);
@@ -155,6 +157,7 @@ it.each([
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_NO_UPDATE_CHECK: '1',
           ...(authorKnown && { SAFEWORD_AUTHOR_MODEL: 'claude-opus-5' }),
+          ...(authorModelState === 'empty' && { SAFEWORD_AUTHOR_MODEL: '' }),
         },
       },
     );

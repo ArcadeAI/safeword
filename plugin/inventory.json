@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5250352b8452eab09e9bdbe2da8bc2b81dbbd1dffcefb2a7a9394864790f96c0"
+      "sha256": "2731a0318d3176c806b7ed1e7d4ffddae7b08510a86ba72911995f178ca4d989"
     },
     {
       "path": "runtime/dispatch.js",
@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "4e8e9b55ee9dcf56ea876e14e191a387c1958b853c9e5c3d5f3a201478ea587b"
+      "sha256": "2076e722051781174418d0abf0b17e655ee3ed2bcd485fff1843090816c0e421"
     },
     {
       "path": "skills/audit/SKILL.md",

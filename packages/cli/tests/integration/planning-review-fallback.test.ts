@@ -32,19 +32,28 @@ describe('planning fallback after independent route exhaustion', () => {
     hostContinuation: boolean,
     author: 'claude' | 'cursor' | 'opencode' = 'claude',
     independentOnly = false,
+    failedFirstSameAgent = false,
   ): Promise<Record<string, unknown>> {
     const project = createTemporaryDirectory();
     projects.push(project);
     await createConfiguredProject(project);
     writePlanningInventories(project);
-    if (independentOnly) {
+    if (independentOnly || failedFirstSameAgent) {
       const configPath = nodePath.join(project, '.safeword/config.json');
       const config = JSON.parse(readFileSync(configPath, 'utf8'));
       writeFileSync(
         configPath,
         JSON.stringify({
           ...config,
-          crossAgentReviewRoutes: { [author]: [{ reviewer: 'codex', model: 'gpt-6-astra' }] },
+          crossAgentReviewRoutes: {
+            [author]: failedFirstSameAgent
+              ? [
+                  { reviewer: 'codex' },
+                  { reviewer: 'claude', model: 'no-such-model' },
+                  { reviewer: 'claude' },
+                ]
+              : [{ reviewer: 'codex', model: 'gpt-6-astra' }],
+          },
         }),
       );
     }
@@ -77,7 +86,7 @@ describe('planning fallback after independent route exhaustion', () => {
     );
     writeFileSync(
       nodePath.join(reviewer, 'claude'),
-      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nif (${hostContinuation}) process.exit(7);\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Current plan approved.', findings: [] } })); });\n`,
+      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nif (${hostContinuation} || process.argv.includes('no-such-model')) process.exit(7);\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Current plan approved.', findings: [] } })); });\n`,
       { mode: 0o755 },
     );
     const target = `${ticket}/impl-plan.md`;
@@ -110,6 +119,19 @@ describe('planning fallback after independent route exhaustion', () => {
       },
     );
     const output = JSON.parse(result.stdout);
+    if (failedFirstSameAgent) {
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(output.data.review_routes).toMatchObject([
+        { reviewer: 'codex', status: 'attempted' },
+        {
+          reviewer: 'claude',
+          model: 'no-such-model',
+          status: 'attempted',
+          failure: expect.any(String),
+        },
+        { reviewer: 'claude', status: 'attempted' },
+      ]);
+    }
     if (hostContinuation) {
       expect(output.data).toMatchObject({
         status: 'continuation_required',
@@ -206,6 +228,13 @@ describe('planning fallback after independent route exhaustion', () => {
       },
     };
     if (author === 'opencode') {
+      const skipped = spawnSync(
+        'bun',
+        [...stampArguments, '--skip', 'review is unnecessary'],
+        stampOptions,
+      );
+      expect(skipped.status).not.toBe(0);
+      expect(skipped.stdout).toContain('missing run identity');
       const forged = [...stampArguments];
       forged[forged.indexOf('--review-id') + 1] = '00000000-0000-4000-8000-000000000000';
       const rejected = spawnSync('bun', forged, stampOptions);
@@ -230,6 +259,12 @@ describe('planning fallback after independent route exhaustion', () => {
 
   it('records a successful same-agent headless review as reduced independence', async () => {
     expect(await reviewThroughAdmission(false)).toMatchObject({ achieved_independence: 'reduced' });
+  });
+
+  it('keeps a completed same-agent fallback after an earlier same-agent route fails', async () => {
+    expect(await reviewThroughAdmission(false, 'claude', false, true)).toMatchObject({
+      achieved_independence: 'reduced',
+    });
   });
 
   it('admits a sealed fresh-host review only after independent and headless routes fail', async () => {

@@ -988,7 +988,8 @@ function rankedReviewerCapabilityFailure(
   confirmedModel: ConfirmedReviewerModel | undefined,
 ): 'reviewer_capability_unknown' | 'reviewer_capability_weaker' | undefined {
   const authorModel = process.env[AUTHOR_MODEL_ENV];
-  if (!planning || author !== 'claude' || authorModel === undefined) return undefined;
+  if (!planning || author !== 'claude' || authorModel === undefined || authorModel.trim() === '')
+    return undefined;
   return reviewerCapabilityFailure(
     { provider: 'anthropic', model: authorModel },
     route.model,
@@ -1163,8 +1164,10 @@ function hostContinuationResult(input: {
   readonly evidence: readonly RankedRouteEvidence[];
   readonly prepared: ReturnType<typeof prepareReviewPacket>;
   readonly unqualified?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
+  readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
 }): CliResult | undefined {
-  if (!input.planning || input.policy !== 'prefer') return undefined;
+  if (!input.planning || input.policy !== 'prefer' || input.degraded !== undefined)
+    return undefined;
   const attemptedIndependent = input.evidence.some(
     route =>
       route.independence === 'cross-agent' &&
