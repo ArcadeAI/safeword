@@ -2075,7 +2075,10 @@ function rankedReviewRoutes(
   author: ReviewAgent,
   configured: readonly ReviewRoute[] | undefined,
 ): readonly ReviewRoute[] | undefined {
-  if (input.kind !== 'plan-execution') return configured;
+  if (input.kind !== 'plan-execution')
+    return isPlanningReview(input.kind)
+      ? (configured ?? builtInReviewRoutes(input.cwd, author))
+      : configured;
   return filterExecutionPlanRoutes(
     input.kind,
     configured ?? builtInReviewRoutes(input.cwd, author),

@@ -10,29 +10,36 @@ import { PLANNING_ROLE_PRODUCT } from '../planning-role-fixtures.js';
 
 vi.mock('../../src/review/capability-catalogue.js', async importOriginal => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  reviewerCapabilityFailure: (_author: unknown, requestedModel: string) =>
-    requestedModel === 'gpt-6-luna' ? 'reviewer_capability_weaker' : undefined,
+  reviewerCapabilityFailure: (_author: unknown, requestedModel: string | undefined) => {
+    if (requestedModel === undefined) return 'reviewer_capability_unknown';
+    return requestedModel === 'gpt-6-luna' ? 'reviewer_capability_weaker' : undefined;
+  },
 }));
 
 vi.mock('../../src/review/runtime.js', async importOriginal => ({
   ...(await importOriginal<Record<string, unknown>>()),
   runHeadlessReviewerWithProvenance: (
-    _reviewer: unknown,
+    reviewer: string,
     packet: { dispatch_id: string },
     _workspace: unknown,
     _sourceRoot: unknown,
-    options: { model: string },
+    options: { model?: string },
   ) =>
     Promise.resolve({
       output: {
         schema_version: 1,
         dispatch_id: packet.dispatch_id,
-        reviewer_agent: 'codex',
-        verdict: options.model === 'gpt-6-luna' ? 'approve' : 'request_changes',
-        summary: options.model === 'gpt-6-luna' ? 'Weak approval.' : 'Qualified rejection.',
+        reviewer_agent: reviewer,
+        verdict: options.model === 'gpt-6-astra' ? 'request_changes' : 'approve',
+        summary:
+          {
+            'gpt-6-luna': 'Weak approval.',
+            'gpt-6-astra': 'Qualified rejection.',
+          }[options.model ?? ''] ?? 'Runtime-default approval.',
         findings: [],
       },
-      confirmedModel: { provider: 'openai', model: options.model },
+      confirmedModel:
+        options.model === undefined ? undefined : { provider: 'openai', model: options.model },
     }),
 }));
 
@@ -122,4 +129,22 @@ it('discards a weaker approval and continues to the next independent route', asy
     expect.objectContaining({ code: 'REVIEWER_CAPABILITY_WEAKER' }),
   );
   expect(JSON.stringify(exhausted)).not.toContain('Weak approval.');
+
+  writeFileSync(configPath, JSON.stringify(config));
+  const defaulted = await runReview({
+    cwd: project,
+    kind: 'plan-implementation',
+    targets: [`${ticket}/impl-plan.md`],
+    context: [`${ticket}/spec.md`],
+  });
+  expect(defaulted.data).toMatchObject({
+    status: 'approved',
+    actual_reviewer: 'claude',
+    independence: 'reduced',
+    review_routes: [
+      { reviewer: 'codex', status: 'attempted', failure: 'reviewer_capability_unknown' },
+      { reviewer: 'opencode', status: 'attempted', failure: 'reviewer_capability_unknown' },
+      { reviewer: 'claude', status: 'attempted' },
+    ],
+  });
 });
