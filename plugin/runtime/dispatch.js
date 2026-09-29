@@ -1764,13 +1764,13 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880',
       '.claude/skills/bdd/DISCOVERY.md':
-        'b914910e5cbdd04c6ec25f44315554a6382f974fc8c91c04ed56782758176922',
+        '5f742ac7c7a84fd3448208366d9872d01bf33dadca34c8e60d39640a7823cc3c',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_EXECUTION.md':
-        '6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53',
+        'b32e1b0778773165d0a66bd49d0a57ffc7653c8707381d89090268b3dc56853d',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '53958b3c8e2120f5d8cfdc8aef9ea7ee85b1d2d759e3e0e50d030f3f2f2ee368',
+        '8dcf90cf71ecd2f77c14bf4a0bb87d28adb99883efe91c3b35246e0a37e387ef',
       '.claude/skills/bdd/SCENARIOS.md':
         '1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb',
       '.claude/skills/bdd/SKILL.md':
