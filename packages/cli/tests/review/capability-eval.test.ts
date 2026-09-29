@@ -5,6 +5,7 @@ import {
   type CapabilityManifest,
   capabilityRevision,
   type CapabilityRun,
+  collectCapabilityResults,
   compareCapabilityRuns,
   compareSealedCapabilityResults,
   scoreCapabilityRun,
@@ -88,6 +89,78 @@ function withVerdict(
 }
 
 describe('reviewer capability evaluation', () => {
+  it('records all three attempts per packet and refuses unconfirmed or mismatched models', async () => {
+    const attempts: string[] = [];
+    const results = await collectCapabilityResults({
+      manifest,
+      rubrics,
+      provider: 'anthropic',
+      model: 'claude-opus-5',
+      evidenceDate: '2026-09-28',
+      review: packet => {
+        attempts.push(packet.dispatch_id);
+        return Promise.resolve({
+          output: {
+            schema_version: 1,
+            dispatch_id: packet.dispatch_id,
+            reviewer_agent: 'claude',
+            verdict: 'approve',
+            summary: 'reviewed',
+            findings: [],
+          },
+          ...(attempts.length !== 1 && {
+            confirmedModel: { provider: 'anthropic', model: 'claude-opus-5' },
+          }),
+        });
+      },
+    });
+    expect(attempts).toHaveLength(fixtures.length * 3);
+    expect(results.runs[0]).toMatchObject({
+      fixture_id: 'product-approve',
+      run: 1,
+      verdict: 'invalid',
+      failure: 'model_unconfirmed',
+    });
+    expect(results.runs[1]).toMatchObject({ fixture_id: 'product-approve', run: 2 });
+    expect(compareSealedCapabilityResults(manifest, rubrics, results, results)).toBe('unknown');
+  });
+
+  it('counts process failure, a different exact model, and a wrong dispatch as failed attempts', async () => {
+    const oneFixture = { ...manifest, fixtures: manifest.fixtures.slice(0, 1) };
+    let attempt = 0;
+    const result = await collectCapabilityResults({
+      manifest: oneFixture,
+      rubrics,
+      provider: 'anthropic',
+      model: 'claude-opus-5',
+      evidenceDate: '2026-09-28',
+      review: packet => {
+        attempt += 1;
+        if (attempt === 1) return Promise.reject(new Error('review failed'));
+        return Promise.resolve({
+          confirmedModel: {
+            provider: 'anthropic',
+            model: attempt === 2 ? 'claude-sonnet-5' : 'claude-opus-5',
+          },
+          output: {
+            schema_version: 1,
+            dispatch_id: attempt === 3 ? 'different-dispatch' : packet.dispatch_id,
+            reviewer_agent: 'claude',
+            verdict: 'approve',
+            summary: 'reviewed',
+            findings: [],
+          },
+        });
+      },
+    });
+    expect(result.runs.map(run => run.failure)).toEqual([
+      'review_failed',
+      'model_unconfirmed',
+      'identity_mismatch',
+    ]);
+    expect(compareSealedCapabilityResults(oneFixture, rubrics, result, result)).toBe('unknown');
+  });
+
   it('requires the verdict and every labelled finding without forbidden findings', () => {
     const fixture = fixtures[1];
     const run = runs()[3];

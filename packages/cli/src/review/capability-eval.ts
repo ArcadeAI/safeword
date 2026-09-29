@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import type { CapabilityRevision } from './capability-catalogue.js';
 import type { ReviewPacket } from './contract.js';
+import type { ReviewerExecution } from './runtime.js';
 
 export interface CapabilityFixture {
   readonly id: string;
@@ -13,7 +14,8 @@ export interface CapabilityFixture {
 export interface CapabilityRun {
   readonly fixture_id: string;
   readonly run: number;
-  readonly verdict: 'approve' | 'request_changes';
+  readonly verdict: 'approve' | 'request_changes' | 'invalid';
+  readonly failure?: 'review_failed' | 'model_unconfirmed' | 'identity_mismatch';
   readonly findings: readonly {
     readonly severity: 'info' | 'warning' | 'error';
     readonly message: string;
@@ -81,6 +83,71 @@ export function sealCapabilityResults(
 ): SealedCapabilityResults {
   const evidence = { provider, model, ...revision, evidence_date: evidenceDate, runs };
   return { ...evidence, results_digest: resultsDigest(evidence) };
+}
+
+export interface CapabilityCollection {
+  readonly manifest: CapabilityManifest;
+  readonly rubrics: Readonly<Record<string, string>>;
+  readonly provider: 'anthropic' | 'openai';
+  readonly model: string;
+  readonly evidenceDate: string;
+  readonly review: (packet: ReviewPacket, model: string) => Promise<ReviewerExecution>;
+}
+
+function invalidCapabilityRun(
+  fixtureId: string,
+  run: number,
+  failure: NonNullable<CapabilityRun['failure']>,
+): CapabilityRun {
+  return { fixture_id: fixtureId, run, verdict: 'invalid', findings: [], failure };
+}
+
+async function collectCapabilityRun(
+  collection: CapabilityCollection,
+  fixture: CapabilityManifest['fixtures'][number],
+  run: number,
+): Promise<CapabilityRun> {
+  const { provider, model, review } = collection;
+  try {
+    const result = await review(fixture.packet, model);
+    if (result.confirmedModel?.provider !== provider || result.confirmedModel.model !== model) {
+      return invalidCapabilityRun(fixture.label.id, run, 'model_unconfirmed');
+    }
+    const expectedReviewer = provider === 'anthropic' ? 'claude' : 'codex';
+    if (
+      result.output.dispatch_id !== fixture.packet.dispatch_id ||
+      result.output.reviewer_agent !== expectedReviewer
+    ) {
+      return invalidCapabilityRun(fixture.label.id, run, 'identity_mismatch');
+    }
+    return {
+      fixture_id: fixture.label.id,
+      run,
+      verdict: result.output.verdict,
+      findings: result.output.findings,
+    };
+  } catch {
+    return invalidCapabilityRun(fixture.label.id, run, 'review_failed');
+  }
+}
+
+export async function collectCapabilityResults(
+  collection: CapabilityCollection,
+): Promise<SealedCapabilityResults> {
+  const { manifest, rubrics, provider, model, evidenceDate } = collection;
+  const runs: CapabilityRun[] = [];
+  for (const fixture of manifest.fixtures) {
+    for (let run = 1; run <= manifest.floor.runs_per_fixture; run += 1) {
+      runs.push(await collectCapabilityRun(collection, fixture, run));
+    }
+  }
+  return sealCapabilityResults(
+    provider,
+    model,
+    capabilityRevision(manifest, rubrics),
+    runs,
+    evidenceDate,
+  );
 }
 
 function currentEvidence(result: SealedCapabilityResults, revision: CapabilityRevision): boolean {
