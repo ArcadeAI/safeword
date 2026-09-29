@@ -26,7 +26,7 @@ import {
 } from '../execution-plan/delivery-checklist.js';
 import { PLANNING_AUTHOR_COPIES } from '../planning/contracts.generated.js';
 import type { PlanningAuthorCopyIdentity, PlanningPhase } from '../planning/phase-contract.js';
-import { cursorPlanningContractPath } from '../schema.js';
+import { cursorPlanningContractPath, SAFEWORD_SCHEMA } from '../schema.js';
 import { resolveConfiguredPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type {
@@ -76,7 +76,7 @@ const PLANNING_KNOWLEDGE_ROLES = ['principles', 'personas', 'surfaces'] as const
 type PlanningKnowledgeRole = (typeof PLANNING_KNOWLEDGE_ROLES)[number];
 type RequiredPlanningContextRole = PlanningContextRole;
 
-function planningOverrides(
+function planningOverrideConfig(
   cwd: string,
   role: PlanningKnowledgeRole,
 ): Record<string, unknown> | undefined {
@@ -89,44 +89,63 @@ function planningOverrides(
     throw new PlanningContextError(role, '.safeword/config.json');
   }
   if (!planningConfigRecord(config)) throw new PlanningContextError(role, '.safeword/config.json');
-  const overrides = config.paths;
-  if (overrides === undefined) return undefined;
-  if (!planningConfigRecord(overrides))
-    throw new PlanningContextError(role, '.safeword/config.json:paths');
-  return overrides;
+  return config;
 }
 function planningConfigRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
-function requireValidPlanningOverride(cwd: string, role: PlanningKnowledgeRole): void {
-  const overrides = planningOverrides(cwd, role);
+function requireCurrentPlanningLineage(
+  config: Record<string, unknown> | undefined,
+  role: PlanningKnowledgeRole,
+): void {
+  const lineage = config?.pathLineage;
+  const entry = planningConfigRecord(lineage) ? lineage[role] : undefined;
+  if (entry === undefined) return;
+  const version = planningConfigRecord(entry) ? entry.packagedSourceVersion : undefined;
+  if (typeof version !== 'string' || version !== SAFEWORD_SCHEMA.version)
+    throw new PlanningContextError(
+      role,
+      `.safeword/config.json:pathLineage.${role}`,
+      undefined,
+      true,
+    );
+}
+function requireValidPlanningOverride(cwd: string, role: PlanningKnowledgeRole): boolean {
+  const config = planningOverrideConfig(cwd, role);
+  const overrides = config?.paths;
+  if (overrides !== undefined && !planningConfigRecord(overrides))
+    throw new PlanningContextError(role, '.safeword/config.json:paths', undefined, true);
   if (overrides !== undefined && Object.hasOwn(overrides, role)) {
     const value = overrides[role];
     if (typeof value !== 'string' || value.trim() === '')
-      throw new PlanningContextError(role, `.safeword/config.json:paths.${role}`);
+      throw new PlanningContextError(role, `.safeword/config.json:paths.${role}`, undefined, true);
+    requireCurrentPlanningLineage(config, role);
+    return true;
   }
+  return false;
 }
 
 function requiredPlanningKnowledgeSource(cwd: string, role: PlanningKnowledgeRole): string {
-  requireValidPlanningOverride(cwd, role);
-  return requiredPlanningSource(cwd, role, resolveConfiguredPath(cwd, role));
+  const configured = requireValidPlanningOverride(cwd, role);
+  return requiredPlanningSource(cwd, role, resolveConfiguredPath(cwd, role), configured);
 }
 
 function requiredPlanningSource(
   cwd: string,
   role: RequiredPlanningContextRole,
   source: string,
+  configured = false,
 ): string {
   const relative = nodePath.relative(cwd, source);
   try {
     if (escapes(cwd, source) || !lstatSync(source).isFile()) {
-      throw new PlanningContextError(role, relative);
+      throw new PlanningContextError(role, relative, undefined, configured);
     }
     if (readFileSync(source, 'utf8').trim() === '') {
-      throw new PlanningContextError(role, relative);
+      throw new PlanningContextError(role, relative, undefined, configured);
     }
   } catch {
-    throw new PlanningContextError(role, relative);
+    throw new PlanningContextError(role, relative, undefined, configured);
   }
   return relative;
 }

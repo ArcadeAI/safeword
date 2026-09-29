@@ -34913,7 +34913,7 @@ var init_planning_context_error = __esm(() => {
     contextRole;
     contextPath;
     code = "missing_planning_context";
-    constructor(contextRole, contextPath, declaration) {
+    constructor(contextRole, contextPath, declaration, reconciliation = false) {
       const settings = {
         parent: "the ticket parent reference",
         ticket: "the ticket metadata",
@@ -34924,7 +34924,8 @@ var init_planning_context_error = __esm(() => {
         data: "the active data architecture guide"
       };
       const setting = settings[contextRole] ?? `paths.${contextRole}`;
-      super(declaration === undefined ? `Required planning ${contextRole} at ${contextPath} are unavailable. Restore that source or correct ${setting}, then rerun the planning review.` : `The reviewed plan at ${contextPath} needs one parseable ${declaration} declaration. Add the plan decision or a justified skip, then rerun the planning review.`);
+      const unavailable = reconciliation ? `Planning ${contextRole} override at ${contextPath} needs reconciliation with the current packaged source. Restore its configured file or correct ${setting} and its source-version lineage, then rerun the planning review.` : `Required planning ${contextRole} at ${contextPath} are unavailable. Restore that source or correct ${setting}, then rerun the planning review.`;
+      super(declaration === undefined ? unavailable : `The reviewed plan at ${contextPath} needs one parseable ${declaration} declaration. Add the plan decision or a justified skip, then rerun the planning review.`);
       this.contextRole = contextRole;
       this.contextPath = contextPath;
     }
@@ -53106,7 +53107,7 @@ import {
 import { tmpdir as tmpdir3 } from "os";
 import nodePath52 from "path";
 import process10 from "process";
-function planningOverrides(cwd, role) {
+function planningOverrideConfig(cwd, role) {
   const configPath2 = nodePath52.join(cwd, ".safeword/config.json");
   if (!existsSync19(configPath2))
     return;
@@ -53118,39 +53119,49 @@ function planningOverrides(cwd, role) {
   }
   if (!planningConfigRecord(config))
     throw new PlanningContextError(role, ".safeword/config.json");
-  const overrides = config.paths;
-  if (overrides === undefined)
-    return;
-  if (!planningConfigRecord(overrides))
-    throw new PlanningContextError(role, ".safeword/config.json:paths");
-  return overrides;
+  return config;
 }
 function planningConfigRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
+function requireCurrentPlanningLineage(config, role) {
+  const lineage = config?.pathLineage;
+  const entry = planningConfigRecord(lineage) ? lineage[role] : undefined;
+  if (entry === undefined)
+    return;
+  const version2 = planningConfigRecord(entry) ? entry.packagedSourceVersion : undefined;
+  if (typeof version2 !== "string" || version2 !== SAFEWORD_SCHEMA.version)
+    throw new PlanningContextError(role, `.safeword/config.json:pathLineage.${role}`, undefined, true);
+}
 function requireValidPlanningOverride(cwd, role) {
-  const overrides = planningOverrides(cwd, role);
+  const config = planningOverrideConfig(cwd, role);
+  const overrides = config?.paths;
+  if (overrides !== undefined && !planningConfigRecord(overrides))
+    throw new PlanningContextError(role, ".safeword/config.json:paths", undefined, true);
   if (overrides !== undefined && Object.hasOwn(overrides, role)) {
     const value = overrides[role];
     if (typeof value !== "string" || value.trim() === "")
-      throw new PlanningContextError(role, `.safeword/config.json:paths.${role}`);
+      throw new PlanningContextError(role, `.safeword/config.json:paths.${role}`, undefined, true);
+    requireCurrentPlanningLineage(config, role);
+    return true;
   }
+  return false;
 }
 function requiredPlanningKnowledgeSource(cwd, role) {
-  requireValidPlanningOverride(cwd, role);
-  return requiredPlanningSource(cwd, role, resolveConfiguredPath(cwd, role));
+  const configured = requireValidPlanningOverride(cwd, role);
+  return requiredPlanningSource(cwd, role, resolveConfiguredPath(cwd, role), configured);
 }
-function requiredPlanningSource(cwd, role, source) {
+function requiredPlanningSource(cwd, role, source, configured = false) {
   const relative = nodePath52.relative(cwd, source);
   try {
     if (escapes(cwd, source) || !lstatSync9(source).isFile()) {
-      throw new PlanningContextError(role, relative);
+      throw new PlanningContextError(role, relative, undefined, configured);
     }
     if (readFileSync34(source, "utf8").trim() === "") {
-      throw new PlanningContextError(role, relative);
+      throw new PlanningContextError(role, relative, undefined, configured);
     }
   } catch {
-    throw new PlanningContextError(role, relative);
+    throw new PlanningContextError(role, relative, undefined, configured);
   }
   return relative;
 }
