@@ -1,8 +1,8 @@
 ---
 name: finish-review
 description: Finish an exhausted review through a sealed planning continuation
-  or non-planning supplemental feedback. Internal use only after the coordinator
-  names the applicable fallback.
+  or non-planning supplemental feedback. Use only when the coordinator names the
+  applicable fallback; internal, not user-invocable.
 ---
 
 # Finish a Review After Route Exhaustion

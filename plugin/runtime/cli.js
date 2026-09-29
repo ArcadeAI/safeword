@@ -3620,7 +3620,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/explain/SKILL.md": "6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d",
         ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
         ".claude/skills/finish-review/REVIEWER.md": "9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7",
-        ".claude/skills/finish-review/SKILL.md": "0b9838e1b4872bb1934d1b01ea7838fb519ec6c755beb761e513ad736670e23e",
+        ".claude/skills/finish-review/SKILL.md": "7d907162daa0e6f51111ac8173d02a2b21e632532a3d736ccc02a91fb6973fb9",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
         ".claude/skills/pr-readiness/SKILL.md": "4cc987da39efb1b9b682aff67988c975e8ff56a2c3eed0cfe3a1f3e8caf0d80b",
         ".claude/skills/quality-review/SKILL.md": "ef63c3ca21b2c383c46d143fec48d229b4e17675015a77e858638dbefbdcfbac",
