@@ -24,6 +24,7 @@ interface CurrencyState {
   reviewer: string;
   reviewId: string;
   statuses: string[];
+  retainFailure?: string;
 }
 const states = new WeakMap<SafewordWorld, CurrencyState>();
 
@@ -222,7 +223,15 @@ When(
   function (this: SafewordWorld) {
     const state = states.get(this);
     assert.ok(state);
-    state.statuses = [statusWithContractSource(state, '- **Purpose:**', '- **Purpose:**   ')];
+    state.retainFailure = 'canonical contract comment changed review currency';
+    state.statuses = [
+      statusWithContractSource(state, '- **Purpose:**', '- **Purpose:**   '),
+      statusWithContractSource(
+        state,
+        'Decide a coherent implementation approach',
+        'Decide a coherent <!-- editorial --> implementation approach',
+      ),
+    ];
   },
 );
 
@@ -312,11 +321,13 @@ When(
 );
 
 Then('the review remains current', function (this: SafewordWorld) {
-  const statuses = states.get(this)?.statuses;
+  const state = states.get(this);
+  const statuses = state?.statuses;
   assert.ok(statuses?.length);
   assert.deepEqual(
     statuses,
     statuses.map(() => 'approved'),
+    state.retainFailure,
   );
 });
 
