@@ -3,27 +3,34 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
-const workflowPaths = [
-  '.github/workflows/safeword-pr-review-publisher.yml',
-  '.github/workflows/safeword-pr-review-worker.yml',
-];
+import { isSafePackageVersion } from '../src/utils/version.js';
 
-describe('dogfood PR review runtime pin', () => {
-  it('uses the installed Safeword version in every published CLI command', () => {
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
+const reviewWorkflows = ['publisher', 'worker'] as const;
+
+describe('dogfood PR review version pins', () => {
+  it('matches each source template with the installed project version substituted', () => {
     const installedVersion = readFileSync(
       nodePath.join(repoRoot, '.safeword/version'),
       'utf8',
     ).trim();
-    expect(installedVersion).toMatch(/^\d+\.\d+\.\d+$/u);
+    expect(isSafePackageVersion(installedVersion)).toBe(true);
 
-    for (const workflowPath of workflowPaths) {
-      const workflow = readFileSync(nodePath.join(repoRoot, workflowPath), 'utf8');
-      const pins = Array.from(workflow.matchAll(/\bsafeword@([^\s"']+)/gu), match => match[1]);
+    for (const name of reviewWorkflows) {
+      const template = readFileSync(
+        nodePath.join(repoRoot, `packages/cli/templates/workflows/pr-review-${name}.yml`),
+        'utf8',
+      );
+      const dogfood = readFileSync(
+        nodePath.join(repoRoot, `.github/workflows/safeword-pr-review-${name}.yml`),
+        'utf8',
+      );
 
-      expect(pins.length, `${workflowPath} must run a pinned Safeword CLI`).toBeGreaterThan(0);
-      expect(pins, `${workflowPath} must match .safeword/version`).toEqual(
-        Array.from({ length: pins.length }, () => installedVersion),
+      expect(template, `${name} must declare a version placeholder`).toContain(
+        '__SAFEWORD_VERSION__',
+      );
+      expect(dogfood, `${name} must use the installed Safeword version`).toBe(
+        template.replaceAll('__SAFEWORD_VERSION__', () => installedVersion),
       );
     }
   });
