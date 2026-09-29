@@ -155,7 +155,7 @@ installed-dispatch outline or full feature verification, so R/G/R remains open.
 
 ### Scenario: Local dispatch enforces required context resolution
 
-- [ ] RED
+- [x] RED f44d0b9e4
 - [ ] GREEN
 - [ ] REFACTOR
 
