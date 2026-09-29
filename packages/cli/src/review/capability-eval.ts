@@ -1,3 +1,8 @@
+import { createHash } from 'node:crypto';
+
+import type { CapabilityRevision } from './capability-catalogue.js';
+import type { ReviewPacket } from './contract.js';
+
 export interface CapabilityFixture {
   readonly id: string;
   readonly verdict: 'approve' | 'request_changes';
@@ -16,6 +21,91 @@ export interface CapabilityFloor {
   readonly runs_per_fixture: number;
   readonly minimum_fixture_passes: number;
   readonly minimum_total_percent: number;
+}
+
+export interface CapabilityManifest {
+  readonly schema_version: 1;
+  readonly owner: string;
+  readonly floor: CapabilityFloor;
+  readonly settings: Readonly<Record<string, string>>;
+  readonly fixtures: readonly {
+    readonly label: CapabilityFixture;
+    readonly packet: ReviewPacket;
+  }[];
+}
+
+export interface SealedCapabilityResults extends CapabilityRevision {
+  readonly provider: string;
+  readonly model: string;
+  readonly evidence_date: string;
+  readonly runs: readonly CapabilityRun[];
+  readonly results_digest: string;
+}
+
+function digest(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+function sortedEntries(values: Readonly<Record<string, string>>): readonly [string, string][] {
+  return Object.entries(values).toSorted(([left], [right]) => left.localeCompare(right));
+}
+
+export function capabilityRevision(
+  manifest: CapabilityManifest,
+  rubrics: Readonly<Record<string, string>>,
+): CapabilityRevision {
+  return {
+    corpus_digest: digest({
+      schema_version: manifest.schema_version,
+      floor: manifest.floor,
+      fixtures: manifest.fixtures,
+    }),
+    rubric_digest: digest(sortedEntries(rubrics)),
+    settings_digest: digest(sortedEntries(manifest.settings)),
+  };
+}
+
+function resultsDigest(evidence: Omit<SealedCapabilityResults, 'results_digest'>): string {
+  return digest(evidence);
+}
+
+export function sealCapabilityResults(
+  provider: string,
+  model: string,
+  revision: CapabilityRevision,
+  runs: readonly CapabilityRun[],
+  evidenceDate: string,
+): SealedCapabilityResults {
+  const evidence = { provider, model, ...revision, evidence_date: evidenceDate, runs };
+  return { ...evidence, results_digest: resultsDigest(evidence) };
+}
+
+function currentEvidence(result: SealedCapabilityResults, revision: CapabilityRevision): boolean {
+  const { results_digest, ...evidence } = result;
+  return (
+    result.corpus_digest === revision.corpus_digest &&
+    result.rubric_digest === revision.rubric_digest &&
+    result.settings_digest === revision.settings_digest &&
+    result.provider !== '' &&
+    result.model !== '' &&
+    results_digest === resultsDigest(evidence)
+  );
+}
+
+export function compareSealedCapabilityResults(
+  manifest: CapabilityManifest,
+  rubrics: Readonly<Record<string, string>>,
+  author: SealedCapabilityResults,
+  candidate: SealedCapabilityResults,
+): 'not_weaker' | 'weaker' | 'unknown' {
+  const revision = capabilityRevision(manifest, rubrics);
+  if (!currentEvidence(author, revision) || !currentEvidence(candidate, revision)) return 'unknown';
+  return compareCapabilityRuns(
+    manifest.fixtures.map(fixture => fixture.label),
+    author.runs,
+    candidate.runs,
+    manifest.floor,
+  );
 }
 
 export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRun): boolean {
