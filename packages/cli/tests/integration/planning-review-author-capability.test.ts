@@ -30,6 +30,28 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
+function expectCapabilityFinding(
+  output: {
+    readonly data: Record<string, unknown>;
+    readonly findings: readonly { readonly code: string }[];
+  },
+  qualified: boolean,
+  unknownAuthor: boolean,
+): void {
+  if (qualified) {
+    expect(output.data.capability_failure).toBeUndefined();
+    expect(output.findings).toContainEqual(
+      expect.objectContaining({ code: 'REVIEW_INDEPENDENCE' }),
+    );
+    return;
+  }
+  expect(output.findings).toContainEqual(
+    expect.objectContaining({
+      code: unknownAuthor ? 'AUTHOR_CAPABILITY_UNKNOWN' : 'REVIEWER_CAPABILITY_UNKNOWN',
+    }),
+  );
+}
+
 it.each([
   ['codex', 'prefer', undefined, false],
   ['codex', 'require', undefined, false],
@@ -112,24 +134,25 @@ it.each([
     );
     const output = JSON.parse(reviewed.stdout);
     const unknownAuthor = authorModel === undefined;
-    expect(reviewed.exitCode).toBe(unknownAuthor && policy === 'prefer' ? 0 : 2);
-    expect(output.state).toBe(unknownAuthor && policy === 'prefer' ? 'healthy' : 'action_required');
+    const qualified = authorModel !== undefined && confirmedReviewer;
+    const admitted = qualified || (unknownAuthor && policy === 'prefer');
+    expect(reviewed.exitCode).toBe(admitted ? 0 : 2);
+    expect(output.state).toBe(admitted ? 'healthy' : 'action_required');
     expect(output.data).toMatchObject({
-      status: unknownAuthor && policy === 'prefer' ? 'approved' : 'blocked',
-      independence: unknownAuthor && policy === 'prefer' ? 'reduced' : 'none',
+      status: admitted ? 'approved' : 'blocked',
+      independence: admitted ? 'reduced' : 'none',
+      ...(qualified && { independence: 'cross-agent' }),
       actual_reviewer: reviewerAgent,
       ...(reviewerAgent === 'claude' && {
         confirmed_reviewer_model: { provider: 'anthropic', model: 'claude-opus-5' },
       }),
-      capability_failure: unknownAuthor
-        ? 'author_capability_unknown'
-        : 'reviewer_capability_unknown',
-    });
-    expect(output.findings).toContainEqual(
-      expect.objectContaining({
-        code: unknownAuthor ? 'AUTHOR_CAPABILITY_UNKNOWN' : 'REVIEWER_CAPABILITY_UNKNOWN',
+      ...(!qualified && {
+        capability_failure: unknownAuthor
+          ? 'author_capability_unknown'
+          : 'reviewer_capability_unknown',
       }),
-    );
+    });
+    expectCapabilityFinding(output, qualified, unknownAuthor);
     expect(output.findings).toContainEqual(
       expect.objectContaining({ code: 'REVIEWER_FINDING', message: 'Check the migration note.' }),
     );

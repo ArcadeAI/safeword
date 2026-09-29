@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareReviewerCapability } from '../../src/review/capability-catalogue.js';
+import {
+  compareReviewerCapability,
+  reviewerCapabilityFailure,
+} from '../../src/review/capability-catalogue.js';
 
 const current = {
   corpus_digest: 'corpus-1',
@@ -78,6 +81,28 @@ describe('reviewer capability comparison', () => {
         { ...qualified, direction: 'weaker' },
       ]),
     ).toBe('unknown');
+  });
+
+  it('distinguishes a proven weaker reviewer from missing identity or pair evidence', () => {
+    const author = { provider: 'vendor-a', model: 'vendor-a/author-1' };
+    const reviewer = { provider: 'vendor-b', model: 'vendor-b/reviewer-2' };
+    expect(
+      reviewerCapabilityFailure(author, reviewer.model, reviewer, current, [qualified]),
+    ).toBeUndefined();
+    expect(
+      reviewerCapabilityFailure(author, reviewer.model, reviewer, current, [
+        { ...qualified, direction: 'weaker' },
+      ]),
+    ).toBe('reviewer_capability_weaker');
+    expect(reviewerCapabilityFailure(author, reviewer.model, undefined, current, [qualified])).toBe(
+      'reviewer_capability_unknown',
+    );
+    expect(reviewerCapabilityFailure(author, 'other-model', reviewer, current, [qualified])).toBe(
+      'reviewer_capability_unknown',
+    );
+    expect(reviewerCapabilityFailure(author, reviewer.model, reviewer, current, [])).toBe(
+      'reviewer_capability_unknown',
+    );
   });
 
   it('never uses within-provider ordering as cross-provider evidence', () => {

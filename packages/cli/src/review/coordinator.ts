@@ -7,9 +7,9 @@ import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
 import {
-  compareReviewerCapability,
   PACKAGED_CAPABILITY_PAIRS,
   PACKAGED_CAPABILITY_REVISION,
+  reviewerCapabilityFailure,
 } from './capability-catalogue.js';
 import { retryCommand } from './command.js';
 import type {
@@ -385,6 +385,7 @@ const FAILURE_CAUSES: Readonly<Record<string, string>> = {
   not_authenticated: 'is not signed in',
   invalid_output: 'gave an answer that could not be accepted',
   reviewer_capability_unknown: 'did not establish a qualified reviewer model',
+  reviewer_capability_weaker: 'was proven weaker than the author model',
   REVIEWER_PROVENANCE_MISSING: 'gave an answer that did not identify it as the reviewer',
   REVIEWER_PROVENANCE_CONTRADICTORY: 'gave an answer that did not identify it as the reviewer',
 };
@@ -629,9 +630,14 @@ function rankedFailureExplanation(evidence: readonly RankedRouteEvidence[]): str
     .join(' ');
 }
 
-function rankedBlockingCode(hasDegraded: boolean, hasUnqualified: boolean): string {
+function rankedBlockingCode(
+  hasDegraded: boolean,
+  hasUnqualified: boolean,
+  hasWeaker: boolean,
+): string {
   if (hasDegraded) return 'REVIEW_INDEPENDENCE_REQUIRED';
-  return hasUnqualified ? 'REVIEWER_CAPABILITY_UNKNOWN' : 'REVIEW_ROUTES_EXHAUSTED';
+  if (hasUnqualified) return 'REVIEWER_CAPABILITY_UNKNOWN';
+  return hasWeaker ? 'REVIEWER_CAPABILITY_WEAKER' : 'REVIEW_ROUTES_EXHAUSTED';
 }
 
 // The result mirrors the evidence matrix deliberately; flattening these
@@ -682,7 +688,8 @@ function rankedExhaustedResult(input: {
   const hasDegraded = input.degraded !== undefined;
   const achievedIndependence = hasDegraded ? fallbackIndependence(input.kind) : 'none';
   const evaluatedLabel = evaluated.length === 1 ? 'route was' : 'routes were';
-  const code = rankedBlockingCode(hasDegraded, input.unqualified !== undefined);
+  const hasWeaker = input.evidence.some(route => route.failure === 'reviewer_capability_weaker');
+  const code = rankedBlockingCode(hasDegraded, input.unqualified !== undefined, hasWeaker);
   const failureExplanation = rankedFailureExplanation(input.evidence);
   const failureDetail = failureExplanation === '' ? '' : ` ${failureExplanation}`;
   const message = hasDegraded
@@ -723,6 +730,10 @@ function rankedExhaustedResult(input: {
         actual_reviewer: input.unqualified.output.reviewer_agent,
         reviewer_output: input.unqualified.output,
       }),
+      ...(input.unqualified === undefined &&
+        hasWeaker && {
+          capability_failure: 'reviewer_capability_weaker',
+        }),
       ...(input.degraded !== undefined && {
         assigned_reviewer: input.degraded.route.reviewer,
         actual_reviewer: input.degraded.output.reviewer_agent,
@@ -910,22 +921,20 @@ function cannotAttemptRankedRoute(
   return !canFundRoute(deadline) || planningFallbackLacksIndependentAttempt(kind, route, evidence);
 }
 
-function reviewerCapabilityUnknown(
+function rankedReviewerCapabilityFailure(
   kind: ReviewKind,
   author: ReviewAgent,
   route: ReviewRoute,
   confirmedModel: ConfirmedReviewerModel | undefined,
-): boolean {
+): 'reviewer_capability_unknown' | 'reviewer_capability_weaker' | undefined {
   const authorModel = process.env[AUTHOR_MODEL_ENV];
-  if (!isPlanningReview(kind) || author !== 'claude' || authorModel === undefined) return false;
-  if (route.model === undefined || confirmedModel?.model !== route.model) return true;
-  return (
-    compareReviewerCapability(
-      { provider: 'anthropic', model: authorModel },
-      confirmedModel,
-      PACKAGED_CAPABILITY_REVISION,
-      PACKAGED_CAPABILITY_PAIRS,
-    ) !== 'not_weaker'
+  if (!isPlanningReview(kind) || author !== 'claude' || authorModel === undefined) return undefined;
+  return reviewerCapabilityFailure(
+    { provider: 'anthropic', model: authorModel },
+    route.model,
+    confirmedModel,
+    PACKAGED_CAPABILITY_REVISION,
+    PACKAGED_CAPABILITY_PAIRS,
   );
 }
 
@@ -997,13 +1006,22 @@ async function runConfiguredRankedRoutes(
 
       evidence.push({ ...route, status: 'attempted' });
       if (route.independence === 'cross-agent') {
-        if (reviewerCapabilityUnknown(input.kind, author, route, assessment.confirmedModel)) {
+        const capabilityFailure = rankedReviewerCapabilityFailure(
+          input.kind,
+          author,
+          route,
+          assessment.confirmedModel,
+        );
+        if (capabilityFailure !== undefined) {
           evidence[evidence.length - 1] = {
             ...route,
             status: 'attempted',
-            failure: 'reviewer_capability_unknown',
+            failure: capabilityFailure,
           };
-          unqualified = { output: assessment.output, route };
+          unqualified =
+            capabilityFailure === 'reviewer_capability_unknown'
+              ? { output: assessment.output, route }
+              : unqualified;
           continue;
         }
         const result = independentReviewResult({

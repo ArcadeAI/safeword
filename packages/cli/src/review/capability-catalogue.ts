@@ -63,6 +63,20 @@ export function compareReviewerCapability(
   );
   return matching.length === 1 ? (matching[0]?.direction ?? 'unknown') : 'unknown';
 }
+
+export function reviewerCapabilityFailure(
+  author: CapabilityModelIdentity,
+  requestedModel: string | undefined,
+  confirmed: CapabilityModelIdentity | undefined,
+  current: CapabilityRevision,
+  records: readonly CapabilityPairRecord[],
+): 'reviewer_capability_weaker' | 'reviewer_capability_unknown' | undefined {
+  if (requestedModel === undefined || confirmed?.model !== requestedModel)
+    return 'reviewer_capability_unknown';
+  const comparison = compareReviewerCapability(author, confirmed, current, records);
+  if (comparison === 'weaker') return 'reviewer_capability_weaker';
+  return comparison === 'not_weaker' ? undefined : 'reviewer_capability_unknown';
+}
 import {
   PACKAGED_CAPABILITY_PAIRS as generatedPairs,
   PACKAGED_CAPABILITY_REVISION as generatedRevision,

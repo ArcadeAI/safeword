@@ -68,6 +68,7 @@ export type ReviewFailure =
   | 'timed_out'
   | 'invalid_output'
   | 'reviewer_capability_unknown'
+  | 'reviewer_capability_weaker'
   | 'REVIEWER_PROVENANCE_MISSING'
   | 'REVIEWER_PROVENANCE_CONTRADICTORY';
 
