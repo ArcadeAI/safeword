@@ -312,7 +312,7 @@ describe('headless reviewer output adapters', () => {
             canonicalModel: 'claude-haiku-4-5',
             provider: 'firstParty',
           },
-          'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' },
+          'claude-opus-5[1m]': { canonicalModel: 'claude-opus-5', provider: 'firstParty' },
         },
       }),
     ].join('\n');
@@ -505,6 +505,20 @@ describe('reviewer arguments', () => {
       args.slice(args.indexOf('--output-format'), args.indexOf('--output-format') + 2),
     ).toEqual(['--output-format', 'stream-json']);
     expect(args).toContain('--verbose');
+    const productArguments = reviewerArguments(
+      'claude',
+      'opus',
+      undefined,
+      {},
+      { kind: 'quality-review', planning_phase: 'product-plan' },
+    );
+    expect(
+      productArguments.slice(
+        productArguments.indexOf('--output-format'),
+        productArguments.indexOf('--output-format') + 2,
+      ),
+    ).toEqual(['--output-format', 'stream-json']);
+    expect(productArguments).toContain('--verbose');
   });
 
   it('appends an explicitly configured Claude effort level', () => {

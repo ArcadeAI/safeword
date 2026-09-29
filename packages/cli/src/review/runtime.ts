@@ -329,12 +329,19 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   opencode: ['run', '--format', 'json', '--pure'],
 };
 
-function baseReviewerArguments(reviewer: ReviewAgent, kind: ReviewKind): string[] {
+function baseReviewerArguments(
+  reviewer: ReviewAgent,
+  kind: ReviewKind,
+  planningPhase?: ReviewPacket['planning_phase'],
+): string[] {
   const base = [...ARGUMENTS[reviewer]];
   if (reviewer !== 'claude') return base;
   const schemaIndex = base.indexOf('--json-schema') + 1;
   base[schemaIndex] = reviewOutputSchema(kind);
-  if (['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind)) {
+  if (
+    planningPhase === 'product-plan' ||
+    ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind)
+  ) {
     base[base.indexOf('--output-format') + 1] = 'stream-json';
     base.push('--verbose');
   }
@@ -365,9 +372,11 @@ export function reviewerArguments(
   model: string | undefined,
   schemaPath: string | undefined,
   environment: Readonly<Record<string, string | undefined>> = process.env,
-  kind: ReviewKind = 'quality-review',
+  review: ReviewKind | Pick<ReviewPacket, 'kind' | 'planning_phase'> = 'quality-review',
 ): string[] {
-  const base = baseReviewerArguments(reviewer, kind);
+  const kind = typeof review === 'string' ? review : review.kind;
+  const planningPhase = typeof review === 'string' ? undefined : review.planning_phase;
+  const base = baseReviewerArguments(reviewer, kind, planningPhase);
   const extra = reviewerExtraArguments(reviewer, model, schemaPath, environment);
   if (extra.length === 0) return base;
   if (reviewer !== 'codex') return [...base, ...extra];
@@ -693,9 +702,10 @@ function confirmedClaudeAssistantModel(stdout: string): ConfirmedReviewerModel |
   if (models.size !== 1 || !isRecord(result) || !isRecord(result.modelUsage)) return undefined;
   const model = [...models][0];
   if (model === undefined) return undefined;
-  const usage = result.modelUsage[model];
-  if (!isRecord(usage) || usage.provider !== 'firstParty' || usage.canonicalModel !== model)
-    return undefined;
+  const matchingUsage = Object.values(result.modelUsage).filter(
+    usage => isRecord(usage) && usage.provider === 'firstParty' && usage.canonicalModel === model,
+  );
+  if (matchingUsage.length !== 1) return undefined;
   return { provider: 'anthropic', model };
 }
 
@@ -1745,7 +1755,7 @@ async function runCandidate(
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
   const child = spawn(
     executable,
-    reviewerArguments(reviewer, model, schemaPath, process.env, packet.kind),
+    reviewerArguments(reviewer, model, schemaPath, process.env, packet),
     {
       cwd,
       env: reviewerEnvironment(reviewer),
