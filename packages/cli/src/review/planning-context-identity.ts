@@ -502,10 +502,11 @@ function planningPersonaIdentity(packet: ReviewPacket, content: string): string 
       ...lineage.rule,
     ].flatMap(reference => {
       const jtbd = reference.replace(/\.(?:AC|R)\d+$/u, '');
-      return jtbd.split('.').flatMap(part => {
+      for (const part of jtbd.split('.')) {
         const match = /^([A-Z]{2,4})\d+$/u.exec(part);
-        return match?.[1] === undefined ? [] : [match[1]];
-      });
+        if (match?.[1] !== undefined) return [match[1]];
+      }
+      return [];
     }),
   );
   const personas = resolvePersonaCodes(parsePersonas(content));
