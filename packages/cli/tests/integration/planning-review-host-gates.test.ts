@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -13,6 +14,24 @@ import {
 } from '../review-fixtures.js';
 
 const projects: string[] = [];
+
+function capturedClaudeAuthorModel(project: string, model: string): string {
+  const envFile = nodePath.join(project, 'claude-session.env');
+  const started = spawnSync(
+    'bun',
+    [nodePath.join(project, '.safeword/hooks/session-author-model.ts')],
+    {
+      cwd: project,
+      encoding: 'utf8',
+      input: JSON.stringify({ hook_event_name: 'SessionStart', model }),
+      env: { ...process.env, CLAUDE_ENV_FILE: envFile },
+    },
+  );
+  expect(started.status, started.stderr).toBe(0);
+  const captured = /^SAFEWORD_AUTHOR_MODEL=(.+)$/mu.exec(readFileSync(envFile, 'utf8'))?.[1];
+  expect(captured).toBe(model);
+  return captured ?? '';
+}
 
 function confirmedCodexReviewer(invoked: string): string {
   return String.raw`#!${process.execPath}
@@ -132,7 +151,10 @@ it.each([
           PATH: `${reviewer}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: author,
           SAFEWORD_NO_UPDATE_CHECK: '1',
-          ...(authorModel !== undefined && { SAFEWORD_AUTHOR_MODEL: authorModel }),
+          ...(author === 'claude' &&
+            authorModel !== undefined && {
+              SAFEWORD_AUTHOR_MODEL: capturedClaudeAuthorModel(project, authorModel),
+            }),
         },
       },
     );
