@@ -180,4 +180,23 @@ it('discards a weaker approval and continues to the next independent route', asy
     independence: 'cross-agent',
   });
   expect((ordinary.data as Record<string, unknown>).review_routes).toBeUndefined();
+
+  writeFileSync(configPath, JSON.stringify({ ...config, crossAgentReview: 'off' }));
+  for (const [kind, target] of [
+    ['quality-review', `${ticket}/spec.md`],
+    ['plan-implementation', `${ticket}/impl-plan.md`],
+  ] as const) {
+    const disabled = await runReview({ cwd: project, kind, targets: [target] });
+    expect(disabled.state).toBe('action_required');
+    expect(disabled.findings).toContainEqual(
+      expect.objectContaining({ code: 'PLANNING_REVIEW_POLICY_OFF' }),
+    );
+    expect(disabled.data).toMatchObject({ status: 'blocked', review_policy: 'off' });
+  }
+  const ordinaryOff = await runReview({
+    cwd: project,
+    kind: 'quality-review',
+    targets: ['notes.md'],
+  });
+  expect(ordinaryOff.data).toMatchObject({ status: 'existing_route' });
 });

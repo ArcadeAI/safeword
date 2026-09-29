@@ -1985,25 +1985,7 @@ function runAfterPrimaryFailure(
 export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
-  if (policy === 'off') {
-    return createResult({
-      state: 'healthy',
-      findings: [
-        {
-          code: 'REVIEW_NOT_REQUESTED',
-          message: 'An independent agent check was not requested.',
-          severity: 'info',
-        },
-      ],
-      data: {
-        command: 'review run',
-        status: 'existing_route',
-        author_agent: author,
-        independence: 'none',
-        cross_agent_review: 'not_requested',
-      },
-    });
-  }
+  if (policy === 'off') return policyOffResult(input, author);
   const routes = reviewRoutePlan(author);
   if (routes === undefined) {
     return unsupportedAuthorResult({
@@ -2099,6 +2081,66 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     confirmedModel: outcome.confirmedModel,
     preferredModel,
     preferredModelFailure,
+  });
+}
+
+function policyOffResult(input: ReviewRunInput, author: ReviewAuthor): CliResult {
+  if (isPlanningReviewRequest(input)) return planningReviewPolicyOff(input, author);
+  return createResult({
+    state: 'healthy',
+    findings: [
+      {
+        code: 'REVIEW_NOT_REQUESTED',
+        message: 'An independent agent check was not requested.',
+        severity: 'info',
+      },
+    ],
+    data: {
+      command: 'review run',
+      status: 'existing_route',
+      author_agent: author,
+      independence: 'none',
+      cross_agent_review: 'not_requested',
+    },
+  });
+}
+
+function isPlanningReviewRequest(input: ReviewRunInput): boolean {
+  if (isPlanningReview(input.kind)) return true;
+  if (
+    input.kind !== 'quality-review' ||
+    input.targets.length !== 1 ||
+    nodePath.basename(input.targets[0] ?? '') !== 'spec.md'
+  )
+    return false;
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  try {
+    return prepared.packet.planning_phase === 'product-plan';
+  } finally {
+    prepared.cleanup();
+  }
+}
+
+function planningReviewPolicyOff(input: ReviewRunInput, author: ReviewAuthor): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'PLANNING_REVIEW_POLICY_OFF',
+        message:
+          'Planning review is required before this phase can advance. Set crossAgentReview to prefer or require in .safeword/config.json, then run the review again.',
+        severity: 'warning',
+      },
+    ],
+    data: {
+      command: 'review run',
+      status: 'blocked',
+      review_policy: 'off',
+      review_kind: input.kind,
+      review_targets: input.targets,
+      author_agent: author,
+      independence: 'none',
+    },
   });
 }
 
