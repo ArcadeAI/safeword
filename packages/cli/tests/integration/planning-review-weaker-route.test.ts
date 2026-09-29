@@ -147,4 +147,37 @@ it('discards a weaker approval and continues to the next independent route', asy
       { reviewer: 'claude', status: 'attempted' },
     ],
   });
+
+  writeFileSync(
+    nodePath.join(project, ticket, 'spec.md'),
+    '# Product Plan: Truthful review\n\n<!-- safeword:product-plan-contract:v1 -->\n\n## Product Bet\n\n- **Problem / Why now:** Builders need trustworthy planning review.\n- **Expected outcome:** Only current qualified approval advances.\n- **Success threshold:** Unverified review is labeled reduced.\n- **Project non-goals:** Inventing independent assurance.\n- **Persona outcome inventory:** Builder receives approval or a named refusal.\n- **Known facts:** The fixture has one Builder and one CLI surface.\n- **Assumptions:** none\n- **Unresolved product decisions:** none\n\n## Jobs To Be Done\n\n### approval.BU1 — Trust review\n\n**Persona:** Builder (BU)\n\n> When I request review, I want actual assurance reported, so I can decide whether to advance.\n\n#### approval.BU1.R1 — Preserve truthful assurance\n\nOnly current qualified approval advances.\n\n## Shape\n\n### M1 — Trust review\n\n- **Outcome:** Current review is labeled honestly.\n- **Non-goals:** Unqualified independence.\n\n## Surfaces\n\nAffected:\n- Safeword CLI\n',
+  );
+  const product = await runReview({
+    cwd: project,
+    kind: 'quality-review',
+    targets: [`${ticket}/spec.md`],
+  });
+  expect(product.data).toMatchObject({
+    status: 'approved',
+    actual_reviewer: 'claude',
+    independence: 'reduced',
+    review_routes: [
+      { reviewer: 'codex', status: 'attempted', failure: 'reviewer_capability_unknown' },
+      { reviewer: 'opencode', status: 'attempted', failure: 'reviewer_capability_unknown' },
+      { reviewer: 'claude', status: 'attempted' },
+    ],
+  });
+
+  writeFileSync(nodePath.join(project, 'notes.md'), '# Ordinary review\n\nNo planning contract.\n');
+  const ordinary = await runReview({
+    cwd: project,
+    kind: 'quality-review',
+    targets: ['notes.md'],
+  });
+  expect(ordinary.data).toMatchObject({
+    status: 'approved',
+    actual_reviewer: 'codex',
+    independence: 'cross-agent',
+  });
+  expect((ordinary.data as Record<string, unknown>).review_routes).toBeUndefined();
 });

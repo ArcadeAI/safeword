@@ -180,6 +180,7 @@ function independentReviewResult(input: {
   readonly output: ReviewerOutput;
   readonly model?: string;
   readonly confirmedModel?: ConfirmedReviewerModel;
+  readonly planning?: boolean;
   readonly preferredReviewer?: ReviewAgent;
   readonly preferredModel?: string;
   readonly preferredModelFailure?: ReviewFailure;
@@ -240,12 +241,13 @@ function withPlanningAuthorCapability(
     readonly kind: ReviewKind;
     readonly author: ReviewAuthor;
     readonly policy: ReviewPolicy;
+    readonly planning?: boolean;
   },
   result: CliResult,
 ): CliResult {
   const authorModel = process.env[AUTHOR_MODEL_ENV];
   if (
-    !isPlanningReview(input.kind) ||
+    !(input.planning ?? isPlanningReview(input.kind)) ||
     (input.author === 'claude' && authorModel !== undefined && authorModel.trim() !== '')
   )
     return result;
@@ -593,17 +595,13 @@ function isPlanningReview(kind: ReviewKind): boolean {
   return ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind);
 }
 
-function fallbackIndependence(kind: ReviewKind): 'reduced' | 'degraded' {
-  return isPlanningReview(kind) ? 'reduced' : 'degraded';
-}
-
 function rankedFallbackFinding(
-  kind: ReviewKind,
+  planning: boolean,
   author: ReviewAgent,
   reviewer: ReviewAgent,
   evidence: readonly RankedRouteEvidence[],
 ): Finding {
-  if (isPlanningReview(kind)) {
+  if (planning) {
     return {
       code: 'REVIEW_INDEPENDENCE_REDUCED',
       message: `Independent reviewer routes were exhausted; ${agentName(reviewer)} reviewed this plan in a separate headless process with reduced independence.`,
@@ -647,6 +645,7 @@ function rankedExhaustedResult(input: {
   readonly author: ReviewAgent;
   readonly policy: ReviewPolicy;
   readonly kind: ReviewKind;
+  readonly planning: boolean;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
   readonly evidence: readonly RankedRouteEvidence[];
@@ -658,7 +657,7 @@ function rankedExhaustedResult(input: {
       state: input.degraded.output.verdict === 'approve' ? 'healthy' : 'action_required',
       findings: [
         rankedFallbackFinding(
-          input.kind,
+          input.planning,
           input.author,
           input.degraded.route.reviewer,
           input.evidence,
@@ -675,7 +674,7 @@ function rankedExhaustedResult(input: {
         ...(input.degraded.route.model !== undefined && {
           reviewer_model: input.degraded.route.model,
         }),
-        independence: fallbackIndependence(input.kind),
+        independence: input.planning ? 'reduced' : 'degraded',
         review_routes: input.evidence,
         reviewer_output: input.degraded.output,
       },
@@ -686,7 +685,8 @@ function rankedExhaustedResult(input: {
     ['attempted', 'unavailable'].includes(route.status),
   );
   const hasDegraded = input.degraded !== undefined;
-  const achievedIndependence = hasDegraded ? fallbackIndependence(input.kind) : 'none';
+  const achievedIndependence = hasDegraded ? 'degraded' : 'none';
+  const independence = hasDegraded && input.planning ? 'reduced' : achievedIndependence;
   const evaluatedLabel = evaluated.length === 1 ? 'route was' : 'routes were';
   const hasWeaker = input.evidence.some(route => route.failure === 'reviewer_capability_weaker');
   const code = rankedBlockingCode(hasDegraded, input.unqualified !== undefined, hasWeaker);
@@ -723,7 +723,7 @@ function rankedExhaustedResult(input: {
       status: 'blocked',
       author_agent: input.author,
       review_policy: input.policy,
-      independence: achievedIndependence,
+      independence,
       review_routes: input.evidence,
       ...(input.unqualified !== undefined && {
         capability_failure: 'reviewer_capability_unknown',
@@ -813,6 +813,7 @@ function rankedFailureResult(input: {
   readonly run: ReviewRunInput;
   readonly author: ReviewAgent;
   readonly policy: ReviewPolicy;
+  readonly planning: boolean;
   readonly route: ReviewRoute;
   readonly remainingRoutes: readonly ReviewRoute[];
   readonly failure: Extract<ReturnType<typeof assessReviewOutcome>, { readonly kind: 'failed' }>;
@@ -838,6 +839,7 @@ function rankedFailureResult(input: {
     author: input.author,
     policy: input.policy,
     kind: input.run.kind,
+    planning: input.planning,
     targets: input.run.targets,
     context: input.run.context,
     evidence: input.evidence,
@@ -893,42 +895,57 @@ async function executeRankedRoute(input: {
   );
 }
 
-async function runRankedRoutes(
-  input: ReviewRunInput,
-  author: ReviewAgent,
-  policy: ReviewPolicy,
-  routes: readonly ReviewRoute[],
-): Promise<CliResult> {
-  if (isPlanningReview(input.kind) && routes.every(route => route.independence !== 'cross-agent')) {
+interface RankedRun {
+  readonly input: ReviewRunInput;
+  readonly author: ReviewAgent;
+  readonly policy: ReviewPolicy;
+  readonly routes: readonly ReviewRoute[];
+  readonly planning: boolean;
+  readonly prepared?: ReturnType<typeof prepareReviewPacket>;
+}
+
+async function runRankedRoutes({
+  input,
+  author,
+  policy,
+  routes,
+  planning,
+  prepared,
+}: RankedRun): Promise<CliResult> {
+  if (planning && routes.every(route => route.independence !== 'cross-agent')) {
+    prepared?.cleanup();
     return rankedExhaustedResult({
       author,
       policy,
       kind: input.kind,
+      planning,
       targets: input.targets,
       context: input.context,
       evidence: routes.map(route => ({ ...route, status: 'unattempted' })),
     });
   }
-  return runConfiguredRankedRoutes(input, author, policy, routes);
+  return runConfiguredRankedRoutes({ input, author, policy, routes, planning, prepared });
 }
 
 function cannotAttemptRankedRoute(
-  kind: ReviewKind,
+  planning: boolean,
   route: ReviewRoute,
   evidence: readonly RankedRouteEvidence[],
   deadline: number,
 ): boolean {
-  return !canFundRoute(deadline) || planningFallbackLacksIndependentAttempt(kind, route, evidence);
+  return (
+    !canFundRoute(deadline) || planningFallbackLacksIndependentAttempt(planning, route, evidence)
+  );
 }
 
 function rankedReviewerCapabilityFailure(
-  kind: ReviewKind,
+  planning: boolean,
   author: ReviewAgent,
   route: ReviewRoute,
   confirmedModel: ConfirmedReviewerModel | undefined,
 ): 'reviewer_capability_unknown' | 'reviewer_capability_weaker' | undefined {
   const authorModel = process.env[AUTHOR_MODEL_ENV];
-  if (!isPlanningReview(kind) || author !== 'claude' || authorModel === undefined) return undefined;
+  if (!planning || author !== 'claude' || authorModel === undefined) return undefined;
   return reviewerCapabilityFailure(
     { provider: 'anthropic', model: authorModel },
     route.model,
@@ -938,22 +955,34 @@ function rankedReviewerCapabilityFailure(
   );
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- This loop preserves route order across completed, failed, and unqualified reviews.
-async function runConfiguredRankedRoutes(
+function preparedRankedPacket(
   input: ReviewRunInput,
-  author: ReviewAgent,
-  policy: ReviewPolicy,
-  routes: readonly ReviewRoute[],
-): Promise<CliResult> {
+  existing: ReturnType<typeof prepareReviewPacket> | undefined,
+): ReturnType<typeof prepareReviewPacket> {
+  return (
+    existing ??
+    prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+      attestation: input.executionAttestation,
+    })
+  );
+}
+
+// eslint-disable-next-line sonarjs/cognitive-complexity -- This loop preserves route order across completed, failed, and unqualified reviews.
+async function runConfiguredRankedRoutes({
+  input,
+  author,
+  policy,
+  routes,
+  planning,
+  prepared: existingPrepared,
+}: RankedRun): Promise<CliResult> {
   const evidence: RankedRouteEvidence[] = [];
   const unavailable = new Set<ReviewAgent>();
   let degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
   let unqualified: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
   const runDeadline = Date.now() + runBoundMs();
-  const orderedRoutes = orderedReviewRoutes(input.kind, routes);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
-    attestation: input.executionAttestation,
-  });
+  const orderedRoutes = orderedReviewRoutes(planning, routes);
+  const prepared = preparedRankedPacket(input, existingPrepared);
 
   try {
     for (const [index, route] of orderedRoutes.entries()) {
@@ -961,7 +990,7 @@ async function runConfiguredRankedRoutes(
         evidence.push({ ...route, status: 'skipped' });
         continue;
       }
-      if (cannotAttemptRankedRoute(input.kind, route, evidence, runDeadline)) {
+      if (cannotAttemptRankedRoute(planning, route, evidence, runDeadline)) {
         evidence.push(
           ...orderedRoutes
             .slice(index)
@@ -992,6 +1021,7 @@ async function runConfiguredRankedRoutes(
           run: input,
           author,
           policy,
+          planning,
           route,
           remainingRoutes: orderedRoutes.slice(index + 1),
           failure: assessment,
@@ -1007,7 +1037,7 @@ async function runConfiguredRankedRoutes(
       evidence.push({ ...route, status: 'attempted' });
       if (route.independence === 'cross-agent') {
         const capabilityFailure = rankedReviewerCapabilityFailure(
-          input.kind,
+          planning,
           author,
           route,
           assessment.confirmedModel,
@@ -1029,6 +1059,7 @@ async function runConfiguredRankedRoutes(
           author,
           policy,
           kind: input.kind,
+          planning,
           targets: input.targets,
           context: input.context,
           reviewer: route.reviewer,
@@ -1049,6 +1080,7 @@ async function runConfiguredRankedRoutes(
       author,
       policy,
       kind: input.kind,
+      planning,
       targets: input.targets,
       context: input.context,
       evidence,
@@ -1061,10 +1093,10 @@ async function runConfiguredRankedRoutes(
 }
 
 function orderedReviewRoutes(
-  kind: ReviewKind,
+  planning: boolean,
   routes: readonly ReviewRoute[],
 ): readonly ReviewRoute[] {
-  if (!isPlanningReview(kind)) return routes;
+  if (!planning) return routes;
   return [
     ...routes.filter(route => route.independence === 'cross-agent'),
     ...routes.filter(route => route.independence === 'degraded'),
@@ -1072,12 +1104,12 @@ function orderedReviewRoutes(
 }
 
 function planningFallbackLacksIndependentAttempt(
-  kind: ReviewKind,
+  planning: boolean,
   route: ReviewRoute,
   evidence: readonly RankedRouteEvidence[],
 ): boolean {
   return (
-    isPlanningReview(kind) &&
+    planning &&
     route.independence === 'degraded' &&
     evidence.every(
       candidate => candidate.independence !== 'cross-agent' || candidate.status !== 'attempted',
@@ -1988,9 +2020,9 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   } catch (error) {
     return invalidRouteConfigResult(error, routes.author, policy);
   }
-  const rankedRoutes = rankedReviewRoutes(input, routes.author, configuredRoutes);
-  if (rankedRoutes !== undefined)
-    return runRankedRoutes(input, routes.author, policy, rankedRoutes);
+  const ranked = selectRankedReview(input, routes.author, configuredRoutes);
+  if (ranked !== undefined)
+    return runRankedRoutes({ input, author: routes.author, policy, ...ranked });
   const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
@@ -2070,13 +2102,34 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   });
 }
 
+function selectRankedReview(
+  input: ReviewRunInput,
+  author: ReviewAgent,
+  configured: readonly ReviewRoute[] | undefined,
+): Pick<RankedRun, 'routes' | 'planning' | 'prepared'> | undefined {
+  const productPacket =
+    input.kind === 'quality-review'
+      ? prepareReviewPacket(input.cwd, input.kind, input.targets, input.context)
+      : undefined;
+  const productPlan = productPacket?.packet.planning_phase === 'product-plan';
+  const routes = rankedReviewRoutes(input, author, configured, productPlan);
+  if (!productPlan || routes === undefined) productPacket?.cleanup();
+  if (routes === undefined) return undefined;
+  return {
+    routes,
+    planning: isPlanningReview(input.kind) || productPlan,
+    ...(productPlan && { prepared: productPacket }),
+  };
+}
+
 function rankedReviewRoutes(
   input: ReviewRunInput,
   author: ReviewAgent,
   configured: readonly ReviewRoute[] | undefined,
+  productPlan: boolean,
 ): readonly ReviewRoute[] | undefined {
   if (input.kind !== 'plan-execution')
-    return isPlanningReview(input.kind)
+    return isPlanningReview(input.kind) || productPlan
       ? (configured ?? builtInReviewRoutes(input.cwd, author))
       : configured;
   return filterExecutionPlanRoutes(
