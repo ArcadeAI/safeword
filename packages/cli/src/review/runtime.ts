@@ -731,16 +731,36 @@ export function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): bo
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
 }
 
+function hasRequiredPlanningEvidence(
+  output: unknown,
+  kind: ReviewKind,
+  planningPhase?: ReviewPacket['planning_phase'],
+): boolean {
+  if (
+    kind !== 'plan-execution' &&
+    kind !== 'plan-implementation' &&
+    kind !== 'scenario-gate' &&
+    planningPhase !== 'product-plan'
+  )
+    return true;
+  return isRecord(output) && hasValidEvidenceRecords(output.evidence_records);
+}
+
 export function parseReviewerOutput(
   reviewer: ReviewAgent,
   stdout: string,
   kind: ReviewKind = 'quality-review',
+  planningPhase?: ReviewPacket['planning_phase'],
 ): UnverifiedReviewerOutput {
   let output: unknown;
   if (reviewer === 'claude') output = parseClaudeOutput(stdout);
   else if (reviewer === 'codex') output = parseCodexOutput(stdout);
   else output = parseOpenCodeOutput(stdout);
-  if (!hasValidReviewerOutputBody(output, kind)) throw new Error('invalid reviewer output');
+  if (
+    !hasValidReviewerOutputBody(output, kind) ||
+    !hasRequiredPlanningEvidence(output, kind, planningPhase)
+  )
+    throw new Error('invalid reviewer output');
   // Identity fields cross a separate trust boundary in coordinator.ts, which
   // reports missing and contradictory provenance as distinct public failures.
   return output as UnverifiedReviewerOutput;
@@ -786,8 +806,9 @@ export function parseReviewerExecution(
   reviewer: ReviewAgent,
   stdout: string,
   kind: ReviewKind = 'quality-review',
+  planningPhase?: ReviewPacket['planning_phase'],
 ): ReviewerExecution {
-  const output = parseReviewerOutput(reviewer, stdout, kind);
+  const output = parseReviewerOutput(reviewer, stdout, kind, planningPhase);
   const confirmedModel = reviewer === 'claude' ? confirmedClaudeAssistantModel(stdout) : undefined;
   return confirmedModel === undefined ? { output } : { output, confirmedModel };
 }
@@ -1629,7 +1650,7 @@ function codexAppServerReviewOutput(
   confirmedModel: ConfirmedReviewerModel | undefined,
 ): ReviewerExecution {
   const event = JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text } });
-  const output = parseReviewerOutput('codex', event, packet.kind);
+  const output = parseReviewerOutput('codex', event, packet.kind, packet.planning_phase);
   if (packet.kind !== 'plan-execution') return { output, confirmedModel };
   const validation = validateExecutionPlanOutput(
     output,
@@ -1923,7 +1944,12 @@ async function runCandidate(
               return;
             }
             try {
-              const parsed = parseReviewerExecution(reviewer, stdout, packet.kind);
+              const parsed = parseReviewerExecution(
+                reviewer,
+                stdout,
+                packet.kind,
+                packet.planning_phase,
+              );
               if (packet.kind !== 'plan-execution') {
                 resolve(parsed);
                 return;

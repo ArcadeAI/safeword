@@ -64,4 +64,22 @@ describe('planning review evidence boundary', () => {
     expect(productSchema.required).toContain('evidence_records');
     expect(qualitySchema.properties.evidence_records).toBeUndefined();
   });
+
+  it('refuses a new planning verdict that omits evidence records', () => {
+    const { evidence_records: _ignored, ...missing } = reviewerOutput(evidence);
+    expect(() =>
+      parseReviewerOutput(
+        'claude',
+        JSON.stringify(missing),
+        'plan-implementation',
+        'plan-implementation',
+      ),
+    ).toThrow('invalid reviewer output');
+    expect(() =>
+      parseReviewerOutput('claude', JSON.stringify(missing), 'quality-review', 'product-plan'),
+    ).toThrow('invalid reviewer output');
+    expect(parseReviewerOutput('claude', JSON.stringify(missing), 'quality-review')).toEqual(
+      missing,
+    );
+  });
 });
