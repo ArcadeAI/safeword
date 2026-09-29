@@ -119,7 +119,7 @@ process.stdin.on('end', () => {
   const run = (args: string[]) =>
     runCli([...args, '--cwd', project, '--json', '--no-input'], {
       cwd: project,
-      env: { PATH: `${reviewer}:/usr/bin:/bin`, SAFEWORD_AGENT_RUNTIME: 'codex' },
+      env: { PATH: `${reviewer}:${process.env.PATH ?? ''}`, SAFEWORD_AGENT_RUNTIME: 'codex' },
     });
   const reviewed = await run(['review', 'run', 'quality-review', target]);
   expect(reviewed.exitCode, `${reviewed.stdout}\n${reviewed.stderr}`).toBe(0);
@@ -178,6 +178,7 @@ describe('semantic planning context currency through public review status', () =
     [
       'an unrelated persona entry',
       '.project/personas.md',
+      // Reader belongs to the unselected parent job; the child selected Builder.
       (text: string) => `${text}\n## Reader (RD)\n\n**Role:** Reads project guidance.\n`,
     ],
     [
@@ -239,6 +240,18 @@ describe('semantic planning context currency through public review status', () =
       '.project/principles.md',
       (text: string) =>
         `${text}\n## Require explicit scope\n\nNever infer an additional product goal.\n`,
+    ],
+    [
+      'the referenced persona',
+      '.project/personas.md',
+      (text: string) =>
+        text.replace('Needs current authenticated approval', 'Needs fresh authenticated approval'),
+    ],
+    [
+      'the referenced surface',
+      '.project/surfaces.md',
+      (text: string) =>
+        text.replace('Requests and presents planning approval', 'Rejects planning approval'),
     ],
   ])('invalidates approval after %s changes', async (_label, path, transform) => {
     const review = await fixture();
