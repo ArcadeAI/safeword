@@ -39,11 +39,19 @@ const parent = `# Product Plan: Trust review
 - **Outcome:** Current evidence is visible.
 - **Constraints:** Preserve authentication.
 
+#### trust.BU1.R1 — Preserve authenticated approval
+
+Only current approval advances.
+
 ### trust.RD1 — Find guidance
 
 **Persona:** Reader (RD)
 
 > When I read a guide, I want an index, so I can find instructions.
+
+#### trust.RD1.R1 — Keep guidance discoverable
+
+Guidance has a readable index.
 
 ## Shape
 
@@ -102,7 +110,8 @@ process.stdin.on('end', () => {
   const packet = JSON.parse(input.trim().split('\n').pop());
   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
   console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id,
-    reviewer_agent: 'claude', verdict: 'approve', summary: 'Review fixture approves the supplied source.', findings: [] } }));
+    reviewer_agent: 'claude', verdict: 'approve', summary: 'Review fixture approves the supplied source.',
+    findings: [], evidence_records: { schema_version: 1, records: [] } } }));
 });
 `,
     { mode: 0o755 },
