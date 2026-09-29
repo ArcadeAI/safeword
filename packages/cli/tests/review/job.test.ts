@@ -329,6 +329,7 @@ describe('durable review jobs', () => {
     writeFileSync(recordPath, sealedRecord);
 
     const baseOutput = {
+      evidence_records: { schema_version: 1, records: [] },
       schema_version: 1 as const,
       dispatch_id: 'fixture-dispatch',
       reviewer_agent: 'claude' as const,
@@ -433,6 +434,25 @@ describe('durable review jobs', () => {
     expect(reviewJobStatus(cwd, publicId).data).toMatchObject({
       status: 'approved',
       independence: 'reduced',
+    });
+
+    const missingEvidenceJob = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: [`${ticket}/spec.md`],
+    });
+    const missingEvidenceId = (missingEvidenceJob.data as { review_id: string }).review_id;
+    const { evidence_records: _omitted, ...withoutEvidence } = baseOutput;
+    const missingEvidence = submitReviewContinuation(
+      cwd,
+      missingEvidenceId,
+      'fresh-context',
+      withoutEvidence,
+      { origin: 'claude' },
+    );
+    expect(missingEvidence.data).toMatchObject({
+      status: 'continuation_required',
+      continuation: { tier: 'self-review' },
     });
 
     const unavailableJob = await startReviewJob({

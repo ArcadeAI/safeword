@@ -45,6 +45,7 @@ import {
 } from './planning-context-identity.js';
 import { isPlanningReviewIdentity, type PlanningReviewIdentity } from './planning-role-context.js';
 import {
+  hasRequiredPlanningEvidence,
   hasValidReviewerOutputBody,
   reconcilePlanContract,
   reviewWorkerRunBoundMs,
@@ -1308,7 +1309,15 @@ function validatedHostOutput(
   packet: Record<string, unknown>,
   author: unknown,
 ): ReviewerOutput | undefined {
-  if (!hasValidReviewerOutputBody(value, kind)) return undefined;
+  if (
+    !hasValidReviewerOutputBody(value, kind) ||
+    !hasRequiredPlanningEvidence(
+      value,
+      kind,
+      packet.planning_phase as ReviewPacket['planning_phase'],
+    )
+  )
+    return undefined;
   const reviewer = value as ReviewerOutput;
   if (reviewer.dispatch_id !== packet.dispatch_id || reviewer.reviewer_agent !== author)
     return undefined;

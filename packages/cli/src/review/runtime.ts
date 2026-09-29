@@ -731,7 +731,7 @@ export function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): bo
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
 }
 
-function hasRequiredPlanningEvidence(
+export function hasRequiredPlanningEvidence(
   output: unknown,
   kind: ReviewKind,
   planningPhase?: ReviewPacket['planning_phase'],
