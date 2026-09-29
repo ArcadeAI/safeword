@@ -31,7 +31,6 @@ import {
   parseReviewStamps,
   readCrossAgentReviewPolicy,
   reviewGateForIndependentDesign,
-  reviewGateForNextAsset,
   reviewScope,
 } from './lib/review-ledger.ts';
 import {
