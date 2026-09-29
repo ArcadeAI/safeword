@@ -193,18 +193,19 @@ describe('Execution Plan output schema', () => {
       ]),
     );
     expect(reviewOutputSchema('plan-execution')).not.toBe(reviewOutputSchema('quality-review'));
+    expect(reviewOutputSchema('plan-execution')).not.toContain('"oneOf"');
   });
 
-  it('gives Claude the selected strict schema without changing legacy arguments', () => {
+  it('gives Claude the selected strict schema in its planning output format', () => {
     const legacy = reviewerArguments('claude', undefined, undefined, {}, 'quality-review');
     const execution = reviewerArguments('claude', undefined, undefined, {}, 'plan-execution');
     const schemaIndex = execution.indexOf('--json-schema') + 1;
 
     expect(execution[schemaIndex]).toBe(reviewOutputSchema('plan-execution'));
     expect(legacy[schemaIndex]).toBe(reviewOutputSchema('quality-review'));
-    expect(execution.filter((_argument, index) => index !== schemaIndex)).toEqual(
-      legacy.filter((_argument, index) => index !== schemaIndex),
-    );
+    expect(execution).toContain('stream-json');
+    expect(execution).toContain('--verbose');
+    expect(legacy).toContain('json');
   });
 
   it('parses the record only under the internal plan-execution kind', () => {

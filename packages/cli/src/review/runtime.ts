@@ -23,7 +23,7 @@ import nodePath from 'node:path';
 
 import { DELIVERY_CHECKLIST_CATEGORIES } from '../execution-plan/delivery-checklist.js';
 import { warn } from '../utils/output.js';
-import { codexAppServerProof } from './codex-app-server-proof.js';
+import { codexAppServerFailedTurn, codexAppServerProof } from './codex-app-server-proof.js';
 import type {
   PlanContractPair,
   ReviewAgent,
@@ -95,7 +95,7 @@ const EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA = {
       enum: ['current_required', 'compatible_earlier_allowed'],
     },
     invocation: {
-      oneOf: [
+      anyOf: [
         {
           type: 'object',
           properties: {
@@ -391,6 +391,7 @@ interface ReviewAttempt {
   readonly packet: ReviewPacket;
   readonly cwd: string;
   readonly model: string | undefined;
+  readonly effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   /** Written once per dispatch; owned by the dispatch, never by an attempt. */
   readonly schemaPath: string | undefined;
 }
@@ -1620,7 +1621,19 @@ async function runCodexAppServerCandidate(
             threadId: result.thread.id,
             input: [{ type: 'text', text: reviewPrompt('codex', attempt.packet) }],
             outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind)) as unknown,
+            ...(attempt.effort !== undefined && { effort: attempt.effort }),
           },
+        });
+      };
+      const finishTurn = (): void => {
+        if (codexAppServerFailedTurn(messages)) {
+          throw new ReviewRuntimeError('process_failed', 'codex turn failed');
+        }
+        const proof = codexAppServerProof(messages, attempt.model);
+        if (proof === undefined) return;
+        const parsed = codexAppServerReviewOutput(attempt.packet, proof.text, proof.confirmedModel);
+        settle(() => {
+          resolve(parsed);
         });
       };
       const handle = (message: unknown): void => {
@@ -1645,16 +1658,7 @@ async function runCodexAppServerCandidate(
         } else if (message.id === 3 && message.error !== undefined) {
           throw new ReviewRuntimeError('process_failed', 'codex turn was rejected');
         } else if (message.method === 'turn/completed') {
-          const proof = codexAppServerProof(messages, attempt.model);
-          if (proof === undefined) return;
-          const parsed = codexAppServerReviewOutput(
-            attempt.packet,
-            proof.text,
-            proof.confirmedModel,
-          );
-          settle(() => {
-            resolve(parsed);
-          });
+          finishTurn();
         }
       };
       child.stdout.setEncoding('utf8');
@@ -1734,7 +1738,8 @@ async function runCandidate(
 ): Promise<ReviewerExecution> {
   if (
     attempt.reviewer === 'codex' &&
-    ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(attempt.packet.kind)
+    (attempt.packet.planning_phase === 'product-plan' ||
+      ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(attempt.packet.kind))
   ) {
     const appServer = await supportsReviewContract(
       'codex',
@@ -1753,9 +1758,13 @@ async function runCandidate(
     // Older Codex CLIs can still return readable review evidence through exec.
   }
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
+  const argumentEnvironment =
+    attempt.effort === undefined
+      ? process.env
+      : { ...process.env, SAFEWORD_REVIEW_EFFORT_CLAUDE: attempt.effort };
   const child = spawn(
     executable,
-    reviewerArguments(reviewer, model, schemaPath, process.env, packet),
+    reviewerArguments(reviewer, model, schemaPath, argumentEnvironment, packet),
     {
       cwd,
       env: reviewerEnvironment(reviewer),
@@ -1934,9 +1943,13 @@ export async function runHeadlessReviewerWithProvenance(
   packet: ReviewPacket,
   cwd: string,
   untrustedRoot: string = process.cwd(),
-  options: { readonly model?: string; readonly runDeadline?: number } = {},
+  options: {
+    readonly model?: string;
+    readonly runDeadline?: number;
+    readonly effort?: NonNullable<ReviewAttempt['effort']>;
+  } = {},
 ): Promise<ReviewerExecution> {
-  const { model, runDeadline } = options;
+  const { model, runDeadline, effort } = options;
   // A route never outlives the run: whichever bound arrives first wins.
   const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
@@ -1956,7 +1969,7 @@ export async function runHeadlessReviewerWithProvenance(
   }
   try {
     return await runReviewerCandidates(
-      { reviewer, packet, cwd, model, schemaPath: contract?.path },
+      { reviewer, packet, cwd, model, effort, schemaPath: contract?.path },
       candidates.paths,
       deadline,
     );
@@ -1970,7 +1983,11 @@ export async function runHeadlessReviewer(
   packet: ReviewPacket,
   cwd: string,
   untrustedRoot: string = process.cwd(),
-  options: { readonly model?: string; readonly runDeadline?: number } = {},
+  options: {
+    readonly model?: string;
+    readonly runDeadline?: number;
+    readonly effort?: NonNullable<ReviewAttempt['effort']>;
+  } = {},
 ): Promise<UnverifiedReviewerOutput> {
   const execution = await runHeadlessReviewerWithProvenance(
     reviewer,

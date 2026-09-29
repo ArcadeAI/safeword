@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { codexAppServerProof } from '../../src/review/codex-app-server-proof.js';
+import {
+  codexAppServerFailedTurn,
+  codexAppServerProof,
+} from '../../src/review/codex-app-server-proof.js';
 
 const threadStart = {
   id: 2,
@@ -42,6 +45,16 @@ describe('Codex app-server reviewer proof', () => {
     });
     expect(
       codexAppServerProof([threadStart, turnStart, rerouted, completed], 'gpt-6-astra'),
+    ).toEqual({ text: '{"verdict":"approve"}' });
+    expect(
+      codexAppServerProof(
+        [
+          { ...threadStart, result: { ...threadStart.result, modelProvider: 'anthropic' } },
+          turnStart,
+          completed,
+        ],
+        'gpt-6-astra',
+      ),
     ).toEqual({ text: '{"verdict":"approve"}' });
   });
 
@@ -88,5 +101,27 @@ describe('Codex app-server reviewer proof', () => {
         'gpt-6-astra',
       ),
     ).toBeUndefined();
+  });
+
+  it('recognizes failure only for the acknowledged turn', () => {
+    const failed = {
+      ...completed,
+      params: { ...completed.params, turn: { ...completed.params.turn, status: 'failed' } },
+    };
+    expect(codexAppServerFailedTurn([threadStart, turnStart, failed])).toBe(true);
+    expect(
+      codexAppServerFailedTurn([
+        threadStart,
+        turnStart,
+        { ...failed, params: { ...failed.params, threadId: 'thread-2' } },
+      ]),
+    ).toBe(false);
+    expect(
+      codexAppServerFailedTurn([
+        threadStart,
+        turnStart,
+        { ...failed, params: { ...failed.params, turn: { ...failed.params.turn, id: 'turn-2' } } },
+      ]),
+    ).toBe(false);
   });
 });

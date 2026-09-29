@@ -921,8 +921,8 @@ function reviewerCapabilityUnknown(
   if (route.model === undefined || confirmedModel?.model !== route.model) return true;
   return (
     compareReviewerCapability(
-      authorModel,
-      confirmedModel.model,
+      { provider: 'anthropic', model: authorModel },
+      confirmedModel,
       PACKAGED_CAPABILITY_REVISION,
       PACKAGED_CAPABILITY_PAIRS,
     ) !== 'not_weaker'

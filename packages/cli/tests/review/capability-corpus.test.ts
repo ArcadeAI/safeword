@@ -5,9 +5,21 @@ import {
   normalizedExecutionPlanDigest,
   parseDeliveryPlanContract,
 } from '../../src/execution-plan/delivery-checklist.js';
+import { reviewTimeoutMilliseconds, runBoundMs } from '../../src/review/runtime.js';
 import { REVIEWER_CAPABILITY_MANIFEST } from '../fixtures/reviewer-capability-corpus.js';
 
 describe('pinned reviewer capability corpus', () => {
+  it('uses the production background-worker review deadline', () => {
+    const settings = REVIEWER_CAPABILITY_MANIFEST.settings;
+    const environment = {
+      SAFEWORD_REVIEW_WORKER: '1',
+      SAFEWORD_REVIEW_TIMEOUT_MS: settings.review_timeout_ms,
+      SAFEWORD_REVIEW_RUN_BOUND_MS: settings.review_run_bound_ms,
+    };
+    expect(reviewTimeoutMilliseconds(environment)).toBe(600_000);
+    expect(runBoundMs(environment)).toBe(1_800_000);
+  });
+
   it('pairs an approval and a blocking defect in each planning phase', () => {
     const fixtures = REVIEWER_CAPABILITY_MANIFEST.fixtures;
     expect(fixtures.map(({ label }) => label.id)).toEqual([
@@ -47,5 +59,20 @@ describe('pinned reviewer capability corpus', () => {
       );
       expect(packet.execution_plan_normalized_digest).toBe(normalizedExecutionPlanDigest(plan));
     }
+  });
+
+  it('requires the approved Execution proof to exercise accepted failure boundaries', () => {
+    const plan = REVIEWER_CAPABILITY_MANIFEST.fixtures.find(
+      fixture => fixture.label.id === 'execution-approve',
+    )?.packet.logical_files[0]?.content;
+    expect(plan).toContain('crash before retry binding');
+    expect(plan).toContain('interrupted review');
+    expect(plan).toContain('failed status read');
+    expect(plan).toContain('actual error state');
+    expect(plan).toContain('receipt for another job');
+    expect(plan).toContain('different plan digest under the current job');
+    expect(plan).toContain('unauthenticated approval verdict');
+    expect(plan).toContain('CLI process exit codes');
+    expect(plan).toContain('coordinator records');
   });
 });

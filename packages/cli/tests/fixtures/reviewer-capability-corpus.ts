@@ -6,6 +6,22 @@ import {
 } from '../../src/execution-plan/delivery-checklist.js';
 import type { CapabilityManifest } from '../../src/review/capability-eval.js';
 import type { ReviewPacket } from '../../src/review/contract.js';
+import { reviewerPromptInstructions } from '../../src/review/review-rubric.js';
+import { reviewOutputSchema } from '../../src/review/runtime.js';
+
+const reviewerPlaceholder = '{{reviewer}}';
+export const REVIEWER_CAPABILITY_RUBRICS = {
+  product: reviewerPromptInstructions('quality-review', reviewerPlaceholder, 'product-plan'),
+  product_schema: reviewOutputSchema('quality-review'),
+  implementation: reviewerPromptInstructions(
+    'plan-implementation',
+    reviewerPlaceholder,
+    'plan-implementation',
+  ),
+  implementation_schema: reviewOutputSchema('plan-implementation'),
+  execution: reviewerPromptInstructions('plan-execution', reviewerPlaceholder, 'plan-execution'),
+  execution_schema: reviewOutputSchema('plan-execution'),
+};
 
 const ticket = `# Ticket: Show current review status to builders
 
@@ -116,8 +132,14 @@ function executionPlan(includeRejection: boolean): string {
     ? 'the missing Rejected/receipt-bound assertions fail'
     : 'the missing Pending/Approved assertions fail';
   const rejectionStep = includeRejection
-    ? 'The same integration fixture must assert that a terminal rejection displays its actual error findings, that a repaired plan starts a new review, and that a concurrently completed non-current job cannot drive the displayed status.'
+    ? 'The same integration fixture must assert that a terminal rejection displays its actual error findings, that a repaired plan starts a new review, and that a concurrently completed non-current job cannot drive the displayed status. Simulate a crash before retry binding and assert the prior terminal state remains visible and retryable; simulate an interrupted review and assert Pending with its actual error state; simulate a failed status read and assert unavailable rather than Approved.'
     : 'The integration fixture covers Pending and Approved states.';
+  const authorityStep = includeRejection
+    ? 'Through the CLI and coordinator, test a receipt for another job, a receipt for a different plan digest under the current job, and an unauthenticated approval verdict without a receipt; each must remain non-Approved. Assert unchanged CLI process exit codes for successful and failed reads against the pre-change baseline, and assert status reads leave coordinator records byte-identical.'
+    : '';
+  const decisionStatus = includeRejection
+    ? 'Decision status: current job-and-digest binding, receipt-only approval, verbatim rejection findings, retry as a new review, atomic concurrent retry binding and crash behavior, interrupted Pending with its error, and failed-read unavailability remain unchanged from the Implementation Plan.'
+    : "Decision status: the Implementation Plan's existing coordinator/receipt source of truth is unchanged.";
   return `# Execution Plan: Show current review status
 
 ## Slicing decision
@@ -128,7 +150,7 @@ One pull request: the status mapper and its public CLI proof are one cohesive ch
 
 Purpose: show the accepted current status without creating approval authority. Boundary: CLI presentation over the existing coordinator and receipt. Inputs: accepted scenarios and Implementation Plan. Slice prerequisites: none. Completion signal: ${completionSignal}. Relies on unmerged successor: false.
 
-First RED: add the failing tests/integration/review-status.test.ts fixture, run bun run test tests/integration/review-status.test.ts from packages/cli, and observe ${redSignal} before editing production code. Then implement the mapper and CLI wiring. ${rejectionStep} Run the same command again; exit 0 and the stated assertions are required. Finally update CLI help text and rerun the integration proof.
+First RED: add the failing tests/integration/review-status.test.ts fixture, run bun run test tests/integration/review-status.test.ts from packages/cli, and observe ${redSignal} before editing production code. Then implement the mapper and CLI wiring. ${rejectionStep} ${authorityStep} Run the same command again; exit 0 and the stated assertions are required. Finally update CLI help text and rerun the integration proof.
 
 ## Proof specifications
 
@@ -144,7 +166,7 @@ First RED: add the failing tests/integration/review-status.test.ts fixture, run 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 ${DELIVERY_CHECKLIST_CATEGORIES.map((category, index) => `| status-${index + 1} | ${category} | ${checklistObligations[index]} | contributor | ${proofId} | open | missing | | |`).join('\n')}
 
-Decision status: the Implementation Plan's existing coordinator/receipt source of truth is unchanged. Obligation owner: Current review status, Slice 1. The plan does not claim implementation, verification, merge, or deployment completion.`;
+${decisionStatus} Obligation owner: Current review status, Slice 1. The plan does not claim implementation, verification, merge, or deployment completion.`;
 }
 
 const commonContext = [
@@ -193,7 +215,15 @@ export const REVIEWER_CAPABILITY_MANIFEST: CapabilityManifest = {
   schema_version: 1,
   owner: 'Safeword release maintainers',
   floor: { runs_per_fixture: 3, minimum_fixture_passes: 2, minimum_total_percent: 90 },
-  settings: { tools: 'none', claude_effort: 'medium', codex_reasoning: 'medium' },
+  settings: {
+    anthropic_model: 'claude-opus-5',
+    openai_model: 'gpt-6-astra',
+    tools: 'review prompt forbids tools',
+    claude_effort: 'medium',
+    codex_reasoning: 'medium',
+    review_timeout_ms: '600000',
+    review_run_bound_ms: '1800000',
+  },
   fixtures: [
     {
       label: { id: 'product-approve', verdict: 'approve', required: [], forbidden: [] },

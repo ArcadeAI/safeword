@@ -55,6 +55,21 @@ function completedTurn(
   return finishedTurn;
 }
 
+export function codexAppServerFailedTurn(messages: readonly unknown[]): boolean {
+  const started = startedTurn(messages);
+  if (started === undefined) return false;
+  return messages.some(
+    message =>
+      record(message) &&
+      message.method === 'turn/completed' &&
+      record(message.params) &&
+      message.params.threadId === started.threadId &&
+      record(message.params.turn) &&
+      message.params.turn.id === started.turnId &&
+      message.params.turn.status === 'failed',
+  );
+}
+
 function finalAnswer(turn: Record<string, unknown>): string | undefined {
   if (!Array.isArray(turn.items)) return undefined;
   const answers = turn.items.filter(
@@ -88,8 +103,7 @@ function confirmedModel(
   if (
     typeof model !== 'string' ||
     model === '' ||
-    typeof provider !== 'string' ||
-    provider === '' ||
+    provider !== 'openai' ||
     (selectedModel !== undefined && selectedModel !== model)
   )
     return undefined;

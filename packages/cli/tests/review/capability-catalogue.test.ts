@@ -20,27 +20,49 @@ const qualified = {
   ...current,
 };
 
+function compare(
+  authorModel: string,
+  reviewerModel: string,
+  records: Parameters<typeof compareReviewerCapability>[3],
+) {
+  return compareReviewerCapability(
+    { provider: authorModel.split('/', 1)[0] ?? '', model: authorModel },
+    { provider: reviewerModel.split('/', 1)[0] ?? '', model: reviewerModel },
+    current,
+    records,
+  );
+}
+
 describe('reviewer capability comparison', () => {
+  it('binds both providers as well as their exact model IDs', () => {
+    const author = { provider: 'vendor-a', model: 'vendor-a/author-1' };
+    const reviewer = { provider: 'vendor-b', model: 'vendor-b/reviewer-2' };
+    expect(compareReviewerCapability(author, reviewer, current, [qualified])).toBe('not_weaker');
+    expect(
+      compareReviewerCapability({ ...author, provider: 'vendor-c' }, reviewer, current, [
+        qualified,
+      ]),
+    ).toBe('unknown');
+    expect(
+      compareReviewerCapability(author, { ...reviewer, provider: 'vendor-c' }, current, [
+        qualified,
+      ]),
+    ).toBe('unknown');
+  });
   it('admits only a qualified current exact ordered pair', () => {
-    expect(
-      compareReviewerCapability('vendor-a/author-1', 'vendor-b/reviewer-2', current, [qualified]),
-    ).toBe('not_weaker');
-    expect(
-      compareReviewerCapability('vendor-b/reviewer-2', 'vendor-a/author-1', current, [qualified]),
-    ).toBe('unknown');
-    expect(
-      compareReviewerCapability('vendor-a/author-1', 'vendor-b/reviewer-3', current, [qualified]),
-    ).toBe('unknown');
+    expect(compare('vendor-a/author-1', 'vendor-b/reviewer-2', [qualified])).toBe('not_weaker');
+    expect(compare('vendor-b/reviewer-2', 'vendor-a/author-1', [qualified])).toBe('unknown');
+    expect(compare('vendor-a/author-1', 'vendor-b/reviewer-3', [qualified])).toBe('unknown');
   });
 
   it('does not inherit stale or unqualified evidence', () => {
     expect(
-      compareReviewerCapability('vendor-a/author-1', 'vendor-b/reviewer-2', current, [
+      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [
         { ...qualified, corpus_digest: 'old-corpus' },
       ]),
     ).toBe('unknown');
     expect(
-      compareReviewerCapability('vendor-a/author-1', 'vendor-b/reviewer-2', current, [
+      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [
         { ...qualified, qualification: 'unqualified' },
       ]),
     ).toBe('unknown');
@@ -48,12 +70,10 @@ describe('reviewer capability comparison', () => {
 
   it('preserves a qualified weaker result and rejects conflicting records', () => {
     expect(
-      compareReviewerCapability('vendor-a/author-1', 'vendor-b/reviewer-2', current, [
-        { ...qualified, direction: 'weaker' },
-      ]),
+      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [{ ...qualified, direction: 'weaker' }]),
     ).toBe('weaker');
     expect(
-      compareReviewerCapability('vendor-a/author-1', 'vendor-b/reviewer-2', current, [
+      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [
         qualified,
         { ...qualified, direction: 'weaker' },
       ]),
@@ -62,12 +82,12 @@ describe('reviewer capability comparison', () => {
 
   it('never uses within-provider ordering as cross-provider evidence', () => {
     expect(
-      compareReviewerCapability('vendor-a/author-1', 'vendor-b/reviewer-2', current, [
+      compare('vendor-a/author-1', 'vendor-b/reviewer-2', [
         { ...qualified, qualification: 'provider-order' },
       ]),
     ).toBe('unknown');
     expect(
-      compareReviewerCapability('vendor-a/author-1', 'vendor-a/reviewer-2', current, [
+      compare('vendor-a/author-1', 'vendor-a/reviewer-2', [
         {
           ...qualified,
           reviewer_provider: 'vendor-a',

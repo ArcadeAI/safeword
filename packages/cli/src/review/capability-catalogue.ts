@@ -17,15 +17,13 @@ export interface CapabilityPairRecord extends CapabilityRevision {
 
 export type CapabilityComparison = 'not_weaker' | 'weaker' | 'unknown';
 
-// Filled only by the pinned reviewer-capability evaluation. Until its evidence
-// is admitted, no cross-provider pair can establish independent review.
-export const PACKAGED_CAPABILITY_REVISION: CapabilityRevision = {
-  corpus_digest: 'pending',
-  rubric_digest: 'pending',
-  settings_digest: 'pending',
-};
+export interface CapabilityModelIdentity {
+  readonly provider: string;
+  readonly model: string;
+}
 
-export const PACKAGED_CAPABILITY_PAIRS: readonly CapabilityPairRecord[] = [];
+export const PACKAGED_CAPABILITY_REVISION: CapabilityRevision = generatedRevision;
+export const PACKAGED_CAPABILITY_PAIRS: readonly CapabilityPairRecord[] = generatedPairs;
 
 function matchesRevision(record: CapabilityPairRecord, current: CapabilityRevision): boolean {
   return (
@@ -49,17 +47,23 @@ function hasQualifiedEvidence(record: CapabilityPairRecord): boolean {
 
 /** Only current, qualified evidence for the exact directional pair carries authority. */
 export function compareReviewerCapability(
-  authorModel: string,
-  reviewerModel: string,
+  author: CapabilityModelIdentity,
+  reviewer: CapabilityModelIdentity,
   current: CapabilityRevision,
   records: readonly CapabilityPairRecord[],
 ): CapabilityComparison {
   const matching = records.filter(
     record =>
-      record.author_model === authorModel &&
-      record.reviewer_model === reviewerModel &&
+      record.author_provider === author.provider &&
+      record.author_model === author.model &&
+      record.reviewer_provider === reviewer.provider &&
+      record.reviewer_model === reviewer.model &&
       matchesRevision(record, current) &&
       hasQualifiedEvidence(record),
   );
   return matching.length === 1 ? (matching[0]?.direction ?? 'unknown') : 'unknown';
 }
+import {
+  PACKAGED_CAPABILITY_PAIRS as generatedPairs,
+  PACKAGED_CAPABILITY_REVISION as generatedRevision,
+} from './capability-catalogue.generated.js';
