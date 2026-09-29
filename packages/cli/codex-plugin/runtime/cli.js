@@ -65537,7 +65537,7 @@ var init_registry = __esm(() => {
 function decisionField(source, label) {
   const declarations = [];
   let current;
-  for (const line of source.split(`
+  for (const line of source.replaceAll(/<!--[\s\S]*?-->/gu, "").split(`
 `)) {
     const declaration = /^- \*\*([^:]+):\*\*(.*)$/u.exec(line);
     if (declaration?.[1] === label) {

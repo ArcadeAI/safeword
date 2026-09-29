@@ -42,7 +42,7 @@ export class InvalidInvalidationContractError extends Error {
 function decisionField(source: string, label: string): string {
   const declarations: string[][] = [];
   let current: string[] | undefined;
-  for (const line of source.split('\n')) {
+  for (const line of source.replaceAll(/<!--[\s\S]*?-->/gu, '').split('\n')) {
     const declaration = /^- \*\*([^:]+):\*\*(.*)$/u.exec(line);
     if (declaration?.[1] === label) {
       current = [declaration[2] ?? ''];
