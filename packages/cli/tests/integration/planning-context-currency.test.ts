@@ -162,13 +162,16 @@ describe('semantic planning context currency through public review status', () =
       'an unrelated milestone',
       parentSpec,
       (text: string) =>
-        text.replace('Guidance has a readable index.', 'Guidance has a searchable index.'),
+        text.replace(
+          '- **Non-goals:** No approval changes.',
+          '- **Non-goals:** No routing changes.',
+        ),
     ],
     [
       'parent comments and layout',
       parentSpec,
       (text: string) =>
-        text.replace('## Product Bet', '<!-- editorial note -->\n\n\n## Product Bet'),
+        text.replace('## Product Bet\n\n', '## Product Bet\n\n<!-- editorial note -->\n\n'),
     ],
     [
       'an unrelated parent job',
