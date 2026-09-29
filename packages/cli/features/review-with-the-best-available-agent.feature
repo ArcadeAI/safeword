@@ -3,8 +3,8 @@ Feature: Keep review available with the best supported fallback
   Review assurance may degrade when capabilities are absent, but the main agent
   still receives bounded findings and the result never overstates independence.
   The CLI coordinator owns every CLI route through same-agent headless review.
-  Only REVIEW_ROUTES_EXHAUSTED enters the host fallback, which owns in-session
-  review and then main-thread self-review.
+  Typed non-planning exhaustion enters supplemental host fallback. A planning
+  review enters only through a sealed continuation from the same review job.
 
   @review-with-the-best-available-agent.TBU1.R6 @surface.claude-code @surface.claude-code-cloud @surface.openai-codex @surface.openai-codex-cloud @surface.cursor @surface.cursor-cloud-agents
   Scenario Outline: Every advertised host installs a typed-exhaustion entry point
@@ -12,8 +12,8 @@ Feature: Keep review available with the best supported fallback
     When its shipped fallback wiring is inspected
     Then it points to the shared finish-review contract
     And its public entry point and continuation are schema-owned or generated for that host
-    And it enters that contract only for REVIEW_ROUTES_EXHAUSTED
-    And it preserves every non-exhaustion coordinator result unchanged
+    And it enters that contract only for typed planning continuation or non-planning exhaustion
+    And it preserves every other coordinator result unchanged
 
     Examples:
       | surface             | entry point                                                    |
