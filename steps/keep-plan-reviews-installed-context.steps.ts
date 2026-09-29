@@ -23,6 +23,7 @@ const ticketRoot = `.project/tickets/${ticketFolder}`;
 interface InstalledContextState {
   root: string;
   reviewer: string;
+  overrideState: string;
   gate?: ReturnType<typeof spawnSync>;
 }
 const states = new WeakMap<SafewordWorld, InstalledContextState>();
@@ -100,7 +101,7 @@ Given(
   function (this: SafewordWorld, overrideState: string) {
     const root = fixtureProject();
     const reviewer = createTrustedReviewerDirectory('safeword-r3-reviewer-');
-    states.set(this, { root, reviewer });
+    states.set(this, { root, reviewer, overrideState });
     const install = spawnSync(
       'bun',
       [
@@ -190,6 +191,13 @@ Given(
       { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
     );
     assert.equal(phaseStamp.status, 0, `${phaseStamp.stdout}\n${phaseStamp.stderr}`);
+    const current = spawnSync(
+      'bun',
+      [path.join(packageRoot, 'src/cli.ts'), 'review', 'status', result.data.review_id, '--json'],
+      { cwd: root, encoding: 'utf8', timeout: 60_000, env: environment },
+    );
+    const currentStatus = JSON.parse(current.stdout) as { data: { status: string } };
+    assert.equal(currentStatus.data.status, 'approved', `${current.stdout}\n${current.stderr}`);
     if (overrideState === 'blank') writeFileSync(path.join(root, override), ' \n');
     if (overrideState.startsWith('stale')) {
       const configPath = path.join(root, '.safeword/config.json');
@@ -247,18 +255,24 @@ Then('the phase transition proceeds', function (this: SafewordWorld) {
 Then(
   'the phase remains blocked with override reconciliation named',
   function (this: SafewordWorld) {
-    const gate = states.get(this)?.gate;
+    const state = states.get(this);
+    const gate = state?.gate;
     assert.ok(gate);
+    assert.ok(state);
     assert.equal(gate.status, 0, gate.stderr);
     const output = JSON.parse(gate.stdout) as {
       hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
     };
     assert.equal(output.hookSpecificOutput?.permissionDecision, 'deny');
-    assert.match(
-      output.hookSpecificOutput.permissionDecisionReason ?? '',
-      /reconcil/iu,
-      'Override reconciliation was not named at the installed phase gate',
+    const reason = output.hookSpecificOutput?.permissionDecisionReason ?? '';
+    const expected =
+      state.overrideState === 'blank'
+        ? 'Planning principles override at docs/principles.md needs reconciliation with the current packaged source.'
+        : 'Planning principles override at .safeword/config.json:pathLineage.principles needs reconciliation with the current packaged source.';
+    assert.ok(
+      reason.includes(expected),
+      `Override reconciliation was not named at the installed phase gate. Actual reason: ${reason}`,
     );
-    assert.match(output.hookSpecificOutput.permissionDecisionReason ?? '', /principles/u);
+    assert.doesNotMatch(reason, /review is superseded|has not passed its required review/iu);
   },
 );
