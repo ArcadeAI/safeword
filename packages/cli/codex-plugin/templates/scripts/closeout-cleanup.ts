@@ -80,7 +80,7 @@ export interface CloseoutObservation {
     pendingDrafts: number;
     evidenceHash: string;
     spoolPath?: string;
-    failure?: 'extraction' | 'filing' | 'unknown';
+    failure?: 'extraction' | 'filing' | 'growth' | 'unknown';
   };
 }
 
@@ -153,6 +153,8 @@ function collectPrerequisiteBlockers(
     advise(plan, 'retrospective extraction failed; resolve the extraction failure');
   } else if (observation.retro.failure === 'filing') {
     advise(plan, 'retrospective filing failed; resolve the filing failure');
+  } else if (observation.retro.failure === 'growth') {
+    advise(plan, 'the session transcript changed during retrospective extraction; retry preview');
   } else if (!observation.retro.complete) {
     advise(plan, 'the current session retrospective is incomplete');
   }
@@ -1033,13 +1035,16 @@ function runBoundRetroWindows(
   const errorText = [result?.errors?.map(error => error.message ?? '').join('\n'), retro.stderr]
     .filter(Boolean)
     .join('\n');
-  const failure = classifyRetroFailure({
-    complete,
-    errorText,
-    processStatus: retro.status,
-    agentFilingNeeded: result?.data?.agent_filing_needed,
-    pendingDrafts,
-  });
+  const failure =
+    successful && agentFilingNeeded === false && pendingDrafts === 0 && transcriptAdvanced
+      ? 'growth'
+      : classifyRetroFailure({
+          complete,
+          errorText,
+          processStatus: retro.status,
+          agentFilingNeeded: result?.data?.agent_filing_needed,
+          pendingDrafts,
+        });
   if (successful && (!agentFilingNeeded || pendingDrafts > 0)) {
     writeRetroReceipt(root, {
       runtime: binding.runtime,
@@ -1192,6 +1197,13 @@ function hasMeaningfulTranscriptGrowth(
       ].includes(payloadType);
     const sameTurnBookkeeping = isSameTurnBookkeeping(record, activeTurnId);
     const hostLifecycle = record.type === 'event_msg' && record.payload?.type === 'token_count';
+    const sameTurnReasoningCompletion =
+      activeTurnId !== undefined &&
+      record.type === 'event_msg' &&
+      record.payload?.type === 'item_completed' &&
+      record.payload.turn_id === activeTurnId &&
+      record.payload.item?.type === 'Reasoning';
+    const tokenUsage = record.type === 'token_usage_record';
     // Codex currently writes an event and canonical response with identical text.
     // If that host invariant changes, fail closed and re-extract the unmatched record.
     const commentary = sameTurnMessageText(record, activeTurnId);
@@ -1206,6 +1218,8 @@ function hasMeaningfulTranscriptGrowth(
       toolLifecycle ||
       sameTurnBookkeeping ||
       hostLifecycle ||
+      sameTurnReasoningCompletion ||
+      tokenUsage ||
       pairedCommentary ||
       duplicateCommentary
     );
@@ -1220,6 +1234,8 @@ interface CodexTranscriptRecord {
     phase?: unknown;
     message?: unknown;
     content?: unknown;
+    turn_id?: unknown;
+    item?: { type?: unknown };
     internal_chat_message_metadata_passthrough?: { turn_id?: unknown };
   };
 }
