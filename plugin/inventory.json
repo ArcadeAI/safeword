@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "ecad3dfd5b9f3f7172b86ead5d7cd1633290bf6d3d1be5fd8db994b8ea326cc7"
+      "sha256": "e22c233a75374a2e95d9d65f94a22ae86e61465dbdf2948fccc3f98efbcb59b2"
     },
     {
       "path": "runtime/dispatch.js",
@@ -1719,7 +1719,7 @@
     },
     {
       "path": "templates/workflows/remote-tests.yml",
-      "sha256": "5dfede6aee873fab6d61ab3d9dccc653527f5f3eae95724f28fdf2740110741b"
+      "sha256": "06334293ca35675e5fb3f42282c7a9a341345c4d88701356d8108ff56a35212e"
     }
   ]
 }
