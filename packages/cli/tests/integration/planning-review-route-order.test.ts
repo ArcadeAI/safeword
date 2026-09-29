@@ -20,16 +20,67 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
+function reviewerScript(
+  agent: 'claude' | 'codex',
+  marker: string,
+  codexFails: boolean,
+  codexConfirmed: boolean,
+): string {
+  const help =
+    agent === 'codex' && codexConfirmed
+      ? `process.argv.includes('app-server') ? '--stdio --config' : ${JSON.stringify(REVIEWER_CAPABILITIES.codex)}`
+      : JSON.stringify(REVIEWER_CAPABILITIES[agent]);
+  const review =
+    agent === 'codex' && codexConfirmed
+      ? String.raw`let buffer = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', chunk => {
+  buffer += chunk;
+  let index;
+  while ((index = buffer.indexOf('\n')) !== -1) {
+    const message = JSON.parse(buffer.slice(0, index));
+    buffer = buffer.slice(index + 1);
+    if (message.id === 1) console.log(JSON.stringify({ id: 1, result: {} }));
+    if (message.id === 2) console.log(JSON.stringify({ id: 2, result: { thread: { id: 'thread-1' }, model: message.params.model, modelProvider: 'openai' } }));
+    if (message.id === 3) {
+      const packet = JSON.parse(message.params.input[0].text.trim().split('\n').pop());
+      console.log(JSON.stringify({ id: 3, result: { turn: { id: 'turn-1' } } }));
+      console.log(JSON.stringify({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed', items: [{ type: 'agentMessage', phase: 'final_answer', text: JSON.stringify(reviewOutput(packet)) }] } } }));
+    }
+  }
+});`
+      : String.raw`let input = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const packet = JSON.parse(input.trim().split('\n').pop());
+  const output = reviewOutput(packet);
+  console.log(JSON.stringify('${agent}' === 'codex' ? { type: 'item.completed', item: { type: 'agent_message', text: JSON.stringify(output) } } : { structured_output: output }));
+});`;
+  return `#!${process.execPath}
+const { writeFileSync } = require('node:fs');
+if (process.argv.includes('--version')) { console.log('${agent} 1.0.0'); process.exit(0); }
+if (process.argv.includes('--help')) { console.log(${help}); process.exit(0); }
+writeFileSync(${JSON.stringify(marker)}, 'yes');
+${agent === 'codex' && codexFails ? 'process.exit(7);' : ''}
+function reviewOutput(packet) {
+  return { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [] };
+}
+${review}
+`;
+}
+
 it.each([
-  ['claude', 'codex', false, false],
-  ['codex', 'claude', false, false],
-  ['claude', 'codex', true, false],
-  ['codex', 'claude', true, false],
-  ['codex', 'claude', false, true],
+  ['claude', 'codex', false, false, false],
+  ['codex', 'claude', false, false, false],
+  ['claude', 'codex', true, false, false],
+  ['codex', 'claude', true, false, false],
+  ['codex', 'claude', false, true, false],
+  ['codex', 'claude', false, true, true],
 ] as const)(
-  'tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, and author is known %s',
+  'tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, author is known %s, and model is confirmed %s',
   // eslint-disable-next-line complexity -- The route-order matrix shares one real CLI fixture.
-  async (first, second, codexFails, authorKnown) => {
+  async (first, second, codexFails, authorKnown, codexConfirmed) => {
     const project = createTemporaryDirectory();
     projects.push(project);
     await createConfiguredProject(project);
@@ -40,7 +91,15 @@ it.each([
       configPath,
       JSON.stringify({
         ...config,
-        crossAgentReviewRoutes: { claude: [{ reviewer: first }, { reviewer: second }] },
+        crossAgentReviewRoutes: {
+          claude: [
+            {
+              reviewer: first,
+              ...(first === 'codex' && codexConfirmed && { model: 'gpt-6-astra' }),
+            },
+            { reviewer: second },
+          ],
+        },
       }),
     );
     const ticket = '.project/tickets/ORD123-independent-first';
@@ -66,7 +125,7 @@ it.each([
       const marker = agent === 'claude' ? sameAgentInvoked : independentInvoked;
       writeFileSync(
         nodePath.join(reviewer, agent),
-        `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('${agent} 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES[agent])}); process.exit(0); }\nwriteFileSync(${JSON.stringify(marker)}, 'yes');\n${agent === 'codex' && codexFails ? 'process.exit(7);' : ''}\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); const output = { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [] }; console.log(JSON.stringify('${agent}' === 'codex' ? { type: 'item.completed', item: { type: 'agent_message', text: JSON.stringify(output) } } : { structured_output: output })); });\n`,
+        reviewerScript(agent, marker, codexFails, codexConfirmed),
         { mode: 0o755 },
       );
     }
@@ -96,12 +155,12 @@ it.each([
     const output = JSON.parse(reviewed.stdout);
     expect(output.data).toMatchObject({
       status: 'approved',
-      actual_reviewer: codexFails || authorKnown ? 'claude' : 'codex',
-      independence: 'reduced',
+      actual_reviewer: codexFails || (authorKnown && !codexConfirmed) ? 'claude' : 'codex',
+      independence: codexConfirmed ? 'cross-agent' : 'reduced',
     });
     expect(existsSync(independentInvoked)).toBe(true);
-    expect(existsSync(sameAgentInvoked)).toBe(codexFails || authorKnown);
-    if (authorKnown) {
+    expect(existsSync(sameAgentInvoked)).toBe(codexFails || (authorKnown && !codexConfirmed));
+    if (authorKnown && !codexConfirmed) {
       expect(output.data.review_routes).toContainEqual(
         expect.objectContaining({
           reviewer: 'codex',
@@ -110,7 +169,7 @@ it.each([
         }),
       );
     }
-    if (codexFails || authorKnown) {
+    if (codexFails || (authorKnown && !codexConfirmed)) {
       expect(output.findings).toContainEqual(
         expect.objectContaining({ code: 'REVIEW_INDEPENDENCE_REDUCED' }),
       );
@@ -121,7 +180,7 @@ it.each([
             /was not independent/iu.test(finding.message),
         ),
       ).toBe(false);
-    } else {
+    } else if (!codexConfirmed) {
       expect(output.data.capability_failure).toBe('author_capability_unknown');
     }
   },
