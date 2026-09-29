@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "58794a8c35975189947998addd27f0962997b2c063b49a418af788dcc8ad7505"
+      "sha256": "4e8e9b55ee9dcf56ea876e14e191a387c1958b853c9e5c3d5f3a201478ea587b"
     },
     {
       "path": "skills/audit/SKILL.md",

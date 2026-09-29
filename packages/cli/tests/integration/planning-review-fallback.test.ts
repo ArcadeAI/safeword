@@ -29,7 +29,7 @@ afterEach(() => {
 describe('planning fallback after independent route exhaustion', () => {
   async function reviewThroughAdmission(
     hostContinuation: boolean,
-    author: 'claude' | 'cursor' = 'claude',
+    author: 'claude' | 'cursor' | 'opencode' = 'claude',
   ): Promise<Record<string, unknown>> {
     const project = createTemporaryDirectory();
     projects.push(project);
@@ -145,7 +145,7 @@ describe('planning fallback after independent route exhaustion', () => {
     expect(output.data).toMatchObject({
       status: 'approved',
       review_kind: 'plan-implementation',
-      actual_reviewer: author,
+      actual_reviewer: author === 'opencode' ? 'claude' : author,
       independence: 'reduced',
     });
     expect(output.findings).not.toContainEqual(
@@ -165,34 +165,41 @@ describe('planning fallback after independent route exhaustion', () => {
       expect(shellGate.status, shellGate.stderr).toBe(0);
       expect(JSON.parse(shellGate.stdout)).toEqual({ permission: 'allow' });
     }
-    const stamp = spawnSync(
-      'bun',
-      [
-        nodePath.join(project, '.safeword/hooks/write-review-stamp.ts'),
-        '--ticket',
-        'FAL123-fallback',
-        '--author-agent',
-        author,
-        '--reviewer-agent',
-        author,
-        '--independence',
-        'reduced',
-        '--review-id',
-        output.data.review_id,
-        '--phase',
-        'plan-implementation',
-      ],
-      {
-        cwd: project,
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          ...environment,
-          CLAUDE_PROJECT_DIR: project,
-          CLAUDE_SESSION_ID: 'fallback-fixture',
-        },
+    const stampArguments = [
+      nodePath.join(project, '.safeword/hooks/write-review-stamp.ts'),
+      '--ticket',
+      'FAL123-fallback',
+      '--author-agent',
+      author,
+      '--reviewer-agent',
+      author === 'opencode' ? 'claude' : author,
+      '--independence',
+      'reduced',
+      '--review-id',
+      output.data.review_id,
+      '--phase',
+      'plan-implementation',
+    ];
+    const stampOptions = {
+      cwd: project,
+      encoding: 'utf8' as const,
+      env: {
+        ...process.env,
+        ...environment,
+        CLAUDE_PROJECT_DIR: project,
+        CLAUDE_SESSION_ID: author === 'opencode' ? undefined : 'fallback-fixture',
+        CLAUDE_CODE_SESSION_ID: undefined,
+        CODEX_THREAD_ID: undefined,
       },
-    );
+    };
+    if (author === 'opencode') {
+      const forged = [...stampArguments];
+      forged[forged.indexOf('--review-id') + 1] = '00000000-0000-4000-8000-000000000000';
+      const rejected = spawnSync('bun', forged, stampOptions);
+      expect(rejected.status).not.toBe(0);
+      expect(rejected.stdout).toContain('did not approve');
+    }
+    const stamp = spawnSync('bun', stampArguments, stampOptions);
     if (stamp.status !== 0) {
       throw new Error(`stamp failed: ${stamp.stdout}\n${stamp.stderr}\n${stamp.error ?? ''}`);
     }
@@ -218,6 +225,12 @@ describe('planning fallback after independent route exhaustion', () => {
 
   it('admits a Cursor host review after independent routes fail without inventing a Cursor CLI', async () => {
     expect(await reviewThroughAdmission(true, 'cursor')).toMatchObject({
+      achieved_independence: 'reduced',
+    });
+  });
+
+  it('admits an OpenCode-authored review through its authenticated receipt without a Claude session', async () => {
+    expect(await reviewThroughAdmission(false, 'opencode')).toMatchObject({
       achieved_independence: 'reduced',
     });
   });

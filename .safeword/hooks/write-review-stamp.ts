@@ -243,7 +243,15 @@ const runIdentity =
   environmentIdentity.runtime === 'claude' && environmentIdentity.sessionKey !== null
     ? environmentIdentity
     : (readBridgedRunIdentity() ?? environmentIdentity);
-const sessionId = runIdentity.sessionKey ?? fail('missing run identity for review stamp');
+// OpenCode's profile hook receives the session id, but its shell tool does not
+// pass that id to this command. A verified coordinator receipt supplies a
+// narrower identity for this one stamp; receiptGateVerdict below must still
+// authenticate it before anything is written.
+const sessionId =
+  runIdentity.sessionKey ??
+  (runIdentity.runtime === 'opencode' && reviewId !== undefined
+    ? `opencode-review-${reviewId}`
+    : fail('missing run identity for review stamp'));
 
 function formatTicketList(folders: string[]): string {
   const shown = folders.slice(0, 12).join(', ');
