@@ -54156,8 +54156,12 @@ import {
 } from "fs";
 import { homedir as homedir5, tmpdir as tmpdir4 } from "os";
 import nodePath53 from "path";
-function reviewOutputSchema(kind) {
-  return kind === "plan-execution" ? JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE) : REVIEW_OUTPUT_SCHEMA;
+function reviewOutputSchema(kind, planningPhase) {
+  if (kind === "plan-execution")
+    return JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE);
+  if (planningPhase === "product-plan" || kind === "scenario-gate" || kind === "plan-implementation")
+    return JSON.stringify(PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE);
+  return REVIEW_OUTPUT_SCHEMA;
 }
 function configuredClaudeEffort(environment) {
   const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
@@ -54173,7 +54177,7 @@ function baseReviewerArguments(reviewer, kind, planningPhase) {
   if (reviewer !== "claude")
     return base;
   const schemaIndex = base.indexOf("--json-schema") + 1;
-  base[schemaIndex] = reviewOutputSchema(kind);
+  base[schemaIndex] = reviewOutputSchema(kind, planningPhase);
   if (planningPhase === "product-plan" || ["scenario-gate", "plan-implementation", "plan-execution"].includes(kind)) {
     base[base.indexOf("--output-format") + 1] = "stream-json";
     base.push("--verbose");
@@ -54287,7 +54291,8 @@ function reviewerOutputKeys(kind) {
     "reviewer_agent",
     "verdict",
     "summary",
-    "findings"
+    "findings",
+    "evidence_records"
   ]);
   if (kind === "plan-execution") {
     keys.add("planning_destination");
@@ -54295,14 +54300,24 @@ function reviewerOutputKeys(kind) {
   }
   return keys;
 }
+function hasValidEvidenceRecords(value) {
+  if (!isRecord8(value) || value.schema_version !== 1 || !Array.isArray(value.records))
+    return false;
+  if (Object.keys(value).some((key) => key !== "schema_version" && key !== "records"))
+    return false;
+  return value.records.every((record2) => isRecord8(record2) && Object.keys(record2).length === EVIDENCE_RECORD_FIELDS.length && EVIDENCE_RECORD_FIELDS.every((field) => typeof record2[field] === "string" && record2[field].trim() !== ""));
+}
 function hasKindSpecificOutput(value, kind) {
   return kind !== "plan-execution" || (value.planning_destination === "plan-execution" || value.planning_destination === "plan-implementation") && Object.hasOwn(value, "execution_plan_record");
+}
+function hasValidOutputExtensions(value, kind) {
+  return hasKindSpecificOutput(value, kind) && (value.evidence_records === undefined || hasValidEvidenceRecords(value.evidence_records));
 }
 function hasValidReviewerOutputBody(value, kind) {
   if (!isRecord8(value))
     return false;
   const allowedOutputKeys = reviewerOutputKeys(kind);
-  if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings) || !hasKindSpecificOutput(value, kind)) {
+  if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings) || !hasValidOutputExtensions(value, kind)) {
     return false;
   }
   const findingsAreValid = value.findings.every((finding) => isRecord8(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && typeof finding.severity === "string" && ["info", "warning", "error"].includes(finding.severity) && typeof finding.message === "string");
@@ -54933,7 +54948,7 @@ async function runCodexAppServerCandidate(executable, attempt, timeoutMs) {
           params: {
             threadId: result.thread.id,
             input: [{ type: "text", text: reviewPrompt("codex", attempt.packet) }],
-            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind)),
+            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind, attempt.packet.planning_phase)),
             ...attempt.effort !== undefined && { effort: attempt.effort }
           }
         });
@@ -55186,7 +55201,7 @@ async function runHeadlessReviewerWithProvenance(reviewer, packet, cwd, untruste
   }
   let contract;
   try {
-    contract = reviewer === "codex" ? writeContractFile(packet.kind) : undefined;
+    contract = reviewer === "codex" ? writeContractFile(packet.kind, packet.planning_phase) : undefined;
   } catch {
     throw new ReviewRuntimeError("process_failed", `The ${reviewer} review could not be prepared`);
   }
@@ -55196,10 +55211,10 @@ async function runHeadlessReviewerWithProvenance(reviewer, packet, cwd, untruste
     contract?.cleanup();
   }
 }
-function writeContractFile(kind) {
+function writeContractFile(kind, planningPhase) {
   const directory = mkdtempSync6(nodePath53.join(tmpdir4(), "safeword-review-contract-"));
   const path7 = nodePath53.join(directory, "review-result.schema.json");
-  writeFileSync13(path7, reviewOutputSchema(kind), { mode: 384 });
+  writeFileSync13(path7, reviewOutputSchema(kind, planningPhase), { mode: 384 });
   return {
     path: path7,
     cleanup: () => {
@@ -55207,7 +55222,7 @@ function writeContractFile(kind) {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, JSON_NULL2, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA, EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA, EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, NULL_EXECUTION_PLAN_RECORD2, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, EVIDENCE_RECORD_FIELDS, EVIDENCE_RECORDS_SCHEMA, PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE, JSON_NULL2, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA, EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA, EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, NULL_EXECUTION_PLAN_RECORD2, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_delivery_checklist();
   init_environment();
@@ -55237,6 +55252,44 @@ var init_runtime = __esm(() => {
     },
     required: ["schema_version", "dispatch_id", "reviewer_agent", "verdict", "summary", "findings"],
     additionalProperties: false
+  };
+  EVIDENCE_RECORD_FIELDS = [
+    "source_identity",
+    "checked_version",
+    "source_version",
+    "target_version",
+    "supported_claim",
+    "license_identifier",
+    "attribution_notice",
+    "redistribution_limit",
+    "security_limit",
+    "privacy_limit",
+    "reuse_limit"
+  ];
+  EVIDENCE_RECORDS_SCHEMA = {
+    type: "object",
+    properties: {
+      schema_version: { type: "integer", enum: [1] },
+      records: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: Object.fromEntries(EVIDENCE_RECORD_FIELDS.map((field) => [field, { type: "string" }])),
+          required: EVIDENCE_RECORD_FIELDS,
+          additionalProperties: false
+        }
+      }
+    },
+    required: ["schema_version", "records"],
+    additionalProperties: false
+  };
+  PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE = {
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+    properties: {
+      ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+      evidence_records: EVIDENCE_RECORDS_SCHEMA
+    },
+    required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, "evidence_records"]
   };
   JSON_NULL2 = JSON.parse("null");
   REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
@@ -55408,9 +55461,9 @@ var init_runtime = __esm(() => {
     ]
   };
   EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
-    ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+    ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE,
     properties: {
-      ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+      ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
       planning_destination: {
         type: "string",
         enum: ["plan-execution", "plan-implementation"]
@@ -55418,7 +55471,7 @@ var init_runtime = __esm(() => {
       execution_plan_record: EXECUTION_PLAN_RECORD_SCHEMA
     },
     required: [
-      ...REVIEW_OUTPUT_SCHEMA_SHAPE.required,
+      ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE.required,
       "planning_destination",
       "execution_plan_record"
     ]

@@ -79,6 +79,49 @@ const REVIEW_OUTPUT_SCHEMA_SHAPE = {
   additionalProperties: false,
 } as const;
 
+const EVIDENCE_RECORD_FIELDS = [
+  'source_identity',
+  'checked_version',
+  'source_version',
+  'target_version',
+  'supported_claim',
+  'license_identifier',
+  'attribution_notice',
+  'redistribution_limit',
+  'security_limit',
+  'privacy_limit',
+  'reuse_limit',
+] as const;
+
+const EVIDENCE_RECORDS_SCHEMA = {
+  type: 'object',
+  properties: {
+    schema_version: { type: 'integer', enum: [1] },
+    records: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: Object.fromEntries(
+          EVIDENCE_RECORD_FIELDS.map(field => [field, { type: 'string' }]),
+        ),
+        required: EVIDENCE_RECORD_FIELDS,
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['schema_version', 'records'],
+  additionalProperties: false,
+} as const;
+
+const PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE = {
+  ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+  properties: {
+    ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+    evidence_records: EVIDENCE_RECORDS_SCHEMA,
+  },
+  required: [...REVIEW_OUTPUT_SCHEMA_SHAPE.required, 'evidence_records'],
+} as const;
+
 const JSON_NULL = JSON.parse('null') as null;
 const REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
 
@@ -254,9 +297,9 @@ const EXECUTION_PLAN_RECORD_SCHEMA = {
 } as const;
 
 const EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
-  ...REVIEW_OUTPUT_SCHEMA_SHAPE,
+  ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE,
   properties: {
-    ...REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
+    ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE.properties,
     planning_destination: {
       type: 'string',
       enum: ['plan-execution', 'plan-implementation'],
@@ -264,17 +307,25 @@ const EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE = {
     execution_plan_record: EXECUTION_PLAN_RECORD_SCHEMA,
   },
   required: [
-    ...REVIEW_OUTPUT_SCHEMA_SHAPE.required,
+    ...PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE.required,
     'planning_destination',
     'execution_plan_record',
   ],
 } as const;
 
-/** Select the provider contract without changing any existing review-kind bytes. */
-export function reviewOutputSchema(kind: ReviewKind): string {
-  return kind === 'plan-execution'
-    ? JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE)
-    : REVIEW_OUTPUT_SCHEMA;
+/** Select the provider contract while preserving the non-planning schema. */
+export function reviewOutputSchema(
+  kind: ReviewKind,
+  planningPhase?: ReviewPacket['planning_phase'],
+): string {
+  if (kind === 'plan-execution') return JSON.stringify(EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE);
+  if (
+    planningPhase === 'product-plan' ||
+    kind === 'scenario-gate' ||
+    kind === 'plan-implementation'
+  )
+    return JSON.stringify(PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE);
+  return REVIEW_OUTPUT_SCHEMA;
 }
 const CLAUDE_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
@@ -337,7 +388,7 @@ function baseReviewerArguments(
   const base = [...ARGUMENTS[reviewer]];
   if (reviewer !== 'claude') return base;
   const schemaIndex = base.indexOf('--json-schema') + 1;
-  base[schemaIndex] = reviewOutputSchema(kind);
+  base[schemaIndex] = reviewOutputSchema(kind, planningPhase);
   if (
     planningPhase === 'product-plan' ||
     ['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind)
@@ -610,6 +661,7 @@ function reviewerOutputKeys(kind: ReviewKind): Set<string> {
     'verdict',
     'summary',
     'findings',
+    'evidence_records',
   ]);
   if (kind === 'plan-execution') {
     keys.add('planning_destination');
@@ -618,12 +670,32 @@ function reviewerOutputKeys(kind: ReviewKind): Set<string> {
   return keys;
 }
 
+function hasValidEvidenceRecords(value: unknown): boolean {
+  if (!isRecord(value) || value.schema_version !== 1 || !Array.isArray(value.records)) return false;
+  if (Object.keys(value).some(key => key !== 'schema_version' && key !== 'records')) return false;
+  return value.records.every(
+    record =>
+      isRecord(record) &&
+      Object.keys(record).length === EVIDENCE_RECORD_FIELDS.length &&
+      EVIDENCE_RECORD_FIELDS.every(
+        field => typeof record[field] === 'string' && record[field].trim() !== '',
+      ),
+  );
+}
+
 function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewKind): boolean {
   return (
     kind !== 'plan-execution' ||
     ((value.planning_destination === 'plan-execution' ||
       value.planning_destination === 'plan-implementation') &&
       Object.hasOwn(value, 'execution_plan_record'))
+  );
+}
+
+function hasValidOutputExtensions(value: Record<string, unknown>, kind: ReviewKind): boolean {
+  return (
+    hasKindSpecificOutput(value, kind) &&
+    (value.evidence_records === undefined || hasValidEvidenceRecords(value.evidence_records))
   );
 }
 
@@ -636,7 +708,7 @@ export function hasValidReviewerOutputBody(value: unknown, kind: ReviewKind): bo
     (value.verdict !== 'approve' && value.verdict !== 'request_changes') ||
     typeof value.summary !== 'string' ||
     !Array.isArray(value.findings) ||
-    !hasKindSpecificOutput(value, kind)
+    !hasValidOutputExtensions(value, kind)
   ) {
     return false;
   }
@@ -1620,7 +1692,9 @@ async function runCodexAppServerCandidate(
           params: {
             threadId: result.thread.id,
             input: [{ type: 'text', text: reviewPrompt('codex', attempt.packet) }],
-            outputSchema: JSON.parse(reviewOutputSchema(attempt.packet.kind)) as unknown,
+            outputSchema: JSON.parse(
+              reviewOutputSchema(attempt.packet.kind, attempt.packet.planning_phase),
+            ) as unknown,
             ...(attempt.effort !== undefined && { effort: attempt.effort }),
           },
         });
@@ -1963,7 +2037,8 @@ export async function runHeadlessReviewerWithProvenance(
   // temporary path.
   let contract: ContractFile | undefined;
   try {
-    contract = reviewer === 'codex' ? writeContractFile(packet.kind) : undefined;
+    contract =
+      reviewer === 'codex' ? writeContractFile(packet.kind, packet.planning_phase) : undefined;
   } catch {
     throw new ReviewRuntimeError('process_failed', `The ${reviewer} review could not be prepared`);
   }
@@ -2004,10 +2079,13 @@ interface ContractFile {
   readonly cleanup: () => void;
 }
 
-function writeContractFile(kind: ReviewKind): ContractFile {
+function writeContractFile(
+  kind: ReviewKind,
+  planningPhase?: ReviewPacket['planning_phase'],
+): ContractFile {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-contract-'));
   const path = nodePath.join(directory, 'review-result.schema.json');
-  writeFileSync(path, reviewOutputSchema(kind), { mode: 0o600 });
+  writeFileSync(path, reviewOutputSchema(kind, planningPhase), { mode: 0o600 });
   return {
     path,
     cleanup: () => {

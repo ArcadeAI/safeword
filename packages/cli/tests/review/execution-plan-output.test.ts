@@ -9,12 +9,7 @@ import {
   reviewOutputSchema,
 } from '../../src/review/runtime.js';
 
-const legacyKinds = [
-  'quality-review',
-  'scenario-gate',
-  'plan-implementation',
-  'executable-red',
-] as const;
+const nonPlanningKinds = ['quality-review', 'executable-red'] as const;
 
 const baseOutput = {
   schema_version: 1,
@@ -148,10 +143,10 @@ describe('Execution Plan output schema', () => {
     expect(validateExecutionPlanOutput(approval(updated))).toMatchObject({ kind: 'approved' });
   });
 
-  it('keeps every existing review-kind schema byte-for-byte unchanged', () => {
+  it('keeps non-planning review schemas byte-for-byte unchanged', () => {
     const baseline = reviewOutputSchema('quality-review');
 
-    for (const kind of legacyKinds) expect(reviewOutputSchema(kind)).toBe(baseline);
+    for (const kind of nonPlanningKinds) expect(reviewOutputSchema(kind)).toBe(baseline);
     const shape = JSON.parse(baseline) as {
       properties: Record<string, unknown>;
       required: string[];
