@@ -17,6 +17,16 @@ export interface CapabilityPairRecord extends CapabilityRevision {
 
 export type CapabilityComparison = 'not_weaker' | 'weaker' | 'unknown';
 
+// Filled only by the pinned reviewer-capability evaluation. Until its evidence
+// is admitted, no cross-provider pair can establish independent review.
+export const PACKAGED_CAPABILITY_REVISION: CapabilityRevision = {
+  corpus_digest: 'pending',
+  rubric_digest: 'pending',
+  settings_digest: 'pending',
+};
+
+export const PACKAGED_CAPABILITY_PAIRS: readonly CapabilityPairRecord[] = [];
+
 function matchesRevision(record: CapabilityPairRecord, current: CapabilityRevision): boolean {
   return (
     record.corpus_digest === current.corpus_digest &&

@@ -55688,6 +55688,27 @@ var init_red_execution = __esm(() => {
   MAX_EXCERPT_BYTES = 64 * 1024;
 });
 
+// src/review/capability-catalogue.ts
+function matchesRevision(record2, current) {
+  return record2.corpus_digest === current.corpus_digest && record2.rubric_digest === current.rubric_digest && record2.settings_digest === current.settings_digest;
+}
+function hasQualifiedEvidence(record2) {
+  return record2.qualification !== "unqualified" && record2.author_provider !== "" && record2.reviewer_provider !== "" && (record2.qualification !== "provider-order" || record2.author_provider === record2.reviewer_provider) && record2.evidence_date !== "" && record2.results_digest !== "";
+}
+function compareReviewerCapability(authorModel, reviewerModel, current, records) {
+  const matching = records.filter((record2) => record2.author_model === authorModel && record2.reviewer_model === reviewerModel && matchesRevision(record2, current) && hasQualifiedEvidence(record2));
+  return matching.length === 1 ? matching[0]?.direction ?? "unknown" : "unknown";
+}
+var PACKAGED_CAPABILITY_REVISION, PACKAGED_CAPABILITY_PAIRS;
+var init_capability_catalogue = __esm(() => {
+  PACKAGED_CAPABILITY_REVISION = {
+    corpus_digest: "pending",
+    rubric_digest: "pending",
+    settings_digest: "pending"
+  };
+  PACKAGED_CAPABILITY_PAIRS = [];
+});
+
 // src/review/execution-plan-admission.generated.ts
 var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
@@ -57344,8 +57365,13 @@ async function runRankedRoutes(input, author, policy, routes) {
 function cannotAttemptRankedRoute(kind, route, evidence, deadline) {
   return !canFundRoute(deadline) || planningFallbackLacksIndependentAttempt(kind, route, evidence);
 }
-function reviewerModelUnverified(kind, author, confirmedModel2) {
-  return isPlanningReview(kind) && author === "claude" && process.env[AUTHOR_MODEL_ENV] !== undefined && confirmedModel2 === undefined;
+function reviewerCapabilityUnknown(kind, author, route, confirmedModel2) {
+  const authorModel = process.env[AUTHOR_MODEL_ENV];
+  if (!isPlanningReview(kind) || author !== "claude" || authorModel === undefined)
+    return false;
+  if (route.model === undefined || confirmedModel2?.model !== route.model)
+    return true;
+  return compareReviewerCapability(authorModel, confirmedModel2.model, PACKAGED_CAPABILITY_REVISION, PACKAGED_CAPABILITY_PAIRS) !== "not_weaker";
 }
 async function runConfiguredRankedRoutes(input, author, policy, routes) {
   const evidence = [];
@@ -57398,7 +57424,7 @@ async function runConfiguredRankedRoutes(input, author, policy, routes) {
     }
     evidence.push({ ...route, status: "attempted" });
     if (route.independence === "cross-agent") {
-      if (reviewerModelUnverified(input.kind, author, assessment.confirmedModel)) {
+      if (reviewerCapabilityUnknown(input.kind, author, route, assessment.confirmedModel)) {
         evidence[evidence.length - 1] = {
           ...route,
           status: "attempted",
@@ -58156,6 +58182,7 @@ var init_coordinator = __esm(() => {
   init_review_ledger();
   init_run_identity();
   init_result();
+  init_capability_catalogue();
   init_execution_plan_conformance();
   init_packet();
   init_policy2();

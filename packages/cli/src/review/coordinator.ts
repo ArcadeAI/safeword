@@ -6,6 +6,11 @@ import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
 import { readFrontmatterScalar } from '../utils/frontmatter.js';
+import {
+  compareReviewerCapability,
+  PACKAGED_CAPABILITY_PAIRS,
+  PACKAGED_CAPABILITY_REVISION,
+} from './capability-catalogue.js';
 import { retryCommand } from './command.js';
 import type {
   RedExecutionAttestation,
@@ -905,16 +910,22 @@ function cannotAttemptRankedRoute(
   return !canFundRoute(deadline) || planningFallbackLacksIndependentAttempt(kind, route, evidence);
 }
 
-function reviewerModelUnverified(
+function reviewerCapabilityUnknown(
   kind: ReviewKind,
   author: ReviewAgent,
+  route: ReviewRoute,
   confirmedModel: ConfirmedReviewerModel | undefined,
 ): boolean {
+  const authorModel = process.env[AUTHOR_MODEL_ENV];
+  if (!isPlanningReview(kind) || author !== 'claude' || authorModel === undefined) return false;
+  if (route.model === undefined || confirmedModel?.model !== route.model) return true;
   return (
-    isPlanningReview(kind) &&
-    author === 'claude' &&
-    process.env[AUTHOR_MODEL_ENV] !== undefined &&
-    confirmedModel === undefined
+    compareReviewerCapability(
+      authorModel,
+      confirmedModel.model,
+      PACKAGED_CAPABILITY_REVISION,
+      PACKAGED_CAPABILITY_PAIRS,
+    ) !== 'not_weaker'
   );
 }
 
@@ -981,7 +992,7 @@ async function runConfiguredRankedRoutes(
 
     evidence.push({ ...route, status: 'attempted' });
     if (route.independence === 'cross-agent') {
-      if (reviewerModelUnverified(input.kind, author, assessment.confirmedModel)) {
+      if (reviewerCapabilityUnknown(input.kind, author, route, assessment.confirmedModel)) {
         evidence[evidence.length - 1] = {
           ...route,
           status: 'attempted',
