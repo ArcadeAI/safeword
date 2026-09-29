@@ -70,7 +70,7 @@ function runs(): CapabilityRun[] {
       fixture_id: fixture.id,
       run,
       verdict: fixture.verdict,
-      findings: fixture.required,
+      findings: fixture.required.map(message => ({ severity: 'error' as const, message })),
     })),
   );
 }
@@ -96,13 +96,27 @@ describe('reviewer capability evaluation', () => {
     expect(
       scoreCapabilityRun(fixture, {
         ...run,
-        findings: ['The builder plan has a MISSING-OUTCOME for recovery.'],
+        findings: [
+          { severity: 'error', message: 'The builder plan has a MISSING-OUTCOME for recovery.' },
+        ],
       }),
     ).toBe(true);
+    expect(
+      scoreCapabilityRun(fixture, {
+        ...run,
+        findings: [{ severity: 'warning', message: 'The builder plan has a missing-outcome.' }],
+      }),
+    ).toBe(false);
     expect(scoreCapabilityRun(fixture, { ...run, verdict: 'approve' })).toBe(false);
     expect(scoreCapabilityRun(fixture, { ...run, findings: [] })).toBe(false);
     expect(
-      scoreCapabilityRun(fixture, { ...run, findings: ['missing-outcome', 'invented-scope'] }),
+      scoreCapabilityRun(fixture, {
+        ...run,
+        findings: [
+          { severity: 'error', message: 'missing-outcome' },
+          { severity: 'warning', message: 'invented-scope' },
+        ],
+      }),
     ).toBe(false);
   });
 

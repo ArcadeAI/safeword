@@ -14,7 +14,10 @@ export interface CapabilityRun {
   readonly fixture_id: string;
   readonly run: number;
   readonly verdict: 'approve' | 'request_changes';
-  readonly findings: readonly string[];
+  readonly findings: readonly {
+    readonly severity: 'info' | 'warning' | 'error';
+    readonly message: string;
+  }[];
 }
 
 export interface CapabilityFloor {
@@ -109,14 +112,21 @@ export function compareSealedCapabilityResults(
 }
 
 export function scoreCapabilityRun(fixture: CapabilityFixture, run: CapabilityRun): boolean {
-  const findings = run.findings.map(finding => finding.toLowerCase().replaceAll(/\s+/gu, ' '));
-  const contains = (phrase: string): boolean =>
-    findings.some(finding => finding.includes(phrase.toLowerCase().replaceAll(/\s+/gu, ' ')));
+  const normalizedFindings = run.findings.map(finding => ({
+    severity: finding.severity,
+    message: finding.message.toLowerCase().replaceAll(/\s+/gu, ' '),
+  }));
+  const contains = (phrase: string, errorOnly: boolean): boolean =>
+    normalizedFindings.some(
+      finding =>
+        (!errorOnly || finding.severity === 'error') &&
+        finding.message.includes(phrase.toLowerCase().replaceAll(/\s+/gu, ' ')),
+    );
   return (
     run.fixture_id === fixture.id &&
     run.verdict === fixture.verdict &&
-    fixture.required.every(finding => contains(finding)) &&
-    fixture.forbidden.every(finding => !contains(finding))
+    fixture.required.every(finding => contains(finding, true)) &&
+    fixture.forbidden.every(finding => !contains(finding, false))
   );
 }
 
