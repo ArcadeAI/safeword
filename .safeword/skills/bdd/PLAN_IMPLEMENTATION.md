@@ -415,8 +415,8 @@ required` and advances autonomously. When the gate is enabled in an
    concrete interactive command for a human to run; it must not stall the
    container or claim approval. Surface the reviewed plan and pending action in
    the session's reviewable output (PR description / session summary). Note:
-   Cursor Cloud Agents run `preToolUse` hooks but not stop hooks, so enforcement
-   rides the transition gate there, not stop-time nudges.
+   Cursor Cloud Agents run command-based `preToolUse` and stop hooks; enforcement
+   rides the transition gate there, independently of stop-time nudges.
 4. **Confirm the command-owned transition:** successful approval or a
    configuration-derived `not required` result sets `phase: plan-execution`.
    Declined, pending, invalid, or stale evidence remains in Implementation

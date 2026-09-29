@@ -30,11 +30,11 @@ import { retryCommand } from './command.js';
 import {
   isReviewKind,
   type RedExecutionRequest,
-  type ReviewAgent,
   type ReviewerOutput,
   type ReviewFailure,
   type ReviewKind,
   type ReviewPacket,
+  type SupportedReviewAuthor,
 } from './contract.js';
 import { hostContinuationCompletion } from './coordinator.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
@@ -614,7 +614,7 @@ function isContinuationResultData(data: Record<string, unknown>, state: unknown)
     state === 'action_required' &&
     data.review_policy === 'prefer' &&
     data.independence === 'none' &&
-    ['claude', 'codex', 'opencode'].includes(String(data.author_agent)) &&
+    ['claude', 'codex', 'cursor', 'opencode'].includes(String(data.author_agent)) &&
     ['fresh-context', 'self-review'].includes(String(continuation?.tier)) &&
     typeof continuation?.instructions === 'string' &&
     continuation.instructions.length > 0 &&
@@ -628,11 +628,11 @@ function isContinuationResultData(data: Record<string, unknown>, state: unknown)
         typeof plainRecord(file)?.path === 'string' &&
         typeof plainRecord(file)?.content === 'string',
     ) &&
-    hasExhaustedRoutesForHostContinuation(data.review_routes)
+    hasExhaustedRoutesForHostContinuation(data.review_routes, data.author_agent === 'cursor')
   );
 }
 
-function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
+function hasExhaustedRoutesForHostContinuation(value: unknown, cursorAuthor: boolean): boolean {
   if (!Array.isArray(value)) return false;
   const routes = value.map(route => plainRecord(route));
   const attemptedIndependent = routes.some(
@@ -653,7 +653,7 @@ function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
       ['attempted', 'unavailable'].includes(String(route.status)) &&
       typeof route.failure === 'string',
   );
-  return attemptedIndependent && exhausted && headlessFailed;
+  return attemptedIndependent && exhausted && (headlessFailed || cursorAuthor);
 }
 
 function isCompletedReviewData(data: Record<string, unknown>, state: unknown): boolean {
@@ -674,7 +674,7 @@ function hasReviewerIdentity(reviewer: Record<string, unknown>): boolean {
   return (
     typeof reviewer.dispatch_id === 'string' &&
     reviewer.dispatch_id.length > 0 &&
-    ['claude', 'codex', 'opencode'].includes(String(reviewer.reviewer_agent))
+    ['claude', 'codex', 'cursor', 'opencode'].includes(String(reviewer.reviewer_agent))
   );
 }
 
@@ -1329,7 +1329,7 @@ export function submitReviewContinuation(
   id: string,
   tier: 'fresh-context' | 'self-review',
   output: unknown,
-  options: { readonly origin: ReviewAgent; readonly failure?: ReviewFailure },
+  options: { readonly origin: SupportedReviewAuthor; readonly failure?: ReviewFailure },
 ): CliResult {
   try {
     // eslint-disable-next-line complexity -- Each refusal protects a distinct authenticated continuation invariant.
@@ -1616,7 +1616,7 @@ function hasIndependentApproval(data: Record<string, unknown> | undefined): bool
     data?.status === 'approved',
     data?.independence === 'cross-agent',
     typeof data?.author_agent === 'string',
-    ['claude', 'codex', 'opencode'].includes(actualReviewer as string),
+    ['claude', 'codex', 'cursor', 'opencode'].includes(actualReviewer as string),
     data?.author_agent !== actualReviewer,
     reviewerOutput?.reviewer_agent === actualReviewer,
   ].every(Boolean);

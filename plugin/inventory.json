@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "7243f5e6daf7ce31a635ee123bcbe5cdad6e083424493729cca81ab35139d063"
+      "sha256": "a4e955d249d1aee979765fc40f535e0e524d9fdd2e5c00a5b1d7bdedf2ed3708"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "c60b1055659dc6054b925b89110511a3bcc0d002ee3afb248368c0c70ad192cc"
+      "sha256": "a55515a82b1badb4c7b2e21c632af71333c2d0e445c66ae6a45b37d5f3d69134"
     },
     {
       "path": "runtime/event-groups.json",
@@ -395,7 +395,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "a856bbe9d4ecee5e97421c207ec72c31d3d3dd31e38abeb05de2003dd534464b"
+      "sha256": "13aed63ba766551a8170d3a2dbe78f1710f4d84b554d90466df025583f75dfa9"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
@@ -619,7 +619,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "cbbe268ab3498568be42f2e6b7be72f1091d9a3162939e57a80e22424665c40b"
+      "sha256": "58794a8c35975189947998addd27f0962997b2c063b49a418af788dcc8ad7505"
     },
     {
       "path": "skills/audit/SKILL.md",
@@ -639,7 +639,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "a2fbbc0b1c27638cf91681d82a384b8167a373ce849283c927be89a017850437"
+      "sha256": "4278a467be605e6aad145eda057c80377d6c0c364107f5e8f5757bb9245ea4f6"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",

@@ -3605,7 +3605,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DISCOVERY.md": "b914910e5cbdd04c6ec25f44315554a6382f974fc8c91c04ed56782758176922",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "2c9cdcf5e2010ce30ac1a41efe62db46f8fe5a2aed0ff566a5b292f95e335bbf",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "07129dce26ca9670ac3d6b3cbac3b0106474dec17aafd1a7c1295189b348d3d3",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "3770f019f5a83fd4ad6dcb2322528595a39545f61cf1106a2f606a8137036d9d",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
@@ -31458,7 +31458,7 @@ var COORDINATOR_CLAIMS, REVIEW_LINE, AUTHOR_MODEL_ENV = "SAFEWORD_AUTHOR_MODEL";
 var init_review_ledger = __esm(() => {
   init_parse_annotation();
   COORDINATOR_CLAIMS = new Set(["cross-agent", "reduced", "degraded"]);
-  REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|reduced|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
+  REVIEW_LINE = /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|cursor|opencode))?(?:\s+reviewer:(claude|codex|cursor|opencode))?(?:\s+independence:(cross-agent|reduced|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
 });
 
 // src/review/route-config.ts
@@ -31475,9 +31475,9 @@ function parseConfiguredReviewRoutes(config, author, source) {
     return;
   if (!isRecord3(configured) || Array.isArray(configured))
     throw configError("must be an object", source);
-  const unsupportedAuthor = Object.keys(configured).find((key) => !REVIEW_AGENTS2.has(key));
+  const unsupportedAuthor = Object.keys(configured).find((key) => !REVIEW_AUTHORS2.has(key));
   if (unsupportedAuthor !== undefined)
-    throw configError("contains an unsupported author key; use claude, codex, or opencode", source);
+    throw configError("contains an unsupported author key; use claude, codex, cursor, or opencode", source);
   const values = configured[author];
   if (values === undefined)
     return;
@@ -31514,13 +31514,14 @@ function configError(detail, source) {
   const location = source === undefined ? "" : ` at ${source}`;
   return new ReviewRouteConfigError(`Invalid crossAgentReviewRoutes configuration${location}: ${detail}`);
 }
-var ReviewRouteConfigError, MODEL_NAME, REVIEW_AGENTS2;
+var ReviewRouteConfigError, MODEL_NAME, REVIEW_AGENTS2, REVIEW_AUTHORS2;
 var init_route_config = __esm(() => {
   ReviewRouteConfigError = class ReviewRouteConfigError extends Error {
     name = "ReviewRouteConfigError";
   };
   MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
   REVIEW_AGENTS2 = new Set(["claude", "codex", "opencode"]);
+  REVIEW_AUTHORS2 = new Set([...REVIEW_AGENTS2, "cursor"]);
 });
 
 // src/review/preferences.ts
@@ -31635,7 +31636,7 @@ function resetScopedReviewRoutes(cwd, scope, author) {
   return true;
 }
 function effectiveConfiguredRoutes(cwd, author) {
-  if (author !== "claude" && author !== "codex" && author !== "opencode")
+  if (author === "unknown")
     return;
   const projectPath = scopedConfigPath(cwd, "project");
   const projectRoutes = parseConfiguredReviewRoutes(readConfigFile(projectPath), author, projectPath);
@@ -31697,6 +31698,13 @@ function reviewRoutePlan(author) {
       degradedFallback: author
     };
   }
+  if (author === "cursor") {
+    return {
+      author,
+      preferred: "claude",
+      independentFallback: "codex"
+    };
+  }
   return;
 }
 function readConfiguredReviewRoutes(cwd, author) {
@@ -31719,7 +31727,7 @@ function builtInReviewRoutes(cwd, author) {
     },
     ...alternateModel !== undefined && alternateModel !== primaryModel ? [{ reviewer: plan.preferred, model: alternateModel, independence: "cross-agent" }] : [],
     { reviewer: plan.independentFallback, independence: "cross-agent" },
-    { reviewer: plan.degradedFallback, independence: "degraded" }
+    ...plan.degradedFallback === undefined ? [] : [{ reviewer: plan.degradedFallback, independence: "degraded" }]
   ];
 }
 function readPrimaryReviewerModel(cwd, reviewer) {
@@ -34578,7 +34586,7 @@ var init_contracts_generated = __esm(() => {
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      sha256: "2c9cdcf5e2010ce30ac1a41efe62db46f8fe5a2aed0ff566a5b292f95e335bbf"
+      sha256: "07129dce26ca9670ac3d6b3cbac3b0106474dec17aafd1a7c1295189b348d3d3"
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
@@ -53175,7 +53183,7 @@ function readPlanningAuthor(root, phase, identity2) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "0ebbddb1f470da263e5c48cc2b40e77a9fb2c5031865622038f5a61f6360d83a" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "d51ae528b3b64b68a42b7a0db04c06ef43b68f69b2172d10b58ffbc16c05870e" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "b14aabaa434b9ce821a8febb42ca11684f8b6dcaf556b0ff60cd42c3d3854822" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "0ebbddb1f470da263e5c48cc2b40e77a9fb2c5031865622038f5a61f6360d83a" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "1b58c023a9a0d15a16bd62aaf08390462640e71fc00da68df208795fcc85fbd4" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "b14aabaa434b9ce821a8febb42ca11684f8b6dcaf556b0ff60cd42c3d3854822" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
@@ -55653,7 +55661,7 @@ function hostContinuationCompletion(input) {
       },
       ...reviewerFeedback(input.output)
     ],
-    effects: input.pending.effects,
+    effects: { ...input.pending.effects, network: [] },
     recovery: planExecutionRecovery({
       cwd: input.cwd,
       kind: input.kind,
@@ -55711,6 +55719,8 @@ function agentName(agent) {
     return "Codex";
   if (agent === "opencode")
     return "OpenCode";
+  if (agent === "cursor")
+    return "Cursor";
   return "Claude";
 }
 function reviewerLoginCommand(agent) {
@@ -56195,14 +56205,14 @@ function hostContinuationResult(input) {
   const attemptedIndependent = input.evidence.some((route) => route.independence === "cross-agent" && route.status === "attempted" && route.failure !== undefined);
   const strongerExhausted = input.evidence.every((route) => route.status !== "unattempted");
   const headlessFailed = input.evidence.some((route) => route.independence === "degraded" && ["attempted", "unavailable"].includes(route.status) && route.failure !== undefined);
-  if (!attemptedIndependent || !strongerExhausted || !headlessFailed)
+  if (!attemptedIndependent || !strongerExhausted || !headlessFailed && input.author !== "cursor")
     return;
   return createResult({
     state: "action_required",
     findings: [
       {
         code: "REVIEW_CONTINUATION_REQUIRED",
-        message: "The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next.",
+        message: input.author === "cursor" ? "The independent routes did not complete, and Cursor has no headless reviewer route. A fresh-context review of the sealed packet is next." : "The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next.",
         severity: "warning"
       },
       ...input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output)
@@ -56514,7 +56524,7 @@ async function runDegradedFallback(input) {
     });
   }
   const completedOutput = assessment.output;
-  const assurance = fallbackAssurance(input.kind, completedOutput.reviewer_agent, input);
+  const assurance = fallbackAssurance(input.kind, input.assignedReviewer, input);
   if (input.policy === "require") {
     return createResult({
       state: "action_required",
@@ -56847,6 +56857,14 @@ async function runReview(input) {
   const ranked = selectRankedReview(input, routes.author, configuredRoutes);
   if (ranked !== undefined)
     return runRankedRoutes({ input, author: routes.author, policy, ...ranked });
+  if (routes.author === "cursor")
+    return unsupportedAuthorResult({
+      author,
+      policy,
+      kind: input.kind,
+      targets: input.targets,
+      context: input.context
+    });
   const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
   const runDeadline = Date.now() + runBoundMs();
@@ -57434,16 +57452,16 @@ function isContinuationResultData(data, state) {
   const continuation = plainRecord2(data.continuation);
   const packet = plainRecord2(continuation?.packet);
   const files = packet?.logical_files;
-  return state === "action_required" && data.review_policy === "prefer" && data.independence === "none" && ["claude", "codex", "opencode"].includes(String(data.author_agent)) && ["fresh-context", "self-review"].includes(String(continuation?.tier)) && typeof continuation?.instructions === "string" && continuation.instructions.length > 0 && packet?.schema_version === 1 && typeof packet.dispatch_id === "string" && packet.dispatch_id.length > 0 && Array.isArray(files) && files.length > 0 && files.every((file) => typeof plainRecord2(file)?.path === "string" && typeof plainRecord2(file)?.content === "string") && hasExhaustedRoutesForHostContinuation(data.review_routes);
+  return state === "action_required" && data.review_policy === "prefer" && data.independence === "none" && ["claude", "codex", "cursor", "opencode"].includes(String(data.author_agent)) && ["fresh-context", "self-review"].includes(String(continuation?.tier)) && typeof continuation?.instructions === "string" && continuation.instructions.length > 0 && packet?.schema_version === 1 && typeof packet.dispatch_id === "string" && packet.dispatch_id.length > 0 && Array.isArray(files) && files.length > 0 && files.every((file) => typeof plainRecord2(file)?.path === "string" && typeof plainRecord2(file)?.content === "string") && hasExhaustedRoutesForHostContinuation(data.review_routes, data.author_agent === "cursor");
 }
-function hasExhaustedRoutesForHostContinuation(value) {
+function hasExhaustedRoutesForHostContinuation(value, cursorAuthor) {
   if (!Array.isArray(value))
     return false;
   const routes = value.map((route) => plainRecord2(route));
   const attemptedIndependent = routes.some((route) => route?.independence === "cross-agent" && route.status === "attempted" && typeof route.failure === "string");
   const exhausted = routes.every((route) => route !== undefined && route.status !== "unattempted" && (route.status === "skipped" || typeof route.failure === "string"));
   const headlessFailed = routes.some((route) => route?.independence === "degraded" && ["attempted", "unavailable"].includes(String(route.status)) && typeof route.failure === "string");
-  return attemptedIndependent && exhausted && headlessFailed;
+  return attemptedIndependent && exhausted && (headlessFailed || cursorAuthor);
 }
 function isCompletedReviewData(data, state) {
   const output = data.reviewer_output;
@@ -57454,7 +57472,7 @@ function isCompletedReviewData(data, state) {
   return hasReviewerIdentity(reviewer) && reviewer.verdict === verdict && typeof reviewer.summary === "string" && Array.isArray(reviewer.findings) && state === (data.status === "approved" ? "healthy" : "action_required");
 }
 function hasReviewerIdentity(reviewer) {
-  return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex", "opencode"].includes(String(reviewer.reviewer_agent));
+  return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex", "cursor", "opencode"].includes(String(reviewer.reviewer_agent));
 }
 function readJob(cwd, id2) {
   const parsed2 = JSON.parse(readFileSync37(jobPath(cwd, id2), "utf8"));
@@ -57951,7 +57969,7 @@ function failedHostContinuation(record2, tier, failure) {
         severity: "warning"
       }
     ],
-    effects: record2.result?.effects,
+    effects: { ...record2.result?.effects, network: [] },
     data: {
       ...data,
       status: nextTier === undefined ? "blocked" : "continuation_required",
@@ -58183,7 +58201,7 @@ function hasIndependentApproval(data) {
     data?.status === "approved",
     data?.independence === "cross-agent",
     typeof data?.author_agent === "string",
-    ["claude", "codex", "opencode"].includes(actualReviewer),
+    ["claude", "codex", "cursor", "opencode"].includes(actualReviewer),
     data?.author_agent !== actualReviewer,
     reviewerOutput?.reviewer_agent === actualReviewer
   ].every(Boolean);
@@ -87392,7 +87410,7 @@ async function executableRedGateHandler(invocation) {
   return executableRedGate2(invocation.cwd, scenario, ledger);
 }
 function reviewRouteAuthor(value) {
-  return typeof value === "string" && ["claude", "codex", "opencode"].includes(value) ? value : undefined;
+  return typeof value === "string" && ["claude", "codex", "cursor", "opencode"].includes(value) ? value : undefined;
 }
 function reviewRoutesFailure(command, error2) {
   const message = error2 instanceof Error ? error2.message : "Review route configuration is invalid.";
@@ -87460,12 +87478,12 @@ async function reviewRoutesSetHandler(invocation) {
     }
   });
 }
-var REVIEW_ROUTE_AUTHORS = ["claude", "codex", "opencode"];
+var REVIEW_ROUTE_AUTHORS = ["claude", "codex", "cursor", "opencode"];
 var REVIEW_ROUTE_CONFIG_KEY = "crossAgentReviewRoutes";
 async function reviewRoutesListHandler(invocation) {
   const requested = reviewRouteAuthor(invocation.options.author);
   if (requested === undefined && invocation.options.author !== undefined)
-    return invalidOperand("review routes list", "Provide --author as claude, codex, or opencode.");
+    return invalidOperand("review routes list", "Provide --author as claude, codex, cursor, or opencode.");
   const authors = requested === undefined ? REVIEW_ROUTE_AUTHORS : [requested];
   const [{ effectiveConfiguredRoutes: effectiveConfiguredRoutes2, scopedConfigPath: scopedConfigPath2 }, { builtInReviewRoutes: builtInReviewRoutes2 }] = await Promise.all([Promise.resolve().then(() => (init_preferences(), exports_preferences)), Promise.resolve().then(() => (init_policy(), exports_policy))]);
   const listed = [];

@@ -55,6 +55,10 @@ function expectCapabilityFinding(
 it.each([
   ['codex', 'prefer', undefined, false],
   ['codex', 'require', undefined, false],
+  ['cursor', 'prefer', undefined, false],
+  ['cursor', 'require', undefined, false],
+  ['opencode', 'prefer', undefined, false],
+  ['opencode', 'require', undefined, false],
   ['claude', 'prefer', undefined, false],
   ['claude', 'require', undefined, false],
   ['claude', 'prefer', 'claude-opus-5', false],
@@ -152,6 +156,7 @@ it.each([
           : 'reviewer_capability_unknown',
       }),
     });
+    if (author === 'cursor') expect(output.data.review_routes).toHaveLength(1);
     expectCapabilityFinding(output, qualified, unknownAuthor);
     expect(output.findings).toContainEqual(
       expect.objectContaining({ code: 'REVIEWER_FINDING', message: 'Check the migration note.' }),

@@ -22,9 +22,9 @@ export interface ReviewStamp {
   /** The reviewing model, recorded by the orchestrator that assigned it (ticket MR5M3A). Absent on pre-MR5M3A stamps. */
   model?: string;
   /** Author runtime recorded from the validated coordinator result. */
-  author?: 'claude' | 'codex' | 'opencode';
+  author?: 'claude' | 'codex' | 'cursor' | 'opencode';
   /** Actual reviewer runtime recorded from the validated coordinator result. */
-  reviewer?: 'claude' | 'codex' | 'opencode';
+  reviewer?: 'claude' | 'codex' | 'cursor' | 'opencode';
   /** Independence earned by the validated route. */
   independence?: 'cross-agent' | 'reduced' | 'degraded' | 'none';
   /**
@@ -177,7 +177,7 @@ export function gatePhaseAdvance(
 // fork review). The content-hash binding in <scope> at least defeats accidental
 // stale-after-edit passes, not deliberate spoofing.
 const REVIEW_LINE =
-  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|reduced|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
+  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|cursor|opencode))?(?:\s+reviewer:(claude|codex|cursor|opencode))?(?:\s+independence:(cross-agent|reduced|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
 
 /**
  * Tier 1 (the per-asset inline stamp) is OFF unless `.safeword/config.json` sets

@@ -20,6 +20,7 @@ import type {
   ReviewFailure,
   ReviewKind,
   ReviewPolicy,
+  SupportedReviewAuthor,
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { filterExecutionPlanRoutes } from './execution-plan-conformance.js';
@@ -404,9 +405,10 @@ function assessReviewOutcome(
 }
 
 /** How an agent is written for a reader: the product name, not the runtime id. */
-function agentName(agent: ReviewAgent): string {
+function agentName(agent: SupportedReviewAuthor): string {
   if (agent === 'codex') return 'Codex';
   if (agent === 'opencode') return 'OpenCode';
+  if (agent === 'cursor') return 'Cursor';
   return 'Claude';
 }
 
@@ -588,7 +590,7 @@ const RUNTIME_WIDE_FAILURES: ReadonlySet<ReviewFailure> = new Set([
 
 function invalidRouteConfigResult(
   error: unknown,
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
   policy: ReviewPolicy,
 ): CliResult {
   return createResult({
@@ -621,7 +623,7 @@ function invalidRouteConfigResult(
 }
 
 function degradedIndependenceMessage(
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
   evidence: readonly RankedRouteEvidence[],
 ): string {
   const suffix = evidence.some(route => route.independence === 'cross-agent')
@@ -638,7 +640,7 @@ function isPlanningReview(kind: ReviewKind): boolean {
 
 function rankedFallbackFinding(
   planning: boolean,
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
   reviewer: ReviewAgent,
   evidence: readonly RankedRouteEvidence[],
 ): Finding {
@@ -683,7 +685,7 @@ function rankedBlockingCode(
 // policy-dependent fields would make degraded proof easier to misreport.
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Result fields vary together by review policy and proof state.
 function rankedExhaustedResult(input: {
-  readonly author: ReviewAgent;
+  readonly author: SupportedReviewAuthor;
   readonly policy: ReviewPolicy;
   readonly kind: ReviewKind;
   readonly planning: boolean;
@@ -818,7 +820,7 @@ function recordRankedFailure(
 }
 
 function rankedAuthenticationRequiredResult(input: {
-  readonly author: ReviewAgent;
+  readonly author: SupportedReviewAuthor;
   readonly policy: ReviewPolicy;
   readonly route: ReviewRoute;
   readonly evidence: readonly RankedRouteEvidence[];
@@ -852,7 +854,7 @@ function rankedAuthenticationRequiredResult(input: {
 
 function rankedFailureResult(input: {
   readonly run: ReviewRunInput;
-  readonly author: ReviewAgent;
+  readonly author: SupportedReviewAuthor;
   readonly policy: ReviewPolicy;
   readonly planning: boolean;
   readonly route: ReviewRoute;
@@ -891,7 +893,7 @@ function rankedFailureResult(input: {
 
 async function executeRankedRoute(input: {
   readonly run: ReviewRunInput;
-  readonly author: ReviewAgent;
+  readonly author: SupportedReviewAuthor;
   readonly policy: ReviewPolicy;
   readonly route: ReviewRoute;
   readonly runDeadline: number;
@@ -938,7 +940,7 @@ async function executeRankedRoute(input: {
 
 interface RankedRun {
   readonly input: ReviewRunInput;
-  readonly author: ReviewAgent;
+  readonly author: SupportedReviewAuthor;
   readonly policy: ReviewPolicy;
   readonly routes: readonly ReviewRoute[];
   readonly planning: boolean;
@@ -981,7 +983,7 @@ function cannotAttemptRankedRoute(
 
 function rankedReviewerCapabilityFailure(
   planning: boolean,
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
   route: ReviewRoute,
   confirmedModel: ConfirmedReviewerModel | undefined,
 ): 'reviewer_capability_unknown' | 'reviewer_capability_weaker' | undefined {
@@ -1155,7 +1157,7 @@ function rankedTerminalResult(
 
 function hostContinuationResult(input: {
   readonly input: ReviewRunInput;
-  readonly author: ReviewAgent;
+  readonly author: SupportedReviewAuthor;
   readonly policy: ReviewPolicy;
   readonly planning: boolean;
   readonly evidence: readonly RankedRouteEvidence[];
@@ -1176,14 +1178,17 @@ function hostContinuationResult(input: {
       ['attempted', 'unavailable'].includes(route.status) &&
       route.failure !== undefined,
   );
-  if (!attemptedIndependent || !strongerExhausted || !headlessFailed) return undefined;
+  if (!attemptedIndependent || !strongerExhausted || (!headlessFailed && input.author !== 'cursor'))
+    return undefined;
   return createResult({
     state: 'action_required',
     findings: [
       {
         code: 'REVIEW_CONTINUATION_REQUIRED',
         message:
-          'The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next.',
+          input.author === 'cursor'
+            ? 'The independent routes did not complete, and Cursor has no headless reviewer route. A fresh-context review of the sealed packet is next.'
+            : 'The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next.',
         severity: 'warning',
       },
       ...(input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output)),
@@ -1247,7 +1252,7 @@ function shouldSkipRankedRoute(
 }
 
 function changedReviewResult(input: {
-  readonly author: ReviewAgent;
+  readonly author: ReviewAuthor;
   readonly reviewer: ReviewAgent;
   readonly policy: ReviewPolicy;
   readonly kind: ReviewKind;
@@ -1346,7 +1351,7 @@ function routeFailureData(input: {
  * the calling agent before any same-agent fallback can weaken coverage.
  */
 function authenticationRequiredResult(input: {
-  readonly author: ReviewAgent;
+  readonly author: SupportedReviewAuthor;
   readonly assignedReviewer: ReviewAgent;
   readonly preferredFailure: ReviewFailure;
   readonly preferredModel?: string;
@@ -1645,7 +1650,7 @@ async function runDegradedFallback(input: DegradedReviewInput): Promise<CliResul
     });
   }
   const completedOutput = assessment.output;
-  const assurance = fallbackAssurance(input.kind, completedOutput.reviewer_agent, input);
+  const assurance = fallbackAssurance(input.kind, input.assignedReviewer, input);
 
   if (input.policy === 'require') {
     return createResult({
@@ -2101,6 +2106,7 @@ function runAfterPrimaryFailure(
   });
 }
 
+// eslint-disable-next-line complexity -- The Cursor author is routed through planning only; legacy non-planning dispatch remains separate.
 export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
   const policy = readReviewPolicy(input.cwd);
@@ -2124,6 +2130,14 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const ranked = selectRankedReview(input, routes.author, configuredRoutes);
   if (ranked !== undefined)
     return runRankedRoutes({ input, author: routes.author, policy, ...ranked });
+  if (routes.author === 'cursor')
+    return unsupportedAuthorResult({
+      author,
+      policy,
+      kind: input.kind,
+      targets: input.targets,
+      context: input.context,
+    });
   const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
@@ -2265,7 +2279,7 @@ function planningReviewPolicyOff(input: ReviewRunInput, author: ReviewAuthor): C
 
 function selectRankedReview(
   input: ReviewRunInput,
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
   configured: readonly ReviewRoute[] | undefined,
 ): Pick<RankedRun, 'routes' | 'planning' | 'prepared'> | undefined {
   const productPacket =
@@ -2285,7 +2299,7 @@ function selectRankedReview(
 
 function rankedReviewRoutes(
   input: ReviewRunInput,
-  author: ReviewAgent,
+  author: SupportedReviewAuthor,
   configured: readonly ReviewRoute[] | undefined,
   productPlan: boolean,
 ): readonly ReviewRoute[] | undefined {

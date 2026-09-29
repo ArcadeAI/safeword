@@ -143,6 +143,46 @@ describe('review routes CLI wiring', () => {
     });
   });
 
+  it('configures Cursor authors without offering Cursor as a reviewer CLI', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+    vi.stubEnv('XDG_CONFIG_HOME', nodePath.join(root, 'profile'));
+    const set = await invoke(root, [
+      'review',
+      'routes',
+      'set',
+      '--scope',
+      'project',
+      '--author',
+      'cursor',
+      '--route',
+      'codex',
+    ]);
+    expect(set).toMatchObject({
+      state: 'changed',
+      data: { author: 'cursor', routes: [{ reviewer: 'codex', independence: 'cross-agent' }] },
+    });
+    expect(await invoke(root, ['review', 'routes', 'list', '--author', 'cursor'])).toMatchObject({
+      data: { source: 'project', routes: [{ reviewer: 'codex' }] },
+    });
+    expect(
+      await invoke(root, [
+        'review',
+        'routes',
+        'set',
+        '--scope',
+        'project',
+        '--author',
+        'cursor',
+        '--route',
+        'cursor',
+      ]),
+    ).toMatchObject({ state: 'failed' });
+    expect(
+      await invoke(root, ['review', 'routes', 'reset', '--scope', 'project', '--author', 'cursor']),
+    ).toMatchObject({ state: 'changed' });
+  });
+
   it('resolves each author independently across project and user scopes', async () => {
     const root = createTemporaryDirectory();
     directories.push(root);
@@ -260,11 +300,12 @@ describe('review routes CLI wiring', () => {
     const listed = await invoke(root, ['review', 'routes', 'list']);
     expect(listed).toMatchObject({ state: 'healthy', data: { command: 'review routes list' } });
     const authors = (listed.data as { authors: { author: string }[] }).authors;
-    expect(authors.map(entry => entry.author)).toEqual(['claude', 'codex', 'opencode']);
+    expect(authors.map(entry => entry.author)).toEqual(['claude', 'codex', 'cursor', 'opencode']);
 
     const human = await invokeHuman(root, ['review', 'routes', 'list']);
     expect(human).toContain('claude review routes');
     expect(human).toContain('codex review routes');
+    expect(human).toContain('cursor review routes');
     expect(human).toContain('opencode review routes');
   });
 
@@ -275,7 +316,7 @@ describe('review routes CLI wiring', () => {
     const listed = await invoke(root, ['review', 'routes', 'list', '--author', 'gemini']);
     expect(listed).toMatchObject({ state: 'failed' });
     expect((listed.errors as { message: string }[])[0]?.message).toContain(
-      'Provide --author as claude, codex, or opencode.',
+      'Provide --author as claude, codex, cursor, or opencode.',
     );
   });
 

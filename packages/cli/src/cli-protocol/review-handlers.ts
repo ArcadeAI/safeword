@@ -129,9 +129,9 @@ export async function executableRedGateHandler(invocation: CommandInvocation): P
   return executableRedGate(invocation.cwd, scenario, ledger);
 }
 
-function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
-  return typeof value === 'string' && ['claude', 'codex', 'opencode'].includes(value)
-    ? (value as 'claude' | 'codex' | 'opencode')
+function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'cursor' | 'opencode' | undefined {
+  return typeof value === 'string' && ['claude', 'codex', 'cursor', 'opencode'].includes(value)
+    ? (value as 'claude' | 'codex' | 'cursor' | 'opencode')
     : undefined;
 }
 
@@ -210,13 +210,16 @@ export async function reviewRoutesSetHandler(invocation: CommandInvocation): Pro
   });
 }
 
-const REVIEW_ROUTE_AUTHORS = ['claude', 'codex', 'opencode'] as const;
+const REVIEW_ROUTE_AUTHORS = ['claude', 'codex', 'cursor', 'opencode'] as const;
 const REVIEW_ROUTE_CONFIG_KEY = 'crossAgentReviewRoutes';
 
 export async function reviewRoutesListHandler(invocation: CommandInvocation): Promise<CliResult> {
   const requested = reviewRouteAuthor(invocation.options.author);
   if (requested === undefined && invocation.options.author !== undefined)
-    return invalidOperand('review routes list', 'Provide --author as claude, codex, or opencode.');
+    return invalidOperand(
+      'review routes list',
+      'Provide --author as claude, codex, cursor, or opencode.',
+    );
   // Without --author, list every author. Reviewer routing is the thing users
   // come here to discover, so the read-only command should answer without
   // first requiring the vocabulary it exists to teach.

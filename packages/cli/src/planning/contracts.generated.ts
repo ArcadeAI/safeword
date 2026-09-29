@@ -45,7 +45,7 @@ export const PLANNING_AUTHOR_COPIES = {
   },
   "plan-implementation": {
     "relativePath": "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-    "sha256": "2c9cdcf5e2010ce30ac1a41efe62db46f8fe5a2aed0ff566a5b292f95e335bbf"
+    "sha256": "07129dce26ca9670ac3d6b3cbac3b0106474dec17aafd1a7c1295189b348d3d3"
   },
   "plan-execution": {
     "relativePath": "templates/skills/bdd/PLAN_EXECUTION.md",

@@ -2,6 +2,7 @@ import type { ReviewDispositionContext } from './planning-accepted-boundary.js';
 import type { PlanningRoleContext } from './planning-role-context.js';
 export type ReviewAgent = 'claude' | 'codex' | 'opencode';
 export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
+export type SupportedReviewAuthor = Exclude<ReviewAuthor, 'unknown'>;
 export type ReviewKind =
   | 'quality-review'
   | 'scenario-gate'
@@ -145,7 +146,7 @@ export interface ExecutionPlanRecord {
 export interface ReviewerOutput {
   readonly schema_version: 1;
   readonly dispatch_id: string;
-  readonly reviewer_agent: ReviewAgent;
+  readonly reviewer_agent: SupportedReviewAuthor;
   readonly verdict: 'approve' | 'request_changes';
   readonly summary: string;
   readonly findings: readonly ReviewFinding[];

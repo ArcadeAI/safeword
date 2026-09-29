@@ -57,8 +57,8 @@ const HELP = `Usage:
 Options:
   --ticket <folder>         Select the ticket folder to stamp
   --model <id>              Record the verified reviewer model
-  --author-agent <agent>    Record claude, codex, or opencode as author
-  --reviewer-agent <agent>  Record claude, codex, or opencode as reviewer
+  --author-agent <agent>    Record claude, codex, cursor, or opencode as author
+  --reviewer-agent <agent>  Record claude, codex, cursor, or opencode as reviewer
   --independence <level>    Record cross-agent, reduced, degraded, or none
   --review-id <id>          Verify and record a coordinator review receipt
   --skip <reason>           Record a deliberate skip instead of a review
@@ -116,8 +116,8 @@ interface ParsedArguments {
   positional: string[];
   explicitTicket: string | undefined;
   reviewerModel: string | undefined;
-  authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
-  reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
+  authorAgent: 'claude' | 'codex' | 'cursor' | 'opencode' | undefined;
+  reviewerAgent: 'claude' | 'codex' | 'cursor' | 'opencode' | undefined;
   independence: 'cross-agent' | 'reduced' | 'degraded' | 'none' | undefined;
   reviewId: string | undefined;
   skipReason: string | undefined;
@@ -148,8 +148,8 @@ function parseArguments(argv: string[]): ParsedArguments {
   const positional: string[] = [];
   let explicitTicket: string | undefined;
   let reviewerModel: string | undefined;
-  let authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
-  let reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
+  let authorAgent: 'claude' | 'codex' | 'cursor' | 'opencode' | undefined;
+  let reviewerAgent: 'claude' | 'codex' | 'cursor' | 'opencode' | undefined;
   let independence: 'cross-agent' | 'reduced' | 'degraded' | 'none' | undefined;
   let reviewId: string | undefined;
   let skipReason: string | undefined;
@@ -197,8 +197,8 @@ function parseArguments(argv: string[]): ParsedArguments {
         fail('--review-id must be the review_id the coordinator returned');
       reviewId = value;
     } else {
-      if (value !== 'claude' && value !== 'codex' && value !== 'opencode') {
-        fail(`${flag} must be claude, codex, or opencode`);
+      if (value !== 'claude' && value !== 'codex' && value !== 'cursor' && value !== 'opencode') {
+        fail(`${flag} must be claude, codex, cursor, or opencode`);
       }
       if (flag === '--author-agent') authorAgent = value;
       else reviewerAgent = value;

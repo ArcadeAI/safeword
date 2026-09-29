@@ -20,6 +20,17 @@ describe('planning fallback documentation', () => {
   it('describes reduced fallback honestly in the public overview', () => {
     const readme = readFileSync(nodePath.join(root, 'README.md'), 'utf8');
     expect(readme).toContain('reduced independence');
+    expect(readme).toContain('Cursor itself has no headless reviewer route');
+    expect(readme).toContain('A current receipt is still required at the phase');
     expect(readme).not.toContain('Both read the live worktree, so');
+  });
+
+  it('describes the Cursor Cloud transition boundary without claiming stop hooks are absent', () => {
+    const guidance = readFileSync(
+      nodePath.join(root, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
+      'utf8',
+    );
+    expect(guidance).toContain('Cursor Cloud Agents run command-based `preToolUse` and stop hooks');
+    expect(guidance).toContain('enforcement\n   rides the transition gate');
   });
 });

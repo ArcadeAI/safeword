@@ -29,6 +29,7 @@ afterEach(() => {
 describe('planning fallback after independent route exhaustion', () => {
   async function reviewThroughAdmission(
     hostContinuation: boolean,
+    author: 'claude' | 'cursor' = 'claude',
   ): Promise<Record<string, unknown>> {
     const project = createTemporaryDirectory();
     projects.push(project);
@@ -70,7 +71,7 @@ describe('planning fallback after independent route exhaustion', () => {
     const keyRoot = nodePath.join(project, '.review-keys');
     const environment = {
       PATH: `${reviewer}:/usr/bin:/bin`,
-      SAFEWORD_AGENT_RUNTIME: 'claude',
+      SAFEWORD_AGENT_RUNTIME: author,
       CLAUDE_PLUGIN_ROOT: reviewer,
       SAFEWORD_REVIEW_KEY_ROOT: keyRoot,
       SAFEWORD_REVIEW_TIMEOUT_MS: '3000',
@@ -101,10 +102,18 @@ describe('planning fallback after independent route exhaustion', () => {
         status: 'continuation_required',
         continuation: { tier: 'fresh-context', packet: { kind: 'plan-implementation' } },
       });
+      const pending = await runCli(
+        ['ticket', 'approve-plan', 'FAL123', '--cwd', project, '--json', '--no-input'],
+        { cwd: project, env: environment },
+      );
+      expect(pending.exitCode).toBe(2);
+      expect(readFileSync(nodePath.join(project, ticket, 'ticket.md'), 'utf8')).toContain(
+        'phase: plan-implementation',
+      );
       const reviewOutput = {
         schema_version: 1,
         dispatch_id: output.data.continuation.packet.dispatch_id,
-        reviewer_agent: 'claude',
+        reviewer_agent: author,
         verdict: 'approve',
         summary: 'Current plan approved in a fresh host context.',
         findings: [],
@@ -136,12 +145,26 @@ describe('planning fallback after independent route exhaustion', () => {
     expect(output.data).toMatchObject({
       status: 'approved',
       review_kind: 'plan-implementation',
-      actual_reviewer: 'claude',
+      actual_reviewer: author,
       independence: 'reduced',
     });
     expect(output.findings).not.toContainEqual(
       expect.objectContaining({ code: 'REVIEW_INDEPENDENCE_DEGRADED' }),
     );
+    if (author === 'cursor') {
+      const shellGate = spawnSync('bun', ['.safeword/hooks/cursor/before-shell-execution.ts'], {
+        cwd: project,
+        encoding: 'utf8',
+        input: JSON.stringify({
+          workspace_roots: [project],
+          conversation_id: 'fallback-fixture',
+          command: `bun "${project}/.safeword/hooks/write-review-stamp.ts" --phase plan-implementation`,
+        }),
+        env: { ...process.env, ...environment },
+      });
+      expect(shellGate.status, shellGate.stderr).toBe(0);
+      expect(JSON.parse(shellGate.stdout)).toEqual({ permission: 'allow' });
+    }
     const stamp = spawnSync(
       'bun',
       [
@@ -149,9 +172,9 @@ describe('planning fallback after independent route exhaustion', () => {
         '--ticket',
         'FAL123-fallback',
         '--author-agent',
-        'claude',
+        author,
         '--reviewer-agent',
-        'claude',
+        author,
         '--independence',
         'reduced',
         '--review-id',
@@ -191,5 +214,11 @@ describe('planning fallback after independent route exhaustion', () => {
 
   it('admits a sealed fresh-host review only after independent and headless routes fail', async () => {
     expect(await reviewThroughAdmission(true)).toMatchObject({ achieved_independence: 'reduced' });
+  });
+
+  it('admits a Cursor host review after independent routes fail without inventing a Cursor CLI', async () => {
+    expect(await reviewThroughAdmission(true, 'cursor')).toMatchObject({
+      achieved_independence: 'reduced',
+    });
   });
 });

@@ -398,6 +398,12 @@ an admitted approval records the actual reviewer and `reduced independence`
 after stronger routes are exhausted. `require` remains blocked. Other review
 kinds retain their own gate requirements. Project-owned Claude reviewer assets
 also support Claude Code Cloud when no external agent CLI is available.
+Cursor-authored planning work tries Claude and Codex as external reviewers;
+Cursor itself has no headless reviewer route. If those routes fail under
+`prefer`, the Cursor host can review the same sealed packet and record a
+reduced-independence receipt. A current receipt is still required at the phase
+gate. Cursor cannot satisfy `require` until trusted exact author-model metadata
+is available.
 
 **Codex plugin skills**: Codex gets Safeword workflow skills from the Safeword Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safeword-owned workflow aliases into `.agents/skills/`.
 
