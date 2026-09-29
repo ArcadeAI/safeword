@@ -69,6 +69,12 @@ crosses installed CLI dispatch.
 - [ ] GREEN
 - [ ] REFACTOR
 
+The three R1 feature scenarios now execute against a fresh source distribution,
+real contract generators, and the installed project's `install`/`upgrade` CLI
+boundary. Targeted Cucumber result: 3 scenarios and 141 steps passed. This is
+the public reconciliation proof for R1; the R/G/R checkboxes remain open until
+the scenario review and final feature verification are recorded.
+
 ## Rule: plan-implementability.TBU4.5F5ZZA.R2 — Each review receives its complete phase context
 
 ### Scenario: A review packet cannot omit required phase context
