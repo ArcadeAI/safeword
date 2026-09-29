@@ -20,9 +20,15 @@ afterEach(() => {
   cleanupTrustedReviewerDirectories();
 });
 
-it.each(['prefer', 'require'] as const)(
-  'labels a Codex-authored planning review with unknown author capability under %s',
-  async policy => {
+it.each([
+  ['codex', 'prefer'],
+  ['codex', 'require'],
+  ['claude', 'prefer'],
+  ['claude', 'require'],
+] as const)(
+  'labels a %s-authored planning review with unknown author capability under %s',
+  async (author, policy) => {
+    const reviewerAgent = author === 'claude' ? 'codex' : 'claude';
     const project = createTemporaryDirectory();
     projects.push(project);
     await createConfiguredProject(project);
@@ -34,7 +40,7 @@ it.each(['prefer', 'require'] as const)(
       JSON.stringify({
         ...config,
         crossAgentReview: policy,
-        crossAgentReviewRoutes: { codex: [{ reviewer: 'claude' }] },
+        crossAgentReviewRoutes: { [author]: [{ reviewer: reviewerAgent }] },
       }),
     );
     const ticket = '.project/tickets/AUT123-unknown-author-capability';
@@ -51,13 +57,13 @@ it.each(['prefer', 'require'] as const)(
     mkdirSync(nodePath.join(project, 'features'), { recursive: true });
     writeFileSync(
       nodePath.join(project, 'features/author-capability.feature'),
-      '@author-capability.BU1.R1\nFeature: Capability truth\n  Scenario: Unknown author model\n    Given Codex has no verified author model\n    When a different reviewer approves\n    Then independence remains unverified\n',
+      '@author-capability.BU1.R1\nFeature: Capability truth\n  Scenario: Unknown author model\n    Given the host has no verified author model\n    When a different reviewer approves\n    Then independence remains unverified\n',
     );
     const reviewer = createTrustedReviewerDirectory('safeword-author-capability-');
     const invoked = nodePath.join(reviewer, 'invoked');
     writeFileSync(
-      nodePath.join(reviewer, 'claude'),
-      `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } })); console.log(JSON.stringify({ type: 'result', subtype: 'success', structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Reviewer approval.', findings: [{ severity: 'warning', message: 'Check the migration note.' }] }, modelUsage: { 'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' } } })); });\n`,
+      nodePath.join(reviewer, reviewerAgent),
+      `#!${process.execPath}\nconst { writeFileSync } = require('node:fs');\nif (process.argv.includes('--version')) { console.log('${reviewerAgent} 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES[reviewerAgent])}); process.exit(0); }\nwriteFileSync(${JSON.stringify(invoked)}, 'yes');\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); const output = { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${reviewerAgent}', verdict: 'approve', summary: 'Reviewer approval.', findings: [{ severity: 'warning', message: 'Check the migration note.' }] }; if ('${reviewerAgent}' === 'claude') { console.log(JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } })); console.log(JSON.stringify({ type: 'result', subtype: 'success', structured_output: output, modelUsage: { 'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' } } })); } else console.log(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: JSON.stringify(output) } })); });\n`,
       { mode: 0o755 },
     );
     const reviewed = await runCli(
@@ -77,7 +83,7 @@ it.each(['prefer', 'require'] as const)(
         cwd: project,
         env: {
           PATH: `${reviewer}:/usr/bin:/bin`,
-          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_AGENT_RUNTIME: author,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
@@ -88,8 +94,10 @@ it.each(['prefer', 'require'] as const)(
     expect(output.data).toMatchObject({
       status: policy === 'prefer' ? 'approved' : 'blocked',
       independence: policy === 'prefer' ? 'reduced' : 'none',
-      actual_reviewer: 'claude',
-      confirmed_reviewer_model: { provider: 'anthropic', model: 'claude-opus-5' },
+      actual_reviewer: reviewerAgent,
+      ...(reviewerAgent === 'claude' && {
+        confirmed_reviewer_model: { provider: 'anthropic', model: 'claude-opus-5' },
+      }),
       capability_failure: 'author_capability_unknown',
     });
     expect(output.findings).toContainEqual(

@@ -94,7 +94,7 @@ it.each([
     expect(output.data).toMatchObject({
       status: 'approved',
       actual_reviewer: codexFails ? 'claude' : 'codex',
-      independence: codexFails ? 'reduced' : 'cross-agent',
+      independence: 'reduced',
     });
     expect(existsSync(independentInvoked)).toBe(true);
     expect(existsSync(sameAgentInvoked)).toBe(codexFails);
@@ -109,6 +109,8 @@ it.each([
             /was not independent/iu.test(finding.message),
         ),
       ).toBe(false);
+    } else {
+      expect(output.data.capability_failure).toBe('author_capability_unknown');
     }
   },
 );

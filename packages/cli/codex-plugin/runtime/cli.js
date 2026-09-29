@@ -55387,7 +55387,7 @@ function parseReviewStamps(logContent) {
   }
   return stamps;
 }
-var COORDINATOR_CLAIMS, REVIEW_LINE;
+var COORDINATOR_CLAIMS, REVIEW_LINE, AUTHOR_MODEL_ENV = "SAFEWORD_AUTHOR_MODEL";
 var init_review_ledger = __esm(() => {
   init_parse_annotation();
   COORDINATOR_CLAIMS = new Set(["cross-agent", "reduced", "degraded"]);
@@ -56934,7 +56934,8 @@ function independentReviewResult(input) {
   return withPlanningAuthorCapability(input, result);
 }
 function withPlanningAuthorCapability(input, result) {
-  if (!isPlanningReview(input.kind) || input.author === "claude")
+  const authorModel = process.env[AUTHOR_MODEL_ENV];
+  if (!isPlanningReview(input.kind) || input.author === "claude" && authorModel !== undefined && authorModel.trim() !== "")
     return result;
   return {
     ...result,
@@ -58122,6 +58123,7 @@ function rankedReviewRoutes(input, author, configured) {
 }
 var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, RUNTIME_WIDE_FAILURES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {
+  init_review_ledger();
   init_run_identity();
   init_result();
   init_execution_plan_conformance();

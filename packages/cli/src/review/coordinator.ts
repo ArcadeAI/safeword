@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { AUTHOR_MODEL_ENV } from '../../templates/hooks/lib/review-ledger.js';
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import type { ProgressReporter } from '../cli-protocol/handler.js';
 import { type CliResult, createResult, type Effect, type Finding } from '../cli-protocol/result.js';
@@ -237,7 +238,12 @@ function withPlanningAuthorCapability(
   },
   result: CliResult,
 ): CliResult {
-  if (!isPlanningReview(input.kind) || input.author === 'claude') return result;
+  const authorModel = process.env[AUTHOR_MODEL_ENV];
+  if (
+    !isPlanningReview(input.kind) ||
+    (input.author === 'claude' && authorModel !== undefined && authorModel.trim() !== '')
+  )
+    return result;
   return {
     ...result,
     state: input.policy === 'require' ? 'action_required' : result.state,
