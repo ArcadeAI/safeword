@@ -149,7 +149,7 @@ installed-dispatch outline or full feature verification, so R/G/R remains open.
 
 ### Scenario: Context resolution distinguishes defaults from broken overrides
 
-- [ ] RED
+- [x] RED b1d1740cc
 - [ ] GREEN
 - [ ] REFACTOR
 
