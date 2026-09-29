@@ -509,7 +509,29 @@ function isCoherentTerminalResult(candidate: Record<string, unknown>, failed: bo
   return (
     isCliResult(candidate.result) &&
     (candidate.result.state === 'failed') === failed &&
+    hasContinuationJobIdentity(candidate) &&
     typeof candidate.integrity === 'string'
+  );
+}
+
+// eslint-disable-next-line complexity -- Persisted continuation identity must bind the packet to this planning job.
+function hasContinuationJobIdentity(record: Record<string, unknown>): boolean {
+  const result = plainRecord(record.result);
+  const data = plainRecord(result?.data);
+  if (data?.status !== 'continuation_required') return true;
+  const continuation = plainRecord(data.continuation);
+  const packet = plainRecord(continuation?.packet);
+  const logicalFiles = packet?.logical_files;
+  const targets = record.targets;
+  return (
+    packet?.kind === record.kind &&
+    (record.kind === 'scenario-gate' ||
+      record.kind === 'plan-implementation' ||
+      record.kind === 'plan-execution' ||
+      (record.kind === 'quality-review' && packet?.planning_phase === 'product-plan')) &&
+    Array.isArray(targets) &&
+    Array.isArray(logicalFiles) &&
+    JSON.stringify(logicalFiles.map(file => plainRecord(file)?.path)) === JSON.stringify(targets)
   );
 }
 
@@ -563,9 +585,59 @@ function isReviewResultData(value: unknown, state: unknown): boolean {
   if (!['review run', 'review status'].includes(String(data.command))) return false;
   if (typeof data.status !== 'string') return false;
   if (data.command === 'review status') return ['failed', 'stale'].includes(data.status);
+  if (data.status === 'continuation_required') return isContinuationResultData(data, state);
   if (data.status !== 'approved' && data.status !== 'changes_requested')
     return ['blocked', 'existing_route', 'failed', 'stale'].includes(data.status);
   return isCompletedReviewData(data, state);
+}
+
+// eslint-disable-next-line complexity -- Every required field is part of the sealed continuation contract.
+function isContinuationResultData(data: Record<string, unknown>, state: unknown): boolean {
+  const continuation = plainRecord(data.continuation);
+  const packet = plainRecord(continuation?.packet);
+  const files = packet?.logical_files;
+  return (
+    state === 'action_required' &&
+    data.review_policy === 'prefer' &&
+    data.independence === 'none' &&
+    ['claude', 'codex', 'opencode'].includes(String(data.author_agent)) &&
+    continuation?.tier === 'fresh-context' &&
+    packet?.schema_version === 1 &&
+    typeof packet.dispatch_id === 'string' &&
+    packet.dispatch_id.length > 0 &&
+    Array.isArray(files) &&
+    files.length > 0 &&
+    files.every(
+      file =>
+        typeof plainRecord(file)?.path === 'string' &&
+        typeof plainRecord(file)?.content === 'string',
+    ) &&
+    hasExhaustedRoutesForHostContinuation(data.review_routes)
+  );
+}
+
+function hasExhaustedRoutesForHostContinuation(value: unknown): boolean {
+  if (!Array.isArray(value)) return false;
+  const routes = value.map(route => plainRecord(route));
+  const attemptedIndependent = routes.some(
+    route =>
+      route?.independence === 'cross-agent' &&
+      route.status === 'attempted' &&
+      typeof route.failure === 'string',
+  );
+  const exhausted = routes.every(
+    route =>
+      route !== undefined &&
+      route.status !== 'unattempted' &&
+      (route.status === 'skipped' || typeof route.failure === 'string'),
+  );
+  const headlessFailed = routes.some(
+    route =>
+      route?.independence === 'degraded' &&
+      ['attempted', 'unavailable'].includes(String(route.status)) &&
+      typeof route.failure === 'string',
+  );
+  return attemptedIndependent && exhausted && headlessFailed;
 }
 
 function isCompletedReviewData(data: Record<string, unknown>, state: unknown): boolean {

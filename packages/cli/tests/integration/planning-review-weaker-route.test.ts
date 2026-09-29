@@ -16,37 +16,48 @@ vi.mock('../../src/review/capability-catalogue.js', async importOriginal => ({
   },
 }));
 
-vi.mock('../../src/review/runtime.js', async importOriginal => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  runHeadlessReviewerWithProvenance: (
-    reviewer: string,
-    packet: { dispatch_id: string },
-    _workspace: unknown,
-    _sourceRoot: unknown,
-    options: { model?: string },
-  ) =>
-    Promise.resolve({
-      output: {
-        schema_version: 1,
-        dispatch_id: packet.dispatch_id,
-        reviewer_agent: reviewer,
-        verdict: options.model === 'gpt-6-astra' ? 'request_changes' : 'approve',
-        summary:
-          {
-            'gpt-6-luna': 'Weak approval.',
-            'gpt-6-astra': 'Qualified rejection.',
-          }[options.model ?? ''] ?? 'Runtime-default approval.',
-        findings: [],
-      },
-      confirmedModel:
-        options.model === undefined ? undefined : { provider: 'openai', model: options.model },
-    }),
-}));
+const dispatchedPackets = vi.hoisted(() => [] as { dispatch_id: string }[]);
+
+vi.mock('../../src/review/runtime.js', async importOriginal => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  const RuntimeError = actual.ReviewRuntimeError as new (failure: string, message: string) => Error;
+  return {
+    ...actual,
+    runHeadlessReviewerWithProvenance: (
+      reviewer: string,
+      packet: { dispatch_id: string },
+      _workspace: unknown,
+      _sourceRoot: unknown,
+      options: { model?: string },
+    ) => {
+      dispatchedPackets.push(packet);
+      if (process.env.SAFEWORD_TEST_REVIEWERS_FAIL === '1')
+        return Promise.reject(new RuntimeError('process_failed', 'fixture reviewer failure'));
+      return Promise.resolve({
+        output: {
+          schema_version: 1,
+          dispatch_id: packet.dispatch_id,
+          reviewer_agent: reviewer,
+          verdict: options.model === 'gpt-6-astra' ? 'request_changes' : 'approve',
+          summary:
+            {
+              'gpt-6-luna': 'Weak approval.',
+              'gpt-6-astra': 'Qualified rejection.',
+            }[options.model ?? ''] ?? 'Runtime-default approval.',
+          findings: [],
+        },
+        confirmedModel:
+          options.model === undefined ? undefined : { provider: 'openai', model: options.model },
+      });
+    },
+  };
+});
 
 const projects: string[] = [];
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  dispatchedPackets.length = 0;
   for (const project of projects) rmSync(project, { recursive: true, force: true });
   projects.length = 0;
 });
@@ -199,4 +210,43 @@ it('discards a weaker approval and continues to the next independent route', asy
     targets: ['notes.md'],
   });
   expect(ordinaryOff.data).toMatchObject({ status: 'existing_route' });
+
+  vi.stubEnv('SAFEWORD_TEST_REVIEWERS_FAIL', '1');
+  writeFileSync(
+    configPath,
+    JSON.stringify({
+      ...config,
+      crossAgentReview: 'prefer',
+      crossAgentReviewRoutes: {
+        claude: [{ reviewer: 'codex', model: 'gpt-6-astra' }, { reviewer: 'claude' }],
+      },
+    }),
+  );
+  const continuation = await runReview({
+    cwd: project,
+    kind: 'plan-implementation',
+    targets: [`${ticket}/impl-plan.md`],
+    context: [`${ticket}/spec.md`],
+  });
+  expect(continuation.data).toMatchObject({
+    status: 'continuation_required',
+    independence: 'none',
+    continuation: { tier: 'fresh-context', packet: { dispatch_id: expect.any(String) } },
+    review_routes: [
+      { reviewer: 'codex', status: 'attempted', failure: 'process_failed' },
+      { reviewer: 'claude', status: 'attempted', failure: 'process_failed' },
+    ],
+  });
+  expect(dispatchedPackets.at(-1)).toBe(dispatchedPackets.at(-2));
+
+  const requireConfig = JSON.parse(readFileSync(configPath, 'utf8'));
+  writeFileSync(configPath, JSON.stringify({ ...requireConfig, crossAgentReview: 'require' }));
+  const required = await runReview({
+    cwd: project,
+    kind: 'plan-implementation',
+    targets: [`${ticket}/impl-plan.md`],
+    context: [`${ticket}/spec.md`],
+  });
+  expect(required.data).toMatchObject({ status: 'blocked' });
+  expect((required.data as Record<string, unknown>).continuation).toBeUndefined();
 });

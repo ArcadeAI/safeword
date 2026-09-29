@@ -1076,20 +1076,90 @@ async function runConfiguredRankedRoutes({
       degraded = { output: assessment.output, route };
     }
 
-    return rankedExhaustedResult({
+    return rankedTerminalResult({
+      input,
       author,
       policy,
-      kind: input.kind,
       planning,
-      targets: input.targets,
-      context: input.context,
       evidence,
-      degraded,
+      prepared,
       unqualified,
+      degraded,
     });
   } finally {
     prepared.cleanup();
   }
+}
+
+function rankedTerminalResult(
+  input: Parameters<typeof hostContinuationResult>[0] & {
+    readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
+  },
+): CliResult {
+  return (
+    hostContinuationResult(input) ??
+    rankedExhaustedResult({
+      author: input.author,
+      policy: input.policy,
+      kind: input.input.kind,
+      planning: input.planning,
+      targets: input.input.targets,
+      context: input.input.context,
+      evidence: input.evidence,
+      degraded: input.degraded,
+      unqualified: input.unqualified,
+    })
+  );
+}
+
+function hostContinuationResult(input: {
+  readonly input: ReviewRunInput;
+  readonly author: ReviewAgent;
+  readonly policy: ReviewPolicy;
+  readonly planning: boolean;
+  readonly evidence: readonly RankedRouteEvidence[];
+  readonly prepared: ReturnType<typeof prepareReviewPacket>;
+  readonly unqualified?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
+}): CliResult | undefined {
+  if (!input.planning || input.policy !== 'prefer') return undefined;
+  const attemptedIndependent = input.evidence.some(
+    route =>
+      route.independence === 'cross-agent' &&
+      route.status === 'attempted' &&
+      route.failure !== undefined,
+  );
+  const strongerExhausted = input.evidence.every(route => route.status !== 'unattempted');
+  const headlessFailed = input.evidence.some(
+    route =>
+      route.independence === 'degraded' &&
+      ['attempted', 'unavailable'].includes(route.status) &&
+      route.failure !== undefined,
+  );
+  if (!attemptedIndependent || !strongerExhausted || !headlessFailed) return undefined;
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'REVIEW_CONTINUATION_REQUIRED',
+        message:
+          'The independent and same-agent headless routes did not complete. A fresh-context review of the sealed packet is next.',
+        severity: 'warning',
+      },
+      ...(input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output)),
+    ],
+    effects: { network: rankedNetworkEffects(input.evidence) },
+    data: {
+      command: 'review run',
+      status: 'continuation_required',
+      review_kind: input.input.kind,
+      review_targets: input.input.targets,
+      author_agent: input.author,
+      review_policy: 'prefer',
+      independence: 'none',
+      review_routes: input.evidence,
+      continuation: { tier: 'fresh-context', packet: input.prepared.packet },
+    },
+  });
 }
 
 function orderedReviewRoutes(
