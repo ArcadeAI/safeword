@@ -196,6 +196,9 @@ const MAX_OUTPUT_BYTES = 1024 * 1024;
 const QUALITY_REVIEW_FOCUS =
   'Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.';
 
+const RETROSPECTIVE_ELIGIBILITY_RUBRIC =
+  'Review only the CKWE2D retrospective migration. For every named scenario, compare its exact fixed-cutoff Given/When/Then body and cited baseline implementation blobs with current behavior. Cite each baseline implementation path and explain why the scenario behavior already existed at the named baseline commit. Reject a missing or changed scenario body, missing or mismatched baseline blob, ambiguous path mapping, post-cutoff-only implementation, or rationale that does not explain why ordinary RED evidence is unavailable. A passing current test alone does not prove historical implementation. Approval establishes historical eligibility only; each VERIFIED row still needs its own independently reviewed passing and behavior-removal proof.';
+
 export class ReviewRuntimeError extends Error {
   constructor(
     readonly failure: ReviewFailure,
@@ -221,10 +224,15 @@ export function planReviewRubric(): string {
   return composeReviewRubric(PLAN_REVIEW_RUBRIC);
 }
 
+export function retrospectiveEligibilityRubric(): string {
+  return composeReviewRubric(RETROSPECTIVE_ELIGIBILITY_RUBRIC);
+}
+
 function reviewRubric(kind: ReviewPacket['kind']): string {
   if (kind === 'scenario-gate') return scenarioReviewRubric();
   if (kind === 'plan-implementation') return planReviewRubric();
   if (kind === 'executable-red') return composeReviewRubric(EXECUTABLE_RED_REVIEW_RUBRIC);
+  if (kind === 'retrospective-eligibility') return retrospectiveEligibilityRubric();
   return qualityReviewRubric();
 }
 
