@@ -9,6 +9,8 @@ const current = {
 };
 
 const qualified = {
+  author_provider: 'vendor-a',
+  reviewer_provider: 'vendor-b',
   author_model: 'vendor-a/author-1',
   reviewer_model: 'vendor-b/reviewer-2',
   direction: 'not_weaker' as const,
@@ -56,5 +58,23 @@ describe('reviewer capability comparison', () => {
         { ...qualified, direction: 'weaker' },
       ]),
     ).toBe('unknown');
+  });
+
+  it('never uses within-provider ordering as cross-provider evidence', () => {
+    expect(
+      compareReviewerCapability('vendor-a/author-1', 'vendor-b/reviewer-2', current, [
+        { ...qualified, qualification: 'provider-order' },
+      ]),
+    ).toBe('unknown');
+    expect(
+      compareReviewerCapability('vendor-a/author-1', 'vendor-a/reviewer-2', current, [
+        {
+          ...qualified,
+          reviewer_provider: 'vendor-a',
+          reviewer_model: 'vendor-a/reviewer-2',
+          qualification: 'provider-order',
+        },
+      ]),
+    ).toBe('not_weaker');
   });
 });

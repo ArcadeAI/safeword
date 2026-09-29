@@ -5,6 +5,8 @@ export interface CapabilityRevision {
 }
 
 export interface CapabilityPairRecord extends CapabilityRevision {
+  readonly author_provider: string;
+  readonly reviewer_provider: string;
   readonly author_model: string;
   readonly reviewer_model: string;
   readonly direction: 'not_weaker' | 'weaker';
@@ -14,6 +16,26 @@ export interface CapabilityPairRecord extends CapabilityRevision {
 }
 
 export type CapabilityComparison = 'not_weaker' | 'weaker' | 'unknown';
+
+function matchesRevision(record: CapabilityPairRecord, current: CapabilityRevision): boolean {
+  return (
+    record.corpus_digest === current.corpus_digest &&
+    record.rubric_digest === current.rubric_digest &&
+    record.settings_digest === current.settings_digest
+  );
+}
+
+function hasQualifiedEvidence(record: CapabilityPairRecord): boolean {
+  return (
+    record.qualification !== 'unqualified' &&
+    record.author_provider !== '' &&
+    record.reviewer_provider !== '' &&
+    (record.qualification !== 'provider-order' ||
+      record.author_provider === record.reviewer_provider) &&
+    record.evidence_date !== '' &&
+    record.results_digest !== ''
+  );
+}
 
 /** Only current, qualified evidence for the exact directional pair carries authority. */
 export function compareReviewerCapability(
@@ -26,12 +48,8 @@ export function compareReviewerCapability(
     record =>
       record.author_model === authorModel &&
       record.reviewer_model === reviewerModel &&
-      record.corpus_digest === current.corpus_digest &&
-      record.rubric_digest === current.rubric_digest &&
-      record.settings_digest === current.settings_digest &&
-      record.qualification !== 'unqualified' &&
-      record.evidence_date !== '' &&
-      record.results_digest !== '',
+      matchesRevision(record, current) &&
+      hasQualifiedEvidence(record),
   );
   return matching.length === 1 ? (matching[0]?.direction ?? 'unknown') : 'unknown';
 }
