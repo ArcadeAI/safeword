@@ -24,6 +24,7 @@ import {
   claimFromScope,
   claimsCoordinatorVerdict,
   receiptGateVerdict,
+  type ReviewReceipt,
   type StampClaim,
 } from './review-receipt.js';
 import type { ReviewStamp } from './review-ledger.js';
@@ -102,6 +103,9 @@ export function verifiedStamps(
   projectDirectory: string,
   scope: string,
   requirePinnedReviewerModel = false,
+  onPlanningContextFailure?: (
+    failure: NonNullable<ReviewReceipt['planningContextFailure']>,
+  ) => void,
 ): ReviewStamp[] {
   const readReceipt = createReviewReceiptReader(projectDirectory);
   let claimContext: ReturnType<typeof reviewClaimContext> | undefined;
@@ -128,6 +132,8 @@ export function verifiedStamps(
       if (claim === undefined) return false;
 
       const receipt = readReceipt(stamp.reviewId);
+      if (receipt?.planningContextFailure !== undefined)
+        onPlanningContextFailure?.(receipt.planningContextFailure);
       if (!receiptGateVerdict(claim, receipt).ok) return false;
       return (
         !requirePinnedReviewerModel ||

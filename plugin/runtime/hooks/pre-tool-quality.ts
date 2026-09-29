@@ -545,12 +545,17 @@ function recordedReviewStamps(): ReviewStamp[] {
   return parseReviewStamps(readFileSync(logFile, 'utf8'));
 }
 
-function readReviewStamps(scope: string, requirePinnedReviewerModel = false): ReviewStamp[] {
+function readReviewStamps(
+  scope: string,
+  requirePinnedReviewerModel = false,
+  onPlanningContextFailure?: (message: string) => void,
+): ReviewStamp[] {
   return verifiedStamps(
     recordedReviewStamps(),
     projectDirectory,
     scope,
     requirePinnedReviewerModel,
+    failure => onPlanningContextFailure?.(failure.message),
   );
 }
 
@@ -1037,12 +1042,20 @@ if (isCanonicalTicketEdit) {
       const planContent = existsSync(planPath) ? readFileSync(planPath, 'utf8') : '';
       const ticketScope = nodePath.basename(ticketDirectory);
       const planScope = reviewScope(ticketScope, 'impl-plan', hashArtifact(planContent));
+      let planningContextFailure: string | undefined;
       const reviewVerdict = reviewGateForNextAsset(
         planScope,
-        readReviewStamps(planScope),
+        readReviewStamps(planScope, false, message => {
+          planningContextFailure = message;
+        }),
         crossAgentReviewPolicy(),
       );
       if (!reviewVerdict.ok) {
+        if (planningContextFailure !== undefined)
+          deny(
+            planningContextFailure,
+            'Reconcile the configured planning source and rerun the Implementation Plan review before retrying the transition.',
+          );
         const planScopePrefix = `${ticketScope}:impl-plan@`;
         const hasSupersededReview = recordedReviewStamps().some(
           stamp => stamp.scope.startsWith(planScopePrefix) && stamp.scope !== planScope,

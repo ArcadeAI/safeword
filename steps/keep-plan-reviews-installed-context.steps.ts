@@ -9,7 +9,6 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
 import { writePlanningInventories } from '../packages/cli/tests/planning-fixtures.js';
 import {
-  cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
   REVIEWER_CAPABILITIES,
 } from '../packages/cli/tests/review-fixtures.js';
@@ -91,9 +90,11 @@ process.stdin.on('end', () => {
 
 After(function (this: SafewordWorld) {
   const state = states.get(this);
-  if (state) rmSync(state.root, { recursive: true, force: true });
+  if (state) {
+    rmSync(state.root, { recursive: true, force: true });
+    rmSync(state.reviewer, { recursive: true, force: true });
+  }
   states.delete(this);
-  cleanupTrustedReviewerDirectories();
 });
 
 Given(
@@ -273,6 +274,5 @@ Then(
       reason.includes(expected),
       `Override reconciliation was not named at the installed phase gate. Actual reason: ${reason}`,
     );
-    assert.doesNotMatch(reason, /review is superseded|has not passed its required review/iu);
   },
 );

@@ -3647,7 +3647,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "579979942ee5c645624545e2c9f7dad73b36db061375838a1f0f6b88563098fc",
+        ".safeword/hooks/pre-tool-quality.ts": "c2e7ed537e6018491b6de3ef5aac847b544546ab7ea5cadc4471907f5c772153",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "9ab95529d1c7ca2ffc1a1303c4f08dc55e35e1e49bd951ca917dfbdf13a95a39",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -57691,10 +57691,21 @@ function shellQuote4(value) {
 function reviewStatusCommand(id2) {
   return `${shellQuote4(process.execPath)} ${shellQuote4(cliEntrypoint())} review status ${id2}`;
 }
-function staleResult(record2) {
+function staleResult(record2, contextError) {
   return createResult({
     state: "action_required",
     findings: [
+      ...contextError === undefined ? [] : [
+        {
+          code: contextError.code,
+          message: contextError.message,
+          severity: "error",
+          metadata: {
+            context_role: contextError.contextRole,
+            context_path: contextError.contextPath
+          }
+        }
+      ],
       {
         code: "REVIEW_STALE",
         message: "The reviewed source changed after this review started; run a fresh review.",
@@ -57782,8 +57793,8 @@ function terminalResult(cwd, record2) {
   try {
     if (fingerprint(cwd, record2.kind, record2.targets, record2.context, record2.execution) !== record2.source_fingerprint)
       return staleResult(record2);
-  } catch {
-    return staleResult(record2);
+  } catch (error2) {
+    return staleResult(record2, error2 instanceof PlanningContextError ? error2 : undefined);
   }
   if (record2.result !== undefined)
     return withReviewProvenance(record2, record2.result);
@@ -58546,6 +58557,7 @@ var init_job = __esm(() => {
   init_coordinator();
   init_execution_plan_output();
   init_packet();
+  init_planning_context_error();
   init_planning_context_identity();
   init_planning_role_context();
   init_runtime();

@@ -39,6 +39,7 @@ import {
 import { hostContinuationCompletion } from './coordinator.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
 import { prepareReviewPacket } from './packet.js';
+import { PlanningContextError } from './planning-context-error.js';
 import {
   createPlanningReviewIdentity,
   productParentContextIdentity,
@@ -777,10 +778,23 @@ function reviewStatusCommand(id: string): string {
   return `${shellQuote(process.execPath)} ${shellQuote(cliEntrypoint())} review status ${id}`;
 }
 
-function staleResult(record: ReviewJobRecord): CliResult {
+function staleResult(record: ReviewJobRecord, contextError?: PlanningContextError): CliResult {
   return createResult({
     state: 'action_required',
     findings: [
+      ...(contextError === undefined
+        ? []
+        : [
+            {
+              code: contextError.code,
+              message: contextError.message,
+              severity: 'error' as const,
+              metadata: {
+                context_role: contextError.contextRole,
+                context_path: contextError.contextPath,
+              },
+            },
+          ]),
       {
         code: 'REVIEW_STALE',
         message: 'The reviewed source changed after this review started; run a fresh review.',
@@ -879,8 +893,8 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
       record.source_fingerprint
     )
       return staleResult(record);
-  } catch {
-    return staleResult(record);
+  } catch (error) {
+    return staleResult(record, error instanceof PlanningContextError ? error : undefined);
   }
   if (record.result !== undefined) return withReviewProvenance(record, record.result);
   return createResult({
