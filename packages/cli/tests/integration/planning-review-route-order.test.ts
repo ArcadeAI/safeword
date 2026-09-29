@@ -21,13 +21,15 @@ afterEach(() => {
 });
 
 it.each([
-  ['claude', 'codex', false],
-  ['codex', 'claude', false],
-  ['claude', 'codex', true],
-  ['codex', 'claude', true],
+  ['claude', 'codex', false, false],
+  ['codex', 'claude', false, false],
+  ['claude', 'codex', true, false],
+  ['codex', 'claude', true, false],
+  ['codex', 'claude', false, true],
 ] as const)(
-  'tries the independent reviewer before fallback when %s precedes %s and codex failure is %s',
-  async (first, second, codexFails) => {
+  'tries the independent reviewer before fallback when %s precedes %s, codex failure is %s, and author is known %s',
+  // eslint-disable-next-line complexity -- The route-order matrix shares one real CLI fixture.
+  async (first, second, codexFails, authorKnown) => {
     const project = createTemporaryDirectory();
     projects.push(project);
     await createConfiguredProject(project);
@@ -87,18 +89,28 @@ it.each([
           PATH: `${reviewer}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_NO_UPDATE_CHECK: '1',
+          ...(authorKnown && { SAFEWORD_AUTHOR_MODEL: 'claude-opus-5' }),
         },
       },
     );
     const output = JSON.parse(reviewed.stdout);
     expect(output.data).toMatchObject({
       status: 'approved',
-      actual_reviewer: codexFails ? 'claude' : 'codex',
+      actual_reviewer: codexFails || authorKnown ? 'claude' : 'codex',
       independence: 'reduced',
     });
     expect(existsSync(independentInvoked)).toBe(true);
-    expect(existsSync(sameAgentInvoked)).toBe(codexFails);
-    if (codexFails) {
+    expect(existsSync(sameAgentInvoked)).toBe(codexFails || authorKnown);
+    if (authorKnown) {
+      expect(output.data.review_routes).toContainEqual(
+        expect.objectContaining({
+          reviewer: 'codex',
+          failure: 'reviewer_capability_unknown',
+          status: 'attempted',
+        }),
+      );
+    }
+    if (codexFails || authorKnown) {
       expect(output.findings).toContainEqual(
         expect.objectContaining({ code: 'REVIEW_INDEPENDENCE_REDUCED' }),
       );
