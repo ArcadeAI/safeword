@@ -175,6 +175,16 @@ describe('semantic planning context currency through public review status', () =
       parentSpec,
       (text: string) => text.replace('I want an index', 'I want a searchable index'),
     ],
+    [
+      'an unrelated persona entry',
+      '.project/personas.md',
+      (text: string) => `${text}\n## Reader (RD)\n\n**Role:** Reads project guidance.\n`,
+    ],
+    [
+      'an unrelated surface entry',
+      '.project/surfaces.md',
+      (text: string) => `${text}\n## Documentation site\n\n**Kind:** Website\n`,
+    ],
   ])('retains approval after %s changes', async (_label, path, transform) => {
     const review = await fixture();
     review.edit(path, transform);
@@ -223,6 +233,12 @@ describe('semantic planning context currency through public review status', () =
       'selected parent constraints',
       parentSpec,
       (text: string) => text.replace('Preserve authentication.', 'Remove authentication.'),
+    ],
+    [
+      'a new project principle',
+      '.project/principles.md',
+      (text: string) =>
+        `${text}\n## Require explicit scope\n\nNever infer an additional product goal.\n`,
     ],
   ])('invalidates approval after %s changes', async (_label, path, transform) => {
     const review = await fixture();
