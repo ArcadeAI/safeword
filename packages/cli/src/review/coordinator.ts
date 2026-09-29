@@ -312,7 +312,7 @@ export function hostContinuationCompletion(input: {
       },
       ...reviewerFeedback(input.output),
     ],
-    effects: input.pending.effects,
+    effects: { ...input.pending.effects, network: [] },
     recovery: planExecutionRecovery({
       cwd: input.cwd,
       kind: input.kind,

@@ -27,7 +27,9 @@ afterEach(() => {
 });
 
 describe('planning fallback after independent route exhaustion', () => {
-  it('records a successful same-agent headless review as reduced independence', async () => {
+  async function reviewThroughAdmission(
+    hostContinuation: boolean,
+  ): Promise<Record<string, unknown>> {
     const project = createTemporaryDirectory();
     projects.push(project);
     await createConfiguredProject(project);
@@ -61,7 +63,7 @@ describe('planning fallback after independent route exhaustion', () => {
     );
     writeFileSync(
       nodePath.join(reviewer, 'claude'),
-      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Current plan approved.', findings: [] } })); });\n`,
+      `#!${process.execPath}\nif (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }\nif (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }\nif (${hostContinuation}) process.exit(7);\nlet input = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => { input += chunk; }); process.stdin.on('end', () => { const packet = JSON.parse(input.trim().split('\\n').pop()); console.log(JSON.stringify({ structured_output: { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: 'claude', verdict: 'approve', summary: 'Current plan approved.', findings: [] } })); });\n`,
       { mode: 0o755 },
     );
     const target = `${ticket}/impl-plan.md`;
@@ -94,6 +96,43 @@ describe('planning fallback after independent route exhaustion', () => {
       },
     );
     const output = JSON.parse(result.stdout);
+    if (hostContinuation) {
+      expect(output.data).toMatchObject({
+        status: 'continuation_required',
+        continuation: { tier: 'fresh-context', packet: { kind: 'plan-implementation' } },
+      });
+      const reviewOutput = {
+        schema_version: 1,
+        dispatch_id: output.data.continuation.packet.dispatch_id,
+        reviewer_agent: 'claude',
+        verdict: 'approve',
+        summary: 'Current plan approved in a fresh host context.',
+        findings: [],
+      };
+      writeFileSync(
+        nodePath.join(project, 'host-review.json'),
+        `${JSON.stringify(reviewOutput)}\n`,
+      );
+      const continued = await runCli(
+        [
+          'review',
+          'continue',
+          output.data.review_id,
+          '--tier',
+          'fresh-context',
+          '--output',
+          'host-review.json',
+          '--offline',
+          '--cwd',
+          project,
+          '--json',
+          '--no-input',
+        ],
+        { cwd: project, env: environment },
+      );
+      expect(continued.exitCode, continued.stdout).toBe(0);
+      Object.assign(output, JSON.parse(continued.stdout));
+    }
     expect(output.data).toMatchObject({
       status: 'approved',
       review_kind: 'plan-implementation',
@@ -143,5 +182,14 @@ describe('planning fallback after independent route exhaustion', () => {
     expect(readFileSync(nodePath.join(project, ticket, 'ticket.md'), 'utf8')).toContain(
       'phase: plan-execution',
     );
+    return JSON.parse(approved.stdout).data as Record<string, unknown>;
+  }
+
+  it('records a successful same-agent headless review as reduced independence', async () => {
+    expect(await reviewThroughAdmission(false)).toMatchObject({ achieved_independence: 'reduced' });
+  });
+
+  it('admits a sealed fresh-host review only after independent and headless routes fail', async () => {
+    expect(await reviewThroughAdmission(true)).toMatchObject({ achieved_independence: 'reduced' });
   });
 });

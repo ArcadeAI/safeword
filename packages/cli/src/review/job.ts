@@ -1287,7 +1287,7 @@ function failedHostContinuation(
         severity: 'warning',
       },
     ],
-    effects: record.result?.effects,
+    effects: { ...record.result?.effects, network: [] },
     data: {
       ...data,
       status: nextTier === undefined ? 'blocked' : 'continuation_required',
