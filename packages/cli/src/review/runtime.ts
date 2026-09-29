@@ -332,6 +332,10 @@ function baseReviewerArguments(reviewer: ReviewAgent, kind: ReviewKind): string[
   if (reviewer !== 'claude') return base;
   const schemaIndex = base.indexOf('--json-schema') + 1;
   base[schemaIndex] = reviewOutputSchema(kind);
+  if (['scenario-gate', 'plan-implementation', 'plan-execution'].includes(kind)) {
+    base[base.indexOf('--output-format') + 1] = 'stream-json';
+    base.push('--verbose');
+  }
   return base;
 }
 
@@ -513,7 +517,14 @@ function parseJson(value: string): unknown {
 }
 
 function parseClaudeOutput(stdout: string): unknown {
-  const envelope = parseJson(stdout);
+  let envelope: unknown;
+  try {
+    envelope = parseJson(stdout);
+  } catch {
+    envelope = ndjsonEvents(stdout).findLast(
+      event => isRecord(event) && event.type === 'result' && event.subtype === 'success',
+    );
+  }
   if (isRecord(envelope) && isRecord(envelope.structured_output)) {
     return envelope.structured_output;
   }
@@ -649,6 +660,51 @@ export function parseReviewerOutput(
   // Identity fields cross a separate trust boundary in coordinator.ts, which
   // reports missing and contradictory provenance as distinct public failures.
   return output as UnverifiedReviewerOutput;
+}
+
+export interface ConfirmedReviewerModel {
+  readonly provider: string;
+  readonly model: string;
+}
+
+export interface ReviewerExecution {
+  readonly output: UnverifiedReviewerOutput;
+  readonly confirmedModel?: ConfirmedReviewerModel;
+}
+
+/** Claude's assistant events identify the response model; modelUsage also lists auxiliary calls. */
+function confirmedClaudeAssistantModel(stdout: string): ConfirmedReviewerModel | undefined {
+  const events = ndjsonEvents(stdout);
+  const result = events.findLast(
+    event => isRecord(event) && event.type === 'result' && event.subtype === 'success',
+  );
+  const models = new Set(
+    events.flatMap(event =>
+      isRecord(event) &&
+      event.type === 'assistant' &&
+      isRecord(event.message) &&
+      typeof event.message.model === 'string'
+        ? [event.message.model]
+        : [],
+    ),
+  );
+  if (models.size !== 1 || !isRecord(result) || !isRecord(result.modelUsage)) return undefined;
+  const model = [...models][0];
+  if (model === undefined) return undefined;
+  const usage = result.modelUsage[model];
+  if (!isRecord(usage) || usage.provider !== 'firstParty' || usage.canonicalModel !== model)
+    return undefined;
+  return { provider: 'anthropic', model };
+}
+
+export function parseReviewerExecution(
+  reviewer: ReviewAgent,
+  stdout: string,
+  kind: ReviewKind = 'quality-review',
+): ReviewerExecution {
+  const output = parseReviewerOutput(reviewer, stdout, kind);
+  const confirmedModel = reviewer === 'claude' ? confirmedClaudeAssistantModel(stdout) : undefined;
+  return confirmedModel === undefined ? { output } : { output, confirmedModel };
 }
 
 function reviewPrompt(reviewer: ReviewAgent, packet: ReviewPacket): string {
@@ -1464,7 +1520,7 @@ async function runCandidate(
   executable: string,
   attempt: ReviewAttempt,
   timeoutMs: number,
-): Promise<UnverifiedReviewerOutput> {
+): Promise<ReviewerExecution> {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
   const child = spawn(
     executable,
@@ -1482,9 +1538,9 @@ async function runCandidate(
   };
   process.once('SIGTERM', terminateReviewer);
   try {
-    let output: UnverifiedReviewerOutput;
+    let execution: ReviewerExecution;
     try {
-      output = await new Promise<UnverifiedReviewerOutput>((resolve, reject) => {
+      execution = await new Promise<ReviewerExecution>((resolve, reject) => {
         let overflow = false;
         // One outcome per attempt, settled once. A late answer arriving after a
         // deadline never changes a verdict that is already decided.
@@ -1555,18 +1611,18 @@ async function runCandidate(
               return;
             }
             try {
-              const parsed = parseReviewerOutput(reviewer, stdout, packet.kind);
+              const parsed = parseReviewerExecution(reviewer, stdout, packet.kind);
               if (packet.kind !== 'plan-execution') {
                 resolve(parsed);
                 return;
               }
               const validation = validateExecutionPlanOutput(
-                parsed,
+                parsed.output,
                 packet.execution_plan_delivery_definition,
                 packet.execution_plan_normalized_digest,
               );
               if (validation.kind === 'invalid_output') throw new Error('invalid reviewer output');
-              resolve(validation.output);
+              resolve({ ...parsed, output: validation.output });
             } catch {
               reject(
                 new ReviewRuntimeError(
@@ -1588,7 +1644,7 @@ async function runCandidate(
     // Preserve the review, but surface failed cleanup as a retryable candidate
     // failure so another installation or route can still provide coverage.
     await stopReviewerOrThrow(child, reviewer, false);
-    return reconcilePlanContract(packet, output);
+    return { ...execution, output: reconcilePlanContract(packet, execution.output) };
   } finally {
     process.off('SIGTERM', terminateReviewer);
   }
@@ -1598,7 +1654,7 @@ async function runReviewerCandidates(
   attempt: ReviewAttempt,
   candidates: readonly string[],
   deadline: number,
-): Promise<UnverifiedReviewerOutput> {
+): Promise<ReviewerExecution> {
   const reviewer = attempt.reviewer;
   let foundCompatible = false;
   let lastFailure: ReviewRuntimeError | undefined;
@@ -1648,13 +1704,13 @@ async function runReviewerCandidates(
   throw lastFailure ?? new ReviewRuntimeError('process_failed', `${reviewer} review failed`);
 }
 
-export async function runHeadlessReviewer(
+export async function runHeadlessReviewerWithProvenance(
   reviewer: ReviewAgent,
   packet: ReviewPacket,
   cwd: string,
   untrustedRoot: string = process.cwd(),
   options: { readonly model?: string; readonly runDeadline?: number } = {},
-): Promise<UnverifiedReviewerOutput> {
+): Promise<ReviewerExecution> {
   const { model, runDeadline } = options;
   // A route never outlives the run: whichever bound arrives first wins.
   const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
@@ -1682,6 +1738,23 @@ export async function runHeadlessReviewer(
   } finally {
     contract?.cleanup();
   }
+}
+
+export async function runHeadlessReviewer(
+  reviewer: ReviewAgent,
+  packet: ReviewPacket,
+  cwd: string,
+  untrustedRoot: string = process.cwd(),
+  options: { readonly model?: string; readonly runDeadline?: number } = {},
+): Promise<UnverifiedReviewerOutput> {
+  const execution = await runHeadlessReviewerWithProvenance(
+    reviewer,
+    packet,
+    cwd,
+    untrustedRoot,
+    options,
+  );
+  return execution.output;
 }
 
 interface ContractFile {

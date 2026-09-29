@@ -22,6 +22,7 @@ import { prepareReviewPacket } from '../../src/review/packet.js';
 import {
   inspectReviewRoute,
   parseProcessStat,
+  parseReviewerExecution,
   parseReviewerOutput,
   planReviewRubric,
   procGroupHasRunningMember,
@@ -31,6 +32,7 @@ import {
   reviewTimeoutMilliseconds,
   runBoundMs,
   runHeadlessReviewer,
+  runHeadlessReviewerWithProvenance,
   scenarioReviewRubric,
 } from '../../src/review/runtime.js';
 import { writePlanningInventories } from '../planning-fixtures.js';
@@ -297,6 +299,37 @@ describe('headless reviewer output adapters', () => {
     expect(parseReviewerOutput('claude', envelope)).toEqual(output);
   });
 
+  it('confirms the Claude assistant model without mistaking auxiliary model usage for the reviewer', () => {
+    const stdout = [
+      JSON.stringify({ type: 'system', subtype: 'init', model: 'opus' }),
+      JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } }),
+      JSON.stringify({
+        type: 'result',
+        subtype: 'success',
+        structured_output: output,
+        modelUsage: {
+          'claude-haiku-4-5-20251001': {
+            canonicalModel: 'claude-haiku-4-5',
+            provider: 'firstParty',
+          },
+          'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' },
+        },
+      }),
+    ].join('\n');
+
+    expect(parseReviewerExecution('claude', stdout, 'plan-implementation')).toEqual({
+      output,
+      confirmedModel: { provider: 'anthropic', model: 'claude-opus-5' },
+    });
+    expect(
+      parseReviewerExecution(
+        'claude',
+        stdout.replace('"model":"claude-opus-5"', '"model":"claude-sonnet-5"'),
+        'plan-implementation',
+      ).confirmedModel,
+    ).toBeUndefined();
+  });
+
   it('falls back to Claude result JSON when structured output is unusable', () => {
     const envelope = JSON.stringify({ structured_output: 0, result: JSON.stringify(output) });
 
@@ -464,6 +497,14 @@ describe('reviewer arguments', () => {
 
     expect(args.slice(-2)).toEqual(['--model', 'claude-test']);
     expect(args).not.toContain('-');
+  });
+
+  it('requests streamed assistant metadata for planning reviews', () => {
+    const args = reviewerArguments('claude', 'opus', undefined, {}, 'plan-implementation');
+    expect(
+      args.slice(args.indexOf('--output-format'), args.indexOf('--output-format') + 2),
+    ).toEqual(['--output-format', 'stream-json']);
+    expect(args).toContain('--verbose');
   });
 
   it('appends an explicitly configured Claude effort level', () => {
@@ -718,6 +759,52 @@ esac
         dispatch_id: 'dispatch-1',
         reviewer_agent: 'claude',
         verdict: 'approve',
+      });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'carries a confirmed planning reviewer model across the process boundary',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      const events = [
+        { type: 'assistant', message: { model: 'claude-opus-5' } },
+        {
+          type: 'result',
+          subtype: 'success',
+          structured_output: output,
+          modelUsage: {
+            'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' },
+          },
+        },
+      ];
+      const serializedEvents = events.map(event => `'${JSON.stringify(event)}'`).join(' ');
+      writeFileSync(
+        executable,
+        `#!/bin/sh\nif [ "\${1:-}" = "--help" ]; then\n  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'\n  exit 0\nfi\n/bin/cat >/dev/null\nprintf '%s\\n' ${serializedEvents}\n`,
+        { mode: 0o755 },
+      );
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewerWithProvenance(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'scenario-gate',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).resolves.toMatchObject({
+        output: { dispatch_id: 'dispatch-1', verdict: 'approve' },
+        confirmedModel: { provider: 'anthropic', model: 'claude-opus-5' },
       });
     },
   );
