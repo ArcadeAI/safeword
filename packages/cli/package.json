@@ -48,6 +48,8 @@
     "test:smoke:live": "node scripts/run-vitest-with-build-lock.mjs --config vitest.live.config.ts",
     "test:smoke:live:github": "node scripts/run-github-live-smokes.mjs",
     "test:eval:reviewer-capability": "bun scripts/reviewer-capability-eval.ts",
+    "test:eval:planning-contracts": "bun scripts/planning-contracts-eval.ts",
+    "test:eval:planning-reviews": "bun run test:eval:reviewer-capability && bun run test:eval:planning-contracts",
     "test:release": "node scripts/run-vitest-with-build-lock.mjs --config vitest.release.config.ts",
     "test:slow": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts",
     "test:slow:install-proof": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts tests/integration/non-git-install-proof.slow.test.ts",
