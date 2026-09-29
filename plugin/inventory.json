@@ -11,7 +11,7 @@
     },
     {
       "path": "agents/safeword-reviewer.md",
-      "sha256": "e6eee2d5a20ba761420a232667e315172d23e8d55310615bebc41e4a0dbe11bf"
+      "sha256": "ea350b16b94f91f09d94093c140c632edd2007b2af0da326fad9d007de0c8aef"
     },
     {
       "path": "hooks/hooks.json",
@@ -155,11 +155,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "df1ac2448f0a2c49d735c5a0c2e2c007266797ac13b59de32ae897f2bd63f82d"
+      "sha256": "71b721bb417aedac6f425ae7d97b3bceebd2f0d705ccbd35c9e5c34ecfa56f5e"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "49a6a24b8cbf845fbd64a025ae3c5f9ed87a3e4daebd97278c4912ecdf8ab16b"
+      "sha256": "1256fa09725bc4fed228fae8c5cbfcdf8557c451c60e23c40b776da573db5271"
     },
     {
       "path": "runtime/event-groups.json",
@@ -695,11 +695,11 @@
     },
     {
       "path": "skills/finish-review/REVIEWER.md",
-      "sha256": "19d9baedbf5ea2438f1d0c97324d66a2c1d4ed9fc5fbe40e66f5b3eb3803c603"
+      "sha256": "9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7"
     },
     {
       "path": "skills/finish-review/SKILL.md",
-      "sha256": "f6fcca6a445b0bbea4814a374cf95eb3fbbf0a6f374ca69e4c5c2b85a3561bed"
+      "sha256": "ed4c2cab7ebc68640b19e5ea43a91238f158fdbdcc6bf4aa7f742f4148361290"
     },
     {
       "path": "skills/lint/SKILL.md",

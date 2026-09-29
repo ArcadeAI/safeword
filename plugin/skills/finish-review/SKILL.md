@@ -1,18 +1,22 @@
 ---
 name: finish-review
-description: Complete a sealed planning review after the coordinator exhausts independent and same-agent headless routes. Internal continuation only; never use for ordinary reviewer findings or an unsatisfied require policy.
+description: Finish an exhausted review through a sealed planning continuation or non-planning supplemental feedback. Internal use only after the coordinator names the applicable fallback.
 user-invocable: false
 allowed-tools: '*'
 ---
 
-# Finish a Planning Review
+# Finish a Review After Route Exhaustion
 
-Use this workflow only for a current coordinator result with
+The planning receipt path applies only to a current coordinator result with
 `REVIEW_CONTINUATION_REQUIRED`, `status: continuation_required`, a `review_id`,
-`review_policy: prefer`, `independence: none`, and `continuation.packet`. For
-every other result, return the coordinator result unchanged. Never restart or
-rerun the coordinator. An ordinary `REVIEW_ROUTES_EXHAUSTED` result does not
-authorize this workflow.
+`review_policy: prefer`, `independence: none`, and `continuation.packet`.
+The legacy non-planning supplemental path below applies only to a typed
+`REVIEW_ROUTES_EXHAUSTED` result with `status: blocked`, `independence: none`,
+and no reviewer findings. For every other result, return the coordinator
+result unchanged. Never restart or rerun the coordinator. A planning
+`REVIEW_ROUTES_EXHAUSTED` result does not authorize fallback.
+
+## Planning receipt path
 
 Get the current job with `safeword review status <review-id> --json`. If it is
 stale, blocked, invalid, or already completed, return that result. Take the
@@ -63,3 +67,22 @@ Phase admission and the existing ledger decide whether a current receipt may
 advance; do not write a stamp from this workflow. When this review was part of
 PR readiness, return to `/pr-readiness` with the authenticated result; this
 workflow never authorizes Ready promotion.
+
+## Non-planning supplemental review
+
+For the legacy non-planning entry only, keep the original coordinator result.
+Attempt one fresh-context `safeword-reviewer` review of the accepted target
+paths using `"${CLAUDE_PLUGIN_ROOT}"/skills/finish-review/REVIEWER.md`. If that route is
+unavailable, fails, times out, or returns invalid output, perform one
+main-thread self-review of those same paths. Do not retry either tier. The
+reviewer reads live worktree content; source integrity is not revalidated and
+host-mandated project context may load. Never describe this as packet-only or
+independent coverage.
+
+Report the verdict, summary, and every finding as supplemental feedback in
+the foreground, with the actual reviewer and `degraded` for fresh context or
+`none` for self-review. Under `require`, the independent gate remains
+unsatisfied regardless of this verdict. Under `prefer`, an approval completes
+only this supplemental request; it creates no machine receipt or review stamp.
+Return to `/pr-readiness` when applicable. This path never authorizes Ready
+promotion.

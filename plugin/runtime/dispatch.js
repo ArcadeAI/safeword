@@ -1760,7 +1760,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/agents/safeword-retro-filer.md':
         '008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904',
       '.claude/agents/safeword-reviewer.md':
-        'dec6b1d45304daec9c30be5d82119eb4f730522b6c71045161a99eac357d86b8',
+        '54f2b47dec3639b711b7c2557b017c452b4667aa7092296a01328c7b5668efaf',
       '.claude/skills/audit/SKILL.md':
         '4a55adda42a63de4c238a299830e56e0b585b26cef32ebb53f23ac76398b7880',
       '.claude/skills/bdd/DISCOVERY.md':
@@ -1798,9 +1798,9 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/figure-it-out/SKILL.md':
         '18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d',
       '.claude/skills/finish-review/REVIEWER.md':
-        '19d9baedbf5ea2438f1d0c97324d66a2c1d4ed9fc5fbe40e66f5b3eb3803c603',
+        '9cddbcc9233c8eb60b1a13c4f957edbc314969fde941f0e1e77e03c2555855b7',
       '.claude/skills/finish-review/SKILL.md':
-        '4fbccd90f50ad6e1781a38c89fa60c73d7584ebd5d6e97ed2852bd46a19f89d2',
+        '0b9838e1b4872bb1934d1b01ea7838fb519ec6c755beb761e513ad736670e23e',
       '.claude/skills/lint/SKILL.md':
         'f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14',
       '.claude/skills/pr-readiness/SKILL.md':

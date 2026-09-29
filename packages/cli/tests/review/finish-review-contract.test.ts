@@ -71,6 +71,19 @@ describe('job-bound host review continuation contract', () => {
     expect(skill).not.toContain('write-review-stamp');
   });
 
+  it('preserves supplemental non-planning review without creating a machine receipt', () => {
+    const skill = read(skillPath);
+    const contract = read(contractPath);
+    const agent = read(agentPath);
+    expect(skill).toContain('legacy non-planning supplemental path');
+    expect(skill).toContain('source integrity is not revalidated');
+    expect(skill).toContain('no machine receipt or review stamp');
+    expect(skill).toContain('Under `require`, the independent gate remains');
+    expect(contract).toContain('omit `schema_version`');
+    expect(contract).toContain('read only the accepted target');
+    expect(agent).toContain('legacy non-planning');
+  });
+
   it('ships one reviewer contract and host-native assets on every supported surface', () => {
     const agent = read(agentPath);
     const contract = read(contractPath);
