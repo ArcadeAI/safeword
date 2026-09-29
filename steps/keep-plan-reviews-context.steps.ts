@@ -8,6 +8,7 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import { EXECUTION_PLAN_CONFORMANCE_CASES } from '../packages/cli/src/review/execution-plan-conformance.js';
 import { prepareReviewPacket } from '../packages/cli/src/review/packet.js';
+import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.js';
 import { writePlanningInventories } from '../packages/cli/tests/planning-fixtures.js';
 import {
   cleanupTrustedReviewerDirectories,
@@ -538,4 +539,100 @@ Then('dispatch proceeds to the semantic reviewer', function (this: SafewordWorld
     assert.ok(
       absences.some(value => value.role === 'dimensions' && value.reason.includes('no dimensions')),
     );
+});
+
+Given(
+  /^a planning phase has a required project-knowledge input that is (.+), where stale means its reconciliation lineage names a superseded packaged-source version$/,
+  function (this: SafewordWorld, sourceState: string) {
+    const root = createProject();
+    states.set(this, { phase: 'Product Plan', packetState: sourceState, root });
+    if (sourceState === 'not configured') return;
+
+    const relative = 'docs/principles.md';
+    const configured = path.join(root, relative);
+    mkdirSync(path.dirname(configured), { recursive: true });
+    if (sourceState === 'configured but unreadable') {
+      mkdirSync(configured);
+    } else if (sourceState.includes('only whitespace or comment changes')) {
+      writeFileSync(
+        configured,
+        `${readFileSync(path.join(root, '.project/principles.md'), 'utf8')}\n<!-- cosmetic -->\n`,
+      );
+    } else {
+      writeFileSync(
+        configured,
+        sourceState === 'configured but blank'
+          ? ' \n'
+          : '# Project principles\n\nKeep the blue recovery button visible.\n',
+      );
+    }
+    const stale = sourceState.includes('stale');
+    const tracked =
+      stale ||
+      sourceState.includes('current reconciliation lineage') ||
+      sourceState.startsWith('configured and current');
+    mkdirSync(path.join(root, '.safeword'), { recursive: true });
+    writeFileSync(
+      path.join(root, '.safeword/config.json'),
+      JSON.stringify({
+        paths: { principles: relative },
+        ...(tracked && {
+          pathLineage: {
+            principles: { packagedSourceVersion: stale ? '0.0.0' : SAFEWORD_SCHEMA.version },
+          },
+        }),
+      }),
+    );
+  },
+);
+
+When('a plan review packet is resolved', function (this: SafewordWorld) {
+  const state = current(this);
+  assert.ok(state.root);
+  try {
+    const prepared = prepareReviewPacket(
+      state.root,
+      'quality-review',
+      [`${ticketDirectory}/spec.md`],
+      [],
+    );
+    state.packet = prepared.packet;
+    prepared.cleanup();
+  } catch (failure) {
+    state.failure = failure;
+  }
+});
+
+Then('the installed default is included', function (this: SafewordWorld) {
+  const state = current(this);
+  assert.equal(state.failure, undefined, String(state.failure));
+  assert.ok(state.packet?.context_files?.some(file => file.path === '.project/principles.md'));
+});
+
+Then(
+  'the project source is included with that project-specific content',
+  function (this: SafewordWorld) {
+    const state = current(this);
+    assert.equal(state.failure, undefined, String(state.failure));
+    assert.ok(
+      state.packet?.context_files?.some(
+        file =>
+          file.path === 'docs/principles.md' &&
+          file.content.includes('Keep the blue recovery button visible.'),
+      ),
+    );
+  },
+);
+
+Then('dispatch is blocked with reconciliation named', function (this: SafewordWorld) {
+  const state = current(this);
+  assert.equal(state.packet, undefined);
+  assert.match(String(state.failure), /reconcil/iu);
+  assert.match(String(state.failure), /paths\.principles/u);
+});
+
+Then('the project source is included and dispatch is not blocked', function (this: SafewordWorld) {
+  const state = current(this);
+  assert.equal(state.failure, undefined, String(state.failure));
+  assert.ok(state.packet?.context_files?.some(file => file.path === 'docs/principles.md'));
 });
