@@ -27,7 +27,13 @@ import {
   readReviewPolicy,
   reviewRoutePlan,
 } from './policy.js';
-import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
+import {
+  type ConfirmedReviewerModel,
+  minimumRouteMs,
+  ReviewRuntimeError,
+  runBoundMs,
+  runHeadlessReviewerWithProvenance,
+} from './runtime.js';
 
 /** The command runner owns reporter shutdown; review routing only updates it. */
 type ReviewProgress = Pick<ProgressReporter, 'start' | 'heartbeat'>;
@@ -104,6 +110,12 @@ function planExecutionRecovery(input: {
   ];
 }
 
+function confirmedReviewerData(model: ConfirmedReviewerModel | undefined): {
+  readonly confirmed_reviewer_model?: ConfirmedReviewerModel;
+} {
+  return model === undefined ? {} : { confirmed_reviewer_model: model };
+}
+
 type DegradedReviewInput = ReviewRunInput & {
   readonly author: ReviewAgent;
   readonly assignedReviewer: ReviewAgent;
@@ -161,6 +173,7 @@ function independentReviewResult(input: {
   readonly reviewer: ReviewAgent;
   readonly output: ReviewerOutput;
   readonly model?: string;
+  readonly confirmedModel?: ConfirmedReviewerModel;
   readonly preferredReviewer?: ReviewAgent;
   readonly preferredModel?: string;
   readonly preferredModelFailure?: ReviewFailure;
@@ -199,6 +212,7 @@ function independentReviewResult(input: {
       assigned_reviewer: input.reviewer,
       actual_reviewer: input.output.reviewer_agent,
       ...(input.model !== undefined && { reviewer_model: input.model }),
+      ...confirmedReviewerData(input.confirmedModel),
       ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
       ...(input.preferredModelFailure !== undefined && {
         preferred_model_failure: input.preferredModelFailure,
@@ -270,30 +284,34 @@ function terminalSafeReviewerText(value: string): string {
   return `${characters.slice(0, MAX_TERMINAL_REVIEWER_TEXT_LENGTH - 1).join('')}…`;
 }
 
+type ReviewExecutionOutcome =
+  | {
+      readonly kind: 'completed';
+      readonly output: UnverifiedReviewerOutput;
+      readonly confirmedModel?: ConfirmedReviewerModel;
+    }
+  | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean };
+
 async function executeReview(
   reviewer: ReviewAgent,
   prepared: ReturnType<typeof prepareReviewPacket>,
   model?: string,
   runDeadline?: number,
 ): Promise<{
-  outcome:
-    | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
-    | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean };
+  outcome: ReviewExecutionOutcome;
   sourceChanged: boolean;
   snapshotChanged: boolean;
 }> {
-  let outcome:
-    | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
-    | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean };
+  let outcome: ReviewExecutionOutcome;
   try {
-    const output = await runHeadlessReviewer(
+    const execution = await runHeadlessReviewerWithProvenance(
       reviewer,
       prepared.packet,
       prepared.workspace,
       prepared.sourceRoot,
       { model, runDeadline },
     );
-    outcome = { kind: 'completed', output };
+    outcome = { kind: 'completed', ...execution };
   } catch (error) {
     if (!(error instanceof ReviewRuntimeError)) {
       prepared.cleanup();
@@ -313,19 +331,21 @@ async function executeReview(
 }
 
 function assessReviewOutcome(
-  outcome:
-    | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
-    | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean },
+  outcome: ReviewExecutionOutcome,
   reviewer: ReviewAgent,
   dispatchId: string,
 ):
-  | { readonly kind: 'completed'; readonly output: ReviewerOutput }
+  | {
+      readonly kind: 'completed';
+      readonly output: ReviewerOutput;
+      readonly confirmedModel?: ConfirmedReviewerModel;
+    }
   | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean } {
   if (outcome.kind === 'failed') return outcome;
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   return provenance.kind === 'failed'
     ? { kind: 'failed', failure: provenance.code, terminal: false }
-    : { kind: 'completed', output: provenance.output };
+    : { kind: 'completed', output: provenance.output, confirmedModel: outcome.confirmedModel };
 }
 
 /** How an agent is written for a reader: the product name, not the runtime id. */
@@ -928,6 +948,7 @@ async function runConfiguredRankedRoutes(
         reviewer: route.reviewer,
         output: assessment.output,
         model: route.model,
+        confirmedModel: assessment.confirmedModel,
       });
       return {
         ...result,
@@ -1953,6 +1974,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     reviewer,
     output,
     model: completedModel,
+    confirmedModel: outcome.confirmedModel,
     preferredModel,
     preferredModelFailure,
   });
