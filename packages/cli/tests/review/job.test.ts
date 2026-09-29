@@ -687,6 +687,10 @@ describe('durable review jobs', () => {
       review_kind: 'quality-review',
       review_targets: ['input.md'],
     });
+    expect(
+      (result.data as { reviewer_output?: { evidence_records?: unknown } }).reviewer_output
+        ?.evidence_records,
+    ).toBeUndefined();
   });
 
   it('retains review evidence limits under the job signature', async () => {

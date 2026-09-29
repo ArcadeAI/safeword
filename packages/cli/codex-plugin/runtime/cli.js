@@ -3605,7 +3605,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DISCOVERY.md": "b914910e5cbdd04c6ec25f44315554a6382f974fc8c91c04ed56782758176922",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_EXECUTION.md": "6f031383103dfe880a9c4cd5f14b8e7cf95989bafd579a9ae8450bb1d8216b53",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "32067faf4e8f95926142aea815b5ce7b04e66a1cd0df9f64ae3436df4ad940ba",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "53958b3c8e2120f5d8cfdc8aef9ea7ee85b1d2d759e3e0e50d030f3f2f2ee368",
         ".claude/skills/bdd/SCENARIOS.md": "1e89aa6a46895858cff252d642dd9f7b5853d0fd7dd314aaa75e2ee6046bcddb",
         ".claude/skills/bdd/SKILL.md": "3770f019f5a83fd4ad6dcb2322528595a39545f61cf1106a2f606a8137036d9d",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
@@ -34586,7 +34586,7 @@ var init_contracts_generated = __esm(() => {
     },
     "plan-implementation": {
       relativePath: "templates/skills/bdd/PLAN_IMPLEMENTATION.md",
-      sha256: "32067faf4e8f95926142aea815b5ce7b04e66a1cd0df9f64ae3436df4ad940ba"
+      sha256: "53958b3c8e2120f5d8cfdc8aef9ea7ee85b1d2d759e3e0e50d030f3f2f2ee368"
     },
     "plan-execution": {
       relativePath: "templates/skills/bdd/PLAN_EXECUTION.md",
@@ -34920,179 +34920,6 @@ var init_planning_context_error = __esm(() => {
       this.contextPath = contextPath;
     }
   };
-});
-
-// src/utils/architecture-records.ts
-import { readdirSync as readdirSync9, statSync as statSync4 } from "fs";
-import nodePath47 from "path";
-function listArchitectureRecords(resolvedPath) {
-  let stats;
-  try {
-    stats = statSync4(resolvedPath, { throwIfNoEntry: false });
-  } catch {
-    return { kind: "absent", records: [] };
-  }
-  if (stats?.isFile()) {
-    return { kind: "file", records: [resolvedPath] };
-  }
-  if (stats?.isDirectory()) {
-    const records = readdirSync9(resolvedPath, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md").map((entry) => nodePath47.join(resolvedPath, entry.name));
-    return { kind: "directory", records };
-  }
-  return { kind: "absent", records: [] };
-}
-var init_architecture_records = () => {};
-
-// src/utils/workspace-roots.ts
-var WORKSPACE_ROOTS;
-var init_workspace_roots = __esm(() => {
-  WORKSPACE_ROOTS = ["packages", "apps", "libs", "modules"];
-});
-
-// src/utils/workspaces.ts
-import { readdirSync as readdirSync10 } from "fs";
-import nodePath48 from "path";
-function getWorkspacePatterns(cwd) {
-  const packageJson = readJson(nodePath48.join(cwd, "package.json"));
-  if (!packageJson?.workspaces)
-    return [];
-  return Array.isArray(packageJson.workspaces) ? packageJson.workspaces : packageJson.workspaces.packages ?? [];
-}
-function readPackageName(directory) {
-  const packageJson = readJson(nodePath48.join(directory, "package.json"));
-  return packageJson?.name;
-}
-function listSubdirectories(parentPath) {
-  try {
-    return readdirSync10(parentPath, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith(".")).map((entry) => nodePath48.join(parentPath, entry.name));
-  } catch {
-    return [];
-  }
-}
-function resolvePattern(cwd, pattern) {
-  const isGlob = pattern.endsWith("/*");
-  const basePath = isGlob ? pattern.slice(0, -2) : pattern;
-  const fullPath = nodePath48.join(cwd, basePath);
-  if (!exists(fullPath))
-    return [];
-  return isGlob ? listSubdirectories(fullPath) : [fullPath];
-}
-function getWorkspacePackageNames(cwd) {
-  const patterns = getWorkspacePatterns(cwd);
-  const names = new Set;
-  for (const pattern of patterns) {
-    for (const directory of resolvePattern(cwd, pattern)) {
-      const name = readPackageName(directory);
-      if (name)
-        names.add(name);
-    }
-  }
-  return names;
-}
-var init_workspaces = __esm(() => {
-  init_fs();
-  init_workspace_roots();
-});
-
-// src/utils/feature-source.ts
-import { existsSync as existsSync17, readdirSync as readdirSync11 } from "fs";
-import nodePath49 from "path";
-function slugForTicket(cwd, ticketFolder) {
-  const content = readFileSafe(nodePath49.join(resolveTicketsDirectory(cwd), ticketFolder, "ticket.md"));
-  const slug = readFrontmatterScalar(content, "slug");
-  if (slug !== undefined && slug !== "")
-    return slug;
-  const dashIndex = ticketFolder.indexOf("-");
-  return dashIndex === -1 ? ticketFolder : ticketFolder.slice(dashIndex + 1);
-}
-function featureSourceFileName(cwd, ticketFolder) {
-  return `${slugForTicket(cwd, ticketFolder)}.feature`;
-}
-function findFeatureSourcePath(cwd, ticketFolder, featureFiles = collectExecutableFeatureFiles(cwd)) {
-  const fileName = featureSourceFileName(cwd, ticketFolder);
-  return featureFiles.find((path7) => nodePath49.basename(path7) === fileName);
-}
-function createPhaseAnchorEnvironment(cwd, configuredFeatures) {
-  const featureRoots = ["features"];
-  if (configuredFeatures !== undefined) {
-    const configuredRoot = toRepoDirectory(cwd, configuredFeatures);
-    if (configuredRoot !== undefined && !featureRoots.includes(configuredRoot)) {
-      featureRoots.push(configuredRoot);
-    }
-  }
-  return { featureRoots, workspaceRoots: [...WORKSPACE_ROOTS] };
-}
-function createPhaseAnchorScope(cwd, ticketPath, configuredFeatures) {
-  return {
-    ticketPath: toRepoPath(ticketPath),
-    ...createPhaseAnchorEnvironment(cwd, configuredFeatures)
-  };
-}
-function collectExecutableFeatureFiles(cwd, fileName) {
-  return collectExecutableFeatureDirectories(cwd).flatMap((directory) => findFeatureFiles(directory, fileName));
-}
-function hasDefaultExecutableFeatureFiles(cwd) {
-  return collectDefaultFeatureDirectories(cwd).some((directory) => containsFeatureFile(directory));
-}
-function collectExecutableFeatureDirectories(cwd) {
-  const directories = collectDefaultFeatureDirectories(cwd);
-  const configured = resolveConfiguredLaneDirectory(cwd, "features");
-  if (configured !== undefined && !directories.includes(configured)) {
-    directories.push(configured);
-  }
-  return directories;
-}
-function collectDefaultFeatureDirectories(cwd) {
-  return [
-    nodePath49.join(cwd, "features"),
-    ...WORKSPACE_ROOTS.flatMap((root) => collectWorkspaceFeatureDirectories(nodePath49.join(cwd, root)))
-  ];
-}
-function collectWorkspaceFeatureDirectories(workspaceDirectory) {
-  if (!existsSync17(workspaceDirectory))
-    return [];
-  return readdirSync11(workspaceDirectory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => nodePath49.join(workspaceDirectory, entry.name, "features"));
-}
-function findFeatureFiles(directory, fileName) {
-  let entries;
-  try {
-    entries = readdirSync11(directory, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  const matches = [];
-  for (const entry of entries) {
-    const absolute2 = nodePath49.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      matches.push(...findFeatureFiles(absolute2, fileName));
-    } else if (entry.isFile() && isMatchingFeatureFile(entry.name, fileName)) {
-      matches.push(absolute2);
-    }
-  }
-  return matches.toSorted((a, b) => a.localeCompare(b));
-}
-function containsFeatureFile(directory) {
-  let entries;
-  try {
-    entries = readdirSync11(directory, { withFileTypes: true });
-  } catch {
-    return false;
-  }
-  return entries.some((entry) => {
-    const absolute2 = nodePath49.join(directory, entry.name);
-    return entry.isDirectory() ? containsFeatureFile(absolute2) : entry.isFile() && entry.name.endsWith(".feature");
-  });
-}
-function isMatchingFeatureFile(entryName, fileName) {
-  if (!entryName.endsWith(".feature"))
-    return false;
-  return fileName === undefined || entryName === fileName;
-}
-var init_feature_source = __esm(() => {
-  init_configured_paths();
-  init_fs();
-  init_repo_path();
-  init_workspaces();
 });
 
 // ../../node_modules/.bun/prettier@3.9.6/node_modules/prettier/plugins/markdown.mjs
@@ -51939,9 +51766,39 @@ var init_scenario_coverage = __esm(() => {
   LINEAGE_TAG_TOKEN = /@\S+/g;
 });
 
+// src/review/evidence-record.ts
+function isEvidenceRecord(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
+  const record = value;
+  return Object.keys(record).length === EVIDENCE_RECORD_FIELDS.length && EVIDENCE_RECORD_FIELDS.every((field) => typeof record[field] === "string" && record[field].trim() !== "");
+}
+function isPlanEvidenceRecord(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
+  const { schema_version, ...fields } = value;
+  return schema_version === 1 && isEvidenceRecord(fields);
+}
+var EVIDENCE_RECORD_FIELDS;
+var init_evidence_record = __esm(() => {
+  EVIDENCE_RECORD_FIELDS = [
+    "source_identity",
+    "checked_version",
+    "source_version",
+    "target_version",
+    "supported_claim",
+    "license_identifier",
+    "attribution_notice",
+    "redistribution_limit",
+    "security_limit",
+    "privacy_limit",
+    "reuse_limit"
+  ];
+});
+
 // src/review/planning-context-identity.ts
 import { createHash as createHash21 } from "crypto";
-import nodePath50 from "path";
+import nodePath47 from "path";
 function parseMarkdown(content) {
   const ast = Reflect.apply(ru.markdown.parse, undefined, [content, {}]);
   if (ast === null || typeof ast !== "object" || !("type" in ast) || ast.type !== "root" || !("children" in ast) || !Array.isArray(ast.children)) {
@@ -52068,7 +51925,7 @@ function childRelationship(metadata) {
 }
 function capturedParent(packet, target) {
   const context = packet.context_files ?? [];
-  const ticketPath = nodePath50.join(nodePath50.dirname(target.path), "ticket.md");
+  const ticketPath = nodePath47.join(nodePath47.dirname(target.path), "ticket.md");
   const ticket = context.find((file) => file.path === ticketPath);
   if (ticket === undefined)
     return;
@@ -52076,11 +51933,11 @@ function capturedParent(packet, target) {
   const relationship = childRelationship(metadata);
   if (relationship === undefined)
     return;
-  const parentTickets = context.filter((file) => nodePath50.basename(file.path) === "ticket.md" && file.path !== ticketPath && parseTicketMetadata(file.content).metadata.id === relationship.parent);
+  const parentTickets = context.filter((file) => nodePath47.basename(file.path) === "ticket.md" && file.path !== ticketPath && parseTicketMetadata(file.content).metadata.id === relationship.parent);
   const [parentTicket] = parentTickets;
   if (parentTickets.length !== 1 || parentTicket === undefined)
     throw new Error("Planning child context must have one captured parent ticket.");
-  const parentPath = nodePath50.join(nodePath50.dirname(parentTicket.path), "spec.md");
+  const parentPath = nodePath47.join(nodePath47.dirname(parentTicket.path), "spec.md");
   const parent = context.find((file) => file.path === parentPath);
   if (parent === undefined)
     throw new Error("Planning child context has no captured parent spec.");
@@ -52217,6 +52074,34 @@ function planningEvidenceReferences(content) {
       visit(child);
   }
   return references;
+}
+function parsePlanEvidenceRecord(node) {
+  if (node?.type !== "code" || node.lang !== "json")
+    throw new Error("PlanEvidenceRecordV1 requires an immediately following JSON block.");
+  let candidate;
+  try {
+    candidate = JSON.parse(node.value ?? "");
+  } catch {
+    throw new Error("PlanEvidenceRecordV1 contains invalid JSON.");
+  }
+  if (!isPlanEvidenceRecord(candidate))
+    throw new Error("PlanEvidenceRecordV1 is missing required evidence or reuse limits.");
+  return candidate;
+}
+function planningEvidenceRecords(content) {
+  const nodes = parseMarkdown(content);
+  const records = [];
+  let inDecisions = false;
+  for (const [index, node] of nodes.entries()) {
+    if (node.type !== "heading")
+      continue;
+    if ((node.depth ?? 0) <= 2)
+      inDecisions = node.depth === 2 && headingText(node) === "Decisions";
+    if (!inDecisions || headingText(node) !== "PlanEvidenceRecordV1")
+      continue;
+    records.push(parsePlanEvidenceRecord(nodes[index + 1]));
+  }
+  return records;
 }
 function gherkinIdentity(value) {
   if (Array.isArray(value))
@@ -52403,6 +52288,7 @@ var init_planning_context_identity = __esm(() => {
   init_personas();
   init_scenario_coverage();
   init_ticket_metadata();
+  init_evidence_record();
   init_planning_context_error();
   init_review_rubric();
   nodeTypes = new Set([
@@ -52439,6 +52325,179 @@ var init_planning_context_identity = __esm(() => {
     "Success threshold",
     "Project non-goals"
   ];
+});
+
+// src/utils/architecture-records.ts
+import { readdirSync as readdirSync9, statSync as statSync4 } from "fs";
+import nodePath48 from "path";
+function listArchitectureRecords(resolvedPath) {
+  let stats;
+  try {
+    stats = statSync4(resolvedPath, { throwIfNoEntry: false });
+  } catch {
+    return { kind: "absent", records: [] };
+  }
+  if (stats?.isFile()) {
+    return { kind: "file", records: [resolvedPath] };
+  }
+  if (stats?.isDirectory()) {
+    const records = readdirSync9(resolvedPath, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md").map((entry) => nodePath48.join(resolvedPath, entry.name));
+    return { kind: "directory", records };
+  }
+  return { kind: "absent", records: [] };
+}
+var init_architecture_records = () => {};
+
+// src/utils/workspace-roots.ts
+var WORKSPACE_ROOTS;
+var init_workspace_roots = __esm(() => {
+  WORKSPACE_ROOTS = ["packages", "apps", "libs", "modules"];
+});
+
+// src/utils/workspaces.ts
+import { readdirSync as readdirSync10 } from "fs";
+import nodePath49 from "path";
+function getWorkspacePatterns(cwd) {
+  const packageJson = readJson(nodePath49.join(cwd, "package.json"));
+  if (!packageJson?.workspaces)
+    return [];
+  return Array.isArray(packageJson.workspaces) ? packageJson.workspaces : packageJson.workspaces.packages ?? [];
+}
+function readPackageName(directory) {
+  const packageJson = readJson(nodePath49.join(directory, "package.json"));
+  return packageJson?.name;
+}
+function listSubdirectories(parentPath) {
+  try {
+    return readdirSync10(parentPath, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith(".")).map((entry) => nodePath49.join(parentPath, entry.name));
+  } catch {
+    return [];
+  }
+}
+function resolvePattern(cwd, pattern) {
+  const isGlob = pattern.endsWith("/*");
+  const basePath = isGlob ? pattern.slice(0, -2) : pattern;
+  const fullPath = nodePath49.join(cwd, basePath);
+  if (!exists(fullPath))
+    return [];
+  return isGlob ? listSubdirectories(fullPath) : [fullPath];
+}
+function getWorkspacePackageNames(cwd) {
+  const patterns = getWorkspacePatterns(cwd);
+  const names = new Set;
+  for (const pattern of patterns) {
+    for (const directory of resolvePattern(cwd, pattern)) {
+      const name = readPackageName(directory);
+      if (name)
+        names.add(name);
+    }
+  }
+  return names;
+}
+var init_workspaces = __esm(() => {
+  init_fs();
+  init_workspace_roots();
+});
+
+// src/utils/feature-source.ts
+import { existsSync as existsSync17, readdirSync as readdirSync11 } from "fs";
+import nodePath50 from "path";
+function slugForTicket(cwd, ticketFolder) {
+  const content = readFileSafe(nodePath50.join(resolveTicketsDirectory(cwd), ticketFolder, "ticket.md"));
+  const slug = readFrontmatterScalar(content, "slug");
+  if (slug !== undefined && slug !== "")
+    return slug;
+  const dashIndex = ticketFolder.indexOf("-");
+  return dashIndex === -1 ? ticketFolder : ticketFolder.slice(dashIndex + 1);
+}
+function featureSourceFileName(cwd, ticketFolder) {
+  return `${slugForTicket(cwd, ticketFolder)}.feature`;
+}
+function findFeatureSourcePath(cwd, ticketFolder, featureFiles = collectExecutableFeatureFiles(cwd)) {
+  const fileName = featureSourceFileName(cwd, ticketFolder);
+  return featureFiles.find((path7) => nodePath50.basename(path7) === fileName);
+}
+function createPhaseAnchorEnvironment(cwd, configuredFeatures) {
+  const featureRoots = ["features"];
+  if (configuredFeatures !== undefined) {
+    const configuredRoot = toRepoDirectory(cwd, configuredFeatures);
+    if (configuredRoot !== undefined && !featureRoots.includes(configuredRoot)) {
+      featureRoots.push(configuredRoot);
+    }
+  }
+  return { featureRoots, workspaceRoots: [...WORKSPACE_ROOTS] };
+}
+function createPhaseAnchorScope(cwd, ticketPath, configuredFeatures) {
+  return {
+    ticketPath: toRepoPath(ticketPath),
+    ...createPhaseAnchorEnvironment(cwd, configuredFeatures)
+  };
+}
+function collectExecutableFeatureFiles(cwd, fileName) {
+  return collectExecutableFeatureDirectories(cwd).flatMap((directory) => findFeatureFiles(directory, fileName));
+}
+function hasDefaultExecutableFeatureFiles(cwd) {
+  return collectDefaultFeatureDirectories(cwd).some((directory) => containsFeatureFile(directory));
+}
+function collectExecutableFeatureDirectories(cwd) {
+  const directories = collectDefaultFeatureDirectories(cwd);
+  const configured = resolveConfiguredLaneDirectory(cwd, "features");
+  if (configured !== undefined && !directories.includes(configured)) {
+    directories.push(configured);
+  }
+  return directories;
+}
+function collectDefaultFeatureDirectories(cwd) {
+  return [
+    nodePath50.join(cwd, "features"),
+    ...WORKSPACE_ROOTS.flatMap((root) => collectWorkspaceFeatureDirectories(nodePath50.join(cwd, root)))
+  ];
+}
+function collectWorkspaceFeatureDirectories(workspaceDirectory) {
+  if (!existsSync17(workspaceDirectory))
+    return [];
+  return readdirSync11(workspaceDirectory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => nodePath50.join(workspaceDirectory, entry.name, "features"));
+}
+function findFeatureFiles(directory, fileName) {
+  let entries;
+  try {
+    entries = readdirSync11(directory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const matches = [];
+  for (const entry of entries) {
+    const absolute2 = nodePath50.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      matches.push(...findFeatureFiles(absolute2, fileName));
+    } else if (entry.isFile() && isMatchingFeatureFile(entry.name, fileName)) {
+      matches.push(absolute2);
+    }
+  }
+  return matches.toSorted((a, b) => a.localeCompare(b));
+}
+function containsFeatureFile(directory) {
+  let entries;
+  try {
+    entries = readdirSync11(directory, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  return entries.some((entry) => {
+    const absolute2 = nodePath50.join(directory, entry.name);
+    return entry.isDirectory() ? containsFeatureFile(absolute2) : entry.isFile() && entry.name.endsWith(".feature");
+  });
+}
+function isMatchingFeatureFile(entryName, fileName) {
+  if (!entryName.endsWith(".feature"))
+    return false;
+  return fileName === undefined || entryName === fileName;
+}
+var init_feature_source = __esm(() => {
+  init_configured_paths();
+  init_fs();
+  init_repo_path();
+  init_workspaces();
 });
 
 // src/review/planning-ticket-owner.ts
@@ -53183,7 +53242,7 @@ function readPlanningAuthor(root, phase, identity2) {
   return bytes.toString("utf8");
 }
 function packagedPlanningAuthor(phase) {
-  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "0ebbddb1f470da263e5c48cc2b40e77a9fb2c5031865622038f5a61f6360d83a" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "f5c746dc0cb439cb14f4427dba21dd4a68d2579676fc926224e9985a347b0e9b" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "b14aabaa434b9ce821a8febb42ca11684f8b6dcaf556b0ff60cd42c3d3854822" } };
+  const copies = { "product-plan": { relativePath: "skills/bdd/references/DISCOVERY.md", sha256: "0ebbddb1f470da263e5c48cc2b40e77a9fb2c5031865622038f5a61f6360d83a" }, "plan-implementation": { relativePath: "skills/bdd/references/PLAN_IMPLEMENTATION.md", sha256: "0adb6d458f93c9e829fc3cbefe5644573e2138f15d0ef3e203597f57c2970fd8" }, "plan-execution": { relativePath: "skills/bdd/references/PLAN_EXECUTION.md", sha256: "b14aabaa434b9ce821a8febb42ca11684f8b6dcaf556b0ff60cd42c3d3854822" } };
   return readPlanningAuthor(packageRoot(), phase, copies[phase]);
 }
 function assertActivePlanningAuthorCopy(cwd, phase) {
@@ -53488,6 +53547,13 @@ function packetDispositionContext(kind, context, files) {
     throw new PlanningContextError("ticket", ticket.path);
   }
 }
+function validatePlanEvidenceRecords(kind, files) {
+  if (kind !== "plan-implementation" && kind !== "plan-execution")
+    return;
+  for (const file of files)
+    if (nodePath52.basename(file.path) === "impl-plan.md")
+      planningEvidenceRecords(file.content);
+}
 function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution = {}) {
   if (targets.length + context.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
@@ -53551,6 +53617,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = [], execution =
     for (const target of context)
       rejectDuplicate(target);
     contextFiles = captureFiles(context);
+    validatePlanEvidenceRecords(kind, [...logicalFiles, ...contextFiles]);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);
@@ -53621,6 +53688,7 @@ var init_packet = __esm(() => {
   init_packet_error();
   init_planning_accepted_boundary();
   init_planning_context_error();
+  init_planning_context_identity();
   init_planning_role_context();
   init_planning_ticket_owner();
   init_packet_error();
@@ -54305,7 +54373,7 @@ function hasValidEvidenceRecords(value) {
     return false;
   if (Object.keys(value).some((key) => key !== "schema_version" && key !== "records"))
     return false;
-  return value.records.every((record2) => isRecord8(record2) && Object.keys(record2).length === EVIDENCE_RECORD_FIELDS.length && EVIDENCE_RECORD_FIELDS.every((field) => typeof record2[field] === "string" && record2[field].trim() !== ""));
+  return value.records.every(isEvidenceRecord);
 }
 function hasKindSpecificOutput(value, kind) {
   return kind !== "plan-execution" || (value.planning_destination === "plan-execution" || value.planning_destination === "plan-implementation") && Object.hasOwn(value, "execution_plan_record");
@@ -54325,7 +54393,12 @@ function hasValidReviewerOutputBody(value, kind) {
     return false;
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
 }
-function parseReviewerOutput(reviewer, stdout, kind = "quality-review") {
+function hasRequiredPlanningEvidence(output, kind, planningPhase) {
+  if (kind !== "plan-execution" && kind !== "plan-implementation" && kind !== "scenario-gate" && planningPhase !== "product-plan")
+    return true;
+  return isRecord8(output) && hasValidEvidenceRecords(output.evidence_records);
+}
+function parseReviewerOutput(reviewer, stdout, kind = "quality-review", planningPhase) {
   let output;
   if (reviewer === "claude")
     output = parseClaudeOutput(stdout);
@@ -54333,7 +54406,7 @@ function parseReviewerOutput(reviewer, stdout, kind = "quality-review") {
     output = parseCodexOutput(stdout);
   else
     output = parseOpenCodeOutput(stdout);
-  if (!hasValidReviewerOutputBody(output, kind))
+  if (!hasValidReviewerOutputBody(output, kind) || !hasRequiredPlanningEvidence(output, kind, planningPhase))
     throw new Error("invalid reviewer output");
   return output;
 }
@@ -54351,8 +54424,8 @@ function confirmedClaudeAssistantModel(stdout) {
     return;
   return { provider: "anthropic", model };
 }
-function parseReviewerExecution(reviewer, stdout, kind = "quality-review") {
-  const output = parseReviewerOutput(reviewer, stdout, kind);
+function parseReviewerExecution(reviewer, stdout, kind = "quality-review", planningPhase) {
+  const output = parseReviewerOutput(reviewer, stdout, kind, planningPhase);
   const confirmedModel2 = reviewer === "claude" ? confirmedClaudeAssistantModel(stdout) : undefined;
   return confirmedModel2 === undefined ? { output } : { output, confirmedModel: confirmedModel2 };
 }
@@ -54890,7 +54963,7 @@ function isolatedCodexHome() {
 }
 function codexAppServerReviewOutput(packet, text, confirmedModel2) {
   const event = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text } });
-  const output = parseReviewerOutput("codex", event, packet.kind);
+  const output = parseReviewerOutput("codex", event, packet.kind, packet.planning_phase);
   if (packet.kind !== "plan-execution")
     return { output, confirmedModel: confirmedModel2 };
   const validation = validateExecutionPlanOutput(output, packet.execution_plan_delivery_definition, packet.execution_plan_normalized_digest);
@@ -55131,7 +55204,7 @@ async function runCandidate(executable, attempt, timeoutMs) {
               return;
             }
             try {
-              const parsed2 = parseReviewerExecution(reviewer, stdout, packet.kind);
+              const parsed2 = parseReviewerExecution(reviewer, stdout, packet.kind, packet.planning_phase);
               if (packet.kind !== "plan-execution") {
                 resolve(parsed2);
                 return;
@@ -55222,10 +55295,11 @@ function writeContractFile(kind, planningPhase) {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, EVIDENCE_RECORD_FIELDS, EVIDENCE_RECORDS_SCHEMA, PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE, JSON_NULL2, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA, EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA, EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, NULL_EXECUTION_PLAN_RECORD2, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, EVIDENCE_RECORDS_SCHEMA, PLANNING_REVIEW_OUTPUT_SCHEMA_SHAPE, JSON_NULL2, REVIEW_OUTPUT_SCHEMA, EXECUTION_PLAN_PROOF_SPECIFICATION_SCHEMA, EXECUTION_PLAN_CHECKLIST_ITEM_SCHEMA, EXECUTION_PLAN_DELIVERY_DEFINITION_SCHEMA, EXECUTION_PLAN_RECORD_SCHEMA, EXECUTION_PLAN_REVIEW_OUTPUT_SCHEMA_SHAPE, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, NULL_EXECUTION_PLAN_RECORD2, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_delivery_checklist();
   init_environment();
+  init_evidence_record();
   init_execution_plan_output();
   init_review_rubric();
   init_review_rubric();
@@ -55253,19 +55327,6 @@ var init_runtime = __esm(() => {
     required: ["schema_version", "dispatch_id", "reviewer_agent", "verdict", "summary", "findings"],
     additionalProperties: false
   };
-  EVIDENCE_RECORD_FIELDS = [
-    "source_identity",
-    "checked_version",
-    "source_version",
-    "target_version",
-    "supported_claim",
-    "license_identifier",
-    "attribution_notice",
-    "redistribution_limit",
-    "security_limit",
-    "privacy_limit",
-    "reuse_limit"
-  ];
   EVIDENCE_RECORDS_SCHEMA = {
     type: "object",
     properties: {
@@ -58038,7 +58099,7 @@ function failedHostContinuation(record2, tier, failure) {
   });
 }
 function validatedHostOutput(value, kind, packet, author) {
-  if (!hasValidReviewerOutputBody(value, kind))
+  if (!hasValidReviewerOutputBody(value, kind) || !hasRequiredPlanningEvidence(value, kind, packet.planning_phase))
     return;
   const reviewer = value;
   if (reviewer.dispatch_id !== packet.dispatch_id || reviewer.reviewer_agent !== author)

@@ -39,6 +39,7 @@ import type {
 import { ReviewPacketError } from './packet-error.js';
 import { reviewDispositionContext } from './planning-accepted-boundary.js';
 import { PlanningContextError, type PlanningContextRole } from './planning-context-error.js';
+import { planningEvidenceRecords } from './planning-context-identity.js';
 import { type PlanningRoleContext, resolvePlanningRoleContext } from './planning-role-context.js';
 import { planningTicketOwner } from './planning-ticket-owner.js';
 export { ReviewPacketError } from './packet-error.js';
@@ -787,6 +788,15 @@ function packetDispositionContext(
   }
 }
 
+function validatePlanEvidenceRecords(
+  kind: ReviewKind,
+  files: readonly { readonly path: string; readonly content: string }[],
+): void {
+  if (kind !== 'plan-implementation' && kind !== 'plan-execution') return;
+  for (const file of files)
+    if (nodePath.basename(file.path) === 'impl-plan.md') planningEvidenceRecords(file.content);
+}
+
 function prepareReviewPacketUnsafe(
   cwd: string,
   kind: ReviewKind,
@@ -862,6 +872,7 @@ function prepareReviewPacketUnsafe(
     context = resolvedPlanningContext(canonicalRoot, kind, targets, context, productPlan);
     for (const target of context) rejectDuplicate(target);
     contextFiles = captureFiles(context);
+    validatePlanEvidenceRecords(kind, [...logicalFiles, ...contextFiles]);
     requireScenarioTicketSpec(kind, contextFiles);
     requirePlanWorkArtifact(kind, logicalFiles);
     requireExecutionPlanWorkArtifact(kind, logicalFiles, contextFiles);

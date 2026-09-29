@@ -19,6 +19,13 @@ worktree. Never reuse the spike's experimental code or commits.
 
 1. **Inventory constraints, then sketch candidates.** Read only the public contracts, runtime boundaries, dependency manifests and installed versions, plus known license/security obligations needed to judge comparability. Derive 2–3 candidate approaches without first surveying the local solution.
 2. **Capture Implementation Inspiration.** Ask who has implemented this technical problem exceptionally well under comparable constraints. Favor current primary source, architecture docs, benchmarks, postmortems, and version-matched library docs. Record every decision, choice, alternative, losing reason, evidence reference, retrieval date, and applicable version. Use either the packaged tables or one concise labeled prose/bullet record under `## Decisions` → `### Recorded Decisions`. If no comparable source exists, record the search terms, source types checked, date, and why the available results were unsuitable. Presentation may change; evidence completeness may not. For either table resolution path, make `Decision informed` exactly match the unique `Decision` cell of the affected `### Recorded Decisions` row; on the reference path, the `### Implementation Inspiration` table's `Reference` cell must cite at least one exact URL. Run `$safeword:figure-it-out` for each load-bearing choice.
+
+   For each source actually used in an Implementation Inspiration decision, add
+   the template's `PlanEvidenceRecordV1` beside that entry. State the source
+   identity, checked/source/target versions, supported claim, and declared
+   license, attribution, redistribution, security, privacy, and reuse limits.
+   Use `none_declared` for a limit the source does not declare; never invent it.
+
 3. **Then survey what exists** — after sketching the ideal and comparing candidates, read the generated architecture state doc (`architecture.generated.md` — the machine-owned _what-is_) and the decision record (resolved from `paths.architecture`) for **reuse** candidates. Order matters: surveying first anchors the design to the status quo.
 4. **Reconcile without sunk-cost conformance.** Existing architecture is changeable with a recorded decision, not a constraint to conform to. Reuse what's better; change what's worse — deliberately, with the change recorded (ADR lifecycle below).
 

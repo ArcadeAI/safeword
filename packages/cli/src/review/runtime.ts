@@ -33,6 +33,7 @@ import type {
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js';
+import { EVIDENCE_RECORD_FIELDS, isEvidenceRecord } from './evidence-record.js';
 import { validateExecutionPlanOutput } from './execution-plan-output.js';
 import { EXECUTION_PLAN_REVIEW_RUBRIC_SHA256 } from './execution-plan-rubric.generated.js';
 import { PLAN_REVIEW_RUBRIC_SHA256 } from './plan-rubric.generated.js';
@@ -78,20 +79,6 @@ const REVIEW_OUTPUT_SCHEMA_SHAPE = {
   required: ['schema_version', 'dispatch_id', 'reviewer_agent', 'verdict', 'summary', 'findings'],
   additionalProperties: false,
 } as const;
-
-const EVIDENCE_RECORD_FIELDS = [
-  'source_identity',
-  'checked_version',
-  'source_version',
-  'target_version',
-  'supported_claim',
-  'license_identifier',
-  'attribution_notice',
-  'redistribution_limit',
-  'security_limit',
-  'privacy_limit',
-  'reuse_limit',
-] as const;
 
 const EVIDENCE_RECORDS_SCHEMA = {
   type: 'object',
@@ -673,14 +660,7 @@ function reviewerOutputKeys(kind: ReviewKind): Set<string> {
 function hasValidEvidenceRecords(value: unknown): boolean {
   if (!isRecord(value) || value.schema_version !== 1 || !Array.isArray(value.records)) return false;
   if (Object.keys(value).some(key => key !== 'schema_version' && key !== 'records')) return false;
-  return value.records.every(
-    record =>
-      isRecord(record) &&
-      Object.keys(record).length === EVIDENCE_RECORD_FIELDS.length &&
-      EVIDENCE_RECORD_FIELDS.every(
-        field => typeof record[field] === 'string' && record[field].trim() !== '',
-      ),
-  );
+  return value.records.every(isEvidenceRecord);
 }
 
 function hasKindSpecificOutput(value: Record<string, unknown>, kind: ReviewKind): boolean {

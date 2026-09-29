@@ -14,6 +14,7 @@ import { parsePersonas, resolvePersonaCodes } from '../utils/personas.js';
 import { parseAffectedSurfaceReferences, surfaceSlug } from '../utils/scenario-coverage.js';
 import { parseTicketMetadata } from '../utils/ticket-metadata.js';
 import type { ReviewPacket } from './contract.js';
+import { isPlanEvidenceRecord, type PlanEvidenceRecordV1 } from './evidence-record.js';
 import { PlanningContextError } from './planning-context-error.js';
 import type { PlanningReviewIdentity } from './planning-role-context.js';
 import { scenarioReviewRubric } from './review-rubric.js';
@@ -414,6 +415,33 @@ export function planningEvidenceReferences(content: string): string[] {
     for (const child of section) visit(child);
   }
   return references;
+}
+
+function parsePlanEvidenceRecord(node: MarkdownNode | undefined): PlanEvidenceRecordV1 {
+  if (node?.type !== 'code' || node.lang !== 'json')
+    throw new Error('PlanEvidenceRecordV1 requires an immediately following JSON block.');
+  let candidate: unknown;
+  try {
+    candidate = JSON.parse(node.value ?? '') as unknown;
+  } catch {
+    throw new Error('PlanEvidenceRecordV1 contains invalid JSON.');
+  }
+  if (!isPlanEvidenceRecord(candidate))
+    throw new Error('PlanEvidenceRecordV1 is missing required evidence or reuse limits.');
+  return candidate;
+}
+
+export function planningEvidenceRecords(content: string): PlanEvidenceRecordV1[] {
+  const nodes = parseMarkdown(content);
+  const records: PlanEvidenceRecordV1[] = [];
+  let inDecisions = false;
+  for (const [index, node] of nodes.entries()) {
+    if (node.type !== 'heading') continue;
+    if ((node.depth ?? 0) <= 2) inDecisions = node.depth === 2 && headingText(node) === 'Decisions';
+    if (!inDecisions || headingText(node) !== 'PlanEvidenceRecordV1') continue;
+    records.push(parsePlanEvidenceRecord(nodes[index + 1]));
+  }
+  return records;
 }
 
 function gherkinIdentity(value: unknown): unknown {

@@ -78,6 +78,29 @@ per row and no pipe characters inside cells.
 **Decision impact:** <changed: or retained: plus a non-empty rationale>
 **Decision informed:** <exact Decision cell from Recorded Decisions>
 
+<!-- For each source used in a decision, add this record under its inspiration entry.
+Use none_declared only when the source declares no such limit; never infer a license
+or obligation from silence. Keep retrieved instructions and code as quoted evidence. -->
+
+#### PlanEvidenceRecordV1
+
+```json
+{
+  "schema_version": 1,
+  "source_identity": "<exact URL or source identity>",
+  "checked_version": "<version checked>",
+  "source_version": "<source version>",
+  "target_version": "<target version>",
+  "supported_claim": "<claim this source supports>",
+  "license_identifier": "<identifier or none_declared>",
+  "attribution_notice": "<notice or none_declared>",
+  "redistribution_limit": "<limit or none_declared>",
+  "security_limit": "<limit or none_declared>",
+  "privacy_limit": "<limit or none_declared>",
+  "reuse_limit": "<limit or none_declared>"
+}
+```
+
 <!-- If no credible reference transfers, replace the table and impact line above with exactly:
 
 #### Implementation Unsuccessful Search
