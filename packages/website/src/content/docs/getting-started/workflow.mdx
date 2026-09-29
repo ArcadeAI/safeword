@@ -84,6 +84,23 @@ Safeword runs hooks every turn to track which phase the agent is in. Four of the
 
 </Aside>
 
+Product Plan approval accepts the behavior for scenario definition;
+Implementation Plan approval accepts a coherent design for delivery planning;
+Execution Plan approval accepts a startable, provable delivery sequence. None
+claims that a later phase is complete. Product and Implementation receipts
+bind exact plan bytes and semantic dependencies, including accepted scope and
+prior decisions. Execution review binds normalized decision bytes; ordinary
+Delivery Checklist progress does not stale it. Re-review an affected plan when
+a reviewed decision changes before advancing.
+
+Planning review tries independent routes first. If they fail, `prefer` may
+admit a completed fallback that names its actual reviewer and **reduced
+independence**; `require` stays blocked. Repair the route or select a qualified
+reviewer, then re-review to restore independent assurance. Local Claude Code,
+local Codex, local Cursor, OpenCode CLI/TUI, Claude Code Cloud, and Cursor Cloud
+Agents enforce planning gates. Codex Cloud and OpenCode Desktop are advisory;
+return to an enforced host for authoritative approval.
+
 <footer class="docs-footer">
 
 [GitHub](https://github.com/ArcadeAI/safeword) · MIT License · © 2026
