@@ -308,6 +308,7 @@ async function executeReview(
   prepared: ReturnType<typeof prepareReviewPacket>,
   model?: string,
   runDeadline?: number,
+  retainPrepared = false,
 ): Promise<{
   outcome: ReviewExecutionOutcome;
   sourceChanged: boolean;
@@ -325,7 +326,7 @@ async function executeReview(
     outcome = { kind: 'completed', ...execution };
   } catch (error) {
     if (!(error instanceof ReviewRuntimeError)) {
-      prepared.cleanup();
+      if (!retainPrepared) prepared.cleanup();
       throw error;
     }
     outcome = { kind: 'failed', failure: error.failure, terminal: error.terminal };
@@ -337,7 +338,7 @@ async function executeReview(
       snapshotChanged: prepared.snapshotChanged(),
     };
   } finally {
-    prepared.cleanup();
+    if (!retainPrepared) prepared.cleanup();
   }
 }
 
@@ -840,6 +841,7 @@ async function executeRankedRoute(input: {
   readonly policy: ReviewPolicy;
   readonly route: ReviewRoute;
   readonly runDeadline: number;
+  readonly prepared: ReturnType<typeof prepareReviewPacket>;
 }): Promise<
   ReturnType<typeof assessReviewOutcome> | { readonly kind: 'result'; readonly result: CliResult }
 > {
@@ -848,21 +850,15 @@ async function executeRankedRoute(input: {
   input.run.progress?.start(
     `Requesting ${independentLabel}${agentName(input.route.reviewer)} review${modelLabel}…`,
   );
-  const prepared = prepareReviewPacket(
-    input.run.cwd,
-    input.run.kind,
-    input.run.targets,
-    input.run.context,
-    { attestation: input.run.executionAttestation },
-  );
   input.run.progress?.heartbeat?.(
     `Still waiting for a response from ${agentName(input.route.reviewer)}…`,
   );
   const execution = await executeReview(
     input.route.reviewer,
-    prepared,
+    input.prepared,
     input.route.model,
     input.runDeadline,
+    true,
   );
   const changed = changedReviewResult({
     author: input.author,
@@ -879,7 +875,11 @@ async function executeRankedRoute(input: {
         : [reviewRequest(input.route.reviewer)],
   });
   if (changed !== undefined) return { kind: 'result', result: changed };
-  return assessReviewOutcome(execution.outcome, input.route.reviewer, prepared.packet.dispatch_id);
+  return assessReviewOutcome(
+    execution.outcome,
+    input.route.reviewer,
+    input.prepared.packet.dispatch_id,
+  );
 }
 
 async function runRankedRoutes(
@@ -942,96 +942,104 @@ async function runConfiguredRankedRoutes(
   let unqualified: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
   const runDeadline = Date.now() + runBoundMs();
   const orderedRoutes = orderedReviewRoutes(input.kind, routes);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context, {
+    attestation: input.executionAttestation,
+  });
 
-  for (const [index, route] of orderedRoutes.entries()) {
-    if (shouldSkipRankedRoute(route, degraded, unavailable)) {
-      evidence.push({ ...route, status: 'skipped' });
-      continue;
-    }
-    if (cannotAttemptRankedRoute(input.kind, route, evidence, runDeadline)) {
-      evidence.push(
-        ...orderedRoutes
-          .slice(index)
-          .map(remaining => ({ ...remaining, status: 'unattempted' as const })),
-      );
-      break;
-    }
+  try {
+    for (const [index, route] of orderedRoutes.entries()) {
+      if (shouldSkipRankedRoute(route, degraded, unavailable)) {
+        evidence.push({ ...route, status: 'skipped' });
+        continue;
+      }
+      if (cannotAttemptRankedRoute(input.kind, route, evidence, runDeadline)) {
+        evidence.push(
+          ...orderedRoutes
+            .slice(index)
+            .map(remaining => ({ ...remaining, status: 'unattempted' as const })),
+        );
+        break;
+      }
 
-    const assessment = await executeRankedRoute({
-      run: input,
-      author,
-      policy,
-      route,
-      runDeadline,
-    });
-    if (assessment.kind === 'result') {
-      return {
-        ...assessment.result,
-        effects: {
-          ...assessment.result.effects,
-          network: [...rankedNetworkEffects(evidence), ...assessment.result.effects.network],
-        },
-      };
-    }
-    if (assessment.kind === 'failed') {
-      const result = rankedFailureResult({
+      const assessment = await executeRankedRoute({
         run: input,
         author,
         policy,
         route,
-        remainingRoutes: orderedRoutes.slice(index + 1),
-        failure: assessment,
-        evidence,
-        unavailable,
-        degraded,
-        unqualified,
+        runDeadline,
+        prepared,
       });
-      if (result !== undefined) return result;
-      continue;
-    }
-
-    evidence.push({ ...route, status: 'attempted' });
-    if (route.independence === 'cross-agent') {
-      if (reviewerCapabilityUnknown(input.kind, author, route, assessment.confirmedModel)) {
-        evidence[evidence.length - 1] = {
-          ...route,
-          status: 'attempted',
-          failure: 'reviewer_capability_unknown',
+      if (assessment.kind === 'result') {
+        return {
+          ...assessment.result,
+          effects: {
+            ...assessment.result.effects,
+            network: [...rankedNetworkEffects(evidence), ...assessment.result.effects.network],
+          },
         };
-        unqualified = { output: assessment.output, route };
+      }
+      if (assessment.kind === 'failed') {
+        const result = rankedFailureResult({
+          run: input,
+          author,
+          policy,
+          route,
+          remainingRoutes: orderedRoutes.slice(index + 1),
+          failure: assessment,
+          evidence,
+          unavailable,
+          degraded,
+          unqualified,
+        });
+        if (result !== undefined) return result;
         continue;
       }
-      const result = independentReviewResult({
-        cwd: input.cwd,
-        author,
-        policy,
-        kind: input.kind,
-        targets: input.targets,
-        context: input.context,
-        reviewer: route.reviewer,
-        output: assessment.output,
-        model: route.model,
-        confirmedModel: assessment.confirmedModel,
-      });
-      return {
-        ...result,
-        effects: { ...result.effects, network: rankedNetworkEffects(evidence) },
-        data: { ...(result.data as Record<string, unknown>), review_routes: evidence },
-      };
-    }
-    degraded = { output: assessment.output, route };
-  }
 
-  return rankedExhaustedResult({
-    author,
-    policy,
-    kind: input.kind,
-    targets: input.targets,
-    context: input.context,
-    evidence,
-    degraded,
-    unqualified,
-  });
+      evidence.push({ ...route, status: 'attempted' });
+      if (route.independence === 'cross-agent') {
+        if (reviewerCapabilityUnknown(input.kind, author, route, assessment.confirmedModel)) {
+          evidence[evidence.length - 1] = {
+            ...route,
+            status: 'attempted',
+            failure: 'reviewer_capability_unknown',
+          };
+          unqualified = { output: assessment.output, route };
+          continue;
+        }
+        const result = independentReviewResult({
+          cwd: input.cwd,
+          author,
+          policy,
+          kind: input.kind,
+          targets: input.targets,
+          context: input.context,
+          reviewer: route.reviewer,
+          output: assessment.output,
+          model: route.model,
+          confirmedModel: assessment.confirmedModel,
+        });
+        return {
+          ...result,
+          effects: { ...result.effects, network: rankedNetworkEffects(evidence) },
+          data: { ...(result.data as Record<string, unknown>), review_routes: evidence },
+        };
+      }
+      degraded = { output: assessment.output, route };
+    }
+
+    return rankedExhaustedResult({
+      author,
+      policy,
+      kind: input.kind,
+      targets: input.targets,
+      context: input.context,
+      evidence,
+      degraded,
+      unqualified,
+    });
+  } finally {
+    prepared.cleanup();
+  }
 }
 
 function orderedReviewRoutes(

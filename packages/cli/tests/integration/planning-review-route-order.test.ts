@@ -23,6 +23,7 @@ afterEach(() => {
 function reviewerScript(
   agent: 'claude' | 'codex',
   marker: string,
+  packetPath: string,
   codexFails: boolean,
   codexConfirmed: boolean,
 ): string {
@@ -64,6 +65,7 @@ if (process.argv.includes('--help')) { console.log(${help}); process.exit(0); }
 writeFileSync(${JSON.stringify(marker)}, 'yes');
 ${agent === 'codex' && codexFails ? 'process.exit(7);' : ''}
 function reviewOutput(packet) {
+  writeFileSync(${JSON.stringify(packetPath)}, JSON.stringify(packet));
   return { schema_version: 1, dispatch_id: packet.dispatch_id, reviewer_agent: '${agent}', verdict: 'approve', summary: 'Review approved.', findings: [] };
 }
 ${review}
@@ -121,11 +123,15 @@ it.each([
     const reviewer = createTrustedReviewerDirectory('safeword-route-order-');
     const sameAgentInvoked = nodePath.join(reviewer, 'same-agent-invoked');
     const independentInvoked = nodePath.join(reviewer, 'independent-invoked');
+    const packets = {
+      claude: nodePath.join(reviewer, 'claude-packet.json'),
+      codex: nodePath.join(reviewer, 'codex-packet.json'),
+    };
     for (const agent of ['claude', 'codex'] as const) {
       const marker = agent === 'claude' ? sameAgentInvoked : independentInvoked;
       writeFileSync(
         nodePath.join(reviewer, agent),
-        reviewerScript(agent, marker, codexFails, codexConfirmed),
+        reviewerScript(agent, marker, packets[agent], codexFails, codexConfirmed),
         { mode: 0o755 },
       );
     }
@@ -161,6 +167,9 @@ it.each([
     expect(existsSync(independentInvoked)).toBe(true);
     expect(existsSync(sameAgentInvoked)).toBe(codexFails || (authorKnown && !codexConfirmed));
     if (authorKnown && !codexConfirmed) {
+      expect(JSON.parse(readFileSync(packets.claude, 'utf8'))).toEqual(
+        JSON.parse(readFileSync(packets.codex, 'utf8')),
+      );
       expect(output.data.review_routes).toContainEqual(
         expect.objectContaining({
           reviewer: 'codex',
