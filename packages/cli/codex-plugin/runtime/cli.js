@@ -57167,6 +57167,11 @@ function rankedFailureExplanation(evidence) {
     return `${agentName(route.reviewer)}${model} ${causePhrase(route.failure)}.`;
   }).join(" ");
 }
+function rankedBlockingCode(hasDegraded, hasUnqualified) {
+  if (hasDegraded)
+    return "REVIEW_INDEPENDENCE_REQUIRED";
+  return hasUnqualified ? "REVIEWER_CAPABILITY_UNKNOWN" : "REVIEW_ROUTES_EXHAUSTED";
+}
 function rankedExhaustedResult(input) {
   if (input.degraded !== undefined && input.policy === "prefer") {
     return createResult({
@@ -57195,7 +57200,7 @@ function rankedExhaustedResult(input) {
   const hasDegraded = input.degraded !== undefined;
   const achievedIndependence = hasDegraded ? fallbackIndependence(input.kind) : "none";
   const evaluatedLabel = evaluated.length === 1 ? "route was" : "routes were";
-  const code = hasDegraded ? "REVIEW_INDEPENDENCE_REQUIRED" : "REVIEW_ROUTES_EXHAUSTED";
+  const code = rankedBlockingCode(hasDegraded, input.unqualified !== undefined);
   const failureExplanation = rankedFailureExplanation(input.evidence);
   const failureDetail = failureExplanation === "" ? "" : ` ${failureExplanation}`;
   const message = hasDegraded ? "A same-agent review completed, but the configured independent-review requirement remains unsatisfied." : `${evaluated.length} configured review ${evaluatedLabel} evaluated; no independent check was recorded.${failureDetail}`;
@@ -57208,6 +57213,7 @@ function rankedExhaustedResult(input) {
         message,
         severity: "warning"
       },
+      ...input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output),
       ...hasDegraded ? reviewerFeedback(input.degraded.output) : []
     ],
     effects: { network: rankedNetworkEffects(input.evidence) },
@@ -57225,6 +57231,11 @@ function rankedExhaustedResult(input) {
       review_policy: input.policy,
       independence: achievedIndependence,
       review_routes: input.evidence,
+      ...input.unqualified !== undefined && {
+        capability_failure: "reviewer_capability_unknown",
+        actual_reviewer: input.unqualified.output.reviewer_agent,
+        reviewer_output: input.unqualified.output
+      },
       ...input.degraded !== undefined && {
         assigned_reviewer: input.degraded.route.reviewer,
         actual_reviewer: input.degraded.output.reviewer_agent,
@@ -57291,7 +57302,8 @@ function rankedFailureResult(input) {
     targets: input.run.targets,
     context: input.run.context,
     evidence: input.evidence,
-    degraded: input.degraded
+    degraded: input.degraded,
+    unqualified: input.unqualified
   });
 }
 async function executeRankedRoute(input) {
@@ -57329,10 +57341,17 @@ async function runRankedRoutes(input, author, policy, routes) {
   }
   return runConfiguredRankedRoutes(input, author, policy, routes);
 }
+function cannotAttemptRankedRoute(kind, route, evidence, deadline) {
+  return !canFundRoute(deadline) || planningFallbackLacksIndependentAttempt(kind, route, evidence);
+}
+function reviewerModelUnverified(kind, author, confirmedModel2) {
+  return isPlanningReview(kind) && author === "claude" && process.env[AUTHOR_MODEL_ENV] !== undefined && confirmedModel2 === undefined;
+}
 async function runConfiguredRankedRoutes(input, author, policy, routes) {
   const evidence = [];
   const unavailable = new Set;
   let degraded;
+  let unqualified;
   const runDeadline = Date.now() + runBoundMs();
   const orderedRoutes = orderedReviewRoutes(input.kind, routes);
   for (const [index, route] of orderedRoutes.entries()) {
@@ -57340,7 +57359,7 @@ async function runConfiguredRankedRoutes(input, author, policy, routes) {
       evidence.push({ ...route, status: "skipped" });
       continue;
     }
-    if (!canFundRoute(runDeadline) || planningFallbackLacksIndependentAttempt(input.kind, route, evidence)) {
+    if (cannotAttemptRankedRoute(input.kind, route, evidence, runDeadline)) {
       evidence.push(...orderedRoutes.slice(index).map((remaining) => ({ ...remaining, status: "unattempted" })));
       break;
     }
@@ -57370,7 +57389,8 @@ async function runConfiguredRankedRoutes(input, author, policy, routes) {
         failure: assessment,
         evidence,
         unavailable,
-        degraded
+        degraded,
+        unqualified
       });
       if (result !== undefined)
         return result;
@@ -57378,6 +57398,15 @@ async function runConfiguredRankedRoutes(input, author, policy, routes) {
     }
     evidence.push({ ...route, status: "attempted" });
     if (route.independence === "cross-agent") {
+      if (reviewerModelUnverified(input.kind, author, assessment.confirmedModel)) {
+        evidence[evidence.length - 1] = {
+          ...route,
+          status: "attempted",
+          failure: "reviewer_capability_unknown"
+        };
+        unqualified = { output: assessment.output, route };
+        continue;
+      }
       const result = independentReviewResult({
         cwd: input.cwd,
         author,
@@ -57405,7 +57434,8 @@ async function runConfiguredRankedRoutes(input, author, policy, routes) {
     targets: input.targets,
     context: input.context,
     evidence,
-    degraded
+    degraded,
+    unqualified
   });
 }
 function orderedReviewRoutes(kind, routes) {
@@ -58140,6 +58170,7 @@ var init_coordinator = __esm(() => {
     launch_failed: "could not launch its compatibility check",
     not_authenticated: "is not signed in",
     invalid_output: "gave an answer that could not be accepted",
+    reviewer_capability_unknown: "did not establish a qualified reviewer model",
     REVIEWER_PROVENANCE_MISSING: "gave an answer that did not identify it as the reviewer",
     REVIEWER_PROVENANCE_CONTRADICTORY: "gave an answer that did not identify it as the reviewer"
   };

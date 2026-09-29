@@ -21,13 +21,16 @@ afterEach(() => {
 });
 
 it.each([
-  ['codex', 'prefer'],
-  ['codex', 'require'],
-  ['claude', 'prefer'],
-  ['claude', 'require'],
+  ['codex', 'prefer', undefined],
+  ['codex', 'require', undefined],
+  ['claude', 'prefer', undefined],
+  ['claude', 'require', undefined],
+  ['claude', 'prefer', 'claude-opus-5'],
+  ['claude', 'require', 'claude-opus-5'],
 ] as const)(
-  'labels a %s-authored planning review with unknown author capability under %s',
-  async (author, policy) => {
+  'labels a %s-authored planning review under %s with author model %s',
+  // eslint-disable-next-line complexity -- The host, policy, and model matrix shares one real CLI fixture.
+  async (author, policy, authorModel) => {
     const reviewerAgent = author === 'claude' ? 'codex' : 'claude';
     const project = createTemporaryDirectory();
     projects.push(project);
@@ -57,7 +60,7 @@ it.each([
     mkdirSync(nodePath.join(project, 'features'), { recursive: true });
     writeFileSync(
       nodePath.join(project, 'features/author-capability.feature'),
-      '@author-capability.BU1.R1\nFeature: Capability truth\n  Scenario: Unknown author model\n    Given the host has no verified author model\n    When a different reviewer approves\n    Then independence remains unverified\n',
+      `@author-capability.BU1.R1\nFeature: Capability truth\n  Scenario: Unverified capability\n    Given the author model is ${authorModel ?? 'unknown'}\n    When a different reviewer approves\n    Then independence remains unverified\n`,
     );
     const reviewer = createTrustedReviewerDirectory('safeword-author-capability-');
     const invoked = nodePath.join(reviewer, 'invoked');
@@ -85,23 +88,29 @@ it.each([
           PATH: `${reviewer}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: author,
           SAFEWORD_NO_UPDATE_CHECK: '1',
+          ...(authorModel !== undefined && { SAFEWORD_AUTHOR_MODEL: authorModel }),
         },
       },
     );
     const output = JSON.parse(reviewed.stdout);
-    expect(reviewed.exitCode).toBe(policy === 'prefer' ? 0 : 2);
-    expect(output.state).toBe(policy === 'prefer' ? 'healthy' : 'action_required');
+    const unknownAuthor = authorModel === undefined;
+    expect(reviewed.exitCode).toBe(unknownAuthor && policy === 'prefer' ? 0 : 2);
+    expect(output.state).toBe(unknownAuthor && policy === 'prefer' ? 'healthy' : 'action_required');
     expect(output.data).toMatchObject({
-      status: policy === 'prefer' ? 'approved' : 'blocked',
-      independence: policy === 'prefer' ? 'reduced' : 'none',
+      status: unknownAuthor && policy === 'prefer' ? 'approved' : 'blocked',
+      independence: unknownAuthor && policy === 'prefer' ? 'reduced' : 'none',
       actual_reviewer: reviewerAgent,
       ...(reviewerAgent === 'claude' && {
         confirmed_reviewer_model: { provider: 'anthropic', model: 'claude-opus-5' },
       }),
-      capability_failure: 'author_capability_unknown',
+      capability_failure: unknownAuthor
+        ? 'author_capability_unknown'
+        : 'reviewer_capability_unknown',
     });
     expect(output.findings).toContainEqual(
-      expect.objectContaining({ code: 'AUTHOR_CAPABILITY_UNKNOWN' }),
+      expect.objectContaining({
+        code: unknownAuthor ? 'AUTHOR_CAPABILITY_UNKNOWN' : 'REVIEWER_CAPABILITY_UNKNOWN',
+      }),
     );
     expect(output.findings).toContainEqual(
       expect.objectContaining({ code: 'REVIEWER_FINDING', message: 'Check the migration note.' }),

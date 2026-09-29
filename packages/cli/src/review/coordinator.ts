@@ -378,6 +378,7 @@ const FAILURE_CAUSES: Readonly<Record<string, string>> = {
   launch_failed: 'could not launch its compatibility check',
   not_authenticated: 'is not signed in',
   invalid_output: 'gave an answer that could not be accepted',
+  reviewer_capability_unknown: 'did not establish a qualified reviewer model',
   REVIEWER_PROVENANCE_MISSING: 'gave an answer that did not identify it as the reviewer',
   REVIEWER_PROVENANCE_CONTRADICTORY: 'gave an answer that did not identify it as the reviewer',
 };
@@ -622,9 +623,14 @@ function rankedFailureExplanation(evidence: readonly RankedRouteEvidence[]): str
     .join(' ');
 }
 
+function rankedBlockingCode(hasDegraded: boolean, hasUnqualified: boolean): string {
+  if (hasDegraded) return 'REVIEW_INDEPENDENCE_REQUIRED';
+  return hasUnqualified ? 'REVIEWER_CAPABILITY_UNKNOWN' : 'REVIEW_ROUTES_EXHAUSTED';
+}
+
 // The result mirrors the evidence matrix deliberately; flattening these
 // policy-dependent fields would make degraded proof easier to misreport.
-// eslint-disable-next-line complexity -- Result fields vary together by review policy and proof state.
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Result fields vary together by review policy and proof state.
 function rankedExhaustedResult(input: {
   readonly author: ReviewAgent;
   readonly policy: ReviewPolicy;
@@ -633,6 +639,7 @@ function rankedExhaustedResult(input: {
   readonly context?: readonly string[];
   readonly evidence: readonly RankedRouteEvidence[];
   readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
+  readonly unqualified?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
 }): CliResult {
   if (input.degraded !== undefined && input.policy === 'prefer') {
     return createResult({
@@ -669,7 +676,7 @@ function rankedExhaustedResult(input: {
   const hasDegraded = input.degraded !== undefined;
   const achievedIndependence = hasDegraded ? fallbackIndependence(input.kind) : 'none';
   const evaluatedLabel = evaluated.length === 1 ? 'route was' : 'routes were';
-  const code = hasDegraded ? 'REVIEW_INDEPENDENCE_REQUIRED' : 'REVIEW_ROUTES_EXHAUSTED';
+  const code = rankedBlockingCode(hasDegraded, input.unqualified !== undefined);
   const failureExplanation = rankedFailureExplanation(input.evidence);
   const failureDetail = failureExplanation === '' ? '' : ` ${failureExplanation}`;
   const message = hasDegraded
@@ -687,6 +694,7 @@ function rankedExhaustedResult(input: {
         message,
         severity: 'warning',
       },
+      ...(input.unqualified === undefined ? [] : reviewerFeedback(input.unqualified.output)),
       ...(hasDegraded ? reviewerFeedback(input.degraded.output) : []),
     ],
     effects: { network: rankedNetworkEffects(input.evidence) },
@@ -704,6 +712,11 @@ function rankedExhaustedResult(input: {
       review_policy: input.policy,
       independence: achievedIndependence,
       review_routes: input.evidence,
+      ...(input.unqualified !== undefined && {
+        capability_failure: 'reviewer_capability_unknown',
+        actual_reviewer: input.unqualified.output.reviewer_agent,
+        reviewer_output: input.unqualified.output,
+      }),
       ...(input.degraded !== undefined && {
         assigned_reviewer: input.degraded.route.reviewer,
         actual_reviewer: input.degraded.output.reviewer_agent,
@@ -789,6 +802,7 @@ function rankedFailureResult(input: {
   readonly evidence: RankedRouteEvidence[];
   readonly unavailable: Set<ReviewAgent>;
   readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
+  readonly unqualified?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
 }): CliResult | undefined {
   const terminal = recordRankedFailure(
     input.route,
@@ -811,6 +825,7 @@ function rankedFailureResult(input: {
     context: input.run.context,
     evidence: input.evidence,
     degraded: input.degraded,
+    unqualified: input.unqualified,
   });
 }
 
@@ -881,6 +896,29 @@ async function runRankedRoutes(
   return runConfiguredRankedRoutes(input, author, policy, routes);
 }
 
+function cannotAttemptRankedRoute(
+  kind: ReviewKind,
+  route: ReviewRoute,
+  evidence: readonly RankedRouteEvidence[],
+  deadline: number,
+): boolean {
+  return !canFundRoute(deadline) || planningFallbackLacksIndependentAttempt(kind, route, evidence);
+}
+
+function reviewerModelUnverified(
+  kind: ReviewKind,
+  author: ReviewAgent,
+  confirmedModel: ConfirmedReviewerModel | undefined,
+): boolean {
+  return (
+    isPlanningReview(kind) &&
+    author === 'claude' &&
+    process.env[AUTHOR_MODEL_ENV] !== undefined &&
+    confirmedModel === undefined
+  );
+}
+
+// eslint-disable-next-line sonarjs/cognitive-complexity -- This loop preserves route order across completed, failed, and unqualified reviews.
 async function runConfiguredRankedRoutes(
   input: ReviewRunInput,
   author: ReviewAgent,
@@ -890,6 +928,7 @@ async function runConfiguredRankedRoutes(
   const evidence: RankedRouteEvidence[] = [];
   const unavailable = new Set<ReviewAgent>();
   let degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
+  let unqualified: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
   const runDeadline = Date.now() + runBoundMs();
   const orderedRoutes = orderedReviewRoutes(input.kind, routes);
 
@@ -898,10 +937,7 @@ async function runConfiguredRankedRoutes(
       evidence.push({ ...route, status: 'skipped' });
       continue;
     }
-    if (
-      !canFundRoute(runDeadline) ||
-      planningFallbackLacksIndependentAttempt(input.kind, route, evidence)
-    ) {
+    if (cannotAttemptRankedRoute(input.kind, route, evidence, runDeadline)) {
       evidence.push(
         ...orderedRoutes
           .slice(index)
@@ -937,6 +973,7 @@ async function runConfiguredRankedRoutes(
         evidence,
         unavailable,
         degraded,
+        unqualified,
       });
       if (result !== undefined) return result;
       continue;
@@ -944,6 +981,15 @@ async function runConfiguredRankedRoutes(
 
     evidence.push({ ...route, status: 'attempted' });
     if (route.independence === 'cross-agent') {
+      if (reviewerModelUnverified(input.kind, author, assessment.confirmedModel)) {
+        evidence[evidence.length - 1] = {
+          ...route,
+          status: 'attempted',
+          failure: 'reviewer_capability_unknown',
+        };
+        unqualified = { output: assessment.output, route };
+        continue;
+      }
       const result = independentReviewResult({
         cwd: input.cwd,
         author,
@@ -973,6 +1019,7 @@ async function runConfiguredRankedRoutes(
     context: input.context,
     evidence,
     degraded,
+    unqualified,
   });
 }
 
