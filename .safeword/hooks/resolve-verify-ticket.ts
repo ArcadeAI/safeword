@@ -9,6 +9,7 @@ import { getTicketInfo } from './lib/active-ticket.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { readSessionState } from './lib/quality-state.ts';
 import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
+import { closestDefaultMergeBase } from './lib/closest-base-ref.ts';
 
 export type VerifyTicketResolution =
   | { state: 'resolved'; ticketPath: string; source: 'explicit' | 'session' | 'diff' }
@@ -23,13 +24,6 @@ interface ResolveVerifyTicketOptions {
 type ChangedPathsResult =
   { state: 'available'; paths: string[] } | { state: 'error'; message: string; fatal?: boolean };
 
-const DEFAULT_BASE_REFS = [
-  'refs/remotes/origin/HEAD',
-  'refs/remotes/origin/main',
-  'refs/remotes/origin/master',
-  'refs/heads/main',
-  'refs/heads/master',
-] as const;
 const USAGE = 'Usage: resolve-verify-ticket.ts [project-directory] [--ticket <id>]';
 
 function runGit(projectDirectory: string, args: string[]): { status: number; stdout: string } {
@@ -86,20 +80,15 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
   const hasHead = runGit(projectDirectory, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']);
 
   if (hasHead.status === 0) {
-    const baseRef = DEFAULT_BASE_REFS.find(
-      candidate =>
-        runGit(projectDirectory, ['rev-parse', '--verify', '--quiet', `${candidate}^{commit}`])
-          .status === 0,
-    );
-    if (baseRef === undefined) {
+    const base = closestDefaultMergeBase(projectDirectory);
+    if (base.state === 'missing-ref') {
       return {
         state: 'error',
         message:
           'Unable to determine the current-work Git base; fetch the default branch or pass --ticket <id>',
       };
     }
-    const mergeBase = runGit(projectDirectory, ['merge-base', 'HEAD', baseRef]);
-    if (mergeBase.status !== 0 || mergeBase.stdout.trim() === '') {
+    if (base.state === 'missing-merge-base') {
       return {
         state: 'error',
         message:
@@ -111,7 +100,7 @@ function changedPaths(projectDirectory: string): ChangedPathsResult {
       '--relative',
       '--name-only',
       '-z',
-      `${mergeBase.stdout.trim()}...HEAD`,
+      `${base.sha}...HEAD`,
     ]);
     if (committed.status !== 0) {
       return { state: 'error', message: 'Unable to read committed current-work Git changes' };
