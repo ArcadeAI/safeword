@@ -109,17 +109,21 @@ outlines remain open, so the rule's R/G/R boxes stay unchecked.
 
 ### Scenario: Installed dispatch cannot bypass packet completeness
 
-The four examples now run the Claude Code plugin review hook against a fresh
-CLI-installed local project and its real configuration. Only the external
-reviewer executable is a fixture. Missing personas and the accepted
-Implementation Plan refuse before reviewer execution; a complete
-Implementation packet reaches the reviewer process. A complete Execution
-packet reaches route selection with the accepted upstream role intact, then
-currently blocks because its reviewer admission evidence is stale on this
-branch. The scenario was corrected to claim that packet boundary rather than
-claiming an actual reviewer invocation that route policy cannot make. The
-separate reviewer-admission refresh remains open. Targeted combined R2 result:
-16 scenarios and 768 steps passed. Full feature verification remains open.
+The four examples now run a native plugin review hook against a fresh
+CLI-installed local project and real configuration. Product and Implementation
+use Claude Code; Execution uses a fresh Codex plugin profile installed from this
+checkout, so admitted Claude Opus is a genuinely independent reviewer of the
+Codex-authored plan. Only the external reviewer executable is a fixture.
+Missing personas and the accepted Implementation Plan refuse before reviewer
+execution; complete Implementation and Execution packets reach the reviewer
+process. The stronger Execution case initially failed because the changed
+canonical rubric invalidated its prior admission digest, then because a Claude
+author had no admitted independent Execution route. A live 63-case Claude Opus
+matrix refreshed the admission and regenerated both plugin runtimes; three
+exact-word cue misses were confirmed semantically by a separate calibrated
+Claude Sonnet judge and remain visible in `execution-plan-admission-eval.json`.
+The four installed examples pass 192/192 steps; the combined R2 selection
+passes 16 scenarios and 768 steps. Full feature verification remains open.
 
 - [ ] RED
 - [ ] GREEN

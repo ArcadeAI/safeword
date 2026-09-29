@@ -21,6 +21,7 @@ interface ContextState {
   phase: Phase;
   packetState: string;
   root?: string;
+  codexHome?: string;
   packet?: ReturnType<typeof prepareReviewPacket>['packet'];
   failure?: unknown;
   roleFailures?: { role: string; failure: unknown }[];
@@ -196,6 +197,7 @@ function missingEntryCases(phase: Phase): { role: string; remove: (root: string)
 After(function (this: SafewordWorld) {
   const state = states.get(this);
   if (state?.root) rmSync(state.root, { recursive: true, force: true });
+  if (state?.codexHome) rmSync(state.codexHome, { recursive: true, force: true });
   states.delete(this);
   cleanupTrustedReviewerDirectories();
 });
@@ -297,7 +299,7 @@ When('review dispatch is prepared', function (this: SafewordWorld) {
 });
 
 When(
-  'the Claude Code plugin review hook dispatches from an installed local project with real configuration and collaborators, mocking only the reviewer process boundary',
+  'the native plugin review hook dispatches from an installed local project with real configuration and collaborators, mocking only the reviewer process boundary',
   function (this: SafewordWorld) {
     const state = current(this);
     const root = createProject();
@@ -306,12 +308,29 @@ When(
       path.join(root, 'package.json'),
       '{"name":"review-context-fixture","private":true}\n',
     );
+    const codexHost = state.phase === 'Execution Plan';
+    if (codexHost) state.codexHome = mkdtempSync(path.join(tmpdir(), 'safeword-r2-codex-'));
+    if (state.codexHome) {
+      const environment = { ...process.env, CODEX_HOME: state.codexHome };
+      const marketplace = spawnSync(
+        'codex',
+        ['plugin', 'marketplace', 'add', path.resolve(packageRoot, '../..'), '--json'],
+        { encoding: 'utf8', timeout: 60_000, env: environment },
+      );
+      assert.equal(marketplace.status, 0, `${marketplace.stdout}\n${marketplace.stderr}`);
+      const plugin = spawnSync('codex', ['plugin', 'add', 'safeword@safeword', '--json'], {
+        encoding: 'utf8',
+        timeout: 60_000,
+        env: environment,
+      });
+      assert.equal(plugin.status, 0, `${plugin.stdout}\n${plugin.stderr}`);
+    }
     const installed = spawnSync(
       'bun',
       [
         path.join(packageRoot, 'src/cli.ts'),
         'install',
-        '--agents=claude',
+        codexHost ? '--agents=codex' : '--agents=claude',
         '--no-input',
         '--no-modify',
         '--json',
@@ -322,14 +341,24 @@ When(
         cwd: root,
         encoding: 'utf8',
         timeout: 60_000,
-        env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
+        env: {
+          ...process.env,
+          ...(state.codexHome && { CODEX_HOME: state.codexHome }),
+          SAFEWORD_SKIP_INSTALL: '1',
+          SAFEWORD_SKIP_SKILLS: '1',
+        },
       },
     );
     const installOutput = JSON.parse(installed.stdout) as { errors: unknown[] };
     assert.deepEqual(installOutput.errors, [], `${installed.stdout}\n${installed.stderr}`);
-    const pluginRoot = path.resolve(import.meta.dirname, '../plugin');
-    const hook = path.join(pluginRoot, 'runtime/hooks/run-review.ts');
-    assert.ok(existsSync(hook), 'The review must launch through the Claude plugin hook.');
+    const pluginRoot = codexHost
+      ? path.join(packageRoot, 'codex-plugin')
+      : path.resolve(import.meta.dirname, '../plugin');
+    const hook = path.join(
+      pluginRoot,
+      codexHost ? 'templates/hooks/run-review.ts' : 'runtime/hooks/run-review.ts',
+    );
+    assert.ok(existsSync(hook), 'The review must launch through the native plugin hook.');
     const configPath = path.join(root, '.safeword/config.json');
     const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
     writeFileSync(
@@ -337,12 +366,9 @@ When(
       JSON.stringify({
         ...config,
         crossAgentReview: 'prefer',
-        crossAgentReviewRoutes: {
-          claude:
-            state.phase === 'Execution Plan'
-              ? [{ reviewer: 'opencode' }, { reviewer: 'claude', model: 'opus' }]
-              : [{ reviewer: 'opencode' }],
-        },
+        crossAgentReviewRoutes: codexHost
+          ? { codex: [{ reviewer: 'claude', model: 'opus' }] }
+          : { claude: [{ reviewer: 'opencode' }] },
       }),
     );
     if (state.packetState === 'omits the current personas inventory')
@@ -352,8 +378,28 @@ When(
     const reviewer = createTrustedReviewerDirectory('safeword-r2-installed-');
     const capture = path.join(reviewer, 'packet.json');
     writeFileSync(
-      path.join(reviewer, 'opencode'),
-      String.raw`#!${process.execPath}
+      path.join(reviewer, codexHost ? 'claude' : 'opencode'),
+      codexHost
+        ? String.raw`#!${process.execPath}
+const { writeFileSync } = require('node:fs');
+if (process.argv.includes('--version')) { console.log('claude 1.0.0'); process.exit(0); }
+if (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.claude)}); process.exit(0); }
+let input = ''; process.stdin.setEncoding('utf8');
+process.stdin.on('data', chunk => { input += chunk; });
+process.stdin.on('end', () => {
+  const packet = JSON.parse(input.trim().split('\n').pop());
+  writeFileSync(${JSON.stringify(capture)}, JSON.stringify(packet));
+  const output = { schema_version: 1, dispatch_id: packet.dispatch_id,
+    reviewer_agent: 'claude', verdict: 'request_changes', summary: 'Fixture observed the actual packet.',
+    findings: [{ severity: 'error', message: 'Fixture stops at the reviewer process boundary.' }],
+    evidence_records: { schema_version: 1, records: [] },
+    planning_destination: 'plan-execution', execution_plan_record: null };
+  console.log(JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } }));
+  console.log(JSON.stringify({ type: 'result', subtype: 'success', structured_output: output,
+    modelUsage: { 'claude-opus-5': { canonicalModel: 'claude-opus-5', provider: 'firstParty' } } }));
+});
+`
+        : String.raw`#!${process.execPath}
 const { writeFileSync } = require('node:fs');
 if (process.argv.includes('--version')) { console.log('opencode 1.0.0'); process.exit(0); }
 if (process.argv.includes('--help')) { console.log(${JSON.stringify(REVIEWER_CAPABILITIES.opencode)}); process.exit(0); }
@@ -387,10 +433,11 @@ process.stdin.on('end', () => {
         env: {
           ...process.env,
           PATH: `${reviewer}:${path.dirname(bun.stdout.trim())}:/usr/bin:/bin`,
+          ...(state.codexHome && { CODEX_HOME: state.codexHome }),
           CLAUDE_PROJECT_DIR: root,
           CLAUDE_PLUGIN_ROOT: pluginRoot,
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_AUTHOR_MODEL: 'claude-opus-5',
+          SAFEWORD_AGENT_RUNTIME: codexHost ? 'codex' : 'claude',
+          SAFEWORD_AUTHOR_MODEL: codexHost ? 'gpt-6-astra' : 'claude-opus-5',
         },
       },
     );
@@ -432,29 +479,6 @@ Then(
       'The reviewer must not run without the accepted plan.',
     );
     assert.match(installed.result.stdout, /impl-plan\.md/u);
-  },
-);
-
-Then(
-  'the complete packet reaches reviewer route selection without a context refusal',
-  function (this: SafewordWorld) {
-    const installed = current(this).installed;
-    assert.ok(installed);
-    const output = JSON.parse(installed.result.stdout) as {
-      findings: { code: string }[];
-      data: {
-        status: string;
-        review_identity?: { dependencies: { role: string }[] };
-        review_routes?: { reviewer: string; status: string }[];
-      };
-    };
-    assert.ok(!output.findings.some(finding => finding.code === 'missing_planning_context'));
-    assert.ok(
-      output.data.review_identity?.dependencies.some(
-        dependency => dependency.role === 'accepted-upstream-plan',
-      ),
-    );
-    assert.ok(Array.isArray(output.data.review_routes), 'Review route selection must run.');
   },
 );
 

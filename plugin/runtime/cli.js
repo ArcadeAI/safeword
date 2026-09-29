@@ -32806,7 +32806,7 @@ var EXECUTION_PLAN_ADMISSION_EVIDENCE;
 var init_execution_plan_admission_generated = __esm(() => {
   EXECUTION_PLAN_ADMISSION_EVIDENCE = {
     schema_version: 1,
-    contract_sha256: "4cc38db52651b7073d8677ff89b94d896ba0b2321125d8eaef31c6152543e533",
+    contract_sha256: "0007a2f66fdc391067505a162be398fd6e51c4812b7ba0fef852fb35e854c62b",
     corpus_sha256: "833df049ac3d3cbe119fac7f8ecf43c614e1cf6c4d64b97c4f0781e4ee8f6309",
     identities: [
       {
@@ -52531,6 +52531,12 @@ function captured(files, role, path7) {
     throw new PlanningContextError(role, path7);
   return file;
 }
+function requirePlanningRules(project) {
+  for (const criteria of parseCriteriaIdsByJtbd(project.content).values())
+    if (criteria.ruleIds.length > 0)
+      return;
+  throw new PlanningContextError("rules", project.path);
+}
 function sectionSkip(plan, role) {
   try {
     return planningSkipReason(plan.content, `${role === "data" ? "Data" : "Architecture"} applicability`);
@@ -52671,6 +52677,7 @@ function resolvePlanningRoleContext(cwd, kind, planningPhase, targets, files) {
   } catch {
     throw new PlanningContextError("project", project.path);
   }
+  requirePlanningRules(project);
   const dependencies = [
     { role: "ticket", path: ticketPath },
     { role: "project", path: project.path },
@@ -52734,6 +52741,7 @@ function resolveExecutionRoleContext(cwd, targets, files) {
   } catch {
     throw new PlanningContextError("project", project.path);
   }
+  requirePlanningRules(project);
   const upstreamPath = nodePath51.join(directory, "impl-plan.md");
   const upstream = captured(files, "accepted-upstream-plan", upstreamPath);
   const dependencies = [
@@ -52846,6 +52854,7 @@ function resolveProductRoleContext(cwd, targets, files) {
   } catch {
     throw new PlanningContextError("project", project.path);
   }
+  requirePlanningRules(project);
   return {
     schema_version: 1,
     ticket_id: ticket.id,
@@ -52947,6 +52956,7 @@ var init_planning_role_context = __esm(() => {
   init_architecture_records();
   init_configured_paths();
   init_feature_source();
+  init_scenario_coverage();
   init_ticket_metadata();
   init_planning_context_error();
   init_planning_context_identity();
