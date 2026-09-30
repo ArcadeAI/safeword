@@ -69,15 +69,11 @@ crosses installed CLI dispatch.
 - [ ] GREEN
 - [ ] REFACTOR
 
-The three R1 feature scenarios use named `@proof.vitest` registrations against
-`planning-contract-generation.test.ts`. Each proof exercises a fresh source
-distribution, real contract generators, and the installed project's
-`install`/`upgrade` CLI boundary. On 2026-09-30 the complete file passed 24/24
-tests, the proof manifest passed 51/51 checks, and the scoped Cucumber run
-reported 167 other scenarios undefined. An earlier targeted Cucumber run passed
-these three scenarios and 141 steps; that is historical evidence, not the
-current proof route. The R/G/R checkboxes remain open until review and final
-feature verification are recorded.
+The three R1 feature scenarios now execute against a fresh source distribution,
+real contract generators, and the installed project's `install`/`upgrade` CLI
+boundary. Targeted Cucumber result: 3 scenarios and 141 steps passed. This is
+the public reconciliation proof for R1; the R/G/R checkboxes remain open until
+the scenario review and final feature verification are recorded.
 
 ## Rule: plan-implementability.TBU4.5F5ZZA.R2 — Each review receives its complete phase context
 

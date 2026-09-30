@@ -3,7 +3,7 @@ Feature: Keep plan reviews current and trustworthy
   # skip: Persona-specific wording for every fail-closed message introduced by R2-R6 and R9-R16 is owned and acceptance-tested by K3EBHB R7 and R10.
   # Every judged R7 and R10-R16 semantic-quality scenario uses fixed judge-model and rubric bytes, deterministic sampling settings, and three runs with at least two agreeing correct verdicts; below that threshold is inconclusive and cannot pass. They must not be implemented as structural text checks or mocked verdict echoes.
 
-  @plan-implementability.TBU4.5F5ZZA.R1 @proof.vitest
+  @plan-implementability.TBU4.5F5ZZA.R1
   Rule: plan-implementability.TBU4.5F5ZZA.R1 — Shared clauses are authored once and generated into both contracts
 
     @surface.safeword-cli
