@@ -1361,6 +1361,19 @@ export function expectHookDeny(result: HookResult, reasonShouldContain: string):
   expect(parsed.hookSpecificOutput.permissionDecisionReason).toContain(reasonShouldContain);
 }
 
+/** Bind source-hook fixtures to this checkout; explicit CLI overrides remain available. */
+export function sourceHookEnvironment(
+  cwd: string,
+  environment: Record<string, string | undefined> = {},
+): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: cwd,
+    SAFEWORD_CLI: process.env.SAFEWORD_CLI ?? testCliPath,
+    ...environment,
+  };
+}
+
 /**
  * Spawn an installed hook script with a JSON payload on stdin — the delivery
  * shape Claude Code uses. Shared by the hook integration suites so each file
@@ -1374,7 +1387,7 @@ export function spawnHookScript(
   const result = spawnSync('bun', [hookPath], {
     input: JSON.stringify(payload),
     cwd,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+    env: sourceHookEnvironment(cwd),
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });

@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
+  sourceHookEnvironment,
   TIMEOUT_QUICK,
   writeTestFile,
 } from '../helpers';
@@ -80,7 +81,7 @@ function runStopHook(projectDirectory: string, transcriptPath: string, lastAssis
       last_assistant_message: lastAssistantMessage,
     }),
     cwd: projectDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+    env: sourceHookEnvironment(projectDirectory),
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
