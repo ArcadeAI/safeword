@@ -88,3 +88,51 @@ export function retrospectiveGateDenial(
     return 'Retrospective review gate could not return a verified result.';
   }
 }
+
+/** Closing checks use the signed replay record created by the installed CLI. */
+export function retrospectiveCloseDenial(
+  projectRoot: string,
+  ticketId: string,
+  ledger: string,
+): string | undefined {
+  const command = trustedCommand(projectRoot);
+  if (command === undefined) return 'A trusted installed Safeword CLI is unavailable.';
+  const [executable, ...prefix] = command;
+  const result = spawnSync(
+    executable,
+    [
+      ...prefix,
+      '--json',
+      '--no-input',
+      '--cwd',
+      projectRoot,
+      'review',
+      'gate',
+      'retrospective-close',
+      '--ticket',
+      ticketId,
+      '--ledger',
+      ledger,
+    ],
+    { cwd: projectRoot, encoding: 'utf8', timeout: 10_000, maxBuffer: 1024 * 1024 },
+  );
+  try {
+    const parsed = JSON.parse(result.stdout) as {
+      state?: unknown;
+      findings?: Array<{ message?: unknown }>;
+      data?: { status?: unknown; ticketId?: unknown; ledger?: unknown };
+    };
+    if (
+      result.status === 0 &&
+      parsed.state === 'healthy' &&
+      parsed.data?.status === 'approved' &&
+      parsed.data.ticketId === ticketId &&
+      parsed.data.ledger === ledger
+    )
+      return undefined;
+    const message = parsed.findings?.find(finding => typeof finding.message === 'string')?.message;
+    return typeof message === 'string' ? message : 'Retrospective closing proof is not current.';
+  } catch {
+    return 'Retrospective closing proof could not return a verified result.';
+  }
+}

@@ -104,6 +104,26 @@ export async function retrospectiveGateHandler(invocation: CommandInvocation): P
   });
 }
 
+export async function retrospectiveCloseAttestHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const { ticket, ledger } = invocation.options;
+  if (typeof ticket !== 'string' || typeof ledger !== 'string')
+    return invalidOperand('review attest retrospective-close', 'Ticket and ledger are required.');
+  const { attestRetrospectiveClose } = await import('../review/retrospective-close.js');
+  return attestRetrospectiveClose(invocation.cwd, ticket, ledger);
+}
+
+export async function retrospectiveCloseGateHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const { ticket, ledger } = invocation.options;
+  if (typeof ticket !== 'string' || typeof ledger !== 'string')
+    return invalidOperand('review gate retrospective-close', 'Ticket and ledger are required.');
+  const { retrospectiveCloseGate } = await import('../review/retrospective-close.js');
+  return retrospectiveCloseGate(invocation.cwd, ticket, ledger);
+}
+
 function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
   return typeof value === 'string' && ['claude', 'codex', 'opencode'].includes(value)
     ? (value as 'claude' | 'codex' | 'opencode')

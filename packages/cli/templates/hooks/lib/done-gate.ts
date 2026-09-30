@@ -19,7 +19,7 @@ import nodePath from 'node:path';
 
 import { formatDependencyRecovery, getDependencyReadiness } from './dependency-readiness.js';
 import { parseRetrospectiveAnnotation } from './retrospective-annotation.js';
-import { retrospectiveGateDenial } from './retrospective-gate.js';
+import { retrospectiveCloseDenial } from './retrospective-gate.js';
 import { analyzeScenarioFormat } from './scenario-format.js';
 import { runTests } from './test-runner.js';
 
@@ -49,15 +49,11 @@ function verifiedScenarioView(
     if (annotation?.kind !== 'claim') continue;
     if (scenario === undefined || verified.has(scenario))
       return { content, error: 'Each VERIFIED row needs one unique scenario heading.' };
-    const denial = retrospectiveGateDenial(projectDir, {
-      ticketId,
-      scenario,
-      ledger,
-      eligibilityId: annotation.eligibilityId,
-      proofId: annotation.proofId,
-    });
-    if (denial !== undefined) return { content, error: `VERIFIED ${scenario}: ${denial}` };
     verified.add(scenario);
+  }
+  if (verified.size > 0) {
+    const denial = retrospectiveCloseDenial(projectDir, ticketId, ledger);
+    if (denial !== undefined) return { content, error: `VERIFIED closing proof: ${denial}` };
   }
   scenario = undefined;
   const visible = lines.filter(line => {

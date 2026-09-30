@@ -683,6 +683,44 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
+  command('review attest retrospective-close', 'Replay CKWE2D proofs for closing', 'mutate', {
+    syntax: 'retrospective-close',
+    commandOptions: [
+      { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+      { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'attest',
+        'retrospective-close',
+        '--ticket',
+        'OTHER1',
+        '--ledger',
+        '.project/tickets/OTHER1/test-definitions.md',
+      ],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review gate retrospective-close', 'Check current CKWE2D closing proof', 'observe', {
+    syntax: 'retrospective-close',
+    commandOptions: [
+      { flags: '--ticket <id>', description: 'Ticket claiming retrospective completion' },
+      { flags: '--ledger <path>', description: 'Project-relative scenario ledger' },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'gate',
+        'retrospective-close',
+        '--ticket',
+        'OTHER1',
+        '--ledger',
+        '.project/tickets/OTHER1/test-definitions.md',
+      ],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
   command('review cancel', 'Cancel a durable independent review', 'mutate', {
     syntax: 'cancel [review-id]',
     fixture: {

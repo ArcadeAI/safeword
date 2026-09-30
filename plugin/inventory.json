@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "17a2a4927a62cf69efcbe7f4b1d83a8496df721ea75c6d3cfc1516ffd5b74361"
+      "sha256": "25eebeda41b7b22a5f012c1c0083a947c6aeddc9de46cbb0ee78632c28c4d664"
     },
     {
       "path": "runtime/dispatch.js",
@@ -223,7 +223,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "aecebd948165b43a9feb3fd8a22c6dcc3c96778cc13cd278df5e7ae48b3a65cd"
+      "sha256": "d1c02b428d37173ed7cc76ed8cf9e18385a8aa9c2b0dda0ad4db25ea6d352b54"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -387,7 +387,7 @@
     },
     {
       "path": "runtime/hooks/lib/retrospective-gate.ts",
-      "sha256": "8630675c9408021b7154e36f79cbfb21a201464cad97df4c23554bc9c70b07f9"
+      "sha256": "7c96838305c1d7c520b44d274f63fce45b85b66d730a6419fbcc7da470b58db1"
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
@@ -1167,7 +1167,7 @@
     },
     {
       "path": "templates/hooks/lib/done-gate.ts",
-      "sha256": "aecebd948165b43a9feb3fd8a22c6dcc3c96778cc13cd278df5e7ae48b3a65cd"
+      "sha256": "d1c02b428d37173ed7cc76ed8cf9e18385a8aa9c2b0dda0ad4db25ea6d352b54"
     },
     {
       "path": "templates/hooks/lib/drain-retro-spool.ts",
@@ -1327,7 +1327,7 @@
     },
     {
       "path": "templates/hooks/lib/retrospective-gate.ts",
-      "sha256": "8630675c9408021b7154e36f79cbfb21a201464cad97df4c23554bc9c70b07f9"
+      "sha256": "7c96838305c1d7c520b44d274f63fce45b85b66d730a6419fbcc7da470b58db1"
     },
     {
       "path": "templates/hooks/lib/review-ledger.ts",
