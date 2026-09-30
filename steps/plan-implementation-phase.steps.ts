@@ -507,6 +507,7 @@ function arrangeRepairReviewer(world: PlanWorld, plan: string): void {
   writeFileSync(
     reviewer,
     `#!/bin/sh
+if [ "${'$'}{1:-}" = "--version" ]; then echo 'claude 1.0.0'; exit 0; fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
   echo '${REVIEWER_CAPABILITIES.claude}'
   exit 0
@@ -514,13 +515,13 @@ fi
 payload=$(/bin/cat)
 dispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')
 if printf '%s' "$payload" | /usr/bin/grep -q 'REPAIR_COMPLETE'; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Current exact bytes are complete.","findings":[]}\\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"Current exact bytes are complete.","findings":[],"evidence_records":{"schema_version":1,"records":[]}}\\n' "$dispatch_id"
 elif printf '%s' "$payload" | /usr/bin/grep -q 'REPAIR_EXTERNAL'; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Plan is waiting on its behavior owner.","findings":[{"severity":"error","message":"Pending user decision: choose deny-by-default or cached access. Deny-by-default prevents exposure but reduces availability; cached access preserves availability but can serve stale authority. Resume: ask the user to choose one outcome, record it, then re-run plan review."}]}\\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Plan is waiting on its behavior owner.","findings":[{"severity":"error","message":"Pending user decision: choose deny-by-default or cached access. Deny-by-default prevents exposure but reduces availability; cached access preserves availability but can serve stale authority. Resume: ask the user to choose one outcome, record it, then re-run plan review."}],"evidence_records":{"schema_version":1,"records":[]}}\\n' "$dispatch_id"
 elif printf '%s' "$payload" | /usr/bin/grep -q 'REPAIR_AUTH_MISSING'; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Authorization remains unresolved.","findings":[{"severity":"error","message":"Authorization boundary is still missing; return to repair and decide where every request is checked."}]}\\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Authorization remains unresolved.","findings":[{"severity":"error","message":"Authorization boundary is still missing; return to repair and decide where every request is checked."}],"evidence_records":{"schema_version":1,"records":[]}}\\n' "$dispatch_id"
 else
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Three current design defects block approval.","findings":[{"severity":"error","message":"Authorization boundary is missing."},{"severity":"error","message":"Persisted resource owner conflicts with its policy-service source of truth."},{"severity":"error","message":"Rollback behavior is undecided."}]}\\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"Three current design defects block approval.","findings":[{"severity":"error","message":"Authorization boundary is missing."},{"severity":"error","message":"Persisted resource owner conflicts with its policy-service source of truth."},{"severity":"error","message":"Rollback behavior is undecided."}],"evidence_records":{"schema_version":1,"records":[]}}\\n' "$dispatch_id"
 fi
 `,
   );
@@ -588,7 +589,7 @@ function arrangeArchitectureReceipt(world: PlanWorld): void {
   const reviewer = nodePath.join(world.reviewerBinDirectory, 'claude');
   writeFileSync(
     reviewer,
-    `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then\n  echo '${REVIEWER_CAPABILITIES.claude}'\n  exit 0\nfi\npayload=$(/bin/cat)\ndispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"The architecture decision needs attention.","findings":[{"severity":"error","message":"The shared-contract choice needs a resolvable durable architecture record; impl-plan.md has no configured architecture link."}]}\\n' "$dispatch_id"\n`,
+    `#!/bin/sh\nif [ "${'$'}{1:-}" = "--version" ]; then echo 'claude 1.0.0'; exit 0; fi\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then\n  echo '${REVIEWER_CAPABILITIES.claude}'\n  exit 0\nfi\npayload=$(/bin/cat)\ndispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"request_changes","summary":"The architecture decision needs attention.","findings":[{"severity":"error","message":"The shared-contract choice needs a resolvable durable architecture record; impl-plan.md has no configured architecture link."}],"evidence_records":{"schema_version":1,"records":[]}}\\n' "$dispatch_id"\n`,
   );
   chmodSync(reviewer, 0o755);
 }
@@ -889,7 +890,7 @@ Given(
     const reviewer = nodePath.join(this.reviewerBinDirectory, 'claude');
     writeFileSync(
       reviewer,
-      `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then\n  echo '${REVIEWER_CAPABILITIES.claude}'\n  exit 0\nfi\nprintf 'invoked\\n' >> "$SAFEWORD_REVIEW_LAUNCH_LOG"\npayload=$(/bin/cat)\ndispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"The plan is otherwise reviewable.","findings":[]}\\n' "$dispatch_id"\n`,
+      `#!/bin/sh\nif [ "${'$'}{1:-}" = "--version" ]; then echo 'claude 1.0.0'; exit 0; fi\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then\n  echo '${REVIEWER_CAPABILITIES.claude}'\n  exit 0\nfi\nprintf 'invoked\\n' >> "$SAFEWORD_REVIEW_LAUNCH_LOG"\npayload=$(/bin/cat)\ndispatch_id=$(printf '%s' "$payload" | /usr/bin/sed -n 's/.*"dispatch_id":"\\([^"]*\\)".*/\\1/p')\nprintf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdict":"approve","summary":"The plan is otherwise reviewable.","findings":[],"evidence_records":{"schema_version":1,"records":[]}}\\n' "$dispatch_id"\n`,
     );
     chmodSync(reviewer, 0o755);
   },
