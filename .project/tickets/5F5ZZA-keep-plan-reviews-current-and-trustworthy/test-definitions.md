@@ -405,6 +405,17 @@ the adjacent phase-gate pair passes 33. The full 5F5ZZA feature still reports
 37 passed, 133 undefined, and no failed scenarios. This proves one installed
 authoring path, not every copy or the complete outline.
 
+Follow-on authoring proof covers canonical, changed, and absent copies for all
+three planning artifacts in one installed Cursor fixture (`91e56c16e`,
+`fec12370a`). A separate RED review
+`96c0e718-786a-4bce-964d-3a332fe99cd5` approved the observed missing
+human-facing refusal; commits `d2cbc2784` and `b3e615904` make the named
+copy finding visible to the author. All 16 owning tests and lint pass. External
+quality review `61ae018b-ab43-44e1-b6dd-e9647da18fe2` approved the current
+hook and tests with no errors. This remains supporting installed-authoring
+evidence; full reviewer-copy and host admission coverage, and the Cucumber
+outline, are still open.
+
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
