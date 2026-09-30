@@ -148,6 +148,33 @@ describe('semantic planning context currency through public review status', () =
     const review = await fixture();
     expect(await review.status()).toBe('approved');
   });
+  it('accepts math in selected Product context and tracks its meaning', async () => {
+    const review = await fixture(project => {
+      const path = nodePath.join(project, parentSpec);
+      writeFileSync(
+        path,
+        readFileSync(path, 'utf8').replace(
+          'Approval authenticates the current source.',
+          () => 'Approval authenticates the current source for $5 to $10.',
+        ),
+      );
+    });
+    review.edit(parentSpec, text => text.replace('$5 to $10', () => '$5 to $11'));
+    expect(await review.status()).toBe('stale');
+  });
+  it('tracks a footnote definition referenced by selected Product context', async () => {
+    const review = await fixture(project => {
+      const path = nodePath.join(project, parentSpec);
+      writeFileSync(
+        path,
+        `${readFileSync(path, 'utf8').replace('Approval authenticates the current source.', 'Approval authenticates the current source.[^source]')}\n[^source]: Evidence requires current approval.\n`,
+      );
+    });
+    review.edit(parentSpec, text =>
+      text.replace('Evidence requires current approval.', 'Evidence permits anonymous approval.'),
+    );
+    expect(await review.status()).toBe('stale');
+  });
   it('keeps approval when an unrelated persona name overlaps the referenced persona', async () => {
     const review = await fixture(project => {
       const personas = nodePath.join(project, '.project/personas.md');
