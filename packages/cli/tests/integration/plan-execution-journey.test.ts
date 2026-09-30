@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -237,27 +238,24 @@ function runPreTool(
   input: Record<string, unknown>,
   reviewKeyRoot: string,
   receiptPluginRoot: string,
+  cli = PACKAGED_CLI,
 ) {
-  return spawnSync(
-    process.execPath,
-    [PACKAGED_CLI, 'hook', 'codex', 'pre-tool-use', '--plugin-hook'],
-    {
-      cwd: root,
-      input: JSON.stringify({
-        hook_event_name: 'PreToolUse',
-        session_id: SESSION_ID,
-        ...input,
-      }),
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        CLAUDE_PLUGIN_ROOT: receiptPluginRoot,
-        CLAUDE_PROJECT_DIR: root,
-        NODE_ENV: 'test',
-        SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
-      },
+  return spawnSync(process.execPath, [cli, 'hook', 'codex', 'pre-tool-use', '--plugin-hook'], {
+    cwd: root,
+    input: JSON.stringify({
+      hook_event_name: 'PreToolUse',
+      session_id: SESSION_ID,
+      ...input,
+    }),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: receiptPluginRoot,
+      CLAUDE_PROJECT_DIR: root,
+      NODE_ENV: 'test',
+      SAFEWORD_REVIEW_KEY_ROOT: reviewKeyRoot,
     },
-  );
+  });
 }
 
 describe('Execution Plan cold-start journey', () => {
@@ -419,6 +417,10 @@ describe('Execution Plan cold-start journey', () => {
         nodePath.join(receiptPluginRoot, 'templates'),
         { recursive: true },
       );
+      symlinkSync(
+        nodePath.resolve(nodePath.dirname(PACKAGED_CLI), '../node_modules'),
+        nodePath.join(receiptPluginRoot, 'node_modules'),
+      );
       const reviewKeyRoot = nodePath.join(root, '.review-keys');
 
       const unstartablePlan = executionPlanWithUnstartableFourthStep();
@@ -579,6 +581,57 @@ describe('Execution Plan cold-start journey', () => {
         receiptPluginRoot,
       );
       expectHookAllow(advance);
+      const copiedCli = nodePath.join(receiptPluginRoot, 'runtime/cli.js');
+      const copiedAdvance = runPreTool(
+        root,
+        {
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: ticketPath,
+            old_string: 'phase: plan-execution',
+            new_string: 'phase: implement',
+          },
+        },
+        reviewKeyRoot,
+        receiptPluginRoot,
+        copiedCli,
+      );
+      expect(copiedAdvance.status, `${copiedAdvance.stdout}\n${copiedAdvance.stderr}`).toBe(0);
+      expectHookAllow(copiedAdvance);
+      const executionContract = nodePath.join(
+        receiptPluginRoot,
+        'templates/skills/bdd/PLAN_EXECUTION.md',
+      );
+      writeFileSync(
+        executionContract,
+        `<!-- copied Execution contract drift -->\n${readFileSync(executionContract, 'utf8')}`,
+      );
+      const driftedAdvance = runPreTool(
+        root,
+        {
+          tool_name: 'Edit',
+          tool_input: {
+            file_path: ticketPath,
+            old_string: 'phase: plan-execution',
+            new_string: 'phase: implement',
+          },
+        },
+        reviewKeyRoot,
+        receiptPluginRoot,
+        copiedCli,
+      );
+      expect(driftedAdvance.status, driftedAdvance.stderr).toBe(0);
+      const driftedGate = JSON.parse(driftedAdvance.stdout) as {
+        hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string };
+      };
+      expect(driftedGate.hookSpecificOutput?.permissionDecision).toBe('deny');
+      expect(
+        driftedGate.hookSpecificOutput?.permissionDecisionReason,
+        'execution phase must name drifted contract before admission',
+      ).toContain('canonical_contract_copy_mismatch');
+      expect(driftedGate.hookSpecificOutput?.permissionDecisionReason).toContain(
+        'PLAN_EXECUTION.md',
+      );
       writeFileSync(
         ticketPath,
         readFileSync(ticketPath, 'utf8').replace('phase: plan-execution', 'phase: implement'),
